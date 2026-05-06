@@ -14,9 +14,9 @@ import { Route as LolRouteImport } from './routes/lol'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LolIndexRouteImport } from './routes/lol/index'
 import { Route as LolTrendsRouteImport } from './routes/lol/trends'
-import { Route as LolMatchesRouteImport } from './routes/lol/matches'
 import { Route as LolChampionsRouteImport } from './routes/lol/champions'
-import { Route as LolMatchesMatchIdRouteImport } from './routes/lol/matches.$matchId'
+import { Route as LolMatchesIndexRouteImport } from './routes/lol/matches/index'
+import { Route as LolMatchesMatchIdRouteImport } from './routes/lol/matches/$matchId'
 
 const SteamRoute = SteamRouteImport.update({
   id: '/steam',
@@ -43,20 +43,20 @@ const LolTrendsRoute = LolTrendsRouteImport.update({
   path: '/trends',
   getParentRoute: () => LolRoute,
 } as any)
-const LolMatchesRoute = LolMatchesRouteImport.update({
-  id: '/matches',
-  path: '/matches',
-  getParentRoute: () => LolRoute,
-} as any)
 const LolChampionsRoute = LolChampionsRouteImport.update({
   id: '/champions',
   path: '/champions',
   getParentRoute: () => LolRoute,
 } as any)
+const LolMatchesIndexRoute = LolMatchesIndexRouteImport.update({
+  id: '/matches/',
+  path: '/matches/',
+  getParentRoute: () => LolRoute,
+} as any)
 const LolMatchesMatchIdRoute = LolMatchesMatchIdRouteImport.update({
-  id: '/$matchId',
-  path: '/$matchId',
-  getParentRoute: () => LolMatchesRoute,
+  id: '/matches/$matchId',
+  path: '/matches/$matchId',
+  getParentRoute: () => LolRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -64,19 +64,19 @@ export interface FileRoutesByFullPath {
   '/lol': typeof LolRouteWithChildren
   '/steam': typeof SteamRoute
   '/lol/champions': typeof LolChampionsRoute
-  '/lol/matches': typeof LolMatchesRouteWithChildren
   '/lol/trends': typeof LolTrendsRoute
   '/lol/': typeof LolIndexRoute
   '/lol/matches/$matchId': typeof LolMatchesMatchIdRoute
+  '/lol/matches/': typeof LolMatchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/steam': typeof SteamRoute
   '/lol/champions': typeof LolChampionsRoute
-  '/lol/matches': typeof LolMatchesRouteWithChildren
   '/lol/trends': typeof LolTrendsRoute
   '/lol': typeof LolIndexRoute
   '/lol/matches/$matchId': typeof LolMatchesMatchIdRoute
+  '/lol/matches': typeof LolMatchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -84,10 +84,10 @@ export interface FileRoutesById {
   '/lol': typeof LolRouteWithChildren
   '/steam': typeof SteamRoute
   '/lol/champions': typeof LolChampionsRoute
-  '/lol/matches': typeof LolMatchesRouteWithChildren
   '/lol/trends': typeof LolTrendsRoute
   '/lol/': typeof LolIndexRoute
   '/lol/matches/$matchId': typeof LolMatchesMatchIdRoute
+  '/lol/matches/': typeof LolMatchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,29 +96,29 @@ export interface FileRouteTypes {
     | '/lol'
     | '/steam'
     | '/lol/champions'
-    | '/lol/matches'
     | '/lol/trends'
     | '/lol/'
     | '/lol/matches/$matchId'
+    | '/lol/matches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/steam'
     | '/lol/champions'
-    | '/lol/matches'
     | '/lol/trends'
     | '/lol'
     | '/lol/matches/$matchId'
+    | '/lol/matches'
   id:
     | '__root__'
     | '/'
     | '/lol'
     | '/steam'
     | '/lol/champions'
-    | '/lol/matches'
     | '/lol/trends'
     | '/lol/'
     | '/lol/matches/$matchId'
+    | '/lol/matches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -164,13 +164,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolTrendsRouteImport
       parentRoute: typeof LolRoute
     }
-    '/lol/matches': {
-      id: '/lol/matches'
-      path: '/matches'
-      fullPath: '/lol/matches'
-      preLoaderRoute: typeof LolMatchesRouteImport
-      parentRoute: typeof LolRoute
-    }
     '/lol/champions': {
       id: '/lol/champions'
       path: '/champions'
@@ -178,40 +171,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolChampionsRouteImport
       parentRoute: typeof LolRoute
     }
+    '/lol/matches/': {
+      id: '/lol/matches/'
+      path: '/matches'
+      fullPath: '/lol/matches/'
+      preLoaderRoute: typeof LolMatchesIndexRouteImport
+      parentRoute: typeof LolRoute
+    }
     '/lol/matches/$matchId': {
       id: '/lol/matches/$matchId'
-      path: '/$matchId'
+      path: '/matches/$matchId'
       fullPath: '/lol/matches/$matchId'
       preLoaderRoute: typeof LolMatchesMatchIdRouteImport
-      parentRoute: typeof LolMatchesRoute
+      parentRoute: typeof LolRoute
     }
   }
 }
 
-interface LolMatchesRouteChildren {
-  LolMatchesMatchIdRoute: typeof LolMatchesMatchIdRoute
-}
-
-const LolMatchesRouteChildren: LolMatchesRouteChildren = {
-  LolMatchesMatchIdRoute: LolMatchesMatchIdRoute,
-}
-
-const LolMatchesRouteWithChildren = LolMatchesRoute._addFileChildren(
-  LolMatchesRouteChildren,
-)
-
 interface LolRouteChildren {
   LolChampionsRoute: typeof LolChampionsRoute
-  LolMatchesRoute: typeof LolMatchesRouteWithChildren
   LolTrendsRoute: typeof LolTrendsRoute
   LolIndexRoute: typeof LolIndexRoute
+  LolMatchesMatchIdRoute: typeof LolMatchesMatchIdRoute
+  LolMatchesIndexRoute: typeof LolMatchesIndexRoute
 }
 
 const LolRouteChildren: LolRouteChildren = {
   LolChampionsRoute: LolChampionsRoute,
-  LolMatchesRoute: LolMatchesRouteWithChildren,
   LolTrendsRoute: LolTrendsRoute,
   LolIndexRoute: LolIndexRoute,
+  LolMatchesMatchIdRoute: LolMatchesMatchIdRoute,
+  LolMatchesIndexRoute: LolMatchesIndexRoute,
 }
 
 const LolRouteWithChildren = LolRoute._addFileChildren(LolRouteChildren)

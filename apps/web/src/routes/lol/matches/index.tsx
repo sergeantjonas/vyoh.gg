@@ -1,11 +1,11 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useMe } from "@/identity/use-me";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/lol/matches")({
+export const Route = createFileRoute("/lol/matches/")({
   component: MatchesPage,
 });
 
@@ -20,7 +20,11 @@ function MatchesPage() {
       {matches.isError && (
         <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-destructive">{matches.error.message}</p>
-          <Button variant="outline" size="sm" onClick={() => matches.refetch()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => matches.refetch()}
+          >
             Try again
           </Button>
         </div>
