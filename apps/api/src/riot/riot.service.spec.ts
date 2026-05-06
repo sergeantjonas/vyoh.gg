@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RiotError } from "./riot.error";
 import { RiotService } from "./riot.service";
 
 const ORIGINAL_KEY = process.env.RIOT_API_KEY;
@@ -31,14 +32,18 @@ describe("RiotService.getAccountByRiotId", () => {
     );
   });
 
-  it("throws with status code on non-200", async () => {
+  it("throws RiotError with the upstream status code on non-200", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(null, { status: 404, statusText: "Not Found" })
     );
     const service = new RiotService();
-    await expect(service.getAccountByRiotId("Foo", "Bar", "europe")).rejects.toThrow(
-      /404/
-    );
+    const error = await service
+      .getAccountByRiotId("Foo", "Bar", "europe")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RiotError);
+    expect((error as RiotError).status).toBe(404);
+    expect((error as RiotError).path).toContain("/accounts/by-riot-id/Foo/Bar");
   });
 });
 
@@ -83,5 +88,15 @@ describe("RiotService.getMatchById", () => {
     const service = new RiotService();
     const match = await service.getMatchById("EUW1_1", "europe");
     expect(match).toEqual(matchData);
+  });
+
+  it("throws RiotError with status 429 when rate limited", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(null, { status: 429, statusText: "Too Many Requests" })
+    );
+    const service = new RiotService();
+    const error = await service.getMatchById("EUW1_1", "europe").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(RiotError);
+    expect((error as RiotError).status).toBe(429);
   });
 });

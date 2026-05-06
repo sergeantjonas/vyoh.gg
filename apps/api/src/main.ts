@@ -2,12 +2,14 @@ import "dotenv/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { requireEnv } from "./env";
+import { RiotExceptionFilter } from "./riot/riot.exception-filter";
 
 async function bootstrap() {
   requireEnv("DATABASE_URL");
   requireEnv("RIOT_API_KEY");
 
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new RiotExceptionFilter());
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? "http://localhost:2009",
   });

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { requireEnv } from "../env";
 import type { Regional } from "./regions";
+import { RiotError } from "./riot.error";
 import type { RiotAccount, RiotMatch } from "./types";
 
 @Injectable()
@@ -47,7 +48,11 @@ export class RiotService {
       headers: { "X-Riot-Token": this.apiKey },
     });
     if (!res.ok) {
-      throw new Error(`Riot API ${res.status} ${res.statusText} on ${path}`);
+      throw new RiotError(
+        `Riot API ${res.status} ${res.statusText} on ${path}`,
+        res.status,
+        path
+      );
     }
     return res.json() as Promise<T>;
   }
