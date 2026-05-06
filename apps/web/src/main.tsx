@@ -1,5 +1,6 @@
 import { HttpError } from "@/lib/http-error";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { LazyMotion, domAnimation } from "motion/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
@@ -26,7 +27,9 @@ if (!rootElement) throw new Error("Root element #root not found in index.html");
 createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <LazyMotion features={domAnimation}>
+        <App />
+      </LazyMotion>
     </QueryClientProvider>
   </StrictMode>
 );
