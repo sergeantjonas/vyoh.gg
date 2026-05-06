@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MatchList } from "@/lol/match-list";
+import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
 import { useState } from "react";
 
@@ -11,6 +12,9 @@ function App() {
   const [tagLine, setTagLine] = useState("");
   const [submitted, setSubmitted] = useState({ gameName: "", tagLine: "" });
   const matches = useMatches(REGION, submitted.gameName, submitted.tagLine);
+
+  const isLoading =
+    matches.isPending && submitted.gameName.length > 0 && submitted.tagLine.length > 0;
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
@@ -47,11 +51,14 @@ function App() {
           <Button type="submit">Search</Button>
         </form>
 
-        {matches.isPending && submitted.gameName && submitted.tagLine && (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        )}
+        {isLoading && <MatchListSkeleton />}
         {matches.isError && (
-          <p className="text-sm text-destructive">{matches.error.message}</p>
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-destructive">{matches.error.message}</p>
+            <Button variant="outline" size="sm" onClick={() => matches.refetch()}>
+              Try again
+            </Button>
+          </div>
         )}
         {matches.data && <MatchList matches={matches.data} />}
       </div>
