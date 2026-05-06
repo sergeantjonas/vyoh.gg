@@ -1,3 +1,4 @@
+import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { MatchSummary } from "@vyoh/shared";
 
@@ -11,7 +12,9 @@ async function fetchMatches(
   const res = await fetch(
     `${API_URL}/lol/summoners/${encodeURIComponent(region)}/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}/matches`
   );
-  if (!res.ok) throw new Error(`Failed to load matches (HTTP ${res.status})`);
+  if (!res.ok) {
+    throw new HttpError(res.status, `Failed to load matches (HTTP ${res.status})`);
+  }
   return res.json();
 }
 

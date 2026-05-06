@@ -1,3 +1,4 @@
+import { HttpError } from "@/lib/http-error";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -9,6 +10,12 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000,
       refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
+          return false;
+        }
+        return failureCount < 3;
+      },
     },
   },
 });
