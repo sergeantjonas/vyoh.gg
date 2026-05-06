@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   check:
-    name: Lint, format, and typecheck
+    name: Lint, format, typecheck, and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -27,3 +27,5 @@ jobs:
       - run: pnpm ci:check
 
       - run: pnpm typecheck
+
+      - run: pnpm -r test
