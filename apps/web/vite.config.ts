@@ -10,4 +10,8 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  server: {
+    port: 2009,
+    strictPort: true,
+  },
 });
