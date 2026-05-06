@@ -60,22 +60,47 @@ CI runs `pnpm ci:check` (Biome in non-writing CI mode) and `pnpm typecheck` on e
 
 Web bundle size is a deliberate, ongoing budget. Each layer of the bootstrap was recorded so future regressions show up against a real baseline rather than a vibe:
 
-| State                       |   JS gzip |   CSS gzip |  Build |
-| --------------------------- | --------: | ---------: | -----: |
-| empty React app             |  60.06 kB |          — |   85ms |
-| + Tailwind v4               |  60.16 kB |    1.77 kB |  112ms |
-| + shadcn/ui (Button)        |  70.28 kB |    4.43 kB |  172ms |
-| + motion (intro animation)  | 109.33 kB |    4.59 kB |  220ms |
+| State                                  |   JS gzip |   CSS gzip |  Build |
+| --------------------------------------- | --------: | ---------: | -----: |
+| empty React app                         |  60.06 kB |          — |   85ms |
+| + Tailwind v4                           |  60.16 kB |    1.77 kB |  112ms |
+| + shadcn/ui (Button)                    |  70.28 kB |    4.43 kB |  172ms |
+| + motion (intro animation)              | 109.33 kB |    4.59 kB |  220ms |
+| + vertical slice (TanStack Query, Input)| 120.45 kB |    5.28 kB |  221ms |
 
 Plus the Geist variable font, split into per-script woff2 files: Latin 28.4 kB, Latin-ext 15.3 kB, Cyrillic 14.7 kB — only the matching locale loads per visitor.
 
 The biggest single jump is `motion/react` (+39 kB gzip). It's accepted at the bootstrap stage because there are no routes yet to code-split against; the natural moment to revisit is when the router lands. `LazyMotion` + per-route code splitting are both on the table.
 
-## Engineering case studies (in progress)
+## Engineering case studies
 
-Each of these is a real problem this app has to solve, with the actual numbers and trade-offs from this repo. They get written up as the work happens, not before:
+### Riot API: rate-limit-aware fetching
 
-- **Riot API rate-limit strategy** — request budgeting, backoff, Redis-backed queueing
+Riot's developer keys allow **20 requests/second and 100 requests/2 minutes per regional cluster** (americas, europe, asia, sea). One match-history fetch issues ~12 calls — one Account-V1 lookup, one Match-V5 list, then one Match-V5 detail per match. Two consecutive searches without coordination would hit the per-second cap; sustained use would hit the per-2-minute cap.
+
+The api takes a layered approach:
+
+**Per-summoner cache.** A `Summoner` table caches the `gameName/tagLine → puuid` mapping (Account-V1 only fires on the first lookup), and a `Match` table with composite primary key `(matchId, puuid)` caches each summoner's match perspective. `LolService.backfillMissingMatches` only fetches Match-V5 detail for IDs not already in the cache. See [apps/api/src/lol/lol.service.ts](apps/api/src/lol/lol.service.ts).
+
+A repeat query for a summoner with no new games drops from **~12 Riot calls to 1** (just the match-IDs list refresh):
+
+```
+[LolService] summoner cache HIT for Vyoh#EUW
+[RiotService] europe /lol/match/v5/matches/by-puuid/.../ids?count=10 → 200 (110ms)
+[LolService] match cache: 10 hit, 0 missing for puuid-...
+[HTTP] GET /lol/summoners/euw1/Vyoh/EUW/matches → 200 (135ms)
+```
+
+**Proactive rate limiter.** One Bottleneck per regional cluster, chained — 20 req/s on top, 100 req/2 min underneath. Each `RiotService.fetch` is scheduled through the limiter for its cluster; jobs queue if the budget is depleted, never sent past the limit. See [apps/api/src/riot/rate-limiter.service.ts](apps/api/src/riot/rate-limiter.service.ts).
+
+**Reactive retry-on-429.** The proactive limiter prevents nearly all 429s, but Riot's service-side limits can still trigger one. The fetch path detects 429, reads the `Retry-After` header, sleeps, and retries (up to 2 times). After exhaustion, propagates as a `RiotError(429)` which the `RiotExceptionFilter` maps to an HTTP 429 with a friendly message. See [apps/api/src/riot/riot.service.ts](apps/api/src/riot/riot.service.ts).
+
+**Observability.** All three layers log structured events — cache hits/misses, every Riot call with its status and duration, every HTTP request with its outcome. Sufficient for development; production would surface the same signals through Prometheus or similar.
+
+**Open: misuse prevention.** Today the api accepts any `gameName#tagLine` in the URL — anyone hitting the deployed endpoint could drain the Riot key on queries we don't care about. Tied to the broader "personal dashboard, not search engine" pivot — likely lock the api to a whitelist of accounts and drop the search interface entirely.
+
+### In progress
+
 - **Multi-source identity stitching** — same player across LoL and Steam, no canonical join key
 - **Performance budget** — Lighthouse scores, bundle deltas per route, when to lazy-load
 - **Background workers** — historical match backfill without burning the live rate budget
