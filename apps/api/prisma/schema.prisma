@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Match {
+  matchId     String   @id
+  queueType   String
+  champion    String
+  kills       Int
+  deaths      Int
+  assists     Int
+  win         Boolean
+  durationSec Int
+  playedAt    DateTime
+}
