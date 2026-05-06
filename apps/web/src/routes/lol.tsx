@@ -1,18 +1,22 @@
-import { Button } from "@/components/ui/button";
 import { useMe } from "@/identity/use-me";
-import { MatchList } from "@/lol/match-list";
-import { MatchListSkeleton } from "@/lol/match-list-skeleton";
-import { useMatches } from "@/lol/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
+import { cn } from "@/lib/utils";
+import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
+
+const SUB_NAV = [
+  { to: "/lol/matches", label: "Matches" },
+  { to: "/lol/trends", label: "Trends" },
+  { to: "/lol/champions", label: "Champions" },
+] as const;
+
+const linkClass = "px-3 py-2 text-sm font-medium transition-colors";
 
 export const Route = createFileRoute("/lol")({
-  component: LolPage,
+  component: LolLayout,
 });
 
-function LolPage() {
+function LolLayout() {
   const me = useMe();
   const account = me.data?.lol[0];
-  const matches = useMatches(account);
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,16 +34,25 @@ function LolPage() {
         </section>
       )}
 
-      {matches.isPending && account && <MatchListSkeleton />}
-      {matches.isError && (
-        <div className="flex flex-col items-start gap-2">
-          <p className="text-sm text-destructive">{matches.error.message}</p>
-          <Button variant="outline" size="sm" onClick={() => matches.refetch()}>
-            Try again
-          </Button>
-        </div>
-      )}
-      {matches.data && <MatchList matches={matches.data} />}
+      <div className="flex gap-1 border-b border-border">
+        {SUB_NAV.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={cn(linkClass, "text-muted-foreground hover:text-foreground")}
+            activeProps={{
+              className: cn(
+                linkClass,
+                "text-foreground border-b-2 border-foreground -mb-px"
+              ),
+            }}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+
+      <Outlet />
     </div>
   );
 }

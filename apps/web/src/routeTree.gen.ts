@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SteamRouteImport } from './routes/steam'
 import { Route as LolRouteImport } from './routes/lol'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LolIndexRouteImport } from './routes/lol/index'
+import { Route as LolTrendsRouteImport } from './routes/lol/trends'
+import { Route as LolMatchesRouteImport } from './routes/lol/matches'
+import { Route as LolChampionsRouteImport } from './routes/lol/champions'
 
 const SteamRoute = SteamRouteImport.update({
   id: '/steam',
@@ -28,34 +32,86 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LolIndexRoute = LolIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LolRoute,
+} as any)
+const LolTrendsRoute = LolTrendsRouteImport.update({
+  id: '/trends',
+  path: '/trends',
+  getParentRoute: () => LolRoute,
+} as any)
+const LolMatchesRoute = LolMatchesRouteImport.update({
+  id: '/matches',
+  path: '/matches',
+  getParentRoute: () => LolRoute,
+} as any)
+const LolChampionsRoute = LolChampionsRouteImport.update({
+  id: '/champions',
+  path: '/champions',
+  getParentRoute: () => LolRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/lol': typeof LolRoute
+  '/lol': typeof LolRouteWithChildren
   '/steam': typeof SteamRoute
+  '/lol/champions': typeof LolChampionsRoute
+  '/lol/matches': typeof LolMatchesRoute
+  '/lol/trends': typeof LolTrendsRoute
+  '/lol/': typeof LolIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/lol': typeof LolRoute
   '/steam': typeof SteamRoute
+  '/lol/champions': typeof LolChampionsRoute
+  '/lol/matches': typeof LolMatchesRoute
+  '/lol/trends': typeof LolTrendsRoute
+  '/lol': typeof LolIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/lol': typeof LolRoute
+  '/lol': typeof LolRouteWithChildren
   '/steam': typeof SteamRoute
+  '/lol/champions': typeof LolChampionsRoute
+  '/lol/matches': typeof LolMatchesRoute
+  '/lol/trends': typeof LolTrendsRoute
+  '/lol/': typeof LolIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/lol' | '/steam'
+  fullPaths:
+    | '/'
+    | '/lol'
+    | '/steam'
+    | '/lol/champions'
+    | '/lol/matches'
+    | '/lol/trends'
+    | '/lol/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/lol' | '/steam'
-  id: '__root__' | '/' | '/lol' | '/steam'
+  to:
+    | '/'
+    | '/steam'
+    | '/lol/champions'
+    | '/lol/matches'
+    | '/lol/trends'
+    | '/lol'
+  id:
+    | '__root__'
+    | '/'
+    | '/lol'
+    | '/steam'
+    | '/lol/champions'
+    | '/lol/matches'
+    | '/lol/trends'
+    | '/lol/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  LolRoute: typeof LolRoute
+  LolRoute: typeof LolRouteWithChildren
   SteamRoute: typeof SteamRoute
 }
 
@@ -82,12 +138,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lol/': {
+      id: '/lol/'
+      path: '/'
+      fullPath: '/lol/'
+      preLoaderRoute: typeof LolIndexRouteImport
+      parentRoute: typeof LolRoute
+    }
+    '/lol/trends': {
+      id: '/lol/trends'
+      path: '/trends'
+      fullPath: '/lol/trends'
+      preLoaderRoute: typeof LolTrendsRouteImport
+      parentRoute: typeof LolRoute
+    }
+    '/lol/matches': {
+      id: '/lol/matches'
+      path: '/matches'
+      fullPath: '/lol/matches'
+      preLoaderRoute: typeof LolMatchesRouteImport
+      parentRoute: typeof LolRoute
+    }
+    '/lol/champions': {
+      id: '/lol/champions'
+      path: '/champions'
+      fullPath: '/lol/champions'
+      preLoaderRoute: typeof LolChampionsRouteImport
+      parentRoute: typeof LolRoute
+    }
   }
 }
 
+interface LolRouteChildren {
+  LolChampionsRoute: typeof LolChampionsRoute
+  LolMatchesRoute: typeof LolMatchesRoute
+  LolTrendsRoute: typeof LolTrendsRoute
+  LolIndexRoute: typeof LolIndexRoute
+}
+
+const LolRouteChildren: LolRouteChildren = {
+  LolChampionsRoute: LolChampionsRoute,
+  LolMatchesRoute: LolMatchesRoute,
+  LolTrendsRoute: LolTrendsRoute,
+  LolIndexRoute: LolIndexRoute,
+}
+
+const LolRouteWithChildren = LolRoute._addFileChildren(LolRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  LolRoute: LolRoute,
+  LolRoute: LolRouteWithChildren,
   SteamRoute: SteamRoute,
 }
 export const routeTree = rootRouteImport
