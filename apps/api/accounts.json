@@ -1,4 +1,9 @@
 {
-  "lol": [{ "gameName": "Vyoh", "tagLine": "Ahri", "region": "euw1" }],
+  "lol": [
+    { "gameName": "Vyoh", "tagLine": "Ahri", "region": "euw1" },
+    { "gameName": "TIFΑ", "tagLine": "7777", "region": "euw1" },
+    { "gameName": "Ahri", "tagLine": "Vyoh", "region": "euw1" },
+    { "gameName": "twtv tifa lol", "tagLine": "meow", "region": "euw1" }
+  ],
   "steam": []
 }
