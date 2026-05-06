@@ -35,9 +35,11 @@ The port choices have a story: **2009** is the year League of Legends launched, 
 
 ## Local development
 
-Requires Node 22 (see `.nvmrc`) and pnpm 10.
+Requires Node 22 (see `.nvmrc`), pnpm 10, and Docker (for the local Postgres).
 
 ```bash
+cp .env.example .env               # tweak credentials/port if 5432 collides
+docker compose up -d               # start Postgres on :5432
 pnpm install                       # install all workspace deps
 
 pnpm --filter @vyoh/web dev        # web dev server on :2009
