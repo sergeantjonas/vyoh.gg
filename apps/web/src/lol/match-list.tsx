@@ -1,5 +1,6 @@
 import { championIconUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
+import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 
@@ -41,38 +42,40 @@ export function MatchList({ matches }: { matches: MatchSummary[] }) {
       className="flex flex-col gap-2"
     >
       {matches.map((match) => (
-        <m.li
-          key={match.matchId}
-          variants={item}
-          className={cn(
-            "flex items-center gap-4 rounded-md border p-3",
-            match.win ? "border-emerald-500/30" : "border-red-500/30"
-          )}
-        >
-          <div
+        <m.li key={match.matchId} variants={item}>
+          <Link
+            to="/lol/matches/$matchId"
+            params={{ matchId: match.matchId }}
             className={cn(
-              "h-12 w-1 rounded-full",
-              match.win ? "bg-emerald-500" : "bg-red-500"
+              "flex items-center gap-4 rounded-md border p-3 transition-colors hover:bg-muted/40",
+              match.win ? "border-emerald-500/30" : "border-red-500/30"
             )}
-          />
-          <img
-            src={championIconUrl(match.champion)}
-            alt={match.champion}
-            loading="lazy"
-            className="size-12 rounded-md"
-          />
-          <div className="flex-1">
-            <div className="font-medium">{match.champion}</div>
-            <div className="text-sm text-muted-foreground">{match.queueType}</div>
-          </div>
-          <div className="text-right">
-            <div className="font-mono text-sm">
-              {match.kills} / {match.deaths} / {match.assists}
+          >
+            <div
+              className={cn(
+                "h-12 w-1 rounded-full",
+                match.win ? "bg-emerald-500" : "bg-red-500"
+              )}
+            />
+            <img
+              src={championIconUrl(match.champion)}
+              alt={match.champion}
+              loading="lazy"
+              className="size-12 rounded-md"
+            />
+            <div className="flex-1">
+              <div className="font-medium">{match.champion}</div>
+              <div className="text-sm text-muted-foreground">{match.queueType}</div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {formatDuration(match.durationSec)} · {formatTimeAgo(match.playedAt)}
+            <div className="text-right">
+              <div className="font-mono text-sm">
+                {match.kills} / {match.deaths} / {match.assists}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {formatDuration(match.durationSec)} · {formatTimeAgo(match.playedAt)}
+              </div>
             </div>
-          </div>
+          </Link>
         </m.li>
       ))}
     </m.ul>

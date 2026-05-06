@@ -1,7 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
-import { describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { MatchList } from "./match-list";
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, ...props }: { children: ReactNode }) => (
+    <a {...props}>{children}</a>
+  ),
+}));
 
 const matches: MatchSummary[] = [
   {
