@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RateLimiterService } from "./rate-limiter.service";
 import { RiotError } from "./riot.error";
 import { RiotService } from "./riot.service";
 
 const ORIGINAL_KEY = process.env.RIOT_API_KEY;
+
+const passThroughLimiter: RateLimiterService = {
+  schedule: <T>(_: unknown, fn: () => Promise<T>) => fn(),
+} as unknown as RateLimiterService;
 
 beforeEach(() => {
   process.env.RIOT_API_KEY = "test-key";
@@ -22,7 +27,7 @@ describe("RiotService.getAccountByRiotId", () => {
       })
     );
 
-    const service = new RiotService();
+    const service = new RiotService(passThroughLimiter);
     const account = await service.getAccountByRiotId("Vyoh", "EUW", "europe");
 
     expect(account.puuid).toBe("p1");
@@ -36,7 +41,7 @@ describe("RiotService.getAccountByRiotId", () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(null, { status: 404, statusText: "Not Found" })
     );
-    const service = new RiotService();
+    const service = new RiotService(passThroughLimiter);
     const error = await service
       .getAccountByRiotId("Foo", "Bar", "europe")
       .catch((e: unknown) => e);
@@ -45,6 +50,17 @@ describe("RiotService.getAccountByRiotId", () => {
     expect((error as RiotError).status).toBe(404);
     expect((error as RiotError).path).toContain("/accounts/by-riot-id/Foo/Bar");
   });
+
+  it("routes the call through the rate limiter for the regional cluster", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    const schedule = vi.fn(<T>(_: unknown, fn: () => Promise<T>) => fn());
+    const limiter = { schedule } as unknown as RateLimiterService;
+
+    const service = new RiotService(limiter);
+    await service.getAccountByRiotId("Vyoh", "EUW", "europe");
+
+    expect(schedule).toHaveBeenCalledWith("europe", expect.any(Function));
+  });
 });
 
 describe("RiotService.getMatchIdsByPuuid", () => {
@@ -52,14 +68,14 @@ describe("RiotService.getMatchIdsByPuuid", () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(["EUW1_1", "EUW1_2"]), { status: 200 })
     );
-    const service = new RiotService();
+    const service = new RiotService(passThroughLimiter);
     const ids = await service.getMatchIdsByPuuid("puuid-1", "europe");
     expect(ids).toEqual(["EUW1_1", "EUW1_2"]);
   });
 
   it("appends start and count query params when given", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
-    const service = new RiotService();
+    const service = new RiotService(passThroughLimiter);
     await service.getMatchIdsByPuuid("puuid-1", "europe", {
       start: 0,
       count: 5,
@@ -85,7 +101,7 @@ describe("RiotService.getMatchById", () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify(matchData), { status: 200 })
     );
-    const service = new RiotService();
+    const service = new RiotService(passThroughLimiter);
     const match = await service.getMatchById("EUW1_1", "europe");
     expect(match).toEqual(matchData);
   });
@@ -94,7 +110,7 @@ describe("RiotService.getMatchById", () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(null, { status: 429, statusText: "Too Many Requests" })
     );
-    const service = new RiotService();
+    const service = new RiotService(passThroughLimiter);
     const error = await service.getMatchById("EUW1_1", "europe").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(RiotError);
     expect((error as RiotError).status).toBe(429);

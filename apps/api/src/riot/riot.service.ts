@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { requireEnv } from "../env";
+import { RateLimiterService } from "./rate-limiter.service";
 import type { Regional } from "./regions";
 import { RiotError } from "./riot.error";
 import type { RiotAccount, RiotMatch } from "./types";
@@ -8,7 +9,7 @@ import type { RiotAccount, RiotMatch } from "./types";
 export class RiotService {
   private readonly apiKey: string;
 
-  constructor() {
+  constructor(private readonly limiter: RateLimiterService) {
     this.apiKey = requireEnv("RIOT_API_KEY");
   }
 
@@ -43,17 +44,19 @@ export class RiotService {
   }
 
   private async fetch<T>(regional: Regional, path: string): Promise<T> {
-    const url = `https://${regional}.api.riotgames.com${path}`;
-    const res = await fetch(url, {
-      headers: { "X-Riot-Token": this.apiKey },
+    return this.limiter.schedule(regional, async () => {
+      const url = `https://${regional}.api.riotgames.com${path}`;
+      const res = await fetch(url, {
+        headers: { "X-Riot-Token": this.apiKey },
+      });
+      if (!res.ok) {
+        throw new RiotError(
+          `Riot API ${res.status} ${res.statusText} on ${path}`,
+          res.status,
+          path
+        );
+      }
+      return res.json() as Promise<T>;
     });
-    if (!res.ok) {
-      throw new RiotError(
-        `Riot API ${res.status} ${res.statusText} on ${path}`,
-        res.status,
-        path
-      );
-    }
-    return res.json() as Promise<T>;
   }
 }
