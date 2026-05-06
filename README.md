@@ -39,7 +39,7 @@ Requires Node 22 (see `.nvmrc`), pnpm 10, and Docker (for the local Postgres).
 
 ```bash
 cp .env.example .env                       # optional: override compose defaults
-cp apps/api/.env.example apps/api/.env     # api env (DATABASE_URL)
+cp apps/api/.env.example apps/api/.env     # api env: DATABASE_URL + RIOT_API_KEY
 docker compose up -d                       # start Postgres on :5432
 pnpm install                               # install all workspace deps
 pnpm --filter @vyoh/api db:migrate         # apply prisma migrations

@@ -1,8 +1,12 @@
 import "dotenv/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { requireEnv } from "./env";
 
 async function bootstrap() {
+  requireEnv("DATABASE_URL");
+  requireEnv("RIOT_API_KEY");
+
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? "http://localhost:2009",
