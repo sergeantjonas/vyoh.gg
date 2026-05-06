@@ -10,6 +10,6 @@
   "[javascript]": { "editor.defaultFormatter": "biomejs.biome" },
   "[javascriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
   "js/ts.preferences.importModuleSpecifier": "non-relative",
-  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "typescript.tsdk": "node_modules/typescript/lib",
   "cSpell.words": ["biomejs", "bullmq", "puuid", "shadcn", "tanstack", "vyoh"]
 }
