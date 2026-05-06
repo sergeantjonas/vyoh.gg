@@ -38,17 +38,20 @@ The port choices have a story: **2009** is the year League of Legends launched, 
 Requires Node 22 (see `.nvmrc`), pnpm 10, and Docker (for the local Postgres).
 
 ```bash
-cp .env.example .env               # tweak credentials/port if 5432 collides
-docker compose up -d               # start Postgres on :5432
-pnpm install                       # install all workspace deps
+cp .env.example .env                       # optional: override compose defaults
+cp apps/api/.env.example apps/api/.env     # api env (DATABASE_URL)
+docker compose up -d                       # start Postgres on :5432
+pnpm install                               # install all workspace deps
+pnpm --filter @vyoh/api db:migrate         # apply prisma migrations
+pnpm --filter @vyoh/api db:seed            # populate the matches table
 
-pnpm --filter @vyoh/web dev        # web dev server on :2009
-pnpm --filter @vyoh/api start:dev  # api in watch mode on :2010
+pnpm --filter @vyoh/web dev                # web dev server on :2009
+pnpm --filter @vyoh/api start:dev          # api in watch mode on :2010
 
-pnpm check                         # Biome format + lint (auto-fixes)
-pnpm typecheck                     # tsc --noEmit across all workspace packages
-pnpm --filter @vyoh/api test       # Vitest run in apps/api
-pnpm --filter @vyoh/web build      # production build with bundle report
+pnpm check                                 # Biome format + lint (auto-fixes)
+pnpm typecheck                             # tsc --noEmit across all packages
+pnpm -r test                               # vitest in every workspace package
+pnpm --filter @vyoh/web build              # production build with bundle report
 ```
 
 CI runs `pnpm ci:check` (Biome in non-writing CI mode) and `pnpm typecheck` on every PR and every push to `main`.
