@@ -6,8 +6,21 @@ datasource db {
   provider = "postgresql"
 }
 
+model Summoner {
+  puuid     String   @id
+  gameName  String
+  tagLine   String
+  region    String
+  fetchedAt DateTime @default(now())
+
+  matches Match[]
+
+  @@unique([gameName, tagLine, region])
+}
+
 model Match {
-  matchId     String   @id
+  matchId     String
+  puuid       String
   queueType   String
   champion    String
   kills       Int
@@ -16,4 +29,9 @@ model Match {
   win         Boolean
   durationSec Int
   playedAt    DateTime
+
+  summoner Summoner @relation(fields: [puuid], references: [puuid])
+
+  @@id([matchId, puuid])
+  @@index([puuid, playedAt])
 }

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { MatchSummary } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
-import { platformToRegional } from "../riot/regions";
+import { type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import { riotMatchToSummary } from "./match-mapper";
 
@@ -20,26 +20,88 @@ export class LolService {
     tagLine: string,
     count: number = DEFAULT_MATCH_COUNT
   ): Promise<MatchSummary[]> {
+    const summoner = await this.resolveSummoner(region, gameName, tagLine);
     const regional = platformToRegional(region);
 
-    const account = await this.riot.getAccountByRiotId(gameName, tagLine, regional);
-    const matchIds = await this.riot.getMatchIdsByPuuid(account.puuid, regional, {
+    const matchIds = await this.riot.getMatchIdsByPuuid(summoner.puuid, regional, {
       count,
     });
 
-    const summaries = await Promise.all(
-      matchIds.map(async (matchId) => {
+    await this.backfillMissingMatches(summoner.puuid, matchIds, regional);
+
+    const rows = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid, matchId: { in: matchIds } },
+      orderBy: { playedAt: "desc" },
+    });
+
+    return rows.map(({ playedAt, puuid: _puuid, ...rest }) => ({
+      ...rest,
+      playedAt: playedAt.toISOString(),
+    }));
+  }
+
+  private async resolveSummoner(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<{ puuid: string }> {
+    const cached = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (cached) return cached;
+
+    const regional = platformToRegional(region);
+    const account = await this.riot.getAccountByRiotId(gameName, tagLine, regional);
+
+    return this.prisma.summoner.upsert({
+      where: { puuid: account.puuid },
+      create: {
+        puuid: account.puuid,
+        gameName: account.gameName,
+        tagLine: account.tagLine,
+        region,
+      },
+      update: {
+        gameName: account.gameName,
+        tagLine: account.tagLine,
+        region,
+        fetchedAt: new Date(),
+      },
+    });
+  }
+
+  private async backfillMissingMatches(
+    puuid: string,
+    matchIds: string[],
+    regional: Regional
+  ): Promise<void> {
+    if (matchIds.length === 0) return;
+
+    const existing = await this.prisma.match.findMany({
+      where: { puuid, matchId: { in: matchIds } },
+      select: { matchId: true },
+    });
+    const have = new Set(existing.map((m) => m.matchId));
+    const missing = matchIds.filter((id) => !have.has(id));
+
+    await Promise.all(
+      missing.map(async (matchId) => {
         const detail = await this.riot.getMatchById(matchId, regional);
-        const summary = riotMatchToSummary(detail, account.puuid);
+        const summary = riotMatchToSummary(detail, puuid);
         await this.prisma.match.upsert({
-          where: { matchId: summary.matchId },
-          create: { ...summary, playedAt: new Date(summary.playedAt) },
-          update: { ...summary, playedAt: new Date(summary.playedAt) },
+          where: { matchId_puuid: { matchId, puuid } },
+          create: {
+            ...summary,
+            puuid,
+            playedAt: new Date(summary.playedAt),
+          },
+          update: {
+            ...summary,
+            puuid,
+            playedAt: new Date(summary.playedAt),
+          },
         });
-        return summary;
       })
     );
-
-    return summaries.sort((a, b) => b.playedAt.localeCompare(a.playedAt));
   }
 }
