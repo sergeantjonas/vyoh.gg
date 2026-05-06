@@ -8,6 +8,7 @@
   "scripts": {
     "format": "biome format --write .",
     "check": "biome check --write .",
+    "ci:check": "biome ci .",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
