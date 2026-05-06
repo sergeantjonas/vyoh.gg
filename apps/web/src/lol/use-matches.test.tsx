@@ -66,4 +66,19 @@ describe("useMatches", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toMatch(/HTTP 500/);
   });
+
+  it("surfaces the api's message when the response body has one", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ statusCode: 404, message: "Summoner not found" }), {
+        status: 404,
+      })
+    );
+
+    const { result } = renderHook(() => useMatches("euw1", "Vyoh", "EUW"), {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toBe("Summoner not found");
+  });
 });

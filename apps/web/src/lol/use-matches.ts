@@ -13,7 +13,16 @@ async function fetchMatches(
     `${API_URL}/lol/summoners/${encodeURIComponent(region)}/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}/matches`
   );
   if (!res.ok) {
-    throw new HttpError(res.status, `Failed to load matches (HTTP ${res.status})`);
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (typeof body?.message === "string") {
+        message = body.message;
+      }
+    } catch {
+      // body wasn't JSON — keep the HTTP status fallback
+    }
+    throw new HttpError(res.status, message);
   }
   return res.json();
 }
