@@ -1,8 +1,8 @@
 function App() {
   return (
-    <main>
-      <h1>vyoh.gg</h1>
-      <p>Cross-platform gaming dashboard.</p>
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-neutral-950 text-neutral-50">
+      <h1 className="text-4xl font-bold tracking-tight">vyoh.gg</h1>
+      <p className="text-neutral-400">Cross-platform gaming dashboard.</p>
     </main>
   );
 }
