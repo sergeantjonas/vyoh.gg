@@ -1,5 +1,7 @@
+import { ForbiddenException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { describe, expect, it, vi } from "vitest";
+import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RiotService } from "../riot/riot.service";
 import type { RiotMatch } from "../riot/types";
@@ -78,11 +80,16 @@ async function makeService({
     getMatchById: vi.fn().mockImplementation(async (id: string) => riotMatches[id]),
   };
 
+  const identity = {
+    isLolAccountAllowed: vi.fn().mockReturnValue(true),
+  };
+
   const moduleRef = await Test.createTestingModule({
     providers: [
       LolService,
       { provide: PrismaService, useValue: prisma },
       { provide: RiotService, useValue: riot },
+      { provide: IdentityService, useValue: identity },
     ],
   }).compile();
 
@@ -90,6 +97,7 @@ async function makeService({
     service: moduleRef.get(LolService),
     prisma,
     riot,
+    identity,
   };
 }
 
@@ -145,6 +153,21 @@ describe("LolService.getMatchesForSummoner", () => {
     expect(riot.getMatchById).not.toHaveBeenCalled();
     expect(prisma.match.upsert).not.toHaveBeenCalled();
     expect(result).toHaveLength(2);
+  });
+
+  it("rejects accounts that are not in the whitelist", async () => {
+    const summoner = makeSummoner(true);
+    const { service, identity } = await makeService({
+      summoner,
+      matchIds: [],
+    });
+    identity.isLolAccountAllowed.mockReturnValue(false);
+
+    const error = await service
+      .getMatchesForSummoner("euw1", "Stranger", "TAG")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ForbiddenException);
   });
 
   it("with cached summoner and some new matches, only backfills missing", async () => {

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import type { MatchSummary } from "@vyoh/shared";
+import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
@@ -13,7 +14,8 @@ export class LolService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly riot: RiotService
+    private readonly riot: RiotService,
+    private readonly identity: IdentityService
   ) {}
 
   async getMatchesForSummoner(
@@ -22,6 +24,10 @@ export class LolService {
     tagLine: string,
     count: number = DEFAULT_MATCH_COUNT
   ): Promise<MatchSummary[]> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+
     const summoner = await this.resolveSummoner(region, gameName, tagLine);
     const regional = platformToRegional(region);
 
