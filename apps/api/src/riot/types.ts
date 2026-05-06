@@ -7,10 +7,21 @@ export interface RiotAccount {
 export interface RiotMatchParticipant {
   puuid: string;
   championName: string;
+  teamId: number;
+  teamPosition: string;
   kills: number;
   deaths: number;
   assists: number;
   win: boolean;
+  item0: number;
+  item1: number;
+  item2: number;
+  item3: number;
+  item4: number;
+  item5: number;
+  item6: number;
+  goldEarned: number;
+  totalDamageDealtToChampions: number;
 }
 
 export interface RiotMatch {

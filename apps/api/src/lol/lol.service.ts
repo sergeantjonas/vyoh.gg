@@ -1,10 +1,10 @@
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
-import type { MatchSummary } from "@vyoh/shared";
+import type { MatchDetail, MatchSummary } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
-import { riotMatchToSummary } from "./match-mapper";
+import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 
 const DEFAULT_MATCH_COUNT = 20;
 
@@ -46,6 +46,16 @@ export class LolService {
       ...rest,
       playedAt: playedAt.toISOString(),
     }));
+  }
+
+  async getMatchDetail(matchId: string): Promise<MatchDetail> {
+    const platform = matchId.split("_")[0]?.toLowerCase();
+    if (!platform) {
+      throw new Error(`Cannot derive region from matchId ${matchId}`);
+    }
+    const regional = platformToRegional(platform);
+    const detail = await this.riot.getMatchById(matchId, regional);
+    return riotMatchToDetail(detail);
   }
 
   private async resolveSummoner(
