@@ -35,8 +35,8 @@ afterEach(() => {
 });
 
 describe("useMatches", () => {
-  it("does not fetch while the name is empty", () => {
-    renderHook(() => useMatches("euw1", ""), { wrapper: makeWrapper() });
+  it("does not fetch while gameName or tagLine is empty", () => {
+    renderHook(() => useMatches("euw1", "", ""), { wrapper: makeWrapper() });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -45,21 +45,21 @@ describe("useMatches", () => {
       new Response(JSON.stringify([sample]), { status: 200 })
     );
 
-    const { result } = renderHook(() => useMatches("euw1", "Vyoh"), {
+    const { result } = renderHook(() => useMatches("euw1", "Vyoh", "EUW"), {
       wrapper: makeWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([sample]);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:2010/lol/summoners/euw1/Vyoh/matches"
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/EUW/matches"
     );
   });
 
   it("surfaces an error when the request fails", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 500 }));
 
-    const { result } = renderHook(() => useMatches("euw1", "Vyoh"), {
+    const { result } = renderHook(() => useMatches("euw1", "Vyoh", "EUW"), {
       wrapper: makeWrapper(),
     });
 

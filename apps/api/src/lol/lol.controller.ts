@@ -1,19 +1,17 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Param } from "@nestjs/common";
 import type { MatchSummary } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
+import { LolService } from "./lol.service";
 
-@Controller("lol/summoners/:region/:name")
+@Controller("lol/summoners/:region/:gameName/:tagLine")
 export class LolController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly lol: LolService) {}
 
   @Get("matches")
-  async getMatches(): Promise<MatchSummary[]> {
-    const rows = await this.prisma.match.findMany({
-      orderBy: { playedAt: "desc" },
-    });
-    return rows.map(({ playedAt, ...rest }) => ({
-      ...rest,
-      playedAt: playedAt.toISOString(),
-    }));
+  async getMatches(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string
+  ): Promise<MatchSummary[]> {
+    return this.lol.getMatchesForSummoner(region, gameName, tagLine);
   }
 }

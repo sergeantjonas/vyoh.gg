@@ -1,46 +1,20 @@
 import { Test } from "@nestjs/testing";
 import { describe, expect, it, vi } from "vitest";
-import { PrismaService } from "../prisma/prisma.service";
 import { LolController } from "./lol.controller";
+import { LolService } from "./lol.service";
 
 describe("LolController", () => {
-  it("returns matches mapped from prisma rows", async () => {
-    const playedAt = new Date("2026-05-01T12:00:00Z");
-    const findMany = vi.fn().mockResolvedValue([
-      {
-        matchId: "EUW1_test",
-        queueType: "Ranked Solo",
-        champion: "Ahri",
-        kills: 8,
-        deaths: 3,
-        assists: 12,
-        win: true,
-        durationSec: 1834,
-        playedAt,
-      },
-    ]);
+  it("delegates to LolService.getMatchesForSummoner", async () => {
+    const stub = vi.fn().mockResolvedValue([]);
 
     const moduleRef = await Test.createTestingModule({
       controllers: [LolController],
-      providers: [{ provide: PrismaService, useValue: { match: { findMany } } }],
+      providers: [{ provide: LolService, useValue: { getMatchesForSummoner: stub } }],
     }).compile();
 
     const controller = moduleRef.get(LolController);
-    const matches = await controller.getMatches();
+    await controller.getMatches("euw1", "Vyoh", "EUW");
 
-    expect(findMany).toHaveBeenCalledWith({ orderBy: { playedAt: "desc" } });
-    expect(matches).toEqual([
-      {
-        matchId: "EUW1_test",
-        queueType: "Ranked Solo",
-        champion: "Ahri",
-        kills: 8,
-        deaths: 3,
-        assists: 12,
-        win: true,
-        durationSec: 1834,
-        playedAt: playedAt.toISOString(),
-      },
-    ]);
+    expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
   });
 });
