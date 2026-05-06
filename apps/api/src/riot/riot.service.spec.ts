@@ -51,6 +51,16 @@ describe("RiotService.getAccountByRiotId", () => {
     expect((error as RiotError).path).toContain("/accounts/by-riot-id/Foo/Bar");
   });
 
+  it("does not retry non-429 errors", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(null, { status: 404, statusText: "Not Found" })
+    );
+    const service = new RiotService(passThroughLimiter);
+    await service.getAccountByRiotId("Foo", "Bar", "europe").catch(() => undefined);
+
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
   it("routes the call through the rate limiter for the regional cluster", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
     const schedule = vi.fn(<T>(_: unknown, fn: () => Promise<T>) => fn());
@@ -105,14 +115,59 @@ describe("RiotService.getMatchById", () => {
     const match = await service.getMatchById("EUW1_1", "europe");
     expect(match).toEqual(matchData);
   });
+});
 
-  it("throws RiotError with status 429 when rate limited", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(null, { status: 429, statusText: "Too Many Requests" })
-    );
+describe("RiotService retry on 429", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("retries after Retry-After delay and resolves on success", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 429,
+          statusText: "Too Many Requests",
+          headers: { "Retry-After": "1" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ puuid: "p1" }), { status: 200 })
+      );
+
     const service = new RiotService(passThroughLimiter);
-    const error = await service.getMatchById("EUW1_1", "europe").catch((e: unknown) => e);
+    const promise = service.getAccountByRiotId("Vyoh", "EUW", "europe");
+
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result.puuid).toBe("p1");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws RiotError 429 after exhausting retries", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(null, {
+        status: 429,
+        statusText: "Too Many Requests",
+        headers: { "Retry-After": "1" },
+      })
+    );
+
+    const service = new RiotService(passThroughLimiter);
+    const settled = service
+      .getAccountByRiotId("Vyoh", "EUW", "europe")
+      .catch((e: unknown) => e);
+
+    await vi.runAllTimersAsync();
+    const error = await settled;
+
     expect(error).toBeInstanceOf(RiotError);
     expect((error as RiotError).status).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
   });
 });

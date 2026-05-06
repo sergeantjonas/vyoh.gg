@@ -5,6 +5,10 @@ import type { Regional } from "./regions";
 import { RiotError } from "./riot.error";
 import type { RiotAccount, RiotMatch } from "./types";
 
+const MAX_RETRIES = 2;
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 @Injectable()
 export class RiotService {
   private readonly logger = new Logger(RiotService.name);
@@ -45,23 +49,40 @@ export class RiotService {
   }
 
   private async fetch<T>(regional: Regional, path: string): Promise<T> {
-    return this.limiter.schedule(regional, async () => {
-      const start = Date.now();
-      const url = `https://${regional}.api.riotgames.com${path}`;
-      const res = await fetch(url, {
-        headers: { "X-Riot-Token": this.apiKey },
-      });
-      const duration = Date.now() - start;
-      this.logger.log(`${regional} ${path} → ${res.status} (${duration}ms)`);
+    return this.limiter.schedule(regional, () =>
+      this.fetchWithRetry<T>(regional, path, 0)
+    );
+  }
 
-      if (!res.ok) {
-        throw new RiotError(
-          `Riot API ${res.status} ${res.statusText} on ${path}`,
-          res.status,
-          path
-        );
-      }
-      return res.json() as Promise<T>;
+  private async fetchWithRetry<T>(
+    regional: Regional,
+    path: string,
+    attempt: number
+  ): Promise<T> {
+    const start = Date.now();
+    const url = `https://${regional}.api.riotgames.com${path}`;
+    const res = await fetch(url, {
+      headers: { "X-Riot-Token": this.apiKey },
     });
+    const duration = Date.now() - start;
+    this.logger.log(`${regional} ${path} → ${res.status} (${duration}ms)`);
+
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = Number(res.headers.get("Retry-After")) || 1;
+      this.logger.warn(
+        `429 on ${path} — retrying in ${retryAfter}s (attempt ${attempt + 1}/${MAX_RETRIES})`
+      );
+      await sleep(retryAfter * 1000);
+      return this.fetchWithRetry(regional, path, attempt + 1);
+    }
+
+    if (!res.ok) {
+      throw new RiotError(
+        `Riot API ${res.status} ${res.statusText} on ${path}`,
+        res.status,
+        path
+      );
+    }
+    return res.json() as Promise<T>;
   }
 }
