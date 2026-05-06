@@ -6,7 +6,7 @@ import { type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import { riotMatchToSummary } from "./match-mapper";
 
-const DEFAULT_MATCH_COUNT = 10;
+const DEFAULT_MATCH_COUNT = 20;
 
 @Injectable()
 export class LolService {
