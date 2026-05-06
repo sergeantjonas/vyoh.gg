@@ -1,9 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import type { MatchSummary } from "@vyoh/shared";
+import type { LolAccount, MatchSummary } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMatches } from "./use-matches";
+
+const account: LolAccount = {
+  region: "euw1",
+  gameName: "Vyoh",
+  tagLine: "Ahri",
+};
 
 const sample: MatchSummary = {
   matchId: "EUW1_1",
@@ -35,8 +41,8 @@ afterEach(() => {
 });
 
 describe("useMatches", () => {
-  it("does not fetch while gameName or tagLine is empty", () => {
-    renderHook(() => useMatches("euw1", "", ""), { wrapper: makeWrapper() });
+  it("does not fetch while account is undefined", () => {
+    renderHook(() => useMatches(undefined), { wrapper: makeWrapper() });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -45,21 +51,21 @@ describe("useMatches", () => {
       new Response(JSON.stringify([sample]), { status: 200 })
     );
 
-    const { result } = renderHook(() => useMatches("euw1", "Vyoh", "EUW"), {
+    const { result } = renderHook(() => useMatches(account), {
       wrapper: makeWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([sample]);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:2010/lol/summoners/euw1/Vyoh/EUW/matches"
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches"
     );
   });
 
   it("surfaces an error when the request fails", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 500 }));
 
-    const { result } = renderHook(() => useMatches("euw1", "Vyoh", "EUW"), {
+    const { result } = renderHook(() => useMatches(account), {
       wrapper: makeWrapper(),
     });
 
@@ -74,7 +80,7 @@ describe("useMatches", () => {
       })
     );
 
-    const { result } = renderHook(() => useMatches("euw1", "Vyoh", "EUW"), {
+    const { result } = renderHook(() => useMatches(account), {
       wrapper: makeWrapper(),
     });
 

@@ -1,20 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useMe } from "@/identity/use-me";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
-import { useState } from "react";
-
-const REGION = "euw1";
 
 function App() {
-  const [gameName, setGameName] = useState("");
-  const [tagLine, setTagLine] = useState("");
-  const [submitted, setSubmitted] = useState({ gameName: "", tagLine: "" });
-  const matches = useMatches(REGION, submitted.gameName, submitted.tagLine);
-
-  const isLoading =
-    matches.isPending && submitted.gameName.length > 0 && submitted.tagLine.length > 0;
+  const me = useMe();
+  const account = me.data?.lol[0];
+  const matches = useMatches(account);
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
@@ -26,32 +19,21 @@ function App() {
           </p>
         </header>
 
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSubmitted({
-              gameName: gameName.trim(),
-              tagLine: tagLine.trim(),
-            });
-          }}
-        >
-          <Input
-            value={gameName}
-            onChange={(event) => setGameName(event.target.value)}
-            placeholder="Game name"
-            className="flex-1"
-          />
-          <Input
-            value={tagLine}
-            onChange={(event) => setTagLine(event.target.value)}
-            placeholder="Tag (e.g. EUW)"
-            className="w-24"
-          />
-          <Button type="submit">Search</Button>
-        </form>
+        {me.isError && <p className="text-sm text-destructive">{me.error.message}</p>}
 
-        {isLoading && <MatchListSkeleton />}
+        {account && (
+          <section className="flex items-baseline gap-3">
+            <h2 className="text-xl font-semibold">
+              {account.gameName}
+              <span className="text-muted-foreground">#{account.tagLine}</span>
+            </h2>
+            <span className="text-sm uppercase text-muted-foreground">
+              {account.region}
+            </span>
+          </section>
+        )}
+
+        {matches.isPending && account && <MatchListSkeleton />}
         {matches.isError && (
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-destructive">{matches.error.message}</p>
