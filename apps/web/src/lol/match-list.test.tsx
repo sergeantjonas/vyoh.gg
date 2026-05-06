@@ -32,17 +32,17 @@ describe("MatchList", () => {
   it("renders one item per match with champion, queue, and kda", () => {
     render(<MatchList matches={matches} />);
 
-    expect(screen.getByText("Ahri")).toBeInTheDocument();
-    expect(screen.getByText("Jhin")).toBeInTheDocument();
-    expect(screen.getByText("Ranked Solo")).toBeInTheDocument();
-    expect(screen.getByText("ARAM")).toBeInTheDocument();
-    expect(screen.getByText("8 / 3 / 12")).toBeInTheDocument();
-    expect(screen.getByText("4 / 7 / 5")).toBeInTheDocument();
+    expect(screen.queryByText("Ahri")).not.toBeNull();
+    expect(screen.queryByText("Jhin")).not.toBeNull();
+    expect(screen.queryByText("Ranked Solo")).not.toBeNull();
+    expect(screen.queryByText("ARAM")).not.toBeNull();
+    expect(screen.queryByText("8 / 3 / 12")).not.toBeNull();
+    expect(screen.queryByText("4 / 7 / 5")).not.toBeNull();
   });
 
   it("formats duration as Xm SSs", () => {
     render(<MatchList matches={matches} />);
-    expect(screen.getByText(/30m 34s/)).toBeInTheDocument();
-    expect(screen.getByText(/21m 20s/)).toBeInTheDocument();
+    expect(screen.queryByText(/30m 34s/)).not.toBeNull();
+    expect(screen.queryByText(/21m 20s/)).not.toBeNull();
   });
 });
