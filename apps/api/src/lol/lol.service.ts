@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import type { MatchSummary } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Regional, platformToRegional } from "../riot/regions";
@@ -9,6 +9,8 @@ const DEFAULT_MATCH_COUNT = 10;
 
 @Injectable()
 export class LolService {
+  private readonly logger = new Logger(LolService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly riot: RiotService
@@ -48,8 +50,14 @@ export class LolService {
     const cached = await this.prisma.summoner.findUnique({
       where: { gameName_tagLine_region: { gameName, tagLine, region } },
     });
-    if (cached) return cached;
+    if (cached) {
+      this.logger.log(`summoner cache HIT for ${gameName}#${tagLine}`);
+      return cached;
+    }
 
+    this.logger.log(
+      `summoner cache MISS for ${gameName}#${tagLine} — fetching Account-V1`
+    );
     const regional = platformToRegional(region);
     const account = await this.riot.getAccountByRiotId(gameName, tagLine, regional);
 
@@ -83,6 +91,10 @@ export class LolService {
     });
     const have = new Set(existing.map((m) => m.matchId));
     const missing = matchIds.filter((id) => !have.has(id));
+
+    this.logger.log(
+      `match cache: ${have.size} hit, ${missing.length} missing for ${puuid}`
+    );
 
     await Promise.all(
       missing.map(async (matchId) => {

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import { RateLimiterService } from "./rate-limiter.service";
 import type { Regional } from "./regions";
@@ -7,6 +7,7 @@ import type { RiotAccount, RiotMatch } from "./types";
 
 @Injectable()
 export class RiotService {
+  private readonly logger = new Logger(RiotService.name);
   private readonly apiKey: string;
 
   constructor(private readonly limiter: RateLimiterService) {
@@ -45,10 +46,14 @@ export class RiotService {
 
   private async fetch<T>(regional: Regional, path: string): Promise<T> {
     return this.limiter.schedule(regional, async () => {
+      const start = Date.now();
       const url = `https://${regional}.api.riotgames.com${path}`;
       const res = await fetch(url, {
         headers: { "X-Riot-Token": this.apiKey },
       });
+      const duration = Date.now() - start;
+      this.logger.log(`${regional} ${path} → ${res.status} (${duration}ms)`);
+
       if (!res.ok) {
         throw new RiotError(
           `Riot API ${res.status} ${res.statusText} on ${path}`,
