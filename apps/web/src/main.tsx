@@ -1,10 +1,19 @@
 import { HttpError } from "@/lib/http-error";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { LazyMotion, domAnimation } from "motion/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
+import { routeTree } from "./routeTree.gen";
 import "./index.css";
+
+const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,7 +37,7 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <LazyMotion features={domAnimation}>
-        <App />
+        <RouterProvider router={router} />
       </LazyMotion>
     </QueryClientProvider>
   </StrictMode>
