@@ -5,9 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MatchList } from "./match-list";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, ...props }: { children: ReactNode }) => (
-    <a {...props}>{children}</a>
-  ),
+  Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,
 }));
 
 const matches: MatchSummary[] = [

@@ -121,10 +121,17 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+  }
+  body {
+    @apply text-foreground;
+    background: radial-gradient(
+        ellipse 80% 50% at 50% -20%,
+        color-mix(in oklch, oklch(0.55 0.18 250) 12%, transparent),
+        transparent 70%
+      ), var(--background);
+    background-attachment: fixed;
+    min-height: 100dvh;
   }
 }
