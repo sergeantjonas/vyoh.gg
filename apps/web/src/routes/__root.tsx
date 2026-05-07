@@ -6,13 +6,27 @@ import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
 import { SplashProvider } from "@/lol/splash-backdrop";
-import { HeadContent, Outlet, createRootRoute } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Outlet,
+  createRootRoute,
+  useRouterState,
+} from "@tanstack/react-router";
+import { m } from "motion/react";
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
+function topLevelScope(pathname: string): string {
+  const seg = pathname.split("/").filter(Boolean)[0];
+  return seg ? `/${seg}` : "/";
+}
+
 function RootLayout() {
+  const scope = useRouterState({
+    select: (s) => topLevelScope(s.location.pathname),
+  });
   return (
     <SplashProvider>
       <HeadContent />
@@ -42,7 +56,14 @@ function RootLayout() {
               </div>
             )}
           >
-            <Outlet />
+            <m.div
+              key={scope}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <Outlet />
+            </m.div>
           </ErrorBoundary>
         </main>
       </div>
