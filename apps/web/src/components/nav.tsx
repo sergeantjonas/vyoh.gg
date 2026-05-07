@@ -19,8 +19,16 @@ export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <nav className="border-b border-border bg-background/60 backdrop-blur-md">
-      <div className="mx-auto flex max-w-4xl items-center gap-6 px-6 py-3">
+    <nav className="relative bg-background/60 backdrop-blur-md">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-400/35 via-50% to-transparent opacity-70 blur-[1px]"
+      />
+      <div className="relative mx-auto flex max-w-4xl items-center gap-6 px-6 py-3">
         <Link to="/" className="flex items-center gap-1.5 font-bold tracking-tight">
           <span className="bg-gradient-to-br from-sky-400 via-violet-400 to-emerald-400 bg-clip-text text-transparent">
             vyoh
