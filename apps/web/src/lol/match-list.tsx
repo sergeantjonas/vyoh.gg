@@ -1,13 +1,17 @@
 import { usePerfFlag } from "@/lib/use-perf-flag";
-import { MatchRow, MatchSkeletonRow } from "@/lol/match-row";
+import { MatchCardSkeleton } from "@/lol/match-list-skeleton";
+import { MatchRow } from "@/lol/match-row";
 import { useChampionName } from "@/lol/use-champions";
 import { MATCHES_PAGE_SIZE } from "@/lol/use-matches";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
+import { m } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const ESTIMATED_ROW_HEIGHT = 124;
 const NEAR_END_THRESHOLD = 5;
+const STAGGER_PER_ITEM = 0.06;
+const ENTER_DURATION = 0.2;
 
 export function MatchList({
   matches,
@@ -27,6 +31,7 @@ export function MatchList({
   const championName = useChampionName();
   const showPerf = usePerfFlag();
   const parentRef = useRef<HTMLDivElement>(null);
+  const seenCountRef = useRef(0);
   const [scrollMargin, setScrollMargin] = useState(0);
 
   useLayoutEffect(() => {
@@ -59,6 +64,11 @@ export function MatchList({
       fetchNextPage();
     }
   }, [lastIndex, matches.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const seenCount = seenCountRef.current;
+  useEffect(() => {
+    seenCountRef.current = matches.length;
+  }, [matches.length]);
 
   return (
     <div
@@ -93,6 +103,10 @@ export function MatchList({
       )}
       {items.map((virtualRow) => {
         const match = matches[virtualRow.index];
+        const isNew = virtualRow.index >= seenCount;
+        const staggerDelay = isNew
+          ? (virtualRow.index - seenCount) * STAGGER_PER_ITEM
+          : 0;
         const rowStyle = {
           position: "absolute" as const,
           top: 0,
@@ -101,30 +115,31 @@ export function MatchList({
           transform: `translateY(${virtualRow.start - scrollMargin}px)`,
           paddingBottom: 12,
         };
-        const staggerDelay = (virtualRow.index % MATCHES_PAGE_SIZE) * 0.06;
-        if (!match) {
-          return (
-            <MatchSkeletonRow
-              key={`skeleton-${virtualRow.index}`}
-              ref={virtualizer.measureElement}
-              index={virtualRow.index}
-              delay={staggerDelay}
-              style={rowStyle}
-            />
-          );
-        }
         return (
-          <MatchRow
-            key={match.matchId}
+          <m.div
+            key={virtualRow.index}
+            data-index={virtualRow.index}
             ref={virtualizer.measureElement}
-            match={match}
-            accountSlug={accountSlug}
-            championDisplayName={championName(match.champion)}
-            index={virtualRow.index}
-            delay={staggerDelay}
+            initial={{ opacity: isNew ? 0 : 1 }}
+            animate={{ opacity: 1 }}
+            transition={{
+              duration: isNew ? ENTER_DURATION : 0,
+              delay: staggerDelay,
+              ease: "easeOut",
+            }}
             style={rowStyle}
-            onCardHover={onCardHover}
-          />
+          >
+            {match ? (
+              <MatchRow
+                match={match}
+                accountSlug={accountSlug}
+                championDisplayName={championName(match.champion)}
+                onCardHover={onCardHover}
+              />
+            ) : (
+              <MatchCardSkeleton />
+            )}
+          </m.div>
         );
       })}
     </div>

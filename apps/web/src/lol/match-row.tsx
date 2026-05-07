@@ -6,13 +6,8 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champion-card";
-import { MatchCardSkeleton } from "@/lol/match-list-skeleton";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
-import { m } from "motion/react";
-import { type CSSProperties, type ReactNode, forwardRef } from "react";
-
-const ROW_TRANSITION_DURATION = 0.2;
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
@@ -33,91 +28,52 @@ function formatTimeAgo(iso: string): string {
   return `${weeks}w ago`;
 }
 
-interface RowFrameProps {
-  index: number;
-  delay: number;
-  style: CSSProperties;
-  children: ReactNode;
-}
-
-const RowFrame = forwardRef<HTMLDivElement, RowFrameProps>(
-  ({ index, delay, style, children }, ref) => (
-    <m.div
-      data-index={index}
-      ref={ref}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: ROW_TRANSITION_DURATION, delay, ease: "easeOut" }}
-      style={style}
-    >
-      {children}
-    </m.div>
-  )
-);
-RowFrame.displayName = "RowFrame";
-
-export const MatchSkeletonRow = forwardRef<
-  HTMLDivElement,
-  { index: number; delay: number; style: CSSProperties }
->(({ index, delay, style }, ref) => (
-  <RowFrame ref={ref} index={index} delay={delay} style={style}>
-    <MatchCardSkeleton />
-  </RowFrame>
-));
-MatchSkeletonRow.displayName = "MatchSkeletonRow";
-
-interface MatchRowProps {
+export function MatchRow({
+  match,
+  accountSlug,
+  championDisplayName,
+  onCardHover,
+}: {
   match: MatchSummary;
   accountSlug: string;
   championDisplayName: string;
-  index: number;
-  delay: number;
-  style: CSSProperties;
   onCardHover?: (champion: string) => void;
-}
-
-export const MatchRow = forwardRef<HTMLDivElement, MatchRowProps>(
-  (
-    { match, accountSlug, championDisplayName, index, delay, style, onCardHover },
-    ref
-  ) => (
-    <RowFrame ref={ref} index={index} delay={delay} style={style}>
-      <CardTilt>
-        <Link
-          to="/lol/$accountSlug/matches/$matchId"
-          params={{ accountSlug, matchId: match.matchId }}
-          onMouseEnter={() => onCardHover?.(match.champion)}
-          style={championCardStyle(match.champion)}
-          className={championCardClassName}
-        >
-          <ChampionCardChrome champion={match.champion} win={match.win} />
-          <div className="relative ml-auto flex flex-col items-end gap-1">
-            <div className="flex items-baseline gap-2">
-              <span className="font-medium">{championDisplayName}</span>
-              <span
-                className={cn(
-                  "text-xs font-semibold uppercase tracking-wider",
-                  match.win ? "text-emerald-400" : "text-red-400"
-                )}
-              >
-                {match.win ? "Win" : "Loss"}
-              </span>
-            </div>
-            <div className="font-mono text-sm tabular-nums">
-              <CountUp to={match.kills} className="text-emerald-400" />
-              <span className="text-muted-foreground"> / </span>
-              <CountUp to={match.deaths} className="text-red-400" />
-              <span className="text-muted-foreground"> / </span>
-              <CountUp to={match.assists} className="text-amber-400" />
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
-              {formatTimeAgo(match.playedAt)}
-            </div>
+}) {
+  return (
+    <CardTilt>
+      <Link
+        to="/lol/$accountSlug/matches/$matchId"
+        params={{ accountSlug, matchId: match.matchId }}
+        onMouseEnter={() => onCardHover?.(match.champion)}
+        style={championCardStyle(match.champion)}
+        className={championCardClassName}
+      >
+        <ChampionCardChrome champion={match.champion} win={match.win} />
+        <div className="relative ml-auto flex flex-col items-end gap-1">
+          <div className="flex items-baseline gap-2">
+            <span className="font-medium">{championDisplayName}</span>
+            <span
+              className={cn(
+                "text-xs font-semibold uppercase tracking-wider",
+                match.win ? "text-emerald-400" : "text-red-400"
+              )}
+            >
+              {match.win ? "Win" : "Loss"}
+            </span>
           </div>
-        </Link>
-      </CardTilt>
-    </RowFrame>
-  )
-);
-MatchRow.displayName = "MatchRow";
+          <div className="font-mono text-sm tabular-nums">
+            <CountUp to={match.kills} className="text-emerald-400" />
+            <span className="text-muted-foreground"> / </span>
+            <CountUp to={match.deaths} className="text-red-400" />
+            <span className="text-muted-foreground"> / </span>
+            <CountUp to={match.assists} className="text-amber-400" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
+            {formatTimeAgo(match.playedAt)}
+          </div>
+        </div>
+      </Link>
+    </CardTilt>
+  );
+}
