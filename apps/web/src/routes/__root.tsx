@@ -1,3 +1,4 @@
+import { CommandPalette } from "@/components/command-palette";
 import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
 import { ScrollToTop } from "@/components/scroll-to-top";
@@ -23,6 +24,7 @@ function RootLayout() {
   return (
     <SplashProvider>
       <FetchProgress />
+      <CommandPalette />
       <ScrollToTop />
       <div className="min-h-dvh text-foreground">
         <Nav />
