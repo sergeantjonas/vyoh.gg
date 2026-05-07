@@ -8,22 +8,12 @@ import {
 } from "@/lol/champion-card";
 import { useChampionName } from "@/lol/use-champions";
 import { Link } from "@tanstack/react-router";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
-import { type Variants, m } from "motion/react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-const container: Variants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.04 } },
-};
-
-const item: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 380, damping: 28 },
-  },
-};
+const ESTIMATED_ROW_HEIGHT = 124;
+const NEAR_END_THRESHOLD = 5;
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
@@ -48,58 +38,110 @@ export function MatchList({
   matches,
   accountSlug,
   onCardHover,
+  hasNextPage,
+  fetchNextPage,
+  isFetchingNextPage,
 }: {
   matches: MatchSummary[];
   accountSlug: string;
   onCardHover?: (champion: string) => void;
+  hasNextPage?: boolean;
+  fetchNextPage?: () => void;
+  isFetchingNextPage?: boolean;
 }) {
   const championName = useChampionName();
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useLayoutEffect(() => {
+    if (parentRef.current) {
+      setScrollMargin(parentRef.current.offsetTop);
+    }
+  }, []);
+
+  const virtualizer = useWindowVirtualizer({
+    count: matches.length,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    scrollMargin,
+    overscan: 4,
+  });
+
+  const items = virtualizer.getVirtualItems();
+  const lastIndex = items.at(-1)?.index;
+
+  useEffect(() => {
+    if (lastIndex === undefined) return;
+    if (
+      lastIndex >= matches.length - NEAR_END_THRESHOLD &&
+      hasNextPage &&
+      !isFetchingNextPage &&
+      fetchNextPage
+    ) {
+      fetchNextPage();
+    }
+  }, [lastIndex, matches.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   return (
-    <m.ul
-      initial="hidden"
-      animate="show"
-      variants={container}
-      className="flex flex-col gap-3"
+    <div
+      ref={parentRef}
+      className="relative"
+      style={{ height: virtualizer.getTotalSize() }}
     >
-      {matches.map((match) => (
-        <m.li key={match.matchId} variants={item}>
-          <CardTilt>
-            <Link
-              to="/lol/$accountSlug/matches/$matchId"
-              params={{ accountSlug, matchId: match.matchId }}
-              onMouseEnter={() => onCardHover?.(match.champion)}
-              style={championCardStyle(match.champion)}
-              className={championCardClassName}
-            >
-              <ChampionCardChrome champion={match.champion} win={match.win} />
-              <div className="relative ml-auto flex flex-col items-end gap-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-medium">{championName(match.champion)}</span>
-                  <span
-                    className={cn(
-                      "text-xs font-semibold uppercase tracking-wider",
-                      match.win ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {match.win ? "Win" : "Loss"}
-                  </span>
+      {items.map((virtualRow) => {
+        const match = matches[virtualRow.index];
+        if (!match) return null;
+        return (
+          <div
+            key={match.matchId}
+            data-index={virtualRow.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+              paddingBottom: 12,
+            }}
+          >
+            <CardTilt>
+              <Link
+                to="/lol/$accountSlug/matches/$matchId"
+                params={{ accountSlug, matchId: match.matchId }}
+                onMouseEnter={() => onCardHover?.(match.champion)}
+                style={championCardStyle(match.champion)}
+                className={championCardClassName}
+              >
+                <ChampionCardChrome champion={match.champion} win={match.win} />
+                <div className="relative ml-auto flex flex-col items-end gap-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-medium">{championName(match.champion)}</span>
+                    <span
+                      className={cn(
+                        "text-xs font-semibold uppercase tracking-wider",
+                        match.win ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {match.win ? "Win" : "Loss"}
+                    </span>
+                  </div>
+                  <div className="font-mono text-sm tabular-nums">
+                    <CountUp to={match.kills} className="text-emerald-400" />
+                    <span className="text-muted-foreground"> / </span>
+                    <CountUp to={match.deaths} className="text-red-400" />
+                    <span className="text-muted-foreground"> / </span>
+                    <CountUp to={match.assists} className="text-amber-400" />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
+                    {formatTimeAgo(match.playedAt)}
+                  </div>
                 </div>
-                <div className="font-mono text-sm tabular-nums">
-                  <CountUp to={match.kills} className="text-emerald-400" />
-                  <span className="text-muted-foreground"> / </span>
-                  <CountUp to={match.deaths} className="text-red-400" />
-                  <span className="text-muted-foreground"> / </span>
-                  <CountUp to={match.assists} className="text-amber-400" />
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
-                  {formatTimeAgo(match.playedAt)}
-                </div>
-              </div>
-            </Link>
-          </CardTilt>
-        </m.li>
-      ))}
-    </m.ul>
+              </Link>
+            </CardTilt>
+          </div>
+        );
+      })}
+    </div>
   );
 }
