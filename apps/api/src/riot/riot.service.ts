@@ -76,18 +76,31 @@ export class RiotService {
     const start = performance.now();
     const url = `https://${regional}.api.riotgames.com${path}`;
 
+    // Use a manual AbortController + setTimeout instead of AbortSignal.timeout.
+    // Reports of `AbortSignal.timeout` failing to interrupt fetches stuck in
+    // DNS / TLS handshake on undici (notably under WSL2) made the timeout
+    // ineffective in practice — observed 30s+ hangs even with a 10s signal.
+    // The manual pattern is what undici's docs recommend when reliability
+    // matters, and it gives us a sentinel error we can identify unambiguously.
     let res: Response;
+    const ctrl = new AbortController();
+    const timeoutErr = new Error(`fetch timeout after ${FETCH_TIMEOUT_MS}ms`);
+    timeoutErr.name = "TimeoutError";
+    const timeoutHandle = setTimeout(() => ctrl.abort(timeoutErr), FETCH_TIMEOUT_MS);
+
     try {
       res = await fetch(url, {
         headers: { "X-Riot-Token": this.apiKey },
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: ctrl.signal,
       });
     } catch (err) {
       const duration = Math.round(performance.now() - start);
+      // Always log the raw error so we have a trail when something exotic
+      // (DNS stall, TLS bug, dispatcher fault) leaks through.
+      this.logger.warn(
+        `${regional} ${path} → fetch error after ${duration}ms: ${formatError(err)}`
+      );
       if (isAbortTimeout(err)) {
-        this.logger.warn(
-          `${regional} ${path} → TIMEOUT (${duration}ms after ${FETCH_TIMEOUT_MS}ms abort)`
-        );
         throw new RiotError(
           `Riot API fetch timeout after ${FETCH_TIMEOUT_MS}ms on ${path}`,
           504,
@@ -95,6 +108,8 @@ export class RiotService {
         );
       }
       throw err;
+    } finally {
+      clearTimeout(timeoutHandle);
     }
 
     const duration = Math.round(performance.now() - start);
@@ -126,4 +141,12 @@ export class RiotService {
 function isAbortTimeout(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   return err.name === "TimeoutError" || err.name === "AbortError";
+}
+
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    const cause = err.cause instanceof Error ? ` (cause: ${err.cause.name})` : "";
+    return `${err.name}: ${err.message}${cause}`;
+  }
+  return String(err);
 }

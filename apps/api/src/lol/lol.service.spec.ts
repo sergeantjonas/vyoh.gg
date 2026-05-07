@@ -224,6 +224,78 @@ describe("LolService.getMatchesForSummoner", () => {
     expect(riot.getMatchIdsByPuuid).toHaveBeenCalledOnce();
   });
 
+  it("serves a smaller window from a larger cached match-IDs result", async () => {
+    const summoner = makeSummoner(true);
+    const matchIds20 = Array.from({ length: 20 }, (_, i) => `M_${i + 1}`);
+
+    const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
+    const matchFindMany = vi
+      .fn()
+      .mockImplementation(async (args: { select?: unknown }) => (args.select ? [] : []));
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
+      match: { findMany: matchFindMany, upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn().mockResolvedValue(matchIds20),
+      getMatchById: vi.fn(),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+      ],
+    }).compile();
+    const service = moduleRef.get(LolService);
+
+    // Prime the cache with 20 IDs, then ask for 10 — should slice from cache.
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW", 0, 20);
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW", 0, 10);
+
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledOnce();
+  });
+
+  it("re-fetches when a wider window is requested after a narrower one", async () => {
+    const summoner = makeSummoner(true);
+
+    const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
+    const matchFindMany = vi.fn().mockResolvedValue([]);
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
+      match: { findMany: matchFindMany, upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi
+        .fn()
+        .mockResolvedValueOnce(Array.from({ length: 10 }, (_, i) => `M_${i + 1}`))
+        .mockResolvedValueOnce(Array.from({ length: 20 }, (_, i) => `M_${i + 1}`)),
+      getMatchById: vi.fn(),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+      ],
+    }).compile();
+    const service = moduleRef.get(LolService);
+
+    // Prime with 10, then ask for 20 — cached prefix isn't long enough.
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW", 0, 10);
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW", 0, 20);
+
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledTimes(2);
+  });
+
   it("re-fetches when query params differ even within the TTL window", async () => {
     const summoner = makeSummoner(true);
     const matchIds = ["M_1", "M_2"];

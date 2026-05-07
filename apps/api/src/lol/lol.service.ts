@@ -9,7 +9,7 @@ import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
 
-type CachedIds = { ids: string[]; expiry: number };
+type CachedIds = { ids: string[]; coveredCount: number; expiry: number };
 
 @Injectable()
 export class LolService {
@@ -107,20 +107,33 @@ export class LolService {
     regional: Regional,
     options: { start: number; count: number; queue?: number }
   ): Promise<string[]> {
-    const key = `${puuid}:${regional}:${options.queue ?? "all"}:${options.start}:${options.count}`;
+    const queue = options.queue ?? "all";
+    const key = `${puuid}:${regional}:${queue}`;
+    const requestedEnd = options.start + options.count;
+
+    // Cache hit when we've previously *asked Riot for* at least `requestedEnd`
+    // and got an answer back. Tracking `coveredCount` (rather than just the
+    // returned ids length) handles the "account has 2 games, asked for 20"
+    // case correctly — the second call should hit, not re-ask Riot.
     const cached = this.matchIdsCache.get(key);
-    if (cached && cached.expiry > Date.now()) {
+    if (cached && cached.expiry > Date.now() && requestedEnd <= cached.coveredCount) {
       this.logger.log(
-        `match-ids cache HIT for ${puuid} (queue=${options.queue ?? "all"})`
+        `match-ids cache HIT for ${puuid} (queue=${queue}, slice ${options.start}..${requestedEnd})`
       );
-      return cached.ids;
+      return cached.ids.slice(options.start, requestedEnd);
     }
 
     const ids = await this.riot.getMatchIdsByPuuid(puuid, regional, options);
-    this.matchIdsCache.set(key, {
-      ids,
-      expiry: Date.now() + MATCH_IDS_TTL_MS,
-    });
+
+    // Only cache prefixes (start === 0). Update `coveredCount` to the largest
+    // count we've ever asked for at this key; never shrink it.
+    if (options.start === 0) {
+      this.matchIdsCache.set(key, {
+        ids,
+        coveredCount: Math.max(options.count, cached?.coveredCount ?? 0),
+        expiry: Date.now() + MATCH_IDS_TTL_MS,
+      });
+    }
     return ids;
   }
 
