@@ -55,22 +55,18 @@ export function MatchList({
       className="flex flex-col gap-3"
     >
       {matches.map((match) => (
-        <m.li
-          key={match.matchId}
-          variants={item}
-          className="[contain-intrinsic-size:0_7rem] [content-visibility:auto]"
-        >
+        <m.li key={match.matchId} variants={item}>
           <Link
             to="/lol/$accountSlug/matches/$matchId"
             params={{ accountSlug, matchId: match.matchId }}
             className={cn(
-              "group relative flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.005]",
+              "group relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5",
               match.win
                 ? "border-emerald-500/30 hover:border-emerald-500/60 hover:shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)]"
                 : "border-red-500/30 hover:border-red-500/60 hover:shadow-[0_8px_24px_-8px_rgba(239,68,68,0.35)]"
             )}
           >
-            <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden">
+            <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md">
               <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
                 <img
                   src={championCenteredSplashUrl(match.champion)}
