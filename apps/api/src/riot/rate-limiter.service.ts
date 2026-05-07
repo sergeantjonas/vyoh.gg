@@ -7,8 +7,9 @@ import { RateLimiterTimeoutError } from "./riot.error";
 const REGIONALS: Regional[] = ["americas", "europe", "asia", "sea"];
 
 const SCHEDULE_DEADLINE_MS = 30_000;
-const STILL_QUEUED_WARNING_MS = 5_000;
+const STILL_QUEUED_WARNING_MS = 10_000;
 const SLOW_QUEUE_LOG_MS = 2_000;
+const MAX_CONCURRENT_PER_REGIONAL = 8;
 
 type AppWindow = { limiter: Bottleneck; windowSec: number };
 type MethodEntry = { limiter: Bottleneck; windowSec: number };
@@ -30,6 +31,7 @@ export class RateLimiterService {
         reservoirRefreshAmount: 20,
         reservoirRefreshInterval: 1_000,
         minTime: 50,
+        maxConcurrent: MAX_CONCURRENT_PER_REGIONAL,
       });
       const slow = new Bottleneck({
         reservoir: 100,

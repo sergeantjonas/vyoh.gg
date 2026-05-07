@@ -155,4 +155,36 @@ describe("RateLimiterService", () => {
       expect(result).toBe("fast");
     });
   });
+
+  describe("max concurrency", () => {
+    it("caps in-flight jobs per regional cluster", async () => {
+      const service = new RateLimiterService();
+
+      let inFlight = 0;
+      let peakInFlight = 0;
+      let unblock: () => void = () => {};
+      const gate = new Promise<void>((resolve) => {
+        unblock = resolve;
+      });
+
+      const jobs = Array.from({ length: 12 }, () =>
+        service.schedule("europe", "match-by-id", async () => {
+          inFlight += 1;
+          peakInFlight = Math.max(peakInFlight, inFlight);
+          await gate;
+          inFlight -= 1;
+        })
+      );
+
+      // minTime: 50ms × 8 slots ≈ 400ms to fill the cap; wait 500ms to be safe.
+      await new Promise((r) => setTimeout(r, 500));
+
+      // Peak in-flight must never exceed our configured ceiling, even though
+      // the reservoir (20) would otherwise allow more.
+      expect(peakInFlight).toBe(8);
+
+      unblock();
+      await Promise.all(jobs);
+    });
+  });
 });
