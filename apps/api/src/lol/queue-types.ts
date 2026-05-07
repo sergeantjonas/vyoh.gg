@@ -20,6 +20,10 @@ const QUEUE_TYPES: Record<number, string> = {
   1400: "Ultimate Spellbook",
   1700: "Arena",
   1710: "Arena",
+  1810: "Swarm",
+  1820: "Swarm",
+  1830: "Swarm",
+  1840: "Swarm",
   1900: "URF",
 };
 
