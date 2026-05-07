@@ -130,6 +130,7 @@ export function MatchList({
           transform: `translateY(${virtualRow.start - scrollMargin}px)`,
           paddingBottom: 12,
         };
+        const staggerDelay = (virtualRow.index % MATCHES_PAGE_SIZE) * 0.03;
         if (!match) {
           return (
             <m.div
@@ -138,7 +139,7 @@ export function MatchList({
               ref={virtualizer.measureElement}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
+              transition={{ duration: 0.2, delay: staggerDelay, ease: "easeOut" }}
               style={rowStyle}
             >
               <MatchCardSkeleton />
@@ -152,7 +153,7 @@ export function MatchList({
             ref={virtualizer.measureElement}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.2, delay: staggerDelay, ease: "easeOut" }}
             style={rowStyle}
           >
             <CardTilt>
