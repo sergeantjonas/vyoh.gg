@@ -1,10 +1,16 @@
 import { HttpError } from "@/lib/http-error";
 import { reportWebVitals } from "@/lib/web-vitals";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { LazyMotion, domMax } from "motion/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Toaster, toast } from "sonner";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
@@ -15,6 +21,12 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
+
+const errorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof HttpError) return error.message;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +41,17 @@ const queryClient = new QueryClient({
       },
     },
   },
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.state.data === undefined) return;
+      toast.error(errorMessage(error, "Background refresh failed"));
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      toast.error(errorMessage(error, "Something went wrong"));
+    },
+  }),
 });
 
 const rootElement = document.getElementById("root");
@@ -40,6 +63,7 @@ createRoot(rootElement).render(
       <LazyMotion features={domMax}>
         <RouterProvider router={router} />
       </LazyMotion>
+      <Toaster theme="dark" richColors position="bottom-right" />
     </QueryClientProvider>
   </StrictMode>
 );
