@@ -13,8 +13,8 @@ describe("LolController", () => {
     }).compile();
 
     const controller = moduleRef.get(LolController);
-    await controller.getMatches("euw1", "Vyoh", "EUW");
+    await controller.getMatches("euw1", "Vyoh", "EUW", 0, 20);
 
-    expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
+    expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 0, 20);
   });
 });

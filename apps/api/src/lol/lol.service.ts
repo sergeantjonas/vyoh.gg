@@ -22,6 +22,7 @@ export class LolService {
     region: string,
     gameName: string,
     tagLine: string,
+    start = 0,
     count: number = DEFAULT_MATCH_COUNT
   ): Promise<MatchSummary[]> {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
@@ -32,6 +33,7 @@ export class LolService {
     const regional = platformToRegional(region);
 
     const matchIds = await this.riot.getMatchIdsByPuuid(summoner.puuid, regional, {
+      start,
       count,
     });
 
@@ -112,7 +114,7 @@ export class LolService {
       `match cache: ${have.size} hit, ${missing.length} missing for ${puuid}`
     );
 
-    await Promise.all(
+    const results = await Promise.allSettled(
       missing.map(async (matchId) => {
         const detail = await this.riot.getMatchById(matchId, regional);
         const summary = riotMatchToSummary(detail, puuid);
@@ -131,5 +133,12 @@ export class LolService {
         });
       })
     );
+
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length > 0) {
+      this.logger.warn(
+        `backfill: ${failed.length}/${missing.length} matches failed for ${puuid} — partial results returned`
+      );
+    }
   }
 }
