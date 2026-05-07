@@ -73,10 +73,13 @@ function ChampionSplashLayer({
             src={url}
             alt=""
             aria-hidden="true"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
             initial={{ opacity: 0 }}
             animate={{ opacity: imgReady ? 0.2 : 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            style={{ filter: "blur(5px) saturate(0.92)" }}
+            style={{ filter: "blur(5px) saturate(0.92) brightness(0.7)" }}
             className="absolute inset-0 size-full object-cover object-top"
           />
         </div>
