@@ -7,7 +7,9 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champion-card";
+import { MatchCardSkeleton } from "@/lol/match-list-skeleton";
 import { useChampionName } from "@/lol/use-champions";
+import { MATCHES_PAGE_SIZE } from "@/lol/use-matches";
 import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
@@ -61,8 +63,11 @@ export function MatchList({
     }
   }, []);
 
+  const phantomCount = isFetchingNextPage && hasNextPage ? MATCHES_PAGE_SIZE : 0;
+  const totalCount = matches.length + phantomCount;
+
   const virtualizer = useWindowVirtualizer({
-    count: matches.length,
+    count: totalCount,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     scrollMargin,
     overscan: 4,
@@ -90,7 +95,7 @@ export function MatchList({
       style={{ height: virtualizer.getTotalSize() }}
     >
       {showPerf && (
-        <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-background/85 px-3 py-2 font-mono text-xs shadow-lg backdrop-blur">
+        <div className="fixed bottom-4 left-44 z-50 rounded-lg border border-border bg-background/85 px-3 py-2 font-mono text-xs shadow-lg backdrop-blur">
           <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
             virtualizer
           </div>
@@ -116,20 +121,32 @@ export function MatchList({
       )}
       {items.map((virtualRow) => {
         const match = matches[virtualRow.index];
-        if (!match) return null;
+        const rowStyle = {
+          position: "absolute" as const,
+          top: 0,
+          left: 0,
+          right: 0,
+          transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+          paddingBottom: 12,
+        };
+        if (!match) {
+          return (
+            <div
+              key={`skeleton-${virtualRow.index}`}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={rowStyle}
+            >
+              <MatchCardSkeleton />
+            </div>
+          );
+        }
         return (
           <div
             key={match.matchId}
             data-index={virtualRow.index}
             ref={virtualizer.measureElement}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-              paddingBottom: 12,
-            }}
+            style={rowStyle}
           >
             <CardTilt>
               <Link
