@@ -6,7 +6,8 @@ import { RiotService } from "./riot.service";
 const ORIGINAL_KEY = process.env.RIOT_API_KEY;
 
 const passThroughLimiter: RateLimiterService = {
-  schedule: <T>(_: unknown, fn: () => Promise<T>) => fn(),
+  schedule: <T>(_: unknown, __: unknown, fn: () => Promise<T>) => fn(),
+  syncFromHeaders: async () => undefined,
 } as unknown as RateLimiterService;
 
 beforeEach(() => {
@@ -61,15 +62,20 @@ describe("RiotService.getAccountByRiotId", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it("routes the call through the rate limiter for the regional cluster", async () => {
+  it("routes the call through the rate limiter for the regional cluster and method family", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
-    const schedule = vi.fn(<T>(_: unknown, fn: () => Promise<T>) => fn());
-    const limiter = { schedule } as unknown as RateLimiterService;
+    const schedule = vi.fn(<T>(_: unknown, __: unknown, fn: () => Promise<T>) => fn());
+    const syncFromHeaders = vi.fn(async () => undefined);
+    const limiter = { schedule, syncFromHeaders } as unknown as RateLimiterService;
 
     const service = new RiotService(limiter);
     await service.getAccountByRiotId("Vyoh", "EUW", "europe");
 
-    expect(schedule).toHaveBeenCalledWith("europe", expect.any(Function));
+    expect(schedule).toHaveBeenCalledWith(
+      "europe",
+      "account-by-riot-id",
+      expect.any(Function)
+    );
   });
 });
 

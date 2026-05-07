@@ -99,11 +99,11 @@ The biggest single jump is `motion/react` (+39 kB gzip). It's accepted at the bo
 
 ### Riot API: rate-limit-aware fetching
 
-Riot's developer keys allow **20 requests/second and 100 requests/2 minutes per regional cluster** (americas, europe, asia, sea). One match-history fetch issues ~12 calls — one Account-V1 lookup, one Match-V5 list, then one Match-V5 detail per match. Two consecutive searches without coordination would hit the per-second cap; sustained use would hit the per-2-minute cap.
+Riot enforces two independent limits per dev key: a global **app-rate-limit** (20 req/s and 100 req/2 min per regional cluster) and a per-endpoint **method-rate-limit** (e.g. ~2000 req/10 s on `MATCH-V5 /by-puuid/{puuid}/ids`). One match-history fetch issues ~12 calls — Account-V1 lookup, Match-V5 list, then Match-V5 detail per match. Hitting either ceiling returns 429.
 
 The api takes a layered approach:
 
-**Per-summoner cache.** A `Summoner` table caches the `gameName/tagLine → puuid` mapping (Account-V1 only fires on the first lookup), and a `Match` table with composite primary key `(matchId, puuid)` caches each summoner's match perspective. `LolService.backfillMissingMatches` only fetches Match-V5 detail for IDs not already in the cache. See [apps/api/src/lol/lol.service.ts](apps/api/src/lol/lol.service.ts).
+**Per-summoner cache.** A `Summoner` table caches `gameName/tagLine → puuid` (Account-V1 only fires on first lookup), and a `Match` table with composite primary key `(matchId, puuid)` caches each summoner's match perspective. `LolService.backfillMissingMatches` only fetches Match-V5 detail for IDs not already in the cache. See [apps/api/src/lol/lol.service.ts](apps/api/src/lol/lol.service.ts).
 
 A repeat query for a summoner with no new games drops from **~12 Riot calls to 1** (just the match-IDs list refresh):
 
@@ -114,11 +114,13 @@ A repeat query for a summoner with no new games drops from **~12 Riot calls to 1
 [HTTP] GET /lol/summoners/euw1/Vyoh/EUW/matches → 200 (135ms)
 ```
 
-**Proactive rate limiter.** One Bottleneck per regional cluster, chained — 20 req/s on top, 100 req/2 min underneath. Each `RiotService.fetch` is scheduled through the limiter for its cluster; jobs queue if the budget is depleted, never sent past the limit. See [apps/api/src/riot/rate-limiter.service.ts](apps/api/src/riot/rate-limiter.service.ts).
+**Proactive rate limiter — chained method → app → app.** Each call is scheduled through three Bottlenecks chained in series: a per-`(regional, method-family)` bucket (e.g. `europe:match-ids-by-puuid`), then the regional fast bucket (20 req/s with `minTime: 50ms` to kill same-tick bursts), then the regional slow bucket (100 req/2 min). Method limiters are lazily created the first time a family is used and chained into the regional fast limiter — Bottleneck's `chain()` enforces that a job has to clear *all* downstream buckets before firing. The 50ms `minTime` was added after observing two requests fired in the same JS tick (`count=20` and `count=10` from a page mounting matches + trends in parallel) blow past the local reservoir before either had returned. See [apps/api/src/riot/rate-limiter.service.ts](apps/api/src/riot/rate-limiter.service.ts) and [apps/api/src/riot/method-families.ts](apps/api/src/riot/method-families.ts).
 
-**Reactive retry-on-429.** The proactive limiter prevents nearly all 429s, but Riot's service-side limits can still trigger one. The fetch path detects 429, reads the `Retry-After` header, sleeps, and retries (up to 2 times). After exhaustion, propagates as a `RiotError(429)` which the `RiotExceptionFilter` maps to an HTTP 429 with a friendly message. See [apps/api/src/riot/riot.service.ts](apps/api/src/riot/riot.service.ts).
+**Header-driven drift correction.** Local Bottleneck state is in-memory only — every Nest restart wipes the reservoir, but Riot's rolling counters keep running. Right after a restart you'd happily fire 100 reqs locally while Riot still remembered the previous 90, and 429 anyway. Every Riot response (success or 429) carries `X-App-Rate-Limit{,-Count}` and `X-Method-Rate-Limit{,-Count}`; `RateLimiterService.syncFromHeaders` parses both, computes `remaining = limit - count` per window, and shrinks the matching limiter via Bottleneck's `updateSettings({ reservoir })`. Sync is **strictly downward** — it never inflates the bucket, only revokes capacity Riot says we don't have. The hardcoded method limits in `method-families.ts` are conservative initial seeds; the headers are the source of truth from the first response onward.
 
-**Observability.** All three layers log structured events — cache hits/misses, every Riot call with its status and duration, every HTTP request with its outcome. Sufficient for development; production would surface the same signals through Prometheus or similar.
+**Reactive retry-on-429.** The proactive layer prevents nearly all 429s, but service-side limits and dev-key sharing can still trigger one. The fetch path reads `Retry-After`, sleeps, retries up to twice, and logs `X-Rate-Limit-Type` (`application` / `method` / `service`) so we can see which ceiling tripped. After exhaustion the error propagates as `RiotError(429)`, which `RiotExceptionFilter` maps to a friendly HTTP 429. See [apps/api/src/riot/riot.service.ts](apps/api/src/riot/riot.service.ts).
+
+**Observability.** All three layers log structured events — cache hits/misses, every Riot call with status + duration, every HTTP request with its outcome. Sufficient for development; production would surface the same signals through Prometheus or similar.
 
 **Open: misuse prevention.** Today the api accepts any `gameName#tagLine` in the URL — anyone hitting the deployed endpoint could drain the Riot key on queries we don't care about. Tied to the broader "personal dashboard, not search engine" pivot — likely lock the api to a whitelist of accounts and drop the search interface entirely.
 
