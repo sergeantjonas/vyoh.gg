@@ -4,6 +4,7 @@ import type { LolAccount, MatchSummary } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 export const MATCHES_PAGE_SIZE = 20;
+const AUTO_LOAD_CAP = 200;
 
 async function fetchMatchesPage(
   account: LolAccount,
@@ -40,7 +41,9 @@ export function useMatches(account: LolAccount | undefined) {
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) => {
       if (lastPage.length < MATCHES_PAGE_SIZE) return undefined;
-      return lastPageParam + MATCHES_PAGE_SIZE;
+      const next = lastPageParam + MATCHES_PAGE_SIZE;
+      if (next >= AUTO_LOAD_CAP) return undefined;
+      return next;
     },
     enabled: account !== undefined,
   });
