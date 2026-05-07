@@ -1,4 +1,5 @@
 import { HttpError } from "@/lib/http-error";
+import { reportWebVitals } from "@/lib/web-vitals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { LazyMotion, domMax } from "motion/react";
@@ -42,3 +43,5 @@ createRoot(rootElement).render(
     </QueryClientProvider>
   </StrictMode>
 );
+
+reportWebVitals();
