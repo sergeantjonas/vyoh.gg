@@ -1,4 +1,4 @@
-import { championIconUrl, championTileUrl } from "@/lib/champion-icon";
+import { championIconUrl, championLoadingUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
@@ -53,15 +53,24 @@ export function MatchList({
             to="/lol/$accountSlug/matches/$matchId"
             params={{ accountSlug, matchId: match.matchId }}
             className={cn(
-              "group relative flex h-20 items-center gap-4 overflow-hidden rounded-md border pl-3 transition-all hover:scale-[1.005]",
+              "group relative flex h-20 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-all hover:scale-[1.005]",
               match.win
                 ? "border-emerald-500/30 hover:border-emerald-500/60"
                 : "border-red-500/30 hover:border-red-500/60"
             )}
           >
+            <img
+              src={championLoadingUrl(match.champion)}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              className="pointer-events-none absolute inset-0 size-full object-cover object-[60%_15%] opacity-35 transition-opacity duration-300 group-hover:opacity-55"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/20" />
+
             <div
               className={cn(
-                "h-12 w-1 rounded-full",
+                "relative h-12 w-1 rounded-full",
                 match.win ? "bg-emerald-500" : "bg-red-500"
               )}
             />
@@ -69,29 +78,19 @@ export function MatchList({
               src={championIconUrl(match.champion)}
               alt={match.champion}
               loading="lazy"
-              className="size-12 rounded-md ring-1 ring-border"
+              className="relative size-12 rounded-md ring-1 ring-border"
             />
-            <div className="flex-1">
+            <div className="relative flex-1">
               <div className="font-medium">{match.champion}</div>
               <div className="text-sm text-muted-foreground">{match.queueType}</div>
             </div>
-            <div className="text-right">
+            <div className="relative text-right">
               <div className="font-mono text-sm">
                 {match.kills} / {match.deaths} / {match.assists}
               </div>
               <div className="text-sm text-muted-foreground">
                 {formatDuration(match.durationSec)} · {formatTimeAgo(match.playedAt)}
               </div>
-            </div>
-            <div className="relative h-full w-32 shrink-0 overflow-hidden">
-              <img
-                src={championTileUrl(match.champion)}
-                alt=""
-                aria-hidden="true"
-                loading="lazy"
-                className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
-              />
-              <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-card to-transparent" />
             </div>
           </Link>
         </m.li>

@@ -2,11 +2,27 @@ import { championIconUrl, championSplashUrl } from "@/lib/champion-icon";
 import { itemIconUrl } from "@/lib/item-icon";
 import { cn } from "@/lib/utils";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
+import { createPortal } from "react-dom";
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
   const secs = sec % 60;
   return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+}
+
+function SplashBackdrop({ champion }: { champion: string }) {
+  return createPortal(
+    <div className="pointer-events-none fixed inset-0 -z-10 animate-in fade-in duration-500">
+      <img
+        src={championSplashUrl(champion)}
+        alt=""
+        aria-hidden="true"
+        className="size-full object-cover opacity-25"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
+    </div>,
+    document.body
+  );
 }
 
 function ItemSlots({ items }: { items: number[] }) {
@@ -112,17 +128,7 @@ export function MatchDetailView({
 
   return (
     <div className="flex flex-col gap-6">
-      {currentChampion && (
-        <div className="pointer-events-none fixed inset-0 -z-10">
-          <img
-            src={championSplashUrl(currentChampion)}
-            alt=""
-            aria-hidden="true"
-            className="size-full object-cover opacity-25"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
-        </div>
-      )}
+      {currentChampion && <SplashBackdrop champion={currentChampion} />}
 
       <header className="flex flex-col gap-1">
         {currentChampion && (
