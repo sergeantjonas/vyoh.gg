@@ -1,5 +1,10 @@
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
-import type { CachedMatchesResult, MatchDetail, MatchSummary } from "@vyoh/shared";
+import type {
+  CachedMatchesResult,
+  LolAccount,
+  MatchDetail,
+  MatchSummary,
+} from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Regional, platformToRegional } from "../riot/regions";
@@ -98,6 +103,35 @@ export class LolService {
     }));
 
     return { matches, total };
+  }
+
+  async syncAccountMatches(
+    account: LolAccount,
+    count: number = DEFAULT_MATCH_COUNT
+  ): Promise<{ idCount: number; backfilled: number }> {
+    const regional = platformToRegional(account.region);
+    const summoner = await this.resolveSummoner(
+      account.region,
+      account.gameName,
+      account.tagLine
+    );
+
+    // Bypass the in-memory ID cache — sync is the canonical source of truth
+    // for "what matches exist", so we always ask Riot directly. The TTL cache
+    // is for shielding user navigations, not the worker.
+    const ids = await this.riot.getMatchIdsByPuuid(summoner.puuid, regional, {
+      count,
+    });
+
+    const before = await this.prisma.match.count({
+      where: { puuid: summoner.puuid, matchId: { in: ids } },
+    });
+    await this.backfillMissingMatches(summoner.puuid, ids, regional);
+    const after = await this.prisma.match.count({
+      where: { puuid: summoner.puuid, matchId: { in: ids } },
+    });
+
+    return { idCount: ids.length, backfilled: after - before };
   }
 
   async getMatchDetail(matchId: string): Promise<MatchDetail> {
