@@ -1,4 +1,4 @@
-import { championIconUrl, championLoadingUrl } from "@/lib/champion-icon";
+import { championIconUrl, championSplashUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
@@ -60,13 +60,13 @@ export function MatchList({
             )}
           >
             <img
-              src={championLoadingUrl(match.champion)}
+              src={championSplashUrl(match.champion)}
               alt=""
               aria-hidden="true"
               loading="lazy"
-              className="pointer-events-none absolute inset-0 size-full object-cover object-[60%_15%] opacity-35 transition-opacity duration-300 group-hover:opacity-55"
+              className="pointer-events-none absolute inset-0 size-full scale-125 object-cover opacity-50 blur-3xl transition-opacity duration-300 group-hover:opacity-70"
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/20" />
+            <div className="pointer-events-none absolute inset-0 bg-card/60" />
 
             <div
               className={cn(

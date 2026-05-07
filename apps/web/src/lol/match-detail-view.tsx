@@ -2,6 +2,7 @@ import { championIconUrl, championSplashUrl } from "@/lib/champion-icon";
 import { itemIconUrl } from "@/lib/item-icon";
 import { cn } from "@/lib/utils";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 
 function formatDuration(sec: number): string {
@@ -11,12 +12,19 @@ function formatDuration(sec: number): string {
 }
 
 function SplashBackdrop({ champion }: { champion: string }) {
+  const [loaded, setLoaded] = useState(false);
   return createPortal(
-    <div className="pointer-events-none fixed inset-0 -z-10 animate-in fade-in duration-500">
+    <div
+      className={cn(
+        "pointer-events-none fixed inset-0 -z-10 transition-opacity duration-500",
+        loaded ? "opacity-100" : "opacity-0"
+      )}
+    >
       <img
         src={championSplashUrl(champion)}
         alt=""
         aria-hidden="true"
+        onLoad={() => setLoaded(true)}
         className="size-full object-cover opacity-25"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
