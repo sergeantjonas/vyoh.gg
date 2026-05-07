@@ -12,3 +12,7 @@ export function championLoadingUrl(championName: string, skin = 0): string {
 export function championSplashUrl(championName: string, skin = 0): string {
   return `${DDRAGON_CDN}/img/champion/splash/${championName}_${skin}.jpg`;
 }
+
+export function championTileUrl(championName: string, skin = 0): string {
+  return `${DDRAGON_CDN}/img/champion/tiles/${championName}_${skin}.jpg`;
+}

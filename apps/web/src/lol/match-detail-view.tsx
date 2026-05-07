@@ -35,9 +35,20 @@ function ItemSlots({ items }: { items: number[] }) {
   );
 }
 
-function ParticipantRow({ p }: { p: ParticipantDetail }) {
+function ParticipantRow({
+  p,
+  isMe,
+}: {
+  p: ParticipantDetail;
+  isMe?: boolean;
+}) {
   return (
-    <li className="flex items-center gap-3 rounded-md border p-2">
+    <li
+      className={cn(
+        "flex items-center gap-3 rounded-md border bg-card/60 p-2 backdrop-blur-sm transition-colors",
+        isMe && "border-foreground/40 bg-card/80 ring-2 ring-foreground/30"
+      )}
+    >
       <img
         src={championIconUrl(p.championName)}
         alt={p.championName}
@@ -63,9 +74,11 @@ function ParticipantRow({ p }: { p: ParticipantDetail }) {
 function TeamBlock({
   title,
   participants,
+  myPuuid,
 }: {
   title: string;
   participants: ParticipantDetail[];
+  myPuuid?: string;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -77,7 +90,7 @@ function TeamBlock({
       </h3>
       <ul className="flex flex-col gap-1">
         {participants.map((p) => (
-          <ParticipantRow key={p.puuid} p={p} />
+          <ParticipantRow key={p.puuid} p={p} isMe={p.puuid === myPuuid} />
         ))}
       </ul>
     </section>
@@ -87,9 +100,11 @@ function TeamBlock({
 export function MatchDetailView({
   detail,
   currentChampion,
+  myPuuid,
 }: {
   detail: MatchDetail;
   currentChampion?: string;
+  myPuuid?: string;
 }) {
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
@@ -97,40 +112,39 @@ export function MatchDetailView({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="relative overflow-hidden rounded-lg border">
+      {currentChampion && (
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <img
+            src={championSplashUrl(currentChampion)}
+            alt=""
+            aria-hidden="true"
+            className="size-full object-cover opacity-25"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
+        </div>
+      )}
+
+      <header className="flex flex-col gap-1">
         {currentChampion && (
-          <>
-            <img
-              src={championSplashUrl(currentChampion)}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 size-full object-cover object-[center_25%] opacity-40"
-            />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-background via-background/60 to-transparent" />
-          </>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            {currentChampion}
+          </span>
         )}
-        <header className="relative flex flex-col gap-1 p-6">
-          {currentChampion && (
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
-              {currentChampion}
-            </span>
-          )}
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-2xl font-semibold">{detail.queueType}</h2>
-            <span className="text-sm text-muted-foreground">
-              {formatDuration(detail.durationSec)} ·{" "}
-              {playedAt.toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
-            </span>
-          </div>
-        </header>
-      </div>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-2xl font-semibold">{detail.queueType}</h2>
+          <span className="text-sm text-muted-foreground">
+            {formatDuration(detail.durationSec)} ·{" "}
+            {playedAt.toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </span>
+        </div>
+      </header>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <TeamBlock title="Blue side" participants={blue} />
-        <TeamBlock title="Red side" participants={red} />
+        <TeamBlock title="Blue side" participants={blue} myPuuid={myPuuid} />
+        <TeamBlock title="Red side" participants={red} myPuuid={myPuuid} />
       </div>
     </div>
   );

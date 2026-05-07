@@ -47,6 +47,7 @@ function MatchDetailPage() {
         <MatchDetailView
           detail={detail.data}
           currentChampion={myParticipant?.championName}
+          myPuuid={myParticipant?.puuid}
         />
       )}
     </div>
