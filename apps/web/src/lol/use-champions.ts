@@ -1,3 +1,4 @@
+import { normalizeChampionAlias } from "@/lib/champion-icon";
 import { useQuery } from "@tanstack/react-query";
 
 const CHAMPIONS_URL =
@@ -32,5 +33,8 @@ export function useChampions() {
  */
 export function useChampionName() {
   const champions = useChampions();
-  return (alias: string) => champions.data?.get(alias) ?? alias;
+  return (alias: string) => {
+    const normalized = normalizeChampionAlias(alias);
+    return champions.data?.get(normalized) ?? normalized;
+  };
 }

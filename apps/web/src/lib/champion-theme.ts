@@ -1,4 +1,5 @@
 import assets from "@/data/champion-assets.json";
+import { normalizeChampionAlias } from "@/lib/champion-icon";
 
 interface ChampionAsset {
   dominantHex: string;
@@ -13,5 +14,5 @@ const FALLBACK: ChampionAsset = {
 const map = assets.champions as Record<string, ChampionAsset>;
 
 export function championTheme(alias: string): ChampionAsset {
-  return map[alias] ?? FALLBACK;
+  return map[normalizeChampionAlias(alias)] ?? FALLBACK;
 }

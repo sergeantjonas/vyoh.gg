@@ -1,3 +1,5 @@
+import { normalizeChampionAlias } from "@/lib/champion-icon";
+
 // CDragon centered splashes — most champions face the viewer's LEFT, so
 // we flip by default so everyone consistently faces RIGHT (toward the
 // stats column on the match card). The set below lists the exceptions:
@@ -70,5 +72,5 @@ const FACING_RIGHT = new Set<string>([
 ]);
 
 export function shouldFlipChampion(championName: string): boolean {
-  return !FACING_RIGHT.has(championName);
+  return !FACING_RIGHT.has(normalizeChampionAlias(championName));
 }
