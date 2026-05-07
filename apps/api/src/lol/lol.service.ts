@@ -7,10 +7,14 @@ import { RiotService } from "../riot/riot.service";
 import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 
 const DEFAULT_MATCH_COUNT = 20;
+const MATCH_IDS_TTL_MS = 30_000;
+
+type CachedIds = { ids: string[]; expiry: number };
 
 @Injectable()
 export class LolService {
   private readonly logger = new Logger(LolService.name);
+  private readonly matchIdsCache = new Map<string, CachedIds>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -33,7 +37,7 @@ export class LolService {
     const summoner = await this.resolveSummoner(region, gameName, tagLine);
     const regional = platformToRegional(region);
 
-    const matchIds = await this.riot.getMatchIdsByPuuid(summoner.puuid, regional, {
+    const matchIds = await this.getMatchIds(summoner.puuid, regional, {
       start,
       count,
       queue,
@@ -96,6 +100,28 @@ export class LolService {
         fetchedAt: new Date(),
       },
     });
+  }
+
+  private async getMatchIds(
+    puuid: string,
+    regional: Regional,
+    options: { start: number; count: number; queue?: number }
+  ): Promise<string[]> {
+    const key = `${puuid}:${regional}:${options.queue ?? "all"}:${options.start}:${options.count}`;
+    const cached = this.matchIdsCache.get(key);
+    if (cached && cached.expiry > Date.now()) {
+      this.logger.log(
+        `match-ids cache HIT for ${puuid} (queue=${options.queue ?? "all"})`
+      );
+      return cached.ids;
+    }
+
+    const ids = await this.riot.getMatchIdsByPuuid(puuid, regional, options);
+    this.matchIdsCache.set(key, {
+      ids,
+      expiry: Date.now() + MATCH_IDS_TTL_MS,
+    });
+    return ids;
   }
 
   private async backfillMissingMatches(

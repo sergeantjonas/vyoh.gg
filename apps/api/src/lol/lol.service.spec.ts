@@ -183,6 +183,85 @@ describe("LolService.getMatchesForSummoner", () => {
     expect(error).toBeInstanceOf(ForbiddenException);
   });
 
+  it("caches the match-IDs list within the TTL window so a repeat call skips Riot", async () => {
+    const summoner = makeSummoner(true);
+    const matchIds = ["M_1", "M_2"];
+    const rowSet = [
+      buildRow("M_2", 2_000_000_000_000),
+      buildRow("M_1", 1_000_000_000_000),
+    ];
+
+    const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
+    const matchFindMany = vi
+      .fn()
+      .mockImplementation(async (args: { select?: unknown }) =>
+        args.select ? matchIds.map((matchId) => ({ matchId })) : rowSet
+      );
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
+      match: { findMany: matchFindMany, upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn().mockResolvedValue(matchIds),
+      getMatchById: vi.fn(),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+      ],
+    }).compile();
+    const service = moduleRef.get(LolService);
+
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW");
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW");
+
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledOnce();
+  });
+
+  it("re-fetches when query params differ even within the TTL window", async () => {
+    const summoner = makeSummoner(true);
+    const matchIds = ["M_1", "M_2"];
+
+    const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
+    const matchFindMany = vi
+      .fn()
+      .mockImplementation(async (args: { select?: unknown }) =>
+        args.select ? matchIds.map((matchId) => ({ matchId })) : []
+      );
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
+      match: { findMany: matchFindMany, upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn().mockResolvedValue(matchIds),
+      getMatchById: vi.fn(),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+      ],
+    }).compile();
+    const service = moduleRef.get(LolService);
+
+    // Same account, different queue filter → must miss the cache.
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW", 0, 20, 420);
+    await service.getMatchesForSummoner("euw1", "Vyoh", "EUW", 0, 20, 440);
+
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledTimes(2);
+  });
+
   it("with cached summoner and some new matches, only backfills missing", async () => {
     const summoner = makeSummoner(true);
     const { service, riot, prisma } = await makeService({
