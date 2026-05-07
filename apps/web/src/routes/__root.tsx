@@ -60,7 +60,7 @@ function RootLayout() {
               key={scope}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
             >
               <Outlet />
             </m.div>
