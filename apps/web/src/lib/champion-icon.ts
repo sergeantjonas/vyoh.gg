@@ -1,8 +1,8 @@
-const DDRAGON_VERSION = "15.18.1";
 const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
+const CDRAGON_CDN = "https://cdn.communitydragon.org/latest";
 
 export function championIconUrl(championName: string): string {
-  return `${DDRAGON_CDN}/${DDRAGON_VERSION}/img/champion/${championName}.png`;
+  return `${CDRAGON_CDN}/champion/${championName.toLowerCase()}/square`;
 }
 
 export function championLoadingUrl(championName: string, skin = 0): string {
@@ -15,4 +15,8 @@ export function championSplashUrl(championName: string, skin = 0): string {
 
 export function championTileUrl(championName: string, skin = 0): string {
   return `${DDRAGON_CDN}/img/champion/tiles/${championName}_${skin}.jpg`;
+}
+
+export function championCenteredSplashUrl(championName: string): string {
+  return `${CDRAGON_CDN}/champion/${championName.toLowerCase()}/splash-art/centered`;
 }
