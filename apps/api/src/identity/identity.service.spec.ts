@@ -3,7 +3,10 @@ import type { AccountsConfig } from "./identity.service";
 import { IdentityService } from "./identity.service";
 
 const config: AccountsConfig = {
-  lol: [{ gameName: "Vyoh", tagLine: "Ahri", region: "euw1" }],
+  lol: [
+    { slug: "ahri", gameName: "Vyoh", tagLine: "Ahri", region: "euw1" },
+    { slug: "tifa", gameName: "TIFΑ", tagLine: "7777", region: "euw1" },
+  ],
   steam: [],
 };
 
@@ -28,5 +31,25 @@ describe("IdentityService", () => {
     const service = new IdentityService(config);
     expect(service.isLolAccountAllowed("Foo", "Bar", "euw1")).toBe(false);
     expect(service.isLolAccountAllowed("Vyoh", "Ahri", "na1")).toBe(false);
+  });
+
+  it("finds an account by slug", () => {
+    const service = new IdentityService(config);
+    expect(service.findBySlug("ahri")?.gameName).toBe("Vyoh");
+    expect(service.findBySlug("AHRI")?.gameName).toBe("Vyoh");
+    expect(service.findBySlug("missing")).toBeUndefined();
+  });
+
+  it("throws on duplicate slugs", () => {
+    expect(
+      () =>
+        new IdentityService({
+          lol: [
+            { slug: "main", gameName: "A", tagLine: "1", region: "euw1" },
+            { slug: "main", gameName: "B", tagLine: "2", region: "euw1" },
+          ],
+          steam: [],
+        })
+    ).toThrow(/Duplicate slug "main"/);
   });
 });

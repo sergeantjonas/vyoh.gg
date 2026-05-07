@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMatches } from "./use-matches";
 
 const account: LolAccount = {
+  slug: "ahri",
   region: "euw1",
   gameName: "Vyoh",
   tagLine: "Ahri",

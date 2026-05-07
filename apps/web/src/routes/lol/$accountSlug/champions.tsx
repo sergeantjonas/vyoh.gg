@@ -1,16 +1,16 @@
-import { useMe } from "@/identity/use-me";
+import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { aggregateChampionStats } from "@/lol/champion-stats";
 import { ChampionTable } from "@/lol/champion-table";
 import { useMatches } from "@/lol/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/lol/champions")({
+export const Route = createFileRoute("/lol/$accountSlug/champions")({
   component: ChampionsPage,
 });
 
 function ChampionsPage() {
-  const me = useMe();
-  const account = me.data?.lol[0];
+  const { accountSlug } = Route.useParams();
+  const account = useAccountFromSlug(accountSlug);
   const matches = useMatches(account);
 
   if (matches.isPending && account) {

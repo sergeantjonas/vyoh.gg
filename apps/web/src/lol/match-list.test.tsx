@@ -35,7 +35,7 @@ const matches: MatchSummary[] = [
 
 describe("MatchList", () => {
   it("renders one item per match with champion, queue, and kda", () => {
-    render(<MatchList matches={matches} />);
+    render(<MatchList matches={matches} accountSlug="ahri" />);
 
     expect(screen.queryByText("Ahri")).not.toBeNull();
     expect(screen.queryByText("Jhin")).not.toBeNull();
@@ -46,7 +46,7 @@ describe("MatchList", () => {
   });
 
   it("formats duration as Xm SSs", () => {
-    render(<MatchList matches={matches} />);
+    render(<MatchList matches={matches} accountSlug="ahri" />);
     expect(screen.queryByText(/30m 34s/)).not.toBeNull();
     expect(screen.queryByText(/21m 20s/)).not.toBeNull();
   });

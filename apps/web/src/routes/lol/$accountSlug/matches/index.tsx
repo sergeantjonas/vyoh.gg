@@ -1,17 +1,17 @@
 import { Button } from "@/components/ui/button";
-import { useMe } from "@/identity/use-me";
+import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/lol/matches/")({
+export const Route = createFileRoute("/lol/$accountSlug/matches/")({
   component: MatchesPage,
 });
 
 function MatchesPage() {
-  const me = useMe();
-  const account = me.data?.lol[0];
+  const { accountSlug } = Route.useParams();
+  const account = useAccountFromSlug(accountSlug);
   const matches = useMatches(account);
 
   return (
@@ -25,7 +25,7 @@ function MatchesPage() {
           </Button>
         </div>
       )}
-      {matches.data && <MatchList matches={matches.data} />}
+      {matches.data && <MatchList matches={matches.data} accountSlug={accountSlug} />}
     </div>
   );
 }

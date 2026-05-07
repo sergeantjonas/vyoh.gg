@@ -33,7 +33,13 @@ function formatTimeAgo(iso: string): string {
   return `${weeks}w ago`;
 }
 
-export function MatchList({ matches }: { matches: MatchSummary[] }) {
+export function MatchList({
+  matches,
+  accountSlug,
+}: {
+  matches: MatchSummary[];
+  accountSlug: string;
+}) {
   return (
     <m.ul
       initial="hidden"
@@ -44,8 +50,8 @@ export function MatchList({ matches }: { matches: MatchSummary[] }) {
       {matches.map((match) => (
         <m.li key={match.matchId} variants={item}>
           <Link
-            to="/lol/matches/$matchId"
-            params={{ matchId: match.matchId }}
+            to="/lol/$accountSlug/matches/$matchId"
+            params={{ accountSlug, matchId: match.matchId }}
             className={cn(
               "flex items-center gap-4 rounded-md border p-3 transition-colors hover:bg-muted/40",
               match.win ? "border-emerald-500/30" : "border-red-500/30"

@@ -1,4 +1,4 @@
-import { useMe } from "@/identity/use-me";
+import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { TrendKda } from "@/lol/trend-kda";
 import { TrendQueue } from "@/lol/trend-queue";
 import { TrendRecord } from "@/lol/trend-record";
@@ -11,13 +11,13 @@ import { TrendSummaryCards } from "@/lol/trend-summary";
 import { useMatches } from "@/lol/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/lol/trends")({
+export const Route = createFileRoute("/lol/$accountSlug/trends")({
   component: TrendsPage,
 });
 
 function TrendsPage() {
-  const me = useMe();
-  const account = me.data?.lol[0];
+  const { accountSlug } = Route.useParams();
+  const account = useAccountFromSlug(accountSlug);
   const matches = useMatches(account);
 
   if (matches.isPending && account) {
