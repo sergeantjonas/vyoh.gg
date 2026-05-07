@@ -47,7 +47,7 @@ describe("useMatches", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("returns matches when the request succeeds", async () => {
+  it("returns the first page when the request succeeds", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify([sample]), { status: 200 })
     );
@@ -57,9 +57,9 @@ describe("useMatches", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([sample]);
+    expect(result.current.data?.pages).toEqual([[sample]]);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches"
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches?start=0&count=20"
     );
   });
 
