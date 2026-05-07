@@ -1,8 +1,11 @@
 import { CountUp } from "@/components/count-up";
-import { championCenteredSplashUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
 import { CardTilt } from "@/lol/card-tilt";
-import { shouldFlipChampion } from "@/lol/champion-direction";
+import {
+  ChampionCardChrome,
+  championCardClassName,
+  championCardStyle,
+} from "@/lol/champion-card";
 import { useChampionName } from "@/lol/use-champions";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
@@ -44,9 +47,11 @@ function formatTimeAgo(iso: string): string {
 export function MatchList({
   matches,
   accountSlug,
+  onCardHover,
 }: {
   matches: MatchSummary[];
   accountSlug: string;
+  onCardHover?: (champion: string) => void;
 }) {
   const championName = useChampionName();
   return (
@@ -62,42 +67,11 @@ export function MatchList({
             <Link
               to="/lol/$accountSlug/matches/$matchId"
               params={{ accountSlug, matchId: match.matchId }}
-              className={cn(
-                "group relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5",
-                match.win
-                  ? "border-emerald-500/30 hover:border-emerald-500/60 hover:shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)]"
-                  : "border-red-500/30 hover:border-red-500/60 hover:shadow-[0_8px_24px_-8px_rgba(239,68,68,0.35)]"
-              )}
+              onMouseEnter={() => onCardHover?.(match.champion)}
+              style={championCardStyle(match.champion)}
+              className={championCardClassName}
             >
-              <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md">
-                <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
-                  <img
-                    src={championCenteredSplashUrl(match.champion)}
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                    className={cn(
-                      "size-full object-cover object-[center_30%] opacity-95 transition-opacity duration-300 group-hover:opacity-100",
-                      shouldFlipChampion(match.champion) && "-scale-x-100"
-                    )}
-                  />
-                </div>
-              </div>
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent from-10% via-background/60 via-45% to-background to-[67%]" />
-
-              <m.div
-                initial={{ scaleY: 0, opacity: 0 }}
-                animate={{ scaleY: 1, opacity: 1 }}
-                transition={{
-                  duration: 0.5,
-                  delay: 0.15,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-                className={cn(
-                  "relative h-20 w-1 origin-center rounded-full",
-                  match.win ? "bg-emerald-500" : "bg-red-500"
-                )}
-              />
+              <ChampionCardChrome champion={match.champion} win={match.win} />
               <div className="relative ml-auto flex flex-col items-end gap-1">
                 <div className="flex items-baseline gap-2">
                   <span className="font-medium">{championName(match.champion)}</span>

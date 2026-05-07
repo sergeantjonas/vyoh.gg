@@ -1,7 +1,27 @@
-import { championIconUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
+import { CardTilt } from "@/lol/card-tilt";
+import {
+  ChampionCardChrome,
+  championCardClassName,
+  championCardStyle,
+} from "@/lol/champion-card";
+import { type Variants, m } from "motion/react";
 import type { ChampionStats } from "./champion-stats";
 import { useChampionName } from "./use-champions";
+
+const container: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.04 } },
+};
+
+const item: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 380, damping: 28 },
+  },
+};
 
 function formatPlaytime(sec: number): string {
   const hours = sec / 3600;
@@ -9,40 +29,51 @@ function formatPlaytime(sec: number): string {
   return `${hours.toFixed(1)}h`;
 }
 
-export function ChampionTable({ stats }: { stats: ChampionStats[] }) {
+export function ChampionTable({
+  stats,
+  onCardHover,
+}: {
+  stats: ChampionStats[];
+  onCardHover?: (champion: string) => void;
+}) {
   const championName = useChampionName();
   return (
-    <ul className="flex flex-col gap-2">
+    <m.ul
+      initial="hidden"
+      animate="show"
+      variants={container}
+      className="flex flex-col gap-3"
+    >
       {stats.map((s) => (
-        <li key={s.champion} className="flex items-center gap-4 rounded-md border p-3">
-          <img
-            src={championIconUrl(s.champion)}
-            alt={championName(s.champion)}
-            loading="lazy"
-            className="size-12 rounded-md"
-          />
-          <div className="flex-1">
-            <div className="font-medium">{championName(s.champion)}</div>
-            <div className="text-sm text-muted-foreground">
-              {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
-              {formatPlaytime(s.totalDurationSec)}
-            </div>
-          </div>
-          <div className="text-right">
+        <m.li key={s.champion} variants={item}>
+          <CardTilt>
             <div
-              className={cn(
-                "font-mono text-sm",
-                s.winRate >= 0.5 ? "text-emerald-500" : "text-red-500"
-              )}
+              onMouseEnter={() => onCardHover?.(s.champion)}
+              style={championCardStyle(s.champion)}
+              className={championCardClassName}
             >
-              {Math.round(s.winRate * 100)}% WR
+              <ChampionCardChrome champion={s.champion} />
+              <div className="relative ml-auto flex flex-col items-end gap-1">
+                <div className="font-medium">{championName(s.champion)}</div>
+                <div className="font-mono text-sm tabular-nums">
+                  <span
+                    className={cn(s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400")}
+                  >
+                    {Math.round(s.winRate * 100)}%
+                  </span>
+                  <span className="text-muted-foreground"> WR · </span>
+                  <span className="text-amber-400">{s.avgKda.toFixed(2)}</span>
+                  <span className="text-muted-foreground"> KDA</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
+                  {formatPlaytime(s.totalDurationSec)}
+                </div>
+              </div>
             </div>
-            <div className="font-mono text-sm text-muted-foreground">
-              {s.avgKda.toFixed(2)} KDA
-            </div>
-          </div>
-        </li>
+          </CardTilt>
+        </m.li>
       ))}
-    </ul>
+    </m.ul>
   );
 }

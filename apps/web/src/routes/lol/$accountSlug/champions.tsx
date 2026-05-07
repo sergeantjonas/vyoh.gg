@@ -3,6 +3,7 @@ import { aggregateChampionStats } from "@/lol/champion-stats";
 import { ChampionTable } from "@/lol/champion-table";
 import { type MatchCountOption, MatchCountSelector } from "@/lol/match-count-selector";
 import { useMatchesWindow } from "@/lol/use-matches";
+import { useHoverChampion } from "@/routes/lol/$accountSlug";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ function ChampionsPage() {
   const account = useAccountFromSlug(accountSlug);
   const [count, setCount] = useState<MatchCountOption>(20);
   const matches = useMatchesWindow(account, count);
+  const setHoveredChampion = useHoverChampion();
 
   return (
     <div className="flex flex-col gap-3">
@@ -34,7 +36,10 @@ function ChampionsPage() {
       ) : !matches.data || matches.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No matches yet to aggregate.</p>
       ) : (
-        <ChampionTable stats={aggregateChampionStats(matches.data)} />
+        <ChampionTable
+          stats={aggregateChampionStats(matches.data)}
+          onCardHover={setHoveredChampion ?? undefined}
+        />
       )}
     </div>
   );

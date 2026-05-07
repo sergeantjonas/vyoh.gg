@@ -3,6 +3,7 @@ import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
+import { useHoverChampion } from "@/routes/lol/$accountSlug";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -16,6 +17,8 @@ function MatchesPage() {
   const matches = useMatches(account);
 
   const flat = useMemo(() => matches.data?.pages.flat() ?? [], [matches.data?.pages]);
+
+  const setHoveredChampion = useHoverChampion();
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -45,7 +48,13 @@ function MatchesPage() {
           </Button>
         </div>
       )}
-      {flat.length > 0 && <MatchList matches={flat} accountSlug={accountSlug} />}
+      {flat.length > 0 && (
+        <MatchList
+          matches={flat}
+          accountSlug={accountSlug}
+          onCardHover={setHoveredChampion ?? undefined}
+        />
+      )}
 
       {matches.hasNextPage && (
         <div ref={sentinelRef} className="flex items-center justify-center py-2">
