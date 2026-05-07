@@ -6,7 +6,7 @@ Built as a portfolio project — equal parts hobby and engineering case study. T
 
 ## Status
 
-The app has pivoted from "public summoner search" to **personal multi-account dashboard**: the api locks to a whitelist of my own LoL accounts (no open Riot-key drainage), and the web app is a deep dashboard with infinite-scroll match history, trend charts, champion aggregation, match detail with team/item breakdowns, and a meaningful coat of visual polish (sliding navigation indicators, splash-art backdrops with mouse parallax, animated KDA tickers, command palette).
+The app has pivoted from "public summoner search" to **personal multi-account dashboard**: the api locks to a whitelist of my own LoL accounts (no open Riot-key drainage), and the web app is a deep dashboard with infinite-scroll match history, trend charts, champion aggregation, match detail with team/item breakdowns, and a meaningful coat of visual polish (sliding navigation indicators, an interactive splash backdrop that follows the hovered card, per-champion themed cards, animated KDA tickers, command palette).
 
 Currently shipped:
 
@@ -16,13 +16,15 @@ Currently shipped:
 - Cmd+K command palette (cmdk + Radix Dialog) and Radix Tooltip with auto-flip collision detection for item hover cards.
 - Toast feedback layer (Sonner) wired into TanStack Query — mutation errors always surface; query errors only toast on background-refresh failures so initial loads still show inline error UI.
 - Live Core Web Vitals overlay (toggleable via `?perf=1`) showing real-user LCP / INP / CLS / FCP / TTFB.
-- Custom scrollbar styling, frosted-glass nav, noise-grain backdrop, splash-art backdrop with mouse parallax + radial vignette that survives route transitions via a root `SplashProvider`.
+- Per-champion theming driven by build-time-extracted dominant colors (Vibrant) and blurhash placeholders — match cards and champion cards both inherit the champion's color for border + hover glow, and the splash backdrop renders the blurhash instantly while the real image decodes.
+- Custom scrollbar styling, frosted-glass nav, noise-grain backdrop, and a hover-driven splash backdrop that hoists to the LoL layout — picking a random recent champion as the seed, then crossfading to whichever card is hovered (works on both match list and champions tab).
 
 Next: Steam integration (Steam Web API, identity stitching across services), Lighthouse + bundle budget instrumentation per route, and an SSE-streamed first-time backfill so the heavy "load 100 games" path can show progressive results.
 
 ## Stack
 
-- **Frontend** — React 19, Vite 8, Tailwind CSS 4, shadcn-style primitives, motion (with `LazyMotion` `domMax` features for `layoutId` animations), TanStack Router (file-based) + TanStack Query 5, Recharts (lazy-loaded with the trends route), Radix UI primitives (Dialog + Tooltip), Sonner for toast feedback, react-calendar-heatmap for the activity grid, web-vitals for real-user perf metrics.
+- **Frontend** — React 19, Vite 8, Tailwind CSS 4, shadcn-style primitives, motion (with `LazyMotion` `domMax` features for `layoutId` animations), TanStack Router (file-based) + TanStack Query 5, Recharts (lazy-loaded with the trends route), Radix UI primitives (Dialog + Tooltip), Sonner for toast feedback, react-calendar-heatmap for the activity grid, react-blurhash for splash placeholders, web-vitals for real-user perf metrics.
+- **Build-time tooling (`tools/`)** — separate workspace for asset/precompute scripts. Currently houses `champion-assets/`, which uses node-vibrant + sharp + blurhash to derive a static JSON of per-champion dominant color and blurhash placeholders consumed at runtime.
 - **Backend** — NestJS 11 with the SWC builder; Vitest in both apps via `unplugin-swc` (so decorator metadata works without Jest). Bottleneck rate limiter (per-regional cluster, chained 20 req/s + 100 req/2 min) plus a custom `RiotExceptionFilter` that maps Riot errors to friendly HTTP status codes.
 - **Database** — Postgres 16 (Docker Compose), Prisma 7 with the new driver-adapter API (`@prisma/adapter-pg` + `prisma.config.ts`). `Summoner` and `Match` (composite key `(matchId, puuid)`) tables back the per-summoner cache.
 - **Cache / queue** — the per-summoner Postgres cache currently does most of the work. Redis + BullMQ planned for historical-backfill workers when that arc lands.
@@ -37,8 +39,10 @@ vyoh.gg/
 ├── apps/
 │   ├── web/             # React + Vite + Tailwind + shadcn + motion → http://localhost:2009
 │   └── api/             # NestJS + SWC + Vitest                     → http://localhost:2010
-└── packages/
-    └── shared/          # cross-cutting types and DTOs imported by both apps
+├── packages/
+│   └── shared/          # cross-cutting types and DTOs imported by both apps
+└── tools/
+    └── champion-assets/ # build-time precompute: vibrant palette + blurhash per champion
 ```
 
 The port choices have a story: **2009** is the year League of Legends launched, **2010** is the year I created my Steam account.
@@ -125,11 +129,40 @@ The first time you ask for "Last 100 games" on an account with little cache, the
 
 A planned next step is an SSE endpoint that streams `{matchId, status: "ready" | "failed"}` events as each Riot detail lands, so the web app can swap skeleton rows for real cards progressively. The current global indeterminate top-bar (driven by TanStack Query's `useIsFetching`) covers the global signal until then.
 
+### Build-time precompute: per-champion palette and blurhash
+
+Champion splashes are the visual hero element of the dashboard, but two things make them awkward at runtime:
+
+1. **The CDragon endpoint is 720p.** On a wide viewport the splash gets upscaled ~2×, which reads as "stretched photograph" rather than "atmospheric backdrop."
+2. **They're network-bound.** A few hundred ms of transparent hole between page load and image decode looks like a bug.
+
+Both are solved by precomputation. A small workspace at [tools/champion-assets/](tools/champion-assets/) iterates the CDragon champion-summary, downloads each splash, extracts a Vibrant palette via `node-vibrant`, and emits a 32×32 blurhash via `sharp` + `blurhash`. Output: a sorted, deterministic JSON committed at [apps/web/src/data/champion-assets.json](apps/web/src/data/champion-assets.json) — about 21 KB for 191 champions.
+
+```json
+{
+  "Ahri": {
+    "dominantHex": "#5979bd",
+    "blurhash": "UE9812EKVUVC%jX7i]VqDgjEp0kXroMxtTtm"
+  },
+  ...
+}
+```
+
+The web app consumes this via a tiny [champion-theme.ts](apps/web/src/lib/champion-theme.ts) lookup with a fallback. Two consumers:
+
+- **Themed cards.** Every match card and champion card sets a `--theme-color` CSS variable inline; a single `.themed-card` rule in `index.css` uses `color-mix(in oklab, ...)` to derive a 30 %/65 %/45 % alpha border + hover glow + box-shadow from that one variable. Win/loss is still communicated via the colored vertical bar inside the card, so dropping the win/loss border in favor of champion-themed didn't lose info-density. Source: [champion-card.tsx](apps/web/src/lol/champion-card.tsx) — chrome shared between the match list and the champions tab.
+- **Blurhash backdrop placeholder.** The splash layer renders the hash immediately on champion change, then crossfades the actual image in (`opacity: 0 → 0.20`) once `image.decode()` resolves. No empty backdrop is ever visible.
+
+**Scaling cost.** ~15 s for 191 champions at 8-way concurrency on a normal connection. Re-run on Riot patch updates; the JSON's stable sort keeps diffs minimal.
+
+**Why a separate workspace.** `node-vibrant` and `sharp` are heavy native deps that don't belong in the runtime bundle. Putting them in their own pnpm workspace under `tools/` keeps the web/api dependency graphs clean and makes room for future scripts (OG-card generation, Lighthouse runner) without polluting an existing app.
+
 ### Visual layer — `SplashProvider`, scope-keyed transitions, and `LazyMotion` `domMax`
 
 A few patterns worth flagging that are easy to break by accident:
 
-- **`SplashProvider` lives at the root.** Each match-detail page calls `useSplashChampion(name)` to publish the active champion; the provider preloads the splash via `image.decode()`, then crossfades through `AnimatePresence` keyed on the splash URL. Mouse-tracked parallax (±24/16 px, soft spring) is applied via motion values. Critically, the backdrop persists across route changes with a 100ms grace window — earlier prototypes that rendered the backdrop inside the route component flashed dark on every navigation because the portal unmounted and remounted. The image is anchored `object-top` (so short viewports crop the bottom, never the champion's face) and treated with a small `blur(5px) saturate(0.92)` filter to soften the ~2× upscale of the 720p source; a top-to-bottom bg gradient overlay fades the splash into the page background.
+- **`SplashProvider` lives at the root.** Consumers call `useSplashChampion(name, offsetX?)` to publish the active champion; the provider preloads via `image.decode()` and crossfades through `AnimatePresence` keyed on the champion alias. The backdrop persists across route changes with a 100ms grace window — earlier prototypes that rendered the backdrop inside the route component flashed dark on every navigation because the portal unmounted and remounted. The image is anchored `object-top` (so short viewports crop the bottom, never the champion's face) and treated with a small `blur(5px) saturate(0.92)` filter to soften the ~2× upscale of the 720p source. While the real image decodes, a `react-blurhash` canvas seeded by the precomputed hash is rendered immediately so the page never shows an empty hole. The horizontal offset (default `22%`) shifts the focal subject into the right margin — the central content column otherwise hides it; the value is set once via `useSplashChampion` and applied via a single transform on the wrapper, so navigations between pages don't slide the backdrop horizontally.
+- **Splash hoisted to the LoL layout.** The original implementation called `useSplashChampion` from each leaf route, which meant the backdrop unmounted whenever the user crossed sub-tabs (matches → trends → champions). The active champion now lives at the `$accountSlug.tsx` layout: it picks a random initial champion from the loaded matches and exposes a `HoverChampionProvider` so the matches list and champions table can override it on card hover via a context-shared setter. The context lives in a non-route file (`apps/web/src/lol/hover-champion-context.tsx`) — when it lived inside the route file, the bundler's path resolution between `$accountSlug.tsx` (file) and `$accountSlug/index.tsx` (directory index) instantiated two distinct contexts and the consumer always saw `null`.
 - **Scope-keyed `AnimatePresence`.** The root layout keys on the *first* path segment (`"/" | "/lol" | "/steam"`), so top-level navigation animates while sub-tab switches inside `/lol/$slug/...` don't re-mount the LoL header + tabs. A second `AnimatePresence` inside `$accountSlug.tsx` handles the inner sub-tab transition.
 - **`LazyMotion` features must be `domMax`.** `domAnimation` (the lighter bundle) doesn't include layout animations, so the sliding nav pill, the LoL sub-tab underline, and the trend-count selector all silently stop animating if you downgrade. Cost is ~5 kB gzip — accepted.
 - **Radix Tooltip with portal + collision detection.** Item hover cards on match detail use Radix's `Tooltip` primitive with `side="top"` defaulting and auto-flip to `bottom` when the trigger is near the viewport top. Portaling out of the row also frees them from any `overflow-hidden` ancestor that would otherwise clip them — important when the tooltip is taller than the participant row that triggered it.
