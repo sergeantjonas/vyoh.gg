@@ -1,3 +1,4 @@
+import { CrossedSwordsIcon, TwoCoinsIcon } from "@/components/game-icons";
 import { championIconUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
 import { useSplashChampion } from "@/lol/splash-backdrop";
@@ -5,7 +6,8 @@ import { useChampionName } from "@/lol/use-champions";
 import { useItems } from "@/lol/use-items";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
-import { type Variants, m } from "motion/react";
+import { type Variants, m, useReducedMotion } from "motion/react";
+import type { ComponentType, SVGProps } from "react";
 
 const teamContainer: Variants = {
   hidden: { opacity: 0 },
@@ -91,12 +93,64 @@ function ItemSlots({ items }: { items: number[] }) {
   );
 }
 
+function StatBar({
+  Icon,
+  label,
+  value,
+  max,
+  fillClassName,
+  labelClassName,
+}: {
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  value: number;
+  max: number;
+  fillClassName: string;
+  labelClassName: string;
+}) {
+  const reduced = useReducedMotion();
+  const target = max > 0 ? value / max : 0;
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className={cn(
+          "flex w-10 items-center gap-1 font-mono text-[10px] uppercase tracking-wider",
+          labelClassName
+        )}
+      >
+        <Icon className="size-3" aria-hidden="true" />
+        <span>{label}</span>
+      </span>
+      <div className="relative h-1 w-20 overflow-hidden rounded-full bg-muted/40">
+        <m.div
+          className={cn("absolute inset-y-0 left-0 w-full rounded-full", fillClassName)}
+          style={{ transformOrigin: "left" }}
+          initial={{ scaleX: reduced ? target : 0 }}
+          animate={{ scaleX: target }}
+          transition={
+            reduced
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 220, damping: 28, delay: 0.18 }
+          }
+        />
+      </div>
+      <span className="w-10 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+        {(value / 1000).toFixed(1)}k
+      </span>
+    </div>
+  );
+}
+
 function ParticipantRow({
   p,
   isMe,
+  maxDamage,
+  maxGold,
 }: {
   p: ParticipantDetail;
   isMe?: boolean;
+  maxDamage: number;
+  maxGold: number;
 }) {
   const championName = useChampionName();
   const displayName = championName(p.championName);
@@ -124,10 +178,25 @@ function ParticipantRow({
           <span className="text-amber-400">{p.assists}</span>
         </div>
       </div>
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-col items-end gap-1.5">
         <ItemSlots items={p.items} />
-        <div className="font-mono text-xs text-muted-foreground">
-          {Math.round(p.goldEarned / 1000)}k g · {Math.round(p.totalDamage / 1000)}k dmg
+        <div className="flex flex-col gap-0.5">
+          <StatBar
+            Icon={CrossedSwordsIcon}
+            label="Dmg"
+            value={p.totalDamage}
+            max={maxDamage}
+            fillClassName="bg-gradient-to-r from-red-500/80 to-orange-400/80"
+            labelClassName="text-red-400/80"
+          />
+          <StatBar
+            Icon={TwoCoinsIcon}
+            label="Gld"
+            value={p.goldEarned}
+            max={maxGold}
+            fillClassName="bg-gradient-to-r from-amber-500/80 to-yellow-300/80"
+            labelClassName="text-amber-400/80"
+          />
         </div>
       </div>
     </m.li>
@@ -138,10 +207,14 @@ function TeamBlock({
   title,
   participants,
   myPuuid,
+  maxDamage,
+  maxGold,
 }: {
   title: string;
   participants: ParticipantDetail[];
   myPuuid?: string;
+  maxDamage: number;
+  maxGold: number;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -164,7 +237,13 @@ function TeamBlock({
         className="flex flex-col gap-1"
       >
         {participants.map((p) => (
-          <ParticipantRow key={p.puuid} p={p} isMe={p.puuid === myPuuid} />
+          <ParticipantRow
+            key={p.puuid}
+            p={p}
+            isMe={p.puuid === myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
         ))}
       </m.ul>
     </section>
@@ -184,6 +263,8 @@ export function MatchDetailView({
   const red = detail.participants.filter((p) => p.teamId === 200);
   const playedAt = new Date(detail.playedAt);
   const championName = useChampionName();
+  const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
+  const maxGold = Math.max(...detail.participants.map((p) => p.goldEarned), 1);
 
   useSplashChampion(currentChampion);
 
@@ -209,8 +290,20 @@ export function MatchDetailView({
         </header>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <TeamBlock title="Blue side" participants={blue} myPuuid={myPuuid} />
-          <TeamBlock title="Red side" participants={red} myPuuid={myPuuid} />
+          <TeamBlock
+            title="Blue side"
+            participants={blue}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
+          <TeamBlock
+            title="Red side"
+            participants={red}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
         </div>
       </div>
     </TooltipPrimitive.Provider>
