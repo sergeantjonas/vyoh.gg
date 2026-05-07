@@ -1,6 +1,6 @@
 import { HttpError } from "@/lib/http-error";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LolAccount, MatchSummary } from "@vyoh/shared";
+import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 export const MATCHES_PAGE_SIZE = 10;
@@ -96,6 +96,52 @@ export function useMatchesWindow(
     queryFn: () => {
       if (!account) throw new Error("No account");
       return fetchMatchesPage(account, 0, count, queue);
+    },
+    enabled: account !== undefined,
+  });
+}
+
+async function fetchCachedMatches(
+  account: LolAccount,
+  count: number,
+  queue?: number
+): Promise<CachedMatchesResult> {
+  const params = new URLSearchParams({ count: String(count) });
+  if (queue !== undefined) params.set("queue", String(queue));
+  const res = await fetch(
+    `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/matches/cached?${params}`
+  );
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (typeof body?.message === "string") message = body.message;
+    } catch {
+      // not JSON — keep fallback
+    }
+    throw new HttpError(res.status, message);
+  }
+  return res.json();
+}
+
+export function useCachedMatchesWindow(
+  account: LolAccount | undefined,
+  count: number,
+  queue?: number
+) {
+  return useQuery({
+    queryKey: [
+      "lol",
+      "matches-cached",
+      account?.region,
+      account?.gameName,
+      account?.tagLine,
+      count,
+      queue,
+    ],
+    queryFn: () => {
+      if (!account) throw new Error("No account");
+      return fetchCachedMatches(account, count, queue);
     },
     enabled: account !== undefined,
   });

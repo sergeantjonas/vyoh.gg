@@ -360,3 +360,108 @@ describe("LolService.getMatchesForSummoner", () => {
     expect(prisma.match.upsert).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("LolService.getCachedMatches", () => {
+  function makeCachedService({
+    summoner,
+    rows,
+    total,
+  }: {
+    summoner: ReturnType<typeof makeSummoner> | null;
+    rows: ReturnType<typeof buildRow>[];
+    total: number;
+  }) {
+    const summonerFindUnique = vi.fn().mockResolvedValue(summoner?.value ?? null);
+    const matchFindMany = vi.fn().mockResolvedValue(rows);
+    const matchCount = vi.fn().mockResolvedValue(total);
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
+      match: { findMany: matchFindMany, count: matchCount, upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn(),
+      getMatchById: vi.fn(),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+    return { prisma, riot, identity };
+  }
+
+  async function buildService(overrides: ReturnType<typeof makeCachedService>) {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: overrides.prisma },
+        { provide: RiotService, useValue: overrides.riot },
+        { provide: IdentityService, useValue: overrides.identity },
+      ],
+    }).compile();
+    return moduleRef.get(LolService);
+  }
+
+  it("returns matches from the DB and a total count, never calling Riot", async () => {
+    const summoner = makeSummoner(true);
+    const overrides = makeCachedService({
+      summoner,
+      rows: [buildRow("M_2", 2_000_000_000_000), buildRow("M_1", 1_000_000_000_000)],
+      total: 18,
+    });
+    const service = await buildService(overrides);
+
+    const result = await service.getCachedMatches("euw1", "Vyoh", "EUW", 20);
+
+    expect(result.total).toBe(18);
+    expect(result.matches.map((m) => m.matchId)).toEqual(["M_2", "M_1"]);
+    expect(overrides.riot.getAccountByRiotId).not.toHaveBeenCalled();
+    expect(overrides.riot.getMatchIdsByPuuid).not.toHaveBeenCalled();
+    expect(overrides.riot.getMatchById).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty result when the summoner has never been resolved", async () => {
+    const overrides = makeCachedService({
+      summoner: null,
+      rows: [],
+      total: 0,
+    });
+    const service = await buildService(overrides);
+
+    const result = await service.getCachedMatches("euw1", "NewAccount", "EUW", 20);
+
+    expect(result).toEqual({ matches: [], total: 0 });
+    expect(overrides.riot.getAccountByRiotId).not.toHaveBeenCalled();
+  });
+
+  it("filters by queue when provided, mapping queue ID to queueType label", async () => {
+    const summoner = makeSummoner(true);
+    const overrides = makeCachedService({
+      summoner,
+      rows: [],
+      total: 5,
+    });
+    const service = await buildService(overrides);
+
+    await service.getCachedMatches("euw1", "Vyoh", "EUW", 20, 420);
+
+    expect(overrides.prisma.match.count).toHaveBeenCalledWith({
+      where: { puuid: "puuid-vyoh", queueType: "Ranked Solo" },
+    });
+    expect(overrides.prisma.match.findMany).toHaveBeenCalledWith({
+      where: { puuid: "puuid-vyoh", queueType: "Ranked Solo" },
+      orderBy: { playedAt: "desc" },
+      take: 20,
+    });
+  });
+
+  it("rejects accounts that are not in the whitelist", async () => {
+    const summoner = makeSummoner(true);
+    const overrides = makeCachedService({ summoner, rows: [], total: 0 });
+    overrides.identity.isLolAccountAllowed.mockReturnValue(false);
+    const service = await buildService(overrides);
+
+    const error = await service
+      .getCachedMatches("euw1", "Stranger", "TAG", 20)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ForbiddenException);
+  });
+});

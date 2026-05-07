@@ -3,11 +3,10 @@ import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/account-switcher";
 import { ActiveMatchProvider } from "@/lol/active-match-context";
 import { HoverChampionProvider } from "@/lol/hover-champion-context";
-import { MATCH_COUNT_OPTIONS, type MatchCountOption } from "@/lol/match-count-selector";
 import { MatchWindowProvider } from "@/lol/match-window-context";
 import { QueueFilter } from "@/lol/queue-filter";
 import { useSplashChampion } from "@/lol/splash-backdrop";
-import { useMatchesWindow } from "@/lol/use-matches";
+import { useCachedMatchesWindow } from "@/lol/use-matches";
 import {
   Link,
   Outlet,
@@ -25,22 +24,19 @@ const TABS = [
   { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown },
 ] as const;
 
-const DEFAULT_COUNT: MatchCountOption = 20;
+const DEFAULT_COUNT = 20;
 
 interface AccountSearch {
   queue?: number;
-  count?: MatchCountOption;
-}
-
-function isMatchCountOption(value: unknown): value is MatchCountOption {
-  return (MATCH_COUNT_OPTIONS as readonly number[]).includes(value as number);
+  count?: number;
 }
 
 export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
   validateSearch: (search: Record<string, unknown>): AccountSearch => ({
     queue: typeof search.queue === "number" ? search.queue : undefined,
-    count: isMatchCountOption(search.count) ? search.count : undefined,
+    count:
+      typeof search.count === "number" && search.count > 0 ? search.count : undefined,
   }),
 });
 
@@ -53,15 +49,16 @@ function AccountLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Single windowed query at the layout level. Trends, Champions, and the
-  // splash backdrop all consume this via context. Previously each sub-tab
-  // fired its own useMatchesWindow, which under AnimatePresence's
-  // popLayout mode meant the exiting tab's query stayed live alongside the
-  // entering tab's, producing 2-3 concurrent backend calls per navigation.
-  const window = useMatchesWindow(account, count, queue);
-  const matches = window.data;
+  // splash backdrop all consume this via context. Reads from the api's
+  // cached endpoint — pure DB query, no Riot calls — so navigating between
+  // tabs costs nothing upstream. The match list still backfills via its
+  // own useMatches infinite query; the sync worker fills the DB on a cron.
+  const window = useCachedMatchesWindow(account, count, queue);
+  const matches = window.data?.matches;
+  const total = window.data?.total ?? 0;
 
   const setCount = useCallback(
-    (next: MatchCountOption) => {
+    (next: number) => {
       navigate({
         to: ".",
         search: (prev: AccountSearch) => ({
@@ -93,6 +90,7 @@ function AccountLayout() {
           value={{
             matches,
             isPending: window.isPending,
+            total,
             count,
             setCount,
           }}

@@ -20,19 +20,21 @@ export const Route = createFileRoute("/lol/$accountSlug/trends")({
 });
 
 function TrendsPage() {
-  const { matches, isPending, count, setCount } = useMatchWindow();
+  const { matches, isPending, total, count, setCount } = useMatchWindow();
+  const effectiveCount = matches?.length ?? count;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
-            Trends over your last {count} games
+            Trends over your last {effectiveCount} games
           </h2>
           {matches && <TrendStreak streak={computeStreak(matches)} />}
         </div>
         <MatchCountSelector
           value={count}
+          total={total}
           onChange={setCount}
           layoutId="trends-count-indicator"
         />

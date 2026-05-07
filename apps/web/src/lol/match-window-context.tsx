@@ -1,12 +1,12 @@
-import type { MatchCountOption } from "@/lol/match-count-selector";
 import type { MatchSummary } from "@vyoh/shared";
 import { type ReactNode, createContext, useContext } from "react";
 
 type MatchWindowValue = {
   matches: MatchSummary[] | undefined;
   isPending: boolean;
-  count: MatchCountOption;
-  setCount: (next: MatchCountOption) => void;
+  total: number;
+  count: number;
+  setCount: (next: number) => void;
 };
 
 const MatchWindowContext = createContext<MatchWindowValue | null>(null);

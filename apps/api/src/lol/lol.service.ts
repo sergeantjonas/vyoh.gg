@@ -1,10 +1,11 @@
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
-import type { MatchDetail, MatchSummary } from "@vyoh/shared";
+import type { CachedMatchesResult, MatchDetail, MatchSummary } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
+import { queueTypeName } from "./queue-types";
 
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
@@ -54,6 +55,49 @@ export class LolService {
       ...rest,
       playedAt: playedAt.toISOString(),
     }));
+  }
+
+  async getCachedMatches(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count: number,
+    queue?: number
+  ): Promise<CachedMatchesResult> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) {
+      // No summoner row yet means we've never resolved this account from
+      // Riot. The match list / detail paths populate that on demand; the
+      // cached endpoint never calls Riot, so it returns an empty window.
+      return { matches: [], total: 0 };
+    }
+
+    const where: { puuid: string; queueType?: string } = { puuid: summoner.puuid };
+    if (queue !== undefined) {
+      where.queueType = queueTypeName(queue);
+    }
+
+    const [total, rows] = await Promise.all([
+      this.prisma.match.count({ where }),
+      this.prisma.match.findMany({
+        where,
+        orderBy: { playedAt: "desc" },
+        take: count,
+      }),
+    ]);
+
+    const matches = rows.map(({ playedAt, puuid: _puuid, ...rest }) => ({
+      ...rest,
+      playedAt: playedAt.toISOString(),
+    }));
+
+    return { matches, total };
   }
 
   async getMatchDetail(matchId: string): Promise<MatchDetail> {
