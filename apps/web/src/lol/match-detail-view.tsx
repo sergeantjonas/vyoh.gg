@@ -1,12 +1,11 @@
 import { championIconUrl } from "@/lib/champion-icon";
-import { itemIconUrl } from "@/lib/item-icon";
 import { cn } from "@/lib/utils";
 import { useSplashChampion } from "@/lol/splash-backdrop";
 import { useChampionName } from "@/lol/use-champions";
 import { useItems } from "@/lol/use-items";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
-import { AnimatePresence, type Variants, m } from "motion/react";
-import { useState } from "react";
+import { type Variants, m } from "motion/react";
 
 const teamContainer: Variants = {
   hidden: { opacity: 0 },
@@ -30,58 +29,54 @@ function formatDuration(sec: number): string {
 
 function ItemSlot({ id }: { id: number }) {
   const items = useItems();
-  const url = itemIconUrl(id);
-  const [hovered, setHovered] = useState(false);
+  const item = id !== 0 ? items.data?.get(id) : undefined;
 
-  if (!url) {
+  if (!item) {
     return <div className="size-5 rounded-sm bg-muted/40" />;
   }
 
-  const item = items.data?.get(id);
-  const name = item?.name ?? `Item ${id}`;
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <img src={url} alt={name} className="size-5 rounded-sm bg-muted" loading="lazy" />
-      <AnimatePresence>
-        {hovered && (
-          <m.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.15 }}
-            className="pointer-events-none absolute bottom-full right-0 z-50 mb-1.5 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md"
-          >
-            <div className="flex items-start gap-3">
-              <img
-                src={url}
-                alt=""
-                aria-hidden="true"
-                className="size-10 shrink-0 rounded-md bg-muted"
-              />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="text-sm font-semibold leading-tight">{name}</div>
-                {item?.priceTotal ? (
-                  <div className="font-mono text-xs text-amber-400">
-                    {item.priceTotal}g
-                  </div>
-                ) : null}
-              </div>
+    <TooltipPrimitive.Root delayDuration={150}>
+      <TooltipPrimitive.Trigger asChild>
+        <img
+          src={item.iconUrl}
+          alt={item.name}
+          className="size-5 rounded-sm bg-muted"
+          loading="lazy"
+        />
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="top"
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          className="pointer-events-none z-50 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+        >
+          <div className="flex items-start gap-3">
+            <img
+              src={item.iconUrl}
+              alt=""
+              aria-hidden="true"
+              className="size-10 shrink-0 rounded-md bg-muted"
+            />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <div className="text-sm font-semibold leading-tight">{item.name}</div>
+              {item.priceTotal ? (
+                <div className="font-mono text-xs text-amber-400">{item.priceTotal}g</div>
+              ) : null}
             </div>
-            {item?.description && (
-              <div
-                className="item-tooltip-body mt-2 text-xs leading-relaxed text-muted-foreground"
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted Riot item data from CDragon
-                dangerouslySetInnerHTML={{ __html: item.description }}
-              />
-            )}
-          </m.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </div>
+          {item.description && (
+            <div
+              className="item-tooltip-body mt-2 text-xs leading-relaxed text-muted-foreground"
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted Riot item data from CDragon
+              dangerouslySetInnerHTML={{ __html: item.description }}
+            />
+          )}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }
 
@@ -193,29 +188,31 @@ export function MatchDetailView({
   useSplashChampion(currentChampion);
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        {currentChampion && (
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">
-            {championName(currentChampion)}
-          </span>
-        )}
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-2xl font-semibold">{detail.queueType}</h2>
-          <span className="text-sm text-muted-foreground">
-            {formatDuration(detail.durationSec)} ·{" "}
-            {playedAt.toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </span>
-        </div>
-      </header>
+    <TooltipPrimitive.Provider delayDuration={150}>
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-1">
+          {currentChampion && (
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              {championName(currentChampion)}
+            </span>
+          )}
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-2xl font-semibold">{detail.queueType}</h2>
+            <span className="text-sm text-muted-foreground">
+              {formatDuration(detail.durationSec)} ·{" "}
+              {playedAt.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </span>
+          </div>
+        </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <TeamBlock title="Blue side" participants={blue} myPuuid={myPuuid} />
-        <TeamBlock title="Red side" participants={red} myPuuid={myPuuid} />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <TeamBlock title="Blue side" participants={blue} myPuuid={myPuuid} />
+          <TeamBlock title="Red side" participants={red} myPuuid={myPuuid} />
+        </div>
       </div>
-    </div>
+    </TooltipPrimitive.Provider>
   );
 }

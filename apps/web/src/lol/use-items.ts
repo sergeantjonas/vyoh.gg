@@ -3,17 +3,26 @@ import { useQuery } from "@tanstack/react-query";
 const ITEMS_URL =
   "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json";
 
+const ASSETS_BASE =
+  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default";
+
 interface RawItem {
   id: number;
   name: string;
   description?: string;
   priceTotal?: number;
+  iconPath: string;
 }
 
 export interface Item {
   name: string;
   description?: string;
   priceTotal?: number;
+  iconUrl: string;
+}
+
+function iconUrlFromPath(path: string): string {
+  return ASSETS_BASE + path.replace("/lol-game-data/assets/", "/").toLowerCase();
 }
 
 async function fetchItems(): Promise<Map<number, Item>> {
@@ -23,7 +32,12 @@ async function fetchItems(): Promise<Map<number, Item>> {
   return new Map(
     raw.map((it) => [
       it.id,
-      { name: it.name, description: it.description, priceTotal: it.priceTotal },
+      {
+        name: it.name,
+        description: it.description,
+        priceTotal: it.priceTotal,
+        iconUrl: iconUrlFromPath(it.iconPath),
+      },
     ])
   );
 }
