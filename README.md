@@ -46,16 +46,22 @@ The port choices have a story: **2009** is the year League of Legends launched, 
 Requires Node 22 (see `.nvmrc`), pnpm 10, and Docker (for the local Postgres).
 
 ```bash
-cp .env.example .env                       # optional: override compose defaults
-cp apps/api/.env.example apps/api/.env     # api env: DATABASE_URL + RIOT_API_KEY
-docker compose up -d                       # start Postgres on :5432
-pnpm install                               # install all workspace deps
-pnpm --filter @vyoh/api db:migrate         # apply prisma migrations
-pnpm --filter @vyoh/api db:seed            # populate the matches table
+pnpm bootstrap     # one-time: env files, install, postgres, migrate, seed
+pnpm dev       # web on :2009, api on :2010 — single process, prefixed logs
+```
 
-pnpm --filter @vyoh/web dev                # web dev server on :2009
-pnpm --filter @vyoh/api start:dev          # api in watch mode on :2010
+`pnpm bootstrap` is idempotent — re-run any time the database or env files drift. The script bootstraps `.env` files (only if missing), brings up Postgres with a healthcheck wait, applies Prisma migrations, and seeds the database.
 
+For a Riot API key, get a 24h dev key at [developer.riotgames.com](https://developer.riotgames.com/) and paste it into `apps/api/.env` (the setup script flags this if the placeholder is still there).
+
+Other useful scripts:
+
+```bash
+pnpm db:up                                 # bring up postgres only (no migrations)
+pnpm db:down                               # stop the postgres container (data preserved)
+pnpm reset                                 # destructive: stop + drop volume (prompts y/N, -y to skip)
+pnpm --filter @vyoh/api db:migrate         # create a new prisma migration
+pnpm --filter @vyoh/api db:seed            # re-seed
 pnpm check                                 # Biome format + lint (auto-fixes)
 pnpm typecheck                             # tsc --noEmit across all packages
 pnpm -r test                               # vitest in every workspace package

@@ -6,6 +6,11 @@
     "node": ">=22"
   },
   "scripts": {
+    "bootstrap": "bash scripts/setup.sh",
+    "dev": "docker compose up -d --wait postgres && concurrently --names web,api --prefix-colors cyan,magenta \"pnpm --filter @vyoh/web dev\" \"pnpm --filter @vyoh/api start:dev\"",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "reset": "bash scripts/reset.sh",
     "format": "biome format --write .",
     "check": "biome check --write .",
     "ci:check": "biome ci .",
@@ -13,6 +18,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "concurrently": "^9.1.0",
     "typescript": "^6.0.3"
   }
 }
