@@ -12,6 +12,8 @@ const ESTIMATED_ROW_HEIGHT = 124;
 const NEAR_END_THRESHOLD = 5;
 const STAGGER_PER_ITEM = 0.06;
 const ENTER_DURATION = 0.2;
+const INITIAL_VISIBLE = 20;
+const REVEAL_INCREMENT = 10;
 
 export function MatchList({
   matches,
@@ -32,7 +34,9 @@ export function MatchList({
   const showPerf = usePerfFlag();
   const parentRef = useRef<HTMLDivElement>(null);
   const seenCountRef = useRef(0);
+  const prevMatchesLengthRef = useRef<number | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
 
   useLayoutEffect(() => {
     if (parentRef.current) {
@@ -40,8 +44,21 @@ export function MatchList({
     }
   }, []);
 
+  // Bump visibleCount when fresh data arrives via fetchNextPage so phantoms
+  // don't suddenly disappear when their indices fall back outside the count.
+  useEffect(() => {
+    if (
+      prevMatchesLengthRef.current !== null &&
+      matches.length > prevMatchesLengthRef.current
+    ) {
+      setVisibleCount((v) => Math.max(v, matches.length));
+    }
+    prevMatchesLengthRef.current = matches.length;
+  }, [matches.length]);
+
+  const reveal = Math.min(visibleCount, matches.length);
   const phantomCount = isFetchingNextPage && hasNextPage ? MATCHES_PAGE_SIZE : 0;
-  const totalCount = matches.length + phantomCount;
+  const totalCount = reveal + phantomCount;
 
   const virtualizer = useWindowVirtualizer({
     count: totalCount,
@@ -55,20 +72,26 @@ export function MatchList({
 
   useEffect(() => {
     if (lastIndex === undefined) return;
-    if (
-      lastIndex >= matches.length - NEAR_END_THRESHOLD &&
-      hasNextPage &&
-      !isFetchingNextPage &&
-      fetchNextPage
-    ) {
+    if (lastIndex < reveal - NEAR_END_THRESHOLD) return;
+    if (visibleCount < matches.length) {
+      setVisibleCount((v) => v + REVEAL_INCREMENT);
+    } else if (hasNextPage && !isFetchingNextPage && fetchNextPage) {
       fetchNextPage();
     }
-  }, [lastIndex, matches.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [
+    lastIndex,
+    reveal,
+    visibleCount,
+    matches.length,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   const seenCount = seenCountRef.current;
   useEffect(() => {
-    seenCountRef.current = matches.length;
-  }, [matches.length]);
+    seenCountRef.current = reveal;
+  }, [reveal]);
 
   return (
     <div
