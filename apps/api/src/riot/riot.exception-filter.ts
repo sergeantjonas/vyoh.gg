@@ -24,7 +24,9 @@ export class RiotExceptionFilter implements ExceptionFilter {
 
 function mapStatus(exception: RiotError): number {
   if (exception instanceof RateLimiterTimeoutError) return 503;
-  if (exception.status === 404 || exception.status === 429) return exception.status;
+  if (exception.status === 404 || exception.status === 429 || exception.status === 504) {
+    return exception.status;
+  }
   return 502;
 }
 
@@ -34,5 +36,6 @@ function mapMessage(exception: RiotError): string {
   }
   if (exception.status === 404) return "Summoner not found";
   if (exception.status === 429) return "Rate limit exceeded — try again shortly";
+  if (exception.status === 504) return "Riot API timed out — please retry";
   return "Upstream service error";
 }

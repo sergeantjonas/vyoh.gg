@@ -7,6 +7,7 @@ import { RiotError } from "./riot.error";
 import type { RiotAccount, RiotMatch } from "./types";
 
 const MAX_RETRIES = 2;
+const FETCH_TIMEOUT_MS = 10_000;
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -74,9 +75,28 @@ export class RiotService {
   ): Promise<T> {
     const start = performance.now();
     const url = `https://${regional}.api.riotgames.com${path}`;
-    const res = await fetch(url, {
-      headers: { "X-Riot-Token": this.apiKey },
-    });
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { "X-Riot-Token": this.apiKey },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+    } catch (err) {
+      const duration = Math.round(performance.now() - start);
+      if (isAbortTimeout(err)) {
+        this.logger.warn(
+          `${regional} ${path} → TIMEOUT (${duration}ms after ${FETCH_TIMEOUT_MS}ms abort)`
+        );
+        throw new RiotError(
+          `Riot API fetch timeout after ${FETCH_TIMEOUT_MS}ms on ${path}`,
+          504,
+          path
+        );
+      }
+      throw err;
+    }
+
     const duration = Math.round(performance.now() - start);
     this.logger.log(`${regional} ${path} → ${res.status} (${duration}ms)`);
 
@@ -101,4 +121,9 @@ export class RiotService {
     }
     return res.json() as Promise<T>;
   }
+}
+
+function isAbortTimeout(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.name === "TimeoutError" || err.name === "AbortError";
 }

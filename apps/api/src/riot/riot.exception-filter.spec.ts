@@ -57,6 +57,16 @@ describe("RiotExceptionFilter", () => {
     expect(status).toHaveBeenCalledWith(502);
   });
 
+  it("maps 504 to 504 with a riot-timeout message", () => {
+    const { host, status, json } = makeHost();
+    filter.catch(new RiotError("Riot fetch timeout", 504, "/match"), host);
+    expect(status).toHaveBeenCalledWith(504);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 504,
+      message: "Riot API timed out — please retry",
+    });
+  });
+
   it("maps RateLimiterTimeoutError to 503 with a saturation message", () => {
     const { host, status, json } = makeHost();
     filter.catch(new RateLimiterTimeoutError("europe", "match-by-id", 30_000), host);

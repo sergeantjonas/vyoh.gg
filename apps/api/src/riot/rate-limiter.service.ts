@@ -54,8 +54,12 @@ export class RateLimiterService {
 
     const stillQueuedWarn = setTimeout(() => {
       const c = limiter.counts();
+      // EXECUTING > 0 means the inner callback (incl. the actual fetch) is in
+      // flight; QUEUED > 0 means we're waiting for limiter capacity. Either
+      // can be the cause of a slow request — print both so the operator can
+      // tell network-stall from queue-starvation at a glance.
       this.logger.warn(
-        `${regional}:${family} still queued after ${STILL_QUEUED_WARNING_MS}ms — queued: ${c.QUEUED}, executing: ${c.EXECUTING}`
+        `${regional}:${family} still pending after ${STILL_QUEUED_WARNING_MS}ms — ${c.QUEUED} queued, ${c.EXECUTING} in flight`
       );
     }, STILL_QUEUED_WARNING_MS);
 

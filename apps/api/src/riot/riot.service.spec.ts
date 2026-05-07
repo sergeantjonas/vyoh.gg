@@ -34,7 +34,7 @@ describe("RiotService.getAccountByRiotId", () => {
     expect(account.puuid).toBe("p1");
     expect(fetch).toHaveBeenCalledWith(
       "https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/Vyoh/EUW",
-      { headers: { "X-Riot-Token": "test-key" } }
+      expect.objectContaining({ headers: { "X-Riot-Token": "test-key" } })
     );
   });
 
@@ -175,5 +175,30 @@ describe("RiotService retry on 429", () => {
     expect(error).toBeInstanceOf(RiotError);
     expect((error as RiotError).status).toBe(429);
     expect(fetch).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
+  });
+});
+
+describe("RiotService fetch timeout", () => {
+  it("throws RiotError(504) when the fetch is aborted by AbortSignal.timeout", async () => {
+    const timeoutError = new Error("The operation was aborted due to timeout");
+    timeoutError.name = "TimeoutError";
+    vi.mocked(fetch).mockRejectedValue(timeoutError);
+
+    const service = new RiotService(passThroughLimiter);
+    const error = await service.getMatchById("EUW1_1", "europe").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RiotError);
+    expect((error as RiotError).status).toBe(504);
+    expect((error as RiotError).path).toContain("/lol/match/v5/matches/EUW1_1");
+  });
+
+  it("re-throws non-abort errors unchanged", async () => {
+    const networkError = new Error("ECONNREFUSED");
+    vi.mocked(fetch).mockRejectedValue(networkError);
+
+    const service = new RiotService(passThroughLimiter);
+    const error = await service.getMatchById("EUW1_1", "europe").catch((e: unknown) => e);
+
+    expect(error).toBe(networkError);
   });
 });
