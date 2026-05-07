@@ -9,3 +9,17 @@ export class RiotError extends Error {
     this.path = path;
   }
 }
+
+export class RateLimiterTimeoutError extends RiotError {
+  readonly waitedMs: number;
+
+  constructor(regional: string, family: string, waitedMs: number) {
+    super(
+      `Rate limiter deadline exceeded after ${waitedMs}ms on ${regional}:${family}`,
+      503,
+      `${regional}:${family}`
+    );
+    this.name = "RateLimiterTimeoutError";
+    this.waitedMs = waitedMs;
+  }
+}

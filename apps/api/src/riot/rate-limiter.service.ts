@@ -2,8 +2,13 @@ import { Injectable, Logger } from "@nestjs/common";
 import Bottleneck from "bottleneck";
 import { METHOD_LIMITS, type MethodFamily } from "./method-families";
 import type { Regional } from "./regions";
+import { RateLimiterTimeoutError } from "./riot.error";
 
 const REGIONALS: Regional[] = ["americas", "europe", "asia", "sea"];
+
+const SCHEDULE_DEADLINE_MS = 30_000;
+const STILL_QUEUED_WARNING_MS = 5_000;
+const SLOW_QUEUE_LOG_MS = 2_000;
 
 type AppWindow = { limiter: Bottleneck; windowSec: number };
 type MethodEntry = { limiter: Bottleneck; windowSec: number };
@@ -13,6 +18,10 @@ export class RateLimiterService {
   private readonly logger = new Logger(RateLimiterService.name);
   private readonly appWindows = new Map<Regional, AppWindow[]>();
   private readonly methodLimiters = new Map<string, MethodEntry>();
+
+  // Overridable so tests can use a tiny deadline without fake timers
+  // fighting Bottleneck's internal scheduler.
+  deadlineMs: number = SCHEDULE_DEADLINE_MS;
 
   constructor() {
     for (const regional of REGIONALS) {
@@ -35,12 +44,49 @@ export class RateLimiterService {
     }
   }
 
-  schedule<T>(
+  async schedule<T>(
     regional: Regional,
     family: MethodFamily,
     fn: () => Promise<T>
   ): Promise<T> {
-    return this.methodLimiterFor(regional, family).limiter.schedule(fn);
+    const limiter = this.methodLimiterFor(regional, family).limiter;
+    const start = Date.now();
+
+    const stillQueuedWarn = setTimeout(() => {
+      const c = limiter.counts();
+      this.logger.warn(
+        `${regional}:${family} still queued after ${STILL_QUEUED_WARNING_MS}ms — queued: ${c.QUEUED}, executing: ${c.EXECUTING}`
+      );
+    }, STILL_QUEUED_WARNING_MS);
+
+    const queued = limiter.schedule(async () => {
+      const waited = Date.now() - start;
+      if (waited > SLOW_QUEUE_LOG_MS) {
+        this.logger.warn(
+          `${regional}:${family} ran after ${(waited / 1000).toFixed(1)}s in queue`
+        );
+      }
+      return fn();
+    });
+
+    const deadlineMs = this.deadlineMs;
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      deadlineTimer = setTimeout(() => {
+        const c = limiter.counts();
+        this.logger.error(
+          `${regional}:${family} exceeded ${deadlineMs}ms deadline — abandoning (queued: ${c.QUEUED}, executing: ${c.EXECUTING})`
+        );
+        reject(new RateLimiterTimeoutError(regional, family, deadlineMs));
+      }, deadlineMs);
+    });
+
+    try {
+      return await Promise.race([queued, deadline]);
+    } finally {
+      clearTimeout(stillQueuedWarn);
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+    }
   }
 
   async syncFromHeaders(

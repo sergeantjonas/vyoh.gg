@@ -1,6 +1,7 @@
 import type Bottleneck from "bottleneck";
 import { describe, expect, it, vi } from "vitest";
 import { RateLimiterService } from "./rate-limiter.service";
+import { RateLimiterTimeoutError } from "./riot.error";
 
 type Internals = {
   appWindows: Map<string, { limiter: Bottleneck; windowSec: number }[]>;
@@ -120,6 +121,38 @@ describe("RateLimiterService", () => {
       await expect(
         service.syncFromHeaders("europe", "match-by-id", new Headers())
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("schedule deadline", () => {
+    it("rejects with RateLimiterTimeoutError when the deadline expires", async () => {
+      const service = new RateLimiterService();
+      service.deadlineMs = 50;
+
+      // Drain the slow reservoir so the next job has nowhere to go.
+      await service.syncFromHeaders(
+        "europe",
+        "match-by-id",
+        new Headers({
+          "X-App-Rate-Limit": "20:1,100:120",
+          "X-App-Rate-Limit-Count": "0:1,100:120",
+        })
+      );
+
+      const fn = vi.fn().mockResolvedValue("never");
+      const error = await service
+        .schedule("europe", "match-by-id", fn)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(RateLimiterTimeoutError);
+      expect((error as RateLimiterTimeoutError).waitedMs).toBe(50);
+      expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("resolves normally when the job completes before the deadline", async () => {
+      const service = new RateLimiterService();
+      const result = await service.schedule("europe", "match-by-id", async () => "fast");
+      expect(result).toBe("fast");
     });
   });
 });

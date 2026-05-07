@@ -1,6 +1,6 @@
 import type { ArgumentsHost } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
-import { RiotError } from "./riot.error";
+import { RateLimiterTimeoutError, RiotError } from "./riot.error";
 import { RiotExceptionFilter } from "./riot.exception-filter";
 
 function makeHost() {
@@ -55,5 +55,15 @@ describe("RiotExceptionFilter", () => {
     const { host, status } = makeHost();
     filter.catch(new RiotError("Riot 418", 418, "/match"), host);
     expect(status).toHaveBeenCalledWith(502);
+  });
+
+  it("maps RateLimiterTimeoutError to 503 with a saturation message", () => {
+    const { host, status, json } = makeHost();
+    filter.catch(new RateLimiterTimeoutError("europe", "match-by-id", 30_000), host);
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 503,
+      message: "Upstream rate limit saturated — please retry in a moment",
+    });
   });
 });
