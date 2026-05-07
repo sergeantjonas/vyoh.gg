@@ -1,5 +1,7 @@
+import { CountUp } from "@/components/count-up";
 import { championCenteredSplashUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
+import { CardTilt } from "@/lol/card-tilt";
 import { shouldFlipChampion } from "@/lol/champion-direction";
 import { useChampionName } from "@/lol/use-champions";
 import { Link } from "@tanstack/react-router";
@@ -56,70 +58,72 @@ export function MatchList({
     >
       {matches.map((match) => (
         <m.li key={match.matchId} variants={item}>
-          <Link
-            to="/lol/$accountSlug/matches/$matchId"
-            params={{ accountSlug, matchId: match.matchId }}
-            className={cn(
-              "group relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5",
-              match.win
-                ? "border-emerald-500/30 hover:border-emerald-500/60 hover:shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)]"
-                : "border-red-500/30 hover:border-red-500/60 hover:shadow-[0_8px_24px_-8px_rgba(239,68,68,0.35)]"
-            )}
-          >
-            <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md">
-              <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
-                <img
-                  src={championCenteredSplashUrl(match.champion)}
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  className={cn(
-                    "size-full object-cover object-[center_30%] opacity-95 transition-opacity duration-300 group-hover:opacity-100",
-                    shouldFlipChampion(match.champion) && "-scale-x-100"
-                  )}
-                />
-              </div>
-            </div>
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent from-10% via-background/60 via-45% to-background to-[67%]" />
-
-            <m.div
-              initial={{ scaleY: 0, opacity: 0 }}
-              animate={{ scaleY: 1, opacity: 1 }}
-              transition={{
-                duration: 0.5,
-                delay: 0.15,
-                ease: [0.16, 1, 0.3, 1],
-              }}
+          <CardTilt>
+            <Link
+              to="/lol/$accountSlug/matches/$matchId"
+              params={{ accountSlug, matchId: match.matchId }}
               className={cn(
-                "relative h-20 w-1 origin-center rounded-full",
-                match.win ? "bg-emerald-500" : "bg-red-500"
+                "group relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5",
+                match.win
+                  ? "border-emerald-500/30 hover:border-emerald-500/60 hover:shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)]"
+                  : "border-red-500/30 hover:border-red-500/60 hover:shadow-[0_8px_24px_-8px_rgba(239,68,68,0.35)]"
               )}
-            />
-            <div className="relative ml-auto flex flex-col items-end gap-1">
-              <div className="flex items-baseline gap-2">
-                <span className="font-medium">{championName(match.champion)}</span>
-                <span
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-wider",
-                    match.win ? "text-emerald-400" : "text-red-400"
-                  )}
-                >
-                  {match.win ? "Win" : "Loss"}
-                </span>
+            >
+              <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md">
+                <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
+                  <img
+                    src={championCenteredSplashUrl(match.champion)}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    className={cn(
+                      "size-full object-cover object-[center_30%] opacity-95 transition-opacity duration-300 group-hover:opacity-100",
+                      shouldFlipChampion(match.champion) && "-scale-x-100"
+                    )}
+                  />
+                </div>
               </div>
-              <div className="font-mono text-sm tabular-nums">
-                <span className="text-emerald-400">{match.kills}</span>
-                <span className="text-muted-foreground"> / </span>
-                <span className="text-red-400">{match.deaths}</span>
-                <span className="text-muted-foreground"> / </span>
-                <span className="text-amber-400">{match.assists}</span>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent from-10% via-background/60 via-45% to-background to-[67%]" />
+
+              <m.div
+                initial={{ scaleY: 0, opacity: 0 }}
+                animate={{ scaleY: 1, opacity: 1 }}
+                transition={{
+                  duration: 0.5,
+                  delay: 0.15,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className={cn(
+                  "relative h-20 w-1 origin-center rounded-full",
+                  match.win ? "bg-emerald-500" : "bg-red-500"
+                )}
+              />
+              <div className="relative ml-auto flex flex-col items-end gap-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-medium">{championName(match.champion)}</span>
+                  <span
+                    className={cn(
+                      "text-xs font-semibold uppercase tracking-wider",
+                      match.win ? "text-emerald-400" : "text-red-400"
+                    )}
+                  >
+                    {match.win ? "Win" : "Loss"}
+                  </span>
+                </div>
+                <div className="font-mono text-sm tabular-nums">
+                  <CountUp to={match.kills} className="text-emerald-400" />
+                  <span className="text-muted-foreground"> / </span>
+                  <CountUp to={match.deaths} className="text-red-400" />
+                  <span className="text-muted-foreground"> / </span>
+                  <CountUp to={match.assists} className="text-amber-400" />
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
+                  {formatTimeAgo(match.playedAt)}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
-                {formatTimeAgo(match.playedAt)}
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </CardTilt>
         </m.li>
       ))}
     </m.ul>

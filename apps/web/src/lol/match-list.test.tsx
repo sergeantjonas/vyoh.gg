@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
+import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { MatchList } from "./match-list";
@@ -13,7 +14,11 @@ function renderWithProviders(ui: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>
+      <MotionConfig reducedMotion="always">{ui}</MotionConfig>
+    </QueryClientProvider>
+  );
 }
 
 const matches: MatchSummary[] = [
