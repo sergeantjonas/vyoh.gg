@@ -6,6 +6,8 @@ import {
   championCardStyle,
 } from "@/lol/champion-card";
 import { type Variants, m } from "motion/react";
+import { useMemo } from "react";
+import type { ChampionSortOption } from "./champion-sort-selector";
 import type { ChampionStats } from "./champion-stats";
 import { useChampionName } from "./use-champions";
 
@@ -29,14 +31,33 @@ function formatPlaytime(sec: number): string {
   return `${hours.toFixed(1)}h`;
 }
 
+function sortStats(stats: ChampionStats[], sort: ChampionSortOption): ChampionStats[] {
+  const compare = (a: ChampionStats, b: ChampionStats): number => {
+    switch (sort) {
+      case "winRate":
+        return b.winRate - a.winRate || b.games - a.games;
+      case "avgKda":
+        return b.avgKda - a.avgKda || b.games - a.games;
+      case "playtime":
+        return b.totalDurationSec - a.totalDurationSec || b.games - a.games;
+      default:
+        return b.games - a.games;
+    }
+  };
+  return [...stats].sort(compare);
+}
+
 export function ChampionTable({
   stats,
+  sort,
   onCardHover,
 }: {
   stats: ChampionStats[];
+  sort: ChampionSortOption;
   onCardHover?: (champion: string) => void;
 }) {
   const championName = useChampionName();
+  const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
   return (
     <m.ul
       initial="hidden"
@@ -44,8 +65,13 @@ export function ChampionTable({
       variants={container}
       className="flex flex-col gap-3"
     >
-      {stats.map((s) => (
-        <m.li key={s.champion} variants={item}>
+      {sorted.map((s) => (
+        <m.li
+          key={s.champion}
+          variants={item}
+          layout
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        >
           <CardTilt>
             <div
               onMouseEnter={() => onCardHover?.(s.champion)}

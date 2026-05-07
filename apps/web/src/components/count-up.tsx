@@ -7,10 +7,12 @@ const SHOULD_ANIMATE =
 export function CountUp({
   to,
   duration = 0.7,
+  decimals = 0,
   className,
 }: {
   to: number;
   duration?: number;
+  decimals?: number;
   className?: string;
 }) {
   const reduced = useReducedMotion();
@@ -24,13 +26,16 @@ export function CountUp({
       value.set(to);
       return;
     }
-    const unsubscribe = value.on("change", (v) => setDisplay(Math.round(v)));
+    const factor = 10 ** decimals;
+    const unsubscribe = value.on("change", (v) =>
+      setDisplay(Math.round(v * factor) / factor)
+    );
     const controls = animate(value, to, { duration, ease: "easeOut" });
     return () => {
       unsubscribe();
       controls.stop();
     };
-  }, [to, duration, skip, value]);
+  }, [to, duration, decimals, skip, value]);
 
-  return <span className={className}>{display}</span>;
+  return <span className={className}>{display.toFixed(decimals)}</span>;
 }

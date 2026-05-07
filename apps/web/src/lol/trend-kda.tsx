@@ -1,3 +1,4 @@
+import { m, useReducedMotion } from "motion/react";
 import {
   CartesianGrid,
   Line,
@@ -10,8 +11,19 @@ import {
 import type { KdaPoint } from "./trend-stats";
 
 export function TrendKda({ points }: { points: KdaPoint[] }) {
+  const reduced = useReducedMotion();
   return (
-    <div className="flex flex-col gap-2">
+    <m.section
+      className="flex flex-col gap-2"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        type: "spring",
+        stiffness: 380,
+        damping: 30,
+        delay: reduced ? 0 : 0.32,
+      }}
+    >
       <h3 className="text-sm font-medium text-muted-foreground">KDA trend</h3>
       <div className="h-48 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -46,13 +58,13 @@ export function TrendKda({ points }: { points: KdaPoint[] }) {
               dot={{ r: 3, fill: "#34d399", stroke: "#34d399" }}
               activeDot={{ r: 5, fill: "#34d399", stroke: "#34d399" }}
               fill="url(#kda-area)"
-              animationDuration={1500}
-              animationBegin={150}
+              animationDuration={1800}
+              animationBegin={reduced ? 0 : 480}
               animationEasing="ease-out"
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </m.section>
   );
 }
