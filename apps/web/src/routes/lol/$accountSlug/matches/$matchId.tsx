@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { useMatchDetail } from "@/identity/use-match-detail";
+import { MatchDetailSkeleton } from "@/lol/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/match-detail-view";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
@@ -32,9 +33,7 @@ function MatchDetailPage() {
         ← Back to matches
       </Link>
 
-      {detail.isPending && (
-        <p className="text-sm text-muted-foreground">Loading match…</p>
-      )}
+      {detail.isPending && <MatchDetailSkeleton />}
       {detail.isError && (
         <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-destructive">{detail.error.message}</p>
