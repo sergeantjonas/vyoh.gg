@@ -1,9 +1,7 @@
-import { useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
 export function usePerfFlag(): boolean {
-  const [enabled] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).has("perf");
+  return useRouterState({
+    select: (s) => "perf" in (s.location.search as Record<string, unknown>),
   });
-  return enabled;
 }
