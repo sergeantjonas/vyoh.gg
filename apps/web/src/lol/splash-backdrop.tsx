@@ -89,14 +89,19 @@ export function SplashProvider({ children }: { children: ReactNode }) {
               transition={{ duration: 0.7 }}
               className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
             >
-              <m.img
-                src={src}
-                alt=""
-                aria-hidden="true"
+              <m.div
                 style={{ x: parallaxX, y: parallaxY }}
-                className="absolute -inset-[3%] size-[106%] object-cover opacity-25"
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
+                className="absolute -top-[5%] -left-[5%] w-[110%] h-[110%]"
+              >
+                <img
+                  src={src}
+                  alt=""
+                  aria-hidden="true"
+                  style={{ filter: "blur(5px) saturate(0.92)" }}
+                  className="size-full object-cover object-top opacity-20"
+                />
+              </m.div>
+              <div className="absolute inset-0 bg-gradient-to-b from-background/30 to-background" />
             </m.div>
           )}
         </AnimatePresence>,
