@@ -1,28 +1,31 @@
-import { Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { IdentityService } from "../identity/identity.service";
 import { LolService } from "./lol.service";
 
+function isSyncEnabled(): boolean {
+  const v = process.env.MATCH_SYNC_ENABLED;
+  if (v === undefined) return true;
+  return v.toLowerCase() !== "false" && v !== "0";
+}
+
 @Injectable()
-export class MatchSyncService implements OnApplicationBootstrap {
+export class MatchSyncService {
   private readonly logger = new Logger(MatchSyncService.name);
   private running = false;
 
   constructor(
     private readonly lol: LolService,
     private readonly identity: IdentityService
-  ) {}
-
-  onApplicationBootstrap(): void {
-    // Fire-and-forget initial sync so a fresh DB has data before the first
-    // 5-min cron tick. App startup isn't blocked.
-    void this.syncAll().catch((err) => {
-      this.logger.warn(`initial sync failed: ${err}`);
-    });
+  ) {
+    if (!isSyncEnabled()) {
+      this.logger.warn("disabled via MATCH_SYNC_ENABLED=false");
+    }
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: "match-sync" })
   async syncAll(): Promise<void> {
+    if (!isSyncEnabled()) return;
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");
       return;
