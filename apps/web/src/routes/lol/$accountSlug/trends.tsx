@@ -1,5 +1,6 @@
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { type MatchCountOption, MatchCountSelector } from "@/lol/match-count-selector";
+import { TrendActivity } from "@/lol/trend-activity";
 import { TrendKda } from "@/lol/trend-kda";
 import { TrendQueue } from "@/lol/trend-queue";
 import { TrendRecord } from "@/lol/trend-record";
@@ -49,6 +50,7 @@ function TrendsPage() {
         <div className="flex flex-col gap-8">
           <TrendSummaryCards summary={computeTrendSummary(matches.data)} />
           <TrendRecord matches={matches.data} />
+          <TrendActivity matches={matches.data} />
           <TrendKda points={computeKdaSeries(matches.data)} />
           <TrendQueue counts={computeQueueCounts(matches.data)} />
         </div>
