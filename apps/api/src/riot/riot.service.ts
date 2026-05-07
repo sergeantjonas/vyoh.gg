@@ -90,6 +90,8 @@ export class RiotService {
     //
     // We also still attach an AbortSignal — if undici *does* honor it, great,
     // we close the socket eagerly. If not, the race still saves us.
+    this.logger.log(`${regional} ${path} → fetchWithRetry start`);
+
     let res: Response;
     const ctrl = new AbortController();
     const timeoutErr = new Error(`fetch timeout after ${FETCH_TIMEOUT_MS}ms`);
@@ -97,6 +99,9 @@ export class RiotService {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const hardTimeout = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(() => {
+        this.logger.warn(
+          `${regional} ${path} → hardTimeout setTimeout fired at ${FETCH_TIMEOUT_MS}ms`
+        );
         ctrl.abort(timeoutErr);
         reject(timeoutErr);
       }, FETCH_TIMEOUT_MS);

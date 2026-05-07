@@ -67,12 +67,20 @@ export class RateLimiterService {
 
     const queued = limiter.schedule(async () => {
       const waited = Date.now() - start;
-      if (waited > SLOW_QUEUE_LOG_MS) {
+      // Diagnostic: log every callback dispatch with its queue wait so we can
+      // tell apart "callback never ran" (no log at all) from "callback ran
+      // and the inner fetch hung" (log present, no fetch result).
+      this.logger.log(`${regional}:${family} callback dispatched after ${waited}ms`);
+      try {
+        const result = await fn();
+        this.logger.log(`${regional}:${family} callback resolved`);
+        return result;
+      } catch (err) {
         this.logger.warn(
-          `${regional}:${family} ran after ${(waited / 1000).toFixed(1)}s in queue`
+          `${regional}:${family} callback rejected: ${err instanceof Error ? err.name : String(err)}`
         );
+        throw err;
       }
-      return fn();
     });
 
     const deadlineMs = this.deadlineMs;
