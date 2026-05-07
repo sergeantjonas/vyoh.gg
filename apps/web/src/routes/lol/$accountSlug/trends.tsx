@@ -6,8 +6,10 @@ import { TrendRecord } from "@/lol/trend-record";
 import {
   computeKdaSeries,
   computeQueueCounts,
+  computeStreak,
   computeTrendSummary,
 } from "@/lol/trend-stats";
+import { TrendStreak } from "@/lol/trend-streak";
 import { TrendSummaryCards } from "@/lol/trend-summary";
 import { useMatchesWindow } from "@/lol/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
@@ -25,10 +27,13 @@ function TrendsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          Trends over your last {count} games
-        </h2>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Trends over your last {count} games
+          </h2>
+          {matches.data && <TrendStreak streak={computeStreak(matches.data)} />}
+        </div>
         <MatchCountSelector
           value={count}
           onChange={setCount}

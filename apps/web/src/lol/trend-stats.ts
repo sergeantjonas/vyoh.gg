@@ -67,3 +67,22 @@ export function computeQueueCounts(matches: MatchSummary[]): QueueCount[] {
     .map(([queueType, count]) => ({ queueType, count }))
     .sort((a, b) => b.count - a.count);
 }
+
+export interface Streak {
+  type: "win" | "loss";
+  count: number;
+}
+
+export function computeStreak(matches: MatchSummary[]): Streak | null {
+  if (matches.length === 0) return null;
+  const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
+  const latest = ordered[0];
+  if (!latest) return null;
+  let count = 1;
+  for (let i = 1; i < ordered.length; i++) {
+    if (ordered[i]?.win === latest.win) count += 1;
+    else break;
+  }
+  if (count < 2) return null;
+  return { type: latest.win ? "win" : "loss", count };
+}
