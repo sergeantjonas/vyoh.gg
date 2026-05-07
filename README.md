@@ -12,15 +12,17 @@ Currently shipped:
 
 - Multi-account routing under `/lol/$accountSlug/{matches,trends,champions}` with deep-link-friendly URLs and a sliding `layoutId` indicator on the LoL sub-tabs.
 - Match detail page with full participant breakdown, item tooltips (name + gold cost + rendered Riot ability markup), and a self-row ring on your own participant.
-- Trends page with Recharts-driven KDA line + queue distribution bars, a 20/50/100 windowed selector, and a streak badge (`🔥 3W` / `❄️ 4L`).
-- Cmd+K command palette (cmdk + Radix Dialog).
-- Custom scrollbar styling, frosted-glass nav, noise-grain backdrop, splash-art backdrop with mouse parallax that survives route transitions via a root `SplashProvider`.
+- Trends page with Recharts-driven KDA line + queue distribution bars, a 20/50/100 windowed selector, a streak badge (`🔥 3W` / `❄️ 4L`), and a 365-day match-activity heatmap.
+- Cmd+K command palette (cmdk + Radix Dialog) and Radix Tooltip with auto-flip collision detection for item hover cards.
+- Toast feedback layer (Sonner) wired into TanStack Query — mutation errors always surface; query errors only toast on background-refresh failures so initial loads still show inline error UI.
+- Live Core Web Vitals overlay (toggleable via `?perf=1`) showing real-user LCP / INP / CLS / FCP / TTFB.
+- Custom scrollbar styling, frosted-glass nav, noise-grain backdrop, splash-art backdrop with mouse parallax + radial vignette that survives route transitions via a root `SplashProvider`.
 
 Next: Steam integration (Steam Web API, identity stitching across services), Lighthouse + bundle budget instrumentation per route, and an SSE-streamed first-time backfill so the heavy "load 100 games" path can show progressive results.
 
 ## Stack
 
-- **Frontend** — React 19, Vite 8, Tailwind CSS 4, shadcn-style primitives, motion (with `LazyMotion` `domMax` features for `layoutId` animations), TanStack Router (file-based) + TanStack Query 5, Recharts (lazy-loaded with the trends route).
+- **Frontend** — React 19, Vite 8, Tailwind CSS 4, shadcn-style primitives, motion (with `LazyMotion` `domMax` features for `layoutId` animations), TanStack Router (file-based) + TanStack Query 5, Recharts (lazy-loaded with the trends route), Radix UI primitives (Dialog + Tooltip), Sonner for toast feedback, react-calendar-heatmap for the activity grid, web-vitals for real-user perf metrics.
 - **Backend** — NestJS 11 with the SWC builder; Vitest in both apps via `unplugin-swc` (so decorator metadata works without Jest). Bottleneck rate limiter (per-regional cluster, chained 20 req/s + 100 req/2 min) plus a custom `RiotExceptionFilter` that maps Riot errors to friendly HTTP status codes.
 - **Database** — Postgres 16 (Docker Compose), Prisma 7 with the new driver-adapter API (`@prisma/adapter-pg` + `prisma.config.ts`). `Summoner` and `Match` (composite key `(matchId, puuid)`) tables back the per-summoner cache.
 - **Cache / queue** — the per-summoner Postgres cache currently does most of the work. Redis + BullMQ planned for historical-backfill workers when that arc lands.
@@ -127,9 +129,10 @@ A planned next step is an SSE endpoint that streams `{matchId, status: "ready" |
 
 A few patterns worth flagging that are easy to break by accident:
 
-- **`SplashProvider` lives at the root.** Each match-detail page calls `useSplashChampion(name)` to publish the active champion; the provider preloads the splash via `image.decode()`, then crossfades through `AnimatePresence` keyed on the splash URL. Mouse-tracked parallax (±24/16 px, soft spring) is applied via motion values. Critically, the backdrop persists across route changes with a 100ms grace window — earlier prototypes that rendered the backdrop inside the route component flashed dark on every navigation because the portal unmounted and remounted.
+- **`SplashProvider` lives at the root.** Each match-detail page calls `useSplashChampion(name)` to publish the active champion; the provider preloads the splash via `image.decode()`, then crossfades through `AnimatePresence` keyed on the splash URL. Mouse-tracked parallax (±24/16 px, soft spring) is applied via motion values. Critically, the backdrop persists across route changes with a 100ms grace window — earlier prototypes that rendered the backdrop inside the route component flashed dark on every navigation because the portal unmounted and remounted. The image is anchored `object-top` (so short viewports crop the bottom, never the champion's face) and treated with a small `blur(5px) saturate(0.92)` filter to soften the ~2× upscale of the 720p source; a top-to-bottom bg gradient overlay fades the splash into the page background.
 - **Scope-keyed `AnimatePresence`.** The root layout keys on the *first* path segment (`"/" | "/lol" | "/steam"`), so top-level navigation animates while sub-tab switches inside `/lol/$slug/...` don't re-mount the LoL header + tabs. A second `AnimatePresence` inside `$accountSlug.tsx` handles the inner sub-tab transition.
 - **`LazyMotion` features must be `domMax`.** `domAnimation` (the lighter bundle) doesn't include layout animations, so the sliding nav pill, the LoL sub-tab underline, and the trend-count selector all silently stop animating if you downgrade. Cost is ~5 kB gzip — accepted.
+- **Radix Tooltip with portal + collision detection.** Item hover cards on match detail use Radix's `Tooltip` primitive with `side="top"` defaulting and auto-flip to `bottom` when the trigger is near the viewport top. Portaling out of the row also frees them from any `overflow-hidden` ancestor that would otherwise clip them — important when the tooltip is taller than the participant row that triggered it.
 
 ### In progress
 
