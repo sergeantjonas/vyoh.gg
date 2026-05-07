@@ -32,14 +32,23 @@ function MatchesPage() {
         </div>
       )}
       {flat.length > 0 && (
-        <MatchList
-          matches={flat}
-          accountSlug={accountSlug}
-          onCardHover={setHoveredChampion ?? undefined}
-          hasNextPage={matches.hasNextPage}
-          fetchNextPage={matches.fetchNextPage}
-          isFetchingNextPage={matches.isFetchingNextPage}
-        />
+        <>
+          <MatchList
+            matches={flat}
+            accountSlug={accountSlug}
+            onCardHover={setHoveredChampion ?? undefined}
+            hasNextPage={matches.hasNextPage}
+            fetchNextPage={matches.fetchNextPage}
+            isFetchingNextPage={matches.isFetchingNextPage}
+          />
+          <div className="py-4 text-center text-xs text-muted-foreground">
+            {matches.isFetchingNextPage
+              ? `${flat.length} loaded · loading more…`
+              : matches.hasNextPage
+                ? `${flat.length} loaded · scroll for more`
+                : `Showing all ${flat.length} matches`}
+          </div>
+        </>
       )}
     </div>
   );

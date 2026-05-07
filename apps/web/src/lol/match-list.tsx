@@ -13,6 +13,7 @@ import { MATCHES_PAGE_SIZE } from "@/lol/use-matches";
 import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
+import { m } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const ESTIMATED_ROW_HEIGHT = 124;
@@ -131,21 +132,27 @@ export function MatchList({
         };
         if (!match) {
           return (
-            <div
+            <m.div
               key={`skeleton-${virtualRow.index}`}
               data-index={virtualRow.index}
               ref={virtualizer.measureElement}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               style={rowStyle}
             >
               <MatchCardSkeleton />
-            </div>
+            </m.div>
           );
         }
         return (
-          <div
+          <m.div
             key={match.matchId}
             data-index={virtualRow.index}
             ref={virtualizer.measureElement}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             style={rowStyle}
           >
             <CardTilt>
@@ -183,7 +190,7 @@ export function MatchList({
                 </div>
               </Link>
             </CardTilt>
-          </div>
+          </m.div>
         );
       })}
     </div>
