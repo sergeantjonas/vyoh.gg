@@ -23,12 +23,6 @@ const teamRow: Variants = {
   },
 };
 
-function formatDuration(sec: number): string {
-  const mins = Math.floor(sec / 60);
-  const secs = sec % 60;
-  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-}
-
 function ItemSlot({ id }: { id: number }) {
   const items = useItems();
   const item = id !== 0 ? items.data?.get(id) : undefined;
@@ -261,8 +255,6 @@ export function MatchDetailView({
 }) {
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
-  const playedAt = new Date(detail.playedAt);
-  const championName = useChampionName();
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
   const maxGold = Math.max(...detail.participants.map((p) => p.goldEarned), 1);
 
@@ -270,41 +262,21 @@ export function MatchDetailView({
 
   return (
     <TooltipPrimitive.Provider delayDuration={150}>
-      <div className="flex flex-col gap-6">
-        <header className="flex flex-col gap-1">
-          {currentChampion && (
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
-              {championName(currentChampion)}
-            </span>
-          )}
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-2xl font-semibold">{detail.queueType}</h2>
-            <span className="text-sm text-muted-foreground">
-              {formatDuration(detail.durationSec)} ·{" "}
-              {playedAt.toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
-            </span>
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <TeamBlock
-            title="Blue side"
-            participants={blue}
-            myPuuid={myPuuid}
-            maxDamage={maxDamage}
-            maxGold={maxGold}
-          />
-          <TeamBlock
-            title="Red side"
-            participants={red}
-            myPuuid={myPuuid}
-            maxDamage={maxDamage}
-            maxGold={maxGold}
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <TeamBlock
+          title="Blue side"
+          participants={blue}
+          myPuuid={myPuuid}
+          maxDamage={maxDamage}
+          maxGold={maxGold}
+        />
+        <TeamBlock
+          title="Red side"
+          participants={red}
+          myPuuid={myPuuid}
+          maxDamage={maxDamage}
+          maxGold={maxGold}
+        />
       </div>
     </TooltipPrimitive.Provider>
   );

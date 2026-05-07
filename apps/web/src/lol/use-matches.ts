@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LolAccount, MatchSummary } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
@@ -53,6 +53,29 @@ export function useMatches(account: LolAccount | undefined, queue?: number) {
     },
     enabled: account !== undefined,
   });
+}
+
+export function useCachedMatchSummary(matchId: string): MatchSummary | undefined {
+  const queryClient = useQueryClient();
+  const infinite = queryClient.getQueriesData<{ pages: MatchSummary[][] }>({
+    queryKey: ["lol", "matches"],
+  });
+  for (const [, data] of infinite) {
+    if (!data?.pages) continue;
+    for (const page of data.pages) {
+      const hit = page.find((m) => m.matchId === matchId);
+      if (hit) return hit;
+    }
+  }
+  const windows = queryClient.getQueriesData<MatchSummary[]>({
+    queryKey: ["lol", "matches-window"],
+  });
+  for (const [, data] of windows) {
+    if (!data) continue;
+    const hit = data.find((m) => m.matchId === matchId);
+    if (hit) return hit;
+  }
+  return undefined;
 }
 
 export function useMatchesWindow(

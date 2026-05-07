@@ -4,6 +4,7 @@ import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { ActiveMatchProvider } from "./active-match-context";
 import { MatchList } from "./match-list";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -17,7 +18,9 @@ function renderWithProviders(ui: ReactNode) {
   });
   return render(
     <QueryClientProvider client={client}>
-      <MotionConfig reducedMotion="always">{ui}</MotionConfig>
+      <MotionConfig reducedMotion="always">
+        <ActiveMatchProvider>{ui}</ActiveMatchProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

@@ -11,8 +11,11 @@ import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { useMatchDetail } from "@/identity/use-match-detail";
 import { MatchDetailSkeleton } from "@/lol/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/match-detail-view";
+import { MatchHero } from "@/lol/match-hero";
 import { useChampionName } from "@/lol/use-champions";
+import { useCachedMatchSummary } from "@/lol/use-matches";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import type { MatchSummary } from "@vyoh/shared";
 import { AnimatePresence, m } from "motion/react";
 
 const API_URL = "http://localhost:2010";
@@ -47,6 +50,7 @@ function MatchDetailPage() {
   const account = useAccountFromSlug(accountSlug);
   const detail = useMatchDetail(matchId);
   const championName = useChampionName();
+  const cachedSummary = useCachedMatchSummary(matchId);
 
   const myParticipant =
     detail.data && account
@@ -57,11 +61,27 @@ function MatchDetailPage() {
         )
       : undefined;
 
-  const crumbLabel = detail.data
-    ? `${new Date(detail.data.playedAt).toLocaleDateString(undefined, {
+  const heroSummary: MatchSummary | undefined =
+    cachedSummary ??
+    (detail.data && myParticipant
+      ? {
+          matchId: detail.data.matchId,
+          queueType: detail.data.queueType,
+          champion: myParticipant.championName,
+          kills: myParticipant.kills,
+          deaths: myParticipant.deaths,
+          assists: myParticipant.assists,
+          win: myParticipant.win,
+          durationSec: detail.data.durationSec,
+          playedAt: detail.data.playedAt,
+        }
+      : undefined);
+
+  const crumbLabel = heroSummary
+    ? `${new Date(heroSummary.playedAt).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
-      })}${myParticipant ? ` — ${championName(myParticipant.championName)}` : ""}`
+      })} — ${championName(heroSummary.champion)}`
     : "Match";
 
   return (
@@ -104,6 +124,7 @@ function MatchDetailPage() {
           </BreadcrumbList>
         </Breadcrumb>
       </m.div>
+      {heroSummary && <MatchHero summary={heroSummary} />}
       {detail.isPending && <MatchDetailSkeleton />}
       {detail.isError && (
         <div className="flex flex-col items-start gap-2">

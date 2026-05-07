@@ -18,27 +18,17 @@ function ParticipantRowSkeleton() {
 
 export function MatchDetailSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <ShimmerBlock className="h-3 w-16 rounded" />
-        <div className="flex items-baseline gap-3">
-          <ShimmerBlock className="h-7 w-40 rounded" />
-          <ShimmerBlock className="h-4 w-48 rounded" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {[0, 1].map((side) => (
-          <section key={side} className="flex flex-col gap-2">
-            <ShimmerBlock className="h-4 w-28 rounded" />
-            <ul className="flex flex-col gap-1">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <ParticipantRowSkeleton key={i} />
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {[0, 1].map((side) => (
+        <section key={side} className="flex flex-col gap-2">
+          <ShimmerBlock className="h-4 w-28 rounded" />
+          <ul className="flex flex-col gap-1">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <ParticipantRowSkeleton key={i} />
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }
