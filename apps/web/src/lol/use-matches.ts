@@ -1,5 +1,10 @@
 import { HttpError } from "@/lib/http-error";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
@@ -169,6 +174,54 @@ export function useCachedMatchesWindow(
       return fetchCachedMatches(account, 0, count, queue);
     },
     enabled: account !== undefined,
+  });
+}
+
+type SyncResult = { idCount: number; backfilled: number };
+
+async function postSyncAccount(account: LolAccount): Promise<SyncResult> {
+  const res = await fetch(
+    `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/matches/sync`,
+    { method: "POST" }
+  );
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (typeof body?.message === "string") message = body.message;
+    } catch {
+      // not JSON — keep fallback
+    }
+    throw new HttpError(res.status, message);
+  }
+  return res.json();
+}
+
+export function useSyncAccount(account: LolAccount | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => {
+      if (!account) throw new Error("No account");
+      return postSyncAccount(account);
+    },
+    onSuccess: () => {
+      // Invalidate every cached-matches query for this account so the views
+      // refetch from the now-fresher DB.
+      const keyPrefix = [account?.region, account?.gameName, account?.tagLine];
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey;
+          if (!Array.isArray(key) || key[0] !== "lol") return false;
+          const kind = key[1];
+          if (kind !== "matches-cached" && kind !== "matches-cached-infinite") {
+            return false;
+          }
+          return (
+            key[2] === keyPrefix[0] && key[3] === keyPrefix[1] && key[4] === keyPrefix[2]
+          );
+        },
+      });
+    },
   });
 }
 

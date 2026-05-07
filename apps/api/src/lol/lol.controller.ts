@@ -2,8 +2,10 @@ import {
   Controller,
   DefaultValuePipe,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
+  Post,
   Query,
 } from "@nestjs/common";
 import type { CachedMatchesResult, MatchSummary } from "@vyoh/shared";
@@ -35,5 +37,15 @@ export class LolController {
     @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
   ): Promise<CachedMatchesResult> {
     return this.lol.getCachedMatches(region, gameName, tagLine, start, count, queue);
+  }
+
+  @Post("matches/sync")
+  @HttpCode(200)
+  async syncMatches(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string
+  ): Promise<{ idCount: number; backfilled: number }> {
+    return this.lol.syncForSummoner(region, gameName, tagLine);
   }
 }

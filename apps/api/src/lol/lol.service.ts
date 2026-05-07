@@ -107,6 +107,24 @@ export class LolService {
     return { matches, total };
   }
 
+  async syncForSummoner(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<{ idCount: number; backfilled: number }> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    // syncAccountMatches reads region/gameName/tagLine off the LolAccount;
+    // slug is unused on this path so we leave it empty.
+    return this.syncAccountMatches({
+      slug: "",
+      region,
+      gameName,
+      tagLine,
+    });
+  }
+
   async syncAccountMatches(
     account: LolAccount,
     count: number = DEFAULT_MATCH_COUNT

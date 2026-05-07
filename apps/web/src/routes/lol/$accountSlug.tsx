@@ -5,6 +5,7 @@ import { ActiveMatchProvider } from "@/lol/active-match-context";
 import { HoverChampionProvider } from "@/lol/hover-champion-context";
 import { MatchWindowProvider } from "@/lol/match-window-context";
 import { QueueFilter } from "@/lol/queue-filter";
+import { RefreshAccountButton } from "@/lol/refresh-account-button";
 import { useSplashChampion } from "@/lol/splash-backdrop";
 import { useCachedMatchesWindow } from "@/lol/use-matches";
 import {
@@ -112,6 +113,7 @@ function AccountLayout() {
                 <div className="flex items-center gap-2">
                   <QueueFilter />
                   <AccountSwitcher currentSlug={accountSlug} />
+                  <RefreshAccountButton account={account} />
                 </div>
               )}
             </div>

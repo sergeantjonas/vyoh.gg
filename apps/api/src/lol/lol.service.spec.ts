@@ -481,3 +481,78 @@ describe("LolService.getCachedMatches", () => {
     expect(error).toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("LolService.syncForSummoner", () => {
+  it("rejects accounts that are not in the whitelist", async () => {
+    const prisma = {
+      summoner: { findUnique: vi.fn(), upsert: vi.fn() },
+      match: { findMany: vi.fn(), count: vi.fn(), upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn(),
+      getMatchById: vi.fn(),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(false) };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+      ],
+    }).compile();
+    const service = moduleRef.get(LolService);
+
+    const error = await service
+      .syncForSummoner("euw1", "Stranger", "TAG")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ForbiddenException);
+    expect(riot.getAccountByRiotId).not.toHaveBeenCalled();
+  });
+
+  it("delegates to syncAccountMatches for whitelisted accounts and reports the result", async () => {
+    const summoner = makeSummoner(true);
+    const matchIds = ["M_1", "M_2", "M_3"];
+    const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
+    const matchFindMany = vi
+      .fn()
+      .mockImplementationOnce(async () => [{ matchId: "M_1" }])
+      .mockImplementationOnce(async () => [
+        buildRow("M_3", 3_000_000_000_000),
+        buildRow("M_2", 2_000_000_000_000),
+        buildRow("M_1", 1_000_000_000_000),
+      ]);
+    const matchCount = vi
+      .fn()
+      .mockResolvedValueOnce(1) // before backfill
+      .mockResolvedValueOnce(3); // after backfill
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
+      match: { findMany: matchFindMany, count: matchCount, upsert: vi.fn() },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn().mockResolvedValue(matchIds),
+      getMatchById: vi.fn().mockImplementation(async (id: string) => buildMatch(id, 0)),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+      ],
+    }).compile();
+    const service = moduleRef.get(LolService);
+
+    const result = await service.syncForSummoner("euw1", "Vyoh", "Ahri");
+
+    expect(result).toEqual({ idCount: 3, backfilled: 2 });
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledOnce();
+  });
+});
