@@ -15,10 +15,13 @@ import { Blurhash } from "react-blurhash";
 import { createPortal } from "react-dom";
 
 type SplashContextValue = {
-  setChampion: (champion: string | null, offsetX?: number) => void;
+  setChampion: (owner: number, champion: string, offsetX?: number) => void;
+  clearChampion: (owner: number) => void;
 };
 
 const SplashContext = createContext<SplashContextValue | null>(null);
+
+let ownerSeq = 0;
 
 function ChampionSplashLayer({
   champion,
@@ -93,24 +96,36 @@ export function SplashProvider({ children }: { children: ReactNode }) {
   const [champion, setChampionState] = useState<string | null>(null);
   const [offsetX, setOffsetX] = useState(0);
   const clearTimerRef = useRef<number | null>(null);
+  const activeOwnerRef = useRef<number | null>(null);
 
-  const setChampion = useCallback((c: string | null, nextOffsetX = 0) => {
+  const setChampion = useCallback((owner: number, c: string, nextOffsetX = 0) => {
     if (clearTimerRef.current !== null) {
       window.clearTimeout(clearTimerRef.current);
       clearTimerRef.current = null;
     }
-    if (c === null) {
-      clearTimerRef.current = window.setTimeout(() => {
-        setChampionState(null);
-        clearTimerRef.current = null;
-      }, 100);
-      return;
-    }
+    activeOwnerRef.current = owner;
     setChampionState(c);
     setOffsetX(nextOffsetX);
   }, []);
 
-  const value = useMemo(() => ({ setChampion }), [setChampion]);
+  const clearChampion = useCallback((owner: number) => {
+    if (activeOwnerRef.current !== owner) return;
+    if (clearTimerRef.current !== null) {
+      window.clearTimeout(clearTimerRef.current);
+    }
+    clearTimerRef.current = window.setTimeout(() => {
+      if (activeOwnerRef.current === owner) {
+        activeOwnerRef.current = null;
+        setChampionState(null);
+      }
+      clearTimerRef.current = null;
+    }, 100);
+  }, []);
+
+  const value = useMemo(
+    () => ({ setChampion, clearChampion }),
+    [setChampion, clearChampion]
+  );
 
   return (
     <SplashContext.Provider value={value}>
@@ -144,10 +159,13 @@ export function useSplashChampion(
 ) {
   const ctx = useContext(SplashContext);
   if (!ctx) throw new Error("useSplashChampion must be used within SplashProvider");
+  const ownerRef = useRef<number | null>(null);
+  if (ownerRef.current === null) ownerRef.current = ++ownerSeq;
   useEffect(() => {
-    if (champion) {
-      ctx.setChampion(champion, offsetX);
-      return () => ctx.setChampion(null);
+    const owner = ownerRef.current;
+    if (owner !== null && champion) {
+      ctx.setChampion(owner, champion, offsetX);
+      return () => ctx.clearChampion(owner);
     }
   }, [champion, offsetX, ctx]);
 }
