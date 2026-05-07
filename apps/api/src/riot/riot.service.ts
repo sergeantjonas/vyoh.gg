@@ -76,27 +76,40 @@ export class RiotService {
     const start = performance.now();
     const url = `https://${regional}.api.riotgames.com${path}`;
 
-    // Use a manual AbortController + setTimeout instead of AbortSignal.timeout.
-    // Reports of `AbortSignal.timeout` failing to interrupt fetches stuck in
-    // DNS / TLS handshake on undici (notably under WSL2) made the timeout
-    // ineffective in practice — observed 30s+ hangs even with a 10s signal.
-    // The manual pattern is what undici's docs recommend when reliability
-    // matters, and it gives us a sentinel error we can identify unambiguously.
+    // We've observed Node's built-in `fetch` (undici under the hood) ignore
+    // both `AbortSignal.timeout` and `AbortController.abort()` when a
+    // connection stalls — the signal fires but the underlying fetch promise
+    // stays pending forever, leaving a Bottleneck slot wedged in `executing`
+    // and the api unresponsive after a few zombie fetches accumulate.
+    //
+    // Fix: race the fetch against a hard timeout we control. If the timeout
+    // wins, our await throws and the caller (and thus the limiter slot)
+    // unblocks. The fetch promise itself remains pending in the event loop
+    // and the socket leaks until Node's TCP layer reaps it — acceptable
+    // worst case, since the alternative is "the api is hung."
+    //
+    // We also still attach an AbortSignal — if undici *does* honor it, great,
+    // we close the socket eagerly. If not, the race still saves us.
     let res: Response;
     const ctrl = new AbortController();
     const timeoutErr = new Error(`fetch timeout after ${FETCH_TIMEOUT_MS}ms`);
     timeoutErr.name = "TimeoutError";
-    const timeoutHandle = setTimeout(() => ctrl.abort(timeoutErr), FETCH_TIMEOUT_MS);
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const hardTimeout = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        ctrl.abort(timeoutErr);
+        reject(timeoutErr);
+      }, FETCH_TIMEOUT_MS);
+    });
+    const fetchPromise = fetch(url, {
+      headers: { "X-Riot-Token": this.apiKey },
+      signal: ctrl.signal,
+    });
 
     try {
-      res = await fetch(url, {
-        headers: { "X-Riot-Token": this.apiKey },
-        signal: ctrl.signal,
-      });
+      res = await Promise.race([fetchPromise, hardTimeout]);
     } catch (err) {
       const duration = Math.round(performance.now() - start);
-      // Always log the raw error so we have a trail when something exotic
-      // (DNS stall, TLS bug, dispatcher fault) leaks through.
       this.logger.warn(
         `${regional} ${path} → fetch error after ${duration}ms: ${formatError(err)}`
       );
@@ -109,7 +122,7 @@ export class RiotService {
       }
       throw err;
     } finally {
-      clearTimeout(timeoutHandle);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
 
     const duration = Math.round(performance.now() - start);
