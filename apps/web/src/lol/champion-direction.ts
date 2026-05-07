@@ -23,7 +23,6 @@ const FACING_RIGHT = new Set<string>([
   "Hwei",
   "Illaoi",
   "Irelia",
-  "JarvanIV",
   "Jayce",
   "KSante",
   "Kayn",
@@ -66,7 +65,6 @@ const FACING_RIGHT = new Set<string>([
   "Vladimir",
   "Xayah",
   "XinZhao",
-  "Yasuo",
   "Zaahen",
   "Zeri",
 ]);
