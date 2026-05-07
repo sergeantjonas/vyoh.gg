@@ -2,7 +2,25 @@ import { championIconUrl } from "@/lib/champion-icon";
 import { itemIconUrl } from "@/lib/item-icon";
 import { cn } from "@/lib/utils";
 import { useSplashChampion } from "@/lol/splash-backdrop";
+import { useChampionName } from "@/lol/use-champions";
+import { useItems } from "@/lol/use-items";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
+import { AnimatePresence, type Variants, m } from "motion/react";
+import { useState } from "react";
+
+const teamContainer: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+
+const teamRow: Variants = {
+  hidden: { opacity: 0, y: 6 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 380, damping: 28 },
+  },
+};
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
@@ -10,28 +28,70 @@ function formatDuration(sec: number): string {
   return `${mins}m ${secs.toString().padStart(2, "0")}s`;
 }
 
+function ItemSlot({ id }: { id: number }) {
+  const items = useItems();
+  const url = itemIconUrl(id);
+  const [hovered, setHovered] = useState(false);
+
+  if (!url) {
+    return <div className="size-5 rounded-sm bg-muted/40" />;
+  }
+
+  const item = items.data?.get(id);
+  const name = item?.name ?? `Item ${id}`;
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <img src={url} alt={name} className="size-5 rounded-sm bg-muted" loading="lazy" />
+      <AnimatePresence>
+        {hovered && (
+          <m.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="pointer-events-none absolute bottom-full right-0 z-50 mb-1.5 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md"
+          >
+            <div className="flex items-start gap-3">
+              <img
+                src={url}
+                alt=""
+                aria-hidden="true"
+                className="size-10 shrink-0 rounded-md bg-muted"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="text-sm font-semibold leading-tight">{name}</div>
+                {item?.priceTotal ? (
+                  <div className="font-mono text-xs text-amber-400">
+                    {item.priceTotal}g
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            {item?.description && (
+              <div
+                className="item-tooltip-body mt-2 text-xs leading-relaxed text-muted-foreground"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted Riot item data from CDragon
+                dangerouslySetInnerHTML={{ __html: item.description }}
+              />
+            )}
+          </m.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function ItemSlots({ items }: { items: number[] }) {
   return (
     <div className="flex gap-0.5">
-      {items.map((id, i) => {
-        const url = itemIconUrl(id);
-        return url ? (
-          <img
-            // biome-ignore lint/suspicious/noArrayIndexKey: items array has fixed positions (slots 0-6)
-            key={i}
-            src={url}
-            alt={`Item ${id}`}
-            className="size-5 rounded-sm bg-muted"
-            loading="lazy"
-          />
-        ) : (
-          <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: items array has fixed positions (slots 0-6)
-            key={i}
-            className="size-5 rounded-sm bg-muted/40"
-          />
-        );
-      })}
+      {items.map((id, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: items array has fixed positions (slots 0-6)
+        <ItemSlot key={i} id={id} />
+      ))}
     </div>
   );
 }
@@ -43,8 +103,11 @@ function ParticipantRow({
   p: ParticipantDetail;
   isMe?: boolean;
 }) {
+  const championName = useChampionName();
+  const displayName = championName(p.championName);
   return (
-    <li
+    <m.li
+      variants={teamRow}
       className={cn(
         "flex items-center gap-3 rounded-md border bg-card/60 p-2 backdrop-blur-sm transition-colors",
         isMe && "border-foreground/40 bg-card/80 ring-2 ring-foreground/30"
@@ -52,12 +115,12 @@ function ParticipantRow({
     >
       <img
         src={championIconUrl(p.championName)}
-        alt={p.championName}
+        alt={displayName}
         loading="lazy"
         className="size-9 rounded-md"
       />
       <div className="flex-1 min-w-0">
-        <div className="truncate text-sm font-medium">{p.championName}</div>
+        <div className="truncate text-sm font-medium">{displayName}</div>
         <div className="font-mono text-xs tabular-nums">
           <span className="text-emerald-400">{p.kills}</span>
           <span className="text-muted-foreground"> / </span>
@@ -72,7 +135,7 @@ function ParticipantRow({
           {Math.round(p.goldEarned / 1000)}k g · {Math.round(p.totalDamage / 1000)}k dmg
         </div>
       </div>
-    </li>
+    </m.li>
   );
 }
 
@@ -99,11 +162,16 @@ function TeamBlock({
           {win ? "Win" : "Loss"}
         </span>
       </h3>
-      <ul className="flex flex-col gap-1">
+      <m.ul
+        initial="hidden"
+        animate="show"
+        variants={teamContainer}
+        className="flex flex-col gap-1"
+      >
         {participants.map((p) => (
           <ParticipantRow key={p.puuid} p={p} isMe={p.puuid === myPuuid} />
         ))}
-      </ul>
+      </m.ul>
     </section>
   );
 }
@@ -120,6 +188,7 @@ export function MatchDetailView({
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const playedAt = new Date(detail.playedAt);
+  const championName = useChampionName();
 
   useSplashChampion(currentChampion);
 
@@ -128,7 +197,7 @@ export function MatchDetailView({
       <header className="flex flex-col gap-1">
         {currentChampion && (
           <span className="text-xs uppercase tracking-wide text-muted-foreground">
-            {currentChampion}
+            {championName(currentChampion)}
           </span>
         )}
         <div className="flex items-baseline gap-3">

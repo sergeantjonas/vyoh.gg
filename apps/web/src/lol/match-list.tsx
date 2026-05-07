@@ -1,6 +1,7 @@
 import { championCenteredSplashUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
 import { shouldFlipChampion } from "@/lol/champion-direction";
+import { useChampionName } from "@/lol/use-champions";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
@@ -45,6 +46,7 @@ export function MatchList({
   matches: MatchSummary[];
   accountSlug: string;
 }) {
+  const championName = useChampionName();
   return (
     <m.ul
       initial="hidden"
@@ -53,15 +55,19 @@ export function MatchList({
       className="flex flex-col gap-3"
     >
       {matches.map((match) => (
-        <m.li key={match.matchId} variants={item}>
+        <m.li
+          key={match.matchId}
+          variants={item}
+          className="[contain-intrinsic-size:0_7rem] [content-visibility:auto]"
+        >
           <Link
             to="/lol/$accountSlug/matches/$matchId"
             params={{ accountSlug, matchId: match.matchId }}
             className={cn(
-              "group relative flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-all hover:scale-[1.005]",
+              "group relative flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.005]",
               match.win
-                ? "border-emerald-500/30 hover:border-emerald-500/60"
-                : "border-red-500/30 hover:border-red-500/60"
+                ? "border-emerald-500/30 hover:border-emerald-500/60 hover:shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)]"
+                : "border-red-500/30 hover:border-red-500/60 hover:shadow-[0_8px_24px_-8px_rgba(239,68,68,0.35)]"
             )}
           >
             <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden">
@@ -95,7 +101,7 @@ export function MatchList({
             />
             <div className="relative ml-auto flex flex-col items-end gap-1">
               <div className="flex items-baseline gap-2">
-                <span className="font-medium">{match.champion}</span>
+                <span className="font-medium">{championName(match.champion)}</span>
                 <span
                   className={cn(
                     "text-xs font-semibold uppercase tracking-wider",

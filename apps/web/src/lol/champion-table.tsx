@@ -1,6 +1,7 @@
 import { championIconUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
 import type { ChampionStats } from "./champion-stats";
+import { useChampionName } from "./use-champions";
 
 function formatPlaytime(sec: number): string {
   const hours = sec / 3600;
@@ -9,18 +10,19 @@ function formatPlaytime(sec: number): string {
 }
 
 export function ChampionTable({ stats }: { stats: ChampionStats[] }) {
+  const championName = useChampionName();
   return (
     <ul className="flex flex-col gap-2">
       {stats.map((s) => (
         <li key={s.champion} className="flex items-center gap-4 rounded-md border p-3">
           <img
             src={championIconUrl(s.champion)}
-            alt={s.champion}
+            alt={championName(s.champion)}
             loading="lazy"
             className="size-12 rounded-md"
           />
           <div className="flex-1">
-            <div className="font-medium">{s.champion}</div>
+            <div className="font-medium">{championName(s.champion)}</div>
             <div className="text-sm text-muted-foreground">
               {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
               {formatPlaytime(s.totalDurationSec)}

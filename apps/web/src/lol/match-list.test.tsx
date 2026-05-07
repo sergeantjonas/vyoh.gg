@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import type { ReactNode } from "react";
@@ -7,6 +8,13 @@ import { MatchList } from "./match-list";
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,
 }));
+
+function renderWithProviders(ui: ReactNode) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 const matches: MatchSummary[] = [
   {
@@ -33,20 +41,24 @@ const matches: MatchSummary[] = [
   },
 ];
 
+function hasFlatText(text: string) {
+  return (_: string, el: Element | null) => el?.textContent === text;
+}
+
 describe("MatchList", () => {
   it("renders one item per match with champion, queue, and kda", () => {
-    render(<MatchList matches={matches} accountSlug="ahri" />);
+    renderWithProviders(<MatchList matches={matches} accountSlug="ahri" />);
 
     expect(screen.queryByText("Ahri")).not.toBeNull();
     expect(screen.queryByText("Jhin")).not.toBeNull();
-    expect(screen.queryByText("Ranked Solo")).not.toBeNull();
-    expect(screen.queryByText("ARAM")).not.toBeNull();
-    expect(screen.queryByText("8 / 3 / 12")).not.toBeNull();
-    expect(screen.queryByText("4 / 7 / 5")).not.toBeNull();
+    expect(screen.queryByText(/Ranked Solo/)).not.toBeNull();
+    expect(screen.queryByText(/ARAM/)).not.toBeNull();
+    expect(screen.queryByText(hasFlatText("8 / 3 / 12"))).not.toBeNull();
+    expect(screen.queryByText(hasFlatText("4 / 7 / 5"))).not.toBeNull();
   });
 
   it("formats duration as Xm SSs", () => {
-    render(<MatchList matches={matches} accountSlug="ahri" />);
+    renderWithProviders(<MatchList matches={matches} accountSlug="ahri" />);
     expect(screen.queryByText(/30m 34s/)).not.toBeNull();
     expect(screen.queryByText(/21m 20s/)).not.toBeNull();
   });
