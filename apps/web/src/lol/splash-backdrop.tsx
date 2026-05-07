@@ -1,5 +1,5 @@
 import { championSplashUrl } from "@/lib/champion-icon";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m, useMotionValue, useSpring } from "motion/react";
 import {
   type ReactNode,
   createContext,
@@ -22,6 +22,11 @@ export function SplashProvider({ children }: { children: ReactNode }) {
   const [champion, setChampionState] = useState<string | null>(null);
   const [src, setSrc] = useState<string | null>(null);
   const clearTimerRef = useRef<number | null>(null);
+
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const parallaxX = useSpring(mouseX, { stiffness: 60, damping: 20, mass: 0.6 });
+  const parallaxY = useSpring(mouseY, { stiffness: 60, damping: 20, mass: 0.6 });
 
   const setChampion = useCallback((c: string | null) => {
     if (clearTimerRef.current !== null) {
@@ -57,6 +62,17 @@ export function SplashProvider({ children }: { children: ReactNode }) {
     };
   }, [champion, src]);
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;
+      const ny = (e.clientY / window.innerHeight) * 2 - 1;
+      mouseX.set(-nx * 24);
+      mouseY.set(-ny * 16);
+    };
+    window.addEventListener("mousemove", handler);
+    return () => window.removeEventListener("mousemove", handler);
+  }, [mouseX, mouseY]);
+
   const value = useMemo(() => ({ setChampion }), [setChampion]);
 
   return (
@@ -71,13 +87,14 @@ export function SplashProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.7 }}
-              className="pointer-events-none fixed inset-0 -z-10"
+              className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
             >
-              <img
+              <m.img
                 src={src}
                 alt=""
                 aria-hidden="true"
-                className="size-full object-cover opacity-25"
+                style={{ x: parallaxX, y: parallaxY }}
+                className="absolute -inset-[3%] size-[106%] object-cover opacity-25"
               />
               <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
             </m.div>

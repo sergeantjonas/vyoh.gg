@@ -2,12 +2,26 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import type { QueueCount } from "./trend-stats";
+
+const PALETTE = [
+  "#38bdf8", // sky
+  "#34d399", // emerald
+  "#fbbf24", // amber
+  "#a78bfa", // violet
+  "#f472b6", // pink
+  "#fb923c", // orange
+];
+
+function gradientId(color: string) {
+  return `queue-bar-${color.slice(1)}`;
+}
 
 export function TrendQueue({ counts }: { counts: QueueCount[] }) {
   return (
@@ -17,10 +31,19 @@ export function TrendQueue({ counts }: { counts: QueueCount[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={counts}>
             <defs>
-              <linearGradient id="queue-bar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.4} />
-              </linearGradient>
+              {PALETTE.map((color) => (
+                <linearGradient
+                  key={color}
+                  id={gradientId(color)}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor={color} stopOpacity={0.9} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.4} />
+                </linearGradient>
+              ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
@@ -43,12 +66,18 @@ export function TrendQueue({ counts }: { counts: QueueCount[] }) {
             />
             <Bar
               dataKey="count"
-              fill="url(#queue-bar)"
               radius={[4, 4, 0, 0]}
               animationDuration={1100}
               animationBegin={150}
               animationEasing="ease-out"
-            />
+            >
+              {counts.map((entry, i) => (
+                <Cell
+                  key={entry.queueType}
+                  fill={`url(#${gradientId(PALETTE[i % PALETTE.length] as string)})`}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
