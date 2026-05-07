@@ -1,4 +1,3 @@
-import { PerfOverlay } from "@/components/perf-overlay";
 import { HttpError } from "@/lib/http-error";
 import { reportWebVitals } from "@/lib/web-vitals";
 import {
@@ -65,7 +64,6 @@ createRoot(rootElement).render(
         <RouterProvider router={router} />
       </LazyMotion>
       <Toaster theme="dark" richColors position="bottom-right" />
-      <PerfOverlay />
     </QueryClientProvider>
   </StrictMode>
 );
