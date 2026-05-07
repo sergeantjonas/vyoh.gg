@@ -23,7 +23,7 @@ export function MatchCountSelector({
             key={opt}
             onClick={() => onChange(opt)}
             className={cn(
-              "relative rounded px-2.5 py-1 text-xs font-medium transition-colors",
+              "relative cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors",
               active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
