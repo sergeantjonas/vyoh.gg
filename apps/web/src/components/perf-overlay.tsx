@@ -1,3 +1,4 @@
+import { usePerfFlag } from "@/lib/use-perf-flag";
 import { subscribeWebVitals } from "@/lib/web-vitals";
 import { useEffect, useState } from "react";
 import type { Metric } from "web-vitals";
@@ -13,12 +14,8 @@ const RATING_CLASS: Record<Metric["rating"], string> = {
 const formatValue = (metric: Metric) =>
   metric.name === "CLS" ? metric.value.toFixed(3) : `${Math.round(metric.value)}ms`;
 
-const isEnabled = () =>
-  typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).has("perf");
-
 export function PerfOverlay() {
-  const [enabled] = useState(isEnabled);
+  const enabled = usePerfFlag();
   const [readings, setReadings] = useState<Partial<Record<Metric["name"], Metric>>>({});
 
   useEffect(() => {

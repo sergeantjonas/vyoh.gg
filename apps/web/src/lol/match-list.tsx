@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { usePerfFlag } from "@/lib/use-perf-flag";
 import { cn } from "@/lib/utils";
 import { CardTilt } from "@/lol/card-tilt";
 import {
@@ -50,6 +51,7 @@ export function MatchList({
   isFetchingNextPage?: boolean;
 }) {
   const championName = useChampionName();
+  const showPerf = usePerfFlag();
   const parentRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
@@ -87,6 +89,31 @@ export function MatchList({
       className="relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
+      {showPerf && (
+        <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-background/85 px-3 py-2 font-mono text-xs shadow-lg backdrop-blur">
+          <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+            virtualizer
+          </div>
+          <ul className="space-y-0.5">
+            <li className="flex justify-between gap-3">
+              <span className="text-muted-foreground">rendered</span>
+              <span className="text-emerald-400">{items.length}</span>
+            </li>
+            <li className="flex justify-between gap-3">
+              <span className="text-muted-foreground">total</span>
+              <span>{matches.length}</span>
+            </li>
+            <li className="flex justify-between gap-3">
+              <span className="text-muted-foreground">saved</span>
+              <span className="text-amber-400">
+                {matches.length === 0
+                  ? "—"
+                  : `${Math.round(((matches.length - items.length) / matches.length) * 100)}%`}
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
       {items.map((virtualRow) => {
         const match = matches[virtualRow.index];
         if (!match) return null;
