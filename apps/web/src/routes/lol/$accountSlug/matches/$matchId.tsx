@@ -3,7 +3,7 @@ import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { useMatchDetail } from "@/identity/use-match-detail";
 import { MatchDetailSkeleton } from "@/lol/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/match-detail-view";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   component: MatchDetailPage,
@@ -25,14 +25,6 @@ function MatchDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link
-        to="/lol/$accountSlug/matches"
-        params={{ accountSlug }}
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        ← Back to matches
-      </Link>
-
       {detail.isPending && <MatchDetailSkeleton />}
       {detail.isError && (
         <div className="flex flex-col items-start gap-2">
