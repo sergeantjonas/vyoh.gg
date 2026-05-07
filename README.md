@@ -16,6 +16,7 @@ Currently shipped:
 - Cmd+K command palette (cmdk + Radix Dialog) and Radix Tooltip with auto-flip collision detection for item hover cards.
 - Toast feedback layer (Sonner) wired into TanStack Query — mutation errors always surface; query errors only toast on background-refresh failures so initial loads still show inline error UI.
 - Live Core Web Vitals overlay (toggleable via `?perf=1`) showing real-user LCP / INP / CLS / FCP / TTFB.
+- Open Graph share cards rendered server-side (Satori → SVG → resvg → PNG) at `GET /og/match/:slug/:matchId.png`. Each match URL gets a custom 1200×400 card with champion splash, KDA, win/loss, queue, and account name.
 - Per-champion theming driven by build-time-extracted dominant colors (Vibrant) and blurhash placeholders — match cards and champion cards both inherit the champion's color for border + hover glow, and the splash backdrop renders the blurhash instantly while the real image decodes.
 - Custom scrollbar styling, frosted-glass nav, noise-grain backdrop, and a hover-driven splash backdrop that hoists to the LoL layout — picking a random recent champion as the seed, then crossfading to whichever card is hovered (works on both match list and champions tab).
 
@@ -25,7 +26,7 @@ Next: Steam integration (Steam Web API, identity stitching across services), Lig
 
 - **Frontend** — React 19, Vite 8, Tailwind CSS 4, shadcn-style primitives, motion (with `LazyMotion` `domMax` features for `layoutId` animations), TanStack Router (file-based) + TanStack Query 5, Recharts (lazy-loaded with the trends route), Radix UI primitives (Dialog + Tooltip), Sonner for toast feedback, react-calendar-heatmap for the activity grid, react-blurhash for splash placeholders, web-vitals for real-user perf metrics.
 - **Build-time tooling (`tools/`)** — separate workspace for asset/precompute scripts. Currently houses `champion-assets/`, which uses node-vibrant + sharp + blurhash to derive a static JSON of per-champion dominant color and blurhash placeholders consumed at runtime.
-- **Backend** — NestJS 11 with the SWC builder; Vitest in both apps via `unplugin-swc` (so decorator metadata works without Jest). Bottleneck rate limiter (per-regional cluster, chained 20 req/s + 100 req/2 min) plus a custom `RiotExceptionFilter` that maps Riot errors to friendly HTTP status codes.
+- **Backend** — NestJS 11 with the SWC builder; Vitest in both apps via `unplugin-swc` (so decorator metadata works without Jest). Bottleneck rate limiter (per-regional cluster, chained 20 req/s + 100 req/2 min) plus a custom `RiotExceptionFilter` that maps Riot errors to friendly HTTP status codes. Server-side OG card rendering via `satori` + `@resvg/resvg-js`.
 - **Database** — Postgres 16 (Docker Compose), Prisma 7 with the new driver-adapter API (`@prisma/adapter-pg` + `prisma.config.ts`). `Summoner` and `Match` (composite key `(matchId, puuid)`) tables back the per-summoner cache.
 - **Cache / queue** — the per-summoner Postgres cache currently does most of the work. Redis + BullMQ planned for historical-backfill workers when that arc lands.
 - **Tooling** — pnpm 10 workspaces, Biome 1.9 (single linter/formatter across the monorepo), TypeScript 6 strict with `noUncheckedIndexedAccess`.
@@ -156,6 +157,35 @@ The web app consumes this via a tiny [champion-theme.ts](apps/web/src/lib/champi
 **Scaling cost.** ~15 s for 191 champions at 8-way concurrency on a normal connection. Re-run on Riot patch updates; the JSON's stable sort keeps diffs minimal.
 
 **Why a separate workspace.** `node-vibrant` and `sharp` are heavy native deps that don't belong in the runtime bundle. Putting them in their own pnpm workspace under `tools/` keeps the web/api dependency graphs clean and makes room for future scripts (OG-card generation, Lighthouse runner) without polluting an existing app.
+
+### Server-rendered share cards (Satori → SVG → resvg → PNG)
+
+Pasting a match URL into Slack, Discord, Twitter, or Telegram triggers a fetch for an Open Graph image. Each match URL gets a unique 1200×400 card showing champion splash + KDA + win/loss + queue + account name — pure server-rendered PNG, no headless browser, no Vercel dependency.
+
+The pipeline is two libraries chained:
+
+1. **[satori](https://github.com/vercel/satori)** turns a JSX-like tree into SVG, applying flexbox layout in pure JS. No DOM, no Chromium, no fonts-via-system-call — fonts are passed in as `Buffer`s and applied through Satori's own text-shaping (Yoga + ufo).
+2. **[@resvg/resvg-js](https://github.com/yisibl/resvg-js)** converts the SVG to PNG via Rust bindings. Satori's SVG output is intentionally narrow in feature scope (no filters, no clip paths beyond rectangles) so resvg can render it deterministically across platforms.
+
+Sequenced in [apps/api/src/og/og-card.ts](apps/api/src/og/og-card.ts):
+
+```
+fetch splash → base64 data URL  ─┐
+                                 ├─→ satori(card, {fonts}) → SVG → resvg.render() → PNG buffer
+build JSX-like tree of <div>s ───┘
+```
+
+The endpoint (`GET /og/match/:slug/:matchId.png`) resolves the slug via `IdentityService`, fetches match detail from `LolService`, finds the user's participant, and pipes the result to `renderMatchCard`. PNG returned with `Cache-Control: public, max-age=86400, s-maxage=2592000` — match data is immutable post-game, cache aggressively.
+
+A few constraints worth flagging because they bite:
+
+**Satori is flexbox-only.** Every `<div>` with more than one child must declare `display: flex`, `display: contents`, or `display: none` — it errors loudly otherwise. Block layout doesn't exist. Once you internalize this it composes cleanly, but the first time the validator fires it's startling.
+
+**Fonts must be TTF / OTF (not woff2).** The web app uses `@fontsource-variable/geist` which ships only woff2. Satori needs raw font tables. Solution: hit Google Fonts' CSS endpoint with an old User-Agent (`Mozilla/4.0`) — Google detects the legacy UA and returns `format('truetype')` URLs in the @font-face rules. Download the TTFs once, commit them to [apps/api/src/og/fonts/](apps/api/src/og/fonts/), load via `readFileSync` at module init.
+
+**SWC's outDir is verbatim.** NestJS' SWC builder doesn't strip `rootDir` like `tsc` would, so `src/og/og-fonts.ts` lands at `dist/src/og/og-fonts.js` — and `__dirname` resolves to `dist/src/og/`. The `nest-cli.json` `assets` config has to copy fonts to `dist/src/og/fonts/` (not `dist/og/fonts/`) for the file lookups to succeed at runtime.
+
+**Open: making bots actually see the OG meta tags.** The endpoint produces a real PNG and the route declares the OG meta tags via TanStack Router's `head` config — but vyoh.gg is a SPA without SSR, so the meta tags only populate client-side after JS executes. Slack, Twitter, and Discord don't run JS; they parse static HTML. To close this loop, the deployed setup needs either (a) a bot-detection middleware that returns pre-baked HTML for known crawler UAs, or (b) full SSR via TanStack Start. Both are deployment-shape decisions that are premature without a target — the durable artifact (the PNG endpoint) is hosted independently.
 
 ### Visual layer — `SplashProvider`, scope-keyed transitions, and `LazyMotion` `domMax`
 
