@@ -6,6 +6,7 @@ import {
 } from "@/lol/champion-sort-selector";
 import { aggregateChampionStats } from "@/lol/champion-stats";
 import { ChampionTable } from "@/lol/champion-table";
+import { ChampionsSkeleton } from "@/lol/champions-skeleton";
 import { useHoverChampion } from "@/lol/hover-champion-context";
 import { type MatchCountOption, MatchCountSelector } from "@/lol/match-count-selector";
 import { useMatchesWindow } from "@/lol/use-matches";
@@ -46,7 +47,7 @@ function ChampionsPage() {
       </div>
 
       {matches.isPending && account ? (
-        <p className="text-sm text-muted-foreground">Loading champion stats…</p>
+        <ChampionsSkeleton />
       ) : !matches.data || matches.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No matches yet to aggregate.</p>
       ) : (

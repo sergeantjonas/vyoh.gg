@@ -15,20 +15,20 @@ const item: Variants = {
   },
 };
 
-export function MatchCardSkeleton() {
+function ChampionRowSkeleton() {
   return (
     <div className="relative flex h-28 items-center gap-4 overflow-hidden rounded-md border border-border/50 pl-3 pr-4">
-      <div className="relative h-20 w-1 rounded-full bg-muted/50" />
+      <ShimmerBlock className="absolute inset-y-0 left-0 right-1/3 rounded-l-md opacity-50" />
       <div className="relative ml-auto flex flex-col items-end gap-2">
-        <ShimmerBlock className="h-4 w-28 rounded" />
-        <ShimmerBlock className="h-4 w-20 rounded" />
-        <ShimmerBlock className="h-3 w-36 rounded" />
+        <ShimmerBlock className="h-4 w-24 rounded" />
+        <ShimmerBlock className="h-4 w-32 rounded" />
+        <ShimmerBlock className="h-3 w-20 rounded" />
       </div>
     </div>
   );
 }
 
-export function MatchListSkeleton() {
+export function ChampionsSkeleton() {
   return (
     <m.ul
       initial="hidden"
@@ -36,9 +36,9 @@ export function MatchListSkeleton() {
       variants={container}
       className="flex flex-col gap-3"
     >
-      {[0, 1, 2, 3, 4].map((i) => (
+      {[0, 1, 2, 3, 4, 5].map((i) => (
         <m.li key={i} variants={item}>
-          <MatchCardSkeleton />
+          <ChampionRowSkeleton />
         </m.li>
       ))}
     </m.ul>

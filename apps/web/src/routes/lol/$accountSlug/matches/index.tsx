@@ -1,3 +1,4 @@
+import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { useHoverChampion } from "@/lol/hover-champion-context";
@@ -42,12 +43,17 @@ function MatchesPage() {
             fetchNextPage={matches.fetchNextPage}
             isFetchingNextPage={matches.isFetchingNextPage}
           />
-          <div className="py-4 text-center text-xs text-muted-foreground">
-            {matches.isFetchingNextPage
-              ? `${flat.length} loaded · loading more…`
-              : matches.hasNextPage
-                ? `${flat.length} loaded · scroll for more`
-                : `Showing all ${flat.length} matches`}
+          <div className="flex items-center justify-center gap-2 py-4 text-center text-xs text-muted-foreground">
+            {matches.isFetchingNextPage ? (
+              <>
+                <Loader size={12} label="Loading more matches" />
+                <span>{flat.length} loaded · loading more…</span>
+              </>
+            ) : matches.hasNextPage ? (
+              <span>{flat.length} loaded · scroll for more</span>
+            ) : (
+              <span>Showing all {flat.length} matches</span>
+            )}
           </div>
         </>
       )}

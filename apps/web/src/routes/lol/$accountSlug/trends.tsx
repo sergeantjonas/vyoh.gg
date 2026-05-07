@@ -12,6 +12,7 @@ import {
 } from "@/lol/trend-stats";
 import { TrendStreak } from "@/lol/trend-streak";
 import { TrendSummaryCards } from "@/lol/trend-summary";
+import { TrendsSkeleton } from "@/lol/trends-skeleton";
 import { useMatchesWindow } from "@/lol/use-matches";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
@@ -44,7 +45,7 @@ function TrendsPage() {
       </div>
 
       {matches.isPending && account ? (
-        <p className="text-sm text-muted-foreground">Loading trends…</p>
+        <TrendsSkeleton />
       ) : !matches.data || matches.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No matches yet to chart.</p>
       ) : (

@@ -1,10 +1,4 @@
-function ShimmerBlock({ className }: { className: string }) {
-  return (
-    <div className={`relative overflow-hidden bg-muted/40 ${className}`}>
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-    </div>
-  );
-}
+import { ShimmerBlock } from "@/components/shimmer-block";
 
 function ParticipantRowSkeleton() {
   return (

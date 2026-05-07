@@ -1,3 +1,4 @@
+import { Loader } from "@/components/loader";
 import { useMe } from "@/identity/use-me";
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 
@@ -23,5 +24,10 @@ function LolIndexPage() {
     return <p className="text-sm text-destructive">{me.error.message}</p>;
   }
 
-  return <p className="text-sm text-muted-foreground">Loading accounts…</p>;
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <Loader size={14} label="Loading accounts" />
+      <span>Loading accounts…</span>
+    </div>
+  );
 }
