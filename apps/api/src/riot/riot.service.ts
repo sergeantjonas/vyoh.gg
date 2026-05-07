@@ -59,12 +59,12 @@ export class RiotService {
     path: string,
     attempt: number
   ): Promise<T> {
-    const start = Date.now();
+    const start = performance.now();
     const url = `https://${regional}.api.riotgames.com${path}`;
     const res = await fetch(url, {
       headers: { "X-Riot-Token": this.apiKey },
     });
-    const duration = Date.now() - start;
+    const duration = Math.round(performance.now() - start);
     this.logger.log(`${regional} ${path} → ${res.status} (${duration}ms)`);
 
     if (res.status === 429 && attempt < MAX_RETRIES) {
