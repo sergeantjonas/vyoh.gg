@@ -6,10 +6,19 @@ import { RateLimiterTimeoutError } from "./riot.error";
 
 const REGIONALS: Regional[] = ["americas", "europe", "asia", "sea"];
 
-const SCHEDULE_DEADLINE_MS = 30_000;
+const SCHEDULE_DEADLINE_MS = 15_000;
 const STILL_QUEUED_WARNING_MS = 10_000;
 const SLOW_QUEUE_LOG_MS = 2_000;
 const MAX_CONCURRENT_PER_REGIONAL = 8;
+
+// 100 calls per 120 s = 1 call per 1.2 s. Reservoir increase semantics
+// (vs the older refresh semantics) approximate Riot's rolling window —
+// each tick adds one slot back, instead of resetting the entire reservoir
+// only at the 120 s boundary. Important when syncFromHeaders shrinks the
+// reservoir to near 0 mid-window: with refresh, we'd sit at 0 for up to
+// 120 s; with increase, capacity dribbles back at the same rate Riot's
+// own rolling window is releasing it.
+const SLOW_INCREASE_INTERVAL_MS = 1_200;
 
 type AppWindow = { limiter: Bottleneck; windowSec: number };
 type MethodEntry = { limiter: Bottleneck; windowSec: number };
@@ -35,8 +44,9 @@ export class RateLimiterService {
       });
       const slow = new Bottleneck({
         reservoir: 100,
-        reservoirRefreshAmount: 100,
-        reservoirRefreshInterval: 120_000,
+        reservoirIncreaseAmount: 1,
+        reservoirIncreaseInterval: SLOW_INCREASE_INTERVAL_MS,
+        reservoirIncreaseMaximum: 100,
       });
       fast.chain(slow);
       this.appWindows.set(regional, [
