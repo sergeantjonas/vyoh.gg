@@ -18,10 +18,34 @@ const consoleReporter: Reporter = (metric) => {
   );
 };
 
-export function reportWebVitals(report: Reporter = consoleReporter) {
-  onCLS(report);
-  onFCP(report);
-  onINP(report);
-  onLCP(report);
-  onTTFB(report);
+const subscribers = new Set<Reporter>();
+const latest = new Map<Metric["name"], Metric>();
+let started = false;
+
+const broadcast: Reporter = (metric) => {
+  latest.set(metric.name, metric);
+  for (const reporter of subscribers) reporter(metric);
+};
+
+function start() {
+  if (started) return;
+  started = true;
+  onCLS(broadcast);
+  onFCP(broadcast);
+  onINP(broadcast);
+  onLCP(broadcast);
+  onTTFB(broadcast);
+}
+
+export function subscribeWebVitals(reporter: Reporter): () => void {
+  start();
+  subscribers.add(reporter);
+  for (const metric of latest.values()) reporter(metric);
+  return () => {
+    subscribers.delete(reporter);
+  };
+}
+
+export function reportWebVitals(reporter: Reporter = consoleReporter) {
+  subscribeWebVitals(reporter);
 }
