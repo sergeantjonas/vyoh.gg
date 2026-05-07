@@ -6,7 +6,7 @@ import { useSplashChampion } from "@/lol/splash-backdrop";
 import { useMatches } from "@/lol/use-matches";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { Crown, History, TrendingUp } from "lucide-react";
-import { AnimatePresence, m } from "motion/react";
+import { m } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
 const TABS = [
@@ -105,17 +105,7 @@ function AccountLayout() {
           })}
         </div>
 
-        <AnimatePresence mode="wait" initial={false}>
-          <m.div
-            key={pathname}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-          >
-            <Outlet />
-          </m.div>
-        </AnimatePresence>
+        <Outlet />
       </div>
     </HoverChampionProvider>
   );

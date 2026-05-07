@@ -101,7 +101,7 @@ export function MatchList({
           transform: `translateY(${virtualRow.start - scrollMargin}px)`,
           paddingBottom: 12,
         };
-        const staggerDelay = (virtualRow.index % MATCHES_PAGE_SIZE) * 0.03;
+        const staggerDelay = (virtualRow.index % MATCHES_PAGE_SIZE) * 0.06;
         if (!match) {
           return (
             <MatchSkeletonRow
