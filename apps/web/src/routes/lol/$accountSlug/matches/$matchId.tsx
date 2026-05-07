@@ -1,3 +1,11 @@
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { useMatchDetail } from "@/identity/use-match-detail";
@@ -5,7 +13,7 @@ import { MatchDetailSkeleton } from "@/lol/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/match-detail-view";
 import { useChampionName } from "@/lol/use-champions";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { AnimatePresence, m } from "motion/react";
 
 const API_URL = "http://localhost:2010";
 
@@ -58,18 +66,44 @@ function MatchDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <nav className="flex items-center gap-1.5 text-sm">
-        <Link
-          to="/lol/$accountSlug/matches"
-          params={{ accountSlug }}
-          search={(prev) => prev}
-          className="text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Matches
-        </Link>
-        <ChevronRight className="size-3.5 text-muted-foreground/60" />
-        <span className="text-foreground">{crumbLabel}</span>
-      </nav>
+      <m.div
+        initial={{ opacity: 0, x: -6 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+      >
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link
+                  to="/lol/$accountSlug/matches"
+                  params={{ accountSlug }}
+                  search={(prev) => prev}
+                >
+                  Matches
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                <AnimatePresence mode="wait" initial={false}>
+                  <m.span
+                    key={crumbLabel}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="inline-block"
+                  >
+                    {crumbLabel}
+                  </m.span>
+                </AnimatePresence>
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </m.div>
       {detail.isPending && <MatchDetailSkeleton />}
       {detail.isError && (
         <div className="flex flex-col items-start gap-2">
