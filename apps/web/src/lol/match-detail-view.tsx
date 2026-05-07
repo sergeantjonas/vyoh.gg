@@ -58,8 +58,12 @@ function ParticipantRow({
       />
       <div className="flex-1 min-w-0">
         <div className="truncate text-sm font-medium">{p.championName}</div>
-        <div className="font-mono text-xs text-muted-foreground">
-          {p.kills} / {p.deaths} / {p.assists}
+        <div className="font-mono text-xs tabular-nums">
+          <span className="text-emerald-400">{p.kills}</span>
+          <span className="text-muted-foreground"> / </span>
+          <span className="text-red-400">{p.deaths}</span>
+          <span className="text-muted-foreground"> / </span>
+          <span className="text-amber-400">{p.assists}</span>
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
@@ -84,10 +88,16 @@ function TeamBlock({
   const win = participants[0]?.win ?? false;
   return (
     <section className="flex flex-col gap-2">
-      <h3
-        className={cn("text-sm font-medium", win ? "text-emerald-500" : "text-red-500")}
-      >
-        {title} · {win ? "Win" : "Loss"}
+      <h3 className="flex items-baseline gap-2 text-sm font-medium">
+        <span>{title}</span>
+        <span
+          className={cn(
+            "text-xs font-semibold uppercase tracking-wider",
+            win ? "text-emerald-400" : "text-red-400"
+          )}
+        >
+          {win ? "Win" : "Loss"}
+        </span>
       </h3>
       <ul className="flex flex-col gap-1">
         {participants.map((p) => (

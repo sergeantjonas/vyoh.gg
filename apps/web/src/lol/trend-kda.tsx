@@ -16,6 +16,12 @@ export function TrendKda({ points }: { points: KdaPoint[] }) {
       <div className="h-48 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={points}>
+            <defs>
+              <linearGradient id="kda-area" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="game"
@@ -30,14 +36,19 @@ export function TrendKda({ points }: { points: KdaPoint[] }) {
                 color: "var(--popover-foreground)",
               }}
               labelFormatter={(label) => `Game ${label}`}
+              formatter={(value) => [Number(value).toFixed(2), "KDA"]}
             />
             <Line
               type="monotone"
               dataKey="kda"
-              stroke="var(--primary)"
+              stroke="#34d399"
               strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
+              dot={{ r: 3, fill: "#34d399", stroke: "#34d399" }}
+              activeDot={{ r: 5, fill: "#34d399", stroke: "#34d399" }}
+              fill="url(#kda-area)"
+              animationDuration={1500}
+              animationBegin={150}
+              animationEasing="ease-out"
             />
           </LineChart>
         </ResponsiveContainer>
