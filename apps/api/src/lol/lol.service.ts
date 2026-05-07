@@ -66,6 +66,7 @@ export class LolService {
     region: string,
     gameName: string,
     tagLine: string,
+    start: number,
     count: number,
     queue?: number
   ): Promise<CachedMatchesResult> {
@@ -93,6 +94,7 @@ export class LolService {
       this.prisma.match.findMany({
         where,
         orderBy: { playedAt: "desc" },
+        skip: start,
         take: count,
       }),
     ]);

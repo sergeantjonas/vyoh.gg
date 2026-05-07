@@ -30,9 +30,10 @@ export class LolController {
     @Param("region") region: string,
     @Param("gameName") gameName: string,
     @Param("tagLine") tagLine: string,
+    @Query("start", new DefaultValuePipe(0), ParseIntPipe) start: number,
     @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number,
     @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
   ): Promise<CachedMatchesResult> {
-    return this.lol.getCachedMatches(region, gameName, tagLine, count, queue);
+    return this.lol.getCachedMatches(region, gameName, tagLine, start, count, queue);
   }
 }

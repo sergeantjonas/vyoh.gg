@@ -408,7 +408,7 @@ describe("LolService.getCachedMatches", () => {
     });
     const service = await buildService(overrides);
 
-    const result = await service.getCachedMatches("euw1", "Vyoh", "EUW", 20);
+    const result = await service.getCachedMatches("euw1", "Vyoh", "EUW", 0, 20);
 
     expect(result.total).toBe(18);
     expect(result.matches.map((m) => m.matchId)).toEqual(["M_2", "M_1"]);
@@ -425,7 +425,7 @@ describe("LolService.getCachedMatches", () => {
     });
     const service = await buildService(overrides);
 
-    const result = await service.getCachedMatches("euw1", "NewAccount", "EUW", 20);
+    const result = await service.getCachedMatches("euw1", "NewAccount", "EUW", 0, 20);
 
     expect(result).toEqual({ matches: [], total: 0 });
     expect(overrides.riot.getAccountByRiotId).not.toHaveBeenCalled();
@@ -440,7 +440,7 @@ describe("LolService.getCachedMatches", () => {
     });
     const service = await buildService(overrides);
 
-    await service.getCachedMatches("euw1", "Vyoh", "EUW", 20, 420);
+    await service.getCachedMatches("euw1", "Vyoh", "EUW", 0, 20, 420);
 
     expect(overrides.prisma.match.count).toHaveBeenCalledWith({
       where: { puuid: "puuid-vyoh", queueType: "Ranked Solo" },
@@ -448,7 +448,23 @@ describe("LolService.getCachedMatches", () => {
     expect(overrides.prisma.match.findMany).toHaveBeenCalledWith({
       where: { puuid: "puuid-vyoh", queueType: "Ranked Solo" },
       orderBy: { playedAt: "desc" },
+      skip: 0,
       take: 20,
+    });
+  });
+
+  it("paginates via skip + take when start is non-zero", async () => {
+    const summoner = makeSummoner(true);
+    const overrides = makeCachedService({ summoner, rows: [], total: 50 });
+    const service = await buildService(overrides);
+
+    await service.getCachedMatches("euw1", "Vyoh", "EUW", 20, 10);
+
+    expect(overrides.prisma.match.findMany).toHaveBeenCalledWith({
+      where: { puuid: "puuid-vyoh" },
+      orderBy: { playedAt: "desc" },
+      skip: 20,
+      take: 10,
     });
   });
 
@@ -459,7 +475,7 @@ describe("LolService.getCachedMatches", () => {
     const service = await buildService(overrides);
 
     const error = await service
-      .getCachedMatches("euw1", "Stranger", "TAG", 20)
+      .getCachedMatches("euw1", "Stranger", "TAG", 0, 20)
       .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ForbiddenException);

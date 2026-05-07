@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { IdentityService } from "../identity/identity.service";
 import { LolService } from "./lol.service";
@@ -10,7 +10,7 @@ function isSyncEnabled(): boolean {
 }
 
 @Injectable()
-export class MatchSyncService {
+export class MatchSyncService implements OnApplicationBootstrap {
   private readonly logger = new Logger(MatchSyncService.name);
   private running = false;
 
@@ -21,6 +21,17 @@ export class MatchSyncService {
     if (!isSyncEnabled()) {
       this.logger.warn("disabled via MATCH_SYNC_ENABLED=false");
     }
+  }
+
+  onApplicationBootstrap(): void {
+    if (!isSyncEnabled()) return;
+    // Fire-and-forget initial sync. The match list now reads only from the DB,
+    // so a fresh DB would otherwise show empty until the first 5-minute cron
+    // tick. With the Promise.race fetch timeout in RiotService, individual
+    // hung fetches can no longer wedge the boot process.
+    void this.syncAll().catch((err) => {
+      this.logger.warn(`initial sync failed: ${err}`);
+    });
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: "match-sync" })

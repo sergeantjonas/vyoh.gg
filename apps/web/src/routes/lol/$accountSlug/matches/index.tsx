@@ -4,7 +4,7 @@ import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { useHoverChampion } from "@/lol/hover-champion-context";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
-import { useMatches } from "@/lol/use-matches";
+import { useCachedMatches } from "@/lol/use-matches";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 
@@ -16,9 +16,12 @@ function MatchesPage() {
   const { accountSlug } = Route.useParams();
   const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
-  const matches = useMatches(account, queue);
+  const matches = useCachedMatches(account, queue);
 
-  const flat = useMemo(() => matches.data?.pages.flat() ?? [], [matches.data?.pages]);
+  const flat = useMemo(
+    () => matches.data?.pages.flatMap((p) => p.matches) ?? [],
+    [matches.data?.pages]
+  );
 
   const setHoveredChampion = useHoverChampion();
 
@@ -56,6 +59,12 @@ function MatchesPage() {
             )}
           </div>
         </>
+      )}
+      {!matches.isPending && !matches.isError && flat.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No matches cached yet. The background sync runs every 5 minutes — check back
+          shortly, or hit refresh.
+        </p>
       )}
     </div>
   );

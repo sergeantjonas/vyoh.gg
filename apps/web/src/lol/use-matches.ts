@@ -57,6 +57,7 @@ export function useMatches(account: LolAccount | undefined, queue?: number) {
 
 export function useCachedMatchSummary(matchId: string): MatchSummary | undefined {
   const queryClient = useQueryClient();
+
   const infinite = queryClient.getQueriesData<{ pages: MatchSummary[][] }>({
     queryKey: ["lol", "matches"],
   });
@@ -67,6 +68,26 @@ export function useCachedMatchSummary(matchId: string): MatchSummary | undefined
       if (hit) return hit;
     }
   }
+
+  const cachedInfinite = queryClient.getQueriesData<{
+    pages: CachedMatchesResult[];
+  }>({ queryKey: ["lol", "matches-cached-infinite"] });
+  for (const [, data] of cachedInfinite) {
+    if (!data?.pages) continue;
+    for (const page of data.pages) {
+      const hit = page.matches.find((m) => m.matchId === matchId);
+      if (hit) return hit;
+    }
+  }
+
+  const cachedWindows = queryClient.getQueriesData<CachedMatchesResult>({
+    queryKey: ["lol", "matches-cached"],
+  });
+  for (const [, data] of cachedWindows) {
+    const hit = data?.matches.find((m) => m.matchId === matchId);
+    if (hit) return hit;
+  }
+
   const windows = queryClient.getQueriesData<MatchSummary[]>({
     queryKey: ["lol", "matches-window"],
   });
@@ -103,10 +124,14 @@ export function useMatchesWindow(
 
 async function fetchCachedMatches(
   account: LolAccount,
+  start: number,
   count: number,
   queue?: number
 ): Promise<CachedMatchesResult> {
-  const params = new URLSearchParams({ count: String(count) });
+  const params = new URLSearchParams({
+    start: String(start),
+    count: String(count),
+  });
   if (queue !== undefined) params.set("queue", String(queue));
   const res = await fetch(
     `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/matches/cached?${params}`
@@ -141,7 +166,35 @@ export function useCachedMatchesWindow(
     ],
     queryFn: () => {
       if (!account) throw new Error("No account");
-      return fetchCachedMatches(account, count, queue);
+      return fetchCachedMatches(account, 0, count, queue);
+    },
+    enabled: account !== undefined,
+  });
+}
+
+export function useCachedMatches(account: LolAccount | undefined, queue?: number) {
+  return useInfiniteQuery({
+    queryKey: [
+      "lol",
+      "matches-cached-infinite",
+      account?.region,
+      account?.gameName,
+      account?.tagLine,
+      queue,
+    ],
+    queryFn: ({ pageParam }) => {
+      if (!account) throw new Error("No account");
+      return fetchCachedMatches(account, pageParam, MATCHES_PAGE_SIZE, queue);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+      const consumed = lastPageParam + lastPage.matches.length;
+      if (consumed >= lastPage.total) return undefined;
+      // If a page comes back shorter than asked-for and we haven't reached
+      // total, the underlying DB cache simply has gaps — bail to avoid
+      // infinite re-asking for the same window.
+      if (lastPage.matches.length === 0) return undefined;
+      return consumed;
     },
     enabled: account !== undefined,
   });
