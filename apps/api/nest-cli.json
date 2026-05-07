@@ -5,7 +5,7 @@
   "compilerOptions": {
     "builder": "swc",
     "deleteOutDir": true,
-    "assets": [{ "include": "og/fonts/*.ttf", "outDir": "dist" }],
+    "assets": [{ "include": "og/fonts/*.ttf", "outDir": "dist/src" }],
     "watchAssets": true
   }
 }

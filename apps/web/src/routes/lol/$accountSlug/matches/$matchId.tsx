@@ -21,7 +21,7 @@ export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
         { property: "og:description", content: description },
         { property: "og:image", content: ogImage },
         { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
+        { property: "og:image:height", content: "400" },
         { property: "og:type", content: "article" },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },

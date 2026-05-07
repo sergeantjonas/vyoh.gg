@@ -33,10 +33,11 @@ function e(
   props: Record<string, unknown>,
   ...children: Array<Element | string | number>
 ): Element {
-  return {
-    type,
-    props: { ...props, children: children.length === 1 ? children[0] : children },
-  };
+  if (children.length === 0) return { type, props };
+  if (children.length === 1) {
+    return { type, props: { ...props, children: children[0] } };
+  }
+  return { type, props: { ...props, children } };
 }
 
 export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
@@ -50,7 +51,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
         display: "flex",
         position: "relative",
         width: 1200,
-        height: 630,
+        height: 400,
         backgroundColor: "#0a0a0a",
         color: "#f4f4f5",
         fontFamily: "Geist",
@@ -63,7 +64,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
         top: 0,
         left: 0,
         width: 740,
-        height: 630,
+        height: 400,
         objectFit: "cover",
         objectPosition: "center top",
         filter: "saturate(0.9)",
@@ -71,17 +72,19 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
     }),
     e("div", {
       style: {
+        display: "flex",
         position: "absolute",
         top: 0,
         left: 0,
         width: 740,
-        height: 630,
+        height: 400,
         backgroundImage:
           "linear-gradient(to right, rgba(10,10,10,0.15) 0%, rgba(10,10,10,0.4) 60%, rgba(10,10,10,1) 100%)",
       },
     }),
     e("div", {
       style: {
+        display: "flex",
         position: "absolute",
         left: 0,
         bottom: 0,
@@ -99,7 +102,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
           right: 0,
           top: 0,
           width: 540,
-          height: 630,
+          height: 400,
           display: "flex",
           flexDirection: "column",
           padding: "56px 64px",
@@ -210,7 +213,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
 
   const svg = await satori(card as never, {
     width: 1200,
-    height: 630,
+    height: 400,
     fonts: fonts.map((f) => ({
       name: f.name,
       data: f.data,
