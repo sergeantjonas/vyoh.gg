@@ -3,7 +3,12 @@ import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { SplashProvider } from "@/lol/splash-backdrop";
-import { Outlet, createRootRoute, useRouterState } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Outlet,
+  createRootRoute,
+  useRouterState,
+} from "@tanstack/react-router";
 import { AnimatePresence, m } from "motion/react";
 
 export const Route = createRootRoute({
@@ -23,6 +28,7 @@ function RootLayout() {
 
   return (
     <SplashProvider>
+      <HeadContent />
       <FetchProgress />
       <CommandPalette />
       <ScrollToTop />

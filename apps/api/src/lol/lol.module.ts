@@ -8,5 +8,6 @@ import { MatchController } from "./match.controller";
   imports: [RiotModule],
   controllers: [LolController, MatchController],
   providers: [LolService],
+  exports: [LolService],
 })
 export class LolModule {}

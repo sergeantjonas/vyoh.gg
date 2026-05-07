@@ -22,12 +22,14 @@
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@vyoh/shared": "workspace:*",
     "bottleneck": "^2.19.5",
     "dotenv": "^17.4.2",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "satori": "^0.26.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
