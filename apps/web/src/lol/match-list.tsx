@@ -64,9 +64,9 @@ export function MatchList({
               alt=""
               aria-hidden="true"
               loading="lazy"
-              className="pointer-events-none absolute inset-0 size-full scale-125 object-cover opacity-50 blur-3xl transition-opacity duration-300 group-hover:opacity-70"
+              className="pointer-events-none absolute inset-0 size-full object-cover object-[75%_30%] opacity-80 transition-opacity duration-300 group-hover:opacity-100"
             />
-            <div className="pointer-events-none absolute inset-0 bg-card/60" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card from-20% via-card/80 via-55% to-transparent" />
 
             <div
               className={cn(
