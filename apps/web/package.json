@@ -25,6 +25,7 @@
     "motion": "^12.38.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.5",
+    "react-blurhash": "^0.3.0",
     "react-calendar-heatmap": "^1.10.0",
     "react-dom": "^19.2.5",
     "recharts": "^3.8.1",
