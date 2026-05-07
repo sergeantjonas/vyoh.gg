@@ -1,24 +1,19 @@
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/account-switcher";
+import { HoverChampionProvider } from "@/lol/hover-champion-context";
 import { useSplashChampion } from "@/lol/splash-backdrop";
 import { useMatches } from "@/lol/use-matches";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { Crown, History, TrendingUp } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const TABS = [
   { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History },
   { to: "/lol/$accountSlug/trends", label: "Trends", Icon: TrendingUp },
   { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown },
 ] as const;
-
-const HoverChampionContext = createContext<((c: string | null) => void) | null>(null);
-
-export function useHoverChampion() {
-  return useContext(HoverChampionContext);
-}
 
 export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
@@ -42,7 +37,7 @@ function AccountLayout() {
   useSplashChampion(hoveredChampion ?? initialChampion);
 
   return (
-    <HoverChampionContext.Provider value={setHoveredChampion}>
+    <HoverChampionProvider setHovered={setHoveredChampion}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {account && (
@@ -122,6 +117,6 @@ function AccountLayout() {
           </m.div>
         </AnimatePresence>
       </div>
-    </HoverChampionContext.Provider>
+    </HoverChampionProvider>
   );
 }

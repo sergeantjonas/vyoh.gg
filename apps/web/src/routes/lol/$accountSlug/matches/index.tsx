@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
+import { useHoverChampion } from "@/lol/hover-champion-context";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
-import { useHoverChampion } from "@/routes/lol/$accountSlug";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef } from "react";
 

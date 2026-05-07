@@ -1,9 +1,9 @@
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { aggregateChampionStats } from "@/lol/champion-stats";
 import { ChampionTable } from "@/lol/champion-table";
+import { useHoverChampion } from "@/lol/hover-champion-context";
 import { type MatchCountOption, MatchCountSelector } from "@/lol/match-count-selector";
 import { useMatchesWindow } from "@/lol/use-matches";
-import { useHoverChampion } from "@/routes/lol/$accountSlug";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
