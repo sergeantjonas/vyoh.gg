@@ -1,4 +1,5 @@
 import { usePerfFlag } from "@/lib/use-perf-flag";
+import { useActiveMatch } from "@/lol/active-match-context";
 import { MatchCardSkeleton } from "@/lol/match-list-skeleton";
 import { MatchRow } from "@/lol/match-row";
 import { useChampionName } from "@/lol/use-champions";
@@ -33,16 +34,46 @@ export function MatchList({
   const championName = useChampionName();
   const showPerf = usePerfFlag();
   const parentRef = useRef<HTMLDivElement>(null);
-  const seenCountRef = useRef(0);
   const prevMatchesLengthRef = useRef<number | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const { readListScroll, bumpMorphEpoch } = useActiveMatch();
+  const [restoredScrollY] = useState(() => readListScroll());
+  const [visibleCount, setVisibleCount] = useState(() => {
+    if (restoredScrollY > 0) {
+      const neededRows =
+        Math.ceil((restoredScrollY + window.innerHeight) / ESTIMATED_ROW_HEIGHT) + 4;
+      return Math.max(neededRows, INITIAL_VISIBLE);
+    }
+    return INITIAL_VISIBLE;
+  });
+  const seenCountRef = useRef(restoredScrollY > 0 ? visibleCount : 0);
+  const didInitialScrollRef = useRef(false);
+  if (!didInitialScrollRef.current && restoredScrollY > 0) {
+    didInitialScrollRef.current = true;
+    window.scrollTo(0, restoredScrollY);
+  }
 
   useLayoutEffect(() => {
     if (parentRef.current) {
       setScrollMargin(parentRef.current.offsetTop);
     }
-  }, []);
+    if (restoredScrollY <= 0) return;
+    const target = restoredScrollY;
+    window.scrollTo(0, target);
+    let cancelled = false;
+    const pinUntil = performance.now() + 600;
+    const pin = () => {
+      if (cancelled || performance.now() > pinUntil) return;
+      if (Math.abs(window.scrollY - target) > 1) window.scrollTo(0, target);
+      requestAnimationFrame(pin);
+    };
+    requestAnimationFrame(pin);
+    const epochId = window.setTimeout(() => bumpMorphEpoch(), 32);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(epochId);
+    };
+  }, [restoredScrollY, bumpMorphEpoch]);
 
   // Bump visibleCount when fresh data arrives via fetchNextPage so phantoms
   // don't suddenly disappear when their indices fall back outside the count.

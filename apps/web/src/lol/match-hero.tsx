@@ -1,5 +1,9 @@
 import { cn } from "@/lib/utils";
-import { ChampionCardChrome, championCardStyle } from "@/lol/champion-card";
+import {
+  ChampionCardChrome,
+  championCardBaseClassName,
+  championCardStyle,
+} from "@/lol/champion-card";
 import { useChampionName } from "@/lol/use-champions";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
@@ -13,16 +17,18 @@ function formatDuration(sec: number): string {
 export function MatchHero({ summary }: { summary: MatchSummary }) {
   const championName = useChampionName();
   const playedAt = new Date(summary.playedAt);
+  const displayName = championName(summary.champion);
   return (
     <m.div
       layoutId={`match-card-${summary.matchId}`}
+      transition={{ layout: { type: "spring", stiffness: 180, damping: 28 } }}
       style={championCardStyle(summary.champion)}
-      className="themed-card relative isolate flex h-36 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-5"
+      className={championCardBaseClassName}
     >
       <ChampionCardChrome champion={summary.champion} win={summary.win} />
-      <div className="relative ml-auto flex flex-col items-end gap-1.5">
+      <div className="relative ml-auto flex flex-col items-end gap-1">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-xl font-semibold">{summary.queueType}</h2>
+          <span className="font-medium">{displayName}</span>
           <span
             className={cn(
               "text-xs font-semibold uppercase tracking-wider",
@@ -32,7 +38,7 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
             {summary.win ? "Win" : "Loss"}
           </span>
         </div>
-        <div className="font-mono text-base tabular-nums">
+        <div className="font-mono text-sm tabular-nums">
           <span className="text-emerald-400">{summary.kills}</span>
           <span className="text-muted-foreground"> / </span>
           <span className="text-red-400">{summary.deaths}</span>
@@ -40,7 +46,7 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
           <span className="text-amber-400">{summary.assists}</span>
         </div>
         <div className="text-xs text-muted-foreground">
-          {championName(summary.champion)} · {formatDuration(summary.durationSec)} ·{" "}
+          {summary.queueType} · {formatDuration(summary.durationSec)} ·{" "}
           {playedAt.toLocaleString(undefined, {
             dateStyle: "medium",
             timeStyle: "short",

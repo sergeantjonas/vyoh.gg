@@ -42,7 +42,7 @@ export function MatchRow({
   championDisplayName: string;
   onCardHover?: (champion: string) => void;
 }) {
-  const { activeMatch, setActiveMatch } = useActiveMatch();
+  const { activeMatch, setActiveMatch, saveListScroll, morphEpoch } = useActiveMatch();
   const isActive = activeMatch === match.matchId;
   return (
     <CardTilt>
@@ -51,12 +51,17 @@ export function MatchRow({
         params={{ accountSlug, matchId: match.matchId }}
         onMouseEnter={() => onCardHover?.(match.champion)}
         onPointerDown={() => {
+          saveListScroll();
           if (!isActive) flushSync(() => setActiveMatch(match.matchId));
         }}
         className="block"
       >
         <m.div
+          key={`${match.matchId}-${morphEpoch}`}
           layoutId={isActive ? `match-card-${match.matchId}` : undefined}
+          transition={{
+            layout: { type: "spring", stiffness: 180, damping: 28 },
+          }}
           style={championCardStyle(match.champion)}
           className={championCardClassName}
         >

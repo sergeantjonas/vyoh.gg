@@ -73,7 +73,7 @@
 .themed-card {
   border-color: color-mix(in oklab, var(--theme-color) 30%, transparent);
 }
-.themed-card:hover {
+.themed-card-interactive:hover {
   border-color: color-mix(in oklab, var(--theme-color) 65%, transparent);
   box-shadow: 0 8px 24px -8px color-mix(in oklab, var(--theme-color) 45%, transparent);
 }

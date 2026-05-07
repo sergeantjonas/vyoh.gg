@@ -5,8 +5,10 @@ import { shouldFlipChampion } from "@/lol/champion-direction";
 import { m } from "motion/react";
 import type { CSSProperties } from "react";
 
-export const championCardClassName =
-  "themed-card group relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-0.5";
+export const championCardBaseClassName =
+  "themed-card relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out";
+
+export const championCardClassName = `${championCardBaseClassName} themed-card-interactive group hover:-translate-y-0.5`;
 
 export function championCardStyle(champion: string): CSSProperties {
   return { "--theme-color": championTheme(champion).dominantHex } as CSSProperties;
