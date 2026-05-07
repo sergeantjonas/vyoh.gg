@@ -7,6 +7,8 @@ function buildParticipant(
 ): RiotMatchParticipant {
   return {
     puuid: "puuid-vyoh",
+    riotIdGameName: "Vyoh",
+    riotIdTagline: "Ahri",
     championName: "Ahri",
     teamId: 100,
     teamPosition: "MIDDLE",

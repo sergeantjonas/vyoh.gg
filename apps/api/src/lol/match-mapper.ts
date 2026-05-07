@@ -29,6 +29,8 @@ export function riotMatchToDetail(match: RiotMatch): MatchDetail {
     playedAt: new Date(match.info.gameStartTimestamp).toISOString(),
     participants: match.info.participants.map((p) => ({
       puuid: p.puuid,
+      riotIdGameName: p.riotIdGameName,
+      riotIdTagline: p.riotIdTagline,
       championName: p.championName,
       teamId: p.teamId,
       teamPosition: p.teamPosition,

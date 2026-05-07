@@ -1,4 +1,4 @@
-import { championIconUrl } from "@/lib/champion-icon";
+import { championIconUrl, championSplashUrl } from "@/lib/champion-icon";
 import { itemIconUrl } from "@/lib/item-icon";
 import { cn } from "@/lib/utils";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
@@ -84,23 +84,50 @@ function TeamBlock({
   );
 }
 
-export function MatchDetailView({ detail }: { detail: MatchDetail }) {
+export function MatchDetailView({
+  detail,
+  currentChampion,
+}: {
+  detail: MatchDetail;
+  currentChampion?: string;
+}) {
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const playedAt = new Date(detail.playedAt);
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-baseline gap-3">
-        <h2 className="text-xl font-semibold">{detail.queueType}</h2>
-        <span className="text-sm text-muted-foreground">
-          {formatDuration(detail.durationSec)} ·{" "}
-          {playedAt.toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </span>
-      </header>
+      <div className="relative overflow-hidden rounded-lg border">
+        {currentChampion && (
+          <>
+            <img
+              src={championSplashUrl(currentChampion)}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 size-full object-cover object-[center_25%] opacity-40"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-background via-background/60 to-transparent" />
+          </>
+        )}
+        <header className="relative flex flex-col gap-1 p-6">
+          {currentChampion && (
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              {currentChampion}
+            </span>
+          )}
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-2xl font-semibold">{detail.queueType}</h2>
+            <span className="text-sm text-muted-foreground">
+              {formatDuration(detail.durationSec)} ·{" "}
+              {playedAt.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </span>
+          </div>
+        </header>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <TeamBlock title="Blue side" participants={blue} />
         <TeamBlock title="Red side" participants={red} />

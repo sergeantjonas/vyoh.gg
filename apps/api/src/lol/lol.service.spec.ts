@@ -17,6 +17,8 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
       participants: [
         {
           puuid: "puuid-vyoh",
+          riotIdGameName: "Vyoh",
+          riotIdTagline: "Ahri",
           championName: "Ahri",
           teamId: 100,
           teamPosition: "MIDDLE",

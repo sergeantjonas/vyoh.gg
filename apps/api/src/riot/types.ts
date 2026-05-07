@@ -6,6 +6,8 @@ export interface RiotAccount {
 
 export interface RiotMatchParticipant {
   puuid: string;
+  riotIdGameName: string;
+  riotIdTagline: string;
   championName: string;
   teamId: number;
   teamPosition: string;
