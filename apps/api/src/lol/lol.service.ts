@@ -23,7 +23,8 @@ export class LolService {
     gameName: string,
     tagLine: string,
     start = 0,
-    count: number = DEFAULT_MATCH_COUNT
+    count: number = DEFAULT_MATCH_COUNT,
+    queue?: number
   ): Promise<MatchSummary[]> {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
@@ -35,6 +36,7 @@ export class LolService {
     const matchIds = await this.riot.getMatchIdsByPuuid(summoner.puuid, regional, {
       start,
       count,
+      queue,
     });
 
     await this.backfillMissingMatches(summoner.puuid, matchIds, regional);

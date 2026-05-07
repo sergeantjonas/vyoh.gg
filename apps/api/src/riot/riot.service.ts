@@ -32,11 +32,12 @@ export class RiotService {
   async getMatchIdsByPuuid(
     puuid: string,
     regional: Regional,
-    options: { start?: number; count?: number } = {}
+    options: { start?: number; count?: number; queue?: number } = {}
   ): Promise<string[]> {
     const params = new URLSearchParams();
     if (options.start !== undefined) params.set("start", String(options.start));
     if (options.count !== undefined) params.set("count", String(options.count));
+    if (options.queue !== undefined) params.set("queue", String(options.queue));
     const query = params.size > 0 ? `?${params}` : "";
     return this.fetch<string[]>(
       regional,

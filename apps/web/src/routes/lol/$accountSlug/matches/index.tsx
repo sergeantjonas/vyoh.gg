@@ -4,7 +4,7 @@ import { useHoverChampion } from "@/lol/hover-champion-context";
 import { MatchList } from "@/lol/match-list";
 import { MatchListSkeleton } from "@/lol/match-list-skeleton";
 import { useMatches } from "@/lol/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/")({
@@ -13,8 +13,9 @@ export const Route = createFileRoute("/lol/$accountSlug/matches/")({
 
 function MatchesPage() {
   const { accountSlug } = Route.useParams();
+  const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
-  const matches = useMatches(account);
+  const matches = useMatches(account, queue);
 
   const flat = useMemo(() => matches.data?.pages.flat() ?? [], [matches.data?.pages]);
 

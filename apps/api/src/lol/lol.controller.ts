@@ -19,8 +19,9 @@ export class LolController {
     @Param("gameName") gameName: string,
     @Param("tagLine") tagLine: string,
     @Query("start", new DefaultValuePipe(0), ParseIntPipe) start: number,
-    @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number,
+    @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
   ): Promise<MatchSummary[]> {
-    return this.lol.getMatchesForSummoner(region, gameName, tagLine, start, count);
+    return this.lol.getMatchesForSummoner(region, gameName, tagLine, start, count, queue);
   }
 }

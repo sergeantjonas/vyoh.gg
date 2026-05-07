@@ -15,6 +15,6 @@ describe("LolController", () => {
     const controller = moduleRef.get(LolController);
     await controller.getMatches("euw1", "Vyoh", "EUW", 0, 20);
 
-    expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 0, 20);
+    expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 0, 20, undefined);
   });
 });

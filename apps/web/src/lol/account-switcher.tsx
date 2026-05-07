@@ -24,6 +24,7 @@ export function AccountSwitcher({ currentSlug }: { currentSlug: string }) {
         navigate({
           to: "/lol/$accountSlug/matches",
           params: { accountSlug: slug },
+          search: (prev) => prev,
         })
       }
     >

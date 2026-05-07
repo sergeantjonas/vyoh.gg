@@ -4,7 +4,7 @@ import { ChampionTable } from "@/lol/champion-table";
 import { useHoverChampion } from "@/lol/hover-champion-context";
 import { type MatchCountOption, MatchCountSelector } from "@/lol/match-count-selector";
 import { useMatchesWindow } from "@/lol/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions")({
@@ -13,9 +13,10 @@ export const Route = createFileRoute("/lol/$accountSlug/champions")({
 
 function ChampionsPage() {
   const { accountSlug } = Route.useParams();
+  const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
   const [count, setCount] = useState<MatchCountOption>(20);
-  const matches = useMatchesWindow(account, count);
+  const matches = useMatchesWindow(account, count, queue);
   const setHoveredChampion = useHoverChampion();
 
   return (

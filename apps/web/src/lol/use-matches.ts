@@ -8,12 +8,14 @@ export const MATCHES_PAGE_SIZE = 10;
 async function fetchMatchesPage(
   account: LolAccount,
   start: number,
-  count: number = MATCHES_PAGE_SIZE
+  count: number = MATCHES_PAGE_SIZE,
+  queue?: number
 ): Promise<MatchSummary[]> {
   const params = new URLSearchParams({
     start: String(start),
     count: String(count),
   });
+  if (queue !== undefined) params.set("queue", String(queue));
   const res = await fetch(
     `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/matches?${params}`
   );
@@ -30,12 +32,19 @@ async function fetchMatchesPage(
   return res.json();
 }
 
-export function useMatches(account: LolAccount | undefined) {
+export function useMatches(account: LolAccount | undefined, queue?: number) {
   return useInfiniteQuery({
-    queryKey: ["lol", "matches", account?.region, account?.gameName, account?.tagLine],
+    queryKey: [
+      "lol",
+      "matches",
+      account?.region,
+      account?.gameName,
+      account?.tagLine,
+      queue,
+    ],
     queryFn: ({ pageParam }) => {
       if (!account) throw new Error("No account");
-      return fetchMatchesPage(account, pageParam);
+      return fetchMatchesPage(account, pageParam, MATCHES_PAGE_SIZE, queue);
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) => {
@@ -46,7 +55,11 @@ export function useMatches(account: LolAccount | undefined) {
   });
 }
 
-export function useMatchesWindow(account: LolAccount | undefined, count: number) {
+export function useMatchesWindow(
+  account: LolAccount | undefined,
+  count: number,
+  queue?: number
+) {
   return useQuery({
     queryKey: [
       "lol",
@@ -55,10 +68,11 @@ export function useMatchesWindow(account: LolAccount | undefined, count: number)
       account?.gameName,
       account?.tagLine,
       count,
+      queue,
     ],
     queryFn: () => {
       if (!account) throw new Error("No account");
-      return fetchMatchesPage(account, 0, count);
+      return fetchMatchesPage(account, 0, count, queue);
     },
     enabled: account !== undefined,
   });

@@ -13,7 +13,7 @@ import {
 import { TrendStreak } from "@/lol/trend-streak";
 import { TrendSummaryCards } from "@/lol/trend-summary";
 import { useMatchesWindow } from "@/lol/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/trends")({
@@ -22,9 +22,10 @@ export const Route = createFileRoute("/lol/$accountSlug/trends")({
 
 function TrendsPage() {
   const { accountSlug } = Route.useParams();
+  const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
   const [count, setCount] = useState<MatchCountOption>(20);
-  const matches = useMatchesWindow(account, count);
+  const matches = useMatchesWindow(account, count, queue);
 
   return (
     <div className="flex flex-col gap-6">

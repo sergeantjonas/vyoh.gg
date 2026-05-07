@@ -2,6 +2,7 @@ import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/account-switcher";
 import { HoverChampionProvider } from "@/lol/hover-champion-context";
+import { QueueFilter } from "@/lol/queue-filter";
 import { useSplashChampion } from "@/lol/splash-backdrop";
 import { useMatches } from "@/lol/use-matches";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
@@ -15,16 +16,24 @@ const TABS = [
   { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown },
 ] as const;
 
+interface AccountSearch {
+  queue?: number;
+}
+
 export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
+  validateSearch: (search: Record<string, unknown>): AccountSearch => ({
+    queue: typeof search.queue === "number" ? search.queue : undefined,
+  }),
 });
 
 function AccountLayout() {
   const { accountSlug } = Route.useParams();
+  const { queue } = Route.useSearch();
   const account = useAccountFromSlug(accountSlug);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const matches = useMatches(account);
+  const matches = useMatches(account, queue);
   const flat = useMemo(() => matches.data?.pages.flat() ?? [], [matches.data?.pages]);
 
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
@@ -51,7 +60,10 @@ function AccountLayout() {
               </span>
             </section>
           )}
-          <AccountSwitcher currentSlug={accountSlug} />
+          <div className="flex items-center gap-2">
+            <QueueFilter />
+            <AccountSwitcher currentSlug={accountSlug} />
+          </div>
         </div>
 
         <div className="flex gap-1 border-b border-border">
@@ -63,6 +75,7 @@ function AccountLayout() {
                 key={to}
                 to={to}
                 params={{ accountSlug }}
+                search={(prev: AccountSearch) => prev}
                 className={cn(
                   "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
                   active
