@@ -1,44 +1,13 @@
-import { championIconUrl, championSplashUrl } from "@/lib/champion-icon";
+import { championIconUrl } from "@/lib/champion-icon";
 import { itemIconUrl } from "@/lib/item-icon";
 import { cn } from "@/lib/utils";
+import { useSplashChampion } from "@/lol/splash-backdrop";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
   const secs = sec % 60;
   return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-}
-
-function SplashBackdrop({ champion }: { champion: string }) {
-  const [ready, setReady] = useState(false);
-  const url = championSplashUrl(champion);
-
-  useEffect(() => {
-    setReady(false);
-    const img = new Image();
-    img.onload = () => setReady(true);
-    img.src = url;
-    return () => {
-      img.onload = null;
-    };
-  }, [url]);
-
-  if (!ready) return null;
-
-  return createPortal(
-    <div className="pointer-events-none fixed inset-0 -z-10 animate-in fade-in duration-500">
-      <img
-        src={url}
-        alt=""
-        aria-hidden="true"
-        className="size-full object-cover opacity-25"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
-    </div>,
-    document.body
-  );
 }
 
 function ItemSlots({ items }: { items: number[] }) {
@@ -142,10 +111,10 @@ export function MatchDetailView({
   const red = detail.participants.filter((p) => p.teamId === 200);
   const playedAt = new Date(detail.playedAt);
 
+  useSplashChampion(currentChampion);
+
   return (
     <div className="flex flex-col gap-6">
-      {currentChampion && <SplashBackdrop champion={currentChampion} />}
-
       <header className="flex flex-col gap-1">
         {currentChampion && (
           <span className="text-xs uppercase tracking-wide text-muted-foreground">
