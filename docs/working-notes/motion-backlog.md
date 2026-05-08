@@ -139,6 +139,17 @@ Still parked:
 - explicit header → summary → chart → list orchestration across the whole layout
 - suppress/shorten on repeat visits
 
+### Champion card image fade-in
+
+Status: shipped
+
+Implemented as:
+
+- per-card `loaded` boolean in `champion-card.tsx`; image starts at `opacity-0` and fades to `opacity-95` once `onLoad` fires (existing `transition-opacity duration-300` handles the fade)
+- boolean intentionally never resets on champion swap, so virtualizer-driven src changes mid-scroll keep the previous frame visible until the new image decodes — no flicker
+- tinted placeholder behind the strip uses `color-mix(in oklab, var(--theme-color) 18%, transparent)` so a slow load shows a faint hint of the champion's palette instead of empty space
+- 300 ms transition, intentional for both first-load and instant cache hits to feel consistent
+
 ### Empty-state animation
 
 Status: parked

@@ -55,6 +55,22 @@ Champion card thumbnails now also route through wsrv.nl: ~12× smaller (89 KB JP
 
 Dep swap: `react-blurhash` → `blurhash` direct. New helpers in `champion-icon.ts`: `championCardSplashUrl`, `championBackdropSplashUrl`. Full rewrite of `splash-backdrop.tsx`; debounce in `$accountSlug.tsx`.
 
+### Match-list scroll-restore + champion-card pop-in polish
+
+Two related UX bugs surfaced in the same session.
+
+**Scroll-restore was firing on every return to /matches.** `ActiveMatchProvider` wrote `scrollYRef` on row click and never cleared it, so any time `MatchList` mounted it ran the restore + 600 ms pin loop — including returning from /trends or /champions where the saved value was always stale. Compounded by TanStack Router's `scrollRestoration` being disabled (it interferes with `MatchList`'s manual restore on detail → list back-nav), every cross-tab transition just inherited the last document scroll position; clicking Trends from a deep position in the list dumped you partway down the shorter Trends page.
+
+- Added `clearListScroll()` to `active-match-context.tsx`. A small `MatchListReturnReset` component lives inside the provider and clears `scrollYRef` + `activeMatch` whenever pathname leaves the matches subtree.
+- `useLayoutEffect` on pathname in `AccountLayout` scrolls window to 0 on every cross-tab transition, with a single carve-out for detail → list back-nav so `MatchList`'s restore still wins. Effect order is bottom-up — `MatchList`'s restore `useLayoutEffect` runs first; the layout one short-circuits if it's a return-from-detail, otherwise scrolls.
+- Renamed the local `const window = useCachedMatchesWindow(...)` to `matchesWindow` — was shadowing the global `window` and made the first `scrollTo` attempt typecheck against `UseQueryResult.scrollTo`, which doesn't exist.
+
+**Champion cards popped in on slow loads.** Card thumbnails come from wsrv.nl over the network; on a cold cache or slow connection the image just snapped into place when it arrived.
+
+- Per-card `loaded` boolean, image starts at `opacity-0` and transitions to `opacity-95` once `onLoad` fires. 300 ms transition for both first-load and instant cache hits, intentionally consistent.
+- Boolean intentionally never resets on champion swap, so virtualizer-driven src changes mid-scroll keep the previous frame visible until the new image decodes — no flicker.
+- Tinted placeholder behind the strip uses `color-mix(in oklab, var(--theme-color) 18%, transparent)` so a slow load hints at the champion's palette instead of empty space.
+
 ## Recent arcs (2026-05-08)
 
 ### Trends entrances
