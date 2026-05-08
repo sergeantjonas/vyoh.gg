@@ -222,15 +222,9 @@ Implemented as:
 
 ### Parallax splash backdrop on scroll
 
-Status: shipped
+Status: removed
 
-Implemented as:
-
-- `useMotionValue(scrollY)` + scroll listener on `mainScrollRef` in `SplashProvider`
-- `useTransform(scrollY, s => reduced ? 0 : s * -0.03)` drives `backdropY`
-- applied as `style={{ y: backdropY }}` on the portal wrapper — purely compositor (no paint)
-- removed `overflow-hidden` from the fixed wrapper; inner layer already extends ±4% to absorb the shift
-- gated to `!reduced` via the transform function
+Was tried and reverted — the effect didn't read well in practice. Parallax removed from `SplashProvider`; `overflow-hidden` restored on the portal wrapper.
 
 ### Infinite scroll load-more stagger
 

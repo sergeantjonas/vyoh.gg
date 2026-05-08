@@ -70,9 +70,9 @@ export function TrendQueue({ counts }: { counts: QueueCount[] }) {
               </Pie>
             </PieChart>
           </ResponsiveContainer>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-[26%]">
             <div className="text-2xl font-semibold tabular-nums">{activeCount}</div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            <div className="w-full truncate text-center text-xs uppercase tracking-wide text-foreground">
               {activePct !== null ? `${activePct}% · ${activeLabel}` : activeLabel}
             </div>
           </div>
