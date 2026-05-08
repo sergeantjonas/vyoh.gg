@@ -11,12 +11,32 @@ model Summoner {
   gameName         String
   tagLine          String
   region           String
+  profileIconId    Int?
+  summonerLevel    Int?
   fetchedAt        DateTime  @default(now())
   historicalDoneAt DateTime?
 
-  matches Match[]
+  matches       Match[]
+  rankSnapshots RankSnapshot[]
 
   @@unique([gameName, tagLine, region])
+}
+
+model RankSnapshot {
+  id           Int      @id @default(autoincrement())
+  puuid        String
+  queueId      String
+  tier         String
+  rank         String
+  leaguePoints Int
+  wins         Int?
+  losses       Int?
+  hotStreak    Boolean?
+  capturedAt   DateTime @default(now())
+
+  summoner Summoner @relation(fields: [puuid], references: [puuid])
+
+  @@index([puuid, queueId, capturedAt])
 }
 
 model Match {

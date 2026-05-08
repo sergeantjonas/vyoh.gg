@@ -26,6 +26,23 @@ export interface RiotMatchParticipant {
   totalDamageDealtToChampions: number;
 }
 
+export interface RiotLeagueEntry {
+  queueType: string;
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+  hotStreak: boolean;
+}
+
+export interface RiotSummoner {
+  id: string;
+  puuid: string;
+  profileIconId: number;
+  summonerLevel: number;
+}
+
 export interface RiotMatch {
   metadata: {
     matchId: string;

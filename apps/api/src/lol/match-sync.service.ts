@@ -53,8 +53,9 @@ export class MatchSyncService implements OnApplicationBootstrap {
       for (const account of accounts) {
         const label = `${account.gameName}#${account.tagLine}`;
 
+        let head: { idCount: number; backfilled: number };
         try {
-          const head = await this.lol.syncAccountMatches(account);
+          head = await this.lol.syncAccountMatches(account);
           this.logger.log(`${label}: ${head.backfilled} new of ${head.idCount} ids`);
         } catch (err) {
           this.logger.warn(
@@ -63,6 +64,23 @@ export class MatchSyncService implements OnApplicationBootstrap {
           // Skip the historical step when head failed — the summoner row may
           // not exist yet, and we don't want to compound rate-limit pressure.
           continue;
+        }
+
+        // Summoner profile (icon + level) can change at any time — sync every tick.
+        try {
+          await this.lol.syncSummonerProfile(account);
+        } catch (err) {
+          this.logger.warn(
+            `${label} summoner profile sync failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+
+        try {
+          await this.lol.captureRankSnapshot(account);
+        } catch (err) {
+          this.logger.warn(
+            `${label} rank snapshot failed: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
 
         // Historical step: one page deeper per tick. Best-effort — a Riot

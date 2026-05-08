@@ -9,11 +9,13 @@ import type {
   LolAccount,
   MatchDetail,
   MatchSummary,
+  RankEntry,
+  SummonerProfile,
 } from "@vyoh/shared";
 import { type Observable, interval, map, merge } from "rxjs";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { type Regional, platformToRegional } from "../riot/regions";
+import { type Platform, type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import { MatchEventsService } from "./match-events.service";
 import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
@@ -253,6 +255,126 @@ export class LolService {
       });
     }
     return { idCount: ids.length, backfilled, done, skipped: false };
+  }
+
+  async getSummonerProfile(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<SummonerProfile> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return { profileIconId: null, summonerLevel: null, rankEntries: [] };
+
+    const snapshots = await Promise.all(
+      ["RANKED_SOLO_5x5", "RANKED_FLEX_SR"].map((queueId) =>
+        this.prisma.rankSnapshot.findFirst({
+          where: { puuid: summoner.puuid, queueId },
+          orderBy: { capturedAt: "desc" },
+        })
+      )
+    );
+
+    const rankEntries: RankEntry[] = [];
+    for (const s of snapshots) {
+      if (s)
+        rankEntries.push({
+          queueId: s.queueId,
+          tier: s.tier,
+          rank: s.rank,
+          leaguePoints: s.leaguePoints,
+          wins: s.wins,
+          losses: s.losses,
+          hotStreak: s.hotStreak,
+        });
+    }
+
+    return {
+      profileIconId: summoner.profileIconId,
+      summonerLevel: summoner.summonerLevel,
+      rankEntries,
+    };
+  }
+
+  async captureRankSnapshot(account: LolAccount): Promise<void> {
+    const summoner = await this.prisma.summoner.findUnique({
+      where: {
+        gameName_tagLine_region: {
+          gameName: account.gameName,
+          tagLine: account.tagLine,
+          region: account.region,
+        },
+      },
+    });
+    if (!summoner) return;
+
+    const platform = account.region.toLowerCase() as Platform;
+    const entries = await this.riot.getLeagueEntriesByPuuid(summoner.puuid, platform);
+
+    for (const entry of entries) {
+      if (entry.queueType !== "RANKED_SOLO_5x5" && entry.queueType !== "RANKED_FLEX_SR") {
+        continue;
+      }
+
+      const latest = await this.prisma.rankSnapshot.findFirst({
+        where: { puuid: summoner.puuid, queueId: entry.queueType },
+        orderBy: { capturedAt: "desc" },
+      });
+
+      const changed =
+        !latest ||
+        latest.tier !== entry.tier ||
+        latest.rank !== entry.rank ||
+        latest.leaguePoints !== entry.leaguePoints;
+
+      if (changed) {
+        await this.prisma.rankSnapshot.create({
+          data: {
+            puuid: summoner.puuid,
+            queueId: entry.queueType,
+            tier: entry.tier,
+            rank: entry.rank,
+            leaguePoints: entry.leaguePoints,
+            wins: entry.wins,
+            losses: entry.losses,
+            hotStreak: entry.hotStreak,
+          },
+        });
+        this.logger.log(
+          `rank snapshot: ${account.gameName}#${account.tagLine} ${entry.queueType} → ${entry.tier} ${entry.rank} ${entry.leaguePoints}LP`
+        );
+      }
+    }
+  }
+
+  async syncSummonerProfile(account: LolAccount): Promise<void> {
+    const summoner = await this.prisma.summoner.findUnique({
+      where: {
+        gameName_tagLine_region: {
+          gameName: account.gameName,
+          tagLine: account.tagLine,
+          region: account.region,
+        },
+      },
+    });
+    if (!summoner) return;
+
+    const platform = account.region.toLowerCase() as Platform;
+    const data = await this.riot.getSummonerByPuuid(summoner.puuid, platform);
+
+    await this.prisma.summoner.update({
+      where: { puuid: summoner.puuid },
+      data: {
+        profileIconId: data.profileIconId,
+        summonerLevel: data.summonerLevel,
+        fetchedAt: new Date(),
+      },
+    });
   }
 
   // SSE entry point. Resolves the account to a puuid, then returns an

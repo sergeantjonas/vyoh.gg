@@ -2,9 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import type { MethodFamily } from "./method-families";
 import { RateLimiterService } from "./rate-limiter.service";
-import type { Regional } from "./regions";
+import type { Platform, Regional } from "./regions";
+import { platformToRegional } from "./regions";
 import { RiotError } from "./riot.error";
-import type { RiotAccount, RiotMatch } from "./types";
+import type { RiotAccount, RiotLeagueEntry, RiotMatch, RiotSummoner } from "./types";
 
 const MAX_RETRIES = 2;
 const FETCH_TIMEOUT_MS = 10_000;
@@ -23,10 +24,10 @@ export class RiotService {
   async getAccountByRiotId(
     gameName: string,
     tagLine: string,
-    regional: Regional
+    host: Regional
   ): Promise<RiotAccount> {
     return this.fetch<RiotAccount>(
-      regional,
+      host,
       "account-by-riot-id",
       `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`
     );
@@ -34,7 +35,7 @@ export class RiotService {
 
   async getMatchIdsByPuuid(
     puuid: string,
-    regional: Regional,
+    host: Regional,
     options: {
       start?: number;
       count?: number;
@@ -53,38 +54,60 @@ export class RiotService {
     if (options.endTime !== undefined) params.set("endTime", String(options.endTime));
     const query = params.size > 0 ? `?${params}` : "";
     return this.fetch<string[]>(
-      regional,
+      host,
       "match-ids-by-puuid",
       `/lol/match/v5/matches/by-puuid/${puuid}/ids${query}`
     );
   }
 
-  async getMatchById(matchId: string, regional: Regional): Promise<RiotMatch> {
-    return this.fetch<RiotMatch>(
-      regional,
-      "match-by-id",
-      `/lol/match/v5/matches/${matchId}`
+  async getMatchById(matchId: string, host: Regional): Promise<RiotMatch> {
+    return this.fetch<RiotMatch>(host, "match-by-id", `/lol/match/v5/matches/${matchId}`);
+  }
+
+  async getLeagueEntriesByPuuid(
+    puuid: string,
+    platform: Platform
+  ): Promise<RiotLeagueEntry[]> {
+    const rateKey = platformToRegional(platform);
+    return this.limiter.schedule(rateKey, "league-entries-by-puuid", () =>
+      this.fetchWithRetry<RiotLeagueEntry[]>(
+        platform,
+        rateKey,
+        "league-entries-by-puuid",
+        `/lol/league/v4/entries/by-puuid/${puuid}`,
+        0
+      )
     );
   }
 
-  private async fetch<T>(
-    regional: Regional,
-    family: MethodFamily,
-    path: string
-  ): Promise<T> {
-    return this.limiter.schedule(regional, family, () =>
-      this.fetchWithRetry<T>(regional, family, path, 0)
+  async getSummonerByPuuid(puuid: string, platform: Platform): Promise<RiotSummoner> {
+    const rateKey = platformToRegional(platform);
+    return this.limiter.schedule(rateKey, "summoner-by-puuid", () =>
+      this.fetchWithRetry<RiotSummoner>(
+        platform,
+        rateKey,
+        "summoner-by-puuid",
+        `/lol/summoner/v4/summoners/by-puuid/${puuid}`,
+        0
+      )
+    );
+  }
+
+  private async fetch<T>(host: Regional, family: MethodFamily, path: string): Promise<T> {
+    return this.limiter.schedule(host, family, () =>
+      this.fetchWithRetry<T>(host, host, family, path, 0)
     );
   }
 
   private async fetchWithRetry<T>(
-    regional: Regional,
+    host: string,
+    rateKey: Regional,
     family: MethodFamily,
     path: string,
     attempt: number
   ): Promise<T> {
     const start = performance.now();
-    const url = `https://${regional}.api.riotgames.com${path}`;
+    const url = `https://${host}.api.riotgames.com${path}`;
 
     // We've observed Node's built-in `fetch` (undici under the hood) ignore
     // both `AbortSignal.timeout` and `AbortController.abort()` when a
@@ -100,7 +123,7 @@ export class RiotService {
     //
     // We also still attach an AbortSignal — if undici *does* honor it, great,
     // we close the socket eagerly. If not, the race still saves us.
-    this.logger.log(`${regional} ${path} → fetchWithRetry start`);
+    this.logger.log(`${host} ${path} → fetchWithRetry start`);
 
     let res: Response;
     const ctrl = new AbortController();
@@ -110,7 +133,7 @@ export class RiotService {
     const hardTimeout = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(() => {
         this.logger.warn(
-          `${regional} ${path} → hardTimeout setTimeout fired at ${FETCH_TIMEOUT_MS}ms`
+          `${host} ${path} → hardTimeout setTimeout fired at ${FETCH_TIMEOUT_MS}ms`
         );
         ctrl.abort(timeoutErr);
         reject(timeoutErr);
@@ -126,7 +149,7 @@ export class RiotService {
     } catch (err) {
       const duration = Math.round(performance.now() - start);
       this.logger.warn(
-        `${regional} ${path} → fetch error after ${duration}ms: ${formatError(err)}`
+        `${host} ${path} → fetch error after ${duration}ms: ${formatError(err)}`
       );
       if (isAbortTimeout(err)) {
         throw new RiotError(
@@ -141,9 +164,9 @@ export class RiotService {
     }
 
     const duration = Math.round(performance.now() - start);
-    this.logger.log(`${regional} ${path} → ${res.status} (${duration}ms)`);
+    this.logger.log(`${host} ${path} → ${res.status} (${duration}ms)`);
 
-    await this.limiter.syncFromHeaders(regional, family, res.headers);
+    await this.limiter.syncFromHeaders(rateKey, family, res.headers);
 
     if (res.status === 429 && attempt < MAX_RETRIES) {
       const retryAfter = Number(res.headers.get("Retry-After")) || 1;
@@ -152,7 +175,7 @@ export class RiotService {
         `429 (${limitType}) on ${path} — retrying in ${retryAfter}s (attempt ${attempt + 1}/${MAX_RETRIES})`
       );
       await sleep(retryAfter * 1000);
-      return this.fetchWithRetry(regional, family, path, attempt + 1);
+      return this.fetchWithRetry(host, rateKey, family, path, attempt + 1);
     }
 
     if (!res.ok) {
