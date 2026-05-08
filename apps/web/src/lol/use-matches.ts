@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
+import { useEffect } from "react";
 
 const API_URL = "http://localhost:2010";
 export const MATCHES_PAGE_SIZE = 10;
@@ -223,6 +224,45 @@ export function useSyncAccount(account: LolAccount | undefined) {
       });
     },
   });
+}
+
+// Subscribes to the API's per-account SSE stream and invalidates matched-cache
+// queries when the backfill worker reports new rows. EventSource handles
+// retries on disconnect automatically; we just need to wire teardown so the
+// stream is closed when the component unmounts or the account changes.
+export function useMatchEventsSubscription(account: LolAccount | undefined): void {
+  const queryClient = useQueryClient();
+  const region = account?.region;
+  const gameName = account?.gameName;
+  const tagLine = account?.tagLine;
+
+  useEffect(() => {
+    if (!region || !gameName || !tagLine) return;
+
+    const url = `${API_URL}/lol/summoners/${encodeURIComponent(region)}/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}/matches/events`;
+    const source = new EventSource(url);
+
+    const onMatchUpdated = () => {
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey;
+          if (!Array.isArray(key) || key[0] !== "lol") return false;
+          const kind = key[1];
+          if (kind !== "matches-cached" && kind !== "matches-cached-infinite") {
+            return false;
+          }
+          return key[2] === region && key[3] === gameName && key[4] === tagLine;
+        },
+      });
+    };
+
+    source.addEventListener("match-updated", onMatchUpdated);
+
+    return () => {
+      source.removeEventListener("match-updated", onMatchUpdated);
+      source.close();
+    };
+  }, [region, gameName, tagLine, queryClient]);
 }
 
 export function useCachedMatches(account: LolAccount | undefined, queue?: number) {

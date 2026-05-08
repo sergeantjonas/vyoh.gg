@@ -18,11 +18,25 @@ const accountB: LolAccount = {
   tagLine: "meow",
 };
 
+type HeadImpl = (account: LolAccount) => Promise<{ idCount: number; backfilled: number }>;
+type HistoricalImpl = (
+  account: LolAccount
+) => Promise<{ idCount: number; backfilled: number; done: boolean; skipped: boolean }>;
+
 async function makeService(
-  syncImpl: (account: LolAccount) => Promise<{ idCount: number; backfilled: number }>,
-  accounts: LolAccount[] = [accountA, accountB]
+  syncImpl: HeadImpl,
+  accounts: LolAccount[] = [accountA, accountB],
+  historicalImpl: HistoricalImpl = async () => ({
+    idCount: 0,
+    backfilled: 0,
+    done: false,
+    skipped: true,
+  })
 ) {
-  const lol = { syncAccountMatches: vi.fn().mockImplementation(syncImpl) };
+  const lol = {
+    syncAccountMatches: vi.fn().mockImplementation(syncImpl),
+    syncAccountHistorical: vi.fn().mockImplementation(historicalImpl),
+  };
   const identity = { getLolAccounts: vi.fn().mockReturnValue(accounts) };
   const moduleRef = await Test.createTestingModule({
     providers: [
@@ -58,6 +72,52 @@ describe("MatchSyncService.syncAll", () => {
 
     // Both accounts still attempted; the second one succeeded.
     expect(lol.syncAccountMatches).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs the historical step after a successful head sync", async () => {
+    const { service, lol } = await makeService(async () => ({
+      idCount: 20,
+      backfilled: 0,
+    }));
+
+    await service.syncAll();
+
+    // Each account: head + historical.
+    expect(lol.syncAccountMatches).toHaveBeenCalledTimes(2);
+    expect(lol.syncAccountHistorical).toHaveBeenCalledTimes(2);
+    expect(lol.syncAccountHistorical).toHaveBeenNthCalledWith(1, accountA);
+    expect(lol.syncAccountHistorical).toHaveBeenNthCalledWith(2, accountB);
+  });
+
+  it("skips the historical step when head sync failed for that account", async () => {
+    const { service, lol } = await makeService(async (account) => {
+      if (account.slug === "ahri") throw new Error("riot down");
+      return { idCount: 20, backfilled: 0 };
+    });
+
+    await service.syncAll();
+
+    // accountA's head failed — no historical call for it. accountB succeeded
+    // — historical still ran. The next account is not blocked.
+    expect(lol.syncAccountHistorical).toHaveBeenCalledTimes(1);
+    expect(lol.syncAccountHistorical).toHaveBeenCalledWith(accountB);
+  });
+
+  it("keeps walking other accounts when one historical step throws", async () => {
+    const { service, lol } = await makeService(
+      async () => ({ idCount: 20, backfilled: 0 }),
+      [accountA, accountB],
+      async (account) => {
+        if (account.slug === "ahri") throw new Error("riot timeout");
+        return { idCount: 5, backfilled: 5, done: true, skipped: false };
+      }
+    );
+
+    await service.syncAll();
+
+    // Both heads ran, both historicals attempted.
+    expect(lol.syncAccountMatches).toHaveBeenCalledTimes(2);
+    expect(lol.syncAccountHistorical).toHaveBeenCalledTimes(2);
   });
 
   it("skips a tick if one is already running", async () => {

@@ -35,12 +35,22 @@ export class RiotService {
   async getMatchIdsByPuuid(
     puuid: string,
     regional: Regional,
-    options: { start?: number; count?: number; queue?: number } = {}
+    options: {
+      start?: number;
+      count?: number;
+      queue?: number;
+      endTime?: number;
+    } = {}
   ): Promise<string[]> {
     const params = new URLSearchParams();
     if (options.start !== undefined) params.set("start", String(options.start));
     if (options.count !== undefined) params.set("count", String(options.count));
     if (options.queue !== undefined) params.set("queue", String(options.queue));
+    // Riot's `endTime` is epoch seconds, exclusive: returns matches strictly
+    // older than the boundary. The historical worker uses this to walk
+    // backwards from the oldest match in the DB without drifting when new
+    // games are appended at the head.
+    if (options.endTime !== undefined) params.set("endTime", String(options.endTime));
     const query = params.size > 0 ? `?${params}` : "";
     return this.fetch<string[]>(
       regional,

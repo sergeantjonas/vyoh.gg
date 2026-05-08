@@ -3,12 +3,15 @@ import {
   DefaultValuePipe,
   Get,
   HttpCode,
+  type MessageEvent,
   Param,
   ParseIntPipe,
   Post,
   Query,
+  Sse,
 } from "@nestjs/common";
 import type { CachedMatchesResult, MatchSummary } from "@vyoh/shared";
+import type { Observable } from "rxjs";
 import { LolService } from "./lol.service";
 
 @Controller("lol/summoners/:region/:gameName/:tagLine")
@@ -47,5 +50,14 @@ export class LolController {
     @Param("tagLine") tagLine: string
   ): Promise<{ idCount: number; backfilled: number }> {
     return this.lol.syncForSummoner(region, gameName, tagLine);
+  }
+
+  @Sse("matches/events")
+  async matchEvents(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string
+  ): Promise<Observable<MessageEvent>> {
+    return this.lol.subscribeToMatchEvents(region, gameName, tagLine);
   }
 }

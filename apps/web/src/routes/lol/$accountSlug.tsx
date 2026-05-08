@@ -7,7 +7,7 @@ import { MatchWindowProvider } from "@/lol/match-window-context";
 import { QueueFilter } from "@/lol/queue-filter";
 import { RefreshAccountButton } from "@/lol/refresh-account-button";
 import { useSplashChampion } from "@/lol/splash-backdrop";
-import { useCachedMatchesWindow } from "@/lol/use-matches";
+import { useCachedMatchesWindow, useMatchEventsSubscription } from "@/lol/use-matches";
 import {
   Link,
   Outlet,
@@ -57,6 +57,12 @@ function AccountLayout() {
   const window = useCachedMatchesWindow(account, count, queue);
   const matches = window.data?.matches;
   const total = window.data?.total ?? 0;
+
+  // Open an SSE stream while this account layout is mounted. The hook
+  // invalidates matched-cache queries when the backfill worker reports new
+  // rows, so the matches list, trends, and champions tabs all light up
+  // without polling.
+  useMatchEventsSubscription(account);
 
   const setCount = useCallback(
     (next: number) => {

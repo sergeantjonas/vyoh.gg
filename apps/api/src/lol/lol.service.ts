@@ -1,19 +1,28 @@
-import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  type MessageEvent,
+} from "@nestjs/common";
 import type {
   CachedMatchesResult,
   LolAccount,
   MatchDetail,
   MatchSummary,
 } from "@vyoh/shared";
+import { type Observable, interval, map, merge } from "rxjs";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
+import { MatchEventsService } from "./match-events.service";
 import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { queueTypeName } from "./queue-types";
 
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
+const HISTORICAL_PAGE_SIZE = 20;
+const SSE_HEARTBEAT_MS = 30_000;
 
 type CachedIds = { ids: string[]; coveredCount: number; expiry: number };
 
@@ -25,7 +34,8 @@ export class LolService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly riot: RiotService,
-    private readonly identity: IdentityService
+    private readonly identity: IdentityService,
+    private readonly events: MatchEventsService
   ) {}
 
   async getMatchesForSummoner(
@@ -151,7 +161,131 @@ export class LolService {
       where: { puuid: summoner.puuid, matchId: { in: ids } },
     });
 
-    return { idCount: ids.length, backfilled: after - before };
+    const backfilled = after - before;
+    if (backfilled > 0) {
+      this.events.emit({ puuid: summoner.puuid, added: backfilled, source: "head" });
+    }
+    return { idCount: ids.length, backfilled };
+  }
+
+  // One step of backwards historical walk for an account. Anchors on the
+  // oldest match in the DB and asks Riot for matches strictly older than
+  // that — robust to new games being played at the head between ticks.
+  // Returns `done: true` when Riot's reply is shorter than the page size,
+  // which we treat as "reached genesis" and persist to skip future ticks.
+  async syncAccountHistorical(
+    account: LolAccount
+  ): Promise<{ idCount: number; backfilled: number; done: boolean; skipped: boolean }> {
+    if (
+      !this.identity.isLolAccountAllowed(
+        account.gameName,
+        account.tagLine,
+        account.region
+      )
+    ) {
+      return { idCount: 0, backfilled: 0, done: false, skipped: true };
+    }
+
+    const summoner = await this.prisma.summoner.findUnique({
+      where: {
+        gameName_tagLine_region: {
+          gameName: account.gameName,
+          tagLine: account.tagLine,
+          region: account.region,
+        },
+      },
+    });
+
+    // Head sync hasn't run yet, or summoner not yet resolved. Wait for the
+    // next tick — the head sync that runs first will populate this.
+    if (!summoner) {
+      return { idCount: 0, backfilled: 0, done: false, skipped: true };
+    }
+
+    if (summoner.historicalDoneAt) {
+      return { idCount: 0, backfilled: 0, done: true, skipped: true };
+    }
+
+    const oldest = await this.prisma.match.findFirst({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "asc" },
+      select: { playedAt: true },
+    });
+
+    if (!oldest) {
+      // No matches in DB for this summoner yet — head sync hasn't filled
+      // anything. Skip; we'll try again next tick.
+      return { idCount: 0, backfilled: 0, done: false, skipped: true };
+    }
+
+    const regional = platformToRegional(account.region);
+    // endTime is epoch seconds, exclusive on Riot's side. Subtracting 1s
+    // keeps the window strictly older than what we already have.
+    const endTime = Math.floor(oldest.playedAt.getTime() / 1000) - 1;
+
+    const ids = await this.riot.getMatchIdsByPuuid(summoner.puuid, regional, {
+      endTime,
+      count: HISTORICAL_PAGE_SIZE,
+    });
+
+    const before = await this.prisma.match.count({
+      where: { puuid: summoner.puuid, matchId: { in: ids } },
+    });
+    await this.backfillMissingMatches(summoner.puuid, ids, regional);
+    const after = await this.prisma.match.count({
+      where: { puuid: summoner.puuid, matchId: { in: ids } },
+    });
+
+    const done = ids.length < HISTORICAL_PAGE_SIZE;
+    if (done) {
+      await this.prisma.summoner.update({
+        where: { puuid: summoner.puuid },
+        data: { historicalDoneAt: new Date() },
+      });
+    }
+
+    const backfilled = after - before;
+    if (backfilled > 0) {
+      this.events.emit({
+        puuid: summoner.puuid,
+        added: backfilled,
+        source: "historical",
+      });
+    }
+    return { idCount: ids.length, backfilled, done, skipped: false };
+  }
+
+  // SSE entry point. Resolves the account to a puuid, then returns an
+  // Observable that streams MessageEvents for backfill notifications.
+  // Heartbeats keep intermediate proxies (and EventSource itself) from
+  // closing the idle connection between real events.
+  async subscribeToMatchEvents(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<Observable<MessageEvent>> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+
+    const heartbeat: Observable<MessageEvent> = interval(SSE_HEARTBEAT_MS).pipe(
+      map(() => ({ type: "heartbeat", data: {} satisfies object }))
+    );
+
+    // Summoner not yet resolved — keep the connection open with heartbeats
+    // alone. Once the head sync creates the row, the client will see
+    // events on the next backfill (no reconnect needed).
+    if (!summoner) return heartbeat;
+
+    const updates: Observable<MessageEvent> = this.events
+      .forPuuid(summoner.puuid)
+      .pipe(map((event) => ({ type: "match-updated", data: event })));
+
+    return merge(updates, heartbeat);
   }
 
   async getMatchDetail(matchId: string): Promise<MatchDetail> {

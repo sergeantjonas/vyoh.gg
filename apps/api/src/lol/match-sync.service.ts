@@ -51,14 +51,38 @@ export class MatchSyncService implements OnApplicationBootstrap {
       // either way, but sequential keeps logs ordered and avoids stampeding
       // the limiter when many accounts have many missing matches.
       for (const account of accounts) {
+        const label = `${account.gameName}#${account.tagLine}`;
+
         try {
-          const result = await this.lol.syncAccountMatches(account);
-          this.logger.log(
-            `${account.gameName}#${account.tagLine}: ${result.backfilled} new of ${result.idCount} ids`
-          );
+          const head = await this.lol.syncAccountMatches(account);
+          this.logger.log(`${label}: ${head.backfilled} new of ${head.idCount} ids`);
         } catch (err) {
           this.logger.warn(
-            `${account.gameName}#${account.tagLine} sync failed: ${err instanceof Error ? err.message : String(err)}`
+            `${label} head sync failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+          // Skip the historical step when head failed — the summoner row may
+          // not exist yet, and we don't want to compound rate-limit pressure.
+          continue;
+        }
+
+        // Historical step: one page deeper per tick. Best-effort — a Riot
+        // outage on the historical step shouldn't block the next account.
+        try {
+          const hist = await this.lol.syncAccountHistorical(account);
+          if (hist.skipped) {
+            // No-op tick (no matches yet, or already done) — silent.
+          } else if (hist.done) {
+            this.logger.log(
+              `${label}: historical done (last page +${hist.backfilled} of ${hist.idCount})`
+            );
+          } else {
+            this.logger.log(
+              `${label}: historical +${hist.backfilled} of ${hist.idCount}`
+            );
+          }
+        } catch (err) {
+          this.logger.warn(
+            `${label} historical step failed: ${err instanceof Error ? err.message : String(err)}`
           );
         }
       }

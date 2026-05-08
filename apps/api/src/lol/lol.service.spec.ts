@@ -1,11 +1,22 @@
 import { ForbiddenException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import type { LolAccount } from "@vyoh/shared";
+import { EMPTY, Subject, firstValueFrom, take, toArray } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RiotService } from "../riot/riot.service";
 import type { RiotMatch } from "../riot/types";
 import { LolService } from "./lol.service";
+import { MatchEventsService, type MatchUpdatedEvent } from "./match-events.service";
+
+function makeEventsMock() {
+  return { emit: vi.fn(), forPuuid: vi.fn(() => EMPTY) };
+}
+
+function makeEventsProvider(mock = makeEventsMock()) {
+  return { mock, provider: { provide: MatchEventsService, useValue: mock } };
+}
 
 function buildMatch(matchId: string, startTs: number): RiotMatch {
   return {
@@ -77,11 +88,17 @@ async function makeService({
     .fn()
     .mockImplementationOnce(async () => existingMatchIds.map((matchId) => ({ matchId })))
     .mockImplementationOnce(async () => rows);
+  // syncAccountMatches calls count() twice (before + after backfill); getMatchesForSummoner
+  // doesn't call it at all. Pre-stub both responses so the helper covers both call sites.
+  const matchCount = vi
+    .fn()
+    .mockResolvedValueOnce(existingMatchIds.length)
+    .mockResolvedValueOnce(matchIds.length);
   const matchUpsert = vi.fn().mockResolvedValue(undefined);
 
   const prisma = {
     summoner: { findUnique: summonerFindUnique, upsert: summonerUpsert },
-    match: { findMany: matchFindMany, upsert: matchUpsert },
+    match: { findMany: matchFindMany, count: matchCount, upsert: matchUpsert },
   };
   const riot = {
     getAccountByRiotId: vi.fn().mockResolvedValue({
@@ -97,12 +114,14 @@ async function makeService({
     isLolAccountAllowed: vi.fn().mockReturnValue(true),
   };
 
+  const events = makeEventsProvider();
   const moduleRef = await Test.createTestingModule({
     providers: [
       LolService,
       { provide: PrismaService, useValue: prisma },
       { provide: RiotService, useValue: riot },
       { provide: IdentityService, useValue: identity },
+      events.provider,
     ],
   }).compile();
 
@@ -111,6 +130,7 @@ async function makeService({
     prisma,
     riot,
     identity,
+    events: events.mock,
   };
 }
 
@@ -214,6 +234,7 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -249,6 +270,7 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -285,6 +307,7 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -323,6 +346,7 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -394,6 +418,7 @@ describe("LolService.getCachedMatches", () => {
         { provide: PrismaService, useValue: overrides.prisma },
         { provide: RiotService, useValue: overrides.riot },
         { provide: IdentityService, useValue: overrides.identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     return moduleRef.get(LolService);
@@ -482,6 +507,376 @@ describe("LolService.getCachedMatches", () => {
   });
 });
 
+describe("LolService.syncAccountMatches", () => {
+  it("emits a head match-updated event when backfill added rows", async () => {
+    const summoner = makeSummoner(true);
+    const { service, events } = await makeService({
+      summoner,
+      matchIds: ["M_1", "M_2"],
+      existingMatchIds: [],
+      rows: [buildRow("M_2", 2_000_000_000_000), buildRow("M_1", 1_000_000_000_000)],
+      riotMatches: {
+        M_1: buildMatch("M_1", 1_000_000_000_000),
+        M_2: buildMatch("M_2", 2_000_000_000_000),
+      },
+    });
+
+    await service.syncAccountMatches({
+      slug: "ahri",
+      region: "euw1",
+      gameName: "Vyoh",
+      tagLine: "EUW",
+    });
+
+    expect(events.emit).toHaveBeenCalledWith({
+      puuid: "puuid-vyoh",
+      added: 2,
+      source: "head",
+    });
+  });
+
+  it("does not emit when no rows were added", async () => {
+    const summoner = makeSummoner(true);
+    const { service, events } = await makeService({
+      summoner,
+      matchIds: ["M_1", "M_2"],
+      existingMatchIds: ["M_1", "M_2"],
+      rows: [buildRow("M_2", 2_000_000_000_000), buildRow("M_1", 1_000_000_000_000)],
+    });
+
+    await service.syncAccountMatches({
+      slug: "ahri",
+      region: "euw1",
+      gameName: "Vyoh",
+      tagLine: "EUW",
+    });
+
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+});
+
+describe("LolService.subscribeToMatchEvents", () => {
+  async function buildSubscribeService(opts: {
+    summoner: { puuid: string } | null;
+    whitelisted?: boolean;
+    eventStream?: Subject<MatchUpdatedEvent>;
+  }) {
+    const summonerFindUnique = vi.fn().mockResolvedValue(
+      opts.summoner
+        ? {
+            puuid: opts.summoner.puuid,
+            gameName: "Vyoh",
+            tagLine: "Ahri",
+            region: "euw1",
+            fetchedAt: new Date(),
+            historicalDoneAt: null,
+          }
+        : null
+    );
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, upsert: vi.fn(), update: vi.fn() },
+      match: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
+        upsert: vi.fn(),
+      },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn(),
+      getMatchById: vi.fn(),
+    };
+    const identity = {
+      isLolAccountAllowed: vi.fn().mockReturnValue(opts.whitelisted ?? true),
+    };
+    const stream = opts.eventStream ?? new Subject<MatchUpdatedEvent>();
+    const eventsMock = {
+      emit: vi.fn(),
+      forPuuid: vi.fn(() => stream.asObservable()),
+    };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: eventsMock },
+      ],
+    }).compile();
+    return { service: moduleRef.get(LolService), stream, eventsMock };
+  }
+
+  it("throws ForbiddenException when the account is not whitelisted", async () => {
+    const { service } = await buildSubscribeService({
+      summoner: { puuid: "puuid-vyoh" },
+      whitelisted: false,
+    });
+
+    const error = await service
+      .subscribeToMatchEvents("euw1", "Stranger", "TAG")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ForbiddenException);
+  });
+
+  it("forwards match-updated events for the resolved puuid", async () => {
+    const stream = new Subject<MatchUpdatedEvent>();
+    const { service } = await buildSubscribeService({
+      summoner: { puuid: "puuid-vyoh" },
+      eventStream: stream,
+    });
+
+    const observable = await service.subscribeToMatchEvents("euw1", "Vyoh", "Ahri");
+    const firstMessage = firstValueFrom(observable.pipe(take(1)));
+
+    stream.next({ puuid: "puuid-vyoh", added: 4, source: "historical" });
+
+    const message = await firstMessage;
+    expect(message).toEqual({
+      type: "match-updated",
+      data: { puuid: "puuid-vyoh", added: 4, source: "historical" },
+    });
+  });
+
+  it("returns a heartbeat-only stream when the summoner has not been resolved", async () => {
+    const stream = new Subject<MatchUpdatedEvent>();
+    const { service, eventsMock } = await buildSubscribeService({
+      summoner: null,
+      eventStream: stream,
+    });
+
+    await service.subscribeToMatchEvents("euw1", "NewAccount", "EUW");
+
+    // No puuid — the service should not bother subscribing to the events bus.
+    expect(eventsMock.forPuuid).not.toHaveBeenCalled();
+  });
+});
+
+describe("LolService.syncAccountHistorical", () => {
+  type HistoricalDeps = {
+    summoner: {
+      puuid: string;
+      historicalDoneAt: Date | null;
+    } | null;
+    oldest: { playedAt: Date } | null;
+    riotIds?: string[];
+    countsBefore?: number;
+    countsAfter?: number;
+  };
+
+  async function buildHistoricalService(deps: HistoricalDeps) {
+    const summonerFindUnique = vi.fn().mockResolvedValue(
+      deps.summoner
+        ? {
+            puuid: deps.summoner.puuid,
+            gameName: "Vyoh",
+            tagLine: "Ahri",
+            region: "euw1",
+            fetchedAt: new Date(),
+            historicalDoneAt: deps.summoner.historicalDoneAt,
+          }
+        : null
+    );
+    const summonerUpdate = vi.fn().mockResolvedValue(undefined);
+    const matchFindFirst = vi.fn().mockResolvedValue(deps.oldest);
+    const matchFindMany = vi.fn().mockResolvedValue([]);
+    // Two count() calls: before and after backfill.
+    const matchCount = vi
+      .fn()
+      .mockResolvedValueOnce(deps.countsBefore ?? 0)
+      .mockResolvedValueOnce(deps.countsAfter ?? 0);
+    const matchUpsert = vi.fn().mockResolvedValue(undefined);
+
+    const prisma = {
+      summoner: {
+        findUnique: summonerFindUnique,
+        upsert: vi.fn(),
+        update: summonerUpdate,
+      },
+      match: {
+        findFirst: matchFindFirst,
+        findMany: matchFindMany,
+        count: matchCount,
+        upsert: matchUpsert,
+      },
+    };
+    const riot = {
+      getAccountByRiotId: vi.fn(),
+      getMatchIdsByPuuid: vi.fn().mockResolvedValue(deps.riotIds ?? []),
+      getMatchById: vi.fn().mockResolvedValue(buildMatch("X", 0)),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(true) };
+    const events = makeEventsProvider();
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: identity },
+        events.provider,
+      ],
+    }).compile();
+    return {
+      service: moduleRef.get(LolService),
+      prisma,
+      riot,
+      identity,
+      events: events.mock,
+    };
+  }
+
+  const account: LolAccount = {
+    slug: "ahri",
+    region: "euw1",
+    gameName: "Vyoh",
+    tagLine: "Ahri",
+  };
+
+  it("skips when the account isn't whitelisted", async () => {
+    const { service, riot, identity } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+    });
+    identity.isLolAccountAllowed.mockReturnValue(false);
+
+    const result = await service.syncAccountHistorical(account);
+
+    expect(result).toEqual({ idCount: 0, backfilled: 0, done: false, skipped: true });
+    expect(riot.getMatchIdsByPuuid).not.toHaveBeenCalled();
+  });
+
+  it("skips when the summoner row doesn't exist yet", async () => {
+    const { service, riot } = await buildHistoricalService({
+      summoner: null,
+      oldest: null,
+    });
+
+    const result = await service.syncAccountHistorical(account);
+
+    expect(result.skipped).toBe(true);
+    expect(result.done).toBe(false);
+    expect(riot.getMatchIdsByPuuid).not.toHaveBeenCalled();
+  });
+
+  it("skips and reports done when historicalDoneAt is set", async () => {
+    const { service, riot } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: new Date() },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+    });
+
+    const result = await service.syncAccountHistorical(account);
+
+    expect(result).toEqual({ idCount: 0, backfilled: 0, done: true, skipped: true });
+    expect(riot.getMatchIdsByPuuid).not.toHaveBeenCalled();
+  });
+
+  it("skips when no matches are in the DB yet (head sync hasn't filled anything)", async () => {
+    const { service, riot } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: null,
+    });
+
+    const result = await service.syncAccountHistorical(account);
+
+    expect(result.skipped).toBe(true);
+    expect(riot.getMatchIdsByPuuid).not.toHaveBeenCalled();
+  });
+
+  it("asks Riot for matches strictly older than the oldest DB match (endTime exclusive)", async () => {
+    const oldestMs = 2_000_000_000_000;
+    const { service, riot } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(oldestMs) },
+      riotIds: Array.from({ length: 20 }, (_, i) => `H_${i + 1}`),
+      countsBefore: 0,
+      countsAfter: 20,
+    });
+
+    const result = await service.syncAccountHistorical(account);
+
+    const expectedEndTime = Math.floor(oldestMs / 1000) - 1;
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledWith("puuid-vyoh", "europe", {
+      endTime: expectedEndTime,
+      count: 20,
+    });
+    expect(result).toEqual({
+      idCount: 20,
+      backfilled: 20,
+      done: false,
+      skipped: false,
+    });
+  });
+
+  it("emits a match-updated event when historical backfill added rows", async () => {
+    const { service, events } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+      riotIds: Array.from({ length: 20 }, (_, i) => `H_${i + 1}`),
+      countsBefore: 0,
+      countsAfter: 20,
+    });
+
+    await service.syncAccountHistorical(account);
+
+    expect(events.emit).toHaveBeenCalledWith({
+      puuid: "puuid-vyoh",
+      added: 20,
+      source: "historical",
+    });
+  });
+
+  it("does not emit when nothing was backfilled", async () => {
+    const { service, events } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+      riotIds: ["H_1"],
+      countsBefore: 1,
+      countsAfter: 1,
+    });
+
+    await service.syncAccountHistorical(account);
+
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it("marks the summoner done when Riot returns a short page", async () => {
+    const { service, prisma } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+      riotIds: ["H_last_1", "H_last_2"],
+      countsBefore: 0,
+      countsAfter: 2,
+    });
+
+    const result = await service.syncAccountHistorical(account);
+
+    expect(result.done).toBe(true);
+    expect(result.skipped).toBe(false);
+    expect(prisma.summoner.update).toHaveBeenCalledWith({
+      where: { puuid: "puuid-vyoh" },
+      data: { historicalDoneAt: expect.any(Date) },
+    });
+  });
+
+  it("does not mark done when Riot returns a full page", async () => {
+    const { service, prisma } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+      riotIds: Array.from({ length: 20 }, (_, i) => `H_${i + 1}`),
+      countsBefore: 0,
+      countsAfter: 20,
+    });
+
+    const result = await service.syncAccountHistorical(account);
+
+    expect(result.done).toBe(false);
+    expect(prisma.summoner.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("LolService.syncForSummoner", () => {
   it("rejects accounts that are not in the whitelist", async () => {
     const prisma = {
@@ -501,6 +896,7 @@ describe("LolService.syncForSummoner", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -546,6 +942,7 @@ describe("LolService.syncForSummoner", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
       ],
     }).compile();
     const service = moduleRef.get(LolService);

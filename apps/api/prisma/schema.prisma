@@ -7,11 +7,12 @@ datasource db {
 }
 
 model Summoner {
-  puuid     String   @id
-  gameName  String
-  tagLine   String
-  region    String
-  fetchedAt DateTime @default(now())
+  puuid            String    @id
+  gameName         String
+  tagLine          String
+  region           String
+  fetchedAt        DateTime  @default(now())
+  historicalDoneAt DateTime?
 
   matches Match[]
 
