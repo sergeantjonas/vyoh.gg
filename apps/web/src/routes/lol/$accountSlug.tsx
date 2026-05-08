@@ -122,6 +122,20 @@ function AccountLayout() {
     mainScrollRef.current?.scrollTo(0, 0);
   }, [pathname, matchesPath, matchesPathPrefix]);
 
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty(
+        "--account-header-h",
+        `${el.getBoundingClientRect().bottom}px`
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const prefersReducedMotion = useReducedMotion();
   const [compact, setCompact] = useState(false);
   useEffect(() => {
@@ -169,7 +183,11 @@ function AccountLayout() {
           }}
         >
           <div className="flex flex-col gap-6">
-            <header className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md">
+            <header
+              ref={headerRef}
+              data-account-header
+              className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md"
+            >
               <m.div
                 className="mx-auto max-w-4xl px-6"
                 animate={{
@@ -229,7 +247,6 @@ function AccountLayout() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.15 }}
-                        className="border-b border-border"
                       >
                         <Link
                           to="/lol/$accountSlug/matches"

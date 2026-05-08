@@ -13,7 +13,7 @@ import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { AnimatePresence, m } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // Roughly the time the hero's layout-spring (stiffness 170, damping 30)
 // takes to settle. The body (skeleton, error, full detail view) renders
@@ -64,11 +64,34 @@ function MatchDetailPage() {
     return () => window.clearTimeout(id);
   }, []);
 
+  const heroRef = useRef<HTMLDivElement>(null);
   const [heroScrolledPast, setHeroScrolledPast] = useState(false);
+  const [stripTop, setStripTop] = useState(96);
+  const [stripRight, setStripRight] = useState(0);
+
+  useLayoutEffect(() => {
+    const headerEl = document.querySelector(
+      "[data-account-header]"
+    ) as HTMLElement | null;
+    if (headerEl) setStripTop(headerEl.getBoundingClientRect().bottom);
+    const mainEl = mainScrollRef.current;
+    if (mainEl) setStripRight(mainEl.offsetWidth - mainEl.clientWidth);
+  }, []);
+
   useEffect(() => {
     const el = mainScrollRef.current;
     if (!el) return;
-    const onScroll = () => setHeroScrolledPast(el.scrollTop > 120);
+    const onScroll = () => {
+      if (!heroRef.current) return;
+      const headerEl = document.querySelector(
+        "[data-account-header]"
+      ) as HTMLElement | null;
+      const headerBottom = headerEl?.getBoundingClientRect().bottom ?? 96;
+      setStripTop(headerBottom);
+      setStripRight(el.offsetWidth - el.clientWidth);
+      const heroTop = heroRef.current.getBoundingClientRect().top;
+      setHeroScrolledPast(heroTop < headerBottom);
+    };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
@@ -100,7 +123,25 @@ function MatchDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {heroSummary && <MatchHero summary={heroSummary} />}
+      <div ref={heroRef}>
+        {heroSummary && (
+          <AnimatePresence initial={false}>
+            {heroScrolledPast ? (
+              <div key="spacer" className="h-28" />
+            ) : (
+              <m.div
+                key="hero"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                <MatchHero summary={heroSummary} />
+              </m.div>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
       <AnimatePresence>
         {heroScrolledPast && heroSummary && (
           <m.div
@@ -109,8 +150,12 @@ function MatchDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ type: "spring", stiffness: 400, damping: 35 }}
-            style={championCardStyle(heroSummary.champion)}
-            className="sticky top-14 z-30 ml-[calc(50%-50vw)] w-screen border-b border-border/50 bg-background/80 backdrop-blur-sm"
+            style={{
+              ...championCardStyle(heroSummary.champion),
+              top: stripTop,
+              right: stripRight,
+            }}
+            className="fixed left-0 z-30 border-b border-border/50 bg-background/50 backdrop-blur-md"
           >
             <div className="mx-auto max-w-4xl px-6 py-2">
               <div className="flex items-center gap-3">
