@@ -1,18 +1,18 @@
-import { MatchCountSelector } from "@/lol/match-count-selector";
-import { useMatchWindow } from "@/lol/match-window-context";
-import { TrendActivity } from "@/lol/trend-activity";
-import { TrendKda } from "@/lol/trend-kda";
-import { TrendQueue } from "@/lol/trend-queue";
-import { TrendRecord } from "@/lol/trend-record";
+import { MatchCountSelector } from "@/lol/matches/match-count-selector";
+import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { TrendActivity } from "@/lol/trends/trend-activity";
+import { TrendKda } from "@/lol/trends/trend-kda";
+import { TrendQueue } from "@/lol/trends/trend-queue";
+import { TrendRecord } from "@/lol/trends/trend-record";
 import {
   computeKdaSeries,
   computeQueueCounts,
   computeStreak,
   computeTrendSummary,
-} from "@/lol/trend-stats";
-import { TrendStreak } from "@/lol/trend-streak";
-import { TrendSummaryCards } from "@/lol/trend-summary";
-import { TrendsSkeleton } from "@/lol/trends-skeleton";
+} from "@/lol/trends/trend-stats";
+import { TrendStreak } from "@/lol/trends/trend-streak";
+import { TrendSummaryCards } from "@/lol/trends/trend-summary";
+import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/lol/$accountSlug/trends")({

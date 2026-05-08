@@ -1,10 +1,10 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { usePerfFlag } from "@/lib/use-perf-flag";
-import { useActiveMatch } from "@/lol/active-match-context";
-import { MatchCardSkeleton } from "@/lol/match-list-skeleton";
-import { MatchRow } from "@/lol/match-row";
-import { useChampionName } from "@/lol/use-champions";
-import { MATCHES_PAGE_SIZE } from "@/lol/use-matches";
+import { useChampionName } from "@/lol/champions/use-champions";
+import { useActiveMatch } from "@/lol/matches/active-match-context";
+import { MatchCardSkeleton } from "@/lol/matches/match-list-skeleton";
+import { MatchRow } from "@/lol/matches/match-row";
+import { MATCHES_PAGE_SIZE } from "@/lol/matches/use-matches";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";

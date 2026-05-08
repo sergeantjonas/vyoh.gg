@@ -1,15 +1,18 @@
-import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
-import { AccountSwitcher } from "@/lol/account-switcher";
-import { ActiveMatchProvider, useActiveMatch } from "@/lol/active-match-context";
-import { HoverChampionProvider } from "@/lol/hover-champion-context";
-import { MAX_COUNT } from "@/lol/match-count-selector";
-import { MatchWindowProvider } from "@/lol/match-window-context";
-import { QueueFilter } from "@/lol/queue-filter";
-import { RefreshAccountButton } from "@/lol/refresh-account-button";
-import { useSplashChampion } from "@/lol/splash-backdrop";
-import { useCachedMatchesWindow, useMatchEventsSubscription } from "@/lol/use-matches";
+import { AccountSwitcher } from "@/lol/_shared/account-switcher";
+import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
+import { QueueFilter } from "@/lol/_shared/queue-filter";
+import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
+import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
+import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
+import { MAX_COUNT } from "@/lol/matches/match-count-selector";
+import { MatchWindowProvider } from "@/lol/matches/match-window-context";
+import {
+  useCachedMatchesWindow,
+  useMatchEventsSubscription,
+} from "@/lol/matches/use-matches";
 import {
   Link,
   Outlet,

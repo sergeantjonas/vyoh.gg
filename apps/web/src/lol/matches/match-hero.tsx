@@ -3,8 +3,8 @@ import {
   ChampionCardChrome,
   championCardBaseClassName,
   championCardStyle,
-} from "@/lol/champion-card";
-import { useChampionName } from "@/lol/use-champions";
+} from "@/lol/champions/champion-card";
+import { useChampionName } from "@/lol/champions/use-champions";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
 

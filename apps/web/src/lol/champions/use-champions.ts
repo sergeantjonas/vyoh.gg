@@ -1,4 +1,4 @@
-import { normalizeChampionAlias } from "@/lib/champion-icon";
+import { normalizeChampionAlias } from "@/lol/_shared/champion-icon";
 import { useQuery } from "@tanstack/react-query";
 
 const CHAMPIONS_URL =

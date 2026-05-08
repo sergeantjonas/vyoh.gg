@@ -5,7 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { QUEUE_OPTIONS } from "@/lol/queue-options";
+import { QUEUE_OPTIONS } from "@/lol/_shared/queue-options";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 const ALL_VALUE = "__all__";

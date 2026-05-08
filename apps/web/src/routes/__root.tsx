@@ -6,7 +6,7 @@ import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
 import { mainScrollRef } from "@/lib/scroll-container";
-import { SplashProvider } from "@/lol/splash-backdrop";
+import { SplashProvider } from "@/lol/_shared/splash-backdrop";
 import {
   HeadContent,
   Outlet,

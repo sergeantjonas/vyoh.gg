@@ -1,10 +1,10 @@
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
-import { useAccountFromSlug } from "@/identity/use-account-from-slug";
-import { useHoverChampion } from "@/lol/hover-champion-context";
-import { MatchList } from "@/lol/match-list";
-import { MatchListSkeleton } from "@/lol/match-list-skeleton";
-import { useCachedMatches } from "@/lol/use-matches";
+import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
+import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { MatchList } from "@/lol/matches/match-list";
+import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
+import { useCachedMatches } from "@/lol/matches/use-matches";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 

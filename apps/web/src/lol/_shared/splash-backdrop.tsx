@@ -1,8 +1,8 @@
 import {
   championBackdropSplashUrl,
   championCenteredSplashUrl,
-} from "@/lib/champion-icon";
-import { championTheme } from "@/lib/champion-theme";
+} from "@/lol/_shared/champion-icon";
+import { championTheme } from "@/lol/_shared/champion-theme";
 import { decode as decodeBlurhash } from "blurhash";
 import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
 import {

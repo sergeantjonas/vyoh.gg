@@ -1,5 +1,5 @@
+import { useMe } from "@/identity/use-me";
 import type { LolAccount } from "@vyoh/shared";
-import { useMe } from "./use-me";
 
 export function useAccountFromSlug(slug: string): LolAccount | undefined {
   const me = useMe();

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
+import { useChampionName } from "@/lol/champions/use-champions";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
-import { useChampionName } from "./use-champions";
 
 const container: Variants = {
   hidden: { opacity: 0 },

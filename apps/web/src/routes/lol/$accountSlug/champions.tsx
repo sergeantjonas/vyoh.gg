@@ -1,14 +1,14 @@
+import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
 import {
   CHAMPION_SORT_OPTIONS,
   type ChampionSortOption,
   ChampionSortSelector,
-} from "@/lol/champion-sort-selector";
-import { aggregateChampionStats } from "@/lol/champion-stats";
-import { ChampionTable } from "@/lol/champion-table";
-import { ChampionsSkeleton } from "@/lol/champions-skeleton";
-import { useHoverChampion } from "@/lol/hover-champion-context";
-import { MatchCountSelector } from "@/lol/match-count-selector";
-import { useMatchWindow } from "@/lol/match-window-context";
+} from "@/lol/champions/champion-sort-selector";
+import { aggregateChampionStats } from "@/lol/champions/champion-stats";
+import { ChampionTable } from "@/lol/champions/champion-table";
+import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
+import { MatchCountSelector } from "@/lol/matches/match-count-selector";
+import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 

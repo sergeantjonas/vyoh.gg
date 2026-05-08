@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
-import { CardTilt } from "@/lol/card-tilt";
+import { CardTilt } from "@/lol/_shared/card-tilt";
 import {
   ChampionCardChrome,
   championCardClassName,
   championCardStyle,
-} from "@/lol/champion-card";
+} from "@/lol/champions/champion-card";
 import { type Variants, m } from "motion/react";
 import { useMemo } from "react";
 import type { ChampionSortOption } from "./champion-sort-selector";

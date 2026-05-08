@@ -1,7 +1,10 @@
-import { championCardSplashUrl, championCenteredSplashUrl } from "@/lib/champion-icon";
-import { championTheme } from "@/lib/champion-theme";
 import { cn } from "@/lib/utils";
-import { shouldFlipChampion } from "@/lol/champion-direction";
+import {
+  championCardSplashUrl,
+  championCenteredSplashUrl,
+} from "@/lol/_shared/champion-icon";
+import { championTheme } from "@/lol/_shared/champion-theme";
+import { shouldFlipChampion } from "@/lol/champions/champion-direction";
 import { m } from "motion/react";
 import { type CSSProperties, useState } from "react";
 

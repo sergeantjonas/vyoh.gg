@@ -7,13 +7,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { useAccountFromSlug } from "@/identity/use-account-from-slug";
-import { useMatchDetail } from "@/identity/use-match-detail";
-import { MatchDetailSkeleton } from "@/lol/match-detail-skeleton";
-import { MatchDetailView } from "@/lol/match-detail-view";
-import { MatchHero } from "@/lol/match-hero";
-import { useChampionName } from "@/lol/use-champions";
-import { useCachedMatchSummary } from "@/lol/use-matches";
+import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useChampionName } from "@/lol/champions/use-champions";
+import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
+import { MatchDetailView } from "@/lol/matches/match-detail-view";
+import { MatchHero } from "@/lol/matches/match-hero";
+import { useMatchDetail } from "@/lol/matches/use-match-detail";
+import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { AnimatePresence, m } from "motion/react";

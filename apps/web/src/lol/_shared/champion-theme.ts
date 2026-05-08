@@ -1,5 +1,5 @@
-import assets from "@/data/champion-assets.json";
-import { normalizeChampionAlias } from "@/lib/champion-icon";
+import assets from "@/lol/_shared/champion-assets.json";
+import { normalizeChampionAlias } from "@/lol/_shared/champion-icon";
 
 interface ChampionAsset {
   dominantHex: string;

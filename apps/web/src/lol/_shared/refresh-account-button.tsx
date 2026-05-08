@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { useSyncAccount } from "@/lol/use-matches";
+import { useSyncAccount } from "@/lol/matches/use-matches";
 import type { LolAccount } from "@vyoh/shared";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";

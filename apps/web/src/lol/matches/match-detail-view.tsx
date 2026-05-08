@@ -1,9 +1,9 @@
 import { CrossedSwordsIcon, TwoCoinsIcon } from "@/components/game-icons";
-import { championIconUrl } from "@/lib/champion-icon";
 import { cn } from "@/lib/utils";
-import { useSplashChampion } from "@/lol/splash-backdrop";
-import { useChampionName } from "@/lol/use-champions";
-import { useItems } from "@/lol/use-items";
+import { championIconUrl } from "@/lol/_shared/champion-icon";
+import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
+import { useChampionName } from "@/lol/champions/use-champions";
+import { useItems } from "@/lol/matches/use-items";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";

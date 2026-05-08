@@ -1,4 +1,4 @@
-import { normalizeChampionAlias } from "@/lib/champion-icon";
+import { normalizeChampionAlias } from "@/lol/_shared/champion-icon";
 
 // CDragon centered splashes — most champions face the viewer's LEFT, so
 // we flip by default so everyone consistently faces RIGHT (toward the

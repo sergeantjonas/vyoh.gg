@@ -1,12 +1,12 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
-import { useActiveMatch } from "@/lol/active-match-context";
-import { CardTilt } from "@/lol/card-tilt";
+import { CardTilt } from "@/lol/_shared/card-tilt";
 import {
   ChampionCardChrome,
   championCardClassName,
   championCardStyle,
-} from "@/lol/champion-card";
+} from "@/lol/champions/champion-card";
+import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
