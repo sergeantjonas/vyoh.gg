@@ -67,7 +67,7 @@ async function main() {
   console.log("fetching champion summary…");
   const res = await fetch(CHAMPION_SUMMARY_URL);
   if (!res.ok) throw new Error(`champion summary fetch failed: HTTP ${res.status}`);
-  const all: RawChampion[] = await res.json();
+  const all = (await res.json()) as RawChampion[];
   const champions = all.filter((c) => c.id !== -1);
   console.log(`${champions.length} champions to process`);
 

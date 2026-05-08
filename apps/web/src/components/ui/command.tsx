@@ -44,11 +44,7 @@ export function CommandInput({
   ...props
 }: ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div
-      className="flex items-center border-b px-3"
-      // biome-ignore lint/a11y/useSemanticElements: cmdk attaches roles via attributes
-      cmdk-input-wrapper=""
-    >
+    <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
       <Search className="mr-2 size-4 shrink-0 opacity-50" />
       <CommandPrimitive.Input
         className={cn(
