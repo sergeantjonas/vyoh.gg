@@ -21,8 +21,14 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { ChevronLeft, Crown, History, TrendingUp } from "lucide-react";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+const pageSlideVariants: Variants = {
+  enter: (d: number) => ({ opacity: 0, x: d * 32 }),
+  center: { opacity: 1, x: 0 },
+  exit: (d: number) => ({ opacity: 0, x: d * -32 }),
+};
 
 const TABS = [
   { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History },
@@ -137,6 +143,23 @@ function AccountLayout() {
   }, []);
 
   const prefersReducedMotion = useReducedMotion();
+
+  // Compute slide direction synchronously during render so the entering element
+  // always receives the correct `initial` on the same render it mounts.
+  const slideDirectionRef = useRef(0);
+  const prevTabPathnameRef = useRef(pathname);
+  if (prevTabPathnameRef.current !== pathname) {
+    const resolve = (to: string) => to.replace("$accountSlug", accountSlug);
+    const prevIdx = TABS.findIndex(
+      ({ to }) => prevTabPathnameRef.current === resolve(to)
+    );
+    const currIdx = TABS.findIndex(({ to }) => pathname === resolve(to));
+    slideDirectionRef.current =
+      prevIdx !== -1 && currIdx !== -1 ? Math.sign(currIdx - prevIdx) : 0;
+    prevTabPathnameRef.current = pathname;
+  }
+  const effectiveDir = prefersReducedMotion ? 0 : slideDirectionRef.current;
+
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     const el = mainScrollRef.current;
@@ -328,11 +351,15 @@ function AccountLayout() {
               </m.div>
             </header>
 
-            <AnimatePresence mode="popLayout" initial={false}>
+            <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
               <m.div
                 key={pathname}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
+                custom={effectiveDir}
+                variants={pageSlideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <Outlet />
               </m.div>

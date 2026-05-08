@@ -14,10 +14,26 @@ import { TrendStreak } from "@/lol/trends/trend-streak";
 import { TrendSummaryCards } from "@/lol/trends/trend-summary";
 import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
 import { createFileRoute } from "@tanstack/react-router";
+import { m, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/trends")({
   component: TrendsPage,
 });
+
+function Reveal({ children }: { children: ReactNode }) {
+  const reduced = useReducedMotion();
+  return (
+    <m.div
+      initial={reduced ? {} : { opacity: 0, y: 20 }}
+      whileInView={reduced ? {} : { opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.1 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+    >
+      {children}
+    </m.div>
+  );
+}
 
 function TrendsPage() {
   const { matches, isPending, total, count, setCount } = useMatchWindow();
@@ -46,11 +62,21 @@ function TrendsPage() {
         <p className="text-sm text-muted-foreground">No matches yet to chart.</p>
       ) : (
         <div className="flex flex-col gap-8">
-          <TrendSummaryCards summary={computeTrendSummary(matches)} />
-          <TrendRecord matches={matches} />
-          <TrendActivity matches={matches} />
-          <TrendKda points={computeKdaSeries(matches)} />
-          <TrendQueue counts={computeQueueCounts(matches)} />
+          <Reveal>
+            <TrendSummaryCards summary={computeTrendSummary(matches)} />
+          </Reveal>
+          <Reveal>
+            <TrendRecord matches={matches} />
+          </Reveal>
+          <Reveal>
+            <TrendActivity matches={matches} />
+          </Reveal>
+          <Reveal>
+            <TrendKda points={computeKdaSeries(matches)} />
+          </Reveal>
+          <Reveal>
+            <TrendQueue counts={computeQueueCounts(matches)} />
+          </Reveal>
         </div>
       )}
     </div>

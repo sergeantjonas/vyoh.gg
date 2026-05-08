@@ -9,6 +9,20 @@ import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import type { ComponentType, SVGProps } from "react";
 
+const itemsContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
+};
+
+const itemReveal: Variants = {
+  hidden: { opacity: 0, scale: 0.7 },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: { type: "spring", stiffness: 500, damping: 26 },
+  },
+};
+
 const teamContainer: Variants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } },
@@ -77,13 +91,21 @@ function ItemSlot({ id }: { id: number }) {
 }
 
 function ItemSlots({ items }: { items: number[] }) {
+  const reduced = useReducedMotion();
   return (
-    <div className="flex gap-0.5">
+    <m.div
+      variants={itemsContainer}
+      initial={reduced ? "show" : "hidden"}
+      animate="show"
+      className="flex gap-0.5"
+    >
       {items.map((id, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: items array has fixed positions (slots 0-6)
-        <ItemSlot key={i} id={id} />
+        <m.div key={i} variants={itemReveal}>
+          <ItemSlot id={id} />
+        </m.div>
       ))}
-    </div>
+    </m.div>
   );
 }
 
