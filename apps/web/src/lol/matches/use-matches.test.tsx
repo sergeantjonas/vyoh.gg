@@ -59,7 +59,7 @@ describe("useMatches", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.pages).toEqual([[sample]]);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches?start=0&count=10"
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches?start=0&count=20"
     );
   });
 

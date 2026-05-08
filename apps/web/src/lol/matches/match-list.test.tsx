@@ -12,6 +12,26 @@ vi.mock("@tanstack/react-router", () => ({
   useRouterState: () => false,
 }));
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({
+    count,
+    estimateSize,
+  }: {
+    count: number;
+    estimateSize: () => number;
+    [key: string]: unknown;
+  }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        index,
+        start: index * estimateSize(),
+        key: index,
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measureElement: () => undefined,
+  }),
+}));
+
 function renderWithProviders(ui: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
