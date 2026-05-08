@@ -14,6 +14,8 @@ import {
 import { Blurhash } from "react-blurhash";
 import { createPortal } from "react-dom";
 
+type SplashClaim = { champion: string; offsetX: number };
+
 type SplashContextValue = {
   setChampion: (owner: number, champion: string, offsetX?: number) => void;
   clearChampion: (owner: number) => void;
@@ -21,6 +23,10 @@ type SplashContextValue = {
 
 const SplashContext = createContext<SplashContextValue | null>(null);
 
+// Owner ids are allocated at render time, so parents get lower numbers than
+// their children. The provider displays the highest active owner id, which
+// keeps the most-deeply-nested consumer in charge while their parent's
+// claim acts as a fallback when the child unmounts.
 let ownerSeq = 0;
 
 function ChampionSplashLayer({
@@ -93,39 +99,44 @@ function ChampionSplashLayer({
 }
 
 export function SplashProvider({ children }: { children: ReactNode }) {
-  const [champion, setChampionState] = useState<string | null>(null);
-  const [offsetX, setOffsetX] = useState(0);
-  const clearTimerRef = useRef<number | null>(null);
-  const activeOwnerRef = useRef<number | null>(null);
+  const [claims, setClaims] = useState<Map<number, SplashClaim>>(() => new Map());
 
   const setChampion = useCallback((owner: number, c: string, nextOffsetX = 0) => {
-    if (clearTimerRef.current !== null) {
-      window.clearTimeout(clearTimerRef.current);
-      clearTimerRef.current = null;
-    }
-    activeOwnerRef.current = owner;
-    setChampionState(c);
-    setOffsetX(nextOffsetX);
+    setClaims((prev) => {
+      const existing = prev.get(owner);
+      if (existing && existing.champion === c && existing.offsetX === nextOffsetX) {
+        return prev;
+      }
+      const next = new Map(prev);
+      next.set(owner, { champion: c, offsetX: nextOffsetX });
+      return next;
+    });
   }, []);
 
   const clearChampion = useCallback((owner: number) => {
-    if (activeOwnerRef.current !== owner) return;
-    if (clearTimerRef.current !== null) {
-      window.clearTimeout(clearTimerRef.current);
-    }
-    clearTimerRef.current = window.setTimeout(() => {
-      if (activeOwnerRef.current === owner) {
-        activeOwnerRef.current = null;
-        setChampionState(null);
-      }
-      clearTimerRef.current = null;
-    }, 100);
+    setClaims((prev) => {
+      if (!prev.has(owner)) return prev;
+      const next = new Map(prev);
+      next.delete(owner);
+      return next;
+    });
   }, []);
 
   const value = useMemo(
     () => ({ setChampion, clearChampion }),
     [setChampion, clearChampion]
   );
+
+  let topOwner = -1;
+  let topClaim: SplashClaim | null = null;
+  for (const [owner, claim] of claims) {
+    if (owner > topOwner) {
+      topOwner = owner;
+      topClaim = claim;
+    }
+  }
+  const champion = topClaim?.champion ?? null;
+  const offsetX = topClaim?.offsetX ?? 0;
 
   return (
     <SplashContext.Provider value={value}>
@@ -161,11 +172,18 @@ export function useSplashChampion(
   if (!ctx) throw new Error("useSplashChampion must be used within SplashProvider");
   const ownerRef = useRef<number | null>(null);
   if (ownerRef.current === null) ownerRef.current = ++ownerSeq;
+
   useEffect(() => {
     const owner = ownerRef.current;
-    if (owner !== null && champion) {
-      ctx.setChampion(owner, champion, offsetX);
-      return () => ctx.clearChampion(owner);
-    }
+    if (owner === null) return;
+    if (champion) ctx.setChampion(owner, champion, offsetX);
+    else ctx.clearChampion(owner);
   }, [champion, offsetX, ctx]);
+
+  useEffect(() => {
+    const owner = ownerRef.current;
+    return () => {
+      if (owner !== null) ctx.clearChampion(owner);
+    };
+  }, [ctx]);
 }
