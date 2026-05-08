@@ -169,15 +169,34 @@ function ParticipantRow({
   maxGold: number;
 }) {
   const championName = useChampionName();
+  const reduced = useReducedMotion();
   const displayName = championName(p.championName);
   return (
     <m.li
       variants={teamRow}
       className={cn(
         "flex items-center gap-3 rounded-md border bg-card/60 p-2 backdrop-blur-sm transition-colors",
-        isMe && "border-foreground/40 bg-card/80 ring-2 ring-foreground/30"
+        isMe && "relative border-foreground/40 bg-card/80 ring-2 ring-foreground/30"
       )}
     >
+      {isMe && !reduced && (
+        <m.div
+          className="pointer-events-none absolute inset-0 rounded-md"
+          animate={{
+            boxShadow: [
+              "0 0 0 2px rgba(255,255,255,0)",
+              "0 0 0 2px rgba(255,255,255,0.2), 0 0 14px 2px rgba(255,255,255,0.06)",
+              "0 0 0 2px rgba(255,255,255,0)",
+            ],
+          }}
+          transition={{
+            duration: 2.8,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+            delay: 0.8,
+          }}
+        />
+      )}
       <img
         src={championIconUrl(p.championName)}
         alt={displayName}
@@ -275,6 +294,7 @@ export function MatchDetailView({
   currentChampion?: string;
   myPuuid?: string;
 }) {
+  const reduced = useReducedMotion();
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
@@ -285,20 +305,32 @@ export function MatchDetailView({
   return (
     <TooltipPrimitive.Provider delayDuration={150}>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <TeamBlock
-          title="Blue side"
-          participants={blue}
-          myPuuid={myPuuid}
-          maxDamage={maxDamage}
-          maxGold={maxGold}
-        />
-        <TeamBlock
-          title="Red side"
-          participants={red}
-          myPuuid={myPuuid}
-          maxDamage={maxDamage}
-          maxGold={maxGold}
-        />
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+        >
+          <TeamBlock
+            title="Blue side"
+            participants={blue}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
+        </m.div>
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
+        >
+          <TeamBlock
+            title="Red side"
+            participants={red}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
+        </m.div>
       </div>
     </TooltipPrimitive.Provider>
   );

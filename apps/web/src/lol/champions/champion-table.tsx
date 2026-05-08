@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
 import { CardTilt } from "@/lol/_shared/card-tilt";
 import {
@@ -5,7 +6,7 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champions/champion-card";
-import { type Variants, m } from "motion/react";
+import { type Variants, m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import type { ChampionSortOption } from "./champion-sort-selector";
 import type { ChampionStats } from "./champion-stats";
@@ -58,6 +59,7 @@ export function ChampionTable({
 }) {
   const championName = useChampionName();
   const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
+  const reduced = useReducedMotion();
   return (
     <m.ul
       initial="hidden"
@@ -85,15 +87,36 @@ export function ChampionTable({
                   <span
                     className={cn(s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400")}
                   >
-                    {Math.round(s.winRate * 100)}%
+                    <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
                   </span>
                   <span className="text-muted-foreground"> WR · </span>
-                  <span className="text-amber-400">{s.avgKda.toFixed(2)}</span>
+                  <span className="text-amber-400">
+                    <CountUp to={s.avgKda} decimals={2} duration={0.7} />
+                  </span>
                   <span className="text-muted-foreground"> KDA</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
                   {formatPlaytime(s.totalDurationSec)}
+                </div>
+                <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-muted/30">
+                  <m.div
+                    className={cn(
+                      "absolute inset-y-0 left-0 h-full w-full rounded-full",
+                      s.winRate >= 0.5
+                        ? "bg-gradient-to-r from-emerald-500/70 to-emerald-400/90"
+                        : "bg-gradient-to-r from-red-500/70 to-red-400/90"
+                    )}
+                    style={{ transformOrigin: "left" }}
+                    initial={{ scaleX: reduced ? s.winRate : 0 }}
+                    animate={{ scaleX: s.winRate }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 220,
+                      damping: 28,
+                      delay: 0.1,
+                    }}
+                  />
                 </div>
               </div>
             </div>

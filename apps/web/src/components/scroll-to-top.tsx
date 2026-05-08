@@ -25,6 +25,8 @@ export function ScrollToTop() {
           initial={{ opacity: 0, scale: 0.8, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 10 }}
+          whileHover={{ y: -3 }}
+          whileTap={{ scale: 0.88 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => mainScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Scroll to top"
