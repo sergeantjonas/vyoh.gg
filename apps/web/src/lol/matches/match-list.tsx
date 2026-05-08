@@ -222,43 +222,57 @@ export function MatchList({
           paddingBottom: 12,
         };
         const isFlashNew = match !== undefined && flashMatchIds.has(match.matchId);
+        // y animation lives on a dedicated inner wrapper — Motion's y transform
+        // would override the virtualizer's own style.transform on the outer div.
+        const innerY = isFlashNew
+          ? { initial: -16, spring: true }
+          : isNew
+            ? { initial: 10, spring: false }
+            : null;
         return (
           <m.div
             key={match?.matchId ?? `phantom-${virtualRow.index}`}
             data-index={virtualRow.index}
             ref={virtualizer.measureElement}
-            initial={
-              isFlashNew
-                ? { opacity: 0, y: -16 }
-                : {
-                    opacity: isNew ? 0 : heldDuringSettle ? SETTLE_HOLD_OPACITY : 1,
-                    y: isNew ? 10 : 0,
-                  }
-            }
-            animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1, y: 0 }}
-            transition={
-              isFlashNew
-                ? { type: "spring", stiffness: 340, damping: 28 }
-                : {
-                    duration: heldDuringSettle
-                      ? 0
-                      : isNew
-                        ? ENTER_DURATION
-                        : SETTLE_REVEAL_MS,
-                    delay: heldDuringSettle ? 0 : isNew ? staggerDelay : 0,
-                    ease: "easeOut",
-                  }
-            }
+            initial={{
+              opacity: isFlashNew
+                ? 0
+                : isNew
+                  ? 0
+                  : heldDuringSettle
+                    ? SETTLE_HOLD_OPACITY
+                    : 1,
+            }}
+            animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
+            transition={{
+              duration: heldDuringSettle
+                ? 0
+                : isNew || isFlashNew
+                  ? ENTER_DURATION
+                  : SETTLE_REVEAL_MS,
+              delay: heldDuringSettle ? 0 : isNew || isFlashNew ? staggerDelay : 0,
+              ease: "easeOut",
+            }}
             style={rowStyle}
           >
             {match && !heldDuringSettle ? (
-              <MatchRow
-                match={match}
-                accountSlug={accountSlug}
-                championDisplayName={championName(match.champion)}
-                onCardHover={onCardHover}
-                isNew={isFlashNew}
-              />
+              <m.div
+                initial={innerY ? { y: innerY.initial } : false}
+                animate={innerY ? { y: 0 } : undefined}
+                transition={
+                  innerY?.spring
+                    ? { type: "spring", stiffness: 340, damping: 28 }
+                    : { duration: ENTER_DURATION, delay: staggerDelay, ease: "easeOut" }
+                }
+              >
+                <MatchRow
+                  match={match}
+                  accountSlug={accountSlug}
+                  championDisplayName={championName(match.champion)}
+                  onCardHover={onCardHover}
+                  isNew={isFlashNew}
+                />
+              </m.div>
             ) : (
               <MatchCardSkeleton />
             )}
