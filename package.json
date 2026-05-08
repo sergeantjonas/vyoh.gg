@@ -14,7 +14,12 @@
     "format": "biome format --write .",
     "check": "biome check --write .",
     "ci:check": "biome ci .",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "check:cc": "biome ci .",
+    "check:fix:cc": "biome check --write .",
+    "typecheck:cc": "pnpm -r typecheck",
+    "test:cc": "pnpm -r test",
+    "verify:cc": "pnpm run check:cc && pnpm run typecheck:cc && pnpm run test:cc"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
