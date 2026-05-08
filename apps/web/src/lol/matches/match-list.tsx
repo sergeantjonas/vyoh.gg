@@ -10,6 +10,8 @@ import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+const SSE_FLASH_TTL_MS = 2500;
+
 const ESTIMATED_ROW_HEIGHT = 124;
 const NEAR_END_THRESHOLD = 5;
 const STAGGER_PER_ITEM = 0.06;
@@ -44,6 +46,8 @@ export function MatchList({
   const showPerf = usePerfFlag();
   const parentRef = useRef<HTMLDivElement>(null);
   const prevMatchesLengthRef = useRef<number | null>(null);
+  const prevMatchIdsRef = useRef<Set<string>>(new Set());
+  const [flashMatchIds, setFlashMatchIds] = useState<Set<string>>(new Set());
   const [scrollMargin, setScrollMargin] = useState(0);
   const { readListScroll, bumpMorphEpoch, activeMatch } = useActiveMatch();
   const [restoredScrollY] = useState(() => readListScroll());
@@ -108,6 +112,26 @@ export function MatchList({
     }
     prevMatchesLengthRef.current = matches.length;
   }, [matches.length]);
+
+  // Detect SSE-inserted matches: new matchIds that appear at the head of the
+  // array (prepended by the server) rather than the tail (load-more appends).
+  useEffect(() => {
+    const newIds = new Set<string>();
+    if (prevMatchIdsRef.current.size > 0) {
+      for (const m of matches) {
+        if (!prevMatchIdsRef.current.has(m.matchId)) {
+          newIds.add(m.matchId);
+        } else {
+          break;
+        }
+      }
+    }
+    for (const m of matches) prevMatchIdsRef.current.add(m.matchId);
+    if (newIds.size === 0) return;
+    setFlashMatchIds(newIds);
+    const tid = window.setTimeout(() => setFlashMatchIds(new Set()), SSE_FLASH_TTL_MS);
+    return () => window.clearTimeout(tid);
+  }, [matches]);
 
   const reveal = Math.min(visibleCount, matches.length);
   const phantomCount = isFetchingNextPage && hasNextPage ? MATCHES_PAGE_SIZE : 0;
@@ -197,20 +221,34 @@ export function MatchList({
           transform: `translateY(${virtualRow.start - scrollMargin}px)`,
           paddingBottom: 12,
         };
+        const isFlashNew = match !== undefined && flashMatchIds.has(match.matchId);
         return (
           <m.div
-            key={virtualRow.index}
+            key={match?.matchId ?? `phantom-${virtualRow.index}`}
             data-index={virtualRow.index}
             ref={virtualizer.measureElement}
-            initial={{
-              opacity: isNew ? 0 : heldDuringSettle ? SETTLE_HOLD_OPACITY : 1,
-            }}
-            animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
-            transition={{
-              duration: heldDuringSettle ? 0 : isNew ? ENTER_DURATION : SETTLE_REVEAL_MS,
-              delay: heldDuringSettle ? 0 : isNew ? staggerDelay : 0,
-              ease: "easeOut",
-            }}
+            initial={
+              isFlashNew
+                ? { opacity: 0, y: -16 }
+                : {
+                    opacity: isNew ? 0 : heldDuringSettle ? SETTLE_HOLD_OPACITY : 1,
+                    y: isNew ? 10 : 0,
+                  }
+            }
+            animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1, y: 0 }}
+            transition={
+              isFlashNew
+                ? { type: "spring", stiffness: 340, damping: 28 }
+                : {
+                    duration: heldDuringSettle
+                      ? 0
+                      : isNew
+                        ? ENTER_DURATION
+                        : SETTLE_REVEAL_MS,
+                    delay: heldDuringSettle ? 0 : isNew ? staggerDelay : 0,
+                    ease: "easeOut",
+                  }
+            }
             style={rowStyle}
           >
             {match && !heldDuringSettle ? (
@@ -219,6 +257,7 @@ export function MatchList({
                 accountSlug={accountSlug}
                 championDisplayName={championName(match.champion)}
                 onCardHover={onCardHover}
+                isNew={isFlashNew}
               />
             ) : (
               <MatchCardSkeleton />

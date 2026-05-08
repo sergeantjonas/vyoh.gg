@@ -218,6 +218,62 @@ Implemented as:
 
 ---
 
+## Second polish pass
+
+### Parallax splash backdrop on scroll
+
+Status: shipped
+
+Implemented as:
+
+- `useMotionValue(scrollY)` + scroll listener on `mainScrollRef` in `SplashProvider`
+- `useTransform(scrollY, s => reduced ? 0 : s * -0.03)` drives `backdropY`
+- applied as `style={{ y: backdropY }}` on the portal wrapper — purely compositor (no paint)
+- removed `overflow-hidden` from the fixed wrapper; inner layer already extends ±4% to absorb the shift
+- gated to `!reduced` via the transform function
+
+### Infinite scroll load-more stagger
+
+Status: shipped
+
+Implemented as:
+
+- added `y: isNew ? 10 : 0` to `initial` on each virtual row in `match-list.tsx`
+- `animate={{ y: 0 }}` on all rows so new batches slide up from below on fetch-next-page
+- works for both initial page load and subsequent load-more pages; back-nav restore rows are unaffected (`isNew = false` when seenCount pre-populated)
+
+### Custom spring Recharts tooltip on KDA chart
+
+Status: shipped
+
+Implemented as:
+
+- `KdaTooltip` component in `trend-kda.tsx` with `AnimatePresence` wrapping `active && payload`
+- `m.div` with `initial={{ opacity: 0, y: 4, scale: 0.96 }}`, spring 400/28 entrance and exit
+- matches existing popover styling (`bg-popover/85`, border, `backdrop-blur-md`, shadow-xl)
+- replaced Recharts' built-in `contentStyle`/`formatter` props with the custom component
+- reduced motion: `initial={}/exit={}` no-ops
+
+### Live row insertion + win/loss pulse on SSE new matches
+
+Status: shipped
+
+Implemented as:
+
+- `prevMatchIdsRef` Set tracks all seen matchIds across query updates
+- on each `matches` change, leading new matchIds (not in the set, appearing at index 0, 1…) are collected as `flashMatchIds` state, cleared after 2.5s
+- virtual rows keyed by `match.matchId` instead of `virtualRow.index` — identity tracking means SSE-inserted rows always mount fresh and play `initial`
+- SSE rows: `initial={{ opacity: 0, y: -16 }}` (from above), spring 340/28 entrance
+- `isNew` prop passed to `MatchRow`; card shows a one-shot `boxShadow` pulse — green for win, red for loss, 1.6s ease-in-out, no repeat
+
+### Count-selector stat re-animation
+
+Status: shipped (was already working)
+
+The `animate={{ scaleX: s.winRate }}` on champion win-rate bars and `CountUp to={...}` on stats already spring to new values when the match window changes — no additional code needed. Motion interpolates from current to target on every `animate` change; `CountUp` re-runs its tween whenever `to` changes.
+
+---
+
 ## Bigger swings
 
 ### Reduced-motion audit

@@ -9,7 +9,7 @@ import {
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
-import { m } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import { flushSync } from "react-dom";
 
 function formatDuration(sec: number): string {
@@ -36,13 +36,16 @@ export function MatchRow({
   accountSlug,
   championDisplayName,
   onCardHover,
+  isNew,
 }: {
   match: MatchSummary;
   accountSlug: string;
   championDisplayName: string;
   onCardHover?: (champion: string) => void;
+  isNew?: boolean;
 }) {
   const { activeMatch, setActiveMatch, saveListScroll, morphEpoch } = useActiveMatch();
+  const reduced = useReducedMotion();
   const isActive = activeMatch === match.matchId;
   return (
     <CardTilt>
@@ -71,6 +74,25 @@ export function MatchRow({
             isActive && "z-30 shadow-2xl shadow-black/50"
           )}
         >
+          {isNew && !reduced && (
+            <m.div
+              className="pointer-events-none absolute inset-0 rounded-md"
+              animate={{
+                boxShadow: match.win
+                  ? [
+                      "0 0 0 2px rgba(52,211,153,0)",
+                      "0 0 0 2px rgba(52,211,153,0.45), 0 0 18px 3px rgba(52,211,153,0.14)",
+                      "0 0 0 2px rgba(52,211,153,0)",
+                    ]
+                  : [
+                      "0 0 0 2px rgba(248,113,113,0)",
+                      "0 0 0 2px rgba(248,113,113,0.45), 0 0 18px 3px rgba(248,113,113,0.14)",
+                      "0 0 0 2px rgba(248,113,113,0)",
+                    ],
+              }}
+              transition={{ duration: 1.6, ease: "easeInOut" }}
+            />
+          )}
           <ChampionCardChrome champion={match.champion} win={match.win} />
           <div className="relative ml-auto flex flex-col items-end gap-1">
             <div className="flex items-baseline gap-2">

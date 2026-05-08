@@ -1,10 +1,18 @@
+import { mainScrollRef } from "@/lib/scroll-container";
 import {
   championBackdropSplashUrl,
   championCenteredSplashUrl,
 } from "@/lol/_shared/champion-icon";
 import { championTheme } from "@/lol/_shared/champion-theme";
 import { decode as decodeBlurhash } from "blurhash";
-import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
+import {
+  AnimatePresence,
+  m,
+  useIsPresent,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from "motion/react";
 import {
   type ReactNode,
   createContext,
@@ -169,6 +177,16 @@ function ChampionSplashLayer({
 
 export function SplashProvider({ children }: { children: ReactNode }) {
   const [claims, setClaims] = useState<Map<number, SplashClaim>>(() => new Map());
+  const reduced = useReducedMotion();
+  const scrollY = useMotionValue(0);
+  const backdropY = useTransform(scrollY, (s) => (reduced ? 0 : s * -0.03));
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const onScroll = () => scrollY.set(el.scrollTop);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [scrollY]);
 
   const setChampion = useCallback((owner: number, c: string, nextOffsetX = 0) => {
     setClaims((prev) => {
@@ -219,7 +237,8 @@ export function SplashProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.7 }}
-              className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+              style={{ y: backdropY }}
+              className="pointer-events-none fixed inset-0 -z-10"
             >
               <ChampionSplashLayer champion={champion} offsetX={offsetX} />
             </m.div>

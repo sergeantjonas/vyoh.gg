@@ -1,4 +1,4 @@
-import { m, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import {
   CartesianGrid,
   Line,
@@ -9,6 +9,34 @@ import {
   YAxis,
 } from "recharts";
 import type { KdaPoint } from "./trend-stats";
+
+function KdaTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string | number;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <AnimatePresence>
+      {active && payload?.length ? (
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 4, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={reduced ? {} : { opacity: 0, scale: 0.96 }}
+          transition={{ type: "spring", stiffness: 400, damping: 28 }}
+          className="rounded-md border bg-popover/85 px-3 py-2 text-sm text-popover-foreground shadow-xl backdrop-blur-md"
+        >
+          <div className="mb-0.5 text-xs text-muted-foreground">Game {label}</div>
+          <div className="font-semibold">{Number(payload[0]?.value).toFixed(2)} KDA</div>
+        </m.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
 
 export function TrendKda({ points }: { points: KdaPoint[] }) {
   const reduced = useReducedMotion();
@@ -41,14 +69,8 @@ export function TrendKda({ points }: { points: KdaPoint[] }) {
             />
             <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} width={32} />
             <Tooltip
-              contentStyle={{
-                background: "var(--popover)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                color: "var(--popover-foreground)",
-              }}
-              labelFormatter={(label) => `Game ${label}`}
-              formatter={(value) => [Number(value).toFixed(2), "KDA"]}
+              content={<KdaTooltip />}
+              cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
             />
             <Line
               type="monotone"
