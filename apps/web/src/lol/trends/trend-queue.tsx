@@ -1,16 +1,8 @@
+import { queueColor } from "@/lol/_shared/queue-color";
 import { m, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import type { QueueCount } from "./trend-stats";
-
-const PALETTE = [
-  "#38bdf8", // sky
-  "#34d399", // emerald
-  "#fbbf24", // amber
-  "#a78bfa", // violet
-  "#f472b6", // pink
-  "#fb923c", // orange
-];
 
 export function TrendQueue({ counts }: { counts: QueueCount[] }) {
   const reduced = useReducedMotion();
@@ -61,7 +53,7 @@ export function TrendQueue({ counts }: { counts: QueueCount[] }) {
                   return (
                     <Cell
                       key={entry.queueType}
-                      fill={PALETTE[i % PALETTE.length]}
+                      fill={queueColor(entry.queueType)}
                       opacity={isDimmed ? 0.35 : 1}
                       style={{ transition: "opacity 150ms ease-out" }}
                     />
@@ -93,7 +85,7 @@ export function TrendQueue({ counts }: { counts: QueueCount[] }) {
               >
                 <span
                   className="size-2.5 rounded-sm"
-                  style={{ background: PALETTE[i % PALETTE.length] }}
+                  style={{ background: queueColor(entry.queueType) }}
                 />
                 <span className="text-foreground">{entry.queueType}</span>
                 <span className="ml-auto tabular-nums text-muted-foreground">

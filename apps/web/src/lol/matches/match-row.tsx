@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
 import { CardTilt } from "@/lol/_shared/card-tilt";
+import { queueColor } from "@/lol/_shared/queue-color";
 import {
   ChampionCardChrome,
   championCardClassName,
@@ -113,9 +114,16 @@ export function MatchRow({
               <span className="text-muted-foreground"> / </span>
               <CountUp to={match.assists} className="text-amber-400" />
             </div>
-            <div className="text-xs text-muted-foreground">
-              {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
-              {formatTimeAgo(match.playedAt)}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                aria-hidden="true"
+                className="size-2 shrink-0 rounded-sm"
+                style={{ background: queueColor(match.queueType) }}
+              />
+              <span>
+                {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
+                {formatTimeAgo(match.playedAt)}
+              </span>
             </div>
           </div>
         </m.div>

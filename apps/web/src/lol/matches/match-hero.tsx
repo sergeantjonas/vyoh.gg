@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { queueColor } from "@/lol/_shared/queue-color";
 import {
   ChampionCardChrome,
   championCardBaseClassName,
@@ -50,12 +51,19 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
           <span className="text-muted-foreground"> / </span>
           <span className="text-amber-400">{summary.assists}</span>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {summary.queueType} · {formatDuration(summary.durationSec)} ·{" "}
-          {playedAt.toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span
+            aria-hidden="true"
+            className="size-2 shrink-0 rounded-sm"
+            style={{ background: queueColor(summary.queueType) }}
+          />
+          <span>
+            {summary.queueType} · {formatDuration(summary.durationSec)} ·{" "}
+            {playedAt.toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </span>
         </div>
       </div>
     </m.div>
