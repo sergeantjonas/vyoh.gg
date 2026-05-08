@@ -36,6 +36,12 @@ const TABS = [
   { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown },
 ] as const;
 
+function iconPop(label: string): { scale: number; rotate?: number; y?: number } {
+  if (label === "Matches") return { scale: 0.75, rotate: -12 };
+  if (label === "Trends") return { scale: 0.75, y: 5 };
+  return { scale: 0.65, rotate: 8 };
+}
+
 const DEFAULT_COUNT = 20;
 
 interface AccountSearch {
@@ -307,14 +313,28 @@ function AccountLayout() {
                                   : "text-muted-foreground hover:text-foreground"
                               )}
                             >
-                              <Icon
-                                className={cn(
-                                  "size-4 transition-all",
-                                  active
-                                    ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
-                                    : "text-muted-foreground group-hover:text-foreground"
-                                )}
-                              />
+                              <m.span
+                                key={active ? 1 : 0}
+                                initial={
+                                  active && !prefersReducedMotion ? iconPop(label) : false
+                                }
+                                animate={{ scale: 1, rotate: 0, y: 0 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 450,
+                                  damping: 18,
+                                }}
+                                className="inline-flex"
+                              >
+                                <Icon
+                                  className={cn(
+                                    "size-4 transition-colors",
+                                    active
+                                      ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
+                                      : "text-muted-foreground group-hover:text-foreground"
+                                  )}
+                                />
+                              </m.span>
                               {label}
                               {active && (
                                 <m.div

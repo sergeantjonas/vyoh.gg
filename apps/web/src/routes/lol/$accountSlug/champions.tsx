@@ -10,6 +10,7 @@ import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
 import { MatchCountSelector } from "@/lol/matches/match-count-selector";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { createFileRoute } from "@tanstack/react-router";
+import { m } from "motion/react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions")({
@@ -46,7 +47,14 @@ function ChampionsPage() {
       {isPending && !matches ? (
         <ChampionsSkeleton />
       ) : !matches || matches.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No matches yet to aggregate.</p>
+        <m.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="text-sm text-muted-foreground"
+        >
+          No matches yet to aggregate.
+        </m.p>
       ) : (
         <ChampionTable
           stats={aggregateChampionStats(matches)}

@@ -23,6 +23,45 @@ body {
   }
 }
 
+@keyframes heatmap-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes card-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.heatmap-cell {
+  animation: heatmap-reveal 280ms ease-out both;
+}
+
+.group:hover .card-splash-breathe {
+  animation: card-breathe 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer {
+    animation: none;
+  }
+  .heatmap-cell {
+    animation: none;
+  }
+  .group:hover .card-splash-breathe {
+    animation: none;
+  }
+}
+
 /* Riot item description markup — styles for the custom LoL tags */
 .item-tooltip-body mainText {
   display: block;

@@ -11,9 +11,7 @@ Guardrails:
 - respect reduced-motion preferences
 - use evidence when discussing perf impact
 
-## Recommended starting trio
-
-The original starting trio has all shipped. Next pickups likely come from Medium/Bigger swings below.
+---
 
 ## High impact
 
@@ -49,119 +47,6 @@ Implemented as:
 - `layout` prop on each `<m.li>` in `champion-table.tsx`
 - `sortStats()` helper drives reorder; no remounts
 
-## Medium impact
-
-### Heatmap fills in waves
-
-Status: parked
-
-Ideas:
-
-- diagonal opacity stagger from top-left to bottom-right
-- suppress repeated animation with `sessionStorage`
-- keep hover/tooltips immediate
-
-### Scroll-driven section reveals on Trends
-
-Status: parked
-
-Ideas:
-
-- `whileInView` fade + lift
-- apply to major page sections, not every tiny element
-- avoid slowing down frequent navigation
-
-### Splash Ken Burns
-
-Status: parked
-
-Ideas:
-
-- slow 30s continuous zoom + pan on backdrop
-- subtle enough not to fight navigation
-- replaces removed parallax feeling without pointer tracking
-
-### Item-build sequence on match detail
-
-Status: parked
-
-Ideas:
-
-- items appear in build order
-- 60ms stagger
-- pairs with existing team-row stagger
-
-## Small polish
-
-### Springy press states
-
-Status: parked
-
-Ideas:
-
-- cards/buttons use subtle `whileTap={{ scale: 0.97 }}`
-- stiff spring
-- avoid applying to tiny controls where it feels jittery
-
-### Champion icon breathing on hover
-
-Status: parked
-
-Ideas:
-
-- scale 1.0 → 1.02 → 1.0 over 3s
-- only on hover/focus
-- respect reduced-motion
-
-### Animated nav icons on tab change
-
-Status: parked
-
-Ideas:
-
-- Matches clock ticks
-- Trends arrow grows
-- Champions crown shimmers
-- activation only, not continuous looping
-
-### First-paint orchestration
-
-Status: partial
-
-Shipped:
-
-- skeletons on data routes (`MatchListSkeleton`, `TrendsSkeleton`, `ChampionsSkeleton`)
-- shared `<Loader>` spinner for short fetches
-- staggered Trends entrance (cards → chart) handles part of the orchestration story
-
-Still parked:
-
-- explicit header → summary → chart → list orchestration across the whole layout
-- suppress/shorten on repeat visits
-
-### Champion card image fade-in
-
-Status: shipped
-
-Implemented as:
-
-- per-card `loaded` boolean in `champion-card.tsx`; image starts at `opacity-0` and fades to `opacity-95` once `onLoad` fires (existing `transition-opacity duration-300` handles the fade)
-- boolean intentionally never resets on champion swap, so virtualizer-driven src changes mid-scroll keep the previous frame visible until the new image decodes — no flicker
-- tinted placeholder behind the strip uses `color-mix(in oklab, var(--theme-color) 18%, transparent)` so a slow load shows a faint hint of the champion's palette instead of empty space
-- 300 ms transition, intentional for both first-load and instant cache hits to feel consistent
-
-### Empty-state animation
-
-Status: parked
-
-Ideas:
-
-- subtle Lottie or pure CSS animation
-- use for "No matches yet to chart"
-- must fit calm dashboard aesthetic
-
-## Bigger swings
-
 ### Shared element transition: list → detail
 
 Status: shipped
@@ -176,37 +61,182 @@ Implemented as:
 - `morphEpoch` bump 32ms after mount forces row remount so motion remeasures at restored scroll
 - entrance opacity fade removed from `m.div` in `$accountSlug.tsx` (was washing out the morph); kept exit fade only
 
-Reduced-motion audit still parked.
-
 ### Directional tab transitions
 
-Status: parked
+Status: shipped
 
-Ideas:
+Implemented as:
 
-- Matches → Trends slides one direction
-- Trends → Champions slides same forward direction
-- reverse navigation slides backward
-- base on tab order
+- `pageSlideVariants` with `custom` prop on `AnimatePresence` so exiting elements receive updated direction at exit time
+- direction computed synchronously in render body (ref mutation) so entering element gets correct `initial` on its first render — no extra pass
+- non-tab routes (match detail, unknown paths) resolve to `dir=0` for a plain fade
+- reduced motion collapses to fade only via `effectiveDir = prefersReducedMotion ? 0 : slideDir`
+
+### Splash Ken Burns
+
+Status: shipped
+
+Implemented as:
+
+- `kenBurnsDrift()` uses FNV hash of champion name to produce a unique pan angle and magnitude per champion — each splash drifts its own way
+- 18s `repeatType: "reverse"` loop, scale 1→1.13, drift up to ±3% x/y
+- `loopActive = !reduced && isPresent` stops the loop on reduced motion and settles back to neutral on exit (avoids running compositor work after the layer fades)
+- wsrv.nl pre-blurred WebP replaces live CSS `filter: blur()`, removing per-frame repaint cost
+- blurhash placeholder decoded once to a 32×32 data URL and cached in module scope — no repeated canvas operations on remount
+
+---
+
+## Medium impact
+
+### Heatmap fills in waves
+
+Status: shipped
+
+Implemented as:
+
+- `transformDayElement` in `trend-activity.tsx` uses `cloneElement` to append `heatmap-cell` class and `animationDelay: (col + row) * 10ms` per SVG rect — diagonal wave left→bottom-right
+- `@keyframes heatmap-reveal` (opacity 0→1, 280ms ease-out) + `.heatmap-cell` class in `index.css`
+- `@media (prefers-reduced-motion: reduce)` suppresses the animation entirely
+- hover/tooltips unaffected (CSS animation-delay only applies to the reveal, not pointer events)
+
+### Scroll-driven section reveals on Trends
+
+Status: shipped
+
+Implemented as:
+
+- `Reveal` wrapper component in `trends.tsx` with `whileInView`/`viewport={{ once: true, amount: 0.1 }}`
+- wraps all five trend sections (`TrendSummaryCards`, `TrendRecord`, `TrendActivity`, `TrendKda`, `TrendQueue`)
+- reduced motion: `initial={}/whileInView={}` no-ops (no invisible flash)
+
+### Item-build sequence on match detail
+
+Status: shipped
+
+Implemented as:
+
+- `itemsContainer` variant (`staggerChildren: 0.04, delayChildren: 0.05`) on `ItemSlots` container
+- `itemReveal` variant (`scale 0.7→1, opacity 0→1`, spring 500/26) on each `m.div` slot wrapper
+- reduced motion: `initial="show"` skips animation entirely
+
+---
+
+## Small polish
+
+### Springy press states
+
+Status: shipped
+
+Implemented as:
+
+- scroll-to-top button: `whileTap={{ scale: 0.88 }}` + `whileHover={{ y: -3 }}`
+- champion cards: `whileTap={{ scale: 0.97 }}` on `CardTilt`'s `m.div` — applies to all cards using the tilt wrapper; disabled automatically via the reduced-motion early return
+- queue filter, count selector, and other small controls left without `whileTap` — too small for it to read well
+
+### Champion icon breathing on hover
+
+Status: shipped
+
+Implemented as:
+
+- `@keyframes card-breathe` (scale 1→1.03→1, 3s ease-in-out infinite) in `index.css`
+- `.group:hover .card-splash-breathe` activates the animation only when the parent group is hovered — animation stops and element returns to scale(1) on unhover
+- `champion-card.tsx` inner splash div uses `.card-splash-breathe` class (replaced `group-hover:scale-105` CSS transition)
+- `@media (prefers-reduced-motion: reduce)` suppresses animation
+
+### Animated nav icons on tab change
+
+Status: shipped
+
+Implemented as:
+
+- each tab icon wrapped in `m.span` with `key={active ? 1 : 0}` — key change on activation triggers remount and spring-in from a unique initial state
+- Matches (`History`): enters from `scale 0.75, rotate -12°`
+- Trends (`TrendingUp`): enters from `scale 0.75, y 5px`
+- Champions (`Crown`): enters from `scale 0.65, rotate 8°`
+- spring stiffness 450 / damping 18 for a snappy pop
+- `initial={false}` on deactivation — no animation when leaving active state
+- reduced motion: `initial={false}` skips all activation animation
+
+### First-paint orchestration
+
+Status: partial
+
+Shipped:
+
+- skeletons on data routes (`MatchListSkeleton`, `TrendsSkeleton`, `ChampionsSkeleton`)
+- shared `<Loader>` spinner for short fetches
+- staggered Trends entrance (cards → chart) handles part of the orchestration story
+- scroll-driven reveals on Trends sections
+- empty states (`No matches yet to chart`, `No matches cached yet`, `No matches yet to aggregate`) fade in with 0.4s opacity transition
+
+Still parked:
+
+- explicit header → summary → chart → list cascade across the whole layout on first visit
+- suppress/shorten on repeat visits within a session
+
+### Champion card image fade-in
+
+Status: shipped
+
+Implemented as:
+
+- per-card `loaded` boolean in `champion-card.tsx`; image starts at `opacity-0` and fades to `opacity-95` once `onLoad` fires
+- boolean never resets on champion swap, so virtualizer-driven remounts keep the previous frame visible until the new image decodes — no flicker
+- tinted placeholder uses `color-mix(in oklab, var(--theme-color) 18%, transparent)` — slow loads hint at the champion's palette
+- 300ms transition, consistent for both first-load and instant cache hits
+
+### Champion cards CountUp + win-rate bar
+
+Status: shipped
+
+Implemented as:
+
+- `CountUp` wired into win rate % and KDA in `champion-table.tsx`, 0.7s ease-out
+- animated fill bar below the stats line: `scaleX 0 → winRate`, spring 220/28, green ≥50% / red <50%
+- reduced motion: `initial={{ scaleX: s.winRate }}` skips the fill animation
+
+### Match detail polish batch
+
+Status: shipped
+
+Implemented as:
+
+- blue/red team blocks stagger: blue enters immediately, red delayed 120ms, spring 300/28
+- `isMe` participant row: pulsing `boxShadow` ring overlay, 2.8s loop, delayed 0.8s after row lands, disabled for reduced motion
+- compact champion strip: appears below account header when hero scrolls past, `position: fixed` with live `getBoundingClientRect()` measurement via `[data-account-header]` query
+- hero↔strip crossfade: hero exits `opacity 0, y -8` over 250ms; strip enters with spring 400/35
+
+### Empty-state animation
+
+Status: shipped
+
+Implemented as:
+
+- `m.p` with `initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}` on all three empty-state paragraphs (matches, trends, champions routes)
+- no reduced-motion gate — a 400ms opacity fade is below the threshold of distracting motion
+
+---
+
+## Bigger swings
 
 ### Reduced-motion audit
 
-Status: parked
+Status: shipped
 
-This is important because it demonstrates engineering depth, not just visual flair.
+Audit surface resolved:
 
-Audit:
-
-- card tilt
-- page transitions
-- chart animations
-- splash backdrop
-- count-up numbers
-- skeletons/shimmer
-- hover animations
-- shared element transitions
-
-Document fallbacks in README if meaningful.
+- card tilt (`card-tilt.tsx`) — `useReducedMotion` added; returns `<>{children}</>` (no tilt wrapper) when reduced ✓
+- page transitions — `effectiveDir` collapses to fade ✓
+- chart animations (Recharts `trend-kda.tsx`) — `animationDuration={reduced ? 0 : 1800}` ✓
+- splash backdrop — `loopActive = !reduced && isPresent` ✓
+- count-up numbers — `skip = reduced` guard ✓
+- skeletons/shimmer — `@media (prefers-reduced-motion: reduce) { .animate-shimmer { animation: none } }` in `index.css` ✓
+- heatmap wave — same `prefers-reduced-motion` block in `index.css` ✓
+- card breathing — same block ✓
+- hover animations — `whileHover` generally fine ✓
+- shared element transitions — `morphEpoch`/layout animations not gated (acceptable; layout shifts are position-based, not decorative)
+- nav icon spring pops — `initial={false}` when reduced ✓
 
 ### Magnetic hover on key buttons
 
@@ -214,6 +244,6 @@ Status: parked
 
 Ideas:
 
-- cursor proximity slightly pulls buttons
-- use very sparingly
-- high gimmick risk if overused
+- cursor proximity slightly pulls the button toward the cursor
+- use very sparingly (one or two hero CTAs at most)
+- high gimmick risk if overused; revisit only when other polish is complete

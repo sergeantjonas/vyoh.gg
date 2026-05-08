@@ -1,4 +1,6 @@
 import type { MatchSummary } from "@vyoh/shared";
+import { cloneElement } from "react";
+import type { ReactElement, SVGProps } from "react";
 import CalendarHeatmap from "react-calendar-heatmap";
 
 type Value = CalendarHeatmap.ReactCalendarHeatmapValue<string>;
@@ -54,6 +56,15 @@ export function TrendActivity({ matches }: { matches: MatchSummary[] }) {
         titleForValue={titleForValue}
         showMonthLabels
         showWeekdayLabels
+        transformDayElement={(element, _value, index) => {
+          const el = element as ReactElement<SVGProps<SVGRectElement>>;
+          const col = Math.floor(index / 7);
+          const row = index % 7;
+          return cloneElement(el, {
+            className: `${el.props.className ?? ""} heatmap-cell`.trim(),
+            style: { animationDelay: `${(col + row) * 10}ms` },
+          });
+        }}
       />
     </section>
   );

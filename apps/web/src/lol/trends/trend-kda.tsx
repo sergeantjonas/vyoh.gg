@@ -58,7 +58,7 @@ export function TrendKda({ points }: { points: KdaPoint[] }) {
               dot={{ r: 3, fill: "#34d399", stroke: "#34d399" }}
               activeDot={{ r: 5, fill: "#34d399", stroke: "#34d399" }}
               fill="url(#kda-area)"
-              animationDuration={1800}
+              animationDuration={reduced ? 0 : 1800}
               animationBegin={reduced ? 0 : 480}
               animationEasing="ease-out"
             />

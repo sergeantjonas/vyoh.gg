@@ -2,6 +2,7 @@ import {
   type MotionStyle,
   m,
   useMotionValue,
+  useReducedMotion,
   useSpring,
   useTransform,
 } from "motion/react";
@@ -17,6 +18,7 @@ export function CardTilt({
   children: ReactNode;
   className?: string;
 }) {
+  const reduced = useReducedMotion();
   const px = useMotionValue(0);
   const py = useMotionValue(0);
   const rotateX = useSpring(useTransform(py, [-1, 1], [TILT_RANGE, -TILT_RANGE]), SPRING);
@@ -40,10 +42,13 @@ export function CardTilt({
     transformStyle: "preserve-3d",
   };
 
+  if (reduced) return <>{children}</>;
+
   return (
     <m.div
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
+      whileTap={{ scale: 0.97 }}
       style={style}
       className={className}
     >

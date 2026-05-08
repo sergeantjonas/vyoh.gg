@@ -6,6 +6,7 @@ import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
 import { useCachedMatches } from "@/lol/matches/use-matches";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { m } from "motion/react";
 import { useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/")({
@@ -61,10 +62,15 @@ function MatchesPage() {
         </>
       )}
       {!matches.isPending && !matches.isError && flat.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <m.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="text-sm text-muted-foreground"
+        >
           No matches cached yet. The background sync runs every 5 minutes — check back
           shortly, or hit refresh.
-        </p>
+        </m.p>
       )}
     </div>
   );

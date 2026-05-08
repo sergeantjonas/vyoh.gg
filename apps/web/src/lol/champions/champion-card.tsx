@@ -61,7 +61,7 @@ export function ChampionCardChrome({
         }}
         className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md"
       >
-        <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
+        <div className="size-full card-splash-breathe">
           <img
             src={src}
             onLoad={handleLoad}

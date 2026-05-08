@@ -59,7 +59,14 @@ function TrendsPage() {
       {isPending && !matches ? (
         <TrendsSkeleton />
       ) : !matches || matches.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No matches yet to chart.</p>
+        <m.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="text-sm text-muted-foreground"
+        >
+          No matches yet to chart.
+        </m.p>
       ) : (
         <div className="flex flex-col gap-8">
           <Reveal>
