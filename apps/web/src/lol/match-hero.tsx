@@ -21,9 +21,14 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
   return (
     <m.div
       layoutId={`match-card-${summary.matchId}`}
-      transition={{ layout: { type: "spring", stiffness: 180, damping: 28 } }}
+      transition={{ layout: { type: "spring", stiffness: 170, damping: 30 } }}
       style={championCardStyle(summary.champion)}
-      className={championCardBaseClassName}
+      className={cn(
+        championCardBaseClassName,
+        // Match the lifted-row treatment so the morph endpoint visually
+        // floats above the surrounding detail content.
+        "z-30 shadow-2xl shadow-black/50"
+      )}
     >
       <ChampionCardChrome champion={summary.champion} win={summary.win} />
       <div className="relative ml-auto flex flex-col items-end gap-1">

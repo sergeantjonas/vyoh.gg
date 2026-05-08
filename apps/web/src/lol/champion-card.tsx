@@ -5,6 +5,12 @@ import { shouldFlipChampion } from "@/lol/champion-direction";
 import { m } from "motion/react";
 import { type CSSProperties, useState } from "react";
 
+// Module-scope cache of splash URLs whose `<img>` has already fired
+// `onLoad` at least once during this session. Survives unmount, so a row
+// that remounts (virtualizer reuse, morphEpoch bump on detail back-nav)
+// can skip the opacity-0 → opacity-95 fade and stay painted.
+const loadedSrcs = new Set<string>();
+
 export const championCardBaseClassName =
   "themed-card relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out";
 
@@ -33,11 +39,14 @@ export function ChampionCardChrome({
     : championCardSplashUrl(champion);
 
   // First-paint fade-in: stays at opacity-0 until the very first image
-  // resolves, then transitions to the resting opacity. The boolean is
-  // intentionally not reset on src/champion changes — once a card has had
-  // anything loaded, virtualizer-driven swaps reuse the previous frame
-  // until the new image decodes, so there's no flicker mid-scroll.
-  const [loaded, setLoaded] = useState(false);
+  // resolves, then transitions to the resting opacity. Already-loaded
+  // URLs initialize as `true` so list↔detail morph remounts (driven by
+  // morphEpoch) don't strobe the whole strip back through the fade.
+  const [loaded, setLoaded] = useState(() => loadedSrcs.has(src));
+  const handleLoad = () => {
+    loadedSrcs.add(src);
+    setLoaded(true);
+  };
 
   return (
     <>
@@ -52,7 +61,7 @@ export function ChampionCardChrome({
         <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
           <img
             src={src}
-            onLoad={() => setLoaded(true)}
+            onLoad={handleLoad}
             onError={() => setErroredChampion(champion)}
             alt=""
             aria-hidden="true"

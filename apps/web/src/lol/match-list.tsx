@@ -15,6 +15,14 @@ const STAGGER_PER_ITEM = 0.06;
 const ENTER_DURATION = 0.2;
 const INITIAL_VISIBLE = 20;
 const REVEAL_INCREMENT = 10;
+// While the back-nav scroll-restore + hero→row morph play out, swap
+// non-active rows to skeletons at a low opacity so the strip reads as
+// "loading" around the one card that came back. Mirrors the
+// match-detail skeleton hold. ~32ms epoch bump + ~600ms spring settle,
+// with a small buffer.
+const SETTLE_HOLD_MS = 800;
+const SETTLE_REVEAL_MS = 0.35;
+const SETTLE_HOLD_OPACITY = 0.6;
 
 export function MatchList({
   matches,
@@ -36,8 +44,18 @@ export function MatchList({
   const parentRef = useRef<HTMLDivElement>(null);
   const prevMatchesLengthRef = useRef<number | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
-  const { readListScroll, bumpMorphEpoch } = useActiveMatch();
+  const { readListScroll, bumpMorphEpoch, activeMatch } = useActiveMatch();
   const [restoredScrollY] = useState(() => readListScroll());
+  // When we land here from a match-detail back-nav, restoredScrollY > 0
+  // and we want the surrounding rows to stay invisible until the morph is
+  // back in place. With no scroll to restore (Trends → Matches, fresh
+  // visit, etc.) start settled so rows render normally.
+  const [settled, setSettled] = useState(() => restoredScrollY <= 0);
+  useEffect(() => {
+    if (settled) return;
+    const id = window.setTimeout(() => setSettled(true), SETTLE_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [settled]);
   const [visibleCount, setVisibleCount] = useState(() => {
     if (restoredScrollY > 0) {
       const neededRows =
@@ -158,6 +176,11 @@ export function MatchList({
       {items.map((virtualRow) => {
         const match = matches[virtualRow.index];
         const isNew = virtualRow.index >= seenCount;
+        const isActiveRow = match !== undefined && activeMatch === match.matchId;
+        // Non-active rows during settle stay at opacity-0 so the morphing
+        // card travels through an empty strip; once the timer flips, they
+        // fade in together.
+        const heldDuringSettle = !settled && match !== undefined && !isActiveRow;
         const staggerDelay = isNew
           ? (virtualRow.index - seenCount) * STAGGER_PER_ITEM
           : 0;
@@ -174,16 +197,22 @@ export function MatchList({
             key={virtualRow.index}
             data-index={virtualRow.index}
             ref={virtualizer.measureElement}
-            initial={{ opacity: isNew ? 0 : 1 }}
-            animate={{ opacity: 1 }}
+            initial={{
+              opacity: isNew ? 0 : heldDuringSettle ? SETTLE_HOLD_OPACITY : 1,
+            }}
+            animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
             transition={{
-              duration: isNew ? ENTER_DURATION : 0,
-              delay: staggerDelay,
+              duration: heldDuringSettle
+                ? 0
+                : isNew
+                  ? ENTER_DURATION
+                  : SETTLE_REVEAL_MS,
+              delay: heldDuringSettle ? 0 : isNew ? staggerDelay : 0,
               ease: "easeOut",
             }}
             style={rowStyle}
           >
-            {match ? (
+            {match && !heldDuringSettle ? (
               <MatchRow
                 match={match}
                 accountSlug={accountSlug}

@@ -60,10 +60,16 @@ export function MatchRow({
           key={`${match.matchId}-${morphEpoch}`}
           layoutId={isActive ? `match-card-${match.matchId}` : undefined}
           transition={{
-            layout: { type: "spring", stiffness: 180, damping: 28 },
+            layout: { type: "spring", stiffness: 170, damping: 30 },
           }}
           style={championCardStyle(match.champion)}
-          className={championCardClassName}
+          className={cn(
+            championCardClassName,
+            // While this row owns the morph, lift it above its neighbors so
+            // the travel reads as a single card moving across the page
+            // instead of a strip-internal swap.
+            isActive && "z-30 shadow-2xl shadow-black/50"
+          )}
         >
           <ChampionCardChrome champion={match.champion} win={match.win} />
           <div className="relative ml-auto flex flex-col items-end gap-1">
