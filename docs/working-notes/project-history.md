@@ -40,6 +40,21 @@ Cron used to fetch only the latest 20 matches per account, head-only. Match list
 
 Backfill events emit through a small `MatchEventsService` (`Subject<MatchUpdatedEvent>` + `forPuuid` filter). The `@Sse('matches/events')` controller route resolves the requested account to a puuid and merges filtered events with a 30 s heartbeat. The frontend `useMatchEventsSubscription` hook opens an `EventSource` at the `$accountSlug.tsx` layout and `queryClient.invalidateQueries` against `["lol", "matches-cached", …]` / `["lol", "matches-cached-infinite", …]` on `match-updated`. Push for *signalling*; pull (DB read via `/matches/cached`) for *content* — keeps the SSE schema decoupled from the row schema. Mounted at the layout, so the stream survives sub-tab navigation and tears down on account switch / unmount.
 
+### Splash backdrop perf overhaul
+
+Hover-driven flicker on a 4K monitor exposed five compounding issues in the splash backdrop pipeline.
+
+- `filter: blur(5px)` on the splash `<img>` forced fullscreen re-rasterize each frame any transform animated. Replaced with a wsrv.nl proxy URL that bakes the blur into a small WebP (`?w=600&blur=1&output=webp&q=80`); the browser composites a pre-blurred bitmap with no live filter cost. CSS keeps only `saturate(0.92) brightness(0.7)` (cheap matrix filters).
+- Cached blurhash decode in a module-scope `Map<hash, dataUrl>`. Replaces `react-blurhash` (per-mount canvas paint) with one decode per hash and a reused `<img>` element on subsequent champion swaps.
+- `fetchPriority="low"` on the decorative backdrop image so it stops competing with LCP.
+- `useIsPresent()` from motion settles the Ken Burns transform back to neutral on exit over the same 0.7 s as the parent opacity fade — stops the infinite repeat from continuing on outgoing layers during cross-fade.
+- Hover-driven champion changes debounced 80 ms in `$accountSlug.tsx`. A quick mouse sweep over the match list no longer remounts the backdrop per row.
+- Dropped the `new Image() + decode()` fade-in dance — `<m.img onLoad>` does the same job in less code.
+
+Champion card thumbnails now also route through wsrv.nl: ~12× smaller (89 KB JPG → 7 KB WebP) and ~6× less decode work, with framing identical to the original CDragon centered crop. Both surfaces fall back to the direct CDragon URL via `<img onError>` if wsrv.nl ever fails.
+
+Dep swap: `react-blurhash` → `blurhash` direct. New helpers in `champion-icon.ts`: `championCardSplashUrl`, `championBackdropSplashUrl`. Full rewrite of `splash-backdrop.tsx`; debounce in `$accountSlug.tsx`.
+
 ## Recent arcs (2026-05-08)
 
 ### Trends entrances

@@ -199,6 +199,37 @@ Portfolio signal:
 - API boundaries
 - maintainability
 
+## Candidate write-up 6 — Killing fullscreen-blur flicker on a 4K dashboard
+
+Status: shipped. Write-up not yet drafted.
+
+The splash backdrop layered five concurrent things on a near-fullscreen surface — `filter: blur(5px)` on the splash image, infinite Ken Burns transform, a 0.7 s opacity cross-fade keyed remount, an offsetX shift, and a fade-in opacity. On a 4K monitor this caused visible flicker during scroll-and-hover. The fix was a cluster, not one line.
+
+Topics:
+
+- CSS `filter: blur` cost on high-DPI / large viewports — the compositor re-rasterizes the blurred subtree every frame any transform animates underneath
+- pushing the blur upstream into a CDN-side query (`wsrv.nl/?blur=N&output=webp`) so the browser composites a small pre-blurred bitmap with no live filter cost
+- cached blurhash decode (one decode per hash, reused `<img>` element) replacing per-mount canvas paint via `react-blurhash`
+- `useIsPresent` to settle infinite Ken Burns on exit instead of letting it run on outgoing layers during cross-fade
+- 80 ms debounce on hover-driven champion changes so a quick mouse sweep over the match list doesn't remount the backdrop per row
+- `fetchPriority="low"` on a decorative full-viewport image so it stops competing with LCP-relevant resources
+- choosing wsrv.nl over self-hosting (~170 champion thumbnails) — preserves bundle/deploy footprint, with `<img onError>` fallback to the direct CDragon URL for graceful degradation
+- byte and pixel-decode reductions on the card thumbnails: 89 KB JPG / 921k px → 7 KB WebP / 90k px, with identical centered crop framing
+
+Evidence to collect:
+
+- before/after frame-time captures during scroll+hover on a 4K display
+- per-thumbnail byte and pixel-decode reduction tables
+- network HAR before/after
+- screenshots showing visually equivalent final result
+
+Portfolio signal:
+
+- compositor-level perf understanding, not just bundle-size cosmetics
+- pragmatic third-party choices (wsrv.nl) over over-engineering an asset pipeline
+- diagnostic discipline: enumerated six distinct suspects, ranked by impact, addressed the live-filter root cause first
+- visible matter-of-fact perf engineering in a portfolio context
+
 ## README sections to grow incrementally
 
 ### Architecture
