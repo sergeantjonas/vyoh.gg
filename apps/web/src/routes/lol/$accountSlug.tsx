@@ -5,6 +5,7 @@ import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
 import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
+import { profileIconUrl } from "@/lol/_shared/summoner-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";
@@ -13,6 +14,7 @@ import {
   useCachedMatchesWindow,
   useMatchEventsSubscription,
 } from "@/lol/matches/use-matches";
+import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import {
   Link,
   Outlet,
@@ -20,7 +22,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { ChevronLeft, Crown, History, TrendingUp } from "lucide-react";
+import { ChevronLeft, Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -31,12 +33,14 @@ const pageSlideVariants: Variants = {
 };
 
 const TABS = [
-  { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History },
-  { to: "/lol/$accountSlug/trends", label: "Trends", Icon: TrendingUp },
-  { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown },
+  { to: "/lol/$accountSlug", label: "Profile", Icon: LayoutDashboard, exact: true },
+  { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History, exact: false },
+  { to: "/lol/$accountSlug/trends", label: "Trends", Icon: TrendingUp, exact: false },
+  { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown, exact: false },
 ] as const;
 
 function iconPop(label: string): { scale: number; rotate?: number; y?: number } {
+  if (label === "Profile") return { scale: 0.75, y: -4 };
   if (label === "Matches") return { scale: 0.75, rotate: -12 };
   if (label === "Trends") return { scale: 0.75, y: 5 };
   return { scale: 0.65, rotate: 8 };
@@ -106,6 +110,10 @@ function AccountLayout() {
     [navigate]
   );
 
+  const profile = useProfileRank(account);
+  const iconId = profile.data?.profileIconId;
+  const level = profile.data?.summonerLevel;
+
   const matchesPath = `/lol/${accountSlug}/matches`;
   const matchesPathPrefix = `${matchesPath}/`;
   const isMatchDetail =
@@ -155,11 +163,14 @@ function AccountLayout() {
   const slideDirectionRef = useRef(0);
   const prevTabPathnameRef = useRef(pathname);
   if (prevTabPathnameRef.current !== pathname) {
-    const resolve = (to: string) => to.replace("$accountSlug", accountSlug);
+    // Strip trailing slash so the Profile index route ("/lol/$accountSlug")
+    // resolves consistently regardless of how the router normalises it.
+    const norm = (s: string) => s.replace(/\/$/, "");
+    const resolve = (to: string) => norm(to.replace("$accountSlug", accountSlug));
     const prevIdx = TABS.findIndex(
-      ({ to }) => prevTabPathnameRef.current === resolve(to)
+      ({ to }) => norm(prevTabPathnameRef.current) === resolve(to)
     );
-    const currIdx = TABS.findIndex(({ to }) => pathname === resolve(to));
+    const currIdx = TABS.findIndex(({ to }) => norm(pathname) === resolve(to));
     slideDirectionRef.current =
       prevIdx !== -1 && currIdx !== -1 ? Math.sign(currIdx - prevIdx) : 0;
     prevTabPathnameRef.current = pathname;
@@ -232,31 +243,50 @@ function AccountLayout() {
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     {account && (
-                      <section className="flex items-baseline gap-3">
-                        <h2 className="text-xl font-semibold">
-                          {account.gameName}
-                          <span className="text-muted-foreground">
-                            #{account.tagLine}
-                          </span>
-                        </h2>
-                        <AnimatePresence>
-                          {!compact && (
-                            <m.span
-                              key="region"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={
-                                prefersReducedMotion
-                                  ? { duration: 0 }
-                                  : { duration: 0.15 }
-                              }
-                              className="text-sm uppercase text-muted-foreground"
-                            >
-                              {account.region}
-                            </m.span>
-                          )}
-                        </AnimatePresence>
+                      <section className="flex items-center gap-3">
+                        {iconId != null && (
+                          <div className="relative shrink-0">
+                            <img
+                              src={profileIconUrl(iconId)}
+                              alt=""
+                              className={cn(
+                                "rounded-full object-cover ring-1 ring-border transition-all",
+                                compact ? "size-7" : "size-9"
+                              )}
+                            />
+                            {level != null && !compact && (
+                              <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
+                                {level}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-baseline gap-3">
+                          <h2 className="text-xl font-semibold">
+                            {account.gameName}
+                            <span className="text-muted-foreground">
+                              #{account.tagLine}
+                            </span>
+                          </h2>
+                          <AnimatePresence>
+                            {!compact && (
+                              <m.span
+                                key="region"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={
+                                  prefersReducedMotion
+                                    ? { duration: 0 }
+                                    : { duration: 0.15 }
+                                }
+                                className="text-sm uppercase text-muted-foreground"
+                              >
+                                {account.region}
+                              </m.span>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       </section>
                     )}
                     {!isMatchDetail && (
@@ -296,10 +326,11 @@ function AccountLayout() {
                         transition={{ duration: 0.15 }}
                         className="flex gap-1 border-b border-border"
                       >
-                        {TABS.map(({ to, label, Icon }) => {
+                        {TABS.map(({ to, label, Icon, exact }) => {
                           const tabPath = to.replace("$accountSlug", accountSlug);
-                          const active =
-                            pathname === tabPath || pathname.startsWith(`${tabPath}/`);
+                          const active = exact
+                            ? pathname === tabPath
+                            : pathname === tabPath || pathname.startsWith(`${tabPath}/`);
                           return (
                             <Link
                               key={to}

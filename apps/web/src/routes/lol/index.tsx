@@ -12,11 +12,7 @@ function LolIndexPage() {
 
   if (firstSlug) {
     return (
-      <Navigate
-        to="/lol/$accountSlug/matches"
-        params={{ accountSlug: firstSlug }}
-        replace
-      />
+      <Navigate to="/lol/$accountSlug" params={{ accountSlug: firstSlug }} replace />
     );
   }
 

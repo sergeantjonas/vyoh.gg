@@ -20,11 +20,13 @@ export function AccountSwitcher({ currentSlug }: { currentSlug: string }) {
 
   const segment = pathname.split("/")[3];
   const tabRoute =
-    segment === "trends"
-      ? "/lol/$accountSlug/trends"
-      : segment === "champions"
-        ? "/lol/$accountSlug/champions"
-        : "/lol/$accountSlug/matches";
+    segment === "matches"
+      ? "/lol/$accountSlug/matches"
+      : segment === "trends"
+        ? "/lol/$accountSlug/trends"
+        : segment === "champions"
+          ? "/lol/$accountSlug/champions"
+          : "/lol/$accountSlug";
 
   return (
     <Select
