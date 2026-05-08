@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import Bottleneck from "bottleneck";
 import { METHOD_LIMITS, type MethodFamily } from "./method-families";
 import type { Regional } from "./regions";
@@ -10,6 +10,10 @@ const SCHEDULE_DEADLINE_MS = 15_000;
 const STILL_QUEUED_WARNING_MS = 10_000;
 const SLOW_QUEUE_LOG_MS = 2_000;
 const MAX_CONCURRENT_PER_REGIONAL = 8;
+const COUNTER_DUMP_INTERVAL_MS = 30_000;
+
+const APP_FAST_RESERVOIR = 20;
+const APP_SLOW_RESERVOIR = 100;
 
 // 100 calls per 120 s = 1 call per 1.2 s. Reservoir increase semantics
 // (vs the older refresh semantics) approximate Riot's rolling window —
@@ -24,7 +28,7 @@ type AppWindow = { limiter: Bottleneck; windowSec: number };
 type MethodEntry = { limiter: Bottleneck; windowSec: number };
 
 @Injectable()
-export class RateLimiterService {
+export class RateLimiterService implements OnModuleDestroy {
   private readonly logger = new Logger(RateLimiterService.name);
   private readonly appWindows = new Map<Regional, AppWindow[]>();
   private readonly methodLimiters = new Map<string, MethodEntry>();
@@ -33,20 +37,22 @@ export class RateLimiterService {
   // fighting Bottleneck's internal scheduler.
   deadlineMs: number = SCHEDULE_DEADLINE_MS;
 
+  private dumpInterval: ReturnType<typeof setInterval> | undefined;
+
   constructor() {
     for (const regional of REGIONALS) {
       const fast = new Bottleneck({
-        reservoir: 20,
-        reservoirRefreshAmount: 20,
+        reservoir: APP_FAST_RESERVOIR,
+        reservoirRefreshAmount: APP_FAST_RESERVOIR,
         reservoirRefreshInterval: 1_000,
         minTime: 50,
         maxConcurrent: MAX_CONCURRENT_PER_REGIONAL,
       });
       const slow = new Bottleneck({
-        reservoir: 100,
+        reservoir: APP_SLOW_RESERVOIR,
         reservoirIncreaseAmount: 1,
         reservoirIncreaseInterval: SLOW_INCREASE_INTERVAL_MS,
-        reservoirIncreaseMaximum: 100,
+        reservoirIncreaseMaximum: APP_SLOW_RESERVOIR,
       });
       fast.chain(slow);
       this.appWindows.set(regional, [
@@ -54,6 +60,16 @@ export class RateLimiterService {
         { limiter: slow, windowSec: 120 },
       ]);
     }
+
+    this.dumpInterval = setInterval(() => {
+      void this.dumpCounters();
+    }, COUNTER_DUMP_INTERVAL_MS);
+    // Keep the interval from holding the process open during shutdown / tests.
+    this.dumpInterval.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.dumpInterval) clearInterval(this.dumpInterval);
   }
 
   async schedule<T>(
@@ -63,6 +79,7 @@ export class RateLimiterService {
   ): Promise<T> {
     const limiter = this.methodLimiterFor(regional, family).limiter;
     const start = Date.now();
+    const deadlineMs = this.deadlineMs;
 
     const stillQueuedWarn = setTimeout(() => {
       const c = limiter.counts();
@@ -77,9 +94,14 @@ export class RateLimiterService {
 
     const queued = limiter.schedule(async () => {
       const waited = Date.now() - start;
-      // Diagnostic: log every callback dispatch with its queue wait so we can
-      // tell apart "callback never ran" (no log at all) from "callback ran
-      // and the inner fetch hung" (log present, no fetch result).
+      // The caller has already given up via the outer deadline race — abort
+      // before invoking fn(). Without this short-circuit, the Bottleneck slot
+      // stays consumed until the wrapped fetch resolves, which on a wedged
+      // chain is "never" and which is what caused EXECUTING to grow
+      // monotonically across cron ticks.
+      if (waited >= deadlineMs) {
+        throw new RateLimiterTimeoutError(regional, family, deadlineMs);
+      }
       this.logger.log(`${regional}:${family} callback dispatched after ${waited}ms`);
       try {
         const result = await fn();
@@ -93,7 +115,11 @@ export class RateLimiterService {
       }
     });
 
-    const deadlineMs = this.deadlineMs;
+    // If the deadline wins the race, `queued` may still reject later when the
+    // inner callback finally dispatches and short-circuits. Attach a no-op
+    // handler so that late rejection doesn't surface as an unhandledRejection.
+    queued.catch(() => {});
+
     let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<never>((_, reject) => {
       deadlineTimer = setTimeout(() => {
@@ -144,6 +170,34 @@ export class RateLimiterService {
     }
   }
 
+  private async dumpCounters(): Promise<void> {
+    const lines: string[] = [];
+
+    for (const [regional, windows] of this.appWindows) {
+      for (const window of windows) {
+        const role = window.windowSec === 1 ? "fast" : "slow";
+        const counts = window.limiter.counts();
+        const reservoir = await window.limiter.currentReservoir();
+        if (!isBusy(counts) && !isThrottled(role, reservoir)) continue;
+        lines.push(
+          `  ${regional}:${role.padEnd(4)} reservoir=${formatReservoir(reservoir)} ${formatCounts(counts)}`
+        );
+      }
+    }
+
+    for (const [key, entry] of this.methodLimiters) {
+      const counts = entry.limiter.counts();
+      const reservoir = await entry.limiter.currentReservoir();
+      if (!isBusy(counts)) continue;
+      lines.push(
+        `  ${key} reservoir=${formatReservoir(reservoir)} ${formatCounts(counts)}`
+      );
+    }
+
+    if (lines.length === 0) return;
+    this.logger.debug(`limiter counters:\n${lines.join("\n")}`);
+  }
+
   private methodLimiterFor(regional: Regional, family: MethodFamily): MethodEntry {
     const key = `${regional}:${family}`;
     const existing = this.methodLimiters.get(key);
@@ -184,6 +238,31 @@ async function shrinkReservoir(limiter: Bottleneck, target: number): Promise<voi
   const current = await limiter.currentReservoir();
   if (current === null || current === undefined) return;
   if (target < current) {
-    await limiter.updateSettings({ reservoir: target });
+    // incrementReservoir with a negative delta drains the bucket without
+    // touching the rest of the limiter's settings. updateSettings({ reservoir })
+    // can interfere with the reservoirIncrease ticker on the slow window —
+    // since `syncFromHeaders` runs on every successful response, that path
+    // can repeatedly nudge the ticker out of phase and starve the chain.
+    await limiter.incrementReservoir(target - current);
   }
+}
+
+type Counts = ReturnType<Bottleneck["counts"]>;
+
+function isBusy(c: Counts): boolean {
+  return c.RECEIVED > 0 || c.QUEUED > 0 || c.RUNNING > 0 || c.EXECUTING > 0;
+}
+
+function isThrottled(role: "fast" | "slow", reservoir: number | null): boolean {
+  if (reservoir === null) return false;
+  const full = role === "fast" ? APP_FAST_RESERVOIR : APP_SLOW_RESERVOIR;
+  return reservoir < full;
+}
+
+function formatReservoir(reservoir: number | null): string {
+  return reservoir === null ? "-" : String(reservoir);
+}
+
+function formatCounts(c: Counts): string {
+  return `R=${c.RECEIVED} Q=${c.QUEUED} run=${c.RUNNING} exec=${c.EXECUTING}`;
 }
