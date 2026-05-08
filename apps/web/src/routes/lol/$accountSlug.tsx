@@ -21,7 +21,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { Crown, History, TrendingUp } from "lucide-react";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const TABS = [
@@ -122,6 +122,16 @@ function AccountLayout() {
     mainScrollRef.current?.scrollTo(0, 0);
   }, [pathname, matchesPath, matchesPathPrefix]);
 
+  const prefersReducedMotion = useReducedMotion();
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const onScroll = () => setCompact(el.scrollTop > 72);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
   const [initialChampion, setInitialChampion] = useState<string | null>(null);
   useEffect(() => {
@@ -160,7 +170,18 @@ function AccountLayout() {
         >
           <div className="flex flex-col gap-6">
             <header className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md">
-              <div className="mx-auto max-w-4xl px-6 pt-6 pb-3">
+              <m.div
+                className="mx-auto max-w-4xl px-6"
+                animate={{
+                  paddingTop: compact ? 8 : 24,
+                  paddingBottom: compact ? 8 : 12,
+                }}
+                transition={
+                  prefersReducedMotion
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 380, damping: 32 }
+                }
+              >
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     {account && (
@@ -171,9 +192,24 @@ function AccountLayout() {
                             #{account.tagLine}
                           </span>
                         </h2>
-                        <span className="text-sm uppercase text-muted-foreground">
-                          {account.region}
-                        </span>
+                        <AnimatePresence>
+                          {!compact && (
+                            <m.span
+                              key="region"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={
+                                prefersReducedMotion
+                                  ? { duration: 0 }
+                                  : { duration: 0.15 }
+                              }
+                              className="text-sm uppercase text-muted-foreground"
+                            >
+                              {account.region}
+                            </m.span>
+                          )}
+                        </AnimatePresence>
                       </section>
                     )}
                     {!isMatchDetail && (
@@ -244,7 +280,7 @@ function AccountLayout() {
                     </div>
                   )}
                 </div>
-              </div>
+              </m.div>
             </header>
 
             <AnimatePresence mode="popLayout" initial={false}>

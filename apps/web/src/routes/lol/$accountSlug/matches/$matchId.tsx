@@ -7,7 +7,11 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { mainScrollRef } from "@/lib/scroll-container";
+import { cn } from "@/lib/utils";
+import { championIconUrl } from "@/lol/_shared/champion-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { championCardStyle } from "@/lol/champions/champion-card";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/matches/match-detail-view";
@@ -66,6 +70,15 @@ function MatchDetailPage() {
   useEffect(() => {
     const id = window.setTimeout(() => setBodyReady(true), MORPH_SETTLE_MS);
     return () => window.clearTimeout(id);
+  }, []);
+
+  const [heroScrolledPast, setHeroScrolledPast] = useState(false);
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const onScroll = () => setHeroScrolledPast(el.scrollTop > 120);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
   const myParticipant =
@@ -141,6 +154,47 @@ function MatchDetailPage() {
         </Breadcrumb>
       </m.div>
       {heroSummary && <MatchHero summary={heroSummary} />}
+      <AnimatePresence>
+        {heroScrolledPast && heroSummary && (
+          <m.div
+            key="champion-strip"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            style={championCardStyle(heroSummary.champion)}
+            className="sticky top-14 z-30 ml-[calc(50%-50vw)] w-screen border-b border-border/50 bg-background/80 backdrop-blur-sm"
+          >
+            <div className="mx-auto max-w-4xl px-6 py-2">
+              <div className="flex items-center gap-3">
+                <img
+                  src={championIconUrl(heroSummary.champion)}
+                  alt=""
+                  className="size-6 rounded-sm object-cover"
+                />
+                <span className="text-sm font-medium">
+                  {championName(heroSummary.champion)}
+                </span>
+                <span
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-wider",
+                    heroSummary.win ? "text-emerald-400" : "text-red-400"
+                  )}
+                >
+                  {heroSummary.win ? "Win" : "Loss"}
+                </span>
+                <span className="font-mono text-sm tabular-nums">
+                  <span className="text-emerald-400">{heroSummary.kills}</span>
+                  <span className="text-muted-foreground"> / </span>
+                  <span className="text-red-400">{heroSummary.deaths}</span>
+                  <span className="text-muted-foreground"> / </span>
+                  <span className="text-amber-400">{heroSummary.assists}</span>
+                </span>
+              </div>
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
