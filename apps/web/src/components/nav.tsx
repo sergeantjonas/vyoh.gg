@@ -19,7 +19,7 @@ export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <nav className="relative bg-background/60 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"

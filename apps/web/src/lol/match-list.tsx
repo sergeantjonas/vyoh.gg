@@ -1,10 +1,11 @@
+import { mainScrollRef } from "@/lib/scroll-container";
 import { usePerfFlag } from "@/lib/use-perf-flag";
 import { useActiveMatch } from "@/lol/active-match-context";
 import { MatchCardSkeleton } from "@/lol/match-list-skeleton";
 import { MatchRow } from "@/lol/match-row";
 import { useChampionName } from "@/lol/use-champions";
 import { MATCHES_PAGE_SIZE } from "@/lol/use-matches";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -68,21 +69,24 @@ export function MatchList({
   const didInitialScrollRef = useRef(false);
   if (!didInitialScrollRef.current && restoredScrollY > 0) {
     didInitialScrollRef.current = true;
-    window.scrollTo(0, restoredScrollY);
+    mainScrollRef.current?.scrollTo(0, restoredScrollY);
   }
 
   useLayoutEffect(() => {
-    if (parentRef.current) {
-      setScrollMargin(parentRef.current.offsetTop);
+    const container = mainScrollRef.current;
+    if (parentRef.current && container) {
+      const parentRect = parentRef.current.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      setScrollMargin(parentRect.top - containerRect.top + container.scrollTop);
     }
-    if (restoredScrollY <= 0) return;
+    if (restoredScrollY <= 0 || !container) return;
     const target = restoredScrollY;
-    window.scrollTo(0, target);
+    container.scrollTo(0, target);
     let cancelled = false;
     const pinUntil = performance.now() + 600;
     const pin = () => {
       if (cancelled || performance.now() > pinUntil) return;
-      if (Math.abs(window.scrollY - target) > 1) window.scrollTo(0, target);
+      if (Math.abs(container.scrollTop - target) > 1) container.scrollTo(0, target);
       requestAnimationFrame(pin);
     };
     requestAnimationFrame(pin);
@@ -109,11 +113,12 @@ export function MatchList({
   const phantomCount = isFetchingNextPage && hasNextPage ? MATCHES_PAGE_SIZE : 0;
   const totalCount = reveal + phantomCount;
 
-  const virtualizer = useWindowVirtualizer({
+  const virtualizer = useVirtualizer({
     count: totalCount,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     scrollMargin,
     overscan: 4,
+    getScrollElement: () => mainScrollRef.current,
   });
 
   const items = virtualizer.getVirtualItems();
@@ -202,11 +207,7 @@ export function MatchList({
             }}
             animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
             transition={{
-              duration: heldDuringSettle
-                ? 0
-                : isNew
-                  ? ENTER_DURATION
-                  : SETTLE_REVEAL_MS,
+              duration: heldDuringSettle ? 0 : isNew ? ENTER_DURATION : SETTLE_REVEAL_MS,
               delay: heldDuringSettle ? 0 : isNew ? staggerDelay : 0,
               ease: "easeOut",
             }}

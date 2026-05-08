@@ -1,3 +1,4 @@
+import { mainScrollRef } from "@/lib/scroll-container";
 import {
   type ReactNode,
   createContext,
@@ -27,7 +28,7 @@ export function ActiveMatchProvider({ children }: { children: ReactNode }) {
   const bumpMorphEpoch = useCallback(() => setMorphEpoch((e) => e + 1), []);
   const scrollYRef = useRef(0);
   const saveListScroll = useCallback(() => {
-    scrollYRef.current = window.scrollY;
+    scrollYRef.current = mainScrollRef.current?.scrollTop ?? 0;
   }, []);
   const readListScroll = useCallback(() => scrollYRef.current, []);
   const clearListScroll = useCallback(() => {

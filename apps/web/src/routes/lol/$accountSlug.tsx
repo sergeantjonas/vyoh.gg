@@ -1,4 +1,5 @@
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/account-switcher";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/active-match-context";
@@ -112,7 +113,7 @@ function AccountLayout() {
     const isReturnFromDetail =
       prev.startsWith(matchesPathPrefix) && pathname === matchesPath;
     if (isReturnFromDetail) return;
-    window.scrollTo(0, 0);
+    mainScrollRef.current?.scrollTo(0, 0);
   }, [pathname, matchesPath, matchesPathPrefix]);
 
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
@@ -152,83 +153,91 @@ function AccountLayout() {
           }}
         >
           <div className="flex flex-col gap-6">
-            <header className="sticky top-0 z-40 -mx-6 -mt-6 bg-background/70 px-6 pt-6 pb-3 backdrop-blur-md">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  {account && (
-                    <section className="flex items-baseline gap-3">
-                      <h2 className="text-xl font-semibold">
-                        {account.gameName}
-                        <span className="text-muted-foreground">#{account.tagLine}</span>
-                      </h2>
-                      <span className="text-sm uppercase text-muted-foreground">
-                        {account.region}
-                      </span>
-                    </section>
-                  )}
+            <header className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md">
+              <div className="mx-auto max-w-4xl px-6 pt-6 pb-3">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {account && (
+                      <section className="flex items-baseline gap-3">
+                        <h2 className="text-xl font-semibold">
+                          {account.gameName}
+                          <span className="text-muted-foreground">
+                            #{account.tagLine}
+                          </span>
+                        </h2>
+                        <span className="text-sm uppercase text-muted-foreground">
+                          {account.region}
+                        </span>
+                      </section>
+                    )}
+                    {!isMatchDetail && (
+                      <div className="flex items-center gap-2">
+                        <QueueFilter />
+                        <AccountSwitcher currentSlug={accountSlug} />
+                        <RefreshAccountButton account={account} />
+                      </div>
+                    )}
+                  </div>
+
                   {!isMatchDetail && (
-                    <div className="flex items-center gap-2">
-                      <QueueFilter />
-                      <AccountSwitcher currentSlug={accountSlug} />
-                      <RefreshAccountButton account={account} />
+                    <div className="flex gap-1 border-b border-border">
+                      {TABS.map(({ to, label, Icon }) => {
+                        const tabPath = to.replace("$accountSlug", accountSlug);
+                        const active =
+                          pathname === tabPath || pathname.startsWith(`${tabPath}/`);
+                        return (
+                          <Link
+                            key={to}
+                            to={to}
+                            params={{ accountSlug }}
+                            search={(prev: AccountSearch) => prev}
+                            className={cn(
+                              "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+                              active
+                                ? "text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                "size-4 transition-all",
+                                active
+                                  ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
+                                  : "text-muted-foreground group-hover:text-foreground"
+                              )}
+                            />
+                            {label}
+                            {active && (
+                              <m.div
+                                layoutId="lol-tab-indicator"
+                                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
+                                animate={{
+                                  boxShadow: [
+                                    "0 0 0px 0px rgba(56,189,248,0)",
+                                    "0 0 10px 1px rgba(56,189,248,0.45)",
+                                    "0 0 0px 0px rgba(56,189,248,0)",
+                                  ],
+                                }}
+                                transition={{
+                                  default: {
+                                    type: "spring",
+                                    stiffness: 500,
+                                    damping: 35,
+                                  },
+                                  boxShadow: {
+                                    duration: 2.4,
+                                    repeat: Number.POSITIVE_INFINITY,
+                                    ease: "easeInOut",
+                                  },
+                                }}
+                              />
+                            )}
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-
-                {!isMatchDetail && (
-                  <div className="flex gap-1 border-b border-border">
-                    {TABS.map(({ to, label, Icon }) => {
-                      const tabPath = to.replace("$accountSlug", accountSlug);
-                      const active =
-                        pathname === tabPath || pathname.startsWith(`${tabPath}/`);
-                      return (
-                        <Link
-                          key={to}
-                          to={to}
-                          params={{ accountSlug }}
-                          search={(prev: AccountSearch) => prev}
-                          className={cn(
-                            "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                            active
-                              ? "text-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <Icon
-                            className={cn(
-                              "size-4 transition-all",
-                              active
-                                ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
-                                : "text-muted-foreground group-hover:text-foreground"
-                            )}
-                          />
-                          {label}
-                          {active && (
-                            <m.div
-                              layoutId="lol-tab-indicator"
-                              className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
-                              animate={{
-                                boxShadow: [
-                                  "0 0 0px 0px rgba(56,189,248,0)",
-                                  "0 0 10px 1px rgba(56,189,248,0.45)",
-                                  "0 0 0px 0px rgba(56,189,248,0)",
-                                ],
-                              }}
-                              transition={{
-                                default: { type: "spring", stiffness: 500, damping: 35 },
-                                boxShadow: {
-                                  duration: 2.4,
-                                  repeat: Number.POSITIVE_INFINITY,
-                                  ease: "easeInOut",
-                                },
-                              }}
-                            />
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             </header>
 

@@ -5,6 +5,7 @@ import { Nav } from "@/components/nav";
 import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { SplashProvider } from "@/lol/splash-backdrop";
 import {
   HeadContent,
@@ -36,35 +37,44 @@ function RootLayout() {
       <ErrorBoundary>
         <PerfOverlay />
       </ErrorBoundary>
-      <div className="min-h-dvh text-foreground">
+      <div className="flex h-dvh flex-col overflow-hidden text-foreground">
         <Nav />
-        <main className="mx-auto max-w-4xl p-6">
-          <ErrorBoundary
-            fallback={(error) => (
-              <div className="flex flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-4">
-                <p className="text-sm font-medium text-destructive">
-                  Something broke on this page.
-                </p>
-                <p className="font-mono text-xs text-muted-foreground">{error.message}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.reload()}
-                >
-                  Reload
-                </Button>
-              </div>
-            )}
-          >
-            <m.div
-              key={scope}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
+        <main
+          ref={(el) => {
+            mainScrollRef.current = el;
+          }}
+          className="flex-1 overflow-y-auto [overflow-x:clip]"
+        >
+          <div className="mx-auto max-w-4xl p-6">
+            <ErrorBoundary
+              fallback={(error) => (
+                <div className="flex flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-4">
+                  <p className="text-sm font-medium text-destructive">
+                    Something broke on this page.
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {error.message}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                  >
+                    Reload
+                  </Button>
+                </div>
+              )}
             >
-              <Outlet />
-            </m.div>
-          </ErrorBoundary>
+              <m.div
+                key={scope}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+              >
+                <Outlet />
+              </m.div>
+            </ErrorBoundary>
+          </div>
         </main>
       </div>
     </SplashProvider>
