@@ -247,7 +247,7 @@ API polls Riot spectator API for tracked accounts. Web shows live match progress
 
 Why:
 
-Real-time + polling + SSE in one feature. Pairs with the SSE backfill arc.
+Real-time + polling + SSE in one feature. The SSE backfill arc is now shipped (per-account `match-updated` channel for the historical worker), so the wire format and frontend invalidation pattern are reusable; only the spectator-API polling layer would be net-new.
 
 ### Achievements / Highlights
 

@@ -49,33 +49,12 @@ Avoid a pure marketing README. It should read like a technical case study a clie
 
 ## Candidate write-up 1 — Riot rate limits and backfill strategy
 
-Potential title:
+Status: **shipped (two write-ups)**.
 
-```text
-Building a Riot API Backfill Pipeline Without Melting Rate Limits
-```
+- [docs/case-studies/riot-rate-limits.md](../case-studies/riot-rate-limits.md) — the rolling-window vs. fixed-window primitive bug, three wrong hypotheses on the way to it, and the architectural pivot to take Riot off the user-facing critical path.
+- [docs/case-studies/historical-backfill-and-sse.md](../case-studies/historical-backfill-and-sse.md) — follow-up arc covering the limiter slot leak (deadline abandonment + reservoir-update drift), the time-anchored historical worker (`endTime` + `min(playedAt)`), and the per-account SSE channel that streams new rows to TanStack invalidations.
 
-Topics:
-
-- Riot API constraints
-- regional routing
-- Bottleneck limiters
-- chained limiters:
-  - 20 req/s
-  - 100 req/2 min
-- per-summoner Postgres cache
-- partial fetches
-- retries/failures
-- future Redis/BullMQ worker model
-- possible SSE progress streaming
-
-Evidence to collect:
-
-- before/after request counts
-- cache hit rate
-- worst-case cold fetch timing
-- warm fetch timing
-- API error handling examples
+Further material parked for a third pass once production-tier key behaviour, per-account TTL self-healing, and parallel-account fairness become real concerns.
 
 Portfolio signal:
 
@@ -83,6 +62,7 @@ Portfolio signal:
 - external API integration
 - data freshness vs rate-limit constraints
 - user experience under slow backfills
+- real-time push (SSE) wired cleanly into TanStack Query
 
 ## Candidate write-up 2 — Multi-source identity stitching
 

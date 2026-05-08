@@ -17,6 +17,29 @@ vyoh.gg/
 
 The personal-dashboard pivot is in. The app is a multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, trend charts, champion aggregation, match detail with team/item breakdowns, and a major motion/polish pass that covers Trends entrances, sort-driven layout reorder, damage/gold bar growth, list → detail morph with scroll restoration, and broader loading states.
 
+## Recent arcs (2026-05-08, evening session)
+
+### Rate-limiter chain wedge — two compounding bugs
+
+Match list stopped growing after ~30 min of uptime. `EXECUTING` counter on the chained Bottleneck climbed monotonically across cron ticks (20 → 1 → 2 → … → 34) without ever decrementing. Two interacting issues:
+
+- Deadline abandonment was leaking Bottleneck slots. `Promise.race([queued, deadline])` rejects the caller's await but the limiter job stays scheduled; if the chain is wedged, the wrapped `fn` never runs and the slot never frees. Fix: short-circuit *inside* the wrapped callback so the slot drops the moment Bottleneck dispatches it.
+- `updateSettings({ reservoir })` perturbs the `reservoirIncrease` ticker. Every successful response was calling `syncFromHeaders` → `updateSettings({ reservoir: target })`, nudging the ticker out of phase. Fix: drain via `incrementReservoir(target - current)`, the targeted operation that composes with the increase ticker.
+- Added a periodic `logger.debug` of every limiter's counts + reservoir so the next regression is diagnosable from the log without re-instrumenting.
+
+### Historical backfill worker
+
+Cron used to fetch only the latest 20 matches per account, head-only. Match list capped at 20 forever. New `syncAccountHistorical` step runs alongside head sync per tick:
+
+- Anchors on `min(playedAt)` from the DB. Time-anchored, not offset-anchored, so head churn (new games played between ticks) doesn't cause drift.
+- Calls `getMatchIdsByPuuid({ endTime, count: 20 })` — Riot's exclusive `endTime` parameter returns matches strictly older than the boundary.
+- When Riot returns a short page ("reached genesis"), persists `historicalDoneAt: DateTime?` on the `Summoner` row; the cron skips the call thereafter.
+- 4 accounts × 21 calls/tick every 5 min stays well under the 100 req / 120 s app-slow ceiling. A 1000-game account fully backfills in ~4 hours of unattended uptime.
+
+### Live SSE updates of new rows
+
+Backfill events emit through a small `MatchEventsService` (`Subject<MatchUpdatedEvent>` + `forPuuid` filter). The `@Sse('matches/events')` controller route resolves the requested account to a puuid and merges filtered events with a 30 s heartbeat. The frontend `useMatchEventsSubscription` hook opens an `EventSource` at the `$accountSlug.tsx` layout and `queryClient.invalidateQueries` against `["lol", "matches-cached", …]` / `["lol", "matches-cached-infinite", …]` on `match-updated`. Push for *signalling*; pull (DB read via `/matches/cached`) for *content* — keeps the SSE schema decoupled from the row schema. Mounted at the layout, so the stream survives sub-tab navigation and tears down on account switch / unmount.
+
 ## Recent arcs (2026-05-08)
 
 ### Trends entrances

@@ -222,9 +222,12 @@ The fix was to lift the query into the parent layout (`apps/web/src/routes/lol/$
 | Refresh button + sync mutation hook | [`apps/web/src/lol/refresh-account-button.tsx`](../../apps/web/src/lol/refresh-account-button.tsx), [`apps/web/src/lol/use-matches.ts`](../../apps/web/src/lol/use-matches.ts) |
 | Adaptive count selector | [`apps/web/src/lol/match-count-selector.tsx`](../../apps/web/src/lol/match-count-selector.tsx) |
 
+## Postscript
+
+The rolling-window fix landed; weeks later the chain still wedged, in a different shape. Two compounding bugs (deadline-abandoned promises leaking Bottleneck slots, and `updateSettings({ reservoir })` drifting the `reservoirIncrease` ticker) had to be untangled before the next architectural arc — a backwards-walking historical worker that grows the DB over time, plus an SSE channel that streams new rows to the client — could land safely. Written up as a follow-up at [historical-backfill-and-sse.md](./historical-backfill-and-sse.md).
+
 ## Open
 
-- Server-Sent Events for the refresh button so users can see *which* accounts are syncing in real time. Today the mutation is fire-and-forget against the layout's whole-account sync.
 - Per-account TTL on cached results so a stale account self-heals if the cron is wedged.
 - When swapping in a production-tier Riot key (500 req / 10 s app limit, very different shape) the `reservoirIncreaseInterval` for the slow bucket needs to be re-derived. The shape of "rolling window" doesn't change but the constants do.
 - Sync fairness if accounts ever run in parallel — currently sequential per cron tick, which is fine for ~5 accounts; not fine for ~50.
