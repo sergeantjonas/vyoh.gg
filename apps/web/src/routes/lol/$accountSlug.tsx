@@ -20,7 +20,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { Crown, History, TrendingUp } from "lucide-react";
+import { ChevronLeft, Crown, History, TrendingUp } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -221,64 +221,92 @@ function AccountLayout() {
                     )}
                   </div>
 
-                  {!isMatchDetail && (
-                    <div className="flex gap-1 border-b border-border">
-                      {TABS.map(({ to, label, Icon }) => {
-                        const tabPath = to.replace("$accountSlug", accountSlug);
-                        const active =
-                          pathname === tabPath || pathname.startsWith(`${tabPath}/`);
-                        return (
-                          <Link
-                            key={to}
-                            to={to}
-                            params={{ accountSlug }}
-                            search={(prev: AccountSearch) => prev}
-                            className={cn(
-                              "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                              active
-                                ? "text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
-                            )}
-                          >
-                            <Icon
+                  <AnimatePresence mode="wait" initial={false}>
+                    {isMatchDetail ? (
+                      <m.div
+                        key="back-nav"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="border-b border-border"
+                      >
+                        <Link
+                          to="/lol/$accountSlug/matches"
+                          params={{ accountSlug }}
+                          search={(prev: AccountSearch) => prev}
+                          className="group flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+                          Matches
+                        </Link>
+                      </m.div>
+                    ) : (
+                      <m.div
+                        key="tabs"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex gap-1 border-b border-border"
+                      >
+                        {TABS.map(({ to, label, Icon }) => {
+                          const tabPath = to.replace("$accountSlug", accountSlug);
+                          const active =
+                            pathname === tabPath || pathname.startsWith(`${tabPath}/`);
+                          return (
+                            <Link
+                              key={to}
+                              to={to}
+                              params={{ accountSlug }}
+                              search={(prev: AccountSearch) => prev}
                               className={cn(
-                                "size-4 transition-all",
+                                "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
                                 active
-                                  ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
-                                  : "text-muted-foreground group-hover:text-foreground"
+                                  ? "text-foreground"
+                                  : "text-muted-foreground hover:text-foreground"
                               )}
-                            />
-                            {label}
-                            {active && (
-                              <m.div
-                                layoutId="lol-tab-indicator"
-                                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
-                                animate={{
-                                  boxShadow: [
-                                    "0 0 0px 0px rgba(56,189,248,0)",
-                                    "0 0 10px 1px rgba(56,189,248,0.45)",
-                                    "0 0 0px 0px rgba(56,189,248,0)",
-                                  ],
-                                }}
-                                transition={{
-                                  default: {
-                                    type: "spring",
-                                    stiffness: 500,
-                                    damping: 35,
-                                  },
-                                  boxShadow: {
-                                    duration: 2.4,
-                                    repeat: Number.POSITIVE_INFINITY,
-                                    ease: "easeInOut",
-                                  },
-                                }}
+                            >
+                              <Icon
+                                className={cn(
+                                  "size-4 transition-all",
+                                  active
+                                    ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
+                                    : "text-muted-foreground group-hover:text-foreground"
+                                )}
                               />
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+                              {label}
+                              {active && (
+                                <m.div
+                                  layoutId="lol-tab-indicator"
+                                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
+                                  animate={{
+                                    boxShadow: [
+                                      "0 0 0px 0px rgba(56,189,248,0)",
+                                      "0 0 10px 1px rgba(56,189,248,0.45)",
+                                      "0 0 0px 0px rgba(56,189,248,0)",
+                                    ],
+                                  }}
+                                  transition={{
+                                    default: {
+                                      type: "spring",
+                                      stiffness: 500,
+                                      damping: 35,
+                                    },
+                                    boxShadow: {
+                                      duration: 2.4,
+                                      repeat: Number.POSITIVE_INFINITY,
+                                      ease: "easeInOut",
+                                    },
+                                  }}
+                                />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </m.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </m.div>
             </header>

@@ -1,11 +1,3 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
@@ -18,7 +10,7 @@ import { MatchDetailView } from "@/lol/matches/match-detail-view";
 import { MatchHero } from "@/lol/matches/match-hero";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useState } from "react";
@@ -106,53 +98,8 @@ function MatchDetailPage() {
         }
       : undefined);
 
-  const crumbLabel = heroSummary
-    ? `${new Date(heroSummary.playedAt).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      })} — ${championName(heroSummary.champion)}`
-    : "Match";
-
   return (
     <div className="flex flex-col gap-6">
-      <m.div
-        initial={{ opacity: 0, x: -6 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      >
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link
-                  to="/lol/$accountSlug/matches"
-                  params={{ accountSlug }}
-                  search={(prev) => prev}
-                >
-                  Matches
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>
-                <AnimatePresence mode="wait" initial={false}>
-                  <m.span
-                    key={crumbLabel}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="inline-block"
-                  >
-                    {crumbLabel}
-                  </m.span>
-                </AnimatePresence>
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </m.div>
       {heroSummary && <MatchHero summary={heroSummary} />}
       <AnimatePresence>
         {heroScrolledPast && heroSummary && (
