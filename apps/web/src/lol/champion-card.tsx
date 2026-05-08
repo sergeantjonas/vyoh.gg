@@ -1,9 +1,9 @@
-import { championCenteredSplashUrl } from "@/lib/champion-icon";
+import { championCardSplashUrl, championCenteredSplashUrl } from "@/lib/champion-icon";
 import { championTheme } from "@/lib/champion-theme";
 import { cn } from "@/lib/utils";
 import { shouldFlipChampion } from "@/lol/champion-direction";
 import { m } from "motion/react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 
 export const championCardBaseClassName =
   "themed-card relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out";
@@ -21,12 +21,24 @@ export function ChampionCardChrome({
   champion: string;
   win?: boolean;
 }) {
+  // Try the resized wsrv.nl URL first; if that ever fails (proxy down,
+  // upstream miss, etc.) fall back to the direct CDragon centered splash so
+  // the card still renders correctly. Tracking the errored champion (rather
+  // than a boolean) means a champion swap automatically retries the proxy
+  // — no useEffect needed to reset state.
+  const [erroredChampion, setErroredChampion] = useState<string | null>(null);
+  const fallback = erroredChampion === champion;
+  const src = fallback
+    ? championCenteredSplashUrl(champion)
+    : championCardSplashUrl(champion);
+
   return (
     <>
       <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md">
         <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
           <img
-            src={championCenteredSplashUrl(champion)}
+            src={src}
+            onError={() => setErroredChampion(champion)}
             alt=""
             aria-hidden="true"
             loading="lazy"

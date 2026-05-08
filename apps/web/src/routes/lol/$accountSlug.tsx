@@ -88,7 +88,21 @@ function AccountLayout() {
     const random = matches[Math.floor(Math.random() * matches.length)];
     if (random) setInitialChampion(random.champion);
   }, [matches, initialChampion]);
-  useSplashChampion(hoveredChampion ?? initialChampion);
+  // Debounce hover-driven splash changes so a quick mouse sweep over the match
+  // list doesn't remount the backdrop (and refetch its splash) per row.
+  // First-set and clears stay instant — only value↔value transitions wait.
+  const target = hoveredChampion ?? initialChampion;
+  const [splashChampion, setSplashChampion] = useState<string | null>(null);
+  useEffect(() => {
+    if (target === splashChampion) return;
+    if (splashChampion === null || target === null) {
+      setSplashChampion(target);
+      return;
+    }
+    const id = setTimeout(() => setSplashChampion(target), 80);
+    return () => clearTimeout(id);
+  }, [target, splashChampion]);
+  useSplashChampion(splashChampion);
 
   return (
     <ActiveMatchProvider>

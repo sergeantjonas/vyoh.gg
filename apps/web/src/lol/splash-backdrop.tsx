@@ -1,6 +1,10 @@
-import { championCenteredSplashUrl } from "@/lib/champion-icon";
+import {
+  championBackdropSplashUrl,
+  championCenteredSplashUrl,
+} from "@/lib/champion-icon";
 import { championTheme } from "@/lib/champion-theme";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { decode as decodeBlurhash } from "blurhash";
+import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
 import {
   type ReactNode,
   createContext,
@@ -11,7 +15,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Blurhash } from "react-blurhash";
 import { createPortal } from "react-dom";
 
 type SplashClaim = { champion: string; offsetX: number };
@@ -41,6 +44,32 @@ function kenBurnsDrift(champion: string) {
   return { x: Math.cos(angle) * magnitude, y: Math.sin(angle) * magnitude };
 }
 
+// One decode per blurhash, cached as a 32×32 data URL. The previous
+// react-blurhash <canvas> repainted on every mount; here we paint once and
+// reuse the same image element for every subsequent visit to the champion.
+const blurhashCache = new Map<string, string>();
+function blurhashToDataUrl(hash: string): string {
+  const cached = blurhashCache.get(hash);
+  if (cached) return cached;
+  if (typeof document === "undefined") return "";
+  try {
+    const pixels = decodeBlurhash(hash, 32, 32, 1);
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+    const imageData = ctx.createImageData(32, 32);
+    imageData.data.set(pixels);
+    ctx.putImageData(imageData, 0, 0);
+    const url = canvas.toDataURL();
+    blurhashCache.set(hash, url);
+    return url;
+  } catch {
+    return "";
+  }
+}
+
 function ChampionSplashLayer({
   champion,
   offsetX,
@@ -49,24 +78,28 @@ function ChampionSplashLayer({
   offsetX: number;
 }) {
   const theme = championTheme(champion);
-  const url = championCenteredSplashUrl(champion);
   const reduced = useReducedMotion();
+  const isPresent = useIsPresent();
   const drift = useMemo(() => kenBurnsDrift(champion), [champion]);
+  const blurhashUrl = useMemo(() => blurhashToDataUrl(theme.blurhash), [theme.blurhash]);
   const [imgReady, setImgReady] = useState(false);
 
-  useEffect(() => {
-    setImgReady(false);
-    let cancelled = false;
-    const img = new Image();
-    img.src = url;
-    const apply = () => {
-      if (!cancelled) setImgReady(true);
-    };
-    img.decode().then(apply, apply);
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
+  // Source the pre-blurred WebP from wsrv.nl; if it ever fails we fall back
+  // to the direct CDragon splash with the original CSS `filter: blur(5px)`
+  // restored — same look, just paying the live-blur compositor cost again.
+  const [erroredChampion, setErroredChampion] = useState<string | null>(null);
+  const fallback = erroredChampion === champion;
+  const url = fallback
+    ? championCenteredSplashUrl(champion)
+    : championBackdropSplashUrl(champion);
+  const imgFilter = fallback
+    ? "blur(5px) saturate(0.92) brightness(0.7)"
+    : "saturate(0.92) brightness(0.7)";
+
+  // While the layer is exiting, settle the Ken Burns transform back to
+  // neutral over the same 0.7s as the parent opacity fade. Stops the
+  // infinite repeat from running compositor work after the layer is gone.
+  const loopActive = !reduced && isPresent;
 
   return (
     <>
@@ -79,16 +112,20 @@ function ChampionSplashLayer({
         <m.div
           initial={{ scale: 1, x: "0%", y: "0%" }}
           animate={
-            reduced
-              ? { scale: 1, x: "0%", y: "0%" }
-              : { scale: 1.13, x: `${drift.x}%`, y: `${drift.y}%` }
+            loopActive
+              ? { scale: 1.13, x: `${drift.x}%`, y: `${drift.y}%` }
+              : { scale: 1, x: "0%", y: "0%" }
           }
-          transition={{
-            duration: 18,
-            ease: "easeInOut",
-            repeat: Number.POSITIVE_INFINITY,
-            repeatType: "reverse",
-          }}
+          transition={
+            loopActive
+              ? {
+                  duration: 18,
+                  ease: "easeInOut",
+                  repeat: Number.POSITIVE_INFINITY,
+                  repeatType: "reverse",
+                }
+              : { duration: 0.7, ease: "easeOut" }
+          }
           className="absolute inset-0"
         >
           <div
@@ -98,26 +135,28 @@ function ChampionSplashLayer({
             }}
             className="absolute -top-[4%] -left-[4%] w-[108%] h-[108%]"
           >
-            <Blurhash
-              hash={theme.blurhash}
-              width="100%"
-              height="100%"
-              resolutionX={32}
-              resolutionY={32}
-              punch={1}
-              style={{ opacity: 0.35 }}
-            />
+            {blurhashUrl && (
+              <img
+                src={blurhashUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 size-full object-cover"
+                style={{ opacity: 0.35 }}
+              />
+            )}
             <m.img
               src={url}
               alt=""
               aria-hidden="true"
               loading="eager"
               decoding="async"
-              fetchPriority="high"
+              fetchPriority="low"
+              onLoad={() => setImgReady(true)}
+              onError={() => setErroredChampion(champion)}
               initial={{ opacity: 0 }}
               animate={{ opacity: imgReady ? 0.2 : 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
-              style={{ filter: "blur(5px) saturate(0.92) brightness(0.7)" }}
+              style={{ filter: imgFilter }}
               className="absolute inset-0 size-full object-cover object-top"
             />
           </div>
