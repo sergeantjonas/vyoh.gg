@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/account-switcher";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/active-match-context";
 import { HoverChampionProvider } from "@/lol/hover-champion-context";
+import { MAX_COUNT } from "@/lol/match-count-selector";
 import { MatchWindowProvider } from "@/lol/match-window-context";
 import { QueueFilter } from "@/lol/queue-filter";
 import { RefreshAccountButton } from "@/lol/refresh-account-button";
@@ -48,7 +49,9 @@ export const Route = createFileRoute("/lol/$accountSlug")({
   validateSearch: (search: Record<string, unknown>): AccountSearch => ({
     queue: typeof search.queue === "number" ? search.queue : undefined,
     count:
-      typeof search.count === "number" && search.count > 0 ? search.count : undefined,
+      typeof search.count === "number" && search.count > 0
+        ? Math.min(search.count, MAX_COUNT)
+        : undefined,
   }),
 });
 

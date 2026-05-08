@@ -15,7 +15,7 @@ const NEAR_END_THRESHOLD = 5;
 const STAGGER_PER_ITEM = 0.06;
 const ENTER_DURATION = 0.2;
 const INITIAL_VISIBLE = 20;
-const REVEAL_INCREMENT = 10;
+const REVEAL_INCREMENT = 20;
 // While the back-nav scroll-restore + hero→row morph play out, swap
 // non-active rows to skeletons at a low opacity so the strip reads as
 // "loading" around the one card that came back. Mirrors the

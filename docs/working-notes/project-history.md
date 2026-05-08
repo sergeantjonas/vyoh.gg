@@ -15,7 +15,28 @@ vyoh.gg/
 
 ## Last captured status — 2026-05-08
 
-The personal-dashboard pivot is in. The app is a multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, trend charts, champion aggregation, match detail with team/item breakdowns, and a major motion/polish pass that covers Trends entrances, sort-driven layout reorder, damage/gold bar growth, list → detail morph with scroll restoration, and broader loading states.
+The personal-dashboard pivot is in. The app is a multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, trend charts, champion aggregation, match detail with team/item breakdowns, and a major motion/polish pass that covers Trends entrances, sort-driven layout reorder, damage/gold bar growth, list → detail morph with scroll restoration, and broader loading states. Both Nav and account header are now sticky and full-viewport-width; `<main>` is the scroll container so the scrollbar track sits below both headers.
+
+## Recent arcs (2026-05-08, night session)
+
+### Sticky nav bars + `<main>` scroll container
+
+**Dual sticky navs, full-viewport-width:**
+- `<Nav>` promoted from `relative` to `sticky top-0 z-50`
+- Account header in `$accountSlug.tsx` escaped the `max-w-4xl` content column via `ml-[calc(50%-50vw)] w-screen`; inner `mx-auto max-w-4xl px-6` re-constrains content — same escape trick as the Nav itself
+- `bg-background/50 backdrop-blur-md` on account header (slightly more transparent than Nav's `/60`)
+
+**`<main>` as scroll container:**
+- Module-level `mainScrollRef: { current: HTMLElement | null }` singleton at `lib/scroll-container.ts` — shared across all scroll consumers without React context
+- `__root.tsx` restructured to `flex h-dvh flex-col overflow-hidden`; `<main>` gets `flex-1 overflow-y-auto [overflow-x:clip]` and holds `mainScrollRef`
+- `[overflow-x:clip]` on `<main>` stops the `w-screen` account header from creating horizontal overflow on Windows (where `100vw` includes the scrollbar gutter)
+- `useWindowVirtualizer` → `useVirtualizer` in `match-list.tsx`; `getScrollElement: () => mainScrollRef.current`; `scrollMargin` recomputed via `getBoundingClientRect()` diff against the container instead of `offsetTop`
+- `scroll-to-top.tsx`, `active-match-context.tsx`, `match-list.tsx`, `$accountSlug.tsx` all migrated from `window.scrollY / scrollTo / addEventListener` to container equivalents
+- `html, body { overflow: hidden }` in `index.css` prevents `<html>` from ever showing a scrollbar; this fixes the transient second scrollbar on tab transitions — AnimatePresence `mode="popLayout"` makes the exiting `m.div` `position: absolute` and without a positioned ancestor inside `<main>`, the containing block resolves to `<html>`, which the tall virtual list height then overflows
+
+**Match list page size aligned:**
+- `MATCHES_PAGE_SIZE` bumped 10 → 20 to match `INITIAL_VISIBLE = 20`, eliminating the eager second fetch that fired before any scrolling
+- `REVEAL_INCREMENT` bumped 10 → 20 for symmetry
 
 ## Recent arcs (2026-05-08, evening session)
 
@@ -152,7 +173,7 @@ It persists across Matches/Trends/Champions tabs and account switching via:
 - `useNavigate`
 - query keys in `useMatches` and `useMatchesWindow`
 
-`MATCHES_PAGE_SIZE = 10` limits per-fetch volume.
+`MATCHES_PAGE_SIZE = 20` limits per-fetch volume (aligns with `INITIAL_VISIBLE = 20` in `match-list.tsx`).
 
 ### Command palette
 

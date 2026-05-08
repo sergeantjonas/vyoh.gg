@@ -9,7 +9,7 @@ import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared
 import { useEffect } from "react";
 
 const API_URL = "http://localhost:2010";
-export const MATCHES_PAGE_SIZE = 10;
+export const MATCHES_PAGE_SIZE = 20;
 
 async function fetchMatchesPage(
   account: LolAccount,

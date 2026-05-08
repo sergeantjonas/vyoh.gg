@@ -1,4 +1,14 @@
 import { HttpError } from "@/lib/http-error";
+
+// Recharts ResponsiveContainer initialises with { width: -1, height: -1 } as a
+// sentinel before ResizeObserver fires, producing a noisy but harmless warning.
+if (import.meta.env.DEV) {
+  const _warn = console.warn.bind(console);
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].startsWith("The width(-1)")) return;
+    _warn(...args);
+  };
+}
 import { reportWebVitals } from "@/lib/web-vitals";
 import {
   MutationCache,

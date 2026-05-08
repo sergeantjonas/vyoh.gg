@@ -1,18 +1,21 @@
 import { cn } from "@/lib/utils";
 import { m } from "motion/react";
 
-const PRESETS = [20, 50, 100] as const;
+export const MAX_COUNT = 100;
+const PRESETS = [20, 50, MAX_COUNT] as const;
 
-// Builds count options against what's actually cached. Showing "100" when the
-// DB only has 18 matches is misleading — the user clicks it expecting more
-// and gets the same view. Instead: show the presets that fit, plus an "All
-// N" cap when the total isn't already a preset.
+// Builds count options against what's actually cached, capped at MAX_COUNT.
+// Showing "100" when the DB only has 18 matches is misleading — the user
+// clicks it expecting more and gets the same view. Instead: show the presets
+// that fit, plus an "All N" cap when the total is smaller than a preset. For
+// large accounts (>200 games) we stop at MAX_COUNT so charts stay responsive.
 export function deriveCountOptions(total: number): number[] {
   if (total <= 0) return [];
-  const fitting = PRESETS.filter((p) => p <= total);
-  if (fitting.length === 0) return [total];
-  if (fitting[fitting.length - 1] === total) return fitting;
-  return [...fitting, total];
+  const effectiveTotal = Math.min(total, MAX_COUNT);
+  const fitting = PRESETS.filter((p) => p <= effectiveTotal);
+  if (fitting.length === 0) return [effectiveTotal];
+  if (fitting[fitting.length - 1] === effectiveTotal) return fitting;
+  return [...fitting, effectiveTotal];
 }
 
 export function MatchCountSelector({
