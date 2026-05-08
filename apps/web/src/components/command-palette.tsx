@@ -61,7 +61,7 @@ export function CommandPalette() {
               <CommandItem
                 key={acc.slug}
                 value={`${acc.gameName} ${acc.tagLine} ${acc.slug}`}
-                onSelect={() => go(`/lol/${acc.slug}/matches`)}
+                onSelect={() => go(`/lol/${acc.slug}`)}
               >
                 <User />
                 <span>
@@ -75,6 +75,12 @@ export function CommandPalette() {
 
         {currentSlug && (
           <CommandGroup heading="Current account">
+            <CommandItem
+              value={`${currentSlug} profile overview`}
+              onSelect={() => go(`/lol/${currentSlug}`)}
+            >
+              <User /> Profile
+            </CommandItem>
             <CommandItem
               value={`${currentSlug} matches history`}
               onSelect={() => go(`/lol/${currentSlug}/matches`)}
