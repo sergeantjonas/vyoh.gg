@@ -1,6 +1,6 @@
 import { championCenteredSplashUrl } from "@/lib/champion-icon";
 import { championTheme } from "@/lib/champion-theme";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import {
   type ReactNode,
   createContext,
@@ -29,6 +29,18 @@ const SplashContext = createContext<SplashContextValue | null>(null);
 // claim acts as a fallback when the child unmounts.
 let ownerSeq = 0;
 
+// Stable per-champion pan direction so each splash drifts its own way
+// instead of every backdrop sliding in the same arc.
+function kenBurnsDrift(champion: string) {
+  let h = 2166136261;
+  for (let i = 0; i < champion.length; i++) {
+    h = Math.imul(h ^ champion.charCodeAt(i), 16777619) >>> 0;
+  }
+  const angle = (h / 0xffffffff) * Math.PI * 2;
+  const magnitude = 3;
+  return { x: Math.cos(angle) * magnitude, y: Math.sin(angle) * magnitude };
+}
+
 function ChampionSplashLayer({
   champion,
   offsetX,
@@ -38,6 +50,8 @@ function ChampionSplashLayer({
 }) {
   const theme = championTheme(champion);
   const url = championCenteredSplashUrl(champion);
+  const reduced = useReducedMotion();
+  const drift = useMemo(() => kenBurnsDrift(champion), [champion]);
   const [imgReady, setImgReady] = useState(false);
 
   useEffect(() => {
@@ -62,36 +76,52 @@ function ChampionSplashLayer({
         transition={{ duration: 0.7, ease: "easeOut" }}
         className="absolute inset-0"
       >
-        <div
-          style={{
-            maskImage: "linear-gradient(to right, transparent, black 10%)",
-            WebkitMaskImage: "linear-gradient(to right, transparent, black 10%)",
+        <m.div
+          initial={{ scale: 1, x: "0%", y: "0%" }}
+          animate={
+            reduced
+              ? { scale: 1, x: "0%", y: "0%" }
+              : { scale: 1.13, x: `${drift.x}%`, y: `${drift.y}%` }
+          }
+          transition={{
+            duration: 18,
+            ease: "easeInOut",
+            repeat: Number.POSITIVE_INFINITY,
+            repeatType: "reverse",
           }}
-          className="absolute -top-[4%] -left-[4%] w-[108%] h-[108%]"
+          className="absolute inset-0"
         >
-          <Blurhash
-            hash={theme.blurhash}
-            width="100%"
-            height="100%"
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-            style={{ opacity: 0.35 }}
-          />
-          <m.img
-            src={url}
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: imgReady ? 0.2 : 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            style={{ filter: "blur(5px) saturate(0.92) brightness(0.7)" }}
-            className="absolute inset-0 size-full object-cover object-top"
-          />
-        </div>
+          <div
+            style={{
+              maskImage: "linear-gradient(to right, transparent, black 10%)",
+              WebkitMaskImage: "linear-gradient(to right, transparent, black 10%)",
+            }}
+            className="absolute -top-[4%] -left-[4%] w-[108%] h-[108%]"
+          >
+            <Blurhash
+              hash={theme.blurhash}
+              width="100%"
+              height="100%"
+              resolutionX={32}
+              resolutionY={32}
+              punch={1}
+              style={{ opacity: 0.35 }}
+            />
+            <m.img
+              src={url}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: imgReady ? 0.2 : 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              style={{ filter: "blur(5px) saturate(0.92) brightness(0.7)" }}
+              className="absolute inset-0 size-full object-cover object-top"
+            />
+          </div>
+        </m.div>
       </m.div>
       <div className="absolute inset-0 bg-gradient-to-b from-background/30 to-background" />
     </>
