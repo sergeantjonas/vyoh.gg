@@ -1,7 +1,7 @@
 import { useAccountFromSlug } from "@/identity/use-account-from-slug";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/account-switcher";
-import { ActiveMatchProvider } from "@/lol/active-match-context";
+import { ActiveMatchProvider, useActiveMatch } from "@/lol/active-match-context";
 import { HoverChampionProvider } from "@/lol/hover-champion-context";
 import { MatchWindowProvider } from "@/lol/match-window-context";
 import { QueueFilter } from "@/lol/queue-filter";
@@ -17,7 +17,7 @@ import {
 } from "@tanstack/react-router";
 import { Crown, History, TrendingUp } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const TABS = [
   { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History },
@@ -30,6 +30,16 @@ const DEFAULT_COUNT = 20;
 interface AccountSearch {
   queue?: number;
   count?: number;
+}
+
+function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
+  const { clearListScroll, setActiveMatch } = useActiveMatch();
+  useEffect(() => {
+    if (inSubtree) return;
+    clearListScroll();
+    setActiveMatch(null);
+  }, [inSubtree, clearListScroll, setActiveMatch]);
+  return null;
 }
 
 export const Route = createFileRoute("/lol/$accountSlug")({
@@ -54,9 +64,9 @@ function AccountLayout() {
   // cached endpoint — pure DB query, no Riot calls — so navigating between
   // tabs costs nothing upstream. The match list still backfills via its
   // own useMatches infinite query; the sync worker fills the DB on a cron.
-  const window = useCachedMatchesWindow(account, count, queue);
-  const matches = window.data?.matches;
-  const total = window.data?.total ?? 0;
+  const matchesWindow = useCachedMatchesWindow(account, count, queue);
+  const matches = matchesWindow.data?.matches;
+  const total = matchesWindow.data?.total ?? 0;
 
   // Open an SSE stream while this account layout is mounted. The hook
   // invalidates matched-cache queries when the backfill worker reports new
@@ -77,9 +87,33 @@ function AccountLayout() {
     [navigate]
   );
 
-  const matchesPathPrefix = `/lol/${accountSlug}/matches/`;
+  const matchesPath = `/lol/${accountSlug}/matches`;
+  const matchesPathPrefix = `${matchesPath}/`;
   const isMatchDetail =
     pathname.startsWith(matchesPathPrefix) && pathname.length > matchesPathPrefix.length;
+  // Saved-scroll/active-match state is only meaningful while we're inside
+  // the matches subtree (list ↔ detail). Once the user navigates to Trends
+  // or Champions, that state is stale — dropping it stops the back-nav
+  // restore from firing on routine tab returns.
+  const isInMatchesSubtree =
+    pathname === matchesPath || pathname.startsWith(matchesPathPrefix);
+
+  // TanStack Router's built-in scrollRestoration was disabled to let
+  // MatchList drive its own restore on detail → list back-nav. The side
+  // effect: every other route transition inherits whatever scroll position
+  // we left behind — so clicking Trends from a deep position in /matches
+  // dumps you partway down the (much shorter) Trends page. Scroll to top
+  // on every transition except the one MatchList still owns.
+  const prevPathnameRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const prev = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+    if (prev === null || prev === pathname) return;
+    const isReturnFromDetail =
+      prev.startsWith(matchesPathPrefix) && pathname === matchesPath;
+    if (isReturnFromDetail) return;
+    window.scrollTo(0, 0);
+  }, [pathname, matchesPath, matchesPathPrefix]);
 
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
   const [initialChampion, setInitialChampion] = useState<string | null>(null);
@@ -106,11 +140,12 @@ function AccountLayout() {
 
   return (
     <ActiveMatchProvider>
+      <MatchListReturnReset inSubtree={isInMatchesSubtree} />
       <HoverChampionProvider setHovered={setHoveredChampion}>
         <MatchWindowProvider
           value={{
             matches,
-            isPending: window.isPending,
+            isPending: matchesWindow.isPending,
             total,
             count,
             setCount,

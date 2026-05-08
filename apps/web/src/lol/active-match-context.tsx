@@ -13,6 +13,7 @@ type Ctx = {
   setActiveMatch: (id: string | null) => void;
   saveListScroll: () => void;
   readListScroll: () => number;
+  clearListScroll: () => void;
   morphEpoch: number;
   bumpMorphEpoch: () => void;
 };
@@ -29,12 +30,16 @@ export function ActiveMatchProvider({ children }: { children: ReactNode }) {
     scrollYRef.current = window.scrollY;
   }, []);
   const readListScroll = useCallback(() => scrollYRef.current, []);
+  const clearListScroll = useCallback(() => {
+    scrollYRef.current = 0;
+  }, []);
   const value = useMemo(
     () => ({
       activeMatch,
       setActiveMatch,
       saveListScroll,
       readListScroll,
+      clearListScroll,
       morphEpoch,
       bumpMorphEpoch,
     }),
@@ -43,6 +48,7 @@ export function ActiveMatchProvider({ children }: { children: ReactNode }) {
       setActiveMatch,
       saveListScroll,
       readListScroll,
+      clearListScroll,
       morphEpoch,
       bumpMorphEpoch,
     ]

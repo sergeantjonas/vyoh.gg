@@ -32,18 +32,34 @@ export function ChampionCardChrome({
     ? championCenteredSplashUrl(champion)
     : championCardSplashUrl(champion);
 
+  // First-paint fade-in: stays at opacity-0 until the very first image
+  // resolves, then transitions to the resting opacity. The boolean is
+  // intentionally not reset on src/champion changes — once a card has had
+  // anything loaded, virtualizer-driven swaps reuse the previous frame
+  // until the new image decodes, so there's no flicker mid-scroll.
+  const [loaded, setLoaded] = useState(false);
+
   return (
     <>
-      <div className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md">
+      <div
+        // Tinted placeholder behind the strip so a slow-loading card hints
+        // at the champion's palette instead of showing empty space.
+        style={{
+          backgroundColor: "color-mix(in oklab, var(--theme-color) 18%, transparent)",
+        }}
+        className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md"
+      >
         <div className="size-full transition-transform duration-700 ease-out group-hover:scale-105">
           <img
             src={src}
+            onLoad={() => setLoaded(true)}
             onError={() => setErroredChampion(champion)}
             alt=""
             aria-hidden="true"
             loading="lazy"
             className={cn(
-              "size-full object-cover object-[center_30%] opacity-95 transition-opacity duration-300 group-hover:opacity-100",
+              "size-full object-cover object-[center_30%] transition-opacity duration-300",
+              loaded ? "opacity-95 group-hover:opacity-100" : "opacity-0",
               shouldFlipChampion(champion) && "-scale-x-100"
             )}
           />
