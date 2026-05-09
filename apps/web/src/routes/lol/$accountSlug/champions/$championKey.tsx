@@ -376,7 +376,7 @@ function ChampionDetailPage() {
                   type="button"
                   onClick={() => setMatchupSort(s)}
                   className={cn(
-                    "rounded px-2 py-0.5 text-xs transition-colors",
+                    "cursor-pointer rounded px-2 py-0.5 text-xs transition-colors",
                     matchupSort === s
                       ? "bg-foreground/10 text-foreground"
                       : "text-muted-foreground hover:text-foreground"
