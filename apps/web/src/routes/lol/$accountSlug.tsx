@@ -177,11 +177,31 @@ function AccountLayout() {
   }
   const effectiveDir = prefersReducedMotion ? 0 : slideDirectionRef.current;
 
+  // Compact mode toggles on scroll, but the act of compacting changes the
+  // header's height by ~28px, which Chrome's scroll anchoring compensates for
+  // by adjusting scrollTop. Without protection, the resulting scroll event can
+  // drag scrollTop back across the threshold and cause a shrink/grow loop.
+  // Defenses: (1) wide hysteresis (enter >96, exit <8), (2) cooldown ignoring
+  // scroll events during the spring animation's settle time.
   const [compact, setCompact] = useState(false);
+  const lastToggleRef = useRef(0);
   useEffect(() => {
     const el = mainScrollRef.current;
     if (!el) return;
-    const onScroll = () => setCompact(el.scrollTop > 72);
+    const onScroll = () => {
+      if (Date.now() - lastToggleRef.current < 400) return;
+      setCompact((prev) => {
+        if (!prev && el.scrollTop > 96) {
+          lastToggleRef.current = Date.now();
+          return true;
+        }
+        if (prev && el.scrollTop < 8) {
+          lastToggleRef.current = Date.now();
+          return false;
+        }
+        return prev;
+      });
+    };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);

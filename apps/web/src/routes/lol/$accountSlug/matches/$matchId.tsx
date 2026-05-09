@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { championIconUrl } from "@/lol/_shared/champion-icon";
+import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
-import { championCardStyle } from "@/lol/champions/champion-card";
+import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/matches/match-detail-view";
@@ -12,8 +12,8 @@ import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
-import { AnimatePresence, m } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { m } from "motion/react";
+import { useEffect, useState } from "react";
 
 // Roughly the time the hero's layout-spring (stiffness 170, damping 30)
 // takes to settle. The body (skeleton, error, full detail view) renders
@@ -64,37 +64,7 @@ function MatchDetailPage() {
     return () => window.clearTimeout(id);
   }, []);
 
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [heroScrolledPast, setHeroScrolledPast] = useState(false);
-  const [stripTop, setStripTop] = useState(96);
-  const [stripRight, setStripRight] = useState(0);
-
-  useLayoutEffect(() => {
-    const headerEl = document.querySelector(
-      "[data-account-header]"
-    ) as HTMLElement | null;
-    if (headerEl) setStripTop(headerEl.getBoundingClientRect().bottom);
-    const mainEl = mainScrollRef.current;
-    if (mainEl) setStripRight(mainEl.offsetWidth - mainEl.clientWidth);
-  }, []);
-
-  useEffect(() => {
-    const el = mainScrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      if (!heroRef.current) return;
-      const headerEl = document.querySelector(
-        "[data-account-header]"
-      ) as HTMLElement | null;
-      const headerBottom = headerEl?.getBoundingClientRect().bottom ?? 96;
-      setStripTop(headerBottom);
-      setStripRight(el.offsetWidth - el.clientWidth);
-      const heroTop = heroRef.current.getBoundingClientRect().top;
-      setHeroScrolledPast(heroTop < headerBottom);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  const [heroScrolledPast, heroRef] = useHeroScrolledPast();
 
   const myParticipant =
     detail.data && account
@@ -125,68 +95,50 @@ function MatchDetailPage() {
     <div className="flex flex-col gap-6">
       <div ref={heroRef}>
         {heroSummary && (
-          <AnimatePresence initial={false}>
-            {heroScrolledPast ? (
-              <div key="spacer" className="h-28" />
-            ) : (
-              <m.div
-                key="hero"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-              >
-                <MatchHero summary={heroSummary} />
-              </m.div>
-            )}
-          </AnimatePresence>
-        )}
-      </div>
-      <AnimatePresence>
-        {heroScrolledPast && heroSummary && (
           <m.div
-            key="champion-strip"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ type: "spring", stiffness: 400, damping: 35 }}
-            style={{
-              ...championCardStyle(heroSummary.champion),
-              top: stripTop,
-              right: stripRight,
+            animate={{
+              opacity: heroScrolledPast ? 0 : 1,
+              y: heroScrolledPast ? -8 : 0,
             }}
-            className="fixed left-0 z-30 border-b border-border/50 bg-background/50 backdrop-blur-md"
+            transition={{ duration: 0.25, ease: "easeOut" }}
           >
-            <div className="mx-auto max-w-4xl px-6 py-2">
-              <div className="flex items-center gap-3">
-                <img
-                  src={championIconUrl(heroSummary.champion)}
-                  alt=""
-                  className="size-6 rounded-sm object-cover"
-                />
-                <span className="text-sm font-medium">
-                  {championName(heroSummary.champion)}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-wider",
-                    heroSummary.win ? "text-emerald-400" : "text-red-400"
-                  )}
-                >
-                  {heroSummary.win ? "Win" : "Loss"}
-                </span>
-                <span className="font-mono text-sm tabular-nums">
-                  <span className="text-emerald-400">{heroSummary.kills}</span>
-                  <span className="text-muted-foreground"> / </span>
-                  <span className="text-red-400">{heroSummary.deaths}</span>
-                  <span className="text-muted-foreground"> / </span>
-                  <span className="text-amber-400">{heroSummary.assists}</span>
-                </span>
-              </div>
-            </div>
+            <MatchHero summary={heroSummary} />
           </m.div>
         )}
-      </AnimatePresence>
+      </div>
+      {heroSummary && (
+        <ChampionStickyStrip
+          visible={heroScrolledPast}
+          top="var(--account-header-h)"
+          championAlias={heroSummary.champion}
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src={championIconUrl(heroSummary.champion)}
+              alt=""
+              className="size-6 rounded-sm object-cover"
+            />
+            <span className="text-sm font-medium">
+              {championName(heroSummary.champion)}
+            </span>
+            <span
+              className={cn(
+                "text-xs font-semibold uppercase tracking-wider",
+                heroSummary.win ? "text-emerald-400" : "text-red-400"
+              )}
+            >
+              {heroSummary.win ? "Win" : "Loss"}
+            </span>
+            <span className="font-mono text-sm tabular-nums">
+              <span className="text-emerald-400">{heroSummary.kills}</span>
+              <span className="text-muted-foreground"> / </span>
+              <span className="text-red-400">{heroSummary.deaths}</span>
+              <span className="text-muted-foreground"> / </span>
+              <span className="text-amber-400">{heroSummary.assists}</span>
+            </span>
+          </div>
+        </ChampionStickyStrip>
+      )}
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
