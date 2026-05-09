@@ -199,6 +199,34 @@ Portfolio signal:
 - API boundaries
 - maintainability
 
+## Candidate write-up — LP history without a time-series database
+
+Status: code shipped (Phase 0 + Phase 4). Write-up not drafted.
+
+A LoL companion app that visualizes ranked-LP-over-time normally implies a time-series database — but the data is sparse (one snapshot per change, maybe a few per week per account) and Postgres handles it fine. The interesting story is *what makes that workable*:
+
+Topics:
+
+- snapshot-on-change ingest: only insert a `RankSnapshot` row when tier/rank/LP differs from the previous tuple — turns a poll loop into a sparse event log
+- normalizing across tiers for plotting: each division is 100 LP, each tier is 400 LP wide below Master — `Iron IV 0LP = 0`, `Diamond I 100LP = 2700`, Master+ ignores division. A small pure helper produces a single monotonic axis that smooths promos and demotes into continuous line motion
+- presentation vs. transport split: the API returns raw `{tier, rank, leaguePoints}` snapshots, the web computes `totalLp` for charting. This forced surface area *out* of the shared boundary
+- the package-boundary footnote — a TypeScript-source-only `@vyoh/shared` consumed by both a Vite-bundled web and a Node-runtime API. `export type` re-exports erase before runtime; `export {}` value re-exports do not, breaking the API with `ERR_MODULE_NOT_FOUND` for `.js` files that don't exist on disk. The fix: subpath exports for runtime helpers (`@vyoh/shared/lol/rank-history`) consumed only by the bundler-resolved web side. Worth a sidebar — most monorepo tutorials ignore the asymmetry between bundler-resolved and Node-resolved consumers.
+- chart engineering: `ReferenceArea` for the longest-run streak overlay (min 3 consecutive moves), `ReferenceDot` with `ifOverflow="extendDomain"` for tier-change markers, a queue toggle that auto-falls-back to whichever queue has data, and a custom Recharts tooltip following the `KdaTooltip` pattern (Radix tooltips inside Recharts conflict with the chart's own pointer events).
+
+Evidence to collect:
+
+- screenshot of LP history with markers + streak overlay against real data
+- before/after of an attempted cross-package value re-export (the actual `ERR_MODULE_NOT_FOUND` trace)
+- Postgres `EXPLAIN` on the snapshot read query — the `[puuid, queueId, capturedAt]` index makes range scans cheap
+- snapshot-row count over time for a real account (demonstrates "how much data 30 days of dedup'd snapshots actually look like")
+
+Portfolio signal:
+
+- making product decisions with the data shape, not against it
+- "do less" architecture — no Influx/Timescale, no read-side cache, just an indexed Postgres table
+- recognizing the asymmetric resolution issue between Vite and Node and resolving it cleanly via `exports`
+- restraint on visualization — the streak overlay only fires at length ≥ 3 to avoid noise
+
 ## Candidate write-up 6 — Killing fullscreen-blur flicker on a 4K dashboard
 
 Status: shipped. Write-up not yet drafted.

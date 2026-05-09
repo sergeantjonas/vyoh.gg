@@ -14,6 +14,7 @@ import type {
   CachedMatchesResult,
   ChampionExtras,
   MatchSummary,
+  RankHistoryResponse,
   SummonerProfile,
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
@@ -64,6 +65,16 @@ export class LolController {
     @Param("tagLine") tagLine: string
   ): Promise<SummonerProfile> {
     return this.lol.getSummonerProfile(region, gameName, tagLine);
+  }
+
+  @Get("rank/history")
+  async getRankHistory(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string,
+    @Query("days", new ParseIntPipe({ optional: true })) days?: number
+  ): Promise<RankHistoryResponse> {
+    return this.lol.getRankHistory(region, gameName, tagLine, days);
   }
 
   @Get("champions/:championKey/stats")

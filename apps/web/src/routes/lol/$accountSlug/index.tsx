@@ -1,5 +1,6 @@
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { ProfileGameLength } from "@/lol/profile/profile-game-length";
+import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfilePoolEntropy } from "@/lol/profile/profile-pool-entropy";
 import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
@@ -24,6 +25,7 @@ function ProfilePage() {
     <div className="flex flex-col gap-6">
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
       <ProfileRecentForm accountSlug={accountSlug} />
+      <ProfileLpHistory accountSlug={accountSlug} />
       <ProfileNowPlaying />
       <ProfileStatsBar />
       <ProfileWeeklyReview />

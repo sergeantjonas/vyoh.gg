@@ -11,6 +11,8 @@ import type {
   MatchDetail,
   MatchSummary,
   RankEntry,
+  RankHistoryPoint,
+  RankHistoryResponse,
   SummonerProfile,
 } from "@vyoh/shared";
 import { type Observable, interval, map, merge } from "rxjs";
@@ -326,6 +328,50 @@ export class LolService {
       summonerLevel: summoner.summonerLevel,
       rankEntries,
     };
+  }
+
+  async getRankHistory(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    days?: number
+  ): Promise<RankHistoryResponse> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return { solo: [], flex: [] };
+
+    const since =
+      days !== undefined && days > 0
+        ? new Date(Date.now() - days * 86_400_000)
+        : undefined;
+
+    const snapshots = await this.prisma.rankSnapshot.findMany({
+      where: {
+        puuid: summoner.puuid,
+        ...(since && { capturedAt: { gte: since } }),
+      },
+      orderBy: { capturedAt: "asc" },
+    });
+
+    const solo: RankHistoryPoint[] = [];
+    const flex: RankHistoryPoint[] = [];
+    for (const s of snapshots) {
+      const point: RankHistoryPoint = {
+        capturedAt: s.capturedAt.toISOString(),
+        queueId: s.queueId,
+        tier: s.tier,
+        rank: s.rank,
+        leaguePoints: s.leaguePoints,
+      };
+      if (s.queueId === "RANKED_SOLO_5x5") solo.push(point);
+      else if (s.queueId === "RANKED_FLEX_SR") flex.push(point);
+    }
+    return { solo, flex };
   }
 
   async captureRankSnapshot(account: LolAccount): Promise<void> {
