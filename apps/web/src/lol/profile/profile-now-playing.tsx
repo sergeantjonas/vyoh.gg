@@ -1,4 +1,4 @@
-import { championIconUrl } from "@/lol/_shared/champion-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
@@ -80,11 +80,10 @@ export function ProfileNowPlaying() {
               variants={row}
               className="flex items-center gap-3 rounded-lg border bg-card/50 px-3 py-2"
             >
-              <img
-                src={championIconUrl(c.champion)}
+              <ChampionSquareIcon
+                championName={c.champion}
                 alt={c.champion}
-                className="size-9 rounded-md object-cover"
-                loading="lazy"
+                className="size-9 rounded-md"
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{c.champion}</div>

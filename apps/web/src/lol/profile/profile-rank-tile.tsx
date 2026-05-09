@@ -1,6 +1,9 @@
 import type { RankEntry } from "@vyoh/shared";
 import { Flame } from "lucide-react";
 import { m } from "motion/react";
+import { useState } from "react";
+
+const loadedEmblems = new Set<string>();
 
 const QUEUE_LABEL: Record<string, string> = {
   RANKED_SOLO_5x5: "Ranked Solo",
@@ -29,6 +32,8 @@ function rankedEmblemUrl(tier: string): string {
 }
 
 function RankTileContent({ entry }: { entry: RankEntry }) {
+  const emblemUrl = rankedEmblemUrl(entry.tier);
+  const [emblemLoaded, setEmblemLoaded] = useState(() => loadedEmblems.has(emblemUrl));
   const tierColor = TIER_COLOR[entry.tier] ?? "text-foreground";
   const label = QUEUE_LABEL[entry.queueId] ?? entry.queueId;
   const division = APEX_TIERS.has(entry.tier) ? "" : ` ${entry.rank}`;
@@ -68,12 +73,25 @@ function RankTileContent({ entry }: { entry: RankEntry }) {
           </span>
         )}
       </div>
-      <img
-        src={rankedEmblemUrl(entry.tier)}
-        alt={entry.tier}
-        className="size-20 shrink-0 object-contain opacity-90 drop-shadow-md"
-        loading="lazy"
-      />
+      <div className="relative size-20 shrink-0">
+        {!emblemLoaded && (
+          <div className="absolute inset-0 animate-pulse rounded-full bg-muted" />
+        )}
+        <img
+          src={emblemUrl}
+          alt={entry.tier}
+          loading="eager"
+          onLoad={() => {
+            loadedEmblems.add(emblemUrl);
+            setEmblemLoaded(true);
+          }}
+          className={
+            emblemLoaded
+              ? "size-20 object-contain opacity-90 drop-shadow-md transition-opacity duration-300"
+              : "size-20 object-contain opacity-0 transition-opacity duration-300"
+          }
+        />
+      </div>
     </m.div>
   );
 }

@@ -14,8 +14,22 @@ export function normalizeChampionAlias(alias: string): string {
   return alias;
 }
 
+// Direct CommunityDragon URL — kept for any edge case or fallback use.
+// Prefer championSquareIconUrl for rendering: it routes through wsrv.nl whose
+// CDN edge caches the resolved asset, eliminating the per-request "latest"
+// version lookup that causes high TTFB when many icons load simultaneously.
 export function championIconUrl(championName: string): string {
   return `${CDRAGON_CDN}/champion/${normalizeChampionAlias(championName).toLowerCase()}/square`;
+}
+
+// wsrv.nl-proxied square icon. Resolves and caches the CDragon "latest" URL
+// at the CDN edge; w=72 covers 2× retina for the largest display size (size-9
+// = 36 CSS px). WebP at q=85 keeps the icon crisp at negligible byte cost.
+export function championSquareIconUrl(championName: string, width = 72): string {
+  const src = `cdn.communitydragon.org/latest/champion/${normalizeChampionAlias(
+    championName
+  ).toLowerCase()}/square`;
+  return `https://wsrv.nl/?url=${src}&w=${width}&output=webp&q=85`;
 }
 
 export function championLoadingUrl(championName: string, skin = 0): string {

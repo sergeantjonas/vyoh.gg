@@ -6,6 +6,9 @@ const ITEMS_URL =
 const ASSETS_BASE =
   "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default";
 
+// w=80 covers 2× retina for the largest display size (size-10 = 40 CSS px).
+const ICON_WSRV_PARAMS = "&w=80&output=webp&q=85";
+
 interface RawItem {
   id: number;
   name: string;
@@ -22,7 +25,9 @@ export interface Item {
 }
 
 function iconUrlFromPath(path: string): string {
-  return ASSETS_BASE + path.replace("/lol-game-data/assets/", "/").toLowerCase();
+  const rawUrl = ASSETS_BASE + path.replace("/lol-game-data/assets/", "/").toLowerCase();
+  const src = rawUrl.replace("https://", "");
+  return `https://wsrv.nl/?url=${src}${ICON_WSRV_PARAMS}`;
 }
 
 async function fetchItems(): Promise<Map<number, Item>> {

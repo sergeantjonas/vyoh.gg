@@ -1,7 +1,8 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
-import { championIconUrl } from "@/lol/_shared/champion-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
+import { ItemIcon } from "@/lol/_shared/item-icon";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -181,11 +182,7 @@ function ChampionDetailPage() {
         championAlias={alias}
       >
         <div className="flex items-center gap-3">
-          <img
-            src={championIconUrl(alias)}
-            alt=""
-            className="size-6 rounded-sm object-cover"
-          />
+          <ChampionSquareIcon championName={alias} className="size-6 rounded-sm" />
           <span className="text-sm font-medium">{championName(alias)}</span>
           <span
             className={cn(
@@ -300,8 +297,8 @@ function ChampionDetailPage() {
                   <TooltipPrimitive.Trigger asChild>
                     <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/50 p-2">
                       {item ? (
-                        <img
-                          src={item.iconUrl}
+                        <ItemIcon
+                          iconUrl={item.iconUrl}
                           alt={item.name}
                           className="size-10 rounded"
                         />
@@ -397,10 +394,9 @@ function ChampionDetailPage() {
                     key={champion}
                     className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
                   >
-                    <img
-                      src={championIconUrl(champion)}
-                      alt=""
-                      className="size-7 rounded-sm object-cover"
+                    <ChampionSquareIcon
+                      championName={champion}
+                      className="size-7 rounded-sm"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-medium">

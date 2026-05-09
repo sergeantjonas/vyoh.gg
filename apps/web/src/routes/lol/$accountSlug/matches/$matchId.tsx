@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { championIconUrl } from "@/lol/_shared/champion-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
@@ -113,10 +113,9 @@ function MatchDetailPage() {
           championAlias={heroSummary.champion}
         >
           <div className="flex items-center gap-3">
-            <img
-              src={championIconUrl(heroSummary.champion)}
-              alt=""
-              className="size-6 rounded-sm object-cover"
+            <ChampionSquareIcon
+              championName={heroSummary.champion}
+              className="size-6 rounded-sm"
             />
             <span className="text-sm font-medium">
               {championName(heroSummary.champion)}
