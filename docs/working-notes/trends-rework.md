@@ -391,7 +391,7 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 
 - **Phase T1** (cleanup pass) — **shipped 2026-05-09.**
 - **Phase T2** (conclusion-card pattern + retrofit) — **shipped 2026-05-09.**
-- **Phase T3** (six new insight tiles) — not started.
+- **Phase T3** (six new insight tiles) — **shipped 2026-05-09.** Five of six tiles live: LP economy (T3.2), day-of-week WR (T3.3), win-rate trajectory (T3.1), champion focus + pool (T3.4), session fatigue (T3.6). **T3.5 (worst matchup callouts) is blocked** — requires `laneOpponent` field on `MatchSummary`, which lands in match-depth Phase A. Unblocks immediately when that ships.
 - **Phase T4** (match-depth-dependent tiles) — blocked on match-depth Phase A/B; tracked here for visibility only.
 
 ---
@@ -410,3 +410,5 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — `summarize(stats)` per-tile pattern extended to also produce `{ verdictMarkdown, prescriptionMarkdown? }`. Lets the **weekly digest as markdown export** (vNext top tier) consume the same source as the UI — no parallel parser. Decision sourced from [vnext-ideas.md](vnext-ideas.md).
 - **2026-05-09** — Magazine grid pinned to `LazyMotion domMax` + `m.div layout` from day one of T2. Range-change reflow is the flagship motion moment for the rework — switching layout primitives later would be expensive. Decision sourced from [vnext-ideas.md](vnext-ideas.md).
 - **2026-05-09** — `SampleSizeBadge` primitive lands in T2 (static); fill-on-mount animation lifted to T3 polish so all T2 retrofits use the badge consistently.
+- **2026-05-09** — T3 shipped (five tiles). All grid tiles now always render a `ConclusionCard` — no null returns that leave empty grid cells; insufficient-data paths show a muted empty-state verdict instead. `SampleSizeBadge` tooltip migrated from native `title=` to Radix `TooltipPrimitive`. Percentage-point deltas use `%` not `pp` in all verdict strings.
+- **2026-05-09** — T3.5 (worst matchup callouts) deferred: `MatchSummary` has no opponent data. `laneOpponent` is added to `MatchSummary` in match-depth Phase A — T3.5 unblocks the moment that ships.

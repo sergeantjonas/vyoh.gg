@@ -72,15 +72,24 @@ function pickInsights(stats: HabitsStats): string[] {
 }
 
 export function TrendWeeklyReview({ current }: { current: MatchSummary[] }) {
+  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
   const insights = useMemo(() => {
-    const nonRemakes = current.filter((m) => !m.remake);
-    if (nonRemakes.length < 10) return [];
-    return pickInsights(computeHabitsStats(nonRemakes));
-  }, [current]);
+    if (playedCount < 10) return [];
+    return pickInsights(computeHabitsStats(current.filter((m) => !m.remake)));
+  }, [current, playedCount]);
 
-  if (insights.length === 0) return null;
+  if (insights.length === 0) {
+    return (
+      <ConclusionCard
+        title="Briefing"
+        sampleSize={playedCount}
+        verdict="Not enough data yet to generate your briefing."
+        empty
+      />
+    );
+  }
 
-  const sampleSize = current.filter((m) => !m.remake).length;
+  const sampleSize = playedCount;
   const [first, second] = insights;
 
   return (

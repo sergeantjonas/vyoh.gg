@@ -137,16 +137,26 @@ function HeatmapGrid({
 }
 
 export function TrendTimeHeatmap({ current }: { current: MatchSummary[] }) {
+  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
   const stats = useMemo(() => {
     if (current.length < 5) return null;
     return computeHabitsStats(current);
   }, [current]);
 
-  if (!stats) return null;
+  const hasAnyData = stats ? stats.hourDay.some((s) => s.games > 0) : false;
+
+  if (!stats || !hasAnyData) {
+    return (
+      <ConclusionCard
+        title="When you play"
+        sampleSize={playedCount}
+        verdict="Not enough games yet to build a time heatmap."
+        empty
+      />
+    );
+  }
 
   const { hourDay } = stats;
-  const hasAnyData = hourDay.some((s) => s.games > 0);
-  if (!hasAnyData) return null;
 
   const populated = hourDay.filter((s) => s.games >= 3);
   const bestStat = [...populated].sort((a, b) => b.wins / b.games - a.wins / a.games)[0];

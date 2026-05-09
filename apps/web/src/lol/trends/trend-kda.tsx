@@ -119,7 +119,16 @@ export function TrendKda({
     [previous]
   );
 
-  if (points.length === 0) return null;
+  if (points.length === 0) {
+    return (
+      <ConclusionCard
+        title="KDA trend"
+        sampleSize={0}
+        verdict="No match data yet."
+        empty
+      />
+    );
+  }
 
   const sampleSize = currentSummary.games;
 

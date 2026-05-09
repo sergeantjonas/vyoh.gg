@@ -1,10 +1,14 @@
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
+import { TrendDowWr } from "@/lol/trends/trend-dow-wr";
 import { TrendGameLength } from "@/lol/trends/trend-game-length";
 import { TrendKda } from "@/lol/trends/trend-kda";
-import { TrendPoolEntropy } from "@/lol/trends/trend-pool-entropy";
+import { TrendLpEconomy } from "@/lol/trends/trend-lp-economy";
+import { TrendSessionFatigue } from "@/lol/trends/trend-session-fatigue";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import { TrendWeeklyReview } from "@/lol/trends/trend-weekly-review";
+import { TrendWrTrajectory } from "@/lol/trends/trend-wr-trajectory";
 import { TrendsRangeSelector } from "@/lol/trends/trends-range-selector";
 import type { TrendsRangeId } from "@/lol/trends/trends-range-selector";
 import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
@@ -81,7 +85,19 @@ function TrendsPage() {
             <TrendGameLength current={current} previous={previous} />
           </Cell>
           <Cell>
-            <TrendPoolEntropy current={current} previous={previous} />
+            <TrendChampionFocus current={current} previous={previous} />
+          </Cell>
+          <Cell>
+            <TrendLpEconomy current={current} previous={previous} />
+          </Cell>
+          <Cell span={2}>
+            <TrendDowWr current={current} previous={previous} />
+          </Cell>
+          <Cell span={2}>
+            <TrendWrTrajectory current={current} previous={previous} />
+          </Cell>
+          <Cell>
+            <TrendSessionFatigue current={current} previous={previous} />
           </Cell>
           <Cell span={3}>
             <TrendKda current={current} previous={previous} />

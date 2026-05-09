@@ -52,19 +52,36 @@ export function TrendGameLength({
   current: MatchSummary[];
   previous: MatchSummary[];
 }) {
+  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
   const stats = useMemo(() => {
     if (current.length < 5) return null;
     return computeHabitsStats(current);
   }, [current]);
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <ConclusionCard
+        title="By game length"
+        sampleSize={playedCount}
+        verdict="Not enough games yet to analyse game-length patterns."
+        empty
+      />
+    );
+  }
 
   const buckets = stats.gameLength.filter((b) => b.games > 0);
-  if (buckets.length < 2) return null;
-
   const sorted = [...buckets].sort((a, b) => b.wins / b.games - a.wins / a.games);
   const best = sorted[0];
-  if (!best) return null;
+  if (buckets.length < 2 || !best) {
+    return (
+      <ConclusionCard
+        title="By game length"
+        sampleSize={playedCount}
+        verdict="Need games across 2+ different game lengths."
+        empty
+      />
+    );
+  }
 
   const sampleSize = buckets.reduce((s, b) => s + b.games, 0);
   const verdict = `You're strongest in ${best.label} games — ${Math.round((best.wins / best.games) * 100)}% WR over ${best.games} games.`;

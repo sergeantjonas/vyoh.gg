@@ -63,15 +63,34 @@ export function TrendTiltIndicator({
   current: MatchSummary[];
   previous: MatchSummary[];
 }) {
+  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
   const stats = useMemo(() => {
     if (current.length < 5) return null;
     return computeHabitsStats(current);
   }, [current]);
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <ConclusionCard
+        title="After last game"
+        sampleSize={playedCount}
+        verdict="Not enough games yet to detect tilt patterns."
+        empty
+      />
+    );
+  }
 
   const { afterWin, afterLoss } = stats.tilt;
-  if (afterWin.games < MIN_SAMPLE || afterLoss.games < MIN_SAMPLE) return null;
+  if (afterWin.games < MIN_SAMPLE || afterLoss.games < MIN_SAMPLE) {
+    return (
+      <ConclusionCard
+        title="After last game"
+        sampleSize={playedCount}
+        verdict="Need 5+ games after a win and after a loss to detect tilt patterns."
+        empty
+      />
+    );
+  }
 
   const wrWin = afterWin.wins / afterWin.games;
   const wrLoss = afterLoss.wins / afterLoss.games;
@@ -80,9 +99,9 @@ export function TrendTiltIndicator({
 
   const verdict =
     wrWin > wrLoss
-      ? `Win rate drops ${Math.abs(diffPp)}pp after a loss.`
+      ? `Win rate drops ${Math.abs(diffPp)}% after a loss.`
       : diffPp < 0
-        ? `Win rate drops ${Math.abs(diffPp)}pp after a win — fresh sessions help.`
+        ? `Win rate drops ${Math.abs(diffPp)}% after a win — fresh sessions help.`
         : "Win rate is stable regardless of your last result.";
 
   const prescription =

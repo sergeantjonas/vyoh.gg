@@ -12,6 +12,8 @@ export interface ConclusionCardProps {
   prescription?: string;
   prescriptionMarkdown?: string;
   className?: string;
+  /** When true, renders the verdict in muted style — use for insufficient-data empty states. */
+  empty?: boolean;
 }
 
 export function ConclusionCard({
@@ -21,6 +23,7 @@ export function ConclusionCard({
   evidence,
   prescription,
   className,
+  empty = false,
 }: ConclusionCardProps) {
   const reduced = useReducedMotion();
   return (
@@ -37,7 +40,8 @@ export function ConclusionCard({
       </div>
       <p
         className={cn(
-          "text-base font-semibold leading-snug text-foreground/90",
+          "text-base font-semibold leading-snug",
+          empty ? "text-muted-foreground/70" : "text-foreground/90",
           reduced ? "" : "transition-colors"
         )}
       >

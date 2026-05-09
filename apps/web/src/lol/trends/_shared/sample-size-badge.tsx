@@ -1,8 +1,13 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+
 const R = 5;
 const C = +(2 * Math.PI * R).toFixed(2); // 31.42
 const HALF_C = +(Math.PI * R).toFixed(2); // 15.71
 
-const TITLE: Record<"empty" | "partial" | "full", string> = {
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+
+const LABEL: Record<"empty" | "partial" | "full", string> = {
   empty: "Small sample — directional only",
   partial: "Moderate sample",
   full: "Confident estimate",
@@ -15,39 +20,48 @@ export function SampleSizeBadge({ count }: { count: number }) {
   const gap = +(C - dashLen).toFixed(2);
 
   return (
-    <span
-      className="flex shrink-0 items-center gap-1.5 text-[10px] tabular-nums text-muted-foreground/60"
-      title={TITLE[level]}
-    >
-      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-        {/* track */}
-        <circle
-          cx="7"
-          cy="7"
-          r={R}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          opacity="0.25"
-        />
-        {/* fill arc */}
-        {level !== "empty" && (
-          <circle
-            cx="7"
-            cy="7"
-            r={R}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeDasharray={`${dashLen} ${gap}`}
-            strokeLinecap="round"
-            transform="rotate(-90 7 7)"
-          />
-        )}
-      </svg>
-      <span>
-        {count} {count === 1 ? "game" : "games"}
-      </span>
-    </span>
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <span className="flex shrink-0 cursor-default items-center gap-1.5 text-[10px] tabular-nums text-muted-foreground/60">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <circle
+              cx="7"
+              cy="7"
+              r={R}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              opacity="0.25"
+            />
+            {level !== "empty" && (
+              <circle
+                cx="7"
+                cy="7"
+                r={R}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeDasharray={`${dashLen} ${gap}`}
+                strokeLinecap="round"
+                transform="rotate(-90 7 7)"
+              />
+            )}
+          </svg>
+          <span>
+            {count} {count === 1 ? "game" : "games"}
+          </span>
+        </span>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="top"
+          sideOffset={6}
+          collisionPadding={8}
+          className={TOOLTIP_CONTENT_CLASS}
+        >
+          {LABEL[level]}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }
