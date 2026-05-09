@@ -2,7 +2,7 @@ export interface MatchTimelineFrame {
   ts: number;
   perParticipant: Record<
     number,
-    { gold: number; level: number; position: { x: number; y: number } }
+    { gold: number; level: number; cs: number; position: { x: number; y: number } }
   >;
 }
 

@@ -97,6 +97,8 @@ export interface RiotParticipantFrame {
   participantId: number;
   totalGold: number;
   level: number;
+  minionsKilled?: number;
+  jungleMinionsKilled?: number;
   position: { x: number; y: number };
 }
 

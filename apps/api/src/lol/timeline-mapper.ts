@@ -100,13 +100,15 @@ export function riotTimelineToProjection(
           break;
         }
         case "BUILDING_KILL": {
-          const teamId = event.teamId ?? 0;
+          // event.teamId is the building OWNER; flip to get the team that TOOK it
+          const ownerTeam = event.teamId ?? 0;
+          const killerTeam = ownerTeam === 100 ? 200 : ownerTeam === 200 ? 100 : 0;
           const type =
             event.buildingType === "INHIBITOR_BUILDING" ? "INHIBITOR" : "TOWER";
           objectives.push({
             ts: event.timestamp,
             type,
-            teamId,
+            teamId: killerTeam,
             position: event.position ?? null,
           });
           break;
@@ -120,6 +122,7 @@ export function riotTimelineToProjection(
       perParticipant[pf.participantId] = {
         gold: pf.totalGold,
         level: pf.level,
+        cs: (pf.minionsKilled ?? 0) + (pf.jungleMinionsKilled ?? 0),
         position: pf.position,
       };
     }

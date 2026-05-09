@@ -1,3 +1,4 @@
+import { ShimmerBlock } from "@/components/shimmer-block";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/item-icon";
@@ -225,7 +226,14 @@ export function MatchBuildOrder({
   const [showOpponent, setShowOpponent] = useState(isRanked && !!opponent);
 
   if (!myPuuid || !myParticipant) return null;
-  if (timeline.isPending) return null;
+  if (timeline.isPending) {
+    return (
+      <section className="flex flex-col gap-3">
+        <ShimmerBlock className="h-4 w-24 rounded" />
+        <ShimmerBlock className="h-14 w-full rounded-md" />
+      </section>
+    );
+  }
   if (timeline.isError) return null;
 
   const myParticipantId = timeline.data.participants.find(

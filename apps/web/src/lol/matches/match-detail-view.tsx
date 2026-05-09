@@ -1,15 +1,20 @@
-import { CrossedSwordsIcon, TwoCoinsIcon } from "@/components/game-icons";
+import { CrossedSwordsIcon, CsIcon, GoldIcon } from "@/components/game-icons";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/item-icon";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
+import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
+import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
+import { MatchKillMap } from "@/lol/matches/match-kill-map";
+import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
+import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { useItems } from "@/lol/matches/use-items";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
-import type { ComponentType, SVGProps } from "react";
+import type { ComponentType } from "react";
 
 const itemsContainer: Variants = {
   hidden: {},
@@ -50,7 +55,13 @@ function ItemSlot({ id }: { id: number }) {
   return (
     <TooltipPrimitive.Root delayDuration={150}>
       <TooltipPrimitive.Trigger asChild>
-        <ItemIcon iconUrl={item.iconUrl} alt={item.name} className="size-5 rounded-sm" />
+        <span className="inline-block cursor-default">
+          <ItemIcon
+            iconUrl={item.iconUrl}
+            alt={item.name}
+            className="size-5 rounded-sm"
+          />
+        </span>
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
@@ -114,7 +125,7 @@ function StatBar({
   fillClassName,
   labelClassName,
 }: {
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  Icon: ComponentType<{ className?: string }>;
   label: string;
   value: number;
   max: number;
@@ -201,12 +212,22 @@ function ParticipantRow({
       />
       <div className="flex-1 min-w-0">
         <div className="truncate text-sm font-medium">{displayName}</div>
-        <div className="font-mono text-xs tabular-nums">
-          <span className="text-emerald-400">{p.kills}</span>
-          <span className="text-muted-foreground"> / </span>
-          <span className="text-red-400">{p.deaths}</span>
-          <span className="text-muted-foreground"> / </span>
-          <span className="text-amber-400">{p.assists}</span>
+        <div className="truncate text-[10px] text-muted-foreground/60">
+          {p.riotIdGameName}
+          <span className="text-muted-foreground/40">#{p.riotIdTagline}</span>
+        </div>
+        <div className="flex items-center gap-2 font-mono text-xs tabular-nums">
+          <span>
+            <span className="text-emerald-400">{p.kills}</span>
+            <span className="text-muted-foreground"> / </span>
+            <span className="text-red-400">{p.deaths}</span>
+            <span className="text-muted-foreground"> / </span>
+            <span className="text-amber-400">{p.assists}</span>
+          </span>
+          <span className="flex items-center gap-0.5 text-muted-foreground">
+            <CsIcon className="size-3" />
+            {p.csTotal}
+          </span>
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5">
@@ -221,7 +242,7 @@ function ParticipantRow({
             labelClassName="text-red-400/80"
           />
           <StatBar
-            Icon={TwoCoinsIcon}
+            Icon={GoldIcon}
             label="Gld"
             value={p.goldEarned}
             max={maxGold}
@@ -329,6 +350,11 @@ export function MatchDetailView({
         </m.div>
       </div>
       <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+      <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+      <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
+      <MatchKillMap detail={detail} myPuuid={myPuuid} />
+      <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
+      <MatchLanePhase detail={detail} myPuuid={myPuuid} />
     </div>
   );
 }
