@@ -37,9 +37,15 @@ export function extractItemsAndOpponents(
     participant.item5,
   ].filter((id) => id > 0);
 
-  const opponents = match.info.participants
-    .filter((p) => p.teamId !== participant.teamId)
-    .map((p) => p.championName);
+  // teamPosition is empty in ARAM/Arena — skip those games for matchup tracking
+  const opponents: string[] = [];
+  if (participant.teamPosition) {
+    const laneOpponent = match.info.participants.find(
+      (p) =>
+        p.teamId !== participant.teamId && p.teamPosition === participant.teamPosition
+    );
+    if (laneOpponent) opponents.push(laneOpponent.championName);
+  }
 
   return { items, opponents };
 }

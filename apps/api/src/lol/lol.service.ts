@@ -438,20 +438,29 @@ export class LolService {
   }
 
   async getMatchDetail(matchId: string): Promise<MatchDetail> {
+    const cached = await this.prisma.matchDetailCache.findUnique({
+      where: { matchId },
+    });
+    if (cached) return cached.detail as unknown as MatchDetail;
+
     const platform = matchId.split("_")[0]?.toLowerCase();
-    if (!platform) {
-      throw new Error(`Cannot derive region from matchId ${matchId}`);
-    }
+    if (!platform) throw new Error(`Cannot derive region from matchId ${matchId}`);
     const regional = platformToRegional(platform);
-    const detail = await this.riot.getMatchById(matchId, regional);
-    return riotMatchToDetail(detail);
+    const raw = await this.riot.getMatchById(matchId, regional);
+    const detail = riotMatchToDetail(raw);
+
+    await this.prisma.matchDetailCache.create({
+      data: { matchId, detail: detail as unknown as object },
+    });
+    return detail;
   }
 
   async getChampionExtras(
     region: string,
     gameName: string,
     tagLine: string,
-    championKey: string
+    championKey: string,
+    queue?: number
   ): Promise<ChampionExtras> {
     const summoner = await this.resolveSummoner(region, gameName, tagLine);
 
@@ -460,6 +469,7 @@ export class LolService {
         puuid: summoner.puuid,
         champion: { equals: championKey, mode: "insensitive" },
         items: { isEmpty: false },
+        ...(queue !== undefined && { queueType: queueTypeName(queue) }),
       },
       select: { items: true, opponents: true, win: true },
     });
@@ -477,7 +487,6 @@ export class LolService {
       .slice(0, 6)
       .map(([itemId, s]) => ({ itemId, games: s.games, wins: s.wins }));
 
-    // Matchup aggregation — only opponents faced ≥ 3 times
     const matchupMap = new Map<string, { games: number; wins: number }>();
     for (const m of matches) {
       for (const opp of m.opponents) {
@@ -486,7 +495,6 @@ export class LolService {
       }
     }
     const matchups = [...matchupMap.entries()]
-      .filter(([, s]) => s.games >= 3)
       .sort((a, b) => b[1].games - a[1].games)
       .map(([champion, s]) => ({ champion, games: s.games, wins: s.wins }));
 
@@ -571,11 +579,16 @@ export class LolService {
   ): Promise<void> {
     if (matchIds.length === 0) return;
 
-    // Rows that already have item data are fully synced — skip them.
-    // Rows that exist but have empty items (synced before this feature) are
-    // treated as missing so they get backfilled on the next sync pass.
+    // A row is fully synced only if both items and opponents are populated.
+    // Clearing opponents (e.g. to re-derive lane matchups) causes rows to be
+    // re-fetched on the next sync pass.
     const fullysynced = await this.prisma.match.findMany({
-      where: { puuid, matchId: { in: matchIds }, items: { isEmpty: false } },
+      where: {
+        puuid,
+        matchId: { in: matchIds },
+        items: { isEmpty: false },
+        opponents: { isEmpty: false },
+      },
       select: { matchId: true },
     });
     const have = new Set(fullysynced.map((m) => m.matchId));
@@ -587,26 +600,34 @@ export class LolService {
 
     const results = await Promise.allSettled(
       missing.map(async (matchId) => {
-        const detail = await this.riot.getMatchById(matchId, regional);
-        const summary = riotMatchToSummary(detail, puuid);
-        const { items, opponents } = extractItemsAndOpponents(detail, puuid);
-        await this.prisma.match.upsert({
-          where: { matchId_puuid: { matchId, puuid } },
-          create: {
-            ...summary,
-            puuid,
-            playedAt: new Date(summary.playedAt),
-            items,
-            opponents,
-          },
-          update: {
-            ...summary,
-            puuid,
-            playedAt: new Date(summary.playedAt),
-            items,
-            opponents,
-          },
-        });
+        const raw = await this.riot.getMatchById(matchId, regional);
+        const summary = riotMatchToSummary(raw, puuid);
+        const { items, opponents } = extractItemsAndOpponents(raw, puuid);
+        const detail = riotMatchToDetail(raw);
+        await Promise.all([
+          this.prisma.matchDetailCache.upsert({
+            where: { matchId },
+            create: { matchId, detail: detail as unknown as object },
+            update: {},
+          }),
+          this.prisma.match.upsert({
+            where: { matchId_puuid: { matchId, puuid } },
+            create: {
+              ...summary,
+              puuid,
+              playedAt: new Date(summary.playedAt),
+              items,
+              opponents,
+            },
+            update: {
+              ...summary,
+              puuid,
+              playedAt: new Date(summary.playedAt),
+              items,
+              opponents,
+            },
+          }),
+        ]);
       })
     );
 

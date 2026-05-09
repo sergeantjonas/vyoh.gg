@@ -71,9 +71,11 @@ export class LolController {
     @Param("region") region: string,
     @Param("gameName") gameName: string,
     @Param("tagLine") tagLine: string,
-    @Param("championKey") championKey: string
+    @Param("championKey") championKey: string,
+    @Query("queue", new DefaultValuePipe(undefined), new ParseIntPipe({ optional: true }))
+    queue: number | undefined
   ): Promise<ChampionExtras> {
-    return this.lol.getChampionExtras(region, gameName, tagLine, championKey);
+    return this.lol.getChampionExtras(region, gameName, tagLine, championKey, queue);
   }
 
   @Sse("matches/events")

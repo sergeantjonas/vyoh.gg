@@ -99,6 +99,7 @@ async function makeService({
   const prisma = {
     summoner: { findUnique: summonerFindUnique, upsert: summonerUpsert },
     match: { findMany: matchFindMany, count: matchCount, upsert: matchUpsert },
+    matchDetailCache: { upsert: vi.fn().mockResolvedValue(undefined) },
   };
   const riot = {
     getAccountByRiotId: vi.fn().mockResolvedValue({
