@@ -99,9 +99,10 @@ The five bolded items are the misfiles.
 2. Recent Form (pips + streak chip)
 3. LP history
 4. Now playing
-5. Queue distribution (compact bar, NEW from Trends)
-6. Activity calendar heatmap (NEW from Trends)
-7. Stats bar — extended with a "Champs" cell
+5. Role distribution strip (planned — see [views-roadmap.md](views-roadmap.md) Phase 6)
+6. Queue distribution (compact bar, NEW from Trends)
+7. Activity calendar heatmap (NEW from Trends)
+8. Stats bar — extended with a "Champs" cell
 
 Net: Profile loses 4 tiles (heatmap, tilt, game length, pool entropy), gains 2 (queue bar, activity calendar). Becomes more glanceable. Outcome confirmed in design discussion 2026-05-09.
 
@@ -298,6 +299,26 @@ Each tile follows the `ConclusionCard` pattern from T2.
    - Prescription: "Three-game cap?" — only when game-4+ WR is ≥ 10 pts below game-1.
    - Sample-size gating: ≥ 5 sessions of length ≥ 4.
 
+7. **Role performance.**
+   - Verdict: "Your strongest role is [TOP/JGL/MID/BOT/SUP icon] [role] — X% WR over N games."
+   - Evidence: five horizontal bars, one per standard role. Each bar: CDragon role SVG icon + label on the left, WR bar + percentage on the right, game count in muted text below the label. Sorted by games played descending so the main role anchors the top. Roles with < 3 games show a grayed-out bar with "too few games" instead of a WR figure.
+   - Prescription: when best/worst WR divergence ≥ 15 pts and both have ≥ 5 games — "Consider climbing on [best role]." Suppress when the player plays only one role (verdict alone is sufficient).
+   - Queue scoping: `teamPosition` is `""` for ARAM and Arena — filter those games silently. If > 70% of games in the range have no position data (heavy ARAM player), show a muted "Ranked & normals only" chip in place of the verdict rather than misleading confidence.
+   - Sample-size badge: references total non-ARAM games in the window. Per-role game counts gate individual bars independently.
+   - Prerequisite: `teamPosition` added to `MatchSummary` — see schema note below.
+
+**Schema prerequisite for T3.7 (also unblocks T3.5):**
+
+`teamPosition` is already typed in `RiotMatchParticipant` and projected to `ParticipantDetail`. It is not on `MatchSummary` or the `Match` Prisma model. Three-file change, all small:
+
+- `packages/shared/src/lol/match.ts` — add `teamPosition: string` to `MatchSummary`.
+- `apps/api/prisma/schema.prisma` — add `teamPosition String @default("")` to `Match` model.
+- `apps/api/src/lol/match-mapper.ts` — add `teamPosition: participant.teamPosition` to the `riotMatchToSummary` return. The field is already read in that function (line 12) to find the lane opponent — it's a one-liner to expose it.
+
+Existing rows get `""` via Prisma migration `DEFAULT ''`. Stats filter empty-position rows the same way ARAM is already excluded from lane-opponent stats. Optional backfill: each `MatchDetailCache.detail` JSON already has `participants[].teamPosition`; a one-off script can join on `matchId + puuid` and patch existing rows without Riot calls. Pre-prod, so skip if new matches fill the data fast enough.
+
+Note: T3.5 (worst matchup) and T3.7 (role performance) both depend on `MatchSummary` having position data — batch the schema change to unblock both at once.
+
 ### Implementation order within the phase
 
 - 2 (LP economy) and 3 (day-of-week WR) — simplest, ship first. Both use data already in `MatchSummary`.
@@ -305,6 +326,7 @@ Each tile follows the `ConclusionCard` pattern from T2.
 - 4 (Champion focus + pool, merged) — moderate; subsumes the T2 pool-entropy retrofit.
 - 6 (Session fatigue) — interesting; needs session-clustering logic. Calm motion showcase opportunity (the line draws, then the dropoff point pulses once).
 - 5 (Worst matchup) — interesting; depends on lane-opponent strength of the existing dataset (only populated for ranked). Document the queue-filter behavior carefully.
+- 7 (Role performance) — straightforward once `teamPosition` lands on `MatchSummary`; blocked only by that schema addition, independent of all other tiles. Ships alongside the Profile role strip (see [views-roadmap.md](views-roadmap.md) Phase 6).
 
 ---
 
@@ -391,7 +413,7 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 
 - **Phase T1** (cleanup pass) — **shipped 2026-05-09.**
 - **Phase T2** (conclusion-card pattern + retrofit) — **shipped 2026-05-09.**
-- **Phase T3** (six new insight tiles) — **shipped 2026-05-09.** Five of six tiles live: LP economy (T3.2), day-of-week WR (T3.3), win-rate trajectory (T3.1), champion focus + pool (T3.4), session fatigue (T3.6). **T3.5 (worst matchup callouts) is blocked** — requires `laneOpponent` field on `MatchSummary`, which lands in match-depth Phase A. Unblocks immediately when that ships.
+- **Phase T3** (six original tiles shipped; T3.7 planned) — **shipped 2026-05-09.** Five of six original tiles live: LP economy (T3.2), day-of-week WR (T3.3), win-rate trajectory (T3.1), champion focus + pool (T3.4), session fatigue (T3.6). **T3.5 (worst matchup callouts) is blocked** — requires `laneOpponent` on `MatchSummary`, which lands in match-depth Phase A. **T3.7 (role performance) is planned** — requires `teamPosition` added to `MatchSummary` + `Match` schema (independent, small prerequisite — see T3.7 schema note above).
 - **Phase T4** (match-depth-dependent tiles) — blocked on match-depth Phase A/B; tracked here for visibility only.
 
 ---
@@ -412,3 +434,4 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — `SampleSizeBadge` primitive lands in T2 (static); fill-on-mount animation lifted to T3 polish so all T2 retrofits use the badge consistently.
 - **2026-05-09** — T3 shipped (five tiles). All grid tiles now always render a `ConclusionCard` — no null returns that leave empty grid cells; insufficient-data paths show a muted empty-state verdict instead. `SampleSizeBadge` tooltip migrated from native `title=` to Radix `TooltipPrimitive`. Percentage-point deltas use `%` not `pp` in all verdict strings.
 - **2026-05-09** — T3.5 (worst matchup callouts) deferred: `MatchSummary` has no opponent data. `laneOpponent` is added to `MatchSummary` in match-depth Phase A — T3.5 unblocks the moment that ships.
+- **2026-05-10** — T3.7 (role performance ConclusionCard) added. `teamPosition` is already in `RiotMatchParticipant` and `ParticipantDetail` but missing from `MatchSummary` / `Match` table. Three-file fix (shared type + schema + mapper) also unblocks T3.5 since both need `teamPosition`-adjacent data on the summary level — batch those migrations. Role strip companion lands on Profile simultaneously (views-roadmap.md Phase 6).

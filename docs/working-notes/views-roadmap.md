@@ -153,6 +153,34 @@ This reframes Phase 5 from "pull Riot history" to "surface the longitudinal data
 
 ---
 
+## Phase 6 — Profile role strip
+
+**Goal:** Add a compact role distribution strip to the Profile identity section. Companion to the queue distribution bar — same "what you play" cluster. CDragon role icons give it immediate visual recognition.
+
+**Deliverables:**
+
+1. **Role distribution strip** (`apps/web/src/lol/profile/profile-role-strip.tsx`).
+   - Five role slots: TOP / JGL / MID / BOT / SUP. CDragon role SVG icon per slot (same proxy pattern as champion icons), game count + percentage of non-ARAM games below each icon.
+   - Slots sorted by games played descending so the main role anchors left.
+   - ARAM and Arena games (empty `teamPosition`) excluded silently. If > 90% of the current window is ARAM, show a muted "Mostly ARAM — role data limited" note instead of the strip.
+   - Optional secondary signal: small WR percentage per role in muted text. Keep it low-key — the Trends T3.7 role performance card is where WR gets the verdict treatment; here it's supporting colour.
+   - Position in Profile layout: after Now Playing, before Queue distribution. Both are "what you play" identity signals — together they form a natural cluster.
+   - Empty state when no non-ARAM games in the window: five grayed-out icon slots.
+
+2. **Shared prerequisite: `teamPosition` on `MatchSummary`.**
+   - `packages/shared/src/lol/match.ts` — add `teamPosition: string` to `MatchSummary`.
+   - `apps/api/prisma/schema.prisma` — add `teamPosition String @default("")` to `Match` model.
+   - `apps/api/src/lol/match-mapper.ts` — add `teamPosition: participant.teamPosition` to the `riotMatchToSummary` return. The field is already read on line 12 of that function to find the lane opponent — single-line addition to expose it.
+   - Existing rows get `""` via Prisma migration `DEFAULT ''`. Stats filter empty-position rows the same way ARAM is excluded elsewhere. Optional backfill: `MatchDetailCache.detail` JSON already carries `participants[].teamPosition`; a one-off script can join on `matchId + puuid` and patch rows without Riot calls.
+   - Same schema change also unblocks Trends T3.7 (role performance ConclusionCard) and contributes to T3.5 (worst matchup) data readiness — batch with those.
+
+### Sequencing
+
+1. Schema prerequisite first (independent, small, unblocks T3.5 and T3.7 too).
+2. Profile role strip and Trends T3.7 can ship together or independently — no shared component code.
+
+---
+
 ## Cross-cutting concerns
 
 **Routing reshape.** Moving the landing page from Matches to Profile is a routing change with implications:
@@ -207,3 +235,4 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — LP delta per match + remake flagging shipped. `Match` table extended with `snapshotTier/Rank/Lp` (nullable) captured at head-sync time (after `captureRankSnapshot`, before `backfillMissingMatches`). Client computes delta via `normalizeLp` diff between consecutive matches per queue — no new endpoint. Historical backfill rows get null snapshots to avoid stamping stale LP. Remakes detected via `gameEndedInEarlySurrender && gameDuration < 210 s`; stored with `remake: true`, excluded from all stat computations (win rate, KDA, streak, habits, champion aggregation, recent-form pips), displayed as "Remake" on the card. The 210 s threshold distinguishes true remakes from Season 2 2026 inting-surrenders which happen after 3.5 min and do affect LP.
 - **2026-05-09** — Phase 5 reframed and shipped. Riot does not expose historical season ranks — League-V4 is current-only, the `endOfGameStats` reference earlier in this doc was an LCU API not server-accessible, and `stats/v1` was deprecated 2018. So past-seasons is built on self-collected snapshots only: `detectSeasons` flags soft-reset boundaries client-side from the existing `/rank/history` response. Thresholds: 400 LP drop + 7d gap (catches split resets without false-positiving on demotions or play-streaks). Followed the existing `@vyoh/shared/lol/rank-history` subpath-export pattern; added `DetectedSeason` as a type re-export from the package root. Cold-start period is owned in the UI rather than hidden — the empty state explicitly says "tracking started YYYY-MM-DD; Riot doesn't expose pre-tracking history."
 - **2026-05-09** — `@vyoh/shared` value re-exports break the API runtime. The package serves source `.ts` via `exports: "./src/index.ts"` (no compiled output). Existing `export type` re-exports work because they're erased before Node's resolver sees them. Adding any `export {}` value re-export forces Node to resolve a real `.js` file that doesn't exist (`ERR_MODULE_NOT_FOUND`). Fix: keep `index.ts` type-only; expose runtime helpers via subpath export (`@vyoh/shared/lol/rank-history`) which Vite (Bundler resolution) consumes natively, while moving normalization off the API entirely (raw snapshots out, web computes `totalLp`). Documents a real package-boundary trade-off worth a write-up.
+- **2026-05-10** — Phase 6 (Profile role strip) planned. `teamPosition` is already in `RiotMatchParticipant` and `ParticipantDetail` but absent from `MatchSummary` / `Match` table. Adding it is a three-file change (shared type + Prisma schema + mapper return). That single prerequisite also unblocks Trends T3.7 (role performance ConclusionCard) and contributes to T3.5 (worst matchup) — batch all three into one schema migration. Profile strip positions between Now Playing and queue distribution as a "what you play" identity cluster.
