@@ -9,23 +9,23 @@ import {
   useState,
 } from "react";
 
+export type CardOrigin = { matchId: string; rect: DOMRect };
+
 type Ctx = {
   activeMatch: string | null;
   setActiveMatch: (id: string | null) => void;
   saveListScroll: () => void;
   readListScroll: () => number;
   clearListScroll: () => void;
-  morphEpoch: number;
-  bumpMorphEpoch: () => void;
+  originRectRef: { current: CardOrigin | null };
+  setOriginRect: (r: CardOrigin | null) => void;
 };
 
 const ActiveMatchContext = createContext<Ctx | null>(null);
 
 export function ActiveMatchProvider({ children }: { children: ReactNode }) {
   const [activeMatch, set] = useState<string | null>(null);
-  const [morphEpoch, setMorphEpoch] = useState(0);
   const setActiveMatch = useCallback((id: string | null) => set(id), []);
-  const bumpMorphEpoch = useCallback(() => setMorphEpoch((e) => e + 1), []);
   const scrollYRef = useRef(0);
   const saveListScroll = useCallback(() => {
     scrollYRef.current = mainScrollRef.current?.scrollTop ?? 0;
@@ -34,6 +34,10 @@ export function ActiveMatchProvider({ children }: { children: ReactNode }) {
   const clearListScroll = useCallback(() => {
     scrollYRef.current = 0;
   }, []);
+  const originRectRef = useRef<CardOrigin | null>(null);
+  const setOriginRect = useCallback((r: CardOrigin | null) => {
+    originRectRef.current = r;
+  }, []);
   const value = useMemo(
     () => ({
       activeMatch,
@@ -41,8 +45,8 @@ export function ActiveMatchProvider({ children }: { children: ReactNode }) {
       saveListScroll,
       readListScroll,
       clearListScroll,
-      morphEpoch,
-      bumpMorphEpoch,
+      originRectRef,
+      setOriginRect,
     }),
     [
       activeMatch,
@@ -50,8 +54,7 @@ export function ActiveMatchProvider({ children }: { children: ReactNode }) {
       saveListScroll,
       readListScroll,
       clearListScroll,
-      morphEpoch,
-      bumpMorphEpoch,
+      setOriginRect,
     ]
   );
   return (

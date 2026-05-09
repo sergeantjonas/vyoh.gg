@@ -10,9 +10,8 @@ import {
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
-import { m, useReducedMotion } from "motion/react";
-import { useState } from "react";
-import { flushSync } from "react-dom";
+import { m, useAnimation, useReducedMotion } from "motion/react";
+import { useLayoutEffect, useRef } from "react";
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
@@ -46,10 +45,37 @@ export function MatchRow({
   onCardHover?: (champion: string) => void;
   isNew?: boolean;
 }) {
-  const { activeMatch, setActiveMatch, saveListScroll, morphEpoch } = useActiveMatch();
+  const { setActiveMatch, saveListScroll, originRectRef, setOriginRect } =
+    useActiveMatch();
   const reduced = useReducedMotion();
-  const isActive = activeMatch === match.matchId;
-  const [, setClickNonce] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
+
+  // Return animation: when this row is the destination of a back-navigation,
+  // snap to the hero card's last known rect and spring back to natural position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
+  useLayoutEffect(() => {
+    const origin = originRectRef.current;
+    if (origin?.matchId !== match.matchId || !cardRef.current) return;
+    setOriginRect(null);
+    if (reduced) return;
+    const listRect = cardRef.current.getBoundingClientRect();
+    const dx = origin.rect.left - listRect.left;
+    const dy = origin.rect.top - listRect.top;
+    const sx = origin.rect.width / listRect.width;
+    const sy = origin.rect.height / listRect.height;
+    controls.set({ x: dx, y: dy, scaleX: sx, scaleY: sy, originX: 0, originY: 0 });
+    void controls.start({
+      x: 0,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      originX: 0,
+      originY: 0,
+      transition: { type: "spring", stiffness: 170, damping: 30 },
+    });
+  }, []);
+
   return (
     <CardTilt>
       <Link
@@ -58,33 +84,17 @@ export function MatchRow({
         onMouseEnter={() => onCardHover?.(match.champion)}
         onPointerDown={() => {
           saveListScroll();
-          // Always run inside flushSync so Motion re-snapshots the card's
-          // position at P_list before navigation starts. On the first click,
-          // setActiveMatch causes the render. On repeat clicks (isActive already
-          // true), setActiveMatch is a no-op so we bump a local nonce to force
-          // the same synchronous re-render — giving Motion a fresh snapshot
-          // without remounting the DOM element (which would cancel the click).
-          flushSync(() => {
-            setClickNonce((n) => n + 1);
-            setActiveMatch(match.matchId);
-          });
+          const rect = cardRef.current?.getBoundingClientRect() ?? null;
+          if (rect) setOriginRect({ matchId: match.matchId, rect });
+          setActiveMatch(match.matchId);
         }}
         className="block"
       >
         <m.div
-          key={`${match.matchId}-${morphEpoch}`}
-          layoutId={isActive ? `match-card-${match.matchId}` : undefined}
-          transition={{
-            layout: { type: "spring", stiffness: 170, damping: 30 },
-          }}
+          ref={cardRef}
+          animate={controls}
           style={championCardStyle(match.champion)}
-          className={cn(
-            championCardClassName,
-            // While this row owns the morph, lift it above its neighbors so
-            // the travel reads as a single card moving across the page
-            // instead of a strip-internal swap.
-            isActive && "z-30 shadow-2xl shadow-black/50"
-          )}
+          className={championCardClassName}
         >
           {isNew && !reduced && (
             <m.div

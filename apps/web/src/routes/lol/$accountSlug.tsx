@@ -53,6 +53,33 @@ interface AccountSearch {
   count?: number;
 }
 
+function BackButton({
+  accountSlug,
+  pathname,
+}: { accountSlug: string; pathname: string }) {
+  const { setOriginRect } = useActiveMatch();
+  const matchId = pathname.split("/").pop() ?? null;
+  return (
+    <Link
+      to="/lol/$accountSlug/matches"
+      params={{ accountSlug }}
+      search={(prev: AccountSearch) => prev}
+      onClick={() => {
+        if (matchId) {
+          const heroEl = document.querySelector(`[data-match-card="${matchId}"]`);
+          if (heroEl instanceof HTMLElement) {
+            setOriginRect({ matchId, rect: heroEl.getBoundingClientRect() });
+          }
+        }
+      }}
+      className="group flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+      Matches
+    </Link>
+  );
+}
+
 function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
   const { clearListScroll, setActiveMatch } = useActiveMatch();
   useEffect(() => {
@@ -161,18 +188,26 @@ function AccountLayout() {
   // Compute slide direction synchronously during render so the entering element
   // always receives the correct `initial` on the same render it mounts.
   const slideDirectionRef = useRef(0);
+  const isMatchDetailTransitionRef = useRef(false);
   const prevTabPathnameRef = useRef(pathname);
   if (prevTabPathnameRef.current !== pathname) {
+    const prev = prevTabPathnameRef.current;
     // Strip trailing slash so the Profile index route ("/lol/$accountSlug")
     // resolves consistently regardless of how the router normalises it.
     const norm = (s: string) => s.replace(/\/$/, "");
     const resolve = (to: string) => norm(to.replace("$accountSlug", accountSlug));
-    const prevIdx = TABS.findIndex(
-      ({ to }) => norm(prevTabPathnameRef.current) === resolve(to)
-    );
+    const prevIdx = TABS.findIndex(({ to }) => norm(prev) === resolve(to));
     const currIdx = TABS.findIndex(({ to }) => norm(pathname) === resolve(to));
     slideDirectionRef.current =
       prevIdx !== -1 && currIdx !== -1 ? Math.sign(currIdx - prevIdx) : 0;
+    // Transitioning to or from a match detail page — cut instantly so the
+    // card-morph animation runs without competing with a page fade.
+    const prevIsDetail =
+      prev.startsWith(matchesPathPrefix) && prev.length > matchesPathPrefix.length;
+    const currIsDetail =
+      pathname.startsWith(matchesPathPrefix) &&
+      pathname.length > matchesPathPrefix.length;
+    isMatchDetailTransitionRef.current = prevIsDetail || currIsDetail;
     prevTabPathnameRef.current = pathname;
   }
   const effectiveDir = prefersReducedMotion ? 0 : slideDirectionRef.current;
@@ -327,15 +362,7 @@ function AccountLayout() {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.15 }}
                       >
-                        <Link
-                          to="/lol/$accountSlug/matches"
-                          params={{ accountSlug }}
-                          search={(prev: AccountSearch) => prev}
-                          className="group flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-                          Matches
-                        </Link>
+                        <BackButton accountSlug={accountSlug} pathname={pathname} />
                       </m.div>
                     ) : (
                       <m.div
@@ -434,7 +461,11 @@ function AccountLayout() {
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                transition={
+                  isMatchDetailTransitionRef.current
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 300, damping: 30 }
+                }
               >
                 <Outlet />
               </m.div>

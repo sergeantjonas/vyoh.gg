@@ -49,7 +49,7 @@ export function MatchList({
   const prevMatchIdsRef = useRef<Set<string>>(new Set());
   const [flashMatchIds, setFlashMatchIds] = useState<Set<string>>(new Set());
   const [scrollMargin, setScrollMargin] = useState(0);
-  const { readListScroll, bumpMorphEpoch, activeMatch } = useActiveMatch();
+  const { readListScroll, activeMatch } = useActiveMatch();
   const [restoredScrollY] = useState(() => readListScroll());
   // When we land here from a match-detail back-nav, restoredScrollY > 0
   // and we want the surrounding rows to stay invisible until the morph is
@@ -94,12 +94,10 @@ export function MatchList({
       requestAnimationFrame(pin);
     };
     requestAnimationFrame(pin);
-    const epochId = window.setTimeout(() => bumpMorphEpoch(), 32);
     return () => {
       cancelled = true;
-      window.clearTimeout(epochId);
     };
-  }, [restoredScrollY, bumpMorphEpoch]);
+  }, [restoredScrollY]);
 
   // Bump visibleCount when fresh data arrives via fetchNextPage so phantoms
   // don't suddenly disappear when their indices fall back outside the count.

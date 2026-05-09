@@ -6,8 +6,10 @@ import {
   championCardStyle,
 } from "@/lol/champions/champion-card";
 import { useChampionName } from "@/lol/champions/use-champions";
+import { useActiveMatch } from "@/lol/matches/active-match-context";
 import type { MatchSummary } from "@vyoh/shared";
-import { m } from "motion/react";
+import { m, useAnimation, useReducedMotion } from "motion/react";
+import { useLayoutEffect, useRef } from "react";
 
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
@@ -17,19 +19,44 @@ function formatDuration(sec: number): string {
 
 export function MatchHero({ summary }: { summary: MatchSummary }) {
   const championName = useChampionName();
+  const { originRectRef, setOriginRect } = useActiveMatch();
+  const reduced = useReducedMotion();
+  const heroRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
   const playedAt = new Date(summary.playedAt);
   const displayName = championName(summary.champion);
+
+  // Forward animation: snap to the list row's stored rect then spring to natural position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
+  useLayoutEffect(() => {
+    const origin = originRectRef.current;
+    if (origin?.matchId !== summary.matchId || !heroRef.current) return;
+    setOriginRect(null);
+    if (reduced) return;
+    const detailRect = heroRef.current.getBoundingClientRect();
+    const dx = origin.rect.left - detailRect.left;
+    const dy = origin.rect.top - detailRect.top;
+    const sx = origin.rect.width / detailRect.width;
+    const sy = origin.rect.height / detailRect.height;
+    controls.set({ x: dx, y: dy, scaleX: sx, scaleY: sy, originX: 0, originY: 0 });
+    void controls.start({
+      x: 0,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      originX: 0,
+      originY: 0,
+      transition: { type: "spring", stiffness: 170, damping: 30 },
+    });
+  }, []);
+
   return (
     <m.div
-      layoutId={`match-card-${summary.matchId}`}
-      transition={{ layout: { type: "spring", stiffness: 170, damping: 30 } }}
+      ref={heroRef}
+      animate={controls}
+      data-match-card={summary.matchId}
       style={championCardStyle(summary.champion)}
-      className={cn(
-        championCardBaseClassName,
-        // Match the lifted-row treatment so the morph endpoint visually
-        // floats above the surrounding detail content.
-        "z-30 shadow-2xl shadow-black/50"
-      )}
+      className={cn(championCardBaseClassName, "z-30 shadow-2xl shadow-black/50")}
     >
       <ChampionCardChrome champion={summary.champion} win={summary.win} />
       <div className="relative ml-auto flex flex-col items-end gap-1">
