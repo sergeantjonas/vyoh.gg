@@ -206,15 +206,19 @@ export function useSyncAccount(account: LolAccount | undefined) {
       return postSyncAccount(account);
     },
     onSuccess: () => {
-      // Invalidate every cached-matches query for this account so the views
-      // refetch from the now-fresher DB.
+      // Invalidate every cached-matches and champion-extras query for this
+      // account so all derived views refetch from the now-fresher DB.
       const keyPrefix = [account?.region, account?.gameName, account?.tagLine];
       queryClient.invalidateQueries({
         predicate: (q) => {
           const key = q.queryKey;
           if (!Array.isArray(key) || key[0] !== "lol") return false;
           const kind = key[1];
-          if (kind !== "matches-cached" && kind !== "matches-cached-infinite") {
+          if (
+            kind !== "matches-cached" &&
+            kind !== "matches-cached-infinite" &&
+            kind !== "champion-extras"
+          ) {
             return false;
           }
           return (

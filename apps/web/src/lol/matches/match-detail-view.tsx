@@ -303,35 +303,33 @@ export function MatchDetailView({
   useSplashChampion(currentChampion);
 
   return (
-    <TooltipPrimitive.Provider delayDuration={150}>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
-        >
-          <TeamBlock
-            title="Blue side"
-            participants={blue}
-            myPuuid={myPuuid}
-            maxDamage={maxDamage}
-            maxGold={maxGold}
-          />
-        </m.div>
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
-        >
-          <TeamBlock
-            title="Red side"
-            participants={red}
-            myPuuid={myPuuid}
-            maxDamage={maxDamage}
-            maxGold={maxGold}
-          />
-        </m.div>
-      </div>
-    </TooltipPrimitive.Provider>
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <m.div
+        initial={reduced ? {} : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 28 }}
+      >
+        <TeamBlock
+          title="Blue side"
+          participants={blue}
+          myPuuid={myPuuid}
+          maxDamage={maxDamage}
+          maxGold={maxGold}
+        />
+      </m.div>
+      <m.div
+        initial={reduced ? {} : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
+      >
+        <TeamBlock
+          title="Red side"
+          participants={red}
+          myPuuid={myPuuid}
+          maxDamage={maxDamage}
+          maxGold={maxGold}
+        />
+      </m.div>
+    </div>
   );
 }

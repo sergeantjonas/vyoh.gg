@@ -14,9 +14,9 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useItems } from "@/lol/matches/use-items";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { m } from "motion/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip } from "recharts";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")({
@@ -79,10 +79,11 @@ function WinRateTooltip({
 
 function ChampionDetailPage() {
   const { accountSlug, championKey } = Route.useParams();
+  const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const { matches } = useMatchWindow();
   const championName = useChampionName();
   const info = useChampionInfo(championKey);
-  const extras = useChampionExtras(accountSlug, championKey);
+  const extras = useChampionExtras(accountSlug, championKey, queue);
   const itemsData = useItems();
 
   const detail = useMemo(
@@ -97,6 +98,18 @@ function ChampionDetailPage() {
     () => (detail ? buildWinRateSeries(detail.matchHistory) : []),
     [detail]
   );
+
+  const [matchupSort, setMatchupSort] = useState<"games" | "best" | "hardest">("games");
+  const [matchupsExpanded, setMatchupsExpanded] = useState(false);
+
+  const sortedMatchups = useMemo(() => {
+    if (!extras.data) return [];
+    const list = [...extras.data.matchups];
+    if (matchupSort === "best") list.sort((a, b) => b.wins / b.games - a.wins / a.games);
+    else if (matchupSort === "hardest")
+      list.sort((a, b) => a.wins / a.games - b.wins / b.games);
+    return list;
+  }, [extras.data, matchupSort]);
 
   const [stripVisible, heroRef] = useHeroScrolledPast();
 
@@ -346,49 +359,81 @@ function ChampionDetailPage() {
       )}
 
       {/* Matchups */}
-      {extras.data && extras.data.matchups.length > 0 && (
+      {sortedMatchups.length > 0 && (
         <m.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
           className="flex flex-col gap-2"
         >
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            Matchups
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Matchups
+            </div>
+            <div className="flex gap-1">
+              {(["games", "best", "hardest"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setMatchupSort(s)}
+                  className={cn(
+                    "rounded px-2 py-0.5 text-xs transition-colors",
+                    matchupSort === s
+                      ? "bg-foreground/10 text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {s === "games" ? "Most played" : s === "best" ? "Best WR" : "Hardest"}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {extras.data.matchups.slice(0, 8).map(({ champion, games, wins }) => {
-              const wr = wins / games;
-              return (
-                <div
-                  key={champion}
-                  className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
-                >
-                  <img
-                    src={championIconUrl(champion)}
-                    alt=""
-                    className="size-7 rounded-sm object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-medium">
-                      {championName(champion)}
-                    </div>
-                    <div className="text-xs text-muted-foreground tabular-nums">
-                      {wins}W {games - wins}L
-                    </div>
-                  </div>
+            {(matchupsExpanded ? sortedMatchups : sortedMatchups.slice(0, 8)).map(
+              ({ champion, games, wins }) => {
+                const wr = wins / games;
+                return (
                   <div
-                    className={cn(
-                      "text-xs font-semibold tabular-nums",
-                      wr >= 0.5 ? "text-emerald-400" : "text-red-400"
-                    )}
+                    key={champion}
+                    className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
                   >
-                    {Math.round(wr * 100)}%
+                    <img
+                      src={championIconUrl(champion)}
+                      alt=""
+                      className="size-7 rounded-sm object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">
+                        {championName(champion)}
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        {wins}W {games - wins}L
+                      </div>
+                    </div>
+                    <div
+                      className={cn(
+                        "text-xs font-semibold tabular-nums",
+                        wr >= 0.5 ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {Math.round(wr * 100)}%
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              }
+            )}
           </div>
+          {sortedMatchups.length > 8 && (
+            <button
+              type="button"
+              onClick={() => setMatchupsExpanded((v) => !v)}
+              className="self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {matchupsExpanded
+                ? "Show less"
+                : `Show all ${sortedMatchups.length} matchups`}
+            </button>
+          )}
         </m.div>
       )}
     </div>
