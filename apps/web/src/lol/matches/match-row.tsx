@@ -11,6 +11,7 @@ import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
+import { useState } from "react";
 import { flushSync } from "react-dom";
 
 function formatDuration(sec: number): string {
@@ -48,6 +49,7 @@ export function MatchRow({
   const { activeMatch, setActiveMatch, saveListScroll, morphEpoch } = useActiveMatch();
   const reduced = useReducedMotion();
   const isActive = activeMatch === match.matchId;
+  const [, setClickNonce] = useState(0);
   return (
     <CardTilt>
       <Link
@@ -56,7 +58,16 @@ export function MatchRow({
         onMouseEnter={() => onCardHover?.(match.champion)}
         onPointerDown={() => {
           saveListScroll();
-          if (!isActive) flushSync(() => setActiveMatch(match.matchId));
+          // Always run inside flushSync so Motion re-snapshots the card's
+          // position at P_list before navigation starts. On the first click,
+          // setActiveMatch causes the render. On repeat clicks (isActive already
+          // true), setActiveMatch is a no-op so we bump a local nonce to force
+          // the same synchronous re-render — giving Motion a fresh snapshot
+          // without remounting the DOM element (which would cancel the click).
+          flushSync(() => {
+            setClickNonce((n) => n + 1);
+            setActiveMatch(match.matchId);
+          });
         }}
         className="block"
       >
