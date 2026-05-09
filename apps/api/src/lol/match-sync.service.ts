@@ -77,6 +77,19 @@ export class MatchSyncService implements OnApplicationBootstrap {
           continue;
         }
 
+        // Second snapshot capture: on the very first tick for a new account the
+        // summoner row doesn't exist when the pre-sync capture runs, so it
+        // returns early without writing anything. Repeating it here guarantees a
+        // snapshot is in place for the next tick's new matches. Idempotent on
+        // all subsequent ticks (LP unchanged → no new row written).
+        try {
+          await this.lol.captureRankSnapshot(account);
+        } catch (err) {
+          this.logger.warn(
+            `${label} post-sync rank snapshot failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+
         // Summoner profile (icon + level) can change at any time — sync every tick.
         try {
           await this.lol.syncSummonerProfile(account);

@@ -172,14 +172,15 @@ export class LolService {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
     }
-    // syncAccountMatches reads region/gameName/tagLine off the LolAccount;
-    // slug is unused on this path so we leave it empty.
-    return this.syncAccountMatches({
-      slug: "",
-      region,
-      gameName,
-      tagLine,
+    const account = { slug: "", region, gameName, tagLine };
+    // Capture a fresh snapshot so the manually-triggered sync attaches
+    // post-game LP rather than whatever the cron last recorded.
+    await this.captureRankSnapshot(account).catch((err: unknown) => {
+      this.logger.warn(
+        `rank snapshot failed during manual sync: ${err instanceof Error ? err.message : String(err)}`
+      );
     });
+    return this.syncAccountMatches(account);
   }
 
   async syncAccountMatches(
