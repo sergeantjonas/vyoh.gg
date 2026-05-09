@@ -4,6 +4,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/item-icon";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
 import { useChampionName } from "@/lol/champions/use-champions";
+import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { useItems } from "@/lol/matches/use-items";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
@@ -298,33 +299,36 @@ export function MatchDetailView({
   useSplashChampion(currentChampion);
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <m.div
-        initial={reduced ? {} : { opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 28 }}
-      >
-        <TeamBlock
-          title="Blue side"
-          participants={blue}
-          myPuuid={myPuuid}
-          maxDamage={maxDamage}
-          maxGold={maxGold}
-        />
-      </m.div>
-      <m.div
-        initial={reduced ? {} : { opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
-      >
-        <TeamBlock
-          title="Red side"
-          participants={red}
-          myPuuid={myPuuid}
-          maxDamage={maxDamage}
-          maxGold={maxGold}
-        />
-      </m.div>
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+        >
+          <TeamBlock
+            title="Blue side"
+            participants={blue}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
+        </m.div>
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
+        >
+          <TeamBlock
+            title="Red side"
+            participants={red}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+          />
+        </m.div>
+      </div>
+      <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
     </div>
   );
 }

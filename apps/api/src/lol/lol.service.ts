@@ -11,6 +11,7 @@ import type {
   LolAccount,
   MatchDetail,
   MatchSummary,
+  MatchTimelineProjection,
   RankEntry,
   RankHistoryPoint,
   RankHistoryResponse,
@@ -24,6 +25,7 @@ import { RiotService } from "../riot/riot.service";
 import { MatchEventsService } from "./match-events.service";
 import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
+import { riotTimelineToProjection } from "./timeline-mapper";
 
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
@@ -523,6 +525,26 @@ export class LolService {
       data: { matchId, detail: raw as unknown as object },
     });
     return riotMatchToDetail(raw);
+  }
+
+  async getMatchTimeline(matchId: string): Promise<MatchTimelineProjection> {
+    const cached = await this.prisma.matchTimelineCache.findUnique({
+      where: { matchId },
+    });
+    if (cached)
+      return riotTimelineToProjection(
+        cached.timeline as unknown as Parameters<typeof riotTimelineToProjection>[0]
+      );
+
+    const platform = matchId.split("_")[0]?.toLowerCase();
+    if (!platform) throw new Error(`Cannot derive region from matchId ${matchId}`);
+    const regional = platformToRegional(platform);
+    const raw = await this.riot.getMatchTimelineById(matchId, regional);
+
+    await this.prisma.matchTimelineCache.create({
+      data: { matchId, timeline: raw as unknown as object },
+    });
+    return riotTimelineToProjection(raw);
   }
 
   async getChampionExtras(

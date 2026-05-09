@@ -45,6 +45,12 @@ model MatchDetailCache {
   cachedAt DateTime @default(now())
 }
 
+model MatchTimelineCache {
+  matchId  String   @id
+  timeline Json
+  cachedAt DateTime @default(now())
+}
+
 model Match {
   matchId      String
   puuid        String

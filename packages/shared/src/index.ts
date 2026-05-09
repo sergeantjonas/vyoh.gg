@@ -10,3 +10,12 @@ export type {
   RankHistoryResponse,
 } from "./lol/rank-history.ts";
 export type { ChampionExtras, ItemStats, MatchupStats } from "./lol/champion-extras.ts";
+export type {
+  MatchTimelineProjection,
+  MatchTimelineFrame,
+  MatchTimelineKill,
+  MatchTimelineObjective,
+  MatchTimelineBuildEvent,
+  MatchTimelineBuildEventType,
+  MatchTimelineSkillEvent,
+} from "./lol/match-timeline.ts";

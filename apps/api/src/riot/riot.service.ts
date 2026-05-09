@@ -5,7 +5,13 @@ import { RateLimiterService } from "./rate-limiter.service";
 import type { Platform, Regional } from "./regions";
 import { platformToRegional } from "./regions";
 import { RiotError } from "./riot.error";
-import type { RiotAccount, RiotLeagueEntry, RiotMatch, RiotSummoner } from "./types";
+import type {
+  RiotAccount,
+  RiotLeagueEntry,
+  RiotMatch,
+  RiotMatchTimeline,
+  RiotSummoner,
+} from "./types";
 
 const MAX_RETRIES = 2;
 const FETCH_TIMEOUT_MS = 10_000;
@@ -62,6 +68,17 @@ export class RiotService {
 
   async getMatchById(matchId: string, host: Regional): Promise<RiotMatch> {
     return this.fetch<RiotMatch>(host, "match-by-id", `/lol/match/v5/matches/${matchId}`);
+  }
+
+  async getMatchTimelineById(
+    matchId: string,
+    host: Regional
+  ): Promise<RiotMatchTimeline> {
+    return this.fetch<RiotMatchTimeline>(
+      host,
+      "match-timeline-by-id",
+      `/lol/match/v5/matches/${matchId}/timeline`
+    );
   }
 
   async getLeagueEntriesByPuuid(

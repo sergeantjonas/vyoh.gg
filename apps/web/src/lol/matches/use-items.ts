@@ -15,6 +15,8 @@ interface RawItem {
   description?: string;
   priceTotal?: number;
   iconPath: string;
+  from?: number[];
+  categories?: string[];
 }
 
 export interface Item {
@@ -22,6 +24,8 @@ export interface Item {
   description?: string;
   priceTotal?: number;
   iconUrl: string;
+  from: number[];
+  categories: string[];
 }
 
 function iconUrlFromPath(path: string): string {
@@ -42,6 +46,8 @@ async function fetchItems(): Promise<Map<number, Item>> {
         description: it.description,
         priceTotal: it.priceTotal,
         iconUrl: iconUrlFromPath(it.iconPath),
+        from: it.from ?? [],
+        categories: it.categories ?? [],
       },
     ])
   );

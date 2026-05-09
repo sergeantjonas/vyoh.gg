@@ -2,6 +2,7 @@ export type MethodFamily =
   | "account-by-riot-id"
   | "match-ids-by-puuid"
   | "match-by-id"
+  | "match-timeline-by-id"
   | "league-entries-by-puuid"
   | "summoner-by-puuid";
 
@@ -16,6 +17,7 @@ export const METHOD_LIMITS: Record<
   "account-by-riot-id": { reservoir: 1000, intervalMs: 60_000 },
   "match-ids-by-puuid": { reservoir: 2000, intervalMs: 10_000 },
   "match-by-id": { reservoir: 2000, intervalMs: 10_000 },
+  "match-timeline-by-id": { reservoir: 2000, intervalMs: 10_000 },
   "league-entries-by-puuid": { reservoir: 1000, intervalMs: 60_000 },
   "summoner-by-puuid": { reservoir: 1000, intervalMs: 60_000 },
 };

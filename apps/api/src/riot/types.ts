@@ -92,3 +92,49 @@ export interface RiotMatch {
     participants: RiotMatchParticipant[];
   };
 }
+
+export interface RiotParticipantFrame {
+  participantId: number;
+  totalGold: number;
+  level: number;
+  position: { x: number; y: number };
+}
+
+export interface RiotTimelineEvent {
+  timestamp: number;
+  type: string;
+  // CHAMPION_KILL
+  killerId?: number;
+  victimId?: number;
+  assistingParticipantIds?: number[];
+  position?: { x: number; y: number };
+  // ITEM_PURCHASED / ITEM_SOLD / ITEM_UNDO / SKILL_LEVEL_UP
+  participantId?: number;
+  itemId?: number;
+  beforeId?: number;
+  skillSlot?: number;
+  levelUpType?: string;
+  // BUILDING_KILL
+  teamId?: number;
+  buildingType?: string;
+  // ELITE_MONSTER_KILL
+  killerTeamId?: number;
+  monsterType?: string;
+  monsterSubType?: string;
+}
+
+export interface RiotTimelineFrame {
+  timestamp: number;
+  participantFrames: Record<string, RiotParticipantFrame>;
+  events: RiotTimelineEvent[];
+}
+
+export interface RiotMatchTimeline {
+  metadata: { matchId: string; participants: string[] };
+  info: {
+    frameInterval: number;
+    // present in production but some older cached responses may omit it
+    participants?: { participantId: number; puuid: string }[];
+    frames: RiotTimelineFrame[];
+  };
+}
