@@ -5,6 +5,7 @@ import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfilePoolEntropy } from "@/lol/profile/profile-pool-entropy";
 import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
+import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { ProfileTiltIndicator } from "@/lol/profile/profile-tilt-indicator";
 import { ProfileTimeHeatmap } from "@/lol/profile/profile-time-heatmap";
@@ -26,6 +27,7 @@ function ProfilePage() {
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
       <ProfileRecentForm accountSlug={accountSlug} />
       <ProfileLpHistory accountSlug={accountSlug} />
+      <ProfileSeasonHistory accountSlug={accountSlug} />
       <ProfileNowPlaying />
       <ProfileStatsBar />
       <ProfileWeeklyReview />
