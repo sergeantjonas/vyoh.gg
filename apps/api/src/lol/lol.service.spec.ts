@@ -214,8 +214,9 @@ describe("LolService.getMatchesForSummoner", () => {
     const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
     const matchFindMany = vi
       .fn()
-      .mockImplementation(async (args: { select?: unknown }) =>
-        args.select ? matchIds.map((matchId) => ({ matchId })) : rowSet
+      .mockImplementation(async (args: { select?: Record<string, boolean> }) =>
+        // backfill check: select has only matchId; result fetch: has queueType too
+        args.select?.queueType ? rowSet : matchIds.map((matchId) => ({ matchId }))
       );
     const prisma = {
       summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
@@ -326,8 +327,8 @@ describe("LolService.getMatchesForSummoner", () => {
     const summonerFindUnique = vi.fn().mockResolvedValue(summoner.value);
     const matchFindMany = vi
       .fn()
-      .mockImplementation(async (args: { select?: unknown }) =>
-        args.select ? matchIds.map((matchId) => ({ matchId })) : []
+      .mockImplementation(async (args: { select?: Record<string, boolean> }) =>
+        args.select?.queueType ? [] : matchIds.map((matchId) => ({ matchId }))
       );
     const prisma = {
       summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
@@ -475,6 +476,17 @@ describe("LolService.getCachedMatches", () => {
       orderBy: { playedAt: "desc" },
       skip: 0,
       take: 20,
+      select: {
+        matchId: true,
+        queueType: true,
+        champion: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        playedAt: true,
+      },
     });
   });
 
@@ -490,6 +502,17 @@ describe("LolService.getCachedMatches", () => {
       orderBy: { playedAt: "desc" },
       skip: 20,
       take: 10,
+      select: {
+        matchId: true,
+        queueType: true,
+        champion: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        playedAt: true,
+      },
     });
   });
 

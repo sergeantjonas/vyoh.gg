@@ -10,7 +10,12 @@ import {
   Query,
   Sse,
 } from "@nestjs/common";
-import type { CachedMatchesResult, MatchSummary, SummonerProfile } from "@vyoh/shared";
+import type {
+  CachedMatchesResult,
+  ChampionExtras,
+  MatchSummary,
+  SummonerProfile,
+} from "@vyoh/shared";
 import type { Observable } from "rxjs";
 import { LolService } from "./lol.service";
 
@@ -59,6 +64,16 @@ export class LolController {
     @Param("tagLine") tagLine: string
   ): Promise<SummonerProfile> {
     return this.lol.getSummonerProfile(region, gameName, tagLine);
+  }
+
+  @Get("champions/:championKey/stats")
+  async getChampionExtras(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string,
+    @Param("championKey") championKey: string
+  ): Promise<ChampionExtras> {
+    return this.lol.getChampionExtras(region, gameName, tagLine, championKey);
   }
 
   @Sse("matches/events")

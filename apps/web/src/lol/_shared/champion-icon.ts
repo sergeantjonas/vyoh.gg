@@ -1,6 +1,10 @@
 const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
 const CDRAGON_CDN = "https://cdn.communitydragon.org/latest";
 
+export function itemIconUrl(itemId: number): string {
+  return `${CDRAGON_CDN}/item/${itemId}/icon`;
+}
+
 const SWARM_PREFIX = "Strawberry_";
 
 export function normalizeChampionAlias(alias: string): string {

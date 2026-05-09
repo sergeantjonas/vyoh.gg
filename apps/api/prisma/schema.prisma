@@ -50,6 +50,8 @@ model Match {
   win         Boolean
   durationSec Int
   playedAt    DateTime
+  items       Int[]
+  opponents   String[]
 
   summoner Summoner @relation(fields: [puuid], references: [puuid])
 

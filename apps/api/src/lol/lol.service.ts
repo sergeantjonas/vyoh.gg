@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type {
   CachedMatchesResult,
+  ChampionExtras,
   LolAccount,
   MatchDetail,
   MatchSummary,
@@ -18,7 +19,11 @@ import { PrismaService } from "../prisma/prisma.service";
 import { type Platform, type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import { MatchEventsService } from "./match-events.service";
-import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
+import {
+  extractItemsAndOpponents,
+  riotMatchToDetail,
+  riotMatchToSummary,
+} from "./match-mapper";
 import { queueTypeName } from "./queue-types";
 
 const DEFAULT_MATCH_COUNT = 20;
@@ -66,9 +71,20 @@ export class LolService {
     const rows = await this.prisma.match.findMany({
       where: { puuid: summoner.puuid, matchId: { in: matchIds } },
       orderBy: { playedAt: "desc" },
+      select: {
+        matchId: true,
+        queueType: true,
+        champion: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        playedAt: true,
+      },
     });
 
-    return rows.map(({ playedAt, puuid: _puuid, ...rest }) => ({
+    return rows.map(({ playedAt, ...rest }) => ({
       ...rest,
       playedAt: playedAt.toISOString(),
     }));
@@ -108,10 +124,21 @@ export class LolService {
         orderBy: { playedAt: "desc" },
         skip: start,
         take: count,
+        select: {
+          matchId: true,
+          queueType: true,
+          champion: true,
+          kills: true,
+          deaths: true,
+          assists: true,
+          win: true,
+          durationSec: true,
+          playedAt: true,
+        },
       }),
     ]);
 
-    const matches = rows.map(({ playedAt, puuid: _puuid, ...rest }) => ({
+    const matches = rows.map(({ playedAt, ...rest }) => ({
       ...rest,
       playedAt: playedAt.toISOString(),
     }));
@@ -420,6 +447,52 @@ export class LolService {
     return riotMatchToDetail(detail);
   }
 
+  async getChampionExtras(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    championKey: string
+  ): Promise<ChampionExtras> {
+    const summoner = await this.resolveSummoner(region, gameName, tagLine);
+
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: summoner.puuid,
+        champion: { equals: championKey, mode: "insensitive" },
+        items: { isEmpty: false },
+      },
+      select: { items: true, opponents: true, win: true },
+    });
+
+    // Item frequency across all games on this champion
+    const itemMap = new Map<number, { games: number; wins: number }>();
+    for (const m of matches) {
+      for (const itemId of m.items) {
+        const s = itemMap.get(itemId) ?? { games: 0, wins: 0 };
+        itemMap.set(itemId, { games: s.games + 1, wins: s.wins + (m.win ? 1 : 0) });
+      }
+    }
+    const topItems = [...itemMap.entries()]
+      .sort((a, b) => b[1].games - a[1].games)
+      .slice(0, 6)
+      .map(([itemId, s]) => ({ itemId, games: s.games, wins: s.wins }));
+
+    // Matchup aggregation — only opponents faced ≥ 3 times
+    const matchupMap = new Map<string, { games: number; wins: number }>();
+    for (const m of matches) {
+      for (const opp of m.opponents) {
+        const s = matchupMap.get(opp) ?? { games: 0, wins: 0 };
+        matchupMap.set(opp, { games: s.games + 1, wins: s.wins + (m.win ? 1 : 0) });
+      }
+    }
+    const matchups = [...matchupMap.entries()]
+      .filter(([, s]) => s.games >= 3)
+      .sort((a, b) => b[1].games - a[1].games)
+      .map(([champion, s]) => ({ champion, games: s.games, wins: s.wins }));
+
+    return { topItems, matchups };
+  }
+
   private async resolveSummoner(
     region: string,
     gameName: string,
@@ -498,11 +571,14 @@ export class LolService {
   ): Promise<void> {
     if (matchIds.length === 0) return;
 
-    const existing = await this.prisma.match.findMany({
-      where: { puuid, matchId: { in: matchIds } },
+    // Rows that already have item data are fully synced — skip them.
+    // Rows that exist but have empty items (synced before this feature) are
+    // treated as missing so they get backfilled on the next sync pass.
+    const fullysynced = await this.prisma.match.findMany({
+      where: { puuid, matchId: { in: matchIds }, items: { isEmpty: false } },
       select: { matchId: true },
     });
-    const have = new Set(existing.map((m) => m.matchId));
+    const have = new Set(fullysynced.map((m) => m.matchId));
     const missing = matchIds.filter((id) => !have.has(id));
 
     this.logger.log(
@@ -513,17 +589,22 @@ export class LolService {
       missing.map(async (matchId) => {
         const detail = await this.riot.getMatchById(matchId, regional);
         const summary = riotMatchToSummary(detail, puuid);
+        const { items, opponents } = extractItemsAndOpponents(detail, puuid);
         await this.prisma.match.upsert({
           where: { matchId_puuid: { matchId, puuid } },
           create: {
             ...summary,
             puuid,
             playedAt: new Date(summary.playedAt),
+            items,
+            opponents,
           },
           update: {
             ...summary,
             puuid,
             playedAt: new Date(summary.playedAt),
+            items,
+            opponents,
           },
         });
       })

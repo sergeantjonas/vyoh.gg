@@ -1,6 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
-import { championIconUrl } from "@/lol/_shared/champion-icon";
+import { championIconUrl, itemIconUrl } from "@/lol/_shared/champion-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
@@ -8,6 +8,7 @@ import {
   buildWinRateSeries,
   computeChampionDetail,
 } from "@/lol/champions/champion-detail-stats";
+import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
@@ -75,10 +76,11 @@ function WinRateTooltip({
 }
 
 function ChampionDetailPage() {
-  const { championKey } = Route.useParams();
+  const { accountSlug, championKey } = Route.useParams();
   const { matches } = useMatchWindow();
   const championName = useChampionName();
   const info = useChampionInfo(championKey);
+  const extras = useChampionExtras(accountSlug, championKey);
 
   const detail = useMemo(
     () => (matches ? computeChampionDetail(championKey, matches) : null),
@@ -258,6 +260,90 @@ function ChampionDetailPage() {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </m.div>
+      )}
+
+      {/* Top items */}
+      {extras.data && extras.data.topItems.length > 0 && (
+        <m.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
+          className="flex flex-col gap-2"
+        >
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Most Built Items
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {extras.data.topItems.map(({ itemId, games, wins }) => (
+              <div
+                key={itemId}
+                className="flex flex-col items-center gap-1 rounded-lg border bg-card/50 p-2"
+              >
+                <img
+                  src={itemIconUrl(itemId)}
+                  alt={String(itemId)}
+                  className="size-10 rounded"
+                />
+                <div className="text-xs tabular-nums text-muted-foreground">{games}g</div>
+                <div
+                  className={cn(
+                    "text-xs font-medium tabular-nums",
+                    wins / games >= 0.5 ? "text-emerald-400" : "text-red-400"
+                  )}
+                >
+                  {Math.round((wins / games) * 100)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </m.div>
+      )}
+
+      {/* Matchups */}
+      {extras.data && extras.data.matchups.length > 0 && (
+        <m.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
+          className="flex flex-col gap-2"
+        >
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Matchups
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {extras.data.matchups.slice(0, 8).map(({ champion, games, wins }) => {
+              const wr = wins / games;
+              return (
+                <div
+                  key={champion}
+                  className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
+                >
+                  <img
+                    src={championIconUrl(champion)}
+                    alt=""
+                    className="size-7 rounded-sm object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium">
+                      {championName(champion)}
+                    </div>
+                    <div className="text-xs text-muted-foreground tabular-nums">
+                      {wins}W {games - wins}L
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "text-xs font-semibold tabular-nums",
+                      wr >= 0.5 ? "text-emerald-400" : "text-red-400"
+                    )}
+                  >
+                    {Math.round(wr * 100)}%
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </m.div>
       )}
