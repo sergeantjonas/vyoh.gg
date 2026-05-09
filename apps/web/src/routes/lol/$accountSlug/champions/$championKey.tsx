@@ -1,8 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
-import { championIconUrl, itemIconUrl } from "@/lol/_shared/champion-icon";
+import { championIconUrl } from "@/lol/_shared/champion-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
-import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -12,7 +11,9 @@ import {
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useItems } from "@/lol/matches/use-items";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { useMemo } from "react";
@@ -82,7 +83,7 @@ function ChampionDetailPage() {
   const championName = useChampionName();
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
-  const ddragonVersion = useDDragonVersion();
+  const itemsData = useItems();
 
   const detail = useMemo(
     () => (matches ? computeChampionDetail(championKey, matches) : null),
@@ -278,27 +279,68 @@ function ChampionDetailPage() {
             Most Built Items
           </div>
           <div className="flex flex-wrap gap-2">
-            {extras.data.topItems.map(({ itemId, games, wins }) => (
-              <div
-                key={itemId}
-                className="flex flex-col items-center gap-1 rounded-lg border bg-card/50 p-2"
-              >
-                <img
-                  src={itemIconUrl(itemId, ddragonVersion)}
-                  alt={String(itemId)}
-                  className="size-10 rounded"
-                />
-                <div className="text-xs tabular-nums text-muted-foreground">{games}g</div>
-                <div
-                  className={cn(
-                    "text-xs font-medium tabular-nums",
-                    wins / games >= 0.5 ? "text-emerald-400" : "text-red-400"
-                  )}
-                >
-                  {Math.round((wins / games) * 100)}%
-                </div>
-              </div>
-            ))}
+            {extras.data.topItems.map(({ itemId, games, wins }) => {
+              const item = itemsData.data?.get(itemId);
+              const wr = wins / games;
+              return (
+                <TooltipPrimitive.Root key={itemId} delayDuration={150}>
+                  <TooltipPrimitive.Trigger asChild>
+                    <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/50 p-2">
+                      {item ? (
+                        <img
+                          src={item.iconUrl}
+                          alt={item.name}
+                          className="size-10 rounded"
+                        />
+                      ) : (
+                        <div className="size-10 rounded bg-muted/40" />
+                      )}
+                      <div
+                        className={cn(
+                          "text-xs font-medium tabular-nums",
+                          wr >= 0.5 ? "text-emerald-400" : "text-red-400"
+                        )}
+                      >
+                        {Math.round(wr * 100)}%
+                      </div>
+                    </div>
+                  </TooltipPrimitive.Trigger>
+                  <TooltipPrimitive.Portal>
+                    <TooltipPrimitive.Content
+                      side="top"
+                      sideOffset={6}
+                      collisionPadding={8}
+                      className="pointer-events-none z-50 w-max max-w-64 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                    >
+                      <div className="flex items-start gap-3">
+                        {item && (
+                          <img
+                            src={item.iconUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="size-10 shrink-0 rounded-md bg-muted"
+                          />
+                        )}
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <div className="text-sm font-semibold leading-tight">
+                            {item?.name ?? `Item ${itemId}`}
+                          </div>
+                          {item?.priceTotal ? (
+                            <div className="font-mono text-xs text-amber-400">
+                              {item.priceTotal}g
+                            </div>
+                          ) : null}
+                          <div className="text-xs text-muted-foreground">
+                            Built in {games} {games === 1 ? "game" : "games"} ·{" "}
+                            {Math.round(wr * 100)}% WR
+                          </div>
+                        </div>
+                      </div>
+                    </TooltipPrimitive.Content>
+                  </TooltipPrimitive.Portal>
+                </TooltipPrimitive.Root>
+              );
+            })}
           </div>
         </m.div>
       )}
