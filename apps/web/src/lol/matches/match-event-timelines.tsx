@@ -96,7 +96,7 @@ function objectiveLabel(type: string): string {
 }
 
 function ObjectiveIcon({ type, teamId }: { type: string; teamId: number }) {
-  const teamColor = teamId === 100 ? "text-sky-400" : "text-red-400";
+  const teamColor = teamId === 100 ? "text-[#0c95ab]" : "text-[#be1d36]";
   const badgeCls =
     teamId === 100
       ? "bg-blue-400/15 text-blue-300 border-blue-400/30"
