@@ -57,6 +57,20 @@ This is a backlog. Bands set the search order, not commitment:
 
 **View Transitions API.** Wider browser support now (Chrome/Edge/Safari TP). Could replace some of the current AnimatePresence dance for cross-route morphs. Worth a feasibility spike — if it works for our shared-element morphs, it's a substantial code reduction.
 
+### Animation stack — Motion stays primary
+
+Before the library suggestions below pull anyone in a different direction: **Motion (formerly Framer Motion) was the right pick and remains the primary animation library.** Nothing in this doc is intended as a wholesale replacement.
+
+- **Motion stays primary.** `layout` animations, `AnimatePresence`, `LazyMotion` + `domMax`, MotionValues for scroll-linked behavior — all class-leading, all already wired across the app. The trends-rework's magazine-grid reflow rides entirely on `layout`. The match-list ↔ detail morph and existing route transitions all depend on Motion's exit-animation handling.
+- **GSAP is a scoped specialist, not a replacement.** Pull it in only for surfaces where Motion's strengths genuinely fall short:
+  - **ScrollTrigger** for scrollytelling case-study pages.
+  - **MorphSVG** for morphing between arbitrary SVG paths (Motion can animate a path, not morph one shape into another).
+  - **Deterministic timelines** for build-order replay or any "scrub through a fixed sequence" UI in match-depth Phase B.
+  - **SplitText** if character-level reveal effects appear on a case-study page.
+  Otherwise: don't reach for GSAP. Do not sweep-replace Motion.
+- **Lottie / dotLottie** is for one-off pre-rendered After Effects illustrations only (the empty-state illustration idea). Different niche; doesn't overlap with Motion.
+- **Don't add react-spring.** It's a genuine Motion competitor, would duplicate the mental model with zero upside. Permanent-no.
+
 ### UI library upgrades
 
 **visx (Airbnb).** D3-powered React components with finer-grained composition than Recharts. The minimap kill plot, custom radial layouts, anything Recharts forces a workaround for. **Cross-reference: match-depth-roadmap Phase B should default to visx for the minimap and any panel that's not a stock Recharts shape, to avoid a Recharts → visx rewrite.**
@@ -200,3 +214,4 @@ If asked tomorrow "what's the next arc after the documented roadmaps land," in p
 ## Decision log (update as we go)
 
 - **2026-05-09** — vNext doc drafted. Owner instructed: prioritize visible/demoable; defer RSO auth indefinitely; splash parallax confirmed as tried-and-reverted (commit `4c60951`). Cross-references added to match-depth-roadmap.md and trends-rework.md to ensure consistency.
+- **2026-05-09** — animation-stack stance recorded: Motion stays primary; GSAP is a scoped specialist (ScrollTrigger / MorphSVG / deterministic timelines / SplitText) brought in for specific surfaces only; Lottie for one-off pre-rendered illustrations; react-spring permanent-no. Prevents future sessions from pitching a wholesale animation-stack swap based on the library list above.
