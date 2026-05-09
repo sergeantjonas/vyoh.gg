@@ -2,6 +2,7 @@ import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
 import { championIconUrl, itemIconUrl } from "@/lol/_shared/champion-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
+import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -81,6 +82,7 @@ function ChampionDetailPage() {
   const championName = useChampionName();
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
+  const ddragonVersion = useDDragonVersion();
 
   const detail = useMemo(
     () => (matches ? computeChampionDetail(championKey, matches) : null),
@@ -282,7 +284,7 @@ function ChampionDetailPage() {
                 className="flex flex-col items-center gap-1 rounded-lg border bg-card/50 p-2"
               >
                 <img
-                  src={itemIconUrl(itemId)}
+                  src={itemIconUrl(itemId, ddragonVersion)}
                   alt={String(itemId)}
                   className="size-10 rounded"
                 />
