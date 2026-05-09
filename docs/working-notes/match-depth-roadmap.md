@@ -342,6 +342,7 @@ Things called out elsewhere in this doc as "follow-up" so they don't get lost. N
 
 - **Full rune page panel** on match detail. All 6 runes + 3 stat shards per participant in a side panel, not just the keystone. Visual reference: op.gg's runes tab on a match.
 - **Composite "Score-of-game" grade** (S+/S/A/...) as an alternative to the separate-badge approach in Phase A. Only worth picking up if the separate badges read as cluttered in practice.
+- **Timeline + map integration** (op.gg-style). A scrollable event feed (kills, objectives, towers) synced to a mini-map with event markers. Clicking a feed entry highlights the corresponding map position; clicking a map dot scrolls the feed to that event. Gold-lead mini-chart acts as the scrubber track. Filter checkboxes per event type (Kill / Tower / Dragon / Baron / etc.). Suitable as a full-screen modal triggered from the existing event timelines section — the modal gives it enough room without compressing the current match detail layout. All data is already available from Phase B's `kills`, `objectives`, and `frames` projection (kill/objective positions are in the timeline payload). The mini-map is a static SVG overlay of Summoner's Rift (~50 KB); dots plotted on top. Implementation depends on Phase B being shipped. Motion showcase candidate: dots stagger-reveal on modal open, synchronized scroll between map and feed.
 
 ---
 
@@ -385,11 +386,11 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 
 ## Status
 
-- **Phase A** — not started. Order locked: A → B (build order + gold lead) → checkpoint → C or rest of B.
-- **Phase B** — not started.
+- **Phase A** — largely shipped. DTO extension (ParticipantDetail, TeamSummary), player names + CS on roster rows. Outstanding: lane-opponent on match-list rows, match header strip, damage breakdown segmented bar, score-of-game badges.
+- **Phase B** — largely shipped. Timeline endpoint + cache + projection, build order panel, gold-lead chart, interactive kill/objective timeline (zoom/scroll), skill order grid, lane-phase gold-differential chart, kill heatmap. Outstanding: build-order anti-clutter filtering (consumables, boot collapse), lane opponent side-by-side on build order.
 - **Phase C** — not started. Opportunistic enrichment locked: all 10 players get rank + mastery (cached by `gameId`); last-5 form pips remain whitelist-only.
 - **Phase D** — not started.
-- **Phase E** — backlog only.
+- **Phase E** — backlog only. Timeline + map integration added 2026-05-10.
 
 ---
 
@@ -405,3 +406,4 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — Phase B chart library decision: visx for the minimap and any non-stock chart shape; Recharts for stock cases. Avoids a Recharts → visx rewrite later (decision sourced from [vnext-ideas.md](vnext-ideas.md)).
 - **2026-05-09** — Phase C polling architecture flipped from client-side to **server-side polling + SSE push**. Single source of truth, "Live now" can render on Profile of accounts not currently being viewed, lighter clients. Built on existing `MatchEventsService` SSE infrastructure. Decision sourced from [vnext-ideas.md](vnext-ideas.md).
 - **2026-05-09** — Phase D extended with **duo / squad detection** (D.10) — recurring non-self puuids surface as "duo" with shared stats. Promoted from vNext top-tier given low marginal cost on top of Phase A's lane-opponent restructure.
+- **2026-05-10** — Phase A + B substantially shipped (see Status above). Phase E: added **Timeline + map integration** followup — op.gg-style scrollable event feed synced to a Rift mini-map, gold-lead scrubber, event-type filters. Full-screen modal triggered from existing event timelines section. All data available from Phase B projection; motion showcase candidate.
