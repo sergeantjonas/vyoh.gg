@@ -1,9 +1,9 @@
+import { MatchRecord } from "@/lol/_shared/match-record";
 import { MatchCountSelector } from "@/lol/matches/match-count-selector";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { TrendActivity } from "@/lol/trends/trend-activity";
 import { TrendKda } from "@/lol/trends/trend-kda";
 import { TrendQueue } from "@/lol/trends/trend-queue";
-import { TrendRecord } from "@/lol/trends/trend-record";
 import {
   computeKdaSeries,
   computeQueueCounts,
@@ -36,8 +36,10 @@ function Reveal({ children }: { children: ReactNode }) {
 }
 
 function TrendsPage() {
+  const { accountSlug } = Route.useParams();
   const { matches, isPending, total, count, setCount } = useMatchWindow();
   const effectiveCount = matches?.length ?? count;
+  const nonRemakes = matches?.filter((m) => !m.remake) ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,7 +48,7 @@ function TrendsPage() {
           <h2 className="text-sm font-medium text-muted-foreground">
             Trends over your last {effectiveCount} games
           </h2>
-          {matches && <TrendStreak streak={computeStreak(matches)} />}
+          {nonRemakes.length > 0 && <TrendStreak streak={computeStreak(nonRemakes)} />}
         </div>
         <MatchCountSelector
           value={count}
@@ -73,7 +75,10 @@ function TrendsPage() {
             <TrendSummaryCards summary={computeTrendSummary(matches)} />
           </Reveal>
           <Reveal>
-            <TrendRecord matches={matches} />
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Recent record</h3>
+              <MatchRecord matches={nonRemakes} accountSlug={accountSlug} />
+            </div>
           </Reveal>
           <Reveal>
             <TrendActivity matches={matches} />
