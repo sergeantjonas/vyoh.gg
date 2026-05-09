@@ -37,7 +37,7 @@ function titleForValue(value: Value | undefined): string {
 
 const DAYS_WINDOW = 365;
 
-export function TrendActivity({ matches }: { matches: MatchSummary[] }) {
+export function ProfileActivityCalendar({ matches }: { matches: MatchSummary[] }) {
   if (matches.length === 0) return null;
 
   const values = buildValues(matches);

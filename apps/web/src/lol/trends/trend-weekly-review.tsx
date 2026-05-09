@@ -1,6 +1,7 @@
-import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HabitsStats } from "@/lol/profile/use-habits-stats";
+import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -70,25 +71,29 @@ function pickInsights(stats: HabitsStats): string[] {
     .map((i) => i.text);
 }
 
-export function ProfileWeeklyReview() {
-  const { matches } = useMatchWindow();
+export function TrendWeeklyReview({ current }: { current: MatchSummary[] }) {
   const insights = useMemo(() => {
-    if (!matches || matches.length < 10) return [];
-    return pickInsights(computeHabitsStats(matches));
-  }, [matches]);
+    const nonRemakes = current.filter((m) => !m.remake);
+    if (nonRemakes.length < 10) return [];
+    return pickInsights(computeHabitsStats(nonRemakes));
+  }, [current]);
 
   if (insights.length === 0) return null;
 
+  const sampleSize = current.filter((m) => !m.remake).length;
+  const [first, second] = insights;
+
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 px-4 py-3">
-      <h3 className="text-xs uppercase tracking-wide text-muted-foreground">This week</h3>
-      <ul className="flex flex-col gap-1.5">
-        {insights.map((text) => (
-          <li key={text} className="text-sm text-foreground/80">
-            {text}
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ConclusionCard
+      title="Briefing"
+      sampleSize={sampleSize}
+      verdict={first ?? ""}
+      verdictMarkdown={first ?? ""}
+      evidence={
+        second !== undefined ? (
+          <p className="text-sm text-foreground/70">{second}</p>
+        ) : undefined
+      }
+    />
   );
 }

@@ -33,6 +33,8 @@ export function ProfileStatsBar() {
 
   const s = computeTrendSummary(matches);
   const playtimeHours = s.totalDurationSec / 3600;
+  const nonRemakes = matches.filter((m) => !m.remake);
+  const uniqueChamps = new Set(nonRemakes.map((m) => m.champion)).size;
 
   return (
     <m.div
@@ -49,6 +51,9 @@ export function ProfileStatsBar() {
       </StatItem>
       <StatItem label="KDA">
         <CountUp to={s.avgKda} decimals={2} />
+      </StatItem>
+      <StatItem label="Champs">
+        <CountUp to={uniqueChamps} />
       </StatItem>
       <StatItem label="Time Played">
         {playtimeHours >= 1 ? (

@@ -13,9 +13,9 @@ import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useItems } from "@/lol/matches/use-items";
-import { ProfileTiltIndicator } from "@/lol/profile/profile-tilt-indicator";
-import { ProfileTimeHeatmap } from "@/lol/profile/profile-time-heatmap";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
+import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
+import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { m } from "motion/react";
@@ -129,6 +129,10 @@ function ChampionDetailPage() {
   }
 
   const alias = detail.champion;
+  const champMatches = useMemo(
+    () => matches?.filter((m) => m.champion === alias) ?? [],
+    [matches, alias]
+  );
   const kdaDelta = overall ? detail.avgKda - overall.avgKda : null;
   const wrDelta = overall ? detail.winRate - overall.winRate : null;
   const flavorParts = [
@@ -435,8 +439,8 @@ function ChampionDetailPage() {
         </m.div>
       )}
 
-      <ProfileTimeHeatmap champion={alias} />
-      <ProfileTiltIndicator champion={alias} />
+      <TrendTimeHeatmap current={champMatches} />
+      <TrendTiltIndicator current={champMatches} previous={[]} />
     </div>
   );
 }

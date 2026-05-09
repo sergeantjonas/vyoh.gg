@@ -389,8 +389,8 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 
 ## Status
 
-- **Phase T1** (cleanup pass) — not started.
-- **Phase T2** (conclusion-card pattern + retrofit) — not started.
+- **Phase T1** (cleanup pass) — **shipped 2026-05-09.**
+- **Phase T2** (conclusion-card pattern + retrofit) — **shipped 2026-05-09.**
 - **Phase T3** (six new insight tiles) — not started.
 - **Phase T4** (match-depth-dependent tiles) — blocked on match-depth Phase A/B; tracked here for visibility only.
 
