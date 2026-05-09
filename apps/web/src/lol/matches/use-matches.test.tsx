@@ -22,6 +22,7 @@ const sample: MatchSummary = {
   win: true,
   durationSec: 1834,
   playedAt: new Date().toISOString(),
+  remake: false,
 };
 
 function makeWrapper() {

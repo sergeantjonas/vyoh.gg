@@ -25,6 +25,7 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
       gameStartTimestamp: startTs,
       gameDuration: 1834,
       queueId: 420,
+      gameEndedInEarlySurrender: false,
       participants: [
         {
           puuid: "puuid-vyoh",
@@ -487,6 +488,10 @@ describe("LolService.getCachedMatches", () => {
         win: true,
         durationSec: true,
         playedAt: true,
+        remake: true,
+        snapshotTier: true,
+        snapshotRank: true,
+        snapshotLp: true,
       },
     });
   });
@@ -513,6 +518,10 @@ describe("LolService.getCachedMatches", () => {
         win: true,
         durationSec: true,
         playedAt: true,
+        remake: true,
+        snapshotTier: true,
+        snapshotRank: true,
+        snapshotLp: true,
       },
     });
   });

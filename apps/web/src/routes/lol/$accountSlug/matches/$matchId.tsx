@@ -88,6 +88,7 @@ function MatchDetailPage() {
           win: myParticipant.win,
           durationSec: detail.data.durationSec,
           playedAt: detail.data.playedAt,
+          remake: false,
         }
       : undefined);
 

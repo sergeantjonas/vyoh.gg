@@ -39,12 +39,14 @@ export function MatchRow({
   championDisplayName,
   onCardHover,
   isNew,
+  lpDelta,
 }: {
   match: MatchSummary;
   accountSlug: string;
   championDisplayName: string;
   onCardHover?: (champion: string) => void;
   isNew?: boolean;
+  lpDelta?: number;
 }) {
   const { setActiveMatch, saveListScroll, originRectRef, setOriginRect } =
     useActiveMatch();
@@ -140,14 +142,35 @@ export function MatchRow({
           <div className="relative ml-auto flex flex-col items-end gap-1">
             <div className="flex items-baseline gap-2">
               <span className="font-medium">{championDisplayName}</span>
-              <span
-                className={cn(
-                  "text-xs font-semibold uppercase tracking-wider",
-                  match.win ? "text-emerald-400" : "text-red-400"
-                )}
-              >
-                {match.win ? "Win" : "Loss"}
-              </span>
+              {match.remake ? (
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Remake
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-wider",
+                    match.win ? "text-emerald-400" : "text-red-400"
+                  )}
+                >
+                  {match.win ? "Win" : "Loss"}
+                </span>
+              )}
+              {!match.remake && lpDelta !== undefined && (
+                <span
+                  className={cn(
+                    "text-xs tabular-nums",
+                    lpDelta > 0
+                      ? "text-emerald-400"
+                      : lpDelta < 0
+                        ? "text-red-400"
+                        : "text-muted-foreground"
+                  )}
+                >
+                  {lpDelta > 0 ? "+" : ""}
+                  {lpDelta} LP
+                </span>
+              )}
             </div>
             <div className="font-mono text-sm tabular-nums">
               <CountUp to={match.kills} className="text-emerald-400" />

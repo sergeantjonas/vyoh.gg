@@ -41,7 +41,7 @@ function monFirstDay(date: Date): number {
 
 export function computeHourDayStats(matches: MatchSummary[]): HourDayStat[] {
   const map = new Map<number, { games: number; wins: number }>();
-  for (const m of matches) {
+  for (const m of matches.filter((m) => !m.remake)) {
     const d = new Date(m.playedAt);
     const key = monFirstDay(d) * 24 + d.getHours();
     const s = map.get(key) ?? { games: 0, wins: 0 };
@@ -58,7 +58,9 @@ export function computeHourDayStats(matches: MatchSummary[]): HourDayStat[] {
 }
 
 export function computeTiltStats(matches: MatchSummary[]): TiltStats {
-  const ordered = [...matches].sort((a, b) => a.playedAt.localeCompare(b.playedAt));
+  const ordered = [...matches.filter((m) => !m.remake)].sort((a, b) =>
+    a.playedAt.localeCompare(b.playedAt)
+  );
   const stats: TiltStats = {
     afterWin: { games: 0, wins: 0 },
     afterLoss: { games: 0, wins: 0 },
@@ -90,7 +92,7 @@ export function computeGameLengthStats(matches: MatchSummary[]): GameLengthBucke
     games: 0,
     wins: 0,
   }));
-  for (const m of matches) {
+  for (const m of matches.filter((m) => !m.remake)) {
     const i = GAME_LENGTH_BUCKETS.findIndex((b) => m.durationSec <= b.maxSec);
     const b = i !== -1 ? buckets[i] : undefined;
     if (b) {
@@ -105,7 +107,9 @@ const POOL_DAYS = 30;
 
 export function computePoolStats(matches: MatchSummary[]): PoolStats {
   const cutoff = Date.now() - POOL_DAYS * 24 * 60 * 60 * 1000;
-  const recent = matches.filter((m) => new Date(m.playedAt).getTime() >= cutoff);
+  const recent = matches.filter(
+    (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff
+  );
   return {
     uniqueChampions: new Set(recent.map((m) => m.champion)).size,
     totalGames: recent.length,
@@ -114,13 +118,14 @@ export function computePoolStats(matches: MatchSummary[]): PoolStats {
 }
 
 export function computeHabitsStats(matches: MatchSummary[]): HabitsStats {
-  const wins = matches.filter((m) => m.win).length;
+  const ms = matches.filter((m) => !m.remake);
+  const wins = ms.filter((m) => m.win).length;
   return {
     hourDay: computeHourDayStats(matches),
     tilt: computeTiltStats(matches),
     gameLength: computeGameLengthStats(matches),
     pool: computePoolStats(matches),
-    overallWinRate: matches.length === 0 ? 0 : wins / matches.length,
+    overallWinRate: ms.length === 0 ? 0 : wins / ms.length,
   };
 }
 

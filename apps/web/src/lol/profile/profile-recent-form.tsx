@@ -31,7 +31,7 @@ function PipTooltip({ match }: { match: MatchSummary }) {
 export function ProfileRecentForm({ accountSlug }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const navigate = useNavigate();
-  const recent = matches?.slice(0, FORM_LENGTH) ?? [];
+  const recent = matches?.filter((m) => !m.remake).slice(0, FORM_LENGTH) ?? [];
 
   if (recent.length === 0) return null;
 

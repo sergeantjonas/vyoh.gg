@@ -56,6 +56,7 @@ const matches: MatchSummary[] = [
     win: true,
     durationSec: 1834,
     playedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    remake: false,
   },
   {
     matchId: "EUW1_2",
@@ -67,6 +68,7 @@ const matches: MatchSummary[] = [
     win: false,
     durationSec: 1280,
     playedAt: new Date(Date.now() - 50 * 3_600_000).toISOString(),
+    remake: false,
   },
 ];
 

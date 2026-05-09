@@ -46,18 +46,22 @@ model MatchDetailCache {
 }
 
 model Match {
-  matchId     String
-  puuid       String
-  queueType   String
-  champion    String
-  kills       Int
-  deaths      Int
-  assists     Int
-  win         Boolean
-  durationSec Int
-  playedAt    DateTime
-  items       Int[]
-  opponents   String[]
+  matchId      String
+  puuid        String
+  queueType    String
+  champion     String
+  kills        Int
+  deaths       Int
+  assists      Int
+  win          Boolean
+  durationSec  Int
+  playedAt     DateTime
+  items        Int[]
+  opponents    String[]
+  remake       Boolean  @default(false)
+  snapshotTier String?
+  snapshotRank String?
+  snapshotLp   Int?
 
   summoner Summoner @relation(fields: [puuid], references: [puuid])
 

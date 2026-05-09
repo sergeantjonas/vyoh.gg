@@ -53,6 +53,17 @@ export class MatchSyncService implements OnApplicationBootstrap {
       for (const account of accounts) {
         const label = `${account.gameName}#${account.tagLine}`;
 
+        // Capture rank snapshot before syncing matches so the LP value is
+        // available for attachment to newly-ingested match rows.
+        // Fails gracefully when the summoner row doesn't exist yet (first ever tick).
+        try {
+          await this.lol.captureRankSnapshot(account);
+        } catch (err) {
+          this.logger.warn(
+            `${label} rank snapshot failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+
         let head: { idCount: number; backfilled: number };
         try {
           head = await this.lol.syncAccountMatches(account);
@@ -72,14 +83,6 @@ export class MatchSyncService implements OnApplicationBootstrap {
         } catch (err) {
           this.logger.warn(
             `${label} summoner profile sync failed: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
-
-        try {
-          await this.lol.captureRankSnapshot(account);
-        } catch (err) {
-          this.logger.warn(
-            `${label} rank snapshot failed: ${err instanceof Error ? err.message : String(err)}`
           );
         }
 

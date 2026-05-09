@@ -8,4 +8,8 @@ export interface MatchSummary {
   win: boolean;
   durationSec: number;
   playedAt: string;
+  remake: boolean;
+  snapshotTier?: string;
+  snapshotRank?: string;
+  snapshotLp?: number;
 }

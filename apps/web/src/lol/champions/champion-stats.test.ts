@@ -13,6 +13,7 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     win: overrides.win ?? true,
     durationSec: overrides.durationSec ?? 1800,
     playedAt: new Date().toISOString(),
+    remake: overrides.remake ?? false,
   };
 }
 

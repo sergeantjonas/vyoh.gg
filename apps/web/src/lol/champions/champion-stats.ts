@@ -16,7 +16,7 @@ export interface ChampionStats {
 export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[] {
   const byChampion = new Map<string, ChampionStats>();
 
-  for (const match of matches) {
+  for (const match of matches.filter((m) => !m.remake)) {
     let stats = byChampion.get(match.champion);
     if (!stats) {
       stats = {

@@ -26,7 +26,7 @@ import {
   riotMatchToDetail,
   riotMatchToSummary,
 } from "./match-mapper";
-import { queueTypeName } from "./queue-types";
+import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
 
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
@@ -83,12 +83,19 @@ export class LolService {
         win: true,
         durationSec: true,
         playedAt: true,
+        remake: true,
+        snapshotTier: true,
+        snapshotRank: true,
+        snapshotLp: true,
       },
     });
 
-    return rows.map(({ playedAt, ...rest }) => ({
+    return rows.map(({ playedAt, snapshotTier, snapshotRank, snapshotLp, ...rest }) => ({
       ...rest,
       playedAt: playedAt.toISOString(),
+      snapshotTier: snapshotTier ?? undefined,
+      snapshotRank: snapshotRank ?? undefined,
+      snapshotLp: snapshotLp ?? undefined,
     }));
   }
 
@@ -136,14 +143,23 @@ export class LolService {
           win: true,
           durationSec: true,
           playedAt: true,
+          remake: true,
+          snapshotTier: true,
+          snapshotRank: true,
+          snapshotLp: true,
         },
       }),
     ]);
 
-    const matches = rows.map(({ playedAt, ...rest }) => ({
-      ...rest,
-      playedAt: playedAt.toISOString(),
-    }));
+    const matches = rows.map(
+      ({ playedAt, snapshotTier, snapshotRank, snapshotLp, ...rest }) => ({
+        ...rest,
+        playedAt: playedAt.toISOString(),
+        snapshotTier: snapshotTier ?? undefined,
+        snapshotRank: snapshotRank ?? undefined,
+        snapshotLp: snapshotLp ?? undefined,
+      })
+    );
 
     return { matches, total };
   }
@@ -187,7 +203,9 @@ export class LolService {
     const before = await this.prisma.match.count({
       where: { puuid: summoner.puuid, matchId: { in: ids } },
     });
-    await this.backfillMissingMatches(summoner.puuid, ids, regional);
+    await this.backfillMissingMatches(summoner.puuid, ids, regional, {
+      attachSnapshot: true,
+    });
     const after = await this.prisma.match.count({
       where: { puuid: summoner.puuid, matchId: { in: ids } },
     });
@@ -621,19 +639,23 @@ export class LolService {
   private async backfillMissingMatches(
     puuid: string,
     matchIds: string[],
-    regional: Regional
+    regional: Regional,
+    opts: { attachSnapshot?: boolean } = {}
   ): Promise<void> {
     if (matchIds.length === 0) return;
 
-    // A row is fully synced only if both items and opponents are populated.
-    // Clearing opponents (e.g. to re-derive lane matchups) causes rows to be
-    // re-fetched on the next sync pass.
+    // A row is fully synced if: it is a remake (no items/opponents expected),
+    // OR both items and opponents are populated for a real game.
+    // Clearing opponents (e.g. to re-derive lane matchups) causes non-remake
+    // rows to be re-fetched on the next sync pass.
     const fullysynced = await this.prisma.match.findMany({
       where: {
         puuid,
         matchId: { in: matchIds },
-        items: { isEmpty: false },
-        opponents: { isEmpty: false },
+        OR: [
+          { remake: true },
+          { items: { isEmpty: false }, opponents: { isEmpty: false } },
+        ],
       },
       select: { matchId: true },
     });
@@ -650,6 +672,26 @@ export class LolService {
         const summary = riotMatchToSummary(raw, puuid);
         const { items, opponents } = extractItemsAndOpponents(raw, puuid);
         const detail = riotMatchToDetail(raw);
+
+        let snapshotTier: string | undefined;
+        let snapshotRank: string | undefined;
+        let snapshotLp: number | undefined;
+        if (opts.attachSnapshot) {
+          const rankedQueueId = RANKED_QUEUE_MAP[raw.info.queueId];
+          if (rankedQueueId) {
+            const snap = await this.prisma.rankSnapshot.findFirst({
+              where: { puuid, queueId: rankedQueueId },
+              orderBy: { capturedAt: "desc" },
+              select: { tier: true, rank: true, leaguePoints: true },
+            });
+            if (snap) {
+              snapshotTier = snap.tier;
+              snapshotRank = snap.rank;
+              snapshotLp = snap.leaguePoints;
+            }
+          }
+        }
+
         await Promise.all([
           this.prisma.matchDetailCache.upsert({
             where: { matchId },
@@ -664,6 +706,9 @@ export class LolService {
               playedAt: new Date(summary.playedAt),
               items,
               opponents,
+              snapshotTier,
+              snapshotRank,
+              snapshotLp,
             },
             update: {
               ...summary,
@@ -671,6 +716,9 @@ export class LolService {
               playedAt: new Date(summary.playedAt),
               items,
               opponents,
+              snapshotTier,
+              snapshotRank,
+              snapshotLp,
             },
           }),
         ]);

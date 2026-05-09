@@ -30,3 +30,10 @@ const QUEUE_TYPES: Record<number, string> = {
 export function queueTypeName(queueId: number): string {
   return QUEUE_TYPES[queueId] ?? `Queue ${queueId}`;
 }
+
+// Maps Riot's numeric Match-V5 queueId to the League-V4 queueType string
+// used in RankSnapshot rows — bridges the two API representations.
+export const RANKED_QUEUE_MAP: Record<number, string> = {
+  420: "RANKED_SOLO_5x5",
+  440: "RANKED_FLEX_SR",
+};

@@ -13,12 +13,13 @@ export interface TrendSummary {
 }
 
 export function computeTrendSummary(matches: MatchSummary[]): TrendSummary {
-  const wins = matches.filter((m) => m.win).length;
-  const totalKills = matches.reduce((s, m) => s + m.kills, 0);
-  const totalDeaths = matches.reduce((s, m) => s + m.deaths, 0);
-  const totalAssists = matches.reduce((s, m) => s + m.assists, 0);
-  const totalDurationSec = matches.reduce((s, m) => s + m.durationSec, 0);
-  const games = matches.length;
+  const ms = matches.filter((m) => !m.remake);
+  const wins = ms.filter((m) => m.win).length;
+  const totalKills = ms.reduce((s, m) => s + m.kills, 0);
+  const totalDeaths = ms.reduce((s, m) => s + m.deaths, 0);
+  const totalAssists = ms.reduce((s, m) => s + m.assists, 0);
+  const totalDurationSec = ms.reduce((s, m) => s + m.durationSec, 0);
+  const games = ms.length;
   return {
     games,
     wins,
@@ -34,7 +35,6 @@ export function computeTrendSummary(matches: MatchSummary[]): TrendSummary {
     totalDurationSec,
   };
 }
-
 export interface KdaPoint {
   game: number;
   kda: number;
@@ -43,7 +43,8 @@ export interface KdaPoint {
 }
 
 export function computeKdaSeries(matches: MatchSummary[]): KdaPoint[] {
-  return [...matches]
+  return matches
+    .filter((m) => !m.remake)
     .sort((a, b) => a.playedAt.localeCompare(b.playedAt))
     .map((m, i) => ({
       game: i + 1,
@@ -60,7 +61,7 @@ export interface QueueCount {
 
 export function computeQueueCounts(matches: MatchSummary[]): QueueCount[] {
   const counts = new Map<string, number>();
-  for (const m of matches) {
+  for (const m of matches.filter((m) => !m.remake)) {
     counts.set(m.queueType, (counts.get(m.queueType) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -74,8 +75,9 @@ export interface Streak {
 }
 
 export function computeStreak(matches: MatchSummary[]): Streak | null {
-  if (matches.length === 0) return null;
-  const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
+  const ms = matches.filter((m) => !m.remake);
+  if (ms.length === 0) return null;
+  const ordered = [...ms].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
   const latest = ordered[0];
   if (!latest) return null;
   let count = 1;

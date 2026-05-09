@@ -51,6 +51,7 @@ export interface RiotMatch {
   info: {
     gameStartTimestamp: number;
     gameDuration: number;
+    gameEndedInEarlySurrender: boolean;
     queueId: number;
     participants: RiotMatchParticipant[];
   };

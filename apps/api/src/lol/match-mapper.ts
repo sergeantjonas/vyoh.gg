@@ -18,6 +18,11 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     win: participant.win,
     durationSec: match.info.gameDuration,
     playedAt: new Date(match.info.gameStartTimestamp).toISOString(),
+    // Remakes: gameEndedInEarlySurrender is set for the early-surrender mechanic;
+    // combined with a duration under 3.5 min it reliably identifies remakes
+    // (as distinct from mid-game surrenders or the new inting-surrender system).
+    // Remakes are stored but flagged so stats computations can exclude them.
+    remake: match.info.gameEndedInEarlySurrender && match.info.gameDuration < 210,
   };
 }
 

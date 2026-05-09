@@ -38,6 +38,7 @@ const baseMatch: RiotMatch = {
     gameStartTimestamp: 1_700_000_000_000,
     gameDuration: 1834,
     queueId: 420,
+    gameEndedInEarlySurrender: false,
     participants: [
       buildParticipant({ puuid: "puuid-vyoh" }),
       buildParticipant({
@@ -67,6 +68,7 @@ describe("riotMatchToSummary", () => {
       win: true,
       durationSec: 1834,
       playedAt: "2023-11-14T22:13:20.000Z",
+      remake: false,
     });
   });
 
@@ -76,6 +78,24 @@ describe("riotMatchToSummary", () => {
       "puuid-vyoh"
     );
     expect(summary.queueType).toBe("Queue 9999");
+  });
+
+  it("flags remake when gameEndedInEarlySurrender and duration < 210s", () => {
+    const remakeMatch: RiotMatch = {
+      ...baseMatch,
+      info: { ...baseMatch.info, gameEndedInEarlySurrender: true, gameDuration: 180 },
+    };
+    const summary = riotMatchToSummary(remakeMatch, "puuid-vyoh");
+    expect(summary.remake).toBe(true);
+  });
+
+  it("does not flag remake when duration >= 210s even if gameEndedInEarlySurrender", () => {
+    const surrenderMatch: RiotMatch = {
+      ...baseMatch,
+      info: { ...baseMatch.info, gameEndedInEarlySurrender: true, gameDuration: 900 },
+    };
+    const summary = riotMatchToSummary(surrenderMatch, "puuid-vyoh");
+    expect(summary.remake).toBe(false);
   });
 
   it("throws when the puuid is not in the participants", () => {
