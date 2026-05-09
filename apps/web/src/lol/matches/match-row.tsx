@@ -56,34 +56,46 @@ export function MatchRow({
 
   // Return animation: when this row is the destination of a back-navigation,
   // snap to the hero card's last known rect and CSS-transition back to natural position.
+  // Same delayed-consume pattern as match-hero: don't call setOriginRect(null) in the
+  // layout effect body so StrictMode's surviving remount instance can still find the origin.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
     if (!savedOrigin.current) {
       const o = originRectRef.current;
       if (o?.matchId !== match.matchId || o.direction !== "backward") return;
       savedOrigin.current = o;
-      setOriginRect(null);
     }
     const origin = savedOrigin.current;
     if (!origin || !cardRef.current) return;
     if (reduced) return;
     const el = cardRef.current;
-    const listRect = el.getBoundingClientRect();
-    const dx = origin.rect.left - listRect.left;
-    const dy = origin.rect.top - listRect.top;
-    const sx = origin.rect.width / listRect.width;
-    const sy = origin.rect.height / listRect.height;
-    const anim = el.animate(
-      [
-        {
-          transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
-          transformOrigin: "0 0",
-        },
-        { transform: "none", transformOrigin: "0 0" },
-      ],
-      { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
-    );
-    return () => anim.cancel();
+    el.style.visibility = "hidden";
+    let cancelled = false;
+    const rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+      setOriginRect(null);
+      el.style.visibility = "";
+      const listRect = el.getBoundingClientRect();
+      const dx = origin.rect.left - listRect.left;
+      const dy = origin.rect.top - listRect.top;
+      const sx = origin.rect.width / listRect.width;
+      const sy = origin.rect.height / listRect.height;
+      el.animate(
+        [
+          {
+            transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
+            transformOrigin: "0 0",
+          },
+          { transform: "none", transformOrigin: "0 0" },
+        ],
+        { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
+      );
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      el.style.visibility = "";
+    };
   }, []);
 
   return (

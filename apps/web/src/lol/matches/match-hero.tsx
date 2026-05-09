@@ -29,36 +29,54 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
   const playedAt = new Date(summary.playedAt);
   const displayName = championName(summary.champion);
 
-  // Forward animation: set initial CSS transform to P_list before first paint,
-  // then CSS-transition to the natural P_detail position.
+  // Forward animation: morph from the list card rect to the hero's natural position.
+  // We defer the origin consume and the getBoundingClientRect call to the RAF so:
+  //  (a) AnimatePresence's parent layout effect has already popped the exiting page
+  //      out of flow (otherwise the virtualizer's ~2480px container displaces dr.top)
+  //  (b) React StrictMode mounts → cleans up → remounts with a fresh instance before
+  //      the RAF fires, so the surviving instance consumes the origin — not an earlier
+  //      one that gets thrown away.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
     if (!savedOrigin.current) {
       const o = originRectRef.current;
       if (!o || o.matchId !== summary.matchId || o.direction !== "forward") return;
       savedOrigin.current = o;
-      setOriginRect(null);
+      // Do NOT call setOriginRect(null) here — delay until the RAF so StrictMode's
+      // cleanup-and-remount cycle can still find the origin on the surviving instance.
     }
     const origin = savedOrigin.current;
     if (!origin || !heroRef.current) return;
     if (reduced) return;
     const el = heroRef.current;
-    const dr = el.getBoundingClientRect();
-    const dx = origin.rect.left - dr.left;
-    const dy = origin.rect.top - dr.top;
-    const sx = origin.rect.width / dr.width;
-    const sy = origin.rect.height / dr.height;
-    const anim = el.animate(
-      [
-        {
-          transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
-          transformOrigin: "0 0",
-        },
-        { transform: "none", transformOrigin: "0 0" },
-      ],
-      { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
-    );
-    return () => anim.cancel();
+    el.style.visibility = "hidden";
+    let cancelled = false;
+    const rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+      // Consume the origin now — we're the surviving instance.
+      setOriginRect(null);
+      el.style.visibility = "";
+      const dr = el.getBoundingClientRect();
+      const dx = origin.rect.left - dr.left;
+      const dy = origin.rect.top - dr.top;
+      const sx = origin.rect.width / dr.width;
+      const sy = origin.rect.height / dr.height;
+      el.animate(
+        [
+          {
+            transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
+            transformOrigin: "0 0",
+          },
+          { transform: "none", transformOrigin: "0 0" },
+        ],
+        { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
+      );
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      el.style.visibility = "";
+    };
   }, []);
 
   return (
