@@ -57,7 +57,7 @@ model Match {
   durationSec  Int
   playedAt     DateTime
   items        Int[]
-  opponents    String[]
+  laneOpponent Json?
   remake       Boolean  @default(false)
   snapshotTier String?
   snapshotRank String?

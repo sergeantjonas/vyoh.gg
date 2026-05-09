@@ -26,6 +26,7 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
       gameDuration: 1834,
       queueId: 420,
       gameEndedInEarlySurrender: false,
+      teams: [],
       participants: [
         {
           puuid: "puuid-vyoh",
@@ -47,6 +48,19 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
           item6: 0,
           goldEarned: 0,
           totalDamageDealtToChampions: 0,
+          physicalDamageDealtToChampions: 0,
+          magicDamageDealtToChampions: 0,
+          trueDamageDealtToChampions: 0,
+          totalMinionsKilled: 0,
+          neutralMinionsKilled: 0,
+          visionScore: 0,
+          wardsPlaced: 0,
+          wardsKilled: 0,
+          detectorWardsPlaced: 0,
+          summoner1Id: 0,
+          summoner2Id: 0,
+          champLevel: 1,
+          perks: { styles: [] },
         },
       ],
     },
@@ -65,6 +79,11 @@ function buildRow(matchId: string, playedAtMs: number) {
     win: true,
     durationSec: 1834,
     playedAt: new Date(playedAtMs),
+    remake: false,
+    snapshotTier: null,
+    snapshotRank: null,
+    snapshotLp: null,
+    laneOpponent: null,
   };
 }
 
@@ -492,6 +511,7 @@ describe("LolService.getCachedMatches", () => {
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
+        laneOpponent: true,
       },
     });
   });
@@ -522,6 +542,7 @@ describe("LolService.getCachedMatches", () => {
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
+        laneOpponent: true,
       },
     });
   });

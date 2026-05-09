@@ -57,6 +57,7 @@ const matches: MatchSummary[] = [
     durationSec: 1834,
     playedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
     remake: false,
+    laneOpponent: null,
   },
   {
     matchId: "EUW1_2",
@@ -69,6 +70,7 @@ const matches: MatchSummary[] = [
     durationSec: 1280,
     playedAt: new Date(Date.now() - 50 * 3_600_000).toISOString(),
     remake: false,
+    laneOpponent: null,
   },
 ];
 

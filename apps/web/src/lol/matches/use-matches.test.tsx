@@ -23,6 +23,7 @@ const sample: MatchSummary = {
   durationSec: 1834,
   playedAt: new Date().toISOString(),
   remake: false,
+  laneOpponent: null,
 };
 
 function makeWrapper() {

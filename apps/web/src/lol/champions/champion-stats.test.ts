@@ -14,6 +14,7 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     durationSec: overrides.durationSec ?? 1800,
     playedAt: new Date().toISOString(),
     remake: overrides.remake ?? false,
+    laneOpponent: overrides.laneOpponent ?? null,
   };
 }
 

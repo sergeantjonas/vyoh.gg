@@ -4,6 +4,7 @@ import {
   Logger,
   type MessageEvent,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   CachedMatchesResult,
   ChampionExtras,
@@ -21,11 +22,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { type Platform, type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import { MatchEventsService } from "./match-events.service";
-import {
-  extractItemsAndOpponents,
-  riotMatchToDetail,
-  riotMatchToSummary,
-} from "./match-mapper";
+import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
 
 const DEFAULT_MATCH_COUNT = 20;
@@ -87,16 +84,20 @@ export class LolService {
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
+        laneOpponent: true,
       },
     });
 
-    return rows.map(({ playedAt, snapshotTier, snapshotRank, snapshotLp, ...rest }) => ({
-      ...rest,
-      playedAt: playedAt.toISOString(),
-      snapshotTier: snapshotTier ?? undefined,
-      snapshotRank: snapshotRank ?? undefined,
-      snapshotLp: snapshotLp ?? undefined,
-    }));
+    return rows.map(
+      ({ playedAt, snapshotTier, snapshotRank, snapshotLp, laneOpponent, ...rest }) => ({
+        ...rest,
+        playedAt: playedAt.toISOString(),
+        snapshotTier: snapshotTier ?? undefined,
+        snapshotRank: snapshotRank ?? undefined,
+        snapshotLp: snapshotLp ?? undefined,
+        laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
+      })
+    );
   }
 
   async getCachedMatches(
@@ -147,17 +148,19 @@ export class LolService {
           snapshotTier: true,
           snapshotRank: true,
           snapshotLp: true,
+          laneOpponent: true,
         },
       }),
     ]);
 
     const matches = rows.map(
-      ({ playedAt, snapshotTier, snapshotRank, snapshotLp, ...rest }) => ({
+      ({ playedAt, snapshotTier, snapshotRank, snapshotLp, laneOpponent, ...rest }) => ({
         ...rest,
         playedAt: playedAt.toISOString(),
         snapshotTier: snapshotTier ?? undefined,
         snapshotRank: snapshotRank ?? undefined,
         snapshotLp: snapshotLp ?? undefined,
+        laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
       })
     );
 
@@ -506,18 +509,20 @@ export class LolService {
     const cached = await this.prisma.matchDetailCache.findUnique({
       where: { matchId },
     });
-    if (cached) return cached.detail as unknown as MatchDetail;
+    if (cached)
+      return riotMatchToDetail(
+        cached.detail as unknown as Parameters<typeof riotMatchToDetail>[0]
+      );
 
     const platform = matchId.split("_")[0]?.toLowerCase();
     if (!platform) throw new Error(`Cannot derive region from matchId ${matchId}`);
     const regional = platformToRegional(platform);
     const raw = await this.riot.getMatchById(matchId, regional);
-    const detail = riotMatchToDetail(raw);
 
     await this.prisma.matchDetailCache.create({
-      data: { matchId, detail: detail as unknown as object },
+      data: { matchId, detail: raw as unknown as object },
     });
-    return detail;
+    return riotMatchToDetail(raw);
   }
 
   async getChampionExtras(
@@ -536,7 +541,7 @@ export class LolService {
         items: { isEmpty: false },
         ...(queue !== undefined && { queueType: queueTypeName(queue) }),
       },
-      select: { items: true, opponents: true, win: true },
+      select: { items: true, laneOpponent: true, win: true },
     });
 
     // Item frequency across all games on this champion
@@ -554,9 +559,10 @@ export class LolService {
 
     const matchupMap = new Map<string, { games: number; wins: number }>();
     for (const m of matches) {
-      for (const opp of m.opponents) {
-        const s = matchupMap.get(opp) ?? { games: 0, wins: 0 };
-        matchupMap.set(opp, { games: s.games + 1, wins: s.wins + (m.win ? 1 : 0) });
+      const oppName = (m.laneOpponent as { championName: string } | null)?.championName;
+      if (oppName) {
+        const s = matchupMap.get(oppName) ?? { games: 0, wins: 0 };
+        matchupMap.set(oppName, { games: s.games + 1, wins: s.wins + (m.win ? 1 : 0) });
       }
     }
     const matchups = [...matchupMap.entries()]
@@ -645,18 +651,14 @@ export class LolService {
   ): Promise<void> {
     if (matchIds.length === 0) return;
 
-    // A row is fully synced if: it is a remake (no items/opponents expected),
-    // OR both items and opponents are populated for a real game.
-    // Clearing opponents (e.g. to re-derive lane matchups) causes non-remake
-    // rows to be re-fetched on the next sync pass.
+    // A row is fully synced if: it is a remake (no items expected),
+    // OR items are populated for a real game. laneOpponent is nullable
+    // (null for ARAM/Arena), so it cannot serve as a staleness indicator.
     const fullysynced = await this.prisma.match.findMany({
       where: {
         puuid,
         matchId: { in: matchIds },
-        OR: [
-          { remake: true },
-          { items: { isEmpty: false }, opponents: { isEmpty: false } },
-        ],
+        OR: [{ remake: true }, { items: { isEmpty: false } }],
       },
       select: { matchId: true },
     });
@@ -671,8 +673,7 @@ export class LolService {
       missing.map(async (matchId) => {
         const raw = await this.riot.getMatchById(matchId, regional);
         const summary = riotMatchToSummary(raw, puuid);
-        const { items, opponents } = extractItemsAndOpponents(raw, puuid);
-        const detail = riotMatchToDetail(raw);
+        const { items } = extractItems(raw, puuid);
 
         let snapshotTier: string | undefined;
         let snapshotRank: string | undefined;
@@ -693,34 +694,29 @@ export class LolService {
           }
         }
 
+        const { laneOpponent, ...summaryRest } = summary;
+        const matchRow = {
+          ...summaryRest,
+          puuid,
+          playedAt: new Date(summary.playedAt),
+          items,
+          // Prisma requires DbNull (not JS null) to store a SQL NULL in a Json? column.
+          laneOpponent: (laneOpponent ?? Prisma.DbNull) as Prisma.InputJsonValue,
+          snapshotTier,
+          snapshotRank,
+          snapshotLp,
+        };
+
         await Promise.all([
           this.prisma.matchDetailCache.upsert({
             where: { matchId },
-            create: { matchId, detail: detail as unknown as object },
+            create: { matchId, detail: raw as unknown as object },
             update: {},
           }),
           this.prisma.match.upsert({
             where: { matchId_puuid: { matchId, puuid } },
-            create: {
-              ...summary,
-              puuid,
-              playedAt: new Date(summary.playedAt),
-              items,
-              opponents,
-              snapshotTier,
-              snapshotRank,
-              snapshotLp,
-            },
-            update: {
-              ...summary,
-              puuid,
-              playedAt: new Date(summary.playedAt),
-              items,
-              opponents,
-              snapshotTier,
-              snapshotRank,
-              snapshotLp,
-            },
+            create: matchRow,
+            update: matchRow,
           }),
         ]);
       })

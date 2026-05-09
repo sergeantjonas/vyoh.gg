@@ -4,6 +4,10 @@ export interface RiotAccount {
   tagLine: string;
 }
 
+export interface RiotChallenges {
+  killParticipation?: number;
+}
+
 export interface RiotMatchParticipant {
   puuid: string;
   riotIdGameName: string;
@@ -24,6 +28,37 @@ export interface RiotMatchParticipant {
   item6: number;
   goldEarned: number;
   totalDamageDealtToChampions: number;
+  physicalDamageDealtToChampions: number;
+  magicDamageDealtToChampions: number;
+  trueDamageDealtToChampions: number;
+  totalMinionsKilled: number;
+  neutralMinionsKilled: number;
+  visionScore: number;
+  wardsPlaced: number;
+  wardsKilled: number;
+  detectorWardsPlaced: number;
+  summoner1Id: number;
+  summoner2Id: number;
+  champLevel: number;
+  perks: {
+    styles: {
+      selections: { perk: number }[];
+    }[];
+  };
+  challenges?: RiotChallenges;
+}
+
+export interface RiotMatchTeam {
+  teamId: number;
+  win: boolean;
+  objectives: {
+    baron: { first: boolean; kills: number };
+    champion: { first: boolean; kills: number };
+    dragon: { first: boolean; kills: number };
+    inhibitor: { first: boolean; kills: number };
+    riftHerald: { first: boolean; kills: number };
+    tower: { first: boolean; kills: number };
+  };
 }
 
 export interface RiotLeagueEntry {
@@ -53,6 +88,7 @@ export interface RiotMatch {
     gameDuration: number;
     gameEndedInEarlySurrender: boolean;
     queueId: number;
+    teams: RiotMatchTeam[];
     participants: RiotMatchParticipant[];
   };
 }

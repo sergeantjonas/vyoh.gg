@@ -1,4 +1,4 @@
-import type { MatchDetail, MatchSummary } from "@vyoh/shared";
+import type { MatchDetail, MatchSummary, TeamSummary } from "@vyoh/shared";
 import type { RiotMatch } from "../riot/types";
 import { queueTypeName } from "./queue-types";
 
@@ -6,6 +6,22 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
   const participant = match.info.participants.find((p) => p.puuid === puuid);
   if (!participant) {
     throw new Error(`PUUID ${puuid} not found in match ${match.metadata.matchId}`);
+  }
+
+  let laneOpponent: MatchSummary["laneOpponent"] = null;
+  if (participant.teamPosition) {
+    const opp = match.info.participants.find(
+      (p) =>
+        p.teamId !== participant.teamId && p.teamPosition === participant.teamPosition
+    );
+    if (opp) {
+      laneOpponent = {
+        puuid: opp.puuid,
+        championName: opp.championName,
+        gameName: opp.riotIdGameName,
+        tagLine: opp.riotIdTagline,
+      };
+    }
   }
 
   return {
@@ -23,15 +39,13 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     // (as distinct from mid-game surrenders or the new inting-surrender system).
     // Remakes are stored but flagged so stats computations can exclude them.
     remake: match.info.gameEndedInEarlySurrender && match.info.gameDuration < 210,
+    laneOpponent,
   };
 }
 
-export function extractItemsAndOpponents(
-  match: RiotMatch,
-  puuid: string
-): { items: number[]; opponents: string[] } {
+export function extractItems(match: RiotMatch, puuid: string): { items: number[] } {
   const participant = match.info.participants.find((p) => p.puuid === puuid);
-  if (!participant) return { items: [], opponents: [] };
+  if (!participant) return { items: [] };
 
   const items = [
     participant.item0,
@@ -42,26 +56,45 @@ export function extractItemsAndOpponents(
     participant.item5,
   ].filter((id) => id > 0);
 
-  // teamPosition is empty in ARAM/Arena — skip those games for matchup tracking
-  const opponents: string[] = [];
-  if (participant.teamPosition) {
-    const laneOpponent = match.info.participants.find(
-      (p) =>
-        p.teamId !== participant.teamId && p.teamPosition === participant.teamPosition
-    );
-    if (laneOpponent) opponents.push(laneOpponent.championName);
-  }
-
-  return { items, opponents };
+  return { items };
 }
 
 export function riotMatchToDetail(match: RiotMatch): MatchDetail {
-  return {
-    matchId: match.metadata.matchId,
-    queueType: queueTypeName(match.info.queueId),
-    durationSec: match.info.gameDuration,
-    playedAt: new Date(match.info.gameStartTimestamp).toISOString(),
-    participants: match.info.participants.map((p) => ({
+  const durationMin = match.info.gameDuration / 60;
+
+  // Per-team totals needed for share computations
+  const teamTotals = new Map<number, { damage: number; gold: number }>();
+  for (const p of match.info.participants) {
+    const t = teamTotals.get(p.teamId) ?? { damage: 0, gold: 0 };
+    t.damage += p.totalDamageDealtToChampions;
+    t.gold += p.goldEarned;
+    teamTotals.set(p.teamId, t);
+  }
+
+  const teams: TeamSummary[] = match.info.teams.map((t) => {
+    const teamParticipants = match.info.participants.filter((p) => p.teamId === t.teamId);
+    const totalKills = teamParticipants.reduce((sum, p) => sum + p.kills, 0);
+    const totalGold = teamTotals.get(t.teamId)?.gold ?? 0;
+    return {
+      teamId: t.teamId,
+      win: t.win,
+      totalKills,
+      totalGold,
+      objectives: {
+        baron: t.objectives.baron,
+        dragon: t.objectives.dragon,
+        inhibitor: t.objectives.inhibitor,
+        riftHerald: t.objectives.riftHerald,
+        tower: t.objectives.tower,
+      },
+    };
+  });
+
+  const participants = match.info.participants.map((p) => {
+    const totals = teamTotals.get(p.teamId) ?? { damage: 1, gold: 1 };
+    const keystone = p.perks.styles[0]?.selections[0]?.perk ?? 0;
+
+    return {
       puuid: p.puuid,
       riotIdGameName: p.riotIdGameName,
       riotIdTagline: p.riotIdTagline,
@@ -75,6 +108,33 @@ export function riotMatchToDetail(match: RiotMatch): MatchDetail {
       items: [p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6],
       goldEarned: p.goldEarned,
       totalDamage: p.totalDamageDealtToChampions,
-    })),
+      csTotal: p.totalMinionsKilled + p.neutralMinionsKilled,
+      csPerMin:
+        Math.round(((p.totalMinionsKilled + p.neutralMinionsKilled) / durationMin) * 10) /
+        10,
+      visionScore: p.visionScore,
+      wardsPlaced: p.wardsPlaced,
+      wardsKilled: p.wardsKilled,
+      controlWardsPurchased: p.detectorWardsPlaced,
+      kp: p.challenges?.killParticipation ?? 0,
+      damageShare: totals.damage > 0 ? p.totalDamageDealtToChampions / totals.damage : 0,
+      goldShare: totals.gold > 0 ? p.goldEarned / totals.gold : 0,
+      damageDealtPhysical: p.physicalDamageDealtToChampions,
+      damageDealtMagic: p.magicDamageDealtToChampions,
+      damageDealtTrue: p.trueDamageDealtToChampions,
+      summoner1Id: p.summoner1Id,
+      summoner2Id: p.summoner2Id,
+      keystone,
+      championLevel: p.champLevel,
+    };
+  });
+
+  return {
+    matchId: match.metadata.matchId,
+    queueType: queueTypeName(match.info.queueId),
+    durationSec: match.info.gameDuration,
+    playedAt: new Date(match.info.gameStartTimestamp).toISOString(),
+    teams,
+    participants,
   };
 }

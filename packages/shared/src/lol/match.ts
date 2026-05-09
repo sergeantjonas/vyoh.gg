@@ -12,4 +12,10 @@ export interface MatchSummary {
   snapshotTier?: string;
   snapshotRank?: string;
   snapshotLp?: number;
+  laneOpponent: {
+    puuid: string;
+    championName: string;
+    gameName: string;
+    tagLine: string;
+  } | null;
 }
