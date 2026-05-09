@@ -1,7 +1,11 @@
 import { cn } from "@/lib/utils";
 import { useChampionName } from "@/lol/champions/use-champions";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
+
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -30,15 +34,26 @@ export function TrendRecord({ matches }: { matches: MatchSummary[] }) {
         className="flex flex-wrap gap-1.5"
       >
         {ordered.map((match) => (
-          <m.div
-            key={match.matchId}
-            variants={dot}
-            title={`${championName(match.champion)} — ${match.win ? "Win" : "Loss"}`}
-            className={cn(
-              "size-3 rounded-full",
-              match.win ? "bg-emerald-500" : "bg-red-500"
-            )}
-          />
+          <TooltipPrimitive.Root key={match.matchId}>
+            <TooltipPrimitive.Trigger asChild>
+              <m.div
+                variants={dot}
+                className={cn(
+                  "size-3 rounded-full",
+                  match.win ? "bg-emerald-500" : "bg-red-500"
+                )}
+              />
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={4}
+                className={TOOLTIP_CONTENT_CLASS}
+              >
+                {championName(match.champion)} — {match.win ? "Win" : "Loss"}
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
         ))}
       </m.div>
     </div>
