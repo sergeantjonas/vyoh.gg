@@ -13,6 +13,8 @@ import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useItems } from "@/lol/matches/use-items";
+import { ProfileTiltIndicator } from "@/lol/profile/profile-tilt-indicator";
+import { ProfileTimeHeatmap } from "@/lol/profile/profile-time-heatmap";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
@@ -432,6 +434,9 @@ function ChampionDetailPage() {
           )}
         </m.div>
       )}
+
+      <ProfileTimeHeatmap champion={alias} />
+      <ProfileTiltIndicator champion={alias} />
     </div>
   );
 }

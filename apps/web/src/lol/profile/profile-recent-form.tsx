@@ -1,5 +1,7 @@
 import { queueColor } from "@/lol/_shared/queue-color";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { computeStreak } from "@/lol/trends/trend-stats";
+import { TrendStreak } from "@/lol/trends/trend-streak";
 import { useNavigate } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
@@ -23,8 +25,11 @@ export function ProfileRecentForm({ accountSlug }: { accountSlug: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-        Recent Form
+      <div className="flex items-center gap-3">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          Recent Form
+        </div>
+        <TrendStreak streak={computeStreak(recent)} />
       </div>
       <m.div
         className="flex flex-wrap gap-1"
