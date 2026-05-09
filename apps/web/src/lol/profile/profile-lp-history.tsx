@@ -1,10 +1,14 @@
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { type RangeKey, useRankHistory } from "@/lol/profile/use-rank-history";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { RankHistoryPoint } from "@vyoh/shared";
 import { formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
+
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 import {
   CartesianGrid,
   Line,
@@ -266,18 +270,30 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
             LP History
           </div>
           {streak && (
-            <span
-              className={cn(
-                "rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                streak.type === "win"
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                  : "border-rose-500/40 bg-rose-500/10 text-rose-400"
-              )}
-              title={`Longest ${streak.type} run in this range`}
-            >
-              {streak.length}
-              {streak.type === "win" ? "W" : "L"} run
-            </span>
+            <TooltipPrimitive.Root>
+              <TooltipPrimitive.Trigger asChild>
+                <span
+                  className={cn(
+                    "cursor-help rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                    streak.type === "win"
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                      : "border-rose-500/40 bg-rose-500/10 text-rose-400"
+                  )}
+                >
+                  {streak.length}
+                  {streak.type === "win" ? "W" : "L"} run
+                </span>
+              </TooltipPrimitive.Trigger>
+              <TooltipPrimitive.Portal>
+                <TooltipPrimitive.Content
+                  side="top"
+                  sideOffset={4}
+                  className={TOOLTIP_CONTENT_CLASS}
+                >
+                  Longest {streak.type} run in this range
+                </TooltipPrimitive.Content>
+              </TooltipPrimitive.Portal>
+            </TooltipPrimitive.Root>
           )}
         </div>
         <div className="flex items-center gap-2">

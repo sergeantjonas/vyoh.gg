@@ -130,19 +130,26 @@ This is a living plan, not a contract. Phases are sequenced so each one ships va
 
 ---
 
-## Phase 5 — Past seasons (further out, exploratory)
+## Phase 5 — Past seasons (self-collected, no Riot history available)
 
-**Goal:** Vertical timeline of historical season ranks per queue. Read-only.
+**Constraint discovered:** Riot does **not** expose season-end historical ranks via their public API. League-V4 only returns current standing; the `endOfGameStats` reference earlier in this doc was imprecise (that's an LCU local-client API, not server-accessible). The old `stats/v1` API was deprecated in 2018 and never replaced. Match-V5 has `gameVersion` but no rank-at-season-end field. **Anything before Phase 0 started accumulating snapshots is unrecoverable.**
+
+This reframes Phase 5 from "pull Riot history" to "surface the longitudinal data we've been self-collecting" — which ties directly into the "building LP history without a time-series DB" write-up.
+
+**Goal:** Vertical timeline of self-detected season/split boundaries per queue, with end-of-season rank snapshots. Read-only. Honest about the cold-start period.
 
 **Deliverables:**
 
-1. Backend: pull season-end snapshots from Riot's `endOfGameStats` or `League-V4` history.
-2. Frontend: a vertical timeline component on Profile (collapsed by default, expand to view).
+1. **Season detection** — pure function over the existing `RankHistoryPoint[]` that finds soft-reset boundaries. Heuristic: a normalized-LP drop ≥ 400 between consecutive snapshots in the same queue **and** a time gap ≥ 7 days. Thresholds tuned to ignore normal demotions (≤100 LP) and play-streak losses (small time gap), while catching split resets where players drop ~5 divisions after weeks of inactivity. Lives in `@vyoh/shared/lol/rank-history`.
+2. **Frontend timeline** — `ProfileSeasonHistory` component on Profile. Each closed season shows: date range, end rank, peak rank within the period. The current ongoing season sits at the top. Reuses the same `useRankHistory(account, "season")` query (already fetched for the LP chart, so no new request).
+3. **Empty state** — when no resets have been detected yet, explicitly say so: "vyoh started tracking on YYYY-MM-DD. Past seasons appear here once Riot resets ranks (typically every ~3 months)." This is portfolio signal in itself — the "we know what we don't know" framing.
+4. **No new backend endpoint.** Detection is client-side from the existing `/rank/history` response. Keep the boundary at data, not compute.
 
-**Open questions:**
+**What we explicitly don't do:**
 
-- How far back does Riot expose this? Some seasons are no longer queryable. Set expectations early.
-- Does this belong on Profile, or behind a "Career" sub-route? Probably Profile-collapsed, expandable.
+- Don't try to scrape op.gg / u.gg for historical rank data.
+- Don't show Riot-named seasons (we don't have authoritative season metadata; just label by date range).
+- Don't backfill snapshots that don't exist.
 
 ---
 
@@ -183,7 +190,7 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **Phase 2** ✅ SHIPPED — Champion detail fully live: per-champ stats + win-rate trend sparkline (`2c7e221`), items with CDragon icons + tooltips (`ce01e50`, `806606d`), matchups with sort (`ce01e50`, `451cd27`), "vs your average" delta tiles, queue filter preserved on champion extras (`defc321`, `451cd27`), sticky champion strip on scroll (`f7f00c1`). Card entrance animation uses rect-based WAAPI approach rather than `layoutId` shared-element (see decision log).
 - **Phase 3** ✅ SHIPPED — Habits/insights layer live on Profile and Champion detail. `use-habits-stats.ts` drives all computation from the shared match cache. Components: `ProfileTimeHeatmap` (24×7 hour/day grid), `ProfileTiltIndicator`, `ProfileGameLength`, `ProfilePoolEntropy`, `ProfileWeeklyReview`. Champion detail reuses time heatmap + tilt indicator filtered to that champion via `useHabitsStats(champion)`.
 - **Phase 4** ✅ SHIPPED (code) — LP history sparkline live on Profile with queue toggle (Solo/Flex), range toggle (30d/90d/Season), tier-change markers (gold ReferenceDots), and longest-run streak overlay (emerald/rose ReferenceArea, min 3 consecutive). New endpoint `GET /lol/summoners/:region/:gameName/:tagLine/rank/history` returns `{ solo, flex }` with each snapshot normalized to `totalLp` (Iron IV 0LP = 0, +400 LP per tier, ignoring division for Master+). LP normalization helper + types in `@vyoh/shared` (`rank-history.ts`). Component: `profile-lp-history.tsx`. Visual verification in browser still pending — no rank snapshots have accumulated yet, so the component is currently rendering its empty state path.
-- **Phase 5** — not started.
+- **Phase 5** ✅ SHIPPED (code) — `detectSeasons` in `@vyoh/shared/lol/rank-history` finds soft-reset boundaries via normalized-LP drop ≥ 400 + time gap ≥ 7d. `ProfileSeasonHistory` renders ongoing + closed seasons per queue with start/end/peak rank. Cold-start messaging when no resets detected. Reuses the existing `useRankHistory(account, "season")` query — no new endpoint. 7 unit tests cover empty input, single ongoing season, normal demotion (no false positive), losing streaks (no false positive), single soft reset, peak-vs-end divergence, multi-season chains, Master+ tiers. Visual verification deferred until snapshots accumulate enough to trigger a detected reset.
 
 ---
 
@@ -198,4 +205,5 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — Phase 3 shipped. Heatmap confidence encoded via `backgroundColor` alpha (not CSS opacity) so the `heatmap-reveal` animation stays independent. Win-rate bands use solid emerald/zinc/rose tokens for visibility on dark backgrounds. `TrendStreak` wired into `ProfileRecentForm` header — reuses existing `computeStreak` + component already live on trends page. All computation client-side from shared match cache; no schema changes.
 - **2026-05-09** — Phase 4 shipped. LP normalization (`normalizeLp`) collapses tier+rank+lp onto a single monotonic axis so promos/demotes render as continuous movement. Master+ ignores rank (Riot returns "I" for those tiers). Streak overlay uses `ReferenceArea`; tier-change markers use `ReferenceDot` with `ifOverflow="extendDomain"` so they always render even when at the y-domain edges. Queue toggle auto-falls-back to whichever queue has data. Empty state messaging distinguishes "no snapshots yet" from "load error". Browser smoke test deferred until real snapshots have accumulated.
 - **2026-05-09** — LP delta per match + remake flagging shipped. `Match` table extended with `snapshotTier/Rank/Lp` (nullable) captured at head-sync time (after `captureRankSnapshot`, before `backfillMissingMatches`). Client computes delta via `normalizeLp` diff between consecutive matches per queue — no new endpoint. Historical backfill rows get null snapshots to avoid stamping stale LP. Remakes detected via `gameEndedInEarlySurrender && gameDuration < 210 s`; stored with `remake: true`, excluded from all stat computations (win rate, KDA, streak, habits, champion aggregation, recent-form pips), displayed as "Remake" on the card. The 210 s threshold distinguishes true remakes from Season 2 2026 inting-surrenders which happen after 3.5 min and do affect LP.
+- **2026-05-09** — Phase 5 reframed and shipped. Riot does not expose historical season ranks — League-V4 is current-only, the `endOfGameStats` reference earlier in this doc was an LCU API not server-accessible, and `stats/v1` was deprecated 2018. So past-seasons is built on self-collected snapshots only: `detectSeasons` flags soft-reset boundaries client-side from the existing `/rank/history` response. Thresholds: 400 LP drop + 7d gap (catches split resets without false-positiving on demotions or play-streaks). Followed the existing `@vyoh/shared/lol/rank-history` subpath-export pattern; added `DetectedSeason` as a type re-export from the package root. Cold-start period is owned in the UI rather than hidden — the empty state explicitly says "tracking started YYYY-MM-DD; Riot doesn't expose pre-tracking history."
 - **2026-05-09** — `@vyoh/shared` value re-exports break the API runtime. The package serves source `.ts` via `exports: "./src/index.ts"` (no compiled output). Existing `export type` re-exports work because they're erased before Node's resolver sees them. Adding any `export {}` value re-export forces Node to resolve a real `.js` file that doesn't exist (`ERR_MODULE_NOT_FOUND`). Fix: keep `index.ts` type-only; expose runtime helpers via subpath export (`@vyoh/shared/lol/rank-history`) which Vite (Bundler resolution) consumes natively, while moving normalization off the API entirely (raw snapshots out, web computes `totalLp`). Documents a real package-boundary trade-off worth a write-up.
