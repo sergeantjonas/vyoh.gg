@@ -1,0 +1,68 @@
+import type { MatchSummary } from "@vyoh/shared";
+import type { ChampionStats } from "./champion-stats";
+
+export interface ChampionDetailStats extends ChampionStats {
+  avgKills: number;
+  avgDeaths: number;
+  avgAssists: number;
+  // Chronological (oldest first) — used for win-rate trend sparkline
+  matchHistory: Array<{ win: boolean }>;
+}
+
+export function computeChampionDetail(
+  championKey: string,
+  allMatches: MatchSummary[]
+): ChampionDetailStats | null {
+  const key = championKey.toLowerCase();
+  const champMatches = allMatches.filter((m) => m.champion.toLowerCase() === key);
+  if (champMatches.length === 0) return null;
+
+  // Preserve original-case alias from match data for display/CDragon lookups
+  const originalAlias = champMatches[0]?.champion ?? championKey;
+
+  // Oldest first for the trend line
+  const sorted = [...champMatches].sort(
+    (a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime()
+  );
+
+  const games = champMatches.length;
+  const wins = champMatches.filter((m) => m.win).length;
+  const losses = games - wins;
+  const totalKills = champMatches.reduce((s, m) => s + m.kills, 0);
+  const totalDeaths = champMatches.reduce((s, m) => s + m.deaths, 0);
+  const totalAssists = champMatches.reduce((s, m) => s + m.assists, 0);
+  const totalDurationSec = champMatches.reduce((s, m) => s + m.durationSec, 0);
+  const avgKda =
+    totalDeaths === 0
+      ? totalKills + totalAssists
+      : (totalKills + totalAssists) / totalDeaths;
+
+  return {
+    champion: originalAlias,
+    games,
+    wins,
+    losses,
+    winRate: wins / games,
+    totalKills,
+    totalDeaths,
+    totalAssists,
+    avgKda,
+    totalDurationSec,
+    avgKills: totalKills / games,
+    avgDeaths: totalDeaths / games,
+    avgAssists: totalAssists / games,
+    matchHistory: sorted.map((m) => ({ win: m.win })),
+  };
+}
+
+// Rolling cumulative win rate — each point is the win rate after that many games.
+// Converges toward the true rate, more interesting than a raw W/L binary.
+export function buildWinRateSeries(
+  history: Array<{ win: boolean }>
+): Array<{ game: number; winRate: number }> {
+  let wins = 0;
+  return history.map(({ win }, i) => {
+    if (win) wins++;
+    return { game: i + 1, winRate: wins / (i + 1) };
+  });
+}

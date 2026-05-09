@@ -8,13 +8,28 @@ interface RawChampion {
   id: number;
   alias: string;
   name: string;
+  description: string;
+  roles: string[];
 }
 
-async function fetchChampions(): Promise<Map<string, string>> {
+export interface ChampionInfo {
+  name: string;
+  description: string;
+  roles: string[];
+}
+
+async function fetchChampions(): Promise<Map<string, ChampionInfo>> {
   const res = await fetch(CHAMPIONS_URL);
   if (!res.ok) throw new Error(`Failed to load champions: HTTP ${res.status}`);
   const raw: RawChampion[] = await res.json();
-  return new Map(raw.filter((c) => c.id !== -1).map((c) => [c.alias, c.name]));
+  return new Map(
+    raw
+      .filter((c) => c.id !== -1)
+      .map((c) => [
+        c.alias.toLowerCase(),
+        { name: c.name, description: c.description, roles: c.roles },
+      ])
+  );
 }
 
 export function useChampions() {
@@ -23,6 +38,10 @@ export function useChampions() {
     queryFn: fetchChampions,
     staleTime: Number.POSITIVE_INFINITY,
   });
+}
+
+function lookupKey(alias: string): string {
+  return normalizeChampionAlias(alias).toLowerCase();
 }
 
 /**
@@ -34,7 +53,12 @@ export function useChampions() {
 export function useChampionName() {
   const champions = useChampions();
   return (alias: string) => {
-    const normalized = normalizeChampionAlias(alias);
-    return champions.data?.get(normalized) ?? normalized;
+    return champions.data?.get(lookupKey(alias))?.name ?? normalizeChampionAlias(alias);
   };
+}
+
+/** Returns full flavor info for a champion alias (any casing). */
+export function useChampionInfo(alias: string): ChampionInfo | undefined {
+  const champions = useChampions();
+  return champions.data?.get(lookupKey(alias));
 }

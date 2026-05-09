@@ -6,6 +6,7 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champions/champion-card";
+import { Link } from "@tanstack/react-router";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import type { ChampionSortOption } from "./champion-sort-selector";
@@ -51,10 +52,12 @@ function sortStats(stats: ChampionStats[], sort: ChampionSortOption): ChampionSt
 export function ChampionTable({
   stats,
   sort,
+  accountSlug,
   onCardHover,
 }: {
   stats: ChampionStats[];
   sort: ChampionSortOption;
+  accountSlug: string;
   onCardHover?: (champion: string) => void;
 }) {
   const championName = useChampionName();
@@ -75,51 +78,59 @@ export function ChampionTable({
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         >
           <CardTilt>
-            <div
+            <Link
+              to="/lol/$accountSlug/champions/$championKey"
+              params={{ accountSlug, championKey: s.champion.toLowerCase() }}
               onMouseEnter={() => onCardHover?.(s.champion)}
-              style={championCardStyle(s.champion)}
-              className={championCardClassName}
             >
-              <ChampionCardChrome champion={s.champion} />
-              <div className="relative ml-auto flex flex-col items-end gap-1">
-                <div className="font-medium">{championName(s.champion)}</div>
-                <div className="font-mono text-sm tabular-nums">
-                  <span
-                    className={cn(s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400")}
-                  >
-                    <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
-                  </span>
-                  <span className="text-muted-foreground"> WR · </span>
-                  <span className="text-amber-400">
-                    <CountUp to={s.avgKda} decimals={2} duration={0.7} />
-                  </span>
-                  <span className="text-muted-foreground"> KDA</span>
+              <m.div
+                layoutId={`champ-card-${s.champion.toLowerCase()}`}
+                style={championCardStyle(s.champion)}
+                className={championCardClassName}
+              >
+                <ChampionCardChrome champion={s.champion} />
+                <div className="relative ml-auto flex flex-col items-end gap-1">
+                  <div className="font-medium">{championName(s.champion)}</div>
+                  <div className="font-mono text-sm tabular-nums">
+                    <span
+                      className={cn(
+                        s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
+                    </span>
+                    <span className="text-muted-foreground"> WR · </span>
+                    <span className="text-amber-400">
+                      <CountUp to={s.avgKda} decimals={2} duration={0.7} />
+                    </span>
+                    <span className="text-muted-foreground"> KDA</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
+                    {formatPlaytime(s.totalDurationSec)}
+                  </div>
+                  <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-muted/30">
+                    <m.div
+                      className={cn(
+                        "absolute inset-y-0 left-0 h-full w-full rounded-full",
+                        s.winRate >= 0.5
+                          ? "bg-gradient-to-r from-emerald-500/70 to-emerald-400/90"
+                          : "bg-gradient-to-r from-red-500/70 to-red-400/90"
+                      )}
+                      style={{ transformOrigin: "left" }}
+                      initial={{ scaleX: reduced ? s.winRate : 0 }}
+                      animate={{ scaleX: s.winRate }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 220,
+                        damping: 28,
+                        delay: 0.1,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
-                  {formatPlaytime(s.totalDurationSec)}
-                </div>
-                <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-muted/30">
-                  <m.div
-                    className={cn(
-                      "absolute inset-y-0 left-0 h-full w-full rounded-full",
-                      s.winRate >= 0.5
-                        ? "bg-gradient-to-r from-emerald-500/70 to-emerald-400/90"
-                        : "bg-gradient-to-r from-red-500/70 to-red-400/90"
-                    )}
-                    style={{ transformOrigin: "left" }}
-                    initial={{ scaleX: reduced ? s.winRate : 0 }}
-                    animate={{ scaleX: s.winRate }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 220,
-                      damping: 28,
-                      delay: 0.1,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
+              </m.div>
+            </Link>
           </CardTilt>
         </m.li>
       ))}

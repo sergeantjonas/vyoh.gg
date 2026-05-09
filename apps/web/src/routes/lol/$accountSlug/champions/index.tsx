@@ -13,11 +13,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { useState } from "react";
 
-export const Route = createFileRoute("/lol/$accountSlug/champions")({
+export const Route = createFileRoute("/lol/$accountSlug/champions/")({
   component: ChampionsPage,
 });
 
 function ChampionsPage() {
+  const { accountSlug } = Route.useParams();
   const { matches, isPending, total, count, setCount } = useMatchWindow();
   const [sort, setSort] = useState<ChampionSortOption>(CHAMPION_SORT_OPTIONS[0].value);
   const setHoveredChampion = useHoverChampion();
@@ -59,6 +60,7 @@ function ChampionsPage() {
         <ChampionTable
           stats={aggregateChampionStats(matches)}
           sort={sort}
+          accountSlug={accountSlug}
           onCardHover={setHoveredChampion ?? undefined}
         />
       )}
