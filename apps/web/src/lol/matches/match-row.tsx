@@ -7,10 +7,11 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champions/champion-card";
+import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
-import { m, useAnimation, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 
 function formatDuration(sec: number): string {
@@ -49,31 +50,40 @@ export function MatchRow({
     useActiveMatch();
   const reduced = useReducedMotion();
   const cardRef = useRef<HTMLDivElement>(null);
-  const controls = useAnimation();
+  // Captured once on mount so StrictMode's double-invocation doesn't lose the
+  // origin after the first run clears originRectRef.
+  const savedOrigin = useRef<CardOrigin | null>(null);
 
   // Return animation: when this row is the destination of a back-navigation,
-  // snap to the hero card's last known rect and spring back to natural position.
+  // snap to the hero card's last known rect and CSS-transition back to natural position.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
-    const origin = originRectRef.current;
-    if (origin?.matchId !== match.matchId || !cardRef.current) return;
-    setOriginRect(null);
+    if (!savedOrigin.current) {
+      const o = originRectRef.current;
+      if (o?.matchId !== match.matchId || o.direction !== "backward") return;
+      savedOrigin.current = o;
+      setOriginRect(null);
+    }
+    const origin = savedOrigin.current;
+    if (!origin || !cardRef.current) return;
     if (reduced) return;
-    const listRect = cardRef.current.getBoundingClientRect();
+    const el = cardRef.current;
+    const listRect = el.getBoundingClientRect();
     const dx = origin.rect.left - listRect.left;
     const dy = origin.rect.top - listRect.top;
     const sx = origin.rect.width / listRect.width;
     const sy = origin.rect.height / listRect.height;
-    controls.set({ x: dx, y: dy, scaleX: sx, scaleY: sy, originX: 0, originY: 0 });
-    void controls.start({
-      x: 0,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1,
-      originX: 0,
-      originY: 0,
-      transition: { type: "spring", stiffness: 170, damping: 30 },
-    });
+    const anim = el.animate(
+      [
+        {
+          transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
+          transformOrigin: "0 0",
+        },
+        { transform: "none", transformOrigin: "0 0" },
+      ],
+      { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
+    );
+    return () => anim.cancel();
   }, []);
 
   return (
@@ -85,14 +95,13 @@ export function MatchRow({
         onPointerDown={() => {
           saveListScroll();
           const rect = cardRef.current?.getBoundingClientRect() ?? null;
-          if (rect) setOriginRect({ matchId: match.matchId, rect });
+          if (rect) setOriginRect({ matchId: match.matchId, rect, direction: "forward" });
           setActiveMatch(match.matchId);
         }}
         className="block"
       >
-        <m.div
+        <div
           ref={cardRef}
-          animate={controls}
           style={championCardStyle(match.champion)}
           className={championCardClassName}
         >
@@ -147,7 +156,7 @@ export function MatchRow({
               </span>
             </div>
           </div>
-        </m.div>
+        </div>
       </Link>
     </CardTilt>
   );

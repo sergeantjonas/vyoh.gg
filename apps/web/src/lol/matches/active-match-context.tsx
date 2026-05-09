@@ -9,7 +9,11 @@ import {
   useState,
 } from "react";
 
-export type CardOrigin = { matchId: string; rect: DOMRect };
+export type CardOrigin = {
+  matchId: string;
+  rect: DOMRect;
+  direction: "forward" | "backward";
+};
 
 type Ctx = {
   activeMatch: string | null;

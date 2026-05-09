@@ -6,9 +6,10 @@ import {
   championCardStyle,
 } from "@/lol/champions/champion-card";
 import { useChampionName } from "@/lol/champions/use-champions";
+import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import type { MatchSummary } from "@vyoh/shared";
-import { m, useAnimation, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 
 function formatDuration(sec: number): string {
@@ -22,38 +23,47 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
   const { originRectRef, setOriginRect } = useActiveMatch();
   const reduced = useReducedMotion();
   const heroRef = useRef<HTMLDivElement>(null);
-  const controls = useAnimation();
+  // Captured once on mount so StrictMode's double-invocation doesn't lose the
+  // origin after the first run clears originRectRef.
+  const savedOrigin = useRef<CardOrigin | null>(null);
   const playedAt = new Date(summary.playedAt);
   const displayName = championName(summary.champion);
 
-  // Forward animation: snap to the list row's stored rect then spring to natural position.
+  // Forward animation: set initial CSS transform to P_list before first paint,
+  // then CSS-transition to the natural P_detail position.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
-    const origin = originRectRef.current;
-    if (origin?.matchId !== summary.matchId || !heroRef.current) return;
-    setOriginRect(null);
+    if (!savedOrigin.current) {
+      const o = originRectRef.current;
+      if (!o || o.matchId !== summary.matchId || o.direction !== "forward") return;
+      savedOrigin.current = o;
+      setOriginRect(null);
+    }
+    const origin = savedOrigin.current;
+    if (!origin || !heroRef.current) return;
     if (reduced) return;
-    const detailRect = heroRef.current.getBoundingClientRect();
-    const dx = origin.rect.left - detailRect.left;
-    const dy = origin.rect.top - detailRect.top;
-    const sx = origin.rect.width / detailRect.width;
-    const sy = origin.rect.height / detailRect.height;
-    controls.set({ x: dx, y: dy, scaleX: sx, scaleY: sy, originX: 0, originY: 0 });
-    void controls.start({
-      x: 0,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1,
-      originX: 0,
-      originY: 0,
-      transition: { type: "spring", stiffness: 170, damping: 30 },
-    });
+    const el = heroRef.current;
+    const dr = el.getBoundingClientRect();
+    const dx = origin.rect.left - dr.left;
+    const dy = origin.rect.top - dr.top;
+    const sx = origin.rect.width / dr.width;
+    const sy = origin.rect.height / dr.height;
+    const anim = el.animate(
+      [
+        {
+          transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
+          transformOrigin: "0 0",
+        },
+        { transform: "none", transformOrigin: "0 0" },
+      ],
+      { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
+    );
+    return () => anim.cancel();
   }, []);
 
   return (
-    <m.div
+    <div
       ref={heroRef}
-      animate={controls}
       data-match-card={summary.matchId}
       style={championCardStyle(summary.champion)}
       className={cn(championCardBaseClassName, "z-30 shadow-2xl shadow-black/50")}
@@ -93,6 +103,6 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
           </span>
         </div>
       </div>
-    </m.div>
+    </div>
   );
 }

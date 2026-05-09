@@ -68,7 +68,11 @@ function BackButton({
         if (matchId) {
           const heroEl = document.querySelector(`[data-match-card="${matchId}"]`);
           if (heroEl instanceof HTMLElement) {
-            setOriginRect({ matchId, rect: heroEl.getBoundingClientRect() });
+            setOriginRect({
+              matchId,
+              rect: heroEl.getBoundingClientRect(),
+              direction: "backward",
+            });
           }
         }
       }}
@@ -458,7 +462,7 @@ function AccountLayout() {
                 key={pathname}
                 custom={effectiveDir}
                 variants={pageSlideVariants}
-                initial="enter"
+                initial={isMatchDetailTransitionRef.current ? "center" : "enter"}
                 animate="center"
                 exit="exit"
                 transition={
