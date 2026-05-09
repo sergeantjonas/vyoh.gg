@@ -4,10 +4,10 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchCardSkeleton } from "@/lol/matches/match-list-skeleton";
 import { MatchRow } from "@/lol/matches/match-row";
+import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { MATCHES_PAGE_SIZE } from "@/lol/matches/use-matches";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MatchSummary } from "@vyoh/shared";
-import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { m } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -170,27 +170,7 @@ export function MatchList({
     seenCountRef.current = reveal;
   }, [reveal]);
 
-  // LP delta per match: iterate chronologically, track last LP by queue,
-  // compute delta = current.snapshotLp - previous.snapshotLp for same queue.
-  const lpDeltaMap = useMemo(() => {
-    const map = new Map<string, number>();
-    const lastByQueue = new Map<string, number>();
-    for (let i = matches.length - 1; i >= 0; i--) {
-      const m = matches[i];
-      if (
-        !m ||
-        m.snapshotTier === undefined ||
-        m.snapshotLp === undefined ||
-        m.snapshotRank === undefined
-      )
-        continue;
-      const norm = normalizeLp(m.snapshotTier, m.snapshotRank, m.snapshotLp);
-      const prev = lastByQueue.get(m.queueType);
-      if (prev !== undefined) map.set(m.matchId, norm - prev);
-      lastByQueue.set(m.queueType, norm);
-    }
-    return map;
-  }, [matches]);
+  const lpDeltaMap = useMemo(() => computeLpDeltaMap(matches), [matches]);
 
   return (
     <div

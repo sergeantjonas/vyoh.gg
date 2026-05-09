@@ -8,6 +8,7 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
 import { MatchDetailView } from "@/lol/matches/match-detail-view";
 import { MatchHero } from "@/lol/matches/match-hero";
+import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
@@ -57,6 +58,8 @@ function MatchDetailPage() {
   const detail = useMatchDetail(matchId);
   const championName = useChampionName();
   const cachedSummary = useCachedMatchSummary(matchId);
+  const lpDeltaMap = useLpDeltaMap();
+  const lpDelta = lpDeltaMap.get(matchId);
 
   const [bodyReady, setBodyReady] = useState(false);
   useEffect(() => {
@@ -103,7 +106,7 @@ function MatchDetailPage() {
             }}
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
-            <MatchHero summary={heroSummary} />
+            <MatchHero summary={heroSummary} lpDelta={lpDelta} />
           </m.div>
         )}
       </div>
@@ -121,14 +124,35 @@ function MatchDetailPage() {
             <span className="text-sm font-medium">
               {championName(heroSummary.champion)}
             </span>
-            <span
-              className={cn(
-                "text-xs font-semibold uppercase tracking-wider",
-                heroSummary.win ? "text-emerald-400" : "text-red-400"
-              )}
-            >
-              {heroSummary.win ? "Win" : "Loss"}
-            </span>
+            {heroSummary.remake ? (
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Remake
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "text-xs font-semibold uppercase tracking-wider",
+                  heroSummary.win ? "text-emerald-400" : "text-red-400"
+                )}
+              >
+                {heroSummary.win ? "Win" : "Loss"}
+              </span>
+            )}
+            {!heroSummary.remake && lpDelta !== undefined && (
+              <span
+                className={cn(
+                  "text-xs tabular-nums",
+                  lpDelta > 0
+                    ? "text-emerald-400"
+                    : lpDelta < 0
+                      ? "text-red-400"
+                      : "text-muted-foreground"
+                )}
+              >
+                {lpDelta > 0 ? "+" : ""}
+                {lpDelta} LP
+              </span>
+            )}
             <span className="font-mono text-sm tabular-nums">
               <span className="text-emerald-400">{heroSummary.kills}</span>
               <span className="text-muted-foreground"> / </span>

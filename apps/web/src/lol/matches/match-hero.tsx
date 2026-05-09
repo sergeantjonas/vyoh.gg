@@ -12,13 +12,34 @@ import type { MatchSummary } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 
+function LpBadge({ delta }: { delta: number }) {
+  return (
+    <span
+      className={cn(
+        "text-xs tabular-nums",
+        delta > 0
+          ? "text-emerald-400"
+          : delta < 0
+            ? "text-red-400"
+            : "text-muted-foreground"
+      )}
+    >
+      {delta > 0 ? "+" : ""}
+      {delta} LP
+    </span>
+  );
+}
+
 function formatDuration(sec: number): string {
   const mins = Math.floor(sec / 60);
   const secs = sec % 60;
   return `${mins}m ${secs.toString().padStart(2, "0")}s`;
 }
 
-export function MatchHero({ summary }: { summary: MatchSummary }) {
+export function MatchHero({
+  summary,
+  lpDelta,
+}: { summary: MatchSummary; lpDelta?: number }) {
   const championName = useChampionName();
   const { originRectRef, setOriginRect } = useActiveMatch();
   const reduced = useReducedMotion();
@@ -90,14 +111,21 @@ export function MatchHero({ summary }: { summary: MatchSummary }) {
       <div className="relative ml-auto flex flex-col items-end gap-1">
         <div className="flex items-baseline gap-2">
           <span className="font-medium">{displayName}</span>
-          <span
-            className={cn(
-              "text-xs font-semibold uppercase tracking-wider",
-              summary.win ? "text-emerald-400" : "text-red-400"
-            )}
-          >
-            {summary.win ? "Win" : "Loss"}
-          </span>
+          {summary.remake ? (
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Remake
+            </span>
+          ) : (
+            <span
+              className={cn(
+                "text-xs font-semibold uppercase tracking-wider",
+                summary.win ? "text-emerald-400" : "text-red-400"
+              )}
+            >
+              {summary.win ? "Win" : "Loss"}
+            </span>
+          )}
+          {!summary.remake && lpDelta !== undefined && <LpBadge delta={lpDelta} />}
         </div>
         <div className="font-mono text-sm tabular-nums">
           <span className="text-emerald-400">{summary.kills}</span>

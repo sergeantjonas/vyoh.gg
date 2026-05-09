@@ -1,4 +1,5 @@
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { TrendStreak } from "@/lol/trends/trend-streak";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -11,7 +12,7 @@ const FORM_LENGTH = 20;
 const WIN_COLOR = "#34d399";
 const LOSS_COLOR = "#f87171";
 
-function PipTooltip({ match }: { match: MatchSummary }) {
+function PipTooltip({ match, lpDelta }: { match: MatchSummary; lpDelta?: number }) {
   const kda =
     match.deaths === 0
       ? `${match.kills + match.assists}`
@@ -24,6 +25,20 @@ function PipTooltip({ match }: { match: MatchSummary }) {
         {match.kills}/{match.deaths}/{match.assists}{" "}
         <span className="text-muted-foreground">({kda} KDA)</span>
       </div>
+      {!match.remake && lpDelta !== undefined && (
+        <div
+          className={
+            lpDelta > 0
+              ? "text-xs tabular-nums text-emerald-400"
+              : lpDelta < 0
+                ? "text-xs tabular-nums text-red-400"
+                : "text-xs tabular-nums text-muted-foreground"
+          }
+        >
+          {lpDelta > 0 ? "+" : ""}
+          {lpDelta} LP
+        </div>
+      )}
     </div>
   );
 }
@@ -31,6 +46,7 @@ function PipTooltip({ match }: { match: MatchSummary }) {
 export function ProfileRecentForm({ accountSlug }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const navigate = useNavigate();
+  const lpDeltaMap = useLpDeltaMap();
   const recent = matches?.filter((m) => !m.remake).slice(0, FORM_LENGTH) ?? [];
 
   if (recent.length === 0) return null;
@@ -74,7 +90,7 @@ export function ProfileRecentForm({ accountSlug }: { accountSlug: string }) {
                 collisionPadding={8}
                 className="pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
               >
-                <PipTooltip match={match} />
+                <PipTooltip match={match} lpDelta={lpDeltaMap.get(match.matchId)} />
               </TooltipPrimitive.Content>
             </TooltipPrimitive.Portal>
           </TooltipPrimitive.Root>
