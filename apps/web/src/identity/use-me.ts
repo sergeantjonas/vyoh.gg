@@ -23,6 +23,6 @@ export function useMe() {
   return useQuery({
     queryKey: ["me"],
     queryFn: fetchMe,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 30_000,
   });
 }

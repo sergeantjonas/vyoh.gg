@@ -1,5 +1,4 @@
-const CDRAGON_CDN = "https://cdn.communitydragon.org/latest";
-
-export function profileIconUrl(iconId: number): string {
-  return `${CDRAGON_CDN}/profile-icon/${iconId}`;
+// w=72 covers 2× retina for the largest display size (size-9 = 36 CSS px).
+export function profileIconUrl(iconId: number, width = 72): string {
+  return `https://wsrv.nl/?url=cdn.communitydragon.org/latest/profile-icon/${iconId}&w=${width}&output=webp&q=85`;
 }
