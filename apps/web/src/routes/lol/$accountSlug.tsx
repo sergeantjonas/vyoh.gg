@@ -1,6 +1,7 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account-switcher";
+import championAssets from "@/lol/_shared/champion-assets.json";
 import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
 import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
@@ -25,6 +26,8 @@ import {
 import { ChevronLeft, Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
 
 const pageSlideVariants: Variants = {
   enter: (d: number) => ({ opacity: 0, x: d * 32 }),
@@ -248,9 +251,14 @@ function AccountLayout() {
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
   const [initialChampion, setInitialChampion] = useState<string | null>(null);
   useEffect(() => {
-    if (initialChampion || !matches || matches.length === 0) return;
-    const random = matches[Math.floor(Math.random() * matches.length)];
-    if (random) setInitialChampion(random.champion);
+    if (initialChampion || !matches) return;
+    if (matches.length > 0) {
+      const first = matches[0];
+      if (first) setInitialChampion(first.champion);
+    } else {
+      const key = CHAMPION_KEYS[Math.floor(Math.random() * CHAMPION_KEYS.length)];
+      if (key) setInitialChampion(key);
+    }
   }, [matches, initialChampion]);
   // Debounce hover-driven splash changes so a quick mouse sweep over the match
   // list doesn't remount the backdrop (and refetch its splash) per row.
