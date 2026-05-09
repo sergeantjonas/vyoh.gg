@@ -1,4 +1,9 @@
-import { ChemtechDrakeIcon, HextechDrakeIcon, KillsIcon } from "@/components/game-icons";
+import {
+  ChemtechDrakeIcon,
+  HextechDrakeIcon,
+  KillsIcon,
+  VoidGrubIcon,
+} from "@/components/game-icons";
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { cn } from "@/lib/utils";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
@@ -91,7 +96,7 @@ function objectiveLabel(type: string): string {
 }
 
 function ObjectiveIcon({ type, teamId }: { type: string; teamId: number }) {
-  const teamColor = teamId === 100 ? "text-blue-400" : "text-red-400";
+  const teamColor = teamId === 100 ? "text-sky-400" : "text-red-400";
   const badgeCls =
     teamId === 100
       ? "bg-blue-400/15 text-blue-300 border-blue-400/30"
@@ -111,18 +116,11 @@ function ObjectiveIcon({ type, teamId }: { type: string; teamId: number }) {
       </span>
     );
   }
-  // Void Grubs — CSS background-image to extract bottom frame (y=480) from 80×560 sprite
   if (type === "HORDE") {
     return (
-      <span
-        className="inline-flex w-6 h-6 shrink-0"
-        style={{
-          backgroundImage: `url(https://wsrv.nl/?url=${MH}/right_icons_grub.png&output=webp)`,
-          backgroundSize: "24px 168px",
-          backgroundPosition: "0 -144px",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
+      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center">
+        <VoidGrubIcon className={cn("w-full h-full", teamColor)} />
+      </span>
     );
   }
 
