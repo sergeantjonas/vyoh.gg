@@ -1,0 +1,202 @@
+# vyoh.gg — vNext ideas (post-current-roadmaps)
+
+Ideas that surface *after* the three active roadmaps land — [views-roadmap.md](views-roadmap.md), [match-depth-roadmap.md](match-depth-roadmap.md), [trends-rework.md](trends-rework.md). Read this when looking for "what's next after the planned work" or when picking the next big arc.
+
+This doc is intentionally a backlog, not a phased plan. Items are categorized and prioritized by visible-payoff vs. invisible-foundation. The owner has been clear about prioritizing **eye-catching, demoable** work — anything that shows up in a screenshot, animation, or shared link beats anything that lives in CI logs.
+
+The doc also functions as a forward-reference for the active roadmaps: if a vNext idea would be silly to build *after* the planned work (because it would cause re-do), the active roadmap should reflect that today. Cross-references at the bottom of this doc.
+
+---
+
+## Priority bands
+
+This is a backlog. Bands set the search order, not commitment:
+
+- **★★★ Top tier — eye-catching, demoable, portfolio-grade.** First place to look when starting a new arc.
+- **★★ Second tier — meaningful but quieter.** Real value, less screen-time. Pick when a top-tier item depends on these landing first.
+- **★ Foundational / invisible.** Test suites, observability, infra hygiene. Important for the project's long-term shape but not what lands a job application. Cherry-pick as time allows.
+- **Low priority** — explicitly deferred (see end of doc).
+
+---
+
+## Top tier — eye-catching wins ★★★
+
+### LoL surfaces
+
+**Duo / squad detection.** We see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
+
+**Pre-game ritual widget.** Glanceable card before queueing: recent form, tilt status (lost the last 2?), suggested champion, "your strongest hour is now / not now." Small focused surface — peer route, modal, or a Profile section. Best embodiment of the "calm coaching" tonal bet.
+
+**Yearly recap (calm Wrapped).** End-of-season scrollable artifact summarizing trends conclusions. Animated, opt-in share image. Real motion-showcase territory and a built-in deadline — cadence-driven content that re-engages the audience. Tied to the trends-rework's `ConclusionCard` engine.
+
+**Patch-aware everything.** Shade chart backgrounds at patch boundaries; show per-patch champion WR; "you went 2–8 on Yasuo this patch — buffs/nerfs changed something" copy. Underutilized signal everywhere in the LoL-stat-site space.
+
+**ARAM-specific dashboard.** ARAM is the most-played queue but currently lumped in with everything. Heal-shield delivered, damage-tank ratio, healing-taken. Probably justifies its own sub-route. (Also called out in match-depth Phase D.7.)
+
+**Cross-account portfolio / unified identity.** Multi-account is supported; "Account A vs Account B" comparison is missing. Smurf vs main, EU vs NA. Single Profile-level "unified identity" view across whitelisted accounts.
+
+**"Same day, last year."** Time-machine card on Profile — what were you playing exactly 365 days ago. Cheap to implement once historical backfill is complete; emotional payoff disproportionate to effort.
+
+### Motion / UI showcase
+
+**Magazine-grid reflow on Trends range change.** When the user switches "30d ↔ 7d" on the trends selector, each `ConclusionCard` re-derives its verdict + chart. Use Motion's `layout` prop on the grid so cards flow physically into new positions, with verdicts cross-fading. Flagship motion moment for the rework — "my trends respond to my question." **Cross-reference: trends-rework T2.5 should pin the layout system to one that supports this from day one.**
+
+**Kill strip ↔ minimap morph.** Already in [match-depth-roadmap.md](match-depth-roadmap.md) Phase B as a showcase. Linear strip of dots → rect-based morph onto a Rift SVG, dots travel to their `position.x/y`. Best motion-storytelling moment in the app once it lands.
+
+**Build-order items emerging on a time axis.** Phase B build-order — items "drop into" their timestamps with springs, faint connector line draws to the gold-lead chart at the matching timestamp. Cross-chart visual lockstep.
+
+**Live game minute pulse.** The Live page timer pulses one cycle each minute boundary; champion icons get a near-imperceptible scale-bob synced to game time. Page feels alive without being noisy.
+
+**Empty-state illustrations.** Currently text-only. Custom calm illustrations for "no matches yet" / "no rank data" / "first time on this champion" would lift the whole tonal bar. Either commissioned or hand-rolled SVG. Scales the perceived craft of the whole app.
+
+**Ambient backdrop polish.** Beyond the splash backdrop's current static state — explore subtle filter shifts (slow brightness/saturation breath), color-gradient drift, small particle-like ambient elements at very low alpha. **Note: scroll-linked y-transform parallax was tried and reverted (commit `4c60951`); explicitly excluded.**
+
+**Drag-to-reorder Profile sections.** Persist user's preferred Profile layout. Personal-app feel; differentiates from op.gg/u.gg's fixed templates. dnd-kit.
+
+**Scroll-driven case-study pages.** Once we write up "how LP history works without TimescaleDB" or "the Riot rate-limiter fix," scrollytelling treatments are interesting — the chart redraws as the reader scrolls the prose. Different bundle, opt-in per page.
+
+**View Transitions API.** Wider browser support now (Chrome/Edge/Safari TP). Could replace some of the current AnimatePresence dance for cross-route morphs. Worth a feasibility spike — if it works for our shared-element morphs, it's a substantial code reduction.
+
+### UI library upgrades
+
+**visx (Airbnb).** D3-powered React components with finer-grained composition than Recharts. The minimap kill plot, custom radial layouts, anything Recharts forces a workaround for. **Cross-reference: match-depth-roadmap Phase B should default to visx for the minimap and any panel that's not a stock Recharts shape, to avoid a Recharts → visx rewrite.**
+
+**dnd-kit.** Drag-to-reorder, drag-from-list. Profile reorder, pinning matches, champion priority lists.
+
+**react-three-fiber + drei.** 3D Rift backdrop, animated splash, low-key ambient particles. Heavy bundle, deliberate per-page choice. A single hero page with R3F is a portfolio money shot. Strong differentiation vs. op.gg.
+
+**Konva.** Canvas-based 2D. If the minimap kill plot needs heavy interactivity (zoom/pan, hundreds of dots, smooth at 60 fps), canvas beats SVG. Worth picking up specifically for that one component if the SVG version stutters.
+
+**vaul.** Sheet/drawer primitives. Live game and match-detail-popover surfaces would benefit on mobile.
+
+### Server-driven & shareable artifacts
+
+**Server-side live-game polling.** Instead of client polling Spectator-V5 (current Phase C plan), move to server-side polling + SSE push. Lighter on client, single source of truth, and the "Live now" chip can render on the Profile of an account that isn't currently being viewed. **Cross-reference: match-depth Phase C should call out this architecture choice up-front so Phase C v1 doesn't get built client-side first.**
+
+**Weekly digest as markdown export.** Each week, auto-generate a markdown post from Trends conclusions. Personal log + portfolio fodder; case-study material. Low complexity given conclusion data is already structured by the trends rework.
+
+**PDF / image export of match detail.** Shareable post-game review. We already render OG images server-side for match URLs — extend the same renderer to "full report" cards.
+
+**Discord webhook integration.** Personal-feel notification — fire significant events (rank up, big LP swing, end-of-game) into a personal Discord channel. Trivial to wire, high "this is a real, alive personal app" impression.
+
+---
+
+## Second tier — quieter but meaningful ★★
+
+### LoL surfaces
+
+**Cmd+K palette extension.** Extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold. Match-list filter UI is mostly redundant once the palette can do all of that.
+
+**Goal setting + projection.** "Reach Diamond by July." Show projected ETA based on current LP/day velocity. Honest projection — variance shown, not a single number.
+
+**Champions you should learn next.** Based on similarity to your top picks (cdragon has tags). Personal recommendation surface; ties to the champion-focus prescription tile in trends-rework T3.4.
+
+**Climbing diary.** Markdown notes tied to LP milestones / specific matches. Personal, not gamified. Optional public-share via the "PDF/image export" path above.
+
+**Public-friend leaderboard.** Calm board for whitelisted players' relative performance. No gamification copy — just a roster.
+
+### Motion / UI
+
+**Sample-size badge fill animation.** Partial-circle SVG draws from 0 to its final fill on first paint. Reads as "calibrating" before settling into the verdict. Tied directly to trends-rework T2.
+
+**Verdict typography emphasis.** Variable font weight (Inter Variable) animated on hover via `font-variation-settings`. Quietly fancy.
+
+**Odometer-style number transitions.** `CountUp` is fine for fade-in. For real number deltas (LP changing live, WR shifting), odometer rolls work better. Subtle constraint: only animate on actual changes, not first paint.
+
+**Skeleton shimmer.** Skeletons today are static. Add subtle gradient sweep — calm shimmer, not aggressive. Connection-aware (only render shimmer on slow connections; instant render otherwise).
+
+**Container queries.** For genuinely component-driven responsive layouts. CSS-native, no JS. Worth an audit pass once the magazine-grid Trends layout settles.
+
+### Server-driven
+
+**Push notifications (web push).** Service worker territory. "Live game started," "duo finished a game," "weekly report ready." Real engineering work but a strong differentiator vs op.gg/u.gg.
+
+**Email digest.** Weekly summary via Resend. Subject line is the most surprising insight.
+
+**BullMQ + Redis.** Already mentioned as planned but not wired. Once we have timeline backfill + rank polling + live-game polling + weekly-digest generation running concurrently, queue-based scheduling beats cron. Visibility, retries, dead-letter — all free. **Cross-reference: match-depth Phase C and the weekly-digest item above both benefit from this landing first.**
+
+---
+
+## Foundational — invisible but valuable ★
+
+The things that don't land in screenshots but matter long-term. Cherry-pick when the appetite for visible work is exhausted.
+
+### Observability
+
+**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing `reportWebVitals` import in [main.tsx](../../apps/web/src/main.tsx) is the entry point; currently unused. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
+
+**Bundle size budgets in CI.** Per-route chunk thresholds, CI fails the PR if exceeded. Cheap to wire; portfolio-credible perf evidence.
+
+**Lighthouse CI.** Per-PR audits, score deltas in PR comments. Trivial setup.
+
+**Riot rate-limit headroom dashboard.** Live view of Bottleneck reservoir state. Internal — but a write-up artifact ("what does our rate budget actually look like?") is portfolio gold given the existing rate-limiter case study.
+
+**Sentry / error tracking.** Not wired today. Required for any public deployment.
+
+### Data / backend
+
+**Caching layer (Redis).** Match-ids cache currently lives in-process (per instance). Redis survives restarts and lets us scale horizontally. Tracks with BullMQ adoption.
+
+**Postgres BRIN indexes.** For time-range queries (rank snapshots, matches by date), BRIN beats B-tree on disk size and is appropriate for the access pattern. Cheap optimization once tables grow.
+
+**Backups.** `pg_dump` to off-box on a schedule. Trivial; not yet wired.
+
+### Quality
+
+**Property-based tests** (fast-check) for stats math. Win-rate, streak, LP-normalization functions are exactly the kind of code where property tests outperform unit tests.
+
+**E2E with Playwright + visual regression.** Per-critical-route snapshots gated in CI. Tricky given the animated UI — would need careful baseline taming. Worth attempting once the trends-rework lands (more complex visual surfaces = higher payoff).
+
+---
+
+## Low priority / explicitly deferred
+
+These are off the table for the foreseeable future. Listed so they don't quietly creep back into other docs.
+
+- **Riot RSO auth.** Currently whitelist-driven, no real auth. RSO is required for any public multi-user deployment. Owner has explicitly deferred — accounts stay whitelisted; will revisit if/when public deployment needs multi-user.
+- **Splash parallax.** Tried in `341cfcc`, reverted in `4c60951` ("didn't land well visually"). Excluded from all future motion-polish suggestions. Other splash polish (filter drift, breath-rate opacity, color-gradient drift) is fair game; scroll-linked y/scale transforms are not.
+- **Material UI / Chakra / Ant Design.** Too opinionated, would clash with the bespoke shadcn aesthetic. Permanent-no.
+- **Lottie / dotLottie at scale.** Risk of clashing with calm aesthetic. One hand-crafted Lottie for a hero empty-state could fit; broad adoption does not.
+- **OpenTelemetry.** Overkill until we have multiple services. Re-evaluate if microservices ever happen (they probably won't).
+- **TimescaleDB / DuckDB.** Postgres handles current scale fine. Re-evaluate if per-frame timeline data analytics becomes a real feature.
+
+---
+
+## Cross-references — what to reflect in the active roadmaps
+
+So later phases don't undo earlier work, the following changes need to flow back into [match-depth-roadmap.md](match-depth-roadmap.md) and [trends-rework.md](trends-rework.md):
+
+### match-depth-roadmap.md
+
+- **Phase B charting library:** default to **visx** for the minimap and any non-stock chart. Recharts stays for stock cases (kill strip, gold lead, KDA). Avoids a Recharts → visx rewrite.
+- **Phase C polling architecture:** explicitly note **server-side polling + SSE push** as the v1 architecture, not client polling Spectator-V5. Live-now chip can render on Profile of accounts not currently being viewed.
+- **Phase D shape:** add "duo / squad detection" as a candidate insight surface alongside the existing learning surfaces. Touches both match list and Profile.
+
+### trends-rework.md
+
+- **Phase T2 layout system:** the magazine grid must use a layout primitive that supports Motion's `layout` prop on grid children. Reflow on range-change is a flagship motion moment that rides on this — pinning it now saves a rebuild later.
+- **Phase T2 / T3 conclusion data structure:** the `summarize(stats): { verdict, prescription? }` per-tile pattern should also produce a markdown-friendly version of the verdict, so the **Weekly digest as markdown export** (top-tier vNext) gets it for free instead of needing a parallel parser.
+- **Phase T3 deliverable ordering:** sample-size badge fill animation lives in T3 / second-tier polish, but the badge primitive itself needs to be in T2 so all retrofitted tiles use it consistently.
+
+---
+
+## Ten-pick if I had to pick now
+
+If asked tomorrow "what's the next arc after the documented roadmaps land," in priority order:
+
+1. **Duo / squad detection** — strong "this site noticed something" moment, novel.
+2. **Yearly recap (calm Wrapped)** — shareable artifact, motion-rich, end-of-season cadence.
+3. **Magazine-grid reflow on Trends range change** — flagship motion for the rework's flagship page.
+4. **Pre-game ritual widget** — best embodiment of the calm-coaching tonal bet.
+5. **Patch-aware everything** — undertapped signal across the LoL-companion space.
+6. **visx integration** — unlocks Phase B properly; library-shortlist promotion.
+7. **Server-side live-game polling + SSE push** — cleaner architecture for Phase C, broader UI surface possibilities.
+8. **Empty-state illustrations** — small-effort tonal lift across the whole app.
+9. **Web Vitals dashboard + bundle budget CI** — perf evidence the README needs.
+10. **Weekly digest as markdown export** — auto-generates portfolio content.
+
+---
+
+## Decision log (update as we go)
+
+- **2026-05-09** — vNext doc drafted. Owner instructed: prioritize visible/demoable; defer RSO auth indefinitely; splash parallax confirmed as tried-and-reverted (commit `4c60951`). Cross-references added to match-depth-roadmap.md and trends-rework.md to ensure consistency.
