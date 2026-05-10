@@ -175,7 +175,7 @@ function KillStrip({
   }
 
   return (
-    <div className="relative flex-1 h-7 overflow-hidden rounded-sm border bg-card/40">
+    <div className="relative w-full h-7 overflow-hidden rounded-sm border bg-card/40">
       {jittered.map((kill, i) => {
         const left = `${(kill.ts / durationMs) * 100}%`;
         const top = kill.jitter > 0 ? "30%" : kill.jitter < 0 ? "70%" : "50%";
@@ -221,7 +221,7 @@ function KillStrip({
   );
 }
 
-function ObjectiveStrip({
+function ObjectiveBar({
   objectives,
   teamId,
   durationMs,
@@ -232,56 +232,45 @@ function ObjectiveStrip({
 }) {
   const teamObjectives = objectives.filter((o) => o.teamId === teamId);
   const borderClass = teamId === 100 ? "border-blue-400/20" : "border-red-400/20";
-  const labelClass = teamId === 100 ? "text-blue-400/70" : "text-red-400/70";
   const teamName = teamId === 100 ? "Blue" : "Red";
 
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className={cn(
-          "w-10 shrink-0 text-[10px] font-mono uppercase tracking-wider sticky left-0 z-10 bg-background",
-          labelClass
-        )}
-      >
-        {teamName}
-      </span>
-      <div
-        className={cn(
-          "relative flex-1 h-7 overflow-hidden rounded-sm border bg-card/40",
-          borderClass
-        )}
-      >
-        {teamObjectives.map((obj, i) => {
-          const left = `${(obj.ts / durationMs) * 100}%`;
-          const tooltipText = `${formatGameTime(obj.ts)} — ${objectiveLabel(obj.type)} (${teamName} team)`;
-          return (
-            <TooltipPrimitive.Root
-              // biome-ignore lint/suspicious/noArrayIndexKey: ordered events, no stable id
-              key={i}
-              delayDuration={100}
-            >
-              <TooltipPrimitive.Trigger asChild>
-                <span
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center cursor-default"
-                  style={{ left }}
-                >
-                  <ObjectiveIcon type={obj.type} teamId={obj.teamId} />
-                </span>
-              </TooltipPrimitive.Trigger>
-              <TooltipPrimitive.Portal>
-                <TooltipPrimitive.Content
-                  side="top"
-                  sideOffset={5}
-                  collisionPadding={8}
-                  className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
-                >
-                  {tooltipText}
-                </TooltipPrimitive.Content>
-              </TooltipPrimitive.Portal>
-            </TooltipPrimitive.Root>
-          );
-        })}
-      </div>
+    <div
+      className={cn(
+        "relative w-full h-7 overflow-hidden rounded-sm border bg-card/40",
+        borderClass
+      )}
+    >
+      {teamObjectives.map((obj, i) => {
+        const left = `${(obj.ts / durationMs) * 100}%`;
+        const tooltipText = `${formatGameTime(obj.ts)} — ${objectiveLabel(obj.type)} (${teamName} team)`;
+        return (
+          <TooltipPrimitive.Root
+            // biome-ignore lint/suspicious/noArrayIndexKey: ordered events, no stable id
+            key={i}
+            delayDuration={100}
+          >
+            <TooltipPrimitive.Trigger asChild>
+              <span
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center cursor-default"
+                style={{ left }}
+              >
+                <ObjectiveIcon type={obj.type} teamId={obj.teamId} />
+              </span>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={5}
+                collisionPadding={8}
+                className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
+              >
+                {tooltipText}
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
+        );
+      })}
     </div>
   );
 }
@@ -369,15 +358,29 @@ export function MatchEventTimelines({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div
-          style={{ width: zoom > 1 ? `${zoom * 100}%` : "100%", minWidth: "100%" }}
-          className="flex flex-col gap-1.5"
-        >
-          {/* Time axis */}
-          <div className="flex items-center gap-2">
-            <span className="sticky left-0 z-10 w-10 shrink-0 bg-background" />
-            <div className="relative flex-1 h-3">
+      <div className="flex gap-2">
+        {/* Fixed label column — outside scroll container, no background needed */}
+        <div className="flex flex-col gap-1.5 w-10 shrink-0">
+          <div className="h-3" />
+          <div className="h-7 flex items-center justify-center">
+            <KillsIcon className="size-4 opacity-60" />
+          </div>
+          <span className="h-7 flex items-center text-[10px] font-mono uppercase tracking-wider text-blue-400/70">
+            Blue
+          </span>
+          <span className="h-7 flex items-center text-[10px] font-mono uppercase tracking-wider text-red-400/70">
+            Red
+          </span>
+        </div>
+
+        {/* Scrollable timeline content */}
+        <div className="overflow-x-auto min-w-0 flex-1">
+          <div
+            style={{ width: zoom > 1 ? `${zoom * 100}%` : "100%", minWidth: "100%" }}
+            className="flex flex-col gap-1.5"
+          >
+            {/* Time axis */}
+            <div className="relative h-3">
               {ticks.map((m) => (
                 <span
                   key={m}
@@ -388,24 +391,19 @@ export function MatchEventTimelines({
                 </span>
               ))}
             </div>
-          </div>
 
-          {/* Kill strip */}
-          <div className="flex items-center gap-2">
-            <span className="sticky left-0 z-10 w-10 shrink-0 bg-background flex items-center justify-center">
-              <KillsIcon className="size-4 opacity-60" />
-            </span>
+            {/* Kill strip */}
             <KillStrip
               kills={kills}
               durationMs={durationMs}
               myParticipantId={myParticipantId}
               championByPid={championByPid}
             />
-          </div>
 
-          {/* Objective strips — split by team */}
-          <ObjectiveStrip objectives={objectives} teamId={100} durationMs={durationMs} />
-          <ObjectiveStrip objectives={objectives} teamId={200} durationMs={durationMs} />
+            {/* Objective bars — split by team */}
+            <ObjectiveBar objectives={objectives} teamId={100} durationMs={durationMs} />
+            <ObjectiveBar objectives={objectives} teamId={200} durationMs={durationMs} />
+          </div>
         </div>
       </div>
     </m.section>
