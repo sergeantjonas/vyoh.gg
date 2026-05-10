@@ -1,7 +1,16 @@
 import {
+  BaronNashorIcon,
   ChemtechDrakeIcon,
+  CloudDrakeIcon,
+  ElderDragonIcon,
+  FireDrakeIcon,
   HextechDrakeIcon,
+  InhibitorIcon,
   KillsIcon,
+  MountainDrakeIcon,
+  OceanDrakeIcon,
+  RiftHeraldIcon,
+  TowerIcon,
   VoidGrubIcon,
 } from "@/components/game-icons";
 import { ShimmerBlock } from "@/components/shimmer-block";
@@ -21,41 +30,6 @@ const springIn = {
   animate: { opacity: 1, y: 0 },
   transition: { type: "spring", stiffness: 280, damping: 28, delay: 0.22 },
 } as const;
-
-const MH =
-  "raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default";
-const W = "&w=48&output=webp";
-
-interface ObjectiveIconSpec {
-  url: string;
-  tint?: string;
-}
-
-function getObjectiveIcon(type: string, teamId: number): ObjectiveIconSpec | undefined {
-  const t = teamId === 100 ? "100" : "200";
-  switch (type) {
-    case "DRAGON_CLOUD":
-      return { url: `https://wsrv.nl/?url=${MH}/air-${t}.png${W}` };
-    case "DRAGON_FIRE":
-      return { url: `https://wsrv.nl/?url=${MH}/fire-${t}.png${W}` };
-    case "DRAGON_OCEAN":
-      return { url: `https://wsrv.nl/?url=${MH}/water-${t}.png${W}` };
-    case "DRAGON_MOUNTAIN":
-      return { url: `https://wsrv.nl/?url=${MH}/earth-${t}.png${W}` };
-    case "DRAGON_ELDER":
-      return { url: `https://wsrv.nl/?url=${MH}/elder-${t}.png${W}` };
-    case "BARON_NASHOR":
-      return { url: `https://wsrv.nl/?url=${MH}/baron-${t}.png${W}` };
-    case "RIFT_HERALD":
-      return { url: `https://wsrv.nl/?url=${MH}/herald-${t}.png${W}` };
-    case "TOWER":
-      return { url: `https://wsrv.nl/?url=${MH}/tower-${t}.png${W}` };
-    case "INHIBITOR":
-      return { url: `https://wsrv.nl/?url=${MH}/inhibitor-${t}.png${W}` };
-    default:
-      return undefined;
-  }
-}
 
 function formatGameTime(ms: number): string {
   const totalSecs = Math.floor(ms / 1000);
@@ -95,6 +69,21 @@ function objectiveLabel(type: string): string {
   }
 }
 
+const OBJECTIVE_ICONS: Record<string, typeof VoidGrubIcon> = {
+  DRAGON_FIRE: FireDrakeIcon,
+  DRAGON_OCEAN: OceanDrakeIcon,
+  DRAGON_MOUNTAIN: MountainDrakeIcon,
+  DRAGON_CLOUD: CloudDrakeIcon,
+  DRAGON_HEXTECH: HextechDrakeIcon,
+  DRAGON_CHEMTECH: ChemtechDrakeIcon,
+  DRAGON_ELDER: ElderDragonIcon,
+  BARON_NASHOR: BaronNashorIcon,
+  RIFT_HERALD: RiftHeraldIcon,
+  HORDE: VoidGrubIcon,
+  INHIBITOR: InhibitorIcon,
+  TOWER: TowerIcon,
+};
+
 function ObjectiveIcon({ type, teamId }: { type: string; teamId: number }) {
   const teamColor = teamId === 100 ? "text-[#0c95ab]" : "text-[#be1d36]";
   const badgeCls =
@@ -102,38 +91,11 @@ function ObjectiveIcon({ type, teamId }: { type: string; teamId: number }) {
       ? "bg-blue-400/15 text-blue-300 border-blue-400/30"
       : "bg-red-400/15 text-red-300 border-red-400/30";
 
-  if (type === "DRAGON_HEXTECH") {
+  const Icon = OBJECTIVE_ICONS[type];
+  if (Icon) {
     return (
       <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-sm">
-        <HextechDrakeIcon className={cn("w-full h-full", teamColor)} />
-      </span>
-    );
-  }
-  if (type === "DRAGON_CHEMTECH") {
-    return (
-      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-sm">
-        <ChemtechDrakeIcon className={cn("w-full h-full", teamColor)} />
-      </span>
-    );
-  }
-  if (type === "HORDE") {
-    return (
-      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-sm">
-        <VoidGrubIcon className={cn("w-full h-full", teamColor)} />
-      </span>
-    );
-  }
-
-  const icon = getObjectiveIcon(type, teamId);
-  if (icon) {
-    return (
-      <span className="relative inline-flex w-6 h-6 shrink-0">
-        <img
-          src={icon.url}
-          alt={objectiveLabel(type)}
-          className="w-full h-full object-contain rounded-sm"
-          draggable={false}
-        />
+        <Icon className={cn("w-5 h-5", teamColor)} />
       </span>
     );
   }

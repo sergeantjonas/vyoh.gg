@@ -13,9 +13,9 @@ vyoh.gg/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
 
-## Last captured status — 2026-05-08
+## Last captured status — 2026-05-10
 
-The personal-dashboard pivot is in. The app is a multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, trend charts, champion aggregation, match detail with team/item breakdowns, and a major motion/polish pass that covers Trends entrances, sort-driven layout reorder, damage/gold bar growth, list → detail morph with scroll restoration, and broader loading states. Both Nav and account header are now sticky and full-viewport-width; `<main>` is the scroll container so the scrollbar track sits below both headers.
+Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as conclusions page, match detail with full post-game review depth. Key recent additions: trends reworked from raw-stats to conclusion-briefing format with 9 insight tiles; match detail expanded to a full post-game tool with build order, gold-lead chart, interactive kill/objective timeline, kill heatmap, skill order grid, and lane-phase chart.
 
 ## Recent arcs (2026-05-08, night session)
 
