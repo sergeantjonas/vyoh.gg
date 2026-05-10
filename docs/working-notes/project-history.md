@@ -15,7 +15,33 @@ vyoh.gg/
 
 ## Last captured status — 2026-05-10
 
-Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as conclusions page, match detail with full post-game review depth. Lane opponent hover popover on match rows. Live game view with Spectator-V5 data (participant cards: champion, summoner spells, keystone, rank, mastery, form pips; compositional analysis radar; bans strip; queue/map header badges); in-game indicator chip in the account header visible across all sub-tabs.
+Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as a magazine-grid briefing of conclusion cards (auto-reorder on range change), match detail with full post-game review depth. Lane opponent hover popover on match rows. Live game view with Spectator-V5 data. **Profile** identity layer covers rank tiles, recent form, LP history, season history, pre-game ritual, now-playing, role strip, queue distribution, activity calendar, stats, duos, recap CTA. **Recap** sub-route at `/lol/$accountSlug/recap` (rank arc + headline champion + auto-picked top insight). **Per-view queue scope:** performance surfaces (Trends, ritual, recap, champions, role strip) consume the user's "serious queues" preference (default Ranked Solo + Ranked Flex; configurable via header `<SeriousQueuesSettings />` popover, persisted to localStorage); identity surfaces (recent form, now playing, queue distribution, activity calendar, stats bar, duos, recap rank arc) consume all queues. Match list owns its own queue filter UI for browsing.
+
+## Recent arcs (2026-05-10, late session)
+
+### Phase 6 + Trends T3.5/T3.7 cluster
+
+`teamPosition` schema prereq (`MatchSummary` + `Match` model + mapper, Prisma migration `phase_6_match_team_position`) → `TrendWorstMatchup` + `TrendRolePerformance` ConclusionCards → `ProfileRoleStrip`. Shared `RoleIcon` loads CDragon position SVGs (`plugins/rcp-fe-lol-static-assets/global/default/svg/position-{top,jungle,middle,bottom,utility}.svg`) with hand-rolled inline SVGs as `onError` fallback. Decision log: views-roadmap.md.
+
+### Magazine-grid reflow on Trends
+
+Tiles declared as a single data array with per-tile `designPriority` + `active` predicates; insufficient-data tiles get a 1000-point penalty so they sink. `ConclusionCard` verdict cross-fade via `AnimatePresence mode="popLayout"`. `SampleSizeBadge` migrated to Motion `pathLength`. `grid-flow-row-dense` backfills holes left when span-2 tiles push to next row. Decision log: trends-rework.md.
+
+### Profile pre-game ritual + Yearly recap route
+
+Pre-game ritual section on Profile (form / after-last-game tilt / current-hour slot / suggested champion) anchored to serious-queues data. Recap sub-route `/lol/$accountSlug/recap` with three hero sections (rank arc, champion-of-the-year with splash backdrop, auto-picked top insight from tilt / streak / hour). Decision log: vnext-ideas.md.
+
+### Duo / squad detection (vnext #1) v1
+
+`GET /lol/.../duos` reads `MatchDetailCache.detail` for the user's recent matches, finds same-team puuids, aggregates by puuid (games / wins / top champion), filters at ≥ 3 games together, returns top 10. `ProfileDuos` renders top 3 between role strip and queue distribution; "you mostly queue solo" empty state when no recurring duo. Squad detection (3+ groupings), LP-overlay graphs, shared champion-pair stats, and match-list highlighting deferred. Decision log: vnext-ideas.md, match-depth-roadmap.md (D.10).
+
+### Queue-scope reframe — global filter → per-view scope
+
+Global header `<QueueFilter />` removed in favor of a `<SeriousQueuesSettings />` popover that drives a localStorage-persisted "serious queues" preference. Performance views consume `useSeriousMatches()` (default ranked solo + flex; user can include normal draft or drop flex). Identity views consume `useMatchWindow()` directly. Match list grew its own inline queue filter. Memory entry: `feedback_queue_scope_per_view.md`. Decision logs: views-roadmap.md, trends-rework.md.
+
+### Per-view controls placement consolidated
+
+Briefly tried a sticky-below-header slot for matches queue filter + champions sort/count via portal mechanism. Reverted — three sticky chrome layers (global nav + account header + sticky controls) was structurally too heavy. Settled on inline non-sticky controls at the top of each long-list page (Matches, Champions, Trends), all using the same `flex items-center justify-between gap-3` pattern. The "filter from deep scroll" friction is intentionally handed off to the **Cmd+K palette extension** (vnext top-10) — that's the right surface for filtering long lists without scrolling up. Decision log: vnext-ideas.md.
 
 ## Recent arcs (2026-05-10)
 
