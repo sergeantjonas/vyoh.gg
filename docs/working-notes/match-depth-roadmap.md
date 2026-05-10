@@ -392,6 +392,8 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **Phase D** — partially shipped. **D.10 (duo / squad detection)** v1 shipped 2026-05-10 (`42549b4`): Profile section showing top recurring teammates with W-L + most-played champion. Backend reads `MatchDetailCache.detail` to extract same-team puuids; aggregates by puuid; filters at ≥ 3 games together; returns top 10. Squad detection (3+ groupings), LP-overlay graphs per duo, shared champion-pair stats, and match-list highlighting all deferred. Other Phase D items (D.1–D.9) not started.
 - **Phase E** — backlog only. Timeline + map integration added 2026-05-10.
 
+**Architecture note (2026-05-10):** the user-driven sync paths (cron head sync, manual sync, list-window backfill) now eagerly fetch the Match-V5 timeline alongside the match detail and persist it to `MatchTimelineCache`. This was added for T4 Phase B trends tiles (lane phase prognosis, death timing, comeback resilience) but means that **Phase D items that depend on timeline data are now unblocked sooner** — D.1 (death heatmap on Champion detail), D.2 (lane-phase percentile cards), D.6 (objective participation %), D.8 (build-order delta) all read from the same `MatchTimelineCache` rows that are now populated for new matches automatically. Historical paging stays without timeline fetch (would be 1000+ extra Riot calls per account). For Phase D items that need timelines on older matches, reuse the same `src/scripts/backfill-timeline-metrics.ts` pattern.
+
 ---
 
 ## Decision log (update as we go)
