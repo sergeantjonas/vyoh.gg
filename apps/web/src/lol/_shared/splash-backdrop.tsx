@@ -1,6 +1,7 @@
 import {
   championBackdropSplashUrl,
   championCenteredSplashUrl,
+  championSplashUrl,
 } from "@/lol/_shared/champion-icon";
 import { championTheme } from "@/lol/_shared/champion-theme";
 import { decode as decodeBlurhash } from "blurhash";
@@ -88,13 +89,17 @@ function ChampionSplashLayer({
   // to the direct CDragon splash with the original CSS `filter: blur(5px)`
   // restored — same look, just paying the live-blur compositor cost again.
   const [erroredChampion, setErroredChampion] = useState<string | null>(null);
-  const fallback = erroredChampion === champion;
-  const url = fallback
-    ? championCenteredSplashUrl(champion)
-    : championBackdropSplashUrl(champion);
-  const imgFilter = fallback
-    ? "blur(5px) saturate(0.92) brightness(0.7)"
-    : "saturate(0.92) brightness(0.7)";
+  const [deepErrorChampion, setDeepErrorChampion] = useState<string | null>(null);
+  const url =
+    deepErrorChampion === champion
+      ? championSplashUrl(champion)
+      : erroredChampion === champion
+        ? championCenteredSplashUrl(champion)
+        : championBackdropSplashUrl(champion);
+  const imgFilter =
+    erroredChampion === champion
+      ? "blur(5px) saturate(0.92) brightness(0.7)"
+      : "saturate(0.92) brightness(0.7)";
 
   // While the layer is exiting, settle the Ken Burns transform back to
   // neutral over the same 0.7s as the parent opacity fade. Stops the
@@ -152,7 +157,13 @@ function ChampionSplashLayer({
               decoding="async"
               fetchPriority="low"
               onLoad={() => setImgReady(true)}
-              onError={() => setErroredChampion(champion)}
+              onError={() => {
+                if (erroredChampion !== champion) {
+                  setErroredChampion(champion);
+                } else {
+                  setDeepErrorChampion(champion);
+                }
+              }}
               initial={{ opacity: 0 }}
               animate={{ opacity: imgReady ? 0.2 : 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}

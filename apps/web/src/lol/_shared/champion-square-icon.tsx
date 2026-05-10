@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { championSquareIconUrl } from "@/lol/_shared/champion-icon";
+import { championIconUrl, championSquareIconUrl } from "@/lol/_shared/champion-icon";
 import { useState } from "react";
 
 const loadedSrcs = new Set<string>();
@@ -26,6 +26,10 @@ export function ChampionSquareIcon({
         onLoad={() => {
           loadedSrcs.add(url);
           setLoaded(true);
+        }}
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src = championIconUrl(championName);
         }}
         className={cn(
           "size-full object-cover transition-opacity duration-200",

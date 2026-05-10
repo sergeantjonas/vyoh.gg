@@ -6,8 +6,9 @@ import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
 import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
-import { profileIconUrl } from "@/lol/_shared/summoner-icon";
+import { profileIconFallbackUrl, profileIconUrl } from "@/lol/_shared/summoner-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
@@ -157,6 +158,7 @@ function AccountLayout() {
   const iconId = profile.data?.profileIconId;
   const level = profile.data?.summonerLevel;
   const { data: liveData } = useLiveGame(account);
+  const ddVersion = useDDragonVersion();
 
   const matchesPath = `/lol/${accountSlug}/matches`;
   const matchesPathPrefix = `${matchesPath}/`;
@@ -330,6 +332,13 @@ function AccountLayout() {
                                 "rounded-full object-cover ring-1 ring-border transition-all",
                                 compact ? "size-7" : "size-9"
                               )}
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = profileIconFallbackUrl(
+                                  iconId,
+                                  ddVersion
+                                );
+                              }}
                             />
                             {level != null && !compact && (
                               <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">

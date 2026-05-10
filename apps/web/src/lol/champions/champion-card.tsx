@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import {
   championCardSplashUrl,
   championCenteredSplashUrl,
+  championSplashUrl,
 } from "@/lol/_shared/champion-icon";
 import { championTheme } from "@/lol/_shared/champion-theme";
 import { shouldFlipChampion } from "@/lol/champions/champion-direction";
@@ -36,10 +37,13 @@ export function ChampionCardChrome({
   // than a boolean) means a champion swap automatically retries the proxy
   // — no useEffect needed to reset state.
   const [erroredChampion, setErroredChampion] = useState<string | null>(null);
-  const fallback = erroredChampion === champion;
-  const src = fallback
-    ? championCenteredSplashUrl(champion)
-    : championCardSplashUrl(champion);
+  const [deepErrorChampion, setDeepErrorChampion] = useState<string | null>(null);
+  const src =
+    deepErrorChampion === champion
+      ? championSplashUrl(champion)
+      : erroredChampion === champion
+        ? championCenteredSplashUrl(champion)
+        : championCardSplashUrl(champion);
 
   // First-paint fade-in: stays at opacity-0 until the very first image
   // resolves, then transitions to the resting opacity. Already-loaded
@@ -65,7 +69,13 @@ export function ChampionCardChrome({
           <img
             src={src}
             onLoad={handleLoad}
-            onError={() => setErroredChampion(champion)}
+            onError={() => {
+              if (erroredChampion !== champion) {
+                setErroredChampion(champion);
+              } else {
+                setDeepErrorChampion(champion);
+              }
+            }}
             alt=""
             aria-hidden="true"
             loading="lazy"
