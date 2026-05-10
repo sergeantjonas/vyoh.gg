@@ -96,6 +96,7 @@ describe("riotMatchToSummary", () => {
       durationSec: 1834,
       playedAt: "2023-11-14T22:13:20.000Z",
       remake: false,
+      teamPosition: "MIDDLE",
       laneOpponent: null,
     });
   });

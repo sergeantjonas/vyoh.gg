@@ -39,6 +39,7 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     // (as distinct from mid-game surrenders or the new inting-surrender system).
     // Remakes are stored but flagged so stats computations can exclude them.
     remake: match.info.gameEndedInEarlySurrender && match.info.gameDuration < 210,
+    teamPosition: participant.teamPosition,
     laneOpponent,
   };
 }

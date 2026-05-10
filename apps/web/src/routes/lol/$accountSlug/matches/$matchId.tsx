@@ -92,6 +92,7 @@ function MatchDetailPage() {
           durationSec: detail.data.durationSec,
           playedAt: detail.data.playedAt,
           remake: false,
+          teamPosition: myParticipant.teamPosition,
           laneOpponent: null,
         }
       : undefined);

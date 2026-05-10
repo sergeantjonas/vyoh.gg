@@ -9,6 +9,7 @@ export interface MatchSummary {
   durationSec: number;
   playedAt: string;
   remake: boolean;
+  teamPosition: string;
   snapshotTier?: string;
   snapshotRank?: string;
   snapshotLp?: number;
