@@ -1,3 +1,4 @@
+import { LiveGameChip } from "@/lol/_shared/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
@@ -24,6 +25,7 @@ function ProfilePage() {
   return (
     <div className="flex flex-col gap-6">
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
+      <LiveGameChip accountSlug={accountSlug} />
       <ProfileRecentForm accountSlug={accountSlug} />
       <ProfileLpHistory accountSlug={accountSlug} />
       <ProfileSeasonHistory accountSlug={accountSlug} />
