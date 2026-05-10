@@ -56,6 +56,15 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     visionScore: participant.visionScore,
     damageShare,
     firstBloodKill: participant.firstBloodKill,
+    // Timeline-derived metrics default to zero / empty when no timeline has
+    // been projected. Callers that fetched the timeline overlay these via
+    // spread before the row is upserted.
+    csAt10: 0,
+    csAt15: 0,
+    goldAt10: 0,
+    goldAt15: 0,
+    teamGoldDiffAt15: 0,
+    deathTimings: [],
     laneOpponent,
   };
 }

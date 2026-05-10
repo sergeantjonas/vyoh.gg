@@ -103,6 +103,12 @@ describe("riotMatchToSummary", () => {
       visionScore: 30,
       damageShare: 1,
       firstBloodKill: false,
+      csAt10: 0,
+      csAt15: 0,
+      goldAt10: 0,
+      goldAt15: 0,
+      teamGoldDiffAt15: 0,
+      deathTimings: [],
       laneOpponent: null,
     });
   });

@@ -69,6 +69,12 @@ model Match {
   visionScore  Int      @default(0)
   damageShare  Float    @default(0)
   firstBloodKill Boolean @default(false)
+  csAt10       Int      @default(0)
+  csAt15       Int      @default(0)
+  goldAt10     Int      @default(0)
+  goldAt15     Int      @default(0)
+  teamGoldDiffAt15 Int  @default(0)
+  deathTimings Int[]    @default([])
   remake       Boolean  @default(false)
   snapshotTier String?
   snapshotRank String?

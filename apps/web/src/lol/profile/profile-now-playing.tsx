@@ -1,4 +1,5 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
@@ -52,6 +53,7 @@ const row: Variants = {
 
 export function ProfileNowPlaying() {
   const { matches } = useMatchWindow();
+  const championName = useChampionName();
   if (!matches) return null;
 
   const champs = computeNowPlaying(matches);
@@ -82,11 +84,11 @@ export function ProfileNowPlaying() {
             >
               <ChampionSquareIcon
                 championName={c.champion}
-                alt={c.champion}
+                alt={championName(c.champion)}
                 className="size-9 rounded-md"
               />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{c.champion}</div>
+                <div className="truncate font-medium">{championName(c.champion)}</div>
                 <div className="text-xs text-muted-foreground">
                   {c.games} {c.games === 1 ? "game" : "games"} · {winPct}% WR
                 </div>
