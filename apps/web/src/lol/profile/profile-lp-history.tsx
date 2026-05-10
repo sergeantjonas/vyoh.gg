@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
+import { findPatchBoundaries } from "@/lol/_shared/patch-version";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { type RangeKey, useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { RankHistoryPoint } from "@vyoh/shared";
@@ -15,6 +17,7 @@ import {
   LineChart,
   ReferenceArea,
   ReferenceDot,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -37,6 +40,11 @@ const RANGE_LABEL: Record<RangeKey, string> = {
 const QUEUE_COLOR: Record<QueueKey, string> = {
   solo: "#34d399",
   flex: "#fbbf24",
+};
+
+const QUEUE_TYPE_FOR_BOUNDARIES: Record<QueueKey, string> = {
+  solo: "Ranked Solo",
+  flex: "Ranked Flex",
 };
 
 const STREAK_MIN_LENGTH = 3;
@@ -239,6 +247,24 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const streak = useMemo(() => findLongestStreak(points), [points]);
   const tierChangeIdxs = useMemo(() => findTierChanges(points), [points]);
 
+  // Patch boundaries are derived from ranked matches in the chart's queue
+  // (timestamps line up with rank-snapshot timestamps closely enough). Out-of-
+  // range boundaries are clipped via `ifOverflow="hidden"` on the ReferenceLine.
+  const { matches: allMatches } = useMatchWindow();
+  const patchBoundaries = useMemo(() => {
+    if (!allMatches || points.length === 0) return [];
+    const queueType = QUEUE_TYPE_FOR_BOUNDARIES[activeQueue];
+    const chrono = allMatches
+      .filter((m) => m.queueType === queueType && !m.remake && m.gameVersion)
+      .slice()
+      .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
+    return findPatchBoundaries(
+      chrono,
+      (m) => m.gameVersion,
+      (m) => new Date(m.playedAt).getTime()
+    );
+  }, [allMatches, activeQueue, points.length]);
+
   const isEmpty = !history.isLoading && points.length === 0;
   const stroke = QUEUE_COLOR[activeQueue];
   const gradientId = `lp-area-${activeQueue}`;
@@ -353,6 +379,23 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                   ifOverflow="extendDomain"
                 />
               )}
+              {patchBoundaries.map((b) => (
+                <ReferenceLine
+                  key={`patch-${b.fromPatch}-${b.toPatch}`}
+                  x={b.ts}
+                  stroke="currentColor"
+                  strokeOpacity={0.18}
+                  strokeDasharray="2 3"
+                  ifOverflow="hidden"
+                  label={{
+                    value: b.toPatch,
+                    position: "insideTopRight",
+                    fill: "var(--muted-foreground)",
+                    fontSize: 10,
+                  }}
+                  className="text-muted-foreground"
+                />
+              ))}
               <Line
                 type="monotone"
                 dataKey="totalLp"

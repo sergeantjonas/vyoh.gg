@@ -1,3 +1,4 @@
+import { findPatchBoundaries } from "@/lol/_shared/patch-version";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { computeKdaSeries, computeTrendSummary } from "@/lol/trends/trend-stats";
 import type { KdaPoint } from "@/lol/trends/trend-stats";
@@ -8,11 +9,18 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+
+interface ChartBoundary {
+  gameIndex: number;
+  fromPatch: string;
+  toPatch: string;
+}
 
 type KdaPointWithTrend = KdaPoint & { trendKda: number };
 
@@ -58,7 +66,13 @@ function KdaTooltip({
   );
 }
 
-function KdaChart({ points }: { points: KdaPointWithTrend[] }) {
+function KdaChart({
+  points,
+  boundaries,
+}: {
+  points: KdaPointWithTrend[];
+  boundaries: ChartBoundary[];
+}) {
   const reduced = useReducedMotion();
   return (
     <div className="h-44 w-full">
@@ -78,6 +92,23 @@ function KdaChart({ points }: { points: KdaPointWithTrend[] }) {
             content={<KdaTooltip />}
             cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
           />
+          {boundaries.map((b) => (
+            <ReferenceLine
+              key={`${b.fromPatch}-${b.toPatch}`}
+              x={b.gameIndex}
+              stroke="currentColor"
+              strokeOpacity={0.18}
+              strokeDasharray="2 3"
+              ifOverflow="hidden"
+              label={{
+                value: b.toPatch,
+                position: "insideTopRight",
+                fill: "var(--muted-foreground)",
+                fontSize: 10,
+              }}
+              className="text-muted-foreground"
+            />
+          ))}
           <Line
             type="monotone"
             dataKey="kda"
@@ -113,6 +144,19 @@ export function TrendKda({
 }) {
   const points = useMemo(() => computeKdaSeries(current), [current]);
   const pointsWithTrend = useMemo(() => addTrendLine(points), [points]);
+  // KDA points are 1-indexed in chronological order; mirror that order to find
+  // boundaries that line up with the chart's X-axis game numbers.
+  const boundaries = useMemo<ChartBoundary[]>(() => {
+    const chrono = current
+      .filter((m) => !m.remake)
+      .slice()
+      .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
+    return findPatchBoundaries(
+      chrono,
+      (m) => m.gameVersion,
+      (m) => new Date(m.playedAt).getTime()
+    );
+  }, [current]);
   const currentSummary = useMemo(() => computeTrendSummary(current), [current]);
   const prevSummary = useMemo(
     () => (previous.length > 0 ? computeTrendSummary(previous) : null),
@@ -150,7 +194,7 @@ export function TrendKda({
       sampleSize={sampleSize}
       verdict={verdict}
       verdictMarkdown={verdict}
-      evidence={<KdaChart points={pointsWithTrend} />}
+      evidence={<KdaChart points={pointsWithTrend} boundaries={boundaries} />}
     />
   );
 }
