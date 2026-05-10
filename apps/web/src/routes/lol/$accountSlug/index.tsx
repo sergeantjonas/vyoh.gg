@@ -38,7 +38,7 @@ function ProfilePage() {
       <ProfileRoleStrip />
       <ProfileDuos accountSlug={accountSlug} />
       <ProfileQueueDistribution />
-      {matches && matches.length > 0 && <ProfileActivityCalendar matches={matches} />}
+      <ProfileActivityCalendar accountSlug={accountSlug} />
       <ProfileStatsBar />
       {matches && matches.length > 0 && (
         <Link

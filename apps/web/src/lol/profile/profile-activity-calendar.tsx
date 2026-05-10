@@ -1,3 +1,5 @@
+import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import type { MatchSummary } from "@vyoh/shared";
 import { cloneElement } from "react";
 import type { ReactElement, SVGProps } from "react";
@@ -10,6 +12,11 @@ const COLOR_LEVEL_1 = "fill-emerald-500/40";
 const COLOR_LEVEL_2 = "fill-emerald-500/60";
 const COLOR_LEVEL_3 = "fill-emerald-500/80";
 const COLOR_LEVEL_4 = "fill-emerald-500";
+
+// 365-day cadence at up to ~5 games/day covers all but the most extreme grind
+// rates. The cached endpoint is DB-only (no Riot calls) so the upper bound is
+// just transport cost — light players get whatever they actually have.
+const ACTIVITY_FETCH_COUNT = 2000;
 
 function buildValues(matches: MatchSummary[]): Value[] {
   const counts = new Map<string, number>();
@@ -37,7 +44,13 @@ function titleForValue(value: Value | undefined): string {
 
 const DAYS_WINDOW = 365;
 
-export function ProfileActivityCalendar({ matches }: { matches: MatchSummary[] }) {
+export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }) {
+  // Self-fetches a wide window so the heatmap doesn't get truncated by the
+  // user's match-list count selector (which only the matches page cares
+  // about). No queue filter — activity is identity/cadence, not performance.
+  const account = useAccountFromSlug(accountSlug);
+  const { data } = useCachedMatchesWindow(account, ACTIVITY_FETCH_COUNT);
+  const matches = data?.matches ?? [];
   if (matches.length === 0) return null;
 
   const values = buildValues(matches);
