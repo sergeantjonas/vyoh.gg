@@ -1,8 +1,7 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { m, useReducedMotion } from "motion/react";
 
 const R = 5;
-const C = +(2 * Math.PI * R).toFixed(2); // 31.42
-const HALF_C = +(Math.PI * R).toFixed(2); // 15.71
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
@@ -14,10 +13,10 @@ const LABEL: Record<"empty" | "partial" | "full", string> = {
 };
 
 export function SampleSizeBadge({ count }: { count: number }) {
+  const reduced = useReducedMotion();
   const level: "empty" | "partial" | "full" =
     count < 10 ? "empty" : count < 30 ? "partial" : "full";
-  const dashLen = level === "empty" ? 0 : level === "partial" ? HALF_C : C;
-  const gap = +(C - dashLen).toFixed(2);
+  const pathLength = level === "empty" ? 0 : level === "partial" ? 0.5 : 1;
 
   return (
     <TooltipPrimitive.Root>
@@ -33,19 +32,19 @@ export function SampleSizeBadge({ count }: { count: number }) {
               strokeWidth="1.5"
               opacity="0.25"
             />
-            {level !== "empty" && (
-              <circle
-                cx="7"
-                cy="7"
-                r={R}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeDasharray={`${dashLen} ${gap}`}
-                strokeLinecap="round"
-                transform="rotate(-90 7 7)"
-              />
-            )}
+            <m.circle
+              cx="7"
+              cy="7"
+              r={R}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              transform="rotate(-90 7 7)"
+              initial={reduced ? false : { pathLength: 0 }}
+              animate={{ pathLength }}
+              transition={{ duration: reduced ? 0 : 0.5, ease: [0.32, 0.72, 0, 1] }}
+            />
           </svg>
           <span>
             {count} {count === 1 ? "game" : "games"}

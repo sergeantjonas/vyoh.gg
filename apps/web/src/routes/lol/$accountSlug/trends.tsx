@@ -16,8 +16,9 @@ import type { TrendsRangeId } from "@/lol/trends/trends-range-selector";
 import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
 import { useTrendsWindows } from "@/lol/trends/use-trends-windows";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
+import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/trends")({
@@ -47,12 +48,126 @@ function Cell({
   );
 }
 
+interface Tile {
+  id: string;
+  span: 3 | 2 | 1;
+  designPriority: number;
+  active: boolean;
+  node: ReactNode;
+}
+
+const INACTIVE_PENALTY = 1000;
+
+function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
+  const played = current.filter((m) => !m.remake);
+  const playedRift = played.filter((m) => m.teamPosition !== "");
+  const playedWithOpponent = played.filter((m) => m.laneOpponent !== null);
+  const playedWithLp = played.filter((m) => m.snapshotLp !== undefined);
+
+  return [
+    {
+      id: "weekly",
+      span: 3,
+      designPriority: 1000,
+      active: played.length >= 1,
+      node: <TrendWeeklyReview current={current} />,
+    },
+    {
+      id: "time-heatmap",
+      span: 3,
+      designPriority: 800,
+      active: played.length >= 5,
+      node: <TrendTimeHeatmap current={current} />,
+    },
+    {
+      id: "wr-trajectory",
+      span: 2,
+      designPriority: 720,
+      active: played.length >= 20,
+      node: <TrendWrTrajectory current={current} previous={previous} />,
+    },
+    {
+      id: "dow-wr",
+      span: 2,
+      designPriority: 710,
+      active: played.length >= 7,
+      node: <TrendDowWr current={current} previous={previous} />,
+    },
+    {
+      id: "role-performance",
+      span: 2,
+      designPriority: 700,
+      active: playedRift.length >= 3,
+      node: <TrendRolePerformance current={current} previous={previous} />,
+    },
+    {
+      id: "tilt",
+      span: 1,
+      designPriority: 600,
+      active: played.length >= 10,
+      node: <TrendTiltIndicator current={current} previous={previous} />,
+    },
+    {
+      id: "game-length",
+      span: 1,
+      designPriority: 590,
+      active: played.length >= 5,
+      node: <TrendGameLength current={current} previous={previous} />,
+    },
+    {
+      id: "champion-focus",
+      span: 1,
+      designPriority: 580,
+      active: played.length >= 1,
+      node: <TrendChampionFocus current={current} previous={previous} />,
+    },
+    {
+      id: "lp-economy",
+      span: 1,
+      designPriority: 570,
+      active: playedWithLp.length >= 1,
+      node: <TrendLpEconomy current={current} previous={previous} />,
+    },
+    {
+      id: "session-fatigue",
+      span: 1,
+      designPriority: 510,
+      active: played.length >= 5,
+      node: <TrendSessionFatigue current={current} previous={previous} />,
+    },
+    {
+      id: "worst-matchup",
+      span: 1,
+      designPriority: 500,
+      active: playedWithOpponent.length >= 3,
+      node: <TrendWorstMatchup current={current} previous={previous} />,
+    },
+    {
+      id: "kda",
+      span: 3,
+      designPriority: 400,
+      active: played.length >= 1,
+      node: <TrendKda current={current} previous={previous} />,
+    },
+  ];
+}
+
 function TrendsPage() {
   const { accountSlug } = Route.useParams();
   const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
   const [rangeId, setRangeId] = useState<TrendsRangeId>("30d");
   const { current, previous, isPending } = useTrendsWindows(rangeId, account, queue);
+
+  const sortedTiles = useMemo(() => {
+    const tiles = buildTiles(current, previous);
+    return tiles
+      .map((t) => ({
+        ...t,
+        priority: t.active ? t.designPriority : t.designPriority - INACTIVE_PENALTY,
+      }))
+      .sort((a, b) => b.priority - a.priority);
+  }, [current, previous]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,42 +189,11 @@ function TrendsPage() {
         </m.p>
       ) : (
         <m.div layout className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Cell span={3}>
-            <TrendWeeklyReview current={current} />
-          </Cell>
-          <Cell span={3}>
-            <TrendTimeHeatmap current={current} />
-          </Cell>
-          <Cell>
-            <TrendTiltIndicator current={current} previous={previous} />
-          </Cell>
-          <Cell>
-            <TrendGameLength current={current} previous={previous} />
-          </Cell>
-          <Cell>
-            <TrendChampionFocus current={current} previous={previous} />
-          </Cell>
-          <Cell>
-            <TrendLpEconomy current={current} previous={previous} />
-          </Cell>
-          <Cell span={2}>
-            <TrendDowWr current={current} previous={previous} />
-          </Cell>
-          <Cell span={2}>
-            <TrendWrTrajectory current={current} previous={previous} />
-          </Cell>
-          <Cell>
-            <TrendSessionFatigue current={current} previous={previous} />
-          </Cell>
-          <Cell span={2}>
-            <TrendRolePerformance current={current} previous={previous} />
-          </Cell>
-          <Cell>
-            <TrendWorstMatchup current={current} previous={previous} />
-          </Cell>
-          <Cell span={3}>
-            <TrendKda current={current} previous={previous} />
-          </Cell>
+          {sortedTiles.map((tile) => (
+            <Cell key={tile.id} span={tile.span}>
+              {tile.node}
+            </Cell>
+          ))}
         </m.div>
       )}
     </div>
