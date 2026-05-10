@@ -129,13 +129,17 @@ function BuildItemSlot({
             className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
           >
             <div className="font-medium">{item?.name ?? `Item ${entry.itemId}`}</div>
-            <div className="font-mono text-muted-foreground">
-              {entry.type === "SOLD" ? "Sold " : ""}
-              {formatGameTime(entry.ts)}
-            </div>
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>
+      <span
+        className={cn(
+          "font-mono text-[9px] tabular-nums",
+          entry.type === "SOLD" ? "text-red-400/50" : "text-muted-foreground/50"
+        )}
+      >
+        {formatGameTime(entry.ts)}
+      </span>
     </m.div>
   );
 }
@@ -182,6 +186,8 @@ function BuildRow({
           </div>
         </div>
       </div>
+
+      <div className="w-px self-stretch shrink-0 bg-border/40" />
 
       {/* items timeline */}
       <div className="flex min-w-0 flex-1 flex-wrap gap-1 overflow-x-auto">
