@@ -32,7 +32,13 @@ function parsePuuidPlatform(account: LolAccount): Platform {
   return account.region.toLowerCase() as Platform;
 }
 
-function parseRiotId(riotId: string): { gameName: string; tagLine: string } {
+// Riot's spectator-v5 type says riotId is `string`, but in practice it can be
+// null/empty (streamer mode hides opponents' Riot IDs until post-game).
+function parseRiotId(riotId: string | null | undefined): {
+  gameName: string;
+  tagLine: string;
+} {
+  if (!riotId) return { gameName: "", tagLine: "" };
   const idx = riotId.lastIndexOf("#");
   if (idx === -1) return { gameName: riotId, tagLine: "" };
   return { gameName: riotId.slice(0, idx), tagLine: riotId.slice(idx + 1) };
@@ -101,7 +107,8 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
     const prev = this.cache.get(puuid);
     const polledAt = Date.now();
 
-    const game = await this.riot.getActiveGameByPuuid(puuid, platform);
+    const rawGame = await this.riot.getActiveGameByPuuid(puuid, platform);
+    const game = rawGame ? this.cleanActiveGame(rawGame, account) : null;
 
     const isNewGame = game !== null && game.gameId !== prev?.gameId;
     const isEnded = game === null && prev?.game !== null && prev?.game !== undefined;
@@ -111,16 +118,48 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
     if (isNewGame) {
       enrichment = new Map();
       this.cache.set(puuid, { game, gameId: game.gameId, enrichment, polledAt });
+      this.logger.log(
+        `game-started ${account.gameName}#${account.tagLine} gameId=${game.gameId} queueId=${game.gameQueueConfigId}`
+      );
       this.events.emitLiveGame({ type: "game-started", puuid });
       // Kick off enrichment fire-and-forget; updates cache as results arrive
       void this.enrichGame(game, platform, puuid);
     } else if (isEnded) {
       this.cache.set(puuid, { game: null, gameId: null, enrichment, polledAt });
+      this.logger.log(
+        `game-ended ${account.gameName}#${account.tagLine} gameId=${prev?.gameId ?? "?"}`
+      );
       this.events.emitLiveGame({ type: "game-ended", puuid });
     } else {
       // Same game or still no game — update polledAt so the timer stays accurate
       this.cache.set(puuid, { game, gameId: game?.gameId ?? null, enrichment, polledAt });
     }
+  }
+
+  // Two distinct quirks in Riot's spectator-v5 response:
+  //   1. Streamer mode: opponents come back with puuid=null and riotId set
+  //      to the champion's name. These are real participant slots, not ghosts.
+  //   2. Loading-screen ghosts: duplicate rows occasionally appear with the
+  //      same (teamId, championId), all with puuid=null.
+  // We dedupe on `puuid || anon-<teamId>-<championId>` so legitimate anonymous
+  // players survive but ghost duplicates collapse. The synthetic key also
+  // doubles as the stable React key downstream when puuid is missing.
+  private cleanActiveGame(game: RiotActiveGame, account: LolAccount): RiotActiveGame {
+    const seen = new Set<string>();
+    const cleaned: RiotActiveGameParticipant[] = [];
+    for (const p of game.participants) {
+      const key = p.puuid || `anon-${p.teamId}-${p.championId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      cleaned.push(p);
+    }
+    const dropped = game.participants.length - cleaned.length;
+    if (dropped > 0) {
+      this.logger.warn(
+        `dropped ${dropped} duplicate participant row(s) from gameId=${game.gameId} for ${account.gameName}#${account.tagLine}`
+      );
+    }
+    return dropped > 0 ? { ...game, participants: cleaned } : game;
   }
 
   private async enrichGame(
@@ -149,6 +188,8 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
 
     await Promise.allSettled(
       game.participants.map(async (p) => {
+        // Streamer-mode opponents have no puuid — skip enrichment for them.
+        if (!p.puuid) return;
         const [rankEntries, mastery, recentFormRows] = await Promise.allSettled([
           this.riot.getLeagueEntriesByPuuid(p.puuid, platform),
           this.riot.getChampionMasteryByChampion(p.puuid, platform, p.championId),
@@ -205,10 +246,17 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
     polledAt: number
   ): LiveMatch {
     const participants: LiveGameParticipant[] = game.participants.map((p) => {
-      const { gameName, tagLine } = parseRiotId(p.riotId);
-      const e = enrichment.get(p.puuid);
+      const anonymous = !p.puuid;
+      // For anonymous opponents Riot puts the champion name in riotId as a
+      // placeholder — discard it so the frontend can render "Hidden" instead
+      // of leaking the champion name into the player-name field.
+      const { gameName, tagLine } = anonymous
+        ? { gameName: "", tagLine: "" }
+        : parseRiotId(p.riotId);
+      const e = anonymous ? undefined : enrichment.get(p.puuid);
       return {
-        puuid: p.puuid,
+        puuid: p.puuid || `anon-${p.teamId}-${p.championId}`,
+        anonymous,
         teamId: p.teamId,
         championId: p.championId,
         spell1Id: p.spell1Id,

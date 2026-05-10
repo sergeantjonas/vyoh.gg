@@ -12,7 +12,7 @@ import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
-import { useLiveGame } from "@/lol/matches/use-live-match";
+import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
 import {
   useCachedMatchesWindow,
   useMatchEventsSubscription,
@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
 
@@ -158,6 +159,27 @@ function AccountLayout() {
   const iconId = profile.data?.profileIconId;
   const level = profile.data?.summonerLevel;
   const { data: liveData } = useLiveGame(account);
+  // Layout-level SSE subscription: keeps live-game state fresh on every
+  // sub-tab (Profile, Matches, Trends, Champions, Live) and drives the
+  // toast that announces a new game while you're elsewhere on the account.
+  useLiveGameEvents(account, {
+    onGameStarted: () => {
+      if (!account) return;
+      const livePath = `/lol/${accountSlug}/live`;
+      if (pathname === livePath) return;
+      toast(`${account.gameName} is in game`, {
+        action: {
+          label: "View live",
+          onClick: () => {
+            void navigate({
+              to: "/lol/$accountSlug/live",
+              params: { accountSlug },
+            });
+          },
+        },
+      });
+    },
+  });
   const ddVersion = useDDragonVersion();
 
   const matchesPath = `/lol/${accountSlug}/matches`;

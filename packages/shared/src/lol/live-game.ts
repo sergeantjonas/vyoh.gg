@@ -12,7 +12,13 @@ export interface LiveMastery {
 }
 
 export interface LiveGameParticipant {
+  // Real Riot puuid for non-anonymous players, or a synthetic
+  // `anon-<teamId>-<championId>` key for streamer-mode opponents.
+  // Always non-empty so it can serve as a stable React key.
   puuid: string;
+  // True when Riot's spectator response hides this player's identity
+  // (streamer mode). riotIdGameName/riotIdTagLine are blank in that case.
+  anonymous: boolean;
   teamId: number;
   championId: number;
   spell1Id: number;

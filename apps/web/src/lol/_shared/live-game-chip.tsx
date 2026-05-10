@@ -1,12 +1,13 @@
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
-import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
+import { useLiveGame } from "@/lol/matches/use-live-match";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, m } from "motion/react";
 
+// SSE subscription lives at the $accountSlug layout level; the chip just
+// renders the cached query result.
 export function LiveGameChip({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
   const { data } = useLiveGame(account);
-  useLiveGameEvents(account);
 
   return (
     <AnimatePresence>

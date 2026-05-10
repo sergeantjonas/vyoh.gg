@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
-import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
+import { useLiveGame } from "@/lol/matches/use-live-match";
 import { useQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { LiveGameParticipant, LiveMatch, LolAccount } from "@vyoh/shared";
@@ -55,6 +55,7 @@ const COMP_AXES = ["tank", "fighter", "mage", "assassin", "marksman", "support"]
 type CompAxis = (typeof COMP_AXES)[number];
 
 interface ChampionInfo {
+  name: string;
   roles: string[];
 }
 
@@ -248,10 +249,12 @@ function ParticipantCard({
   participant,
   align,
   isUser,
+  championName,
 }: {
   participant: LiveGameParticipant;
   align: "left" | "right";
   isUser: boolean;
+  championName: string | undefined;
 }) {
   const isLeft = align === "left";
   return (
@@ -282,10 +285,16 @@ function ParticipantCard({
         <span
           className={cn(
             "truncate text-sm leading-none",
-            isUser ? "font-semibold text-foreground" : "font-medium"
+            participant.anonymous
+              ? "italic text-muted-foreground"
+              : isUser
+                ? "font-semibold text-foreground"
+                : "font-medium"
           )}
         >
-          {participant.riotIdGameName || "—"}
+          {participant.anonymous
+            ? (championName ?? "Hidden")
+            : participant.riotIdGameName}
         </span>
         <div
           className={cn(
@@ -408,6 +417,9 @@ function LiveContent({
   const rolesByChampion: Record<number, string[]> = Object.fromEntries(
     allChampionIds.map((id, i) => [id, championResults[i]?.data?.roles ?? []])
   );
+  const nameByChampion: Record<number, string | undefined> = Object.fromEntries(
+    allChampionIds.map((id, i) => [id, championResults[i]?.data?.name])
+  );
   const allLoaded = championResults.every((r) => !r.isPending);
 
   const team100Raw = match.participants.filter((p) => p.teamId === 100);
@@ -469,6 +481,7 @@ function LiveContent({
               participant={p}
               align="left"
               isUser={isUserParticipant(p, account)}
+              championName={nameByChampion[p.championId]}
             />
           ))}
         </div>
@@ -479,6 +492,7 @@ function LiveContent({
               participant={p}
               align="right"
               isUser={isUserParticipant(p, account)}
+              championName={nameByChampion[p.championId]}
             />
           ))}
         </div>
@@ -501,7 +515,6 @@ function LivePage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const { data, isPending } = useLiveGame(account);
-  useLiveGameEvents(account);
 
   // Track whether we were ever in a game so we can show "Game ended" vs "Not in game"
   const [hadGame, setHadGame] = useState(false);
