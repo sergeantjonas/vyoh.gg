@@ -23,7 +23,14 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { useMemo, useState } from "react";
-import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+} from "recharts";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")({
   component: ChampionDetailPage,
@@ -284,6 +291,17 @@ function ChampionDetailPage() {
           <div className="h-24 rounded-lg border bg-card/50 px-2 py-3">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={series}>
+                {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
+                    lands at the right fractional position between games.
+                    Without this Recharts uses the array index as the X
+                    domain (0-based) and our boundary's 1-based gameIndex
+                    falls one game too far right. */}
+                <XAxis
+                  dataKey="game"
+                  type="number"
+                  domain={["dataMin", "dataMax"]}
+                  hide
+                />
                 <ReferenceLine
                   y={0.5}
                   stroke="currentColor"
@@ -295,14 +313,14 @@ function ChampionDetailPage() {
                     key={`champ-patch-${b.fromPatch}-${b.toPatch}`}
                     x={b.gameIndex}
                     stroke="currentColor"
-                    strokeOpacity={0.18}
+                    strokeOpacity={0.45}
                     strokeDasharray="2 3"
                     ifOverflow="hidden"
                     label={{
                       value: b.toPatch,
                       position: "insideTopRight",
                       fill: "var(--muted-foreground)",
-                      fontSize: 9,
+                      fontSize: 10,
                     }}
                     className="text-muted-foreground"
                   />
@@ -322,8 +340,9 @@ function ChampionDetailPage() {
         </m.div>
       )}
 
-      {/* Per-patch champion WR */}
-      <ChampionPatchHistory matches={champMatches} championAlias={alias} />
+      {/* Per-patch champion WR — self-fetches wider data so the strip's
+          6-patch tail isn't bounded by the matches-list count selector. */}
+      <ChampionPatchHistory accountSlug={accountSlug} championAlias={alias} />
 
       {/* Top items */}
       {extras.data && extras.data.topItems.length > 0 && (
