@@ -5,8 +5,18 @@ import type { LolAccount, MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 import type { TrendsRangeId } from "./trends-range-selector";
 
-const TRENDS_FETCH_COUNT = 200;
+// Default fetch covers ~30d at typical play rates. The Patch range needs to
+// span at least two patches' worth of games for the previous-patch comparison
+// to populate; heavy grinders (e.g. ~200 ranked/patch) push that to 400+.
+// 800 gives enough headroom without inflating fetches for the time-based
+// ranges where 200 was already sufficient.
+const TRENDS_FETCH_DEFAULT = 200;
+const TRENDS_FETCH_PATCH = 800;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function getFetchCount(rangeId: TrendsRangeId): number {
+  return rangeId === "patch" ? TRENDS_FETCH_PATCH : TRENDS_FETCH_DEFAULT;
+}
 
 function splitWindows(
   matches: MatchSummary[],
@@ -53,7 +63,7 @@ export function useTrendsWindows(
   rangeId: TrendsRangeId,
   account: LolAccount | undefined
 ): { current: MatchSummary[]; previous: MatchSummary[]; isPending: boolean } {
-  const { data, isPending } = useCachedMatchesWindow(account, TRENDS_FETCH_COUNT);
+  const { data, isPending } = useCachedMatchesWindow(account, getFetchCount(rangeId));
   const { ids } = useSeriousQueues();
 
   // Trends is an analysis surface — aggregate only over the user's "serious"
