@@ -35,6 +35,7 @@ function buildParticipant(
     wardsKilled: 5,
     detectorWardsPlaced: 3,
     firstBloodKill: false,
+    gameEndedInEarlySurrender: false,
     summoner1Id: 4,
     summoner2Id: 14,
     champLevel: 18,
@@ -66,7 +67,6 @@ const baseMatch: RiotMatch = {
     gameDuration: 1834,
     gameVersion: "14.20.586.5840",
     queueId: 420,
-    gameEndedInEarlySurrender: false,
     teams: [baseTeam, { ...baseTeam, teamId: 200, win: false }],
     participants: [
       buildParticipant({ puuid: "puuid-vyoh" }),
@@ -148,19 +148,31 @@ describe("riotMatchToSummary", () => {
     expect(summary.queueType).toBe("Queue 9999");
   });
 
-  it("flags remake when gameEndedInEarlySurrender and duration < 210s", () => {
+  it("flags remake when participant.gameEndedInEarlySurrender and duration < 210s", () => {
     const remakeMatch: RiotMatch = {
       ...baseMatch,
-      info: { ...baseMatch.info, gameEndedInEarlySurrender: true, gameDuration: 180 },
+      info: {
+        ...baseMatch.info,
+        gameDuration: 180,
+        participants: [
+          buildParticipant({ puuid: "puuid-vyoh", gameEndedInEarlySurrender: true }),
+        ],
+      },
     };
     const summary = riotMatchToSummary(remakeMatch, "puuid-vyoh");
     expect(summary.remake).toBe(true);
   });
 
-  it("does not flag remake when duration >= 210s even if gameEndedInEarlySurrender", () => {
+  it("does not flag remake when duration >= 210s even if early-surrender flag set", () => {
     const surrenderMatch: RiotMatch = {
       ...baseMatch,
-      info: { ...baseMatch.info, gameEndedInEarlySurrender: true, gameDuration: 900 },
+      info: {
+        ...baseMatch.info,
+        gameDuration: 900,
+        participants: [
+          buildParticipant({ puuid: "puuid-vyoh", gameEndedInEarlySurrender: true }),
+        ],
+      },
     };
     const summary = riotMatchToSummary(surrenderMatch, "puuid-vyoh");
     expect(summary.remake).toBe(false);

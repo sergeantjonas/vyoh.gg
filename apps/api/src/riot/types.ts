@@ -38,6 +38,7 @@ export interface RiotMatchParticipant {
   wardsKilled: number;
   detectorWardsPlaced: number;
   firstBloodKill: boolean;
+  gameEndedInEarlySurrender: boolean;
   summoner1Id: number;
   summoner2Id: number;
   champLevel: number;
@@ -87,7 +88,6 @@ export interface RiotMatch {
   info: {
     gameStartTimestamp: number;
     gameDuration: number;
-    gameEndedInEarlySurrender: boolean;
     gameVersion: string;
     queueId: number;
     teams: RiotMatchTeam[];

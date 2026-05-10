@@ -27,7 +27,6 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
       gameDuration: 1834,
       gameVersion: "14.20.586.5840",
       queueId: 420,
-      gameEndedInEarlySurrender: false,
       teams: [],
       participants: [
         {
@@ -60,6 +59,7 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
           wardsKilled: 0,
           detectorWardsPlaced: 0,
           firstBloodKill: false,
+          gameEndedInEarlySurrender: false,
           summoner1Id: 0,
           summoner2Id: 0,
           champLevel: 1,
