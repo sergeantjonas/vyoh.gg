@@ -61,6 +61,7 @@ const matches: MatchSummary[] = [
     playedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
     remake: false,
     teamPosition: "MIDDLE",
+    gameVersion: "14.20.586.5840",
     laneOpponent: null,
   },
   {
@@ -75,6 +76,7 @@ const matches: MatchSummary[] = [
     playedAt: new Date(Date.now() - 50 * 3_600_000).toISOString(),
     remake: false,
     teamPosition: "",
+    gameVersion: "14.20.586.5840",
     laneOpponent: null,
   },
 ];

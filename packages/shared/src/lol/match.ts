@@ -10,6 +10,7 @@ export interface MatchSummary {
   playedAt: string;
   remake: boolean;
   teamPosition: string;
+  gameVersion: string;
   snapshotTier?: string;
   snapshotRank?: string;
   snapshotLp?: number;

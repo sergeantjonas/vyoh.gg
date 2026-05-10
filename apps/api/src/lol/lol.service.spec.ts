@@ -25,6 +25,7 @@ function buildMatch(matchId: string, startTs: number): RiotMatch {
     info: {
       gameStartTimestamp: startTs,
       gameDuration: 1834,
+      gameVersion: "14.20.586.5840",
       queueId: 420,
       gameEndedInEarlySurrender: false,
       teams: [],
@@ -535,6 +536,7 @@ describe("LolService.getCachedMatches", () => {
         playedAt: true,
         remake: true,
         teamPosition: true,
+        gameVersion: true,
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
@@ -567,6 +569,7 @@ describe("LolService.getCachedMatches", () => {
         playedAt: true,
         remake: true,
         teamPosition: true,
+        gameVersion: true,
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,

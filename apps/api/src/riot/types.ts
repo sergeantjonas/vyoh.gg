@@ -87,6 +87,7 @@ export interface RiotMatch {
     gameStartTimestamp: number;
     gameDuration: number;
     gameEndedInEarlySurrender: boolean;
+    gameVersion: string;
     queueId: number;
     teams: RiotMatchTeam[];
     participants: RiotMatchParticipant[];

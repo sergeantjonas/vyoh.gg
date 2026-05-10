@@ -63,6 +63,7 @@ const baseMatch: RiotMatch = {
   info: {
     gameStartTimestamp: 1_700_000_000_000,
     gameDuration: 1834,
+    gameVersion: "14.20.586.5840",
     queueId: 420,
     gameEndedInEarlySurrender: false,
     teams: [baseTeam, { ...baseTeam, teamId: 200, win: false }],
@@ -97,6 +98,7 @@ describe("riotMatchToSummary", () => {
       playedAt: "2023-11-14T22:13:20.000Z",
       remake: false,
       teamPosition: "MIDDLE",
+      gameVersion: "14.20.586.5840",
       laneOpponent: null,
     });
   });

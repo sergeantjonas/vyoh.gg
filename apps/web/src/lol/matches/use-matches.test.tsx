@@ -24,6 +24,7 @@ const sample: MatchSummary = {
   playedAt: new Date().toISOString(),
   remake: false,
   teamPosition: "MIDDLE",
+  gameVersion: "14.20.586.5840",
   laneOpponent: null,
 };
 

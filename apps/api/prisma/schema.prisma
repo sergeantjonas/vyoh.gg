@@ -65,6 +65,7 @@ model Match {
   items        Int[]
   laneOpponent Json?
   teamPosition String   @default("")
+  gameVersion  String   @default("")
   remake       Boolean  @default(false)
   snapshotTier String?
   snapshotRank String?

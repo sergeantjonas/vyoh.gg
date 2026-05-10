@@ -15,6 +15,7 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     playedAt: new Date().toISOString(),
     remake: overrides.remake ?? false,
     teamPosition: overrides.teamPosition ?? "",
+    gameVersion: overrides.gameVersion ?? "",
     laneOpponent: overrides.laneOpponent ?? null,
   };
 }

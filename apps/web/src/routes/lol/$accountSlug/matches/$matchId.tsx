@@ -93,6 +93,7 @@ function MatchDetailPage() {
           playedAt: detail.data.playedAt,
           remake: false,
           teamPosition: myParticipant.teamPosition,
+          gameVersion: "",
           laneOpponent: null,
         }
       : undefined);
