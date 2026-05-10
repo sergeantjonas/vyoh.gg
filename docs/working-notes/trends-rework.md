@@ -145,7 +145,7 @@ Net: Profile loses 4 tiles (heatmap, tilt, game length, pool entropy), gains 2 (
 
 **Edge case.** `Last 7 days vs prior 7 days` for a casual player might mean "8 games vs 6 games." Sample-size badges (Phase T2) handle this — the conclusion still surfaces but tagged "directional only."
 
-**Future.** `This patch vs last patch` is an interesting future range, conditional on having a patch-cadence dataset wired up. Park as an idea.
+**Future.** ~~`This patch vs last patch` is an interesting future range, conditional on having a patch-cadence dataset wired up. Park as an idea.~~ Shipped 2026-05-10 — `gameVersion` lives on `MatchSummary`, `splitWindows` groups by truncated `MAJOR.MINOR` and returns the most-recent / second-most-recent patch buckets when the selector is set to `"patch"`.
 
 ---
 
@@ -389,7 +389,7 @@ Note: T3.5 (worst matchup) and T3.7 (role performance) both depend on `MatchSumm
 
 **Profile gets shorter.** Net effect of the move: Profile loses 4 conclusion tiles, gains 2 snapshot tiles. The page becomes more glanceable — that's the intended outcome. Confirm visual hierarchy after T1 lands.
 
-**Patch awareness.** Trends ranges are time-based, but LoL patches reset the meta. A future-Phase nice-to-have: shade the chart background where a patch boundary falls inside the current range, with a tooltip naming the patch. Park as Phase T5 / future polish.
+**Patch awareness.** ~~Trends ranges are time-based, but LoL patches reset the meta. A future-Phase nice-to-have: shade the chart background where a patch boundary falls inside the current range, with a tooltip naming the patch. Park as Phase T5 / future polish.~~ Shipped 2026-05-10 — Recharts `ReferenceLine`s at each patch boundary on KDA trend (game-index x-axis) and LP history (timestamp x-axis), labeled with the new patch number. Boundaries derived from match data itself via `findPatchBoundaries` (no Riot calendar needed).
 
 ---
 
