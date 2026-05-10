@@ -1,6 +1,6 @@
+import { useAccountControlsSlot } from "@/lol/_shared/account-controls-slot";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
-import { StickyControlsBar } from "@/lol/_shared/sticky-controls-bar";
 import {
   CHAMPION_SORT_OPTIONS,
   type ChampionSortOption,
@@ -14,6 +14,7 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { createFileRoute } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/")({
   component: ChampionsPage,
@@ -28,27 +29,32 @@ function ChampionsPage() {
   const [sort, setSort] = useState<ChampionSortOption>(CHAMPION_SORT_OPTIONS[0].value);
   const setHoveredChampion = useHoverChampion();
   const effectiveCount = matches?.length ?? count;
+  const controlsSlot = useAccountControlsSlot();
 
   return (
     <div className="flex flex-col gap-3">
-      <StickyControlsBar className="justify-between">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          Aggregated over your last {effectiveCount} games
-        </h2>
-        <div className="flex items-center gap-2">
-          <ChampionSortSelector
-            value={sort}
-            onChange={setSort}
-            layoutId="champions-sort-indicator"
-          />
-          <MatchCountSelector
-            value={count}
-            total={total}
-            onChange={setCount}
-            layoutId="champions-count-indicator"
-          />
-        </div>
-      </StickyControlsBar>
+      {controlsSlot &&
+        createPortal(
+          <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-6 py-2">
+            <h2 className="text-sm font-medium text-muted-foreground">
+              Aggregated over your last {effectiveCount} games
+            </h2>
+            <div className="flex items-center gap-2">
+              <ChampionSortSelector
+                value={sort}
+                onChange={setSort}
+                layoutId="champions-sort-indicator"
+              />
+              <MatchCountSelector
+                value={count}
+                total={total}
+                onChange={setCount}
+                layoutId="champions-count-indicator"
+              />
+            </div>
+          </div>,
+          controlsSlot
+        )}
 
       {isPending && !matches ? (
         <ChampionsSkeleton />

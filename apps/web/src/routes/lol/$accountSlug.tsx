@@ -1,5 +1,9 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
+import {
+  AccountControlsSlotProvider,
+  useAccountControlsSlotState,
+} from "@/lol/_shared/account-controls-slot";
 import { AccountSwitcher } from "@/lol/_shared/account-switcher";
 import championAssets from "@/lol/_shared/champion-assets.json";
 import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
@@ -127,6 +131,7 @@ function AccountLayout() {
   const navigate = useNavigate();
   const account = useAccountFromSlug(accountSlug);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [controlsSlotEl, setControlsSlotEl] = useAccountControlsSlotState();
 
   // Single windowed query at the layout level. Trends, Champions, and the
   // splash backdrop all consume this via context. Reads from the api's
@@ -330,188 +335,120 @@ function AccountLayout() {
               setCount,
             }}
           >
-            <div className="flex flex-col gap-6">
-              <header
-                ref={headerRef}
-                data-account-header
-                className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md"
-              >
-                <m.div
-                  className="mx-auto max-w-4xl px-6"
-                  animate={{
-                    paddingTop: compact ? 8 : 24,
-                    paddingBottom: compact ? 8 : 12,
-                  }}
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 380, damping: 32 }
-                  }
+            <AccountControlsSlotProvider value={controlsSlotEl}>
+              <div className="flex flex-col gap-6">
+                <header
+                  ref={headerRef}
+                  data-account-header
+                  className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md"
                 >
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      {account && (
-                        <section className="flex items-center gap-3">
-                          {iconId != null && (
-                            <div className="relative shrink-0">
-                              <img
-                                src={profileIconUrl(iconId)}
-                                alt=""
-                                className={cn(
-                                  "rounded-full object-cover ring-1 ring-border transition-all",
-                                  compact ? "size-7" : "size-9"
-                                )}
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = profileIconFallbackUrl(
-                                    iconId,
-                                    ddVersion
-                                  );
-                                }}
-                              />
-                              {level != null && !compact && (
-                                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
-                                  {level}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-baseline gap-3">
-                            <h2 className="text-xl font-semibold">
-                              {account.gameName}
-                              <span className="text-muted-foreground">
-                                #{account.tagLine}
-                              </span>
-                            </h2>
-                            <AnimatePresence>
-                              {!compact && (
-                                <m.span
-                                  key="region"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  transition={
-                                    prefersReducedMotion
-                                      ? { duration: 0 }
-                                      : { duration: 0.15 }
-                                  }
-                                  className="text-sm uppercase text-muted-foreground"
-                                >
-                                  {account.region}
-                                </m.span>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </section>
-                      )}
-                      {!isMatchDetail && (
-                        <div className="flex items-center gap-2">
-                          <SeriousQueuesSettings />
-                          <AccountSwitcher currentSlug={accountSlug} />
-                          <RefreshAccountButton account={account} />
-                        </div>
-                      )}
-                    </div>
-
-                    <AnimatePresence mode="wait" initial={false}>
-                      {isMatchDetail ? (
-                        <m.div
-                          key="back-nav"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <BackButton accountSlug={accountSlug} pathname={pathname} />
-                        </m.div>
-                      ) : (
-                        <m.div
-                          key="tabs"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="flex gap-1"
-                        >
-                          {TABS.map(({ to, label, Icon, exact }) => {
-                            const tabPath = to.replace("$accountSlug", accountSlug);
-                            const active = exact
-                              ? pathname === tabPath
-                              : pathname === tabPath ||
-                                pathname.startsWith(`${tabPath}/`);
-                            return (
-                              <Link
-                                key={to}
-                                to={to}
-                                params={{ accountSlug }}
-                                search={(prev: AccountSearch) => prev}
-                                className={cn(
-                                  "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                                  active
-                                    ? "text-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                                )}
-                              >
-                                <m.span
-                                  key={active ? 1 : 0}
-                                  initial={
-                                    active && !prefersReducedMotion
-                                      ? iconPop(label)
-                                      : false
-                                  }
-                                  animate={{ scale: 1, rotate: 0, y: 0 }}
-                                  transition={{
-                                    type: "spring",
-                                    stiffness: 450,
-                                    damping: 18,
+                  <m.div
+                    className="mx-auto max-w-4xl px-6"
+                    animate={{
+                      paddingTop: compact ? 8 : 24,
+                      paddingBottom: compact ? 8 : 12,
+                    }}
+                    transition={
+                      prefersReducedMotion
+                        ? { duration: 0 }
+                        : { type: "spring", stiffness: 380, damping: 32 }
+                    }
+                  >
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        {account && (
+                          <section className="flex items-center gap-3">
+                            {iconId != null && (
+                              <div className="relative shrink-0">
+                                <img
+                                  src={profileIconUrl(iconId)}
+                                  alt=""
+                                  className={cn(
+                                    "rounded-full object-cover ring-1 ring-border transition-all",
+                                    compact ? "size-7" : "size-9"
+                                  )}
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = profileIconFallbackUrl(
+                                      iconId,
+                                      ddVersion
+                                    );
                                   }}
-                                  className="inline-flex"
-                                >
-                                  <Icon
-                                    className={cn(
-                                      "size-4 transition-colors",
-                                      active
-                                        ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
-                                        : "text-muted-foreground group-hover:text-foreground"
-                                    )}
-                                  />
-                                </m.span>
-                                {label}
-                                {active && (
-                                  <m.div
-                                    layoutId="lol-tab-indicator"
-                                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
-                                    animate={{
-                                      boxShadow: [
-                                        "0 0 0px 0px rgba(56,189,248,0)",
-                                        "0 0 10px 1px rgba(56,189,248,0.45)",
-                                        "0 0 0px 0px rgba(56,189,248,0)",
-                                      ],
-                                    }}
-                                    transition={{
-                                      default: {
-                                        type: "spring",
-                                        stiffness: 500,
-                                        damping: 35,
-                                      },
-                                      boxShadow: {
-                                        duration: 2.4,
-                                        repeat: Number.POSITIVE_INFINITY,
-                                        ease: "easeInOut",
-                                      },
-                                    }}
-                                  />
+                                />
+                                {level != null && !compact && (
+                                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
+                                    {level}
+                                  </span>
                                 )}
-                              </Link>
-                            );
-                          })}
-                          {liveData &&
-                            (() => {
-                              const livePath = `/lol/${accountSlug}/live`;
-                              const active = pathname === livePath;
+                              </div>
+                            )}
+                            <div className="flex items-baseline gap-3">
+                              <h2 className="text-xl font-semibold">
+                                {account.gameName}
+                                <span className="text-muted-foreground">
+                                  #{account.tagLine}
+                                </span>
+                              </h2>
+                              <AnimatePresence>
+                                {!compact && (
+                                  <m.span
+                                    key="region"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={
+                                      prefersReducedMotion
+                                        ? { duration: 0 }
+                                        : { duration: 0.15 }
+                                    }
+                                    className="text-sm uppercase text-muted-foreground"
+                                  >
+                                    {account.region}
+                                  </m.span>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </section>
+                        )}
+                        {!isMatchDetail && (
+                          <div className="flex items-center gap-2">
+                            <SeriousQueuesSettings />
+                            <AccountSwitcher currentSlug={accountSlug} />
+                            <RefreshAccountButton account={account} />
+                          </div>
+                        )}
+                      </div>
+
+                      <AnimatePresence mode="wait" initial={false}>
+                        {isMatchDetail ? (
+                          <m.div
+                            key="back-nav"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <BackButton accountSlug={accountSlug} pathname={pathname} />
+                          </m.div>
+                        ) : (
+                          <m.div
+                            key="tabs"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="flex gap-1"
+                          >
+                            {TABS.map(({ to, label, Icon, exact }) => {
+                              const tabPath = to.replace("$accountSlug", accountSlug);
+                              const active = exact
+                                ? pathname === tabPath
+                                : pathname === tabPath ||
+                                  pathname.startsWith(`${tabPath}/`);
                               return (
                                 <Link
-                                  to="/lol/$accountSlug/live"
+                                  key={to}
+                                  to={to}
                                   params={{ accountSlug }}
                                   search={(prev: AccountSearch) => prev}
                                   className={cn(
@@ -525,7 +462,7 @@ function AccountLayout() {
                                     key={active ? 1 : 0}
                                     initial={
                                       active && !prefersReducedMotion
-                                        ? iconPop("Live")
+                                        ? iconPop(label)
                                         : false
                                     }
                                     animate={{ scale: 1, rotate: 0, y: 0 }}
@@ -536,16 +473,16 @@ function AccountLayout() {
                                     }}
                                     className="inline-flex"
                                   >
-                                    <Radio
+                                    <Icon
                                       className={cn(
                                         "size-4 transition-colors",
                                         active
-                                          ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
-                                          : "animate-pulse text-red-400/60 group-hover:text-red-400"
+                                          ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
+                                          : "text-muted-foreground group-hover:text-foreground"
                                       )}
                                     />
                                   </m.span>
-                                  Live
+                                  {label}
                                   {active && (
                                     <m.div
                                       layoutId="lol-tab-indicator"
@@ -573,36 +510,118 @@ function AccountLayout() {
                                   )}
                                 </Link>
                               );
-                            })()}
-                        </m.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </m.div>
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
-                />
-              </header>
+                            })}
+                            {liveData &&
+                              (() => {
+                                const livePath = `/lol/${accountSlug}/live`;
+                                const active = pathname === livePath;
+                                return (
+                                  <Link
+                                    to="/lol/$accountSlug/live"
+                                    params={{ accountSlug }}
+                                    search={(prev: AccountSearch) => prev}
+                                    className={cn(
+                                      "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+                                      active
+                                        ? "text-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                  >
+                                    <m.span
+                                      key={active ? 1 : 0}
+                                      initial={
+                                        active && !prefersReducedMotion
+                                          ? iconPop("Live")
+                                          : false
+                                      }
+                                      animate={{ scale: 1, rotate: 0, y: 0 }}
+                                      transition={{
+                                        type: "spring",
+                                        stiffness: 450,
+                                        damping: 18,
+                                      }}
+                                      className="inline-flex"
+                                    >
+                                      <Radio
+                                        className={cn(
+                                          "size-4 transition-colors",
+                                          active
+                                            ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
+                                            : "animate-pulse text-red-400/60 group-hover:text-red-400"
+                                        )}
+                                      />
+                                    </m.span>
+                                    Live
+                                    {active && (
+                                      <m.div
+                                        layoutId="lol-tab-indicator"
+                                        className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
+                                        animate={{
+                                          boxShadow: [
+                                            "0 0 0px 0px rgba(56,189,248,0)",
+                                            "0 0 10px 1px rgba(56,189,248,0.45)",
+                                            "0 0 0px 0px rgba(56,189,248,0)",
+                                          ],
+                                        }}
+                                        transition={{
+                                          default: {
+                                            type: "spring",
+                                            stiffness: 500,
+                                            damping: 35,
+                                          },
+                                          boxShadow: {
+                                            duration: 2.4,
+                                            repeat: Number.POSITIVE_INFINITY,
+                                            ease: "easeInOut",
+                                          },
+                                        }}
+                                      />
+                                    )}
+                                  </Link>
+                                );
+                              })()}
+                          </m.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </m.div>
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
+                  />
+                </header>
 
-              <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
-                <m.div
-                  key={pathname}
-                  custom={effectiveDir}
-                  variants={pageSlideVariants}
-                  initial={isMatchDetailTransitionRef.current ? "center" : "enter"}
-                  animate="center"
-                  exit="exit"
-                  transition={
-                    isMatchDetailTransitionRef.current
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 300, damping: 30 }
-                  }
-                >
-                  <Outlet />
-                </m.div>
-              </AnimatePresence>
-            </div>
+                {/* Per-view controls slot. Pages portal their long-list controls
+                  (queue filter, sort, count) into this div. Sticks below the
+                  account header via --account-header-h. -mt-6 cancels the
+                  outer flex `gap-6` so when occupied the bar reads flush with
+                  the header bottom. `empty:hidden` collapses it on pages that
+                  don't render any controls. */}
+                <div
+                  ref={setControlsSlotEl}
+                  className="sticky z-30 -mt-6 ml-[calc(50%-50vw)] w-screen bg-background/70 backdrop-blur-md empty:hidden"
+                  style={{ top: "var(--account-header-h, 0px)" }}
+                />
+
+                <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
+                  <m.div
+                    key={pathname}
+                    custom={effectiveDir}
+                    variants={pageSlideVariants}
+                    initial={isMatchDetailTransitionRef.current ? "center" : "enter"}
+                    animate="center"
+                    exit="exit"
+                    transition={
+                      isMatchDetailTransitionRef.current
+                        ? { duration: 0 }
+                        : { type: "spring", stiffness: 300, damping: 30 }
+                    }
+                  >
+                    <Outlet />
+                  </m.div>
+                </AnimatePresence>
+              </div>
+            </AccountControlsSlotProvider>
           </MatchWindowProvider>
         </SeriousQueuesProvider>
       </HoverChampionProvider>
