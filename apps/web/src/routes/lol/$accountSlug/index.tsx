@@ -7,6 +7,7 @@ import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
+import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
 import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
@@ -30,6 +31,7 @@ function ProfilePage() {
       <ProfileLpHistory accountSlug={accountSlug} />
       <ProfileSeasonHistory accountSlug={accountSlug} />
       <ProfileNowPlaying />
+      <ProfileRoleStrip />
       <ProfileQueueDistribution />
       {matches && matches.length > 0 && <ProfileActivityCalendar matches={matches} />}
       <ProfileStatsBar />
