@@ -52,27 +52,41 @@ function bucketLabel(index: number): string {
 
 function Histogram({ bins }: { bins: number[] }) {
   const max = Math.max(1, ...bins);
+  // Bars must be direct children of a flex container with a defined height
+  // (h-16 = 64px). Wrapping each bar in a column with auto height makes the
+  // bar's percent-height resolve against `auto` (=> 0), collapsing bars
+  // visually. Labels live in a parallel row below with matching flex-1
+  // widths so they line up under the bars.
   return (
-    <div className="flex h-16 items-end gap-1">
-      {bins.map((value, i) => {
-        const heightPct = (value / max) * 100;
-        const minutes = i === BUCKETS - 1 ? `${(BUCKETS - 1) * 3}+` : `${i * 3}`;
-        return (
-          <div
-            key={minutes}
-            className="flex flex-1 flex-col items-center gap-0.5"
-            title={`${bucketLabel(i)} min: ${value}`}
-          >
+    <div className="flex flex-col gap-1">
+      <div className="flex h-16 items-end gap-1">
+        {bins.map((value, i) => {
+          const heightPct = (value / max) * 100;
+          const label = bucketLabel(i);
+          return (
             <div
-              className="w-full rounded-sm bg-rose-500/70 transition-[height] duration-500"
-              style={{ height: `${heightPct}%` }}
+              key={label}
+              className="flex-1 rounded-sm bg-rose-500/70 transition-[height] duration-500"
+              style={{ height: `${heightPct}%`, minHeight: value > 0 ? 1 : 0 }}
+              title={`${label} min: ${value}`}
             />
-            {i % 3 === 0 && (
-              <span className="text-[9px] text-muted-foreground/50">{minutes}</span>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <div className="flex gap-1 text-[9px] text-muted-foreground/50 tabular-nums">
+        {bins.map((_, i) => {
+          const label = bucketLabel(i);
+          return (
+            <span key={label} className="flex-1 text-center">
+              {i % 3 === 0
+                ? i === BUCKETS - 1
+                  ? `${(BUCKETS - 1) * 3}+`
+                  : `${i * 3}`
+                : ""}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }
