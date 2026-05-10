@@ -1,3 +1,4 @@
+import { groupByPatch } from "@/lol/_shared/patch-version";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import type { LolAccount, MatchSummary } from "@vyoh/shared";
@@ -18,6 +19,19 @@ function splitWindows(
     return {
       current: sorted.slice(0, 100),
       previous: sorted.slice(100, 200),
+    };
+  }
+
+  if (rangeId === "patch") {
+    // groupByPatch returns oldest-first; the last bucket is the current patch,
+    // the bucket before it is the previous patch. Matches with empty
+    // gameVersion drop out — same posture as the rest of the patch features.
+    const buckets = groupByPatch(matches, (m) => m.gameVersion);
+    const currentBucket = buckets[buckets.length - 1];
+    const previousBucket = buckets.length >= 2 ? buckets[buckets.length - 2] : undefined;
+    return {
+      current: currentBucket?.items ?? [],
+      previous: previousBucket?.items ?? [],
     };
   }
 

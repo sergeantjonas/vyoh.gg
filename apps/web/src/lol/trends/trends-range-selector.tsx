@@ -1,12 +1,13 @@
 import { cn } from "@/lib/utils";
 import { m } from "motion/react";
 
-export type TrendsRangeId = "7d" | "30d" | "100g";
+export type TrendsRangeId = "7d" | "30d" | "100g" | "patch";
 
 const RANGES: { id: TrendsRangeId; label: string }[] = [
   { id: "7d", label: "7 days" },
   { id: "30d", label: "30 days" },
   { id: "100g", label: "100 games" },
+  { id: "patch", label: "Patch" },
 ];
 
 export function TrendsRangeSelector({
