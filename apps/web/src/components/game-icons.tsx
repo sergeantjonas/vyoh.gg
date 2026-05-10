@@ -31,8 +31,8 @@ export function KillsIcon({ className }: { className?: string }) {
   );
 }
 
-// icon_minions.png is a horizontal 2:1 sprite (two copies side by side).
-// Wrap in an overflow-hidden square so only the left half (first icon) is visible.
+// icon_minions.png is a vertical 1:2 sprite (two copies stacked).
+// Wrap in an overflow-hidden square so only the top half (first icon) is visible.
 export function CsIcon({ className }: { className?: string }) {
   return (
     <span className={cn("inline-block overflow-hidden shrink-0", className)}>
@@ -40,7 +40,7 @@ export function CsIcon({ className }: { className?: string }) {
         src={`https://wsrv.nl/?url=${MH}/icon_minions.png&output=webp`}
         alt=""
         aria-hidden={true}
-        className="h-full w-auto max-w-none"
+        className="-mt-px w-full h-auto max-h-none"
         draggable={false}
       />
     </span>

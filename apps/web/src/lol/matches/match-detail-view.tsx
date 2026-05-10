@@ -1,4 +1,14 @@
-import { CrossedSwordsIcon, CsIcon, GoldIcon } from "@/components/game-icons";
+import {
+  BaronNashorIcon,
+  CrossedSwordsIcon,
+  CsIcon,
+  FireDrakeIcon,
+  GoldIcon,
+  InhibitorIcon,
+  KillsIcon,
+  RiftHeraldIcon,
+  TowerIcon,
+} from "@/components/game-icons";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/item-icon";
@@ -12,9 +22,9 @@ import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { useItems } from "@/lol/matches/use-items";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
+import type { MatchDetail, ParticipantDetail, TeamSummary } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
-import type { ComponentType } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 
 const itemsContainer: Variants = {
   hidden: {},
@@ -165,6 +175,237 @@ function StatBar({
   );
 }
 
+function ObjectivePip({
+  Icon,
+  count,
+  iconClassName,
+}: {
+  Icon: ComponentType<{ className?: string }>;
+  count: number;
+  iconClassName?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-0.5 font-mono text-[10px] tabular-nums",
+        count === 0 ? "opacity-25" : ""
+      )}
+    >
+      <Icon className={cn("size-3", iconClassName)} />
+      <span>{count}</span>
+    </span>
+  );
+}
+
+function TeamObjectiveStrip({ objectives }: { objectives: TeamSummary["objectives"] }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <ObjectivePip
+        Icon={TowerIcon}
+        count={objectives.tower.kills}
+        iconClassName="text-amber-400/80"
+      />
+      <ObjectivePip
+        Icon={InhibitorIcon}
+        count={objectives.inhibitor.kills}
+        iconClassName="text-violet-400/80"
+      />
+      <ObjectivePip
+        Icon={FireDrakeIcon}
+        count={objectives.dragon.kills}
+        iconClassName="text-emerald-400/80"
+      />
+      <ObjectivePip
+        Icon={RiftHeraldIcon}
+        count={objectives.riftHerald.kills}
+        iconClassName="text-purple-400/80"
+      />
+      <ObjectivePip
+        Icon={BaronNashorIcon}
+        count={objectives.baron.kills}
+        iconClassName="text-purple-300/80"
+      />
+    </div>
+  );
+}
+
+function MatchHeaderStrip({ teams }: { teams: TeamSummary[] }) {
+  const blue = teams.find((t) => t.teamId === 100);
+  const red = teams.find((t) => t.teamId === 200);
+  if (!blue || !red) return null;
+
+  const fmtGold = (g: number) => `${(g / 1000).toFixed(1)}k`;
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-4 rounded-md border bg-card/60 p-3 backdrop-blur-sm">
+      {/* Blue side */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1.5">
+            <span className="text-lg font-bold tabular-nums text-blue-400">
+              {blue.totalKills}
+            </span>
+            <KillsIcon className="size-4" />
+          </span>
+          <span className="flex items-center gap-1 text-amber-400/80">
+            <GoldIcon className="size-3.5" />
+            <span className="font-mono text-xs tabular-nums">
+              {fmtGold(blue.totalGold)}
+            </span>
+          </span>
+          {blue.objectives.champion.first && (
+            <span className="rounded bg-red-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
+              First Blood
+            </span>
+          )}
+          {blue.objectives.tower.first && (
+            <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+              First Tower
+            </span>
+          )}
+        </div>
+        <TeamObjectiveStrip objectives={blue.objectives} />
+      </div>
+
+      {/* VS divider */}
+      <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/40">
+        vs
+      </span>
+
+      {/* Red side */}
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          {red.objectives.champion.first && (
+            <span className="rounded bg-red-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
+              First Blood
+            </span>
+          )}
+          {red.objectives.tower.first && (
+            <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+              First Tower
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-amber-400/80">
+            <span className="font-mono text-xs tabular-nums">
+              {fmtGold(red.totalGold)}
+            </span>
+            <GoldIcon className="size-3.5" />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <KillsIcon className="size-4" />
+            <span className="text-lg font-bold tabular-nums text-red-400">
+              {red.totalKills}
+            </span>
+          </span>
+        </div>
+        <div className="flex justify-end">
+          <TeamObjectiveStrip objectives={red.objectives} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SegmentedDamageBar({
+  physical,
+  magic,
+  trueDmg,
+  max,
+}: {
+  physical: number;
+  magic: number;
+  trueDmg: number;
+  max: number;
+}) {
+  const reduced = useReducedMotion();
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setPlaying(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const total = physical + magic + trueDmg;
+  const physW = max > 0 ? physical / max : 0;
+  const magicW = max > 0 ? magic / max : 0;
+  const trueW = max > 0 ? trueDmg / max : 0;
+
+  return (
+    <TooltipPrimitive.Root delayDuration={150}>
+      <TooltipPrimitive.Trigger asChild>
+        <div className="flex cursor-default items-center gap-1.5">
+          <span className="flex w-10 items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-red-400/80">
+            <CrossedSwordsIcon className="size-3" aria-hidden="true" />
+            <span>Dmg</span>
+          </span>
+          <div className="relative flex h-1 w-20 overflow-hidden rounded-full bg-muted/40">
+            <m.div
+              className="h-full shrink-0 bg-gradient-to-r from-red-500/90 to-orange-400/90"
+              style={{ transformOrigin: "left", width: `${physW * 100}%` }}
+              animate={{ scaleX: playing || reduced ? 1 : 0 }}
+              transition={
+                !playing || reduced
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 220, damping: 28, delay: 0.18 }
+              }
+            />
+            <m.div
+              className="h-full shrink-0 bg-gradient-to-r from-blue-500/90 to-violet-400/90"
+              style={{ transformOrigin: "left", width: `${magicW * 100}%` }}
+              animate={{ scaleX: playing || reduced ? 1 : 0 }}
+              transition={
+                !playing || reduced
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 220, damping: 28, delay: 0.22 }
+              }
+            />
+            {trueW > 0 && (
+              <m.div
+                className="h-full shrink-0 bg-white/55"
+                style={{ transformOrigin: "left", width: `${trueW * 100}%` }}
+                animate={{ scaleX: playing || reduced ? 1 : 0 }}
+                transition={
+                  !playing || reduced
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 220, damping: 28, delay: 0.26 }
+                }
+              />
+            )}
+          </div>
+          <span className="w-10 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+            {(total / 1000).toFixed(1)}k
+          </span>
+        </div>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="top"
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          className="pointer-events-none z-50 rounded-md border bg-popover/85 p-2 text-popover-foreground shadow-xl backdrop-blur-md"
+        >
+          <div className="flex flex-col gap-0.5 font-mono text-[10px] tabular-nums">
+            <div className="flex items-center gap-2">
+              <span className="w-10 text-orange-400">Phys</span>
+              <span>{(physical / 1000).toFixed(1)}k</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-10 text-violet-400">Magic</span>
+              <span>{(magic / 1000).toFixed(1)}k</span>
+            </div>
+            {trueDmg > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="w-10 text-white/70">True</span>
+                <span>{(trueDmg / 1000).toFixed(1)}k</span>
+              </div>
+            )}
+          </div>
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
+  );
+}
+
 function ParticipantRow({
   p,
   isMe,
@@ -233,13 +474,11 @@ function ParticipantRow({
       <div className="flex flex-col items-end gap-1.5">
         <ItemSlots items={p.items} />
         <div className="flex flex-col gap-0.5">
-          <StatBar
-            Icon={CrossedSwordsIcon}
-            label="Dmg"
-            value={p.totalDamage}
+          <SegmentedDamageBar
+            physical={p.damageDealtPhysical}
+            magic={p.damageDealtMagic}
+            trueDmg={p.damageDealtTrue}
             max={maxDamage}
-            fillClassName="bg-gradient-to-r from-red-500/80 to-orange-400/80"
-            labelClassName="text-red-400/80"
           />
           <StatBar
             Icon={GoldIcon}
@@ -321,6 +560,7 @@ export function MatchDetailView({
 
   return (
     <div className="flex flex-col gap-6">
+      <MatchHeaderStrip teams={detail.teams} />
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <m.div
           initial={reduced ? {} : { opacity: 0, y: 12 }}

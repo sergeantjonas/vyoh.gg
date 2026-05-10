@@ -37,6 +37,7 @@ export interface TeamSummary {
   totalGold: number;
   objectives: {
     baron: { first: boolean; kills: number };
+    champion: { first: boolean; kills: number };
     dragon: { first: boolean; kills: number };
     inhibitor: { first: boolean; kills: number };
     riftHerald: { first: boolean; kills: number };

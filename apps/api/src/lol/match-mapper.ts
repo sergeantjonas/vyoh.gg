@@ -82,6 +82,7 @@ export function riotMatchToDetail(match: RiotMatch): MatchDetail {
       totalGold,
       objectives: {
         baron: t.objectives.baron,
+        champion: t.objectives.champion,
         dragon: t.objectives.dragon,
         inhibitor: t.objectives.inhibitor,
         riftHerald: t.objectives.riftHerald,
