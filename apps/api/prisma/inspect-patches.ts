@@ -40,9 +40,7 @@ async function main() {
     );
   }
 
-  const emptyByWindow = await prisma.$queryRaw<
-    Array<{ window: string; rows: bigint }>
-  >`
+  const emptyByWindow = await prisma.$queryRaw<Array<{ window: string; rows: bigint }>>`
     SELECT '30d' AS window, COUNT(*)::bigint AS rows FROM "Match"
       WHERE "gameVersion" = '' AND "playedAt" > NOW() - INTERVAL '30 days'
     UNION ALL

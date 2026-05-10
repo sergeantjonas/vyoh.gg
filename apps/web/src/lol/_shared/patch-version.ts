@@ -1,12 +1,24 @@
-// Riot's gameVersion is a 4-part string like "14.20.586.5840". Players think
-// in terms of MAJOR.MINOR ("14.20") — the rest are build numbers that change
-// without meta impact. Truncate to that for all patch-grouping UI.
+// Riot's gameVersion is a 4-part string like "16.9.772.8292". Riot's API
+// still uses the legacy SEASON number as the major (season 16 = 2026), but
+// the user-facing patch label is now year-based ("Patch 26.9"). The mapping
+// is stable: display major = API major + 10. Apply that transform here so
+// every consumer (chip, boundary labels, grouping) shows what players see in
+// the launcher and on Riot's socials. Full Riot build string is preserved
+// elsewhere for tooltips/diagnostics.
+//
+// Guard against a future Riot API switch to year-based: if the major already
+// looks year-shaped (>= 20), pass it through unchanged.
 
 export function truncatePatch(gameVersion: string): string {
   if (!gameVersion) return "";
   const parts = gameVersion.split(".");
   if (parts.length < 2) return "";
-  return `${parts[0]}.${parts[1]}`;
+  const [rawMajor, minor] = parts;
+  if (!rawMajor || !minor) return "";
+  const majorNum = Number(rawMajor);
+  if (!Number.isFinite(majorNum)) return "";
+  const displayMajor = majorNum >= 20 ? majorNum : majorNum + 10;
+  return `${displayMajor}.${minor}`;
 }
 
 export function comparePatches(a: string, b: string): number {
