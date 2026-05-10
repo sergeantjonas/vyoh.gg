@@ -77,18 +77,35 @@ export function RecapChampion({ matches }: { matches: MatchSummary[] | undefined
       whileInView={reduced ? {} : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      className="relative flex flex-col gap-4 overflow-hidden rounded-xl border bg-card/40 p-6 sm:p-8"
+      className="relative isolate flex flex-col gap-4 overflow-hidden rounded-xl border p-6 sm:p-8"
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 opacity-25"
+        className="pointer-events-none absolute inset-0 -z-20 overflow-hidden"
         style={{
-          backgroundImage: `url(${championBackdropSplashUrl(top.champion, 800, 0)})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center 30%",
-          maskImage: "linear-gradient(to right, transparent 0%, black 60%, black 100%)",
+          maskImage: "linear-gradient(to right, transparent 0%, black 40%, black 100%)",
           WebkitMaskImage:
-            "linear-gradient(to right, transparent 0%, black 60%, black 100%)",
+            "linear-gradient(to right, transparent 0%, black 40%, black 100%)",
+        }}
+      >
+        <img
+          src={championBackdropSplashUrl(top.champion, 800, 0)}
+          alt=""
+          aria-hidden="true"
+          loading="eager"
+          decoding="async"
+          className="size-full object-cover opacity-60"
+          style={{ objectPosition: "center 30%" }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 bg-card/40"
+        style={{
+          maskImage:
+            "linear-gradient(to right, black 0%, transparent 40%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to right, black 0%, transparent 40%, transparent 100%)",
         }}
       />
       <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
