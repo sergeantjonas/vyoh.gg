@@ -4,10 +4,12 @@ import { TrendDowWr } from "@/lol/trends/trend-dow-wr";
 import { TrendGameLength } from "@/lol/trends/trend-game-length";
 import { TrendKda } from "@/lol/trends/trend-kda";
 import { TrendLpEconomy } from "@/lol/trends/trend-lp-economy";
+import { TrendRolePerformance } from "@/lol/trends/trend-role-performance";
 import { TrendSessionFatigue } from "@/lol/trends/trend-session-fatigue";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import { TrendWeeklyReview } from "@/lol/trends/trend-weekly-review";
+import { TrendWorstMatchup } from "@/lol/trends/trend-worst-matchup";
 import { TrendWrTrajectory } from "@/lol/trends/trend-wr-trajectory";
 import { TrendsRangeSelector } from "@/lol/trends/trends-range-selector";
 import type { TrendsRangeId } from "@/lol/trends/trends-range-selector";
@@ -98,6 +100,12 @@ function TrendsPage() {
           </Cell>
           <Cell>
             <TrendSessionFatigue current={current} previous={previous} />
+          </Cell>
+          <Cell span={2}>
+            <TrendRolePerformance current={current} previous={previous} />
+          </Cell>
+          <Cell>
+            <TrendWorstMatchup current={current} previous={previous} />
           </Cell>
           <Cell span={3}>
             <TrendKda current={current} previous={previous} />
