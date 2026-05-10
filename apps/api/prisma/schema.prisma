@@ -66,6 +66,9 @@ model Match {
   laneOpponent Json?
   teamPosition String   @default("")
   gameVersion  String   @default("")
+  visionScore  Int      @default(0)
+  damageShare  Float    @default(0)
+  firstBloodKill Boolean @default(false)
   remake       Boolean  @default(false)
   snapshotTier String?
   snapshotRank String?

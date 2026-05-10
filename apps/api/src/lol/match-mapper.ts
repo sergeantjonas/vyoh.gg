@@ -8,6 +8,18 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     throw new Error(`PUUID ${puuid} not found in match ${match.metadata.matchId}`);
   }
 
+  // Damage share is computed against the user's team total — sum just that
+  // side instead of using the (heavier) per-team-totals map riotMatchToDetail
+  // builds for all participants.
+  let teamTotalDamage = 0;
+  for (const p of match.info.participants) {
+    if (p.teamId === participant.teamId) {
+      teamTotalDamage += p.totalDamageDealtToChampions;
+    }
+  }
+  const damageShare =
+    teamTotalDamage > 0 ? participant.totalDamageDealtToChampions / teamTotalDamage : 0;
+
   let laneOpponent: MatchSummary["laneOpponent"] = null;
   if (participant.teamPosition) {
     const opp = match.info.participants.find(
@@ -41,6 +53,9 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     remake: match.info.gameEndedInEarlySurrender && match.info.gameDuration < 210,
     teamPosition: participant.teamPosition,
     gameVersion: match.info.gameVersion,
+    visionScore: participant.visionScore,
+    damageShare,
+    firstBloodKill: participant.firstBloodKill,
     laneOpponent,
   };
 }

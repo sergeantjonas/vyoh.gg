@@ -62,6 +62,9 @@ const matches: MatchSummary[] = [
     remake: false,
     teamPosition: "MIDDLE",
     gameVersion: "14.20.586.5840",
+    visionScore: 30,
+    damageShare: 0.25,
+    firstBloodKill: false,
     laneOpponent: null,
   },
   {
@@ -77,6 +80,9 @@ const matches: MatchSummary[] = [
     remake: false,
     teamPosition: "",
     gameVersion: "14.20.586.5840",
+    visionScore: 30,
+    damageShare: 0.25,
+    firstBloodKill: false,
     laneOpponent: null,
   },
 ];

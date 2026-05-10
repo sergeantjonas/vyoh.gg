@@ -16,6 +16,9 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     remake: overrides.remake ?? false,
     teamPosition: overrides.teamPosition ?? "",
     gameVersion: overrides.gameVersion ?? "",
+    visionScore: overrides.visionScore ?? 0,
+    damageShare: overrides.damageShare ?? 0,
+    firstBloodKill: overrides.firstBloodKill ?? false,
     laneOpponent: overrides.laneOpponent ?? null,
   };
 }

@@ -11,6 +11,9 @@ export interface MatchSummary {
   remake: boolean;
   teamPosition: string;
   gameVersion: string;
+  visionScore: number;
+  damageShare: number;
+  firstBloodKill: boolean;
   snapshotTier?: string;
   snapshotRank?: string;
   snapshotLp?: number;

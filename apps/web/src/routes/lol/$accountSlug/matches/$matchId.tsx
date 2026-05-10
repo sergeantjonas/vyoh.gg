@@ -94,6 +94,9 @@ function MatchDetailPage() {
           remake: false,
           teamPosition: myParticipant.teamPosition,
           gameVersion: "",
+          visionScore: myParticipant.visionScore,
+          damageShare: myParticipant.damageShare,
+          firstBloodKill: false,
           laneOpponent: null,
         }
       : undefined);

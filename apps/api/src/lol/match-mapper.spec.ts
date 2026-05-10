@@ -34,6 +34,7 @@ function buildParticipant(
     wardsPlaced: 10,
     wardsKilled: 5,
     detectorWardsPlaced: 3,
+    firstBloodKill: false,
     summoner1Id: 4,
     summoner2Id: 14,
     champLevel: 18,
@@ -99,6 +100,9 @@ describe("riotMatchToSummary", () => {
       remake: false,
       teamPosition: "MIDDLE",
       gameVersion: "14.20.586.5840",
+      visionScore: 30,
+      damageShare: 1,
+      firstBloodKill: false,
       laneOpponent: null,
     });
   });

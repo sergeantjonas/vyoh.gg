@@ -37,6 +37,7 @@ export interface RiotMatchParticipant {
   wardsPlaced: number;
   wardsKilled: number;
   detectorWardsPlaced: number;
+  firstBloodKill: boolean;
   summoner1Id: number;
   summoner2Id: number;
   champLevel: number;

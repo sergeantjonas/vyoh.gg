@@ -25,6 +25,9 @@ const sample: MatchSummary = {
   remake: false,
   teamPosition: "MIDDLE",
   gameVersion: "14.20.586.5840",
+  visionScore: 30,
+  damageShare: 0.25,
+  firstBloodKill: false,
   laneOpponent: null,
 };
 
