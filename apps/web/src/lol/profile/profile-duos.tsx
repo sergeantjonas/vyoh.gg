@@ -7,9 +7,23 @@ const DISPLAY_COUNT = 3;
 
 export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
-  const { data } = useDuos(account);
+  const { data, isPending } = useDuos(account);
 
-  if (!data || data.length === 0) return null;
+  // Hide while loading so the Profile doesn't reserve empty space during the
+  // initial fetch. Once the response lands we either render duos or the
+  // "mostly solo" empty state.
+  if (isPending || !data) return null;
+
+  if (data.length === 0) {
+    return (
+      <section className="flex flex-col gap-2">
+        <h3 className="text-sm font-medium text-muted-foreground">Duos</h3>
+        <p className="rounded-lg border border-dashed bg-card/20 px-3 py-3 text-xs text-muted-foreground/70">
+          No recurring duo detected — you mostly queue solo in this window.
+        </p>
+      </section>
+    );
+  }
 
   const duos = data.slice(0, DISPLAY_COUNT);
 
