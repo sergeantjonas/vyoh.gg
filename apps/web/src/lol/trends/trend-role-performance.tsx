@@ -120,31 +120,17 @@ export function TrendRolePerformance({
   const positionlessRatio = total === 0 ? 0 : (total - positioned) / total;
   const heavyAram = positionlessRatio > POSITIONLESS_RATIO_THRESHOLD;
 
-  if (heavyAram) {
-    return (
-      <ConclusionCard
-        title="Role performance"
-        sampleSize={positioned}
-        verdict="Mostly ARAM in this window — Rift role data is too sparse to read."
-        empty
-        evidence={
-          <div className="flex flex-col gap-1.5">
-            {rows.map((r) => (
-              <RoleBar key={r.position} row={r} />
-            ))}
-          </div>
-        }
-      />
-    );
-  }
-
   const eligible = rows.filter((r) => r.games >= MIN_BAR_SAMPLE);
   if (eligible.length === 0) {
     return (
       <ConclusionCard
         title="Role performance"
         sampleSize={positioned}
-        verdict={`Need ${MIN_BAR_SAMPLE}+ games on a role to read its WR.`}
+        verdict={
+          heavyAram
+            ? "Mostly ARAM in this window — not enough Rift games on any single role yet."
+            : `Need ${MIN_BAR_SAMPLE}+ games on a role to read its WR.`
+        }
         empty
         evidence={
           <div className="flex flex-col gap-1.5">
@@ -168,18 +154,28 @@ export function TrendRolePerformance({
       />
     );
   }
-  const verdict = `Strongest on ${ROLE_LABEL[best.position]} — ${Math.round(best.wr * 100)}% over ${best.games} game${best.games === 1 ? "" : "s"}.`;
+  const wrPct = Math.round(best.wr * 100);
+  const gamesLabel = `${best.games} game${best.games === 1 ? "" : "s"}`;
+  // Heavy-ARAM windows still get a real "strongest role" verdict — the bars
+  // below show the underlying data either way — but we tag it so the user
+  // knows the Rift sample is the minority of the window. Prescription stays
+  // suppressed in that case to avoid pushing climb advice off a biased read.
+  const verdict = heavyAram
+    ? `Strongest Rift role is ${ROLE_LABEL[best.position]} — ${wrPct}% over ${gamesLabel} (mostly ARAM otherwise).`
+    : `Strongest on ${ROLE_LABEL[best.position]} — ${wrPct}% over ${gamesLabel}.`;
 
   let prescription: string | undefined;
-  const ranked = eligible.filter((r) => r.games >= MIN_PRESCRIPTION_SAMPLE);
-  if (ranked.length >= 2) {
-    const sortedByWr = [...ranked].sort((a, b) => b.wr - a.wr);
-    const top = sortedByWr[0];
-    const bottom = sortedByWr[sortedByWr.length - 1];
-    if (top && bottom && top.position !== bottom.position) {
-      const delta = top.wr - bottom.wr;
-      if (delta >= PRESCRIPTION_DELTA) {
-        prescription = `Consider climbing on ${ROLE_LABEL[top.position]}.`;
+  if (!heavyAram) {
+    const ranked = eligible.filter((r) => r.games >= MIN_PRESCRIPTION_SAMPLE);
+    if (ranked.length >= 2) {
+      const sortedByWr = [...ranked].sort((a, b) => b.wr - a.wr);
+      const top = sortedByWr[0];
+      const bottom = sortedByWr[sortedByWr.length - 1];
+      if (top && bottom && top.position !== bottom.position) {
+        const delta = top.wr - bottom.wr;
+        if (delta >= PRESCRIPTION_DELTA) {
+          prescription = `Consider climbing on ${ROLE_LABEL[top.position]}.`;
+        }
       }
     }
   }
