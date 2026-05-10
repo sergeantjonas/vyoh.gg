@@ -5,10 +5,17 @@ import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { type RangeKey, useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Brush } from "@visx/brush";
+import type { BrushHandleRenderProps } from "@visx/brush/lib/BrushHandle";
+import type { Bounds } from "@visx/brush/lib/types";
+import { Group } from "@visx/group";
+import { ParentSize } from "@visx/responsive";
+import { scaleLinear } from "@visx/scale";
+import { LinePath } from "@visx/shape";
 import type { RankHistoryPoint } from "@vyoh/shared";
 import { formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
@@ -218,11 +225,146 @@ function RangeTabs({
   );
 }
 
+function LpBrush({
+  points,
+  brushDomain,
+  stroke,
+  onChange,
+}: {
+  points: ChartPoint[];
+  brushDomain: [number, number] | null;
+  stroke: string;
+  onChange: (range: [number, number] | null) => void;
+}) {
+  if (points.length < 4) return null;
+  return (
+    <ParentSize>
+      {({ width }) => {
+        if (width < 80) return null;
+        const height = 44;
+        const margin = { top: 6, bottom: 6, left: 0, right: 0 };
+        const innerW = width;
+        const innerH = height - margin.top - margin.bottom;
+
+        const tMin = points[0]?.t ?? 0;
+        const tMax = points[points.length - 1]?.t ?? tMin + 1;
+        let lpMin = Number.POSITIVE_INFINITY;
+        let lpMax = Number.NEGATIVE_INFINITY;
+        for (const p of points) {
+          if (p.totalLp < lpMin) lpMin = p.totalLp;
+          if (p.totalLp > lpMax) lpMax = p.totalLp;
+        }
+        if (lpMin === lpMax) lpMax = lpMin + 1;
+
+        const xScale = scaleLinear<number>({
+          range: [0, innerW],
+          domain: [tMin, tMax],
+        });
+        const yScale = scaleLinear<number>({
+          range: [innerH, 0],
+          domain: [lpMin, lpMax],
+        });
+
+        const initial =
+          brushDomain && brushDomain[0] >= tMin && brushDomain[1] <= tMax
+            ? {
+                start: { x: xScale(brushDomain[0]) },
+                end: { x: xScale(brushDomain[1]) },
+              }
+            : undefined;
+
+        return (
+          <svg
+            width={width}
+            height={height}
+            role="img"
+            aria-label="LP history range brush"
+          >
+            <Group top={margin.top}>
+              <LinePath
+                data={points}
+                x={(d) => xScale(d.t)}
+                y={(d) => yScale(d.totalLp)}
+                stroke={stroke}
+                strokeWidth={1}
+                strokeOpacity={0.45}
+                fill="none"
+              />
+              <Brush
+                xScale={xScale}
+                yScale={yScale}
+                width={innerW}
+                height={innerH}
+                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                brushDirection="horizontal"
+                initialBrushPosition={initial}
+                resizeTriggerAreas={["left", "right"]}
+                handleSize={10}
+                onChange={(domain: Bounds | null) => {
+                  if (!domain) {
+                    onChange(null);
+                    return;
+                  }
+                  onChange([domain.x0, domain.x1]);
+                }}
+                selectedBoxStyle={{
+                  fill: stroke,
+                  fillOpacity: 0.18,
+                  stroke,
+                  strokeWidth: 1,
+                  strokeOpacity: 0.75,
+                }}
+                useWindowMoveEvents
+                renderBrushHandle={({
+                  x,
+                  height,
+                  isBrushActive,
+                }: BrushHandleRenderProps) =>
+                  isBrushActive ? (
+                    <g>
+                      <rect
+                        x={x - 3}
+                        y={0}
+                        width={6}
+                        height={height}
+                        rx={1}
+                        fill={stroke}
+                        fillOpacity={0.85}
+                      />
+                      <line
+                        x1={x}
+                        y1={height * 0.3}
+                        x2={x}
+                        y2={height * 0.7}
+                        stroke="var(--background)"
+                        strokeWidth={1}
+                      />
+                    </g>
+                  ) : null
+                }
+              />
+            </Group>
+          </svg>
+        );
+      }}
+    </ParentSize>
+  );
+}
+
 export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
   const [range, setRange] = useState<RangeKey>("90d");
   const [queue, setQueue] = useState<QueueKey>("solo");
+  const [brushDomain, setBrushDomain] = useState<[number, number] | null>(null);
+  // visx <Brush> owns its internal selection rect; clearing our React state
+  // alone leaves the visual box behind. Bumping this key forces a remount.
+  const [brushKey, setBrushKey] = useState(0);
   const reduced = useReducedMotion();
+
+  const resetBrush = () => {
+    setBrushDomain(null);
+    setBrushKey((k) => k + 1);
+  };
 
   const history = useRankHistory(account, range);
 
@@ -245,8 +387,23 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
     return toChartPoints(raw);
   }, [history.data, activeQueue]);
 
-  const streak = useMemo(() => findLongestStreak(points), [points]);
-  const tierChangeIdxs = useMemo(() => findTierChanges(points), [points]);
+  // Reset the brush selection whenever the underlying dataset changes
+  // (different range or queue) so the user never sees a stale selection
+  // pointing at timestamps that aren't in the new dataset.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on range/queue change
+  useEffect(() => {
+    resetBrush();
+  }, [range, activeQueue]);
+
+  // Filter the visible series to the brush window if one is active.
+  const visiblePoints = useMemo(() => {
+    if (!brushDomain) return points;
+    const [lo, hi] = brushDomain;
+    return points.filter((p) => p.t >= lo && p.t <= hi);
+  }, [points, brushDomain]);
+
+  const streak = useMemo(() => findLongestStreak(visiblePoints), [visiblePoints]);
+  const tierChangeIdxs = useMemo(() => findTierChanges(visiblePoints), [visiblePoints]);
 
   // Patch boundaries are derived from ranked matches in the chart's queue
   // (timestamps line up with rank-snapshot timestamps closely enough). Out-of-
@@ -270,19 +427,24 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const stroke = QUEUE_COLOR[activeQueue];
   const gradientId = `lp-area-${activeQueue}`;
 
-  // Tier-change dots are rendered as ReferenceDots; we need yMin/yMax for
-  // the streak ReferenceArea so the shaded band spans the full chart.
+  // Y axis fits the brushed window so a narrow selection zooms vertically too.
   const yDomain = useMemo<[number | "auto", number | "auto"]>(() => {
-    if (points.length === 0) return ["auto", "auto"];
-    let min = points[0]?.totalLp ?? 0;
+    const pool = visiblePoints.length > 0 ? visiblePoints : points;
+    if (pool.length === 0) return ["auto", "auto"];
+    let min = pool[0]?.totalLp ?? 0;
     let max = min;
-    for (const p of points) {
+    for (const p of pool) {
       if (p.totalLp < min) min = p.totalLp;
       if (p.totalLp > max) max = p.totalLp;
     }
     const padding = Math.max(20, Math.round((max - min) * 0.1));
     return [Math.max(0, min - padding), max + padding];
-  }, [points]);
+  }, [visiblePoints, points]);
+
+  const xDomain = useMemo<[number | "dataMin", number | "dataMax"]>(() => {
+    if (brushDomain) return brushDomain;
+    return ["dataMin", "dataMax"];
+  }, [brushDomain]);
 
   return (
     <m.section
@@ -359,7 +521,8 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 dataKey="t"
                 type="number"
                 scale="time"
-                domain={["dataMin", "dataMax"]}
+                domain={xDomain}
+                allowDataOverflow
                 tickFormatter={formatTickDate}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                 minTickGap={48}
@@ -374,16 +537,18 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 content={<LpTooltip />}
                 cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
               />
-              {streak && points[streak.startIdx] && points[streak.endIdx] && (
-                <ReferenceArea
-                  x1={points[streak.startIdx]?.t}
-                  x2={points[streak.endIdx]?.t}
-                  fill={streak.type === "win" ? "#34d399" : "#f87171"}
-                  fillOpacity={0.08}
-                  stroke="none"
-                  ifOverflow="extendDomain"
-                />
-              )}
+              {streak &&
+                visiblePoints[streak.startIdx] &&
+                visiblePoints[streak.endIdx] && (
+                  <ReferenceArea
+                    x1={visiblePoints[streak.startIdx]?.t}
+                    x2={visiblePoints[streak.endIdx]?.t}
+                    fill={streak.type === "win" ? "#34d399" : "#f87171"}
+                    fillOpacity={0.08}
+                    stroke="none"
+                    ifOverflow="hidden"
+                  />
+                )}
               {patchBoundaries.map((b) => (
                 <ReferenceLine
                   key={`patch-${b.fromPatch}-${b.toPatch}`}
@@ -415,7 +580,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 isAnimationActive={!reduced}
               />
               {tierChangeIdxs.map((idx) => {
-                const p = points[idx];
+                const p = visiblePoints[idx];
                 if (!p) return null;
                 return (
                   <ReferenceDot
@@ -426,12 +591,39 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                     fill="#facc15"
                     stroke="var(--background)"
                     strokeWidth={2}
-                    ifOverflow="extendDomain"
+                    ifOverflow="hidden"
                   />
                 );
               })}
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      )}
+      {!isEmpty && points.length >= 4 && (
+        <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-card/30 px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2 px-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/60">
+            <span>
+              {brushDomain
+                ? "Showing a sub-range — drag the highlighted band to pan"
+                : "Drag across the strip to zoom into a date range"}
+            </span>
+            {brushDomain && (
+              <button
+                type="button"
+                onClick={resetBrush}
+                className="cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground/70 transition-colors hover:bg-muted/40 hover:text-foreground"
+              >
+                Show all
+              </button>
+            )}
+          </div>
+          <LpBrush
+            key={brushKey}
+            points={points}
+            brushDomain={brushDomain}
+            stroke={stroke}
+            onChange={setBrushDomain}
+          />
         </div>
       )}
     </m.section>
