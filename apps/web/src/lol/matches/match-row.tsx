@@ -202,7 +202,10 @@ export function MatchRow({
               </div>
               {showVsLabel && match.laneOpponent && (
                 <div className="text-xs text-muted-foreground/60">
-                  vs {championName(match.laneOpponent.championName)}
+                  vs {championName(match.laneOpponent.championName)}{" "}
+                  <span className="text-muted-foreground/40">
+                    ({match.laneOpponent.gameName}#{match.laneOpponent.tagLine})
+                  </span>
                 </div>
               )}
             </div>

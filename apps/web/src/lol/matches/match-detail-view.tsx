@@ -8,11 +8,14 @@ import {
   KillsIcon,
   RiftHeraldIcon,
   TowerIcon,
+  VisionIcon,
 } from "@/components/game-icons";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/item-icon";
+import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
+import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
@@ -487,7 +490,7 @@ function ParticipantRow({
     <m.li
       variants={teamRow}
       className={cn(
-        "flex items-center gap-3 rounded-md border bg-card/60 p-2 backdrop-blur-sm transition-colors",
+        "flex items-center gap-2 rounded-md border bg-card/60 p-2 backdrop-blur-sm transition-colors",
         isMe && "relative border-foreground/40 bg-card/80 ring-2 ring-foreground/30"
       )}
     >
@@ -509,11 +512,25 @@ function ParticipantRow({
           }}
         />
       )}
-      <ChampionSquareIcon
-        championName={p.championName}
-        alt={displayName}
-        className="size-9 rounded-md"
-      />
+      {/* Champion icon + level badge */}
+      <div className="relative shrink-0">
+        <ChampionSquareIcon
+          championName={p.championName}
+          alt={displayName}
+          className="size-9 rounded-md"
+        />
+        <span className="absolute -bottom-0.5 -right-0.5 min-w-[14px] rounded border border-border/60 bg-background/90 px-0.5 text-center font-mono text-[9px] leading-[14px] tabular-nums text-muted-foreground">
+          {p.championLevel}
+        </span>
+      </div>
+      {/* Summoner spells */}
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <SummonerSpellIcon id={p.summoner1Id} />
+        <SummonerSpellIcon id={p.summoner2Id} />
+      </div>
+      {/* Keystone */}
+      <KeystoneIcon id={p.keystone} />
+      {/* Name + stats */}
       <div className="flex-1 min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <div className="truncate text-sm font-medium">{displayName}</div>
@@ -540,18 +557,50 @@ function ParticipantRow({
           {p.riotIdGameName}
           <span className="text-muted-foreground/40">#{p.riotIdTagline}</span>
         </div>
-        <div className="flex items-center gap-2 font-mono text-xs tabular-nums">
-          <span>
+        <div className="font-mono text-xs tabular-nums">
+          <span className="whitespace-nowrap">
             <span className="text-emerald-400">{p.kills}</span>
             <span className="text-muted-foreground"> / </span>
             <span className="text-red-400">{p.deaths}</span>
             <span className="text-muted-foreground"> / </span>
             <span className="text-amber-400">{p.assists}</span>
           </span>
-          <span className="flex items-center gap-0.5 text-muted-foreground">
-            <CsIcon className="size-3" />
-            {p.csTotal}
-          </span>
+        </div>
+        <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+          <TooltipPrimitive.Root delayDuration={300}>
+            <TooltipPrimitive.Trigger asChild>
+              <span className="flex cursor-default items-center gap-0.5 text-muted-foreground">
+                <CsIcon className="size-3" />
+                {p.csTotal}
+              </span>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={5}
+                className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2.5 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+              >
+                Creep score — minions and jungle monsters killed
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
+          <TooltipPrimitive.Root delayDuration={300}>
+            <TooltipPrimitive.Trigger asChild>
+              <span className="flex cursor-default items-center gap-0.5 text-muted-foreground">
+                <VisionIcon className="size-3" />
+                {p.visionScore}
+              </span>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={5}
+                className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2.5 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+              >
+                Vision score — wards placed, wards killed, and time providing vision
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5">
@@ -584,6 +633,7 @@ function TeamBlock({
   maxDamage,
   maxGold,
   badges,
+  goldLead,
 }: {
   title: string;
   participants: ParticipantDetail[];
@@ -591,6 +641,7 @@ function TeamBlock({
   maxDamage: number;
   maxGold: number;
   badges: Map<string, { label: string; tip: string }>;
+  goldLead: number;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -605,6 +656,17 @@ function TeamBlock({
         >
           {win ? "Win" : "Loss"}
         </span>
+        {goldLead !== 0 && (
+          <span
+            className={cn(
+              "font-mono text-xs tabular-nums",
+              goldLead > 0 ? "text-amber-400/70" : "text-muted-foreground/50"
+            )}
+          >
+            {goldLead > 0 ? "+" : ""}
+            {(goldLead / 1000).toFixed(1)}k gold
+          </span>
+        )}
       </h3>
       <m.ul
         initial="hidden"
@@ -642,6 +704,8 @@ export function MatchDetailView({
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
   const maxGold = Math.max(...detail.participants.map((p) => p.goldEarned), 1);
   const badges = computeBadges(detail.participants);
+  const blueGold = detail.teams.find((t) => t.teamId === 100)?.totalGold ?? 0;
+  const redGold = detail.teams.find((t) => t.teamId === 200)?.totalGold ?? 0;
 
   useSplashChampion(currentChampion);
 
@@ -661,6 +725,7 @@ export function MatchDetailView({
             maxDamage={maxDamage}
             maxGold={maxGold}
             badges={badges}
+            goldLead={blueGold - redGold}
           />
         </m.div>
         <m.div
@@ -675,6 +740,7 @@ export function MatchDetailView({
             maxDamage={maxDamage}
             maxGold={maxGold}
             badges={badges}
+            goldLead={redGold - blueGold}
           />
         </m.div>
       </div>

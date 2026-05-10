@@ -11,7 +11,10 @@ function summonerBase(account: LolAccount): string {
 async function fetchLiveGame(account: LolAccount): Promise<LiveMatch | null> {
   const res = await fetch(`${summonerBase(account)}/live`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<LiveMatch | null>;
+  // NestJS serializes a `null` controller return as an empty body, not "null",
+  // so res.json() would throw "Unexpected end of JSON input" when the game ends.
+  const text = await res.text();
+  return text ? (JSON.parse(text) as LiveMatch | null) : null;
 }
 
 export function liveGameQueryKey(account: LolAccount | undefined) {

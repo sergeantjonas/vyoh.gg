@@ -49,6 +49,26 @@ export function CsIcon({ className }: { className?: string }) {
 
 // Game pictogram SVGs sourced from game-icons.net (CC BY 3.0).
 
+// Vision / ward — simple eye glyph
+export function VisionIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      role="img"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8 4C4.5 4 1.7 6.2 0.5 8c1.2 1.8 4 4 7.5 4s6.3-2.2 7.5-4C14.3 6.2 11.5 4 8 4Zm0 6.5A2.5 2.5 0 1 1 8 5.5a2.5 2.5 0 0 1 0 5Zm0-1.25a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"
+      />
+    </svg>
+  );
+}
+
 // Crossed swords — Lorc (https://game-icons.net/1x1/lorc/crossed-swords.html)
 export function CrossedSwordsIcon(props: SVGProps<SVGSVGElement>) {
   return (

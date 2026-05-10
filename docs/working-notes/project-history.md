@@ -15,7 +15,31 @@ vyoh.gg/
 
 ## Last captured status — 2026-05-10
 
-Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as conclusions page, match detail with full post-game review depth. Key recent additions: trends reworked from raw-stats to conclusion-briefing format with 9 insight tiles; match detail expanded to a full post-game tool with build order, gold-lead chart, interactive kill/objective timeline, kill heatmap, skill order grid, and lane-phase chart.
+Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as conclusions page, match detail with full post-game review depth. Lane opponent hover popover on match rows. Live game view with Spectator-V5 data (participant cards: champion, summoner spells, keystone, rank, mastery, form pips; compositional analysis radar; bans strip; queue/map header badges); in-game indicator chip in the account header visible across all sub-tabs.
+
+## Recent arcs (2026-05-10)
+
+### Lane opponent hover popover
+
+Match history rows now surface the lane opponent's champion name with a hover popover revealing the full opposing team roster. The popover (`match-list-row-popover.tsx`) is lazy-loaded via `React.lazy` + `Suspense` to keep the match list bundle tight. `match-row.tsx` wraps the vs-column in a Radix `HoverCard`; participant cards show champion icon and name for all five opponents.
+
+### Live game view
+
+Full spectator page at `/lol/$accountSlug/live` plus an in-game indicator chip in the account header.
+
+**Backend:**
+- `LiveGamePollerService` polls Riot Spectator-V5 every 60 s for all tracked accounts; results held in an in-memory `Map<puuid, PuuidEntry>`.
+- On new game: async enrichment fetches rank (League-V4), champion mastery, and last-5 match form for whitelisted accounts (those in the DB). Enrichment writes into the cache entry incrementally as promises settle.
+- SSE events `game-started` / `game-ended` emitted through the existing `MatchEventsService` Subject.
+- New endpoint: `GET /lol/summoners/:region/:gameName/:tagLine/live`.
+- `LiveMatch` and related types added to `@vyoh/shared`.
+
+**Frontend:**
+- `use-live-match.ts`: `useLiveGame` (TanStack Query, `refetchInterval: 30 s`) + `useLiveGameEvents` (SSE subscription, invalidates on game-started/ended events).
+- `live.tsx`: two-team participant cards (champion image with wsrv.nl → raw CDragon fallback, summoner spell icons and keystone via DDragon URLs, rank badge, mastery, form pips for whitelisted accounts), bans strip, queue/map/mode header badges, auto-exit state when game ends.
+- Compositional analysis: `useQueries` fetches CDragon role data for all 10 champions in parallel; Recharts `RadarChart` overlays blue/red team profiles across six axes (tank/fighter/mage/assassin/marksman/support).
+- `live-game-chip.tsx` (in `_shared`): animated "In Game" link chip using `AnimatePresence` / `m.div`, placed in the account header beside the queue filter and account switcher so it's visible on all sub-tabs when a game is active.
+- Summoner spell icons and keystone perk images switched from CDragon `rcp-be-lol-game-data` raw paths (both returned 404) to DDragon: spells use `cdn/{version}/img/spell/{SpellKey}.png` keyed via `useDDragonVersion()`; keystones use versionless `cdn/img/perk-images/{CamelCasePath}`.
 
 ## Recent arcs (2026-05-08, night session)
 

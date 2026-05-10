@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
+import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
+import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
-import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
 import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
 import { useQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -47,54 +48,6 @@ const MAP_NAMES: Record<number, string> = {
   21: "Nexus Blitz",
   30: "Rings of Wrath",
 };
-
-// Riot summoner spell ID → DDragon spell key. Stable across patches.
-const SPELL_KEYS: Record<number, string> = {
-  1: "SummonerBoost",
-  3: "SummonerExhaust",
-  4: "SummonerFlash",
-  6: "SummonerHaste",
-  7: "SummonerHeal",
-  11: "SummonerSmite",
-  12: "SummonerTeleport",
-  13: "SummonerMana",
-  14: "SummonerDot",
-  21: "SummonerBarrier",
-  32: "SummonerSnowball",
-  39: "SummonerMark",
-  54: "SummonerPoroRecall",
-};
-
-// Riot keystone perk ID → DDragon perk-images path (no version segment needed).
-const KEYSTONE_ICONS: Record<number, string> = {
-  // Precision
-  8005: "Styles/Precision/PressTheAttack/PressTheAttack.png",
-  8008: "Styles/Precision/LethalTempo/LethalTempoTemp.png",
-  8021: "Styles/Precision/FleetFootwork/FleetFootwork.png",
-  8010: "Styles/Precision/Conqueror/Conqueror.png",
-  // Domination
-  8112: "Styles/Domination/Electrocute/Electrocute.png",
-  8124: "Styles/Domination/Predator/Predator.png",
-  8128: "Styles/Domination/DarkHarvest/DarkHarvest.png",
-  9923: "Styles/Domination/HailOfBlades/HailOfBlades.png",
-  // Sorcery
-  8214: "Styles/Sorcery/SummonAery/SummonAery.png",
-  8229: "Styles/Sorcery/ArcaneComet/ArcaneComet.png",
-  8230: "Styles/Sorcery/PhaseRush/PhaseRush.png",
-  // Resolve
-  8437: "Styles/Resolve/GraspOfTheUndying/GraspOfTheUndying.png",
-  8439: "Styles/Resolve/VeteranAftershock/VeteranAftershock.png",
-  8465: "Styles/Resolve/Guardian/Guardian.png",
-  // Inspiration
-  8351: "Styles/Inspiration/GlacialAugment/GlacialAugment.png",
-  8360: "Styles/Inspiration/UnsealedSpellbook/UnsealedSpellbook.png",
-  8369: "Styles/Inspiration/FirstStrike/FirstStrike.png",
-};
-
-const DDRAGON_SPELL = (version: string, key: string) =>
-  `https://ddragon.leagueoflegends.com/cdn/${version}/img/spell/${key}.png`;
-const DDRAGON_PERK = (path: string) =>
-  `https://ddragon.leagueoflegends.com/cdn/img/perk-images/${path}`;
 
 // ─── composition analysis ────────────────────────────────────────────────────
 
@@ -167,6 +120,36 @@ function isUserParticipant(
   );
 }
 
+// Spectator-V5 doesn't return teamPosition, so infer lane from Smite + champion role tags.
+// Heuristic accuracy ~80% — off-meta picks (Tahm Kench top, Lux support) may misorder.
+const LANE_ORDER = ["TOP", "JUNGLE", "MID", "BOTTOM", "SUPPORT"] as const;
+type Lane = (typeof LANE_ORDER)[number];
+
+const SMITE_SPELL_ID = 11;
+
+function inferLane(p: LiveGameParticipant, roles: string[]): Lane {
+  if (p.spell1Id === SMITE_SPELL_ID || p.spell2Id === SMITE_SPELL_ID) return "JUNGLE";
+  const primary = roles[0];
+  if (primary === "marksman") return "BOTTOM";
+  if (primary === "support") return "SUPPORT";
+  if (primary === "mage" || primary === "assassin") return "MID";
+  return "TOP";
+}
+
+function sortByLane(
+  team: LiveGameParticipant[],
+  rolesByChampion: Record<number, string[]>
+): LiveGameParticipant[] {
+  return [...team]
+    .map((p, i) => ({
+      p,
+      i,
+      score: LANE_ORDER.indexOf(inferLane(p, rolesByChampion[p.championId] ?? [])),
+    }))
+    .sort((a, b) => a.score - b.score || a.i - b.i)
+    .map(({ p }) => p);
+}
+
 function formatSeconds(totalSeconds: number): string {
   const s = Math.floor(totalSeconds);
   const m = Math.floor(s / 60);
@@ -216,39 +199,6 @@ function ChampionImg({
       onError={(e) => {
         e.currentTarget.onerror = null;
         e.currentTarget.src = championFallbackUrl(championId);
-      }}
-    />
-  );
-}
-
-function SummonerSpellIcon({ spellId }: { spellId: number }) {
-  const version = useDDragonVersion();
-  const key = SPELL_KEYS[spellId];
-  if (!key) return <div className="size-[18px] rounded-sm bg-muted/40" />;
-  return (
-    <img
-      src={DDRAGON_SPELL(version, key)}
-      alt=""
-      className="size-[18px] rounded-sm object-cover"
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = "";
-      }}
-    />
-  );
-}
-
-function KeystoneIcon({ keystoneId }: { keystoneId: number }) {
-  const path = KEYSTONE_ICONS[keystoneId];
-  if (!path) return <div className="size-[18px] rounded-full bg-muted/40" />;
-  return (
-    <img
-      src={DDRAGON_PERK(path)}
-      alt=""
-      className="size-[18px] rounded-full object-cover"
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = "";
       }}
     />
   );
@@ -317,10 +267,10 @@ function ParticipantCard({
         className="size-10 shrink-0 rounded-md bg-muted object-cover"
       />
       {/* Summoner spells + keystone column */}
-      <div className="flex shrink-0 flex-col gap-0.5">
-        <SummonerSpellIcon spellId={participant.spell1Id} />
-        <SummonerSpellIcon spellId={participant.spell2Id} />
-        <KeystoneIcon keystoneId={participant.keystone} />
+      <div className="flex shrink-0 flex-col items-center gap-0.5">
+        <SummonerSpellIcon id={participant.spell1Id} />
+        <SummonerSpellIcon id={participant.spell2Id} />
+        <KeystoneIcon id={participant.keystone} />
       </div>
       {/* Name / stats */}
       <div
@@ -377,25 +327,14 @@ function BanIcon({ championId }: { championId: number }) {
 function LiveCompositionPanel({
   team100,
   team200,
+  rolesByChampion,
+  allLoaded,
 }: {
   team100: LiveGameParticipant[];
   team200: LiveGameParticipant[];
+  rolesByChampion: Record<number, string[]>;
+  allLoaded: boolean;
 }) {
-  const allIds = [...team100, ...team200].map((p) => p.championId);
-
-  const results = useQueries({
-    queries: allIds.map((id) => ({
-      queryKey: ["cdragon-champion", id] as const,
-      queryFn: () => fetchChampionInfo(id),
-      staleTime: Number.POSITIVE_INFINITY,
-    })),
-  });
-
-  const rolesByChampion: Record<number, string[]> = Object.fromEntries(
-    allIds.map((id, i) => [id, results[i]?.data?.roles ?? []])
-  );
-  const allLoaded = results.every((r) => !r.isPending);
-
   const blueComp = computeTeamComp(
     team100.map((p) => p.championId),
     rolesByChampion
@@ -458,8 +397,24 @@ function LiveContent({
 }) {
   const timer = useGameTimer(match);
 
-  const team100 = match.participants.filter((p) => p.teamId === 100);
-  const team200 = match.participants.filter((p) => p.teamId === 200);
+  const allChampionIds = match.participants.map((p) => p.championId);
+  const championResults = useQueries({
+    queries: allChampionIds.map((id) => ({
+      queryKey: ["cdragon-champion", id] as const,
+      queryFn: () => fetchChampionInfo(id),
+      staleTime: Number.POSITIVE_INFINITY,
+    })),
+  });
+  const rolesByChampion: Record<number, string[]> = Object.fromEntries(
+    allChampionIds.map((id, i) => [id, championResults[i]?.data?.roles ?? []])
+  );
+  const allLoaded = championResults.every((r) => !r.isPending);
+
+  const team100Raw = match.participants.filter((p) => p.teamId === 100);
+  const team200Raw = match.participants.filter((p) => p.teamId === 200);
+  const isRift = match.gameMode === "CLASSIC";
+  const team100 = isRift ? sortByLane(team100Raw, rolesByChampion) : team100Raw;
+  const team200 = isRift ? sortByLane(team200Raw, rolesByChampion) : team200Raw;
   const bans100 = match.bans
     .filter((b) => b.teamId === 100)
     .sort((a, b) => a.pickTurn - b.pickTurn);
@@ -530,7 +485,12 @@ function LiveContent({
       </div>
 
       {/* Compositional analysis */}
-      <LiveCompositionPanel team100={team100} team200={team200} />
+      <LiveCompositionPanel
+        team100={team100}
+        team200={team200}
+        rolesByChampion={rolesByChampion}
+        allLoaded={allLoaded}
+      />
     </div>
   );
 }
