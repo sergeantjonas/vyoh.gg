@@ -12,6 +12,7 @@ import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
 import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
+import { ProfileSynergy } from "@/lol/profile/profile-synergy";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
@@ -37,6 +38,7 @@ function ProfilePage() {
       <ProfileNowPlaying />
       <ProfileRoleStrip />
       <ProfileDuos accountSlug={accountSlug} />
+      <ProfileSynergy accountSlug={accountSlug} />
       <ProfileQueueDistribution />
       <ProfileActivityCalendar accountSlug={accountSlug} />
       <ProfileStatsBar />

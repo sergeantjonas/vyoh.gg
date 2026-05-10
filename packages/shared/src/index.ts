@@ -1,6 +1,7 @@
 export type { Me } from "./identity.ts";
 export type { LolAccount } from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";
+export type { ChampionPair } from "./lol/champion-pair.ts";
 export type { Duo } from "./lol/duo.ts";
 export type { MatchSummary } from "./lol/match.ts";
 export type { MatchDetail, ParticipantDetail, TeamSummary } from "./lol/match-detail.ts";

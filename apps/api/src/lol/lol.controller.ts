@@ -13,6 +13,7 @@ import {
 import type {
   CachedMatchesResult,
   ChampionExtras,
+  ChampionPair,
   Duo,
   LiveMatch,
   MatchSummary,
@@ -77,6 +78,16 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<Duo[]> {
     return this.lol.getDuos(region, gameName, tagLine, count);
+  }
+
+  @Get("champion-pairs")
+  async getChampionPairs(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<ChampionPair[]> {
+    return this.lol.getChampionPairs(region, gameName, tagLine, count);
   }
 
   @Get("rank/history")

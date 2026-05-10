@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import type {
   CachedMatchesResult,
   ChampionExtras,
+  ChampionPair,
   Duo,
   LiveMatch,
   LolAccount,
@@ -781,6 +782,81 @@ export class LolService {
           topChampion,
         };
       });
+  }
+
+  // Champion-pair synergy. For the user's most recent `count` matches, walk
+  // teammates and bucket by (yourChamp, teammateChamp). The chord viz on the
+  // Profile renders the bipartite flow: your champion pool on one side,
+  // teammates' picks on the other, ribbon weight = games played together.
+  // Win counted from the user's team perspective (me.win).
+  async getChampionPairs(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<ChampionPair[]> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return [];
+
+    const userMatches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true },
+    });
+    if (userMatches.length === 0) return [];
+
+    const matchIds = userMatches.map((m) => m.matchId);
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: matchIds } },
+    });
+
+    interface PairAcc {
+      yourChamp: string;
+      teammateChamp: string;
+      games: number;
+      wins: number;
+    }
+    const map = new Map<string, PairAcc>();
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            championName: string;
+            teamId: number;
+            win: boolean;
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      const teammates = detail.info.participants.filter(
+        (p) => p.teamId === me.teamId && p.puuid !== me.puuid
+      );
+      for (const t of teammates) {
+        const key = `${me.championName}|${t.championName}`;
+        const prev = map.get(key);
+        if (prev) {
+          prev.games += 1;
+          if (me.win) prev.wins += 1;
+        } else {
+          map.set(key, {
+            yourChamp: me.championName,
+            teammateChamp: t.championName,
+            games: 1,
+            wins: me.win ? 1 : 0,
+          });
+        }
+      }
+    }
+
+    return [...map.values()].sort((a, b) => b.games - a.games);
   }
 
   private async resolveSummoner(
