@@ -199,9 +199,9 @@ So later phases don't undo earlier work, the following changes need to flow back
 If asked tomorrow "what's the next arc after the documented roadmaps land," in priority order:
 
 1. **Duo / squad detection** — strong "this site noticed something" moment, novel.
-2. **Yearly recap (calm Wrapped)** — shareable artifact, motion-rich, end-of-season cadence.
-3. **Magazine-grid reflow on Trends range change** — flagship motion for the rework's flagship page.
-4. **Pre-game ritual widget** — best embodiment of the calm-coaching tonal bet.
+2. ✅ **Yearly recap (calm Wrapped)** — shipped 2026-05-10 as `/lol/$accountSlug/recap` (3 hero sections: rank arc, headline champion, top insight). Share-image and scrollytelling polish deferred.
+3. ✅ **Magazine-grid reflow on Trends range change** — shipped 2026-05-10. Tile reorder by priority (insufficient-data tiles sink to the bottom band), `ConclusionCard` verdict cross-fade via `AnimatePresence` `mode="popLayout"`, sample-size badge `pathLength` draw on count change.
+4. ✅ **Pre-game ritual widget** — shipped 2026-05-10 as a Profile section (`profile-pregame-ritual.tsx`) between live chip and recent form: form, after-last-game tilt, current-hour slot WR, top recent champion.
 5. **Patch-aware everything** — undertapped signal across the LoL-companion space.
 6. **visx integration** — unlocks Phase B properly; library-shortlist promotion.
 7. **Server-side live-game polling + SSE push** — cleaner architecture for Phase C, broader UI surface possibilities.
@@ -215,3 +215,4 @@ If asked tomorrow "what's the next arc after the documented roadmaps land," in p
 
 - **2026-05-09** — vNext doc drafted. Owner instructed: prioritize visible/demoable; defer RSO auth indefinitely; splash parallax confirmed as tried-and-reverted (commit `4c60951`). Cross-references added to match-depth-roadmap.md and trends-rework.md to ensure consistency.
 - **2026-05-09** — animation-stack stance recorded: Motion stays primary; GSAP is a scoped specialist (ScrollTrigger / MorphSVG / deterministic timelines / SplitText) brought in for specific surfaces only; Lottie for one-off pre-rendered illustrations; react-spring permanent-no. Prevents future sessions from pitching a wholesale animation-stack swap based on the library list above.
+- **2026-05-10** — top-10 entries #2/#3/#4 shipped together (commits `574aa7e` magazine-grid reflow, `c8bd4fe` pre-game ritual, `6c0eadf` recap arc). Magazine-grid reflow uses priority-band sort with a 1000-point inactive penalty so insufficient-data tiles drift to the bottom; verdict cross-fade in `ConclusionCard` rides `AnimatePresence mode="popLayout"`; sample-size badge animates via Motion `pathLength`. Recap is a sibling sub-route at `/recap` (no tab in the strip — link from Profile only) so it reads as an "open this artifact" surface rather than a tab. Three hero sections only; share-image and scrollytelling-by-section deferred to later sessions.
