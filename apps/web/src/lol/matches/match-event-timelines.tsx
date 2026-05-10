@@ -104,21 +104,21 @@ function ObjectiveIcon({ type, teamId }: { type: string; teamId: number }) {
 
   if (type === "DRAGON_HEXTECH") {
     return (
-      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center">
+      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-sm border border-black">
         <HextechDrakeIcon className={cn("w-full h-full", teamColor)} />
       </span>
     );
   }
   if (type === "DRAGON_CHEMTECH") {
     return (
-      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center">
+      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-sm border border-black">
         <ChemtechDrakeIcon className={cn("w-full h-full", teamColor)} />
       </span>
     );
   }
   if (type === "HORDE") {
     return (
-      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center">
+      <span className="inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-sm border border-black">
         <VoidGrubIcon className={cn("w-full h-full", teamColor)} />
       </span>
     );
