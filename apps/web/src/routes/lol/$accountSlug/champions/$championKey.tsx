@@ -4,8 +4,9 @@ import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
 import { ItemIcon } from "@/lol/_shared/item-icon";
 import { findPatchBoundaries } from "@/lol/_shared/patch-version";
-import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
 import { ThisPatchBadge } from "@/lol/_shared/this-patch-badge";
+import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -16,6 +17,7 @@ import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
+import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
@@ -90,12 +92,24 @@ function WinRateTooltip({
   );
 }
 
+// Wide enough to span ~6 patches at any realistic play rate. Decoupled from
+// the matches-list count selector so champion stats / sparkline / per-patch
+// strip / patch boundaries all read from the same dataset and don't drift
+// out of sync depending on the user's matches-list view scope.
+const CHAMPION_DETAIL_FETCH_COUNT = 2000;
+
 function ChampionDetailPage() {
   const { accountSlug, championKey } = Route.useParams();
   // Champion stats anchor to serious play (KDA/WR are performance reads).
   // Items + matchups still pulled from all queues for v1 — laneOpponent is
   // null on ARAM so matchups auto-filter; item noise from ARAM is mild.
-  const { matches } = useSeriousMatches();
+  const account = useAccountFromSlug(accountSlug);
+  const { ids } = useSeriousQueues();
+  const { data } = useCachedMatchesWindow(account, CHAMPION_DETAIL_FETCH_COUNT);
+  const matches = useMemo(
+    () => (data ? filterToSerious(data.matches, ids) : undefined),
+    [data, ids]
+  );
   const championName = useChampionName();
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
@@ -340,9 +354,11 @@ function ChampionDetailPage() {
         </m.div>
       )}
 
-      {/* Per-patch champion WR — self-fetches wider data so the strip's
-          6-patch tail isn't bounded by the matches-list count selector. */}
-      <ChampionPatchHistory accountSlug={accountSlug} championAlias={alias} />
+      {/* Per-patch champion WR — feeds off the page's wider matches window so
+          the strip's 6-patch tail and the hero summary are derived from the
+          same dataset (was drifting when the strip self-fetched 2000 matches
+          but the page used the bounded count selector). */}
+      <ChampionPatchHistory matches={champMatches} championAlias={alias} />
 
       {/* Top items */}
       {extras.data && extras.data.topItems.length > 0 && (

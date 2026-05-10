@@ -1,18 +1,9 @@
 import { cn } from "@/lib/utils";
-import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
-import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useMemo } from "react";
 import { groupByPatch } from "../_shared/patch-version";
-
-// Wide enough to cover the strip's 6-patch tail at any realistic play rate
-// (heavy grinders ~1500 matches over 6 patches; Riot caps history at ~1000
-// per puuid anyway). Decoupled from the user's match-list count selector so
-// patch history isn't compressed when they're browsing 20 matches at a time.
-const PATCH_HISTORY_FETCH_COUNT = 2000;
 
 interface PatchStat {
   patch: string;
@@ -55,24 +46,15 @@ function patchVerdict(stats: readonly PatchStat[]): string | null {
 }
 
 export function ChampionPatchHistory({
-  accountSlug,
+  matches,
   championAlias,
 }: {
-  accountSlug: string;
+  // Pre-filtered to this champion's matches by the page so we don't re-walk
+  // the full window. Page provides a wide-enough fetch (CHAMPION_DETAIL_
+  // FETCH_COUNT) for the strip's 6-patch tail.
+  matches: readonly MatchSummary[];
   championAlias: string;
 }) {
-  // Self-fetches a wide window so the strip can show ~6 patches of history
-  // regardless of how many matches the matches-list count selector is set
-  // to. Filters to the user's serious queues so the patch verdict matches
-  // the rest of the Champion detail page's posture.
-  const account = useAccountFromSlug(accountSlug);
-  const { ids } = useSeriousQueues();
-  const { data } = useCachedMatchesWindow(account, PATCH_HISTORY_FETCH_COUNT);
-  const matches = useMemo<readonly MatchSummary[]>(() => {
-    if (!data) return [];
-    return filterToSerious(data.matches, ids).filter((m) => m.champion === championAlias);
-  }, [data, ids, championAlias]);
-
   const stats = useMemo(() => buildPatchStats(matches), [matches]);
   const verdict = useMemo(() => patchVerdict(stats), [stats]);
 
