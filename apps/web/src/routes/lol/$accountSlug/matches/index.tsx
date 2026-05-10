@@ -1,6 +1,5 @@
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
-import { useAccountControlsSlot } from "@/lol/_shared/account-controls-slot";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
 import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
@@ -10,7 +9,6 @@ import { useCachedMatches } from "@/lol/matches/use-matches";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { useMemo } from "react";
-import { createPortal } from "react-dom";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/")({
   component: MatchesPage,
@@ -28,17 +26,12 @@ function MatchesPage() {
   );
 
   const setHoveredChampion = useHoverChampion();
-  const controlsSlot = useAccountControlsSlot();
 
   return (
     <div className="flex flex-col gap-4">
-      {controlsSlot &&
-        createPortal(
-          <div className="mx-auto flex max-w-4xl items-center justify-end gap-3 px-6 py-2">
-            <QueueFilter />
-          </div>,
-          controlsSlot
-        )}
+      <div className="flex items-center justify-end">
+        <QueueFilter />
+      </div>
       {matches.isPending && account && <MatchListSkeleton />}
       {matches.isError && (
         <div className="flex flex-col items-start gap-2">
