@@ -19,6 +19,7 @@ import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
+import { TrendDeathMatchupHeatmap } from "@/lol/trends/trend-death-matchup-heatmap";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
@@ -531,6 +532,7 @@ function ChampionDetailPage() {
         </m.div>
       )}
 
+      <TrendDeathMatchupHeatmap current={champMatches} />
       <TrendTimeHeatmap current={champMatches} />
       <TrendTiltIndicator current={champMatches} previous={[]} />
     </div>
