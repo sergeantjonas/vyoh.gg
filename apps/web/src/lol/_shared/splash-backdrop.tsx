@@ -4,6 +4,7 @@ import {
   championSplashUrl,
 } from "@/lol/_shared/champion-icon";
 import { championTheme } from "@/lol/_shared/champion-theme";
+import { getResolvedSplash, resolveSplash } from "@/lol/_shared/splash-resolver";
 import { decode as decodeBlurhash } from "blurhash";
 import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
 import {
@@ -85,19 +86,36 @@ function ChampionSplashLayer({
   const blurhashUrl = useMemo(() => blurhashToDataUrl(theme.blurhash), [theme.blurhash]);
   const [imgReady, setImgReady] = useState(false);
 
-  // Source the pre-blurred WebP from wsrv.nl; if it ever fails we fall back
-  // to the direct CDragon splash with the original CSS `filter: blur(5px)`
-  // restored — same look, just paying the live-blur compositor cost again.
-  const [erroredChampion, setErroredChampion] = useState<string | null>(null);
-  const [deepErrorChampion, setDeepErrorChampion] = useState<string | null>(null);
-  const url =
-    deepErrorChampion === champion
-      ? championSplashUrl(champion)
-      : erroredChampion === champion
-        ? championCenteredSplashUrl(champion)
-        : championBackdropSplashUrl(champion);
+  // Single-shot URL resolution per champion (see splash-resolver). Source
+  // the pre-blurred wsrv.nl WebP first; if that fails fall back to the
+  // direct CDragon splash and apply CSS `filter: blur(5px)` to compensate
+  // for the missing upstream blur.
+  const cacheKey = `backdrop:${champion}`;
+  const primary = championBackdropSplashUrl(champion);
+  const [url, setUrl] = useState<string | undefined>(() => getResolvedSplash(cacheKey));
+
+  useEffect(() => {
+    const cached = getResolvedSplash(cacheKey);
+    if (cached) {
+      setUrl(cached);
+      return;
+    }
+    setUrl(undefined);
+    let cancelled = false;
+    resolveSplash(cacheKey, [
+      primary,
+      championCenteredSplashUrl(champion),
+      championSplashUrl(champion),
+    ]).then((resolved) => {
+      if (!cancelled) setUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [champion, cacheKey, primary]);
+
   const imgFilter =
-    erroredChampion === champion
+    url && url !== primary
       ? "blur(5px) saturate(0.92) brightness(0.7)"
       : "saturate(0.92) brightness(0.7)";
 
@@ -149,24 +167,22 @@ function ChampionSplashLayer({
                 style={{ opacity: 0.35 }}
               />
             )}
-            <m.img
-              src={url}
-              alt=""
-              aria-hidden="true"
-              loading="eager"
-              decoding="async"
-              fetchPriority="low"
-              onLoad={() => setImgReady(true)}
-              onError={() => {
-                if (erroredChampion !== champion) setErroredChampion(champion);
-                else setDeepErrorChampion(champion);
-              }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: imgReady ? 0.2 : 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              style={{ filter: imgFilter }}
-              className="absolute inset-0 size-full object-cover object-top"
-            />
+            {url && (
+              <m.img
+                src={url}
+                alt=""
+                aria-hidden="true"
+                loading="eager"
+                decoding="async"
+                fetchPriority="low"
+                onLoad={() => setImgReady(true)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: imgReady ? 0.2 : 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                style={{ filter: imgFilter }}
+                className="absolute inset-0 size-full object-cover object-top"
+              />
+            )}
           </div>
         </m.div>
       </m.div>

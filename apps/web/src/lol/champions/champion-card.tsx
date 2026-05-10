@@ -5,15 +5,32 @@ import {
   championSplashUrl,
 } from "@/lol/_shared/champion-icon";
 import { championTheme } from "@/lol/_shared/champion-theme";
+import { getResolvedSplash, resolveSplash } from "@/lol/_shared/splash-resolver";
 import { shouldFlipChampion } from "@/lol/champions/champion-direction";
 import { m } from "motion/react";
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 
-// Module-scope cache of splash URLs whose `<img>` has already fired
-// `onLoad` at least once during this session. Survives unmount, so a row
-// that remounts (virtualizer reuse, morphEpoch bump on detail back-nav)
-// can skip the opacity-0 → opacity-95 fade and stay painted.
-const loadedSrcs = new Set<string>();
+// Keyed by champion name so a remounting card (virtualizer reuse, morphEpoch
+// bump) can skip the fade regardless of which fallback URL actually loaded.
+const loadedChampions = new Set<string>();
+
+// CDragon centered splash (wsrv.nl or direct) frames the champion at ~30%
+// from top. DDragon's landscape splash has the champion in the upper half
+// but less precisely framed, so shift slightly higher to keep the face visible.
+function splashObjectPosition(src: string): string {
+  return src.includes("ddragon") ? "center 20%" : "center 30%";
+}
+
+function cardCandidates(champion: string): string[] {
+  return [
+    championCardSplashUrl(champion),
+    championCenteredSplashUrl(champion),
+    // DDragon landscape splash as last resort — 1215×717, same resolution
+    // class as CDragon. Composition varies per champion but much better
+    // quality than the 308×560 portrait loading art.
+    championSplashUrl(champion),
+  ];
+}
 
 export const championCardBaseClassName =
   "themed-card relative isolate flex h-28 items-center gap-4 overflow-hidden rounded-md border pl-3 pr-4 transition-[transform,border-color,box-shadow] duration-300 ease-out";
@@ -31,29 +48,31 @@ export function ChampionCardChrome({
   champion: string;
   win?: boolean;
 }) {
-  // Try the resized wsrv.nl URL first; if that ever fails (proxy down,
-  // upstream miss, etc.) fall back to the direct CDragon centered splash so
-  // the card still renders correctly. Tracking the errored champion (rather
-  // than a boolean) means a champion swap automatically retries the proxy
-  // — no useEffect needed to reset state.
-  const [erroredChampion, setErroredChampion] = useState<string | null>(null);
-  const [deepErrorChampion, setDeepErrorChampion] = useState<string | null>(null);
-  const src =
-    deepErrorChampion === champion
-      ? championSplashUrl(champion)
-      : erroredChampion === champion
-        ? championCenteredSplashUrl(champion)
-        : championCardSplashUrl(champion);
+  // Single-shot URL resolution per champion (see splash-resolver). Once any
+  // card resolves Elise's working URL, every other card on the page picks
+  // it up directly — no per-card fallback chain rolling the dice on flaky
+  // wsrv.nl responses.
+  const cacheKey = `card:${champion}`;
+  const [src, setSrc] = useState<string | undefined>(() => getResolvedSplash(cacheKey));
+  // First-paint fade-in keyed by champion name so virtualizer / morphEpoch
+  // remounts skip the fade regardless of which fallback URL actually loaded.
+  const [loaded, setLoaded] = useState(() => loadedChampions.has(champion));
 
-  // First-paint fade-in: stays at opacity-0 until the very first image
-  // resolves, then transitions to the resting opacity. Already-loaded
-  // URLs initialize as `true` so list↔detail morph remounts (driven by
-  // morphEpoch) don't strobe the whole strip back through the fade.
-  const [loaded, setLoaded] = useState(() => loadedSrcs.has(src));
-  const handleLoad = () => {
-    loadedSrcs.add(src);
-    setLoaded(true);
-  };
+  useEffect(() => {
+    const cached = getResolvedSplash(cacheKey);
+    if (cached) {
+      setSrc(cached);
+      return;
+    }
+    setSrc(undefined);
+    let cancelled = false;
+    resolveSplash(cacheKey, cardCandidates(champion)).then((url) => {
+      if (!cancelled) setSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [champion, cacheKey]);
 
   return (
     <>
@@ -66,22 +85,24 @@ export function ChampionCardChrome({
         className="pointer-events-none absolute inset-y-0 left-0 right-1/3 overflow-hidden rounded-l-md"
       >
         <div className="size-full card-splash-breathe">
-          <img
-            src={src}
-            onLoad={handleLoad}
-            onError={() => {
-              if (erroredChampion !== champion) setErroredChampion(champion);
-              else setDeepErrorChampion(champion);
-            }}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            className={cn(
-              "size-full object-cover object-[center_30%] transition-opacity duration-300",
-              loaded ? "opacity-95 group-hover:opacity-100" : "opacity-0",
-              shouldFlipChampion(champion) && "-scale-x-100"
-            )}
-          />
+          {src && (
+            <img
+              src={src}
+              onLoad={() => {
+                loadedChampions.add(champion);
+                setLoaded(true);
+              }}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              style={{ objectPosition: splashObjectPosition(src) }}
+              className={cn(
+                "size-full object-cover transition-opacity duration-300",
+                shouldFlipChampion(champion) && "-scale-x-100",
+                loaded ? "opacity-95 group-hover:opacity-100" : "opacity-0"
+              )}
+            />
+          )}
         </div>
       </div>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent from-10% via-background/60 via-45% to-background to-[67%]" />
