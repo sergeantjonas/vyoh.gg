@@ -1,3 +1,4 @@
+import { EmptyDuosIllustration, EmptyState } from "@/components/empty-state";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useDuos } from "@/lol/profile/use-duos";
@@ -18,9 +19,14 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
     return (
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium text-muted-foreground">Duos</h3>
-        <p className="rounded-lg border border-dashed bg-card/20 px-3 py-3 text-xs text-muted-foreground/70">
-          No recurring duo detected — you mostly queue solo in this window.
-        </p>
+        <div className="rounded-lg border border-dashed bg-card/20">
+          <EmptyState
+            illustration={<EmptyDuosIllustration />}
+            title="No recurring duo detected"
+            hint="You mostly queue solo in this window."
+            className="py-4"
+          />
+        </div>
       </section>
     );
   }

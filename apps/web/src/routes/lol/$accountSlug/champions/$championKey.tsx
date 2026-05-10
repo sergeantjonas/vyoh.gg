@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
@@ -172,13 +173,11 @@ function ChampionDetailPage() {
 
   if (!detail) {
     return (
-      <m.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="text-sm text-muted-foreground"
-      >
-        No matches found for {championName(championKey)}.
-      </m.p>
+      <EmptyState
+        illustration={<EmptyChampionIllustration />}
+        title={`No matches on ${championName(championKey)} yet`}
+        hint="Play a game with this champion — stats, items, and matchups appear here once data starts flowing."
+      />
     );
   }
 

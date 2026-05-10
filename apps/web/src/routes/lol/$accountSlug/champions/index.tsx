@@ -1,3 +1,4 @@
+import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
@@ -11,7 +12,6 @@ import { ChampionTable } from "@/lol/champions/champion-table";
 import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import { createFileRoute } from "@tanstack/react-router";
-import { m } from "motion/react";
 import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/")({
@@ -55,14 +55,11 @@ function ChampionsPage() {
       {isPending && !matches ? (
         <ChampionsSkeleton />
       ) : !matches || matches.length === 0 ? (
-        <m.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="text-sm text-muted-foreground"
-        >
-          No matches yet to aggregate.
-        </m.p>
+        <EmptyState
+          illustration={<EmptyMatchesIllustration />}
+          title="No matches yet to aggregate"
+          hint="Play a few games and your champion pool will appear here once data lands."
+        />
       ) : (
         <ChampionTable
           stats={aggregateChampionStats(matches)}

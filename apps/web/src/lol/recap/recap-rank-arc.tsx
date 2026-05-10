@@ -1,3 +1,4 @@
+import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import type { LolAccount, RankHistoryPoint } from "@vyoh/shared";
 import {
@@ -71,10 +72,12 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Rank arc
         </h2>
-        <p className="text-base text-muted-foreground">
-          Not enough rank snapshots yet — your arc will appear here once Riot's
-          tier/division data builds up.
-        </p>
+        <EmptyState
+          illustration={<EmptyLpHistoryIllustration />}
+          title="Not enough rank snapshots yet"
+          hint="Your arc will appear here once Riot's tier/division data builds up."
+          className="py-4"
+        />
       </m.section>
     );
   }

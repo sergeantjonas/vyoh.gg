@@ -1,3 +1,4 @@
+import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
@@ -547,21 +548,28 @@ function LivePage() {
       ) : data ? (
         <LiveContent match={data} account={account} />
       ) : hadGame ? (
-        <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <p className="text-muted-foreground">Game over.</p>
-          <Link
-            to="/lol/$accountSlug"
-            params={{ accountSlug }}
-            className="rounded-md bg-muted px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/80"
-          >
-            Back to profile
-          </Link>
-        </div>
+        <EmptyState
+          illustration={<EmptyLiveGameIllustration />}
+          title="Game over"
+          hint="The match wrapped — head back to your profile for the post-game read."
+          action={
+            <Link
+              to="/lol/$accountSlug"
+              params={{ accountSlug }}
+              className="rounded-md bg-muted px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/80"
+            >
+              Back to profile
+            </Link>
+          }
+          className="py-12"
+        />
       ) : (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <span className="text-2xl">💤</span>
-          <p className="text-muted-foreground">Not currently in a game.</p>
-        </div>
+        <EmptyState
+          illustration={<EmptyLiveGameIllustration />}
+          title="Not currently in a game"
+          hint="Live match data appears here while you're queued or in champ select."
+          className="py-12"
+        />
       )}
     </div>
   );

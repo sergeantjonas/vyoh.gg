@@ -1,3 +1,4 @@
+import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { findPatchBoundaries } from "@/lol/_shared/patch-version";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
@@ -329,16 +330,20 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
       </div>
 
       {isEmpty ? (
-        <m.div
-          className="flex h-48 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground"
-          initial={reduced ? {} : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {history.isError
-            ? "Couldn't load rank history."
-            : "No rank snapshots yet — play a ranked match to start the timeline."}
-        </m.div>
+        <div className="flex h-48 items-center justify-center rounded-md border border-dashed">
+          <EmptyState
+            illustration={<EmptyLpHistoryIllustration />}
+            title={
+              history.isError ? "Couldn't load rank history" : "No rank snapshots yet"
+            }
+            hint={
+              history.isError
+                ? undefined
+                : "Play a ranked match — the timeline starts as snapshots come in."
+            }
+            className="py-2"
+          />
+        </div>
       ) : (
         <div className="h-48 w-full">
           <ResponsiveContainer width="100%" height="100%">

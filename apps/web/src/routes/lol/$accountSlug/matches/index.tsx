@@ -1,3 +1,4 @@
+import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
@@ -6,8 +7,7 @@ import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
 import { useCachedMatches } from "@/lol/matches/use-matches";
-import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { m } from "motion/react";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/")({
@@ -19,6 +19,8 @@ function MatchesPage() {
   const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
   const matches = useCachedMatches(account, queue);
+  const navigate = useNavigate();
+  const queueIsFiltered = queue !== undefined;
 
   const flat = useMemo(
     () => matches.data?.pages.flatMap((p) => p.matches) ?? [],
@@ -66,15 +68,31 @@ function MatchesPage() {
         </>
       )}
       {!matches.isPending && !matches.isError && flat.length === 0 && (
-        <m.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="text-sm text-muted-foreground"
-        >
-          No matches cached yet. The background sync runs every 5 minutes — check back
-          shortly, or hit refresh.
-        </m.p>
+        <EmptyState
+          illustration={<EmptyMatchesIllustration />}
+          title={queueIsFiltered ? "No matches in this queue" : "No matches cached yet"}
+          hint={
+            queueIsFiltered
+              ? "Try a different queue or clear the filter."
+              : "The background sync runs every 5 minutes — check back shortly, or hit refresh."
+          }
+          action={
+            queueIsFiltered ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate({
+                    to: ".",
+                    search: (prev) => ({ ...prev, queue: undefined }),
+                  })
+                }
+              >
+                Clear queue filter
+              </Button>
+            ) : undefined
+          }
+        />
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
 import { TrendComebackResilience } from "@/lol/trends/trend-comeback-resilience";
@@ -226,14 +227,11 @@ function TrendsPage() {
       {isPending && current.length === 0 ? (
         <TrendsSkeleton />
       ) : current.length === 0 ? (
-        <m.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="text-sm text-muted-foreground"
-        >
-          No matches in this window yet.
-        </m.p>
+        <EmptyState
+          illustration={<EmptyMatchesIllustration />}
+          title="No matches in this window yet"
+          hint="Try a wider range, or check back once the next sync runs."
+        />
       ) : (
         <m.div
           layout
