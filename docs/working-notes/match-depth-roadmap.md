@@ -386,7 +386,7 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 
 ## Status
 
-- **Phase A** — largely shipped. DTO extension (ParticipantDetail, TeamSummary), player names + CS on roster rows. Outstanding: lane-opponent on match-list rows, match header strip, damage breakdown segmented bar, score-of-game badges.
+- **Phase A** — largely shipped. DTO extension (ParticipantDetail, TeamSummary), player names + CS on roster rows, match header strip (kills/gold/objectives/first-blood/first-tower), segmented damage bar (physical/magic/true with RAF-gated spring animation). Outstanding: score-of-game badges, lane-opponent on match-list rows (lower priority).
 - **Phase B** — largely shipped. Timeline endpoint + cache + projection, build order panel, gold-lead chart, interactive kill/objective timeline (zoom/scroll), skill order grid, lane-phase gold-differential chart, kill heatmap. Outstanding: build-order anti-clutter filtering (consumables, boot collapse), lane opponent side-by-side on build order.
 - **Phase C** — not started. Opportunistic enrichment locked: all 10 players get rank + mastery (cached by `gameId`); last-5 form pips remain whitelist-only.
 - **Phase D** — not started.

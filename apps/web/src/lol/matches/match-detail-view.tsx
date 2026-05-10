@@ -54,6 +54,65 @@ const teamRow: Variants = {
   },
 };
 
+// ---- Score-of-game badge computation ----
+
+type BadgeKey = "damage" | "kda" | "vision" | "kp" | "cs" | "deaths";
+
+const BADGE_LABELS: Record<BadgeKey, string> = {
+  damage: "Most damage",
+  kda: "Highest KDA",
+  vision: "Most vision",
+  kp: "Highest KP",
+  cs: "Most CS",
+  deaths: "Lowest deaths",
+};
+
+function computeBadges(participants: ParticipantDetail[]): Map<string, string> {
+  type Candidate = { puuid: string; key: BadgeKey; margin: number };
+  const candidates: Candidate[] = [];
+
+  function maxWinner(key: BadgeKey, getValue: (p: ParticipantDetail) => number) {
+    const sorted = [...participants].sort((a, b) => getValue(b) - getValue(a));
+    const best = sorted[0];
+    const second = sorted[1];
+    if (!best || !second) return;
+    const bv = getValue(best);
+    const sv = getValue(second);
+    if (bv === sv) return;
+    candidates.push({ puuid: best.puuid, key, margin: (bv - sv) / Math.max(bv, 1) });
+  }
+
+  function minWinner(key: BadgeKey, getValue: (p: ParticipantDetail) => number) {
+    const sorted = [...participants].sort((a, b) => getValue(a) - getValue(b));
+    const best = sorted[0];
+    const second = sorted[1];
+    if (!best || !second) return;
+    const bv = getValue(best);
+    const sv = getValue(second);
+    if (bv === sv) return;
+    const maxVal = Math.max(...participants.map(getValue), 1);
+    candidates.push({ puuid: best.puuid, key, margin: (sv - bv) / maxVal });
+  }
+
+  maxWinner("damage", (p) => p.totalDamage);
+  maxWinner("kda", (p) => (p.kills + p.assists) / Math.max(p.deaths, 1));
+  maxWinner("vision", (p) => p.visionScore);
+  maxWinner("kp", (p) => p.kp);
+  maxWinner("cs", (p) => p.csTotal);
+  minWinner("deaths", (p) => p.deaths);
+
+  // Most distinctive first — greedily assign one badge per participant
+  candidates.sort((a, b) => b.margin - a.margin);
+
+  const result = new Map<string, string>();
+  for (const c of candidates) {
+    if (!result.has(c.puuid)) {
+      result.set(c.puuid, BADGE_LABELS[c.key]);
+    }
+  }
+  return result;
+}
+
 function ItemSlot({ id }: { id: number }) {
   const items = useItems();
   const item = id !== 0 ? items.data?.get(id) : undefined;
@@ -411,11 +470,13 @@ function ParticipantRow({
   isMe,
   maxDamage,
   maxGold,
+  badge,
 }: {
   p: ParticipantDetail;
   isMe?: boolean;
   maxDamage: number;
   maxGold: number;
+  badge?: string;
 }) {
   const championName = useChampionName();
   const reduced = useReducedMotion();
@@ -470,6 +531,14 @@ function ParticipantRow({
             {p.csTotal}
           </span>
         </div>
+        <span
+          className={cn(
+            "mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset bg-foreground/[0.06] text-foreground/50 ring-foreground/[0.1]",
+            !badge && "invisible"
+          )}
+        >
+          {badge ?? " "}
+        </span>
       </div>
       <div className="flex flex-col items-end gap-1.5">
         <ItemSlots items={p.items} />
@@ -500,12 +569,14 @@ function TeamBlock({
   myPuuid,
   maxDamage,
   maxGold,
+  badges,
 }: {
   title: string;
   participants: ParticipantDetail[];
   myPuuid?: string;
   maxDamage: number;
   maxGold: number;
+  badges: Map<string, string>;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -534,6 +605,7 @@ function TeamBlock({
             isMe={p.puuid === myPuuid}
             maxDamage={maxDamage}
             maxGold={maxGold}
+            badge={badges.get(p.puuid)}
           />
         ))}
       </m.ul>
@@ -555,6 +627,7 @@ export function MatchDetailView({
   const red = detail.participants.filter((p) => p.teamId === 200);
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
   const maxGold = Math.max(...detail.participants.map((p) => p.goldEarned), 1);
+  const badges = computeBadges(detail.participants);
 
   useSplashChampion(currentChampion);
 
@@ -573,6 +646,7 @@ export function MatchDetailView({
             myPuuid={myPuuid}
             maxDamage={maxDamage}
             maxGold={maxGold}
+            badges={badges}
           />
         </m.div>
         <m.div
@@ -586,6 +660,7 @@ export function MatchDetailView({
             myPuuid={myPuuid}
             maxDamage={maxDamage}
             maxGold={maxGold}
+            badges={badges}
           />
         </m.div>
       </div>
