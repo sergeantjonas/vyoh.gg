@@ -28,6 +28,19 @@ export const ROLE_VISION_SCORE: Record<Role, number> = {
   UTILITY: 70,
 };
 
+// CS@10 baseline. Lane minions give ~75 by minute 10 if you don't miss any;
+// jungle's number is artificially low because most camps stop spawning early
+// and we count both lane minions + jungle camps in the same field. Support
+// is intentionally tiny — farming isn't the role's job, so the lane phase
+// prognosis tile sidesteps the comparison for SUPPORT.
+export const ROLE_CS_AT_10: Record<Role, number> = {
+  TOP: 75,
+  JUNGLE: 45,
+  MIDDLE: 80,
+  BOTTOM: 75,
+  UTILITY: 10,
+};
+
 export const ROLE_LABEL: Record<Role, string> = {
   TOP: "Top",
   JUNGLE: "Jungle",

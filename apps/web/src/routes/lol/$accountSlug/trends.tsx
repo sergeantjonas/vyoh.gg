@@ -1,10 +1,13 @@
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
+import { TrendComebackResilience } from "@/lol/trends/trend-comeback-resilience";
 import { TrendDamageRoleConsistency } from "@/lol/trends/trend-damage-role-consistency";
+import { TrendDeathTiming } from "@/lol/trends/trend-death-timing";
 import { TrendDowWr } from "@/lol/trends/trend-dow-wr";
 import { TrendFirstBloodConversion } from "@/lol/trends/trend-first-blood-conversion";
 import { TrendGameLength } from "@/lol/trends/trend-game-length";
 import { TrendKda } from "@/lol/trends/trend-kda";
+import { TrendLanePhasePrognosis } from "@/lol/trends/trend-lane-phase-prognosis";
 import { TrendLpEconomy } from "@/lol/trends/trend-lp-economy";
 import { TrendRolePerformance } from "@/lol/trends/trend-role-performance";
 import { TrendSessionFatigue } from "@/lol/trends/trend-session-fatigue";
@@ -165,6 +168,27 @@ function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
       designPriority: 440,
       active: played.length >= 5,
       node: <TrendFirstBloodConversion current={current} previous={previous} />,
+    },
+    {
+      id: "lane-phase-prognosis",
+      span: 1,
+      designPriority: 430,
+      active: playedRift.filter((m) => m.csAt10 > 0).length >= 5,
+      node: <TrendLanePhasePrognosis current={current} previous={previous} />,
+    },
+    {
+      id: "death-timing",
+      span: 2,
+      designPriority: 420,
+      active: played.filter((m) => m.csAt10 > 0).length >= 5,
+      node: <TrendDeathTiming current={current} previous={previous} />,
+    },
+    {
+      id: "comeback-resilience",
+      span: 1,
+      designPriority: 410,
+      active: played.filter((m) => m.teamGoldDiffAt15 <= -5000).length >= 5,
+      node: <TrendComebackResilience current={current} previous={previous} />,
     },
     {
       id: "kda",
