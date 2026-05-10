@@ -15,6 +15,7 @@ import { Route as LolIndexRouteImport } from './routes/lol/index'
 import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
 import { Route as LolAccountSlugIndexRouteImport } from './routes/lol/$accountSlug/index'
 import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountSlug/trends'
+import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
 import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
 import { Route as LolAccountSlugMatchesIndexRouteImport } from './routes/lol/$accountSlug/matches/index'
 import { Route as LolAccountSlugChampionsIndexRouteImport } from './routes/lol/$accountSlug/champions/index'
@@ -49,6 +50,11 @@ const LolAccountSlugIndexRoute = LolAccountSlugIndexRouteImport.update({
 const LolAccountSlugTrendsRoute = LolAccountSlugTrendsRouteImport.update({
   id: '/trends',
   path: '/trends',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
+const LolAccountSlugRecapRoute = LolAccountSlugRecapRouteImport.update({
+  id: '/recap',
+  path: '/recap',
   getParentRoute: () => LolAccountSlugRoute,
 } as any)
 const LolAccountSlugLiveRoute = LolAccountSlugLiveRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/lol/': typeof LolIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
+  '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
   '/lol/$accountSlug/': typeof LolAccountSlugIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/steam': typeof SteamRoute
   '/lol': typeof LolIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
+  '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
   '/lol/$accountSlug': typeof LolAccountSlugIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/lol/': typeof LolIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
+  '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
   '/lol/$accountSlug/': typeof LolAccountSlugIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug'
     | '/lol/'
     | '/lol/$accountSlug/live'
+    | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
     | '/lol/$accountSlug/'
     | '/lol/$accountSlug/champions/$championKey'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/steam'
     | '/lol'
     | '/lol/$accountSlug/live'
+    | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
     | '/lol/$accountSlug'
     | '/lol/$accountSlug/champions/$championKey'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug'
     | '/lol/'
     | '/lol/$accountSlug/live'
+    | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
     | '/lol/$accountSlug/'
     | '/lol/$accountSlug/champions/$championKey'
@@ -212,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugTrendsRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
+    '/lol/$accountSlug/recap': {
+      id: '/lol/$accountSlug/recap'
+      path: '/recap'
+      fullPath: '/lol/$accountSlug/recap'
+      preLoaderRoute: typeof LolAccountSlugRecapRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
     '/lol/$accountSlug/live': {
       id: '/lol/$accountSlug/live'
       path: '/live'
@@ -252,6 +271,7 @@ declare module '@tanstack/react-router' {
 
 interface LolAccountSlugRouteChildren {
   LolAccountSlugLiveRoute: typeof LolAccountSlugLiveRoute
+  LolAccountSlugRecapRoute: typeof LolAccountSlugRecapRoute
   LolAccountSlugTrendsRoute: typeof LolAccountSlugTrendsRoute
   LolAccountSlugIndexRoute: typeof LolAccountSlugIndexRoute
   LolAccountSlugChampionsChampionKeyRoute: typeof LolAccountSlugChampionsChampionKeyRoute
@@ -262,6 +282,7 @@ interface LolAccountSlugRouteChildren {
 
 const LolAccountSlugRouteChildren: LolAccountSlugRouteChildren = {
   LolAccountSlugLiveRoute: LolAccountSlugLiveRoute,
+  LolAccountSlugRecapRoute: LolAccountSlugRecapRoute,
   LolAccountSlugTrendsRoute: LolAccountSlugTrendsRoute,
   LolAccountSlugIndexRoute: LolAccountSlugIndexRoute,
   LolAccountSlugChampionsChampionKeyRoute:

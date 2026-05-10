@@ -12,7 +12,8 @@ import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
 import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/lol/$accountSlug/")({
   component: ProfilePage,
@@ -37,6 +38,21 @@ function ProfilePage() {
       <ProfileQueueDistribution />
       {matches && matches.length > 0 && <ProfileActivityCalendar matches={matches} />}
       <ProfileStatsBar />
+      {matches && matches.length > 0 && (
+        <Link
+          to="/lol/$accountSlug/recap"
+          params={{ accountSlug }}
+          className="group flex items-center justify-between rounded-lg border bg-card/30 px-4 py-3 text-sm transition-colors hover:bg-card/60"
+        >
+          <span className="flex flex-col">
+            <span className="font-medium text-foreground/90">Your year so far</span>
+            <span className="text-xs text-muted-foreground/70">
+              A calm recap of your peak rank, headline champion, and standout pattern.
+            </span>
+          </span>
+          <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
     </div>
   );
 }
