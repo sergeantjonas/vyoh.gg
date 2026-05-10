@@ -12,6 +12,7 @@ import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
+import { useLiveGame } from "@/lol/matches/use-live-match";
 import {
   useCachedMatchesWindow,
   useMatchEventsSubscription,
@@ -24,7 +25,14 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { ChevronLeft, Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
+import {
+  ChevronLeft,
+  Crown,
+  History,
+  LayoutDashboard,
+  Radio,
+  TrendingUp,
+} from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -47,6 +55,7 @@ function iconPop(label: string): { scale: number; rotate?: number; y?: number } 
   if (label === "Profile") return { scale: 0.75, y: -4 };
   if (label === "Matches") return { scale: 0.75, rotate: -12 };
   if (label === "Trends") return { scale: 0.75, y: 5 };
+  if (label === "Live") return { scale: 0.75, y: -4 };
   return { scale: 0.65, rotate: 8 };
 }
 
@@ -148,6 +157,7 @@ function AccountLayout() {
   const profile = useProfileRank(account);
   const iconId = profile.data?.profileIconId;
   const level = profile.data?.summonerLevel;
+  const { data: liveData } = useLiveGame(account);
 
   const matchesPath = `/lol/${accountSlug}/matches`;
   const matchesPathPrefix = `${matchesPath}/`;
@@ -456,6 +466,75 @@ function AccountLayout() {
                             </Link>
                           );
                         })}
+                        {liveData &&
+                          (() => {
+                            const livePath = `/lol/${accountSlug}/live`;
+                            const active = pathname === livePath;
+                            return (
+                              <Link
+                                to="/lol/$accountSlug/live"
+                                params={{ accountSlug }}
+                                search={(prev: AccountSearch) => prev}
+                                className={cn(
+                                  "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+                                  active
+                                    ? "text-foreground"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                <m.span
+                                  key={active ? 1 : 0}
+                                  initial={
+                                    active && !prefersReducedMotion
+                                      ? iconPop("Live")
+                                      : false
+                                  }
+                                  animate={{ scale: 1, rotate: 0, y: 0 }}
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 450,
+                                    damping: 18,
+                                  }}
+                                  className="inline-flex"
+                                >
+                                  <Radio
+                                    className={cn(
+                                      "size-4 transition-colors",
+                                      active
+                                        ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
+                                        : "animate-pulse text-red-400/60 group-hover:text-red-400"
+                                    )}
+                                  />
+                                </m.span>
+                                Live
+                                {active && (
+                                  <m.div
+                                    layoutId="lol-tab-indicator"
+                                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
+                                    animate={{
+                                      boxShadow: [
+                                        "0 0 0px 0px rgba(56,189,248,0)",
+                                        "0 0 10px 1px rgba(56,189,248,0.45)",
+                                        "0 0 0px 0px rgba(56,189,248,0)",
+                                      ],
+                                    }}
+                                    transition={{
+                                      default: {
+                                        type: "spring",
+                                        stiffness: 500,
+                                        damping: 35,
+                                      },
+                                      boxShadow: {
+                                        duration: 2.4,
+                                        repeat: Number.POSITIVE_INFINITY,
+                                        ease: "easeInOut",
+                                      },
+                                    }}
+                                  />
+                                )}
+                              </Link>
+                            );
+                          })()}
                       </m.div>
                     )}
                   </AnimatePresence>
