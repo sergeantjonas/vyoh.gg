@@ -7,6 +7,7 @@ import {
 import { Prisma } from "@prisma/client";
 import type {
   CachedMatchesResult,
+  ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
   Duo,
@@ -857,6 +858,90 @@ export class LolService {
     }
 
     return [...map.values()].sort((a, b) => b.games - a.games);
+  }
+
+  // Champion build-flow: for the user's recent N matches on `championKey`,
+  // return the ordered list of item completions kept until end of game. We
+  // intersect timeline PURCHASED events with the participant's final inventory
+  // (Match.items) so intermediate components / sold items drop out and only
+  // items that actually survived to the final inventory appear in the order.
+  async getChampionBuildFlow(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    championKey: string,
+    count = 100
+  ): Promise<ChampionBuildFlowEntry[]> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return [];
+
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: summoner.puuid,
+        champion: { equals: championKey, mode: "insensitive" },
+      },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, items: true, win: true, remake: true },
+    });
+    const playable = matches.filter((m) => !m.remake);
+    if (playable.length === 0) return [];
+
+    const timelineRows = await this.prisma.matchTimelineCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+    const timelineByMatchId = new Map(timelineRows.map((t) => [t.matchId, t.timeline]));
+
+    const result: ChampionBuildFlowEntry[] = [];
+    for (const m of playable) {
+      const timelineRaw = timelineByMatchId.get(m.matchId);
+      if (!timelineRaw) continue;
+      const timeline = timelineRaw as unknown as RiotMatchTimeline;
+
+      const participantIdFromInfo = timeline.info.participants?.find(
+        (p) => p.puuid === summoner.puuid
+      )?.participantId;
+      const participantId =
+        participantIdFromInfo ??
+        (() => {
+          const idx = timeline.metadata.participants.indexOf(summoner.puuid);
+          return idx === -1 ? null : idx + 1;
+        })();
+      if (participantId === null) continue;
+
+      const finalItems = new Set(m.items.filter((id) => id > 0));
+      if (finalItems.size === 0) continue;
+
+      const purchaseOrder: number[] = [];
+      const usedSlots = new Set<number>();
+      for (const frame of timeline.info.frames) {
+        for (const ev of frame.events) {
+          if (ev.type !== "ITEM_PURCHASED") continue;
+          if (ev.participantId !== participantId) continue;
+          if (typeof ev.itemId !== "number") continue;
+          if (!finalItems.has(ev.itemId)) continue;
+          // The same itemId may be purchased multiple times when the user
+          // restocks a slot — keep each purchase event as a separate step so
+          // the Sankey reflects what actually happened, but cap how many
+          // copies of the same item appear across the run.
+          const occurrences = purchaseOrder.filter((x) => x === ev.itemId).length;
+          const slotKey = ev.itemId * 10 + occurrences;
+          if (usedSlots.has(slotKey)) continue;
+          usedSlots.add(slotKey);
+          purchaseOrder.push(ev.itemId);
+        }
+      }
+
+      if (purchaseOrder.length === 0) continue;
+      result.push({ matchId: m.matchId, win: m.win, items: purchaseOrder });
+    }
+
+    return result;
   }
 
   private async resolveSummoner(

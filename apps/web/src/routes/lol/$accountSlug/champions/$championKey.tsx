@@ -9,6 +9,7 @@ import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues"
 import { ThisPatchBadge } from "@/lol/_shared/this-patch-badge";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
+import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
   buildWinRateSeries,
@@ -532,6 +533,7 @@ function ChampionDetailPage() {
         </m.div>
       )}
 
+      <ChampionBuildSankey accountSlug={accountSlug} championKey={championKey} />
       <TrendDeathMatchupHeatmap current={champMatches} />
       <TrendTimeHeatmap current={champMatches} />
       <TrendTiltIndicator current={champMatches} previous={[]} />

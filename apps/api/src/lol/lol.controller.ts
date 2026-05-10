@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 import type {
   CachedMatchesResult,
+  ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
   Duo,
@@ -88,6 +89,17 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionPair[]> {
     return this.lol.getChampionPairs(region, gameName, tagLine, count);
+  }
+
+  @Get("champions/:championKey/build-flow")
+  async getChampionBuildFlow(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string,
+    @Param("championKey") championKey: string,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<ChampionBuildFlowEntry[]> {
+    return this.lol.getChampionBuildFlow(region, gameName, tagLine, championKey, count);
   }
 
   @Get("rank/history")
