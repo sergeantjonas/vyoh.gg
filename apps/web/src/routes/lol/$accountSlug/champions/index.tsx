@@ -1,5 +1,6 @@
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { StickyControlsBar } from "@/lol/_shared/sticky-controls-bar";
 import {
   CHAMPION_SORT_OPTIONS,
   type ChampionSortOption,
@@ -30,7 +31,7 @@ function ChampionsPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+      <StickyControlsBar className="justify-between">
         <h2 className="text-sm font-medium text-muted-foreground">
           Aggregated over your last {effectiveCount} games
         </h2>
@@ -47,7 +48,7 @@ function ChampionsPage() {
             layoutId="champions-count-indicator"
           />
         </div>
-      </div>
+      </StickyControlsBar>
 
       {isPending && !matches ? (
         <ChampionsSkeleton />
