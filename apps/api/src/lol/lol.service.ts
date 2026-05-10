@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import type {
   CachedMatchesResult,
   ChampionExtras,
+  Duo,
   LiveMatch,
   LolAccount,
   MatchDetail,
@@ -636,6 +637,117 @@ export class LolService {
       .map(([champion, s]) => ({ champion, games: s.games, wins: s.wins }));
 
     return { topItems, matchups };
+  }
+
+  // Duo / squad detection. Pure read against the existing MatchDetailCache —
+  // no Riot calls. We read up to `count` of the user's most recent matches
+  // (any queue), join the cached raw match JSON, and bucket teammates by
+  // puuid. Filtered to recurring puuids only (≥ MIN_GAMES_TOGETHER) so a
+  // one-off random duo queue doesn't surface.
+  async getDuos(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<Duo[]> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return [];
+
+    const userMatches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, playedAt: true },
+    });
+    if (userMatches.length === 0) return [];
+
+    const matchIds = userMatches.map((m) => m.matchId);
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: matchIds } },
+    });
+    // Sort cache rows newest-first so the gameName/tagLine we keep per puuid
+    // is the most recent observation (Riot IDs can change).
+    const playedAtByMatchId = new Map(
+      userMatches.map((m) => [m.matchId, m.playedAt.getTime()])
+    );
+    const sortedCaches = [...caches].sort(
+      (a, b) =>
+        (playedAtByMatchId.get(b.matchId) ?? 0) - (playedAtByMatchId.get(a.matchId) ?? 0)
+    );
+
+    interface DuoAcc {
+      puuid: string;
+      gameName: string;
+      tagLine: string;
+      games: number;
+      wins: number;
+      championCounts: Map<string, number>;
+    }
+    const map = new Map<string, DuoAcc>();
+    for (const cache of sortedCaches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            riotIdGameName: string;
+            riotIdTagline: string;
+            championName: string;
+            teamId: number;
+            win: boolean;
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      const teammates = detail.info.participants.filter(
+        (p) => p.teamId === me.teamId && p.puuid !== me.puuid
+      );
+      for (const t of teammates) {
+        const prev = map.get(t.puuid);
+        if (prev) {
+          prev.games += 1;
+          if (me.win) prev.wins += 1;
+          prev.championCounts.set(
+            t.championName,
+            (prev.championCounts.get(t.championName) ?? 0) + 1
+          );
+        } else {
+          // First (= most recent) sighting. Capture latest gameName/tagLine.
+          map.set(t.puuid, {
+            puuid: t.puuid,
+            gameName: t.riotIdGameName,
+            tagLine: t.riotIdTagline,
+            games: 1,
+            wins: me.win ? 1 : 0,
+            championCounts: new Map([[t.championName, 1]]),
+          });
+        }
+      }
+    }
+
+    const MIN_GAMES_TOGETHER = 3;
+    const TOP_N = 10;
+    return [...map.values()]
+      .filter((d) => d.games >= MIN_GAMES_TOGETHER)
+      .sort((a, b) => b.games - a.games)
+      .slice(0, TOP_N)
+      .map((d) => {
+        const topChampion =
+          [...d.championCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+        return {
+          puuid: d.puuid,
+          gameName: d.gameName,
+          tagLine: d.tagLine,
+          games: d.games,
+          wins: d.wins,
+          topChampion,
+        };
+      });
   }
 
   private async resolveSummoner(

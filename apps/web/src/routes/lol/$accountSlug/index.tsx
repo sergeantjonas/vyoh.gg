@@ -2,6 +2,7 @@ import { LiveGameChip } from "@/lol/_shared/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
+import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
@@ -35,6 +36,7 @@ function ProfilePage() {
       <ProfileSeasonHistory accountSlug={accountSlug} />
       <ProfileNowPlaying />
       <ProfileRoleStrip />
+      <ProfileDuos accountSlug={accountSlug} />
       <ProfileQueueDistribution />
       {matches && matches.length > 0 && <ProfileActivityCalendar matches={matches} />}
       <ProfileStatsBar />
