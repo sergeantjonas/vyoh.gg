@@ -1,5 +1,6 @@
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";
 import { cloneElement } from "react";
 import type { ReactElement, SVGProps } from "react";
@@ -43,6 +44,7 @@ function titleForValue(value: Value | undefined): string {
 }
 
 const DAYS_WINDOW = 365;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }) {
   // Self-fetches a wide window so the heatmap doesn't get truncated by the
@@ -55,12 +57,52 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
 
   const values = buildValues(matches);
   const endDate = new Date();
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - DAYS_WINDOW);
+  const fullYearAgo = new Date(endDate.getTime() - DAYS_WINDOW * MS_PER_DAY);
+
+  // Newest-first ordering means matches[length - 1] is oldest. Clamp the
+  // calendar's startDate to the oldest data we actually have so heavy
+  // grinders don't see most of a year of misleading empty cells (Riot's
+  // Match-V5 API caps history at ~1000 matches per puuid, which can be ~3
+  // months for a heavy grinder). For light players the data fits inside
+  // the year and we keep the full 365-day frame.
+  const oldestMatch = matches[matches.length - 1];
+  const oldestDate = oldestMatch ? new Date(oldestMatch.playedAt) : fullYearAgo;
+  const startDate = oldestDate > fullYearAgo ? oldestDate : fullYearAgo;
+  const isCapped = startDate.getTime() > fullYearAgo.getTime();
+  const daysShown = Math.max(
+    1,
+    Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY)
+  );
 
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+        {isCapped && (
+          <TooltipPrimitive.Root delayDuration={150}>
+            <TooltipPrimitive.Trigger asChild>
+              <span className="cursor-help text-xs text-muted-foreground/70">
+                {daysShown} days · from{" "}
+                {startDate.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={6}
+                collisionPadding={8}
+                className="pointer-events-none z-50 max-w-64 rounded-md border bg-popover/85 px-3 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+              >
+                Riot's match history endpoint caps how many matches it returns per player.
+                For high-volume players this surfaces as a shorter window here.
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
+        )}
+      </div>
       <CalendarHeatmap
         startDate={startDate}
         endDate={endDate}
