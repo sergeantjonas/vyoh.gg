@@ -1,3 +1,4 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
@@ -37,11 +38,13 @@ function renderWithProviders(ui: ReactNode) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <MotionConfig reducedMotion="always">
-        <ActiveMatchProvider>{ui}</ActiveMatchProvider>
-      </MotionConfig>
-    </QueryClientProvider>
+    <TooltipPrimitive.Provider>
+      <QueryClientProvider client={client}>
+        <MotionConfig reducedMotion="always">
+          <ActiveMatchProvider>{ui}</ActiveMatchProvider>
+        </MotionConfig>
+      </QueryClientProvider>
+    </TooltipPrimitive.Provider>
   );
 }
 
