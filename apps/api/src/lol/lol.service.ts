@@ -24,11 +24,16 @@ import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Platform, type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
+import type { RiotMatchTimeline } from "../riot/types";
 import { LiveGamePollerService } from "./live-game-poller.service";
 import { MatchEventsService } from "./match-events.service";
 import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
 import { riotTimelineToProjection } from "./timeline-mapper";
+import {
+  type TimelineSummaryMetrics,
+  riotTimelineToSummaryMetrics,
+} from "./timeline-summary-mapper";
 
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
@@ -71,7 +76,11 @@ export class LolService {
       queue,
     });
 
-    await this.backfillMissingMatches(summoner.puuid, matchIds, regional);
+    // Match-list path is user-driven (fresh page view). Eager-fetch
+    // timelines so Phase B trends fields land at insert time.
+    await this.backfillMissingMatches(summoner.puuid, matchIds, regional, {
+      fetchTimeline: true,
+    });
 
     const rows = await this.prisma.match.findMany({
       where: { puuid: summoner.puuid, matchId: { in: matchIds } },
@@ -92,6 +101,12 @@ export class LolService {
         visionScore: true,
         damageShare: true,
         firstBloodKill: true,
+        csAt10: true,
+        csAt15: true,
+        goldAt10: true,
+        goldAt15: true,
+        teamGoldDiffAt15: true,
+        deathTimings: true,
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
@@ -161,6 +176,12 @@ export class LolService {
           visionScore: true,
           damageShare: true,
           firstBloodKill: true,
+          csAt10: true,
+          csAt15: true,
+          goldAt10: true,
+          goldAt15: true,
+          teamGoldDiffAt15: true,
+          deathTimings: true,
           snapshotTier: true,
           snapshotRank: true,
           snapshotLp: true,
@@ -225,6 +246,10 @@ export class LolService {
     });
     await this.backfillMissingMatches(summoner.puuid, ids, regional, {
       attachSnapshot: true,
+      // Head-sync path (manual + cron-driven). New matches arrive here;
+      // pulling the timeline now is the cheapest way to populate Phase B
+      // trends fields without a separate worker.
+      fetchTimeline: true,
     });
     const after = await this.prisma.match.count({
       where: { puuid: summoner.puuid, matchId: { in: ids } },
@@ -833,7 +858,15 @@ export class LolService {
     puuid: string,
     matchIds: string[],
     regional: Regional,
-    opts: { attachSnapshot?: boolean; attachSnapshotToNewest?: boolean } = {}
+    opts: {
+      attachSnapshot?: boolean;
+      attachSnapshotToNewest?: boolean;
+      // Eager-fetch the timeline alongside the match detail. Set true for
+      // sync paths (head sync, manual sync, list-window backfill) so Phase B
+      // trends fields are populated as new matches stream in. Set false on
+      // historical-paging where the bulk extra calls aren't justified.
+      fetchTimeline?: boolean;
+    } = {}
   ): Promise<void> {
     if (matchIds.length === 0) return;
 
@@ -864,9 +897,31 @@ export class LolService {
     const fetched = await Promise.allSettled(
       missing.map(async (matchId) => {
         const raw = await this.riot.getMatchById(matchId, regional);
-        const summary = riotMatchToSummary(raw, puuid);
+        const baseSummary = riotMatchToSummary(raw, puuid);
         const { items } = extractItems(raw, puuid);
-        return { matchId, raw, summary, items };
+
+        // Optionally also pull the timeline so Phase B trends fields land at
+        // insert time. Failures here don't fail the whole match — the row
+        // still upserts with default zeros and the timeline cache remains
+        // empty for a later lazy fetch on match-detail visit.
+        let rawTimeline: RiotMatchTimeline | undefined;
+        let timelineMetrics: TimelineSummaryMetrics | undefined;
+        if (opts.fetchTimeline) {
+          try {
+            rawTimeline = await this.riot.getMatchTimelineById(matchId, regional);
+            timelineMetrics = riotTimelineToSummaryMetrics(rawTimeline, puuid);
+          } catch (err) {
+            this.logger.warn(
+              `timeline fetch failed for ${matchId}: ${(err as Error).message}`
+            );
+          }
+        }
+
+        const summary: MatchSummary = timelineMetrics
+          ? { ...baseSummary, ...timelineMetrics }
+          : baseSummary;
+
+        return { matchId, raw, summary, items, rawTimeline };
       })
     );
 
@@ -897,7 +952,7 @@ export class LolService {
     const results = await Promise.allSettled(
       fetched.map(async (r) => {
         if (r.status === "rejected") throw r.reason;
-        const { matchId, raw, summary, items } = r.value;
+        const { matchId, raw, summary, items, rawTimeline } = r.value;
 
         let snapshotTier: string | undefined;
         let snapshotRank: string | undefined;
@@ -946,6 +1001,16 @@ export class LolService {
             create: matchRow,
             update: matchRow,
           }),
+          // Persist the raw timeline alongside the match so downstream views
+          // (build order, kill plot, lane phase) can read it without a
+          // re-fetch. Skipped when no timeline was fetched.
+          rawTimeline
+            ? this.prisma.matchTimelineCache.upsert({
+                where: { matchId },
+                create: { matchId, timeline: rawTimeline as unknown as object },
+                update: {},
+              })
+            : Promise.resolve(),
         ]);
       })
     );
