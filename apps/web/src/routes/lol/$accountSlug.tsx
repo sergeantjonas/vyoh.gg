@@ -336,7 +336,7 @@ function AccountLayout() {
             }}
           >
             <AccountControlsSlotProvider value={controlsSlotEl}>
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col">
                 <header
                   ref={headerRef}
                   data-account-header
@@ -593,13 +593,16 @@ function AccountLayout() {
 
                 {/* Per-view controls slot. Pages portal their long-list controls
                   (queue filter, sort, count) into this div. Sticks below the
-                  account header via --account-header-h. -mt-6 cancels the
-                  outer flex `gap-6` so when occupied the bar reads flush with
-                  the header bottom. `empty:hidden` collapses it on pages that
-                  don't render any controls. */}
+                  account header via --account-header-h. Lives in flex flow
+                  with 0 gap above (the outer flex column is `flex flex-col`
+                  with no `gap-6`) so the slot reads flush with the header.
+                  When empty (Profile / Trends / Recap) the slot is 0 px tall
+                  and invisible. `[&>*:not(:last-child)]:hidden` dedupes
+                  during page transitions where the exiting and entering
+                  pages briefly portal simultaneously. */}
                 <div
                   ref={setControlsSlotEl}
-                  className="sticky z-30 -mt-6 ml-[calc(50%-50vw)] w-screen bg-background/70 backdrop-blur-md empty:hidden"
+                  className="sticky z-30 ml-[calc(50%-50vw)] w-screen bg-background/70 backdrop-blur-md [&>*:not(:last-child)]:hidden"
                   style={{ top: "var(--account-header-h, 0px)" }}
                 />
 
@@ -616,6 +619,7 @@ function AccountLayout() {
                         ? { duration: 0 }
                         : { type: "spring", stiffness: 300, damping: 30 }
                     }
+                    className="mt-6"
                   >
                     <Outlet />
                   </m.div>
