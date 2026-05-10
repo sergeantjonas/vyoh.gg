@@ -15,7 +15,7 @@ import { TrendsRangeSelector } from "@/lol/trends/trends-range-selector";
 import type { TrendsRangeId } from "@/lol/trends/trends-range-selector";
 import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
 import { useTrendsWindows } from "@/lol/trends/use-trends-windows";
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
@@ -154,10 +154,9 @@ function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
 
 function TrendsPage() {
   const { accountSlug } = Route.useParams();
-  const { queue } = useSearch({ from: "/lol/$accountSlug" });
   const account = useAccountFromSlug(accountSlug);
   const [rangeId, setRangeId] = useState<TrendsRangeId>("30d");
-  const { current, previous, isPending } = useTrendsWindows(rangeId, account, queue);
+  const { current, previous, isPending } = useTrendsWindows(rangeId, account);
 
   const sortedTiles = useMemo(() => {
     const tiles = buildTiles(current, previous);

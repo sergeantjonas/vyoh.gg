@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
 import { ItemIcon } from "@/lol/_shared/item-icon";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -11,13 +12,12 @@ import {
 } from "@/lol/champions/champion-detail-stats";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
-import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useItems } from "@/lol/matches/use-items";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { useMemo, useState } from "react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip } from "recharts";
@@ -82,11 +82,13 @@ function WinRateTooltip({
 
 function ChampionDetailPage() {
   const { accountSlug, championKey } = Route.useParams();
-  const { queue } = useSearch({ from: "/lol/$accountSlug" });
-  const { matches } = useMatchWindow();
+  // Champion stats anchor to serious play (KDA/WR are performance reads).
+  // Items + matchups still pulled from all queues for v1 — laneOpponent is
+  // null on ARAM so matchups auto-filter; item noise from ARAM is mild.
+  const { matches } = useSeriousMatches();
   const championName = useChampionName();
   const info = useChampionInfo(championKey);
-  const extras = useChampionExtras(accountSlug, championKey, queue);
+  const extras = useChampionExtras(accountSlug, championKey);
   const itemsData = useItems();
 
   const detail = useMemo(

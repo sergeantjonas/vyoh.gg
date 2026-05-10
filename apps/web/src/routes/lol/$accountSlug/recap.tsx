@@ -1,5 +1,5 @@
+import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
-import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { RecapChampion } from "@/lol/recap/recap-champion";
 import { RecapRankArc } from "@/lol/recap/recap-rank-arc";
 import { RecapTopInsight } from "@/lol/recap/recap-top-insight";
@@ -14,7 +14,9 @@ export const Route = createFileRoute("/lol/$accountSlug/recap")({
 function RecapPage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
-  const { matches } = useMatchWindow();
+  // Recap is a performance artifact: champion-of-the-year and headline
+  // insight only count serious play. Rank arc has its own data hook.
+  const { matches } = useSeriousMatches();
   const reduced = useReducedMotion();
   const playedCount = matches?.filter((m) => !m.remake).length ?? 0;
 

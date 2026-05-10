@@ -1,5 +1,5 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import type { MatchSummary } from "@vyoh/shared";
@@ -233,7 +233,9 @@ function SignalTile({ signal, index }: { signal: RitualSignal; index: number }) 
 }
 
 export function ProfilePregameRitual() {
-  const { matches } = useMatchWindow();
+  // Predictions are about your next "serious" game (ranked / draft) — ARAM
+  // tilt patterns and ARAM time-of-day don't transfer.
+  const { matches } = useSeriousMatches();
 
   const signals = useMemo(() => {
     if (!matches) return null;

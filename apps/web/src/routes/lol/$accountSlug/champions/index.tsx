@@ -1,4 +1,5 @@
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import {
   CHAMPION_SORT_OPTIONS,
   type ChampionSortOption,
@@ -19,7 +20,10 @@ export const Route = createFileRoute("/lol/$accountSlug/champions/")({
 
 function ChampionsPage() {
   const { accountSlug } = Route.useParams();
-  const { matches, isPending, total, count, setCount } = useMatchWindow();
+  // Champion stats only count serious play — KDA in ARAM is meaningless and
+  // would inflate the table.
+  const { matches } = useSeriousMatches();
+  const { isPending, total, count, setCount } = useMatchWindow();
   const [sort, setSort] = useState<ChampionSortOption>(CHAMPION_SORT_OPTIONS[0].value);
   const setHoveredChampion = useHoverChampion();
   const effectiveCount = matches?.length ?? count;

@@ -1,3 +1,4 @@
+import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import type { LolAccount, MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
@@ -36,15 +37,21 @@ function splitWindows(
 
 export function useTrendsWindows(
   rangeId: TrendsRangeId,
-  account: LolAccount | undefined,
-  queue?: number
+  account: LolAccount | undefined
 ): { current: MatchSummary[]; previous: MatchSummary[]; isPending: boolean } {
-  const { data, isPending } = useCachedMatchesWindow(account, TRENDS_FETCH_COUNT, queue);
-  const allMatches = useMemo(() => data?.matches ?? [], [data]);
+  const { data, isPending } = useCachedMatchesWindow(account, TRENDS_FETCH_COUNT);
+  const { ids } = useSeriousQueues();
+
+  // Trends is an analysis surface — aggregate only over the user's "serious"
+  // queues so KDA/tilt/win-rate trajectory don't get diluted by ARAM noise.
+  const seriousMatches = useMemo(() => {
+    if (!data) return [];
+    return filterToSerious(data.matches, ids);
+  }, [data, ids]);
 
   const { current, previous } = useMemo(
-    () => splitWindows(allMatches, rangeId),
-    [allMatches, rangeId]
+    () => splitWindows(seriousMatches, rangeId),
+    [seriousMatches, rangeId]
   );
 
   return { current, previous, isPending };

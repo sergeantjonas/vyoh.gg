@@ -5,7 +5,7 @@ import {
   type RolePosition,
   isRolePosition,
 } from "@/lol/_shared/role-icon";
-import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 
@@ -89,7 +89,9 @@ function Slot({ slot, anyPlayed }: { slot: RoleSlot; anyPlayed: boolean }) {
 }
 
 export function ProfileRoleStrip() {
-  const { matches } = useMatchWindow();
+  // Roles only exist in SR queues, and we want the WR signal to come from
+  // serious play — so this surface anchors to the user's serious-queues set.
+  const { matches } = useSeriousMatches();
   const { slots, positioned, total } = useMemo(() => aggregate(matches ?? []), [matches]);
 
   if (!matches || total === 0) return null;
