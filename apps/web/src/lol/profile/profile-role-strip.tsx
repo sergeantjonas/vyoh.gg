@@ -60,9 +60,7 @@ function Slot({ slot, anyPlayed }: { slot: RoleSlot; anyPlayed: boolean }) {
     <div className="flex flex-col items-center gap-1 px-1">
       <RoleIcon
         position={slot.position}
-        className={
-          muted ? "size-5 text-muted-foreground/30" : "size-5 text-foreground/80"
-        }
+        className={muted ? "size-6 opacity-25" : "size-6 opacity-95"}
       />
       <span
         className={

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 export type RolePosition = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY";
 
@@ -28,17 +29,31 @@ export function isRolePosition(value: string): value is RolePosition {
   );
 }
 
+const CDRAGON_POSITION_BASE =
+  "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg";
+
+const POSITION_SLUG: Record<RolePosition, string> = {
+  TOP: "top",
+  JUNGLE: "jungle",
+  MIDDLE: "middle",
+  BOTTOM: "bottom",
+  UTILITY: "utility",
+};
+
+export function roleIconUrl(position: RolePosition): string {
+  return `${CDRAGON_POSITION_BASE}/position-${POSITION_SLUG[position]}.svg`;
+}
+
 interface RoleIconProps {
   position: RolePosition;
   className?: string;
   title?: string;
 }
 
-// Each glyph reads as a minimap-quadrant abstraction so the five positions
-// stay visually distinct at 14–24 px without colour: TOP/BOT mirror diagonally
-// across the map; JUNGLE is a cluster; MIDDLE the central diagonal lane;
-// SUPPORT a warding cross.
-export function RoleIcon({ position, className, title }: RoleIconProps) {
+// Hand-rolled fallback used only when the CDragon SVG fails to load.
+// Minimap-quadrant abstractions: TOP/BOT mirror diagonally; JUNGLE is a
+// cluster; MIDDLE the central diagonal; UTILITY a warding cross.
+function RoleIconFallback({ position, className, title }: RoleIconProps) {
   return (
     <svg
       viewBox="0 0 16 16"
@@ -105,5 +120,21 @@ export function RoleIcon({ position, className, title }: RoleIconProps) {
         </>
       )}
     </svg>
+  );
+}
+
+export function RoleIcon({ position, className, title }: RoleIconProps) {
+  const [errored, setErrored] = useState(false);
+  if (errored) {
+    return <RoleIconFallback position={position} className={className} title={title} />;
+  }
+  return (
+    <img
+      src={roleIconUrl(position)}
+      alt={title ?? ROLE_LABEL[position]}
+      onError={() => setErrored(true)}
+      className={cn("inline-block shrink-0 select-none", className)}
+      draggable={false}
+    />
   );
 }

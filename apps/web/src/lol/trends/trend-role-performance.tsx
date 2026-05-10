@@ -60,9 +60,7 @@ function RoleBar({ row }: { row: RoleStat }) {
     <div className="flex items-center gap-2 text-xs">
       <RoleIcon
         position={row.position}
-        className={
-          insufficient ? "size-4 text-muted-foreground/40" : "size-4 text-foreground/70"
-        }
+        className={insufficient ? "size-5 opacity-35" : "size-5 opacity-90"}
       />
       <span
         className={`w-12 shrink-0 ${insufficient ? "text-muted-foreground/50" : "text-muted-foreground"}`}
