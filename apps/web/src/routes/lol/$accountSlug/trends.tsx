@@ -188,7 +188,10 @@ function TrendsPage() {
           No matches in this window yet.
         </m.p>
       ) : (
-        <m.div layout className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <m.div
+          layout
+          className="grid grid-cols-1 gap-4 md:grid-flow-row-dense md:grid-cols-3"
+        >
           {sortedTiles.map((tile) => (
             <Cell key={tile.id} span={tile.span}>
               {tile.node}
