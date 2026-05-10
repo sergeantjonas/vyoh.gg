@@ -1,11 +1,16 @@
 import {
   BaronNashorIcon,
+  ChemtechDrakeIcon,
+  CloudDrakeIcon,
   CrossedSwordsIcon,
   CsIcon,
   FireDrakeIcon,
   GoldIcon,
+  HextechDrakeIcon,
   InhibitorIcon,
   KillsIcon,
+  MountainDrakeIcon,
+  OceanDrakeIcon,
   RiftHeraldIcon,
   TowerIcon,
   VisionIcon,
@@ -24,8 +29,14 @@ import { MatchKillMap } from "@/lol/matches/match-kill-map";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { useItems } from "@/lol/matches/use-items";
+import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { MatchDetail, ParticipantDetail, TeamSummary } from "@vyoh/shared";
+import type {
+  MatchDetail,
+  MatchTimelineProjection,
+  ParticipantDetail,
+  TeamSummary,
+} from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { type ComponentType, useEffect, useState } from "react";
 
@@ -293,7 +304,80 @@ function TeamObjectiveStrip({ objectives }: { objectives: TeamSummary["objective
   );
 }
 
-function MatchHeaderStrip({ teams }: { teams: TeamSummary[] }) {
+// Soul drake = whichever team's 4th non-Elder dragon kill arrives first in the
+// timeline. Element comes from that drake's type. Elder is excluded since it
+// only spawns after a soul has already been claimed.
+const SOUL_LABEL: Record<string, string> = {
+  DRAGON_FIRE: "Infernal Soul",
+  DRAGON_OCEAN: "Ocean Soul",
+  DRAGON_MOUNTAIN: "Mountain Soul",
+  DRAGON_CLOUD: "Cloud Soul",
+  DRAGON_HEXTECH: "Hextech Soul",
+  DRAGON_CHEMTECH: "Chemtech Soul",
+};
+
+const SOUL_COLORS: Record<string, { bg: string; text: string }> = {
+  DRAGON_FIRE: { bg: "bg-orange-500/15", text: "text-orange-400" },
+  DRAGON_OCEAN: { bg: "bg-cyan-500/15", text: "text-cyan-300" },
+  DRAGON_MOUNTAIN: { bg: "bg-stone-500/20", text: "text-stone-300" },
+  DRAGON_CLOUD: { bg: "bg-slate-400/15", text: "text-slate-200" },
+  DRAGON_HEXTECH: { bg: "bg-violet-500/15", text: "text-violet-300" },
+  DRAGON_CHEMTECH: { bg: "bg-emerald-500/15", text: "text-emerald-300" },
+};
+
+const SOUL_ICON: Record<string, ComponentType<{ className?: string }>> = {
+  DRAGON_FIRE: FireDrakeIcon,
+  DRAGON_OCEAN: OceanDrakeIcon,
+  DRAGON_MOUNTAIN: MountainDrakeIcon,
+  DRAGON_CLOUD: CloudDrakeIcon,
+  DRAGON_HEXTECH: HextechDrakeIcon,
+  DRAGON_CHEMTECH: ChemtechDrakeIcon,
+};
+
+function computeSoul(
+  timeline: MatchTimelineProjection | undefined
+): { teamId: number; type: string } | null {
+  if (!timeline) return null;
+  const dragons = timeline.objectives
+    .filter((o) => o.type.startsWith("DRAGON_") && o.type !== "DRAGON_ELDER")
+    .sort((a, b) => a.ts - b.ts);
+  const counts = new Map<number, number>();
+  for (const d of dragons) {
+    const c = (counts.get(d.teamId) ?? 0) + 1;
+    counts.set(d.teamId, c);
+    if (c >= 4) return { teamId: d.teamId, type: d.type };
+  }
+  return null;
+}
+
+function SoulChip({ type }: { type: string }) {
+  const Icon = SOUL_ICON[type];
+  const colors = SOUL_COLORS[type];
+  const label = SOUL_LABEL[type];
+  if (!Icon || !colors || !label) return null;
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        colors.bg,
+        colors.text
+      )}
+    >
+      <Icon className="size-3" />
+      {label}
+    </span>
+  );
+}
+
+function MatchHeaderStrip({
+  matchId,
+  teams,
+}: {
+  matchId: string;
+  teams: TeamSummary[];
+}) {
+  const timeline = useMatchTimeline(matchId);
+  const soul = computeSoul(timeline.data);
   const blue = teams.find((t) => t.teamId === 100);
   const red = teams.find((t) => t.teamId === 200);
   if (!blue || !red) return null;
@@ -327,6 +411,7 @@ function MatchHeaderStrip({ teams }: { teams: TeamSummary[] }) {
               First Tower
             </span>
           )}
+          {soul && soul.teamId === blue.teamId && <SoulChip type={soul.type} />}
         </div>
         <TeamObjectiveStrip objectives={blue.objectives} />
       </div>
@@ -339,6 +424,7 @@ function MatchHeaderStrip({ teams }: { teams: TeamSummary[] }) {
       {/* Red side */}
       <div className="flex flex-col items-end gap-1.5">
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          {soul && soul.teamId === red.teamId && <SoulChip type={soul.type} />}
           {red.objectives.champion.first && (
             <span className="rounded bg-red-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
               First Blood
@@ -711,7 +797,7 @@ export function MatchDetailView({
 
   return (
     <div className="flex flex-col gap-6">
-      <MatchHeaderStrip teams={detail.teams} />
+      <MatchHeaderStrip matchId={detail.matchId} teams={detail.teams} />
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <m.div
           initial={reduced ? {} : { opacity: 0, y: 12 }}
