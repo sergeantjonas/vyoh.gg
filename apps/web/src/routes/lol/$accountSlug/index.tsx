@@ -4,6 +4,7 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
+import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
@@ -27,6 +28,7 @@ function ProfilePage() {
     <div className="flex flex-col gap-6">
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
       <LiveGameChip accountSlug={accountSlug} />
+      <ProfilePregameRitual />
       <ProfileRecentForm accountSlug={accountSlug} />
       <ProfileLpHistory accountSlug={accountSlug} />
       <ProfileSeasonHistory accountSlug={accountSlug} />
