@@ -5,12 +5,7 @@
     { "slug": "vyoh", "gameName": "Ahri", "tagLine": "Vyoh", "region": "euw1" },
     { "slug": "tifa2", "gameName": "twtv tifa lol", "tagLine": "meow", "region": "euw1" },
     { "slug": "tifa3", "gameName": "twtv TIFA LOL", "tagLine": "7777", "region": "euw1" },
-    {
-      "slug": "emilia",
-      "gameName": "Emilia In Paris",
-      "tagLine": "oui",
-      "region": "na1"
-    },
+    { "slug": "twix", "gameName": "Twix1232", "tagLine": "EUW", "region": "euw1" },
     { "slug": "agurin", "gameName": "Agurin", "tagLine": "DND", "region": "euw1" }
   ],
   "steam": []
