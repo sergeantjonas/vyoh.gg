@@ -82,3 +82,84 @@ subdomain once DNS propagates.
 Open DevTools → Network → filter `EventStream`. After triggering a sync, you
 should see events flowing on the `matches/events` connection. If you see a
 CORS error instead, step 2 is incomplete.
+
+---
+
+## Static asset serving — bundled LoL image set
+
+See [lol-image-pipeline.md](lol-image-pipeline.md) for the full arc. The
+short version: champion / item / profile-icon images are bundled into
+`apps/web/public/lol/**` (~25MB) and served by the frontend host. This
+section covers per-option deploy considerations.
+
+### What ships in the frontend deploy
+
+- `apps/web/public/lol/manifest.json` — runtime-readable
+- `apps/web/public/lol/<champion>/{square,card,backdrop}.webp`
+- `apps/web/public/lol/items/<itemId>.webp`
+- `apps/web/public/lol/profile-icons/<iconId>.webp`
+- `apps/web/public/lol/champion-summary.json`
+
+Total: ~25MB of static assets, refreshed by a CI cron (see
+`.github/workflows/refresh-lol-assets.yml`). Refresh PRs land asynchronously
+from feature work, so deploys remain deterministic.
+
+### Per-option notes
+
+**Option A — Vercel**
+
+- `public/` is served from Vercel's edge automatically with strong
+  `Cache-Control` headers. No config needed.
+- Vercel project settings have a 100MB deployment-size limit on the Hobby
+  tier; 25MB is well under.
+- Build output: assets pass through unchanged.
+
+**Option B — Fly.io**
+
+- Vite's static build is served by whatever process the Docker image
+  starts (typically `vite preview` or a static-file server like `caddy`,
+  `nginx`, or `serve`). Choose one with sensible default cache headers
+  for `*.webp` and `manifest.json`.
+- Recommended: bake a `Caddyfile` or `nginx.conf` into the image with:
+  - `*.webp` → `Cache-Control: public, max-age=31536000, immutable`
+  - `manifest.json` → `Cache-Control: public, max-age=300, must-revalidate`
+- 25MB extra in the image is negligible.
+
+**Option C — Hetzner VPS + Nginx**
+
+- Add an Nginx `location` block for `/lol/`:
+
+  ```nginx
+  location /lol/ {
+    alias /var/www/vyoh/dist/lol/;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+  location = /lol/manifest.json {
+    expires 5m;
+    add_header Cache-Control "public, must-revalidate";
+  }
+  ```
+
+- Asset bundle ships as part of `dist/`. No CDN involved by default —
+  add Cloudflare in front of the VPS if origin-bandwidth becomes a concern
+  (it shouldn't at portfolio scale).
+
+### Long-tail CDN fallback (CSP implications)
+
+Even with assets bundled, the runtime fallback path still loads from
+external CDNs for the long tail (new champions in the 24–72h window
+between release and CI catch-up). If we add a `Content-Security-Policy`
+header at the hosting layer later, the `img-src` directive must include:
+
+```
+img-src 'self' https://wsrv.nl https://cdn.communitydragon.org https://ddragon.leagueoflegends.com data:;
+```
+
+Today there's no CSP header set, so this is a forward-looking note.
+
+### CI workflow has no hosting dependency
+
+The asset-refresh workflow uses `peter-evans/create-pull-request` with
+the default `GITHUB_TOKEN`. It runs regardless of which hosting option
+is chosen and produces no deploy-time coupling.
