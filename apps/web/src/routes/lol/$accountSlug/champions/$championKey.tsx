@@ -3,13 +3,16 @@ import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
 import { ItemIcon } from "@/lol/_shared/item-icon";
+import { findPatchBoundaries } from "@/lol/_shared/patch-version";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { ThisPatchBadge } from "@/lol/_shared/this-patch-badge";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
   buildWinRateSeries,
   computeChampionDetail,
 } from "@/lol/champions/champion-detail-stats";
+import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
@@ -103,6 +106,20 @@ function ChampionDetailPage() {
     () => (detail ? buildWinRateSeries(detail.matchHistory) : []),
     [detail]
   );
+  // detail.matchHistory is already chronological; mirror the same sort here so
+  // gameIndex from boundaries lines up with the sparkline's `game` x-axis.
+  const championPatchBoundaries = useMemo(() => {
+    if (!matches) return [];
+    const chrono = matches
+      .filter((m) => m.champion.toLowerCase() === championKey.toLowerCase() && !m.remake)
+      .slice()
+      .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
+    return findPatchBoundaries(
+      chrono,
+      (m) => m.gameVersion,
+      (m) => new Date(m.playedAt).getTime()
+    );
+  }, [matches, championKey]);
 
   const [matchupSort, setMatchupSort] = useState<"games" | "best" | "hardest">("games");
   const [matchupsExpanded, setMatchupsExpanded] = useState(false);
@@ -158,7 +175,10 @@ function ChampionDetailPage() {
             <ChampionCardChrome champion={alias} />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-5">
-              <div className="relative text-2xl font-bold">{championName(alias)}</div>
+              <div className="relative flex items-center gap-2">
+                <span className="text-2xl font-bold">{championName(alias)}</span>
+                {matches && <ThisPatchBadge matches={matches} />}
+              </div>
               {flavorParts.length > 0 && (
                 <div className="relative text-xs text-muted-foreground/70">
                   {flavorParts.join(" · ")}
@@ -270,6 +290,23 @@ function ChampionDetailPage() {
                   strokeOpacity={0.15}
                   strokeDasharray="3 3"
                 />
+                {championPatchBoundaries.map((b) => (
+                  <ReferenceLine
+                    key={`champ-patch-${b.fromPatch}-${b.toPatch}`}
+                    x={b.gameIndex}
+                    stroke="currentColor"
+                    strokeOpacity={0.18}
+                    strokeDasharray="2 3"
+                    ifOverflow="hidden"
+                    label={{
+                      value: b.toPatch,
+                      position: "insideTopRight",
+                      fill: "var(--muted-foreground)",
+                      fontSize: 9,
+                    }}
+                    className="text-muted-foreground"
+                  />
+                ))}
                 <Tooltip content={<WinRateTooltip />} />
                 <Line
                   type="monotone"
@@ -284,6 +321,9 @@ function ChampionDetailPage() {
           </div>
         </m.div>
       )}
+
+      {/* Per-patch champion WR */}
+      <ChampionPatchHistory matches={champMatches} championAlias={alias} />
 
       {/* Top items */}
       {extras.data && extras.data.topItems.length > 0 && (
