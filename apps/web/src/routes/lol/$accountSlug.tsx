@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account-switcher";
 import championAssets from "@/lol/_shared/champion-assets.json";
 import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
+import { LiveGameChip } from "@/lol/_shared/live-game-chip";
 import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
@@ -358,6 +359,7 @@ function AccountLayout() {
                     )}
                     {!isMatchDetail && (
                       <div className="flex items-center gap-2">
+                        <LiveGameChip accountSlug={accountSlug} />
                         <QueueFilter />
                         <AccountSwitcher currentSlug={accountSlug} />
                         <RefreshAccountButton account={account} />

@@ -13,6 +13,7 @@ import {
 import type {
   CachedMatchesResult,
   ChampionExtras,
+  LiveMatch,
   MatchSummary,
   RankHistoryResponse,
   SummonerProfile,
@@ -96,5 +97,23 @@ export class LolController {
     @Param("tagLine") tagLine: string
   ): Promise<Observable<MessageEvent>> {
     return this.lol.subscribeToMatchEvents(region, gameName, tagLine);
+  }
+
+  @Get("live")
+  async getLiveGame(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string
+  ): Promise<LiveMatch | null> {
+    return this.lol.getLiveGame(region, gameName, tagLine);
+  }
+
+  @Sse("live/events")
+  async liveEvents(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string
+  ): Promise<Observable<MessageEvent>> {
+    return this.lol.subscribeLiveEvents(region, gameName, tagLine);
   }
 }

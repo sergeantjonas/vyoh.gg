@@ -93,6 +93,45 @@ export interface RiotMatch {
   };
 }
 
+export interface RiotActiveGameParticipant {
+  teamId: number;
+  spell1Id: number;
+  spell2Id: number;
+  championId: number;
+  puuid: string;
+  riotId: string; // "GameName#Tag"
+  perks: {
+    perkIds: number[];
+    perkStyle: number;
+    perkSubStyle: number;
+  };
+}
+
+export interface RiotActiveGameBan {
+  teamId: number;
+  championId: number;
+  pickTurn: number;
+}
+
+export interface RiotActiveGame {
+  gameId: number;
+  gameStartTime: number; // epoch ms
+  gameLength: number; // seconds elapsed at time of response
+  mapId: number;
+  gameMode: string;
+  gameType: string;
+  gameQueueConfigId: number;
+  platformId: string;
+  participants: RiotActiveGameParticipant[];
+  bannedChampions: RiotActiveGameBan[];
+}
+
+export interface RiotChampionMastery {
+  championId: number;
+  championLevel: number;
+  championPoints: number;
+}
+
 export interface RiotParticipantFrame {
   participantId: number;
   totalGold: number;

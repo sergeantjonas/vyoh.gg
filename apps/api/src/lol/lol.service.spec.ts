@@ -7,6 +7,7 @@ import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RiotService } from "../riot/riot.service";
 import type { RiotMatch } from "../riot/types";
+import { LiveGamePollerService } from "./live-game-poller.service";
 import { LolService } from "./lol.service";
 import { MatchEventsService, type MatchUpdatedEvent } from "./match-events.service";
 
@@ -143,6 +144,10 @@ async function makeService({
       { provide: RiotService, useValue: riot },
       { provide: IdentityService, useValue: identity },
       events.provider,
+      {
+        provide: LiveGamePollerService,
+        useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+      },
     ],
   }).compile();
 
@@ -257,6 +262,10 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -293,6 +302,10 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -330,6 +343,10 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -369,6 +386,10 @@ describe("LolService.getMatchesForSummoner", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -441,6 +462,10 @@ describe("LolService.getCachedMatches", () => {
         { provide: RiotService, useValue: overrides.riot },
         { provide: IdentityService, useValue: overrides.identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     return moduleRef.get(LolService);
@@ -657,6 +682,10 @@ describe("LolService.subscribeToMatchEvents", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: eventsMock },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     return { service: moduleRef.get(LolService), stream, eventsMock };
@@ -771,6 +800,10 @@ describe("LolService.syncAccountHistorical", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         events.provider,
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     return {
@@ -951,6 +984,10 @@ describe("LolService.syncForSummoner", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     const service = moduleRef.get(LolService);
@@ -997,6 +1034,10 @@ describe("LolService.syncForSummoner", () => {
         { provide: RiotService, useValue: riot },
         { provide: IdentityService, useValue: identity },
         { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
       ],
     }).compile();
     const service = moduleRef.get(LolService);

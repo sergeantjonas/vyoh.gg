@@ -7,6 +7,8 @@ import { platformToRegional } from "./regions";
 import { RiotError } from "./riot.error";
 import type {
   RiotAccount,
+  RiotActiveGame,
+  RiotChampionMastery,
   RiotLeagueEntry,
   RiotMatch,
   RiotMatchTimeline,
@@ -108,6 +110,53 @@ export class RiotService {
         0
       )
     );
+  }
+
+  // Returns null when the player is not in an active game (404 is expected).
+  async getActiveGameByPuuid(
+    puuid: string,
+    platform: Platform
+  ): Promise<RiotActiveGame | null> {
+    const rateKey = platformToRegional(platform);
+    const path = `/lol/spectator/v5/active-games/by-summoner/${puuid}`;
+    return this.limiter.schedule(rateKey, "active-game-by-puuid", async () => {
+      try {
+        return await this.fetchWithRetry<RiotActiveGame>(
+          platform,
+          rateKey,
+          "active-game-by-puuid",
+          path,
+          0
+        );
+      } catch (err) {
+        if (err instanceof RiotError && err.status === 404) return null;
+        throw err;
+      }
+    });
+  }
+
+  // Returns null when the player has no mastery on the given champion (404 = never played).
+  async getChampionMasteryByChampion(
+    puuid: string,
+    platform: Platform,
+    championId: number
+  ): Promise<RiotChampionMastery | null> {
+    const rateKey = platformToRegional(platform);
+    const path = `/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/by-champion/${championId}`;
+    return this.limiter.schedule(rateKey, "champion-mastery-by-champion", async () => {
+      try {
+        return await this.fetchWithRetry<RiotChampionMastery>(
+          platform,
+          rateKey,
+          "champion-mastery-by-champion",
+          path,
+          0
+        );
+      } catch (err) {
+        if (err instanceof RiotError && err.status === 404) return null;
+        throw err;
+      }
+    });
   }
 
   private async fetch<T>(host: Regional, family: MethodFamily, path: string): Promise<T> {

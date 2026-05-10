@@ -11,6 +11,13 @@ export type {
 } from "./lol/rank-history.ts";
 export type { ChampionExtras, ItemStats, MatchupStats } from "./lol/champion-extras.ts";
 export type {
+  LiveMatch,
+  LiveGameParticipant,
+  LiveBan,
+  LiveRankEntry,
+  LiveMastery,
+} from "./lol/live-game.ts";
+export type {
   MatchTimelineProjection,
   MatchTimelineFrame,
   MatchTimelineKill,

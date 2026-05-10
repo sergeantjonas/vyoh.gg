@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import type {
   CachedMatchesResult,
   ChampionExtras,
+  LiveMatch,
   LolAccount,
   MatchDetail,
   MatchSummary,
@@ -22,6 +23,7 @@ import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { type Platform, type Regional, platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
+import { LiveGamePollerService } from "./live-game-poller.service";
 import { MatchEventsService } from "./match-events.service";
 import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
@@ -43,7 +45,8 @@ export class LolService {
     private readonly prisma: PrismaService,
     private readonly riot: RiotService,
     private readonly identity: IdentityService,
-    private readonly events: MatchEventsService
+    private readonly events: MatchEventsService,
+    private readonly livePoller: LiveGamePollerService
   ) {}
 
   async getMatchesForSummoner(
@@ -505,6 +508,43 @@ export class LolService {
       .pipe(map((event) => ({ type: "match-updated", data: event })));
 
     return merge(updates, heartbeat);
+  }
+
+  async getLiveGame(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<LiveMatch | null> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+      select: { puuid: true },
+    });
+    if (!summoner) return null;
+    return this.livePoller.getForPuuid(summoner.puuid);
+  }
+
+  async subscribeLiveEvents(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<Observable<MessageEvent>> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    const heartbeat: Observable<MessageEvent> = interval(SSE_HEARTBEAT_MS).pipe(
+      map(() => ({ type: "heartbeat", data: {} satisfies object }))
+    );
+    if (!summoner) return heartbeat;
+    const liveUpdates: Observable<MessageEvent> = this.events
+      .forLiveGame(summoner.puuid)
+      .pipe(map((event) => ({ type: "live-game-updated", data: event })));
+    return merge(liveUpdates, heartbeat);
   }
 
   async getMatchDetail(matchId: string): Promise<MatchDetail> {
