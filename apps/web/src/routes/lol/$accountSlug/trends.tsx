@@ -1,6 +1,8 @@
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
+import { TrendDamageRoleConsistency } from "@/lol/trends/trend-damage-role-consistency";
 import { TrendDowWr } from "@/lol/trends/trend-dow-wr";
+import { TrendFirstBloodConversion } from "@/lol/trends/trend-first-blood-conversion";
 import { TrendGameLength } from "@/lol/trends/trend-game-length";
 import { TrendKda } from "@/lol/trends/trend-kda";
 import { TrendLpEconomy } from "@/lol/trends/trend-lp-economy";
@@ -8,6 +10,7 @@ import { TrendRolePerformance } from "@/lol/trends/trend-role-performance";
 import { TrendSessionFatigue } from "@/lol/trends/trend-session-fatigue";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
+import { TrendVisionInvestment } from "@/lol/trends/trend-vision-investment";
 import { TrendWeeklyReview } from "@/lol/trends/trend-weekly-review";
 import { TrendWorstMatchup } from "@/lol/trends/trend-worst-matchup";
 import { TrendWrTrajectory } from "@/lol/trends/trend-wr-trajectory";
@@ -141,6 +144,27 @@ function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
       designPriority: 500,
       active: playedWithOpponent.length >= 3,
       node: <TrendWorstMatchup current={current} previous={previous} />,
+    },
+    {
+      id: "damage-role-consistency",
+      span: 1,
+      designPriority: 460,
+      active: playedRift.length >= 5,
+      node: <TrendDamageRoleConsistency current={current} previous={previous} />,
+    },
+    {
+      id: "vision-investment",
+      span: 1,
+      designPriority: 450,
+      active: playedRift.length >= 5,
+      node: <TrendVisionInvestment current={current} previous={previous} />,
+    },
+    {
+      id: "first-blood-conversion",
+      span: 1,
+      designPriority: 440,
+      active: played.length >= 5,
+      node: <TrendFirstBloodConversion current={current} previous={previous} />,
     },
     {
       id: "kda",
