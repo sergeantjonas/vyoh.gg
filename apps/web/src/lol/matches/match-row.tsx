@@ -7,6 +7,7 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champions/champion-card";
+import { useChampionName } from "@/lol/champions/use-champions";
 import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
@@ -53,6 +54,7 @@ export function MatchRow({
 }) {
   const { setActiveMatch, saveListScroll, originRectRef, setOriginRect } =
     useActiveMatch();
+  const championName = useChampionName();
   const reduced = useReducedMotion();
   const cardRef = useRef<HTMLDivElement>(null);
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
@@ -200,7 +202,7 @@ export function MatchRow({
               </div>
               {showVsLabel && match.laneOpponent && (
                 <div className="text-xs text-muted-foreground/60">
-                  vs {match.laneOpponent.championName}
+                  vs {championName(match.laneOpponent.championName)}
                 </div>
               )}
             </div>
