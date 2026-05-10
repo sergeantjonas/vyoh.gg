@@ -156,6 +156,20 @@ function ChampionDetailPage() {
 
   const [stripVisible, heroRef] = useHeroScrolledPast();
 
+  // Champion-scoped matches must be derived BEFORE the early return — moving
+  // it below caused a hooks-count mismatch on first render once the page
+  // started self-fetching (data === undefined → detail === null → early
+  // return with fewer hooks → next render had one more useMemo → React
+  // errored on hooks order). Falls back to championKey when detail isn't
+  // available yet so the alias is still resolvable.
+  const aliasForFilter = detail?.champion ?? championKey;
+  const champMatches = useMemo(
+    () =>
+      matches?.filter((m) => m.champion.toLowerCase() === aliasForFilter.toLowerCase()) ??
+      [],
+    [matches, aliasForFilter]
+  );
+
   if (!detail) {
     return (
       <m.p
@@ -169,10 +183,6 @@ function ChampionDetailPage() {
   }
 
   const alias = detail.champion;
-  const champMatches = useMemo(
-    () => matches?.filter((m) => m.champion === alias) ?? [],
-    [matches, alias]
-  );
   const kdaDelta = overall ? detail.avgKda - overall.avgKda : null;
   const wrDelta = overall ? detail.winRate - overall.winRate : null;
   const flavorParts = [
@@ -198,7 +208,13 @@ function ChampionDetailPage() {
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <div className="relative flex items-center gap-2">
                 <span className="text-2xl font-bold">{championName(alias)}</span>
-                {matches && <ThisPatchBadge matches={matches} />}
+                {champMatches.length > 0 && (
+                  <ThisPatchBadge
+                    matches={champMatches}
+                    label="Last played"
+                    buildLabel="Last build"
+                  />
+                )}
               </div>
               {flavorParts.length > 0 && (
                 <div className="relative text-xs text-muted-foreground/70">

@@ -20,7 +20,19 @@ function findLatestGameVersion(matches: readonly MatchSummary[]): string | null 
   return latest;
 }
 
-export function ThisPatchBadge({ matches }: { matches: readonly MatchSummary[] }) {
+export function ThisPatchBadge({
+  matches,
+  // Lets the caller frame the chip — Champion detail uses "Last played" so
+  // it's clear the patch is the most-recent on this champion (the strip
+  // below shows the rest), not a claim that all the games span one patch.
+  // Profile-style usage can pass a different label if it ever lands there.
+  label = "Patch",
+  buildLabel = "Build",
+}: {
+  matches: readonly MatchSummary[];
+  label?: string;
+  buildLabel?: string;
+}) {
   const latest = useMemo(() => findLatestGameVersion(matches), [matches]);
   if (!latest) return null;
   const short = truncatePatch(latest);
@@ -29,7 +41,7 @@ export function ThisPatchBadge({ matches }: { matches: readonly MatchSummary[] }
     <TooltipPrimitive.Root delayDuration={150}>
       <TooltipPrimitive.Trigger asChild>
         <span className="cursor-help rounded-full border border-foreground/15 bg-foreground/5 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-          Patch {short}
+          {label} {short}
         </span>
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
@@ -38,7 +50,7 @@ export function ThisPatchBadge({ matches }: { matches: readonly MatchSummary[] }
           sideOffset={4}
           className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
         >
-          Build {latest}
+          {buildLabel} {latest}
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
