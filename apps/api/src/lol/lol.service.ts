@@ -289,7 +289,9 @@ export class LolService {
     const before = await this.prisma.match.count({
       where: { puuid: summoner.puuid, matchId: { in: ids } },
     });
-    await this.backfillMissingMatches(summoner.puuid, ids, regional);
+    await this.backfillMissingMatches(summoner.puuid, ids, regional, {
+      attachSnapshotToNewest: true,
+    });
     const after = await this.prisma.match.count({
       where: { puuid: summoner.puuid, matchId: { in: ids } },
     });
@@ -709,7 +711,7 @@ export class LolService {
     puuid: string,
     matchIds: string[],
     regional: Regional,
-    opts: { attachSnapshot?: boolean } = {}
+    opts: { attachSnapshot?: boolean; attachSnapshotToNewest?: boolean } = {}
   ): Promise<void> {
     if (matchIds.length === 0) return;
 
@@ -731,18 +733,60 @@ export class LolService {
       `match cache: ${have.size} hit, ${missing.length} missing for ${puuid}`
     );
 
-    const results = await Promise.allSettled(
+    if (missing.length === 0) return;
+
+    // Phase 1: fetch all raw match data before any writes. This lets phase 2
+    // determine snapshot eligibility across the whole batch without races —
+    // if we fetched-and-upserted in one pass, parallel tasks would each see
+    // an empty DB for their queue and all claim to be "newest".
+    const fetched = await Promise.allSettled(
       missing.map(async (matchId) => {
         const raw = await this.riot.getMatchById(matchId, regional);
         const summary = riotMatchToSummary(raw, puuid);
         const { items } = extractItems(raw, puuid);
+        return { matchId, raw, summary, items };
+      })
+    );
+
+    // Phase 2 (historical path only): find the chronologically newest match
+    // per ranked queue in this batch, then drop any queue where the DB already
+    // has a more recent game — those were covered by a head-sync snapshot.
+    const snapshotMatchIds = new Set<string>();
+    if (opts.attachSnapshotToNewest) {
+      const newestPerQueue = new Map<string, { matchId: string; playedAt: string }>();
+      for (const r of fetched) {
+        if (r.status !== "fulfilled") continue;
+        const { matchId, raw, summary } = r.value;
+        if (!RANKED_QUEUE_MAP[raw.info.queueId]) continue;
+        const prev = newestPerQueue.get(summary.queueType);
+        if (!prev || summary.playedAt > prev.playedAt) {
+          newestPerQueue.set(summary.queueType, { matchId, playedAt: summary.playedAt });
+        }
+      }
+      for (const [queueType, { matchId, playedAt }] of newestPerQueue) {
+        const hasNewer = await this.prisma.match.count({
+          where: { puuid, queueType, playedAt: { gt: new Date(playedAt) } },
+        });
+        if (hasNewer === 0) snapshotMatchIds.add(matchId);
+      }
+    }
+
+    // Phase 3: upsert all fetched matches.
+    const results = await Promise.allSettled(
+      fetched.map(async (r) => {
+        if (r.status === "rejected") throw r.reason;
+        const { matchId, raw, summary, items } = r.value;
 
         let snapshotTier: string | undefined;
         let snapshotRank: string | undefined;
         let snapshotLp: number | undefined;
-        if (opts.attachSnapshot) {
-          const rankedQueueId = RANKED_QUEUE_MAP[raw.info.queueId];
-          if (rankedQueueId) {
+
+        const rankedQueueId = RANKED_QUEUE_MAP[raw.info.queueId];
+        if (rankedQueueId) {
+          const shouldAttach =
+            opts.attachSnapshot ||
+            (opts.attachSnapshotToNewest && snapshotMatchIds.has(matchId));
+          if (shouldAttach) {
             const snap = await this.prisma.rankSnapshot.findFirst({
               where: { puuid, queueId: rankedQueueId },
               orderBy: { capturedAt: "desc" },

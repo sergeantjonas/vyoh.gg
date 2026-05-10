@@ -746,6 +746,9 @@ describe("LolService.syncAccountHistorical", () => {
     oldest: { playedAt: Date } | null;
     riotIds?: string[];
     countsBefore?: number;
+    // Count returned for the hasNewer check (phase 2). 0 = no newer game →
+    // snapshot will be attached; >0 = newer game exists → no snapshot.
+    hasNewerCount?: number;
     countsAfter?: number;
   };
 
@@ -765,10 +768,15 @@ describe("LolService.syncAccountHistorical", () => {
     const summonerUpdate = vi.fn().mockResolvedValue(undefined);
     const matchFindFirst = vi.fn().mockResolvedValue(deps.oldest);
     const matchFindMany = vi.fn().mockResolvedValue([]);
-    // Two count() calls: before and after backfill.
+    // Three count() calls when there are ranked matches to process:
+    //   1. before backfill
+    //   2. hasNewer check inside backfillMissingMatches (one per ranked queue)
+    //   3. after backfill
+    // Tests that return early (no riotIds) only hit call 1+3 or none at all.
     const matchCount = vi
       .fn()
       .mockResolvedValueOnce(deps.countsBefore ?? 0)
+      .mockResolvedValueOnce(deps.hasNewerCount ?? 0)
       .mockResolvedValueOnce(deps.countsAfter ?? 0);
     const matchUpsert = vi.fn().mockResolvedValue(undefined);
 
@@ -784,6 +792,8 @@ describe("LolService.syncAccountHistorical", () => {
         count: matchCount,
         upsert: matchUpsert,
       },
+      matchDetailCache: { upsert: vi.fn().mockResolvedValue(undefined) },
+      rankSnapshot: { findFirst: vi.fn().mockResolvedValue(null) },
     };
     const riot = {
       getAccountByRiotId: vi.fn(),
@@ -961,6 +971,63 @@ describe("LolService.syncAccountHistorical", () => {
 
     expect(result.done).toBe(false);
     expect(prisma.summoner.update).not.toHaveBeenCalled();
+  });
+
+  it("attaches snapshot to the newest ranked match when no newer game is in DB", async () => {
+    const { service, prisma } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+      riotIds: ["H_1"],
+      countsBefore: 0,
+      hasNewerCount: 0, // no newer DB game → snapshot should be attached
+      countsAfter: 1,
+    });
+    prisma.rankSnapshot.findFirst.mockResolvedValue({
+      tier: "GOLD",
+      rank: "I",
+      leaguePoints: 75,
+    });
+
+    await service.syncAccountHistorical(account);
+
+    expect(prisma.match.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          snapshotTier: "GOLD",
+          snapshotRank: "I",
+          snapshotLp: 75,
+        }),
+      })
+    );
+  });
+
+  it("does not attach snapshot when a newer game already exists in DB for that queue", async () => {
+    const { service, prisma } = await buildHistoricalService({
+      summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
+      oldest: { playedAt: new Date(2_000_000_000_000) },
+      riotIds: ["H_1"],
+      countsBefore: 0,
+      hasNewerCount: 1, // newer DB game exists → skip snapshot
+      countsAfter: 1,
+    });
+    prisma.rankSnapshot.findFirst.mockResolvedValue({
+      tier: "GOLD",
+      rank: "I",
+      leaguePoints: 75,
+    });
+
+    await service.syncAccountHistorical(account);
+
+    expect(prisma.rankSnapshot.findFirst).not.toHaveBeenCalled();
+    expect(prisma.match.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          snapshotTier: undefined,
+          snapshotRank: undefined,
+          snapshotLp: undefined,
+        }),
+      })
+    );
   });
 });
 
