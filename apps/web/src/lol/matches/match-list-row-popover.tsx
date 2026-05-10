@@ -3,7 +3,20 @@ import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
 
 const API_URL = "http://localhost:2010";
 
@@ -72,6 +85,11 @@ export function MatchListRowPopover({
   children: ReactNode;
 }) {
   const [fetchEnabled, setFetchEnabled] = useState(false);
+  // Hover is desktop-only; touch devices never trigger the tooltip, so don't
+  // mount it. Below the lg breakpoint the side panel doesn't fit horizontally,
+  // so flip to a vertical placement.
+  const canHover = useMediaQuery("(hover: hover) and (pointer: fine)");
+  const isWide = useMediaQuery("(min-width: 1024px)");
 
   const { data } = useQuery<MatchDetail>({
     queryKey: ["lol", "match", matchId],
@@ -79,6 +97,8 @@ export function MatchListRowPopover({
     enabled: fetchEnabled,
     staleTime: Number.POSITIVE_INFINITY,
   });
+
+  if (!canHover) return <>{children}</>;
 
   const team100 = data?.participants.filter((p) => p.teamId === 100) ?? [];
   const team200 = data?.participants.filter((p) => p.teamId === 200) ?? [];
@@ -90,7 +110,7 @@ export function MatchListRowPopover({
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
-          side="right"
+          side={isWide ? "right" : "bottom"}
           align="center"
           sideOffset={8}
           collisionPadding={12}
