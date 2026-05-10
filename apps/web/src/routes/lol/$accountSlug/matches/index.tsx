@@ -1,6 +1,7 @@
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
+import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
@@ -28,6 +29,9 @@ function MatchesPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-end">
+        <QueueFilter />
+      </div>
       {matches.isPending && account && <MatchListSkeleton />}
       {matches.isError && (
         <div className="flex flex-col items-start gap-2">
