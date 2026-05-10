@@ -58,16 +58,18 @@ const teamRow: Variants = {
 
 type BadgeKey = "damage" | "kda" | "vision" | "kp" | "cs" | "deaths";
 
-const BADGE_LABELS: Record<BadgeKey, string> = {
-  damage: "Most damage",
-  kda: "Highest KDA",
-  vision: "Most vision",
-  kp: "Highest KP",
-  cs: "Most CS",
-  deaths: "Lowest deaths",
+const BADGE_DEFS: Record<BadgeKey, { label: string; tip: string }> = {
+  damage: { label: "Top DMG", tip: "Most damage dealt to champions" },
+  kda: { label: "Top KDA", tip: "Highest KDA ratio" },
+  vision: { label: "Top Vision", tip: "Highest vision score" },
+  kp: { label: "Top KP", tip: "Highest kill participation" },
+  cs: { label: "Top CS", tip: "Most creep score" },
+  deaths: { label: "Low Deaths", tip: "Fewest deaths in this game" },
 };
 
-function computeBadges(participants: ParticipantDetail[]): Map<string, string> {
+function computeBadges(
+  participants: ParticipantDetail[]
+): Map<string, { label: string; tip: string }> {
   type Candidate = { puuid: string; key: BadgeKey; margin: number };
   const candidates: Candidate[] = [];
 
@@ -104,10 +106,10 @@ function computeBadges(participants: ParticipantDetail[]): Map<string, string> {
   // Most distinctive first — greedily assign one badge per participant
   candidates.sort((a, b) => b.margin - a.margin);
 
-  const result = new Map<string, string>();
+  const result = new Map<string, { label: string; tip: string }>();
   for (const c of candidates) {
     if (!result.has(c.puuid)) {
-      result.set(c.puuid, BADGE_LABELS[c.key]);
+      result.set(c.puuid, BADGE_DEFS[c.key]);
     }
   }
   return result;
@@ -476,7 +478,7 @@ function ParticipantRow({
   isMe?: boolean;
   maxDamage: number;
   maxGold: number;
-  badge?: string;
+  badge?: { label: string; tip: string };
 }) {
   const championName = useChampionName();
   const reduced = useReducedMotion();
@@ -513,7 +515,27 @@ function ParticipantRow({
         className="size-9 rounded-md"
       />
       <div className="flex-1 min-w-0">
-        <div className="truncate text-sm font-medium">{displayName}</div>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="truncate text-sm font-medium">{displayName}</div>
+          {badge && (
+            <TooltipPrimitive.Root delayDuration={300}>
+              <TooltipPrimitive.Trigger asChild>
+                <span className="shrink-0 cursor-default rounded px-1 py-px text-[10px] font-medium bg-foreground/[0.07] text-foreground/50">
+                  {badge.label}
+                </span>
+              </TooltipPrimitive.Trigger>
+              <TooltipPrimitive.Portal>
+                <TooltipPrimitive.Content
+                  side="top"
+                  sideOffset={5}
+                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2.5 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                >
+                  {badge.tip}
+                </TooltipPrimitive.Content>
+              </TooltipPrimitive.Portal>
+            </TooltipPrimitive.Root>
+          )}
+        </div>
         <div className="truncate text-[10px] text-muted-foreground/60">
           {p.riotIdGameName}
           <span className="text-muted-foreground/40">#{p.riotIdTagline}</span>
@@ -531,14 +553,6 @@ function ParticipantRow({
             {p.csTotal}
           </span>
         </div>
-        <span
-          className={cn(
-            "mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset bg-foreground/[0.06] text-foreground/50 ring-foreground/[0.1]",
-            !badge && "invisible"
-          )}
-        >
-          {badge ?? " "}
-        </span>
       </div>
       <div className="flex flex-col items-end gap-1.5">
         <ItemSlots items={p.items} />
@@ -576,7 +590,7 @@ function TeamBlock({
   myPuuid?: string;
   maxDamage: number;
   maxGold: number;
-  badges: Map<string, string>;
+  badges: Map<string, { label: string; tip: string }>;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -596,7 +610,7 @@ function TeamBlock({
         initial="hidden"
         animate="show"
         variants={teamContainer}
-        className="flex flex-col gap-1"
+        className="flex flex-col gap-2"
       >
         {participants.map((p) => (
           <ParticipantRow
