@@ -3,8 +3,9 @@ import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account-switcher";
 import championAssets from "@/lol/_shared/champion-assets.json";
 import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
-import { QueueFilter } from "@/lol/_shared/queue-filter";
 import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
+import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues";
+import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues-settings";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
 import { profileIconFallbackUrl, profileIconUrl } from "@/lol/_shared/summoner-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
@@ -121,7 +122,7 @@ export const Route = createFileRoute("/lol/$accountSlug")({
 
 function AccountLayout() {
   const { accountSlug } = Route.useParams();
-  const { queue, count: countParam } = Route.useSearch();
+  const { count: countParam } = Route.useSearch();
   const count = countParam ?? DEFAULT_COUNT;
   const navigate = useNavigate();
   const account = useAccountFromSlug(accountSlug);
@@ -132,7 +133,12 @@ function AccountLayout() {
   // cached endpoint — pure DB query, no Riot calls — so navigating between
   // tabs costs nothing upstream. The match list still backfills via its
   // own useMatches infinite query; the sync worker fills the DB on a cron.
-  const matchesWindow = useCachedMatchesWindow(account, count, queue);
+  //
+  // Queue scope is intentionally left out here: the layer caches all queues
+  // and downstream views decide their own scope (performance views filter
+  // to SERIOUS_QUEUE_TYPES via useSeriousMatches; identity/cadence views
+  // consume everything; the match list page owns its own queue filter UI).
+  const matchesWindow = useCachedMatchesWindow(account, count);
   const matches = matchesWindow.data?.matches;
   const total = matchesWindow.data?.total ?? 0;
 
@@ -314,194 +320,129 @@ function AccountLayout() {
     <ActiveMatchProvider>
       <MatchListReturnReset inSubtree={isInMatchesSubtree} />
       <HoverChampionProvider setHovered={setHoveredChampion}>
-        <MatchWindowProvider
-          value={{
-            matches,
-            isPending: matchesWindow.isPending,
-            total,
-            count,
-            setCount,
-          }}
-        >
-          <div className="flex flex-col gap-6">
-            <header
-              ref={headerRef}
-              data-account-header
-              className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md"
-            >
-              <m.div
-                className="mx-auto max-w-4xl px-6"
-                animate={{
-                  paddingTop: compact ? 8 : 24,
-                  paddingBottom: compact ? 8 : 12,
-                }}
-                transition={
-                  prefersReducedMotion
-                    ? { duration: 0 }
-                    : { type: "spring", stiffness: 380, damping: 32 }
-                }
+        <SeriousQueuesProvider>
+          <MatchWindowProvider
+            value={{
+              matches,
+              isPending: matchesWindow.isPending,
+              total,
+              count,
+              setCount,
+            }}
+          >
+            <div className="flex flex-col gap-6">
+              <header
+                ref={headerRef}
+                data-account-header
+                className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md"
               >
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    {account && (
-                      <section className="flex items-center gap-3">
-                        {iconId != null && (
-                          <div className="relative shrink-0">
-                            <img
-                              src={profileIconUrl(iconId)}
-                              alt=""
-                              className={cn(
-                                "rounded-full object-cover ring-1 ring-border transition-all",
-                                compact ? "size-7" : "size-9"
-                              )}
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = profileIconFallbackUrl(
-                                  iconId,
-                                  ddVersion
-                                );
-                              }}
-                            />
-                            {level != null && !compact && (
-                              <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
-                                {level}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex items-baseline gap-3">
-                          <h2 className="text-xl font-semibold">
-                            {account.gameName}
-                            <span className="text-muted-foreground">
-                              #{account.tagLine}
-                            </span>
-                          </h2>
-                          <AnimatePresence>
-                            {!compact && (
-                              <m.span
-                                key="region"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={
-                                  prefersReducedMotion
-                                    ? { duration: 0 }
-                                    : { duration: 0.15 }
-                                }
-                                className="text-sm uppercase text-muted-foreground"
-                              >
-                                {account.region}
-                              </m.span>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </section>
-                    )}
-                    {!isMatchDetail && (
-                      <div className="flex items-center gap-2">
-                        <QueueFilter />
-                        <AccountSwitcher currentSlug={accountSlug} />
-                        <RefreshAccountButton account={account} />
-                      </div>
-                    )}
-                  </div>
-
-                  <AnimatePresence mode="wait" initial={false}>
-                    {isMatchDetail ? (
-                      <m.div
-                        key="back-nav"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <BackButton accountSlug={accountSlug} pathname={pathname} />
-                      </m.div>
-                    ) : (
-                      <m.div
-                        key="tabs"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="flex gap-1"
-                      >
-                        {TABS.map(({ to, label, Icon, exact }) => {
-                          const tabPath = to.replace("$accountSlug", accountSlug);
-                          const active = exact
-                            ? pathname === tabPath
-                            : pathname === tabPath || pathname.startsWith(`${tabPath}/`);
-                          return (
-                            <Link
-                              key={to}
-                              to={to}
-                              params={{ accountSlug }}
-                              search={(prev: AccountSearch) => prev}
-                              className={cn(
-                                "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                                active
-                                  ? "text-foreground"
-                                  : "text-muted-foreground hover:text-foreground"
-                              )}
-                            >
-                              <m.span
-                                key={active ? 1 : 0}
-                                initial={
-                                  active && !prefersReducedMotion ? iconPop(label) : false
-                                }
-                                animate={{ scale: 1, rotate: 0, y: 0 }}
-                                transition={{
-                                  type: "spring",
-                                  stiffness: 450,
-                                  damping: 18,
+                <m.div
+                  className="mx-auto max-w-4xl px-6"
+                  animate={{
+                    paddingTop: compact ? 8 : 24,
+                    paddingBottom: compact ? 8 : 12,
+                  }}
+                  transition={
+                    prefersReducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 380, damping: 32 }
+                  }
+                >
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      {account && (
+                        <section className="flex items-center gap-3">
+                          {iconId != null && (
+                            <div className="relative shrink-0">
+                              <img
+                                src={profileIconUrl(iconId)}
+                                alt=""
+                                className={cn(
+                                  "rounded-full object-cover ring-1 ring-border transition-all",
+                                  compact ? "size-7" : "size-9"
+                                )}
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = profileIconFallbackUrl(
+                                    iconId,
+                                    ddVersion
+                                  );
                                 }}
-                                className="inline-flex"
-                              >
-                                <Icon
-                                  className={cn(
-                                    "size-4 transition-colors",
-                                    active
-                                      ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
-                                      : "text-muted-foreground group-hover:text-foreground"
-                                  )}
-                                />
-                              </m.span>
-                              {label}
-                              {active && (
-                                <m.div
-                                  layoutId="lol-tab-indicator"
-                                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
-                                  animate={{
-                                    boxShadow: [
-                                      "0 0 0px 0px rgba(56,189,248,0)",
-                                      "0 0 10px 1px rgba(56,189,248,0.45)",
-                                      "0 0 0px 0px rgba(56,189,248,0)",
-                                    ],
-                                  }}
-                                  transition={{
-                                    default: {
-                                      type: "spring",
-                                      stiffness: 500,
-                                      damping: 35,
-                                    },
-                                    boxShadow: {
-                                      duration: 2.4,
-                                      repeat: Number.POSITIVE_INFINITY,
-                                      ease: "easeInOut",
-                                    },
-                                  }}
-                                />
+                              />
+                              {level != null && !compact && (
+                                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
+                                  {level}
+                                </span>
                               )}
-                            </Link>
-                          );
-                        })}
-                        {liveData &&
-                          (() => {
-                            const livePath = `/lol/${accountSlug}/live`;
-                            const active = pathname === livePath;
+                            </div>
+                          )}
+                          <div className="flex items-baseline gap-3">
+                            <h2 className="text-xl font-semibold">
+                              {account.gameName}
+                              <span className="text-muted-foreground">
+                                #{account.tagLine}
+                              </span>
+                            </h2>
+                            <AnimatePresence>
+                              {!compact && (
+                                <m.span
+                                  key="region"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  exit={{ opacity: 0 }}
+                                  transition={
+                                    prefersReducedMotion
+                                      ? { duration: 0 }
+                                      : { duration: 0.15 }
+                                  }
+                                  className="text-sm uppercase text-muted-foreground"
+                                >
+                                  {account.region}
+                                </m.span>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </section>
+                      )}
+                      {!isMatchDetail && (
+                        <div className="flex items-center gap-2">
+                          <SeriousQueuesSettings />
+                          <AccountSwitcher currentSlug={accountSlug} />
+                          <RefreshAccountButton account={account} />
+                        </div>
+                      )}
+                    </div>
+
+                    <AnimatePresence mode="wait" initial={false}>
+                      {isMatchDetail ? (
+                        <m.div
+                          key="back-nav"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <BackButton accountSlug={accountSlug} pathname={pathname} />
+                        </m.div>
+                      ) : (
+                        <m.div
+                          key="tabs"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex gap-1"
+                        >
+                          {TABS.map(({ to, label, Icon, exact }) => {
+                            const tabPath = to.replace("$accountSlug", accountSlug);
+                            const active = exact
+                              ? pathname === tabPath
+                              : pathname === tabPath ||
+                                pathname.startsWith(`${tabPath}/`);
                             return (
                               <Link
-                                to="/lol/$accountSlug/live"
+                                key={to}
+                                to={to}
                                 params={{ accountSlug }}
                                 search={(prev: AccountSearch) => prev}
                                 className={cn(
@@ -515,7 +456,7 @@ function AccountLayout() {
                                   key={active ? 1 : 0}
                                   initial={
                                     active && !prefersReducedMotion
-                                      ? iconPop("Live")
+                                      ? iconPop(label)
                                       : false
                                   }
                                   animate={{ scale: 1, rotate: 0, y: 0 }}
@@ -526,16 +467,16 @@ function AccountLayout() {
                                   }}
                                   className="inline-flex"
                                 >
-                                  <Radio
+                                  <Icon
                                     className={cn(
                                       "size-4 transition-colors",
                                       active
-                                        ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
-                                        : "animate-pulse text-red-400/60 group-hover:text-red-400"
+                                        ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
+                                        : "text-muted-foreground group-hover:text-foreground"
                                     )}
                                   />
                                 </m.span>
-                                Live
+                                {label}
                                 {active && (
                                   <m.div
                                     layoutId="lol-tab-indicator"
@@ -563,37 +504,107 @@ function AccountLayout() {
                                 )}
                               </Link>
                             );
-                          })()}
-                      </m.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </m.div>
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
-              />
-            </header>
+                          })}
+                          {liveData &&
+                            (() => {
+                              const livePath = `/lol/${accountSlug}/live`;
+                              const active = pathname === livePath;
+                              return (
+                                <Link
+                                  to="/lol/$accountSlug/live"
+                                  params={{ accountSlug }}
+                                  search={(prev: AccountSearch) => prev}
+                                  className={cn(
+                                    "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+                                    active
+                                      ? "text-foreground"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  <m.span
+                                    key={active ? 1 : 0}
+                                    initial={
+                                      active && !prefersReducedMotion
+                                        ? iconPop("Live")
+                                        : false
+                                    }
+                                    animate={{ scale: 1, rotate: 0, y: 0 }}
+                                    transition={{
+                                      type: "spring",
+                                      stiffness: 450,
+                                      damping: 18,
+                                    }}
+                                    className="inline-flex"
+                                  >
+                                    <Radio
+                                      className={cn(
+                                        "size-4 transition-colors",
+                                        active
+                                          ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
+                                          : "animate-pulse text-red-400/60 group-hover:text-red-400"
+                                      )}
+                                    />
+                                  </m.span>
+                                  Live
+                                  {active && (
+                                    <m.div
+                                      layoutId="lol-tab-indicator"
+                                      className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
+                                      animate={{
+                                        boxShadow: [
+                                          "0 0 0px 0px rgba(56,189,248,0)",
+                                          "0 0 10px 1px rgba(56,189,248,0.45)",
+                                          "0 0 0px 0px rgba(56,189,248,0)",
+                                        ],
+                                      }}
+                                      transition={{
+                                        default: {
+                                          type: "spring",
+                                          stiffness: 500,
+                                          damping: 35,
+                                        },
+                                        boxShadow: {
+                                          duration: 2.4,
+                                          repeat: Number.POSITIVE_INFINITY,
+                                          ease: "easeInOut",
+                                        },
+                                      }}
+                                    />
+                                  )}
+                                </Link>
+                              );
+                            })()}
+                        </m.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </m.div>
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
+                />
+              </header>
 
-            <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
-              <m.div
-                key={pathname}
-                custom={effectiveDir}
-                variants={pageSlideVariants}
-                initial={isMatchDetailTransitionRef.current ? "center" : "enter"}
-                animate="center"
-                exit="exit"
-                transition={
-                  isMatchDetailTransitionRef.current
-                    ? { duration: 0 }
-                    : { type: "spring", stiffness: 300, damping: 30 }
-                }
-              >
-                <Outlet />
-              </m.div>
-            </AnimatePresence>
-          </div>
-        </MatchWindowProvider>
+              <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
+                <m.div
+                  key={pathname}
+                  custom={effectiveDir}
+                  variants={pageSlideVariants}
+                  initial={isMatchDetailTransitionRef.current ? "center" : "enter"}
+                  animate="center"
+                  exit="exit"
+                  transition={
+                    isMatchDetailTransitionRef.current
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 300, damping: 30 }
+                  }
+                >
+                  <Outlet />
+                </m.div>
+              </AnimatePresence>
+            </div>
+          </MatchWindowProvider>
+        </SeriousQueuesProvider>
       </HoverChampionProvider>
     </ActiveMatchProvider>
   );
