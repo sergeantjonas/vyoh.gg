@@ -222,27 +222,22 @@ function AccountLayout() {
   }, [pathname, matchesPath, matchesPathPrefix]);
 
   const headerRef = useRef<HTMLElement>(null);
+  // The header's own height (used for in-main `position: sticky` consumers
+  // like the controls slot). Driven via state so React re-renders the slot
+  // with a fresh `top` whenever the header resizes (compact toggle, content
+  // load). Distinct from `--account-header-h` (viewport bottom) which the
+  // out-of-flow `position: fixed` overlays still consume.
+  const [headerHeight, setHeaderHeight] = useState(0);
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const rect = el.getBoundingClientRect();
-      // Two anchors for two coord systems:
-      // - `--account-header-h` is the viewport-y of the header bottom.
-      //   Consumed by `position: fixed` overlays portaled to document.body
-      //   (ChampionStickyStrip), where `top` is in viewport coords.
-      // - `--account-header-height` is the header's own height. Consumed by
-      //   `position: sticky` elements inside <main> (the controls slot),
-      //   where `top` is in the scrolling-ancestor's coords. Using the
-      //   viewport-y here would offset the slot by the nav's height.
       document.documentElement.style.setProperty(
         "--account-header-h",
         `${rect.bottom}px`
       );
-      document.documentElement.style.setProperty(
-        "--account-header-height",
-        `${rect.height}px`
-      );
+      setHeaderHeight(rect.height);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -606,17 +601,18 @@ function AccountLayout() {
 
                 {/* Per-view controls slot. Pages portal their long-list controls
                   (queue filter, sort, count) into this div. Sticks below the
-                  account header via --account-header-height (the header's
-                  own height — main-relative). Lives in flex flow with 0 gap
-                  above so the slot reads flush with the header. When empty
-                  (Profile / Trends / Recap) the slot is 0 px tall and
-                  invisible. `[&>*:not(:last-child)]:hidden` dedupes during
-                  page transitions where exiting + entering pages briefly
-                  portal simultaneously. */}
+                  account header — `top` is the header's height (in main's
+                  coord space), driven by state so it tracks compact toggle.
+                  Lives in flex flow with 0 gap above so the slot reads
+                  flush with the header. When empty (Profile / Trends /
+                  Recap) the slot is 0 px tall and invisible.
+                  `[&>*:not(:last-child)]:hidden` dedupes during page
+                  transitions where exiting + entering pages briefly portal
+                  simultaneously. */}
                 <div
                   ref={setControlsSlotEl}
                   className="sticky z-30 ml-[calc(50%-50vw)] w-screen bg-background/70 backdrop-blur-md [&>*:not(:last-child)]:hidden"
-                  style={{ top: "var(--account-header-height, 0px)" }}
+                  style={{ top: `${headerHeight}px` }}
                 />
 
                 <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
