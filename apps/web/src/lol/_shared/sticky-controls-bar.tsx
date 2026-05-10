@@ -19,8 +19,11 @@ export function StickyControlsBar({
   className?: string;
 }) {
   return (
+    // -mt-6 cancels the layout's flex `gap-6` between the account header and
+    // the routed page, so the bar sits visually flush with the header bottom
+    // at scrollTop 0 instead of floating 24px below it.
     <div
-      className="sticky z-30 ml-[calc(50%-50vw)] w-screen bg-background/70 backdrop-blur-md"
+      className="sticky z-30 -mt-6 ml-[calc(50%-50vw)] w-screen bg-background/70 backdrop-blur-md"
       style={{ top: "var(--account-header-h, 0px)" }}
     >
       <div
