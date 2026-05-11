@@ -241,28 +241,15 @@ Potential use:
 
 ### Virtualization
 
-Status: parked
+Status: shipped
 
-Options:
-
-- `@tanstack/react-virtual`
-- `react-virtuoso`
-
-Why:
-
-The infinite-scroll match list will eventually balloon DOM size. Virtualization gives a clean perf-engineering chapter with measurable before/after.
+`@tanstack/react-virtual` powers the match list. Migrated from `useWindowVirtualizer` to `useVirtualizer` against the `<main>` scroll container in the 2026-05-08 sticky-nav arc. Backs scroll-restoration on detail → list nav and the SSE-new-rows insert animation. `react-virtuoso` not adopted.
 
 ### Live-match tracker
 
-Status: parked
+Status: shipped 2026-05-10
 
-Idea:
-
-API polls Riot spectator API for tracked accounts. Web shows live match progress via SSE.
-
-Why:
-
-Real-time + polling + SSE in one feature. The SSE backfill arc is now shipped (per-account `match-updated` channel for the historical worker), so the wire format and frontend invalidation pattern are reusable; only the spectator-API polling layer would be net-new.
+`LiveGamePollerService` polls Spectator-V5 server-side every 60s for whitelisted accounts; cached in-memory per `(puuid, gameId)`. Emits `game-started` / `game-ended` SSE through the existing `MatchEventsService`. Opportunistic enrichment per detected game (rank + mastery for all 10 players, last-5 form pips for whitelisted players, bans, queue/map/mode badges, compositional radar). Full route at `/lol/$accountSlug/live` plus a "Live now" chip in the account header. See match-depth-roadmap Phase C.
 
 ### Achievements / Highlights
 
