@@ -15,6 +15,7 @@ import {
 } from "@/components/game-icons";
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { cn } from "@/lib/utils";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type {
@@ -22,8 +23,13 @@ import type {
   MatchTimelineObjective,
   ParticipantDetail,
 } from "@vyoh/shared";
+import { Maximize2 } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
+
+const MatchMapOverlay = lazy(() => import("./match-map-overlay"));
+
+const NON_RIFT_QUEUES = new Set(["ARAM", "ARAM Clash", "Arena"]);
 
 const springIn = {
   initial: { opacity: 0, y: 8 },
@@ -241,12 +247,20 @@ export function MatchEventTimelines({
   detail,
   myPuuid,
 }: {
-  detail: { matchId: string; durationSec: number; participants: ParticipantDetail[] };
+  detail: {
+    matchId: string;
+    queueType: string;
+    durationSec: number;
+    participants: ParticipantDetail[];
+  };
   myPuuid?: string;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
+  const championName = useChampionName();
   const reduced = useReducedMotion();
   const [zoom, setZoom] = useState(1);
+  const [mapOpen, setMapOpen] = useState(false);
+  const showMapTrigger = !NON_RIFT_QUEUES.has(detail.queueType);
 
   if (!myPuuid) return null;
 
@@ -272,10 +286,12 @@ export function MatchEventTimelines({
     (p) => p.puuid === myPuuid
   )?.participantId;
 
+  // Store the display name (e.g. "Wukong", "Jarvan IV") so tooltips don't show
+  // raw Riot aliases like "MonkeyKing" / "JarvanIV".
   const championByPid = new Map<number, string>();
   for (const tp of timeline.data.participants) {
     const dp = detail.participants.find((p) => p.puuid === tp.puuid);
-    if (dp) championByPid.set(tp.participantId, dp.championName);
+    if (dp) championByPid.set(tp.participantId, championName(dp.championName));
   }
 
   const kills = timeline.data.kills;
@@ -295,28 +311,40 @@ export function MatchEventTimelines({
       transition={springIn.transition}
       className="flex flex-col gap-3"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-medium">Kill & objective timeline</h3>
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(1, z / 2))}
-            disabled={zoom === 1}
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-default disabled:opacity-30"
-          >
-            −
-          </button>
-          <span className="w-7 text-center font-mono text-[10px] text-muted-foreground">
-            {zoom}×
-          </span>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(8, z * 2))}
-            disabled={zoom === 8}
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-default disabled:opacity-30"
-          >
-            +
-          </button>
+        <div className="flex items-center gap-3">
+          {showMapTrigger && (
+            <button
+              type="button"
+              onClick={() => setMapOpen(true)}
+              className="flex cursor-pointer items-center gap-1 rounded border border-transparent px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            >
+              <Maximize2 className="size-3" />
+              View on map
+            </button>
+          )}
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(1, z / 2))}
+              disabled={zoom === 1}
+              className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-default disabled:opacity-30"
+            >
+              −
+            </button>
+            <span className="w-7 text-center font-mono text-[10px] text-muted-foreground">
+              {zoom}×
+            </span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(8, z * 2))}
+              disabled={zoom === 8}
+              className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-default disabled:opacity-30"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 
@@ -368,6 +396,17 @@ export function MatchEventTimelines({
           </div>
         </div>
       </div>
+
+      {mapOpen && (
+        <Suspense fallback={null}>
+          <MatchMapOverlay
+            open={mapOpen}
+            onOpenChange={setMapOpen}
+            detail={detail}
+            myPuuid={myPuuid}
+          />
+        </Suspense>
+      )}
     </m.section>
   );
 }

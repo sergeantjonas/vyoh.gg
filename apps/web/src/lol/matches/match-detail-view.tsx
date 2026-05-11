@@ -25,7 +25,6 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
-import { MatchKillMap } from "@/lol/matches/match-kill-map";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { useItems } from "@/lol/matches/use-items";
@@ -833,7 +832,6 @@ export function MatchDetailView({
       <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
       <MatchGoldLead detail={detail} myPuuid={myPuuid} />
       <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
-      <MatchKillMap detail={detail} myPuuid={myPuuid} />
       <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
       <MatchLanePhase detail={detail} myPuuid={myPuuid} />
     </div>
