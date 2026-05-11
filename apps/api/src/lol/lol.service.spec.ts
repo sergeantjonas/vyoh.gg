@@ -124,6 +124,7 @@ async function makeService({
     summoner: { findUnique: summonerFindUnique, upsert: summonerUpsert },
     match: { findMany: matchFindMany, count: matchCount, upsert: matchUpsert },
     matchDetailCache: { upsert: vi.fn().mockResolvedValue(undefined) },
+    rankSnapshot: { findFirst: vi.fn().mockResolvedValue(null) },
   };
   const riot = {
     getAccountByRiotId: vi.fn().mockResolvedValue({
@@ -550,6 +551,9 @@ describe("LolService.getCachedMatches", () => {
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
+        snapshotTierBefore: true,
+        snapshotRankBefore: true,
+        snapshotLpBefore: true,
         laneOpponent: true,
       },
     });
@@ -592,6 +596,9 @@ describe("LolService.getCachedMatches", () => {
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
+        snapshotTierBefore: true,
+        snapshotRankBefore: true,
+        snapshotLpBefore: true,
         laneOpponent: true,
       },
     });
@@ -1021,18 +1028,21 @@ describe("LolService.syncAccountHistorical", () => {
           snapshotTier: "GOLD",
           snapshotRank: "I",
           snapshotLp: 75,
+          snapshotTierBefore: "GOLD",
+          snapshotRankBefore: "I",
+          snapshotLpBefore: 75,
         }),
       })
     );
   });
 
-  it("does not attach snapshot when a newer game already exists in DB for that queue", async () => {
+  it("attaches only the before snapshot when a newer game already exists in DB for that queue", async () => {
     const { service, prisma } = await buildHistoricalService({
       summoner: { puuid: "puuid-vyoh", historicalDoneAt: null },
       oldest: { playedAt: new Date(2_000_000_000_000) },
       riotIds: ["H_1"],
       countsBefore: 0,
-      hasNewerCount: 1, // newer DB game exists → skip snapshot
+      hasNewerCount: 1, // newer DB game exists → skip AFTER snapshot
       countsAfter: 1,
     });
     prisma.rankSnapshot.findFirst.mockResolvedValue({
@@ -1043,13 +1053,18 @@ describe("LolService.syncAccountHistorical", () => {
 
     await service.syncAccountHistorical(account);
 
-    expect(prisma.rankSnapshot.findFirst).not.toHaveBeenCalled();
+    // BEFORE snapshot is independent of the attach-this-batch gate, so the
+    // historical lookup still runs and the *Before fields get populated.
+    expect(prisma.rankSnapshot.findFirst).toHaveBeenCalledTimes(1);
     expect(prisma.match.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
           snapshotTier: undefined,
           snapshotRank: undefined,
           snapshotLp: undefined,
+          snapshotTierBefore: "GOLD",
+          snapshotRankBefore: "I",
+          snapshotLpBefore: 75,
         }),
       })
     );

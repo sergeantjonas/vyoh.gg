@@ -57,17 +57,70 @@ const QUEUE_TYPE_FOR_BOUNDARIES: Record<QueueKey, string> = {
 
 const STREAK_MIN_LENGTH = 3;
 
+// Snapshots are only written on LP change, so a wide wall-clock gap between
+// two points means the player wasn't playing — at a linear time scale this
+// dominates the X axis with empty space and Recharts smoothly interpolates
+// across it. Instead of breaking the line, we keep the line continuous and
+// collapse oversized gaps to this cap. Within-session game-to-game spacing
+// (~25-30 min) stays untouched; an overnight gap becomes a single visible
+// step roughly 2x a normal between-game width.
+const MAX_VISUAL_GAP_MS = 60 * 60 * 1000;
+
 interface ChartPoint extends RankHistoryPoint {
+  // Visual X position with oversized gaps collapsed. Use this for plotting
+  // and for any overlay that needs to align with the data line.
   t: number;
+  // Original wall-clock timestamp. Use this for tooltip labels and any
+  // mapping from real time (e.g. patch boundaries) back onto the chart.
+  realT: number;
   totalLp: number;
 }
 
 function toChartPoints(points: RankHistoryPoint[]): ChartPoint[] {
-  return points.map((p) => ({
-    ...p,
-    t: new Date(p.capturedAt).getTime(),
-    totalLp: normalizeLp(p.tier, p.rank, p.leaguePoints),
-  }));
+  if (points.length === 0) return [];
+  const out: ChartPoint[] = [];
+  let visualT = 0;
+  let prevRealT = 0;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (!p) continue;
+    const realT = new Date(p.capturedAt).getTime();
+    if (i === 0) {
+      visualT = realT;
+    } else {
+      visualT += Math.min(realT - prevRealT, MAX_VISUAL_GAP_MS);
+    }
+    prevRealT = realT;
+    out.push({
+      ...p,
+      t: visualT,
+      realT,
+      totalLp: normalizeLp(p.tier, p.rank, p.leaguePoints),
+    });
+  }
+  return out;
+}
+
+// Map a real-time timestamp onto the collapsed visual axis by linearly
+// interpolating between the two bracketing data points. Used for overlays
+// (patch boundaries) whose source data lives in real wall-clock time but
+// must render in chart coordinates.
+function mapRealToVisual(realT: number, points: ChartPoint[]): number {
+  if (points.length === 0) return realT;
+  const first = points[0];
+  if (first && realT <= first.realT) return first.t;
+  for (let i = 1; i < points.length; i++) {
+    const curr = points[i];
+    const prev = points[i - 1];
+    if (!curr || !prev) continue;
+    if (curr.realT >= realT) {
+      const span = curr.realT - prev.realT;
+      const frac = span > 0 ? (realT - prev.realT) / span : 0;
+      return prev.t + frac * (curr.t - prev.t);
+    }
+  }
+  const last = points[points.length - 1];
+  return last ? last.t : realT;
 }
 
 interface Streak {
@@ -119,9 +172,34 @@ function findTierChanges(points: ChartPoint[]): number[] {
   return indices;
 }
 
-function formatTickDate(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+// One tick per calendar day, placed at the visual `t` of the first data point
+// of that day. Recharts auto-generated ticks at "nice" clock boundaries in the
+// compressed visual domain don't align with real calendar days, so we drive
+// placement explicitly.
+function makeDayTicks(points: ChartPoint[]): number[] {
+  const seen = new Set<string>();
+  const ticks: number[] = [];
+  for (const p of points) {
+    const key = new Date(p.realT).toLocaleDateString();
+    if (!seen.has(key)) {
+      seen.add(key);
+      ticks.push(p.t);
+    }
+  }
+  return ticks;
+}
+
+function makeTickFormatter(points: ChartPoint[]): (visualT: number) => string {
+  const map = new Map(
+    points.map((p) => [
+      p.t,
+      new Date(p.realT).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    ])
+  );
+  return (t) => map.get(t) ?? "";
 }
 
 function LpTooltip({
@@ -144,7 +222,7 @@ function LpTooltip({
           className="rounded-md border bg-popover/85 px-3 py-2 text-sm text-popover-foreground shadow-xl backdrop-blur-md"
         >
           <div className="mb-0.5 text-xs text-muted-foreground">
-            {new Date(point.t).toLocaleString(undefined, {
+            {new Date(point.realT).toLocaleString(undefined, {
               dateStyle: "medium",
               timeStyle: "short",
             })}
@@ -402,6 +480,9 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
     return points.filter((p) => p.t >= lo && p.t <= hi);
   }, [points, brushDomain]);
 
+  const dateTicks = useMemo(() => makeDayTicks(visiblePoints), [visiblePoints]);
+  const tickFormatter = useMemo(() => makeTickFormatter(visiblePoints), [visiblePoints]);
+
   const streak = useMemo(() => findLongestStreak(visiblePoints), [visiblePoints]);
   const tierChangeIdxs = useMemo(() => findTierChanges(visiblePoints), [visiblePoints]);
 
@@ -522,8 +603,9 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 type="number"
                 scale="time"
                 domain={xDomain}
+                ticks={dateTicks}
                 allowDataOverflow
-                tickFormatter={formatTickDate}
+                tickFormatter={tickFormatter}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                 minTickGap={48}
               />
@@ -552,7 +634,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
               {patchBoundaries.map((b) => (
                 <ReferenceLine
                   key={`patch-${b.fromPatch}-${b.toPatch}`}
-                  x={b.ts}
+                  x={mapRealToVisual(b.ts, points)}
                   stroke="currentColor"
                   strokeOpacity={0.18}
                   strokeDasharray="2 3"

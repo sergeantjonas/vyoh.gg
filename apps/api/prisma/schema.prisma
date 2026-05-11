@@ -76,9 +76,12 @@ model Match {
   teamGoldDiffAt15 Int  @default(0)
   deathTimings Int[]    @default([])
   remake       Boolean  @default(false)
-  snapshotTier String?
-  snapshotRank String?
-  snapshotLp   Int?
+  snapshotTier       String?
+  snapshotRank       String?
+  snapshotLp         Int?
+  snapshotTierBefore String?
+  snapshotRankBefore String?
+  snapshotLpBefore   Int?
 
   summoner Summoner @relation(fields: [puuid], references: [puuid])
 

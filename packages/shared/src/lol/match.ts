@@ -25,6 +25,12 @@ export interface MatchSummary {
   snapshotTier?: string;
   snapshotRank?: string;
   snapshotLp?: number;
+  // LP/tier/rank state captured BEFORE the match was played. Lets per-match
+  // delta = norm(after) - norm(before), so decay between matches doesn't
+  // poison the next match's gain/loss.
+  snapshotTierBefore?: string;
+  snapshotRankBefore?: string;
+  snapshotLpBefore?: number;
   laneOpponent: {
     puuid: string;
     championName: string;

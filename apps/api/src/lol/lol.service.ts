@@ -112,17 +112,33 @@ export class LolService {
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
+        snapshotTierBefore: true,
+        snapshotRankBefore: true,
+        snapshotLpBefore: true,
         laneOpponent: true,
       },
     });
 
     return rows.map(
-      ({ playedAt, snapshotTier, snapshotRank, snapshotLp, laneOpponent, ...rest }) => ({
+      ({
+        playedAt,
+        snapshotTier,
+        snapshotRank,
+        snapshotLp,
+        snapshotTierBefore,
+        snapshotRankBefore,
+        snapshotLpBefore,
+        laneOpponent,
+        ...rest
+      }) => ({
         ...rest,
         playedAt: playedAt.toISOString(),
         snapshotTier: snapshotTier ?? undefined,
         snapshotRank: snapshotRank ?? undefined,
         snapshotLp: snapshotLp ?? undefined,
+        snapshotTierBefore: snapshotTierBefore ?? undefined,
+        snapshotRankBefore: snapshotRankBefore ?? undefined,
+        snapshotLpBefore: snapshotLpBefore ?? undefined,
         laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
       })
     );
@@ -187,18 +203,34 @@ export class LolService {
           snapshotTier: true,
           snapshotRank: true,
           snapshotLp: true,
+          snapshotTierBefore: true,
+          snapshotRankBefore: true,
+          snapshotLpBefore: true,
           laneOpponent: true,
         },
       }),
     ]);
 
     const matches = rows.map(
-      ({ playedAt, snapshotTier, snapshotRank, snapshotLp, laneOpponent, ...rest }) => ({
+      ({
+        playedAt,
+        snapshotTier,
+        snapshotRank,
+        snapshotLp,
+        snapshotTierBefore,
+        snapshotRankBefore,
+        snapshotLpBefore,
+        laneOpponent,
+        ...rest
+      }) => ({
         ...rest,
         playedAt: playedAt.toISOString(),
         snapshotTier: snapshotTier ?? undefined,
         snapshotRank: snapshotRank ?? undefined,
         snapshotLp: snapshotLp ?? undefined,
+        snapshotTierBefore: snapshotTierBefore ?? undefined,
+        snapshotRankBefore: snapshotRankBefore ?? undefined,
+        snapshotLpBefore: snapshotLpBefore ?? undefined,
         laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
       })
     );
@@ -1118,6 +1150,9 @@ export class LolService {
         let snapshotTier: string | undefined;
         let snapshotRank: string | undefined;
         let snapshotLp: number | undefined;
+        let snapshotTierBefore: string | undefined;
+        let snapshotRankBefore: string | undefined;
+        let snapshotLpBefore: number | undefined;
 
         const rankedQueueId = RANKED_QUEUE_MAP[raw.info.queueId];
         if (rankedQueueId) {
@@ -1136,6 +1171,27 @@ export class LolService {
               snapshotLp = snap.leaguePoints;
             }
           }
+
+          // BEFORE snapshot: the most recent RankSnapshot captured strictly
+          // before this match's playedAt. Independent of attach-this-batch
+          // rules — looking up history is always safe. Combined with the
+          // AFTER snapshot above, the per-match LP delta becomes
+          // self-contained (after - before) so decay between matches no
+          // longer poisons the next match's delta.
+          const before = await this.prisma.rankSnapshot.findFirst({
+            where: {
+              puuid,
+              queueId: rankedQueueId,
+              capturedAt: { lt: new Date(summary.playedAt) },
+            },
+            orderBy: { capturedAt: "desc" },
+            select: { tier: true, rank: true, leaguePoints: true },
+          });
+          if (before) {
+            snapshotTierBefore = before.tier;
+            snapshotRankBefore = before.rank;
+            snapshotLpBefore = before.leaguePoints;
+          }
         }
 
         const { laneOpponent, ...summaryRest } = summary;
@@ -1149,6 +1205,9 @@ export class LolService {
           snapshotTier,
           snapshotRank,
           snapshotLp,
+          snapshotTierBefore,
+          snapshotRankBefore,
+          snapshotLpBefore,
         };
 
         await Promise.all([

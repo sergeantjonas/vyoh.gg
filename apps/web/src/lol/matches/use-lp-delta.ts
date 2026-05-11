@@ -4,21 +4,30 @@ import { useMemo } from "react";
 import { useMatchWindow } from "./match-window-context";
 
 export function computeLpDeltaMap(matches: MatchSummary[]): Map<string, number> {
+  // Per-match self-contained delta = norm(after) - norm(before). The match
+  // sync captures both: AFTER from the post-match snapshot attached at sync
+  // time, BEFORE from the most recent RankSnapshot strictly before playedAt.
+  // Skipping the chain across previous matches means decay or any other
+  // non-match LP movement between games never leaks into the next delta.
   const map = new Map<string, number>();
-  const lastByQueue = new Map<string, number>();
-  for (let i = matches.length - 1; i >= 0; i--) {
-    const m = matches[i];
+  for (const m of matches) {
     if (
-      !m ||
       m.snapshotTier === undefined ||
+      m.snapshotRank === undefined ||
       m.snapshotLp === undefined ||
-      m.snapshotRank === undefined
-    )
+      m.snapshotTierBefore === undefined ||
+      m.snapshotRankBefore === undefined ||
+      m.snapshotLpBefore === undefined
+    ) {
       continue;
-    const norm = normalizeLp(m.snapshotTier, m.snapshotRank, m.snapshotLp);
-    const prev = lastByQueue.get(m.queueType);
-    if (prev !== undefined) map.set(m.matchId, norm - prev);
-    lastByQueue.set(m.queueType, norm);
+    }
+    const after = normalizeLp(m.snapshotTier, m.snapshotRank, m.snapshotLp);
+    const before = normalizeLp(
+      m.snapshotTierBefore,
+      m.snapshotRankBefore,
+      m.snapshotLpBefore
+    );
+    map.set(m.matchId, after - before);
   }
   return map;
 }
