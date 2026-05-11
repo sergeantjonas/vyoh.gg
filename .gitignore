@@ -21,6 +21,7 @@ coverage/
 !.vscode/settings.json
 
 .pnpm-store/
+.postgres-data/
 
 CLAUDE.md
 .claude/
