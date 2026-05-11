@@ -13,9 +13,34 @@ vyoh.gg/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
 
+## Last captured status — 2026-05-11
+
+Multi-account LoL dashboard. Today's session shipped: empty-state primitive + illustrations across 8 surfaces; recap-champion splash stacking-context fix (added `isolate`, split chrome via complementary masks, plain `<img>` instead of CSS background); visx integration across four surfaces in one session (death matchup heatmap, champion synergy chord, LP history brush, build-order Sankey via d3-sankey). `.tanstack/` added to `.gitignore`. Champion detail page now hosts a build-flow Sankey + minute×matchup death heatmap on top of the existing per-game-average tiles, sparkline, per-patch strip, items, matchups, time heatmap, and tilt indicator. Profile now hosts a champion-synergy chord between ProfileDuos and ProfileQueueDistribution. LP history main chart gains a visx brush strip below it with a "Show all" reset.
+
 ## Last captured status — 2026-05-10
 
 Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as a magazine-grid briefing of conclusion cards (auto-reorder on range change), match detail with full post-game review depth. Lane opponent hover popover on match rows. Live game view with Spectator-V5 data. **Profile** identity layer covers rank tiles, recent form, LP history, season history, pre-game ritual, now-playing, role strip, queue distribution, activity calendar, stats, duos, recap CTA. **Recap** sub-route at `/lol/$accountSlug/recap` (rank arc + headline champion + auto-picked top insight). **Per-view queue scope:** performance surfaces (Trends, ritual, recap, champions, role strip) consume the user's "serious queues" preference (default Ranked Solo + Ranked Flex; configurable via header `<SeriousQueuesSettings />` popover, persisted to localStorage); identity surfaces (recent form, now playing, queue distribution, activity calendar, stats bar, duos, recap rank arc) consume all queues. Match list owns its own queue filter UI for browsing.
+
+## Recent arcs (2026-05-11)
+
+### Empty-state pass (vnext #8)
+
+`EmptyState` primitive in [components/empty-state.tsx](apps/web/src/components/empty-state.tsx) with 5 hand-rolled inline SVGs (matches, LP history, champion portrait, duos, live game). Calm/abstract style — 1px strokes, dashed accents, all driven by `currentColor` via `text-muted-foreground/40` on the wrapper. Rolled across 8 surfaces: matches list (queue-strand vs no-cache differentiated, "Clear queue filter" action on strands), profile LP history, champion detail, live game (not-in-game + game-over), champions list, trends page, recap rank arc, profile duos. Decision log: vnext-ideas.md.
+
+### Recap champion splash polish
+
+Root cause: section's stacking context only existed during the `whileInView` opacity animation (<1). Once it reached 1, the context dissolved and the `-z-20` local splash escaped to the body's stacking context, falling behind the global `SplashProvider`'s Ken Burns drift + brightness-0.7 filter — visible as "stretches then dims." Fix: `isolate` class forces a permanent stacking context. Also split section chrome: dropped section `bg-card/40`; added a separate chrome layer with complementary mask so the right side renders the splash undimmed while the left retains the card chrome. Converted backdrop from CSS `background-image` to plain `<img>` (motion's `initial` doesn't apply at first paint, causing an unstyled-frame flash). Final opacity 0.6.
+
+### visx integration (vnext #6) — four surfaces in one session
+
+Packages installed: `@visx/scale`, `@visx/group`, `@visx/responsive`, `@visx/heatmap`, `@visx/chord`, `@visx/brush`, `@visx/axis`, `@visx/shape`, plus `d3-sankey`. Surfaces:
+
+- **Minute × matchup death heatmap** on Champion detail. `scaleBand` for X (minute buckets) / Y (matchup champions), `scaleLinear` for color intensity. Empty state via `ConclusionCard` if <5 matches with timeline.
+- **Champion synergy chord** on Profile (`profile-synergy.tsx`). New backend endpoint `GET …/champion-pairs` aggregates per-match `(yourChamp, teammateChamp)`. Bipartite layout via `you:` / `them:` prefixed nodes in a symmetric matrix (asymmetric matrix collapsed teammate-side arcs to slivers — d3-chord sizes by row-sum). `TOP_PER_SIDE=6`, `MIN_RIBBON_GAMES=2`. Ribbon color = win rate, opacity = pair frequency.
+- **LP history brush** (`profile-lp-history.tsx`). Hybrid Recharts + visx — main chart stays Recharts; visx `Brush` strip below for sub-range selection. Custom `renderBrushHandle` for visible drag affordance. visx's `<Brush>` owns internal selection state, so reset requires bumping a `brushKey` to force remount (not just clearing the React `brushDomain`). Y axis recomputes for the brushed window.
+- **Build-order Sankey** on Champion detail (`champion-build-sankey.tsx`). New backend endpoint `GET …/champions/:championKey/build-flow` intersects timeline `ITEM_PURCHASED` events with `Match.items` final inventory to get the completion order of items the user kept. d3-sankey lays out columns (item 1 → item 2 → item 3); subtle node rects + `colorForLift()` color encoding (neutral grey within ±5pp of champion baseline WR, green/rose only for strong deviations) to suppress sample-size noise.
+
+Pattern established: visx for non-stock viz, Recharts stays for stock cases (line/bar/radar with reference primitives). Decision log: vnext-ideas.md, library-shortlist.md.
 
 ## Recent arcs (2026-05-10, late session)
 
