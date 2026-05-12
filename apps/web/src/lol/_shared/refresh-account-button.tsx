@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
+import { toastError, toastMessage, toastSuccess } from "@/lib/toast";
 import { useSyncAccount } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { LolAccount } from "@vyoh/shared";
 import { RefreshCw } from "lucide-react";
-import { toast } from "sonner";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
@@ -16,15 +16,15 @@ export function RefreshAccountButton({ account }: { account: LolAccount | undefi
     sync.mutate(undefined, {
       onSuccess: (result) => {
         if (result.backfilled > 0) {
-          toast.success(
+          void toastSuccess(
             `Synced — ${result.backfilled} new ${result.backfilled === 1 ? "match" : "matches"}`
           );
         } else {
-          toast(`Already up to date (${result.idCount} recent matches)`);
+          void toastMessage(`Already up to date (${result.idCount} recent matches)`);
         }
       },
       onError: (err) => {
-        toast.error(`Sync failed: ${err.message}`);
+        void toastError(`Sync failed: ${err.message}`);
       },
     });
   };

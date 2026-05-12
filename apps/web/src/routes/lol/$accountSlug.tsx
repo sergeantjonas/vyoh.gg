@@ -1,4 +1,5 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { toastMessage } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account-switcher";
 import championAssets from "@/lol/_shared/champion-assets.json";
@@ -36,7 +37,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
 
@@ -173,7 +173,7 @@ function AccountLayout() {
       if (!account) return;
       const livePath = `/lol/${accountSlug}/live`;
       if (pathname === livePath) return;
-      toast(`${account.gameName} is in game`, {
+      void toastMessage(`${account.gameName} is in game`, {
         action: {
           label: "View live",
           onClick: () => {

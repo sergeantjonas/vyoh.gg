@@ -9,6 +9,7 @@ if (import.meta.env.DEV) {
     _warn(...args);
   };
 }
+import { toastError } from "@/lib/toast";
 import { reportWebVitals } from "@/lib/web-vitals";
 import {
   MutationCache,
@@ -18,11 +19,12 @@ import {
 } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { LazyMotion, domMax } from "motion/react";
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
-import { Toaster, toast } from "sonner";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
+
+const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 
 const router = createRouter({ routeTree });
 
@@ -54,12 +56,12 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.state.data === undefined) return;
-      toast.error(errorMessage(error, "Background refresh failed"));
+      void toastError(errorMessage(error, "Background refresh failed"));
     },
   }),
   mutationCache: new MutationCache({
     onError: (error) => {
-      toast.error(errorMessage(error, "Something went wrong"));
+      void toastError(errorMessage(error, "Something went wrong"));
     },
   }),
 });
@@ -73,7 +75,9 @@ createRoot(rootElement).render(
       <LazyMotion features={domMax}>
         <RouterProvider router={router} />
       </LazyMotion>
-      <Toaster theme="dark" richColors position="bottom-right" />
+      <Suspense fallback={null}>
+        <Toaster theme="dark" richColors position="bottom-right" />
+      </Suspense>
     </QueryClientProvider>
   </StrictMode>
 );
