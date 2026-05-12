@@ -25,6 +25,11 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     goldAt15: overrides.goldAt15 ?? 0,
     teamGoldDiffAt15: overrides.teamGoldDiffAt15 ?? 0,
     deathTimings: overrides.deathTimings ?? [],
+    deathXs: overrides.deathXs ?? [],
+    deathYs: overrides.deathYs ?? [],
+    killTimings: overrides.killTimings ?? [],
+    killXs: overrides.killXs ?? [],
+    killYs: overrides.killYs ?? [],
     laneOpponent: overrides.laneOpponent ?? null,
   };
 }

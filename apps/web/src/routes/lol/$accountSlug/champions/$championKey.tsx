@@ -16,6 +16,7 @@ import {
   computeChampionDetail,
 } from "@/lol/champions/champion-detail-stats";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
+import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
@@ -534,6 +535,7 @@ function ChampionDetailPage() {
       )}
 
       <ChampionBuildSankey accountSlug={accountSlug} championKey={championKey} />
+      <ChampionPositionHeatmap matches={champMatches} />
       <TrendDeathMatchupHeatmap current={champMatches} />
       <TrendTimeHeatmap current={champMatches} />
       <TrendTiltIndicator current={champMatches} previous={[]} />

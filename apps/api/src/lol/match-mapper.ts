@@ -66,6 +66,11 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     goldAt15: 0,
     teamGoldDiffAt15: 0,
     deathTimings: [],
+    deathXs: [],
+    deathYs: [],
+    killTimings: [],
+    killXs: [],
+    killYs: [],
     laneOpponent,
   };
 }

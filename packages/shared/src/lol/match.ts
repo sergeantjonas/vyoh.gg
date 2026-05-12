@@ -22,6 +22,14 @@ export interface MatchSummary {
   goldAt15: number;
   teamGoldDiffAt15: number;
   deathTimings: number[];
+  // Rift-coord positions (0–15000 game space, Y not flipped) parallel to
+  // deathTimings, plus matched kill-side arrays. Empty when the timeline
+  // hasn't been projected yet (D.1 backfill / pre-D.1 rows).
+  deathXs: number[];
+  deathYs: number[];
+  killTimings: number[];
+  killXs: number[];
+  killYs: number[];
   snapshotTier?: string;
   snapshotRank?: string;
   snapshotLp?: number;

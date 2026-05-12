@@ -7,6 +7,11 @@ export interface TimelineSummaryMetrics {
   goldAt15: number;
   teamGoldDiffAt15: number;
   deathTimings: number[];
+  deathXs: number[];
+  deathYs: number[];
+  killTimings: number[];
+  killXs: number[];
+  killYs: number[];
 }
 
 const ZERO: TimelineSummaryMetrics = {
@@ -16,6 +21,11 @@ const ZERO: TimelineSummaryMetrics = {
   goldAt15: 0,
   teamGoldDiffAt15: 0,
   deathTimings: [],
+  deathXs: [],
+  deathYs: [],
+  killTimings: [],
+  killXs: [],
+  killYs: [],
 };
 
 // Resolve the user's participantId (1-10) from either info.participants
@@ -84,11 +94,34 @@ export function riotTimelineToSummaryMetrics(
     teamGoldDiffAt15 = userTeamGold - enemyTeamGold;
   }
 
+  // Walk frames once, collecting parallel timing/x/y arrays for both the
+  // user's deaths and their kills. Positions are kept in raw Riot game-coord
+  // space (0–15000, Y *not* flipped — overlay code handles the flip at render
+  // time so the DB stays a faithful mirror of Riot data).
+  //
+  // Riot CHAMPION_KILL events always carry a position in practice, but we
+  // skip the rare position-less event entirely so the parallel arrays stay
+  // index-aligned (deathTimings[i] always pairs with deathXs[i]/deathYs[i]).
   const deathTimings: number[] = [];
+  const deathXs: number[] = [];
+  const deathYs: number[] = [];
+  const killTimings: number[] = [];
+  const killXs: number[] = [];
+  const killYs: number[] = [];
   for (const frame of timeline.info.frames) {
     for (const event of frame.events) {
-      if (event.type === "CHAMPION_KILL" && event.victimId === participantId) {
-        deathTimings.push(Math.round(event.timestamp / 1000));
+      if (event.type !== "CHAMPION_KILL" || !event.position) continue;
+      const ts = Math.round(event.timestamp / 1000);
+      const { x, y } = event.position;
+      if (event.victimId === participantId) {
+        deathTimings.push(ts);
+        deathXs.push(x);
+        deathYs.push(y);
+      }
+      if (event.killerId === participantId) {
+        killTimings.push(ts);
+        killXs.push(x);
+        killYs.push(y);
       }
     }
   }
@@ -100,5 +133,10 @@ export function riotTimelineToSummaryMetrics(
     goldAt15,
     teamGoldDiffAt15,
     deathTimings,
+    deathXs,
+    deathYs,
+    killTimings,
+    killXs,
+    killYs,
   };
 }

@@ -71,6 +71,11 @@ const matches: MatchSummary[] = [
     goldAt15: 0,
     teamGoldDiffAt15: 0,
     deathTimings: [],
+    deathXs: [],
+    deathYs: [],
+    killTimings: [],
+    killXs: [],
+    killYs: [],
     laneOpponent: null,
   },
   {
@@ -95,6 +100,11 @@ const matches: MatchSummary[] = [
     goldAt15: 0,
     teamGoldDiffAt15: 0,
     deathTimings: [],
+    deathXs: [],
+    deathYs: [],
+    killTimings: [],
+    killXs: [],
+    killYs: [],
     laneOpponent: null,
   },
 ];
