@@ -18,12 +18,14 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/vyoh.gg,type=bind,consistency=cached",
 
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude,target=${localEnv:HOME}/.claude,type=bind,consistency=cached"
   ],
 
   "customizations": {
     "vscode": {
       "extensions": [
+        "anthropic.claude-code",
         "biomejs.biome",
         "ms-azuretools.vscode-docker",
         "prisma.prisma",
@@ -50,7 +52,7 @@
     "5432": { "label": "Postgres" }
   },
 
-  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ugrep bfs && pnpm bootstrap",
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ugrep bfs && npm install -g npm@latest typescript-language-server typescript && corepack enable && CI=true pnpm bootstrap",
 
   "remoteUser": "node"
 }
