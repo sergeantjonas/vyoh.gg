@@ -101,39 +101,13 @@ Portfolio signal:
 
 ## Candidate write-up 3 — Frontend performance as a product feature
 
-Potential title:
+Status: **shipped** — [docs/case-studies/frontend-perf.md](../case-studies/frontend-perf.md). Angle is "what do you do when 28% of the bundle is intentional?": audit, accept-and-codify the motion spend, lazy-load the decorations that don't render on first paint (sonner + cmdk, -23.75 kB gzip), live Web Vitals behind a session flag, `size-limit` budget in CI to lock the ceiling.
 
-```text
-Making a Gaming Dashboard Feel Fast: Route Splitting, Suspense, and Metrics
-```
+Open follow-ups (also tracked in [perf-baseline.md](./perf-baseline.md)):
 
-Topics:
-
-- Vite bundle strategy
-- route-level code splitting
-- lazy-loaded Recharts
-- `LazyMotion` setup
-- Lighthouse
-- web-vitals overlay
-- bundle budgets
-- skeleton loading
-- reduced-motion support
-- virtualization candidate for match list
-
-Evidence to collect:
-
-- Lighthouse score
-- bundle analyzer output
-- route chunk sizes
-- before/after for lazy-loading charts
-- web-vitals screenshots
-- perf overlay screenshot
-
-Portfolio signal:
-
-- performance engineering
-- React architecture
-- measurable UX work
+- Lighthouse on a throttled Chrome from the host machine — devcontainer has no Chrome, Firefox lacks live CPU throttling. Unblocks defensible cold-network numbers and the README screenshots this doc was waiting for.
+- React render profile of Trends / MatchDetail / Champions — wasted renders still uninstrumented.
+- Recharts → visx consolidation — 77 kB lazy chunk, parked because both libraries coexist by design.
 
 ## Candidate write-up 4 — Motion without gimmicks
 
@@ -257,6 +231,40 @@ Portfolio signal:
 - pragmatic third-party choices (wsrv.nl) over over-engineering an asset pipeline
 - diagnostic discipline: enumerated six distinct suspects, ranked by impact, addressed the live-filter root cause first
 - visible matter-of-fact perf engineering in a portfolio context
+
+## Candidate write-up 7 — An operator console for the limiter chain
+
+Status: shipped (in-memory MVP, no auth gate yet). Write-up not yet drafted. Companion to [riot-rate-limits.md](../case-studies/riot-rate-limits.md) and [historical-backfill-and-sse.md](../case-studies/historical-backfill-and-sse.md).
+
+The first two write-ups diagnose and fix two generations of Bottleneck bugs from log archaeology alone — `grep "EXECUTING"`, watch a counter climb, infer the cause. The natural closing chapter: stop reading the chain from a tail and make its live state visible from a screen, with knobs to actually take action on what you see.
+
+Potential title:
+
+```text
+Putting a Glass Cover on a Rate-Limiter Chain
+```
+
+Topics:
+
+- **Operator console as the conclusion of the diagnostic arc.** A new `getSnapshot()` on `RateLimiterService` walks the app/method Bottleneck instances and surfaces the same counters `dumpCounters()` was already logging. Same data, two consumers — one for incident archaeology, one for live operation.
+- **SSE the second time around — generalizing the primitive.** The first SSE pass used a per-account filtered `Subject<MatchUpdatedEvent>` to tell one client about its rows. This stream is an operational firehose: a 2 s snapshot interval (`interval().pipe(startWith(0), switchMap(fetchSnapshot))`), plus a rare `SyncTick` event piggybacking on a second `Subject`, plus a 30 s heartbeat, merged via `merge()`. Worth contrasting *signalling-per-entity* vs *operational-firehose* uses of the same backbone.
+- **Mutation responses patch the cache; the next snapshot overwrites.** Three POST endpoints (`/status/sync`, `/status/sync/pause`, `/status/sync/resume`) return the new `SyncStatus`. The frontend uses `queryClient.setQueryData<StatusSnapshot>(["status"], prev => prev && { ...prev, sync: result })` instead of invalidating — drift self-corrects when the next 2 s SSE frame lands, so there's no race between optimistic and authoritative state.
+- **In-memory MVP, no persistence.** `SyncTick[]` ring buffer (HISTORY_LIMIT = 10) on the service instance, no Prisma table. Current-state views don't need persistence; a fresh boot starts with an empty history, which is *correct* — the limiter snapshots are also derived from live process state. Skipping the table also skips a migration, a retention policy, and a query path the operator would never query. Worth a line on when *not* to reach for the database.
+- **Env-seeded, mutable-at-runtime config.** `MATCH_SYNC_ENABLED` seeds the instance field; `setEnabled(boolean)` toggles it without a restart. The pause-is-hard choice — manual "Sync now" returns `{ triggered: false, reason: "paused" }` rather than auto-resuming — keeps the semantics clean.
+
+Evidence to collect:
+
+- screenshot of the dashboard under load (app window bars amber/red, method limiters populated)
+- screenshot of the dashboard after pause (paused badge, action buttons disabled)
+- a single SSE frame in a network panel (`event: snapshot\ndata: {...}`, heartbeat every 30 s)
+- short before/after framing: first two case studies started from `grep` on the log; this one starts from looking at the screen
+
+Portfolio signal:
+
+- closing a multi-arc story with an operator surface, not just more code in a service
+- recognizing the same SSE primitive can carry two distinct shapes (per-entity vs. firehose) without ceremony
+- operational sensibility — the system existed to be debugged before it existed to be observed; this fixes that
+- restraint on persistence — ephemeral data, ephemeral storage, honest contract
 
 ## README sections to grow incrementally
 
