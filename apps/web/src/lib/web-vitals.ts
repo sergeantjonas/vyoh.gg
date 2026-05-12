@@ -30,10 +30,11 @@ const broadcast: Reporter = (metric) => {
 function start() {
   if (started) return;
   started = true;
-  onCLS(broadcast);
+  const opts = { reportAllChanges: true };
+  onCLS(broadcast, opts);
   onFCP(broadcast);
-  onINP(broadcast);
-  onLCP(broadcast);
+  onINP(broadcast, opts);
+  onLCP(broadcast, opts);
   onTTFB(broadcast);
 }
 

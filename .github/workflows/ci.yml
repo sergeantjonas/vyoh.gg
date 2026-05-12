@@ -30,3 +30,22 @@ jobs:
       - run: pnpm typecheck
 
       - run: pnpm -r test
+
+  bundle-size:
+    name: Bundle size budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @vyoh/web build
+
+      - run: pnpm --filter @vyoh/web size

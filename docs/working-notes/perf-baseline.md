@@ -5,8 +5,9 @@ Investigation started after the main roadmaps (views, match-depth, trends) shipp
 ## Tooling in place
 
 - **Bundle visualizer:** `rollup-plugin-visualizer` added as devDep. Run `ANALYZE=1 pnpm run build` from `apps/web/` to emit `dist/stats.html` (treemap) + `dist/stats.json` (parseable). Gated by `process.env.ANALYZE === "1"` in [apps/web/vite.config.ts](../../apps/web/vite.config.ts) so normal builds are unaffected.
-- **Web Vitals:** already wired via [apps/web/src/lib/web-vitals.ts](../../apps/web/src/lib/web-vitals.ts) + dev-only [PerfOverlay](../../apps/web/src/components/perf-overlay.tsx) gated by `usePerfFlag()`. Currently console + in-memory only; no persistent collection.
-- **Lighthouse:** **not** available inside the devcontainer (no Chrome). Run from host Chrome DevTools against `vite preview` on the forwarded port when needed.
+- **Bundle budget:** `size-limit` configured in [apps/web/package.json](../../apps/web/package.json). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: main bundle 200 kB gzip (~10% headroom over 179 kB), Recharts lazy chunk 85 kB gzip (~10% over 76 kB). The check reads `dist/`, so the pattern is `pnpm run build && pnpm run size:cc`.
+- **Web Vitals:** wired via [apps/web/src/lib/web-vitals.ts](../../apps/web/src/lib/web-vitals.ts) + dev-only [PerfOverlay](../../apps/web/src/components/perf-overlay.tsx) gated by `usePerfFlag()`. Live updates enabled (`reportAllChanges: true` for CLS/INP/LCP). Activation: append `?perf` (or `?perf=1`) once — persists to `localStorage` for the session, survives TanStack Router validateSearch stripping. Clear `vyoh:perf` from localStorage to disable.
+- **Lighthouse:** **not** available inside the devcontainer (no Chrome). Use the PerfOverlay against `vite preview` on a forwarded port for live measurements. Firefox lacks the live CPU-throttling Chrome offers, so deeper throttled measurement requires Chrome/Edge.
 
 ## Main bundle baseline
 
