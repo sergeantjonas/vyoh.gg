@@ -52,7 +52,7 @@
     "5432": { "label": "Postgres" }
   },
 
-  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ugrep bfs && npm install -g typescript-language-server typescript && corepack enable && CI=true pnpm bootstrap",
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ugrep bfs jq && npm install -g typescript-language-server typescript && corepack enable && CI=true pnpm bootstrap && ~/.claude/bootstrap.sh plugins && ~/.claude/bootstrap.sh tokf",
 
   "remoteUser": "node"
 }
