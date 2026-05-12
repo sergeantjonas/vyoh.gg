@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { SyncTick } from "@vyoh/shared";
 import { type Observable, Subject, filter } from "rxjs";
 
 export interface MatchUpdatedEvent {
@@ -23,6 +24,7 @@ export interface LiveGameEvent {
 export class MatchEventsService {
   private readonly matchSubject = new Subject<MatchUpdatedEvent>();
   private readonly liveSubject = new Subject<LiveGameEvent>();
+  private readonly syncTickSubject = new Subject<SyncTick>();
 
   emit(event: MatchUpdatedEvent): void {
     this.matchSubject.next(event);
@@ -38,5 +40,13 @@ export class MatchEventsService {
 
   forLiveGame(puuid: string): Observable<LiveGameEvent> {
     return this.liveSubject.asObservable().pipe(filter((e) => e.puuid === puuid));
+  }
+
+  emitSyncTick(tick: SyncTick): void {
+    this.syncTickSubject.next(tick);
+  }
+
+  forSyncTick(): Observable<SyncTick> {
+    return this.syncTickSubject.asObservable();
   }
 }

@@ -3,6 +3,7 @@ import type { LolAccount } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import { IdentityService } from "../identity/identity.service";
 import { LolService } from "./lol.service";
+import { MatchEventsService } from "./match-events.service";
 import { MatchSyncService } from "./match-sync.service";
 
 const accountA: LolAccount = {
@@ -38,14 +39,16 @@ async function makeService(
     syncAccountHistorical: vi.fn().mockImplementation(historicalImpl),
   };
   const identity = { getLolAccounts: vi.fn().mockReturnValue(accounts) };
+  const events = { emitSyncTick: vi.fn() };
   const moduleRef = await Test.createTestingModule({
     providers: [
       MatchSyncService,
       { provide: LolService, useValue: lol },
       { provide: IdentityService, useValue: identity },
+      { provide: MatchEventsService, useValue: events },
     ],
   }).compile();
-  return { service: moduleRef.get(MatchSyncService), lol, identity };
+  return { service: moduleRef.get(MatchSyncService), lol, identity, events };
 }
 
 describe("MatchSyncService.syncAll", () => {

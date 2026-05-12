@@ -29,3 +29,14 @@ export type {
   MatchTimelineBuildEventType,
   MatchTimelineSkillEvent,
 } from "./lol/match-timeline.ts";
+export type {
+  AppWindowSnapshot,
+  LimiterCounts,
+  MethodLimiterSnapshot,
+  RateLimiterSnapshot,
+  StatusSnapshot,
+  SyncStatus,
+  SyncTick,
+  SyncTickAccountResult,
+  SyncTriggerResult,
+} from "./status.ts";

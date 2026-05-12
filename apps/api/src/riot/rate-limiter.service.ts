@@ -1,4 +1,9 @@
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
+import type {
+  AppWindowSnapshot,
+  MethodLimiterSnapshot,
+  RateLimiterSnapshot,
+} from "@vyoh/shared";
 import Bottleneck from "bottleneck";
 import { METHOD_LIMITS, type MethodFamily } from "./method-families";
 import type { Regional } from "./regions";
@@ -170,27 +175,55 @@ export class RateLimiterService implements OnModuleDestroy {
     }
   }
 
-  private async dumpCounters(): Promise<void> {
-    const lines: string[] = [];
-
+  async getSnapshot(): Promise<RateLimiterSnapshot> {
+    const app: AppWindowSnapshot[] = [];
     for (const [regional, windows] of this.appWindows) {
       for (const window of windows) {
         const role = window.windowSec === 1 ? "fast" : "slow";
-        const counts = window.limiter.counts();
-        const reservoir = await window.limiter.currentReservoir();
-        if (!isBusy(counts) && !isThrottled(role, reservoir)) continue;
-        lines.push(
-          `  ${regional}:${role.padEnd(4)} reservoir=${formatReservoir(reservoir)} ${formatCounts(counts)}`
-        );
+        app.push({
+          regional,
+          role,
+          windowSec: window.windowSec,
+          capacity: role === "fast" ? APP_FAST_RESERVOIR : APP_SLOW_RESERVOIR,
+          reservoir: await window.limiter.currentReservoir(),
+          counts: window.limiter.counts(),
+        });
       }
     }
 
+    const method: MethodLimiterSnapshot[] = [];
     for (const [key, entry] of this.methodLimiters) {
-      const counts = entry.limiter.counts();
-      const reservoir = await entry.limiter.currentReservoir();
-      if (!isBusy(counts)) continue;
+      const [regional, family] = key.split(":") as [Regional, MethodFamily];
+      method.push({
+        regional,
+        family,
+        windowSec: entry.windowSec,
+        capacity: METHOD_LIMITS[family].reservoir,
+        reservoir: await entry.limiter.currentReservoir(),
+        counts: entry.limiter.counts(),
+      });
+    }
+
+    return { app, method, capturedAt: new Date().toISOString() };
+  }
+
+  private async dumpCounters(): Promise<void> {
+    const snapshot = await this.getSnapshot();
+    const lines: string[] = [];
+
+    for (const window of snapshot.app) {
+      if (!isBusy(window.counts) && !isThrottled(window.role, window.reservoir)) {
+        continue;
+      }
       lines.push(
-        `  ${key} reservoir=${formatReservoir(reservoir)} ${formatCounts(counts)}`
+        `  ${window.regional}:${window.role.padEnd(4)} reservoir=${formatReservoir(window.reservoir)} ${formatCounts(window.counts)}`
+      );
+    }
+
+    for (const entry of snapshot.method) {
+      if (!isBusy(entry.counts)) continue;
+      lines.push(
+        `  ${entry.regional}:${entry.family} reservoir=${formatReservoir(entry.reservoir)} ${formatCounts(entry.counts)}`
       );
     }
 

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SteamRouteImport } from './routes/steam'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LolIndexRouteImport } from './routes/lol/index'
 import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
@@ -25,6 +26,11 @@ import { Route as LolAccountSlugChampionsChampionKeyRouteImport } from './routes
 const SteamRoute = SteamRouteImport.update({
   id: '/steam',
   path: '/steam',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -89,6 +95,7 @@ const LolAccountSlugChampionsChampionKeyRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/status': typeof StatusRoute
   '/steam': typeof SteamRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/lol/': typeof LolIndexRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/status': typeof StatusRoute
   '/steam': typeof SteamRoute
   '/lol': typeof LolIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
@@ -117,6 +125,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/status': typeof StatusRoute
   '/steam': typeof SteamRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/lol/': typeof LolIndexRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/status'
     | '/steam'
     | '/lol/$accountSlug'
     | '/lol/'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/status'
     | '/steam'
     | '/lol'
     | '/lol/$accountSlug/live'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/status'
     | '/steam'
     | '/lol/$accountSlug'
     | '/lol/'
@@ -175,6 +187,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StatusRoute: typeof StatusRoute
   SteamRoute: typeof SteamRoute
   LolAccountSlugRoute: typeof LolAccountSlugRouteWithChildren
   LolIndexRoute: typeof LolIndexRoute
@@ -187,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/steam'
       fullPath: '/steam'
       preLoaderRoute: typeof SteamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -298,6 +318,7 @@ const LolAccountSlugRouteWithChildren = LolAccountSlugRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StatusRoute: StatusRoute,
   SteamRoute: SteamRoute,
   LolAccountSlugRoute: LolAccountSlugRouteWithChildren,
   LolIndexRoute: LolIndexRoute,

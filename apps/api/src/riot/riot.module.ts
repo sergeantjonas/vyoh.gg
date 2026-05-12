@@ -4,6 +4,6 @@ import { RiotService } from "./riot.service";
 
 @Module({
   providers: [RiotService, RateLimiterService],
-  exports: [RiotService],
+  exports: [RiotService, RateLimiterService],
 })
 export class RiotModule {}

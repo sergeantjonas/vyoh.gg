@@ -1,13 +1,14 @@
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { cn } from "@/lib/utils";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home } from "lucide-react";
+import { Activity, Home } from "lucide-react";
 import { m } from "motion/react";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", Icon: Home },
   { to: "/lol", label: "LoL", Icon: LeagueOfLegendsIcon },
   { to: "/steam", label: "Steam", Icon: SteamIcon },
+  { to: "/status", label: "Status", Icon: Activity },
 ] as const;
 
 function isItemActive(pathname: string, to: string) {

@@ -11,6 +11,6 @@ import { MatchController } from "./match.controller";
   imports: [RiotModule],
   controllers: [LolController, MatchController],
   providers: [LolService, MatchSyncService, MatchEventsService, LiveGamePollerService],
-  exports: [LolService],
+  exports: [LolService, MatchSyncService, MatchEventsService],
 })
 export class LolModule {}
