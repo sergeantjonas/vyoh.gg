@@ -13,7 +13,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new HttpLoggingInterceptor());
   app.useGlobalFilters(new RiotExceptionFilter());
   app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? "http://localhost:2009",
+    origin: process.env.WEB_ORIGIN ?? /^http:\/\/localhost:\d+$/,
   });
   const port = Number(process.env.PORT ?? 2010);
   await app.listen(port);
