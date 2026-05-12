@@ -10,8 +10,16 @@
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": false
-    }
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
   },
+
+  "workspaceFolder": "/workspaces/vyoh.gg",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/vyoh.gg,type=bind,consistency=cached",
+
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached"
+  ],
 
   "customizations": {
     "vscode": {
@@ -27,7 +35,7 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "biomejs.biome",
         "editor.codeActionsOnSave": {
-          "source.fixAll.biome": "explicit"        
+          "source.fixAll.biome": "explicit"
         },
         "biome.lsp.bin": "${workspaceFolder}/node_modules/.bin/biome"
       }
@@ -42,7 +50,7 @@
     "5432": { "label": "Postgres" }
   },
 
-  "postCreateCommand": "npm install -g pnpm @anthropic-ai/claude-code && git -c http.version=HTTP/1.1 clone https://github.com/sergeantjonas/dotfiles.git ~/dotfiles && ~/dotfiles/install.sh && pnpm bootstrap",
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ugrep bfs && pnpm bootstrap",
 
   "remoteUser": "node"
 }
