@@ -55,8 +55,30 @@ In order of ROI:
 1. ~~**Lazy-load `sonner` Toaster + `cmdk` palette**~~ — ✅ done 2026-05-12 (-23.75 kB gzip from main).
 2. **Hunt remaining Recharts callers, migrate to visx** — 77 kB off chart-page chunks, ~30 min.
 3. **Lighthouse on host** — runtime baseline on key routes (`/`, `/lol/<slug>`, `/lol/<slug>/trends`, `/lol/<slug>/matches/<id>`, `/lol/<slug>/champions`); screenshots for the README.
-4. **React render profile** of Trends / MatchDetail / Champions — surface wasted-render hotspots.
-5. **Bundle budget in CI** (size-limit or similar) — prevent regression during future feature work.
+4. ~~**React render profile** of Trends / MatchDetail / Champions~~ — ✅ static pass done 2026-05-12, see "Render profile pass" below.
+5. ~~**Bundle budget in CI**~~ (already wired — see `.github/workflows/ci.yml` `bundle-size` job).
+
+## Render profile pass — 2026-05-12
+
+**Method.** Static pass only. The devcontainer has no Chrome (per "Tooling in place" above), and Playwright/Puppeteer aren't in the workspace, so React DevTools Profiler could not be driven hands-on. Instead: read the layout/route/context graph end-to-end for Trends, Match Detail, Champions, and the shared `/lol/$accountSlug` tab-cycle path. Looked for context fan-out via inline-object provider values, expensive computations called in JSX, and effect-driven setState churn on tab change. **Before/after commit counts are not measured.** Owner should re-profile on the host machine and revert any fix that doesn't earn its keep.
+
+**Findings.**
+
+1. **`MatchWindowProvider value` was a fresh object literal every render** in [apps/web/src/routes/lol/$accountSlug.tsx](../../apps/web/src/routes/lol/$accountSlug.tsx). `AccountLayout` re-renders on every pathname change (it drives the `lol-tab-indicator` layoutId pill and reads `useRouterState({ select: (s) => s.location.pathname })`). The inline `value={{ matches, isPending, total, count, setCount }}` invalidated every `useMatchWindow()` consumer — 5 Profile widgets (`profile-stats-bar`, `profile-queue-distribution`, `profile-now-playing`, `profile-recent-form`, `profile-lp-history`, `profile-pregame-ritual`), `useSeriousMatches`, `use-lp-delta`, and the matches index — even when matches/total/count were byte-identical. Trends and Champions read their own `useCachedMatchesWindow(account, …)` directly with different window sizes, so they were *not* hit by this fan-out; the wasted work was concentrated on the Profile route during tab cycles back to `/lol/$slug`.
+2. **`ChampionsPage` called `aggregateChampionStats(matches)` un-memoized in JSX** at [apps/web/src/routes/lol/$accountSlug/champions/index.tsx](../../apps/web/src/routes/lol/$accountSlug/champions/index.tsx). With `CHAMPIONS_FETCH_COUNT=2000`, every render reran the O(matches) aggregation *and* handed `ChampionTable` a fresh `stats` array, invalidating that table's own `useMemo(sortStats…)` and forcing a re-sort of ~50 rows on each commit. (Note: an earlier task hint said the Champions table virtualizes via `@tanstack/react-virtual` — it does not. Only `match-list.tsx` uses the virtualizer. The full champion list is rendered every commit.)
+
+**Fixes (landed, static-only, no measured before/after).**
+
+- Wrapped the `MatchWindowProvider` value in `useMemo([matches, isPending, total, count, setCount])` — same `useMemo` discipline the sibling `ActiveMatchProvider` and `SeriousQueuesProvider` already use.
+- Wrapped `aggregateChampionStats(matches)` in `useMemo([matches])` and passed the memoised result into `ChampionTable` so its sort memo can keep its output stable.
+
+**Considered, not fixed.**
+
+- `MatchDetailPage.heroSummary` is also built inline (a fresh `MatchSummary` literal every render when `cachedSummary` is absent). Its consumers (`MatchHero`, `ChampionStickyStrip`) don't `React.memo`, so identity churn there is cheap — would need measurement to justify a fix.
+- `AccountLayout`'s `compact` scroll-toggle can fire a second commit per tab change when leaving a scrolled state (the `mainScrollRef.current?.scrollTo(0, 0)` on transition fires the scroll handler, which can flip `compact`). The cooldown + hysteresis already cap this at one extra commit per transition; not worth structural change without measurement.
+- The 168 ms INP spike under abusive tab cycling has not been re-measured here. Best structural guess is that motion's layout animations (`layoutId="lol-tab-indicator"`, scope-keyed `AnimatePresence` around `Outlet`) dominate, which is accepted spend. The two fixes above remove the non-motion churn that was riding alongside the layout animations on every tab cycle; whether that meaningfully shifts INP needs Chrome-driven Profiler.
+
+**Validation to-do for next host-Chrome session.** `pnpm --filter @vyoh/web dev`, open Profiler, cycle Profile ↔ Matches ↔ Trends ↔ Champions five times each, capture commits with these expected effects: Profile widgets should no longer commit when only the pathname changes; Champions page commits should keep `ChampionTable`'s sort-row work stable as long as the underlying matches window is unchanged.
 
 ## Routes that exist (for Lighthouse coverage)
 

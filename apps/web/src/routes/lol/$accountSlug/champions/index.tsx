@@ -34,6 +34,15 @@ function ChampionsPage() {
     () => (data ? filterToSerious(data.matches, ids) : undefined),
     [data, ids]
   );
+  // Aggregation is O(matches) and was previously called inline in JSX, so any
+  // parent-driven re-render of ChampionsPage rebuilt the stats array and
+  // invalidated the ChampionTable's sort memo. Memoising on `matches` lets the
+  // table keep its sorted output stable when nothing about the underlying
+  // window has changed (e.g. unrelated context churn).
+  const stats = useMemo(
+    () => (matches ? aggregateChampionStats(matches) : undefined),
+    [matches]
+  );
   const [sort, setSort] = useState<ChampionSortOption>(CHAMPION_SORT_OPTIONS[0].value);
   const setHoveredChampion = useHoverChampion();
 
@@ -54,7 +63,7 @@ function ChampionsPage() {
 
       {isPending && !matches ? (
         <ChampionsSkeleton />
-      ) : !matches || matches.length === 0 ? (
+      ) : !matches || matches.length === 0 || !stats ? (
         <EmptyState
           illustration={<EmptyMatchesIllustration />}
           title="No matches yet to aggregate"
@@ -62,7 +71,7 @@ function ChampionsPage() {
         />
       ) : (
         <ChampionTable
-          stats={aggregateChampionStats(matches)}
+          stats={stats}
           sort={sort}
           accountSlug={accountSlug}
           onCardHover={setHoveredChampion ?? undefined}

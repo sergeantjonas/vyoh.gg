@@ -36,7 +36,14 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
 
@@ -316,20 +323,21 @@ function AccountLayout() {
   }, [target, splashChampion]);
   useSplashChampion(splashChampion);
 
+  // Stable context value — pathname-driven re-renders of AccountLayout would
+  // otherwise hand every useMatchWindow() consumer a fresh object identity,
+  // forcing the profile widgets to commit on each tab cycle even when
+  // matches/total/count are unchanged.
+  const matchWindowValue = useMemo(
+    () => ({ matches, isPending: matchesWindow.isPending, total, count, setCount }),
+    [matches, matchesWindow.isPending, total, count, setCount]
+  );
+
   return (
     <ActiveMatchProvider>
       <MatchListReturnReset inSubtree={isInMatchesSubtree} />
       <HoverChampionProvider setHovered={setHoveredChampion}>
         <SeriousQueuesProvider>
-          <MatchWindowProvider
-            value={{
-              matches,
-              isPending: matchesWindow.isPending,
-              total,
-              count,
-              setCount,
-            }}
-          >
+          <MatchWindowProvider value={matchWindowValue}>
             <div className="flex flex-col gap-6">
               <header
                 ref={headerRef}

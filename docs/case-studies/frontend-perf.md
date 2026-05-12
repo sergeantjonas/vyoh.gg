@@ -210,6 +210,71 @@ bundle-size:
 
 The job is parallel to the `check` job so a budget breach is attributed clearly in the PR checks UI rather than buried inside a generic "lint, format, typecheck, and test" run. The double `pnpm install` cost is bounded (~30 s) and worth the surface.
 
+## Render profile — two structural defects, no speculative memo
+
+Bundle and Web Vitals were instrumented; renders weren't. The 168 ms INP under abusive tab cycling within `/lol/$slug` was unexplained, structural enough to be worth a look. Trends, Match Detail, and Champions are the heaviest screens and the obvious starting points.
+
+The intended workflow was React DevTools Profiler against `vite preview` — the devcontainer has no Chrome, so this pass is a static read of the layout/route/context graph plus targeted fixes for what's structurally indefensible without measurement. Owner re-profiles on the host machine and reverts anything that doesn't pull its weight; that's the explicit deal of a static pass.
+
+The find: two defects with the same shape — *a value that should be stable was being rebuilt every render because it was created inline in JSX or in the provider element*. Both are textbook context-fan-out / wasted-work patterns. Neither is a `React.memo` addition; both are `useMemo` on a value whose dependencies are obvious.
+
+**1. Context provider value built inline.** `MatchWindowProvider` was wrapped around the entire account layout with an inline literal:
+
+```tsx
+// apps/web/src/routes/lol/$accountSlug.tsx — before
+<MatchWindowProvider
+  value={{
+    matches,
+    isPending: matchesWindow.isPending,
+    total,
+    count,
+    setCount,
+  }}
+>
+```
+
+`AccountLayout` re-renders on every pathname change (it has to — the `lol-tab-indicator` layoutId pill, the slide-direction ref, the `AnimatePresence` around `Outlet`, the per-tab active states all depend on `useRouterState({ select: (s) => s.location.pathname })`). With the value object literal-built each pass, every `useMatchWindow()` consumer received a new identity on every tab cycle even when matches/total/count were byte-identical: six Profile widgets, plus `useSeriousMatches`, plus `use-lp-delta`. The sibling providers in the same subtree (`ActiveMatchProvider`, `SeriousQueuesProvider`) were already doing the right thing with `useMemo`; this one was the outlier. Fix is one `useMemo`:
+
+```tsx
+// apps/web/src/routes/lol/$accountSlug.tsx — after
+const matchWindowValue = useMemo(
+  () => ({ matches, isPending: matchesWindow.isPending, total, count, setCount }),
+  [matches, matchesWindow.isPending, total, count, setCount]
+);
+
+<MatchWindowProvider value={matchWindowValue}>
+```
+
+Trends and Champions consume their own `useCachedMatchesWindow(account, …)` directly (different window sizes — Trends wants 200 or 800 depending on the patch toggle, Champions wants 2000), so the fan-out concentrated on the Profile route. The Match list page goes through this context for its window too. Across rapid tab cycling, this was the single piece of unforced non-motion work happening alongside the layoutId animations every consumer of those Profile widgets pays for.
+
+**2. Expensive aggregation inlined in JSX.** Champions called the stats aggregator directly in the table prop:
+
+```tsx
+// apps/web/src/routes/lol/$accountSlug/champions/index.tsx — before
+<ChampionTable
+  stats={aggregateChampionStats(matches)}
+  …
+/>
+```
+
+`CHAMPIONS_FETCH_COUNT` is 2000 (matches the champion detail page's window so list ↔ detail doesn't switch dataset under the user). Every render of `ChampionsPage` reran the O(matches) aggregation and handed `ChampionTable` a fresh `stats` array — which then invalidated the table's *own* `useMemo(sortStats(stats, sort))` and forced a re-sort of ~50 rows on every commit. The earlier note in `perf-baseline.md` claimed the Champions table virtualizes via `@tanstack/react-virtual`; checking the source, only `match-list.tsx` uses the virtualizer, so the full champion list renders every commit. Fix:
+
+```tsx
+// after
+const stats = useMemo(
+  () => (matches ? aggregateChampionStats(matches) : undefined),
+  [matches]
+);
+
+<ChampionTable stats={stats} … />
+```
+
+Now the sort memo inside `ChampionTable` can keep its sorted output stable across renders where `matches` hasn't changed.
+
+**Considered, not fixed.** `MatchDetailPage.heroSummary` is also built inline as a fresh `MatchSummary` literal when `cachedSummary` is absent. Its consumers don't `React.memo`, so identity churn there is cheap — fixing it would be speculative without a measurement that says the children actually pay for the new identity. `AccountLayout`'s `compact` scroll-toggle can fire one extra commit per transition when leaving a scrolled state, but the cooldown + hysteresis cap it at one and the cost is minimal.
+
+**No measured before/after numbers — that's the deal of a static pass.** The two fixes above are structurally correct (they bring `MatchWindowProvider` in line with the other providers and stop a 2000-element aggregation from running on every commit), and the owner will validate or revert from the host Chrome's Profiler. The two fixes don't add a single `React.memo` wrapper. They remove inline construction that was the obvious cause of the wasted work; that distinction is the load-bearing part of the rule "fix the specific hotspot."
+
 ## Lessons
 
 1. **Perf work on a showpiece is about deciding what's bloat and what's brand, then making the brand parts cheap to keep.** Shrinking everything is wrong; instrumenting everything so the line stays where you put it is right.
@@ -219,6 +284,8 @@ The job is parallel to the `check` job so a budget breach is attributed clearly 
 5. **`web-vitals` defaults are wrong for live exploration.** Pass `reportAllChanges: true` to CLS/INP/LCP if you want the overlay to populate as you interact rather than at page hide.
 6. **Budgets in CI must be loud on failure.** `--silent` is for local pre-commit hooks; the CI run needs to print *which* budget breached so the fix is obvious from the action log.
 7. **Codify accepted-spend decisions in the working notes.** "Don't relitigate motion" is a fact about the project's intent, not a hidden constraint future-you will rediscover by reading the analyzer output.
+8. **The smell of an inline `value={{…}}` on a context provider is the same as the smell of a hex literal in business code.** It's not always wrong, but if anything in the parent's tree re-renders for unrelated reasons — and in a TanStack Router layout, *something always does* — every consumer pays. Provider values are a `useMemo` site by default.
+9. **Calling an O(N) function inline in JSX is invisible until N grows or the parent's render cadence changes.** Bundle audits surface dependencies; render audits surface inline computations. The bar isn't "is this slow today," it's "would the next two features make this slow tomorrow."
 
 ## Where the code lives
 
@@ -232,9 +299,11 @@ The job is parallel to the `check` job so a budget breach is attributed clearly 
 | `web-vitals` collection with live reporting | [apps/web/src/lib/web-vitals.ts](../../apps/web/src/lib/web-vitals.ts) |
 | Dev-only `PerfOverlay` + session-persistent flag | [apps/web/src/components/perf-overlay.tsx](../../apps/web/src/components/perf-overlay.tsx), [apps/web/src/lib/use-perf-flag.ts](../../apps/web/src/lib/use-perf-flag.ts) |
 | Accepted-spend rule + open levers | [docs/working-notes/perf-baseline.md](../working-notes/perf-baseline.md) |
+| `MatchWindowProvider` value memoisation | [apps/web/src/routes/lol/$accountSlug.tsx](../../apps/web/src/routes/lol/$accountSlug.tsx) |
+| Memoised champion stats aggregation | [apps/web/src/routes/lol/$accountSlug/champions/index.tsx](../../apps/web/src/routes/lol/$accountSlug/champions/index.tsx) |
 
 ## Open
 
 - **Lighthouse on a throttled Chrome from the host machine.** Firefox doesn't expose the live CPU-throttling primitive Chrome offers; the devcontainer has no Chrome. A throttled cold-network baseline against `/`, `/lol/<slug>`, `/lol/<slug>/trends`, `/lol/<slug>/matches/<id>`, `/lol/<slug>/champions` would yield defensible numbers and the README screenshots [case-study-topics.md](../working-notes/case-study-topics.md) is waiting for.
-- **React render profile of Trends / MatchDetail / Champions.** Bundle and Web Vitals are instrumented; wasted renders inside the SPA aren't. The 168 ms INP under abusive tab cycling probably has a structural answer here.
+- **Host-Chrome Profiler validation of the two render fixes above.** The fixes are structurally correct but landed without measured before/after. Cycle Profile ↔ Matches ↔ Trends ↔ Champions five times each on the host, check that Profile widgets no longer commit on pathname-only changes and that `ChampionTable`'s sort row work stays stable while matches are unchanged. Revert if a fix doesn't earn its keep.
 - **Recharts → visx consolidation.** The 77 kB Recharts lazy chunk is the largest remaining single dependency. Both libraries coexist by design (workhorse vs. showpiece), but full migration is the only remaining significant chart-page cut. Worth pursuing only if there's no visual regression on the Recharts surfaces.
