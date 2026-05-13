@@ -1,38 +1,25 @@
-// Bundle-inlined view of apps/web/public/lol/manifest.json. The manifest is
-// produced by scripts/refresh-lol-assets.mts and intentionally imported
-// directly (not fetched) — it's small (~250KB), and inlining it lets every
-// URL helper resolve a bundled asset path synchronously without a network
-// hop. See docs/working-notes/lol-image-pipeline.md Decision 3.
-import manifestJson from "../../../public/lol/manifest.json";
-
-interface ManifestAsset {
-  path: string;
-  hash: string;
-  bytes: number;
-}
-
-interface ChampionEntry {
-  square: ManifestAsset;
-  card: ManifestAsset;
-  backdrop: ManifestAsset;
-}
-
-interface Manifest {
-  schemaVersion: number;
-  patch: string;
-  generatedAt: string;
-  champions: Record<string, ChampionEntry>;
-  items: Record<string, ManifestAsset>;
-  runes: Record<string, ManifestAsset>;
-  summonerSpells: Record<string, ManifestAsset>;
-  roleIcons: Record<string, ManifestAsset>;
-}
-
-// The JSON's static type is a deeply-inferred literal — collapse to the
-// nominal Manifest shape so consumers don't see 200+ champion keys in hover.
-const manifest = manifestJson as Manifest;
+// URL helpers for the bounded LoL asset universe. Resolves alias/id lookups
+// against a slim, presence-only mirror of the build-time manifest
+// (manifest.gen.ts), then derives the bundled asset path from bucket
+// conventions. The full manifest.json stays in public/ for the refresh
+// script's diffing — it is intentionally NOT imported here to keep it out
+// of the JS bundle. See docs/working-notes/lol-image-pipeline.md Decision 3.
+import {
+  championVariants,
+  itemIds,
+  manifestPatch as runtimePatch,
+  roleIconSlugs,
+  runeIds,
+  summonerSpellIds,
+} from "./manifest.gen";
 
 export type ChampionVariant = "square" | "card" | "backdrop";
+
+const VARIANT_BIT: Record<ChampionVariant, number> = {
+  square: 1,
+  card: 2,
+  backdrop: 4,
+};
 
 const SWARM_PREFIX = "Strawberry_";
 export function normalizeChampionAlias(alias: string): string {
@@ -43,23 +30,32 @@ export function getChampionAsset(
   alias: string,
   variant: ChampionVariant
 ): string | undefined {
-  return manifest.champions[normalizeChampionAlias(alias)]?.[variant]?.path;
+  const key = normalizeChampionAlias(alias);
+  const bits = championVariants[key];
+  if (bits === undefined) return undefined;
+  if ((bits & VARIANT_BIT[variant]) === 0) return undefined;
+  return `/lol/champions/${key}/${variant}.webp`;
 }
 
 export function getItemAsset(id: number | string): string | undefined {
-  return manifest.items[String(id)]?.path;
+  const key = String(id);
+  return itemIds.has(key) ? `/lol/items/${key}.webp` : undefined;
 }
 
 export function getRuneAsset(id: number | string): string | undefined {
-  return manifest.runes[String(id)]?.path;
+  const key = String(id);
+  return runeIds.has(key) ? `/lol/runes/${key}.webp` : undefined;
 }
 
 export function getSummonerSpellAsset(id: number | string): string | undefined {
-  return manifest.summonerSpells[String(id)]?.path;
+  const key = String(id);
+  return summonerSpellIds.has(key)
+    ? `/lol/summoner-spells/${key}.webp`
+    : undefined;
 }
 
 export function getRoleIconAsset(slug: string): string | undefined {
-  return manifest.roleIcons[slug]?.path;
+  return roleIconSlugs.has(slug) ? `/lol/role-icons/position-${slug}.svg` : undefined;
 }
 
-export const manifestPatch = manifest.patch;
+export const manifestPatch = runtimePatch;

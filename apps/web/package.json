@@ -25,6 +25,11 @@
       "path": "dist/assets/CategoricalChart-*.js",
       "limit": "85 kB",
       "gzip": true
+    },
+    {
+      "name": "lol manifest (script-side JSON, not bundled into JS)",
+      "path": "dist/lol/manifest.json",
+      "limit": "400 kB"
     }
   ],
   "dependencies": {
