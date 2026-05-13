@@ -17,7 +17,7 @@
 
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { encode as encodeBlurhash } from "blurhash";
@@ -229,6 +229,129 @@ async function main(): Promise<void> {
 
   // assertManifestConsistency: every entry has a real file on disk.
   await assertManifestFiles(manifest);
+
+  await emitRefreshSummary(manifest, prevManifest);
+}
+
+interface BucketDiff {
+  added: string[];
+  updated: string[];
+  removed: string[];
+}
+
+function diffAssetBucket(
+  prev: Record<string, ManifestAsset> | undefined,
+  next: Record<string, ManifestAsset>
+): BucketDiff {
+  const prevKeys = new Set(Object.keys(prev ?? {}));
+  const nextKeys = new Set(Object.keys(next));
+  const added: string[] = [];
+  const updated: string[] = [];
+  const removed: string[] = [];
+  for (const key of nextKeys) {
+    if (!prevKeys.has(key)) added.push(key);
+    else if (prev?.[key]?.hash !== next[key].hash) updated.push(key);
+  }
+  for (const key of prevKeys) if (!nextKeys.has(key)) removed.push(key);
+  return { added, updated, removed };
+}
+
+function diffChampionBucket(
+  prev: Record<string, ChampionEntry> | undefined,
+  next: Record<string, ChampionEntry>
+): BucketDiff {
+  const prevKeys = new Set(Object.keys(prev ?? {}));
+  const nextKeys = new Set(Object.keys(next));
+  const added: string[] = [];
+  const updated: string[] = [];
+  const removed: string[] = [];
+  for (const key of nextKeys) {
+    if (!prevKeys.has(key)) {
+      added.push(key);
+      continue;
+    }
+    const p = prev?.[key];
+    const n = next[key];
+    if (
+      p?.square.hash !== n.square.hash ||
+      p?.card.hash !== n.card.hash ||
+      p?.backdrop.hash !== n.backdrop.hash
+    ) {
+      updated.push(key);
+    }
+  }
+  for (const key of prevKeys) if (!nextKeys.has(key)) removed.push(key);
+  return { added, updated, removed };
+}
+
+function formatBucketLine(label: string, diff: BucketDiff): string {
+  const parts: string[] = [];
+  if (diff.added.length) parts.push(`${diff.added.length} added`);
+  if (diff.updated.length) parts.push(`${diff.updated.length} updated`);
+  if (diff.removed.length) parts.push(`${diff.removed.length} removed`);
+  if (!parts.length) parts.push("no changes");
+  return `- **${label}:** ${parts.join(", ")}`;
+}
+
+async function emitRefreshSummary(
+  manifest: Manifest,
+  prevManifest: Manifest | null | undefined
+): Promise<void> {
+  const champions = diffChampionBucket(prevManifest?.champions, manifest.champions);
+  const items = diffAssetBucket(prevManifest?.items, manifest.items);
+  const runes = diffAssetBucket(prevManifest?.runes, manifest.runes);
+  const spells = diffAssetBucket(prevManifest?.summonerSpells, manifest.summonerSpells);
+  const roleIcons = diffAssetBucket(prevManifest?.roleIcons, manifest.roleIcons);
+  const buckets = [
+    ["Champions", champions],
+    ["Items", items],
+    ["Runes", runes],
+    ["Summoner spells", spells],
+    ["Role icons", roleIcons],
+  ] as const;
+
+  const patchChanged = prevManifest?.patch !== manifest.patch;
+  const anyUpdated = buckets.some(([, d]) => d.updated.length || d.removed.length);
+  const anyAdded = buckets.some(([, d]) => d.added.length);
+  const additive = anyAdded && !anyUpdated;
+  const noChanges = !anyAdded && !anyUpdated && !patchChanged;
+
+  const summaryLines: string[] = [];
+  summaryLines.push(
+    patchChanged
+      ? `**Patch:** \`${prevManifest?.patch ?? "<none>"}\` → \`${manifest.patch}\``
+      : `**Patch:** \`${manifest.patch}\` (unchanged)`
+  );
+  summaryLines.push("");
+  for (const [label, diff] of buckets) summaryLines.push(formatBucketLine(label, diff));
+  summaryLines.push("");
+  summaryLines.push(`**Still missing:** ${manifest.missing.length}`);
+  if (manifest.missing.length) {
+    const sample = manifest.missing
+      .slice(0, 5)
+      .map((m) => `\`${m.kind}:${m.key}\``)
+      .join(", ");
+    const more = manifest.missing.length > 5 ? ` (+${manifest.missing.length - 5})` : "";
+    summaryLines.push(`<sub>${sample}${more}</sub>`);
+  }
+
+  const summary = summaryLines.join("\n");
+
+  console.log("\n--- refresh summary ---");
+  console.log(summary);
+  console.log("-----------------------\n");
+
+  const ghOut = process.env.GITHUB_OUTPUT;
+  if (ghOut) {
+    const lines: string[] = [];
+    lines.push(`patch=${manifest.patch}`);
+    lines.push(`additive=${additive ? "true" : "false"}`);
+    lines.push(`no-changes=${noChanges ? "true" : "false"}`);
+    lines.push("summary<<REFRESH_SUMMARY_EOF");
+    lines.push(summary);
+    lines.push("REFRESH_SUMMARY_EOF");
+    await appendFile(ghOut, `${lines.join("\n")}\n`);
+  }
 }
 
 async function assertManifestFiles(manifest: Manifest): Promise<void> {

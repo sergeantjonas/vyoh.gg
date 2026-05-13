@@ -226,6 +226,8 @@ Surprises:
 
 ## Phase 2 — automated patch refresh (CI)
 
+**Status: shipped 2026-05-13.**
+
 **Goal:** No manual work per Riot patch. The repo stays current via auto-PR.
 
 **New files:**
