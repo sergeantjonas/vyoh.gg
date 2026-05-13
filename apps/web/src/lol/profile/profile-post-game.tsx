@@ -18,6 +18,10 @@ const TILT_DELTA = 0.05;
 const BASELINE_MIN_REL = 0.15;
 const KDA_MIN_REL = 0.2;
 const CHAMP_MIN_SAMPLE = 3;
+// Below 1.5k team gold diff at 15 we read the game as "even"; above 5k it's
+// a stomp, with a dedicated phrasing.
+const GAME_SHAPE_EVEN_GOLD = 1500;
+const GAME_SHAPE_STOMP_GOLD = 5000;
 
 interface PostGameInput {
   last: MatchSummary;
@@ -241,6 +245,72 @@ function buildChampionReadSignal({
   };
 }
 
+function formatKGold(absGold: number): string {
+  return `${(absGold / 1000).toFixed(1)}k`;
+}
+
+/**
+ * Lane-phase / comeback read off `teamGoldDiffAt15`. Returns null when the
+ * timeline hasn't been projected yet (historical rows pre-Phase B backfill)
+ * so the v1 set falls through unchanged.
+ */
+function buildGameShapeSignal({ last }: PostGameInput): RitualSignal | null {
+  if (last.csAt15 === 0 && last.goldAt15 === 0) return null;
+  const diff = last.teamGoldDiffAt15;
+  const abs = Math.abs(diff);
+  const ahead = diff > 0;
+
+  if (abs < GAME_SHAPE_EVEN_GOLD) {
+    return {
+      id: "shape",
+      label: "Game shape",
+      verdict: last.win
+        ? "Even at 15 — pulled it out late."
+        : "Even at 15 — couldn't pull ahead.",
+      detail: `${formatKGold(abs)} gold ${ahead ? "ahead" : "behind"} at 15`,
+      tone: "neutral",
+    };
+  }
+
+  const kgold = formatKGold(abs);
+  const isStomp = abs >= GAME_SHAPE_STOMP_GOLD;
+
+  if (last.win && ahead) {
+    return {
+      id: "shape",
+      label: "Game shape",
+      verdict: isStomp
+        ? `Stomped early — up ${kgold} at 15 and closed.`
+        : `Led ${kgold} at 15 — converted.`,
+      tone: "positive",
+    };
+  }
+  if (last.win && !ahead) {
+    return {
+      id: "shape",
+      label: "Game shape",
+      verdict: isStomp
+        ? `Down ${kgold} at 15 — hard comeback.`
+        : `Down ${kgold} at 15 — comeback win.`,
+      tone: "positive",
+    };
+  }
+  if (!last.win && ahead) {
+    return {
+      id: "shape",
+      label: "Game shape",
+      verdict: `Up ${kgold} at 15 — let it slip.`,
+      tone: "warning",
+    };
+  }
+  return {
+    id: "shape",
+    label: "Game shape",
+    verdict: isStomp ? `Hard-stomped — down ${kgold} at 15.` : `Down ${kgold} at 15.`,
+    tone: "warning",
+  };
+}
+
 export function ProfilePostGame({ accountSlug }: { accountSlug: string }) {
   // Pair with Pregame Ritual: same data source (ranked/draft only) so the two
   // surfaces read as a matched set. ARAM games won't trigger a post-game read.
@@ -253,13 +323,19 @@ export function ProfilePostGame({ accountSlug }: { accountSlug: string }) {
     const last = ordered.find((m) => !m.remake);
     if (!last) return null;
     const input: PostGameInput = { last, history: matches, accountSlug };
+    // Game-shape replaces the champion read when timeline data is present:
+    // the lane-phase narrative is a stronger headline than KDA-vs-average,
+    // and the grid stays at 4 tiles. Historical rows without a projected
+    // timeline fall back to the v1 set unchanged.
+    const gameShape = buildGameShapeSignal(input);
+    const trailing: RitualSignal = gameShape ?? buildChampionReadSignal(input);
     return {
       last,
       signals: [
         buildOutcomeSignal(input),
+        trailing,
         buildBaselineSignal(input),
         buildTiltForecastSignal(input),
-        buildChampionReadSignal(input),
       ],
     };
   }, [matches, accountSlug]);
