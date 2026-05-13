@@ -2,6 +2,7 @@ import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { ChampionPoolDrift } from "@/lol/champions/champion-pool-drift";
 import {
   CHAMPION_SORT_OPTIONS,
   type ChampionSortOption,
@@ -48,6 +49,7 @@ function ChampionsPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {matches && matches.length > 0 && <ChampionPoolDrift matches={matches} />}
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">
           {matches
