@@ -244,12 +244,16 @@ PG4 (peer-route artifact at `/lol/$accountSlug/post-game/$matchId` for share-fri
 
 This is the move that *would* land as a portfolio case study ("a calm coaching surface that closes the loop after every game") — the strongest current case-study candidate.
 
-### Phase 3 — Champions list as a verdict surface (1 session)
+### Phase 3 — Champions list as a verdict surface (1 session) — **shipped 2026-05-13**
 
 Three additions, in order:
-1. **Champion-pool drift verdict** as the list's headline ConclusionCard (also satisfies broader-gap #3).
-2. **Role + queue filters** to mirror Matches/Trends; role chip on each row.
-3. Optionally pull the Trends `trend-champion-focus` tile up to the Champions list and remove the duplicate from Trends (the activation-priority sort absorbs the freed slot).
+1. **Champion-pool drift verdict** as the list's headline ConclusionCard (also satisfies broader-gap #3). Shipped `524acb5`.
+2. **Role-aware aggregation + role chip on each row** — champion rows split by `(champion, teamPosition)`, primary role keeps the shared `champ-card-{champion}` layoutId for the detail-page morph. Shipped `492d301`.
+3. **Role filter strip** on the Champions list (`?role=` search param, icons-only toggle via `ROLE_ORDER`). Shipped `f076c4b`.
+
+**Descoped during execution:**
+- The queue filter that originally sat alongside the role strip was removed before commit. Layering a per-page queue picker on top of `filterToSerious` is a footgun (non-serious queues get stripped before the picker runs, yielding an empty page on e.g. ARAM). The serious-queues popover in the account header is the single queue control for analytical surfaces; this is now documented as a JSDoc note on `QueueFilter` itself. As a corollary, the serious-queues icon is now hidden on the Matches subtree — Matches is a browse surface that doesn't consume that preference, so the icon was implying behaviour it doesn't have.
+- Pulling `trend-champion-focus` to Champions was descoped — `trend-champion-focus` and `champion-pool-drift` answer different questions (current shape vs. fortnight delta) and both surfaces keep their slot.
 
 After Phase 1 cross-linking lands, this becomes a refinement rather than a rescue. The original "Champions detail compare-mode" and "aggregated build progression" moves are descoped — both are now mostly delivered by the Sankey + position heatmap that shipped 2026-05-11.
 
@@ -272,8 +276,8 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 - **Reframed 2026-05-13.** Original 2026-05-10 plan was Champions-tab-centric; superseded by the cross-link/dossier framing above.
 - **Phase 1 (cross-link champion identity) shipped 2026-05-13** (commits `9846a01`, `8596278`). All eight surfaces now navigate to champion detail.
 - **Phase 2 (post-game close-the-loop) shipped 2026-05-13** (commits `a7f3299`, `3007552`). PG1+PG2+PG3 live; PG4 deferred.
+- **Phase 3 (Champions list as verdict surface) shipped 2026-05-13** (commits `524acb5`, `492d301`, `f076c4b`). Drift card + role-split rows + role filter strip; per-page queue filter descoped (see Phase 3 note above).
 - **Champion detail depth shipped 2026-05-11** (death heatmap, build Sankey, position heatmap) and **empty-state pass shipped 2026-05-11** — both deepened the dossier without changing the navigation graph. Made Phase 1 (cross-linking) more valuable, not less.
-- **Champions list unchanged** since this analysis was first drafted. The original Phase B/C moves (filters, recent matches, per-role split, compare-mode) have not shipped; most are now descoped or absorbed by what champion-detail already does. **Phase 3 is now the next recommended arc.**
 
 ---
 
