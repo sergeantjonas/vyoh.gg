@@ -1,4 +1,5 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ROLE_LABEL, type RolePosition } from "@/lol/_shared/role-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
@@ -151,21 +152,28 @@ function DriftStrip({
 export function ChampionPoolDrift({
   matches,
   now,
+  role,
 }: {
   matches: MatchSummary[];
   now?: number;
+  role?: RolePosition;
 }) {
-  const drift = useMemo(
-    () => computePoolDrift(matches, now ?? Date.now()),
-    [matches, now]
+  // The route already pre-filters by role, but accept the same filter here
+  // so the card stays self-contained when reused from a page that hands it
+  // the raw match window.
+  const scoped = useMemo(
+    () => (role ? matches.filter((m) => m.teamPosition === role) : matches),
+    [matches, role]
   );
+  const drift = useMemo(() => computePoolDrift(scoped, now ?? Date.now()), [scoped, now]);
   const { text, empty } = verdictFor(drift);
 
   const hasEvidence = drift.added.length > 0 || drift.dropped.length > 0;
+  const title = role ? `Your ${ROLE_LABEL[role]} pool drift` : "Champion pool drift";
 
   return (
     <ConclusionCard
-      title="Champion pool drift"
+      title={title}
       sampleSize={drift.currentGames}
       verdict={text}
       empty={empty}

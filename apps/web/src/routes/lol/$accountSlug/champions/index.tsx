@@ -1,5 +1,13 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
+import { cn } from "@/lib/utils";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
+import {
+  ROLE_LABEL,
+  ROLE_ORDER,
+  RoleIcon,
+  type RolePosition,
+  isRolePosition,
+} from "@/lol/_shared/role-icon";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { ChampionPoolDrift } from "@/lol/champions/champion-pool-drift";
@@ -12,11 +20,21 @@ import { aggregateChampionStats } from "@/lol/champions/champion-stats";
 import { ChampionTable } from "@/lol/champions/champion-table";
 import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+
+interface ChampionsSearch {
+  role?: RolePosition;
+}
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/")({
   component: ChampionsPage,
+  validateSearch: (search: Record<string, unknown>): ChampionsSearch => {
+    const raw = search.role;
+    return {
+      role: typeof raw === "string" && isRolePosition(raw) ? raw : undefined,
+    };
+  },
 });
 
 // Match the Champion detail page's window so navigating list → detail doesn't
@@ -24,17 +42,53 @@ export const Route = createFileRoute("/lol/$accountSlug/champions/")({
 // detail pages can't share that scope and the totals drifted as a result).
 const CHAMPIONS_FETCH_COUNT = 2000;
 
+function RoleChipStrip({
+  value,
+  onChange,
+}: {
+  value: RolePosition | undefined;
+  onChange: (next: RolePosition | undefined) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {ROLE_ORDER.map((role) => {
+        const active = value === role;
+        return (
+          <button
+            key={role}
+            type="button"
+            onClick={() => onChange(active ? undefined : role)}
+            title={ROLE_LABEL[role]}
+            aria-pressed={active}
+            className={cn(
+              "cursor-pointer rounded-md p-1 transition-opacity",
+              active ? "bg-muted opacity-100" : "opacity-50 hover:opacity-100"
+            )}
+          >
+            <RoleIcon position={role} className="size-4" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ChampionsPage() {
   const { accountSlug } = Route.useParams();
   // Champion stats only count serious play — KDA in ARAM is meaningless and
   // would inflate the table.
   const account = useAccountFromSlug(accountSlug);
   const { ids } = useSeriousQueues();
+  const { role } = useSearch({ from: Route.fullPath });
+  const navigate = useNavigate();
   const { data, isPending } = useCachedMatchesWindow(account, CHAMPIONS_FETCH_COUNT);
-  const matches = useMemo(
-    () => (data ? filterToSerious(data.matches, ids) : undefined),
-    [data, ids]
-  );
+
+  const matches = useMemo(() => {
+    if (!data) return undefined;
+    const serious = filterToSerious(data.matches, ids);
+    return role ? serious.filter((m) => m.teamPosition === role) : serious;
+  }, [data, ids, role]);
+
   // Aggregation is O(matches) and was previously called inline in JSX, so any
   // parent-driven re-render of ChampionsPage rebuilt the stats array and
   // invalidated the ChampionTable's sort memo. Memoising on `matches` lets the
@@ -47,20 +101,28 @@ function ChampionsPage() {
   const [sort, setSort] = useState<ChampionSortOption>(CHAMPION_SORT_OPTIONS[0].value);
   const setHoveredChampion = useHoverChampion();
 
+  const setRole = (next: RolePosition | undefined) =>
+    navigate({ to: ".", search: (prev) => ({ ...prev, role: next }) });
+
   return (
     <div className="flex flex-col gap-3">
-      {matches && matches.length > 0 && <ChampionPoolDrift matches={matches} />}
-      <div className="flex items-center justify-between gap-3">
+      {matches && matches.length > 0 && (
+        <ChampionPoolDrift matches={matches} role={role} />
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">
           {matches
             ? `Aggregated over your last ${matches.length} games`
             : "Loading champion stats…"}
         </h2>
-        <ChampionSortSelector
-          value={sort}
-          onChange={setSort}
-          layoutId="champions-sort-indicator"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <RoleChipStrip value={role} onChange={setRole} />
+          <ChampionSortSelector
+            value={sort}
+            onChange={setSort}
+            layoutId="champions-sort-indicator"
+          />
+        </div>
       </div>
 
       {isPending && !matches ? (
