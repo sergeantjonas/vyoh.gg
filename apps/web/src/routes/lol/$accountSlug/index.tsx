@@ -5,6 +5,7 @@ import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
+import { ProfilePostGame } from "@/lol/profile/profile-post-game";
 import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
@@ -32,6 +33,7 @@ function ProfilePage() {
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePregameRitual accountSlug={accountSlug} />
+      <ProfilePostGame accountSlug={accountSlug} />
       <ProfileRecentForm accountSlug={accountSlug} />
       <ProfileLpHistory accountSlug={accountSlug} />
       <ProfileSeasonHistory accountSlug={accountSlug} />

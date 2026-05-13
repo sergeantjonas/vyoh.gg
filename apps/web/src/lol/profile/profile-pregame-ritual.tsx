@@ -1,24 +1,15 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
-import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
-import type { ReactNode } from "react";
 
 const SUGGEST_DAYS = 14;
 const TIME_SLOT_DELTA = 0.05;
 const MIN_HOUR_SAMPLE = 3;
-
-interface RitualSignal {
-  id: string;
-  label: string;
-  verdict: ReactNode;
-  detail?: string;
-  tone: "neutral" | "positive" | "warning";
-}
 
 function nowMonFirstDay(d: Date): number {
   return (d.getDay() + 6) % 7;
@@ -207,36 +198,6 @@ function buildChampionSignal(matches: MatchSummary[], accountSlug: string): Ritu
     detail: `Last ${SUGGEST_DAYS} days`,
     tone: wr >= 50 ? "positive" : "neutral",
   };
-}
-
-const TONE_DOT: Record<RitualSignal["tone"], string> = {
-  neutral: "bg-muted-foreground/30",
-  positive: "bg-emerald-500/70",
-  warning: "bg-rose-500/70",
-};
-
-function SignalTile({ signal, index }: { signal: RitualSignal; index: number }) {
-  const reduced = useReducedMotion();
-  return (
-    <m.div
-      layout
-      initial={reduced ? false : { opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut", delay: reduced ? 0 : index * 0.05 }}
-      className="flex h-full flex-col gap-1 rounded-lg border bg-card/40 px-3 py-2.5"
-    >
-      <div className="flex items-center gap-2">
-        <span className={`size-1.5 rounded-full ${TONE_DOT[signal.tone]}`} />
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-          {signal.label}
-        </span>
-      </div>
-      <div className="text-sm leading-snug text-foreground/90">{signal.verdict}</div>
-      {signal.detail && (
-        <div className="text-[10px] text-muted-foreground/60">{signal.detail}</div>
-      )}
-    </m.div>
-  );
 }
 
 export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
