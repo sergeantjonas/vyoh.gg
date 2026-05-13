@@ -50,7 +50,7 @@ function RecapPage() {
       </m.header>
 
       <RecapRankArc account={account} />
-      <RecapChampion matches={matches} />
+      <RecapChampion matches={matches} accountSlug={accountSlug} />
       <RecapTopInsight matches={matches} />
 
       <m.p

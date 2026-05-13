@@ -2,6 +2,7 @@ import { championSquareIconUrl } from "@/lol/_shared/champion-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useChampionPairs } from "@/lol/profile/use-champion-pairs";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Link } from "@tanstack/react-router";
 import { Chord, Ribbon } from "@visx/chord";
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
@@ -111,7 +112,7 @@ function displayName(prefixed: string): string {
   return prefixed.replace(/^(you|them):/, "");
 }
 
-function ChordChart({ data }: { data: ChordData }) {
+function ChordChart({ data, accountSlug }: { data: ChordData; accountSlug: string }) {
   return (
     <ParentSize>
       {({ width }) => {
@@ -238,16 +239,21 @@ function ChordChart({ data }: { data: ChordData }) {
                       const y = -Math.cos(mid) * iconR;
                       const champ = displayName(data.champions[group.index] ?? "");
                       return (
-                        <image
+                        <Link
                           key={`icon-${group.index}`}
-                          href={championSquareIconUrl(champ, 48)}
-                          x={x - iconSize / 2}
-                          y={y - iconSize / 2}
-                          width={iconSize}
-                          height={iconSize}
-                          preserveAspectRatio="xMidYMid slice"
-                          style={{ pointerEvents: "none" }}
-                        />
+                          to="/lol/$accountSlug/champions/$championKey"
+                          params={{ accountSlug, championKey: champ.toLowerCase() }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <image
+                            href={championSquareIconUrl(champ, 48)}
+                            x={x - iconSize / 2}
+                            y={y - iconSize / 2}
+                            width={iconSize}
+                            height={iconSize}
+                            preserveAspectRatio="xMidYMid slice"
+                          />
+                        </Link>
                       );
                     })}
                   </>
@@ -295,7 +301,7 @@ export function ProfileSynergy({ accountSlug }: { accountSlug: string }) {
         </span>
       </div>
       <div className="rounded-lg border bg-card/40 p-2">
-        <ChordChart data={chordData} />
+        <ChordChart data={chordData} accountSlug={accountSlug} />
       </div>
     </m.section>
   );

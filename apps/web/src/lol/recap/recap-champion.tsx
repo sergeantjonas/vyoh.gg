@@ -1,5 +1,6 @@
 import { championBackdropSplashUrl } from "@/lol/_shared/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
@@ -40,7 +41,13 @@ function aggregate(matches: MatchSummary[]): ChampionAggregate | null {
   return list[0] ?? null;
 }
 
-export function RecapChampion({ matches }: { matches: MatchSummary[] | undefined }) {
+export function RecapChampion({
+  matches,
+  accountSlug,
+}: {
+  matches: MatchSummary[] | undefined;
+  accountSlug: string;
+}) {
   const reduced = useReducedMotion();
   const top = useMemo(() => (matches ? aggregate(matches) : null), [matches]);
 
@@ -112,11 +119,17 @@ export function RecapChampion({ matches }: { matches: MatchSummary[] | undefined
         Champion of the year
       </h2>
       <div className="flex items-center gap-4">
-        <ChampionSquareIcon
-          championName={top.champion}
-          alt={top.champion}
-          className="size-16 rounded-lg ring-1 ring-border/60"
-        />
+        <Link
+          to="/lol/$accountSlug/champions/$championKey"
+          params={{ accountSlug, championKey: top.champion.toLowerCase() }}
+          className="shrink-0"
+        >
+          <ChampionSquareIcon
+            championName={top.champion}
+            alt={top.champion}
+            className="size-16 rounded-lg ring-1 ring-border/60"
+          />
+        </Link>
         <div className="flex flex-col">
           <p className="text-2xl font-semibold text-foreground sm:text-3xl">
             {top.champion}

@@ -2,6 +2,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
+import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
@@ -150,7 +151,7 @@ function buildTimeSlotSignal(matches: MatchSummary[]): RitualSignal {
   };
 }
 
-function buildChampionSignal(matches: MatchSummary[]): RitualSignal {
+function buildChampionSignal(matches: MatchSummary[], accountSlug: string): RitualSignal {
   const cutoff = Date.now() - SUGGEST_DAYS * 24 * 60 * 60 * 1000;
   const recent = matches.filter(
     (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff
@@ -187,11 +188,17 @@ function buildChampionSignal(matches: MatchSummary[]): RitualSignal {
     label: "Most played",
     verdict: (
       <span className="flex items-center gap-2">
-        <ChampionSquareIcon
-          championName={name}
-          alt={name}
-          className="size-5 rounded-sm"
-        />
+        <Link
+          to="/lol/$accountSlug/champions/$championKey"
+          params={{ accountSlug, championKey: name.toLowerCase() }}
+          className="shrink-0"
+        >
+          <ChampionSquareIcon
+            championName={name}
+            alt={name}
+            className="size-5 rounded-sm"
+          />
+        </Link>
         <span>
           {name} — {stat.games}g · {wr}% WR
         </span>
@@ -232,7 +239,7 @@ function SignalTile({ signal, index }: { signal: RitualSignal; index: number }) 
   );
 }
 
-export function ProfilePregameRitual() {
+export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   // Predictions are about your next "serious" game (ranked / draft) — ARAM
   // tilt patterns and ARAM time-of-day don't transfer.
   const { matches } = useSeriousMatches();
@@ -243,9 +250,9 @@ export function ProfilePregameRitual() {
       buildFormSignal(matches),
       buildTiltSignal(matches),
       buildTimeSlotSignal(matches),
-      buildChampionSignal(matches),
+      buildChampionSignal(matches, accountSlug),
     ];
-  }, [matches]);
+  }, [matches, accountSlug]);
 
   if (!matches || matches.length === 0 || !signals) return null;
 

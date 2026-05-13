@@ -30,6 +30,7 @@ import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Link } from "@tanstack/react-router";
 import type {
   MatchDetail,
   MatchTimelineProjection,
@@ -561,12 +562,14 @@ function ParticipantRow({
   maxDamage,
   maxGold,
   badge,
+  accountSlug,
 }: {
   p: ParticipantDetail;
   isMe?: boolean;
   maxDamage: number;
   maxGold: number;
   badge?: { label: string; tip: string };
+  accountSlug: string;
 }) {
   const championName = useChampionName();
   const reduced = useReducedMotion();
@@ -598,7 +601,11 @@ function ParticipantRow({
         />
       )}
       {/* Champion icon + level badge */}
-      <div className="relative shrink-0">
+      <Link
+        to="/lol/$accountSlug/champions/$championKey"
+        params={{ accountSlug, championKey: p.championName.toLowerCase() }}
+        className="relative shrink-0"
+      >
         <ChampionSquareIcon
           championName={p.championName}
           alt={displayName}
@@ -607,7 +614,7 @@ function ParticipantRow({
         <span className="absolute -bottom-0.5 -right-0.5 min-w-[14px] rounded border border-border/60 bg-background/90 px-0.5 text-center font-mono text-[9px] leading-[14px] tabular-nums text-muted-foreground">
           {p.championLevel}
         </span>
-      </div>
+      </Link>
       {/* Summoner spells */}
       <div className="flex shrink-0 flex-col items-center gap-1">
         <SummonerSpellIcon id={p.summoner1Id} />
@@ -719,6 +726,7 @@ function TeamBlock({
   maxGold,
   badges,
   goldLead,
+  accountSlug,
 }: {
   title: string;
   participants: ParticipantDetail[];
@@ -727,6 +735,7 @@ function TeamBlock({
   maxGold: number;
   badges: Map<string, { label: string; tip: string }>;
   goldLead: number;
+  accountSlug: string;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -767,6 +776,7 @@ function TeamBlock({
             maxDamage={maxDamage}
             maxGold={maxGold}
             badge={badges.get(p.puuid)}
+            accountSlug={accountSlug}
           />
         ))}
       </m.ul>
@@ -778,10 +788,12 @@ export function MatchDetailView({
   detail,
   currentChampion,
   myPuuid,
+  accountSlug,
 }: {
   detail: MatchDetail;
   currentChampion?: string;
   myPuuid?: string;
+  accountSlug: string;
 }) {
   const reduced = useReducedMotion();
   const blue = detail.participants.filter((p) => p.teamId === 100);
@@ -811,6 +823,7 @@ export function MatchDetailView({
             maxGold={maxGold}
             badges={badges}
             goldLead={blueGold - redGold}
+            accountSlug={accountSlug}
           />
         </m.div>
         <m.div
@@ -826,6 +839,7 @@ export function MatchDetailView({
             maxGold={maxGold}
             badges={badges}
             goldLead={redGold - blueGold}
+            accountSlug={accountSlug}
           />
         </m.div>
       </div>

@@ -1,5 +1,6 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 
@@ -17,9 +18,11 @@ function poolLabel(unique: number, total: number): string {
 export function TrendChampionFocus({
   current,
   previous: _previous,
+  accountSlug,
 }: {
   current: MatchSummary[];
   previous: MatchSummary[];
+  accountSlug: string;
 }) {
   const { freq, total } = useMemo(() => {
     const played = current.filter((m) => !m.remake);
@@ -65,10 +68,16 @@ export function TrendChampionFocus({
         <div className="flex flex-col gap-1.5">
           {display.map(({ champion, count }) => (
             <div key={champion} className="flex items-center gap-2 text-xs">
-              <ChampionSquareIcon
-                championName={champion}
-                className="size-4 shrink-0 rounded-sm"
-              />
+              <Link
+                to="/lol/$accountSlug/champions/$championKey"
+                params={{ accountSlug, championKey: champion.toLowerCase() }}
+                className="shrink-0"
+              >
+                <ChampionSquareIcon
+                  championName={champion}
+                  className="size-4 shrink-0 rounded-sm"
+                />
+              </Link>
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted/30">
                 <div
                   className="h-full rounded-full bg-violet-500/60 transition-[width] duration-500"

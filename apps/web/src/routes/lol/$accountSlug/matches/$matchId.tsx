@@ -203,6 +203,7 @@ function MatchDetailPage() {
             detail={detail.data}
             currentChampion={myParticipant?.championName}
             myPuuid={myParticipant?.puuid}
+            accountSlug={accountSlug}
           />
         ) : null}
       </m.div>

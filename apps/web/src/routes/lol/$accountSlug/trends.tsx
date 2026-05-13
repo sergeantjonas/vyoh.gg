@@ -65,7 +65,11 @@ interface Tile {
 
 const INACTIVE_PENALTY = 1000;
 
-function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
+function buildTiles(
+  current: MatchSummary[],
+  previous: MatchSummary[],
+  accountSlug: string
+): Tile[] {
   const played = current.filter((m) => !m.remake);
   const playedRift = played.filter((m) => m.teamPosition !== "");
   const playedWithOpponent = played.filter((m) => m.laneOpponent !== null);
@@ -126,7 +130,13 @@ function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
       span: 1,
       designPriority: 580,
       active: played.length >= 1,
-      node: <TrendChampionFocus current={current} previous={previous} />,
+      node: (
+        <TrendChampionFocus
+          current={current}
+          previous={previous}
+          accountSlug={accountSlug}
+        />
+      ),
     },
     {
       id: "lp-economy",
@@ -147,7 +157,13 @@ function buildTiles(current: MatchSummary[], previous: MatchSummary[]): Tile[] {
       span: 1,
       designPriority: 500,
       active: playedWithOpponent.length >= 3,
-      node: <TrendWorstMatchup current={current} previous={previous} />,
+      node: (
+        <TrendWorstMatchup
+          current={current}
+          previous={previous}
+          accountSlug={accountSlug}
+        />
+      ),
     },
     {
       id: "damage-role-consistency",
@@ -208,14 +224,14 @@ function TrendsPage() {
   const { current, previous, isPending } = useTrendsWindows(rangeId, account);
 
   const sortedTiles = useMemo(() => {
-    const tiles = buildTiles(current, previous);
+    const tiles = buildTiles(current, previous, accountSlug);
     return tiles
       .map((t) => ({
         ...t,
         priority: t.active ? t.designPriority : t.designPriority - INACTIVE_PENALTY,
       }))
       .sort((a, b) => b.priority - a.priority);
-  }, [current, previous]);
+  }, [current, previous, accountSlug]);
 
   return (
     <div className="flex flex-col gap-6">

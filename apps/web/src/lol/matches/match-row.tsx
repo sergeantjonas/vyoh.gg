@@ -111,106 +111,114 @@ export function MatchRow({
   return (
     <MatchListRowPopover matchId={match.matchId} userChampion={match.champion}>
       <CardTilt>
-        <Link
-          to="/lol/$accountSlug/matches/$matchId"
-          params={{ accountSlug, matchId: match.matchId }}
-          onMouseEnter={() => onCardHover?.(match.champion)}
-          onPointerDown={() => {
-            saveListScroll();
-            const rect = cardRef.current?.getBoundingClientRect() ?? null;
-            if (rect)
-              setOriginRect({ matchId: match.matchId, rect, direction: "forward" });
-            setActiveMatch(match.matchId);
-          }}
-          className="block"
-        >
-          <div
-            ref={cardRef}
-            style={championCardStyle(match.champion)}
-            className={championCardClassName}
+        <div className="relative">
+          <Link
+            to="/lol/$accountSlug/champions/$championKey"
+            params={{ accountSlug, championKey: match.champion.toLowerCase() }}
+            aria-label={`${championDisplayName} dossier`}
+            className="absolute inset-y-0 left-0 z-10 w-28 rounded-l-md"
+          />
+          <Link
+            to="/lol/$accountSlug/matches/$matchId"
+            params={{ accountSlug, matchId: match.matchId }}
+            onMouseEnter={() => onCardHover?.(match.champion)}
+            onPointerDown={() => {
+              saveListScroll();
+              const rect = cardRef.current?.getBoundingClientRect() ?? null;
+              if (rect)
+                setOriginRect({ matchId: match.matchId, rect, direction: "forward" });
+              setActiveMatch(match.matchId);
+            }}
+            className="block"
           >
-            {isNew && !reduced && (
-              <m.div
-                className="pointer-events-none absolute inset-0 rounded-md"
-                animate={{
-                  boxShadow: match.win
-                    ? [
-                        "0 0 0 2px rgba(52,211,153,0)",
-                        "0 0 0 2px rgba(52,211,153,0.45), 0 0 18px 3px rgba(52,211,153,0.14)",
-                        "0 0 0 2px rgba(52,211,153,0)",
-                      ]
-                    : [
-                        "0 0 0 2px rgba(248,113,113,0)",
-                        "0 0 0 2px rgba(248,113,113,0.45), 0 0 18px 3px rgba(248,113,113,0.14)",
-                        "0 0 0 2px rgba(248,113,113,0)",
-                      ],
-                }}
-                transition={{ duration: 1.6, ease: "easeInOut" }}
-              />
-            )}
-            <ChampionCardChrome champion={match.champion} win={match.win} />
-            <div className="relative ml-auto flex flex-col items-end gap-1">
-              <div className="flex items-baseline gap-2">
-                <span className="font-medium">{championDisplayName}</span>
-                {match.remake ? (
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Remake
-                  </span>
-                ) : (
-                  <span
-                    className={cn(
-                      "text-xs font-semibold uppercase tracking-wider",
-                      match.win ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {match.win ? "Win" : "Loss"}
-                  </span>
-                )}
-                {!match.remake && lpDelta !== undefined && (
-                  <span
-                    className={cn(
-                      "text-xs tabular-nums",
-                      lpDelta > 0
-                        ? "text-emerald-400"
-                        : lpDelta < 0
-                          ? "text-red-400"
-                          : "text-muted-foreground"
-                    )}
-                  >
-                    {lpDelta > 0 ? "+" : ""}
-                    {lpDelta} LP
-                  </span>
-                )}
-              </div>
-              <div className="font-mono text-sm tabular-nums">
-                <CountUp to={match.kills} className="text-emerald-400" />
-                <span className="text-muted-foreground"> / </span>
-                <CountUp to={match.deaths} className="text-red-400" />
-                <span className="text-muted-foreground"> / </span>
-                <CountUp to={match.assists} className="text-amber-400" />
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span
-                  aria-hidden="true"
-                  className="size-2 shrink-0 rounded-sm"
-                  style={{ background: queueColor(match.queueType) }}
+            <div
+              ref={cardRef}
+              style={championCardStyle(match.champion)}
+              className={championCardClassName}
+            >
+              {isNew && !reduced && (
+                <m.div
+                  className="pointer-events-none absolute inset-0 rounded-md"
+                  animate={{
+                    boxShadow: match.win
+                      ? [
+                          "0 0 0 2px rgba(52,211,153,0)",
+                          "0 0 0 2px rgba(52,211,153,0.45), 0 0 18px 3px rgba(52,211,153,0.14)",
+                          "0 0 0 2px rgba(52,211,153,0)",
+                        ]
+                      : [
+                          "0 0 0 2px rgba(248,113,113,0)",
+                          "0 0 0 2px rgba(248,113,113,0.45), 0 0 18px 3px rgba(248,113,113,0.14)",
+                          "0 0 0 2px rgba(248,113,113,0)",
+                        ],
+                  }}
+                  transition={{ duration: 1.6, ease: "easeInOut" }}
                 />
-                <span>
-                  {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
-                  {formatTimeAgo(match.playedAt)}
-                </span>
-              </div>
-              {showVsLabel && match.laneOpponent && (
-                <div className="text-xs text-muted-foreground/60">
-                  vs {championName(match.laneOpponent.championName)}{" "}
-                  <span className="text-muted-foreground/40">
-                    ({match.laneOpponent.gameName}#{match.laneOpponent.tagLine})
+              )}
+              <ChampionCardChrome champion={match.champion} win={match.win} />
+              <div className="relative ml-auto flex flex-col items-end gap-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-medium">{championDisplayName}</span>
+                  {match.remake ? (
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Remake
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "text-xs font-semibold uppercase tracking-wider",
+                        match.win ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {match.win ? "Win" : "Loss"}
+                    </span>
+                  )}
+                  {!match.remake && lpDelta !== undefined && (
+                    <span
+                      className={cn(
+                        "text-xs tabular-nums",
+                        lpDelta > 0
+                          ? "text-emerald-400"
+                          : lpDelta < 0
+                            ? "text-red-400"
+                            : "text-muted-foreground"
+                      )}
+                    >
+                      {lpDelta > 0 ? "+" : ""}
+                      {lpDelta} LP
+                    </span>
+                  )}
+                </div>
+                <div className="font-mono text-sm tabular-nums">
+                  <CountUp to={match.kills} className="text-emerald-400" />
+                  <span className="text-muted-foreground"> / </span>
+                  <CountUp to={match.deaths} className="text-red-400" />
+                  <span className="text-muted-foreground"> / </span>
+                  <CountUp to={match.assists} className="text-amber-400" />
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-sm"
+                    style={{ background: queueColor(match.queueType) }}
+                  />
+                  <span>
+                    {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
+                    {formatTimeAgo(match.playedAt)}
                   </span>
                 </div>
-              )}
+                {showVsLabel && match.laneOpponent && (
+                  <div className="text-xs text-muted-foreground/60">
+                    vs {championName(match.laneOpponent.championName)}{" "}
+                    <span className="text-muted-foreground/40">
+                      ({match.laneOpponent.gameName}#{match.laneOpponent.tagLine})
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+        </div>
       </CardTilt>
     </MatchListRowPopover>
   );

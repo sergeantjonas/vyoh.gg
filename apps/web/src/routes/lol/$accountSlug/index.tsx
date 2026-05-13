@@ -31,11 +31,11 @@ function ProfilePage() {
     <div className="flex flex-col gap-6">
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
       <LiveGameChip accountSlug={accountSlug} />
-      <ProfilePregameRitual />
+      <ProfilePregameRitual accountSlug={accountSlug} />
       <ProfileRecentForm accountSlug={accountSlug} />
       <ProfileLpHistory accountSlug={accountSlug} />
       <ProfileSeasonHistory accountSlug={accountSlug} />
-      <ProfileNowPlaying />
+      <ProfileNowPlaying accountSlug={accountSlug} />
       <ProfileRoleStrip />
       <ProfileDuos accountSlug={accountSlug} />
       <ProfileSynergy accountSlug={accountSlug} />

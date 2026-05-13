@@ -1,6 +1,7 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 
@@ -51,7 +52,7 @@ const row: Variants = {
   show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 380, damping: 30 } },
 };
 
-export function ProfileNowPlaying() {
+export function ProfileNowPlaying({ accountSlug }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const championName = useChampionName();
   if (!matches) return null;
@@ -77,29 +78,31 @@ export function ProfileNowPlaying() {
               ? (c.kills + c.assists).toFixed(1)
               : ((c.kills + c.assists) / c.deaths).toFixed(2);
           return (
-            <m.div
-              key={c.champion}
-              variants={row}
-              className="flex items-center gap-3 rounded-lg border bg-card/50 px-3 py-2"
-            >
-              <ChampionSquareIcon
-                championName={c.champion}
-                alt={championName(c.champion)}
-                className="size-9 rounded-md"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{championName(c.champion)}</div>
-                <div className="text-xs text-muted-foreground">
-                  {c.games} {c.games === 1 ? "game" : "games"} · {winPct}% WR
+            <m.div key={c.champion} variants={row}>
+              <Link
+                to="/lol/$accountSlug/champions/$championKey"
+                params={{ accountSlug, championKey: c.champion.toLowerCase() }}
+                className="flex items-center gap-3 rounded-lg border bg-card/50 px-3 py-2 transition-colors hover:bg-card/80"
+              >
+                <ChampionSquareIcon
+                  championName={c.champion}
+                  alt={championName(c.champion)}
+                  className="size-9 rounded-md"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{championName(c.champion)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {c.games} {c.games === 1 ? "game" : "games"} · {winPct}% WR
+                  </div>
                 </div>
-              </div>
-              <div className="text-right text-sm tabular-nums text-muted-foreground">
-                <div>{kda} KDA</div>
-                <div className="text-xs">
-                  {(c.kills / c.games).toFixed(1)} / {(c.deaths / c.games).toFixed(1)} /{" "}
-                  {(c.assists / c.games).toFixed(1)}
+                <div className="text-right text-sm tabular-nums text-muted-foreground">
+                  <div>{kda} KDA</div>
+                  <div className="text-xs">
+                    {(c.kills / c.games).toFixed(1)} / {(c.deaths / c.games).toFixed(1)} /{" "}
+                    {(c.assists / c.games).toFixed(1)}
+                  </div>
                 </div>
-              </div>
+              </Link>
             </m.div>
           );
         })}

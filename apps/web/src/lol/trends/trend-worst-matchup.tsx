@@ -1,5 +1,6 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 
@@ -40,19 +41,39 @@ function aggregate(matches: MatchSummary[]): MatchupRow[] {
   }));
 }
 
-function MatchupRowView({ row, isWorst }: { row: MatchupRow; isWorst: boolean }) {
+function MatchupRowView({
+  row,
+  isWorst,
+  accountSlug,
+}: {
+  row: MatchupRow;
+  isWorst: boolean;
+  accountSlug: string;
+}) {
   const losses = row.games - row.wins;
   return (
     <div className="flex items-center gap-2 text-xs">
-      <ChampionSquareIcon
-        championName={row.yourChamp}
-        className="size-5 shrink-0 rounded-sm opacity-80"
-      />
+      <Link
+        to="/lol/$accountSlug/champions/$championKey"
+        params={{ accountSlug, championKey: row.yourChamp.toLowerCase() }}
+        className="shrink-0"
+      >
+        <ChampionSquareIcon
+          championName={row.yourChamp}
+          className="size-5 shrink-0 rounded-sm opacity-80"
+        />
+      </Link>
       <span className="text-muted-foreground/60">vs</span>
-      <ChampionSquareIcon
-        championName={row.oppChamp}
-        className={`size-5 shrink-0 rounded-sm ${isWorst ? "ring-1 ring-rose-500/50" : ""}`}
-      />
+      <Link
+        to="/lol/$accountSlug/champions/$championKey"
+        params={{ accountSlug, championKey: row.oppChamp.toLowerCase() }}
+        className="shrink-0"
+      >
+        <ChampionSquareIcon
+          championName={row.oppChamp}
+          className={`size-5 shrink-0 rounded-sm ${isWorst ? "ring-1 ring-rose-500/50" : ""}`}
+        />
+      </Link>
       <span className="flex-1 truncate text-foreground/80">{row.oppChamp}</span>
       <span className="tabular-nums text-muted-foreground/80">
         <span className="text-emerald-500/80">{row.wins}</span>
@@ -69,9 +90,11 @@ function MatchupRowView({ row, isWorst }: { row: MatchupRow; isWorst: boolean })
 export function TrendWorstMatchup({
   current,
   previous: _previous,
+  accountSlug,
 }: {
   current: MatchSummary[];
   previous: MatchSummary[];
+  accountSlug: string;
 }) {
   const { rows, sampleSize } = useMemo(() => {
     const filtered = current.filter((m) => !m.remake && m.laneOpponent !== null);
@@ -137,6 +160,7 @@ export function TrendWorstMatchup({
               key={`${r.yourChamp}-${r.oppChamp}`}
               row={r}
               isWorst={i === 0}
+              accountSlug={accountSlug}
             />
           ))}
         </div>
