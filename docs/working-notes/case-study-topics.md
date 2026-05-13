@@ -203,7 +203,7 @@ Portfolio signal:
 
 ## Candidate write-up 6 — Killing fullscreen-blur flicker on a 4K dashboard
 
-Status: shipped. Write-up not yet drafted.
+Status: shipped. Write-up not yet drafted. **Note (2026-05-13):** the "wsrv.nl over self-hosting" framing in this arc was deliberately revisited and superseded by the bounded-CDN bundling arc — see [Candidate write-up 8](#candidate-write-up-8--bundling-the-bounded-cdn) and [bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md). If this write-up is drafted, the closing should acknowledge the later pivot rather than land on wsrv.nl as the durable answer.
 
 The splash backdrop layered five concurrent things on a near-fullscreen surface — `filter: blur(5px)` on the splash image, infinite Ken Burns transform, a 0.7 s opacity cross-fade keyed remount, an offsetX shift, and a fade-in opacity. On a 4K monitor this caused visible flicker during scroll-and-hover. The fix was a cluster, not one line.
 
@@ -265,6 +265,39 @@ Portfolio signal:
 - recognizing the same SSE primitive can carry two distinct shapes (per-entity vs. firehose) without ceremony
 - operational sensibility — the system existed to be debugged before it existed to be observed; this fixes that
 - restraint on persistence — ephemeral data, ephemeral storage, honest contract
+
+## Candidate write-up 8 — Bundling the bounded CDN
+
+Status: **shipped** — [docs/case-studies/bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md). Working note: [lol-image-pipeline.md](./lol-image-pipeline.md).
+
+Three-phase arc that turned the runtime CDN dependency for LoL image assets (wsrv.nl proxying CDragon + DDragon) into a build-time bundle with an automated daily refresh. The angle is "the image universe is bounded, so the proxy doesn't have to be load-bearing": Phase 0 (per-probe timeout) bounded the worst case so the rest of the work was unhurried; Phase 1 (refresh script + manifest + URL helpers) replaced the runtime path on the common case; Phase 2 (GitHub Actions cron + auto-PR with conditional auto-merge label) closed the manual loop. The wsrv.nl chain is preserved as a long-tail safety net rather than torn out — defense in depth, not either/or.
+
+Companion to:
+
+- [build-time-champion-assets.md](../case-studies/build-time-champion-assets.md) — the predecessor pipeline (theme + blurhash). Phase 1 supersedes it by running theme/blurhash regen in the same pass, so the two pipelines can never desync.
+- [frontend-perf.md](../case-studies/frontend-perf.md) — broader frontend-perf arc this fits into.
+- Candidate 6 above — the wsrv.nl-as-primary chapter that this arc deliberately revisited.
+
+Topics (already covered in the case study, repeated here for the topic index):
+
+- phasing a fix so the urgent symptom doesn't force the architectural decision
+- manifest-as-single-source-of-truth, inlined into the bundle to eliminate stale-manifest races
+- hash-based diffing as the primitive for both incremental refresh and PR auto-merge gating
+- `actions/cache` keyed on the manifest hash for instant-no-op runs
+- four build-log surprises kept honest: `.mts` for ESM-per-file in a CJS-default workspace; native deps colocated with the script (pnpm hoisting unreliable for `sharp`); the consistency assertion that re-derived the path it was checking; CDragon's keyless `/latest/` forcing implicit `--full` on patch-bump
+- defense in depth on the runtime fallback chain — Phase 1 doesn't tear out wsrv.nl, it makes wsrv.nl rare-path
+
+Portfolio signal:
+
+- ops sensibility (auto-PR with auto-merge gated on a strong invariant, not just a label)
+- restraint (didn't build the "proper" Nest + Sharp + R2 backend proxy — wrong tool for a bounded universe)
+- honest reflection (surprises documented, the wsrv.nl "right choice" framing from candidate 6 explicitly revisited)
+
+Evidence to collect (for any external write-up; case study already cites them inline):
+
+- cold-load network HAR before/after — bundled assets show as `200 (from disk cache)` / `200 (from memory cache)`, no wsrv.nl hits
+- diff of a real auto-PR (additive + auto-merge label) once one lands in production
+- screenshot of the Actions workflow summary showing the `summary` step output rendered in the PR body
 
 ## README sections to grow incrementally
 

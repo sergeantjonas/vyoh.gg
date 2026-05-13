@@ -418,4 +418,5 @@ These decisions are baked into the phase plans above. Anything that re-opens the
 - [hosting.md](hosting.md) — static asset serving per hosting option, CSP considerations. Has a section pointing back here.
 - [case-study-topics.md](case-study-topics.md) — write-up framing for the full arc.
 - [vnext-ideas.md](vnext-ideas.md) — pre-Phase-0 record of the "30–60s waits hurt" problem if it's listed there.
-- [project-history.md](project-history.md) — once shipped, summarize the arc here as a landed initiative.
+- [project-history.md](project-history.md) — shipped arc summarized under "Recent arcs (2026-05-13)".
+- [../case-studies/bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md) — landed write-up of the full three-phase arc.

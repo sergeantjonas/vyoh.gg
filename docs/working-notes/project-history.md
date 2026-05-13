@@ -13,6 +13,10 @@ vyoh.gg/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
 
+## Last captured status — 2026-05-13
+
+Multi-account LoL dashboard. Asset pipeline arc closed: bounded LoL image universe (champions, items, runes, summoner spells, role icons) now bundled at build time from a manifest-first script, refreshed daily by a GitHub Actions cron that opens an auto-PR with conditional auto-merge for purely-additive diffs. Runtime wsrv.nl fallback chain preserved as long-tail safety net. Cold profile load makes zero external image requests for any bundled asset. Case study: [bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md).
+
 ## Last captured status — 2026-05-11
 
 Multi-account LoL dashboard. Today's session shipped: empty-state primitive + illustrations across 8 surfaces; recap-champion splash stacking-context fix (added `isolate`, split chrome via complementary masks, plain `<img>` instead of CSS background); visx integration across four surfaces in one session (death matchup heatmap, champion synergy chord, LP history brush, build-order Sankey via d3-sankey). `.tanstack/` added to `.gitignore`. Champion detail page now hosts a build-flow Sankey + minute×matchup death heatmap on top of the existing per-game-average tiles, sparkline, per-patch strip, items, matchups, time heatmap, and tilt indicator. Profile now hosts a champion-synergy chord between ProfileDuos and ProfileQueueDistribution. LP history main chart gains a visx brush strip below it with a "Show all" reset.
@@ -20,6 +24,26 @@ Multi-account LoL dashboard. Today's session shipped: empty-state primitive + il
 ## Last captured status — 2026-05-10
 
 Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match history, champion aggregation + detail, LP history + season history, trends as a magazine-grid briefing of conclusion cards (auto-reorder on range change), match detail with full post-game review depth. Lane opponent hover popover on match rows. Live game view with Spectator-V5 data. **Profile** identity layer covers rank tiles, recent form, LP history, season history, pre-game ritual, now-playing, role strip, queue distribution, activity calendar, stats, duos, recap CTA. **Recap** sub-route at `/lol/$accountSlug/recap` (rank arc + headline champion + auto-picked top insight). **Per-view queue scope:** performance surfaces (Trends, ritual, recap, champions, role strip) consume the user's "serious queues" preference (default Ranked Solo + Ranked Flex; configurable via header `<SeriousQueuesSettings />` popover, persisted to localStorage); identity surfaces (recent form, now playing, queue distribution, activity calendar, stats bar, duos, recap rank arc) consume all queues. Match list owns its own queue filter UI for browsing.
+
+## Recent arcs (2026-05-13)
+
+### LoL image pipeline — bounded-CDN bundling (Phase 0 → 2)
+
+Three-phase fix for flaky runtime image delivery via wsrv.nl, shipped over a week. Working note: [lol-image-pipeline.md](./lol-image-pipeline.md). Case study: [bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md).
+
+**Phase 0 — splash-resolver per-probe timeout (`fd0754e`).** `splash-resolver.ts`'s `probe()` had no deadline, so a hung wsrv.nl connection blocked the whole fallback chain. Added `DEFAULT_PROBE_TIMEOUT_MS = 2000`; worst case bounded to `candidates.length * timeoutMs`. ~15 LOC, stopped the user-visible hangs immediately, bought time for the architectural fix.
+
+**Phase 1 — build-time prefetch + manifest-first URL helpers (`cce4e00`, `7ca3c5f`, `1d457a3`).** New [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts) (~700 LOC) downloads from CDragon + DDragon, transforms via Sharp, hashes, and emits ~9.7 MB of WebPs to `apps/web/public/lol/**` plus a `manifest.json` (schema v1) keyed by hash. Asset cache at `.cache/lol-images/`, gitignored. Coverage: 191 champions × 3 variants (square / card / backdrop), ~250 items, ~70 runes, ~30 summoner spells, 5 role-icon SVGs. `champion-summary.json` moved from runtime fetch to bundled. Theme/blurhash regen folded into the same script in one pass — supersedes the older `tools/champion-assets/` workspace, eliminates the desync risk. URL helpers in [`apps/web/src/lol/_shared/champion-icon.ts`](../../apps/web/src/lol/_shared/champion-icon.ts), `summoner-icon.ts`, item / keystone / summoner-spell icon components all check manifest first, fall through to the wsrv.nl chain on a miss. Defense in depth: the fallback chain is deliberately preserved so newly-released champions render correctly between the time they hit CDragon and the time the next refresh PR merges.
+
+Four build-log surprises worth keeping:
+- Script extension is `.mts`, not `.ts`. Repo root `package.json` has no `"type": "module"`; tsx defaults to CJS and refuses top-level await + `import.meta.url`. `.mts` forces ESM per file without touching `package.json`.
+- `sharp`, `blurhash`, `tsx` installed at the workspace root, not in `apps/web`. pnpm hoisting unreliable for `sharp`'s native binary; colocating with the script that uses it is the only stable arrangement.
+- First run wrote 6 MB of WebPs to `apps/web/lol/` (no `public/`). `path.join(root, "apps/web", "/lol/x")` silently drops `public/` because the leading slash makes the second arg absolute. The in-script "every manifest URL has a file on disk" assertion missed it because the assertion re-derived the disk path using the same buggy join. Fix: extract `urlPathToDiskPath` as the single mapping helper; the assertion holds the mapping accountable instead of duplicating it.
+- CDragon `/latest/` URLs have no patch key — patch-bumps invalidate every cached entry transparently. Script treats `previousManifest.patch !== latest` as an implicit `--full` to drop all skip heuristics for that run.
+
+**Phase 2 — daily GitHub Actions cron + auto-PR (`b5f10a8`).** [.github/workflows/refresh-lol-assets.yml](../../.github/workflows/refresh-lol-assets.yml) runs daily at 06:00 UTC + workflow_dispatch. `actions/cache@v4` keyed on `hashFiles('apps/web/public/lol/manifest.json')` — unchanged manifest = cache hit = no-op run. Script extended to emit `patch`, `additive`, `no-changes`, and a multiline `summary` to `$GITHUB_OUTPUT` (diff helpers in [refresh-lol-assets.mts:emitRefreshSummary](../../scripts/refresh-lol-assets.mts)). A gate step skips PR creation entirely when `no-changes=true`. peter-evans/create-pull-request@v6 opens a rolling `automated/lol-asset-refresh` branch; labels computed dynamically — always `automated:asset-refresh`, plus `automerge` only when `additive=true`. Reworks (touch existing files = `updated` bucket) fall to human review. Workflow matches existing [ci.yml](../../.github/workflows/ci.yml) conventions (`actions/checkout@v5`, `setup-node@v5` with `.nvmrc`, `corepack enable`). Permissions limited to `contents: write` + `pull-requests: write`; relies on default `GITHUB_TOKEN`. Playwright visual smoke test scoped and deferred — `verify:cc` catches the structural class of failures, anything beyond that waits for a real regression.
+
+Arc closes the "the runtime CDN is in the render path" architectural problem opened by Phase 0. Cold profile load: 0 external image requests for any bundled asset. Manual work per Riot patch: open the auto-PR, hit merge (or none, for additive-only diffs).
 
 ## Recent arcs (2026-05-11)
 
