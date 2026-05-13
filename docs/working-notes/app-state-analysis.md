@@ -236,11 +236,13 @@ Trade-off recorded: Option A first is the recommendation because it makes every 
 - **Delete stale `feedback_visx_minimap` reference.** [`vnext-ideas.md L224`](vnext-ideas.md) references a memory file that doesn't exist (only `feedback_network_hang_simulation.md` is in `/home/node/.claude/projects/-workspaces-vyoh-gg/memory/`). 30 seconds — strike the sentence "`feedback_visx_minimap` memory should be updated to reflect that visx is now installed and used." from the 2026-05-11 visx decision-log entry.
 - **Host-Chrome perf re-measurement.** [`perf-baseline.md L81`](perf-baseline.md) parks a Profiler re-measurement of the MatchWindowProvider + ChampionsPage memoization fixes; the fixes shipped static-only and the validation is pending a host-Chrome session (the devcontainer has no Chrome). Not a coding task — do it the next time you're at the host machine and update the note.
 
-### Phase 2 — Post-game close-the-loop (1–2 sessions)
+### Phase 2 — Post-game close-the-loop ✅ shipped 2026-05-13 (PG1–PG3)
 
-Mirror of Pregame Ritual, triggered on SSE new-match arrival. Verdicts pull from existing signals: tilt, streak, time-slot, champion delta. New `ConclusionCard` variant on Profile or as a route segment that opens after the SSE event lands.
+Section live on Profile, paired with Pregame Ritual. Four signals (outcome, game-shape or champion-read, baseline, tilt forecast) with SSE-driven win/loss-tinted pulse on new-match arrival. Game-shape signal reads `teamGoldDiffAt15` for lane-phase/comeback framing, gated on the timeline-projected sentinel.
 
-This is the move that *would* land as a portfolio case study ("a calm coaching surface that closes the loop after every game").
+PG4 (peer-route artifact at `/lol/$accountSlug/post-game/$matchId` for share-friendly per-game Wrapped) intentionally deferred to v2. See [`post-game-close-the-loop.md`](post-game-close-the-loop.md) for detail.
+
+This is the move that *would* land as a portfolio case study ("a calm coaching surface that closes the loop after every game") — the strongest current case-study candidate.
 
 ### Phase 3 — Champions list as a verdict surface (1 session)
 
@@ -268,8 +270,10 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 ## Status
 
 - **Reframed 2026-05-13.** Original 2026-05-10 plan was Champions-tab-centric; superseded by the cross-link/dossier framing above.
+- **Phase 1 (cross-link champion identity) shipped 2026-05-13** (commits `9846a01`, `8596278`). All eight surfaces now navigate to champion detail.
+- **Phase 2 (post-game close-the-loop) shipped 2026-05-13** (commits `a7f3299`, `3007552`). PG1+PG2+PG3 live; PG4 deferred.
 - **Champion detail depth shipped 2026-05-11** (death heatmap, build Sankey, position heatmap) and **empty-state pass shipped 2026-05-11** — both deepened the dossier without changing the navigation graph. Made Phase 1 (cross-linking) more valuable, not less.
-- **Champions list unchanged** since this analysis was first drafted. The original Phase B/C moves (filters, recent matches, per-role split, compare-mode) have not shipped; most are now descoped or absorbed by what champion-detail already does.
+- **Champions list unchanged** since this analysis was first drafted. The original Phase B/C moves (filters, recent matches, per-role split, compare-mode) have not shipped; most are now descoped or absorbed by what champion-detail already does. **Phase 3 is now the next recommended arc.**
 
 ---
 
@@ -277,8 +281,8 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 
 | Move | Size | Notes |
 |---|---|---|
-| Cross-link champion identity (Phase 1) | S | One session, no schema, no new data. |
-| Post-game close-the-loop | M | New `ConclusionCard` variant on Profile; reuses existing signals + SSE. |
+| Cross-link champion identity (Phase 1) | S | ✅ shipped 2026-05-13. |
+| Post-game close-the-loop | M | ✅ PG1–PG3 shipped 2026-05-13. PG4 deferred. |
 | Composite LP forecast tile | M | Composition only; no new data. |
 | Champion-pool drift verdict | S | 14d-vs-prior-14d diff over windowed data. |
 | Champions list role/queue filters | S | Mirror Matches/Trends. |
@@ -302,8 +306,8 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 
 ## Open questions
 
-1. **Champions tab rename?** "Dossier", "Pool", "Champions" — once Phase 1 lands, the tab is the dossier index, not a list. Worth a rename.
-2. **Where does the post-game surface live?** Profile section, a route segment that opens on SSE arrival, or a peer-route modal. Each has different "this artifact is the after-game read" weight.
-3. **Cross-link match-row icon — modal vs full nav?** A match row that's also a champion link could `e.stopPropagation()` to the icon area; alternative is a small peer-route hover/modal so the morph into match detail isn't disrupted.
+1. **Champions tab rename?** "Dossier", "Pool", "Champions" — Phase 1 has landed, so the tab is now the dossier index, not a list. Worth a rename.
+2. **Post-game surface placement** — resolved to Option C (static Profile section + SSE pulse). PG4 (peer-route artifact) remains open as a v2 promotion if the framing proves out.
+3. **Cross-link match-row icon — modal vs full nav?** Resolved during Phase 1: sibling-Link overlay pattern (champion link covers the splash strip, match-detail link covers the rest). Morph preserved.
 4. **Pool-drift window?** 14d-vs-prior-14d is the obvious default. Range selector adds complexity; defer.
 5. **Composite LP forecast confidence model?** Naive (equal weight on form/time/champ/tilt) vs. a tiny linear fit on the user's own history. The latter is more honest but needs months of LP-history snapshots to be meaningful — defer the fit until data accrues.

@@ -97,28 +97,31 @@ Hybrid: section always exists on Profile, but on SSE arrival the section animate
 
 ## Phasing
 
-### Phase PG1 — Static section on Profile
+### Phase PG1 — Static section on Profile ✅ shipped 2026-05-13
 
-Ship as a sibling block to Pregame Ritual, reading the most-recent match. No SSE awareness yet. All 3–4 signals deterministically chosen per match.
+Sibling block to Pregame Ritual, reads the most-recent serious match. Four signals deterministic per match: outcome (streak framing), baseline (largest role-delta of damage / vision), tilt forecast (historical WR after wins/losses), champion read (this match's KDA vs your average on this champion).
 
-- New component: `apps/web/src/lol/profile/profile-post-game.tsx`.
-- Reuse `RitualSignal` model + `SignalTile`-style tile component.
-- New helpers: `buildOutcomeSignal`, `buildBaselineSignal`, `buildTiltForecastSignal`, `buildChampionReadSignal`.
-- Self-contained PR.
+- Component: [`apps/web/src/lol/profile/profile-post-game.tsx`](../../apps/web/src/lol/profile/profile-post-game.tsx).
+- Shared `RitualSignal` model + `SignalTile` extracted to [`apps/web/src/lol/profile/ritual-tile.tsx`](../../apps/web/src/lol/profile/ritual-tile.tsx) so Pregame and Post-game read as a paired set.
+- Filters via `useSeriousMatches` — ARAM/Arena don't trigger a post-game read (the role-baseline and lane-phase reads wouldn't fit).
+- Commit `a7f3299` (bundled with PG2).
 
-### Phase PG2 — SSE-driven highlight
+### Phase PG2 — SSE-driven highlight ✅ shipped 2026-05-13
 
-Wire the section to highlight / pulse / animate-open when a new match arrives via the existing `MatchEventsService` SSE stream. The signal computation already updates because `useCachedMatchesWindow` invalidates on SSE.
+Pulse + slight scale lift on the tile grid when a new matchId arrives. No new SSE listener — `useSeriousMatches → useMatchWindow` already invalidates on the existing flow, so the latest matchId change is the trigger.
 
-- New `useNewMatchNotice` hook keyed on the most-recent `matchId` from the windowed query; emits a one-shot "new match arrived" event for a few seconds.
-- Motion: `layout` + slight `scale` lift on the post-game card; existing `useReducedMotion` discipline.
+- Hook: [`apps/web/src/lol/profile/use-new-match-notice.ts`](../../apps/web/src/lol/profile/use-new-match-notice.ts). Suppresses the initial mount transition (undefined → first matchId) so a fresh profile load doesn't fire. 6s TTL.
+- Motion: tinted ring (emerald for wins, rose for losses) animates 0 → 0.55 alpha → 0 over the TTL; `scale: [1, 1.005, 1]` lift. `useReducedMotion` short-circuits both.
+- Commit `a7f3299` (bundled with PG1).
+- **Live verification deferred.** Pulse triggers off the same SSE invalidation path as the match-list `flashMatchIds` flow, which is confirmed working; treating as live-validated by inference until a real in-game arrival lands the assumption.
 
-### Phase PG3 — Lane-phase / comeback depth
+### Phase PG3 — Lane-phase / comeback depth ✅ shipped 2026-05-13
 
-Add 1–2 signals that pull from Phase B timeline fields: lane-phase outcome read (*"won the game but lost lane: -1.2k gold at 15"*), comeback flag (*"down 5k at 15 — came back"*). These read directly from `csAt15`, `goldAt15`, `teamGoldDiffAt15`.
+`buildGameShapeSignal` reads `teamGoldDiffAt15` for a lane-phase / comeback narrative. Gated on the `csAt15 === 0 && goldAt15 === 0` sentinel so pre-Phase-B rows fall back to the v1 set unchanged. When timeline data exists the signal slots into position 2 (right after outcome), displacing the champion read.
 
-- No backend changes. New helpers in the same module.
-- Gate on the "timeline projected" sentinel so historical rows without backfilled timelines fall back to v1.
+- Six narrative cells per outcome × shape combination: stomp-converted / led-and-closed / comeback-win / let-it-slip / hard-stomped / lost-behind, plus an even-at-15 fallback.
+- Thresholds: `< 1.5k` gold-diff at 15 = "even"; `≥ 5k` = stomp tier with emphasized phrasing.
+- Commit `3007552`.
 
 ### Phase PG4 (optional) — Peer-route artifact
 
@@ -151,7 +154,10 @@ Companion to (or replacement for) the open ConclusionCard-pattern case study tra
 
 ## Status
 
-- **2026-05-13** — arc framed, promoted from vNext. Not yet started.
+- **2026-05-13** — arc framed, promoted from vNext.
+- **2026-05-13** — PG1 + PG2 shipped (commit `a7f3299`). Section live on Profile, paired with Pregame Ritual; SSE-driven pulse fires off the existing match-window invalidation path. Live verification of the pulse deferred (treating as inferred-working via the parallel match-list flash flow).
+- **2026-05-13** — PG3 shipped (commit `3007552`). Game-shape signal added behind the timeline-projected sentinel.
+- **Remaining:** PG4 (peer-route artifact) — explicitly deferred, doc marks it for v2 promotion only after the Profile framing is proven.
 
 ---
 
