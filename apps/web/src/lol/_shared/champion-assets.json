@@ -1,770 +1,770 @@
 {
-  "generated": "2026-05-07T12:20:42.574Z",
+  "generated": "2026-05-13T19:12:51.859Z",
   "count": 191,
   "champions": {
-    "Aatrox": {
-      "dominantHex": "#b94844",
-      "blurhash": "U67,iZ1I]QAW}Y5l=eFwS}w0NGbvO?=eEf$i"
-    },
-    "Ahri": {
-      "dominantHex": "#5979bd",
-      "blurhash": "UE9812EKVUVC%jX7i]VqDgjEp0kXroMxtTtm"
-    },
-    "Akali": {
-      "dominantHex": "#795230",
-      "blurhash": "U4BCM#57F{~B0#Io9Z9t00^*,p9Z%2^k=|^j"
-    },
-    "Akshan": {
-      "dominantHex": "#db9635",
-      "blurhash": "UDG[Ak-p}=9Hm:58o}-:ElE3oM-U~A9c-.WE"
-    },
-    "Alistar": {
-      "dominantHex": "#bda46c",
-      "blurhash": "U4CG3@0L4nMm00r;~p9a~nICN3xn%Ma$-nM{"
-    },
-    "Ambessa": {
-      "dominantHex": "#a2443c",
-      "blurhash": "UD9t7O%Lsoxa~qxuRjt7?b%2M{j]-;xtM{WB"
-    },
-    "Amumu": {
-      "dominantHex": "#67b1cb",
-      "blurhash": "UEC%59[bD4%f1-E7rVXRH[NbY5sCVy${%1V^"
-    },
-    "Anivia": {
-      "dominantHex": "#106ac7",
-      "blurhash": "UI8F7~RNMcn,Y8i|jGWArpRjozn*Q+aHkqV["
-    },
     "Annie": {
-      "dominantHex": "#b9744b",
-      "blurhash": "U9D[2#03NH?F^iIqEMb[M|$%%K580N~9kBIW"
-    },
-    "Aphelios": {
-      "dominantHex": "#5f87bc",
-      "blurhash": "UO7LNCVqtmjZyZVrkXe.pJV=kWadkXf5kCaf"
-    },
-    "Ashe": {
-      "dominantHex": "#186de5",
-      "blurhash": "UKA_rR9ir9kWx{IasRV=.mN2ohnMbvi]V@kW"
-    },
-    "AurelionSol": {
-      "dominantHex": "#2d4cc2",
-      "blurhash": "U868zjHq9=%48^t:$1S7pHVqi@tm-YaFKTix"
-    },
-    "Aurora": {
-      "dominantHex": "#3468c4",
-      "blurhash": "UBA^X;9+yZnNMy-?RiV@ohf9aJRiM_s;tSM_"
-    },
-    "Azir": {
-      "dominantHex": "#1ca4bc",
-      "blurhash": "UjMGR--mD*s:~pWBIpoytRIWoMt7%1slWERl"
-    },
-    "Bard": {
-      "dominantHex": "#a3651d",
-      "blurhash": "UHA9$lNH9u%0~AIV9u%1?GNHIps.%0RjNHt6"
-    },
-    "Belveth": {
-      "dominantHex": "#7166b6",
-      "blurhash": "UAAluM5g53=~1D-Yw]9qOajbi[s+=*R%RzWA"
-    },
-    "Blitzcrank": {
-      "dominantHex": "#4e33bc",
-      "blurhash": "UUE2hb?d%Oxw?IxwkCa^RqWFM_W9NMRkaxoN"
-    },
-    "Brand": {
-      "dominantHex": "#d4682a",
-      "blurhash": "URFzTR}n$gRlOVJ8J9Iq9c9_S4ayNdjGxW%0"
-    },
-    "Braum": {
-      "dominantHex": "#1bb2d4",
-      "blurhash": "UI7o9oET%MgP?^Itxuf+.TN2xuj^%zM|s+ad"
-    },
-    "Briar": {
-      "dominantHex": "#77afcf",
-      "blurhash": "U87ntZpKPAtSZyDgSwxH.AtTgOR,o}I8x]xa"
-    },
-    "Caitlyn": {
-      "dominantHex": "#1a6281",
-      "blurhash": "UQB;LH_N-;ofR+oyWBay8w9FM_aeVse.bIkC"
-    },
-    "Camille": {
-      "dominantHex": "#32aacc",
-      "blurhash": "U66b0;tPR6Dk_MxtaeIV.6xtM{IVtPt7M|My"
-    },
-    "Cassiopeia": {
-      "dominantHex": "#715034",
-      "blurhash": "U3849:4:~V=Z0$=a9woID*EgnOE4F_-6S#RP"
-    },
-    "Chogath": {
-      "dominantHex": "#37aac7",
-      "blurhash": "U97w]QtlH=Rk?wtRROV@acodkXaeW=V@oMkC"
-    },
-    "Corki": {
-      "dominantHex": "#cb892d",
-      "blurhash": "UED8|6xnK6~9.6-S-nkV58%1-RIq-5xtNbn~"
-    },
-    "Darius": {
-      "dominantHex": "#fa876a",
-      "blurhash": "URDbH7}@$ixG-B$j$isBM|V[WBNGxZo2EMNG"
-    },
-    "Diana": {
-      "dominantHex": "#4c90b2",
-      "blurhash": "U884lW4mM^kD%jD$xuogx_M_t7Rkxxj;RjRj"
-    },
-    "Draven": {
-      "dominantHex": "#6143bb",
-      "blurhash": "U26kF]8^DN.Ak@IoxGxt9E-=yFDgI9?I%iD~"
-    },
-    "DrMundo": {
-      "dominantHex": "#873ec0",
-      "blurhash": "UC7nUn%ORkIA?wx]M{ITXNS]RiRPNXNEV@jv"
-    },
-    "Ekko": {
-      "dominantHex": "#d42a3f",
-      "blurhash": "U67BAjS_9#IW~oaJD+IB%0VrMyMyxtkXRkS$"
-    },
-    "Elise": {
-      "dominantHex": "#49a4ae",
-      "blurhash": "U22?jRITQ8u5%$NFm,kCnOWAkqjZWsspWAbI"
-    },
-    "Evelynn": {
-      "dominantHex": "#ac46a9",
-      "blurhash": "U971QuLNxdFX#ZrwI-WnND,wFq$-xcNYjFV@"
-    },
-    "Ezreal": {
-      "dominantHex": "#3232c4",
-      "blurhash": "U9AJ$%nf-Q?H_4JEtSk8mi9~T2RirAi[wJs?"
-    },
-    "FiddleSticks": {
-      "dominantHex": "#d97125",
-      "blurhash": "U484JOPC4.~B1k^j={E+kFO[tS=w?wx^IqWA"
-    },
-    "Fiora": {
-      "dominantHex": "#b93c72",
-      "blurhash": "UjD]rbRkIURO_4R*M|RPt3WARnjFxuWARioM"
-    },
-    "Fizz": {
-      "dominantHex": "#335175",
-      "blurhash": "UREMB;8{WBS3~UIXWWWAo~M|t2t6n$NHxtaK"
-    },
-    "Galio": {
-      "dominantHex": "#4470ac",
-      "blurhash": "UJEV+??v-:_2?dR;V?-:%MM{D%%2?wt8t6%M"
-    },
-    "Gangplank": {
-      "dominantHex": "#d5a85a",
-      "blurhash": "U55$F|Gu#S9c-;E4$yOrt8M}xWtk.kRkVFMy"
-    },
-    "Garen": {
-      "dominantHex": "#cb8a35",
-      "blurhash": "UdI;L:~U%1oc%NfhWAWUt8IVIoae?a%LR*NG"
-    },
-    "Gnar": {
-      "dominantHex": "#ed7c29",
-      "blurhash": "UBBxr]0N=_NG0O}?V[X8K3,?ENt6$iEg$%s9"
-    },
-    "Gragas": {
-      "dominantHex": "#d54829",
-      "blurhash": "U58NCOK*00rB~CJ79Y$jK7RQrpxZt8RPWotR"
-    },
-    "Graves": {
-      "dominantHex": "#c68140",
-      "blurhash": "U7ATDr_K4oQoysI[MK%0u4-7:*Xmyr-oVFE3"
-    },
-    "Gwen": {
-      "dominantHex": "#45bde0",
-      "blurhash": "UF69FNkqIBjIyZtmVsRPOGp0xuRPovbxXAoL"
-    },
-    "Hecarim": {
-      "dominantHex": "#3bbeae",
-      "blurhash": "U53T;=kDo}uhq|VYlSZiicQ8Uci{tll9k=of"
-    },
-    "Heimerdinger": {
-      "dominantHex": "#e03411",
-      "blurhash": "UIDuig:4$^]z{bxcS%$*Q+o~IoI[g4$f$*NF"
-    },
-    "Hwei": {
-      "dominantHex": "#c58157",
-      "blurhash": "U584Y?%f^i={~X-q%1-:ITohS}t79FIUo#IV"
-    },
-    "Illaoi": {
-      "dominantHex": "#23c05c",
-      "blurhash": "UHA2I@y;M{Zi_NtQM|R7?[RPIVX7?bMyNFn6"
-    },
-    "Irelia": {
-      "dominantHex": "#3292dc",
-      "blurhash": "UfH,oI}[-WWV%3s;R+aeo~SgI:R*%NNZNbae"
-    },
-    "Ivern": {
-      "dominantHex": "#eed53c",
-      "blurhash": "U57T^259x]xu~pIpx]tRE,$~S$j@9y-nNHV@"
-    },
-    "Janna": {
-      "dominantHex": "#2ec0d8",
-      "blurhash": "UWCb7jSJQlkXYkoerWayDjV{V?o0$*RkIUf7"
-    },
-    "JarvanIV": {
-      "dominantHex": "#f47f25",
-      "blurhash": "UEEw,aWB0Mo}2^bE-5$*0zJ7-VNJ|?$g9^R*"
-    },
-    "Jax": {
-      "dominantHex": "#486db6",
-      "blurhash": "UA8z=cDN%g9E.T4n-;Z~%1D%xvS6^,i^t6Nd"
-    },
-    "Jayce": {
-      "dominantHex": "#c2784a",
-      "blurhash": "USEB?PfUVrMx~qohi]IB%#t8i^IU-;X9NGRP"
-    },
-    "Jhin": {
-      "dominantHex": "#b56236",
-      "blurhash": "U26tm@9u00^k}@579t~BMJIqpI=_-6b_XTR4"
-    },
-    "Jinx": {
-      "dominantHex": "#334670",
-      "blurhash": "UA7^x^I=t8x^%%%3xvShxbx]t8V@WZ%3WURP"
-    },
-    "Kaisa": {
-      "dominantHex": "#6b6dbc",
-      "blurhash": "UM84M@Muxco4-@Mvs=jGxwM^ofW=t9NEW,W="
-    },
-    "Kalista": {
-      "dominantHex": "#42b3b8",
-      "blurhash": "U24Cx8VWYPxt?dm7bJn5Q8cEowo#I8Yjn3b^"
-    },
-    "Karma": {
-      "dominantHex": "#1ed7b1",
-      "blurhash": "USHB_6~CE1tR.Rn4s.oy01E1x[V@MyR+ODRQ"
-    },
-    "Karthus": {
-      "dominantHex": "#5cacb4",
-      "blurhash": "U430HMX.MIQSysX9Q,VEj[a0aJf5MJentlpI"
-    },
-    "Kassadin": {
-      "dominantHex": "#7849bc",
-      "blurhash": "UT9sAmWBNDR~-aR$WTbEoeNWoLs;t7NXjsoN"
-    },
-    "Katarina": {
-      "dominantHex": "#c25363",
-      "blurhash": "UE9%n}62R5R4.TozM{VYK*xZRjZ~pcR%r[RO"
-    },
-    "Kayle": {
-      "dominantHex": "#851a80",
-      "blurhash": "UAByt10MwFk8~o4.%0kXEGoz%OM{V]-;NxMw"
-    },
-    "Kayn": {
-      "dominantHex": "#cd3159",
-      "blurhash": "U15#w]Fy00n+ctxHH=RO00Vr.SoJdpM{.TtS"
-    },
-    "Kennen": {
-      "dominantHex": "#3d5cc4",
-      "blurhash": "UBB:]%%$MHD#H?tm-=oy0JDhbI.A%#wgI@IU"
-    },
-    "Khazix": {
-      "dominantHex": "#df1f4f",
-      "blurhash": "U15OW]hgu-s~X:E2o;Xe1V9sNEyW?c=gwSx0"
-    },
-    "Kindred": {
-      "dominantHex": "#d7ae4c",
-      "blurhash": "U79s;f9Z0L?b01%M-:IU~1kCxvM|tTIoE1-p"
-    },
-    "Kled": {
-      "dominantHex": "#b98f6a",
-      "blurhash": "U26@Zp9]9v}@~Xk8IWxa0hoyxVE2Djj]x?Ip"
-    },
-    "KogMaw": {
-      "dominantHex": "#b7ce47",
-      "blurhash": "U98z}MRj4Wxu0EjX.Fa%?=V]DRkVj2x:xoVy"
-    },
-    "KSante": {
-      "dominantHex": "#f7b53c",
-      "blurhash": "UVFqtBsq-.-U~VE4tQsoT09cWBV[o}M~smj?"
-    },
-    "Leblanc": {
-      "dominantHex": "#b65a4f",
-      "blurhash": "UJBeXWS3aKS2}sW;NGS2-UjbR*oesoR*S2oy"
-    },
-    "LeeSin": {
-      "dominantHex": "#80643c",
-      "blurhash": "UNFrCf9ZIWM{~pIUt7s.-pD%S4xt?aIUM|M{"
-    },
-    "Leona": {
-      "dominantHex": "#ba7b44",
-      "blurhash": "UKNuzv=y03?Z~oIWM|-.WYD+xZX8sXs,Nuae"
-    },
-    "Lillia": {
-      "dominantHex": "#b35a38",
-      "blurhash": "UMB{NCEyNLt8}vEyW=s:Z~NZs+niR$nhRis:"
-    },
-    "Lissandra": {
-      "dominantHex": "#2a95b4",
-      "blurhash": "U52@UhTIhfZNqaVsp{X.uPXTm+VDVDWCo~W,"
-    },
-    "Lucian": {
-      "dominantHex": "#35959e",
-      "blurhash": "UF8zS|-p569a~V%29a9a?G%2E2IVt7bGM|ae"
-    },
-    "Lulu": {
-      "dominantHex": "#b44881",
-      "blurhash": "U9CPbJ0K01???GJ|wNIo4-N^~DIVe,oza8S0"
-    },
-    "Lux": {
-      "dominantHex": "#c03442",
-      "blurhash": "UfKm*5?IWFMx~VM}R+jE4nD*W-xuM|WUWUt7"
-    },
-    "Malphite": {
-      "dominantHex": "#9d3c42",
-      "blurhash": "UABoEy=yWVs:F1}[=yR%={xZxaW;xFxGoL$*"
-    },
-    "Malzahar": {
-      "dominantHex": "#661ccc",
-      "blurhash": "UBC5+m%3t7rqI7%6-as%MuRlM[$;-tn.oNNE"
-    },
-    "Maokai": {
-      "dominantHex": "#3b8176",
-      "blurhash": "UA6bJxyEDgMw.AtTISM_ogtSkXROoMoMogRj"
-    },
-    "MasterYi": {
-      "dominantHex": "#bc6c1c",
-      "blurhash": "UgGJKKawROkW?^afaKW=?t%1V@k9s:t7R+V@"
-    },
-    "Mel": {
-      "dominantHex": "#d49c5c",
-      "blurhash": "UFE2FL9tIU~W^jIV9uxu9Ft6o}V?nOOXxZn$"
-    },
-    "Milio": {
-      "dominantHex": "#c66a2b",
-      "blurhash": "UUFr%^*I%z$j-oo~XnxtohIYWrS#V@sSadR,"
-    },
-    "MissFortune": {
-      "dominantHex": "#ba673c",
-      "blurhash": "UAC7cyyqQ8~pxtIVE2WU00DjF|Io.R-T%0-;"
-    },
-    "MonkeyKing": {
-      "dominantHex": "#ddb457",
-      "blurhash": "UID9F?u5%1M|%%xurqWCtns+IUs,tnxZn%s."
-    },
-    "Mordekaiser": {
-      "dominantHex": "#48b69f",
-      "blurhash": "UB6uU~yDX8og?^yCR*a#?^tRRjj]?bt7RPkC"
-    },
-    "Morgana": {
-      "dominantHex": "#861a81",
-      "blurhash": "UCByw8~V$c$+_2^+%Ks8IkV@x^xuV]IANHtm"
-    },
-    "Naafiri": {
-      "dominantHex": "#c72d20",
-      "blurhash": "UTFz+,~Vx[%2-px[-oxaoIxFs:oeoejZWBoJ"
-    },
-    "Nami": {
-      "dominantHex": "#2ca8e8",
-      "blurhash": "UK7pxyebn#Szy?U^aKcFMwU[ROo}lBozaJZ~"
-    },
-    "Nasus": {
-      "dominantHex": "#2bb3cc",
-      "blurhash": "UIC%]ib{R-o#00Mxozt5~qSKRPaeNxx[t6jF"
-    },
-    "Nautilus": {
-      "dominantHex": "#c3b075",
-      "blurhash": "UDA0,II;IW?t~TNHID%eV@MzRQaeENxFxtVt"
-    },
-    "Neeko": {
-      "dominantHex": "#5682b4",
-      "blurhash": "UPAd+Zt9K4o}%jx]b[W?yDt7aeo}bxjsoykD"
-    },
-    "Nidalee": {
-      "dominantHex": "#94633e",
-      "blurhash": "UB7LGX8|Mf%z?[D*eVx[IqnPx[RkD*xZyBMy"
-    },
-    "Nilah": {
-      "dominantHex": "#ac7233",
-      "blurhash": "UFEC@1.TOtD%t-Irt8xuO[_3%Nt7tmt5t8IU"
-    },
-    "Nocturne": {
-      "dominantHex": "#349aca",
-      "blurhash": "U12r{=rAt4cbRgM^xcxZv0t:S6H;InMuRioJ"
-    },
-    "Nunu": {
-      "dominantHex": "#2db1dd",
-      "blurhash": "U99Rz~CAUbL#5k+]TKobHXRQyrkpyrb_U]IU"
+      "dominantHex": "#180808",
+      "blurhash": "U8C#Sb?YJQ59~A}?EgE30#M}I;J80N58#nxs"
     },
     "Olaf": {
-      "dominantHex": "#b2702c",
-      "blurhash": "U6AA?h0301rD%zI]%LVYy?8x^OyCtlMxn3cE"
-    },
-    "Orianna": {
-      "dominantHex": "#84a5d4",
-      "blurhash": "UC9so9~A~C-o=|%1%2R%WTt7t7Na9tE1IoIo"
-    },
-    "Ornn": {
-      "dominantHex": "#ee4e20",
-      "blurhash": "UGAu,b70#SE#7#=JIowJcFaxVYae}tJTVYNd"
-    },
-    "Pantheon": {
-      "dominantHex": "#ac744c",
-      "blurhash": "UOC$r|S5IoNH~VsoD*WB-;t6E1kC?HR*M{WV"
-    },
-    "Poppy": {
-      "dominantHex": "#882442",
-      "blurhash": "UABfL+18ks-WlCno?HJC}?I=Na-UyE$,Int7"
-    },
-    "Pyke": {
-      "dominantHex": "#2f6c5f",
-      "blurhash": "U76SQWaeM{of%#R5R%af.lofHsVtnQtRaKbI"
-    },
-    "Qiyana": {
-      "dominantHex": "#dc5e2c",
-      "blurhash": "UKIf*fN2~AFxrFNG9uoe0#--NHn$cCRnOrNx"
-    },
-    "Quinn": {
-      "dominantHex": "#b66454",
-      "blurhash": "U6DufW5LIp~EA056-WR.00$xFM-Axx}]55=|"
-    },
-    "Rakan": {
-      "dominantHex": "#e020bc",
-      "blurhash": "UeDlE2a#xWs:~Vj[s-of-;t6Rjj[o#xZNGkA"
-    },
-    "Rammus": {
-      "dominantHex": "#c4823a",
-      "blurhash": "UiIEwo?GIBMw_NX9RQi^I_Ipxtay%Mr?xabv"
-    },
-    "RekSai": {
-      "dominantHex": "#630dbe",
-      "blurhash": "U87B1,S-sDrlI$x[VrISm$D|V?%iI9RdtnR?"
-    },
-    "Rell": {
-      "dominantHex": "#e7ac51",
-      "blurhash": "U69@3M%#9uNH_N%LD*kDE2MyV@t7VsIotRWB"
-    },
-    "Renata": {
-      "dominantHex": "#e11e81",
-      "blurhash": "U36*BrF;02xa.kX+Q:WBS]xuSgs:nOr_k;%2"
-    },
-    "Renekton": {
-      "dominantHex": "#bd7f32",
-      "blurhash": "U7Dk-tzpI]NH059|${xY~3tQ9yEM9~IC~9f7"
-    },
-    "Rengar": {
-      "dominantHex": "#aa4536",
-      "blurhash": "U26uLq00Fx8wyq8{^+M000Nasm.SHY?u01qE"
-    },
-    "Riven": {
-      "dominantHex": "#b45c3c",
-      "blurhash": "UBG[cZy902?G*H^5#DD*u,^6%f56[VX80zW."
-    },
-    "Ruby_Amumu": {
-      "dominantHex": "#c9cd3c",
-      "blurhash": "UVBzUvT1DiZ~_NW?D$Vs%Ns.M{RlkXs+WEW?"
-    },
-    "Ruby_Blitzcrank": {
-      "dominantHex": "#ba7f33",
-      "blurhash": "UEC$ZzE*V_OHJX$*E0J-^-NeISxtElRPxBWT"
-    },
-    "Ruby_Brand": {
-      "dominantHex": "#87e11e",
-      "blurhash": "U82*O?QSiJbyuPQ8pBlAo}VZpua$nKbdb0Z$"
-    },
-    "Ruby_Caitlyn": {
-      "dominantHex": "#34aecd",
-      "blurhash": "U57w]Vv10wOs[LpdD#S~3sMw;x+v2IS~@@%O"
-    },
-    "Ruby_Chogath": {
-      "dominantHex": "#c66090",
-      "blurhash": "U696qZ0wEu^R^kEjk8xZ0v^4,xAB0v}YR.Ng"
-    },
-    "Ruby_Corki": {
-      "dominantHex": "#d72f39",
-      "blurhash": "UQG*..?IQ:=rUHs;R5RiO[RjnNbE%MRlRlkW"
-    },
-    "Ruby_Diana": {
-      "dominantHex": "#eb6116",
-      "blurhash": "UOF4ZJER0%-T}:JB9zxD=xNbNbjs5Ut6%JRl"
-    },
-    "Ruby_Jinx": {
-      "dominantHex": "#ed443f",
-      "blurhash": "UEC4wwFtN@ni}DOVODW;WAW;bGWER-kBxExF"
-    },
-    "Ruby_LeeSin": {
-      "dominantHex": "#c75b69",
-      "blurhash": "UAAb-X5QFen#2[;|$kae|@EfEeoz5Pxas8s;"
-    },
-    "Ruby_Lux": {
-      "dominantHex": "#5963ba",
-      "blurhash": "U7847Y,7J6N~#M?KV[54xCNIEJW?5lImkFkD"
-    },
-    "Ruby_Malzahar": {
-      "dominantHex": "#661ccc",
-      "blurhash": "UBC5+m%3t7rqI7%6-as%MuRlM[$;-tn.oNNE"
-    },
-    "Ruby_Maokai": {
-      "dominantHex": "#68b7ab",
-      "blurhash": "U35iAzyZD6tkMdIVs,VrHrMdtktRyDtQRRtl"
-    },
-    "Ruby_Nami": {
-      "dominantHex": "#d42a63",
-      "blurhash": "U15;q10Jv#k?~EV?9@$k0d^RK0#S55x^$*Z~"
-    },
-    "Ruby_Nautilus": {
-      "dominantHex": "#2398db",
-      "blurhash": "UG7UrJxvMvRP.At8MwMxt7t8RORiadofV@V@"
-    },
-    "Ruby_Soraka": {
-      "dominantHex": "#589fd2",
-      "blurhash": "U86aul-awHXR53D|M^t9$1xaxyRjMvtAXUV="
-    },
-    "Ruby_Tristana": {
-      "dominantHex": "#c33463",
-      "blurhash": "UqFhSLbHRPWX~Cj[RPa#-Tj?V]oLxVjZWEoJ"
-    },
-    "Ruby_Urgot": {
-      "dominantHex": "#a24cbc",
-      "blurhash": "UD84lT8^xus;_4Dixujax[M{xwM{M_oK%NM{"
-    },
-    "Ruby_Wukong": {
-      "dominantHex": "#47b1b0",
-      "blurhash": "U356I[.QMLDNDgIAQlt-4TQ-*I%#?cx]pcMJ"
-    },
-    "Ruby_Xerath": {
-      "dominantHex": "#8c24c4",
-      "blurhash": "U59GOo,M0]XT{$wQ0wNE0]T0=gNs1GJ2}^W9"
-    },
-    "Rumble": {
-      "dominantHex": "#ee771c",
-      "blurhash": "UJIMcU};t5w^0P9c9_Sg}=AEJTJ8Iqs.xZ$3"
-    },
-    "Ryze": {
-      "dominantHex": "#5352bc",
-      "blurhash": "U55q[C53x{$+XF%QNCoPX8RKojbFI7RgjEg3"
-    },
-    "Samira": {
-      "dominantHex": "#ae6541",
-      "blurhash": "UcE_s@%2IVE2~CofIVNGbaIpM|t6bFRjafxa"
-    },
-    "Sejuani": {
-      "dominantHex": "#37d9f4",
-      "blurhash": "UjDBHa*0kXV@%#adRkWEtSi^t8tRXUW?V[V@"
-    },
-    "Senna": {
-      "dominantHex": "#3cc2bf",
-      "blurhash": "UJ7_l{tQR4s.?^oeR4smyEa#RPj[pIbIRPWV"
-    },
-    "Seraphine": {
-      "dominantHex": "#3657cd",
-      "blurhash": "UyL:czS2xuog~VNJoft7gKnPM|oyx[spjZR*"
-    },
-    "Sett": {
-      "dominantHex": "#c86236",
-      "blurhash": "U88;0?sC9FjZ~C?H9ZD%?bxaMxE1%gxaM_Io"
-    },
-    "Shaco": {
-      "dominantHex": "#543374",
-      "blurhash": "U27^fR009E_4-C-?s;IT00-=-r4,D*s,ITR%"
-    },
-    "Shen": {
-      "dominantHex": "#b96bcf",
-      "blurhash": "U56HA^0]S0=O1V=ks;A8[~A7W;=$5y,_t8EI"
-    },
-    "Shyvana": {
-      "dominantHex": "#ecbc60",
-      "blurhash": "UWFh;ukW%MSP~Wt7WWWCtRxZM|V@xvxZRjNG"
-    },
-    "Singed": {
-      "dominantHex": "#49b66b",
-      "blurhash": "U669m$B6L$vi+gNtpuUf.6MMRkxZy:bvQpm-"
-    },
-    "Sion": {
-      "dominantHex": "#b23f50",
-      "blurhash": "U05z:w0J7~+b9XAAM_]:0c?I#qK%G8x|[A6e"
-    },
-    "Sivir": {
-      "dominantHex": "#b28258",
-      "blurhash": "UZEn-Bt7t5Ip~A%1WVNHxu-nNHWUxaxaj?j@"
-    },
-    "Skarner": {
-      "dominantHex": "#ba4e2a",
-      "blurhash": "UMB:]S_4S5W=?cx]RjRjD%IAM{RPMxM_WBjb"
-    },
-    "Smolder": {
-      "dominantHex": "#cb603f",
-      "blurhash": "UPFOyIpdXoJB%jW?tRS6E3MeR%t7R*r=RPjE"
-    },
-    "Sona": {
-      "dominantHex": "#6094be",
-      "blurhash": "UTI}eb~p4:Is_2x[V[IpM{xE?GjZ-;tRbvs."
-    },
-    "Soraka": {
-      "dominantHex": "#e37545",
-      "blurhash": "UFDt*d$M0wog}t$iRjof9?of$,R:=}EgIoWV"
-    },
-    "Swain": {
-      "dominantHex": "#d24d46",
-      "blurhash": "UD9YiA]-}Fs:$%J7n+Nu1b5+AWNbs.$js.$j"
-    },
-    "Sylas": {
-      "dominantHex": "#b4834c",
-      "blurhash": "U9Ad1gxGDgx_00Wpg6ROwXbd_4ng?dsQ4mp0"
-    },
-    "Syndra": {
-      "dominantHex": "#b834dc",
-      "blurhash": "UJA^05rrnpNX-@NDaiX3IlJ2adt8M_Svn$ad"
-    },
-    "TahmKench": {
-      "dominantHex": "#39c5ad",
-      "blurhash": "U36Roo7#.lJR*JyDTJpH01=aDjxuHsQlVFn4"
-    },
-    "Taliyah": {
-      "dominantHex": "#c43811",
-      "blurhash": "UAFEGv8w-;xC8x~CRjE2E25=IU?G%g9G-:$z"
-    },
-    "Talon": {
-      "dominantHex": "#4a78ac",
-      "blurhash": "UQ8OVvM{H;xu*0RQR4tQtQV@a%oct7V@kDoe"
-    },
-    "Taric": {
-      "dominantHex": "#5f27d7",
-      "blurhash": "UJFO{E?HaZt-IC4-D#-:yE4mD$-=~WobRnNE"
-    },
-    "Teemo": {
-      "dominantHex": "#c09537",
-      "blurhash": "UFC?cQ9FPW$k_44ogh-S.8MwoyoIXnjHtRSi"
-    },
-    "Thresh": {
-      "dominantHex": "#25b5a6",
-      "blurhash": "U42u0[o+hzd9l$QSh}qDo[m,uPcsUvafk?a0"
-    },
-    "Tristana": {
-      "dominantHex": "#b32513",
-      "blurhash": "U6CE|E}j%K.81*;^w|=z0M0Mw45RSut7EzFr"
-    },
-    "Trundle": {
-      "dominantHex": "#18519a",
-      "blurhash": "UEAnfp%h9EDi%jW?kRnjMzVrx]o#x^Mwocjv"
-    },
-    "Tryndamere": {
-      "dominantHex": "#4c7fb2",
-      "blurhash": "UMEWL9?wIA%M.TW?Mxj@D$s:%NM|ozaJt7W="
+      "dominantHex": "#081828",
+      "blurhash": "UB9R5+R.EkR._MogE2oz9_jsH?xZS#NHVYrr"
     },
     "TwistedFate": {
-      "dominantHex": "#a76f19",
-      "blurhash": "U36jwe9[$^}@=}5RNu$75POXNenPNF}?$$S0"
-    },
-    "Twitch": {
-      "dominantHex": "#1eddaa",
-      "blurhash": "U73m?%QBY#t5pIcDbvlPYNoybtX+XQk9kCcC"
-    },
-    "Udyr": {
-      "dominantHex": "#2931bc",
-      "blurhash": "U884lO_N.8-;Iu9ZD$RPJWNJRiRP%h-;xZRi"
+      "dominantHex": "#181818",
+      "blurhash": "U79~pS0%}q0#={sDRjR*I:EM%0xZIo9]-Tn,"
     },
     "Urgot": {
-      "dominantHex": "#63a53c",
-      "blurhash": "U255g;4T?u%y?]DP%fozDktlMyRQDP%#IARR"
-    },
-    "Varus": {
-      "dominantHex": "#6133bf",
-      "blurhash": "U56*]?Ns53.T,^MJD$%NlmWUVYtR-qkrM{W,"
-    },
-    "Vayne": {
-      "dominantHex": "#2bace2",
-      "blurhash": "UB7xUxNHMwbJ?wM^ROohyFROVqoLXokBRNj^"
-    },
-    "Veigar": {
-      "dominantHex": "#cc9127",
-      "blurhash": "U89%GIR}WFbW^nb.x0RinBxuNDD~9ZIlxZs;"
-    },
-    "Velkoz": {
-      "dominantHex": "#5a56ba",
-      "blurhash": "U68pW#5O0]^A}dNhI.ne1F,0^95#0]=*-Y5z"
-    },
-    "Vex": {
-      "dominantHex": "#2771b4",
-      "blurhash": "UA6bQ5Q+yEoOyZMbkraKkYH;W9V@aLadaxsr"
-    },
-    "Vi": {
-      "dominantHex": "#b34c55",
-      "blurhash": "URF}ZfspIWR+9b~B^jr?~Bs;afRkkCxaNHR*"
-    },
-    "Viego": {
-      "dominantHex": "#4dc5bc",
-      "blurhash": "UE8i6aNeVERjysRjxabvVZQ-yDpIiKsEpIMx"
-    },
-    "Viktor": {
-      "dominantHex": "#3658b6",
-      "blurhash": "UNEMd*-PtOx]KmD*Rko#E,MyMxax~T-ns*WT"
-    },
-    "Vladimir": {
-      "dominantHex": "#ba4a47",
-      "blurhash": "UCAbz|0zxt#T}t5Rbv#n%1RjbvwJS4r?OXwJ"
-    },
-    "Volibear": {
-      "dominantHex": "#3484ac",
-      "blurhash": "UGA-Yk9t%hkE-pH;s+nh?wDixvtS%MMxtSt7"
-    },
-    "Warwick": {
-      "dominantHex": "#40d826",
-      "blurhash": "U36IH8Vqx^8|El4U?[RO?uH@%zIT?[H@yBkk"
-    },
-    "Xayah": {
-      "dominantHex": "#cc41be",
-      "blurhash": "UeDlE2s:xXod~Vofs-oJ-qR+Rjf6kXNHNGWC"
-    },
-    "Xerath": {
-      "dominantHex": "#2daee3",
-      "blurhash": "UA8}}yMu8wyGo#HqI9%0MHjC%#o$DjtoxsN2"
+      "dominantHex": "#080808",
+      "blurhash": "U55$9z00%zRQj1tjR6Rk8x?]DitQM{s;oyae"
     },
     "XinZhao": {
-      "dominantHex": "#b9664c",
-      "blurhash": "UFFEyN~B~C9a^+xYs:Rm02ELI:%2I]9bbbt3"
+      "dominantHex": "#282838",
+      "blurhash": "UEAvtt~C-po#?Is.S1og0e57E1Rj55IpV@e."
     },
-    "Yasuo": {
-      "dominantHex": "#b34d40",
-      "blurhash": "UeG8oy~UjcIW~U-of8M|IVM|RjWBIpRkRkkB"
+    "Leblanc": {
+      "dominantHex": "#280808",
+      "blurhash": "UKBoH$xaWUtQ}[s:J6t7NHRjEfsoIVM{I:Rk"
     },
-    "Yone": {
-      "dominantHex": "#4ea9bb",
-      "blurhash": "UK7V1CkqMwrquPWVR4r?o#RPRPs:t7aejaoe"
+    "Vladimir": {
+      "dominantHex": "#282818",
+      "blurhash": "ULCq=5,GELJ7}@$6M|R*SNsoaLsoNHayr@s:"
     },
-    "Yorick": {
-      "dominantHex": "#36a3c8",
-      "blurhash": "U45q^rz;M_b_u6ITV?xvJ7IoR%s:]U%2NZRj"
+    "Galio": {
+      "dominantHex": "#282838",
+      "blurhash": "UfCs{:Ipaxt7?wM|a}j]NLoeayR*IVxuayWB"
     },
-    "Yunara": {
-      "dominantHex": "#2939c2",
-      "blurhash": "UDECFmR@etE8.6~XV_Iw-:V.D~x]s,jKaIR#"
+    "FiddleSticks": {
+      "dominantHex": "#080808",
+      "blurhash": "U15O4@WB00.9~q$LMwgi01oL-pa~9aE+o}#k"
     },
-    "Yuumi": {
-      "dominantHex": "#bd8652",
-      "blurhash": "UGF}QL?G$v~8F{-.=[s+I:^iI:Nb,.EKt5og"
+    "Kayle": {
+      "dominantHex": "#382838",
+      "blurhash": "UlHBb*xua{RP~pxuNGRPozWCIVf6RkR*M{t6"
     },
-    "Zaahen": {
-      "dominantHex": "#cb333a",
-      "blurhash": "U99~~bWZ9aSx~CNdELs:M|WXX7$jv~xuxZNa"
+    "Alistar": {
+      "dominantHex": "#282818",
+      "blurhash": "U17^oWP94,i_XF9axRbK00MwV@%40LRPsG-:"
     },
-    "Zac": {
-      "dominantHex": "#22ac8c",
-      "blurhash": "U560hNHaiHy5L*.kQAa2%$VGL%tjy;MKR5pI"
+    "MasterYi": {
+      "dominantHex": "#182828",
+      "blurhash": "UL9a+]%fE3NH?]tkIpRkkpf*fkfkMyV@s.oy"
     },
-    "Zed": {
-      "dominantHex": "#7e4528",
-      "blurhash": "UOBf@8-n9aIp~U%LIpIV?Fs.NHNH-os.RkNH"
+    "Sivir": {
+      "dominantHex": "#583828",
+      "blurhash": "UICh~9~Bf,NH^*%2R,WCNKIpRjoJIpNGRjo0"
     },
-    "Zeri": {
-      "dominantHex": "#bbb542",
-      "blurhash": "UJ9*PfDQNNoy_KMzM$tQkpofMftkIWx[VZkW"
+    "Soraka": {
+      "dominantHex": "#280818",
+      "blurhash": "UBEKD|^60cV[~Bs+MxI==yEhI?WTM]I:kYs:"
     },
-    "Ziggs": {
-      "dominantHex": "#a92c16",
-      "blurhash": "UBB.y803.7rY0,~BD*x[ohIo-oIpt7afo0ay"
+    "Sion": {
+      "dominantHex": "#080808",
+      "blurhash": "U17T62wND~X-R.]-AAr=0c2@k@+cM_0|OXK4"
+    },
+    "Ryze": {
+      "dominantHex": "#080818",
+      "blurhash": "UG7xFT8w%gRUxzV?bDayDg%hMwoaM[objcax"
+    },
+    "Teemo": {
+      "dominantHex": "#080808",
+      "blurhash": "UE9tDZMd9x%g~pMxE2%Mo#RjRPtQI?ofsSW="
+    },
+    "Tristana": {
+      "dominantHex": "#080808",
+      "blurhash": "U57AY:}sD#M{t.WoISNG5Q5kNL-BD~R%%Nt7"
+    },
+    "Warwick": {
+      "dominantHex": "#182818",
+      "blurhash": "U13]AI??oZR4%yV@o]Ri01Dj%ypI8|DkyCyW"
+    },
+    "Nunu": {
+      "dominantHex": "#081838",
+      "blurhash": "ULAARYPCOYoM%%pJX8a}AG-TniS3Innhadbb"
+    },
+    "MissFortune": {
+      "dominantHex": "#081818",
+      "blurhash": "U997^S?]L1b^~p%MS$WW00oL#8RP4:bc$MVs"
+    },
+    "Ashe": {
+      "dominantHex": "#081838",
+      "blurhash": "UW7{8uSRM{s.*0WEM|ogkUjXaKa~RioHnNWA"
+    },
+    "Tryndamere": {
+      "dominantHex": "#487888",
+      "blurhash": "UJ9*#|.TcFIo%MoJRjWBE2IUMwslTKbvofjG"
+    },
+    "Jax": {
+      "dominantHex": "#080818",
+      "blurhash": "UD6*:$MvD#.A?dMwIT%Nt6RiM_oco~a#RPof"
+    },
+    "Morgana": {
+      "dominantHex": "#180818",
+      "blurhash": "U16jR#B5:E,^%iF=0w600v]?KeNF9X+h-;}I"
+    },
+    "Singed": {
+      "dominantHex": "#081808",
+      "blurhash": "U55=awxHE0yl_KvmH[t$yRrsRRpFJzW-t7kU"
+    },
+    "Evelynn": {
+      "dominantHex": "#080818",
+      "blurhash": "U87J@q-s5NMc}dxH5hInrWRiFXKJv#rsXSbw"
+    },
+    "Twitch": {
+      "dominantHex": "#080808",
+      "blurhash": "U42@s#UdJ6uf%}aKMMptbXkVVaXkTYi|m:X*"
     },
     "Zilean": {
-      "dominantHex": "#28cade",
-      "blurhash": "UJALCA?E.8i{ysVrM}IBD5H?IAWFm,nijFyD"
+      "dominantHex": "#080808",
+      "blurhash": "UM7CjQskt2jYyst2nza#R5ofaJo#MckWj[fS"
+    },
+    "Karthus": {
+      "dominantHex": "#081818",
+      "blurhash": "U13I*QyEDiIA%%X4epRi8wMcx^x^D4VXx^x^"
+    },
+    "Chogath": {
+      "dominantHex": "#080808",
+      "blurhash": "U7685O%iISR4^-x]NEROWToeXSbvInWAo#o}"
+    },
+    "Amumu": {
+      "dominantHex": "#582808",
+      "blurhash": "UB9jTA?u#7MJT}O@M{e94;R6Nsb]DPVYbtk="
+    },
+    "Rammus": {
+      "dominantHex": "#080808",
+      "blurhash": "URD+-s_2ICIA~p%MIVMxENE2Rkt7E1MxsTtR"
+    },
+    "DrMundo": {
+      "dominantHex": "#181818",
+      "blurhash": "UB7UVe?wt9Rl?w%gbHRjNXNXRORiImM_ROaK"
+    },
+    "Shaco": {
+      "dominantHex": "#180818",
+      "blurhash": "U27msxIWE|EIwFISNd?I01~XE0bbi_NFt89Z"
+    },
+    "Anivia": {
+      "dominantHex": "#080828",
+      "blurhash": "Ua5%1zkDR5a%t:kDVra$V=kCjXf5R3axozoJ"
+    },
+    "Sona": {
+      "dominantHex": "#686878",
+      "blurhash": "UGCizR~qadiw~Wobadni4.IUxutS01IU%2X8"
+    },
+    "Irelia": {
+      "dominantHex": "#180818",
+      "blurhash": "UeG7oq=}n5aL~WtRRPWBx^OBIoWVo#NaM{bF"
+    },
+    "Kassadin": {
+      "dominantHex": "#181828",
+      "blurhash": "UQ9Pv{WoRjs=?1WUR$oM$-juWTj]oNoMj[WA"
+    },
+    "Janna": {
+      "dominantHex": "#284858",
+      "blurhash": "UKAd[*tT9tIU?^tSITMwDhtQn4R5D%kWxFt7"
+    },
+    "Gangplank": {
+      "dominantHex": "#080808",
+      "blurhash": "UJ9QNp9wIp=_~UEMIq-T%KR+NIs-Ndt5WDRk"
+    },
+    "Corki": {
+      "dominantHex": "#281818",
+      "blurhash": "UCBVnn}=D%JC?aS#Ios.9aEhogxCMxsCxafi"
+    },
+    "Karma": {
+      "dominantHex": "#181828",
+      "blurhash": "UL8P4EwKn9tly?nOVZX5IBWAa0V@H[W=adaL"
+    },
+    "Veigar": {
+      "dominantHex": "#080808",
+      "blurhash": "UC7mt5SHRkoN-tX2WEn-M{xbk8axD~aiW+oe"
+    },
+    "Trundle": {
+      "dominantHex": "#081828",
+      "blurhash": "UL8}=G.TS}NH-=xuS0RjRQRjR%ogS6MwRixu"
+    },
+    "Swain": {
+      "dominantHex": "#080808",
+      "blurhash": "U56?_W635k|x^6SL9]$j5+,s$P635+$j-BAV"
+    },
+    "Taric": {
+      "dominantHex": "#080818",
+      "blurhash": "UZA]{?%NS$NF?KxvS1RijDafNEWUISRQRij]"
+    },
+    "Caitlyn": {
+      "dominantHex": "#080818",
+      "blurhash": "U15}my-;1Go~~n#7AIJ60KD%~DNe00Ip}r?c"
+    },
+    "Blitzcrank": {
+      "dominantHex": "#180818",
+      "blurhash": "UB8:r0t7EKt6~Bs:NGoKRkbJt6R*E2NHogWB"
+    },
+    "Malphite": {
+      "dominantHex": "#281818",
+      "blurhash": "U383YF}tIo9t-qxaV@I:0e9[n%t7=d$*Na$*"
+    },
+    "Katarina": {
+      "dominantHex": "#180808",
+      "blurhash": "U7B2ZT3BEf#-?w=|EyRj1G^7nhI:+bFwr?nj"
+    },
+    "Nocturne": {
+      "dominantHex": "#080818",
+      "blurhash": "U12=_@tVUu%0t:ITI8t6z,V=Y8xwvcnzt:%O"
+    },
+    "Renekton": {
+      "dominantHex": "#381808",
+      "blurhash": "U2A9QKDR;2SgGt0$M|Eh03x@Eh-n03ozNd^O"
+    },
+    "JarvanIV": {
+      "dominantHex": "#180808",
+      "blurhash": "U48pP;~BWED*Y5bv5:I:0NIU-A%LWAR*,;$i"
+    },
+    "Maokai": {
+      "dominantHex": "#080818",
+      "blurhash": "UB4.-,%%cENF%iyEbwS1WUbbgNkqSdS1g3tS"
+    },
+    "Elise": {
+      "dominantHex": "#080808",
+      "blurhash": "U23+1bs;5OIl^nniEdRiD$WBxvozD~kDxaW="
+    },
+    "Orianna": {
+      "dominantHex": "#181828",
+      "blurhash": "U25#Fx~E0J4,-iNX9tNJ0dE1xa%29ZRh?I-q"
+    },
+    "MonkeyKing": {
+      "dominantHex": "#280808",
+      "blurhash": "U8A]HI1~ou=Z~ob^s+v~Ac=_RQ9u9}t5rYRl"
+    },
+    "LeeSin": {
+      "dominantHex": "#584838",
+      "blurhash": "UXELvnWAIoof~VaxE1a~xtxaIVofW.s:jGxa"
+    },
+    "Brand": {
+      "dominantHex": "#280808",
+      "blurhash": "UCBxQ2Eg59kV}=w{10oKI.-ANKNHaKbFspNd"
+    },
+    "Vayne": {
+      "dominantHex": "#181848",
+      "blurhash": "UI9aXgVWXT%$.AoNo$ozI9bcRPRmDiSiV]RP"
+    },
+    "Rumble": {
+      "dominantHex": "#180808",
+      "blurhash": "UKCXmC-Arraf}sxFWBsA$PWBayfkRkR*S3oe"
+    },
+    "Cassiopeia": {
+      "dominantHex": "#080808",
+      "blurhash": "U16HP:020~o|_1$z9uRk01.7-5IV0gwg-Tox"
+    },
+    "Skarner": {
+      "dominantHex": "#181818",
+      "blurhash": "UA7nam-qNGWZ~q%NNHWs%3%Laiozt8t7t7xu"
+    },
+    "Heimerdinger": {
+      "dominantHex": "#080818",
+      "blurhash": "U87AlR=~D#IT}u$*IoIpQ*Z}p0T1I9V?x]tR"
+    },
+    "Nasus": {
+      "dominantHex": "#080818",
+      "blurhash": "U36HyDxI0La$~1V?4;Rjrpt7TKW=DgoutQWX"
+    },
+    "Nidalee": {
+      "dominantHex": "#081808",
+      "blurhash": "UIAdrq%fOAt%_LtQM|WUDkNGR6R6D%RjeoVt"
+    },
+    "Udyr": {
+      "dominantHex": "#181818",
+      "blurhash": "UA5OmdbwROs;yGkYV?V@S%xwi^MwaxozV?RN"
+    },
+    "Poppy": {
+      "dominantHex": "#180818",
+      "blurhash": "U89P~CRU0f?H~XIpE1-p$$xaIpIoNd%3s=E2"
+    },
+    "Gragas": {
+      "dominantHex": "#180808",
+      "blurhash": "U88f.i-=5kD$~Dx]9uIAS$WBM{V@M{M{aet7"
+    },
+    "Pantheon": {
+      "dominantHex": "#382828",
+      "blurhash": "UVECF1?GIUjE~W-VIUV@^*xaIUWA^*xtRjjY"
+    },
+    "Ezreal": {
+      "dominantHex": "#382828",
+      "blurhash": "UD9a2LR*Iqj:~ARmE2o#vvV?IWf-r:baWBV="
+    },
+    "Mordekaiser": {
+      "dominantHex": "#181818",
+      "blurhash": "UQ7_.ktkRka#?^tQRja#%zoLRjbbxujFV@bb"
+    },
+    "Akali": {
+      "dominantHex": "#180818",
+      "blurhash": "U28:SR570KM^15^lI99r0exb}r=x^l9ZxtX7"
+    },
+    "Yorick": {
+      "dominantHex": "#282828",
+      "blurhash": "U46INo%gH=XP?dxbM_IAZ$%#pba_x]tSkCkU"
+    },
+    "Kennen": {
+      "dominantHex": "#080818",
+      "blurhash": "UC6[C2%QJ~kt$+n%NZWAIlW=i_VrEgR$wIoh"
+    },
+    "Garen": {
+      "dominantHex": "#080808",
+      "blurhash": "UC9Zp6nhIokD~XjsIokDEkozM_t8OFozRPt8"
+    },
+    "Leona": {
+      "dominantHex": "#582818",
+      "blurhash": "UvJ6.qxtoLs:~UofWCj[X8WCNGWVM|WBNGjZ"
+    },
+    "Malzahar": {
+      "dominantHex": "#080818",
+      "blurhash": "U75guvs?Esoh,}j^NpayNAayoOW8I%WTxKj;"
+    },
+    "Talon": {
+      "dominantHex": "#080818",
+      "blurhash": "UM7eYn%%M|I9.Tx^M|Mxt6n}RjWFn%aJV@bH"
+    },
+    "Riven": {
+      "dominantHex": "#180808",
+      "blurhash": "UDEV7t.Q};D%u2K4IoIV4UR5a1?Gv#R7-o-:"
+    },
+    "KogMaw": {
+      "dominantHex": "#080808",
+      "blurhash": "U24xb=_2E09F%Qp0V=Mv0ZEBr;x8k=tRi_iv"
+    },
+    "Xerath": {
+      "dominantHex": "#080818",
+      "blurhash": "U685W,xA008^?wR1Dgb|00OK?[?c00pL_Nv|"
+    },
+    "Lux": {
+      "dominantHex": "#180818",
+      "blurhash": "UvIXEfxvs;kC~VflR-bHM{RjM|jrIBWAM|j="
+    },
+    "Shyvana": {
+      "dominantHex": "#181828",
+      "blurhash": "UQCidjofRjs:~Wt7NFWVNGxtNGNGE1a{RjR*"
+    },
+    "Graves": {
+      "dominantHex": "#080808",
+      "blurhash": "U25#9H_1On%0_Mo}Eha{0~9uR7I=E1n4+]of"
+    },
+    "Shen": {
+      "dominantHex": "#080808",
+      "blurhash": "U34_YCEHD~-ZJ2t9r{IlE1s;WlRkR4Rixvs:"
+    },
+    "Ahri": {
+      "dominantHex": "#181828",
+      "blurhash": "UE7_mbX=TLxo%jXAWrt6H;Q+VWbdI8eSemW?"
+    },
+    "Volibear": {
+      "dominantHex": "#182838",
+      "blurhash": "UR9@-nIAM_%h?wITM_xuj?RiRjofM|t6jYWF"
+    },
+    "Rengar": {
+      "dominantHex": "#080808",
+      "blurhash": "U75=tcVFDj%}?[VtD*tlMKtkRkR6HspHxuQ."
+    },
+    "Varus": {
+      "dominantHex": "#181828",
+      "blurhash": "UE7xICZ$I9yE.TjdMdtRpHR*MxnhpJM_MwxH"
+    },
+    "Fizz": {
+      "dominantHex": "#080808",
+      "blurhash": "UUCGlTWWIot6~pWAM{off*j[RkR*Mxt7RjM|"
+    },
+    "Nautilus": {
+      "dominantHex": "#282818",
+      "blurhash": "UA8|,_?ZcBM|~T-.S|NHD,R*RQW;0hD+n6fl"
+    },
+    "Viktor": {
+      "dominantHex": "#181818",
+      "blurhash": "UN9R9AM{S6%g?wV[M{tRNGoMR5RjM{t7jFRP"
+    },
+    "Sejuani": {
+      "dominantHex": "#283868",
+      "blurhash": "UbAnZot7RjtS.TawRjozXTbbV@WAW@tRo1V@"
+    },
+    "Fiora": {
+      "dominantHex": "#181828",
+      "blurhash": "UeCsq5x]IpkX_4xtM{WYk8s:RiM{R.kDV@Ri"
+    },
+    "Ziggs": {
+      "dominantHex": "#181818",
+      "blurhash": "U6FqEw01yW0M2]xt}q9v01_20L%f=F9|9vtQ"
+    },
+    "Lulu": {
+      "dominantHex": "#080808",
+      "blurhash": "UEAc^_%2I.M#~VjINGe?IUM{NHt79FX3ozof"
+    },
+    "Draven": {
+      "dominantHex": "#181838",
+      "blurhash": "U35;%g~WE%F6~E%3D~Nf9Z9YMu$y0#E2s7$y"
+    },
+    "Hecarim": {
+      "dominantHex": "#080818",
+      "blurhash": "U53J*_jbL#kqy?o#QRbWm,o3XSWAU|o}pvVX"
+    },
+    "Khazix": {
+      "dominantHex": "#181818",
+      "blurhash": "U25OW[xvH=*J_4mpE0yYmPRgXoR#Rgo}b_Vs"
+    },
+    "Darius": {
+      "dominantHex": "#080808",
+      "blurhash": "U77AVr=|I:R-~B-UI:NHxXxGIpELWBWBIpIp"
+    },
+    "Jayce": {
+      "dominantHex": "#280808",
+      "blurhash": "UcEePiIqRPoy~UNbIps:%1xZIpoKR*t6RkWC"
+    },
+    "Lissandra": {
+      "dominantHex": "#081818",
+      "blurhash": "U33cO$NHK3.T?wM{I8%gUuR4L~r?NEaKtmoz"
+    },
+    "Quinn": {
+      "dominantHex": "#180818",
+      "blurhash": "UBDIIL9w^k^l~C56EK%300xB4.NG4:~BsmIp"
+    },
+    "Diana": {
+      "dominantHex": "#282838",
+      "blurhash": "UC84fERPM|WA?wWAIUj]s=ozM{t7M{a}jsof"
+    },
+    "Syndra": {
+      "dominantHex": "#181828",
+      "blurhash": "UCATNw=RkGIT.ANDImR~9qORM^xuD~Rhs,xu"
+    },
+    "AurelionSol": {
+      "dominantHex": "#080818",
+      "blurhash": "U34V2]VV4,ktBXSPz,%3+;r-KTNi9DkY-@V?"
+    },
+    "Kayn": {
+      "dominantHex": "#181818",
+      "blurhash": "U971=xt7M{tl?^t7RiozNGbHjFaeMxWBaKRP"
     },
     "Zoe": {
-      "dominantHex": "#2eadf0",
-      "blurhash": "UKJ6{%~CXW;U2=yZcGM_%fY6O*R$toXkIUI:"
+      "dominantHex": "#6878a8",
+      "blurhash": "ULD[L?xsK,%2}qtTKPxZM~t9Iqbc9[RlnOjZ"
     },
     "Zyra": {
-      "dominantHex": "#b7534b",
-      "blurhash": "UFD@gm0hAV=_}sIqJ7xZ0}xZ$jRlnQE|,@nl"
+      "dominantHex": "#581818",
+      "blurhash": "UGGi[i-U}rJ7^i=x%0bGE3=_R+R*ixW.IqEg"
+    },
+    "Kaisa": {
+      "dominantHex": "#180818",
+      "blurhash": "UK7A}rNDROt9%QRhV=ohkYn$embaX9sqW9WU"
+    },
+    "Seraphine": {
+      "dominantHex": "#685868",
+      "blurhash": "UkHm_}V]I:o}~DjGIoozNZs:RiW-ELkAjFRj"
+    },
+    "Gnar": {
+      "dominantHex": "#180808",
+      "blurhash": "U7C4:.I=0O-AAs$jNHI=0hSL^OoL5SoL}rWC"
+    },
+    "Yasuo": {
+      "dominantHex": "#182828",
+      "blurhash": "U77B4a?GEKE1~V%1IoIpISNGI[R.9YNvbJnj"
+    },
+    "Zac": {
+      "dominantHex": "#081808",
+      "blurhash": "U54zKBQ:Hcu2y.Z%X9kCD5j=u2VaptbFi%aL"
+    },
+    "Velkoz": {
+      "dominantHex": "#080818",
+      "blurhash": "UA83e}$-5gEc^UxHEeNEEdR%$Q$l5NR*=h$,"
+    },
+    "Camille": {
+      "dominantHex": "#384838",
+      "blurhash": "UB9Q{cDk9G?u_MM{E1%LIVjGn%RQ9Zxt%2M|"
+    },
+    "Taliyah": {
+      "dominantHex": "#a89888",
+      "blurhash": "U6G*f-00F}^$zoVXTfaK^b_34:J7~nRm0LS5"
+    },
+    "Akshan": {
+      "dominantHex": "#281818",
+      "blurhash": "UFE2E^~9bEIp~U-nRkafbb%14;NHS3WCE2I="
+    },
+    "Belveth": {
+      "dominantHex": "#181838",
+      "blurhash": "UR7nL*o$Rhf6tpohe,axo%ahV?oKa*WAf4ax"
+    },
+    "Jhin": {
+      "dominantHex": "#080808",
+      "blurhash": "U56tdl-o0MNG}@n%57NHivRjJCbI-Ps.JCoy"
+    },
+    "Braum": {
+      "dominantHex": "#080828",
+      "blurhash": "UUBND^wIE5I=_MxFE2NJ%et6MzR-X8kBV@WC"
+    },
+    "TahmKench": {
+      "dominantHex": "#080808",
+      "blurhash": "U23bzAtR4:oy?]ozIVfj9Gj[%1Rj4oaL-oRj"
+    },
+    "Kindred": {
+      "dominantHex": "#080808",
+      "blurhash": "U14xVx?F8wR40P9wMxRj}%-S-;%M00IWt.Ne"
+    },
+    "Zeri": {
+      "dominantHex": "#080808",
+      "blurhash": "UN9*PZR5IDbc?@V@ICofSKtRR6ocIWtQnOjZ"
+    },
+    "Jinx": {
+      "dominantHex": "#080808",
+      "blurhash": "U65}p]g44mVr%%W-MwaJIUjE%MR+M{Rixvxw"
+    },
+    "Briar": {
+      "dominantHex": "#080808",
+      "blurhash": "U35hS{oM0wXR~EV?5NX9rXWANXo#MxM{x^s;"
+    },
+    "Viego": {
+      "dominantHex": "#182838",
+      "blurhash": "UR9I6#tRI9WB.TkWI9WBbXV[Vsn%M_aen+ae"
+    },
+    "Senna": {
+      "dominantHex": "#080808",
+      "blurhash": "UJ7xjyo}IAni?^kWMxo0x]kCM{a}kqozMxRj"
+    },
+    "Lucian": {
+      "dominantHex": "#080808",
+      "blurhash": "U14d}q%49[NG^l-BInNG54r=wb$jInNG=f-B"
+    },
+    "Zed": {
+      "dominantHex": "#080808",
+      "blurhash": "UHAcbv~A$zn%^*-Un$WBkBNHRjf6RjM|V[oL"
+    },
+    "Ekko": {
+      "dominantHex": "#080808",
+      "blurhash": "U33]AZ%eDNTI?^tQI9XQVYbvXTVrH=XStmVY"
+    },
+    "Kled": {
+      "dominantHex": "#181818",
+      "blurhash": "U69GN?4=W9}@=|kBIo$%02-nIqEM9tV[%1I;"
+    },
+    "Qiyana": {
+      "dominantHex": "#281818",
+      "blurhash": "UFFgI3i{+[-U}sxYIot60#xZAGEgE2jIS$V["
+    },
+    "Vi": {
+      "dominantHex": "#281818",
+      "blurhash": "U396L80$Mw1awR-TE1F@si1H=wS65QK0n-}G"
+    },
+    "Aatrox": {
+      "dominantHex": "#181818",
+      "blurhash": "UBA[WR1JEf}E}sE#R*=K63$jw{NaR+$%S3I;"
+    },
+    "Nami": {
+      "dominantHex": "#083848",
+      "blurhash": "UY7g4lV[M|t6y?W=V[ocRng4nNafMykCi_WC"
+    },
+    "Azir": {
+      "dominantHex": "#381808",
+      "blurhash": "UWELEA%LV[sT~BxtNGWBSOWBM|R+IVRjWBkB"
+    },
+    "Yuumi": {
+      "dominantHex": "#180818",
+      "blurhash": "U9DIB}^j[l^O?]}@iuWA9FxBEOIt00I.o%It"
+    },
+    "Samira": {
+      "dominantHex": "#583838",
+      "blurhash": "UUFOGp^*$*RQ~V%2WBRjNGIpIos:jFM|M|xt"
+    },
+    "Thresh": {
+      "dominantHex": "#081818",
+      "blurhash": "UA1rQOcYU{iJqEbIU_ixZgZ$Z$kqVFengMkW"
+    },
+    "Illaoi": {
+      "dominantHex": "#181808",
+      "blurhash": "UhC7fyx]SwbY_Mt7RjWV.7WXM{bFtQV[RPae"
+    },
+    "RekSai": {
+      "dominantHex": "#281818",
+      "blurhash": "U65hAhf;bcrpT5xdoIROitNXRhf9MaRfW9tA"
+    },
+    "Ivern": {
+      "dominantHex": "#180808",
+      "blurhash": "U47KVO0NS5f-~oIVSOoz5W=^Neox59-oofj="
+    },
+    "Kalista": {
+      "dominantHex": "#081818",
+      "blurhash": "U33TMbv0RnXS-XnOR4XnHXT}W-iaICR$p0ia"
+    },
+    "Bard": {
+      "dominantHex": "#180808",
+      "blurhash": "ULA+vs-U9bWC~9$%IpWD$$xZofa#wdxGs:WC"
+    },
+    "Rakan": {
+      "dominantHex": "#180818",
+      "blurhash": "UbEo3{xajExt~WkCRjt7tRNHM|R*bEWCRjRj"
+    },
+    "Xayah": {
+      "dominantHex": "#180818",
+      "blurhash": "UPB.yEIpoboL~BR+a_ayozxaRkR*WqxaR+R*"
+    },
+    "Ornn": {
+      "dominantHex": "#180818",
+      "blurhash": "U16GlL7fE{6O3s]:Fr;}=}NFrVAB-CRiM_WA"
+    },
+    "Sylas": {
+      "dominantHex": "#181818",
+      "blurhash": "U48Nki=}8^xu00OHx{Mw}}roWbb{4nInx^xG"
+    },
+    "Neeko": {
+      "dominantHex": "#081828",
+      "blurhash": "UM9HCexvK1ba?dxuN?bbf,smadkWRkR%nis;"
+    },
+    "Aphelios": {
+      "dominantHex": "#180818",
+      "blurhash": "UN7LK5R3kXtm%%V=kDo#RjogaxWAR4kCadV?"
+    },
+    "Rell": {
+      "dominantHex": "#484848",
+      "blurhash": "UAC6cBi_JV.7~AxYEMkW02ozs,IU0MIV-Us+"
+    },
+    "Pyke": {
+      "dominantHex": "#081818",
+      "blurhash": "U95PH:VsR*WA.lVsMxRP%#kBRPWBx]ozR6WB"
+    },
+    "Yone": {
+      "dominantHex": "#182838",
+      "blurhash": "UTBX7my=Khq__MyCS~n5r;r=n%WoR*njiwRj"
+    },
+    "Vex": {
+      "dominantHex": "#080818",
+      "blurhash": "UN6IEqVrROtS%jV?Vro}s=azW9kBaLogbEWB"
+    },
+    "Ambessa": {
+      "dominantHex": "#282828",
+      "blurhash": "UNAd4UWUIUxu~qofIUoy%Mt7M{R*ogoKRQWB"
+    },
+    "Mel": {
+      "dominantHex": "#281818",
+      "blurhash": "U8Cr4t0e%2IV}XR,NZNG0LxuNGxa5k$*WDOU"
+    },
+    "Yunara": {
+      "dominantHex": "#282838",
+      "blurhash": "UF8|xSo%R}s+?dxvR#RhI.%3jHNFEJt8xJW?"
+    },
+    "Sett": {
+      "dominantHex": "#181818",
+      "blurhash": "UIBW9~-pD%Io~q-pITRj%hofRPjYx]R,IUWB"
+    },
+    "Gwen": {
+      "dominantHex": "#181828",
+      "blurhash": "UH7LyMtmIUbdlVt-t8R-abkro#oJrUjvR+V?"
+    },
+    "Lillia": {
+      "dominantHex": "#282848",
+      "blurhash": "UBB2o}OY5pS6}@avIoElIpxZxENFM_t8s;R-"
+    },
+    "Aurora": {
+      "dominantHex": "#282838",
+      "blurhash": "U284Pwom7|9D}t?J5O5400?FH?FyGvJD=#no"
+    },
+    "Renata": {
+      "dominantHex": "#181818",
+      "blurhash": "U47d?,.k008_?YS1Ipxu00IB_3.89dxbxZMx"
+    },
+    "Nilah": {
+      "dominantHex": "#181818",
+      "blurhash": "U7B{}*_4_4D%_4-qaxoh004nD$?b9G9Gn+%L"
+    },
+    "KSante": {
+      "dominantHex": "#281818",
+      "blurhash": "UNGHYv~V-pofOcENxGbc5sRPV@RnxvocNtn+"
+    },
+    "Smolder": {
+      "dominantHex": "#282828",
+      "blurhash": "UMBpO$yDOYNf^-ozNcSPE1R5NFbbD%nNV?aw"
+    },
+    "Milio": {
+      "dominantHex": "#181818",
+      "blurhash": "UKCPwxyqX-,:~UXnOFxEIWMzM|SfDjrWiwI;"
+    },
+    "Zaahen": {
+      "dominantHex": "#281828",
+      "blurhash": "U9AJA{$kE2Ef}[ogIVNa4.t8nijFNHs:flWB"
+    },
+    "Hwei": {
+      "dominantHex": "#282838",
+      "blurhash": "U284Y]1z?HISOa}t0#+r00IA-V.9009X}[gk"
+    },
+    "Naafiri": {
+      "dominantHex": "#180808",
+      "blurhash": "UPD*-B?aX7w^~B%MbGaea}j[R*RkniRkRko2"
+    },
+    "Ruby_Urgot": {
+      "dominantHex": "#080808",
+      "blurhash": "UPAAtGo1MxtS?wWAM_t8NFM_ROoeIURQaet6"
+    },
+    "Ruby_Corki": {
+      "dominantHex": "#080808",
+      "blurhash": "UHAAde?bMzIX?^%fRQM}K6ShRQaLEMNGnis9"
+    },
+    "Ruby_Lux": {
+      "dominantHex": "#080818",
+      "blurhash": "U89sSj^k0dE1~Bs:56Na0d5Qs;%24.Rk=}-V"
+    },
+    "Ruby_Amumu": {
+      "dominantHex": "#180818",
+      "blurhash": "UN9H6E%hNMM{_4%NNKM_xvxvV@RiWGs;nzWU"
+    },
+    "Ruby_Chogath": {
+      "dominantHex": "#181838",
+      "blurhash": "U99PdFo50ySu}^WtELoJ0_Nq=ew#0wsk^4R%"
+    },
+    "Ruby_Tristana": {
+      "dominantHex": "#181818",
+      "blurhash": "UUCFh-t7ROad~DogROaexakBRjjbjXbFS5kC"
+    },
+    "Ruby_Nami": {
+      "dominantHex": "#080808",
+      "blurhash": "U16HG[Or00oy?d=M0_of00R*?cI.0JR+~Doe"
+    },
+    "Ruby_LeeSin": {
+      "dominantHex": "#180818",
+      "blurhash": "U56Q}FNGOZs9.Ai_NZofI8RjM_tR9ExanhW="
+    },
+    "Ruby_Caitlyn": {
+      "dominantHex": "#080808",
+      "blurhash": "U87,[k.AIom,?dO[9[Z~VrEeJ8w}rBRhw|xH"
+    },
+    "Ruby_Nautilus": {
+      "dominantHex": "#181818",
+      "blurhash": "UF6uL_V@I8tS.AV@IStSoJV@ROozV?fRayj["
+    },
+    "Ruby_Maokai": {
+      "dominantHex": "#080808",
+      "blurhash": "U33+[j*JHtMx.ltlMyRPHrMeo|t5D5R5x[t6"
+    },
+    "Ruby_Xerath": {
+      "dominantHex": "#080818",
+      "blurhash": "U88:A3EK0v}v$-oNEcaw0v$,^A9?J2ay-EkD"
+    },
+    "Ruby_Brand": {
+      "dominantHex": "#081818",
+      "blurhash": "UJ3BgTaeR5kAuiaeVGj?i]e.a3a#U[kCkEae"
+    },
+    "Ruby_Wukong": {
+      "dominantHex": "#080808",
+      "blurhash": "U23l]r*JvMUbR%MyQleSD4I9T{cXVYyYtRi{"
+    },
+    "Ruby_Soraka": {
+      "dominantHex": "#080818",
+      "blurhash": "U639G$tpS+XCo#j]W9adMaR2itnfRiaeohkD"
+    },
+    "Ruby_Diana": {
+      "dominantHex": "#080808",
+      "blurhash": "ULBoHZkC0%Rl};bH9xWCEOWWxYoe0%ja=^t5"
+    },
+    "Ruby_Jinx": {
+      "dominantHex": "#180808",
+      "blurhash": "UJC|5n=Kn$,r|{,@n%S2EfaySNNvACJ7SgoL"
+    },
+    "Ruby_Blitzcrank": {
+      "dominantHex": "#180818",
+      "blurhash": "UI9s_IRi9@s??KRiI-oND$adskS09Xs=$koy"
+    },
+    "Ruby_Malzahar": {
+      "dominantHex": "#080818",
+      "blurhash": "U75guvs?Esoh,}j^NpayNAayoOW8I%WTxKj;"
     }
   }
 }
