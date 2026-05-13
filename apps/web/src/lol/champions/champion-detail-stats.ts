@@ -1,3 +1,4 @@
+import { type RolePosition, isRolePosition } from "@/lol/_shared/role-icon";
 import type { MatchSummary } from "@vyoh/shared";
 import type { ChampionStats } from "./champion-stats";
 
@@ -37,8 +38,27 @@ export function computeChampionDetail(
       ? totalKills + totalAssists
       : (totalKills + totalAssists) / totalDeaths;
 
+  // Detail aggregates across roles, so `position` reports the dominant lane.
+  // Falls back to MIDDLE only when no match has a valid teamPosition (pure
+  // ARAM history) — the detail page already filters on serious queues, so
+  // this branch is mostly defensive.
+  const roleCounts = new Map<RolePosition, number>();
+  for (const m of champMatches) {
+    if (!isRolePosition(m.teamPosition)) continue;
+    roleCounts.set(m.teamPosition, (roleCounts.get(m.teamPosition) ?? 0) + 1);
+  }
+  let position: RolePosition = "MIDDLE";
+  let best = 0;
+  for (const [role, count] of roleCounts) {
+    if (count > best) {
+      best = count;
+      position = role;
+    }
+  }
+
   return {
     champion: originalAlias,
+    position,
     games,
     wins,
     losses,

@@ -14,7 +14,7 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     durationSec: overrides.durationSec ?? 1800,
     playedAt: new Date().toISOString(),
     remake: overrides.remake ?? false,
-    teamPosition: overrides.teamPosition ?? "",
+    teamPosition: overrides.teamPosition ?? "MIDDLE",
     gameVersion: overrides.gameVersion ?? "",
     visionScore: overrides.visionScore ?? 0,
     damageShare: overrides.damageShare ?? 0,
@@ -100,5 +100,25 @@ describe("aggregateChampionStats", () => {
 
   it("returns an empty array when no matches", () => {
     expect(aggregateChampionStats([])).toEqual([]);
+  });
+
+  it("splits one champion across roles into separate rows", () => {
+    const stats = aggregateChampionStats([
+      buildMatch({ matchId: "1", champion: "Lux", teamPosition: "MIDDLE" }),
+      buildMatch({ matchId: "2", champion: "Lux", teamPosition: "MIDDLE" }),
+      buildMatch({ matchId: "3", champion: "Lux", teamPosition: "UTILITY" }),
+    ]);
+    expect(stats).toHaveLength(2);
+    expect(stats[0]).toMatchObject({ champion: "Lux", position: "MIDDLE", games: 2 });
+    expect(stats[1]).toMatchObject({ champion: "Lux", position: "UTILITY", games: 1 });
+  });
+
+  it("drops matches with no teamPosition (ARAM / Arena)", () => {
+    const stats = aggregateChampionStats([
+      buildMatch({ matchId: "1", champion: "Ahri", teamPosition: "" }),
+      buildMatch({ matchId: "2", champion: "Ahri", teamPosition: "MIDDLE" }),
+    ]);
+    expect(stats).toHaveLength(1);
+    expect(stats[0]).toMatchObject({ champion: "Ahri", position: "MIDDLE", games: 1 });
   });
 });

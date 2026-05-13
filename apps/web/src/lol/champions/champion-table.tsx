@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
 import { CardTilt } from "@/lol/_shared/card-tilt";
+import { ROLE_LABEL, RoleIcon, type RolePosition } from "@/lol/_shared/role-icon";
 import {
   ChampionCardChrome,
   championCardClassName,
@@ -62,6 +63,17 @@ export function ChampionTable({
 }) {
   const championName = useChampionName();
   const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
+  // First occurrence per champion in `stats` (sorted by games desc) is the
+  // primary role — that row keeps the shared `champ-card-{champion}` layoutId
+  // for the detail-page morph; sibling rows get role-suffixed ids and just
+  // fade in via the existing variant.
+  const primaryRoleByChampion = useMemo(() => {
+    const map = new Map<string, RolePosition>();
+    for (const s of stats) {
+      if (!map.has(s.champion)) map.set(s.champion, s.position);
+    }
+    return map;
+  }, [stats]);
   const reduced = useReducedMotion();
   return (
     <m.ul
@@ -70,70 +82,83 @@ export function ChampionTable({
       variants={container}
       className="flex flex-col gap-3"
     >
-      {sorted.map((s) => (
-        <m.li
-          key={s.champion}
-          variants={item}
-          layout
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-        >
-          <CardTilt>
-            <Link
-              to="/lol/$accountSlug/champions/$championKey"
-              params={{ accountSlug, championKey: s.champion.toLowerCase() }}
-              onMouseEnter={() => onCardHover?.(s.champion)}
-            >
-              <m.div
-                layoutId={`champ-card-${s.champion.toLowerCase()}`}
-                style={championCardStyle(s.champion)}
-                className={championCardClassName}
+      {sorted.map((s) => {
+        const isPrimary = primaryRoleByChampion.get(s.champion) === s.position;
+        const layoutId = isPrimary
+          ? `champ-card-${s.champion.toLowerCase()}`
+          : `champ-card-${s.champion.toLowerCase()}-${s.position.toLowerCase()}`;
+        return (
+          <m.li
+            key={`${s.champion}-${s.position}`}
+            variants={item}
+            layout
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          >
+            <CardTilt>
+              <Link
+                to="/lol/$accountSlug/champions/$championKey"
+                params={{ accountSlug, championKey: s.champion.toLowerCase() }}
+                onMouseEnter={() => onCardHover?.(s.champion)}
               >
-                <ChampionCardChrome champion={s.champion} />
-                <div className="relative ml-auto flex flex-col items-end gap-1">
-                  <div className="font-medium">{championName(s.champion)}</div>
-                  <div className="font-mono text-sm tabular-nums">
-                    <span
-                      className={cn(
-                        s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
-                      )}
-                    >
-                      <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
-                    </span>
-                    <span className="text-muted-foreground"> WR · </span>
-                    <span className="text-amber-400">
-                      <CountUp to={s.avgKda} decimals={2} duration={0.7} />
-                    </span>
-                    <span className="text-muted-foreground"> KDA</span>
+                <m.div
+                  layoutId={layoutId}
+                  style={championCardStyle(s.champion)}
+                  className={championCardClassName}
+                >
+                  <ChampionCardChrome champion={s.champion} />
+                  <div className="relative ml-auto flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <span>{championName(s.champion)}</span>
+                      <RoleIcon
+                        position={s.position}
+                        title={ROLE_LABEL[s.position]}
+                        className="size-3.5 opacity-70"
+                      />
+                    </div>
+                    <div className="font-mono text-sm tabular-nums">
+                      <span
+                        className={cn(
+                          s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
+                        )}
+                      >
+                        <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
+                      </span>
+                      <span className="text-muted-foreground"> WR · </span>
+                      <span className="text-amber-400">
+                        <CountUp to={s.avgKda} decimals={2} duration={0.7} />
+                      </span>
+                      <span className="text-muted-foreground"> KDA</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
+                      {formatPlaytime(s.totalDurationSec)}
+                    </div>
+                    <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-muted/30">
+                      <m.div
+                        className={cn(
+                          "absolute inset-y-0 left-0 h-full w-full rounded-full",
+                          s.winRate >= 0.5
+                            ? "bg-gradient-to-r from-emerald-500/70 to-emerald-400/90"
+                            : "bg-gradient-to-r from-red-500/70 to-red-400/90"
+                        )}
+                        style={{ transformOrigin: "left" }}
+                        initial={{ scaleX: reduced ? s.winRate : 0 }}
+                        animate={{ scaleX: s.winRate }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 220,
+                          damping: 28,
+                          delay: 0.1,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
-                    {formatPlaytime(s.totalDurationSec)}
-                  </div>
-                  <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-muted/30">
-                    <m.div
-                      className={cn(
-                        "absolute inset-y-0 left-0 h-full w-full rounded-full",
-                        s.winRate >= 0.5
-                          ? "bg-gradient-to-r from-emerald-500/70 to-emerald-400/90"
-                          : "bg-gradient-to-r from-red-500/70 to-red-400/90"
-                      )}
-                      style={{ transformOrigin: "left" }}
-                      initial={{ scaleX: reduced ? s.winRate : 0 }}
-                      animate={{ scaleX: s.winRate }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 220,
-                        damping: 28,
-                        delay: 0.1,
-                      }}
-                    />
-                  </div>
-                </div>
-              </m.div>
-            </Link>
-          </CardTilt>
-        </m.li>
-      ))}
+                </m.div>
+              </Link>
+            </CardTilt>
+          </m.li>
+        );
+      })}
     </m.ul>
   );
 }

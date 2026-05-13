@@ -1,7 +1,9 @@
+import { type RolePosition, isRolePosition } from "@/lol/_shared/role-icon";
 import type { MatchSummary } from "@vyoh/shared";
 
 export interface ChampionStats {
   champion: string;
+  position: RolePosition;
   games: number;
   wins: number;
   losses: number;
@@ -14,13 +16,19 @@ export interface ChampionStats {
 }
 
 export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[] {
-  const byChampion = new Map<string, ChampionStats>();
+  const byKey = new Map<string, ChampionStats>();
 
-  for (const match of matches.filter((m) => !m.remake)) {
-    let stats = byChampion.get(match.champion);
+  for (const match of matches) {
+    if (match.remake) continue;
+    // Drop ARAM/Arena rows — they have no teamPosition and would collapse
+    // distinct role identities into a single muddled "champion" row.
+    if (!isRolePosition(match.teamPosition)) continue;
+    const key = `${match.champion}|${match.teamPosition}`;
+    let stats = byKey.get(key);
     if (!stats) {
       stats = {
         champion: match.champion,
+        position: match.teamPosition,
         games: 0,
         wins: 0,
         losses: 0,
@@ -31,7 +39,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
         avgKda: 0,
         totalDurationSec: 0,
       };
-      byChampion.set(match.champion, stats);
+      byKey.set(key, stats);
     }
     stats.games++;
     if (match.win) stats.wins++;
@@ -42,7 +50,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
     stats.totalDurationSec += match.durationSec;
   }
 
-  for (const stats of byChampion.values()) {
+  for (const stats of byKey.values()) {
     stats.winRate = stats.wins / stats.games;
     stats.avgKda =
       stats.totalDeaths === 0
@@ -50,5 +58,5 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
         : (stats.totalKills + stats.totalAssists) / stats.totalDeaths;
   }
 
-  return [...byChampion.values()].sort((a, b) => b.games - a.games);
+  return [...byKey.values()].sort((a, b) => b.games - a.games);
 }
