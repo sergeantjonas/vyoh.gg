@@ -1,0 +1,171 @@
+# Composite LP forecast tile — design note
+
+A single tile on Profile that composes the four existing Pregame Ritual signals (form, tilt, time-slot, top-champion) into one forward-looking verdict: *"Composite read for your next ranked: +X expected LP — confidence Y."*
+
+Promoted from [vnext-ideas.md](vnext-ideas.md) ("Goal setting + projection" and the implied composite-of-signals idea in Pregame Ritual) and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #2) into a tracked design note.
+
+Read this before starting work on the tile, or when deciding the confidence-model approach.
+
+---
+
+## Premise
+
+[Pregame Ritual](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) computes four signals independently:
+
+1. **Form** — recent win/loss curve.
+2. **Tilt** — minutes-since-last-loss + back-to-back loss detection.
+3. **Time slot** — current hour-of-week vs the user's historical WR by slot.
+4. **Top champion** — what they've been playing and how it's gone.
+
+Each tile reads as a calm independent signal. None of them answer the question the user actually has: *"is now a good time to queue?"* The composite answers it.
+
+The honest version of that answer is not a single number — it's a verdict + confidence band. *"+8 LP expected (low confidence — small sample on Tue 23:00 in this patch)"* reads as analysis. *"+8 LP expected"* alone reads as a guess and ages badly.
+
+---
+
+## Inputs
+
+All available today, all computed by Pregame Ritual:
+
+- Recent-form vector (last N outcomes, computed in `buildFormSignal`).
+- Tilt indicator (boolean / scale, from `buildTiltSignal`).
+- Current time-slot historical WR (`buildTimeSlotSignal`).
+- Top-champion recent WR (`buildChampionSignal`).
+
+Additional inputs that could feed the model:
+
+- Champion-vs-account-average delta on the suggested champion (already on champion detail).
+- Day-of-week WR pattern (Trends tile already computes it).
+- Patch-aware win rate on the suggested champion (already exists on Champion detail).
+
+---
+
+## The confidence model — open decision
+
+Two viable approaches.
+
+### Option A — Naive equal-weight composite
+
+- Each of the four signals maps to a -1..+1 score.
+- Composite score = mean(score).
+- Map composite to an expected-LP band: e.g. score 0.3 → "+5 to +15 LP", score -0.5 → "-15 to -5 LP".
+- Confidence = function of sample sizes on time-slot and champion (low sample → "directional only").
+
+**Pros:**
+- Zero training data required.
+- Transparent — every input contributes equally; easy to explain in a case-study write-up.
+- Honest about uncertainty by design.
+
+**Cons:**
+- Not personalized to the user's actual pattern. A user whose form correlates strongly with results and whose time-slot WR is noise will be over-influenced by time-slot.
+- Cannot improve over time.
+
+### Option B — Lightweight linear fit on personal LP history
+
+- For each completed ranked game, compute the four signal values *at queue time* (reconstructable from `MatchSummary` + the user's match history at that point).
+- Fit a small linear regression `predicted_lp_delta = β₀ + β_form·form + β_tilt·tilt + β_slot·slot + β_champ·champ` on the user's own games.
+- Predicted LP for the next queue = model output; confidence = fitted standard error or cross-validated MAE.
+
+**Pros:**
+- Personalized — the user whose tilt actually predicts losses gets a tilt-weighted model.
+- More honest verdict: *"your form is the dominant predictor on this account; tilt barely correlates."*
+- Strong case-study material — a real (if tiny) personal-model story.
+
+**Cons:**
+- Needs months of LP-history snapshots to be meaningful. Today we have rank snapshots accumulating but not enough — Phase 4 of [views-roadmap.md](views-roadmap.md) is "shipped (code)" with no rank snapshots having accumulated yet. **The data prerequisite is the limiting factor.**
+- More moving parts; the case-study story has to handle "this model is fitting on N=37 games and overfit risk is real."
+- Naïve fit on small samples will overstate confidence unless regularized.
+
+### Recommendation — ship Option A now, evolve to Option B later
+
+Phase LP1 ships the naive composite. It works at any data scale, prints an honest "directional only" verdict on low-sample paths, and the math is explainable. Phase LP3 (months out, once LP history has accumulated) revisits with the linear fit and presents the comparison — *"the naive model said +5; the personal fit on your data says -3, because tilt is your dominant signal."* That's the case-study write-up.
+
+---
+
+## Tile placement — open decision
+
+Three candidates:
+
+### Option A — Profile, paired with Pregame Ritual
+
+A sibling tile next to (or below) Pregame Ritual. The four input signals are visually adjacent — the composite reads as the natural summary.
+
+- **Pro:** the visual story (4 signals → 1 composite) is the strongest argument for the tile.
+- **Pro:** doesn't disturb existing layout.
+- **Con:** double-counts visual real estate; the user sees the four signals *and* the composite.
+
+### Option B — Inside Pregame Ritual itself
+
+Pregame Ritual becomes "4 signals + 1 composite line". The composite reads as the verdict over the signals.
+
+- **Pro:** densest version. The signals become the *evidence* for the composite verdict.
+- **Pro:** matches the `ConclusionCard` pattern (verdict → evidence → prescription).
+- **Con:** changes an established component. Need to keep the four signals navigable as their own reads.
+
+### Option C — Standalone on Profile, far from Pregame
+
+A `ConclusionCard`-shaped tile elsewhere on Profile (e.g. above LP history). Reads as a standalone "the read on your next queue" surface.
+
+- **Pro:** declutters Pregame Ritual.
+- **Con:** loses the visual link to the inputs that drove it.
+
+**Recommendation:** Option B. The composite is the verdict; Pregame's four signals are the evidence. Re-renders the existing component as a verdict-shaped block rather than a four-signal grid. Strongest narrative payoff, fits the `ConclusionCard` mental model the rest of the app already uses.
+
+---
+
+## Phasing
+
+### Phase LP1 — Naive composite, Option B placement
+
+- Refactor Pregame Ritual to render a `ConclusionCard` shape: top-line verdict ("Composite read for your next ranked: +5 LP — directional only") with the four signal tiles as the evidence slot.
+- Implement the equal-weight composite in a new helper in `apps/web/src/lol/profile/`.
+- Map composite score to an LP band; render confidence label based on sample sizes of time-slot + champion signals.
+- Empty-path: when none of the four signals fire (cold-start account), show a muted "Play a few games and we'll have a read" verdict.
+
+### Phase LP2 — Confidence calibration
+
+- Once enough LP history has accumulated to backtest, validate that the naive composite's "directional only" verdicts correlate with subsequent outcome. Adjust band widths if directionally wrong.
+- Add a "How is this computed?" disclosure that lists which signal drove the verdict ("dominant signal: time-slot — your Tue 23:00 WR is 38% on 6 games").
+
+### Phase LP3 — Personal linear fit
+
+- Once 100+ ranked games of LP history have accrued, fit a small linear regression on the four-signal vector.
+- Render both the naive and personal-fit verdicts side-by-side for a release; collect feedback on which reads as more useful.
+- Decide whether to retire the naive model or keep both as transparency layer.
+- Write up as a case study (target: [case-study-topics.md](case-study-topics.md)).
+
+---
+
+## Why this is portfolio-worthy
+
+The composite is interesting structurally because it demonstrates:
+
+1. **Composition of existing signals into a new abstraction.** The cleanest example in the codebase of "the parts already exist; the verdict is the new thing."
+2. **Honest uncertainty.** Confidence labels and "directional only" tags push back on the genre's tendency to assert single numbers.
+3. **A path to a personal model.** Phase LP3 is the rare consumer-app moment where a tiny per-user regression is both technically defensible and narratively interesting.
+
+---
+
+## Status
+
+- **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](views-roadmap.md) Phase 4 caveat).
+
+---
+
+## Open questions
+
+1. **LP band width.** ±5? ±10? Should it scale with confidence (low confidence → wider band)? Probably yes.
+2. **What counts as "the next queue"?** The active hour, or the user's most-likely-to-queue hour today? The simpler answer is "the current hour"; the smarter answer is "the next hour we predict you'll queue in."
+3. **Does the composite respect the user's queue choice?** A user about to queue Flex vs Solo has different LP expectations. The pregame signals don't currently distinguish. Probably defer — pregame doesn't either.
+4. **What does the tile do on a cold-start account?** Render muted, or hide entirely. Recommendation: muted. Consistency with the rest of the app's empty-state language.
+5. **Cross-account composite — does one show on the unified-identity view (vNext)?** Park until multi-account compare is on the table.
+
+---
+
+## Connections to existing notes
+
+- [`vnext-ideas.md`](vnext-ideas.md) — promoted from "Goal setting + projection".
+- [`app-state-analysis.md`](app-state-analysis.md) — Phase 4 in the recommended phasing; broader-app gap #2.
+- [`views-roadmap.md`](views-roadmap.md) — Phase 4 LP history is the data prerequisite for Phase LP3.
+- [`post-game-close-the-loop.md`](post-game-close-the-loop.md) — sibling arc. Pregame composite + post-game read are the bookends of the play loop.
+- [`case-study-topics.md`](case-study-topics.md) — Phase LP3 is the case-study moment.

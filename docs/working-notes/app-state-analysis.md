@@ -1,306 +1,309 @@
 # vyoh.gg — App state analysis & improvement plan
 
-Honest read on where the LoL surface stands as of 2026-05-10. Captures what's working, what's weak (Champions tab specifically), where cross-page connections are missing, and the broader app-level gaps. Read this when scoping the next arc of work or deciding which Champions improvement to land first.
+Last fresh read: 2026-05-13. Captures what the LoL section looks like today, what's carrying the app, what the structural gap is, and where the next arcs should land. Read this when scoping a new feature arc or when deciding whether a Champions-tab renovation is the right next move (spoiler: probably not the *first* move).
 
-This is a living analysis, not a contract. Treat the priority ranking as a starting point — re-sort when something on the ground changes.
+This is a living analysis. Re-sort the priorities when something on the ground changes.
 
 ---
 
-## TL;DR
+## Premise
 
-- The app's strongest tabs (Profile, Trends) tell a **story**. Champions is the weakest because it's still a list page in an app that's otherwise narrative.
-- The Champions module owns *zero* prescriptive language while the rest of the app is full of it.
-- Champion identity flows *into* the Champions tab from its own list and almost nowhere else — every other surface mentions champions but doesn't link to the dossier.
-- Closest single high-impact slice: headline ConclusionCard on the Champions list + cross-link every champion icon in the app to the detail page. Together they reframe Champions from "table" to "dossier you can land on from anywhere".
+The LoL section is now substantial — five tabs, a recap surface, a live page, deep match detail, and a dossier-grade champion detail. Most surfaces speak prescriptively (verdict + evidence + optional prescription via `ConclusionCard`). That pattern is the differentiator.
+
+The thing the app does *not* yet do — and the central architectural gap — is treat **champion identity as navigable across the whole app**. Every other tab mentions champions; only the Champions tab can take you to one. The Champions list page is the visible symptom (a sort table in an app of verdicts), but the underlying problem is bigger than one tab.
+
+Earlier framing of this doc (2026-05-10) led with "Champions tab is the weakest surface, fix it." That's true but narrow. The reframe lands at: *make champion identity a first-class navigable entity, then decide whether the Champions list needs renovation at all.*
 
 ---
 
 ## Inventory — what exists today
 
-### Profile tab — `/lol/$accountSlug`
+### Profile — `/lol/$accountSlug`
 
-[`routes/lol/$accountSlug/index.tsx`](apps/web/src/routes/lol/$accountSlug/index.tsx)
+[`routes/lol/$accountSlug/index.tsx`](../../apps/web/src/routes/lol/$accountSlug/index.tsx)
 
-Identity-first dashboard with twelve+ blocks:
+Identity-first dashboard with ~12 blocks: rank tiles, live chip, pregame ritual (form / tilt / time slot / top champ), recent form, LP history with brush + tier markers + streak overlay, season history, now playing (top 3 last 7d), role strip, duos, queue distribution, activity calendar, stats bar, recap link.
 
-- Rank tiles, Live game chip
-- Pregame Ritual (4 signals: form, tilt, time slot, top champion last 14d)
-- Recent form, LP history, Season history
-- Now Playing (top 3, last 7d)
-- Role strip, Duos, Queue distribution
-- Activity calendar, Stats bar (games, WR, KDA, champs, time)
-- Recap link
+**Read:** the strongest surface. Dashboard-before-queue is the right frame.
 
-**Read:** This is the strongest surface. It reads like "the dashboard you'd open before queueing".
+### Trends — `/lol/$accountSlug/trends`
 
-### Matches tab — `/lol/$accountSlug/matches`
+[`routes/lol/$accountSlug/trends.tsx`](../../apps/web/src/routes/lol/$accountSlug/trends.tsx)
 
-[`routes/lol/$accountSlug/matches/`](apps/web/src/routes/lol/$accountSlug/matches/)
+12 tiles, activation-priority sorted, all using `ConclusionCard`: weekly review, time heatmap, WR trajectory, day-of-week WR, role performance, tilt, game length, champion focus, LP economy, session fatigue, worst matchup, KDA. Magazine-grid reflow on range change (motion flagship). Patch-aware (boundaries shaded, "this patch vs last patch" range option).
 
-- Infinite-scroll match list with queue filter
-- Per-row hover popover, layoutId card morph into match detail
-- Match detail: hero, kill map, build/skill order, lane phase, gold lead, event timelines
+**Read:** the most distinctive surface. Verdict-first reads like analysis, not a dump.
 
-**Read:** Detail depth beats op.gg-class tools. Kill map and lane-phase reads especially.
+### Matches — `/lol/$accountSlug/matches`
 
-### Trends tab — `/lol/$accountSlug/trends`
+[`routes/lol/$accountSlug/matches/`](../../apps/web/src/routes/lol/$accountSlug/matches/)
 
-[`routes/lol/$accountSlug/trends.tsx`](apps/web/src/routes/lol/$accountSlug/trends.tsx)
+Infinite-scroll list with queue filter, per-row hover popover, `layoutId` card morph into detail. Match detail: hero strip (kills/gold/objectives/first-blood/first-tower/soul drake), segmented damage bars, score-of-game badges, lane-opponent linkage, build/skill order with consumables toggle and lane-opponent side-by-side, gold-lead chart, interactive kill/objective timeline, kill heatmap on Rift minimap, lane-phase gold/cs differential.
 
-12 tiles, activation-priority sorted:
+**Read:** detail depth beats op.gg-class tools. Kill map + lane phase reads especially.
 
-- Weekly review, Time heatmap, WR trajectory, DOW WR, Role performance, Tilt indicator, Game length, Champion focus, LP economy, Session fatigue, Worst matchup, KDA
+### Live — `/lol/$accountSlug/live`
 
-Each tile uses [`ConclusionCard`](apps/web/src/lol/trends/_shared/conclusion-card.tsx) (verdict + evidence + optional prescription).
+Server-side `LiveGamePollerService` + SSE push. 5v5 grid with summoner spells, keystone, per-player rank + mastery cached by `gameId`, last-5 form pips for whitelisted players, bans bar, queue/map/mode badges, compositional radar, lane-sorted via Smite + champion-role heuristic. Live-now chip renders on Profile even when the account isn't being viewed.
 
-**Read:** The most distinctive surface. The verdict pattern reads like analysis, not a metrics dump. Portfolio gold.
+**Read:** real differentiator. Not many companion apps have a server-driven live surface.
 
-### Champions tab — `/lol/$accountSlug/champions`
+### Champion detail — `/lol/$accountSlug/champions/$championKey`
 
-List: [`routes/lol/$accountSlug/champions/index.tsx`](apps/web/src/routes/lol/$accountSlug/champions/index.tsx)
-Detail: [`routes/lol/$accountSlug/champions/$championKey.tsx`](apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx)
-Module: [`lol/champions/`](apps/web/src/lol/champions/)
+[`routes/lol/$accountSlug/champions/$championKey.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) — **544 lines**.
 
-- **List:** sortable cards (games / WR / KDA / playtime), aggregated over last N games. `useSeriousMatches` — silently ARAM-filtered.
-- **Detail:** hero card with stats, K/D/A averages, delta tiles vs account average, WR sparkline, top items, matchups (3 sort modes), time heatmap + tilt scoped to the champion.
+Hero card with stats, K/D/A averages, delta tiles vs account average, WR sparkline with patch boundaries, top items with tooltips, matchups with 3 sort modes, time heatmap + tilt scoped to champion, patch history strip, **death matchup heatmap** (visx, minute × matchup), **build-order Sankey** (d3-sankey), **Rift position heatmap** (hex bins), build-flow endpoint, "This patch X.Y" badge, sticky champion strip on scroll.
 
-**Read:** Detail page is solid in isolation. List page is the weakest surface in the app — see next section.
+**Read:** dossier-grade. Probably the densest single page in the app.
 
-### Live tab — `/lol/$accountSlug/live`
+### Champions list — `/lol/$accountSlug/champions`
 
-Differentiator vs. competitors. Depth not audited in this pass; worth a separate review.
+[`routes/lol/$accountSlug/champions/index.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/index.tsx) — **82 lines**.
+
+Sortable cards (games / WR / KDA / playtime), `useSeriousMatches` (silently ARAM-filtered), no role tag, no role/queue filter, no verdict.
+
+**Read:** by a 6.6× ratio, the dossier dwarfs the list it lives behind. **The visible weakness in the app today.**
 
 ### Recap — `/lol/$accountSlug/recap`
 
-Three components only ([`recap-champion`](apps/web/src/lol/recap/recap-champion.tsx), [`recap-top-insight`](apps/web/src/lol/recap/recap-top-insight.tsx), [`recap-rank-arc`](apps/web/src/lol/recap/recap-rank-arc.tsx)). Linked from Profile but feels thin compared to the rest.
+Three hero sections: rank arc, headline champion (with splash polish 2026-05-11), top insight. Linked from Profile only — deliberately positioned as an "open this artifact" surface rather than a tab.
+
+**Read:** thin. Promised more on first read; works as a calm-Wrapped MVP, would feel undersold if shown on a portfolio page.
 
 ---
 
 ## What's working well (keep doing)
 
-- **ConclusionCard pattern** is the differentiator. Verdict → evidence → optional prescription is a much better read than raw charts. Use it more places.
-- **Activation-priority sort** in Trends is clever — inactive tiles drop down rather than disappearing. Mirrors the "show me what I have data for" instinct.
-- **Single windowed query at layout level** ([`$accountSlug.tsx:141`](apps/web/src/routes/lol/$accountSlug.tsx#L141)) → tabs cost nothing upstream.
-- **Per-view queue scope** — performance views consume `useSeriousMatches`, identity/cadence views consume everything, match list owns its own filter. Right call.
-- **Layout architecture** — sticky header with compact mode, splash backdrop hover-debounced, layoutId morphs from list to detail. The motion stack pulls real weight.
-- **SSE invalidation** — list lights up when the backfill worker reports new rows. No polling.
+- **`ConclusionCard` (verdict → evidence → prescription)** is the differentiator and is consistently applied across Trends and parts of Profile. Single most distinctive pattern in the app.
+- **Activation-priority sort** on Trends — inactive tiles drop down rather than disappearing. Mirrors "show me what I have data for."
+- **Single windowed query at layout level** ([`$accountSlug.tsx`](../../apps/web/src/routes/lol/$accountSlug.tsx)) → tab switches cost nothing upstream; memoised provider value avoids fan-out.
+- **Per-view queue scope** — performance views read serious-queues only, identity/cadence views read everything, match list owns its own filter. Right call per surface.
+- **Layout architecture** — sticky header with compact mode, splash backdrop hover-debounced, layoutId morphs from list to detail. Motion stack pulls real weight.
+- **SSE invalidation** — list lights up when the backfill worker reports new rows; no polling on the client.
+- **Empty-state primitive across 8 surfaces** — calm, consistent, lifts the tonal bar everywhere it lands.
 
 ---
 
-## Where it's weakest — Champions tab
+## The structural weakness — one-way champion identity
 
-The user's instinct is right. Concrete reasons:
-
-### 1. No verdict layer
-
-Every other surface speaks prescriptively:
-
-- Trends: "Wide pool — consider focusing on 3 to climb faster."
-- Pregame: "On a 3-game loss streak.", "Off-peak hour for you — 38% WR at Tue 23:00."
-- Profile: every block frames data as a signal.
-
-The Champions list says: "Aurelion Sol — 12 games, 50% WR, 3.2 KDA". No headline, no `"your real workhorse is X"`, no `"you've stopped playing Y"`, no `"this pick has the highest delta vs your account average"`. The raw data already supports all three.
-
-### 2. Structural overlap with Trends Champion Focus
-
-[`trend-champion-focus.tsx`](apps/web/src/lol/trends/trend-champion-focus.tsx) computes "tight pool / focused / balanced / versatile" with top-3 share. That insight belongs at the *top* of the Champions tab, not buried in the Trends grid. Right now the Champions tab is the only one that doesn't own its own headline — and the headline already exists, just in the wrong place.
-
-### 3. No role / queue dimension
-
-`MatchSummary.teamPosition` exists and is used in [`trend-role-performance.tsx`](apps/web/src/lol/trends/trend-role-performance.tsx). Champions ignores it. A user who plays Lux mid vs Lux sup is two different players. The list has:
-
-- No role tag on rows
-- No role grouping or filter
-- No queue filter
-
-Mismatched with Matches (queue filter) and Trends (range selector). Champions has only sort.
-
-### 4. Hard-coded `useSeriousMatches`
-
-[`champions/index.tsx:25`](apps/web/src/routes/lol/$accountSlug/champions/index.tsx#L25) silently drops ARAM. Right default for KDA reads, wrong default for "playtime" sort. Other views surface this scope as a setting; Champions hides it.
-
-### 5. Detail page is good but disconnected
-
-[`$championKey.tsx`](apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) has matchups, top items, sparkline, deltas, time heatmap, tilt — substantial. What's missing:
-
-- **No list of recent matches on this champion** linking back to match detail. Data is right there in `champMatches` (already computed at line 134–137).
-- **No build-progression view.** [`match-build-order.tsx`](apps/web/src/lol/matches/match-build-order.tsx) exists per-match but is never aggregated.
-- **No role split** when a champion is played in multiple lanes.
-- **No comparison** beyond two delta tiles. Two columns ("your Vex vs your Ahri") would be a strong motion piece using FLIP.
-- **No "stopped playing" framing** — the inverse of "now playing".
-
----
-
-## Cross-page connection gaps
-
-This is the larger structural issue and ties directly to the user's concern. Champion identity flows *into* Champions and almost never *out*:
+Every surface in the app mentions champions; almost none of them link to the champion detail page.
 
 | Surface | Mentions champion? | Links to champion detail? |
 |---|---|---|
-| [Match rows](apps/web/src/lol/matches/match-row.tsx) | Yes — every row | **No** |
-| [Match detail participants](apps/web/src/lol/matches/match-detail-view.tsx) | Yes (incl. you) | **No** (verify) |
-| [Profile Now Playing](apps/web/src/lol/profile/profile-now-playing.tsx) | Yes — top 3 | **No** |
-| [Profile Pregame Ritual](apps/web/src/lol/profile/profile-pregame-ritual.tsx) | Yes — most played | **No** |
-| [Trends Champion Focus](apps/web/src/lol/trends/trend-champion-focus.tsx) | Yes — bars | **No** |
-| [Trends Worst Matchup](apps/web/src/lol/trends/trend-worst-matchup.tsx) | Yes — both names | **No** (verify) |
+| [Match row](../../apps/web/src/lol/matches/match-row.tsx) | Yes — every row | **No** (imports `useChampionName` but no `Link`) |
+| [Match detail participants](../../apps/web/src/lol/matches/match-detail-view.tsx) | Yes (incl. you) | **No** |
+| [Profile Now Playing](../../apps/web/src/lol/profile/profile-now-playing.tsx) | Yes — top 3 | **No** |
+| [Profile Pregame Ritual](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) | Yes — most played | **No** |
+| [Trends Champion Focus](../../apps/web/src/lol/trends/trend-champion-focus.tsx) | Yes — bars | **No** |
+| [Trends Worst Matchup](../../apps/web/src/lol/trends/trend-worst-matchup.tsx) | Yes — both names | **No** |
+| [Profile Synergy chord](../../apps/web/src/lol/profile/profile-synergy.tsx) | Yes — bipartite layout | **No** |
+| [Recap hero champion](../../apps/web/src/lol/recap/recap-champion.tsx) | Yes — headline | **No** |
 | Champions list rows | Yes | Yes |
 
-The most natural entry point to "tell me about my Lux" is from a Lux match row. It doesn't work. The Champions tab should be the dossier you can land on from any champion icon in the app. Right now it's a destination you have to navigate to deliberately from the tab strip.
+The most natural entry point to "tell me about my Lux" is a Lux match row. It doesn't work. The Champion detail page is dossier-grade — and it's only reachable from one place.
+
+This is the larger problem. The Champions list weakness is a *symptom* — it looks underbuilt because it's the only way to reach the dossier, so people expect it to carry the whole "talk about my champions" weight.
 
 ---
 
-## Other gaps in the broader app
+## The tactical weakness — Champions list reads as a table, not a verdict surface
 
-In rough priority order:
+Even with the cross-link gap closed, the list page would still be the only surface in the app without prescriptive language:
 
-### 1. No post-game close-the-loop surface
+- Trends: "Wide pool — consider focusing on 3 to climb faster."
+- Pregame: "On a 3-game loss streak", "Off-peak hour for you — 38% WR at Tue 23:00."
+- Champion detail: "Patch 14.20: 2-8, +X% from 14.19."
+- Champions list: *"Aurelion Sol — 12 games, 50% WR, 3.2 KDA."*
 
-Pregame Ritual is excellent. There's no "after-game read" — `"that game broke your streak"`, `"you usually go -X% after a 30+ minute loss"`, `"your next game is Tue 23:00 — your weakest slot"`. Data and verdict pattern already exist. Cheap to add, big payoff.
+The data exists for at least three headline verdicts:
+- **Workhorse:** "Your most-leaned-on champion is X — n games, WR%, ±KDA delta"
+- **Pool focus:** "Tight pool / focused / balanced / versatile" (lifted from [`trend-champion-focus.tsx`](../../apps/web/src/lol/trends/trend-champion-focus.tsx))
+- **Pool drift (last 14d vs prior 14d):** "You've added Y, dropped Z"
 
-### 2. No LP / rank forecast
+The drift verdict is the most valuable of the three — it's not duplicated anywhere else, and it's the kind of "this site noticed something I didn't" moment the app trades on.
 
-Form, time-slot, top-champ, and tilt are computed independently. Composing them into one tile (`"Composite read for your next ranked: +X expected LP — confidence Y"`) would be a strong differentiator. The inputs already exist; only the composition is missing.
+Other list shortcomings, in descending importance: no role split (Lux mid vs Lux sup is two players, [`MatchSummary.teamPosition`](../../packages/shared/src/lol/) is available), no queue filter (mismatched with Matches and Trends), hard-coded `useSeriousMatches` silently drops ARAM.
 
-### 3. No champion-pool drift
+---
 
-Trends shows current pool composition, but not "you've stopped playing X" or "you've added Y this month" — both readable from the windowed data with a simple before/after diff. Would also fix the "Champions list has no story" problem.
+## Broader app gaps (not Champions-specific)
 
-### 4. No mastery / reputation pull
+In rough priority by visible/portfolio payoff:
 
-Riot exposes mastery scores. Not used. Cheap addition, useful for the dossier framing of Champions ("365k mastery, level 7").
+### 1. Post-game close-the-loop surface
 
-### 5. No multi-account compare
+Pregame Ritual is excellent. There's no after-game read: *"that game broke your streak"*, *"you usually go -X% after a 30+ minute loss"*, *"your next game is Tue 23:00 — your weakest slot."* Data and verdict pattern already exist; SSE already pushes new-match notifications to the client. This is **the highest-payoff missing surface** — completes the calm-coaching arc and reuses every primitive we already have. Cheap, visible, narratively important.
 
-Multi-account is supported structurally; comparing two accounts side-by-side isn't a surface. Would lean into the architecture story.
+### 2. Composite LP forecast tile
 
-### 6. Recap density
+Form, time-slot, top-champ, and tilt are computed independently. Composing them into one verdict (*"Composite read for your next ranked: +X expected LP — confidence Y"*) would be a strong differentiator. All four inputs already exist — only the composition is missing. Naturally lives in Pregame Ritual or as a sibling tile.
 
-[`lol/recap/`](apps/web/src/lol/recap/) is three components. If it's a portfolio piece it deserves more density; if not, the Profile link from [`index.tsx:43`](apps/web/src/routes/lol/$accountSlug/index.tsx#L43) is overselling it.
+### 3. Champion-pool drift verdict
+
+Trends shows current pool composition, not "you've stopped playing X" / "you've added Y this month." Both readable from the windowed data with a 14d-vs-prior-14d diff. Doubles as the headline ConclusionCard for the Champions list.
+
+### 4. Mastery / reputation pull
+
+Riot exposes mastery scores. Not used. Cheap addition, useful for the dossier framing of Champion detail ("365k mastery, level 7"). Mainly a quality move, not portfolio-flashy on its own.
+
+### 5. Recap density expansion
+
+Three sections is too thin if recap is to be presented as a portfolio artifact. Candidates: month-by-month rank arc, top-3 champions in the year (not just one), most-improved-on champion, worst patch / best patch verdict, signature game (highest KDA or biggest comeback), duo of the year. Tied to the share-image and scrollytelling polish that was deferred from the 2026-05-10 cluster.
+
+### 6. Multi-account compare
+
+Multi-account is supported structurally; comparing two accounts side-by-side isn't a surface. Smurf vs main, EU vs NA. Heavier lift but leans into the architecture story.
 
 ### 7. Live tab pull-weight
 
-Prominent in the tab strip (red pulsing icon). Worth auditing whether depth justifies position.
+Prominent in the tab strip (red pulsing icon). Worth a single audit pass to confirm depth justifies the position, or trim if not.
 
 ---
 
-## Concrete moves — Champions, ranked by impact
+## Recommended phasing
 
-### High impact, low risk
+Reframed around the structural gap, not the Champions tab.
 
-**1. Headline ConclusionCard on the Champions list.**
+### Phase 1 — Cross-link champion identity (single session)
 
-Pull `TrendChampionFocus` logic up. Verdict spans:
+Wrap [`ChampionSquareIcon`](../../apps/web/src/lol/_shared/champion-square-icon.tsx) usages in a `Link` to `/lol/$accountSlug/champions/$championKey` from:
 
-- Workhorse — `"Your most-leaned-on champion is X — n games, WR%, ±KDA delta"`
-- Pool focus — `"Tight pool / focused / balanced / versatile"`
-- Drift (last 14d vs prior 14d) — `"You've added Y, dropped Z"`
+- Profile Now Playing
+- Profile Pregame Ritual ("Most played" tile)
+- Profile Synergy chord ribbons
+- Trends Champion Focus bars
+- Trends Worst Matchup champion names
+- Recap hero champion
+- Match detail participant rows (every participant — landing on *your* view of *your* data for an enemy champion is the right read for "I lost to Yasuo, check my matchup")
+- Match row left chrome (last — needs nested-link handling, stop event propagation; existing card morph stays untouched)
 
-Remove the duplicate from the Trends grid (the activation-priority sort will absorb the freed slot).
+Lands a structural shift in how the whole app navigates without renovating any tab. **The single highest-leverage move on the board.** Self-contained, demoable, easy to write up.
 
-**2. Cross-link every champion icon in the app.**
+#### Phase 1 — execution brief (next-session handoff)
 
-Wrap [`ChampionSquareIcon`](apps/web/src/lol/_shared/champion-square-icon.tsx) usages in a `Link` to `/lol/$accountSlug/champions/$championKey` from:
+Goal: turn every champion icon in the app into a portal to `/lol/$accountSlug/champions/$championKey`. No visual change to the icons themselves; only the click target and cursor.
 
-- [`match-row.tsx`](apps/web/src/lol/matches/match-row.tsx) (left chrome — needs care, the row is already a Link to match detail)
-- [`profile-now-playing.tsx`](apps/web/src/lol/profile/profile-now-playing.tsx) row
-- [`profile-pregame-ritual.tsx`](apps/web/src/lol/profile/profile-pregame-ritual.tsx) "Most played" tile
-- [`trend-champion-focus.tsx`](apps/web/src/lol/trends/trend-champion-focus.tsx) bars
-- [`trend-worst-matchup.tsx`](apps/web/src/lol/trends/trend-worst-matchup.tsx) names
-- Match detail participant rows (when the participant is the user)
+**Destination route.** `/lol/$accountSlug/champions/$championKey`. TanStack Router `Link` pattern — mirror an existing call site at [`apps/web/src/lol/champions/champion-table.tsx`](../../apps/web/src/lol/champions/champion-table.tsx) for the working syntax. `championKey` is the string Riot champion key (e.g. `"Vex"`), not the numeric id.
 
-Match-row needs nested-link handling — wrap only the icon area, stop event propagation. Existing card morph stays untouched.
+**Surfaces, in order.** Do the simple ones first to lock in the pattern; do match-row last because it has nested-link handling.
 
-### High impact, medium effort
+| # | File | Notes |
+|---|---|---|
+| 1 | [`profile-now-playing.tsx`](../../apps/web/src/lol/profile/profile-now-playing.tsx) | Already imports `useChampionName` from `@/lol/champions/use-champions`; account slug is available from the route param. |
+| 2 | [`profile-pregame-ritual.tsx`](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) | "Most played" tile in `buildChampionSignal`. Wrap the icon inside the tile, not the whole tile. |
+| 3 | [`profile-synergy.tsx`](../../apps/web/src/lol/profile/profile-synergy.tsx) | Chord ribbon endpoints — your champ and the teammate's champ both link. visx may have its own pointer handling on the ribbon; verify cursor/click region after wrap. |
+| 4 | [`trend-champion-focus.tsx`](../../apps/web/src/lol/trends/trend-champion-focus.tsx) | Champion bars; wrap each bar's icon area. |
+| 5 | [`trend-worst-matchup.tsx`](../../apps/web/src/lol/trends/trend-worst-matchup.tsx) | Both names per row (your champ + opponent). Both link. |
+| 6 | [`recap-champion.tsx`](../../apps/web/src/lol/recap/recap-champion.tsx) | Hero champion. The whole hero card may already morph; wrap only the icon glyph, not the card. |
+| 7 | [`match-detail-view.tsx`](../../apps/web/src/lol/matches/match-detail-view.tsx) | Participant rows. Link from *every* participant icon (not just self) — that's the dossier-from-anywhere story. |
+| 8 | [`match-row.tsx`](../../apps/web/src/lol/matches/match-row.tsx) | **Last and trickiest.** The card itself is a `Link` to match detail with a `layoutId` morph. Nested `<a>` is invalid HTML; the morph is the most visible motion piece in the app and must not regress. See decision below. |
 
-**3. Role + queue filters on the Champions list.**
+**Match-row design decision.** Two viable approaches; pick after looking at the actual JSX:
 
-Mirror Matches/Trends. Surface scope; show role chip on each row (most-played role for that champion). Reuse [`QueueFilter`](apps/web/src/lol/_shared/queue-filter.tsx) + the existing role tokens from Trends.
+- **Sibling-`Link` overlay** *(probably cleanest):* the outer card stays as a `<Link>`, but the champion-icon container is a *sibling* `<Link>` absolutely-positioned over the icon area. Outer link still fires for any click outside the icon. No nested-link, no event-propagation gymnastics.
+- **`onClick` + `stopPropagation`:** the icon becomes a `<button>` or `<div role="link">` with `onClick={e => { e.stopPropagation(); router.navigate(...); }}`. Works but loses native `Link` semantics (middle-click, right-click → open in new tab, hover URL preview).
 
-**4. "Recent matches" section on champion detail.**
+Lean sibling-overlay unless the absolute positioning fights the existing card layout.
 
-Mini-rows linking to match detail. Use existing `MatchRow` styling but stripped down (no champion chrome — they're all the same champion).
+**Verify after each surface.**
 
-**5. Per-role split on champion detail.**
+- Click → routes to champion detail.
+- Cursor shows pointer over the icon area only (not the full row/card unless that's already the case).
+- Existing morphs and hovers on the surrounding component still work — especially match-row card morph and match-detail participant-row hover popover.
+- Keyboard tabbing reaches the new link and Enter activates it.
+- No console warnings about nested `<a>` tags, particularly after touching match-row.
 
-Tabs or pills for `mid / sup / both` when a champion is played in multiple lanes. Most metrics already accept a filtered match list — feed them the role-filtered slice.
+**Out of scope for Phase 1** (do not bundle in):
 
-### High impact, higher effort (portfolio motion piece)
+- Renaming "Champions" → "Dossier" — defer to a follow-up after Phase 1 lands.
+- Role / queue filters on the Champions list — Phase 3 in this doc.
+- Champion-pool drift verdict — Phase 3.
+- Recent-matches section on Champion detail — descoped (less needed once cross-linking exists).
 
-**6. Compare-mode on champion detail.**
+**Validation before commit.** `tokf err pnpm run check:cc` then `tokf err pnpm run typecheck:cc`. Don't run mutating commands. Test the match-row morph in the browser before committing surface #8 — TypeScript will not catch a layout regression.
 
-Pick a second champion from your pool, render two columns of the same metric blocks. FLIP between list view and split view. This is a strong motion showcase candidate — the kind of "ambitious-but-calm" idea that fits the showcase brief.
+**Commit scope.** One commit is fine; two is cleaner (surfaces #1–#7 in one commit, match-row alone in a second so it can be reverted independently if the motion regresses). Conventional commit per house rules: lowercase, no scope parens, no Co-Authored-By. Suggested: `feat: cross-link champion icons to champion detail`.
 
-**7. Aggregated build progression on champion detail.**
+#### Alternative — start with Option B (post-game PG1)
 
-Use existing per-match build data to show the most common item path (start → boots → mythic → 3rd → 4th) and the win-rate variant per branch.
+If appetite is for the showpiece rather than the foundation, swap to [`post-game-close-the-loop.md`](post-game-close-the-loop.md) Phase PG1 instead. Single static section on Profile paired with Pregame Ritual, no SSE awareness yet, 1–2 sessions. Higher visible payoff per session; cross-link can ship after (Option A then lifts the post-game card's "back to the dossier" path).
 
-### Lower priority
+Trade-off recorded: Option A first is the recommendation because it makes every existing surface (and the upcoming post-game card) feel like one app. Option B first is defensible if the next session needs to *land a new thing* rather than *connect existing things*. Either order works.
 
-**8. Cross-link from Champions list rows back to "matches with this champion".**
+#### Adjacent maintenance (sub-session each, parked for any cleanup pass)
 
-Filtered matches view scoped to a champion. Likely a search-param on `/matches`. Useful but lower than the other moves — Champions detail already covers most of the use cases this would serve.
+- **Verify SSE refresh-progress shipped.** [`riot-investigation-2026-05-07.md L97–101`](riot-investigation-2026-05-07.md) parks "SSE for refresh button progress" as a follow-up; commit `00d085c feat: live status dashboard with sync controls` likely covers it. ~10-minute check: read the live-status-dashboard implementation, confirm per-account streaming feedback is live, update the riot-investigation note to mark the follow-up shipped (or keep it parked if only partial).
+- **Delete stale `feedback_visx_minimap` reference.** [`vnext-ideas.md L224`](vnext-ideas.md) references a memory file that doesn't exist (only `feedback_network_hang_simulation.md` is in `/home/node/.claude/projects/-workspaces-vyoh-gg/memory/`). 30 seconds — strike the sentence "`feedback_visx_minimap` memory should be updated to reflect that visx is now installed and used." from the 2026-05-11 visx decision-log entry.
+- **Host-Chrome perf re-measurement.** [`perf-baseline.md L81`](perf-baseline.md) parks a Profiler re-measurement of the MatchWindowProvider + ChampionsPage memoization fixes; the fixes shipped static-only and the validation is pending a host-Chrome session (the devcontainer has no Chrome). Not a coding task — do it the next time you're at the host machine and update the note.
+
+### Phase 2 — Post-game close-the-loop (1–2 sessions)
+
+Mirror of Pregame Ritual, triggered on SSE new-match arrival. Verdicts pull from existing signals: tilt, streak, time-slot, champion delta. New `ConclusionCard` variant on Profile or as a route segment that opens after the SSE event lands.
+
+This is the move that *would* land as a portfolio case study ("a calm coaching surface that closes the loop after every game").
+
+### Phase 3 — Champions list as a verdict surface (1 session)
+
+Three additions, in order:
+1. **Champion-pool drift verdict** as the list's headline ConclusionCard (also satisfies broader-gap #3).
+2. **Role + queue filters** to mirror Matches/Trends; role chip on each row.
+3. Optionally pull the Trends `trend-champion-focus` tile up to the Champions list and remove the duplicate from Trends (the activation-priority sort absorbs the freed slot).
+
+After Phase 1 cross-linking lands, this becomes a refinement rather than a rescue. The original "Champions detail compare-mode" and "aggregated build progression" moves are descoped — both are now mostly delivered by the Sankey + position heatmap that shipped 2026-05-11.
+
+### Phase 4 — Composite LP forecast (1 session)
+
+Tile that composes the four existing pregame signals into a single verdict + confidence. Lives next to Pregame Ritual on Profile. New tile, no schema changes.
+
+### Phase 5 — Recap density expansion (1–2 sessions)
+
+Add 3–5 sections (most-improved champion, signature game, worst/best patch, duo of the year). Decide whether to invest in share-image and scrollytelling polish from the original 2026-05-10 deferral.
+
+### Phase 6 (optional) — Mastery integration, multi-account compare, live audit
+
+Cherry-pick when appetite for visible work is low or the portfolio story needs a "I integrate new data sources" beat.
 
 ---
 
-## Implementation sequencing
+## Status
 
-Rough phasing if we treat this as a multi-session arc:
-
-### Phase A — reframe Champions (1 session)
-
-1. Headline ConclusionCard on the list (move 1)
-2. Remove the duplicate from Trends
-3. Cross-link the lowest-friction champion icons (Profile Now Playing, Pregame, Trends Focus) — does *not* need match-row yet (move 2, scoped)
-
-Lands a meaningful narrative shift. Self-contained.
-
-### Phase B — list dimensions (1 session)
-
-4. Role + queue filters on the Champions list (move 3)
-5. Role chip on each row
-6. Cross-link match-row champion icons (move 2, scoped) — done last because it needs the nested-link handling
-
-### Phase C — detail depth (1 session)
-
-7. Recent matches section (move 4)
-8. Per-role split (move 5)
-
-### Phase D — showcase piece (1 session, optional)
-
-9. Compare-mode (move 6) — pick this if a motion-showcase slot opens up.
-
-Each phase ships value alone. Phase A is the smallest one that addresses the user's core complaint ("list with no story, disconnected from the rest").
+- **Reframed 2026-05-13.** Original 2026-05-10 plan was Champions-tab-centric; superseded by the cross-link/dossier framing above.
+- **Champion detail depth shipped 2026-05-11** (death heatmap, build Sankey, position heatmap) and **empty-state pass shipped 2026-05-11** — both deepened the dossier without changing the navigation graph. Made Phase 1 (cross-linking) more valuable, not less.
+- **Champions list unchanged** since this analysis was first drafted. The original Phase B/C moves (filters, recent matches, per-role split, compare-mode) have not shipped; most are now descoped or absorbed by what champion-detail already does.
 
 ---
 
-## Cross-cutting / app-wide moves (not Champions-specific)
-
-Sized roughly:
+## Cross-cutting moves (sized roughly)
 
 | Move | Size | Notes |
 |---|---|---|
-| Post-game close-the-loop block | S | Mirror of Pregame Ritual. Drop on Profile or as a route segment after a new match arrives via SSE. |
-| Composite LP forecast tile | M | Composition of existing signals; new ConclusionCard variant. |
-| Champion-pool drift verdict | S | Falls out of the Phase A headline card. |
-| Mastery pull | S | New Riot endpoint, cached on backend. Surfaces on Champion detail header. |
+| Cross-link champion identity (Phase 1) | S | One session, no schema, no new data. |
+| Post-game close-the-loop | M | New `ConclusionCard` variant on Profile; reuses existing signals + SSE. |
+| Composite LP forecast tile | M | Composition only; no new data. |
+| Champion-pool drift verdict | S | 14d-vs-prior-14d diff over windowed data. |
+| Champions list role/queue filters | S | Mirror Matches/Trends. |
+| Mastery pull | S | New Riot endpoint, cached on backend. |
+| Recap density expansion | M | 3–5 sections; share-image still deferred. |
 | Multi-account compare | L | New view; lean into architecture story. |
-| Recap density | M | Decide: invest, or de-emphasize the link from Profile. |
 | Live tab audit | S | Read-only review pass. |
 
 ---
 
 ## Connections to existing notes
 
-- [`views-roadmap.md`](views-roadmap.md) — Profile + Champion detail roadmap. Phase 5+ ("Habits / Insights layer") overlaps with this analysis. Treat this doc as a refinement of the Champions slice.
-- [`trends-rework.md`](trends-rework.md) — read before doing move 1 (headline pull-up). May already cover the Champion-focus removal.
-- [`motion-backlog.md`](motion-backlog.md) — move 6 (compare-mode FLIP) belongs there if not already.
-- [`vnext-ideas.md`](vnext-ideas.md) — cross-cutting moves above should land there if not already captured.
+- [`views-roadmap.md`](views-roadmap.md) — Profile + Champion detail roadmap. Phases 1–6 ✅ shipped. Phase 4 (LP history) and Phase 5 (Season history) are code-complete with rendering still pending real data accrual.
+- [`trends-rework.md`](trends-rework.md) — T1–T4 ✅ shipped. Read before reordering Phase 3 (pulling `trend-champion-focus` up to Champions list).
+- [`match-depth-roadmap.md`](match-depth-roadmap.md) — Phase A/B/C ✅ shipped, D partial. Match-row champion icon cross-link (Phase 1 above) ties to match-row layout.
+- [`motion-backlog.md`](motion-backlog.md) — post-game close-the-loop and LP forecast tile are motion-showcase candidates.
+- [`vnext-ideas.md`](vnext-ideas.md) — broader-app gap items (#1–7) overlap with vNext top-tier and second-tier entries.
+- [`case-study-topics.md`](case-study-topics.md) — Phase 2 (post-game close-the-loop) is the strongest case-study candidate among items in this doc.
 
 ---
 
 ## Open questions
 
-1. **Should "Champions" be renamed?** "Champion pool", "Pool", or "Dossier" might frame it more honestly than "Champions". The current name suggests a directory; the goal is a dossier.
-2. **Headline card or verdict-per-row?** A single headline reads cleaner; per-row verdicts ("workhorse", "drifted away", "high-WR pick") reads denser. Could do both — headline + per-row chip.
-3. **Where does mastery live?** Champion detail header, or a sidebar in the list, or both. Lean toward detail-only — it's a vanity metric in list context.
-4. **Drift window?** 14d vs prior 14d is the obvious default. Range selector adds complexity; defer.
+1. **Champions tab rename?** "Dossier", "Pool", "Champions" — once Phase 1 lands, the tab is the dossier index, not a list. Worth a rename.
+2. **Where does the post-game surface live?** Profile section, a route segment that opens on SSE arrival, or a peer-route modal. Each has different "this artifact is the after-game read" weight.
+3. **Cross-link match-row icon — modal vs full nav?** A match row that's also a champion link could `e.stopPropagation()` to the icon area; alternative is a small peer-route hover/modal so the morph into match detail isn't disrupted.
+4. **Pool-drift window?** 14d-vs-prior-14d is the obvious default. Range selector adds complexity; defer.
+5. **Composite LP forecast confidence model?** Naive (equal weight on form/time/champ/tilt) vs. a tiny linear fit on the user's own history. The latter is more honest but needs months of LP-history snapshots to be meaningful — defer the fit until data accrues.

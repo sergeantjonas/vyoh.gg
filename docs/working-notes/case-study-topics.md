@@ -299,6 +299,45 @@ Evidence to collect (for any external write-up; case study already cites them in
 - diff of a real auto-PR (additive + auto-merge label) once one lands in production
 - screenshot of the Actions workflow summary showing the `summary` step output rendered in the PR body
 
+## Candidate write-up 9 — The ConclusionCard pattern: a stats site that talks
+
+Status: **proposed**. The pattern itself is the most-reused, most-distinctive abstraction in the LoL section and has no write-up yet. Working notes that orbit it: [trends-rework.md](./trends-rework.md) (where it was first formalized), [app-state-analysis.md](./app-state-analysis.md) (where it's identified as the differentiator), [personal-baselines.md](./personal-baselines.md) (the framing that makes the verdicts land), [post-game-close-the-loop.md](./post-game-close-the-loop.md) (its strongest forward application).
+
+The thesis: **most stats sites describe; vyoh talks.** Every league companion app — op.gg, u.gg, blitz, mobalytics — sits the user in front of a dashboard of charts and tables and trusts them to derive meaning. Vyoh inverts the work: each tile renders a structured `{ verdict, evidence, prescription? }` triple via a single `ConclusionCard` primitive, and the chart is demoted from the headline to the supporting evidence under a sentence that says what's happening.
+
+The arc to write up:
+
+- The genre's default is metric → judgment. *"Aurelion Sol 12 games, 50% WR, 3.2 KDA."* The reader does the work of asking "is that good?"
+- The vyoh default is judgment → metric. *"Aurelion Sol is your workhorse — 12 games, +6pp above your account average."* The chart is the receipt, not the message.
+- The pattern composes: 12 Trends tiles, the Champions list (planned), Pregame Ritual, post-game close-the-loop, the composite LP forecast — all the same `{ verdict, evidence, prescription? }` shape. The single abstraction carries surprising weight.
+- The pattern *constrains*: every tile has to either fire a verdict, fire a muted "directional only" path, or render an empty-state. There are no neutral middles. That constraint is the design principle disguised as a TypeScript type.
+- The pattern depends on **personal baselines** (see [personal-baselines.md](./personal-baselines.md)). A genre-default global percentile would force the tile back to scoreboard tone; the you-vs-you frame keeps it conversational.
+
+Topics:
+
+- structural type as design language — the `RitualSignal` / `ConclusionCard` shape as load-bearing primitive
+- the three exits per tile (verdict / muted / empty) and why "no neutral middle" is the rule
+- composition across surfaces — same abstraction, different windows, different prescriptions
+- the cost of "honest uncertainty" — sample-size badges, "directional only" labels, no single-number forecasts
+- when the pattern stops being right — population baselines, score-of-game badges on match detail (deliberately verdict-free), the live page (in-game, not retrospective)
+- the read on the genre: where calm-coaching diverges from gamified-stats, with screenshots side-by-side
+
+Portfolio signal:
+
+- design-as-engineering — picking an abstraction that *constrains* feature work in a productive direction
+- restraint vs. the genre — explicitly diverging from op.gg without dismissing it
+- the pattern is real, not aspirational — by write-up time it spans ≥12 Trends tiles + Pregame Ritual + post-game + Champions list verdict; the case study can cite the actual file count and lines of shared primitive code
+
+Evidence to collect:
+
+- before/after screenshots of one tile (raw chart vs. ConclusionCard wrap of the same data)
+- side-by-side with op.gg / u.gg on the same player surface for tonal contrast
+- a count of `ConclusionCard` call sites at write-up time, with the primitive's source linked
+- the `RitualSignal` / verdict-shape types as the load-bearing TypeScript primitives
+- the muted / empty / verdict exit paths actually rendered, to show the no-neutral-middle rule in code
+
+Best written *after* post-game close-the-loop ships, since that surface is the cleanest demonstration of the pattern composing across the play loop. Pairs naturally with a [personal-baselines.md](./personal-baselines.md) follow-on, or absorbs the personal-baselines framing into a single longer piece.
+
 ## README sections to grow incrementally
 
 ### Architecture
