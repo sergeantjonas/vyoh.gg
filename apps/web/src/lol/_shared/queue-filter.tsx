@@ -10,6 +10,17 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 const ALL_VALUE = "__all__";
 
+/**
+ * Browse-only queue picker — writes `?queue=<id>` for the page to consume.
+ *
+ * Do NOT mount this on analytical surfaces (Champions, Trends, Recap,
+ * ritual). Those already filter through `filterToSerious`, which strips
+ * non-serious queues (ARAM, Arena, Quickplay, Swarm) before any aggregation
+ * runs. Layering this picker on top is a footgun: selecting ARAM yields an
+ * empty page because the queue was dropped one step earlier. The
+ * serious-queues popover in the account header is the right control for
+ * those surfaces.
+ */
 export function QueueFilter() {
   const navigate = useNavigate();
   const { queue } = useSearch({ from: "/lol/$accountSlug" });

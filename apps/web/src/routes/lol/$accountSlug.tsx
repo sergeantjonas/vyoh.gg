@@ -414,7 +414,11 @@ function AccountLayout() {
                       )}
                       {!isMatchDetail && (
                         <div className="flex items-center gap-2">
-                          <SeriousQueuesSettings />
+                          {/* The Matches subtree shows every queue (it's a
+                              browse surface), so the serious-queues
+                              preference has no effect there — hide the icon
+                              to avoid implying it does. */}
+                          {!isInMatchesSubtree && <SeriousQueuesSettings />}
                           <AccountSwitcher currentSlug={accountSlug} />
                           <RefreshAccountButton account={account} />
                         </div>
