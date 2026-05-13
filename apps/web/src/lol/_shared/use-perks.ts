@@ -1,3 +1,4 @@
+import { getRuneAsset } from "@/lol/_shared/asset-manifest";
 import { useQuery } from "@tanstack/react-query";
 
 const PERKS_URL =
@@ -17,7 +18,11 @@ export interface PerkInfo {
   name: string;
 }
 
-function iconUrlFromPath(path: string): string {
+// Manifest covers icon URLs; the runtime still fetches perks.json once for
+// id→name mapping (manifest stores only paths/hashes, not localized names).
+function iconUrlFromPath(id: number, path: string): string {
+  const bundled = getRuneAsset(id);
+  if (bundled) return bundled;
   const rawUrl = ASSETS_BASE + path.replace("/lol-game-data/assets/", "/").toLowerCase();
   const src = rawUrl.replace("https://", "");
   return `https://wsrv.nl/?url=${src}&w=40&output=webp`;
@@ -31,7 +36,10 @@ export function usePerks(): Map<number, PerkInfo> | undefined {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw: RawPerk[] = await res.json();
       return new Map(
-        raw.map((p) => [p.id, { iconUrl: iconUrlFromPath(p.iconPath), name: p.name }])
+        raw.map((p) => [
+          p.id,
+          { iconUrl: iconUrlFromPath(p.id, p.iconPath), name: p.name },
+        ])
       );
     },
     staleTime: Number.POSITIVE_INFINITY,

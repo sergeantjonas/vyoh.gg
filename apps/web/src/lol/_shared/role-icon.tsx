@@ -29,6 +29,8 @@ export function isRolePosition(value: string): value is RolePosition {
   );
 }
 
+import { getRoleIconAsset } from "@/lol/_shared/asset-manifest";
+
 const CDRAGON_POSITION_BASE =
   "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg";
 
@@ -41,7 +43,8 @@ const POSITION_SLUG: Record<RolePosition, string> = {
 };
 
 export function roleIconUrl(position: RolePosition): string {
-  return `${CDRAGON_POSITION_BASE}/position-${POSITION_SLUG[position]}.svg`;
+  const slug = POSITION_SLUG[position];
+  return getRoleIconAsset(slug) ?? `${CDRAGON_POSITION_BASE}/position-${slug}.svg`;
 }
 
 interface RoleIconProps {

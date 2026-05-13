@@ -1,8 +1,10 @@
 import { normalizeChampionAlias } from "@/lol/_shared/champion-icon";
 import { useQuery } from "@tanstack/react-query";
 
-const CHAMPIONS_URL =
-  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json";
+// Served by Vite from apps/web/public/lol/champion-summary.json. The file is
+// refreshed by scripts/refresh-lol-assets.mts on every run, so there's no
+// CDN hop and the response is cacheable at the same domain as the app.
+const CHAMPIONS_URL = "/lol/champion-summary.json";
 
 interface RawChampion {
   id: number;

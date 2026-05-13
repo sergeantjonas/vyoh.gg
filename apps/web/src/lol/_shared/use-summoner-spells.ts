@@ -1,3 +1,4 @@
+import { getSummonerSpellAsset } from "@/lol/_shared/asset-manifest";
 import { useQuery } from "@tanstack/react-query";
 
 const SPELLS_URL =
@@ -17,7 +18,11 @@ export interface SummonerSpellInfo {
   name: string;
 }
 
-function iconUrlFromPath(path: string): string {
+// Same shape as use-perks: manifest covers icon URLs, runtime fetch still
+// needed for id→name mapping.
+function iconUrlFromPath(id: number, path: string): string {
+  const bundled = getSummonerSpellAsset(id);
+  if (bundled) return bundled;
   const rawUrl = ASSETS_BASE + path.replace("/lol-game-data/assets/", "/").toLowerCase();
   const src = rawUrl.replace("https://", "");
   return `https://wsrv.nl/?url=${src}&w=40&output=webp`;
@@ -31,7 +36,10 @@ export function useSummonerSpells(): Map<number, SummonerSpellInfo> | undefined 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw: RawSummonerSpell[] = await res.json();
       return new Map(
-        raw.map((s) => [s.id, { iconUrl: iconUrlFromPath(s.iconPath), name: s.name }])
+        raw.map((s) => [
+          s.id,
+          { iconUrl: iconUrlFromPath(s.id, s.iconPath), name: s.name },
+        ])
       );
     },
     staleTime: Number.POSITIVE_INFINITY,

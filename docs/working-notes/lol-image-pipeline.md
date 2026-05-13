@@ -85,6 +85,8 @@ The non-goal: a backend image proxy with persistent storage. Parked. See "Parked
 
 ## Phase 1 — build-time prefetch + manifest
 
+**Status: shipped 2026-05-13.** Patch 16.10.1. 191 champions × 3 variants (6.4MB), 705 items (2.8MB), 103 runes (412KB), 23 summoner spells (84KB), 5 role-icon SVGs (20KB). Total ≈9.7MB, manifest 244KB. URL helpers (`champion-icon.ts`, `role-icon.tsx`, `use-perks.ts`, `use-summoner-spells.ts`) prefer the manifest and fall through to the existing wsrv.nl/CDragon chain on miss; Phase 0's bounded splash-resolver still guards the fallback path. Profile icons remain on wsrv.nl per Decision 5.
+
 **Goal:** Self-host the bounded asset set. Cold loads serve every common image from origin. wsrv.nl drops out of the critical path.
 
 **New files:**
