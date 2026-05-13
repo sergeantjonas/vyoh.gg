@@ -208,6 +208,18 @@ For role icons: pass-through SVG from `https://raw.communitydragon.org/latest/pl
 
 **Effort:** One full session. The Sharp pipeline + manifest schema is the chunky part; the URL-helper rewrites are mechanical.
 
+### Build log
+
+In-progress notes worth remembering for the case study. Append per chunk; do not rewrite history.
+
+**Chunk 1 (2026-05-13) — refresh script + champions pipeline.** Shipped: [`scripts/refresh-lol-assets.mts`](../../scripts/refresh-lol-assets.mts), manifest schema v1, 191 champions × 3 variants under `apps/web/public/lol/champions/` (~6.4MB), `champion-summary.json` move, theme/blurhash regen wired through the same script in one pass.
+
+Surprises:
+- **Script is `.mts`, not `.ts`.** Root `package.json` has no `"type": "module"`, so tsx defaults to CJS and refuses top-level await + `import.meta.url`. `.mts` forces ESM per file without disturbing the rest of the repo.
+- **`sharp` + `tsx` + `blurhash` installed at the workspace root**, not in `apps/web`. The runner script lives at root and pnpm hoisting is unreliable for the native `sharp` binary; co-locating avoids a CI-only failure.
+- **`urlPathToDiskPath` exists because `path.join(root, "apps/web", "/lol/x")` silently drops `public/`.** First run wrote 6MB of WebPs to `apps/web/lol/` (no `public/`); the in-script consistency assertion used the same buggy path and missed it. Caught by `du -sh` on the expected output dir. Lesson: assertions that re-derive the path they're checking aren't assertions — manifest URLs and disk paths need a single mapping helper.
+- **Patch-bump detection triggers an implicit `--full`.** CDragon serves "latest" with no version key; if the patch changed underneath us, every cached entry is suspect. Sidesteps the question of per-source ETags entirely for Phase 1.
+
 ---
 
 ## Phase 2 — automated patch refresh (CI)

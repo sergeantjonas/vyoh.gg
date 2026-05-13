@@ -11,9 +11,18 @@ importers:
       '@biomejs/biome':
         specifier: ^1.9.4
         version: 1.9.4
+      blurhash:
+        specifier: ^2.0.5
+        version: 2.0.5
       concurrently:
         specifier: ^9.1.0
         version: 9.2.1
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
