@@ -79,6 +79,8 @@ The non-goal: a backend image proxy with persistent storage. Parked. See "Parked
 
 **Effort:** 30 min implementation + manual verification.
 
+**Status: shipped 2026-05-13.** Sequential-with-timeout chosen over parallel `Promise.any` — the bound `N × timeoutMs` (≈6s for a 3-candidate chain, down from the unbounded 30–60s tail) is already a 10× improvement, and the simpler shape preserves the existing candidate-order preference without head-start tricks. Default `timeoutMs = 2000`. Unit coverage added at [`splash-resolver.test.ts`](../../apps/web/src/lol/_shared/splash-resolver.test.ts) stubbing `globalThis.Image` to drive the timeout and onload paths under fake timers. Owner verified manually on 2026-05-13 by repointing the wsrv.nl primary at the non-routable IP `10.255.255.1` to force a TCP-level hang — splashes settled to the CDragon fallback within ~2s instead of the pre-fix 30s+ wait.
+
 ---
 
 ## Phase 1 — build-time prefetch + manifest
