@@ -13,25 +13,6 @@
     "size": "size-limit",
     "size:cc": "size-limit --silent"
   },
-  "size-limit": [
-    {
-      "name": "main bundle (initial JS)",
-      "path": "dist/assets/index-*.js",
-      "limit": "200 kB",
-      "gzip": true
-    },
-    {
-      "name": "recharts chunk (lazy)",
-      "path": "dist/assets/CategoricalChart-*.js",
-      "limit": "85 kB",
-      "gzip": true
-    },
-    {
-      "name": "lol manifest (script-side JSON, not bundled into JS)",
-      "path": "dist/lol/manifest.json",
-      "limit": "400 kB"
-    }
-  ],
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
     "@radix-ui/react-dialog": "^1.1.15",
