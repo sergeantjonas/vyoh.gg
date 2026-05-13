@@ -7,9 +7,9 @@
 import {
   championVariants,
   itemIds,
-  manifestPatch as runtimePatch,
   roleIconSlugs,
   runeIds,
+  manifestPatch as runtimePatch,
   summonerSpellIds,
 } from "./manifest.gen";
 
@@ -49,9 +49,7 @@ export function getRuneAsset(id: number | string): string | undefined {
 
 export function getSummonerSpellAsset(id: number | string): string | undefined {
   const key = String(id);
-  return summonerSpellIds.has(key)
-    ? `/lol/summoner-spells/${key}.webp`
-    : undefined;
+  return summonerSpellIds.has(key) ? `/lol/summoner-spells/${key}.webp` : undefined;
 }
 
 export function getRoleIconAsset(slug: string): string | undefined {
