@@ -123,7 +123,9 @@ export function TrendWrTrajectory({
   let verdict: string;
   if (deltaPp === null) {
     verdict = `${currentPct}% win rate over ${sampleSize} games.`;
-  } else if (deltaPp >= 0) {
+  } else if (deltaPp === 0) {
+    verdict = `WR steady vs prior window — ${currentPct}% overall.`;
+  } else if (deltaPp > 0) {
     verdict = `WR up ${deltaPp}% vs prior window — ${currentPct}% overall.`;
   } else {
     verdict = `WR down ${Math.abs(deltaPp)}% vs prior window — what changed?`;

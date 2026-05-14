@@ -99,16 +99,13 @@ export function TrendTiltIndicator({
   const sampleSize = afterWin.games + afterLoss.games;
 
   const verdict =
-    wrWin > wrLoss
-      ? `Win rate drops ${Math.abs(diffPp)}% after a loss.`
-      : diffPp < 0
-        ? `Win rate drops ${Math.abs(diffPp)}% after a win — fresh sessions help.`
-        : "Win rate is stable regardless of your last result.";
+    Math.abs(diffPp) < 1
+      ? "Win rate is stable regardless of your last result."
+      : diffPp > 0
+        ? `Win rate drops ${diffPp}% after a loss.`
+        : `Win rate drops ${Math.abs(diffPp)}% after a win — fresh sessions help.`;
 
-  const prescription =
-    Math.abs(diffPp) >= 8 && wrWin > wrLoss
-      ? "Consider stepping away after a loss."
-      : undefined;
+  const prescription = diffPp >= 8 ? "Consider stepping away after a loss." : undefined;
 
   return (
     <ConclusionCard
