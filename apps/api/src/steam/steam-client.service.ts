@@ -2,9 +2,11 @@ import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
+  SteamGetOwnedGamesResponse,
   SteamGetPlayerSummariesResponse,
   SteamGetStoreItemsResponse,
   SteamGetWishlistResponse,
+  SteamOwnedGameRaw,
   SteamPlayerRaw,
   SteamStoreItemRaw,
   SteamWishlistItemRaw,
@@ -51,6 +53,17 @@ export class SteamClientService {
       // An owner with wishlist hidden or empty returns `{ response: {} }` — missing
       // `items` rather than `items: []`. Normalize so callers don't need to branch.
       return data.response.items ?? [];
+    });
+  }
+
+  async getOwnedGames(steamId: string): Promise<SteamOwnedGameRaw[]> {
+    return this.limiter.schedule("owned-games", async () => {
+      const path = `/IPlayerService/GetOwnedGames/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}&include_appinfo=1&include_played_free_games=1`;
+      const data = await this.fetchJson<SteamGetOwnedGamesResponse>(path);
+      // Steam returns `{ response: {} }` when the library is private — distinct
+      // from a 4xx. Treat as "no games" so the caller can persist that as an
+      // empty snapshot rather than throwing.
+      return data.response.games ?? [];
     });
   }
 

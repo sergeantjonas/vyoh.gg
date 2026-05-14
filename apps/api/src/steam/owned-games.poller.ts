@@ -1,0 +1,35 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
+import { SteamOwnedGamesService } from "./owned-games.service";
+
+// Steam's playtime is essentially read-only between launches — once-daily is
+// the right cadence. 04:00 Europe/Brussels lands in the owner's quiet hours,
+// well outside any plausible peer-traffic window, and keeps the snapshot
+// boundary stable across DST transitions (Brussels never crosses 04:00
+// during a spring-forward / fall-back).
+@Injectable()
+export class SteamOwnedGamesPoller {
+  private readonly logger = new Logger(SteamOwnedGamesPoller.name);
+  private running = false;
+
+  constructor(private readonly service: SteamOwnedGamesService) {}
+
+  @Cron("0 4 * * *", { name: "steam-owned-games", timeZone: "Europe/Brussels" })
+  async tick(): Promise<void> {
+    if (this.running) {
+      this.logger.warn("previous tick still running — skipping");
+      return;
+    }
+    this.running = true;
+    try {
+      await this.service.syncOwnedGames();
+    } catch (err) {
+      // Steam is occasionally flaky around their own maintenance windows.
+      // Swallow so the scheduler keeps firing tomorrow; the next run picks
+      // up wherever today's left off.
+      this.logger.warn(`owned-games sync failed: ${err}`);
+    } finally {
+      this.running = false;
+    }
+  }
+}

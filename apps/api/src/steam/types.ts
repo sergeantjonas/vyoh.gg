@@ -59,3 +59,29 @@ export interface SteamGetStoreItemsResponse {
     store_items?: SteamStoreItemRaw[];
   };
 }
+
+// IPlayerService/GetOwnedGames/v1/. With `include_appinfo=1` Steam returns the
+// game name + img hashes; `include_played_free_games=1` keeps F2P titles the
+// owner has launched (otherwise they're omitted entirely). `playtime_2weeks`
+// is only present when nonzero — we coerce missing to `null` at the boundary
+// rather than treating absent as 0, so the column stays honest about
+// "Steam didn't report it" vs. "explicitly zero this fortnight".
+export interface SteamOwnedGameRaw {
+  appid: number;
+  name: string;
+  playtime_forever: number;
+  playtime_2weeks?: number;
+  img_icon_url?: string;
+  has_community_visible_stats?: boolean;
+  playtime_windows_forever?: number;
+  playtime_mac_forever?: number;
+  playtime_linux_forever?: number;
+  playtime_deck_forever?: number;
+}
+
+export interface SteamGetOwnedGamesResponse {
+  response: {
+    game_count?: number;
+    games?: SteamOwnedGameRaw[];
+  };
+}

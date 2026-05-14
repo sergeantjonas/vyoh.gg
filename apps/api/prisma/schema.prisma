@@ -51,6 +51,28 @@ model MatchTimelineCache {
   cachedAt DateTime @default(now())
 }
 
+model SteamOwnedGame {
+  appid       Int       @id
+  name        String
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  removedAt   DateTime?
+
+  snapshots SteamPlaytimeSnapshot[]
+}
+
+model SteamPlaytimeSnapshot {
+  appid                  Int
+  snapshotDate           DateTime @db.Date
+  playtimeForeverMinutes Int
+  playtime2WeeksMinutes  Int?
+
+  game SteamOwnedGame @relation(fields: [appid], references: [appid])
+
+  @@id([appid, snapshotDate])
+  @@index([snapshotDate])
+}
+
 model Match {
   matchId      String
   puuid        String
