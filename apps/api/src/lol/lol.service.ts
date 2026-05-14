@@ -828,7 +828,7 @@ export class LolService {
       });
   }
 
-  // Hour-of-day distribution bucketed in `Europe/Berlin` (owner local time).
+  // Hour-of-day distribution bucketed in `Europe/Brussels` (owner local time).
   // Reads from the indexed Match table; no Riot calls. Remakes excluded so
   // they don't dilute win rate. Returns a 24-bucket array even when the
   // summoner is unknown or has zero matches, so the heatmap tile can render
@@ -842,7 +842,7 @@ export class LolService {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
     }
-    const timezone = "Europe/Berlin";
+    const timezone = "Europe/Brussels";
     const emptyHours = () =>
       Array.from({ length: 24 }, (_, hour) => ({ hour, games: 0, wins: 0 }));
     const summoner = await this.prisma.summoner.findUnique({

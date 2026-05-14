@@ -74,7 +74,7 @@ Hour-of-day heatmap, 24 vertical bars, height = games played, color = win rate. 
 Shape decisions taken during implementation:
 
 - **No cron / no pre-compute.** On-demand query against the indexed `Match` table matches the `getDuos` / `getChampionPairs` pattern. Default reach is the last 500 non-remake matches; the index `[puuid, playedAt]` makes this cheap.
-- **Server-side bucketing in `Europe/Berlin`.** Riot stamps are absolute; the heatmap reads as a *self-portrait* only when bucketed in owner-local time. Implemented via `Intl.DateTimeFormat({ timeZone: "Europe/Berlin", hour: "2-digit", hourCycle: "h23" })`. Timezone is hard-coded on the server, returned in the response payload so the tile can render the label without re-knowing it.
+- **Server-side bucketing in `Europe/Brussels`.** Riot stamps are absolute; the heatmap reads as a *self-portrait* only when bucketed in owner-local time. Implemented via `Intl.DateTimeFormat({ timeZone: "Europe/Brussels", hour: "2-digit", hourCycle: "h23" })`. Timezone is hard-coded on the server, returned in the response payload so the tile can render the label without re-knowing it.
 - **No sample-size gate.** Reader sees the full 24 hours and the total-game `SampleSizeBadge`; they judge for themselves. Color thresholds were chosen so 50%±2.5pp reads as a neutral muted tone — only meaningful deviations tint emerald/rose.
 
 **Files (new):**
