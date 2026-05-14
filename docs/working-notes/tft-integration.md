@@ -32,7 +32,8 @@ None committed — listed for when work starts:
 
 - **Rate-limit budget.** TFT shares the Riot key's app-rate-limit pool with LoL. Need to confirm the existing reservoir leaves headroom or partition the budget; document the choice up-front.
 - **Backfill story.** TFT match-v5 retention mirrors LoL — likely the same 2-year horizon. Reuse the historical-backfill SSE pattern from [riot-investigation-2026-05-07.md](riot-investigation-2026-05-07.md).
-- **Asset pipeline.** Champions, traits, items, augments are versioned per set. Mirror the build-time-champion-assets pattern; do not hotlink Riot's CDN.
+- **Asset pipeline.** Champions, traits, items, augments are versioned per set. Mirror the build-time-champion-assets pattern; do not hotlink Riot's CDN. (Caveat: if the [lol-image-pipeline.md](lol-image-pipeline.md) runtime-proxy pivot has shipped by then, TFT lands on the proxy directly — no bundled assets.)
+- **Cross-domain `apps/web/src/_assets/` hoist** ([folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 4). TFT becoming the third asset-handling domain is the trigger to lift the asset-manifest pattern out of `lol/_shared/` and `steam/_shared/` into a top-level location. Skip if the runtime-proxy pivot has already retired bundled assets — the hoist only earns its keep against the bundled pattern.
 - **Set boundaries as patch-equivalents.** TFT sets are coarser than LoL patches but the same "shade chart background at set boundaries" idiom applies — see [vnext-ideas.md](vnext-ideas.md) "Patch-aware everything."
 
 ---
