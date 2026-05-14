@@ -16,6 +16,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](app-state-analysis.md)
 - **Home deck — next tile** — chunks 1 and 2 shipped 2026-05-14 (bento + minimum-viable tile set, then chronotype 2×2 hero with Europe/Brussels hour bucketing). Next surface candidate(s) per the parent self-portrait note. → [home-deck.md](home-deck.md)
 - **Steam Phase S2 (next)** — wishlist surface: poller + cache, wishlist `ConclusionCard` chip, drill-in list with date-added timestamps. S1 foundation shipped 2026-05-14 (`d9af63b` backend + `16fcccd` frontend stubs; LoL-profile placeholder descoped per cross-stream separation). → [steam-integration.md](steam-integration.md)
+- **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces. Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](owner-auth.md)
 
 ## Adjacent maintenance (sub-session each)
 
