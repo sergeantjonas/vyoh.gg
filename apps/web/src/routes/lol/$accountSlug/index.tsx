@@ -15,7 +15,6 @@ import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { ProfileSynergy } from "@/lol/profile/profile-synergy";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
-import { ProfileSteamSection } from "@/steam/profile/profile-steam-section";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
@@ -45,7 +44,6 @@ function ProfilePage() {
       <ProfileQueueDistribution />
       <ProfileActivityCalendar accountSlug={accountSlug} />
       <ProfileStatsBar />
-      <ProfileSteamSection />
       {matches && matches.length > 0 && (
         <Link
           to="/lol/$accountSlug/recap"
