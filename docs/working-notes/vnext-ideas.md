@@ -45,6 +45,10 @@ This is a backlog. Bands set the search order, not commitment:
 
 **Patch-aware champion memory.** *"Last time you played Vex, the patch was 14.18 — she got Q-CD reduced in 14.19; you went 4-1 in 14.18 and 1-5 since."* Patch boundaries are already shaded on charts ([trend-kda](../../apps/web/src/lol/trends/trend-kda.tsx), [profile-lp-history](../../apps/web/src/lol/profile/profile-lp-history.tsx), champion-detail WR sparkline) and per-patch WR is already computed for the patch history strip. The missing piece is the *verdict line*: surface the deltas as a `ConclusionCard` framing on Champion detail, not just a chip on the patch row. Companion to the [personal-baselines](personal-baselines.md) extension (PB3 — patch-drift verdict). Low complexity, no new data, high reward — patch awareness is severely underutilized signal across the genre.
 
+### Self-portrait surfaces
+
+Promoted to its own working note — see [self-portrait-surfaces.md](self-portrait-surfaces.md). Reframes vyoh.gg from "LoL stats site" to "self-portrait engine: every panel is a `ConclusionCard` sourced from a different stream of life." Tracked candidates include chronotype panel, GitHub activity reframed, Spotify, and WakaTime (conditional), plus adjacent probes (mastery, free-week echo, identity-level signals).
+
 ### Motion / UI showcase
 
 **Magazine-grid reflow on Trends range change.** When the user switches "30d ↔ 7d" on the trends selector, each `ConclusionCard` re-derives its verdict + chart. Use Motion's `layout` prop on the grid so cards flow physically into new positions, with verdicts cross-fading. Flagship motion moment for the rework — "my trends respond to my question." **Cross-reference: trends-rework T2.5 should pin the layout system to one that supports this from day one.**
@@ -181,6 +185,8 @@ These are off the table for the foreseeable future. Listed so they don't quietly
 - **Lottie / dotLottie at scale.** Risk of clashing with calm aesthetic. One hand-crafted Lottie for a hero empty-state could fit; broad adoption does not.
 - **OpenTelemetry.** Overkill until we have multiple services. Re-evaluate if microservices ever happen (they probably won't).
 - **TimescaleDB / DuckDB.** Postgres handles current scale fine. Re-evaluate if per-frame timeline data analytics becomes a real feature.
+- **Self-portrait deferrals.** All hand-maintained surfaces (`/uses`, availability card, anti-resume, personal changelog, currently-reading, Letterboxd), all local-data-collection surfaces (system snapshot, speedtest, local-git "currently working on"), plus Strava, location/timezone, and the creative wildcards (live presence, guestbook, "what I'm into now" rotator) — all off the table per the 2026-05-14 brainstorm. Full reasons in [self-portrait-surfaces.md](self-portrait-surfaces.md#filtered-out).
+- **Last.fm.** Owner doesn't use it. Spotify is the audio integration to consider — see [self-portrait-surfaces.md](self-portrait-surfaces.md).
 
 ---
 
