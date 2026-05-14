@@ -14,24 +14,204 @@ Sibling doc: [self-portrait-surfaces.md](self-portrait-surfaces.md) — Steam pa
 
 ---
 
-## Candidate surfaces to flesh out when work starts
+## Account model & routing (decided 2026-05-14)
 
-The following are *plausible* once Steam is wired — none are committed, but all reuse the recap engine:
-
-- **Playtime trends per game.** Weekly/monthly playtime, biggest jumps, gone-quiet flags. Direct analogue of LP/WR trends.
-- **Library composition.** Genre mix, average playtime per genre, "you own 412 games and have played 67."
-- **"Currently / recently played" strip.** Public-profile-derived. Calm Profile-page chip.
-- **Achievement velocity.** Achievements per hour played per game, framed via `ConclusionCard`. Quirky vanity metric, calm copy.
-- **Cross-game recap.** Steam playtime + LoL match counts in the same yearly recap — the strongest argument for the "self-portrait engine" reframe.
+- **Single hardcoded SteamID64.** Not multi-account like LoL. Eliminates the account-switch UI on Steam panels and simplifies polling.
+- **Game detail route at `/steam/game/:appid`**, mirroring `/champion/:name`. Steam panels on Profile link into this route.
 
 ---
 
-## Open questions (to revisit when scoping begins)
+## Privacy prerequisites
 
-- **Auth model.** Public Steam profile (read-only, no OAuth) covers most needs. Anything that requires non-public data — friends list, transactions, wishlist private notes — needs OpenID/OAuth. Default to public-profile-only until a surface forces otherwise.
-- **Rate limits / polling cadence.** Steam Web API limits are looser than Riot's but still need a reservoir. Reuse the Bottleneck pattern documented in the rate-limiter case study; don't introduce a second limiter library.
-- **Backfill story.** Steam does not expose deep historical session data — playtime is mostly cumulative. The trends engine may need to start from "now" and accrue, unlike LoL where we backfilled from match-v5.
-- **App-id / icon assets.** Mirror the build-time champion-asset pipeline (case study `build-time-champion-assets`) — pull game header/library art at build, don't hotlink Steam's CDN.
+Steam's privacy is granular, not all-or-nothing. The owner's account needs:
+
+1. **Profile visibility = Public.**
+2. **Game Details = Public**, with the "Always keep my total playtime private" sub-toggle **off**. This one setting gates `GetOwnedGames`, `GetRecentlyPlayedGames`, `GetPlayerAchievements`, and the `gameid` field on `GetPlayerSummaries` — everything except wishlist.
+3. **Wishlist not hidden** (separate toggle).
+
+Friends list, inventory, and profile comments can stay locked down — we don't use friend data, and there's no "show only summary stats" middle ground for game data.
+
+---
+
+## Steam Web API surface — what we can derive
+
+**No OAuth needed for any of the below** — Web API key + public profile only.
+
+| Endpoint | Gives us |
+|---|---|
+| `IPlayerService/GetOwnedGames` | Lifetime + 2-week playtime per game; OS split (windows/mac/linux/deck); `rtime_last_played` |
+| `IPlayerService/GetRecentlyPlayedGames` | Last 10 played, 2-week window |
+| `ISteamUser/GetPlayerSummaries` | Profile + currently-playing (`gameid`, `gameextrainfo`) |
+| `ISteamUserStats/GetPlayerAchievements` | Per-game unlocks with **real `unlocktime` timestamps** |
+| `ISteamUserStats/GetSchemaForGame` | Static achievement schema (names, icons, hidden flag) |
+| `ISteamUserStats/GetGlobalAchievementPercentagesForApp` | Per-achievement global rarity |
+| `store.steampowered.com/api/appdetails` | Genre tags, header/library art, sp/mp flags. Rate-limited — build-time only |
+| `store.steampowered.com/wishlist/profiles/{steamid}/wishlistdata/` | Wishlist with date-added timestamps. Undocumented-but-stable. |
+
+**Not exposed** (so we don't promise it):
+
+- Per-session playtime history. Cumulative + rolling-2-week + last-played only.
+- Library purchase dates → kills the "on this day you bought X" chip.
+- Friend overlap, private games, hidden playtime totals.
+- Price paid → kills cost-per-hour panels (OAuth-only territory).
+
+---
+
+## Backfill strategy
+
+Steam's data shape is asymmetric to Riot's — no match log. Two complementary sources fill the gap:
+
+1. **Daily polling diff.** Poll `playtime_forever` per game daily, store the delta. Forward-only — trend history starts when we start polling. Drives active trend cards.
+2. **Achievement-anchor reconstruction.** Achievement `unlocktime` is the only endpoint that gives real historical timestamps. Clustered per game, it yields a *"when did you actually play this"* timeseries — backfillable years deep, with uneven coverage (CS2 / Dota / no-achievement games miss out).
+
+Combine both: daily polling = active trend layer; achievement-anchor reconstruction = historical layer. Both feed the same recap engine.
+
+Reuse the Bottleneck pattern from the rate-limiter case study; don't introduce a second limiter library. Mirror the build-time champion-asset pipeline (case study `build-time-champion-assets`) for game header/library art — don't hotlink Steam's CDN.
+
+---
+
+## Candidate surface board (feasibility-tagged)
+
+Already confirmed: wishlist panel. The rest is plausible — none committed yet.
+
+### High-confidence, direct API mapping
+
+- **Forever games.** Lifetime hero per game + 2-week delta. *"1,847h into CS2 across 8 years. 14h in the last two weeks."*
+- **Library composition / backlog economy.** *"412 owned, 67 ever played, 12 fully completed."* Honest mirror; pairs with wishlist.
+- **Currently / recently played strip.** Calm Profile chip; `GetPlayerSummaries` + `GetRecentlyPlayedGames`.
+- **Platform-mix panel.** OS-split fields are free in `GetOwnedGames`. *"42% of your time is on Deck."* Identity signal, zero extra calls.
+- **Singleplayer vs multiplayer mix.** Tag-derived at build time. *"68% of 2025 playtime was singleplayer."*
+- **Returned-to / gone-quiet verdicts.** `rtime_last_played` delta. Inverts the existing LoL gone-quiet flag.
+- **Genre drift over time.** Tag-derived; needs daily polling to build the timeseries.
+- **Achievement tracking family.** Per-game and cross-game; large enough surface to brainstorm separately — see [Achievement family](#achievement-family) below.
+
+### Cross-stream (the self-portrait engine payoff)
+
+- **Weekly gaming-total bento card.** LoL match count + Steam hours = total gaming this week. Smallest surface that proves the recap-engine reuse claim — best first cross-stream pick.
+- **LoL-vs-Steam evening split.** Requires Steam-side session reconstruction (achievement-anchor or polling-derived) before it's honest. Tier-2.
+- **Yearly hero across both games.** Pairs with the LoL career-arc panel for a true cross-stream "self-portrait by year."
+
+### Behavioral mirror (analogues of LoL surrender-vote / queue-cadence work)
+
+- **Session-length distribution.** Achievement-anchor-derived where coverage exists; degraded gracefully for non-achievement games.
+- **First-game-of-the-day chip.** Same coverage caveat.
+
+### Filtered out / not feasible
+
+- **On-this-day-you-bought-X.** Purchase dates not exposed publicly.
+- **Price-paid-vs-hours-played.** OAuth-only; outside current public-profile-only filter.
+- **Friends-overlap.** Filtered on the no-other-player-exposure principle.
+- **True session log.** Steam doesn't expose one; everything session-shaped is reconstructed.
+
+---
+
+## Achievement family
+
+Owner-flagged 2026-05-14 as a wanted feature. Deep brainstorm in same session.
+
+**Why it leads the execution order.** `GetPlayerAchievements` is the only Steam endpoint that returns real historical timestamps (`unlocktime` per achievement). Building the achievement data layer also produces the session-anchor substrate used by the cross-stream insights in the candidate board (LoL-vs-Steam evening split, session-length distribution, first-game-of-the-day). The family pays double — direct surfaces *and* historical reconstruction for the rest of the trends engine. **Day 1 looks like year N**, because every `unlocktime` returned by the API backfills the timeline retroactively.
+
+### Core surfaces (MVP)
+
+- **Per-game achievement panel.** Spine of `/steam/game/:appid`. Scrollable list per achievement: icon, name, description (or `???` if locked & hidden), unlock timestamp if unlocked, inline global-rarity badge. Locked/unlocked visual distinction mirrors the LoL not-played-champion treatment.
+- **Recent unlocks strip.** Cross-game feed of last N unlocks in timestamp order. Calm Profile chip. Works cold-start from day 1.
+
+### Verdict family (per-game `ConclusionCard`s)
+
+- **Completion verdict.** *"34/87 unlocked. Three are <5% rare globally."*
+- **Time-to-100%.** For fully completed games. *"Inside: 4h from first to last unlock. Stardew Valley: 4 years."*
+- **Hidden-unlock reveal.** Hidden achievements you've already unlocked, surfaced fully — the spoiler is moot once unlocked.
+- **Stuck-at-X / abandoned-at-X mirrors.** *"Disco Elysium: 47/49 unlocked."* / *"Slay the Spire: 12%, last progressed 14 months ago."* Honest framing, never a nudge.
+
+### Signature-fingerprint family
+
+- **Rarity-weighted score per game.** *"Average unlock rarity in Hades: 18%."* Pairs with the LoL signature radar.
+- **Rarest unlock chip.** Per-game and cross-game variants.
+- **Completionist axis verdict.** *"Median completion 14%. You only fully complete roguelikes."*
+- **Achievement game-design analysis.** Plot a game's *global* rarity distribution as a tiny chart — hardcore-vs-generous achievement design. Tier-3 quirky.
+
+### Temporal / chronotype family
+
+- **Per-game unlock timeline.** Vertical timeline on the game-detail page — first unlock → most recent. Shape of how the game was played.
+- **Cross-game unlock heatmap.** Hour-of-day × day-of-week. Singleplayer chronotype panel, directly mirrors the [LoL chronotype panel](self-portrait-surfaces.md#live-candidates-).
+- **First-played-meaningfully chip.** First unlock timestamp as de-facto "first real session" date. Joins the anniversary-chips family.
+- **Last-progressed chip.** Combined with `rtime_last_played`, reveals "still launching, not progressing" state.
+
+### Yearly / career-narrative
+
+- **Your year in achievements.** Total unlocks, rarest, most-completed game, fastest 100%. Folds into the yearly-recap engine.
+- **100%'d games hall.** Career-narrative chip.
+
+### Constraints pinned now
+
+- **No nudges.** *"47/49 unlocked"* is descriptive; *"finish the last 2"* is not done. Same rule as tilt-protection.
+- **Coverage gaps.** Games with no achievements (CS2) must degrade gracefully — playtime + recently-played still render, achievement panel hides.
+- **Hidden achievements.** Unlocked ones show fully. Locked hidden ones stay `???`, respecting dev intent for things the owner hasn't yet unlocked.
+- **No friends comparison.** Global rarity is descriptive, allowed. Named-friend comparison is filtered (no other-player exposure).
+
+### Data layer
+
+- **Schemas** via `GetSchemaForGame` — fetched once per owned game, cached. Icons mirrored at build per the asset-pipeline pattern (`build-time-champion-assets` case study).
+- **Global rarity** — weekly poll per owned-with-achievements game.
+- **Per-player unlocks** — daily poll, diff against last state, emit "new unlock" events for the recent-unlocks strip and recap composer.
+- **First read backfills history for free** — every `unlocktime` is real historical data.
+
+### Open design question
+
+- **Long achievement lists (100+).** The per-game panel must render calmly at scale. Probably the same answer as match-list pagination (virtualize or paginate), but worth deciding before the first wire.
+
+---
+
+## Phased execution plan
+
+Confirmed 2026-05-14. Cadence: gated on the LoL feature backlog winding down. Phases sized for one chunk plan each; chunks scoped at the start of each phase. Order can be revisited at any phase boundary.
+
+Phase-ordering decisions confirmed at the same time:
+
+- **S2 before S3** — wishlist as the warm-up that exercises S1's plumbing before daily polling lands.
+- **S4 acceptable as a substrate-only phase** — no user-visible surface for that stretch is fine.
+- **Cross-stream stays at S7** — foundations first; the weekly gaming-total bento does *not* jump forward.
+
+### Phase S1 — Foundation
+
+Steam Web API client + key/env handling, Bottleneck reservoir matching the Riot pattern, public-profile probe via `GetPlayerSummaries`, routing scaffold for `/steam/game/:appid` (stub), Profile-page Steam section placeholder. Lands the integration plumbing with no user-facing surface.
+
+### Phase S2 — Wishlist surface
+
+Wishlist endpoint poller + cache, wishlist `ConclusionCard` chip on Profile, drill-in list with date-added timestamps. The confirmed first surface; small enough to be a one-chunk warmup that exercises S1's plumbing end-to-end.
+
+### Phase S3 — Owned games + library composition
+
+`GetOwnedGames` poller storing baseline + daily delta, library-composition chip, forever-games surface, platform-mix chip, build-time asset pipeline for game header/library art. First *data-derived* trend surfaces; introduces the daily-polling layer.
+
+### Phase S4 — Achievement data layer
+
+Schema fetch per owned game, daily per-player unlock poll with diff, weekly global rarity poll, asset mirroring for achievement icons, storage schema for unlocks (timestamp, rarity, schema link). No user-facing surface — purely substrate. Unblocks both S5 and the cross-stream work in S7.
+
+### Phase S5 — Achievement surfaces MVP
+
+`/steam/game/:appid` achievement panel, recent-unlocks strip on Profile, completion verdict `ConclusionCard` per game. First user-facing achievement work — lands the spine.
+
+### Phase S6 — Achievement signature surfaces
+
+Rarity-weighted score, time-to-100%, hidden-unlock reveal, stuck-at-X / abandoned-at-X mirrors. Per-game `ConclusionCard` expansion.
+
+### Phase S7 — Temporal + cross-stream
+
+Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S4 achievement-anchor reconstruction), weekly gaming-total bento card, session-length distribution. The cross-stream payoff lands here.
+
+### Phase S8 — Yearly + career-narrative
+
+Your year in achievements, 100%'d games hall, cross-stream yearly hero. Folds Steam into the existing yearly-recap engine.
+
+S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S8 build on S4.
+
+---
+
+## Still open
+
+- Wishlist endpoint stability — `wishlistdata/` is widely used but undocumented. Have a lightweight backstop plan if it changes.
+- Hidden games. The owner can hide individual games from the public profile; those simply won't appear. No mitigation, just a known gap.
 
 ---
 

@@ -14,7 +14,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](match-depth-roadmap.md)
 - **PG4 peer-route post-game artifact** — explicitly v2; gated on the PG1–PG3 Profile framing proving out. → [post-game-close-the-loop.md](post-game-close-the-loop.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](app-state-analysis.md)
-- **Home deck chunk 1** — replace `/` stub with a bento mosaic of `ConclusionCard` tiles; reuse existing recap composers + site-level always-fills floor, zero new derivations. Chunk 2 (chronotype hero) planned separately after chunk 1 ships. → [home-deck.md](home-deck.md)
+- **Home deck — next tile** — chunks 1 and 2 shipped 2026-05-14 (bento + minimum-viable tile set, then chronotype 2×2 hero with Europe/Berlin hour bucketing). Next surface candidate(s) per the parent self-portrait note. → [home-deck.md](home-deck.md)
+- **Steam Phase S1 (queued)** — foundation: Web API client + Bottleneck reservoir, public-profile probe, `/steam/game/:appid` routing scaffold, Profile-page Steam section placeholder. Gated on LoL backlog winding down (owner stated 2026-05-14). Phased plan S1–S8 documented. → [steam-integration.md](steam-integration.md)
 
 ## Adjacent maintenance (sub-session each)
 
