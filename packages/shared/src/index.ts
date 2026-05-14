@@ -31,6 +31,11 @@ export type {
   MatchTimelineSkillEvent,
 } from "./lol/match-timeline.ts";
 export type {
+  SteamCurrentGame,
+  SteamPrivacyPrereqs,
+  SteamSummary,
+} from "./steam/summary.ts";
+export type {
   AppWindowSnapshot,
   LimiterCounts,
   MethodLimiterSnapshot,

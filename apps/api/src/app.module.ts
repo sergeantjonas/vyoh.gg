@@ -7,6 +7,7 @@ import { OgModule } from "./og/og.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RiotModule } from "./riot/riot.module";
 import { StatusModule } from "./status/status.module";
+import { SteamModule } from "./steam/steam.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { StatusModule } from "./status/status.module";
     LolModule,
     OgModule,
     StatusModule,
+    SteamModule,
   ],
   controllers: [HealthController],
 })
