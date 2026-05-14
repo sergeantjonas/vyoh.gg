@@ -1,5 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import type {
+  SteamForeverGames,
   SteamLibrarySummary,
   SteamPlatformMix,
   SteamSummary,
@@ -33,5 +34,10 @@ export class SteamController {
   @Get("platform-mix")
   async getPlatformMix(): Promise<SteamPlatformMix> {
     return this.ownedGames.getPlatformMix();
+  }
+
+  @Get("forever-games")
+  async getForeverGames(): Promise<SteamForeverGames> {
+    return this.ownedGames.getForeverGames();
   }
 }

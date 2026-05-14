@@ -1,5 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { SteamLibrarySummary, SteamPlatform, SteamPlatformMix } from "@vyoh/shared";
+import type {
+  SteamForeverGames,
+  SteamLibrarySummary,
+  SteamPlatform,
+  SteamPlatformMix,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -234,6 +239,44 @@ export class SteamOwnedGamesService {
       linuxMinutes,
       deckMinutes,
       dominantPlatform,
+      lastSyncedAt: latest.snapshotDate.toISOString(),
+    };
+  }
+
+  // Forever-games drill-in: every currently-owned game with its lifetime +
+  // 2-week playtime from the latest snapshot, sorted by lifetime descending.
+  // Refunded titles (removedAt IS NOT NULL) are excluded — they survive in
+  // the table for historical playtime sums but don't belong on a "what you
+  // own" surface. Joined with SteamOwnedGame so we have a stable name even
+  // if Steam ever drops a row from the latest snapshot.
+  async getForeverGames(): Promise<SteamForeverGames> {
+    const latest = await this.prisma.steamPlaytimeSnapshot.findFirst({
+      select: { snapshotDate: true },
+      orderBy: { snapshotDate: "desc" },
+    });
+
+    if (latest === null) {
+      return { games: [], lastSyncedAt: null };
+    }
+
+    const rows = await this.prisma.steamPlaytimeSnapshot.findMany({
+      where: { snapshotDate: latest.snapshotDate, game: { removedAt: null } },
+      select: {
+        appid: true,
+        playtimeForeverMinutes: true,
+        playtime2WeeksMinutes: true,
+        game: { select: { name: true } },
+      },
+      orderBy: { playtimeForeverMinutes: "desc" },
+    });
+
+    return {
+      games: rows.map((r) => ({
+        appid: r.appid,
+        name: r.game.name,
+        playtimeForeverMinutes: r.playtimeForeverMinutes,
+        playtime2WeeksMinutes: r.playtime2WeeksMinutes,
+      })),
       lastSyncedAt: latest.snapshotDate.toISOString(),
     };
   }
