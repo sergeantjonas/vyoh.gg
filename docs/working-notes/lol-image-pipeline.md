@@ -315,13 +315,49 @@ Note: SW caching of long-tail CDN URLs is the part that genuinely buys something
 
 ---
 
+## Phase 4 — runtime image proxy (planned, multi-stream)
+
+**Status: decided 2026-05-14, sequenced after Steam S5.** Reverses the Parked-section "Backend image proxy" decision from 2026-05-10. The build-time bundle is being treated as a stepping stone, not the end state.
+
+**Why the pivot.** Phases 0–2 solved the CDN-flakiness problem and traded it for a different one: **deployment cadence is now driven by content events.** A new LoL champion ships → I redeploy. I buy a Steam game or wishlist one → I redeploy. The Riot patch cadence (~3 weeks) made this tolerable for LoL; the Steam wishlist cadence (whenever I see a trailer) makes it obviously wrong. Surfaced concretely during Steam S3 chunk 3 (2026-05-14): the wishlist drill-in shipped with bundled capsules, three live wishlist titles came back blank because Steam's content-hashed URL scheme broke the unversioned-CDN assumption, and we spent a session adding a versioned-`appdetails` fallback to the script. The fallback chain works — but the fact that there *is* a fallback chain, and that it lives in N URL helpers across the codebase, is the smell.
+
+**Goal.** Move both LoL and Steam image handling onto a server-side proxy with persistent caching. Same shape for both — having two asset-handling philosophies is a guaranteed future-maintenance trap.
+
+**Target shape:**
+
+- **Backend route(s)** on the API: `GET /img/steam/capsule/:appid`, `GET /img/lol/champion/:alias/:variant`, etc. Fetch from the relevant CDN on miss, transcode via Sharp, return.
+- **Caching layer.** Nginx `proxy_cache` in front with long TTL + `proxy_cache_use_stale updating` (stale-while-revalidate). Disk-backed, LRU eviction. The Hetzner VPS direction (see [hosting.md](hosting.md)) makes this cheap — no S3/R2 needed.
+- **No bundled assets, no `manifest.gen.ts`, no refresh script, no CI workflow.** The vendor-URL-knowledge that today lives in every URL helper + the refresh script collapses into one server-side resolver per stream.
+- **Content updates require no code path.** First viewer of a new wishlist game or new champion pays the cold-cache fetch; everyone after sees a cache hit. Steam moves a CDN path → one server-side fix updates all clients.
+
+**Why deferred to after Steam S5, not now:**
+
+1. **S4 will roughly double the asset count** (achievement icons per game schema). Pivoting *before* S4 means refactoring once for new shape, then S4 lands on the new shape natively. Pivoting *after* S5 means the bundled approach gets validated at the scale where its limits become concrete (~200 capsules + thousands of achievement icons), which is the right time to retire it with empirical evidence.
+2. **Case-study writeup is stronger when the smell is demonstrated, not just argued.** The honest portfolio framing ("I shipped a build-time pipeline, ran it against a wider asset universe, then pivoted to a runtime proxy when the deploy-coupling cost outweighed the cold-cache predictability") is more interesting than the current planned framing.
+3. **Steam-side feature delivery shouldn't pause for a horizontal refactor.** Forever-games + S4 substrate + S5 surfaces are the higher-value next moves.
+
+**Sequencing when the arc starts:**
+
+1. Build the proxy route(s) on the API + Nginx cache config. Validate against Steam first — smaller blast radius than LoL.
+2. Switch Steam consumers onto the proxy. Revert/remove the chunk-3 bundled Steam assets (commit `e1ab677`), [scripts/refresh-steam-assets.mts](../../scripts/refresh-steam-assets.mts), and the slim `manifest.gen.ts` mirror.
+3. Switch LoL consumers — `champion-icon.ts`, `role-icon.tsx`, `use-perks.ts`, `use-summoner-spells.ts`, `splash-resolver.ts` (which becomes thinner — no fallback chain to resolve).
+4. Delete [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts), the LoL manifest infrastructure, `apps/web/public/lol/`, and the `refresh-lol-assets.yml` CI workflow.
+5. Annotate the `build-time-champion-assets` case study with the epilogue, or supersede it with a new case study `runtime-image-proxy` that includes the pivot as the lede.
+
+**Anti-pattern to avoid: client-side `<img onError>` chains to vendor CDNs as a last-ditch fallback.** Discussed and rejected (2026-05-14). It re-introduces the brittleness the proxy is meant to absorb — URL-pattern knowledge would live in both the proxy and the browser, doubling the maintenance surface. The proxy's *internal* fallback chain (unversioned → versioned `appdetails` → header.jpg etc.) is the right home for that logic because it can be tested, observed, and updated in one place. The only scenario where client-side fallback would buy anything is "API up, image route specifically broken" — fix the bug, don't paper over it.
+
+**Open questions to revisit when the arc starts:**
+
+- **Cache layer placement.** Nginx `proxy_cache` is the obvious default; Cloudflare in front would be a stronger CDN story if/when the VPS gets one. Bake the decision around the hosting topology that's actually live at start time.
+- **`appdetails` rate-limit mitigation.** On a cache miss for an unknown Steam appid, the resolver may need an `appdetails` lookup to find the versioned URL. The endpoint is rate-limited (~200/5min per IP). Memoize the appid → versioned-URL mapping so a single miss doesn't burn the limit, and a crawler can't either.
+- **Stale-while-revalidate semantics.** Decide whether revalidation runs synchronously on first stale hit (bounded extra latency on that one request) or fire-and-forget in a background goroutine/job (no user-visible latency, slightly trickier failure handling).
+- **Do we keep `tools/champion-assets/` (theme/blurhash)?** That data is still build-time-derivable from splash bytes and isn't a deploy-cadence smell — owner-rendered theming, not user-fetchable content. Likely stays as-is; confirm at start time.
+
+**Effort estimate.** Multi-chunk arc. Proxy + cache + Steam switch is one session; LoL switch is another; cleanup + case-study annotation is a third. None individually big; the discipline is keeping each landable.
+
+---
+
 ## Parked
-
-### Backend image proxy
-
-Originally considered as Tier 3. Replaced by Phase 1 (build-time prefetch). The proxy framing — Nest controller + Sharp + R2/S3 — is overkill for a portfolio app's actual needs once self-hosting is in place. **However**, it's a strong standalone write-up topic ("how I built a typed CDN with Sharp + R2"). If a future project genuinely needs unbounded asset handling (user uploads, dynamic transforms), this design becomes the right one.
-
-Don't implement here. Worth referencing from [case-study-topics.md](case-study-topics.md) as a parked-but-considered option.
 
 ### Per-locale and per-skin variants
 

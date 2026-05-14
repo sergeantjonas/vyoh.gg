@@ -244,6 +244,7 @@ S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S8 buil
 
 - Wishlist endpoint stability — `wishlistdata/` is widely used but undocumented. Have a lightweight backstop plan if it changes.
 - Hidden games. The owner can hide individual games from the public profile; those simply won't appear. No mitigation, just a known gap.
+- **Asset pipeline is provisional.** S3 chunk 3 (commit `e1ab677`, 2026-05-14) shipped a bundled-manifest pipeline for capsules mirroring the LoL approach. A subsequent decision the same day plans to retire both the Steam and LoL bundled pipelines in favor of a server-side image proxy with stale-while-revalidate — content-driven deploys (every wishlist add) are the smell that surfaced it. The pivot is sequenced after Steam S5; the chunk-3 bundle will be reverted as part of that arc. Tracked in [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
 
 ---
 
