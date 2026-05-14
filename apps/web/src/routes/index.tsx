@@ -1,5 +1,6 @@
 import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { TileBuildBadge } from "@/home/tile-build-badge";
+import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDomainAge } from "@/home/tile-domain-age";
 import { TileLastMatch } from "@/home/tile-last-match";
 import { TileSignatureGame } from "@/home/tile-signature-game";
@@ -23,6 +24,9 @@ function HomePage() {
         </h1>
       </header>
       <BentoGrid>
+        <BentoTile width={2} height={2}>
+          <TileChronotype account={account} />
+        </BentoTile>
         <BentoTile width={2}>
           <TileSignatureGame account={account} />
         </BentoTile>

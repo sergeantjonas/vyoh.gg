@@ -67,11 +67,28 @@ Two chunks. Chunk 1 is independently committable — ships a complete home page 
 
 **Out of scope:** chronotype, GitHub, Spotify, ambient accent color, `/changelog` route, mosaic editing UI, drag-to-reorder.
 
-### Chunk 2 — chronotype as headline tile (sketch only)
+### Chunk 2 — chronotype as headline tile *(shipped 2026-05-14)*
 
-Adds the first new derivation. Promoted to the `2×2` hero slot in the bento. Chunk 2 will need its own session because it has a server-side derivation component (cron pattern? on-demand query? where derivation jobs live in this repo?) that hasn't been oriented to yet.
+Hour-of-day heatmap, 24 vertical bars, height = games played, color = win rate. Verdict-less by editorial choice (the bars *are* the verdict); `SampleSizeBadge` carries the n.
 
-Anticipated scope: ~4–5 files. Server-side best-hour-by-outcome derivation against existing match timestamps → `tile-chronotype.tsx` → promote to hero in `routes/index.tsx`.
+Shape decisions taken during implementation:
+
+- **No cron / no pre-compute.** On-demand query against the indexed `Match` table matches the `getDuos` / `getChampionPairs` pattern. Default reach is the last 500 non-remake matches; the index `[puuid, playedAt]` makes this cheap.
+- **Server-side bucketing in `Europe/Berlin`.** Riot stamps are absolute; the heatmap reads as a *self-portrait* only when bucketed in owner-local time. Implemented via `Intl.DateTimeFormat({ timeZone: "Europe/Berlin", hour: "2-digit", hourCycle: "h23" })`. Timezone is hard-coded on the server, returned in the response payload so the tile can render the label without re-knowing it.
+- **No sample-size gate.** Reader sees the full 24 hours and the total-game `SampleSizeBadge`; they judge for themselves. Color thresholds were chosen so 50%±2.5pp reads as a neutral muted tone — only meaningful deviations tint emerald/rose.
+
+**Files (new):**
+
+- `packages/shared/src/lol/chronotype.ts` — `Chronotype` + `ChronotypeHour`.
+- `apps/web/src/lol/profile/use-chronotype.ts` — react-query hook.
+- `apps/web/src/home/tile-chronotype.tsx` — 24-bar heatmap tile.
+
+**Files (modified):**
+
+- `apps/api/src/lol/lol.service.ts` — `getChronotype(region, gameName, tagLine, count = 500)`.
+- `apps/api/src/lol/lol.controller.ts` — `@Get("chronotype")`.
+- `packages/shared/src/index.ts` — barrel export.
+- `apps/web/src/routes/index.tsx` — promote `TileChronotype` to `2×2` hero, ahead of signature-game / last-match / build-badge / domain-age.
 
 ---
 

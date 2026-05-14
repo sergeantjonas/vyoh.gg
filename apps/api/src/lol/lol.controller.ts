@@ -15,6 +15,7 @@ import type {
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
+  Chronotype,
   Duo,
   LiveMatch,
   MatchSummary,
@@ -79,6 +80,16 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<Duo[]> {
     return this.lol.getDuos(region, gameName, tagLine, count);
+  }
+
+  @Get("chronotype")
+  async getChronotype(
+    @Param("region") region: string,
+    @Param("gameName") gameName: string,
+    @Param("tagLine") tagLine: string,
+    @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
+  ): Promise<Chronotype> {
+    return this.lol.getChronotype(region, gameName, tagLine, count);
   }
 
   @Get("champion-pairs")

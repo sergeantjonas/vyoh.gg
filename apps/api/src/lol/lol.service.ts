@@ -10,6 +10,7 @@ import type {
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
+  Chronotype,
   Duo,
   LiveMatch,
   LolAccount,
@@ -825,6 +826,58 @@ export class LolService {
           topChampion,
         };
       });
+  }
+
+  // Hour-of-day distribution bucketed in `Europe/Berlin` (owner local time).
+  // Reads from the indexed Match table; no Riot calls. Remakes excluded so
+  // they don't dilute win rate. Returns a 24-bucket array even when the
+  // summoner is unknown or has zero matches, so the heatmap tile can render
+  // an empty grid without branching on shape.
+  async getChronotype(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 500
+  ): Promise<Chronotype> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const timezone = "Europe/Berlin";
+    const emptyHours = () =>
+      Array.from({ length: 24 }, (_, hour) => ({ hour, games: 0, wins: 0 }));
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) {
+      return { hours: emptyHours(), totalGames: 0, totalWins: 0, timezone };
+    }
+
+    const matches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid, remake: false },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { playedAt: true, win: true },
+    });
+
+    const hours = emptyHours();
+    const fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hour: "2-digit",
+      hourCycle: "h23",
+    });
+    let totalGames = 0;
+    let totalWins = 0;
+    for (const m of matches) {
+      const hour = Number.parseInt(fmt.format(m.playedAt), 10);
+      if (!Number.isFinite(hour) || hour < 0 || hour > 23) continue;
+      const bucket = hours[hour];
+      if (!bucket) continue;
+      bucket.games += 1;
+      if (m.win) bucket.wins += 1;
+      totalGames += 1;
+      if (m.win) totalWins += 1;
+    }
+    return { hours, totalGames, totalWins, timezone };
   }
 
   // Champion-pair synergy. For the user's most recent `count` matches, walk
