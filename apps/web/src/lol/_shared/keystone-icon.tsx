@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { usePerks } from "@/lol/_shared/use-perks";
+import { usePerks } from "@/lol/_shared/analytics/use-perks";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 export function KeystoneIcon({

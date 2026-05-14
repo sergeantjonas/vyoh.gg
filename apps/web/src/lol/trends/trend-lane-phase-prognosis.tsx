@@ -4,7 +4,7 @@ import {
   ROLE_LABEL,
   aggregateByRole,
   primaryRole,
-} from "@/lol/_shared/role-baselines";
+} from "@/lol/_shared/analytics/role-baselines";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";

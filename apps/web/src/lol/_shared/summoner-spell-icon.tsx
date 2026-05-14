@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useSummonerSpells } from "@/lol/_shared/use-summoner-spells";
+import { useSummonerSpells } from "@/lol/_shared/analytics/use-summoner-spells";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 export function SummonerSpellIcon({

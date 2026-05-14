@@ -8,7 +8,7 @@ import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
+import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
