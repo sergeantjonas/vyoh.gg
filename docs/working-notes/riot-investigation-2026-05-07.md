@@ -96,7 +96,10 @@ One slot per 1.2 s ≈ 100/120 s rolling release. Cold-start sync now completes 
 
 ## Followups parked
 
-- SSE for refresh button progress (per-account streaming feedback)
 - Per-account cache TTL so stale accounts self-heal if cron wedges
 - When moving to production-tier key (500/10 s), re-derive `reservoirIncreaseInterval`
 - Sync fairness if accounts ever run in parallel
+
+## Followups resolved
+
+- SSE for refresh button progress — superseded by `00d085c` (live status dashboard). Granular per-account streaming was the original ask, but the status page + tick-completion SSE stream covered the underlying visibility need; reopening only if the coarser signal proves insufficient in practice.

@@ -17,7 +17,6 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Adjacent maintenance (sub-session each)
 
-- Verify SSE refresh-progress shipped (likely covered by `00d085c`); close or keep the parked follow-up. → [riot-investigation-2026-05-07.md](riot-investigation-2026-05-07.md)
 - Strike the stale `feedback_visx_minimap` line from the 2026-05-11 visx decision-log entry. → [vnext-ideas.md](vnext-ideas.md)
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](perf-baseline.md)
 - Riot-investigation parked tail: per-account cache TTL self-healing, re-derive `reservoirIncreaseInterval` when prod-tier key lands, sync fairness if accounts ever run in parallel. → [riot-investigation-2026-05-07.md](riot-investigation-2026-05-07.md)
