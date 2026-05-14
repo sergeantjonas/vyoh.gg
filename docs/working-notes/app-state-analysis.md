@@ -261,9 +261,9 @@ After Phase 1 cross-linking lands, this becomes a refinement rather than a rescu
 
 Tile that composes the four existing pregame signals into a single verdict + confidence. Lives next to Pregame Ritual on Profile. New tile, no schema changes.
 
-### Phase 5 — Recap density expansion (1–2 sessions)
+### Phase 5 — Recap density expansion (1–2 sessions) — **shipped 2026-05-14**
 
-Add 3–5 sections (most-improved champion, signature game, worst/best patch, duo of the year). Decide whether to invest in share-image and scrollytelling polish from the original 2026-05-10 deferral.
+Added four sections to `/lol/$accountSlug/recap`: most-improved champion (commit `51257c5`), signature game (`55876e3`), best/worst patch verdict (`82bb64e`), duo of the year (`a334b11`). Each follows the existing ConclusionCard-shaped pattern: a personal-baseline header tag, a min-sample empty state, and motion-react entry animation. Share-image + scrollytelling polish explicitly deferred — revisit when there's a portfolio-artifact pass.
 
 ### Phase 6 (optional) — Mastery integration, multi-account compare, live audit
 
@@ -291,7 +291,7 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 | Champion-pool drift verdict | S | 14d-vs-prior-14d diff over windowed data. |
 | Champions list role/queue filters | S | Mirror Matches/Trends. |
 | Mastery pull | S | New Riot endpoint, cached on backend. |
-| Recap density expansion | M | 3–5 sections; share-image still deferred. |
+| Recap density expansion | M | ✅ shipped 2026-05-14. 4 sections added; share-image still deferred. |
 | Multi-account compare | L | New view; lean into architecture story. |
 | Live tab audit | S | Read-only review pass. |
 
