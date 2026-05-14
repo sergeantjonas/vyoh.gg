@@ -1,5 +1,10 @@
 import { Test } from "@nestjs/testing";
-import type { SteamLibrarySummary, SteamSummary, SteamWishlist } from "@vyoh/shared";
+import type {
+  SteamLibrarySummary,
+  SteamPlatformMix,
+  SteamSummary,
+  SteamWishlist,
+} from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamController } from "./steam.controller";
@@ -79,6 +84,31 @@ describe("SteamController", () => {
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getLibrarySummary()).resolves.toBe(summary);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamOwnedGamesService.getPlatformMix", async () => {
+    const mix: SteamPlatformMix = {
+      totalMinutes: 12_000,
+      windowsMinutes: 9_500,
+      macMinutes: 0,
+      linuxMinutes: 500,
+      deckMinutes: 2_000,
+      dominantPlatform: "windows",
+      lastSyncedAt: "2026-05-14T00:00:00.000Z",
+    };
+    const stub = vi.fn().mockResolvedValue(mix);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: { getPlatformMix: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getPlatformMix()).resolves.toBe(mix);
     expect(stub).toHaveBeenCalledOnce();
   });
 });

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { SteamLibrarySummary } from "@vyoh/shared";
+import type { SteamLibrarySummary, SteamPlatform, SteamPlatformMix } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -111,10 +111,18 @@ export class SteamOwnedGamesService {
             snapshotDate,
             playtimeForeverMinutes: game.playtime_forever,
             playtime2WeeksMinutes: game.playtime_2weeks ?? null,
+            playtimeWindowsMinutes: game.playtime_windows_forever ?? null,
+            playtimeMacMinutes: game.playtime_mac_forever ?? null,
+            playtimeLinuxMinutes: game.playtime_linux_forever ?? null,
+            playtimeDeckMinutes: game.playtime_deck_forever ?? null,
           },
           update: {
             playtimeForeverMinutes: game.playtime_forever,
             playtime2WeeksMinutes: game.playtime_2weeks ?? null,
+            playtimeWindowsMinutes: game.playtime_windows_forever ?? null,
+            playtimeMacMinutes: game.playtime_mac_forever ?? null,
+            playtimeLinuxMinutes: game.playtime_linux_forever ?? null,
+            playtimeDeckMinutes: game.playtime_deck_forever ?? null,
           },
         });
       }
@@ -167,6 +175,65 @@ export class SteamOwnedGamesService {
       ownedCount,
       everLaunchedCount,
       untouchedCount: Math.max(0, ownedCount - everLaunchedCount),
+      lastSyncedAt: latest.snapshotDate.toISOString(),
+    };
+  }
+
+  // Platform breakdown summed from the latest snapshot, scoped to
+  // currently-owned games (joined removedAt IS NULL). Steam's per-OS counters
+  // are cumulative, so summing them gives total cross-platform minutes — not
+  // necessarily equal to playtime_forever for very old titles where Steam
+  // never backfilled per-OS data.
+  async getPlatformMix(): Promise<SteamPlatformMix> {
+    const latest = await this.prisma.steamPlaytimeSnapshot.findFirst({
+      select: { snapshotDate: true },
+      orderBy: { snapshotDate: "desc" },
+    });
+
+    if (latest === null) {
+      return {
+        totalMinutes: 0,
+        windowsMinutes: 0,
+        macMinutes: 0,
+        linuxMinutes: 0,
+        deckMinutes: 0,
+        dominantPlatform: null,
+        lastSyncedAt: null,
+      };
+    }
+
+    const totals = await this.prisma.steamPlaytimeSnapshot.aggregate({
+      where: { snapshotDate: latest.snapshotDate, game: { removedAt: null } },
+      _sum: {
+        playtimeWindowsMinutes: true,
+        playtimeMacMinutes: true,
+        playtimeLinuxMinutes: true,
+        playtimeDeckMinutes: true,
+      },
+    });
+
+    const windowsMinutes = totals._sum.playtimeWindowsMinutes ?? 0;
+    const macMinutes = totals._sum.playtimeMacMinutes ?? 0;
+    const linuxMinutes = totals._sum.playtimeLinuxMinutes ?? 0;
+    const deckMinutes = totals._sum.playtimeDeckMinutes ?? 0;
+    const totalMinutes = windowsMinutes + macMinutes + linuxMinutes + deckMinutes;
+
+    const entries: Array<[SteamPlatform, number]> = [
+      ["windows", windowsMinutes],
+      ["mac", macMinutes],
+      ["linux", linuxMinutes],
+      ["deck", deckMinutes],
+    ];
+    const dominantPlatform =
+      totalMinutes === 0 ? null : entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+
+    return {
+      totalMinutes,
+      windowsMinutes,
+      macMinutes,
+      linuxMinutes,
+      deckMinutes,
+      dominantPlatform,
       lastSyncedAt: latest.snapshotDate.toISOString(),
     };
   }

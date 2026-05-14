@@ -66,6 +66,10 @@ model SteamPlaytimeSnapshot {
   snapshotDate           DateTime @db.Date
   playtimeForeverMinutes Int
   playtime2WeeksMinutes  Int?
+  playtimeWindowsMinutes Int?
+  playtimeMacMinutes     Int?
+  playtimeLinuxMinutes   Int?
+  playtimeDeckMinutes    Int?
 
   game SteamOwnedGame @relation(fields: [appid], references: [appid])
 

@@ -1,5 +1,10 @@
 import { Controller, Get } from "@nestjs/common";
-import type { SteamLibrarySummary, SteamSummary, SteamWishlist } from "@vyoh/shared";
+import type {
+  SteamLibrarySummary,
+  SteamPlatformMix,
+  SteamSummary,
+  SteamWishlist,
+} from "@vyoh/shared";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamService } from "./steam.service";
 
@@ -23,5 +28,10 @@ export class SteamController {
   @Get("library-summary")
   async getLibrarySummary(): Promise<SteamLibrarySummary> {
     return this.ownedGames.getLibrarySummary();
+  }
+
+  @Get("platform-mix")
+  async getPlatformMix(): Promise<SteamPlatformMix> {
+    return this.ownedGames.getPlatformMix();
   }
 }
