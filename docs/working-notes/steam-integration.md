@@ -176,6 +176,12 @@ Phase-ordering decisions confirmed at the same time:
 
 Steam Web API client + key/env handling, Bottleneck reservoir matching the Riot pattern, public-profile probe via `GetPlayerSummaries`, routing scaffold for `/steam/game/:appid` (stub), Profile-page Steam section placeholder. Lands the integration plumbing with no user-facing surface.
 
+**Status (2026-05-14): shipped.**
+
+- Chunk 1 backend — commit `d9af63b`. Module `apps/api/src/steam/` with `STEAM_OWNER_ID` config, `SteamRateLimiterService` (Bottleneck reservoir mirroring the Riot pattern with a 15s schedule deadline), `SteamClientService` wrapping `ISteamUser/GetPlayerSummaries`, `SteamService.getOwnerSummary` returning a typed `SteamSummary` (shared via `@vyoh/shared`), `GET /api/steam/summary` controller. Privacy verdict shape — `profilePublic: boolean`, `gameDetailsPublic: boolean | "unknown"` — surfaces visibility honestly rather than throwing on a locked profile. End-to-end verified via curl on 2026-05-14.
+- Chunk 2 frontend — commit `16fcccd`. Routes `/steam` (landing) and `/steam/game/$appid` (dynamic stub), both placeholder text only. No data wiring; both routes are intentionally inert until S2 starts.
+- **Descope (commit `023dd26`):** no `ProfileSteamSection` on the LoL profile page. Cross-stream comparisons live exclusively on `/` per [self-portrait-surfaces.md](self-portrait-surfaces.md); the LoL profile is LoL-scoped only. Where S2's wishlist chip and future Steam surfaces will live on the home page is decided when that work starts.
+
 **Chunk plan (set 2026-05-14, picked up in a later session):**
 
 - **S1 chunk 1 — Backend foundation.**

@@ -15,7 +15,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **PG4 peer-route post-game artifact** — explicitly v2; gated on the PG1–PG3 Profile framing proving out. → [post-game-close-the-loop.md](post-game-close-the-loop.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](app-state-analysis.md)
 - **Home deck — next tile** — chunks 1 and 2 shipped 2026-05-14 (bento + minimum-viable tile set, then chronotype 2×2 hero with Europe/Brussels hour bucketing). Next surface candidate(s) per the parent self-portrait note. → [home-deck.md](home-deck.md)
-- **Steam Phase S1 (queued)** — foundation: Web API client + Bottleneck reservoir, public-profile probe, `/steam/game/:appid` routing scaffold, Profile-page Steam section placeholder. Gated on LoL backlog winding down (owner stated 2026-05-14). Phased plan S1–S8 documented. → [steam-integration.md](steam-integration.md)
+- **Steam Phase S2 (next)** — wishlist surface: poller + cache, wishlist `ConclusionCard` chip, drill-in list with date-added timestamps. S1 foundation shipped 2026-05-14 (`d9af63b` backend + `16fcccd` frontend stubs; LoL-profile placeholder descoped per cross-stream separation). → [steam-integration.md](steam-integration.md)
 
 ## Adjacent maintenance (sub-session each)
 
