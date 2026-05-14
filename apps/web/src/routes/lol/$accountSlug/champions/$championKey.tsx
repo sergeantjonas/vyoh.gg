@@ -19,6 +19,7 @@ import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
+import { buildWeakestMatchup } from "@/lol/champions/weakest-matchup";
 import { useItems } from "@/lol/matches/use-items";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import { TrendDeathMatchupHeatmap } from "@/lol/trends/trend-death-matchup-heatmap";
@@ -157,6 +158,11 @@ function ChampionDetailPage() {
       list.sort((a, b) => a.wins / a.games - b.wins / b.games);
     return list;
   }, [extras.data, matchupSort]);
+
+  const weakestMatchup = useMemo(
+    () => (extras.data ? buildWeakestMatchup(extras.data.matchups) : null),
+    [extras.data]
+  );
 
   const [stripVisible, heroRef] = useHeroScrolledPast();
 
@@ -486,6 +492,29 @@ function ChampionDetailPage() {
               ))}
             </div>
           </div>
+          {weakestMatchup && (
+            <div
+              className={cn(
+                "flex flex-col gap-1 rounded-lg border px-3 py-2.5",
+                weakestMatchup.deltaPP >= 15
+                  ? "border-rose-500/40 bg-rose-500/10"
+                  : "border-border bg-card/40"
+              )}
+            >
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                Weakest matchup
+              </div>
+              <div className="text-sm leading-snug text-foreground/90">
+                vs {championName(weakestMatchup.champion)} —{" "}
+                {Math.round(weakestMatchup.wr * 100)}% WR, {weakestMatchup.deltaPP}pp
+                below your {Math.round(weakestMatchup.baselineWr * 100)}% baseline on this
+                champion.{" "}
+                <span className="text-muted-foreground/70">
+                  {weakestMatchup.games} games
+                </span>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {(matchupsExpanded ? sortedMatchups : sortedMatchups.slice(0, 8)).map(
               ({ champion, games, wins }) => {

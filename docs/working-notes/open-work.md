@@ -10,7 +10,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 - **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lp-forecast.md)
 - **Recap density Phase 5** — add 3–5 sections (most-improved champ, signature game, worst/best patch, duo-of-year); decide on share-image + scrollytelling polish. 1–2 sessions. → [app-state-analysis.md](app-state-analysis.md)
-- **Personal-baselines PB1/PB2/PB3** — PB1 doc-pass tagging each tile's baseline kind; **PB2 weakest-matchup verdict on Champion detail (highest payoff/session)**; PB3 patch-drift verdict. → [personal-baselines.md](personal-baselines.md)
+- **Personal-baselines PB1/PB3** — PB1 doc-pass tagging each tile's baseline kind; PB3 patch-drift verdict on Champion detail. (PB2 weakest-matchup verdict shipped 2026-05-14.) → [personal-baselines.md](personal-baselines.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](match-depth-roadmap.md)
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](match-depth-roadmap.md)
 - **PG4 peer-route post-game artifact** — explicitly v2; gated on the PG1–PG3 Profile framing proving out. → [post-game-close-the-loop.md](post-game-close-the-loop.md)
@@ -29,4 +29,4 @@ ARAM dashboard · cross-account unified identity · "Same day last year" · matc
 
 ## Case-study write-ups due (post-ship)
 
-Multiple shipped arcs without prose yet — bundling-the-bounded-cdn is the one shipped case study; the others (riot-rate-limits, historical-backfill-and-sse, view-transitions story, trends-as-conclusions, sample-size-as-UI, post-game-close-the-loop) are still in draft or unstarted. → [case-study-topics.md](case-study-topics.md)
+Eight full case studies shipped: `bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`. Four compact stubs that could be expanded: `og-card-satori`, `build-time-champion-assets`, `visual-layer`, `pagination-partial-failure`. Proposed/undrafted: runtime-validation (Cand 5), ConclusionCard pattern (Cand 9, deferred until post-game close-the-loop ships). → [case-study-topics.md](case-study-topics.md)

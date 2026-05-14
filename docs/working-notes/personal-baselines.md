@@ -100,9 +100,11 @@ The principle: **the user is the unit of analysis. Global baselines are a refere
 
 Single-session pass. For each tile, document explicitly in code comments whether its baseline is personal, role-population, or fixed-reference. Surfaces inconsistencies before they grow.
 
-### PB2 — Extend champion detail with personal-matchup verdict line
+### PB2 — Extend champion detail with personal-matchup verdict line — **shipped 2026-05-14**
 
-Highest payoff per session. Add a `ConclusionCard`-shaped header line to the matchup table: *"your weakest matchup is vs X — N% below your average on this champion."* No new data, one new helper.
+- Helper: [`apps/web/src/lol/champions/weakest-matchup.ts`](../../apps/web/src/lol/champions/weakest-matchup.ts) — `buildWeakestMatchup()` filters matchups to `games ≥ 5`, picks the min-WR pair, and returns `{ champion, games, wr, baselineWr, deltaPP }` against the per-champion baseline (sum of matchup wins ÷ sum of matchup games).
+- Render: [`$championKey.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a tone-tinted verdict line above the matchup grid: *"vs X — N% WR, Δpp below your B% baseline on this champion."* Warning tone when `deltaPP ≥ 15`, neutral otherwise. Suppressed entirely if no matchup meets the sample threshold.
+- Sample threshold of 5 matches the codified value in open question #1 (matchup-level needs ≥ 5 same-pair games).
 
 ### PB3 — Personal patch-drift verdict
 
@@ -121,6 +123,7 @@ A single `Compare to my rank` toggle on tiles that have a meaningful global base
 ## Status
 
 - **2026-05-13** — framing note drafted. PB1 is the smallest unit; PB2 is the highest-payoff visible move.
+- **2026-05-14** — PB2 shipped (weakest-matchup verdict on Champion detail). PB1 doc-pass and PB3 patch-drift verdict remain.
 
 ---
 
