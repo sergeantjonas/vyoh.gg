@@ -1,65 +1,25 @@
-import { cn } from "@/lib/utils";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { CardShell, type CardShellProps } from "@/components/card-shell";
 import { SampleSizeBadge } from "./sample-size-badge";
 
-export interface ConclusionCardProps {
-  title: string;
+export interface ConclusionCardProps extends Omit<CardShellProps, "indicator"> {
   sampleSize: number;
-  verdict: string;
+  // Accepted for caller-side documentation parity (trend cards typically
+  // co-locate a markdown copy alongside the rendered string), but unused by
+  // the renderer — kept off CardShell since it's LoL-trend-specific.
   verdictMarkdown?: string;
-  evidence?: ReactNode;
-  prescription?: string;
   prescriptionMarkdown?: string;
-  className?: string;
-  /** When true, renders the verdict in muted style — use for insufficient-data empty states. */
-  empty?: boolean;
 }
 
+// LoL-trends cards make confidence-weighted claims — N games is a statistical
+// sample, not a catalog count. The SampleSizeBadge tooltip reflects that with
+// "Small sample / Moderate / Confident estimate" language. For catalog facts
+// (Steam library size, wishlist length), use FactCard instead so the indicator
+// stays semantically honest.
 export function ConclusionCard({
-  title,
   sampleSize,
-  verdict,
-  evidence,
-  prescription,
-  className,
-  empty = false,
+  verdictMarkdown: _verdictMarkdown,
+  prescriptionMarkdown: _prescriptionMarkdown,
+  ...rest
 }: ConclusionCardProps) {
-  const reduced = useReducedMotion();
-  return (
-    <m.div
-      layout
-      className={cn(
-        "flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4",
-        className
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-muted-foreground">{title}</h3>
-        <SampleSizeBadge count={sampleSize} />
-      </div>
-      <AnimatePresence mode="popLayout" initial={false}>
-        <m.p
-          key={verdict}
-          layout="position"
-          initial={reduced ? false : { opacity: 0, y: 4 }}
-          animate={reduced ? undefined : { opacity: 1, y: 0 }}
-          exit={reduced ? undefined : { opacity: 0, y: -4 }}
-          transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-          className={cn(
-            "text-base font-semibold leading-snug",
-            empty ? "text-muted-foreground/70" : "text-foreground/90"
-          )}
-        >
-          {verdict}
-        </m.p>
-      </AnimatePresence>
-      {evidence !== undefined && <div className="mt-0.5">{evidence}</div>}
-      {prescription !== undefined && (
-        <p className="mt-auto border-t border-border/40 pt-2.5 text-xs text-muted-foreground">
-          {prescription}
-        </p>
-      )}
-    </m.div>
-  );
+  return <CardShell {...rest} indicator={<SampleSizeBadge count={sampleSize} />} />;
 }

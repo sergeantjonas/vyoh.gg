@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import type { SteamLibrarySummary } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -125,5 +126,48 @@ export class SteamOwnedGamesService {
     );
 
     return diff;
+  }
+
+  // Catalog snapshot read from the local tables — no Steam API call. The poller
+  // is the only writer; this is the read side. `everLaunchedCount` is derived
+  // from the most-recent snapshotDate (not the row's all-time max) so that a
+  // game whose playtime resets via family-share / refund-and-rebuy is counted
+  // honestly against the current state.
+  async getLibrarySummary(): Promise<SteamLibrarySummary> {
+    const ownedCount = await this.prisma.steamOwnedGame.count({
+      where: { removedAt: null },
+    });
+
+    const latest = await this.prisma.steamPlaytimeSnapshot.findFirst({
+      select: { snapshotDate: true },
+      orderBy: { snapshotDate: "desc" },
+    });
+
+    if (latest === null) {
+      return {
+        ownedCount,
+        everLaunchedCount: 0,
+        untouchedCount: ownedCount,
+        lastSyncedAt: null,
+      };
+    }
+
+    // Count played titles among currently-owned games on the most recent
+    // snapshot date. Joining via owned-games' removedAt keeps refunded titles
+    // out of the "ever launched" count even if a stale snapshot row exists.
+    const everLaunchedCount = await this.prisma.steamPlaytimeSnapshot.count({
+      where: {
+        snapshotDate: latest.snapshotDate,
+        playtimeForeverMinutes: { gt: 0 },
+        game: { removedAt: null },
+      },
+    });
+
+    return {
+      ownedCount,
+      everLaunchedCount,
+      untouchedCount: Math.max(0, ownedCount - everLaunchedCount),
+      lastSyncedAt: latest.snapshotDate.toISOString(),
+    };
   }
 }

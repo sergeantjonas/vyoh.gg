@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
-import type { SteamSummary, SteamWishlist } from "@vyoh/shared";
+import type { SteamLibrarySummary, SteamSummary, SteamWishlist } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
+import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 
@@ -19,7 +20,10 @@ describe("SteamController", () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [SteamController],
-      providers: [{ provide: SteamService, useValue: { getOwnerSummary: stub } }],
+      providers: [
+        { provide: SteamService, useValue: { getOwnerSummary: stub } },
+        { provide: SteamOwnedGamesService, useValue: {} },
+      ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
@@ -45,11 +49,36 @@ describe("SteamController", () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [SteamController],
-      providers: [{ provide: SteamService, useValue: { getOwnerWishlist: stub } }],
+      providers: [
+        { provide: SteamService, useValue: { getOwnerWishlist: stub } },
+        { provide: SteamOwnedGamesService, useValue: {} },
+      ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getWishlist()).resolves.toBe(wishlist);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamOwnedGamesService.getLibrarySummary", async () => {
+    const summary: SteamLibrarySummary = {
+      ownedCount: 142,
+      everLaunchedCount: 88,
+      untouchedCount: 54,
+      lastSyncedAt: "2026-05-14T00:00:00.000Z",
+    };
+    const stub = vi.fn().mockResolvedValue(summary);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: { getLibrarySummary: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getLibrarySummary()).resolves.toBe(summary);
     expect(stub).toHaveBeenCalledOnce();
   });
 });

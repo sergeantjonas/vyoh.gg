@@ -1,24 +1,17 @@
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { Link } from "@tanstack/react-router";
+import { FactCard } from "./_shared/fact-card";
 import { useSteamWishlist } from "./use-wishlist";
 
 export function WishlistChip() {
   const { data, isPending, isError } = useSteamWishlist();
 
   if (isPending) {
-    return (
-      <ConclusionCard title="Wishlist" sampleSize={0} verdict="Loading wishlist…" empty />
-    );
+    return <FactCard title="Wishlist" verdict="Loading wishlist…" empty />;
   }
 
   if (isError || !data) {
     return (
-      <ConclusionCard
-        title="Wishlist"
-        sampleSize={0}
-        verdict="Wishlist is unavailable right now."
-        empty
-      />
+      <FactCard title="Wishlist" verdict="Wishlist is unavailable right now." empty />
     );
   }
 
@@ -29,9 +22,10 @@ export function WishlistChip() {
       : `${count} ${count === 1 ? "game" : "games"} waiting in the backlog.`;
 
   return (
-    <ConclusionCard
+    <FactCard
       title="Wishlist"
-      sampleSize={count}
+      metric={count}
+      metricLabel={{ singular: "game", plural: "games" }}
       verdict={verdict}
       empty={count === 0}
       evidence={

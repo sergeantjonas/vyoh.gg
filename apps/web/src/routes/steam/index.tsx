@@ -1,3 +1,4 @@
+import { LibraryCompositionChip } from "@/steam/library-composition-chip";
 import { WishlistChip } from "@/steam/wishlist-chip";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -17,6 +18,7 @@ function SteamPage() {
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <WishlistChip />
+        <LibraryCompositionChip />
       </div>
     </div>
   );
