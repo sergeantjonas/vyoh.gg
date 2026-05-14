@@ -2,6 +2,8 @@ import { groupByPatch } from "@/lol/_shared/patch-version";
 import type { MatchSummary } from "@vyoh/shared";
 
 const MIN_PATCH_GAMES = 5;
+const MIN_CURRENT_CHAMP_GAMES = 1;
+const MIN_PREVIOUS_CHAMP_GAMES = 2;
 const MIN_RELATIVE_CHANGE = 0.2;
 const MIN_PP_CHANGE = 3;
 
@@ -40,18 +42,18 @@ export function buildPatchDrift(
     (m) => m.champion.toLowerCase() === alias
   ).length;
 
+  // Suppress when this patch hasn't seen the champion yet ("0 games this patch"
+  // reads as noise — the user just hasn't picked them yet). Also require a
+  // non-trivial previous baseline so we don't flag against a single accidental
+  // game last patch.
+  if (currentChamp < MIN_CURRENT_CHAMP_GAMES) return null;
+  if (previousChamp < MIN_PREVIOUS_CHAMP_GAMES) return null;
+
   const currentShare = currentChamp / currentTotal;
   const previousShare = previousChamp / previousTotal;
 
   const ppChange = Math.abs((currentShare - previousShare) * 100);
-  // Relative change is undefined when previousShare is 0; treat any
-  // non-zero current play as a meaningful pickup in that case.
-  const relativeChange =
-    previousShare === 0
-      ? currentShare > 0
-        ? Number.POSITIVE_INFINITY
-        : 0
-      : Math.abs((currentShare - previousShare) / previousShare);
+  const relativeChange = Math.abs((currentShare - previousShare) / previousShare);
 
   if (relativeChange < MIN_RELATIVE_CHANGE) return null;
   if (ppChange < MIN_PP_CHANGE) return null;
@@ -64,8 +66,6 @@ export function buildPatchDrift(
     currentChampGames: currentChamp,
     currentTotalGames: currentTotal,
     direction: currentShare > previousShare ? "up" : "down",
-    relativeChangePct: Number.isFinite(relativeChange)
-      ? Math.round(relativeChange * 100)
-      : 0,
+    relativeChangePct: Math.round(relativeChange * 100),
   };
 }
