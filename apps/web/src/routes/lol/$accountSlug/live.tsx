@@ -4,6 +4,7 @@ import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { useLiveGame } from "@/lol/matches/use-live-match";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { LiveGameParticipant, LiveMatch, LolAccount } from "@vyoh/shared";
@@ -122,34 +123,168 @@ function isUserParticipant(
   );
 }
 
-// Spectator-V5 doesn't return teamPosition, so infer lane from Smite + champion role tags.
-// Heuristic accuracy ~80% — off-meta picks (Tahm Kench top, Lux support) may misorder.
+// Spectator-V5 doesn't expose teamPosition, so we infer lane from Smite,
+// summoner spells, and champion role tags. The five slots are filled by
+// optimal assignment over a cost matrix (brute-forced over 5! = 120
+// permutations) rather than per-participant classification, so two champs
+// that both look "mid" can't both end up there — the algorithm pins each
+// lane to exactly one player. Pairs whose swap barely changes total cost
+// are surfaced as `uncertain` in the UI.
 const LANE_ORDER = ["TOP", "JUNGLE", "MID", "BOTTOM", "SUPPORT"] as const;
 type Lane = (typeof LANE_ORDER)[number];
 
 const SMITE_SPELL_ID = 11;
+const SPELL_CLEANSE = 1;
+const SPELL_EXHAUST = 3;
+const SPELL_GHOST = 6;
+const SPELL_HEAL = 7;
+const SPELL_TELEPORT = 12;
+const SPELL_IGNITE = 14;
+const SPELL_BARRIER = 21;
 
-function inferLane(p: LiveGameParticipant, roles: string[]): Lane {
-  if (p.spell1Id === SMITE_SPELL_ID || p.spell2Id === SMITE_SPELL_ID) return "JUNGLE";
-  const primary = roles[0];
-  if (primary === "marksman") return "BOTTOM";
-  if (primary === "support") return "SUPPORT";
-  if (primary === "mage" || primary === "assassin") return "MID";
-  return "TOP";
+// "How surprising is it to see this role play this lane?" 0 = canonical,
+// higher = more off-meta. Each champion takes the min across its role tags,
+// so a fighter/assassin scores low on both TOP and MID.
+const ROLE_LANE_COSTS: Record<string, Partial<Record<Lane, number>>> = {
+  marksman: { BOTTOM: 0, SUPPORT: 2, MID: 3, TOP: 4, JUNGLE: 4 },
+  support: { SUPPORT: 0, MID: 3, BOTTOM: 3, TOP: 3, JUNGLE: 4 },
+  tank: { TOP: 1, SUPPORT: 1, JUNGLE: 2, MID: 3, BOTTOM: 4 },
+  fighter: { TOP: 1, JUNGLE: 1, MID: 3, BOTTOM: 3, SUPPORT: 3 },
+  assassin: { MID: 1, JUNGLE: 2, TOP: 3, BOTTOM: 3, SUPPORT: 4 },
+  mage: { MID: 1, SUPPORT: 2, TOP: 2, JUNGLE: 3, BOTTOM: 4 },
+};
+
+// Additive nudges from summoner spells. Small magnitudes so they only break
+// ties, never override strong role signals.
+const SPELL_LANE_BIAS: Record<number, Partial<Record<Lane, number>>> = {
+  [SPELL_TELEPORT]: { TOP: -1.5, MID: -0.5 },
+  [SPELL_HEAL]: { BOTTOM: -2 },
+  [SPELL_IGNITE]: { MID: -1, TOP: -0.5 },
+  [SPELL_EXHAUST]: { SUPPORT: -1, MID: -0.5 },
+  [SPELL_CLEANSE]: { MID: -0.5, BOTTOM: -0.5 },
+  [SPELL_BARRIER]: { MID: -0.5 },
+  [SPELL_GHOST]: { TOP: -0.5 },
+};
+
+function laneCostsFor(p: LiveGameParticipant, roles: string[]): Record<Lane, number> {
+  const costs: Record<Lane, number> = {
+    TOP: 5,
+    JUNGLE: 5,
+    MID: 5,
+    BOTTOM: 5,
+    SUPPORT: 5,
+  };
+  for (const role of roles) {
+    const rc = ROLE_LANE_COSTS[role];
+    if (!rc) continue;
+    for (const lane of LANE_ORDER) {
+      const c = rc[lane];
+      if (c !== undefined && c < costs[lane]) costs[lane] = c;
+    }
+  }
+  // Smite locks JUNGLE hard but not absolutely — leaves room for the rare
+  // off-meta smite-top read if the algorithm finds a better global fit.
+  const hasSmite = p.spell1Id === SMITE_SPELL_ID || p.spell2Id === SMITE_SPELL_ID;
+  if (hasSmite) {
+    costs.JUNGLE = 0;
+    for (const lane of LANE_ORDER) {
+      if (lane !== "JUNGLE") costs[lane] += 5;
+    }
+  } else {
+    costs.JUNGLE += 5;
+  }
+  for (const spellId of [p.spell1Id, p.spell2Id]) {
+    const bias = SPELL_LANE_BIAS[spellId];
+    if (!bias) continue;
+    for (const lane of LANE_ORDER) {
+      const b = bias[lane];
+      if (b !== undefined) costs[lane] += b;
+    }
+  }
+  return costs;
 }
 
-function sortByLane(
+function* permutations(n: number): Generator<number[]> {
+  const used = new Array(n).fill(false);
+  const current: number[] = [];
+  function* rec(): Generator<number[]> {
+    if (current.length === n) {
+      yield [...current];
+      return;
+    }
+    for (let i = 0; i < n; i++) {
+      if (used[i]) continue;
+      used[i] = true;
+      current.push(i);
+      yield* rec();
+      current.pop();
+      used[i] = false;
+    }
+  }
+  yield* rec();
+}
+
+interface LaneAssignment {
+  participant: LiveGameParticipant;
+  lane: Lane | null;
+  uncertain: boolean;
+}
+
+// Two participants are "uncertain" when swapping their assigned lanes raises
+// the total cost by less than this — i.e., the algorithm has near-equal
+// evidence for both orderings. Tuned against typical summoner-spell deltas
+// (±0.5–2.0) so flex-vs-flex pairs surface but clear assignments don't.
+const UNCERTAINTY_THRESHOLD = 1.0;
+
+function assignLanes(
   team: LiveGameParticipant[],
   rolesByChampion: Record<number, string[]>
-): LiveGameParticipant[] {
-  return [...team]
+): LaneAssignment[] {
+  if (team.length !== 5) {
+    return team.map((p) => ({ participant: p, lane: null, uncertain: false }));
+  }
+  const costs = team.map((p) => laneCostsFor(p, rolesByChampion[p.championId] ?? []));
+  let bestTotal = Number.POSITIVE_INFINITY;
+  let bestLanes: Lane[] = [...LANE_ORDER];
+  for (const perm of permutations(5)) {
+    let total = 0;
+    for (let i = 0; i < 5; i++) {
+      const c = costs[i];
+      const laneIdx = perm[i];
+      const lane = laneIdx === undefined ? undefined : LANE_ORDER[laneIdx];
+      if (c && lane) total += c[lane];
+    }
+    if (total < bestTotal) {
+      bestTotal = total;
+      bestLanes = perm.map((idx) => LANE_ORDER[idx] as Lane);
+    }
+  }
+  const uncertain = new Set<number>();
+  for (let i = 0; i < 5; i++) {
+    for (let j = i + 1; j < 5; j++) {
+      const ci = costs[i];
+      const cj = costs[j];
+      const li = bestLanes[i];
+      const lj = bestLanes[j];
+      if (!ci || !cj || !li || !lj) continue;
+      const swapDelta = ci[lj] + cj[li] - ci[li] - cj[lj];
+      if (swapDelta < UNCERTAINTY_THRESHOLD) {
+        uncertain.add(i);
+        uncertain.add(j);
+      }
+    }
+  }
+  return team
     .map((p, i) => ({
-      p,
-      i,
-      score: LANE_ORDER.indexOf(inferLane(p, rolesByChampion[p.championId] ?? [])),
+      participant: p,
+      lane: bestLanes[i] ?? null,
+      uncertain: uncertain.has(i),
     }))
-    .sort((a, b) => a.score - b.score || a.i - b.i)
-    .map(({ p }) => p);
+    .sort((a, b) => {
+      const ai = a.lane ? LANE_ORDER.indexOf(a.lane) : -1;
+      const bi = b.lane ? LANE_ORDER.indexOf(b.lane) : -1;
+      return ai - bi;
+    });
 }
 
 function formatSeconds(totalSeconds: number): string {
@@ -251,11 +386,13 @@ function ParticipantCard({
   align,
   isUser,
   championName,
+  uncertain = false,
 }: {
   participant: LiveGameParticipant;
   align: "left" | "right";
   isUser: boolean;
   championName: string | undefined;
+  uncertain?: boolean;
 }) {
   const isLeft = align === "left";
   return (
@@ -266,10 +403,31 @@ function ParticipantCard({
         isLeft ? "flex-row" : "flex-row-reverse"
       )}
     >
-      <ChampionImg
-        championId={participant.championId}
-        className="size-10 shrink-0 rounded-md bg-muted object-cover"
-      />
+      <div className="relative shrink-0">
+        <ChampionImg
+          championId={participant.championId}
+          className="size-10 rounded-md bg-muted object-cover"
+        />
+        {uncertain && (
+          <TooltipPrimitive.Root delayDuration={150}>
+            <TooltipPrimitive.Trigger asChild>
+              <span className="absolute -right-1 -top-1 flex size-4 cursor-default items-center justify-center rounded-full bg-amber-500/90 text-[10px] font-bold text-background">
+                ?
+              </span>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={4}
+                className="pointer-events-none z-50 max-w-56 rounded border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+              >
+                Lane assignment uncertain — another flex pick on this team competes for
+                the same slot.
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
+        )}
+      </div>
       {/* Summoner spells + keystone column */}
       <div className="flex shrink-0 flex-col items-center gap-0.5">
         <SummonerSpellIcon id={participant.spell1Id} />
@@ -426,8 +584,16 @@ function LiveContent({
   const team100Raw = match.participants.filter((p) => p.teamId === 100);
   const team200Raw = match.participants.filter((p) => p.teamId === 200);
   const isRift = match.gameMode === "CLASSIC";
-  const team100 = isRift ? sortByLane(team100Raw, rolesByChampion) : team100Raw;
-  const team200 = isRift ? sortByLane(team200Raw, rolesByChampion) : team200Raw;
+  // Wait until cdragon role data has arrived before running the cost-matrix
+  // assignment — without role tags every permutation has equal cost and every
+  // pair gets flagged uncertain, which is noisy. Show the raw order until then.
+  const useLaneAssignment = isRift && allLoaded;
+  const team100: LaneAssignment[] = useLaneAssignment
+    ? assignLanes(team100Raw, rolesByChampion)
+    : team100Raw.map((p) => ({ participant: p, lane: null, uncertain: false }));
+  const team200: LaneAssignment[] = useLaneAssignment
+    ? assignLanes(team200Raw, rolesByChampion)
+    : team200Raw.map((p) => ({ participant: p, lane: null, uncertain: false }));
   const bans100 = match.bans
     .filter((b) => b.teamId === 100)
     .sort((a, b) => a.pickTurn - b.pickTurn);
@@ -476,24 +642,26 @@ function LiveContent({
       {/* 5v5 grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
-          {team100.map((p) => (
+          {team100.map((a) => (
             <ParticipantCard
-              key={p.puuid}
-              participant={p}
+              key={a.participant.puuid}
+              participant={a.participant}
               align="left"
-              isUser={isUserParticipant(p, account)}
-              championName={nameByChampion[p.championId]}
+              isUser={isUserParticipant(a.participant, account)}
+              championName={nameByChampion[a.participant.championId]}
+              uncertain={a.uncertain}
             />
           ))}
         </div>
         <div className="flex flex-col gap-2">
-          {team200.map((p) => (
+          {team200.map((a) => (
             <ParticipantCard
-              key={p.puuid}
-              participant={p}
+              key={a.participant.puuid}
+              participant={a.participant}
               align="right"
-              isUser={isUserParticipant(p, account)}
-              championName={nameByChampion[p.championId]}
+              isUser={isUserParticipant(a.participant, account)}
+              championName={nameByChampion[a.participant.championId]}
+              uncertain={a.uncertain}
             />
           ))}
         </div>
@@ -501,8 +669,8 @@ function LiveContent({
 
       {/* Compositional analysis */}
       <LiveCompositionPanel
-        team100={team100}
-        team200={team200}
+        team100={team100.map((a) => a.participant)}
+        team200={team200.map((a) => a.participant)}
         rolesByChampion={rolesByChampion}
         allLoaded={allLoaded}
       />
