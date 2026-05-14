@@ -113,7 +113,7 @@ Pulse + slight scale lift on the tile grid when a new matchId arrives. No new SS
 - Hook: [`apps/web/src/lol/profile/use-new-match-notice.ts`](../../apps/web/src/lol/profile/use-new-match-notice.ts). Suppresses the initial mount transition (undefined → first matchId) so a fresh profile load doesn't fire. 6s TTL.
 - Motion: tinted ring (emerald for wins, rose for losses) animates 0 → 0.55 alpha → 0 over the TTL; `scale: [1, 1.005, 1]` lift. `useReducedMotion` short-circuits both.
 - Commit `a7f3299` (bundled with PG1).
-- **Live verification deferred.** Pulse triggers off the same SSE invalidation path as the match-list `flashMatchIds` flow, which is confirmed working; treating as live-validated by inference until a real in-game arrival lands the assumption.
+- Live-verified 2026-05-14 — ring fired on first Profile open after a new match arrived via SSE (the initial-mount suppression rules out a refresh false-positive).
 
 ### Phase PG3 — Lane-phase / comeback depth ✅ shipped 2026-05-13
 
@@ -155,8 +155,9 @@ Companion to (or replacement for) the open ConclusionCard-pattern case study tra
 ## Status
 
 - **2026-05-13** — arc framed, promoted from vNext.
-- **2026-05-13** — PG1 + PG2 shipped (commit `a7f3299`). Section live on Profile, paired with Pregame Ritual; SSE-driven pulse fires off the existing match-window invalidation path. Live verification of the pulse deferred (treating as inferred-working via the parallel match-list flash flow).
+- **2026-05-13** — PG1 + PG2 shipped (commit `a7f3299`). Section live on Profile, paired with Pregame Ritual; SSE-driven pulse fires off the existing match-window invalidation path.
 - **2026-05-13** — PG3 shipped (commit `3007552`). Game-shape signal added behind the timeline-projected sentinel.
+- **2026-05-14** — PG2 pulse live-verified on a real new-match arrival.
 - **Remaining:** PG4 (peer-route artifact) — explicitly deferred, doc marks it for v2 promotion only after the Profile framing is proven.
 
 ---
