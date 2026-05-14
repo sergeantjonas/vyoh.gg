@@ -13,6 +13,7 @@ import { Route as StatusRouteImport } from './routes/status'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SteamIndexRouteImport } from './routes/steam/index'
 import { Route as LolIndexRouteImport } from './routes/lol/index'
+import { Route as SteamWishlistRouteImport } from './routes/steam/wishlist'
 import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
 import { Route as LolAccountSlugIndexRouteImport } from './routes/lol/$accountSlug/index'
 import { Route as SteamGameAppidRouteImport } from './routes/steam/game.$appid'
@@ -42,6 +43,11 @@ const SteamIndexRoute = SteamIndexRouteImport.update({
 const LolIndexRoute = LolIndexRouteImport.update({
   id: '/lol/',
   path: '/lol/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SteamWishlistRoute = SteamWishlistRouteImport.update({
+  id: '/steam/wishlist',
+  path: '/steam/wishlist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LolAccountSlugRoute = LolAccountSlugRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
+  '/steam/wishlist': typeof SteamWishlistRoute
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
+  '/steam/wishlist': typeof SteamWishlistRoute
   '/lol': typeof LolIndexRoute
   '/steam': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
+  '/steam/wishlist': typeof SteamWishlistRoute
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/'
     | '/status'
     | '/lol/$accountSlug'
+    | '/steam/wishlist'
     | '/lol/'
     | '/steam/'
     | '/lol/$accountSlug/live'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/status'
+    | '/steam/wishlist'
     | '/lol'
     | '/steam'
     | '/lol/$accountSlug/live'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/'
     | '/status'
     | '/lol/$accountSlug'
+    | '/steam/wishlist'
     | '/lol/'
     | '/steam/'
     | '/lol/$accountSlug/live'
@@ -201,6 +213,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   StatusRoute: typeof StatusRoute
   LolAccountSlugRoute: typeof LolAccountSlugRouteWithChildren
+  SteamWishlistRoute: typeof SteamWishlistRoute
   LolIndexRoute: typeof LolIndexRoute
   SteamIndexRoute: typeof SteamIndexRoute
   SteamGameAppidRoute: typeof SteamGameAppidRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/lol'
       fullPath: '/lol/'
       preLoaderRoute: typeof LolIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/steam/wishlist': {
+      id: '/steam/wishlist'
+      path: '/steam/wishlist'
+      fullPath: '/steam/wishlist'
+      preLoaderRoute: typeof SteamWishlistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lol/$accountSlug': {
@@ -340,6 +360,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   StatusRoute: StatusRoute,
   LolAccountSlugRoute: LolAccountSlugRouteWithChildren,
+  SteamWishlistRoute: SteamWishlistRoute,
   LolIndexRoute: LolIndexRoute,
   SteamIndexRoute: SteamIndexRoute,
   SteamGameAppidRoute: SteamGameAppidRoute,

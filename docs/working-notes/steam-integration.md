@@ -203,7 +203,14 @@ Subsequent phases (S2–S8) get their own chunk plans at the start of each phase
 
 ### Phase S2 — Wishlist surface
 
-Wishlist endpoint poller + cache, wishlist `ConclusionCard` chip on Profile, drill-in list with date-added timestamps. The confirmed first surface; small enough to be a one-chunk warmup that exercises S1's plumbing end-to-end.
+Wishlist endpoint poller + cache, wishlist `ConclusionCard` chip on the `/steam` landing, drill-in list with date-added timestamps. The confirmed first surface; small enough to be a one-chunk warmup that exercises S1's plumbing end-to-end.
+
+**Status (2026-05-14): shipped.**
+
+- Chunk A backend — commit `d25e8bc`. `SteamClientService.getWishlist` + `getStoreItems` wrap `IWishlistService/GetWishlist/v1/` and `IStoreBrowseService/GetItems/v1/`. `SteamService.getOwnerWishlist` joins the wishlist with resolved names and store URLs behind two in-memory TTL caches (wishlist 1h, names 24h) — no DB, no scheduler, fits the "one-chunk warmup" framing. `GET /api/steam/wishlist` returns the typed `SteamWishlist` from `@vyoh/shared`. Negative-cache for appids GetItems silently omits avoids retrying every request.
+- Chunk B frontend — wishlist `ConclusionCard` chip on `/steam` (reusing `@/lol/trends/_shared/conclusion-card`) with a drill-in link, drill-in route at `/steam/wishlist` rendering the full list with date-added formatted in `Europe/Brussels` and sorted by Steam priority (unranked items last). Hook lives at `apps/web/src/steam/use-wishlist.ts` and mirrors the existing TanStack Query patterns.
+- **Endpoint pivot vs. original plan:** the doc anticipated the legacy `store.steampowered.com/wishlist/profiles/.../wishlistdata/` endpoint. Live probes returned 302 → store root; pivoted to the modern `IWishlistService` + `IStoreBrowseService` pair on `api.steampowered.com`, both behind the existing Steam API key. No extra rate-limiter needed — both endpoints share the existing Bottleneck reservoir.
+- **Where the chip lives:** `/steam` landing, not the LoL profile (cross-stream synthesis stays on `/` per [self-portrait-surfaces.md](self-portrait-surfaces.md)).
 
 ### Phase S3 — Owned games + library composition
 
