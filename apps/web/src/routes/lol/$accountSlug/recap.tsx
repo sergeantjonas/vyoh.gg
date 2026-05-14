@@ -1,6 +1,7 @@
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { RecapChampion } from "@/lol/recap/recap-champion";
+import { RecapDuoOfYear } from "@/lol/recap/recap-duo-of-year";
 import { RecapMostImproved } from "@/lol/recap/recap-most-improved";
 import { RecapPatchVerdict } from "@/lol/recap/recap-patch-verdict";
 import { RecapRankArc } from "@/lol/recap/recap-rank-arc";
@@ -57,6 +58,7 @@ function RecapPage() {
       <RecapMostImproved matches={matches} accountSlug={accountSlug} />
       <RecapSignatureGame matches={matches} accountSlug={accountSlug} />
       <RecapPatchVerdict matches={matches} />
+      <RecapDuoOfYear accountSlug={accountSlug} />
       <RecapTopInsight matches={matches} />
 
       <m.p
