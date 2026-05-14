@@ -9,12 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SteamRouteImport } from './routes/steam'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SteamIndexRouteImport } from './routes/steam/index'
 import { Route as LolIndexRouteImport } from './routes/lol/index'
 import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
 import { Route as LolAccountSlugIndexRouteImport } from './routes/lol/$accountSlug/index'
+import { Route as SteamGameAppidRouteImport } from './routes/steam/game.$appid'
 import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountSlug/trends'
 import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
 import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
@@ -23,11 +24,6 @@ import { Route as LolAccountSlugChampionsIndexRouteImport } from './routes/lol/$
 import { Route as LolAccountSlugMatchesMatchIdRouteImport } from './routes/lol/$accountSlug/matches/$matchId'
 import { Route as LolAccountSlugChampionsChampionKeyRouteImport } from './routes/lol/$accountSlug/champions/$championKey'
 
-const SteamRoute = SteamRouteImport.update({
-  id: '/steam',
-  path: '/steam',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StatusRoute = StatusRouteImport.update({
   id: '/status',
   path: '/status',
@@ -36,6 +32,11 @@ const StatusRoute = StatusRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SteamIndexRoute = SteamIndexRouteImport.update({
+  id: '/steam/',
+  path: '/steam/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LolIndexRoute = LolIndexRouteImport.update({
@@ -52,6 +53,11 @@ const LolAccountSlugIndexRoute = LolAccountSlugIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LolAccountSlugRoute,
+} as any)
+const SteamGameAppidRoute = SteamGameAppidRouteImport.update({
+  id: '/steam/game/$appid',
+  path: '/steam/game/$appid',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LolAccountSlugTrendsRoute = LolAccountSlugTrendsRouteImport.update({
   id: '/trends',
@@ -96,12 +102,13 @@ const LolAccountSlugChampionsChampionKeyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
-  '/steam': typeof SteamRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/lol/': typeof LolIndexRoute
+  '/steam/': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
+  '/steam/game/$appid': typeof SteamGameAppidRoute
   '/lol/$accountSlug/': typeof LolAccountSlugIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
   '/lol/$accountSlug/matches/$matchId': typeof LolAccountSlugMatchesMatchIdRoute
@@ -111,11 +118,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
-  '/steam': typeof SteamRoute
   '/lol': typeof LolIndexRoute
+  '/steam': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
+  '/steam/game/$appid': typeof SteamGameAppidRoute
   '/lol/$accountSlug': typeof LolAccountSlugIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
   '/lol/$accountSlug/matches/$matchId': typeof LolAccountSlugMatchesMatchIdRoute
@@ -126,12 +134,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
-  '/steam': typeof SteamRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/lol/': typeof LolIndexRoute
+  '/steam/': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
+  '/steam/game/$appid': typeof SteamGameAppidRoute
   '/lol/$accountSlug/': typeof LolAccountSlugIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
   '/lol/$accountSlug/matches/$matchId': typeof LolAccountSlugMatchesMatchIdRoute
@@ -143,12 +152,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/status'
-    | '/steam'
     | '/lol/$accountSlug'
     | '/lol/'
+    | '/steam/'
     | '/lol/$accountSlug/live'
     | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
+    | '/steam/game/$appid'
     | '/lol/$accountSlug/'
     | '/lol/$accountSlug/champions/$championKey'
     | '/lol/$accountSlug/matches/$matchId'
@@ -158,11 +168,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/status'
-    | '/steam'
     | '/lol'
+    | '/steam'
     | '/lol/$accountSlug/live'
     | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
+    | '/steam/game/$appid'
     | '/lol/$accountSlug'
     | '/lol/$accountSlug/champions/$championKey'
     | '/lol/$accountSlug/matches/$matchId'
@@ -172,12 +183,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/status'
-    | '/steam'
     | '/lol/$accountSlug'
     | '/lol/'
+    | '/steam/'
     | '/lol/$accountSlug/live'
     | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
+    | '/steam/game/$appid'
     | '/lol/$accountSlug/'
     | '/lol/$accountSlug/champions/$championKey'
     | '/lol/$accountSlug/matches/$matchId'
@@ -188,20 +200,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   StatusRoute: typeof StatusRoute
-  SteamRoute: typeof SteamRoute
   LolAccountSlugRoute: typeof LolAccountSlugRouteWithChildren
   LolIndexRoute: typeof LolIndexRoute
+  SteamIndexRoute: typeof SteamIndexRoute
+  SteamGameAppidRoute: typeof SteamGameAppidRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/steam': {
-      id: '/steam'
-      path: '/steam'
-      fullPath: '/steam'
-      preLoaderRoute: typeof SteamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/status': {
       id: '/status'
       path: '/status'
@@ -214,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/steam/': {
+      id: '/steam/'
+      path: '/steam'
+      fullPath: '/steam/'
+      preLoaderRoute: typeof SteamIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lol/': {
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/lol/$accountSlug/'
       preLoaderRoute: typeof LolAccountSlugIndexRouteImport
       parentRoute: typeof LolAccountSlugRoute
+    }
+    '/steam/game/$appid': {
+      id: '/steam/game/$appid'
+      path: '/steam/game/$appid'
+      fullPath: '/steam/game/$appid'
+      preLoaderRoute: typeof SteamGameAppidRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lol/$accountSlug/trends': {
       id: '/lol/$accountSlug/trends'
@@ -319,9 +339,10 @@ const LolAccountSlugRouteWithChildren = LolAccountSlugRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   StatusRoute: StatusRoute,
-  SteamRoute: SteamRoute,
   LolAccountSlugRoute: LolAccountSlugRouteWithChildren,
   LolIndexRoute: LolIndexRoute,
+  SteamIndexRoute: SteamIndexRoute,
+  SteamGameAppidRoute: SteamGameAppidRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

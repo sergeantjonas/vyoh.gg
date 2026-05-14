@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/steam")({
+export const Route = createFileRoute("/steam/")({
   component: SteamPage,
 });
 
