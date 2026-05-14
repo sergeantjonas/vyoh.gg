@@ -14,11 +14,13 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](match-depth-roadmap.md)
 - **PG4 peer-route post-game artifact** — explicitly v2; gated on the PG1–PG3 Profile framing proving out. → [post-game-close-the-loop.md](post-game-close-the-loop.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](app-state-analysis.md)
+- **Home deck chunk 1** — replace `/` stub with a bento mosaic of `ConclusionCard` tiles; reuse existing recap composers + site-level always-fills floor, zero new derivations. Chunk 2 (chronotype hero) planned separately after chunk 1 ships. → [home-deck.md](home-deck.md)
 
 ## Adjacent maintenance (sub-session each)
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](perf-baseline.md)
 - Riot-investigation parked tail: per-account cache TTL self-healing, re-derive `reservoirIncreaseInterval` when prod-tier key lands, sync fairness if accounts ever run in parallel. → [riot-investigation-2026-05-07.md](riot-investigation-2026-05-07.md)
+- CodeQL SAST evaluation — deferred from the 2026-05-14 security baseline; freelance-signal layer, not threat-model-justified. Revisit when bandwidth allows or auth surface lands. → [security.md](security.md)
 
 ## Unpromoted vNext top-tier candidates
 

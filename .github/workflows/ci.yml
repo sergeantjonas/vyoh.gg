@@ -31,6 +31,21 @@ jobs:
 
       - run: pnpm -r test
 
+  audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - run: corepack enable
+
+      - run: pnpm audit --prod --audit-level=high
+
   bundle-size:
     name: Bundle size budget
     runs-on: ubuntu-latest
