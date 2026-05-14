@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
@@ -7,7 +8,22 @@ import { defineConfig } from "vitest/config";
 
 const enableVisualizer = process.env.ANALYZE === "1";
 
+const buildCommit = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "dev";
+  }
+})();
+const buildTime = new Date().toISOString();
+
 export default defineConfig({
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+    __BUILD_COMMIT__: JSON.stringify(buildCommit),
+  },
   plugins: [
     TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
     react(),
