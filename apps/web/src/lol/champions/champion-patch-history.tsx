@@ -4,7 +4,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useMemo } from "react";
-import { groupByPatch } from "../_shared/patch-version";
+import { groupByPatch } from "../_shared/patch/patch-version";
 
 interface PatchStat {
   patch: string;
