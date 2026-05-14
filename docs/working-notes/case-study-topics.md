@@ -111,6 +111,8 @@ Open follow-ups (also tracked in [perf-baseline.md](./perf-baseline.md)):
 
 ## Candidate write-up 4 — Motion without gimmicks
 
+Status: **shipped** — [docs/case-studies/motion-without-gimmicks.md](../case-studies/motion-without-gimmicks.md). Frames motion as a vocabulary of *information-bearing verbs* rather than decoration: count-ups settle to truth, card-to-hero shared-element transition replaces a cut, new-match pulse encodes outcome. Structural decisions: `LazyMotion + domMax` for bundle posture; `useReducedMotion` as a first-class runtime branch (component) layered with `@media (prefers-reduced-motion)` (CSS loops). Closes on the discipline of what was rejected (stagger, auto-rotate, parallax, refetch shimmer).
+
 Potential title:
 
 ```text
@@ -145,6 +147,8 @@ Portfolio signal:
 
 ## Candidate write-up 5 — Runtime validation
 
+Status: **descoped (2026-05-14)**. The candidate was always speculative — note the "*possible* Zod schemas" language below. Reconnaissance confirms no Zod / valibot / yup / class-validator anywhere in `apps/api` or `apps/web`, no NestJS `ValidationPipe`, no DTO decorators. The shipped pattern is opportunistic defensiveness at parse-time (`?? 0`, optional fields) plus end-to-end TypeScript types via `@vyoh/shared` — *not* runtime schema validation. Writing a case study claiming we validate would be dishonest; the closest honest piece is the "trust the type system, isolate the failure mode" framing, which is thin on its own and partly absorbed by [pagination-partial-failure](../case-studies/pagination-partial-failure.md). Reopen if Zod (or equivalent) actually lands.
+
 Potential title:
 
 ```text
@@ -175,7 +179,7 @@ Portfolio signal:
 
 ## Candidate write-up — LP history without a time-series database
 
-Status: code shipped (Phase 0 + Phase 4). Write-up not drafted.
+Status: **shipped** — [docs/case-studies/lp-history-postgres.md](../case-studies/lp-history-postgres.md). Covers snapshot-on-change ingest, tier-normalized LP shared across packages, the visual-gap compression (`MAX_VISUAL_GAP_MS`) that keeps the line continuous across overnight gaps without lying in tooltips, patch-boundary interpolation onto the compressed axis, and the brush + Y-axis fit. Package-boundary footnote (subpath exports vs barrel re-exports) appears as a single line; the full diagnostic could become its own piece if the broader monorepo story ever needs framing.
 
 A LoL companion app that visualizes ranked-LP-over-time normally implies a time-series database — but the data is sparse (one snapshot per change, maybe a few per week per account) and Postgres handles it fine. The interesting story is *what makes that workable*:
 
@@ -203,7 +207,7 @@ Portfolio signal:
 
 ## Candidate write-up 6 — Killing fullscreen-blur flicker on a 4K dashboard
 
-Status: shipped. Write-up not yet drafted. **Note (2026-05-13):** the "wsrv.nl over self-hosting" framing in this arc was deliberately revisited and superseded by the bounded-CDN bundling arc — see [Candidate write-up 8](#candidate-write-up-8--bundling-the-bounded-cdn) and [bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md). If this write-up is drafted, the closing should acknowledge the later pivot rather than land on wsrv.nl as the durable answer.
+Status: **shipped** — [docs/case-studies/fullscreen-blur-flicker.md](../case-studies/fullscreen-blur-flicker.md). Written as a two-act piece: the diagnostic arc (six suspects ranked by frame-cost shape, attack live-filter blur first) lands intact, and the closing explicitly acknowledges that the "wsrv.nl as durable supplier" framing was superseded by the bounded-CDN bundling arc. Substitution-not-rewrite framing: *what shape the input bitmap needs* (pre-blurred upstream) survived; *where the bitmap lives* (third-party query strings → build-time bundle) was the later pivot. See [Candidate write-up 8](#candidate-write-up-8--bundling-the-bounded-cdn).
 
 The splash backdrop layered five concurrent things on a near-fullscreen surface — `filter: blur(5px)` on the splash image, infinite Ken Burns transform, a 0.7 s opacity cross-fade keyed remount, an offsetX shift, and a fade-in opacity. On a 4K monitor this caused visible flicker during scroll-and-hover. The fix was a cluster, not one line.
 
@@ -234,7 +238,7 @@ Portfolio signal:
 
 ## Candidate write-up 7 — An operator console for the limiter chain
 
-Status: shipped (in-memory MVP, no auth gate yet). Write-up not yet drafted. Companion to [riot-rate-limits.md](../case-studies/riot-rate-limits.md) and [historical-backfill-and-sse.md](../case-studies/historical-backfill-and-sse.md).
+Status: **shipped** — [docs/case-studies/operator-console.md](../case-studies/operator-console.md). Companion to [riot-rate-limits.md](../case-studies/riot-rate-limits.md) and [historical-backfill-and-sse.md](../case-studies/historical-backfill-and-sse.md). In-memory MVP, no auth gate yet — durable hosting is a separate problem.
 
 The first two write-ups diagnose and fix two generations of Bottleneck bugs from log archaeology alone — `grep "EXECUTING"`, watch a counter climb, infer the cause. The natural closing chapter: stop reading the chain from a tail and make its live state visible from a screen, with knobs to actually take action on what you see.
 
