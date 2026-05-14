@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { RiotModule } from "../riot/riot.module";
 import { LiveGamePollerService } from "./live-game-poller.service";
+import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolController } from "./lol.controller";
 import { LolService } from "./lol.service";
 import { MatchEventsService } from "./match-events.service";
@@ -10,7 +11,13 @@ import { MatchController } from "./match.controller";
 @Module({
   imports: [RiotModule],
   controllers: [LolController, MatchController],
-  providers: [LolService, MatchSyncService, MatchEventsService, LiveGamePollerService],
-  exports: [LolService, MatchSyncService, MatchEventsService],
+  providers: [
+    LolService,
+    LolAnalyticsService,
+    MatchSyncService,
+    MatchEventsService,
+    LiveGamePollerService,
+  ],
+  exports: [LolService, LolAnalyticsService, MatchSyncService, MatchEventsService],
 })
 export class LolModule {}

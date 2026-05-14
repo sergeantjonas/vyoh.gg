@@ -24,7 +24,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](perf-baseline.md)
 - Riot-investigation parked tail: per-account cache TTL self-healing, re-derive `reservoirIncreaseInterval` when prod-tier key lands, sync fairness if accounts ever run in parallel. → [riot-investigation-2026-05-07.md](riot-investigation-2026-05-07.md)
 - CodeQL SAST evaluation — deferred from the 2026-05-14 security baseline; freelance-signal layer, not threat-model-justified. Revisit when bandwidth allows or auth surface lands. → [security.md](security.md)
-- Folder-structure cleanup — split `lol/_shared/` (37 files) into 6 buckets, extract `lol-analytics.service.ts` from the 1,308-LOC `lol.service.ts`. Plan written 2026-05-14; pick up between Steam arcs, defer asset buckets until the runtime-proxy pivot. → [folder-structure-cleanup.md](folder-structure-cleanup.md)
+- Folder-structure cleanup — Chunk 2 (`lol-analytics.service.ts` extracted, `lol.service.ts` 1,308 → 939 LOC) shipped 2026-05-14. Chunk 1 (`lol/_shared/` split into 6 buckets) remaining; defer asset buckets until the runtime-proxy pivot. → [folder-structure-cleanup.md](folder-structure-cleanup.md)
 
 ## Unpromoted vNext top-tier candidates
 

@@ -46,13 +46,15 @@ Import updates: every consumer of those modules — likely 60–100 imports acro
 
 Single PR. No behavior change. Verify with `tokf err pnpm run typecheck:cc` after each bucket move; commit per bucket so the diff is reviewable.
 
-### Chunk 2 — extract `lol-analytics.service.ts`
+### Chunk 2 — extract `lol-analytics.service.ts` (shipped 2026-05-14)
 
 Scope: 5 methods + their private helpers move to a new file alongside [apps/api/src/lol/lol.service.ts](../../apps/api/src/lol/lol.service.ts). Add to `LolModule` providers. Controller methods that currently call `this.lolService.getDuos(...)` etc. switch to `this.lolAnalyticsService.getDuos(...)`.
 
 Risk: the analytics methods pull from `this.prisma` and a `summoner` lookup helper that's duplicated inline across most methods (every analytics method starts with `summoner = await this.prisma.lolSummoner.findUnique({ where: { gameName_tagLine_region: ... } })`). Worth noting but **not in scope** — extracting that helper is its own pass.
 
 Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec files per the [audit](#verdict-at-a-glance) test-layout finding).
+
+**Ship note 2026-05-14:** Landed in a single commit. `lol.service.ts` 1,308 → 939 LOC. `resolveSummoner` made public on LolService so `getChampionExtras` could keep its upsert semantics via `this.lol.resolveSummoner(...)`; the other 4 analytics methods use their inline `findUnique` (out-of-scope inline duplication preserved as planned). Controller spec needed a stub `LolAnalyticsService` provider added — the audit's "all analytics endpoints have spec files" claim turned out to be overstated; only `getMatchesForSummoner` has a controller spec, and no service-level analytics specs exist. Lower-risk than expected.
 
 ### Chunk 3 — Steam web feature subfoldering (deferred)
 

@@ -23,11 +23,15 @@ import type {
   SummonerProfile,
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
+import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolService } from "./lol.service";
 
 @Controller("lol/summoners/:region/:gameName/:tagLine")
 export class LolController {
-  constructor(private readonly lol: LolService) {}
+  constructor(
+    private readonly lol: LolService,
+    private readonly analytics: LolAnalyticsService
+  ) {}
 
   @Get("matches")
   async getMatches(
@@ -79,7 +83,7 @@ export class LolController {
     @Param("tagLine") tagLine: string,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<Duo[]> {
-    return this.lol.getDuos(region, gameName, tagLine, count);
+    return this.analytics.getDuos(region, gameName, tagLine, count);
   }
 
   @Get("chronotype")
@@ -89,7 +93,7 @@ export class LolController {
     @Param("tagLine") tagLine: string,
     @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
   ): Promise<Chronotype> {
-    return this.lol.getChronotype(region, gameName, tagLine, count);
+    return this.analytics.getChronotype(region, gameName, tagLine, count);
   }
 
   @Get("champion-pairs")
@@ -99,7 +103,7 @@ export class LolController {
     @Param("tagLine") tagLine: string,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionPair[]> {
-    return this.lol.getChampionPairs(region, gameName, tagLine, count);
+    return this.analytics.getChampionPairs(region, gameName, tagLine, count);
   }
 
   @Get("champions/:championKey/build-flow")
@@ -110,7 +114,13 @@ export class LolController {
     @Param("championKey") championKey: string,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionBuildFlowEntry[]> {
-    return this.lol.getChampionBuildFlow(region, gameName, tagLine, championKey, count);
+    return this.analytics.getChampionBuildFlow(
+      region,
+      gameName,
+      tagLine,
+      championKey,
+      count
+    );
   }
 
   @Get("rank/history")
@@ -132,7 +142,7 @@ export class LolController {
     @Query("queue", new DefaultValuePipe(undefined), new ParseIntPipe({ optional: true }))
     queue: number | undefined
   ): Promise<ChampionExtras> {
-    return this.lol.getChampionExtras(region, gameName, tagLine, championKey, queue);
+    return this.analytics.getChampionExtras(region, gameName, tagLine, championKey, queue);
   }
 
   @Sse("matches/events")
