@@ -176,6 +176,25 @@ Phase-ordering decisions confirmed at the same time:
 
 Steam Web API client + key/env handling, Bottleneck reservoir matching the Riot pattern, public-profile probe via `GetPlayerSummaries`, routing scaffold for `/steam/game/:appid` (stub), Profile-page Steam section placeholder. Lands the integration plumbing with no user-facing surface.
 
+**Chunk plan (set 2026-05-14, picked up in a later session):**
+
+- **S1 chunk 1 — Backend foundation.**
+  - New module under `apps/api/src/steam/`, mirroring the LoL module layout.
+  - `STEAM_API_KEY` env var; `STEAM_OWNER_ID` constant (hardcoded SteamID64 in shared config, per the single-owner decision).
+  - Bottleneck reservoir matching the Riot rate-limiter pattern (`riot-rate-limits` case study). One shared limiter for all Steam Web API calls — wishlist endpoint can sit on a separate limiter later if `store.steampowered.com` rate limits differ enough to justify it.
+  - Low-level client wrapping `ISteamUser/GetPlayerSummaries`. Shared response types live in `packages/shared/src/steam/`.
+  - One controller endpoint surfacing the owner's public-profile summary. Verifiable end-to-end via curl. Returns `communityvisibilitystate` + currently-playing (`gameid`, `gameextrainfo`) when available.
+  - **Done when:** `curl /api/steam/summary` returns the owner's profile state; if the owner's privacy prerequisites aren't met, the response surfaces that explicitly rather than failing opaquely.
+
+- **S1 chunk 2 — Frontend scaffold.**
+  - TanStack route `/steam/game/$appid` rendering a stub ("Steam game detail: $appid"). Optional `/steam` index route if it falls out cheaply.
+  - Profile page Steam-section placeholder — empty-state copy, no data wiring yet. Slots into Profile where future Steam chips (wishlist S2, library composition S3, recent unlocks S5) will live.
+  - **Done when:** visiting `/steam/game/440` shows the stub; the Profile page renders the Steam-section placeholder cleanly without layout regressions.
+
+**Phase S1 exit criteria:** both chunks land; the Steam integration is alive end-to-end (HTTP probe works); the routing + Profile-section surface for S2 (wishlist) is ready to receive its chip. No data is being polled or stored yet — that starts in S3.
+
+Subsequent phases (S2–S8) get their own chunk plans at the start of each phase.
+
 ### Phase S2 — Wishlist surface
 
 Wishlist endpoint poller + cache, wishlist `ConclusionCard` chip on Profile, drill-in list with date-added timestamps. The confirmed first surface; small enough to be a one-chunk warmup that exercises S1's plumbing end-to-end.
