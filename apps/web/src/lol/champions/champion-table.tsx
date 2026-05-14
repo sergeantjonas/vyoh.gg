@@ -7,9 +7,13 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champions/champion-card";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
+
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 import type { ChampionSortOption } from "./champion-sort-selector";
 import type { ChampionStats } from "./champion-stats";
 import { useChampionName } from "./use-champions";
@@ -109,11 +113,26 @@ export function ChampionTable({
                   <div className="relative ml-auto flex flex-col items-end gap-1">
                     <div className="flex items-center gap-1.5 font-medium">
                       <span>{championName(s.champion)}</span>
-                      <RoleIcon
-                        position={s.position}
-                        title={ROLE_LABEL[s.position]}
-                        className="size-3.5 opacity-70"
-                      />
+                      <TooltipPrimitive.Root>
+                        <TooltipPrimitive.Trigger asChild>
+                          <span className="inline-flex">
+                            <RoleIcon
+                              position={s.position}
+                              title={ROLE_LABEL[s.position]}
+                              className="size-3.5 opacity-70"
+                            />
+                          </span>
+                        </TooltipPrimitive.Trigger>
+                        <TooltipPrimitive.Portal>
+                          <TooltipPrimitive.Content
+                            side="top"
+                            sideOffset={4}
+                            className={TOOLTIP_CONTENT_CLASS}
+                          >
+                            {ROLE_LABEL[s.position]}
+                          </TooltipPrimitive.Content>
+                        </TooltipPrimitive.Portal>
+                      </TooltipPrimitive.Root>
                     </div>
                     <div className="font-mono text-sm tabular-nums">
                       <span

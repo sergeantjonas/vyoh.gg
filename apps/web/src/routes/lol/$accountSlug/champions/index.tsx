@@ -20,8 +20,12 @@ import { aggregateChampionStats } from "@/lol/champions/champion-stats";
 import { ChampionTable } from "@/lol/champions/champion-table";
 import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 interface ChampionsSearch {
   role?: RolePosition;
@@ -54,19 +58,31 @@ function RoleChipStrip({
       {ROLE_ORDER.map((role) => {
         const active = value === role;
         return (
-          <button
-            key={role}
-            type="button"
-            onClick={() => onChange(active ? undefined : role)}
-            title={ROLE_LABEL[role]}
-            aria-pressed={active}
-            className={cn(
-              "cursor-pointer rounded-md p-1 transition-opacity",
-              active ? "bg-muted opacity-100" : "opacity-50 hover:opacity-100"
-            )}
-          >
-            <RoleIcon position={role} className="size-4" />
-          </button>
+          <TooltipPrimitive.Root key={role}>
+            <TooltipPrimitive.Trigger asChild>
+              <button
+                type="button"
+                onClick={() => onChange(active ? undefined : role)}
+                aria-pressed={active}
+                aria-label={ROLE_LABEL[role]}
+                className={cn(
+                  "cursor-pointer rounded-md p-1 transition-opacity",
+                  active ? "bg-muted opacity-100" : "opacity-50 hover:opacity-100"
+                )}
+              >
+                <RoleIcon position={role} className="size-4" />
+              </button>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="top"
+                sideOffset={4}
+                className={TOOLTIP_CONTENT_CLASS}
+              >
+                {ROLE_LABEL[role]}
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
         );
       })}
     </div>
