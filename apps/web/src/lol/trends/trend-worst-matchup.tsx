@@ -1,4 +1,5 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
@@ -45,10 +46,12 @@ function MatchupRowView({
   row,
   isWorst,
   accountSlug,
+  championName,
 }: {
   row: MatchupRow;
   isWorst: boolean;
   accountSlug: string;
+  championName: (alias: string) => string;
 }) {
   const losses = row.games - row.wins;
   return (
@@ -74,7 +77,9 @@ function MatchupRowView({
           className={`size-5 shrink-0 rounded-sm ${isWorst ? "ring-1 ring-rose-500/50" : ""}`}
         />
       </Link>
-      <span className="flex-1 truncate text-foreground/80">{row.oppChamp}</span>
+      <span className="flex-1 truncate text-foreground/80">
+        {championName(row.oppChamp)}
+      </span>
       <span className="tabular-nums text-muted-foreground/80">
         <span className="text-emerald-500/80">{row.wins}</span>
         <span className="text-muted-foreground/40">{"–"}</span>
@@ -105,6 +110,8 @@ export function TrendWorstMatchup({
       .slice(0, DISPLAY_COUNT);
     return { rows: losing, sampleSize: filtered.length };
   }, [current]);
+
+  const championName = useChampionName();
 
   if (sampleSize === 0) {
     return (
@@ -141,9 +148,11 @@ export function TrendWorstMatchup({
   }
 
   const losses = worst.games - worst.wins;
-  const verdict = `${worst.wins}–${losses} on ${worst.yourChamp} into ${worst.oppChamp}.`;
+  const yourName = championName(worst.yourChamp);
+  const oppName = championName(worst.oppChamp);
+  const verdict = `${worst.wins}–${losses} on ${yourName} into ${oppName}.`;
   const prescription =
-    worst.wr <= BAN_WR_THRESHOLD ? `Consider banning ${worst.oppChamp}.` : undefined;
+    worst.wr <= BAN_WR_THRESHOLD ? `Consider banning ${oppName}.` : undefined;
 
   return (
     <ConclusionCard
@@ -161,6 +170,7 @@ export function TrendWorstMatchup({
               row={r}
               isWorst={i === 0}
               accountSlug={accountSlug}
+              championName={championName}
             />
           ))}
         </div>

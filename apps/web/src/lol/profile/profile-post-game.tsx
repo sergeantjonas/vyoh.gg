@@ -6,6 +6,7 @@ import {
   isRole,
 } from "@/lol/_shared/role-baselines";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { useNewMatchNotice } from "@/lol/profile/use-new-match-notice";
@@ -27,6 +28,7 @@ interface PostGameInput {
   last: MatchSummary;
   history: MatchSummary[];
   accountSlug: string;
+  nameFor: (alias: string) => string;
 }
 
 function kdaOf(m: MatchSummary): number {
@@ -186,9 +188,11 @@ function buildChampionReadSignal({
   last,
   history,
   accountSlug,
+  nameFor,
 }: PostGameInput): RitualSignal {
   const same = history.filter((m) => !m.remake && m.champion === last.champion);
   const others = same.filter((m) => m.matchId !== last.matchId);
+  const displayName = nameFor(last.champion);
   const iconLink = (
     <Link
       to="/lol/$accountSlug/champions/$championKey"
@@ -197,7 +201,7 @@ function buildChampionReadSignal({
     >
       <ChampionSquareIcon
         championName={last.champion}
-        alt={last.champion}
+        alt={displayName}
         className="size-5 rounded-sm"
       />
     </Link>
@@ -209,7 +213,7 @@ function buildChampionReadSignal({
       verdict: (
         <span className="flex items-center gap-2">
           {iconLink}
-          <span>First reads on {last.champion} — not enough history yet.</span>
+          <span>First reads on {displayName} — not enough history yet.</span>
         </span>
       ),
       detail: `${others.length} prior game${others.length === 1 ? "" : "s"}`,
@@ -222,13 +226,13 @@ function buildChampionReadSignal({
   let verdict: string;
   let tone: RitualSignal["tone"];
   if (rel >= KDA_MIN_REL) {
-    verdict = `${matchKda.toFixed(1)} KDA on ${last.champion} — above your ${avgKda.toFixed(1)} average.`;
+    verdict = `${matchKda.toFixed(1)} KDA on ${displayName} — above your ${avgKda.toFixed(1)} average.`;
     tone = "positive";
   } else if (rel <= -KDA_MIN_REL) {
-    verdict = `${matchKda.toFixed(1)} KDA on ${last.champion} — below your ${avgKda.toFixed(1)} average.`;
+    verdict = `${matchKda.toFixed(1)} KDA on ${displayName} — below your ${avgKda.toFixed(1)} average.`;
     tone = "warning";
   } else {
-    verdict = `${matchKda.toFixed(1)} KDA on ${last.champion} — matches your average.`;
+    verdict = `${matchKda.toFixed(1)} KDA on ${displayName} — matches your average.`;
     tone = "neutral";
   }
   return {
@@ -240,7 +244,7 @@ function buildChampionReadSignal({
         <span>{verdict}</span>
       </span>
     ),
-    detail: `${others.length + 1} games on ${last.champion} in window`,
+    detail: `${others.length + 1} games on ${displayName} in window`,
     tone,
   };
 }
@@ -316,13 +320,14 @@ export function ProfilePostGame({ accountSlug }: { accountSlug: string }) {
   // surfaces read as a matched set. ARAM games won't trigger a post-game read.
   const { matches } = useSeriousMatches();
   const reduced = useReducedMotion();
+  const nameFor = useChampionName();
 
   const computed = useMemo(() => {
     if (!matches || matches.length === 0) return null;
     const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
     const last = ordered.find((m) => !m.remake);
     if (!last) return null;
-    const input: PostGameInput = { last, history: matches, accountSlug };
+    const input: PostGameInput = { last, history: matches, accountSlug, nameFor };
     // Game-shape replaces the champion read when timeline data is present:
     // the lane-phase narrative is a stronger headline than KDA-vs-average,
     // and the grid stays at 4 tiles. Historical rows without a projected
@@ -338,7 +343,7 @@ export function ProfilePostGame({ accountSlug }: { accountSlug: string }) {
         buildTiltForecastSignal(input),
       ],
     };
-  }, [matches, accountSlug]);
+  }, [matches, accountSlug, nameFor]);
 
   const isFresh = useNewMatchNotice(computed?.last.matchId);
 

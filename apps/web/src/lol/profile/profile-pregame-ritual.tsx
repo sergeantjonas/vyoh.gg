@@ -1,5 +1,6 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { type CompositeRead, buildComposite } from "@/lol/profile/pregame-composite";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
@@ -144,7 +145,11 @@ function buildTimeSlotSignal(matches: MatchSummary[]): RitualSignal {
   };
 }
 
-function buildChampionSignal(matches: MatchSummary[], accountSlug: string): RitualSignal {
+function buildChampionSignal(
+  matches: MatchSummary[],
+  accountSlug: string,
+  nameFor: (alias: string) => string
+): RitualSignal {
   const cutoff = Date.now() - SUGGEST_DAYS * 24 * 60 * 60 * 1000;
   const recent = matches.filter(
     (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff
@@ -188,12 +193,12 @@ function buildChampionSignal(matches: MatchSummary[], accountSlug: string): Ritu
         >
           <ChampionSquareIcon
             championName={name}
-            alt={name}
+            alt={nameFor(name)}
             className="size-5 rounded-sm"
           />
         </Link>
         <span>
-          {name} — {stat.games}g · {wr}% WR
+          {nameFor(name)} — {stat.games}g · {wr}% WR
         </span>
       </span>
     ),
@@ -248,6 +253,7 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   // Predictions are about your next "serious" game (ranked / draft) — ARAM
   // tilt patterns and ARAM time-of-day don't transfer.
   const { matches } = useSeriousMatches();
+  const nameFor = useChampionName();
 
   const signals = useMemo(() => {
     if (!matches) return null;
@@ -255,9 +261,9 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
       buildFormSignal(matches),
       buildTiltSignal(matches),
       buildTimeSlotSignal(matches),
-      buildChampionSignal(matches, accountSlug),
+      buildChampionSignal(matches, accountSlug, nameFor),
     ];
-  }, [matches, accountSlug]);
+  }, [matches, accountSlug, nameFor]);
 
   const composite = useMemo(() => (signals ? buildComposite(signals) : null), [signals]);
 

@@ -1,5 +1,6 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ROLE_LABEL, type RolePosition } from "@/lol/_shared/role-icon";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
@@ -68,14 +69,20 @@ export function computePoolDrift(
   return { currentGames, priorGames, added, dropped, sustained };
 }
 
-function joinNames(entries: ChampionDriftEntry[]): string {
-  const names = entries.slice(0, MAX_NAMES_IN_VERDICT).map((e) => e.champion);
+function joinNames(
+  entries: ChampionDriftEntry[],
+  nameFor: (alias: string) => string
+): string {
+  const names = entries.slice(0, MAX_NAMES_IN_VERDICT).map((e) => nameFor(e.champion));
   if (names.length === 0) return "";
   if (names.length === 1) return names[0] ?? "";
   return `${names[0]} & ${names[1]}`;
 }
 
-function verdictFor(drift: PoolDrift): { text: string; empty: boolean } {
+function verdictFor(
+  drift: PoolDrift,
+  nameFor: (alias: string) => string
+): { text: string; empty: boolean } {
   const { added, dropped, sustained, currentGames, priorGames } = drift;
   if (currentGames === 0) {
     return { text: "No games in the last 14 days.", empty: true };
@@ -88,19 +95,19 @@ function verdictFor(drift: PoolDrift): { text: string; empty: boolean } {
   }
   if (added.length > 0 && dropped.length > 0) {
     return {
-      text: `Picked up ${joinNames(added)} this fortnight; cooled on ${joinNames(dropped)}.`,
+      text: `Picked up ${joinNames(added, nameFor)} this fortnight; cooled on ${joinNames(dropped, nameFor)}.`,
       empty: false,
     };
   }
   if (added.length > 0) {
     return {
-      text: `New this fortnight: ${joinNames(added)}. Pool widening.`,
+      text: `New this fortnight: ${joinNames(added, nameFor)}. Pool widening.`,
       empty: false,
     };
   }
   if (dropped.length > 0) {
     return {
-      text: `Cooled on ${joinNames(dropped)}; otherwise same pool as last fortnight.`,
+      text: `Cooled on ${joinNames(dropped, nameFor)}; otherwise same pool as last fortnight.`,
       empty: false,
     };
   }
@@ -166,7 +173,8 @@ export function ChampionPoolDrift({
     [matches, role]
   );
   const drift = useMemo(() => computePoolDrift(scoped, now ?? Date.now()), [scoped, now]);
-  const { text, empty } = verdictFor(drift);
+  const championName = useChampionName();
+  const { text, empty } = verdictFor(drift, championName);
 
   const hasEvidence = drift.added.length > 0 || drift.dropped.length > 0;
   const title = role ? `Your ${ROLE_LABEL[role]} pool drift` : "Champion pool drift";
