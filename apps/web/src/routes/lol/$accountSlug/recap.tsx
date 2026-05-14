@@ -1,5 +1,5 @@
-import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { RecapChampion } from "@/lol/recap/recap-champion";
 import { RecapDuoOfYear } from "@/lol/recap/recap-duo-of-year";
 import { RecapMostImproved } from "@/lol/recap/recap-most-improved";

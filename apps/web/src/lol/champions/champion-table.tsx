@@ -1,7 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
-import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import { ROLE_LABEL, RoleIcon, type RolePosition } from "@/lol/_shared/role-icon";
+import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import {
   ChampionCardChrome,
   championCardClassName,

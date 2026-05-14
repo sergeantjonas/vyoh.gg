@@ -1,6 +1,6 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
-import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import {
   ROLE_LABEL,
   ROLE_ORDER,
@@ -8,8 +8,11 @@ import {
   type RolePosition,
   isRolePosition,
 } from "@/lol/_shared/role-icon";
-import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
-import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import {
+  filterToSerious,
+  useSeriousQueues,
+} from "@/lol/_shared/serious-queues/serious-queues";
+import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
 import { ChampionPoolDrift } from "@/lol/champions/champion-pool-drift";
 import {
   CHAMPION_SORT_OPTIONS,

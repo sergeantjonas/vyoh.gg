@@ -1,9 +1,9 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
-import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
-import { QueueFilter } from "@/lol/_shared/queue/queue-filter";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { QueueFilter } from "@/lol/_shared/queue/queue-filter";
+import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
 import { useCachedMatches } from "@/lol/matches/use-matches";

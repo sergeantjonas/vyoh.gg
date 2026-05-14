@@ -142,7 +142,13 @@ export class LolController {
     @Query("queue", new DefaultValuePipe(undefined), new ParseIntPipe({ optional: true }))
     queue: number | undefined
   ): Promise<ChampionExtras> {
-    return this.analytics.getChampionExtras(region, gameName, tagLine, championKey, queue);
+    return this.analytics.getChampionExtras(
+      region,
+      gameName,
+      tagLine,
+      championKey,
+      queue
+    );
   }
 
   @Sse("matches/events")

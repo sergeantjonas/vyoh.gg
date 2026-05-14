@@ -1,10 +1,10 @@
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import {
   ROLE_DAMAGE_SHARE,
   ROLE_LABEL,
   ROLE_VISION_SCORE,
   isRole,
 } from "@/lol/_shared/analytics/role-baselines";
+import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
