@@ -297,8 +297,12 @@ function AccountLayout() {
 
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
   const [initialChampion, setInitialChampion] = useState<string | null>(null);
+  // Initialize once per account so the splash follows account swaps but does
+  // not reshuffle every time the match list refetches (e.g. SSE backfill).
+  const initializedSlugRef = useRef<string | null>(null);
   useEffect(() => {
-    if (initialChampion || !matches) return;
+    if (!matches) return;
+    if (initializedSlugRef.current === accountSlug) return;
     if (matches.length > 0) {
       const first = matches[0];
       if (first) setInitialChampion(first.champion);
@@ -306,7 +310,8 @@ function AccountLayout() {
       const key = CHAMPION_KEYS[Math.floor(Math.random() * CHAMPION_KEYS.length)];
       if (key) setInitialChampion(key);
     }
-  }, [matches, initialChampion]);
+    initializedSlugRef.current = accountSlug;
+  }, [matches, accountSlug]);
   // Debounce hover-driven splash changes so a quick mouse sweep over the match
   // list doesn't remount the backdrop (and refetch its splash) per row.
   // First-set and clears stay instant — only value↔value transitions wait.
