@@ -3,6 +3,7 @@ import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { RecapChampion } from "@/lol/recap/recap-champion";
 import { RecapMostImproved } from "@/lol/recap/recap-most-improved";
 import { RecapRankArc } from "@/lol/recap/recap-rank-arc";
+import { RecapSignatureGame } from "@/lol/recap/recap-signature-game";
 import { RecapTopInsight } from "@/lol/recap/recap-top-insight";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
@@ -53,6 +54,7 @@ function RecapPage() {
       <RecapRankArc account={account} />
       <RecapChampion matches={matches} accountSlug={accountSlug} />
       <RecapMostImproved matches={matches} accountSlug={accountSlug} />
+      <RecapSignatureGame matches={matches} accountSlug={accountSlug} />
       <RecapTopInsight matches={matches} />
 
       <m.p
