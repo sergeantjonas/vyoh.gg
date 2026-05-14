@@ -575,7 +575,7 @@ function ChampionDetailPage() {
             <button
               type="button"
               onClick={() => setMatchupsExpanded((v) => !v)}
-              className="self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="cursor-pointer self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               {matchupsExpanded
                 ? "Show less"
