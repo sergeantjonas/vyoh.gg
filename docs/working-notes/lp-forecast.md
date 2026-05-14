@@ -115,12 +115,13 @@ A `ConclusionCard`-shaped tile elsewhere on Profile (e.g. above LP history). Rea
 
 ## Phasing
 
-### Phase LP1 — Naive composite, Option B placement
+### Phase LP1 — Naive composite, Option B placement — **shipped 2026-05-14**
 
-- Refactor Pregame Ritual to render a `ConclusionCard` shape: top-line verdict ("Composite read for your next ranked: +5 LP — directional only") with the four signal tiles as the evidence slot.
-- Implement the equal-weight composite in a new helper in `apps/web/src/lol/profile/`.
-- Map composite score to an LP band; render confidence label based on sample sizes of time-slot + champion signals.
-- Empty-path: when none of the four signals fire (cold-start account), show a muted "Play a few games and we'll have a read" verdict.
+- Helper: [`apps/web/src/lol/profile/pregame-composite.ts`](../../apps/web/src/lol/profile/pregame-composite.ts) — `buildComposite()` maps each signal's tone to a {-1, 0, +1} score, averages, and produces an LP band centred at `score * 20` with ±5 width.
+- Tile: [`profile-pregame-ritual.tsx`](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) renders a verdict row (`Composite read · next ranked` label + LP band) above the four signal tiles, tone-tinted by composite sign.
+- Confidence label is gated on count of non-neutral firing signals: 3–4 → no label, 2 → "directional only", 1 → "low confidence — small sample".
+- Empty path: zero firing signals → muted "Play a few games and we'll have a read".
+- **LP1 shortcut to revisit in LP2/LP3:** confidence currently ignores each signal's *internal* sample size (e.g. time-slot's `slot.games`). It only counts how many signals had a non-neutral read. The honest version threads sample-size into per-signal weight.
 
 ### Phase LP2 — Confidence calibration
 
@@ -149,6 +150,7 @@ The composite is interesting structurally because it demonstrates:
 ## Status
 
 - **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](views-roadmap.md) Phase 4 caveat).
+- **2026-05-14** — Phase LP1 shipped (naive equal-weight composite + verdict row above Pregame Ritual signals). LP2 next (confidence calibration once LP history has accrued); LP3 still data-blocked.
 
 ---
 

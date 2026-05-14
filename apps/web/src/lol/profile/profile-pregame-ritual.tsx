@@ -1,10 +1,12 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { type CompositeRead, buildComposite } from "@/lol/profile/pregame-composite";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
+import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 const SUGGEST_DAYS = 14;
@@ -200,6 +202,48 @@ function buildChampionSignal(matches: MatchSummary[], accountSlug: string): Ritu
   };
 }
 
+const VERDICT_TONE: Record<RitualSignal["tone"], string> = {
+  neutral: "border-border bg-card/40",
+  positive: "border-emerald-500/40 bg-emerald-500/10",
+  warning: "border-rose-500/40 bg-rose-500/10",
+};
+
+function CompositeVerdict({ composite }: { composite: CompositeRead }) {
+  const reduced = useReducedMotion();
+  if (composite.empty) {
+    return (
+      <m.div
+        layout
+        initial={reduced ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="rounded-lg border border-dashed bg-card/30 px-3 py-2.5 text-sm text-muted-foreground/80"
+      >
+        {composite.band}
+      </m.div>
+    );
+  }
+  return (
+    <m.div
+      layout
+      initial={reduced ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className={`flex flex-col gap-1 rounded-lg border px-3 py-2.5 ${VERDICT_TONE[composite.tone]}`}
+    >
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+        Composite read · next ranked
+      </div>
+      <div className="text-sm leading-snug text-foreground/90">
+        {composite.band}
+        {composite.confidence && (
+          <span className="text-muted-foreground/70"> — {composite.confidence}</span>
+        )}
+      </div>
+    </m.div>
+  );
+}
+
 export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   // Predictions are about your next "serious" game (ranked / draft) — ARAM
   // tilt patterns and ARAM time-of-day don't transfer.
@@ -215,11 +259,14 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
     ];
   }, [matches, accountSlug]);
 
-  if (!matches || matches.length === 0 || !signals) return null;
+  const composite = useMemo(() => (signals ? buildComposite(signals) : null), [signals]);
+
+  if (!matches || matches.length === 0 || !signals || !composite) return null;
 
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium text-muted-foreground">Pre-game</h3>
+      <CompositeVerdict composite={composite} />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {signals.map((s, i) => (
           <SignalTile key={s.id} signal={s} index={i} />

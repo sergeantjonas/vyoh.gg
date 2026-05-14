@@ -8,7 +8,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Tracked arcs — next action
 
-- **LP forecast Phase LP1** — naive equal-weight composite of the 4 Pregame Ritual signals, rendered as a `ConclusionCard` verdict inside Pregame Ritual itself (Option B). 1 session, unblocked. → [lp-forecast.md](lp-forecast.md)
+- **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lp-forecast.md)
 - **Recap density Phase 5** — add 3–5 sections (most-improved champ, signature game, worst/best patch, duo-of-year); decide on share-image + scrollytelling polish. 1–2 sessions. → [app-state-analysis.md](app-state-analysis.md)
 - **Personal-baselines PB1/PB2/PB3** — PB1 doc-pass tagging each tile's baseline kind; **PB2 weakest-matchup verdict on Champion detail (highest payoff/session)**; PB3 patch-drift verdict. → [personal-baselines.md](personal-baselines.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](match-depth-roadmap.md)
