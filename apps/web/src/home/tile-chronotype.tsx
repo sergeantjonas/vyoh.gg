@@ -1,6 +1,10 @@
 import { useChronotype } from "@/lol/profile/use-chronotype";
 import { SampleSizeBadge } from "@/lol/trends/_shared/sample-size-badge";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ChronotypeHour, LolAccount } from "@vyoh/shared";
+
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -39,16 +43,27 @@ function HourBar({ bucket, maxGames }: { bucket: ChronotypeHour; maxGames: numbe
   const heightPct = (bucket.games / maxGames) * 100;
   const hourLabel = String(bucket.hour).padStart(2, "0");
   const wr = bucket.games ? Math.round((bucket.wins / bucket.games) * 100) : 0;
+  const label = `${hourLabel}:00 · ${bucket.games} ${bucket.games === 1 ? "game" : "games"} · ${wr}% win`;
   return (
-    <div
-      className="flex flex-1 flex-col items-stretch justify-end"
-      title={`${hourLabel}:00 · ${bucket.games} ${bucket.games === 1 ? "game" : "games"} · ${wr}% win`}
-    >
-      <div
-        className={`${barClass(bucket.games, bucket.wins)} rounded-sm`}
-        style={{ height: `${Math.max(2, heightPct)}%` }}
-      />
-    </div>
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <div className="flex flex-1 flex-col items-stretch justify-end">
+          <div
+            className={`${barClass(bucket.games, bucket.wins)} rounded-sm`}
+            style={{ height: `${Math.max(2, heightPct)}%` }}
+          />
+        </div>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="top"
+          sideOffset={4}
+          className={TOOLTIP_CONTENT_CLASS}
+        >
+          {label}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }
 
@@ -73,7 +88,7 @@ export function TileChronotype({ account }: { account: LolAccount | undefined })
       <p className="text-base font-semibold leading-snug text-foreground/90">
         When I play, tinted by win rate.
       </p>
-      <div className="mt-1 flex min-h-[5rem] flex-1 items-end gap-[2px]">
+      <div className="mt-1 flex min-h-20 flex-1 items-stretch gap-0.5">
         {hours.map((bucket) => (
           <HourBar key={bucket.hour} bucket={bucket} maxGames={maxGames} />
         ))}
