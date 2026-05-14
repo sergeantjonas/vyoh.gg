@@ -71,3 +71,74 @@ describe("SteamClientService.getPlayerSummary", () => {
     expect((error as SteamClientError).status).toBe(403);
   });
 });
+
+describe("SteamClientService.getWishlist", () => {
+  it("calls GetWishlist and returns the items array", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          response: {
+            items: [
+              { appid: 214490, priority: 2, date_added: 1466884835 },
+              { appid: 383870, priority: 0, date_added: 1455053806 },
+            ],
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const items = await service.getWishlist("76561198020053778");
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ appid: 214490, priority: 2 });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.steampowered.com/IWishlistService/GetWishlist/v1/?key=test-key&steamid=76561198020053778",
+      expect.objectContaining({ signal: expect.anything() })
+    );
+  });
+
+  it("returns [] when the response omits the items field", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ response: {} }), { status: 200 })
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    expect(await service.getWishlist("76561198020053778")).toEqual([]);
+  });
+});
+
+describe("SteamClientService.getStoreItems", () => {
+  it("skips the fetch entirely when the appid list is empty", async () => {
+    const service = new SteamClientService(passThroughLimiter);
+    expect(await service.getStoreItems([])).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("calls GetItems with the requested appids", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          response: {
+            store_items: [
+              {
+                appid: 214490,
+                success: 1,
+                name: "Alien: Isolation",
+                store_url_path: "app/214490/Alien_Isolation",
+              },
+            ],
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const items = await service.getStoreItems([214490]);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]?.name).toBe("Alien: Isolation");
+    const url = vi.mocked(fetch).mock.calls[0]?.[0] as string;
+    expect(url).toContain("/IStoreBrowseService/GetItems/v1/");
+    expect(url).toContain(encodeURIComponent('"appid":214490'));
+  });
+});

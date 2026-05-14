@@ -23,3 +23,39 @@ export interface SteamGetPlayerSummariesResponse {
     players: SteamPlayerRaw[];
   };
 }
+
+// IWishlistService/GetWishlist/v1/ response shape. Replaced the legacy
+// store.steampowered.com/wishlist/profiles/{id}/wishlistdata/ endpoint, which now
+// 302s to the store root. Returns appids + dates only — names are resolved via
+// IStoreBrowseService/GetItems in a second call.
+export interface SteamWishlistItemRaw {
+  appid: number;
+  // 0 means unprioritized; 1..N is the user's explicit ordering on Steam.
+  priority: number;
+  // Unix seconds (UTC).
+  date_added: number;
+}
+
+export interface SteamGetWishlistResponse {
+  response: {
+    items?: SteamWishlistItemRaw[];
+  };
+}
+
+// IStoreBrowseService/GetItems/v1/ — minimum-shape projection. The endpoint returns
+// far more, but we only need name + appid + visibility. `success` is 1 when the item
+// resolved, 0 when it did not (region-locked, delisted, hidden). `visible` echoes the
+// same intent for the owner's region.
+export interface SteamStoreItemRaw {
+  appid: number;
+  success: 0 | 1;
+  visible?: boolean;
+  name?: string;
+  store_url_path?: string;
+}
+
+export interface SteamGetStoreItemsResponse {
+  response: {
+    store_items?: SteamStoreItemRaw[];
+  };
+}

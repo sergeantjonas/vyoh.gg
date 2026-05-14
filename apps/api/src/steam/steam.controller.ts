@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import type { SteamSummary } from "@vyoh/shared";
+import type { SteamSummary, SteamWishlist } from "@vyoh/shared";
 import { SteamService } from "./steam.service";
 
 @Controller("steam")
@@ -9,5 +9,10 @@ export class SteamController {
   @Get("summary")
   async getSummary(): Promise<SteamSummary> {
     return this.steam.getOwnerSummary();
+  }
+
+  @Get("wishlist")
+  async getWishlist(): Promise<SteamWishlist> {
+    return this.steam.getOwnerWishlist();
   }
 }

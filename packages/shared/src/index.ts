@@ -35,6 +35,7 @@ export type {
   SteamPrivacyPrereqs,
   SteamSummary,
 } from "./steam/summary.ts";
+export type { SteamWishlist, SteamWishlistItem } from "./steam/wishlist.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,

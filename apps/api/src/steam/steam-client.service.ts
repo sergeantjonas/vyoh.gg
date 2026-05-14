@@ -1,7 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import { SteamRateLimiterService } from "./rate-limiter.service";
-import type { SteamGetPlayerSummariesResponse, SteamPlayerRaw } from "./types";
+import type {
+  SteamGetPlayerSummariesResponse,
+  SteamGetStoreItemsResponse,
+  SteamGetWishlistResponse,
+  SteamPlayerRaw,
+  SteamStoreItemRaw,
+  SteamWishlistItemRaw,
+} from "./types";
 
 const STEAM_API_BASE = "https://api.steampowered.com";
 const FETCH_TIMEOUT_MS = 10_000;
@@ -34,6 +41,30 @@ export class SteamClientService {
       // the API will surface — distinct from a 4xx error. Treat as "no data" so the
       // caller can surface a privacy verdict instead of an exception.
       return data.response.players[0] ?? null;
+    });
+  }
+
+  async getWishlist(steamId: string): Promise<SteamWishlistItemRaw[]> {
+    return this.limiter.schedule("wishlist", async () => {
+      const path = `/IWishlistService/GetWishlist/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}`;
+      const data = await this.fetchJson<SteamGetWishlistResponse>(path);
+      // An owner with wishlist hidden or empty returns `{ response: {} }` — missing
+      // `items` rather than `items: []`. Normalize so callers don't need to branch.
+      return data.response.items ?? [];
+    });
+  }
+
+  async getStoreItems(appids: number[]): Promise<SteamStoreItemRaw[]> {
+    if (appids.length === 0) return [];
+    return this.limiter.schedule("store-items", async () => {
+      const input = {
+        ids: appids.map((appid) => ({ appid })),
+        context: { language: "english", country_code: "US" },
+        data_request: { include_basic_info: false },
+      };
+      const path = `/IStoreBrowseService/GetItems/v1/?key=${encodeURIComponent(this.apiKey)}&input_json=${encodeURIComponent(JSON.stringify(input))}`;
+      const data = await this.fetchJson<SteamGetStoreItemsResponse>(path);
+      return data.response.store_items ?? [];
     });
   }
 
