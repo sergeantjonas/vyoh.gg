@@ -1,3 +1,4 @@
+import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useSteamWishlist } from "@/steam/use-wishlist";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { SteamWishlistItem } from "@vyoh/shared";
@@ -70,18 +71,28 @@ function WishlistPage() {
 
 function WishlistRow({ item }: { item: SteamWishlistItem }) {
   return (
-    <li className="flex flex-col gap-0.5 px-4 py-3">
-      <a
-        href={item.storeUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="text-sm font-medium underline-offset-2 hover:underline"
-      >
-        {item.name ?? `Unknown title (app ${item.appid})`}
-      </a>
-      <span className="text-xs text-muted-foreground">
-        Added {formatDateAdded(item.dateAdded)}
-      </span>
+    <li className="flex items-center gap-3 px-4 py-3">
+      <img
+        src={steamCapsuleUrl(item.appid)}
+        alt=""
+        width={120}
+        height={45}
+        loading="lazy"
+        className="h-11.25 w-30 flex-none rounded-sm bg-muted object-cover"
+      />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <a
+          href={item.storeUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="truncate text-sm font-medium underline-offset-2 hover:underline"
+        >
+          {item.name ?? `Unknown title (app ${item.appid})`}
+        </a>
+        <span className="text-xs text-muted-foreground">
+          Added {formatDateAdded(item.dateAdded)}
+        </span>
+      </div>
     </li>
   );
 }

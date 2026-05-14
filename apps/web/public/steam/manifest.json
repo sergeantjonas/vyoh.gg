@@ -1,0 +1,987 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-14T22:14:57.078Z",
+  "capsules": {
+    "220": {
+      "path": "/steam/apps/220/capsule.webp",
+      "hash": "e0590a29b76922059cec3c14d42f7a0db54c7566475fd70e9d14bcd5d56cb2a6",
+      "bytes": 3950
+    },
+    "320": {
+      "path": "/steam/apps/320/capsule.webp",
+      "hash": "500b8306e20c9e5f771e5e755ae96e80737e6a956f8dfa9812fcfd22340020be",
+      "bytes": 4410
+    },
+    "360": {
+      "path": "/steam/apps/360/capsule.webp",
+      "hash": "b0deab2ad08d43e335e0f27aa252b630a1da1589fa57969a1012c91e276d7289",
+      "bytes": 4706
+    },
+    "550": {
+      "path": "/steam/apps/550/capsule.webp",
+      "hash": "c506884b85b86e98da90f98858232512712f9b9e2ec8d7b684071423a3009ea9",
+      "bytes": 8244
+    },
+    "570": {
+      "path": "/steam/apps/570/capsule.webp",
+      "hash": "43caaca00fd6ee4f31833c240b0f2e3dd43618889c50842d92d8af452b758443",
+      "bytes": 1962
+    },
+    "620": {
+      "path": "/steam/apps/620/capsule.webp",
+      "hash": "325a18f4bf1ad824dbdb5bb06c309c6e16b06869f806ea48ff79e1f3549bbb1c",
+      "bytes": 2218
+    },
+    "7670": {
+      "path": "/steam/apps/7670/capsule.webp",
+      "hash": "b3c3c75a0aef5caadf7d6890a33f496d0818a9d0163ac532c682c0004e0f4117",
+      "bytes": 5960
+    },
+    "8190": {
+      "path": "/steam/apps/8190/capsule.webp",
+      "hash": "4933a236f9acaf29f9d486f6ecc46fe2dcd3cff2ae4ce178d14e1cda438d55ea",
+      "bytes": 4902
+    },
+    "8850": {
+      "path": "/steam/apps/8850/capsule.webp",
+      "hash": "3c33f6ec1cd7a665bcc510ffb43020044f81caefea866afc9a35dc9ffb185344",
+      "bytes": 7316
+    },
+    "8870": {
+      "path": "/steam/apps/8870/capsule.webp",
+      "hash": "cc21cc9160c3339890dcdce0a7a56233dc8d39f98f7b3416fbdadaa7922c930e",
+      "bytes": 5156
+    },
+    "8980": {
+      "path": "/steam/apps/8980/capsule.webp",
+      "hash": "942afdc191d1ded7dd8aaf3217aa0df08009be9302ac84abf26cbb4590e2225d",
+      "bytes": 11300
+    },
+    "9050": {
+      "path": "/steam/apps/9050/capsule.webp",
+      "hash": "736d963097908b4c045f388dd22efa5bc3e459926c1b04ddb7b66951c6c38ca4",
+      "bytes": 4624
+    },
+    "9070": {
+      "path": "/steam/apps/9070/capsule.webp",
+      "hash": "84e47921c5018ea543c0cd5fddfac356d583e7a5a54a2e4e6aa371a28f2a94ca",
+      "bytes": 7292
+    },
+    "10090": {
+      "path": "/steam/apps/10090/capsule.webp",
+      "hash": "395add79b3faf31b21f5412b1cfb1382ff93e659266ee3c2c5540b0b7e9e331b",
+      "bytes": 5528
+    },
+    "10180": {
+      "path": "/steam/apps/10180/capsule.webp",
+      "hash": "420f2a6eb9410510f2e7c18b24546df8b24bf8263d802d00f560ba9d725c88be",
+      "bytes": 5148
+    },
+    "10190": {
+      "path": "/steam/apps/10190/capsule.webp",
+      "hash": "e03c6c16547f22ef134730c14418f9655cdd07894c23dbb2dd8915bcd5ed9c38",
+      "bytes": 5344
+    },
+    "13520": {
+      "path": "/steam/apps/13520/capsule.webp",
+      "hash": "4d978f62566ab085e24b8f6ccd2be619774957610a140b773e2d089814999f3c",
+      "bytes": 6044
+    },
+    "15100": {
+      "path": "/steam/apps/15100/capsule.webp",
+      "hash": "b060380b1417ae8bae93b4881901081251d16f7a7f0281043958486288aad3ad",
+      "bytes": 4212
+    },
+    "17300": {
+      "path": "/steam/apps/17300/capsule.webp",
+      "hash": "e0acff65f866bc5f4ee21da8e8e982da323343d137abed95e54520c9fed37434",
+      "bytes": 7892
+    },
+    "17330": {
+      "path": "/steam/apps/17330/capsule.webp",
+      "hash": "b850d355e356993673acc8da686d9440b5da3c79c5985cdde5d3a0fa103da14c",
+      "bytes": 7560
+    },
+    "17340": {
+      "path": "/steam/apps/17340/capsule.webp",
+      "hash": "490954878063134e4f2b2a074ee3fb251eb819339e242f6fca7a51c640e42d18",
+      "bytes": 5150
+    },
+    "17410": {
+      "path": "/steam/apps/17410/capsule.webp",
+      "hash": "a1a47fc44a72d09c62184c17da74b3b165758e1095389561df4c581a3ed301e3",
+      "bytes": 4526
+    },
+    "17450": {
+      "path": "/steam/apps/17450/capsule.webp",
+      "hash": "662976d04a3429ff27ccc12b1906245d8417d2a9a417dd084de4a843a478ad02",
+      "bytes": 4756
+    },
+    "19900": {
+      "path": "/steam/apps/19900/capsule.webp",
+      "hash": "ef5f1bb1d0662f7f2a7638a563a872b081e4c02494d3147f8c5211e586c1a4d0",
+      "bytes": 8942
+    },
+    "20900": {
+      "path": "/steam/apps/20900/capsule.webp",
+      "hash": "019fce2f0322857ba17a9739a3aa75f9c3364d964c085ac8451934c14c12252e",
+      "bytes": 2888
+    },
+    "20920": {
+      "path": "/steam/apps/20920/capsule.webp",
+      "hash": "1094cfb87da023063015b9c855d6977444f615375a57a67e8948aa69e7fc7c25",
+      "bytes": 7362
+    },
+    "22320": {
+      "path": "/steam/apps/22320/capsule.webp",
+      "hash": "b26fdb505ba00a9b7426f5fedccf887ea808f8bbf64a77865e8120aa6298f19c",
+      "bytes": 6922
+    },
+    "22330": {
+      "path": "/steam/apps/22330/capsule.webp",
+      "hash": "47142b65c4b268a212e6fd9c41a0dfc0991f343017525f3ec7273ba87eab26bd",
+      "bytes": 7042
+    },
+    "22370": {
+      "path": "/steam/apps/22370/capsule.webp",
+      "hash": "b899c68950b5305c13c20ff7ccaa06a130c3e7b7b0978cc7b7da3d3b43be85dc",
+      "bytes": 7276
+    },
+    "22380": {
+      "path": "/steam/apps/22380/capsule.webp",
+      "hash": "041bec2ecc63dbcb2d65a9c2bdc07f1f7682fb9b1533edbdb07c9420e78af917",
+      "bytes": 8360
+    },
+    "28050": {
+      "path": "/steam/apps/28050/capsule.webp",
+      "hash": "0ce7ed1b08fdb9cb9f57f92d64a96b2232bc36b38b4046c2d6f005fd8f28fd6c",
+      "bytes": 5852
+    },
+    "33230": {
+      "path": "/steam/apps/33230/capsule.webp",
+      "hash": "51a35aab6d357f1edebe3ee970aa387927082023936965243b6228d6e85e33ca",
+      "bytes": 6142
+    },
+    "35140": {
+      "path": "/steam/apps/35140/capsule.webp",
+      "hash": "15ea9c9db2ae91a87e8de803ebb785faa9f9eb548a3713b11be0a84edb02f0de",
+      "bytes": 7622
+    },
+    "35720": {
+      "path": "/steam/apps/35720/capsule.webp",
+      "hash": "3d1aab3e75c5489ed4f1c5a0de4a7ebe4e284cdc14cd3bb0a5ab3c59565154a2",
+      "bytes": 7854
+    },
+    "39120": {
+      "path": "/steam/apps/39120/capsule.webp",
+      "hash": "40823c8765ebe2da6f65d9fe7cbd2fd30ad097e2468df8cad3f8a23a4b9a2a27",
+      "bytes": 7168
+    },
+    "43110": {
+      "path": "/steam/apps/43110/capsule.webp",
+      "hash": "4fb4d22883d7cc20dca52a76ec50c0177ba18c47eccb558afec04b6acb77c8e2",
+      "bytes": 8204
+    },
+    "47780": {
+      "path": "/steam/apps/47780/capsule.webp",
+      "hash": "1f24ce738a51c4ccd3f0af030a5a4453a24fd1bed4e712cd041ce40d8a085042",
+      "bytes": 4978
+    },
+    "47810": {
+      "path": "/steam/apps/47810/capsule.webp",
+      "hash": "313beb91f084f80cab261ac8b50a276315290ccea77cbd2f6c30b1bad0a1ded7",
+      "bytes": 6176
+    },
+    "48190": {
+      "path": "/steam/apps/48190/capsule.webp",
+      "hash": "8377660e7d00e626302b7038b9a22bae4aeeeb211dbb28bdc0f3ff085ad69562",
+      "bytes": 7754
+    },
+    "55230": {
+      "path": "/steam/apps/55230/capsule.webp",
+      "hash": "8dcb6d2daef54a26f218c2da5fd64e64204d58d616cdc2f8c593fb09097d880f",
+      "bytes": 4948
+    },
+    "57300": {
+      "path": "/steam/apps/57300/capsule.webp",
+      "hash": "1ed93907fe05cc9400799072c6cf6c11d6e176ca59e16bdb7a22c09264607f32",
+      "bytes": 5136
+    },
+    "57400": {
+      "path": "/steam/apps/57400/capsule.webp",
+      "hash": "8847f269d11c843fea3a9a18276db70c4dc666b75be50f045ffa335ad23a059e",
+      "bytes": 4770
+    },
+    "72850": {
+      "path": "/steam/apps/72850/capsule.webp",
+      "hash": "411cba67df5819b4471f43683126ddc6f8d6ce18c5525d89f3786e565866cc1c",
+      "bytes": 5578
+    },
+    "108710": {
+      "path": "/steam/apps/108710/capsule.webp",
+      "hash": "62d06769fb6cd8407b55cb2d02f339d3d516c8c8f54ea376bdcdea275ee7d93f",
+      "bytes": 4042
+    },
+    "200260": {
+      "path": "/steam/apps/200260/capsule.webp",
+      "hash": "4cf68044088daf4971168c2b42ce01007b1f9289a8de9b800be1ea7bc3aed302",
+      "bytes": 3898
+    },
+    "201810": {
+      "path": "/steam/apps/201810/capsule.webp",
+      "hash": "7825df9e6111711b52b56a277595f2395a9de0c3929e9f32a089341ec486ab6b",
+      "bytes": 5232
+    },
+    "203140": {
+      "path": "/steam/apps/203140/capsule.webp",
+      "hash": "4c4c56c5f3a1ffaf6a3492894359505b155e39d8393bbd1173ab50a6dc1e9821",
+      "bytes": 2384
+    },
+    "203160": {
+      "path": "/steam/apps/203160/capsule.webp",
+      "hash": "d8d7da9bf14c13d77a8101c5ceb86205ad4bdf8abaa6aa75e93a2b19965da23e",
+      "bytes": 5192
+    },
+    "204100": {
+      "path": "/steam/apps/204100/capsule.webp",
+      "hash": "dd6bf46adbe683bec0cb199abdbe430d87222df9479b3a19cd1a5235e68f1cc5",
+      "bytes": 6722
+    },
+    "205100": {
+      "path": "/steam/apps/205100/capsule.webp",
+      "hash": "261c7fb429bbb7fa10eb8445ca541160b82ded153fd1e0bb1b3fbd8981f174e8",
+      "bytes": 3004
+    },
+    "205930": {
+      "path": "/steam/apps/205930/capsule.webp",
+      "hash": "a52b3a76ef16454f83218beae171844ba0147aaa4dd761ea1ba6ab0167817d82",
+      "bytes": 2848
+    },
+    "206420": {
+      "path": "/steam/apps/206420/capsule.webp",
+      "hash": "5501c2ca8b56bb6d7d763b467808d381c4ea50621995b0cef379e85aa66ee56a",
+      "bytes": 3380
+    },
+    "208200": {
+      "path": "/steam/apps/208200/capsule.webp",
+      "hash": "87cbc900cc1720bb4a61b264a225c772a1c209c95d917e4d05bdd285c8415243",
+      "bytes": 5222
+    },
+    "208650": {
+      "path": "/steam/apps/208650/capsule.webp",
+      "hash": "8a0b23d510f36772e9b986087bbe5b5343ae4349caea20801539edce9c115190",
+      "bytes": 8946
+    },
+    "208670": {
+      "path": "/steam/apps/208670/capsule.webp",
+      "hash": "54b423c6a8eadab55e98419d60cf008106490c70724dd2d9018cc1782e912d3c",
+      "bytes": 3834
+    },
+    "209000": {
+      "path": "/steam/apps/209000/capsule.webp",
+      "hash": "d4838a66431790bef1cb52b0e84ad8984a4ae8be8f0933763e242167e30606e3",
+      "bytes": 4762
+    },
+    "211420": {
+      "path": "/steam/apps/211420/capsule.webp",
+      "hash": "76f5589efeb0f39f5fc2ef3fe50fd53af2b6e5e015e0159e1f8c599a7a489a48",
+      "bytes": 5270
+    },
+    "212740": {
+      "path": "/steam/apps/212740/capsule.webp",
+      "hash": "9bffa8d23e6d5570662f78bef1bf5c4ab33a798f8fb9cbb882f798a20972912a",
+      "bytes": 3706
+    },
+    "214490": {
+      "path": "/steam/apps/214490/capsule.webp",
+      "hash": "0eaf64d4f249e52c7baeda5a824656e970d90c8bbb54d1e4ebeb32192d85d225",
+      "bytes": 3316
+    },
+    "220240": {
+      "path": "/steam/apps/220240/capsule.webp",
+      "hash": "d63fc1c340a6b307870173df11da02e9750a0b10435839f430028fd308041ea2",
+      "bytes": 5102
+    },
+    "221100": {
+      "path": "/steam/apps/221100/capsule.webp",
+      "hash": "782fd1d09f7ef57c0a9a8eff39ae821cdebae5273c9675944e15036f959c9271",
+      "bytes": 5998
+    },
+    "223850": {
+      "path": "/steam/apps/223850/capsule.webp",
+      "hash": "fc84201516c2afaae23faa876d1c76a80a6c3c100ad2d85a9609b0b007ae9365",
+      "bytes": 4458
+    },
+    "227260": {
+      "path": "/steam/apps/227260/capsule.webp",
+      "hash": "9c2ec2f96a21ca94b3dab3093763d7ce3662f238c50b8706e640cef0f8c61746",
+      "bytes": 3270
+    },
+    "228300": {
+      "path": "/steam/apps/228300/capsule.webp",
+      "hash": "2363544c866742dbb82ffa00b215abcbf4dfab4f5b7858e0a550cc531dd88c47",
+      "bytes": 5774
+    },
+    "233270": {
+      "path": "/steam/apps/233270/capsule.webp",
+      "hash": "39b8f0732248f0d27c95d6e1bf80845aac1585b894ac7b75571f3d05e06b3eb3",
+      "bytes": 5640
+    },
+    "235460": {
+      "path": "/steam/apps/235460/capsule.webp",
+      "hash": "3ec002117ebccac4f8215b9c8f5f46a25df8acc9fb5156874c868ee78f048953",
+      "bytes": 7882
+    },
+    "238960": {
+      "path": "/steam/apps/238960/capsule.webp",
+      "hash": "b703f0fc346c09473f4407c59dba8f02eb5ea6c6a278f5f81d11df1354cf7893",
+      "bytes": 7868
+    },
+    "239160": {
+      "path": "/steam/apps/239160/capsule.webp",
+      "hash": "84268666de561cd73a84d9c1c642ad61f7e0e9bb7a29c89fef1a9a706284f619",
+      "bytes": 3164
+    },
+    "239200": {
+      "path": "/steam/apps/239200/capsule.webp",
+      "hash": "054ea0ac340f3941c7f37a88b014a6b5cedeabc6ac57b388630e33dfeeb1e2cf",
+      "bytes": 8072
+    },
+    "241930": {
+      "path": "/steam/apps/241930/capsule.webp",
+      "hash": "8b6cee0ba103d7a5b63fabf7a50ec4aaeca88b44492a1f25b3a96ddbbdbe8896",
+      "bytes": 4380
+    },
+    "242590": {
+      "path": "/steam/apps/242590/capsule.webp",
+      "hash": "aab0e757cb6722bc93112af3e141032158917723f1336be64018a5394182ac13",
+      "bytes": 4658
+    },
+    "250900": {
+      "path": "/steam/apps/250900/capsule.webp",
+      "hash": "33d004e4aadf28db232649f7c91e871ad37c9183ec4bd35ab828cdea2af883f8",
+      "bytes": 2802
+    },
+    "258050": {
+      "path": "/steam/apps/258050/capsule.webp",
+      "hash": "a7f3358f5e6b87c6f403f420861017f00e32643a0b6fcea15ac58ce0155a5cad",
+      "bytes": 5180
+    },
+    "261570": {
+      "path": "/steam/apps/261570/capsule.webp",
+      "hash": "dd306e75283a034545e2865d474dc07ad592b7ff82989010b5e8849d306618a1",
+      "bytes": 6552
+    },
+    "267490": {
+      "path": "/steam/apps/267490/capsule.webp",
+      "hash": "2768b7354597ae5a603965b7a6d33f0168fd1bc2aca5db1584469f38a6d66df3",
+      "bytes": 4266
+    },
+    "286690": {
+      "path": "/steam/apps/286690/capsule.webp",
+      "hash": "aaee9237b7bc1e9f13061fc36a63b7d43383ebe22a860d96e8fd482a703a8a99",
+      "bytes": 6008
+    },
+    "287290": {
+      "path": "/steam/apps/287290/capsule.webp",
+      "hash": "8abfe70ef54b1a218f403e7767e8327587aa45c5c9fef332509660c61c7e3031",
+      "bytes": 3072
+    },
+    "287390": {
+      "path": "/steam/apps/287390/capsule.webp",
+      "hash": "55d2b5a0f46f2b4b64e8596a28b9d8a3e64e242d76e44005ad9f7c5b0f7e5cb5",
+      "bytes": 6320
+    },
+    "287700": {
+      "path": "/steam/apps/287700/capsule.webp",
+      "hash": "17beb39a31eb4a17329d0769f667afdb5c1173c355fafad2adfbf32759274ac9",
+      "bytes": 2522
+    },
+    "290000": {
+      "path": "/steam/apps/290000/capsule.webp",
+      "hash": "f0289ad45f4429193fb90c2ae7be46b36aa12ad8bd0d1c1f9e7ce6280ab6b6be",
+      "bytes": 6386
+    },
+    "292030": {
+      "path": "/steam/apps/292030/capsule.webp",
+      "hash": "8a7dbc2e6e2656903599c7e57499076b8acbe7681c7e5fe4d54abf09df865762",
+      "bytes": 5680
+    },
+    "292380": {
+      "path": "/steam/apps/292380/capsule.webp",
+      "hash": "a37fb279b5e6386d2811bd77f2ff0dadc5eb8b577b8c57f49439f08d30cba195",
+      "bytes": 3554
+    },
+    "298110": {
+      "path": "/steam/apps/298110/capsule.webp",
+      "hash": "620bfc34c0521423566b703335716df9527e8657e1222f750fcb594dc74f01f2",
+      "bytes": 5194
+    },
+    "304240": {
+      "path": "/steam/apps/304240/capsule.webp",
+      "hash": "ad9c4b22e4d5856c1d319723419138c10307fba2e14cc74a055e661d92c7a63a",
+      "bytes": 6346
+    },
+    "311340": {
+      "path": "/steam/apps/311340/capsule.webp",
+      "hash": "425ca6d1861434a0264079bc4b04943ce10ffafe1cb6ca8307fe94c1e53823bb",
+      "bytes": 4584
+    },
+    "329050": {
+      "path": "/steam/apps/329050/capsule.webp",
+      "hash": "0812d96a017e91952e1d46777828e3e3344cc66745813cce98aed22272d38090",
+      "bytes": 4342
+    },
+    "335300": {
+      "path": "/steam/apps/335300/capsule.webp",
+      "hash": "50f867c8ae217a4b7063bff46363adc26be7964e1a86ca8dd5ea076e07542894",
+      "bytes": 5324
+    },
+    "337000": {
+      "path": "/steam/apps/337000/capsule.webp",
+      "hash": "bf22f5f801663f0f5e08a604543a760e29b51aba4ca1f6e92b92fd0af9da4370",
+      "bytes": 3874
+    },
+    "339340": {
+      "path": "/steam/apps/339340/capsule.webp",
+      "hash": "f1be217d7ba51aac3fb217e3c2ed21e0ed58701a1cf4d959d9815e999d683158",
+      "bytes": 3880
+    },
+    "345350": {
+      "path": "/steam/apps/345350/capsule.webp",
+      "hash": "67d809bbb7292eb5fb42c6cae4e47bbc146f5e8e12fff1cdd5ea139813659edc",
+      "bytes": 8612
+    },
+    "350080": {
+      "path": "/steam/apps/350080/capsule.webp",
+      "hash": "b744c8f2ec650cf3d4177a1363d688dfa942d81592317442d24b68fdcb402ced",
+      "bytes": 6280
+    },
+    "356190": {
+      "path": "/steam/apps/356190/capsule.webp",
+      "hash": "c515f7e74d61d5320e1b59dbd2ce54d8c1e666ab5278f837f509ebd7faf93cd9",
+      "bytes": 3762
+    },
+    "359870": {
+      "path": "/steam/apps/359870/capsule.webp",
+      "hash": "33e7564a5975f5f26232303fd1ae7042101ef051bf34906c7f0b2faa1b6a8300",
+      "bytes": 5860
+    },
+    "367520": {
+      "path": "/steam/apps/367520/capsule.webp",
+      "hash": "0a6bfde29abd04bdba78421dcacb47e314d8976a6f68627b6a292346a564b56d",
+      "bytes": 7900
+    },
+    "374320": {
+      "path": "/steam/apps/374320/capsule.webp",
+      "hash": "9f78bcd1f5ce5f41e9491b0367018c20b8f1f59cb3454d88556778fbc2ea893e",
+      "bytes": 3120
+    },
+    "377160": {
+      "path": "/steam/apps/377160/capsule.webp",
+      "hash": "eb720177030500162a0edb35ad4aa4a949916b1117990fa30476f6c675e1bc01",
+      "bytes": 5250
+    },
+    "379720": {
+      "path": "/steam/apps/379720/capsule.webp",
+      "hash": "bb618dfe6901e6a472a7a457a7a1e26d2520417d982d74e5bc777d198865fa77",
+      "bytes": 6536
+    },
+    "383870": {
+      "path": "/steam/apps/383870/capsule.webp",
+      "hash": "473ab91cd1b5154ed1ad25dd9a81ee19bdb8aacbae4cf5d26a885daa1ea3a01d",
+      "bytes": 3426
+    },
+    "387290": {
+      "path": "/steam/apps/387290/capsule.webp",
+      "hash": "37221eb195d3bf71f5d4f313f7f90aa979d9ebcb7b8acffc943f3ecc01219225",
+      "bytes": 7386
+    },
+    "388080": {
+      "path": "/steam/apps/388080/capsule.webp",
+      "hash": "adafac7f71ef706b11507473421bbddedc93d581955aa18b6951794c52f4a266",
+      "bytes": 3986
+    },
+    "391220": {
+      "path": "/steam/apps/391220/capsule.webp",
+      "hash": "27687fcf5e7e13a39af22de987842d13896003144c6b8233c94b717ba5f43ab9",
+      "bytes": 6584
+    },
+    "391720": {
+      "path": "/steam/apps/391720/capsule.webp",
+      "hash": "7fdf555bb0ab62b48f769acdf529cadcbc8374758369a69c94170cd55bd63277",
+      "bytes": 4844
+    },
+    "409710": {
+      "path": "/steam/apps/409710/capsule.webp",
+      "hash": "46521a8934a2f0c5d8e1bf38196968437f8a94495b9234c2ee9aa5955170ef99",
+      "bytes": 8976
+    },
+    "409720": {
+      "path": "/steam/apps/409720/capsule.webp",
+      "hash": "59537aa6dd7f2bc118ae57ab3bd7eca80003c7846853a3085414c85a34ea8a20",
+      "bytes": 9112
+    },
+    "412020": {
+      "path": "/steam/apps/412020/capsule.webp",
+      "hash": "75e0c954906009d13f2925b9a461073f682bc24e1762403f560104553e82d0b1",
+      "bytes": 8280
+    },
+    "418370": {
+      "path": "/steam/apps/418370/capsule.webp",
+      "hash": "4bb0062cf48157ced98800c91ab7b27226ec38aec07ad221932ae0ab0e2a1b8e",
+      "bytes": 8016
+    },
+    "424840": {
+      "path": "/steam/apps/424840/capsule.webp",
+      "hash": "59007fe4ffdf59c665fe8bb4de5c3b375caeb5fc6bb9eb33fe5b4f0a7a332ffb",
+      "bytes": 7888
+    },
+    "427290": {
+      "path": "/steam/apps/427290/capsule.webp",
+      "hash": "8e96f6828fc5987acc012bf39b756ff158a0c77367a59537fcd25b5c5e108798",
+      "bytes": 1520
+    },
+    "431960": {
+      "path": "/steam/apps/431960/capsule.webp",
+      "hash": "5c2d28ab3f33d41258a80c5e8793c12f873c9b9cba019e875763c72491eacedd",
+      "bytes": 7192
+    },
+    "466240": {
+      "path": "/steam/apps/466240/capsule.webp",
+      "hash": "c124f0efc1bb6d8eb4f6e7cd07c33c36ef61946cad363c7f359cadaee0141f07",
+      "bytes": 1824
+    },
+    "485510": {
+      "path": "/steam/apps/485510/capsule.webp",
+      "hash": "3686f11cc6c4a47a4e08bb52ac9322c03a876cf8ca2d39b4045c7553e99b44b7",
+      "bytes": 7914
+    },
+    "489830": {
+      "path": "/steam/apps/489830/capsule.webp",
+      "hash": "6545aeacec62a877995aeb90fc02ecfd27ed58aa4ac0fda14738217bdd84e536",
+      "bytes": 5134
+    },
+    "515960": {
+      "path": "/steam/apps/515960/capsule.webp",
+      "hash": "fc699a19fe55aa3c2d220e4f348c921a7204c625f175deb581f80801031087be",
+      "bytes": 3834
+    },
+    "524220": {
+      "path": "/steam/apps/524220/capsule.webp",
+      "hash": "a562e0f50c90492a096c7cfafdc1d3b1df8d4dd54dda99172952262fbbedf6a7",
+      "bytes": 4146
+    },
+    "552520": {
+      "path": "/steam/apps/552520/capsule.webp",
+      "hash": "2594b1dd4c0bbaa76dcb1eef9d9508a9a970b6d93229a5c07a8b876aa6ccee56",
+      "bytes": 8178
+    },
+    "570940": {
+      "path": "/steam/apps/570940/capsule.webp",
+      "hash": "7bdef5fa5e99aec4f614dd91592b2a7e1e2a0026eba6ffc01d313edb241fe8f0",
+      "bytes": 5544
+    },
+    "578080": {
+      "path": "/steam/apps/578080/capsule.webp",
+      "hash": "a4e78f39d34dd2dcef7c1b4cd11e7a73fc830b3dde8df400b615d9a2cf4e5770",
+      "bytes": 6880
+    },
+    "582010": {
+      "path": "/steam/apps/582010/capsule.webp",
+      "hash": "d32b9a7dfdf8a189a73489a4ccf3865eaba2f0cf0b9aa40879fc712e258562e3",
+      "bytes": 8364
+    },
+    "582660": {
+      "path": "/steam/apps/582660/capsule.webp",
+      "hash": "b93a903f8de9659ff82e68b7c5a39c83c99021f9693c82c7cf14c75da9dd669b",
+      "bytes": 5650
+    },
+    "601150": {
+      "path": "/steam/apps/601150/capsule.webp",
+      "hash": "061ded7f3b017e7a757b5deb85195258c7dd857f28a0f7e8a3421b82e7f2a7e0",
+      "bytes": 5384
+    },
+    "611500": {
+      "path": "/steam/apps/611500/capsule.webp",
+      "hash": "853b39478578211e74defd7b971158a8224c9d5c663f4189578e11145c92029a",
+      "bytes": 2626
+    },
+    "612880": {
+      "path": "/steam/apps/612880/capsule.webp",
+      "hash": "f3ca63f4d51815d877b431faaa9537afc5f4d63c78069b67878e6b111c9c16aa",
+      "bytes": 6474
+    },
+    "626690": {
+      "path": "/steam/apps/626690/capsule.webp",
+      "hash": "704b5450b0d8d5b53ecfa4a7fa672c1959b1337dceee2555909bc53a37ed8d95",
+      "bytes": 7384
+    },
+    "637650": {
+      "path": "/steam/apps/637650/capsule.webp",
+      "hash": "054e672445860faa85c3bc9bf59e12ec2aff727a8def89ddc28a1cab18e6ace8",
+      "bytes": 4062
+    },
+    "729040": {
+      "path": "/steam/apps/729040/capsule.webp",
+      "hash": "90d8ad305393ec37a564ac9fb6cb83c41d62768752eb00bd17871bcfbd4bc69f",
+      "bytes": 10668
+    },
+    "750920": {
+      "path": "/steam/apps/750920/capsule.webp",
+      "hash": "e01a574a64df3572e9e1ee56b9147450daf4e5b9a7b4461b95ac28380678d51b",
+      "bytes": 3506
+    },
+    "782330": {
+      "path": "/steam/apps/782330/capsule.webp",
+      "hash": "6d373dedbe8bb4d4d6b6091f00baec07de7d87d0679333ea4deff140ccf7594c",
+      "bytes": 7448
+    },
+    "812140": {
+      "path": "/steam/apps/812140/capsule.webp",
+      "hash": "37ea0b7f37908ea4896e261512543e9bacd4d80d30b2e8c00c14e5f27daaf109",
+      "bytes": 4796
+    },
+    "814380": {
+      "path": "/steam/apps/814380/capsule.webp",
+      "hash": "340266a9253cb1a5009cb0fb9aa20229fb29b51772a503c3e85972f05e2dc45b",
+      "bytes": 3580
+    },
+    "823130": {
+      "path": "/steam/apps/823130/capsule.webp",
+      "hash": "2c7fd7b40130d1562e2f46479b3e188e46f2eb0d9df96d28965be2dc7972b1ea",
+      "bytes": 7626
+    },
+    "860510": {
+      "path": "/steam/apps/860510/capsule.webp",
+      "hash": "bd17adce75e200c9c7369343b70e94a79f6457661861ab03715357e9800d7e6d",
+      "bytes": 5434
+    },
+    "870780": {
+      "path": "/steam/apps/870780/capsule.webp",
+      "hash": "a93e508ee01e162732a2965e0a63bf75710012893d6d670cfa4ce4021b402b49",
+      "bytes": 5330
+    },
+    "883710": {
+      "path": "/steam/apps/883710/capsule.webp",
+      "hash": "6c2adaeb7db0d45edaf2cc856c3468f65cb34a66d7d467a609245a66addc6b71",
+      "bytes": 5700
+    },
+    "952060": {
+      "path": "/steam/apps/952060/capsule.webp",
+      "hash": "0c82671d5100e791b2c6ec3e1be2d01d5deaa47b1f2cab80938199d89bcd6a8c",
+      "bytes": 5930
+    },
+    "952070": {
+      "path": "/steam/apps/952070/capsule.webp",
+      "hash": "3c1b61cf62c631b5d433308b7f310c5c13fb02ce0c0cc48cb535b202a4cc8c32",
+      "bytes": 7256
+    },
+    "955050": {
+      "path": "/steam/apps/955050/capsule.webp",
+      "hash": "002b04cbeb4b5985dcc26f04719d938a2e75229aed630603a31354f9e8921335",
+      "bytes": 5500
+    },
+    "1030300": {
+      "path": "/steam/apps/1030300/capsule.webp",
+      "hash": "3be19d12166c1d66fffd1a3f1f0cc6dd41f6a48fcfe7f487013ff90e7ad9aa97",
+      "bytes": 8266
+    },
+    "1034140": {
+      "path": "/steam/apps/1034140/capsule.webp",
+      "hash": "171fa3148c038728ddfb854031eaa217d73ac73566037c12b484c5cda24a949c",
+      "bytes": 6872
+    },
+    "1056960": {
+      "path": "/steam/apps/1056960/capsule.webp",
+      "hash": "7722ff91744dd9d801b7e19a1c7dd142fdc59c76322924d2cb69b30369751e73",
+      "bytes": 7054
+    },
+    "1086940": {
+      "path": "/steam/apps/1086940/capsule.webp",
+      "hash": "f9914646b663ee02f55ff5fed643336fa67cb9d08446d800ddb90eddaeefe684",
+      "bytes": 9600
+    },
+    "1091500": {
+      "path": "/steam/apps/1091500/capsule.webp",
+      "hash": "61c38e3a819952ed2dea8375366e7cabe114ad3da3e8ae8f80055a8484601ad5",
+      "bytes": 4214
+    },
+    "1110910": {
+      "path": "/steam/apps/1110910/capsule.webp",
+      "hash": "82260dff4faa88c7198211b1454edbff803ecdabb5ee6f7dd2b96f94e47aefeb",
+      "bytes": 5708
+    },
+    "1113560": {
+      "path": "/steam/apps/1113560/capsule.webp",
+      "hash": "bc75773a97bc9b8e5e4aa28d3d20d0e6083c075191ef8f344ea696632157fd5a",
+      "bytes": 3462
+    },
+    "1151640": {
+      "path": "/steam/apps/1151640/capsule.webp",
+      "hash": "a03c97edaeb3b72701dd7ebb729c2fc092f101c05b0606ab3d1278d877abc78e",
+      "bytes": 6722
+    },
+    "1172380": {
+      "path": "/steam/apps/1172380/capsule.webp",
+      "hash": "cd8030d78414bcec46a8d0608d72ca049440b6368186df7bb1def50dce551383",
+      "bytes": 4264
+    },
+    "1172470": {
+      "path": "/steam/apps/1172470/capsule.webp",
+      "hash": "2cf76ca9de9b9ba1731b6a20b6d0b627ecf22d463dd643f9ee445f0a5944e148",
+      "bytes": 8514
+    },
+    "1178830": {
+      "path": "/steam/apps/1178830/capsule.webp",
+      "hash": "30ae99d3ba09bd072995b84dc11870ffbd7da2a483302366102601113ba23ed7",
+      "bytes": 6398
+    },
+    "1196590": {
+      "path": "/steam/apps/1196590/capsule.webp",
+      "hash": "89163480168aa21df215d500643476b873287fdfeae11e6227f489e836a887df",
+      "bytes": 4994
+    },
+    "1222140": {
+      "path": "/steam/apps/1222140/capsule.webp",
+      "hash": "580d7fdc829095c8bb2d2a954594c576d71036af973f5549d83039ee0f331d11",
+      "bytes": 6536
+    },
+    "1245620": {
+      "path": "/steam/apps/1245620/capsule.webp",
+      "hash": "6d8c2602f1f55fed557e421afebb3b05a348e7db9595dee36fd215fa98311022",
+      "bytes": 1956
+    },
+    "1252330": {
+      "path": "/steam/apps/1252330/capsule.webp",
+      "hash": "d044257e055864a13ae63c2b8cb3b6d2d34408ec66a3d961de19335981cd8d36",
+      "bytes": 6640
+    },
+    "1276790": {
+      "path": "/steam/apps/1276790/capsule.webp",
+      "hash": "22c1a2dfdfaadb62dce14216f06b848ebee71e0fd8a9e71ecffd9d4126ca1df0",
+      "bytes": 5832
+    },
+    "1293160": {
+      "path": "/steam/apps/1293160/capsule.webp",
+      "hash": "bc9be189735276c3c8ab2a471ebf646357463849981d463787ba94d8ea857ce3",
+      "bytes": 6114
+    },
+    "1325200": {
+      "path": "/steam/apps/1325200/capsule.webp",
+      "hash": "1307fdb17c541eb813fed33d955bc945604ce4767ecc10729383371a88c47cbd",
+      "bytes": 6164
+    },
+    "1328670": {
+      "path": "/steam/apps/1328670/capsule.webp",
+      "hash": "a83aa9a82da1d9fc3b629f394fac8472761b7c8e27f9922a089b5daf1633c2e7",
+      "bytes": 6654
+    },
+    "1333200": {
+      "path": "/steam/apps/1333200/capsule.webp",
+      "hash": "3db0596887f928e6f88fabb0c73cc6e23fbff3235aad0aaaf47533271ad9f5f0",
+      "bytes": 6794
+    },
+    "1340990": {
+      "path": "/steam/apps/1340990/capsule.webp",
+      "hash": "b9f251c9e1aeb44dabcdbf1c3b3974c5c43861dae424b973cad36328295c5064",
+      "bytes": 4512
+    },
+    "1449560": {
+      "path": "/steam/apps/1449560/capsule.webp",
+      "hash": "d3aac17f326652e91446875460a2b4b32855835fbc06c95ca798e90677d8b99b",
+      "bytes": 7990
+    },
+    "1462040": {
+      "path": "/steam/apps/1462040/capsule.webp",
+      "hash": "919ff31fabe5567c4cc4a480edf8209aa0e80acf1daf676e05b932e8293c1507",
+      "bytes": 4040
+    },
+    "1501750": {
+      "path": "/steam/apps/1501750/capsule.webp",
+      "hash": "4851d0b0cf62d53f0d6b8371934d4711b79cb725f5c6f73fd2baef34bacc424d",
+      "bytes": 6512
+    },
+    "1544020": {
+      "path": "/steam/apps/1544020/capsule.webp",
+      "hash": "9d7291229b7425b74bb855aaa0d03060a56b0f37d076d6ebefa321510cd7f6fc",
+      "bytes": 6500
+    },
+    "1593500": {
+      "path": "/steam/apps/1593500/capsule.webp",
+      "hash": "37585a5fa1a0ac63976301d6bc870ffd6cc38f8ca75030d0d785bae81a733312",
+      "bytes": 6024
+    },
+    "1627720": {
+      "path": "/steam/apps/1627720/capsule.webp",
+      "hash": "1afb2bd97e2810d71fd0945f32fff817872c1a2bb72206431ebf6014a0f156a1",
+      "bytes": 4716
+    },
+    "1651960": {
+      "path": "/steam/apps/1651960/capsule.webp",
+      "hash": "7a69776579f307786fc31e1399fbb98508102666a2b32265c2707de9899530ab",
+      "bytes": 6652
+    },
+    "1774580": {
+      "path": "/steam/apps/1774580/capsule.webp",
+      "hash": "bcfe805809b0557c414a970e9a16ee4807c814efbe1a77ffab7348b81dd0eabd",
+      "bytes": 6170
+    },
+    "1850570": {
+      "path": "/steam/apps/1850570/capsule.webp",
+      "hash": "102ce93bb2307cbb6e3e36217df57b1d0e5a6a55bf84109347b43ae67cd1e7ae",
+      "bytes": 5230
+    },
+    "1888160": {
+      "path": "/steam/apps/1888160/capsule.webp",
+      "hash": "3d37fbedbc25b625cf5ed887c36d542c5a436eddd7c6308a8170c183f7edd34e",
+      "bytes": 2590
+    },
+    "1903340": {
+      "path": "/steam/apps/1903340/capsule.webp",
+      "hash": "d145fb383b7cca20797decb08f34cdf47e9f392255f0848e4f0fc07a8555e58a",
+      "bytes": 4220
+    },
+    "1954200": {
+      "path": "/steam/apps/1954200/capsule.webp",
+      "hash": "92761481f2bac09926eff4f0016fbe93e28f03aa2c7934b4a1187aadf7fdfaa0",
+      "bytes": 6784
+    },
+    "2001760": {
+      "path": "/steam/apps/2001760/capsule.webp",
+      "hash": "8fad459322cb4b2a9543d9a0e054d83eb8d5c5932f7576a6539866825f10518f",
+      "bytes": 4960
+    },
+    "2050650": {
+      "path": "/steam/apps/2050650/capsule.webp",
+      "hash": "6b4ed9a42f2730241274925af0f1d903e2bfa310404e0a1520d379f4061e0b5a",
+      "bytes": 4888
+    },
+    "2131630": {
+      "path": "/steam/apps/2131630/capsule.webp",
+      "hash": "161604944af7a2f3c2fcc8ae29b783f7dfa26db95b8a475aceb59a7fdf9b360a",
+      "bytes": 7330
+    },
+    "2131680": {
+      "path": "/steam/apps/2131680/capsule.webp",
+      "hash": "c1dbca77a93aba627421e49fc824350603dec391f29ea402c84ce2b43f92543e",
+      "bytes": 8680
+    },
+    "2149010": {
+      "path": "/steam/apps/2149010/capsule.webp",
+      "hash": "da7befd9e47f68db89c14a5ad5c4fe085266113d83ed5fb74fb5796b848515fd",
+      "bytes": 2480
+    },
+    "2215430": {
+      "path": "/steam/apps/2215430/capsule.webp",
+      "hash": "37a59b6c2b617325ba79fcdca208c91242c89671be8d1bca5b5777adb12d1cd7",
+      "bytes": 4836
+    },
+    "2277560": {
+      "path": "/steam/apps/2277560/capsule.webp",
+      "hash": "d302fe99305898ab320acb7978cc4798fb7f731142178b0e311ec22ef970d2a0",
+      "bytes": 5442
+    },
+    "2358720": {
+      "path": "/steam/apps/2358720/capsule.webp",
+      "hash": "6f47665e661b911218f297edb13125508cf2aaed854588ecf7bef5644866b84f",
+      "bytes": 6118
+    },
+    "2407270": {
+      "path": "/steam/apps/2407270/capsule.webp",
+      "hash": "2c9d7d04deaa4ccc2b2a6244ea9c2435f6e3dd80b757000dab66ae58a265f7b3",
+      "bytes": 8528
+    },
+    "2417610": {
+      "path": "/steam/apps/2417610/capsule.webp",
+      "hash": "98dc178c050aa2d545041212a0c2c018543abd5020de1887c08d47ca70fc090f",
+      "bytes": 5312
+    },
+    "2420110": {
+      "path": "/steam/apps/2420110/capsule.webp",
+      "hash": "5d03174a9bef12bd8db8aaec162e9c80910990b8b3ceada6942d0ccad96e2c8e",
+      "bytes": 7722
+    },
+    "2561580": {
+      "path": "/steam/apps/2561580/capsule.webp",
+      "hash": "3893c45ffa7109f6b9aa026121e516cd78b302de1eb7521c56853a3b80f21380",
+      "bytes": 8622
+    },
+    "2584270": {
+      "path": "/steam/apps/2584270/capsule.webp",
+      "hash": "a3d1826915e94268cce8c51efef3fc956fce6f2354760220aae48bfc493d3e3c",
+      "bytes": 4506
+    },
+    "2622380": {
+      "path": "/steam/apps/2622380/capsule.webp",
+      "hash": "bfdfec5c9ba7d094ef03d6d4fdbee16ec1d1d9644836ddef7c8a6f86e3a2cdac",
+      "bytes": 5556
+    },
+    "2623190": {
+      "path": "/steam/apps/2623190/capsule.webp",
+      "hash": "d7ff3e68dc813770a695d8505cf31a21a8060809c57f0af7591c2db4b69b4205",
+      "bytes": 3602
+    },
+    "2680010": {
+      "path": "/steam/apps/2680010/capsule.webp",
+      "hash": "b61993b1402850068534fcbceeec69d52e4233b5412c4a18b2e25ad0a43e8a0c",
+      "bytes": 2840
+    },
+    "3280350": {
+      "path": "/steam/apps/3280350/capsule.webp",
+      "hash": "2a33517d6d9decffd072137a7baa7c3ab1c3f5745ee6f61bf0c7fcbbdfcba275",
+      "bytes": 1802
+    },
+    "3292470": {
+      "path": "/steam/apps/3292470/capsule.webp",
+      "hash": "77ac3dec64aad878608a7ba395d332bbbc8a83512c2d29c344a82a3be6bd8dcc",
+      "bytes": 3696
+    },
+    "3321460": {
+      "path": "/steam/apps/3321460/capsule.webp",
+      "hash": "b9845f18e57f8b04dd913ce1258f48b9e2fc1f19604fbf3fbd8af71af8fc83a6",
+      "bytes": 2760
+    },
+    "3357650": {
+      "path": "/steam/apps/3357650/capsule.webp",
+      "hash": "d7b9d852d2eceac45f58faef40342ea8b55b090cb9f87b351e7efdbec41bf181",
+      "bytes": 5256
+    },
+    "3489700": {
+      "path": "/steam/apps/3489700/capsule.webp",
+      "hash": "1b9a54139e0f7867cb01c0fb3be1c100bb9e92f6894186776cfcd4b9aa94e8ce",
+      "bytes": 6420
+    },
+    "3564740": {
+      "path": "/steam/apps/3564740/capsule.webp",
+      "hash": "61f74ed1b0e5c75ff0a2892fc46c337c87005134f09446fe3a9c7406ab9fdae4",
+      "bytes": 4482
+    },
+    "3669870": {
+      "path": "/steam/apps/3669870/capsule.webp",
+      "hash": "6fd710cf832aa355e6bb5c9edcdf5db6f1e56ca0e19a2fc419e87adc4dde3d5c",
+      "bytes": 7346
+    },
+    "3681010": {
+      "path": "/steam/apps/3681010/capsule.webp",
+      "hash": "81db0584cce9f5f43318808e2d2a76f6c4913c1f968c47aafa8be174d4773b0c",
+      "bytes": 4424
+    },
+    "3764200": {
+      "path": "/steam/apps/3764200/capsule.webp",
+      "hash": "5e4a35d8a3df3c0cedfcc2ac0726e73fc125d927add7a8b30b3f67b696b46fd3",
+      "bytes": 4042
+    },
+    "4115450": {
+      "path": "/steam/apps/4115450/capsule.webp",
+      "hash": "7db9fdc6190b76a60910ae03e202374c05ce59b36263a580d9a693899af41d99",
+      "bytes": 4144
+    }
+  },
+  "missing": [
+    {
+      "appid": 743650,
+      "reason": "appdetails returned success=false for 743650"
+    }
+  ]
+}
