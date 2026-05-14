@@ -37,14 +37,21 @@ The analytics methods are pure read-side, no shared mutable state, and would let
 
 ## Plan
 
-### Chunk 1 — `lol/_shared/` split (non-asset buckets only)
+### Chunk 1 — `lol/_shared/` split (non-asset buckets only) (shipped 2026-05-14)
 
-Scope: 6 of the 8 buckets above. Skip `assets/` and `assets/manifest/` — those get reworked when the asset-pipeline pivot lands (see "When to pick up" below).
+Scope: 6 of the 8 buckets above. Skipped `assets/` and `assets/manifest/` — those get reworked when the asset-pipeline pivot lands (see "When to pick up" below).
 
 Files moved: 22 (account 4 + patch 4 + queue 3 + ui 5 + serious-queues 2 + analytics 4).
-Import updates: every consumer of those modules — likely 60–100 imports across [apps/web/src/lol/](../../apps/web/src/lol/) and possibly [apps/web/src/routes/lol/](../../apps/web/src/routes/lol/). Mechanical, type-checker-driven.
+Import updates: every consumer of those modules — mechanical, type-checker-driven.
 
-Single PR. No behavior change. Verify with `tokf err pnpm run typecheck:cc` after each bucket move; commit per bucket so the diff is reviewable.
+Single PR. No behavior change. Verified with `tokf err pnpm run typecheck:cc` after each bucket move; one commit per bucket so the diff is reviewable.
+
+**Ship note 2026-05-14:** Landed as 6 bucket commits + one fix-up + one biome-format commit. Two surprises worth recording for the asset-bucket pivot:
+
+1. **Alias-only sed is insufficient.** One file (`apps/web/src/lol/champions/champion-patch-history.tsx`) used a relative `../_shared/patch-version` import that the alias-rewrite missed; typecheck caught it but only after the bucket commit landed. Pre-screen *both* `@/lol/_shared/<name>` *and* `\.\./_shared/<name>` before each bucket from now on.
+2. **Biome ci wasn't part of the per-bucket loop.** Path-string changes shuffled alphabetical import order and grew some lines past Biome's wrap threshold (16 files needed re-org/re-wrap, plus one residual line from Chunk 2's `lol.controller.ts` that snuck through). Single closing `chore:` commit applied `check:fix:cc`. For the asset-bucket pivot, run `tokf err pnpm run check:cc` once at the end (not per bucket) and absorb the format-only fix-ups into a single trailing commit.
+
+Final state of [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/): 6 new bucket subfolders (`account/`, `analytics/`, `patch/`, `queue/`, `serious-queues/`, `ui/`) plus the deferred 13 asset-adjacent files at the root (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`).
 
 ### Chunk 2 — extract `lol-analytics.service.ts` (shipped 2026-05-14)
 
