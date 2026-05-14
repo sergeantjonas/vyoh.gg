@@ -216,9 +216,28 @@ Wishlist endpoint poller + cache, wishlist `ConclusionCard` chip on the `/steam`
 
 `GetOwnedGames` poller storing baseline + daily delta, library-composition chip, forever-games surface, platform-mix chip, build-time asset pipeline for game header/library art. First *data-derived* trend surfaces; introduces the daily-polling layer.
 
+**Status (2026-05-14): shipped.**
+
+- Chunks 1–2 backend — daily `GetOwnedGames` poller (04:00 Europe/Brussels), `SteamOwnedGame` + `SteamPlaytimeSnapshot` tables, `SteamOwnedGamesService` with `getLibrarySummary` / `getPlatformMix` / `getForeverGames` reads. `GET /api/steam/{library-summary,platform-mix,forever-games}`.
+- Chunk 3 asset pipeline — commit `e1ab677`. Bundled-manifest pipeline for capsules mirroring the LoL approach; planned for retirement after S5 per [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
+- Chunk 4 forever-games drill-in — commits `88896d1` (backend), `d3d1806` (frontend). `ForeverGamesChip` on `/steam`, `/steam/library` drill-in route sorted by lifetime, minimal `/steam/game/$appid` detail showing lifetime + 2-week.
+- **Deferred:** `rtime_last_played` capture — not needed for the forever-games surface (lifetime + 2-week was the explicit scope). It belongs to the **returned-to / gone-quiet verdicts** surface (see candidate board) and to the eventual "last played 14mo ago" line on `/steam/library`. Picked up when either of those lands — small chunk: Prisma column on `SteamOwnedGame`, migration, upstream raw type, upsert write, shared type, two render sites.
+
 ### Phase S4 — Achievement data layer
 
 Schema fetch per owned game, daily per-player unlock poll with diff, weekly global rarity poll, asset mirroring for achievement icons, storage schema for unlocks (timestamp, rarity, schema link). No user-facing surface — purely substrate. Unblocks both S5 and the cross-stream work in S7.
+
+### Phase S4.5 — Navigation + visual baseline
+
+Inserted after the S3 retro (2026-05-14). The Steam section today is a single `/steam` card grid with two drill-ins (`/steam/wishlist`, `/steam/library`) and a stub game detail — fine as a foundation, but too thin to host the achievement surfaces in S5 without them feeling tacked-on. Lands as a named phase so it doesn't get folded into S5 and skipped.
+
+Scope (chunks set when scoped, per the phase-plan convention):
+
+- **Real navigation surface.** Sub-sections along the lines of *Profile / Achievements / Library / Wishlist*, not just chips on `/steam`. Mirrors the LoL section's pattern of having shape rather than a single landing page. Final IA decided at scoping time — the names above are a starting set, not committed.
+- **Visual baseline.** The section currently reads as sober even by vyoh.gg standards. Pass to bring it closer to the LoL section's visual density and presence — typography hierarchy, breathing room around chips, hero/landing treatment for `/steam`, capsule treatment on detail pages. Decided at scoping time which surfaces lead.
+- **Done when:** `/steam` is navigable as a section, not a card grid; achievement surfaces in S5 have an IA slot waiting for them rather than needing a structural retrofit.
+
+Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing cross-doc references stable (notably the `lol-image-pipeline.md` Phase 4 "after Steam S5" sequencing decision, which refers to the achievement-surfaces-MVP milestone semantically).
 
 ### Phase S5 — Achievement surfaces MVP
 
@@ -244,6 +263,7 @@ S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S8 buil
 
 - Wishlist endpoint stability — `wishlistdata/` is widely used but undocumented. Have a lightweight backstop plan if it changes.
 - Hidden games. The owner can hide individual games from the public profile; those simply won't appear. No mitigation, just a known gap.
+- **Steam read-side test pass.** None of the Steam read endpoints (`getLibrarySummary`, `getPlatformMix`, `getForeverGames`, `getOwnerWishlist`) have unit tests today; the services around them (`steam-client`, `rate-limiter`, `owned-games.syncOwnedGames` via `diffOwnedGames`) do. Each individual read is thin enough that the per-chunk decision has been to defer, but the absence is now consistent across all read paths. One pass to backfill them together is the right shape — not a per-chunk drag.
 - **Asset pipeline is provisional.** S3 chunk 3 (commit `e1ab677`, 2026-05-14) shipped a bundled-manifest pipeline for capsules mirroring the LoL approach. A subsequent decision the same day plans to retire both the Steam and LoL bundled pipelines in favor of a server-side image proxy with stale-while-revalidate — content-driven deploys (every wishlist add) are the smell that surfaced it. The pivot is sequenced after Steam S5; the chunk-3 bundle will be reverted as part of that arc. Tracked in [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
 
 ---
