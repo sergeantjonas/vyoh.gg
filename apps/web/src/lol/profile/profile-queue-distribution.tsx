@@ -1,4 +1,4 @@
-import { queueColor } from "@/lol/_shared/queue-color";
+import { queueColor } from "@/lol/_shared/queue/queue-color";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeQueueCounts } from "@/lol/trends/trend-stats";
 

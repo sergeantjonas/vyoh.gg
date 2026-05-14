@@ -1,7 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
 import { CardTilt } from "@/lol/_shared/card-tilt";
-import { queueColor } from "@/lol/_shared/queue-color";
+import { queueColor } from "@/lol/_shared/queue/queue-color";
 import {
   ChampionCardChrome,
   championCardClassName,

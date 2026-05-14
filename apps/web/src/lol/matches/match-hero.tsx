@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { queueColor } from "@/lol/_shared/queue-color";
+import { queueColor } from "@/lol/_shared/queue/queue-color";
 import {
   ChampionCardChrome,
   championCardBaseClassName,

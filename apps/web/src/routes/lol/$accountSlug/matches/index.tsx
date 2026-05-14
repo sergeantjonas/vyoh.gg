@@ -2,7 +2,7 @@ import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
 import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
-import { QueueFilter } from "@/lol/_shared/queue-filter";
+import { QueueFilter } from "@/lol/_shared/queue/queue-filter";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
