@@ -1,5 +1,5 @@
 // Baseline: personal — this champion's share of your games this patch vs last patch.
-import { groupByPatch } from "@/lol/_shared/patch-version";
+import { groupByPatch } from "@/lol/_shared/patch/patch-version";
 import type { MatchSummary } from "@vyoh/shared";
 
 const MIN_PATCH_GAMES = 5;

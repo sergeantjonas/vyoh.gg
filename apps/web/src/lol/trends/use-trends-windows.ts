@@ -1,4 +1,4 @@
-import { groupByPatch } from "@/lol/_shared/patch-version";
+import { groupByPatch } from "@/lol/_shared/patch/patch-version";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import type { LolAccount, MatchSummary } from "@vyoh/shared";

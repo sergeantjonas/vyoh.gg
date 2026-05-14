@@ -1,7 +1,7 @@
 // Baseline: personal — your LP snapshots; streak overlay derives from your match results.
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
-import { findPatchBoundaries } from "@/lol/_shared/patch-version";
+import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { type RangeKey, useRankHistory } from "@/lol/profile/use-rank-history";

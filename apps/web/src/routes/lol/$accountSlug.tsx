@@ -10,7 +10,7 @@ import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queu
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
 import { profileIconFallbackUrl, profileIconUrl } from "@/lol/_shared/summoner-icon";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
