@@ -1,5 +1,5 @@
-import { LiveGameChip } from "@/lol/_shared/live-game-chip";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileDuos } from "@/lol/profile/profile-duos";

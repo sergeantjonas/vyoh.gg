@@ -1,5 +1,5 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
 import { TrendComebackResilience } from "@/lol/trends/trend-comeback-resilience";
 import { TrendDamageRoleConsistency } from "@/lol/trends/trend-damage-role-consistency";

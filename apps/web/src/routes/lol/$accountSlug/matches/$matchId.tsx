@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";

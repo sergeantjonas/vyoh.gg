@@ -1,4 +1,4 @@
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";

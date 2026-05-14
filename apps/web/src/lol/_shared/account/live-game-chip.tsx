@@ -1,4 +1,4 @@
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, m } from "motion/react";

@@ -2,7 +2,7 @@ import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state"
 import { cn } from "@/lib/utils";
 import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueries } from "@tanstack/react-query";

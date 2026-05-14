@@ -1,5 +1,5 @@
 import { championSquareIconUrl } from "@/lol/_shared/champion-icon";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useChampionPairs } from "@/lol/profile/use-champion-pairs";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";

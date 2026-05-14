@@ -1,4 +1,4 @@
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useChampionBuildFlow } from "@/lol/champions/use-champion-build-flow";
 import { useItems } from "@/lol/matches/use-items";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";

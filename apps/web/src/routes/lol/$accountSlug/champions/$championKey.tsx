@@ -7,7 +7,7 @@ import { ItemIcon } from "@/lol/_shared/item-icon";
 import { findPatchBoundaries } from "@/lol/_shared/patch-version";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
 import { ThisPatchBadge } from "@/lol/_shared/this-patch-badge";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/use-hero-scrolled-past";
 import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";

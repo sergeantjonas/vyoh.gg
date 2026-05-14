@@ -1,15 +1,15 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { toastMessage } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { AccountSwitcher } from "@/lol/_shared/account-switcher";
+import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import championAssets from "@/lol/_shared/champion-assets.json";
 import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
-import { RefreshAccountButton } from "@/lol/_shared/refresh-account-button";
+import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
 import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
 import { profileIconFallbackUrl, profileIconUrl } from "@/lol/_shared/summoner-icon";
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useDDragonVersion } from "@/lol/_shared/use-ddragon-version";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";

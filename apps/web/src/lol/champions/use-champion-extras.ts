@@ -1,4 +1,4 @@
-import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useQuery } from "@tanstack/react-query";
 import type { ChampionExtras } from "@vyoh/shared";
 
