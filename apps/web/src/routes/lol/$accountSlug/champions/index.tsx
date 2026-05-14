@@ -8,7 +8,7 @@ import {
   type RolePosition,
   isRolePosition,
 } from "@/lol/_shared/role-icon";
-import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues";
+import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
 import { useAccountFromSlug } from "@/lol/_shared/use-account-from-slug";
 import { ChampionPoolDrift } from "@/lol/champions/champion-pool-drift";
 import {

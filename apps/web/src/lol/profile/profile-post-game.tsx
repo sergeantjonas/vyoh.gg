@@ -5,7 +5,7 @@ import {
   ROLE_VISION_SCORE,
   isRole,
 } from "@/lol/_shared/role-baselines";
-import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeTiltStats } from "@/lol/profile/use-habits-stats";

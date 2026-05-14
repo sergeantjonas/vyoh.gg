@@ -1,7 +1,7 @@
 import {
   CONFIGURABLE_SERIOUS_QUEUES,
   useSeriousQueues,
-} from "@/lol/_shared/serious-queues";
+} from "@/lol/_shared/serious-queues/serious-queues";
 import { SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";

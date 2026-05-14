@@ -1,5 +1,5 @@
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { useSeriousMatches } from "@/lol/_shared/serious-queues";
+import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type CompositeRead, buildComposite } from "@/lol/profile/pregame-composite";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
