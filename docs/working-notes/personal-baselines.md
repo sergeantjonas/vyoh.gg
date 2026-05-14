@@ -106,9 +106,11 @@ Single-session pass. For each tile, document explicitly in code comments whether
 - Render: [`$championKey.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a tone-tinted verdict line above the matchup grid: *"vs X — N% WR, Δpp below your B% baseline on this champion."* Warning tone when `deltaPP ≥ 15`, neutral otherwise. Suppressed entirely if no matchup meets the sample threshold.
 - Sample threshold of 5 matches the codified value in open question #1 (matchup-level needs ≥ 5 same-pair games).
 
-### PB3 — Personal patch-drift verdict
+### PB3 — Personal patch-drift verdict — **shipped 2026-05-14**
 
-Cross-cut between [trend pool drift] and [champion patch history]. On Champion detail: *"on this patch, your time-on-this-champion is up 80% vs last patch"*. Reads as a behavior baseline, not a performance one.
+- Helper: [`apps/web/src/lol/champions/patch-drift.ts`](../../apps/web/src/lol/champions/patch-drift.ts) — `buildPatchDrift()` groups all serious matches by patch (reusing `groupByPatch`), computes this-champion's share of total games on the latest two patches, and returns `{ currentPatch, previousPatch, currentShare, previousShare, currentChampGames, currentTotalGames, direction, relativeChangePct }` only when the drift is meaningful (both patches ≥ 5 total games; relative change ≥ 20% and absolute change ≥ 3pp).
+- Render: [`$championKey.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a neutral-tone verdict line above the patch-history strip: *"Up on patch 26.9 — 18% of your 28 games (vs 10% on 26.8). 5 games this patch."* Suppressed entirely when no drift is meaningful (the common case keeps the page quiet).
+- Tone stays neutral: this is a behavior observation, not a performance verdict.
 
 ### PB4 — Cross-tile personal anomalies
 
@@ -124,6 +126,7 @@ A single `Compare to my rank` toggle on tiles that have a meaningful global base
 
 - **2026-05-13** — framing note drafted. PB1 is the smallest unit; PB2 is the highest-payoff visible move.
 - **2026-05-14** — PB2 shipped (weakest-matchup verdict on Champion detail). PB1 doc-pass and PB3 patch-drift verdict remain.
+- **2026-05-14** — PB3 shipped (time-on-this-champion patch-drift verdict on Champion detail). PB1 doc-pass remains; PB4 cross-tile anomalies still deferred until at least 2–3 more personal-baseline tiles ship.
 
 ---
 

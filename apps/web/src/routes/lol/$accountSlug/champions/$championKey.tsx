@@ -17,6 +17,7 @@ import {
 } from "@/lol/champions/champion-detail-stats";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
+import { buildPatchDrift } from "@/lol/champions/patch-drift";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { buildWeakestMatchup } from "@/lol/champions/weakest-matchup";
@@ -162,6 +163,11 @@ function ChampionDetailPage() {
   const weakestMatchup = useMemo(
     () => (extras.data ? buildWeakestMatchup(extras.data.matchups) : null),
     [extras.data]
+  );
+
+  const patchDrift = useMemo(
+    () => (matches ? buildPatchDrift(matches, detail?.champion ?? championKey) : null),
+    [matches, detail?.champion, championKey]
   );
 
   const [stripVisible, heroRef] = useHeroScrolledPast();
@@ -378,6 +384,22 @@ function ChampionDetailPage() {
         </m.div>
       )}
 
+      {patchDrift && (
+        <div className="flex flex-col gap-1 rounded-lg border bg-card/40 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+            Time on this champion
+          </div>
+          <div className="text-sm leading-snug text-foreground/90">
+            {patchDrift.direction === "up" ? "Up" : "Down"} on patch{" "}
+            {patchDrift.currentPatch} — {Math.round(patchDrift.currentShare * 100)}% of
+            your {patchDrift.currentTotalGames} games (vs{" "}
+            {Math.round(patchDrift.previousShare * 100)}% on {patchDrift.previousPatch}).{" "}
+            <span className="text-muted-foreground/70">
+              {patchDrift.currentChampGames} games this patch
+            </span>
+          </div>
+        </div>
+      )}
       {/* Per-patch champion WR — feeds off the page's wider matches window so
           the strip's 6-patch tail and the hero summary are derived from the
           same dataset (was drifting when the strip self-fetched 2000 matches
