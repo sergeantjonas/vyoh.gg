@@ -1,4 +1,4 @@
-import { MatchRecord } from "@/lol/_shared/match-record";
+import { MatchRecord } from "@/lol/_shared/ui/match-record";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { TrendStreak } from "@/lol/trends/trend-streak";

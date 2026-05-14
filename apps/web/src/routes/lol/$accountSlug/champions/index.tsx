@@ -1,6 +1,6 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
-import { useHoverChampion } from "@/lol/_shared/hover-champion-context";
+import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
 import {
   ROLE_LABEL,
   ROLE_ORDER,

@@ -1,4 +1,4 @@
-import { MatchPips } from "@/lol/_shared/match-pips";
+import { MatchPips } from "@/lol/_shared/ui/match-pips";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useNavigate } from "@tanstack/react-router";

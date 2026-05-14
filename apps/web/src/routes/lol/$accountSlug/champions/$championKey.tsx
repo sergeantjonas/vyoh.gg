@@ -2,7 +2,7 @@ import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { ChampionStickyStrip } from "@/lol/_shared/champion-sticky-strip";
+import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { ItemIcon } from "@/lol/_shared/item-icon";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { filterToSerious, useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";

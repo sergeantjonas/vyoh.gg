@@ -3,7 +3,7 @@ import { toastMessage } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import championAssets from "@/lol/_shared/champion-assets.json";
-import { HoverChampionProvider } from "@/lol/_shared/hover-champion-context";
+import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
