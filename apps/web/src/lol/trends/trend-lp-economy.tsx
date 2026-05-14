@@ -1,3 +1,4 @@
+// Baseline: personal — average LP gain vs average LP loss from your ranked games.
 import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";

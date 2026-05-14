@@ -1,3 +1,4 @@
+// Baseline: role-population — your avg vision score on your primary role vs ROLE_VISION_SCORE in role-baselines.ts.
 import {
   ROLE_LABEL,
   ROLE_VISION_SCORE,

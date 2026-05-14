@@ -1,3 +1,5 @@
+// Baseline: personal — worst matchup's WR vs the per-champion baseline (sum of your matchup wins ÷ sum of matchup games).
+
 const MIN_MATCHUP_GAMES = 5;
 
 export interface MatchupRow {

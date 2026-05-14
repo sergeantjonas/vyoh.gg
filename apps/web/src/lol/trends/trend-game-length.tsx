@@ -1,3 +1,4 @@
+// Baseline: personal — your WR bucketed by game length.
 import { cn } from "@/lib/utils";
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { GameLengthBucket } from "@/lol/profile/use-habits-stats";

@@ -1,3 +1,4 @@
+// Baseline: personal — your death-timing histogram; peak window is internal to your data, no external floor.
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";

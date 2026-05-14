@@ -1,3 +1,4 @@
+// Baseline: personal — your LP snapshots; streak overlay derives from your match results.
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { findPatchBoundaries } from "@/lol/_shared/patch-version";

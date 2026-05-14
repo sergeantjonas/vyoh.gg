@@ -96,9 +96,16 @@ The principle: **the user is the unit of analysis. Global baselines are a refere
 
 ## Practical work
 
-### PB1 — Audit and label existing tiles
+### PB1 — Audit and label existing tiles — **shipped 2026-05-14**
 
-Single-session pass. For each tile, document explicitly in code comments whether its baseline is personal, role-population, or fixed-reference. Surfaces inconsistencies before they grow.
+Every tile file carries a top-of-file `// Baseline: <kind> — <one-liner>` marker so the kind is grep-able and visible at read-time. 26 files labeled across `apps/web/src/lol/trends/`, `apps/web/src/lol/champions/`, `apps/web/src/lol/profile/`, and `apps/web/src/lol/_shared/role-baselines.ts`.
+
+Two audit findings:
+
+- `trend-first-blood-conversion.tsx` was grouped with the T4 Phase-A role-population trio in the doc, but the code compares first-blood-game WR to the user's **overall WR** — it's a personal baseline, not role-population. Labeled as personal.
+- `trend-lane-phase-prognosis.tsx` (not enumerated in the doc table) uses `ROLE_CS_AT_10` from `role-baselines.ts` and follows the same role-population pattern as damage/vision. Labeled as role-population.
+
+Codified labels: `personal`, `role-population`, `fixed-reference`. A typed `Baseline` metadata field per tile (open question #2) remains optional — comments are sufficient until a tile-registry abstraction shows up.
 
 ### PB2 — Extend champion detail with personal-matchup verdict line — **shipped 2026-05-14**
 
@@ -127,6 +134,7 @@ A single `Compare to my rank` toggle on tiles that have a meaningful global base
 - **2026-05-13** — framing note drafted. PB1 is the smallest unit; PB2 is the highest-payoff visible move.
 - **2026-05-14** — PB2 shipped (weakest-matchup verdict on Champion detail). PB1 doc-pass and PB3 patch-drift verdict remain.
 - **2026-05-14** — PB3 shipped (time-on-this-champion patch-drift verdict on Champion detail). PB1 doc-pass remains; PB4 cross-tile anomalies still deferred until at least 2–3 more personal-baseline tiles ship.
+- **2026-05-14** — PB1 doc-pass shipped. Every tile file carries an explicit `// Baseline: <kind>` marker. Audit corrected one mis-classification (`trend-first-blood-conversion` is personal, not role-population) and added one new role-population label (`trend-lane-phase-prognosis`). Only PB4 remains, still deferred.
 
 ---
 

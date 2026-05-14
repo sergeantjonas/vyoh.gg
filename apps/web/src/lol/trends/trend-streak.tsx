@@ -1,3 +1,4 @@
+// Baseline: personal — chip display for your current win/loss streak; no external comparison.
 import { cn } from "@/lib/utils";
 import { m } from "motion/react";
 import type { Streak } from "./trend-stats";

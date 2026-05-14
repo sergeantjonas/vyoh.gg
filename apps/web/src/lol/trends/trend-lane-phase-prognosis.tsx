@@ -1,3 +1,4 @@
+// Baseline: role-population — your avg CS@10 on your primary role vs ROLE_CS_AT_10 in role-baselines.ts.
 import {
   ROLE_CS_AT_10,
   ROLE_LABEL,

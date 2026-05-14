@@ -1,3 +1,4 @@
+// Baseline: role-population — your avg damage share on your primary role vs ROLE_DAMAGE_SHARE in role-baselines.ts.
 import {
   ROLE_DAMAGE_SHARE,
   ROLE_LABEL,

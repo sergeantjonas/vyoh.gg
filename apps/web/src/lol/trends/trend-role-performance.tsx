@@ -1,3 +1,4 @@
+// Baseline: personal — per-role WR vs your overall WR across the window.
 import {
   ROLE_LABEL,
   ROLE_ORDER,

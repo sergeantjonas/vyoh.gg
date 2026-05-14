@@ -1,3 +1,4 @@
+// Baseline: personal — this champion's WR by patch (your games only); verdict compares latest two patches.
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";

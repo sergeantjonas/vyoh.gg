@@ -1,3 +1,4 @@
+// Baseline: personal — your deaths bucketed by lane opponent; no external comparison.
 import { championSquareIconUrl } from "@/lol/_shared/champion-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";

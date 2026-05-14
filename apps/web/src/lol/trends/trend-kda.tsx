@@ -1,3 +1,4 @@
+// Baseline: personal — your KDA trajectory across the window with a fitted trend line.
 import { findPatchBoundaries } from "@/lol/_shared/patch-version";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { computeKdaSeries, computeTrendSummary } from "@/lol/trends/trend-stats";

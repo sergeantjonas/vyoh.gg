@@ -1,3 +1,4 @@
+// Baseline: personal — your WR by day-of-week; weakest day is flagged against your other days.
 import { cn } from "@/lib/utils";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";

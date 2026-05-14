@@ -1,3 +1,4 @@
+// Baseline: personal — top two insights pulled from your tilt/game-length/hour-slot habits.
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HabitsStats } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";

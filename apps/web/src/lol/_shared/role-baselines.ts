@@ -1,3 +1,6 @@
+// Baseline kind: role-population — source-of-truth for the Trends "you vs typical role floor" tiles
+// (damage role consistency, vision investment, lane-phase prognosis).
+//
 // Hand-tuned typical solo-queue baselines per role. These are intentionally
 // approximate — the goal is to give Trends conclusion tiles a reference
 // "is the user above or below the typical role floor?" without claiming
