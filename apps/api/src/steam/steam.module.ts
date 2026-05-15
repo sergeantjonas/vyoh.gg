@@ -5,6 +5,8 @@ import { SteamEnrichmentPoller } from "./enrichment.poller";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
 import { SteamOwnedGamesService } from "./owned-games.service";
+import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
+import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import { SteamClientService } from "./steam-client.service";
 import { SteamController } from "./steam.controller";
@@ -24,6 +26,8 @@ import { SteamTagService } from "./tag.service";
     SteamEnrichmentPoller,
     SteamAchievementSchemaService,
     SteamAchievementSchemaPoller,
+    SteamPlayerUnlocksService,
+    SteamPlayerUnlocksPoller,
     SteamTagService,
     SteamTagPoller,
   ],
@@ -34,6 +38,7 @@ import { SteamTagService } from "./tag.service";
     SteamOwnedGamesService,
     SteamEnrichmentService,
     SteamAchievementSchemaService,
+    SteamPlayerUnlocksService,
     SteamTagService,
   ],
 })

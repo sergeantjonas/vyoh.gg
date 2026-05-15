@@ -8,6 +8,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
+import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 import type { SteamOwnedGameRaw } from "./types";
@@ -77,7 +78,8 @@ export class SteamOwnedGamesService {
     private readonly prisma: PrismaService,
     private readonly client: SteamClientService,
     private readonly enrichment: SteamEnrichmentService,
-    private readonly achievementSchema: SteamAchievementSchemaService
+    private readonly achievementSchema: SteamAchievementSchemaService,
+    private readonly playerUnlocks: SteamPlayerUnlocksService
   ) {}
 
   async syncOwnedGames(now: Date = new Date()): Promise<OwnedGamesDiff> {
@@ -161,6 +163,22 @@ export class SteamOwnedGamesService {
         this.logger.warn(
           `achievement-schema bootstrap of newly-added apps failed: ${err}`
         );
+      }
+      // Pull initial unlocks for newly-added games that turned out to have an
+      // achievement schema. Must run after the schema bootstrap above — the
+      // `SteamPlayerUnlock` FK references `SteamGameAchievement(appid, apiName)`,
+      // so the schema rows have to exist first. Filtering on `achievementCount`
+      // also skips schema-less games (CS2, demos) cleanly.
+      const withSchema = await this.prisma.steamGameAchievementMeta.findMany({
+        where: { appid: { in: diff.added }, achievementCount: { gt: 0 } },
+        select: { appid: true },
+      });
+      if (withSchema.length > 0) {
+        try {
+          await this.playerUnlocks.syncUnlocks(withSchema.map((m) => m.appid));
+        } catch (err) {
+          this.logger.warn(`unlock bootstrap of newly-added apps failed: ${err}`);
+        }
       }
     }
 
