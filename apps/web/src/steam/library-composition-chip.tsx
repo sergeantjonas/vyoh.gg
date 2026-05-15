@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { FactCard } from "./_shared/fact-card";
 import { useSteamLibrarySummary } from "./use-library-summary";
 
@@ -42,6 +43,14 @@ export function LibraryCompositionChip() {
       metricLabel={{ singular: "game", plural: "games" }}
       verdict={verdict}
       prescription={prescription}
+      evidence={
+        <Link
+          to="/steam/library"
+          className="text-sm text-foreground/70 underline-offset-2 hover:underline"
+        >
+          See the full library →
+        </Link>
+      }
     />
   );
 }
