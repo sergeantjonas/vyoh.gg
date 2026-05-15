@@ -58,7 +58,45 @@ model SteamOwnedGame {
   lastSeenAt  DateTime  @default(now())
   removedAt   DateTime?
 
-  snapshots SteamPlaytimeSnapshot[]
+  snapshots  SteamPlaytimeSnapshot[]
+  enrichment SteamGameEnrichment?
+}
+
+// Per-app metadata fetched from IStoreBrowseService/GetItems. One row per
+// owned appid (the enrichment poller is keyed off SteamOwnedGame). Assets are
+// stored as path fragments (Steam's "${FILENAME}" substitutions, hash-prefixed
+// + asset filename in one string, e.g. "1eebc7e0…e4e3/library_capsule.jpg")
+// plus a single `assetUrlFormat` template + `assetTimestamp` cache-buster.
+// Caller composes the full URL by substituting the path into the format. A
+// change in `assetTimestamp` indicates the publisher refreshed art.
+//
+// `appType` is Steam's StoreItemType enum int: 0 = Game, 6 = Application /
+// Software (Wallpaper Engine, 3DMark, OBS-class tools), other values for DLC /
+// bundles / demos. Frontend maps to a label. `tagIds` carries the appid's
+// community-tag ids ordered by weight desc (top-N stored, full list is huge);
+// stand-in for Steam's "genre" metadata which IStoreBrowseService doesn't
+// expose directly. `featureCategoryIds` is the small int list under
+// `categories.feature_categoryids` for feature-flag filters (single-player,
+// achievements, cloud save, etc.). Logo asset is not exposed by
+// IStoreBrowseService — the unhashed `logo.png` path stays in use.
+model SteamGameEnrichment {
+  appid                Int       @id
+  assetUrlFormat       String?
+  assetTimestamp       BigInt?
+  libraryCapsulePath   String?
+  libraryCapsule2xPath String?
+  libraryHeroPath      String?
+  libraryHero2xPath    String?
+  headerPath           String?
+  heroCapsulePath      String?
+  appType              Int?
+  releaseDate          DateTime? @db.Date
+  isFree               Boolean?
+  tagIds               Int[]
+  featureCategoryIds   Int[]
+  enrichedAt           DateTime  @default(now())
+
+  game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }
 
 model SteamPlaytimeSnapshot {

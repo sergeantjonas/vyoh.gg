@@ -5,10 +5,12 @@ import type {
   SteamGetOwnedGamesResponse,
   SteamGetPlayerSummariesResponse,
   SteamGetProfileItemsEquippedResponse,
+  SteamGetStoreItemsFullResponse,
   SteamGetStoreItemsResponse,
   SteamGetWishlistResponse,
   SteamOwnedGameRaw,
   SteamPlayerRaw,
+  SteamStoreItemFullRaw,
   SteamStoreItemRaw,
   SteamWishlistItemRaw,
 } from "./types";
@@ -90,6 +92,31 @@ export class SteamClientService {
       };
       const path = `/IStoreBrowseService/GetItems/v1/?key=${encodeURIComponent(this.apiKey)}&input_json=${encodeURIComponent(JSON.stringify(input))}`;
       const data = await this.fetchJson<SteamGetStoreItemsResponse>(path);
+      return data.response.store_items ?? [];
+    });
+  }
+
+  // Enrichment-grade fetch: same endpoint as getStoreItems, but with the
+  // larger `data_request` flags set so the response carries assets (hash-
+  // prefixed canonical Steam asset paths + `?t=` timestamp template),
+  // release date, type, and feature/tag ids. Sharing the endpoint keeps the
+  // rate-limiter family unified — both calls draw from the same daily
+  // reservoir, no extra Bottleneck wiring needed.
+  async getStoreItemsFull(appids: number[]): Promise<SteamStoreItemFullRaw[]> {
+    if (appids.length === 0) return [];
+    return this.limiter.schedule("store-items", async () => {
+      const input = {
+        ids: appids.map((appid) => ({ appid })),
+        context: { language: "english", country_code: "US" },
+        data_request: {
+          include_assets: true,
+          include_release: true,
+          include_categories: true,
+          include_basic_info: false,
+        },
+      };
+      const path = `/IStoreBrowseService/GetItems/v1/?key=${encodeURIComponent(this.apiKey)}&input_json=${encodeURIComponent(JSON.stringify(input))}`;
+      const data = await this.fetchJson<SteamGetStoreItemsFullResponse>(path);
       return data.response.store_items ?? [];
     });
   }

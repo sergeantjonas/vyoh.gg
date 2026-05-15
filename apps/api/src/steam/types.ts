@@ -60,6 +60,70 @@ export interface SteamGetStoreItemsResponse {
   };
 }
 
+// Full GetItems shape — superset of SteamStoreItemRaw used by the enrichment
+// poller. Requested with `include_assets`, `include_release`, `include_categories`.
+// `type` is Steam's StoreItemType enum int (0 = Game, 6 = Application).
+// `asset_url_format` is a template `"steam/apps/{appid}/${FILENAME}?t={ts}"`
+// — each per-asset value is the `${FILENAME}` substitution (hash + filename
+// in one path fragment, e.g. `"1eebc7…e4e3/library_capsule.jpg"`).
+export interface SteamStoreItemAssetsRaw {
+  asset_url_format?: string;
+  main_capsule?: string;
+  main_capsule_2x?: string;
+  small_capsule?: string;
+  small_capsule_2x?: string;
+  header?: string;
+  header_2x?: string;
+  hero_capsule?: string;
+  hero_capsule_2x?: string;
+  library_capsule?: string;
+  library_capsule_2x?: string;
+  library_hero?: string;
+  library_hero_2x?: string;
+  community_icon?: string;
+  page_background_path?: string;
+}
+
+export interface SteamStoreItemCategoriesRaw {
+  supported_player_categoryids?: number[];
+  feature_categoryids?: number[];
+  controller_categoryids?: number[];
+}
+
+export interface SteamStoreItemReleaseRaw {
+  // Unix seconds (UTC). Absent for unreleased / coming-soon titles.
+  steam_release_date?: number;
+  is_coming_soon?: boolean;
+  original_release_date?: number;
+}
+
+// Tag with weight from the community-tag voting system. `tagids` (a separate
+// field on the parent) is the same list of ids in the same order, without
+// weights. The full list per app can be 20+ entries; the enrichment poller
+// keeps top-N to fit the queryable Int[] column.
+export interface SteamStoreItemTagRaw {
+  tagid: number;
+  weight: number;
+}
+
+export interface SteamStoreItemFullRaw extends SteamStoreItemRaw {
+  // StoreItemType enum int. 0 = Game, 6 = Application (Wallpaper Engine,
+  // 3DMark, OBS-class tools). Other values for DLC / bundles / demos.
+  type?: number;
+  is_free?: boolean;
+  tagids?: number[];
+  tags?: SteamStoreItemTagRaw[];
+  assets?: SteamStoreItemAssetsRaw;
+  categories?: SteamStoreItemCategoriesRaw;
+  release?: SteamStoreItemReleaseRaw;
+}
+
+export interface SteamGetStoreItemsFullResponse {
+  response: {
+    store_items?: SteamStoreItemFullRaw[];
+  };
+}
+
 // IPlayerService/GetOwnedGames/v1/. With `include_appinfo=1` Steam returns the
 // game name + img hashes; `include_played_free_games=1` keeps F2P titles the
 // owner has launched (otherwise they're omitted entirely). `playtime_2weeks`
