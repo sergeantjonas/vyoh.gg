@@ -6,6 +6,7 @@ import type {
   SteamPlatformMix,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 import type { SteamOwnedGameRaw } from "./types";
@@ -73,7 +74,8 @@ export class SteamOwnedGamesService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly client: SteamClientService
+    private readonly client: SteamClientService,
+    private readonly enrichment: SteamEnrichmentService
   ) {}
 
   async syncOwnedGames(now: Date = new Date()): Promise<OwnedGamesDiff> {
@@ -137,6 +139,18 @@ export class SteamOwnedGamesService {
     this.logger.log(
       `synced ${games.length} games (added=${diff.added.length} reappeared=${diff.reappeared.length} removed=${diff.removed.length}) in ${duration}ms`
     );
+
+    // Enrich newly-added titles so their hashed-asset paths are available
+    // immediately. Reappeared rows already have an enrichment row from when
+    // they were first seen — only `added` needs the bootstrap call. Failure
+    // here is non-fatal: the monthly cron + on-boot backfill both reconcile.
+    if (diff.added.length > 0) {
+      try {
+        await this.enrichment.enrichApps(diff.added);
+      } catch (err) {
+        this.logger.warn(`enrichment of newly-added apps failed: ${err}`);
+      }
+    }
 
     return diff;
   }

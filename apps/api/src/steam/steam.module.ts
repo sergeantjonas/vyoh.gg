@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { SteamEnrichmentPoller } from "./enrichment.poller";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
 import { SteamOwnedGamesService } from "./owned-games.service";
@@ -16,6 +17,7 @@ import { SteamService } from "./steam.service";
     SteamOwnedGamesService,
     SteamOwnedGamesPoller,
     SteamEnrichmentService,
+    SteamEnrichmentPoller,
   ],
   exports: [
     SteamService,
