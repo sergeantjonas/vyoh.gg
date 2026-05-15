@@ -6,6 +6,7 @@ import type {
   SteamPlatformMix,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -75,7 +76,8 @@ export class SteamOwnedGamesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly client: SteamClientService,
-    private readonly enrichment: SteamEnrichmentService
+    private readonly enrichment: SteamEnrichmentService,
+    private readonly achievementSchema: SteamAchievementSchemaService
   ) {}
 
   async syncOwnedGames(now: Date = new Date()): Promise<OwnedGamesDiff> {
@@ -149,6 +151,16 @@ export class SteamOwnedGamesService {
         await this.enrichment.enrichApps(diff.added);
       } catch (err) {
         this.logger.warn(`enrichment of newly-added apps failed: ${err}`);
+      }
+      // Same pattern for the achievement schema — newly-added games get their
+      // schema fetched in the same sync tick so the per-game panel can render
+      // immediately rather than waiting up to a month for the schema cron.
+      try {
+        await this.achievementSchema.refreshSchemas(diff.added);
+      } catch (err) {
+        this.logger.warn(
+          `achievement-schema bootstrap of newly-added apps failed: ${err}`
+        );
       }
     }
 

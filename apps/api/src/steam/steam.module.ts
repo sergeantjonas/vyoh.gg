@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { SteamAchievementSchemaPoller } from "./achievement-schema.poller";
+import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
@@ -20,6 +22,8 @@ import { SteamTagService } from "./tag.service";
     SteamOwnedGamesPoller,
     SteamEnrichmentService,
     SteamEnrichmentPoller,
+    SteamAchievementSchemaService,
+    SteamAchievementSchemaPoller,
     SteamTagService,
     SteamTagPoller,
   ],
@@ -29,6 +33,7 @@ import { SteamTagService } from "./tag.service";
     SteamRateLimiterService,
     SteamOwnedGamesService,
     SteamEnrichmentService,
+    SteamAchievementSchemaService,
     SteamTagService,
   ],
 })
