@@ -254,6 +254,27 @@ Scope (chunks set when scoped, per the phase-plan convention):
 
 Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing cross-doc references stable (notably the `lol-image-pipeline.md` Phase 4 "after Steam S5" sequencing decision, which refers to the achievement-surfaces-MVP milestone semantically).
 
+### Phase S4.6 — Library enrichment
+
+`/steam/library` evolves from a single lifetime-sorted list into a browse surface: tile layout, name search, filter, and sort. Introduces the first Steam *enrichment* poller (per-app metadata layered on top of the daily `GetOwnedGames` baseline). Inserted as a half-step rather than after S8 because the enrichment poller's wall-clock backfill (rate-limited, multi-day) benefits from starting in parallel with S5's UI work, and library is a higher-traffic destination than achievements will be initially. Independent of the S5–S8 achievement arc in both directions.
+
+**Scope (chunks set at scope-time):**
+
+- **Layout toggle.** Rows ↔ tiles switch on `/steam/library`. Tile layout uses `library_capsule.jpg` (600×900 vertical box-art — different asset from S4.5 C-4's wide `library_hero.jpg`) as the focal element. Rows stay default; preference persisted in `localStorage`.
+- **Search.** In-page substring match on `name`. Client-side over the existing dataset — no backend work.
+- **Sort.** Lifetime playtime (current default), name (A–Z), 2-week playtime. *Recently-played sort deferred until `rtime_last_played` lands* (see S3 deferred item).
+- **Filter — no new data:** played / never-launched (derivable from `playtimeForeverMinutes`).
+- **Filter — new data:** genre. Backed by a per-app enrichment poller hitting Steam's unofficial `store.steampowered.com/api/appdetails` endpoint. Rate limit (~200 req per 5 min) means initial backfill is multi-day; thereafter monthly refresh + on-add for newly-owned titles.
+
+**Done when:** `/steam/library` is navigable as a browse surface, not just a sorted list. A user with a specific game in mind can find it; a user without one can filter to a slice and scroll the tiles.
+
+**Risks / open questions:**
+
+- `appdetails` endpoint stability — same "undocumented but widely used" risk noted for the wishlist endpoint. Backstop plan if it changes.
+- Genre granularity. Steam exposes three levels via `appdetails`: `genres` (coarse, e.g., "Action", "RPG"), `categories` (feature-level, e.g., "Single-player", "Steam Workshop"), and `tags` (community, finer-grained, e.g., "Roguelike", "Co-op"). Decide at scope-time which to surface — likely genres + a curated tag subset; categories are mostly feature-flags, not browse axes.
+- Rate-limited backfill — first deploy with the poller takes days to fully enrich the library. Surface partial-state UI (e.g., genre filter shows "available for X of Y games") rather than gating the whole feature on backfill completion.
+- Asset pipeline pressure — adds `library_capsule.jpg` (~200 portrait images) as a new asset class. Reasonable trigger to validate the runtime image proxy decision against capsule scale rather than extending the bundled pipeline further. Cross-link to [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
+
 ### Phase S5 — Achievement surfaces MVP
 
 `/steam/game/:appid` achievement panel, recent-unlocks strip on Profile, completion verdict `ConclusionCard` per game. First user-facing achievement work — lands the spine.
@@ -270,7 +291,7 @@ Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S
 
 Your year in achievements, 100%'d games hall, cross-stream yearly hero. Folds Steam into the existing yearly-recap engine.
 
-S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S8 build on S4.
+S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S8 build on S4. S4.6 is independent of the achievement arc and can land in parallel with S5.
 
 ---
 
