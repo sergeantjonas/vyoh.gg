@@ -1,3 +1,6 @@
+import { SectionShell } from "@/_shared/section-layout/section-shell";
+import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
+import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { toastMessage } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -35,8 +38,9 @@ import {
   Radio,
   TrendingUp,
 } from "lucide-react";
-import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import {
+  type ComponentType,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -46,12 +50,6 @@ import {
 } from "react";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
-
-const pageSlideVariants: Variants = {
-  enter: (d: number) => ({ opacity: 0, x: d * 32 }),
-  center: { opacity: 1, x: 0 },
-  exit: (d: number) => ({ opacity: 0, x: d * -32 }),
-};
 
 const TABS = [
   { to: "/lol/$accountSlug", label: "Profile", Icon: LayoutDashboard, exact: true },
@@ -223,105 +221,43 @@ function AccountLayout() {
     mainScrollRef.current?.scrollTo(0, 0);
   }, [pathname, matchesPath, matchesPathPrefix]);
 
-  // Header ref + viewport-rect tracking. Drives two consumers: the fixed-
-  // position header band below (needs height + viewport-top to escape <main>'s
-  // overflow-x: clip while still sitting at the right y) and the existing
-  // `--account-header-h` CSS variable that some downstream surfaces consume.
-  // Top tracking: the header is sticky inside <main>, so its viewport top is at
-  // main's top edge (≈ global nav height), not at viewport 0 — anchoring the
-  // band to top: 0 would float it up over the nav.
-  const headerRef = useRef<HTMLElement>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const [headerTop, setHeaderTop] = useState(0);
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const update = () => {
-      const rect = el.getBoundingClientRect();
-      setHeaderHeight(rect.height);
-      setHeaderTop(rect.top);
-      document.documentElement.style.setProperty(
-        "--account-header-h",
-        `${rect.bottom}px`
-      );
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    // Window resize can shift main's top edge (nav reflows at a different
-    // breakpoint) without the header element itself resizing.
-    window.addEventListener("resize", update);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
   const prefersReducedMotion = useReducedMotion();
 
-  // Compute slide direction synchronously during render so the entering element
-  // always receives the correct `initial` on the same render it mounts.
-  const slideDirectionRef = useRef(0);
+  // Page-slide direction is computed against the resolved tab paths (exact
+  // match after `$accountSlug` substitution + trailing-slash strip). Match
+  // detail routes like `/matches/<id>` return -1 and the slide is short-
+  // circuited via slideTransitionOverride below — the card-morph animation
+  // owns the visual transition there.
+  const tabIndexOf = useCallback(
+    (path: string) => {
+      const norm = (s: string) => s.replace(/\/$/, "");
+      const resolve = (to: string) => norm(to.replace("$accountSlug", accountSlug));
+      return TABS.findIndex(({ to }) => norm(path) === resolve(to));
+    },
+    [accountSlug]
+  );
+  const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
+  const slideDirection = prefersReducedMotion ? 0 : rawDirection;
+
+  // Match-detail transitions cut to 0 duration so the card-morph animation
+  // runs without competing with a page fade. Tracked synchronously during
+  // render so the same frame the new pathname mounts uses the correct
+  // initial state.
   const isMatchDetailTransitionRef = useRef(false);
-  const prevTabPathnameRef = useRef(pathname);
-  if (prevTabPathnameRef.current !== pathname) {
-    const prev = prevTabPathnameRef.current;
-    // Strip trailing slash so the Profile index route ("/lol/$accountSlug")
-    // resolves consistently regardless of how the router normalises it.
-    const norm = (s: string) => s.replace(/\/$/, "");
-    const resolve = (to: string) => norm(to.replace("$accountSlug", accountSlug));
-    const prevIdx = TABS.findIndex(({ to }) => norm(prev) === resolve(to));
-    const currIdx = TABS.findIndex(({ to }) => norm(pathname) === resolve(to));
-    slideDirectionRef.current =
-      prevIdx !== -1 && currIdx !== -1 ? Math.sign(currIdx - prevIdx) : 0;
-    // Transitioning to or from a match detail page — cut instantly so the
-    // card-morph animation runs without competing with a page fade.
+  const prevPathnameForCutRef = useRef(pathname);
+  if (prevPathnameForCutRef.current !== pathname) {
+    const prev = prevPathnameForCutRef.current;
     const prevIsDetail =
       prev.startsWith(matchesPathPrefix) && prev.length > matchesPathPrefix.length;
     const currIsDetail =
       pathname.startsWith(matchesPathPrefix) &&
       pathname.length > matchesPathPrefix.length;
     isMatchDetailTransitionRef.current = prevIsDetail || currIsDetail;
-    prevTabPathnameRef.current = pathname;
+    prevPathnameForCutRef.current = pathname;
   }
-  const effectiveDir = prefersReducedMotion ? 0 : slideDirectionRef.current;
-
-  // Compact mode toggles on scroll, but the act of compacting changes the
-  // header's height by ~28px, which Chrome's scroll anchoring compensates for
-  // by adjusting scrollTop. Without protection, the resulting scroll event can
-  // drag scrollTop back across the threshold and cause a shrink/grow loop.
-  // Defenses: (1) wide hysteresis (enter >96, exit <8), (2) cooldown ignoring
-  // scroll events during the spring animation's settle time.
-  // Two scroll-driven states with different thresholds. `compact` drives the
-  // header padding spring (wide hysteresis + cooldown defends against the
-  // scroll-anchoring flap loop). `bandOpaque` drives the fixed band's opacity
-  // and uses a much smaller threshold (16px) so the tint catches up to the
-  // first scroll — otherwise content goes under the header before the band
-  // has faded in. The band doesn't change layout, so it skips the cooldown.
-  const [compact, setCompact] = useState(false);
-  const [bandOpaque, setBandOpaque] = useState(false);
-  const lastToggleRef = useRef(0);
-  useEffect(() => {
-    const el = mainScrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      setBandOpaque(el.scrollTop > 16);
-      if (Date.now() - lastToggleRef.current < 400) return;
-      setCompact((prev) => {
-        if (!prev && el.scrollTop > 96) {
-          lastToggleRef.current = Date.now();
-          return true;
-        }
-        if (prev && el.scrollTop < 8) {
-          lastToggleRef.current = Date.now();
-          return false;
-        }
-        return prev;
-      });
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  const slideTransitionOverride = isMatchDetailTransitionRef.current
+    ? { initial: "center" as const, transition: { duration: 0 } }
+    : undefined;
 
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
   const [initialChampion, setInitialChampion] = useState<string | null>(null);
@@ -365,319 +301,280 @@ function AccountLayout() {
     [matches, matchesWindow.isPending, total, count, setCount]
   );
 
+  // Tag the header element + publish its bottom y as `--account-header-h`.
+  // Downstream consumers: `[data-account-header]` selector in the hero-scrolled
+  // analytics hook, and `top="var(--account-header-h)"` on the match-detail
+  // and champion-detail sticky sub-headers.
+  const setHeaderEl = useCallback((el: HTMLElement | null) => {
+    if (el) el.setAttribute("data-account-header", "");
+  }, []);
+  const onHeaderRect = useCallback((rect: DOMRect) => {
+    document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
+  }, []);
+
   return (
     <ActiveMatchProvider>
       <MatchListReturnReset inSubtree={isInMatchesSubtree} />
       <HoverChampionProvider setHovered={setHoveredChampion}>
         <SeriousQueuesProvider>
           <MatchWindowProvider value={matchWindowValue}>
-            <div className="flex flex-col gap-6">
-              <header
-                ref={headerRef}
-                data-account-header
-                className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen"
-              >
-                {/* Header band — `position: fixed` so it spans the true
-                    viewport width (including the scrollbar-gutter reserve on
-                    either side of <main>) instead of being clipped by <main>'s
-                    overflow-x: clip. Lives inside the header so it inherits
-                    the z-40 stacking context — paints above scrolling content
-                    but below the m.div content (which paints later in DOM
-                    order). Mirrors the Steam pattern; opacity fades on
-                    `compact` so the splash backdrop reads cleanly at the top
-                    of the section. */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none fixed inset-x-0 bg-background/50 backdrop-blur-md transition-opacity duration-200"
-                  style={{
-                    top: `${headerTop}px`,
-                    height: `${headerHeight}px`,
-                    opacity: bandOpaque ? 1 : 0,
-                  }}
+            <SectionShell
+              pathname={pathname}
+              slideDirection={slideDirection}
+              slideTransitionOverride={slideTransitionOverride}
+              headerRef={setHeaderEl}
+              onHeaderRect={onHeaderRect}
+              identity={
+                <LolIdentity
+                  account={account}
+                  iconId={iconId}
+                  level={level}
+                  ddVersion={ddVersion}
+                  prefersReducedMotion={prefersReducedMotion}
                 />
-                <m.div
-                  className="relative mx-auto max-w-4xl px-6"
-                  animate={{
-                    paddingTop: compact ? 8 : 24,
-                    paddingBottom: compact ? 8 : 12,
-                  }}
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 380, damping: 32 }
-                  }
-                >
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <section className="flex items-center gap-3">
-                        {iconId != null ? (
-                          <div className="relative shrink-0">
-                            <img
-                              src={profileIconUrl(iconId)}
-                              alt=""
-                              className={cn(
-                                "rounded-full object-cover ring-1 ring-border transition-all",
-                                compact ? "size-10" : "size-12"
-                              )}
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = profileIconFallbackUrl(
-                                  iconId,
-                                  ddVersion
-                                );
-                              }}
-                            />
-                            {level != null && !compact && (
-                              <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
-                                {level}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            className={cn(
-                              "shrink-0 animate-pulse rounded-full bg-muted ring-1 ring-border transition-all",
-                              compact ? "size-10" : "size-12"
-                            )}
-                          />
-                        )}
-                        <div className="flex items-baseline gap-3">
-                          {account ? (
-                            <h2 className="text-xl font-semibold">
-                              {account.gameName}
-                              <span className="text-muted-foreground">
-                                #{account.tagLine}
-                              </span>
-                            </h2>
-                          ) : (
-                            <div className="h-5 w-40 animate-pulse rounded bg-muted" />
-                          )}
-                          <AnimatePresence>
-                            {account && !compact && (
-                              <m.span
-                                key="region"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={
-                                  prefersReducedMotion
-                                    ? { duration: 0 }
-                                    : { duration: 0.15 }
-                                }
-                                className="text-sm uppercase text-muted-foreground"
-                              >
-                                {account.region}
-                              </m.span>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </section>
-                      {!isMatchDetail && (
-                        <div className="flex items-center gap-2">
-                          {/* The Matches subtree shows every queue (it's a
-                              browse surface), so the serious-queues
-                              preference has no effect there — hide the icon
-                              to avoid implying it does. */}
-                          {!isInMatchesSubtree && <SeriousQueuesSettings />}
-                          <AccountSwitcher currentSlug={accountSlug} />
-                          <RefreshAccountButton account={account} />
-                        </div>
-                      )}
-                    </div>
-
-                    <AnimatePresence mode="wait" initial={false}>
-                      {isMatchDetail ? (
-                        <m.div
-                          key="back-nav"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <BackButton accountSlug={accountSlug} pathname={pathname} />
-                        </m.div>
-                      ) : (
-                        <m.div
-                          key="tabs"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="flex gap-1"
-                        >
-                          {TABS.map(({ to, label, Icon, exact }) => {
-                            const tabPath = to.replace("$accountSlug", accountSlug);
-                            const active = exact
-                              ? pathname === tabPath
-                              : pathname === tabPath ||
-                                pathname.startsWith(`${tabPath}/`);
-                            return (
-                              <Link
-                                key={to}
-                                to={to}
-                                params={{ accountSlug }}
-                                search={(prev: AccountSearch) => prev}
-                                className={cn(
-                                  "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                                  active
-                                    ? "text-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                                )}
-                              >
-                                <m.span
-                                  key={active ? 1 : 0}
-                                  initial={
-                                    active && !prefersReducedMotion
-                                      ? iconPop(label)
-                                      : false
-                                  }
-                                  animate={{ scale: 1, rotate: 0, y: 0 }}
-                                  transition={{
-                                    type: "spring",
-                                    stiffness: 450,
-                                    damping: 18,
-                                  }}
-                                  className="inline-flex"
-                                >
-                                  <Icon
-                                    className={cn(
-                                      "size-4 transition-colors",
-                                      active
-                                        ? "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]"
-                                        : "text-muted-foreground group-hover:text-foreground"
-                                    )}
-                                  />
-                                </m.span>
-                                {label}
-                                {active && (
-                                  <m.div
-                                    layoutId="lol-tab-indicator"
-                                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
-                                    animate={{
-                                      boxShadow: [
-                                        "0 0 0px 0px rgba(56,189,248,0)",
-                                        "0 0 10px 1px rgba(56,189,248,0.45)",
-                                        "0 0 0px 0px rgba(56,189,248,0)",
-                                      ],
-                                    }}
-                                    transition={{
-                                      default: {
-                                        type: "spring",
-                                        stiffness: 500,
-                                        damping: 35,
-                                      },
-                                      boxShadow: {
-                                        duration: 2.4,
-                                        repeat: Number.POSITIVE_INFINITY,
-                                        ease: "easeInOut",
-                                      },
-                                    }}
-                                  />
-                                )}
-                              </Link>
-                            );
-                          })}
-                          {liveData &&
-                            (() => {
-                              const livePath = `/lol/${accountSlug}/live`;
-                              const active = pathname === livePath;
-                              return (
-                                <Link
-                                  to="/lol/$accountSlug/live"
-                                  params={{ accountSlug }}
-                                  search={(prev: AccountSearch) => prev}
-                                  className={cn(
-                                    "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                                    active
-                                      ? "text-foreground"
-                                      : "text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  <m.span
-                                    key={active ? 1 : 0}
-                                    initial={
-                                      active && !prefersReducedMotion
-                                        ? iconPop("Live")
-                                        : false
-                                    }
-                                    animate={{ scale: 1, rotate: 0, y: 0 }}
-                                    transition={{
-                                      type: "spring",
-                                      stiffness: 450,
-                                      damping: 18,
-                                    }}
-                                    className="inline-flex"
-                                  >
-                                    <Radio
-                                      className={cn(
-                                        "size-4 transition-colors",
-                                        active
-                                          ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
-                                          : "animate-pulse text-red-400/60 group-hover:text-red-400"
-                                      )}
-                                    />
-                                  </m.span>
-                                  Live
-                                  {active && (
-                                    <m.div
-                                      layoutId="lol-tab-indicator"
-                                      className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400"
-                                      animate={{
-                                        boxShadow: [
-                                          "0 0 0px 0px rgba(56,189,248,0)",
-                                          "0 0 10px 1px rgba(56,189,248,0.45)",
-                                          "0 0 0px 0px rgba(56,189,248,0)",
-                                        ],
-                                      }}
-                                      transition={{
-                                        default: {
-                                          type: "spring",
-                                          stiffness: 500,
-                                          damping: 35,
-                                        },
-                                        boxShadow: {
-                                          duration: 2.4,
-                                          repeat: Number.POSITIVE_INFINITY,
-                                          ease: "easeInOut",
-                                        },
-                                      }}
-                                    />
-                                  )}
-                                </Link>
-                              );
-                            })()}
-                        </m.div>
-                      )}
-                    </AnimatePresence>
+              }
+              actions={
+                isMatchDetail ? undefined : (
+                  <div className="flex items-center gap-2">
+                    {/* The Matches subtree shows every queue (it's a browse
+                        surface), so the serious-queues preference has no
+                        effect there — hide the icon to avoid implying it does. */}
+                    {!isInMatchesSubtree && <SeriousQueuesSettings />}
+                    <AccountSwitcher currentSlug={accountSlug} />
+                    <RefreshAccountButton account={account} />
                   </div>
-                </m.div>
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
+                )
+              }
+              nav={
+                <LolNav
+                  isMatchDetail={isMatchDetail}
+                  accountSlug={accountSlug}
+                  pathname={pathname}
+                  liveData={liveData}
+                  prefersReducedMotion={prefersReducedMotion}
                 />
-              </header>
-
-              <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
-                <m.div
-                  key={pathname}
-                  custom={effectiveDir}
-                  variants={pageSlideVariants}
-                  initial={isMatchDetailTransitionRef.current ? "center" : "enter"}
-                  animate="center"
-                  exit="exit"
-                  transition={
-                    isMatchDetailTransitionRef.current
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 300, damping: 30 }
-                  }
-                >
-                  <Outlet />
-                </m.div>
-              </AnimatePresence>
-            </div>
+              }
+            >
+              <Outlet />
+            </SectionShell>
           </MatchWindowProvider>
         </SeriousQueuesProvider>
       </HoverChampionProvider>
     </ActiveMatchProvider>
+  );
+}
+
+function LolIdentity({
+  account,
+  iconId,
+  level,
+  ddVersion,
+  prefersReducedMotion,
+}: {
+  account: ReturnType<typeof useAccountFromSlug>;
+  iconId: number | null | undefined;
+  level: number | null | undefined;
+  ddVersion: ReturnType<typeof useDDragonVersion>;
+  prefersReducedMotion: boolean | null;
+}) {
+  const { compact } = useSectionShellState();
+  return (
+    <section className="flex items-center gap-3">
+      {iconId != null ? (
+        <div className="relative shrink-0">
+          <img
+            src={profileIconUrl(iconId)}
+            alt=""
+            className={cn(
+              "rounded-full object-cover ring-1 ring-border transition-all",
+              compact ? "size-10" : "size-12"
+            )}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = profileIconFallbackUrl(iconId, ddVersion);
+            }}
+          />
+          {level != null && !compact && (
+            <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
+              {level}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "shrink-0 animate-pulse rounded-full bg-muted ring-1 ring-border transition-all",
+            compact ? "size-10" : "size-12"
+          )}
+        />
+      )}
+      <div className="flex items-baseline gap-3">
+        {account ? (
+          <h2 className="text-xl font-semibold">
+            {account.gameName}
+            <span className="text-muted-foreground">#{account.tagLine}</span>
+          </h2>
+        ) : (
+          <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+        )}
+        <AnimatePresence>
+          {account && !compact && (
+            <m.span
+              key="region"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.15 }}
+              className="text-sm uppercase text-muted-foreground"
+            >
+              {account.region}
+            </m.span>
+          )}
+        </AnimatePresence>
+      </div>
+    </section>
+  );
+}
+
+function LolNav({
+  isMatchDetail,
+  accountSlug,
+  pathname,
+  liveData,
+  prefersReducedMotion,
+}: {
+  isMatchDetail: boolean;
+  accountSlug: string;
+  pathname: string;
+  liveData: ReturnType<typeof useLiveGame>["data"];
+  prefersReducedMotion: boolean | null;
+}) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {isMatchDetail ? (
+        <m.div
+          key="back-nav"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          <BackButton accountSlug={accountSlug} pathname={pathname} />
+        </m.div>
+      ) : (
+        <m.div
+          key="tabs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="flex gap-1"
+        >
+          {TABS.map(({ to, label, Icon, exact }) => {
+            const tabPath = to.replace("$accountSlug", accountSlug);
+            const active = exact
+              ? pathname === tabPath
+              : pathname === tabPath || pathname.startsWith(`${tabPath}/`);
+            return (
+              <LolTabLink
+                key={to}
+                to={to}
+                accountSlug={accountSlug}
+                label={label}
+                Icon={Icon}
+                active={active}
+                prefersReducedMotion={prefersReducedMotion}
+              />
+            );
+          })}
+          {liveData && (
+            <LolTabLink
+              to="/lol/$accountSlug/live"
+              accountSlug={accountSlug}
+              label="Live"
+              Icon={Radio}
+              active={pathname === `/lol/${accountSlug}/live`}
+              prefersReducedMotion={prefersReducedMotion}
+              iconActiveClassName="text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
+              iconIdleClassName="animate-pulse text-red-400/60 group-hover:text-red-400"
+            />
+          )}
+        </m.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function LolTabLink({
+  to,
+  accountSlug,
+  label,
+  Icon,
+  active,
+  prefersReducedMotion,
+  iconActiveClassName = "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]",
+  iconIdleClassName = "text-muted-foreground group-hover:text-foreground",
+}: {
+  to:
+    | "/lol/$accountSlug"
+    | "/lol/$accountSlug/matches"
+    | "/lol/$accountSlug/trends"
+    | "/lol/$accountSlug/champions"
+    | "/lol/$accountSlug/live";
+  accountSlug: string;
+  label: string;
+  Icon: ComponentType<{ className?: string }>;
+  active: boolean;
+  prefersReducedMotion: boolean | null;
+  iconActiveClassName?: string;
+  iconIdleClassName?: string;
+}) {
+  return (
+    <Link
+      to={to}
+      params={{ accountSlug }}
+      search={(prev: AccountSearch) => prev}
+      className={cn(
+        "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <m.span
+        key={active ? 1 : 0}
+        initial={active && !prefersReducedMotion ? iconPop(label) : false}
+        animate={{ scale: 1, rotate: 0, y: 0 }}
+        transition={{ type: "spring", stiffness: 450, damping: 18 }}
+        className="inline-flex"
+      >
+        <Icon
+          className={cn(
+            "size-4 transition-colors",
+            active ? iconActiveClassName : iconIdleClassName
+          )}
+        />
+      </m.span>
+      {label}
+      {active && (
+        <m.div
+          layoutId="lol-tab-indicator"
+          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-sky-400 via-violet-400 to-emerald-400"
+          animate={{
+            boxShadow: [
+              "0 0 0px 0px rgba(56,189,248,0)",
+              "0 0 10px 1px rgba(56,189,248,0.45)",
+              "0 0 0px 0px rgba(56,189,248,0)",
+            ],
+          }}
+          transition={{
+            default: { type: "spring", stiffness: 500, damping: 35 },
+            boxShadow: {
+              duration: 2.4,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "easeInOut",
+            },
+          }}
+        />
+      )}
+    </Link>
   );
 }

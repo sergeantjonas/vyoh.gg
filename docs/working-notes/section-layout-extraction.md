@@ -1,5 +1,7 @@
 # Section layout extraction
 
+**Shipped 2026-05-15.** All five chunks landed: audit + frozen API (docs-only), primitive at [`_shared/section-layout/`](../../apps/web/src/_shared/section-layout/) (3 files: `section-shell.tsx`, `section-shell-context.ts`, `use-tab-slide-direction.ts`), Steam migration (315 → ~210 lines), LoL migration (683 → ~545 lines), cleanup. Both routes now compose `<SectionShell>` with identity / actions / nav slots and read `compact` from context. Tabs stayed inline (per-section variation too wide to extract). When TFT lands it composes the same shell; if its tab markup matches Steam's uniformity, revisit a `<SectionTabs>` extraction then.
+
 Trigger: Steam S4.5 Chunk C-1 surfaced that the LoL and Steam section layouts are converging on the same pattern, with significant duplicated logic between [routes/lol/$accountSlug.tsx](../../apps/web/src/routes/lol/$accountSlug.tsx) and [routes/steam.tsx](../../apps/web/src/routes/steam.tsx). A third section (TFT — warm queue, see [tft-integration.md](tft-integration.md)) would compound the duplication. The pattern is well-formed enough to extract.
 
 ## What's shared
@@ -22,57 +24,70 @@ Trigger: Steam S4.5 Chunk C-1 surfaced that the LoL and Steam section layouts ar
 - **Per-section adornments** — LoL's champion splash backdrop, Steam's profile background (planned in S4.5 C-3), TFT's unknowns.
 - Data source for the identity row (`useMe` slug lookup vs `useSteamSummary` vs whatever TFT needs).
 
-## Sketch
+## Frozen API (post-audit 2026-05-15)
 
-Lives under `apps/web/src/_shared/section-layout/` (mirroring the `_shared` convention already used in `lol/_shared/` and `steam/_shared/`).
+The original sketch had the shell render tabs internally. The LoL audit ruled that out — its tabs carry too much per-section variation (per-label `iconPop`, conditional Live tab, `search={(prev) => prev}`, `BackButton`↔tabs swap on `isMatchDetail`). Tabs stay section-owned and slot into the shell as `nav`. The shell owns the *chrome* only.
+
+Lives under `apps/web/src/_shared/section-layout/`.
 
 ```ts
-// use-compact-header.ts
-export function useCompactHeader(): boolean
+// section-shell-context.ts
+type SectionShellState = { compact: boolean }
+export function useSectionShellState(): SectionShellState
 
-// use-tab-slide-direction.ts
-export function useTabSlideDirection<T extends TabDef>(
+// use-tab-slide-direction.ts — pathname → -1 | 0 | 1
+// tabPaths are resolved paths (LoL: post `$accountSlug` substitution) in tab order
+export function useTabSlideDirection(
   pathname: string,
-  tabs: readonly T[]
+  tabPaths: readonly string[]
 ): number
 
 // section-shell.tsx
-export function SectionShell(props: {
-  identity: ReactNode
-  actions?: ReactNode
-  tabs: readonly TabDef[]
-  pathname: string
-  indicatorLayoutId: string
-  indicatorClassName: string         // gradient utilities
-  iconActiveClassName: string        // accent + glow utilities
-  children: ReactNode                // the Outlet wrapper
-}): JSX.Element
-
-// shared TabDef contract
-type TabDef = {
-  to: string
-  label: string
-  Icon: ComponentType<{ className?: string }>
-  exact: boolean
-  extraPrefixes?: readonly string[]
+type SlideTransitionOverride = {
+  initial?: false | "enter" | "center"
+  transition?: Transition
 }
+
+export function SectionShell(props: {
+  identity: ReactNode                 // avatar + heading + inline badges; reads compact via context
+  actions?: ReactNode                 // right-side action cluster; LoL passes null on match detail
+  nav: ReactNode                      // tabs OR back-button OR whatever; section decides
+  children: ReactNode                 // tab content; rendered inside the page-slide outlet wrapper
+  pathname: string                    // page-slide key
+  slideDirection: number              // from useTabSlideDirection
+  slideTransitionOverride?: SlideTransitionOverride  // LoL match-detail cut
+  headerRef?: Ref<HTMLElement>        // expose <header> for downstream (LoL writes `--account-header-h`)
+}): JSX.Element
 ```
 
-Section routes become thin composers. Each section file is mostly the tab list + identity slot + accent colors.
+Shell internalises: `compact` + `bandOpaque` scroll-tracking (hysteresis 96/8, 400ms cooldown, 16px band threshold), header `ResizeObserver`, fixed band geometry + opacity, padding spring (24/12 → 8/8), gradient hairline, `AnimatePresence mode="popLayout" initial={false}` outlet wrapper with `pageSlideVariants` (`x: d * ±32`).
+
+Section routes become thin composers — identity slot + actions + nav slot. The `pageSlideVariants` constant lives inside the shell module (not exported); sections override via `slideTransitionOverride` if they need a non-default behaviour like LoL's match-detail cut.
+
+### Open questions — resolved
+
+- **Backdrop adornment in the shell?** No. LoL's splash uses a root `SplashProvider` portal driven by `useSplashChampion`; Steam's profile background is a `createPortal` to `document.body` inside its own route. Different ownership models — shell stays adornment-free, each section keeps its own portal.
+- **Shell owns the `<Outlet>` wrapper?** Yes. Both callers use identical `AnimatePresence + pageSlideVariants + pathname key`. LoL's match-detail cut is expressible as `slideTransitionOverride={{ initial: "center", transition: { duration: 0 } }}`.
+- **`pageSlideVariants` consistency?** Yes — same constant for both, override prop covers the one LoL exception.
+- **Actions slot in the shell or in identity?** Shell, as a separate `actions` prop. Keeps identity pure; LoL passes `null` on match detail to express the hide.
+- **Tab markup (Link + icon + indicator)?** **Out of scope for this extraction.** LoL's tabs carry per-label `iconPop`, conditional Live tab, and `BackButton` swap; Steam's are uniform. The variation is wider than the duplication. Tabs stay inline in each section. If TFT lands and adds a *third* uniform-style tab nav, revisit a `<SectionTabs>` extraction then.
+
+### LoL-specific concerns the shell does NOT solve
+
+The migration of `routes/lol/$accountSlug.tsx` will still need to retain:
+- The scroll-to-top `useLayoutEffect` with the match-detail return exception
+- The CSS variable write (`--account-header-h`) — done via `headerRef` forwarded from the shell
+- All four context providers (`ActiveMatch`, `HoverChampion`, `SeriousQueues`, `MatchWindow`) wrapping `<SectionShell>`
+- The `<MatchListReturnReset/>` non-rendering helper
+- The `BackButton`↔tabs `AnimatePresence mode="wait"` swap, rendered inside the `nav` slot
+
+The shell extraction is *chrome only*. None of the LoL-specific behaviours collapse.
 
 ## Timing
 
 Defer until S4.5 fully ships (Chunks C-2 + C-3: `IPlayerService/GetProfileItemsEquipped/v1/` backend + animated avatar / profile background wiring). The identity slot's shape will be informed by that work — animated avatar (`<video>` vs `<img>`), profile background as a layer behind the identity row, possibly action affordances. Extracting before the slot's needs are stable risks an API that has to break a chunk later.
 
 Extract with two well-formed callers (LoL, Steam) rather than waiting for three. Rule-of-three has merit for unknown patterns; here the pattern is *very* known — it's been built twice and the next section (TFT) is queued.
-
-## Open questions
-
-- Does the splash/background adornment belong inside the shell (as a slot) or stay external? LoL uses `SplashProvider` from the root layout with the LoL feature claiming the backdrop slot from inside `AccountLayout`. Steam's profile background is conceptually similar but tied to the section's own identity, not a dynamically-selected element.
-- Should the shell own the `<Outlet>` wrapper (AnimatePresence + page slide), or expose a `usePageSlide()` hook that section files call themselves? Owning it is less flexible but enforces consistency.
-- Does `pageSlideVariants` keep `initial={false}` (LoL convention — no entry slide on section change, header expansion provides the motion), or do some sections need different behaviour?
-- Does the action-buttons slot (LoL's switcher/refresh row) belong in the shell or stay as section-specific JSX inside the identity slot? Probably the latter — Steam currently has no action buttons.
-- **Header backing pattern (already aligned)** — both LoL and Steam use a `position: fixed inset-x-0` div inside the sticky header, sized via `ResizeObserver`, with viewport-top tracked so the band sits at the header's actual viewport y (not viewport `top: 0`). Fixed positioning escapes `<main>`'s `overflow-x: clip` so the band spans the true viewport width including the `[scrollbar-gutter:stable both-edges]` reserve. Opacity fades on `compact` so the section's backdrop (LoL splash / Steam profile-background) reads cleanly at the top. When the shell lands, this becomes one of the shell's responsibilities — it owns the band geometry + opacity logic, and each section provides only the backdrop (slot or context).
 
 ## Out of scope
 
