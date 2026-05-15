@@ -3,11 +3,18 @@ import { useCallback, useEffect, useState } from "react";
 export type LibraryLayout = "rows" | "tiles";
 export type LibrarySort = "lifetime" | "name" | "twoWeeks";
 export type LibraryPlayedFilter = "all" | "played" | "never";
+// Steam StoreItemType: 0 = Game, 6 = Application/Tool. Other values
+// (DLC/Music/Video) almost never appear in GetOwnedGames, so we don't expose
+// them. Unenriched rows (appType === null) fall under "game" — the assumption
+// is correct for ~99% of newly-added titles and avoids them vanishing from
+// the default view between enrichment passes.
+export type LibraryAppTypeFilter = "all" | "game" | "app";
 
 export interface LibraryPrefs {
   layout: LibraryLayout;
   sort: LibrarySort;
   playedFilter: LibraryPlayedFilter;
+  appTypeFilter: LibraryAppTypeFilter;
 }
 
 const STORAGE_KEY = "vyoh:steam-library-prefs";
@@ -15,6 +22,7 @@ const DEFAULTS: LibraryPrefs = {
   layout: "rows",
   sort: "lifetime",
   playedFilter: "all",
+  appTypeFilter: "all",
 };
 
 // Narrow validator — drops the persisted value silently if an old client
@@ -31,6 +39,10 @@ function parsePrefs(raw: string | null): LibraryPrefs {
       playedFilter:
         parsed.playedFilter === "played" || parsed.playedFilter === "never"
           ? parsed.playedFilter
+          : "all",
+      appTypeFilter:
+        parsed.appTypeFilter === "game" || parsed.appTypeFilter === "app"
+          ? parsed.appTypeFilter
           : "all",
     };
   } catch {

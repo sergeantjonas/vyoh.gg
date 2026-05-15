@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { LayoutGrid, List, Search } from "lucide-react";
 import type {
+  LibraryAppTypeFilter,
   LibraryLayout,
   LibraryPlayedFilter,
   LibrarySort,
@@ -21,6 +22,8 @@ interface LibraryControlsProps {
   onSortChange: (next: LibrarySort) => void;
   playedFilter: LibraryPlayedFilter;
   onPlayedFilterChange: (next: LibraryPlayedFilter) => void;
+  appTypeFilter: LibraryAppTypeFilter;
+  onAppTypeFilterChange: (next: LibraryAppTypeFilter) => void;
   layout: LibraryLayout;
   onLayoutChange: (next: LibraryLayout) => void;
   totalCount: number;
@@ -34,6 +37,8 @@ export function LibraryControls({
   onSortChange,
   playedFilter,
   onPlayedFilterChange,
+  appTypeFilter,
+  onAppTypeFilterChange,
   layout,
   onLayoutChange,
   totalCount,
@@ -79,6 +84,20 @@ export function LibraryControls({
             <SelectItem value="all">All games</SelectItem>
             <SelectItem value="played">Played</SelectItem>
             <SelectItem value="never">Never launched</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={appTypeFilter}
+          onValueChange={(v) => onAppTypeFilterChange(v as LibraryAppTypeFilter)}
+        >
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="game">Games</SelectItem>
+            <SelectItem value="app">Tools</SelectItem>
           </SelectContent>
         </Select>
 

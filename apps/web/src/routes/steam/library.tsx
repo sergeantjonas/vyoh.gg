@@ -13,13 +13,13 @@ export const Route = createFileRoute("/steam/library")({
 
 function LibraryPage() {
   const { data, isPending, isError } = useSteamOwnedGames();
-  const [{ layout, sort, playedFilter }, updatePref] = useLibraryPrefs();
+  const [{ layout, sort, playedFilter, appTypeFilter }, updatePref] = useLibraryPrefs();
   const [query, setQuery] = useState("");
 
   const games = data?.games ?? [];
   const visible = useMemo(
-    () => applyFilters(games, { query, sort, playedFilter }),
-    [games, query, sort, playedFilter]
+    () => applyFilters(games, { query, sort, playedFilter, appTypeFilter }),
+    [games, query, sort, playedFilter, appTypeFilter]
   );
 
   return (
@@ -53,6 +53,8 @@ function LibraryPage() {
             onSortChange={(v) => updatePref("sort", v)}
             playedFilter={playedFilter}
             onPlayedFilterChange={(v) => updatePref("playedFilter", v)}
+            appTypeFilter={appTypeFilter}
+            onAppTypeFilterChange={(v) => updatePref("appTypeFilter", v)}
             layout={layout}
             onLayoutChange={(v) => updatePref("layout", v)}
             totalCount={data.games.length}
@@ -88,12 +90,19 @@ function applyFilters(
     query: string;
     sort: "lifetime" | "name" | "twoWeeks";
     playedFilter: "all" | "played" | "never";
+    appTypeFilter: "all" | "game" | "app";
   }
 ): SteamOwnedGame[] {
   const q = opts.query.trim().toLowerCase();
   const filtered = games.filter((g) => {
     if (opts.playedFilter === "played" && g.playtimeForeverMinutes === 0) return false;
     if (opts.playedFilter === "never" && g.playtimeForeverMinutes > 0) return false;
+    // Unenriched titles (appType === null) fall under "game" — the assumption
+    // is correct for ~99% of newly-added apps and avoids them disappearing
+    // from the default view in the window between owned-sync and enrichment.
+    if (opts.appTypeFilter === "game" && g.appType !== null && g.appType !== 0)
+      return false;
+    if (opts.appTypeFilter === "app" && g.appType !== 6) return false;
     if (q !== "" && !g.name.toLowerCase().includes(q)) return false;
     return true;
   });
