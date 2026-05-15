@@ -1,33 +1,34 @@
-import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
+import { LibraryControls } from "@/steam/library/library-controls";
+import { LibraryRow } from "@/steam/library/library-row";
+import { LibraryTile } from "@/steam/library/library-tile";
+import { useLibraryPrefs } from "@/steam/library/use-library-prefs";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import type { SteamOwnedGame } from "@vyoh/shared";
+import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/steam/library")({
   component: LibraryPage,
 });
 
-function formatPlaytime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  return `${hours.toLocaleString("en-US")}h`;
-}
-
 function LibraryPage() {
   const { data, isPending, isError } = useSteamOwnedGames();
+  const [{ layout, sort, playedFilter }, updatePref] = useLibraryPrefs();
+  const [query, setQuery] = useState("");
 
-  // The endpoint already returns lifetime-desc; treating it as the source of
-  // truth here keeps the "most-played first" framing aligned across the chip
-  // and the drill-in. Untouched titles (playtime_forever === 0) fall to the
-  // bottom — kept visible because the library's own "untouched" count is the
-  // backlog-inside-the-library narrative the LibraryCompositionChip surfaces.
+  const games = data?.games ?? [];
+  const visible = useMemo(
+    () => applyFilters(games, { query, sort, playedFilter }),
+    [games, query, sort, playedFilter]
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Owned games</h1>
         <p className="text-sm text-muted-foreground">
-          Currently-owned Steam library, sorted by lifetime playtime. Last two weeks shown
-          where Steam reported activity.
+          Currently-owned Steam library. Search, sort, and filter to find a specific title
+          or slice.
         </p>
       </div>
 
@@ -44,47 +45,72 @@ function LibraryPage() {
       )}
 
       {data && data.games.length > 0 && (
-        <ul className="flex flex-col divide-y divide-border/40 rounded-lg border bg-card/50">
-          {data.games.map((game) => (
-            <LibraryRow key={game.appid} game={game} />
-          ))}
-        </ul>
+        <>
+          <LibraryControls
+            query={query}
+            onQueryChange={setQuery}
+            sort={sort}
+            onSortChange={(v) => updatePref("sort", v)}
+            playedFilter={playedFilter}
+            onPlayedFilterChange={(v) => updatePref("playedFilter", v)}
+            layout={layout}
+            onLayoutChange={(v) => updatePref("layout", v)}
+            totalCount={data.games.length}
+            visibleCount={visible.length}
+          />
+
+          {visible.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No games match the current filters.
+            </p>
+          ) : layout === "tiles" ? (
+            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {visible.map((game) => (
+                <LibraryTile key={game.appid} game={game} />
+              ))}
+            </ul>
+          ) : (
+            <ul className="flex flex-col divide-y divide-border/40 rounded-lg border bg-card/50">
+              {visible.map((game) => (
+                <LibraryRow key={game.appid} game={game} />
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-function LibraryRow({ game }: { game: SteamOwnedGame }) {
-  const lifetime =
-    game.playtimeForeverMinutes > 0 ? formatPlaytime(game.playtimeForeverMinutes) : null;
-  const twoWeeks =
-    game.playtime2WeeksMinutes !== null && game.playtime2WeeksMinutes > 0
-      ? formatPlaytime(game.playtime2WeeksMinutes)
-      : null;
+function applyFilters(
+  games: SteamOwnedGame[],
+  opts: {
+    query: string;
+    sort: "lifetime" | "name" | "twoWeeks";
+    playedFilter: "all" | "played" | "never";
+  }
+): SteamOwnedGame[] {
+  const q = opts.query.trim().toLowerCase();
+  const filtered = games.filter((g) => {
+    if (opts.playedFilter === "played" && g.playtimeForeverMinutes === 0) return false;
+    if (opts.playedFilter === "never" && g.playtimeForeverMinutes > 0) return false;
+    if (q !== "" && !g.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
 
-  return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <img
-        src={steamCapsuleUrl(game.appid)}
-        alt=""
-        width={120}
-        height={45}
-        loading="lazy"
-        className="h-11.25 w-30 flex-none rounded-sm bg-muted object-cover"
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <Link
-          to="/steam/game/$appid"
-          params={{ appid: String(game.appid) }}
-          className="truncate text-sm font-medium underline-offset-2 hover:underline"
-        >
-          {game.name}
-        </Link>
-        <span className="text-xs text-muted-foreground">
-          {lifetime ? `${lifetime} lifetime` : "Never launched"}
-          {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
-        </span>
-      </div>
-    </li>
+  if (opts.sort === "name") {
+    return [...filtered].sort((a, b) =>
+      a.name.localeCompare(b.name, "en", { sensitivity: "base" })
+    );
+  }
+  if (opts.sort === "twoWeeks") {
+    return [...filtered].sort(
+      (a, b) => (b.playtime2WeeksMinutes ?? 0) - (a.playtime2WeeksMinutes ?? 0)
+    );
+  }
+  // lifetime — endpoint already returns lifetime-desc but we re-sort defensively
+  // after filtering so the order is stable regardless of upstream contract.
+  return [...filtered].sort(
+    (a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes
   );
 }

@@ -28,3 +28,13 @@ export function steamLibraryLogoUrl(appid: number, width = 480): string {
   const src = `shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/logo.png`;
   return `https://wsrv.nl/?url=${src}&w=${width}`;
 }
+
+// Vertical 600×900 capsule — Steam's library-page tile art. Different asset
+// from the 231×87 cover used by steamCapsuleUrl and from the wide hero.
+// Older titles (pre-library-presentation spec) don't ship this; callers
+// should provide an onError fallback (header.jpg letterboxed is the common
+// move).
+export function steamLibraryCapsuleUrl(appid: number, width = 300): string {
+  const src = `shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/library_600x900.jpg`;
+  return `https://wsrv.nl/?url=${src}&w=${width}&output=webp&q=85`;
+}

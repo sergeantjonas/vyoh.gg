@@ -256,24 +256,39 @@ Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing c
 
 ### Phase S4.6 — Library enrichment
 
-`/steam/library` evolves from a single lifetime-sorted list into a browse surface: tile layout, name search, filter, and sort. Introduces the first Steam *enrichment* poller (per-app metadata layered on top of the daily `GetOwnedGames` baseline). Inserted as a half-step rather than after S8 because the enrichment poller's wall-clock backfill (rate-limited, multi-day) benefits from starting in parallel with S5's UI work, and library is a higher-traffic destination than achievements will be initially. Independent of the S5–S8 achievement arc in both directions.
+`/steam/library` evolves from a single lifetime-sorted list into a browse surface: tile layout, name search, filter, and sort. Introduces the first Steam *enrichment* poller (per-app metadata layered on top of the daily `GetOwnedGames` baseline). Inserted as a half-step rather than after S8 because library is a higher-traffic destination than achievements will be initially, and the asset-hash enrichment (see Chunk 2 below) unblocks an image-quality lift across every existing Steam image surface. Independent of the S5–S8 achievement arc in both directions.
 
-**Scope (chunks set at scope-time):**
+**Chunk 1 (shipped 2026-05-15)** — UI-only browse surface, no new backend data:
 
-- **Layout toggle.** Rows ↔ tiles switch on `/steam/library`. Tile layout uses `library_capsule.jpg` (600×900 vertical box-art — different asset from S4.5 C-4's wide `library_hero.jpg`) as the focal element. Rows stay default; preference persisted in `localStorage`.
-- **Search.** In-page substring match on `name`. Client-side over the existing dataset — no backend work.
-- **Sort.** Lifetime playtime (current default), name (A–Z), 2-week playtime. *Recently-played sort deferred until `rtime_last_played` lands* (see S3 deferred item).
-- **Filter — no new data:** played / never-launched (derivable from `playtimeForeverMinutes`).
-- **Filter — new data:** genre. Backed by a per-app enrichment poller hitting Steam's unofficial `store.steampowered.com/api/appdetails` endpoint. Rate limit (~200 req per 5 min) means initial backfill is multi-day; thereafter monthly refresh + on-add for newly-owned titles.
+- Layout toggle. Rows ↔ tiles switch on `/steam/library`. Tile layout uses `library_600x900.jpg` (the legacy unhashed portrait asset) with a Steam-client-style hero+logo fallback for titles where the portrait is missing. Rows stay default; preference persisted in `localStorage`.
+- Search. In-page substring match on `name`. Client-side over the existing dataset.
+- Sort. Lifetime playtime (default), name (A–Z), 2-week playtime. *Recently-played sort deferred until `rtime_last_played` lands.*
+- Filter — no new data. Played / never-launched (derivable from `playtimeForeverMinutes`).
 
-**Done when:** `/steam/library` is navigable as a browse surface, not just a sorted list. A user with a specific game in mind can find it; a user without one can filter to a slice and scroll the tiles.
+**Why the tile art looks dated for some titles** — the public unhashed `…/apps/{appid}/library_600x900.jpg` path is a *frozen mirror* of the original 2019 upload. Steam's own client renders the current art using `IStoreBrowseService/GetItems`, which returns hash-prefixed paths like `…/apps/367520/1eebc7e077ee345f126df35cd99c124273c4e4e3/library_capsule.jpg?t=1776125684`. Same story for every other image we serve: `header.jpg`, `library_hero.jpg`, and `logo.png` all have hashed-modern variants we're not consuming. The hash can't be guessed — it has to be fetched per appid. That's Chunk 2.
+
+**Chunk 2 (pending)** — enrichment poller + asset-hash image pass:
+
+- Endpoint pivot. Use `api.steampowered.com/IStoreBrowseService/GetItems` (proper Steam Web API, much higher rate limit than `store.steampowered.com/api/appdetails`) with `data_request.include_assets: true` and `include_categories: true`. One call per appid returns the full asset manifest *and* type/categories/release date.
+- Persist per-app asset hashes (`library_capsule`, `library_capsule_2x`, `library_hero`, `library_hero_2x`, `header`, `hero_capsule`, and `asset_url_format` with its `?t=` timestamp). Plus type (`game` / `tool` / `dlc` / `demo`), release date, categories.
+- Image-pass across every existing Steam image surface once hashes are populated:
+  - `steamLibraryCapsuleUrl` (S4.6 C-1 tile) → switch to hashed `library_capsule.jpg`. Renders the current Steam-client art.
+  - `steamLibraryHeroUrl` (S4.5 C-4 game-detail hero) → switch to hashed `library_hero.jpg`. Matches current Steam art when publishers refresh promo material.
+  - `steamCapsuleUrl` (S2 row view, S2 wishlist chip, S4.5 C-4 blurred backdrop) → switch to hashed `header.jpg` / `capsule_231x87.jpg`.
+  - `steamLibraryLogoUrl` (S4.5 C-4 logo overlay) — investigate during chunk start. `IStoreBrowseService/GetItems` doesn't expose a `logo` key; the Steam client may render the wordmark from a separate community-CDN path. Possible outcomes: (a) find the right endpoint, (b) fall through to title-text only, (c) keep the unhashed `logo.png` as a "good enough" sibling.
+- New genre/type filters in `/steam/library` controls. Genre is the user-visible browse axis (likely genres + curated tags). Type filter hides non-games (Wallpaper Engine, 3DMark, SteamVR Performance Test, dedicated-launcher entries) cleanly via the `type` field.
+
+**Done when:** every existing Steam image surface renders the current hashed asset (no more 2019-frozen art), `/steam/library` can filter on genre + hide non-games, and the enrichment table has refresh cadence (monthly + on-add for newly-owned titles).
 
 **Risks / open questions:**
 
-- `appdetails` endpoint stability — same "undocumented but widely used" risk noted for the wishlist endpoint. Backstop plan if it changes.
-- Genre granularity. Steam exposes three levels via `appdetails`: `genres` (coarse, e.g., "Action", "RPG"), `categories` (feature-level, e.g., "Single-player", "Steam Workshop"), and `tags` (community, finer-grained, e.g., "Roguelike", "Co-op"). Decide at scope-time which to surface — likely genres + a curated tag subset; categories are mostly feature-flags, not browse axes.
-- Rate-limited backfill — first deploy with the poller takes days to fully enrich the library. Surface partial-state UI (e.g., genre filter shows "available for X of Y games") rather than gating the whole feature on backfill completion.
-- Asset pipeline pressure — adds `library_capsule.jpg` (~200 portrait images) as a new asset class. Reasonable trigger to validate the runtime image proxy decision against capsule scale rather than extending the bundled pipeline further. Cross-link to [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
+- `IStoreBrowseService/GetItems` stability — Valve-published Web API, more stable than `appdetails`. Backstop is still appdetails for genres if Valve narrows GetItems scope, but the assets specifically only come from GetItems.
+- Logo-asset gap — see above. Investigate at chunk-start whether there's an authenticated/community-CDN path for the wordmark, or whether Steam composes it differently. Worst case: drop the logo overlay in favor of the title-text-on-gradient pattern we already use as the fallback.
+- Cache busting — the `asset_url_format` returned by GetItems includes a `?t={timestamp}` query that changes when the publisher updates art. Storing the timestamp alongside the hash lets us refresh selectively when the timestamp moves.
+- Genre granularity. Steam exposes three levels via the same response: `genres` (coarse, e.g., "Action"), `categories` (feature-level, e.g., "Single-player"), and `tags` (community). Decide at scope-time which to surface — likely genres + a curated tag subset; categories are mostly feature-flags, not browse axes.
+- Asset pipeline pressure — capsules cap at ~600×900 across ~200 titles. Reasonable trigger to validate the runtime image proxy decision against capsule scale. Cross-link to [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
+
+**Coupling with the runtime image proxy** ([lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream)). Chunk 2's hashed-asset enrichment is the data Phase 4's proxy needs to resolve canonical Steam image URLs. Once Chunk 2 lands and the hash columns are populated, Phase 4's Steam-side resolver reads from this enrichment table instead of looking up `appdetails` on every cache miss. That answers Phase 4's open question on `appdetails` rate-limit mitigation: the resolver doesn't need to memoize appid → versioned-URL itself, because Chunk 2 already persists the canonical hashed paths from `IStoreBrowseService/GetItems`. Sequencing options when both are due to ship: (a) ship Chunk 2 first with URL helpers still rewriting unhashed paths client-side — image quality lifts immediately, proxy lands later as an optimization; (b) ship them together as a paired arc where Chunk 2 lands the data and Phase 4's Steam consumer reads it directly, skipping the intermediate client-side URL-helper update. Decide at scope-time based on the state of [hosting.md](hosting.md) — option (b) is only attractive once the Hetzner VPS + Nginx topology is live.
 
 ### Phase S5 — Achievement surfaces MVP
 
