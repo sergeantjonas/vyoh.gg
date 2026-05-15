@@ -1,12 +1,25 @@
-import { Controller, Get } from "@nestjs/common";
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+} from "@nestjs/common";
 import type {
+  SteamGameAchievements,
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatformMix,
+  SteamRecentUnlocks,
   SteamSummary,
   SteamTagCatalog,
   SteamWishlist,
 } from "@vyoh/shared";
+import {
+  RECENT_UNLOCKS_DEFAULT_LIMIT,
+  SteamAchievementsService,
+} from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
@@ -16,7 +29,8 @@ export class SteamController {
   constructor(
     private readonly steam: SteamService,
     private readonly ownedGames: SteamOwnedGamesService,
-    private readonly tags: SteamTagService
+    private readonly tags: SteamTagService,
+    private readonly achievements: SteamAchievementsService
   ) {}
 
   @Get("summary")
@@ -47,5 +61,20 @@ export class SteamController {
   @Get("tags")
   async getTags(): Promise<SteamTagCatalog> {
     return this.tags.getCatalog();
+  }
+
+  @Get("game/:appid/achievements")
+  async getGameAchievements(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<SteamGameAchievements> {
+    return this.achievements.getGameAchievements(appid);
+  }
+
+  @Get("achievements/recent")
+  async getRecentUnlocks(
+    @Query("limit", new DefaultValuePipe(RECENT_UNLOCKS_DEFAULT_LIMIT), ParseIntPipe)
+    limit: number
+  ): Promise<SteamRecentUnlocks> {
+    return this.achievements.getRecentUnlocks(limit);
   }
 }

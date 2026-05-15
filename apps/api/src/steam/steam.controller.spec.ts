@@ -7,6 +7,7 @@ import type {
   SteamWishlist,
 } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
+import { SteamAchievementsService } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
@@ -31,6 +32,7 @@ describe("SteamController", () => {
         { provide: SteamService, useValue: { getOwnerSummary: stub } },
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
       ],
     }).compile();
 
@@ -61,6 +63,7 @@ describe("SteamController", () => {
         { provide: SteamService, useValue: { getOwnerWishlist: stub } },
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
       ],
     }).compile();
 
@@ -84,6 +87,7 @@ describe("SteamController", () => {
         { provide: SteamService, useValue: {} },
         { provide: SteamOwnedGamesService, useValue: { getLibrarySummary: stub } },
         { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
       ],
     }).compile();
 
@@ -110,6 +114,7 @@ describe("SteamController", () => {
         { provide: SteamService, useValue: {} },
         { provide: SteamOwnedGamesService, useValue: { getPlatformMix: stub } },
         { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
       ],
     }).compile();
 
@@ -134,11 +139,56 @@ describe("SteamController", () => {
         { provide: SteamService, useValue: {} },
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: { getCatalog: stub } },
+        { provide: SteamAchievementsService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getTags()).resolves.toBe(catalog);
     expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamAchievementsService.getGameAchievements", async () => {
+    const payload = {
+      appid: 367520,
+      achievements: [],
+      lastSchemaCheckedAt: null,
+      lastUnlocksCheckedAt: null,
+      lastRarityCheckedAt: null,
+    };
+    const stub = vi.fn().mockResolvedValue(payload);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: { getGameAchievements: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getGameAchievements(367520)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(367520);
+  });
+
+  it("delegates to SteamAchievementsService.getRecentUnlocks", async () => {
+    const payload = { unlocks: [] };
+    const stub = vi.fn().mockResolvedValue(payload);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: { getRecentUnlocks: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getRecentUnlocks(8)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(8);
   });
 });

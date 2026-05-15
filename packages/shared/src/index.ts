@@ -41,6 +41,12 @@ export type { SteamPlatform, SteamPlatformMix } from "./steam/platform-mix.ts";
 export type { SteamOwnedGame, SteamOwnedGames } from "./steam/owned-games.ts";
 export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";
 export type {
+  SteamAchievement,
+  SteamGameAchievements,
+  SteamRecentUnlock,
+  SteamRecentUnlocks,
+} from "./steam/achievements.ts";
+export type {
   AppWindowSnapshot,
   LimiterCounts,
   MethodLimiterSnapshot,
