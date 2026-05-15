@@ -36,9 +36,9 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
       <Link
         to="/steam/game/$appid"
         params={{ appid: String(game.appid) }}
-        className="flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex flex-col gap-5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <div className="relative isolate aspect-2/3 overflow-hidden rounded-lg bg-muted transition-[filter,box-shadow] duration-500 ease-out group-hover/tile:shadow-[0_10px_18px_-4px_rgba(255,255,255,0.18)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1]">
+        <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[filter,box-shadow,transform] duration-500 ease-out transform-[perspective(700px)_rotateX(0deg)_rotateY(0deg)_scale(1)] group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
           {capsuleFailed ? (
             <HeroFallback game={game} />
           ) : (
@@ -56,21 +56,17 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
               className="h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
             />
           )}
-          {/* Steam-style diagonal sheen — adapted from the CodePen
-              holographic pattern (nefejames/ogvNgJq) tuned to mimic
-              Steam's library-tile behavior. A 2x-sized gradient overlay
-              rotated -45° keeps its bright band slightly visible in the
-              corner at all times (opacity 0.5). On hover, the band fades
-              to full intensity and translates 50% in its rotated frame —
-              half the codepen's sweep — so it lands roughly at the middle
-              of the card rather than passing through. Mouse-leave reverses
-              naturally through the same transition. The [transform:...]
-              override pins rotation BEFORE translate so the motion is in
-              the rotated coordinate frame (Tailwind's default would
-              translate-first, producing screen-space motion). */}
+          {/* Steam-style anchored sheen — gradient stays pinned at the
+              top-right corner (gradient direction 225° puts the bright stop
+              at the upper-right) and the transparent end-stop animates via
+              the registered --sheen-extent variable (see index.css). At
+              rest the falloff reaches 25% of the diagonal — a tight gloss
+              at the corner only. On hover it extends to 75%, growing
+              inward toward the middle without translating any hard edge
+              across the card. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute -top-1/2 -left-1/2 h-[200%] w-[200%] bg-[linear-gradient(0deg,transparent,transparent_30%,rgba(255,255,255,0.35))] opacity-50 transition-all duration-900 ease-out transform-[rotate(45deg)] group-hover/tile:opacity-100 group-hover/tile:transform-[rotate(45deg)_translateY(50%)]"
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
           />
         </div>
         <div className="flex flex-col gap-0.5">

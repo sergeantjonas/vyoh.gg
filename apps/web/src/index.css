@@ -23,6 +23,18 @@ body {
   }
 }
 
+/* Animatable gradient stop position for the Steam-library-style tile sheen.
+   Registered via @property so CSS transitions can interpolate the value;
+   without registration browsers would jump between states discretely.
+   The sheen's bright corner stays pinned while the transparent end-stop
+   smoothly extends further inward, reading as the gloss "growing" from
+   the corner rather than sliding as a band. */
+@property --sheen-extent {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 25%;
+}
+
 @keyframes heatmap-reveal {
   from {
     opacity: 0;
