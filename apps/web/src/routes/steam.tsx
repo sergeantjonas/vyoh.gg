@@ -131,7 +131,7 @@ function SteamLayout() {
           })}
         </nav>
       </div>
-      <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
+      <AnimatePresence mode="popLayout" custom={effectiveDir}>
         <m.div
           key={pathname}
           custom={effectiveDir}
