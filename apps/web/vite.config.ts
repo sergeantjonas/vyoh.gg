@@ -50,6 +50,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     port: 2009,
     strictPort: true,
   },
