@@ -334,7 +334,7 @@ Note: SW caching of long-tail CDN URLs is the part that genuinely buys something
 
 1. **S4 will roughly double the asset count** (achievement icons per game schema). Pivoting *before* S4 means refactoring once for new shape, then S4 lands on the new shape natively. Pivoting *after* S5 means the bundled approach gets validated at the scale where its limits become concrete (~200 capsules + thousands of achievement icons), which is the right time to retire it with empirical evidence.
 2. **Case-study writeup is stronger when the smell is demonstrated, not just argued.** The honest portfolio framing ("I shipped a build-time pipeline, ran it against a wider asset universe, then pivoted to a runtime proxy when the deploy-coupling cost outweighed the cold-cache predictability") is more interesting than the current planned framing.
-3. **Steam-side feature delivery shouldn't pause for a horizontal refactor.** Forever-games + S4 substrate + S5 surfaces are the higher-value next moves.
+3. **Steam-side feature delivery shouldn't pause for a horizontal refactor.** Owned-games + S4 substrate + S5 surfaces are the higher-value next moves.
 
 **Sequencing when the arc starts:**
 

@@ -67,7 +67,7 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 
 Scope: defer until **any one** of `wishlist`, `library`, or `platform` has ≥3 files. Currently each is 2 files (chip + hook). If S3 adds a playtime view that lives next to library-composition, fold it into `steam/library/` at that moment — don't split preemptively.
 
-**Update 2026-05-14 (post-S3 ship):** `library` now has 3 associated files — `routes/steam/library.tsx`, `steam/forever-games-chip.tsx`, `steam/use-forever-games.ts` — so the numeric threshold is technically met. Re-look at pick-up time, but not yet a clear win: a chip + hook pair is the conventional sibling shape used by `wishlist` and `platform-mix`, and a subfolder for one of the three reads as inconsistent until at least two cross the threshold. **S4.5 (navigation + visual baseline) is the natural moment to re-evaluate** — that phase is likely to add the next round of Steam shared components and may shift the right grouping.
+**Update 2026-05-14 (post-S3 ship):** `library` now has 3 associated files — `routes/steam/library.tsx`, `steam/owned-games-chip.tsx`, `steam/use-owned-games.ts` — so the numeric threshold is technically met. Re-look at pick-up time, but not yet a clear win: a chip + hook pair is the conventional sibling shape used by `wishlist` and `platform-mix`, and a subfolder for one of the three reads as inconsistent until at least two cross the threshold. **S4.5 (navigation + visual baseline) is the natural moment to re-evaluate** — that phase is likely to add the next round of Steam shared components and may shift the right grouping.
 
 ### Chunk 4 — cross-domain `assets/` convention (skip for now)
 

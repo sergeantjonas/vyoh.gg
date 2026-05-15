@@ -12,7 +12,7 @@ import {
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
-import { useSteamForeverGames } from "@/steam/use-forever-games";
+import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -29,7 +29,7 @@ function formatPlaytime(minutes: number): string {
 function SteamGamePage() {
   const { appid: appidParam } = Route.useParams();
   const appid = Number.parseInt(appidParam, 10);
-  const { data, isPending, isError } = useSteamForeverGames();
+  const { data, isPending, isError } = useSteamOwnedGames();
 
   const game = data?.games.find((g) => g.appid === appid);
 

@@ -1,11 +1,11 @@
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
-import type { SteamForeverGames } from "@vyoh/shared";
+import type { SteamOwnedGames } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 
-async function fetchForeverGames(): Promise<SteamForeverGames> {
-  const res = await fetch(`${API_URL}/steam/forever-games`);
+async function fetchOwnedGames(): Promise<SteamOwnedGames> {
+  const res = await fetch(`${API_URL}/steam/owned-games`);
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -16,13 +16,13 @@ async function fetchForeverGames(): Promise<SteamForeverGames> {
     }
     throw new HttpError(res.status, message);
   }
-  return res.json() as Promise<SteamForeverGames>;
+  return res.json() as Promise<SteamOwnedGames>;
 }
 
-export function useSteamForeverGames() {
+export function useSteamOwnedGames() {
   return useQuery({
-    queryKey: ["steam", "forever-games"],
-    queryFn: fetchForeverGames,
+    queryKey: ["steam", "owned-games"],
+    queryFn: fetchOwnedGames,
     // Backed by the daily 04:00 Europe/Brussels poller — values change at most
     // once per 24h. Same stale-time as the other owned-games-derived hooks.
     staleTime: 30 * 60 * 1_000,

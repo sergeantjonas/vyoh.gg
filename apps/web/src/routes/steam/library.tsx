@@ -1,7 +1,7 @@
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
-import { useSteamForeverGames } from "@/steam/use-forever-games";
+import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import type { SteamForeverGame } from "@vyoh/shared";
+import type { SteamOwnedGame } from "@vyoh/shared";
 
 export const Route = createFileRoute("/steam/library")({
   component: LibraryPage,
@@ -14,7 +14,7 @@ function formatPlaytime(minutes: number): string {
 }
 
 function LibraryPage() {
-  const { data, isPending, isError } = useSteamForeverGames();
+  const { data, isPending, isError } = useSteamOwnedGames();
 
   // The endpoint already returns lifetime-desc; treating it as the source of
   // truth here keeps the "most-played first" framing aligned across the chip
@@ -24,7 +24,7 @@ function LibraryPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Forever games</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Owned games</h1>
         <p className="text-sm text-muted-foreground">
           Currently-owned Steam library, sorted by lifetime playtime. Last two weeks shown
           where Steam reported activity.
@@ -54,7 +54,7 @@ function LibraryPage() {
   );
 }
 
-function LibraryRow({ game }: { game: SteamForeverGame }) {
+function LibraryRow({ game }: { game: SteamOwnedGame }) {
   const lifetime =
     game.playtimeForeverMinutes > 0 ? formatPlaytime(game.playtimeForeverMinutes) : null;
   const twoWeeks =

@@ -1,5 +1,5 @@
-import { ForeverGamesChip } from "@/steam/forever-games-chip";
 import { LibraryCompositionChip } from "@/steam/library-composition-chip";
+import { OwnedGamesChip } from "@/steam/owned-games-chip";
 import { PlatformMixChip } from "@/steam/platform-mix-chip";
 import { WishlistChip } from "@/steam/wishlist-chip";
 import { createFileRoute } from "@tanstack/react-router";
@@ -20,7 +20,7 @@ function SteamPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <WishlistChip />
         <LibraryCompositionChip />
-        <ForeverGamesChip />
+        <OwnedGamesChip />
         <PlatformMixChip />
       </div>
     </div>

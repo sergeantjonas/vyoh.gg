@@ -1,26 +1,22 @@
 import { Link } from "@tanstack/react-router";
 import { FactCard } from "./_shared/fact-card";
-import { useSteamForeverGames } from "./use-forever-games";
+import { useSteamOwnedGames } from "./use-owned-games";
 
 function formatHours(minutes: number): string {
   const hours = Math.round(minutes / 60);
   return `${hours.toLocaleString("en-US")}h`;
 }
 
-export function ForeverGamesChip() {
-  const { data, isPending, isError } = useSteamForeverGames();
+export function OwnedGamesChip() {
+  const { data, isPending, isError } = useSteamOwnedGames();
 
   if (isPending) {
-    return <FactCard title="Forever games" verdict="Loading playtime…" empty />;
+    return <FactCard title="Owned games" verdict="Loading playtime…" empty />;
   }
 
   if (isError || !data) {
     return (
-      <FactCard
-        title="Forever games"
-        verdict="Playtime is unavailable right now."
-        empty
-      />
+      <FactCard title="Owned games" verdict="Playtime is unavailable right now." empty />
     );
   }
 
@@ -29,7 +25,7 @@ export function ForeverGamesChip() {
   if (top === undefined) {
     return (
       <FactCard
-        title="Forever games"
+        title="Owned games"
         verdict="Nothing played yet — first poll lands at 04:00 Brussels time."
         empty
       />
@@ -43,7 +39,7 @@ export function ForeverGamesChip() {
 
   return (
     <FactCard
-      title="Forever games"
+      title="Owned games"
       metric={everLaunched.length}
       metricLabel={{ singular: "game", plural: "games" }}
       verdict={verdict}

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type {
-  SteamForeverGames,
   SteamLibrarySummary,
+  SteamOwnedGames,
   SteamPlatform,
   SteamPlatformMix,
 } from "@vyoh/shared";
@@ -243,13 +243,13 @@ export class SteamOwnedGamesService {
     };
   }
 
-  // Forever-games drill-in: every currently-owned game with its lifetime +
+  // Owned-games drill-in: every currently-owned game with its lifetime +
   // 2-week playtime from the latest snapshot, sorted by lifetime descending.
   // Refunded titles (removedAt IS NOT NULL) are excluded — they survive in
   // the table for historical playtime sums but don't belong on a "what you
   // own" surface. Joined with SteamOwnedGame so we have a stable name even
   // if Steam ever drops a row from the latest snapshot.
-  async getForeverGames(): Promise<SteamForeverGames> {
+  async getOwnedGames(): Promise<SteamOwnedGames> {
     const latest = await this.prisma.steamPlaytimeSnapshot.findFirst({
       select: { snapshotDate: true },
       orderBy: { snapshotDate: "desc" },
