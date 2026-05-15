@@ -43,7 +43,13 @@ export class SteamAchievementSchemaPoller implements OnModuleInit {
     }
   }
 
-  @Cron("0 5 1 * *", {
+  // Weekly Sunday 05:00. Was monthly — bumped 2026-05-15 to pick up
+  // publisher-side string changes (achievement renames, description edits)
+  // faster. The on-add hook already covers new games immediately; this
+  // cron only catches drift on existing schemas, which is rare. ~25
+  // calls/day amortized (175 owned games / 7 days). Lands 30 min before
+  // the rarity cron on the same day for a contained Sunday-morning batch.
+  @Cron("0 5 * * 0", {
     name: "steam-achievement-schema",
     timeZone: "Europe/Brussels",
   })

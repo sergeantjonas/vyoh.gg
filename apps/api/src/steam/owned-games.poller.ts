@@ -14,7 +14,13 @@ export class SteamOwnedGamesPoller {
 
   constructor(private readonly service: SteamOwnedGamesService) {}
 
-  @Cron("0 4 * * *", { name: "steam-owned-games", timeZone: "Europe/Brussels" })
+  // Every 15 min. Was daily 04:00 — bumped 2026-05-15 since owned-games is a
+  // single `GetOwnedGames` call (1 req/tick) and "I bought a game, it should
+  // show up shortly" is a flow worth optimizing for. Sub-percent of the daily
+  // Steam budget at this rate. Offset to xx:00 marks; unlocks poller offsets
+  // to xx:05/20/35/50 to keep the on-add chain (owned → schema → unlocks)
+  // ordered without contention.
+  @Cron("*/15 * * * *", { name: "steam-owned-games", timeZone: "Europe/Brussels" })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");
