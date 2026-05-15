@@ -11,6 +11,28 @@ export interface SteamOwnedGame {
   name: string;
   playtimeForeverMinutes: number;
   playtime2WeeksMinutes: number | null;
+  // Enrichment-derived fields (nullable when Steam didn't resolve the app or
+  // the monthly cron hasn't reached it yet). Asset paths are hash-prefixed
+  // fragments meant to be substituted into `assetUrlFormat`'s `${FILENAME}`
+  // placeholder; the format string already carries the `?t=` cache-buster.
+  // `assetTimestamp` is the parsed epoch for callers that compose the URL
+  // themselves rather than running the substitution. Steam's BigInt is
+  // narrowed to `number` over the wire — safe through ~year 2286.
+  assetUrlFormat: string | null;
+  assetTimestamp: number | null;
+  libraryCapsulePath: string | null;
+  libraryCapsule2xPath: string | null;
+  libraryHeroPath: string | null;
+  libraryHero2xPath: string | null;
+  headerPath: string | null;
+  heroCapsulePath: string | null;
+  // Steam StoreItemType: 0 = Game, 6 = Application (Wallpaper Engine, 3DMark).
+  // Surfaced so the library can offer a Game-vs-Tool filter (see C-2.5).
+  appType: number | null;
+  // Top-N community tag ids by weight, capped at 20 on the API side. Stable
+  // enough across polls to drive a faceted filter; resolved to human labels
+  // on the web side via a curated dictionary.
+  tagIds: number[];
 }
 
 export interface SteamOwnedGames {

@@ -279,18 +279,56 @@ export class SteamOwnedGamesService {
         appid: true,
         playtimeForeverMinutes: true,
         playtime2WeeksMinutes: true,
-        game: { select: { name: true } },
+        game: {
+          select: {
+            name: true,
+            // Left-join: rows without an enrichment row (e.g. delisted, or
+            // before the monthly cron reached them) come back as `null` and
+            // map to the per-field nulls below — image helpers fall back to
+            // legacy unhashed paths.
+            enrichment: {
+              select: {
+                assetUrlFormat: true,
+                assetTimestamp: true,
+                libraryCapsulePath: true,
+                libraryCapsule2xPath: true,
+                libraryHeroPath: true,
+                libraryHero2xPath: true,
+                headerPath: true,
+                heroCapsulePath: true,
+                appType: true,
+                tagIds: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { playtimeForeverMinutes: "desc" },
     });
 
     return {
-      games: rows.map((r) => ({
-        appid: r.appid,
-        name: r.game.name,
-        playtimeForeverMinutes: r.playtimeForeverMinutes,
-        playtime2WeeksMinutes: r.playtime2WeeksMinutes,
-      })),
+      games: rows.map((r) => {
+        const e = r.game.enrichment;
+        return {
+          appid: r.appid,
+          name: r.game.name,
+          playtimeForeverMinutes: r.playtimeForeverMinutes,
+          playtime2WeeksMinutes: r.playtime2WeeksMinutes,
+          assetUrlFormat: e?.assetUrlFormat ?? null,
+          // BigInt over the wire would force JSON.stringify(bigint) handling
+          // everywhere downstream. Steam's epoch fits well inside Number's
+          // safe range — narrow at the boundary.
+          assetTimestamp: e?.assetTimestamp != null ? Number(e.assetTimestamp) : null,
+          libraryCapsulePath: e?.libraryCapsulePath ?? null,
+          libraryCapsule2xPath: e?.libraryCapsule2xPath ?? null,
+          libraryHeroPath: e?.libraryHeroPath ?? null,
+          libraryHero2xPath: e?.libraryHero2xPath ?? null,
+          headerPath: e?.headerPath ?? null,
+          heroCapsulePath: e?.heroCapsulePath ?? null,
+          appType: e?.appType ?? null,
+          tagIds: e?.tagIds ?? [],
+        };
+      }),
       lastSyncedAt: latest.snapshotDate.toISOString(),
     };
   }
