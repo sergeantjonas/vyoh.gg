@@ -1,8 +1,21 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import type { SteamSummary, SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
-import type { SteamPlayerRaw, SteamStoreItemRaw, SteamWishlistItemRaw } from "./types";
+import type {
+  SteamGetProfileItemsEquippedResponse,
+  SteamPlayerRaw,
+  SteamStoreItemRaw,
+  SteamWishlistItemRaw,
+} from "./types";
+
+// Steam community CDN base for equipped profile items. `image_large` and the
+// `movie_*` fields on GetProfileItemsEquipped are already prefixed with
+// `items/<appid>/...`, so this base stops at `/images/` — appending another
+// `items/` produces a doubled-segment URL that 404s. Both the Cloudflare and
+// Akamai subdomains resolve to the same backend.
+const STEAM_COMMUNITY_ITEMS_CDN =
+  "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/";
 
 const WISHLIST_TTL_MS = 60 * 60 * 1_000;
 const NAME_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -34,6 +47,8 @@ const PERSONA_STATE: Record<
 
 @Injectable()
 export class SteamService {
+  private readonly logger = new Logger(SteamService.name);
+
   // In-memory TTL caches. S2 is a one-chunk warmup — no DB schema, no scheduler.
   // S3 (owned-games polling) is the right place to evolve into persisted state.
   private wishlistCache: CachedWishlist | null = null;
@@ -46,14 +61,27 @@ export class SteamService {
   constructor(private readonly client: SteamClientService) {}
 
   async getOwnerSummary(): Promise<SteamSummary> {
-    const player = await this.client.getPlayerSummary(STEAM_OWNER_ID);
+    // Fetch player + equipped items in parallel. The items call is optional —
+    // a failure or empty payload leaves the cosmetic fields undefined rather
+    // than blocking the summary, which is the only must-have here.
+    const [player, items] = await Promise.all([
+      this.client.getPlayerSummary(STEAM_OWNER_ID),
+      this.client.getProfileItemsEquipped(STEAM_OWNER_ID).catch((err) => {
+        this.logger.warn(
+          `steam profile items fetch failed; continuing without cosmetics: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+        return null;
+      }),
+    ]);
     if (!player) {
       // GetPlayerSummaries returns an empty players array only when the SteamID
       // does not resolve at all — wrong ID, deleted account. Distinct from
       // privacy-locked, which still returns a player with communityvisibilitystate < 3.
       throw new Error(`Steam profile not found for owner id ${STEAM_OWNER_ID}`);
     }
-    return mapPlayerToSummary(player);
+    return mapPlayerToSummary(player, items);
   }
 
   async getOwnerWishlist(): Promise<SteamWishlist> {
@@ -147,7 +175,10 @@ function buildStoreUrl(appid: number, storeUrlPath: string | null): string {
   return `https://store.steampowered.com/app/${appid}/`;
 }
 
-function mapPlayerToSummary(player: SteamPlayerRaw): SteamSummary {
+function mapPlayerToSummary(
+  player: SteamPlayerRaw,
+  items: SteamGetProfileItemsEquippedResponse["response"] | null
+): SteamSummary {
   const profilePublic = player.communityvisibilitystate === 3;
   // Game-details visibility can't be verified from GetPlayerSummaries — that
   // probe requires GetOwnedGames, which lands in S3. Surface "unknown" rather
@@ -157,11 +188,33 @@ function mapPlayerToSummary(player: SteamPlayerRaw): SteamSummary {
       ? { appid: Number(player.gameid), name: player.gameextrainfo ?? "" }
       : null;
 
+  // Steam serves animated avatars as a .gif at `image_small` (the name refers
+  // to display size, not file size — image_small is the canonical animated form,
+  // image_large is the static jpg fallback for clients that can't render the gif).
+  const animatedAvatarPath =
+    items?.animated_avatar?.image_small ?? items?.animated_avatar?.image_large;
+  // Backgrounds may have both a static jpg (`image_large`) and an animated video
+  // (`movie_webm`/`movie_mp4`). We expose both and let the frontend decide —
+  // animated backgrounds are bandwidth-heavy on every page load. Prefer webm for
+  // the video (smaller encodes; mp4 covers Safari fallback per the same logic).
+  const backgroundPath = items?.profile_background?.image_large;
+  const backgroundVideoPath =
+    items?.profile_background?.movie_webm ?? items?.profile_background?.movie_mp4;
+
   return {
     steamId: player.steamid,
     personaName: player.personaname,
     profileUrl: player.profileurl,
     avatarUrl: player.avatarfull,
+    animatedAvatarUrl: animatedAvatarPath
+      ? `${STEAM_COMMUNITY_ITEMS_CDN}${animatedAvatarPath}`
+      : undefined,
+    profileBackgroundUrl: backgroundPath
+      ? `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundPath}`
+      : undefined,
+    profileBackgroundVideoUrl: backgroundVideoPath
+      ? `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundVideoPath}`
+      : undefined,
     personaState: PERSONA_STATE[player.personastate],
     currentGame,
     privacyPrereqs: {

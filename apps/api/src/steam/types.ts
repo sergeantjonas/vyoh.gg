@@ -85,3 +85,33 @@ export interface SteamGetOwnedGamesResponse {
     games?: SteamOwnedGameRaw[];
   };
 }
+
+// IPlayerService/GetProfileItemsEquipped/v1/. Returns the cosmetic items the
+// owner has equipped on their community profile. All slots are optional — an
+// account with the default profile returns `{ response: {} }`. `image_large`
+// and the `movie_*` fields are relative paths under the Steam community CDN;
+// callers prefix them to build absolute URLs.
+export interface SteamProfileItemRaw {
+  communityitemid?: string;
+  image_large?: string;
+  image_small?: string;
+  movie_webm?: string;
+  movie_mp4?: string;
+  name?: string;
+  item_title?: string;
+  item_description?: string;
+  appid?: number;
+  item_type?: number;
+  item_class?: number;
+}
+
+export interface SteamGetProfileItemsEquippedResponse {
+  response: {
+    profile_background?: SteamProfileItemRaw;
+    mini_profile_background?: SteamProfileItemRaw;
+    avatar_frame?: SteamProfileItemRaw;
+    animated_avatar?: SteamProfileItemRaw;
+    profile_modifier?: SteamProfileItemRaw;
+    steam_deck_keyboard_skin?: SteamProfileItemRaw;
+  };
+}

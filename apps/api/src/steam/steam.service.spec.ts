@@ -1,11 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { SteamClientService } from "./steam-client.service";
 import { SteamService } from "./steam.service";
-import type { SteamPlayerRaw, SteamStoreItemRaw, SteamWishlistItemRaw } from "./types";
+import type {
+  SteamGetProfileItemsEquippedResponse,
+  SteamPlayerRaw,
+  SteamStoreItemRaw,
+  SteamWishlistItemRaw,
+} from "./types";
 
-function makeService(player: SteamPlayerRaw | null): SteamService {
+function makeService(
+  player: SteamPlayerRaw | null,
+  items: SteamGetProfileItemsEquippedResponse["response"] = {}
+): SteamService {
   const client = {
     getPlayerSummary: vi.fn().mockResolvedValue(player),
+    getProfileItemsEquipped: vi.fn().mockResolvedValue(items),
   } as unknown as SteamClientService;
   return new SteamService(client);
 }
@@ -71,6 +80,67 @@ describe("SteamService.getOwnerSummary", () => {
     await expect(makeService(null).getOwnerSummary()).rejects.toThrow(
       /Steam profile not found/
     );
+  });
+
+  it("maps equipped cosmetics to absolute CDN URLs, including animated background webm", async () => {
+    const summary = await makeService(basePlayer, {
+      animated_avatar: {
+        image_small: "items/2186680/avatar.gif",
+        image_large: "items/2186680/avatar_static.jpg",
+      },
+      profile_background: {
+        image_large: "items/2186680/bg.jpg",
+        movie_webm: "items/2186680/bg.webm",
+        movie_mp4: "items/2186680/bg.mp4",
+      },
+    }).getOwnerSummary();
+    expect(summary.animatedAvatarUrl).toBe(
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/avatar.gif"
+    );
+    expect(summary.profileBackgroundUrl).toBe(
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/bg.jpg"
+    );
+    expect(summary.profileBackgroundVideoUrl).toBe(
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/bg.webm"
+    );
+  });
+
+  it("falls back to animated_avatar.image_large when image_small is absent", async () => {
+    const summary = await makeService(basePlayer, {
+      animated_avatar: { image_large: "items/2186680/avatar_static.jpg" },
+    }).getOwnerSummary();
+    expect(summary.animatedAvatarUrl).toBe(
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/avatar_static.jpg"
+    );
+  });
+
+  it("falls back to mp4 when only mp4 is provided for the background video", async () => {
+    const summary = await makeService(basePlayer, {
+      profile_background: {
+        image_large: "items/2186680/bg.jpg",
+        movie_mp4: "items/2186680/bg.mp4",
+      },
+    }).getOwnerSummary();
+    expect(summary.profileBackgroundVideoUrl).toBe(
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/bg.mp4"
+    );
+  });
+
+  it("leaves the background video undefined when the background is a static still", async () => {
+    const summary = await makeService(basePlayer, {
+      profile_background: { image_large: "items/2186680/bg.jpg" },
+    }).getOwnerSummary();
+    expect(summary.profileBackgroundUrl).toBe(
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/bg.jpg"
+    );
+    expect(summary.profileBackgroundVideoUrl).toBeUndefined();
+  });
+
+  it("leaves cosmetic fields undefined when no items are equipped", async () => {
+    const summary = await makeService(basePlayer, {}).getOwnerSummary();
+    expect(summary.animatedAvatarUrl).toBeUndefined();
+    expect(summary.profileBackgroundUrl).toBeUndefined();
+    expect(summary.profileBackgroundVideoUrl).toBeUndefined();
   });
 });
 

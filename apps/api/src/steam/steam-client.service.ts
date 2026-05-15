@@ -4,6 +4,7 @@ import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
   SteamGetOwnedGamesResponse,
   SteamGetPlayerSummariesResponse,
+  SteamGetProfileItemsEquippedResponse,
   SteamGetStoreItemsResponse,
   SteamGetWishlistResponse,
   SteamOwnedGameRaw,
@@ -43,6 +44,18 @@ export class SteamClientService {
       // the API will surface — distinct from a 4xx error. Treat as "no data" so the
       // caller can surface a privacy verdict instead of an exception.
       return data.response.players[0] ?? null;
+    });
+  }
+
+  async getProfileItemsEquipped(
+    steamId: string
+  ): Promise<SteamGetProfileItemsEquippedResponse["response"]> {
+    return this.limiter.schedule("profile-items-equipped", async () => {
+      const path = `/IPlayerService/GetProfileItemsEquipped/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}&language=english`;
+      const data = await this.fetchJson<SteamGetProfileItemsEquippedResponse>(path);
+      // Accounts with the default profile return `{ response: {} }` — distinct
+      // from a 4xx. Return the bare object; the caller decides per-slot fallback.
+      return data.response;
     });
   }
 
