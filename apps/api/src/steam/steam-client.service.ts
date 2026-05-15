@@ -182,7 +182,13 @@ export class SteamClientService {
       const path = `/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/?gameid=${appid}`;
       const data =
         await this.fetchJson<SteamGetGlobalAchievementPercentagesResponse>(path);
-      return data.achievementpercentages.achievements ?? [];
+      // Coerce `percent` from JSON string to number at the boundary. The
+      // v0002 endpoint returns it as `"70.4"` despite the semantic being a
+      // float; Prisma rejects strings on the `percent` Float column.
+      return (data.achievementpercentages.achievements ?? []).map((a) => ({
+        name: a.name,
+        percent: Number(a.percent),
+      }));
     });
   }
 

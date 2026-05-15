@@ -225,8 +225,14 @@ export interface SteamPlayerAchievementRaw {
   apiname: string;
   achieved: 0 | 1;
   unlocktime: number;
-  // Echoed when `l=english` is passed, but we don't persist them — schema
-  // table is the source of truth for display strings.
+  // Echoed when `l=english` is passed, but we don't persist either field —
+  // schema table is the source of truth for `displayName`. `description` is
+  // genuinely unavailable from the Steam Web API for hidden achievements:
+  // `GetSchemaForGame` blanks `description` on `hidden:1` rows (anti-
+  // spoiler, can't identify caller), and `GetPlayerAchievements` blanks it
+  // too, even for the owner's unlocked rows (verified 2026-05-15). The
+  // Steam client only knows hidden descriptions via game-shipped manifests
+  // or non-Web-API protocols — neither reachable from the server.
   name?: string;
   description?: string;
 }
@@ -243,9 +249,14 @@ export interface SteamGetPlayerAchievementsResponse {
 
 // ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/. Public,
 // no API key. Empty array for games without achievements.
+//
+// `percent` arrives as a JSON string (e.g. `"70.4"`) from the v0002
+// endpoint despite the field semantically being a float. The client
+// service coerces it to a number at the boundary so downstream sees a
+// real Float (Prisma rejects strings on the `percent` column otherwise).
 export interface SteamGlobalAchievementPercentageRaw {
   name: string;
-  percent: number; // 0..100 float
+  percent: number; // 0..100 float — coerced from string at the client boundary
 }
 
 export interface SteamGetGlobalAchievementPercentagesResponse {
