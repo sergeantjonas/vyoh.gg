@@ -113,6 +113,10 @@ export class SteamClientService {
           include_release: true,
           include_categories: true,
           include_basic_info: false,
+          // tagids isn't returned unless include_tag_count > 0. We persist
+          // the top 20 in SteamGameEnrichment.tagIds; asking for more here
+          // would just be discarded by projectEnrichment's MAX_TAG_IDS cap.
+          include_tag_count: 20,
         },
       };
       const path = `/IStoreBrowseService/GetItems/v1/?key=${encodeURIComponent(this.apiKey)}&input_json=${encodeURIComponent(JSON.stringify(input))}`;
