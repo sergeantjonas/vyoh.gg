@@ -24,12 +24,6 @@ function LibraryPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
-          <Link to="/steam" className="hover:underline">
-            Steam
-          </Link>{" "}
-          · Library
-        </p>
         <h1 className="text-2xl font-bold tracking-tight">Forever games</h1>
         <p className="text-sm text-muted-foreground">
           Currently-owned Steam library, sorted by lifetime playtime. Last two weeks shown

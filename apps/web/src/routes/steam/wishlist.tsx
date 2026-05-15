@@ -1,6 +1,6 @@
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useSteamWishlist } from "@/steam/use-wishlist";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import type { SteamWishlistItem } from "@vyoh/shared";
 import { useMemo } from "react";
 
@@ -33,12 +33,6 @@ function WishlistPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
-          <Link to="/steam" className="hover:underline">
-            Steam
-          </Link>{" "}
-          · Wishlist
-        </p>
         <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
         <p className="text-sm text-muted-foreground">
           Public Steam wishlist — date added is from when the title first joined the

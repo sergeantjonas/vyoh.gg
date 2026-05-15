@@ -1,3 +1,11 @@
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useSteamForeverGames } from "@/steam/use-forever-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -21,24 +29,29 @@ function SteamGamePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
-          <Link to="/steam" className="hover:underline">
-            Steam
-          </Link>{" "}
-          ·{" "}
-          <Link to="/steam/library" className="hover:underline">
-            Library
-          </Link>{" "}
-          · App {appidParam}
-        </p>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {game?.name ?? "Game detail"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Achievements, completion verdicts, and per-game timeline land in a later phase.
-          Today: lifetime + recent playtime from the daily poller.
-        </p>
+      <div className="flex flex-col gap-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/steam/library">Library</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{game?.name ?? `App ${appidParam}`}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {game?.name ?? "Game detail"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Achievements, completion verdicts, and per-game timeline land in a later
+            phase. Today: lifetime + recent playtime from the daily poller.
+          </p>
+        </div>
       </div>
 
       {isPending && <p className="text-sm text-muted-foreground">Loading playtime…</p>}
