@@ -38,7 +38,7 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
         params={{ appid: String(game.appid) }}
         className="flex flex-col gap-2 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-muted">
+        <div className="relative isolate aspect-2/3 overflow-hidden rounded-lg bg-muted transition-[filter,box-shadow] duration-500 ease-out group-hover/tile:shadow-[0_10px_18px_-4px_rgba(255,255,255,0.18)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1]">
           {capsuleFailed ? (
             <HeroFallback game={game} />
           ) : (
@@ -53,9 +53,22 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
               onLoad={() => setCapsuleLoaded(true)}
               onError={() => setCapsuleFailed(true)}
               style={{ opacity: capsuleLoaded ? 1 : 0 }}
-              className="h-full w-full object-cover transition-[opacity,transform] duration-500 ease-out group-hover/tile:scale-105"
+              className="h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
             />
           )}
+          {/* Holographic shine sweep — adapted from the CodePen reference
+              (nefejames/ogvNgJq). A 2x-sized gradient overlay sits hidden
+              and rotated -45° so its bright band runs diagonally. On hover,
+              the gradient fades in and translates 100% downward in its
+              rotated coordinate frame, which slides the bright diagonal
+              band across the tile from upper-left to lower-right. The
+              [transform:...] override pins the rotation BEFORE the
+              translate (Tailwind's default composes translate-first, which
+              would produce the wrong screen-space motion here). */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-1/2 -left-1/2 h-[200%] w-[200%] bg-[linear-gradient(0deg,transparent,transparent_30%,rgba(255,255,255,0.35))] opacity-0 transition-all duration-900 ease-out transform-[rotate(-45deg)] group-hover/tile:opacity-100 group-hover/tile:transform-[rotate(-45deg)_translateY(100%)]"
+          />
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="truncate text-sm font-medium underline-offset-2 group-hover/tile:underline">
