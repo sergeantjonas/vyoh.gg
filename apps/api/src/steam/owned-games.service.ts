@@ -8,6 +8,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
+import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -79,7 +80,8 @@ export class SteamOwnedGamesService {
     private readonly client: SteamClientService,
     private readonly enrichment: SteamEnrichmentService,
     private readonly achievementSchema: SteamAchievementSchemaService,
-    private readonly playerUnlocks: SteamPlayerUnlocksService
+    private readonly playerUnlocks: SteamPlayerUnlocksService,
+    private readonly globalRarity: SteamGlobalRarityService
   ) {}
 
   async syncOwnedGames(now: Date = new Date()): Promise<OwnedGamesDiff> {
@@ -174,10 +176,18 @@ export class SteamOwnedGamesService {
         select: { appid: true },
       });
       if (withSchema.length > 0) {
+        const eligibleAppids = withSchema.map((m) => m.appid);
         try {
-          await this.playerUnlocks.syncUnlocks(withSchema.map((m) => m.appid));
+          await this.playerUnlocks.syncUnlocks(eligibleAppids);
         } catch (err) {
           this.logger.warn(`unlock bootstrap of newly-added apps failed: ${err}`);
+        }
+        // Rarity bootstrap — same eligibility set. Weekly cron would otherwise
+        // delay the badge data for a freshly-added game by up to a week.
+        try {
+          await this.globalRarity.refreshRarity(eligibleAppids);
+        } catch (err) {
+          this.logger.warn(`rarity bootstrap of newly-added apps failed: ${err}`);
         }
       }
     }
