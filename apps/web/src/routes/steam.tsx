@@ -124,10 +124,7 @@ function SteamLayout() {
                 <div className="h-5 w-32 animate-pulse rounded bg-muted" />
               )}
             </section>
-            <nav
-              aria-label="Steam sections"
-              className="flex items-center gap-1 border-b border-border/40"
-            >
+            <nav aria-label="Steam sections" className="flex items-center gap-1">
               {TABS.map((tab) => {
                 const active = isTabActive(tab, pathname);
                 return (
@@ -187,6 +184,10 @@ function SteamLayout() {
             </nav>
           </div>
         </m.div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-foreground/15 to-transparent"
+        />
       </header>
       <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
         <m.div
