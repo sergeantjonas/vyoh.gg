@@ -72,6 +72,7 @@ Extract with two well-formed callers (LoL, Steam) rather than waiting for three.
 - Should the shell own the `<Outlet>` wrapper (AnimatePresence + page slide), or expose a `usePageSlide()` hook that section files call themselves? Owning it is less flexible but enforces consistency.
 - Does `pageSlideVariants` keep `initial={false}` (LoL convention — no entry slide on section change, header expansion provides the motion), or do some sections need different behaviour?
 - Does the action-buttons slot (LoL's switcher/refresh row) belong in the shell or stay as section-specific JSX inside the identity slot? Probably the latter — Steam currently has no action buttons.
+- **Header backing pattern (already aligned)** — both LoL and Steam use a `position: fixed inset-x-0` div inside the sticky header, sized via `ResizeObserver`, with viewport-top tracked so the band sits at the header's actual viewport y (not viewport `top: 0`). Fixed positioning escapes `<main>`'s `overflow-x: clip` so the band spans the true viewport width including the `[scrollbar-gutter:stable both-edges]` reserve. Opacity fades on `compact` so the section's backdrop (LoL splash / Steam profile-background) reads cleanly at the top. When the shell lands, this becomes one of the shell's responsibilities — it owns the band geometry + opacity logic, and each section provides only the backdrop (slot or context).
 
 ## Out of scope
 

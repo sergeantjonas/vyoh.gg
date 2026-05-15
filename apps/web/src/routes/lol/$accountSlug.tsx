@@ -223,18 +223,38 @@ function AccountLayout() {
     mainScrollRef.current?.scrollTo(0, 0);
   }, [pathname, matchesPath, matchesPathPrefix]);
 
+  // Header ref + viewport-rect tracking. Drives two consumers: the fixed-
+  // position header band below (needs height + viewport-top to escape <main>'s
+  // overflow-x: clip while still sitting at the right y) and the existing
+  // `--account-header-h` CSS variable that some downstream surfaces consume.
+  // Top tracking: the header is sticky inside <main>, so its viewport top is at
+  // main's top edge (≈ global nav height), not at viewport 0 — anchoring the
+  // band to top: 0 would float it up over the nav.
   const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [headerTop, setHeaderTop] = useState(0);
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setHeaderHeight(rect.height);
+      setHeaderTop(rect.top);
       document.documentElement.style.setProperty(
         "--account-header-h",
-        `${el.getBoundingClientRect().bottom}px`
+        `${rect.bottom}px`
       );
-    });
+    };
+    update();
+    const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    // Window resize can shift main's top edge (nav reflows at a different
+    // breakpoint) without the header element itself resizing.
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   const prefersReducedMotion = useReducedMotion();
@@ -272,12 +292,20 @@ function AccountLayout() {
   // drag scrollTop back across the threshold and cause a shrink/grow loop.
   // Defenses: (1) wide hysteresis (enter >96, exit <8), (2) cooldown ignoring
   // scroll events during the spring animation's settle time.
+  // Two scroll-driven states with different thresholds. `compact` drives the
+  // header padding spring (wide hysteresis + cooldown defends against the
+  // scroll-anchoring flap loop). `bandOpaque` drives the fixed band's opacity
+  // and uses a much smaller threshold (16px) so the tint catches up to the
+  // first scroll — otherwise content goes under the header before the band
+  // has faded in. The band doesn't change layout, so it skips the cooldown.
   const [compact, setCompact] = useState(false);
+  const [bandOpaque, setBandOpaque] = useState(false);
   const lastToggleRef = useRef(0);
   useEffect(() => {
     const el = mainScrollRef.current;
     if (!el) return;
     const onScroll = () => {
+      setBandOpaque(el.scrollTop > 16);
       if (Date.now() - lastToggleRef.current < 400) return;
       setCompact((prev) => {
         if (!prev && el.scrollTop > 96) {
@@ -347,10 +375,28 @@ function AccountLayout() {
               <header
                 ref={headerRef}
                 data-account-header
-                className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md"
+                className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen"
               >
+                {/* Header band — `position: fixed` so it spans the true
+                    viewport width (including the scrollbar-gutter reserve on
+                    either side of <main>) instead of being clipped by <main>'s
+                    overflow-x: clip. Lives inside the header so it inherits
+                    the z-40 stacking context — paints above scrolling content
+                    but below the m.div content (which paints later in DOM
+                    order). Mirrors the Steam pattern; opacity fades on
+                    `compact` so the splash backdrop reads cleanly at the top
+                    of the section. */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none fixed inset-x-0 bg-background/50 backdrop-blur-md transition-opacity duration-200"
+                  style={{
+                    top: `${headerTop}px`,
+                    height: `${headerHeight}px`,
+                    opacity: bandOpaque ? 1 : 0,
+                  }}
+                />
                 <m.div
-                  className="mx-auto max-w-4xl px-6"
+                  className="relative mx-auto max-w-4xl px-6"
                   animate={{
                     paddingTop: compact ? 8 : 24,
                     paddingBottom: compact ? 8 : 12,
