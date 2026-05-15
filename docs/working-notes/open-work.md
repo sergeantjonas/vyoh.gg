@@ -26,6 +26,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - CodeQL SAST evaluation — deferred from the 2026-05-14 security baseline; freelance-signal layer, not threat-model-justified. Revisit when bandwidth allows or auth surface lands. → [security.md](security.md)
 - Folder-structure cleanup — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 remain conditional (Steam subfoldering on S4.5 re-look, cross-domain `_assets/` only if TFT lands). → [folder-structure-cleanup.md](folder-structure-cleanup.md)
 - LoL breadcrumb consistency pass — triggered post-Steam-S4.5 once the shadcn `@/components/ui/breadcrumb` primitive becomes canonical; decide per-surface whether deep drill-ins (match detail, champion detail) gain a breadcrumb trail alongside the existing `AccountLayout` tab bar. → [steam-integration.md](steam-integration.md) S4.5 post-ship follow-up
+- Section layout extraction — pull the sticky compact header + animated tabs + page-slide system shared between `routes/lol/$accountSlug.tsx` and `routes/steam.tsx` into an `_shared/section-layout/` primitive. Surfaced during S4.5 C-1; deferred until C-2/C-3 land so the identity slot's shape is informed by the profile-background + animated-avatar work. → [section-layout-extraction.md](section-layout-extraction.md)
 
 ## Unpromoted vNext top-tier candidates
 
