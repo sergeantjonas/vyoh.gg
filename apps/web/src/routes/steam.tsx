@@ -1,9 +1,10 @@
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
 import { AnimatePresence, type Variants, m, useReducedMotion } from "motion/react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/steam")({
   component: SteamLayout,
@@ -56,82 +57,138 @@ function SteamLayout() {
   }
   const effectiveDir = prefersReducedMotion ? 0 : slideDirectionRef.current;
 
+  // Sticky header compact behaviour mirrors the LoL layout: scroll past 96 → compact,
+  // scroll back under 8 → expanded. Tab navigation resets scrollTop to 0, which fires
+  // the spring expansion (paddingTop 8 → 24) — the visible "slide down" on every
+  // section/tab entry. Hysteresis + cooldown prevent oscillation around the threshold.
+  const [compact, setCompact] = useState(false);
+  const lastToggleRef = useRef(0);
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (Date.now() - lastToggleRef.current < 400) return;
+      setCompact((prev) => {
+        if (!prev && el.scrollTop > 96) {
+          lastToggleRef.current = Date.now();
+          return true;
+        }
+        if (prev && el.scrollTop < 8) {
+          lastToggleRef.current = Date.now();
+          return false;
+        }
+        return prev;
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        {summary && (
-          <section className="flex items-center gap-3">
-            <img
-              src={summary.avatarUrl}
-              alt=""
-              className="size-9 rounded-full object-cover ring-1 ring-border"
-            />
-            <span className="text-xl font-semibold">{summary.personaName}</span>
-          </section>
-        )}
-        <nav
-          aria-label="Steam sections"
-          className="flex items-center gap-1 border-b border-border/40"
+      <header className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen bg-background/50 backdrop-blur-md">
+        <m.div
+          className="mx-auto max-w-4xl px-6"
+          animate={{
+            paddingTop: compact ? 8 : 24,
+            paddingBottom: compact ? 8 : 12,
+          }}
+          transition={
+            prefersReducedMotion
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 380, damping: 32 }
+          }
         >
-          {TABS.map((tab) => {
-            const active = isTabActive(tab, pathname);
-            return (
-              <Link
-                key={tab.to}
-                to={tab.to}
-                className={cn(
-                  "group relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <m.span
-                  key={active ? 1 : 0}
-                  initial={
-                    active && !prefersReducedMotion ? { scale: 0.75, y: -4 } : false
-                  }
-                  animate={{ scale: 1, y: 0 }}
-                  transition={{ type: "spring", stiffness: 450, damping: 18 }}
-                  className="inline-flex"
-                >
-                  <tab.Icon
+          <div className="flex flex-col gap-3">
+            <section className="flex items-center gap-3">
+              {summary ? (
+                <img
+                  src={summary.avatarUrl}
+                  alt=""
+                  className={cn(
+                    "rounded-full object-cover ring-1 ring-border transition-all",
+                    compact ? "size-7" : "size-9"
+                  )}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "animate-pulse rounded-full bg-muted ring-1 ring-border transition-all",
+                    compact ? "size-7" : "size-9"
+                  )}
+                />
+              )}
+              {summary ? (
+                <span className="text-xl font-semibold">{summary.personaName}</span>
+              ) : (
+                <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+              )}
+            </section>
+            <nav
+              aria-label="Steam sections"
+              className="flex items-center gap-1 border-b border-border/40"
+            >
+              {TABS.map((tab) => {
+                const active = isTabActive(tab, pathname);
+                return (
+                  <Link
+                    key={tab.to}
+                    to={tab.to}
                     className={cn(
-                      "size-4 transition-colors",
+                      "group relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors",
                       active
-                        ? "text-blue-400 drop-shadow-[0_0_6px_rgba(96,165,250,0.5)]"
-                        : "text-muted-foreground group-hover:text-foreground"
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
-                  />
-                </m.span>
-                {tab.label}
-                {active && (
-                  <m.div
-                    layoutId="steam-tab-indicator"
-                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-blue-400 via-cyan-400 to-sky-300"
-                    animate={{
-                      boxShadow: [
-                        "0 0 0px 0px rgba(96,165,250,0)",
-                        "0 0 10px 1px rgba(96,165,250,0.45)",
-                        "0 0 0px 0px rgba(96,165,250,0)",
-                      ],
-                    }}
-                    transition={{
-                      default: { type: "spring", stiffness: 500, damping: 35 },
-                      boxShadow: {
-                        duration: 2.4,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: "easeInOut",
-                      },
-                    }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-      <AnimatePresence mode="popLayout" custom={effectiveDir}>
+                  >
+                    <m.span
+                      key={active ? 1 : 0}
+                      initial={
+                        active && !prefersReducedMotion ? { scale: 0.75, y: -4 } : false
+                      }
+                      animate={{ scale: 1, y: 0 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 18 }}
+                      className="inline-flex"
+                    >
+                      <tab.Icon
+                        className={cn(
+                          "size-4 transition-colors",
+                          active
+                            ? "text-blue-400 drop-shadow-[0_0_6px_rgba(96,165,250,0.5)]"
+                            : "text-muted-foreground group-hover:text-foreground"
+                        )}
+                      />
+                    </m.span>
+                    {tab.label}
+                    {active && (
+                      <m.div
+                        layoutId="steam-tab-indicator"
+                        className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-blue-400 via-cyan-400 to-sky-300"
+                        animate={{
+                          boxShadow: [
+                            "0 0 0px 0px rgba(96,165,250,0)",
+                            "0 0 10px 1px rgba(96,165,250,0.45)",
+                            "0 0 0px 0px rgba(96,165,250,0)",
+                          ],
+                        }}
+                        transition={{
+                          default: { type: "spring", stiffness: 500, damping: 35 },
+                          boxShadow: {
+                            duration: 2.4,
+                            repeat: Number.POSITIVE_INFINITY,
+                            ease: "easeInOut",
+                          },
+                        }}
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </m.div>
+      </header>
+      <AnimatePresence mode="popLayout" initial={false} custom={effectiveDir}>
         <m.div
           key={pathname}
           custom={effectiveDir}
