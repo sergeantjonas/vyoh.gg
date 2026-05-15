@@ -12,6 +12,7 @@ import {
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
+import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -128,8 +129,8 @@ function SteamGamePage() {
             {game?.name ?? `App ${appidParam}`}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Achievements, completion verdicts, and per-game timeline land in a later
-            phase. Today: lifetime + recent playtime from the daily poller.
+            Lifetime + recent playtime from the daily poller, with per-game achievement
+            state where Steam exposes it.
           </p>
         </div>
       )}
@@ -178,6 +179,8 @@ function SteamGamePage() {
           </div>
         </dl>
       )}
+
+      {game && <AchievementPanel appid={appid} />}
     </div>
   );
 }
