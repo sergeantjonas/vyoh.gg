@@ -68,13 +68,13 @@ function SteamGamePage() {
           shipped a library_hero asset. */}
       <div className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-muted">
         <img
-          src={steamCapsuleUrl(appid, 920)}
+          src={steamCapsuleUrl(appid, game?.headerPath, game?.assetTimestamp, 920)}
           alt=""
           className="absolute inset-0 size-full scale-110 object-cover blur-sm"
         />
         {!heroFailed && (
           <img
-            src={steamLibraryHeroUrl(appid)}
+            src={steamLibraryHeroUrl(appid, game?.libraryHeroPath, game?.assetTimestamp)}
             alt=""
             loading="eager"
             onLoad={() => setHeroLoaded(true)}

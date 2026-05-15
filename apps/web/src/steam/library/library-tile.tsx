@@ -42,7 +42,11 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
             <HeroFallback game={game} />
           ) : (
             <img
-              src={steamLibraryCapsuleUrl(game.appid)}
+              src={steamLibraryCapsuleUrl(
+                game.appid,
+                game.libraryCapsulePath,
+                game.assetTimestamp
+              )}
               alt=""
               loading="lazy"
               onLoad={() => setCapsuleLoaded(true)}
@@ -88,7 +92,12 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
   return (
     <>
       <img
-        src={steamLibraryHeroUrl(game.appid, 600)}
+        src={steamLibraryHeroUrl(
+          game.appid,
+          game.libraryHeroPath,
+          game.assetTimestamp,
+          600
+        )}
         alt=""
         loading="lazy"
         onLoad={() => setHeroLoaded(true)}
