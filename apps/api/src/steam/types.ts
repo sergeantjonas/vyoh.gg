@@ -185,6 +185,75 @@ export interface SteamGetTagListResponse {
   };
 }
 
+// ISteamUserStats/GetSchemaForGame/v2/. Games with no stats (demos,
+// dedicated-launcher entries) return `{ game: {} }`. Games with stats but
+// no achievements (CS2 historically) return `availableGameStats.stats` and
+// omit `achievements` entirely. We only surface achievements — `stats` is
+// a separate Steam concept (numeric counters) that isn't on the roadmap.
+//
+// `hidden = 1` is Steam's spoiler flag: the client must mask `displayName`
+// and `description` until the owner unlocks the achievement. `icon` and
+// `icongray` are absolute community-CDN URLs returned directly.
+export interface SteamGameSchemaAchievementRaw {
+  name: string; // internal apiName (e.g. "ACH_KILL_BOSS")
+  defaultvalue: number;
+  displayName: string;
+  hidden: 0 | 1;
+  description?: string;
+  icon: string;
+  icongray: string;
+}
+
+export interface SteamGameSchemaAvailableStatsRaw {
+  achievements?: SteamGameSchemaAchievementRaw[];
+}
+
+export interface SteamGetGameSchemaResponse {
+  game: {
+    gameName?: string;
+    gameVersion?: string;
+    availableGameStats?: SteamGameSchemaAvailableStatsRaw;
+  };
+}
+
+// ISteamUserStats/GetPlayerAchievements/v1/. When `success` is false the
+// owner has no playerstats for the game (no schema, never launched the
+// stats subsystem, or library hidden). Steam returns 200 OK in that case —
+// only invalid appids produce 4xx. `unlocktime` is Unix seconds (UTC); 0
+// when not yet unlocked.
+export interface SteamPlayerAchievementRaw {
+  apiname: string;
+  achieved: 0 | 1;
+  unlocktime: number;
+  // Echoed when `l=english` is passed, but we don't persist them — schema
+  // table is the source of truth for display strings.
+  name?: string;
+  description?: string;
+}
+
+export interface SteamGetPlayerAchievementsResponse {
+  playerstats: {
+    steamID?: string;
+    gameName?: string;
+    achievements?: SteamPlayerAchievementRaw[];
+    success: boolean;
+    error?: string;
+  };
+}
+
+// ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/. Public,
+// no API key. Empty array for games without achievements.
+export interface SteamGlobalAchievementPercentageRaw {
+  name: string;
+  percent: number; // 0..100 float
+}
+
+export interface SteamGetGlobalAchievementPercentagesResponse {
+  achievementpercentages: {
+    achievements?: SteamGlobalAchievementPercentageRaw[];
+  };
+}
+
 export interface SteamGetProfileItemsEquippedResponse {
   response: {
     profile_background?: SteamProfileItemRaw;

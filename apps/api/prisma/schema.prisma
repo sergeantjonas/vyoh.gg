@@ -58,8 +58,10 @@ model SteamOwnedGame {
   lastSeenAt  DateTime  @default(now())
   removedAt   DateTime?
 
-  snapshots  SteamPlaytimeSnapshot[]
-  enrichment SteamGameEnrichment?
+  snapshots       SteamPlaytimeSnapshot[]
+  enrichment      SteamGameEnrichment?
+  achievements    SteamGameAchievement[]
+  achievementMeta SteamGameAchievementMeta?
 }
 
 // Per-app metadata fetched from IStoreBrowseService/GetItems. One row per
@@ -95,6 +97,86 @@ model SteamGameEnrichment {
   tagIds               Int[]
   featureCategoryIds   Int[]
   enrichedAt           DateTime  @default(now())
+
+  game SteamOwnedGame @relation(fields: [appid], references: [appid])
+}
+
+// Per-game achievement schema from ISteamUserStats/GetSchemaForGame. Refreshed
+// monthly by SteamAchievementSchemaPoller. Games with no achievements (CS2,
+// demos, dedicated-launcher entries) leave no rows here — the meta sidecar's
+// `achievementCount` records the empty-stats check so the poller doesn't
+// thrash refetching empty schemas.
+//
+// `hidden = true` is Steam's spoiler flag: `displayName` + `description` render
+// as `???` placeholders while the achievement is locked. Once the owner
+// unlocks it the full text reveals (matches Steam's own client). Icon URLs
+// are absolute community-CDN paths returned directly by the API.
+model SteamGameAchievement {
+  appid           Int
+  apiName         String
+  displayName     String
+  description     String
+  iconUrl         String
+  iconGrayUrl     String
+  hidden          Boolean  @default(false)
+  schemaFetchedAt DateTime @default(now())
+
+  game   SteamOwnedGame                @relation(fields: [appid], references: [appid])
+  unlock SteamPlayerUnlock?
+  rarity SteamAchievementGlobalRarity?
+
+  @@id([appid, apiName])
+}
+
+// Per-owner unlock events from ISteamUserStats/GetPlayerAchievements. Each
+// achievement can only be unlocked once, so `(appid, apiName)` is the natural
+// PK. `unlockedAt` is the historical Steam `unlocktime` (every poll backfills
+// real history retroactively — the "Day 1 looks like year N" property called
+// out in the achievement family brainstorm). `recordedAt` is local — separates
+// game-timeline data from observability.
+model SteamPlayerUnlock {
+  appid      Int
+  apiName    String
+  unlockedAt DateTime
+  recordedAt DateTime @default(now())
+
+  achievement SteamGameAchievement @relation(fields: [appid, apiName], references: [appid, apiName])
+
+  @@id([appid, apiName])
+  @@index([unlockedAt])
+}
+
+// Global unlock percentage per achievement from
+// GetGlobalAchievementPercentagesForApp. Steam returns 0..100 as a float.
+// Refreshed weekly. Drives the rarity badge on the per-game panel + the
+// "rare unlock" annotation on the completion verdict card. Endpoint is
+// unauthenticated but routed through the limiter for consistency.
+model SteamAchievementGlobalRarity {
+  appid    Int
+  apiName  String
+  percent  Float
+  polledAt DateTime @default(now())
+
+  achievement SteamGameAchievement @relation(fields: [appid, apiName], references: [appid, apiName])
+
+  @@id([appid, apiName])
+}
+
+// Sidecar bookkeeping for the three achievement pollers (monthly schema,
+// daily unlocks, weekly rarity). Separated from SteamGameEnrichment because
+// the cadences and failure modes are independent — a schema-fetch failure
+// shouldn't block enrichment, and vice versa.
+//
+// `achievementCount` is the only persisted result: null = unknown, 0 =
+// checked, no achievements (skip future fetches), N > 0 = N achievements
+// known. Lets the schema poller short-circuit games like CS2 / demos
+// without re-fetching every month.
+model SteamGameAchievementMeta {
+  appid                Int       @id
+  achievementCount     Int?
+  lastSchemaCheckedAt  DateTime?
+  lastUnlocksCheckedAt DateTime?
+  lastRarityCheckedAt  DateTime?
 
   game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }

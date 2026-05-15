@@ -2,14 +2,20 @@ import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
+  SteamGameSchemaAchievementRaw,
+  SteamGetGameSchemaResponse,
+  SteamGetGlobalAchievementPercentagesResponse,
   SteamGetOwnedGamesResponse,
+  SteamGetPlayerAchievementsResponse,
   SteamGetPlayerSummariesResponse,
   SteamGetProfileItemsEquippedResponse,
   SteamGetStoreItemsFullResponse,
   SteamGetStoreItemsResponse,
   SteamGetTagListResponse,
   SteamGetWishlistResponse,
+  SteamGlobalAchievementPercentageRaw,
   SteamOwnedGameRaw,
+  SteamPlayerAchievementRaw,
   SteamPlayerRaw,
   SteamStoreItemFullRaw,
   SteamStoreItemRaw,
@@ -135,6 +141,48 @@ export class SteamClientService {
       const path = `/IStoreService/GetTagList/v1/?key=${encodeURIComponent(this.apiKey)}&language=english`;
       const data = await this.fetchJson<SteamGetTagListResponse>(path);
       return data.response.tags ?? [];
+    });
+  }
+
+  // Per-game achievement schema. Returns [] when the game has no achievements
+  // (CS2, demos, dedicated-launcher entries) — Steam returns 200 with `{ game: {} }`
+  // or `availableGameStats.stats` without an `achievements` key.
+  async getGameSchema(appid: number): Promise<SteamGameSchemaAchievementRaw[]> {
+    return this.limiter.schedule("game-schema", async () => {
+      const path = `/ISteamUserStats/GetSchemaForGame/v2/?key=${encodeURIComponent(this.apiKey)}&appid=${appid}&l=english`;
+      const data = await this.fetchJson<SteamGetGameSchemaResponse>(path);
+      return data.game.availableGameStats?.achievements ?? [];
+    });
+  }
+
+  // Owner's unlock state for every achievement defined in a game's schema.
+  // Returns `null` when Steam reports `success: false` — the game has no
+  // playerstats configured for this owner (never launched the stats subsystem,
+  // library hidden, or schema-less game). Distinct from the empty-array case
+  // (game has stats, owner has unlocked zero).
+  async getPlayerAchievements(
+    steamId: string,
+    appid: number
+  ): Promise<SteamPlayerAchievementRaw[] | null> {
+    return this.limiter.schedule("player-achievements", async () => {
+      const path = `/ISteamUserStats/GetPlayerAchievements/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}&appid=${appid}&l=english`;
+      const data = await this.fetchJson<SteamGetPlayerAchievementsResponse>(path);
+      if (!data.playerstats.success) return null;
+      return data.playerstats.achievements ?? [];
+    });
+  }
+
+  // Global unlock percentage per achievement. Public endpoint (no API key),
+  // but routed through the same limiter for budget bookkeeping. Returns []
+  // for games with no achievements.
+  async getGlobalAchievementPercentages(
+    appid: number
+  ): Promise<SteamGlobalAchievementPercentageRaw[]> {
+    return this.limiter.schedule("global-rarity", async () => {
+      const path = `/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/?gameid=${appid}`;
+      const data =
+        await this.fetchJson<SteamGetGlobalAchievementPercentagesResponse>(path);
+      return data.achievementpercentages.achievements ?? [];
     });
   }
 
