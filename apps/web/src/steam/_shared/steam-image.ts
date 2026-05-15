@@ -13,3 +13,18 @@ export function steamCapsuleUrl(appid: number, width = 231): string {
   const src = `shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/header.jpg`;
   return `https://wsrv.nl/?url=${src}&w=${width}&output=webp&q=85`;
 }
+
+// Library hero — the wide 1920×620 banner Steam uses behind library page game
+// headers. Proxied through wsrv.nl for resize + WebP transcode + caching.
+export function steamLibraryHeroUrl(appid: number, width = 1280): string {
+  const src = `shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/library_hero.jpg`;
+  return `https://wsrv.nl/?url=${src}&w=${width}&output=webp&q=85`;
+}
+
+// Logo overlay — transparent PNG with the game's wordmark, paired with the
+// library hero. Steam uses these together on its library page. Kept as PNG
+// through the proxy (no transcode) to preserve alpha.
+export function steamLibraryLogoUrl(appid: number, width = 480): string {
+  const src = `shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/logo.png`;
+  return `https://wsrv.nl/?url=${src}&w=${width}`;
+}
