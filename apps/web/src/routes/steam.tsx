@@ -107,14 +107,14 @@ function SteamLayout() {
                   alt=""
                   className={cn(
                     "rounded-full object-cover ring-1 ring-border transition-all",
-                    compact ? "size-7" : "size-9"
+                    compact ? "size-10" : "size-12"
                   )}
                 />
               ) : (
                 <div
                   className={cn(
                     "animate-pulse rounded-full bg-muted ring-1 ring-border transition-all",
-                    compact ? "size-7" : "size-9"
+                    compact ? "size-10" : "size-12"
                   )}
                 />
               )}
