@@ -23,7 +23,7 @@ const DEFAULTS: LibraryPrefs = {
   layout: "rows",
   sort: "lifetime",
   playedFilter: "all",
-  appTypeFilter: "all",
+  appTypeFilter: "game",
   selectedTagIds: [],
 };
 
