@@ -238,6 +238,8 @@ Scope (chunks set when scoped, per the phase-plan convention):
 - **Re-look at Steam web feature subfoldering** ([folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 3). `library` now meets the numeric ≥3-files threshold (chip + hook + route), `wishlist` and `platform-mix` still sit at 2 files each. Adding S4.5's new shared components is the moment to decide whether to subfolder one, two, or none — premature when only one bucket crosses the line, more obvious once S4.5 reshapes what's grouped together.
 - **Done when:** `/steam` is navigable as a section, not a card grid; achievement surfaces in S5 have an IA slot waiting for them rather than needing a structural retrofit.
 
+**Post-ship follow-up — LoL breadcrumb pass.** S4.5 is the first surface to actually wire in the shadcn `@/components/ui/breadcrumb` primitive (installed but never used pre-S4.5). Once it's the canonical pattern, do a consistency pass through the LoL section to find breadcrumb opportunities — `/lol/$accountSlug/matches/$matchId`, `/lol/$accountSlug/champions/$championKey`, and recap/trends leaves all currently rely on the `AccountLayout` tab bar + `BackButton` affordance without a breadcrumb trail. Decide per-surface whether a breadcrumb adds anything the tab bar doesn't (likely yes for the deep match/champion drill-ins, likely no for the top-level tabs). Lives in the same "Adjacent maintenance" lane as the folder-structure cleanup — tidy-up pass, not a content arc.
+
 Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing cross-doc references stable (notably the `lol-image-pipeline.md` Phase 4 "after Steam S5" sequencing decision, which refers to the achievement-surfaces-MVP milestone semantically).
 
 ### Phase S5 — Achievement surfaces MVP
