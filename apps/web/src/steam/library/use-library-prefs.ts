@@ -15,6 +15,7 @@ export interface LibraryPrefs {
   sort: LibrarySort;
   playedFilter: LibraryPlayedFilter;
   appTypeFilter: LibraryAppTypeFilter;
+  selectedTagIds: number[];
 }
 
 const STORAGE_KEY = "vyoh:steam-library-prefs";
@@ -23,6 +24,7 @@ const DEFAULTS: LibraryPrefs = {
   sort: "lifetime",
   playedFilter: "all",
   appTypeFilter: "all",
+  selectedTagIds: [],
 };
 
 // Narrow validator — drops the persisted value silently if an old client
@@ -44,6 +46,13 @@ function parsePrefs(raw: string | null): LibraryPrefs {
         parsed.appTypeFilter === "game" || parsed.appTypeFilter === "app"
           ? parsed.appTypeFilter
           : "all",
+      // Keep only finite integers — drops NaN, strings, or anything else an
+      // older persisted shape might smuggle through.
+      selectedTagIds: Array.isArray(parsed.selectedTagIds)
+        ? parsed.selectedTagIds.filter(
+            (x): x is number => typeof x === "number" && Number.isInteger(x)
+          )
+        : [],
     };
   } catch {
     return DEFAULTS;

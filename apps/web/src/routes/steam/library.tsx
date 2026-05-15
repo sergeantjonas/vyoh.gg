@@ -13,13 +13,21 @@ export const Route = createFileRoute("/steam/library")({
 
 function LibraryPage() {
   const { data, isPending, isError } = useSteamOwnedGames();
-  const [{ layout, sort, playedFilter, appTypeFilter }, updatePref] = useLibraryPrefs();
+  const [{ layout, sort, playedFilter, appTypeFilter, selectedTagIds }, updatePref] =
+    useLibraryPrefs();
   const [query, setQuery] = useState("");
 
   const games = data?.games ?? [];
   const visible = useMemo(
-    () => applyFilters(games, { query, sort, playedFilter, appTypeFilter }),
-    [games, query, sort, playedFilter, appTypeFilter]
+    () =>
+      applyFilters(games, {
+        query,
+        sort,
+        playedFilter,
+        appTypeFilter,
+        selectedTagIds,
+      }),
+    [games, query, sort, playedFilter, appTypeFilter, selectedTagIds]
   );
 
   return (
@@ -47,6 +55,7 @@ function LibraryPage() {
       {data && data.games.length > 0 && (
         <>
           <LibraryControls
+            games={data.games}
             query={query}
             onQueryChange={setQuery}
             sort={sort}
@@ -55,6 +64,8 @@ function LibraryPage() {
             onPlayedFilterChange={(v) => updatePref("playedFilter", v)}
             appTypeFilter={appTypeFilter}
             onAppTypeFilterChange={(v) => updatePref("appTypeFilter", v)}
+            selectedTagIds={selectedTagIds}
+            onSelectedTagIdsChange={(v) => updatePref("selectedTagIds", v)}
             layout={layout}
             onLayoutChange={(v) => updatePref("layout", v)}
             totalCount={data.games.length}
@@ -91,9 +102,14 @@ function applyFilters(
     sort: "lifetime" | "name" | "twoWeeks";
     playedFilter: "all" | "played" | "never";
     appTypeFilter: "all" | "game" | "app";
+    selectedTagIds: number[];
   }
 ): SteamOwnedGame[] {
   const q = opts.query.trim().toLowerCase();
+  // OR-match within the selected set — a game qualifies if it carries any one
+  // of the selected tags. Mirrors how Steam's own library filter behaves and
+  // keeps narrow selections useful (AND-matching would empty the list fast).
+  const tagSet = opts.selectedTagIds.length === 0 ? null : new Set(opts.selectedTagIds);
   const filtered = games.filter((g) => {
     if (opts.playedFilter === "played" && g.playtimeForeverMinutes === 0) return false;
     if (opts.playedFilter === "never" && g.playtimeForeverMinutes > 0) return false;
@@ -103,6 +119,7 @@ function applyFilters(
     if (opts.appTypeFilter === "game" && g.appType !== null && g.appType !== 0)
       return false;
     if (opts.appTypeFilter === "app" && g.appType !== 6) return false;
+    if (tagSet !== null && !g.tagIds.some((t) => tagSet.has(t))) return false;
     if (q !== "" && !g.name.toLowerCase().includes(q)) return false;
     return true;
   });

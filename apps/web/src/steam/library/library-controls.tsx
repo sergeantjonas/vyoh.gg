@@ -7,7 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { SteamOwnedGame } from "@vyoh/shared";
 import { LayoutGrid, List, Search } from "lucide-react";
+import { TagFilterPopover } from "./tag-filter-popover";
 import type {
   LibraryAppTypeFilter,
   LibraryLayout,
@@ -16,6 +18,7 @@ import type {
 } from "./use-library-prefs";
 
 interface LibraryControlsProps {
+  games: SteamOwnedGame[];
   query: string;
   onQueryChange: (next: string) => void;
   sort: LibrarySort;
@@ -24,6 +27,8 @@ interface LibraryControlsProps {
   onPlayedFilterChange: (next: LibraryPlayedFilter) => void;
   appTypeFilter: LibraryAppTypeFilter;
   onAppTypeFilterChange: (next: LibraryAppTypeFilter) => void;
+  selectedTagIds: number[];
+  onSelectedTagIdsChange: (next: number[]) => void;
   layout: LibraryLayout;
   onLayoutChange: (next: LibraryLayout) => void;
   totalCount: number;
@@ -31,6 +36,7 @@ interface LibraryControlsProps {
 }
 
 export function LibraryControls({
+  games,
   query,
   onQueryChange,
   sort,
@@ -39,6 +45,8 @@ export function LibraryControls({
   onPlayedFilterChange,
   appTypeFilter,
   onAppTypeFilterChange,
+  selectedTagIds,
+  onSelectedTagIdsChange,
   layout,
   onLayoutChange,
   totalCount,
@@ -100,6 +108,12 @@ export function LibraryControls({
             <SelectItem value="app">Tools</SelectItem>
           </SelectContent>
         </Select>
+
+        <TagFilterPopover
+          games={games}
+          selectedTagIds={selectedTagIds}
+          onChange={onSelectedTagIdsChange}
+        />
 
         <div className="ml-auto inline-flex rounded-lg border border-border">
           <Button
