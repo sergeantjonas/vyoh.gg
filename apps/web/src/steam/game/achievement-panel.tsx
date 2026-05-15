@@ -9,6 +9,10 @@ import { useGameAchievements } from "./use-game-achievements";
 // surrounding playtime card.
 const PREVIEW_COUNT = 12;
 
+// Search bar only renders when a game has at least this many achievements —
+// for small lists the input is chrome that costs more than it saves.
+const SEARCH_THRESHOLD = 30;
+
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
@@ -32,6 +36,7 @@ export function AchievementPanel({ appid }: AchievementPanelProps) {
   // there's no description text to reveal: the server genuinely doesn't
   // have it. Toggle: click again to re-mask.
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState("");
   const toggleReveal = (apiName: string) => {
     setRevealed((prev) => {
       const next = new Set(prev);
@@ -84,10 +89,27 @@ export function AchievementPanel({ appid }: AchievementPanelProps) {
 
   const total = data.achievements.length;
   const unlocked = data.achievements.filter((a) => a.unlockedAt !== null).length;
-  const visible = expanded
-    ? data.achievements
-    : data.achievements.slice(0, PREVIEW_COUNT);
-  const remaining = total - PREVIEW_COUNT;
+  const showSearch = total >= SEARCH_THRESHOLD;
+  // Filter on lowercase substring match against displayName + description.
+  // Hidden+locked rows match on their real `displayName` (Steam reveals it
+  // via the schema endpoint regardless of hidden flag), so the search will
+  // find a row even if the user hasn't clicked-to-reveal it yet — they can
+  // still find by description if they remember it. Locked rows that match
+  // stay masked visually; the search doesn't auto-reveal.
+  const normalized = query.trim().toLowerCase();
+  const filtered =
+    normalized === ""
+      ? data.achievements
+      : data.achievements.filter(
+          (a) =>
+            a.displayName.toLowerCase().includes(normalized) ||
+            a.description.toLowerCase().includes(normalized)
+        );
+  // Preview truncation only applies when search is inactive — once the user
+  // narrows down, show every hit.
+  const visible =
+    expanded || normalized !== "" ? filtered : filtered.slice(0, PREVIEW_COUNT);
+  const remaining = filtered.length - PREVIEW_COUNT;
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
@@ -99,6 +121,18 @@ export function AchievementPanel({ appid }: AchievementPanelProps) {
           {unlocked} / {total} unlocked
         </p>
       </header>
+      {showSearch && (
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Search ${total} achievements…`}
+          className="rounded-md border border-border/40 bg-background/40 px-3 py-1.5 text-sm placeholder:text-muted-foreground/60 focus:border-border focus:outline-none"
+        />
+      )}
+      {filtered.length === 0 && (
+        <p className="text-sm text-muted-foreground">No achievements match "{query}".</p>
+      )}
       <ul className="grid gap-2 sm:grid-cols-2">
         {visible.map((ach) => (
           <AchievementRow
@@ -109,7 +143,7 @@ export function AchievementPanel({ appid }: AchievementPanelProps) {
           />
         ))}
       </ul>
-      {!expanded && total > PREVIEW_COUNT && (
+      {!expanded && normalized === "" && total > PREVIEW_COUNT && (
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -142,6 +176,14 @@ function AchievementRow({
   const canReveal = a.hidden && !unlocked;
   const masked = canReveal && !isRevealed;
 
+  // Rare-treatment tiers. Steam's own client highlights very-rare achievements
+  // distinctly; on a dense grid this is the readability difference between
+  // "row 23 of 87" and "wait, that's a 0.4% unlock". Only applied to *unlocked*
+  // rows — locked-rare is a goal, not a flex, and shouldn't compete visually.
+  const isVeryRare = unlocked && a.globalPercent !== null && a.globalPercent < 1;
+  const isRare =
+    unlocked && a.globalPercent !== null && a.globalPercent < 5 && !isVeryRare;
+
   const inner = (
     <>
       <img
@@ -155,13 +197,30 @@ function AchievementRow({
           <p
             className={cn(
               "truncate text-sm font-medium",
-              unlocked ? "text-foreground" : "text-muted-foreground"
+              unlocked ? "text-foreground" : "text-muted-foreground",
+              isVeryRare && "text-amber-300",
+              isRare && "text-amber-200"
             )}
           >
+            {isVeryRare && (
+              <span aria-hidden className="mr-1 text-amber-300">
+                ★
+              </span>
+            )}
             {masked ? "???" : a.displayName}
           </p>
           {a.globalPercent !== null && (
-            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+            <span
+              className={cn(
+                "shrink-0 text-[10px] tabular-nums",
+                isVeryRare
+                  ? "font-semibold text-amber-300"
+                  : isRare
+                    ? "font-semibold text-amber-200"
+                    : "text-muted-foreground/70"
+              )}
+            >
+              {isVeryRare ? "Very rare · " : isRare ? "Rare · " : ""}
               {a.globalPercent.toFixed(1)}%
             </span>
           )}
@@ -185,14 +244,22 @@ function AchievementRow({
     </>
   );
 
-  // Strong unlocked/locked differentiation — was uniform before, which made
-  // glance-readability poor on long lists. Unlocked rows get a normal card
-  // background + emerald border accent on the left; locked rows recede via
-  // opacity + thinner border. Revealable rows surface a cursor + hover.
+  // Strong unlocked/locked differentiation + rare-tier highlight. Unlocked
+  // rows get a normal card background; locked rows recede via opacity +
+  // thinner border. Rare overrides the left accent from emerald → amber and
+  // adds a subtle amber wash; very-rare cranks the wash + a glow ring so
+  // a single 0.5% unlock visibly pops out of a dense grid.
   const className = cn(
     "flex w-full items-start gap-3 rounded-md border p-2.5 text-left transition-colors",
     unlocked
-      ? "border-border/60 border-l-2 border-l-emerald-500/50 bg-card/80"
+      ? cn(
+          "border-l-2 bg-card/80",
+          isVeryRare
+            ? "border-amber-300/60 border-l-amber-300 bg-amber-500/10 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.25)]"
+            : isRare
+              ? "border-amber-400/40 border-l-amber-400/70 bg-amber-500/[0.06]"
+              : "border-border/60 border-l-emerald-500/50"
+        )
       : "border-border/20 bg-background/20 opacity-65",
     canReveal && "cursor-pointer hover:bg-background/40 hover:opacity-90"
   );

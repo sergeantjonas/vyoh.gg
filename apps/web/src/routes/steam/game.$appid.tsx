@@ -13,6 +13,7 @@ import {
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
+import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -180,6 +181,7 @@ function SteamGamePage() {
         </dl>
       )}
 
+      {game && <CompletionVerdictCard appid={appid} />}
       {game && <AchievementPanel appid={appid} />}
     </div>
   );
