@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import {
+  steamCapsuleUrl,
   steamLibraryCapsuleUrl,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
@@ -81,11 +82,40 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
 
+  // wsrv.nl forwards upstream 404s as `200 OK` with an empty body, so a
+  // missing asset fires `onLoad` rather than `onError`. Promote the missing-
+  // image case to the failed branch via `naturalWidth === 0` — required for
+  // titles like CoD MW2 MP / MGSV GZ where the logo simply doesn't exist
+  // and we want the text fallback to render in its place.
+  const handleHeroLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (e.currentTarget.naturalWidth === 0) setHeroFailed(true);
+    else setHeroLoaded(true);
+  };
+  const handleLogoLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
+    else setLogoLoaded(true);
+  };
+
   if (heroFailed) {
+    // Truly artless titles (e.g. Deus Ex: HR — predates the library_hero
+    // spec) get a blurred header.jpg backdrop behind the wordmark. header.jpg
+    // is the most universally-available Steam asset; if it's also missing,
+    // the backdrop sits on `bg-muted` from the outer tile div.
     return (
-      <div className="flex h-full w-full items-center justify-center bg-card p-3 text-center">
-        <span className="line-clamp-4 text-sm font-medium">{game.name}</span>
-      </div>
+      <>
+        <img
+          src={steamCapsuleUrl(game.appid, game.headerPath, game.assetTimestamp, 600)}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 size-full scale-110 object-cover blur-sm"
+        />
+        <div className="absolute inset-0 bg-card/50" />
+        <div className="absolute inset-0 flex items-center justify-center p-3 text-center">
+          <span className="line-clamp-4 text-sm font-medium text-white drop-shadow-lg">
+            {game.name}
+          </span>
+        </div>
+      </>
     );
   }
 
@@ -100,7 +130,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
         )}
         alt=""
         loading="lazy"
-        onLoad={() => setHeroLoaded(true)}
+        onLoad={handleHeroLoad}
         onError={() => setHeroFailed(true)}
         className={cn(
           "absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out",
@@ -117,7 +147,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
           src={steamLibraryLogoUrl(game.appid, 360)}
           alt={game.name}
           loading="lazy"
-          onLoad={() => setLogoLoaded(true)}
+          onLoad={handleLogoLoad}
           onError={() => setLogoFailed(true)}
           className={cn(
             "absolute right-3 bottom-3 left-3 max-h-1/3 object-contain object-bottom drop-shadow-lg transition-opacity duration-500 ease-out",

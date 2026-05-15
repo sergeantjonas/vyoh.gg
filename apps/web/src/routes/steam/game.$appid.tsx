@@ -43,6 +43,18 @@ function SteamGamePage() {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
+  // wsrv.nl forwards upstream 404s as `200 OK` with empty bytes, so a missing
+  // asset fires `onLoad` instead of `onError`. Promote zero-width loads to
+  // the failed branch so the text fallback actually renders.
+  const handleHeroLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (e.currentTarget.naturalWidth === 0) setHeroFailed(true);
+    else setHeroLoaded(true);
+  };
+  const handleLogoLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
+    else setLogoLoaded(true);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb>
@@ -77,7 +89,7 @@ function SteamGamePage() {
             src={steamLibraryHeroUrl(appid, game?.libraryHeroPath, game?.assetTimestamp)}
             alt=""
             loading="eager"
-            onLoad={() => setHeroLoaded(true)}
+            onLoad={handleHeroLoad}
             onError={() => setHeroFailed(true)}
             className={cn(
               "absolute inset-0 size-full object-cover transition-opacity duration-500 ease-out",
@@ -95,7 +107,7 @@ function SteamGamePage() {
             src={steamLibraryLogoUrl(appid)}
             alt={game?.name ?? `App ${appidParam}`}
             loading="eager"
-            onLoad={() => setLogoLoaded(true)}
+            onLoad={handleLogoLoad}
             onError={() => setLogoFailed(true)}
             className={cn(
               "absolute bottom-4 left-4 h-1/3 max-w-[55%] object-contain object-bottom-left drop-shadow-lg transition-opacity duration-500 ease-out sm:bottom-6 sm:left-6",
