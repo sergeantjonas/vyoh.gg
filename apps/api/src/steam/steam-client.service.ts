@@ -7,11 +7,13 @@ import type {
   SteamGetProfileItemsEquippedResponse,
   SteamGetStoreItemsFullResponse,
   SteamGetStoreItemsResponse,
+  SteamGetTagListResponse,
   SteamGetWishlistResponse,
   SteamOwnedGameRaw,
   SteamPlayerRaw,
   SteamStoreItemFullRaw,
   SteamStoreItemRaw,
+  SteamTagListItemRaw,
   SteamWishlistItemRaw,
 } from "./types";
 
@@ -122,6 +124,17 @@ export class SteamClientService {
       const path = `/IStoreBrowseService/GetItems/v1/?key=${encodeURIComponent(this.apiKey)}&input_json=${encodeURIComponent(JSON.stringify(input))}`;
       const data = await this.fetchJson<SteamGetStoreItemsFullResponse>(path);
       return data.response.store_items ?? [];
+    });
+  }
+
+  // Global community-tag catalog (id → name). Backs the library filter
+  // popover's label resolver. Pulled monthly by SteamTagPoller — Steam adds
+  // tags rarely enough that a daily refresh would be wasted budget.
+  async getTagList(): Promise<SteamTagListItemRaw[]> {
+    return this.limiter.schedule("tag-list", async () => {
+      const path = `/IStoreService/GetTagList/v1/?key=${encodeURIComponent(this.apiKey)}&language=english`;
+      const data = await this.fetchJson<SteamGetTagListResponse>(path);
+      return data.response.tags ?? [];
     });
   }
 

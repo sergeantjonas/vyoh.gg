@@ -4,16 +4,19 @@ import type {
   SteamOwnedGames,
   SteamPlatformMix,
   SteamSummary,
+  SteamTagCatalog,
   SteamWishlist,
 } from "@vyoh/shared";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamService } from "./steam.service";
+import { SteamTagService } from "./tag.service";
 
 @Controller("steam")
 export class SteamController {
   constructor(
     private readonly steam: SteamService,
-    private readonly ownedGames: SteamOwnedGamesService
+    private readonly ownedGames: SteamOwnedGamesService,
+    private readonly tags: SteamTagService
   ) {}
 
   @Get("summary")
@@ -39,5 +42,10 @@ export class SteamController {
   @Get("owned-games")
   async getOwnedGames(): Promise<SteamOwnedGames> {
     return this.ownedGames.getOwnedGames();
+  }
+
+  @Get("tags")
+  async getTags(): Promise<SteamTagCatalog> {
+    return this.tags.getCatalog();
   }
 }

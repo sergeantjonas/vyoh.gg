@@ -3,12 +3,14 @@ import type {
   SteamLibrarySummary,
   SteamPlatformMix,
   SteamSummary,
+  SteamTagCatalog,
   SteamWishlist,
 } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
+import { SteamTagService } from "./tag.service";
 
 describe("SteamController", () => {
   it("delegates to SteamService.getOwnerSummary", async () => {
@@ -28,6 +30,7 @@ describe("SteamController", () => {
       providers: [
         { provide: SteamService, useValue: { getOwnerSummary: stub } },
         { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
       ],
     }).compile();
 
@@ -57,6 +60,7 @@ describe("SteamController", () => {
       providers: [
         { provide: SteamService, useValue: { getOwnerWishlist: stub } },
         { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
       ],
     }).compile();
 
@@ -79,6 +83,7 @@ describe("SteamController", () => {
       providers: [
         { provide: SteamService, useValue: {} },
         { provide: SteamOwnedGamesService, useValue: { getLibrarySummary: stub } },
+        { provide: SteamTagService, useValue: {} },
       ],
     }).compile();
 
@@ -104,11 +109,36 @@ describe("SteamController", () => {
       providers: [
         { provide: SteamService, useValue: {} },
         { provide: SteamOwnedGamesService, useValue: { getPlatformMix: stub } },
+        { provide: SteamTagService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getPlatformMix()).resolves.toBe(mix);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamTagService.getCatalog", async () => {
+    const catalog: SteamTagCatalog = {
+      tags: [
+        { id: 1625, name: "Platformer" },
+        { id: 1628, name: "Metroidvania" },
+      ],
+      lastSyncedAt: "2026-05-15T00:00:00.000Z",
+    };
+    const stub = vi.fn().mockResolvedValue(catalog);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: { getCatalog: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getTags()).resolves.toBe(catalog);
     expect(stub).toHaveBeenCalledOnce();
   });
 });

@@ -169,6 +169,22 @@ export interface SteamProfileItemRaw {
   item_class?: number;
 }
 
+// IStoreService/GetTagList — full community-tag catalog. The endpoint also
+// accepts `have_version_hash` for an "unchanged" short-circuit; we don't pass
+// it because the monthly cadence is cheap enough that a full pull is simpler
+// than threading the hash through.
+export interface SteamTagListItemRaw {
+  tagid: number;
+  name: string;
+}
+
+export interface SteamGetTagListResponse {
+  response: {
+    version_hash?: string;
+    tags?: SteamTagListItemRaw[];
+  };
+}
+
 export interface SteamGetProfileItemsEquippedResponse {
   response: {
     profile_background?: SteamProfileItemRaw;

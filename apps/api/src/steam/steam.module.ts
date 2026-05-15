@@ -7,6 +7,8 @@ import { SteamRateLimiterService } from "./rate-limiter.service";
 import { SteamClientService } from "./steam-client.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
+import { SteamTagPoller } from "./tag.poller";
+import { SteamTagService } from "./tag.service";
 
 @Module({
   controllers: [SteamController],
@@ -18,6 +20,8 @@ import { SteamService } from "./steam.service";
     SteamOwnedGamesPoller,
     SteamEnrichmentService,
     SteamEnrichmentPoller,
+    SteamTagService,
+    SteamTagPoller,
   ],
   exports: [
     SteamService,
@@ -25,6 +29,7 @@ import { SteamService } from "./steam.service";
     SteamRateLimiterService,
     SteamOwnedGamesService,
     SteamEnrichmentService,
+    SteamTagService,
   ],
 })
 export class SteamModule {}

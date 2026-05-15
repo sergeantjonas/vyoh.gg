@@ -99,6 +99,19 @@ model SteamGameEnrichment {
   game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }
 
+// Steam's global community-tag catalog (id → name). Pulled monthly from
+// IStoreService/GetTagList. Resolves the `tagIds` carried on
+// SteamGameEnrichment into human labels for the library filter popover.
+// Decoupled from owned games on purpose — the catalog is global and Steam
+// occasionally adds tags, so the cron is a separate concern from the per-app
+// enrichment refresh. `updatedAt` carries the row's last touch (insert or
+// rename); the `lastSyncedAt` API field uses the table's max of this column.
+model SteamTag {
+  id        Int      @id
+  name      String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 model SteamPlaytimeSnapshot {
   appid                  Int
   snapshotDate           DateTime @db.Date
