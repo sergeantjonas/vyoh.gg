@@ -2,8 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
-  SteamGameSchemaAchievementRaw,
-  SteamGetGameSchemaResponse,
+  SteamGameAchievementSchema,
+  SteamGetGameAchievementsResponse,
   SteamGetGlobalAchievementPercentagesResponse,
   SteamGetOwnedGamesResponse,
   SteamGetPlayerAchievementsResponse,
@@ -144,14 +144,28 @@ export class SteamClientService {
     });
   }
 
-  // Per-game achievement schema. Returns [] when the game has no achievements
-  // (CS2, demos, dedicated-launcher entries) — Steam returns 200 with `{ game: {} }`
-  // or `availableGameStats.stats` without an `achievements` key.
-  async getGameSchema(appid: number): Promise<SteamGameSchemaAchievementRaw[]> {
+  // Per-game achievement schema. Sourced from IPlayerService/GetGameAchievements
+  // (newer endpoint that, unlike ISteamUserStats/GetSchemaForGame, returns the
+  // real `localized_desc` for hidden achievements — the older schema endpoint
+  // blanked them anti-spoiler). Returns [] when the game has no achievements
+  // (CS2, demos, dedicated-launcher entries).
+  //
+  // Icons are composed at the boundary: the new endpoint returns filenames
+  // only, the old returned absolute URLs. Downstream sees the same
+  // `iconUrl`/`iconGrayUrl` shape regardless.
+  async getGameAchievementSchema(appid: number): Promise<SteamGameAchievementSchema[]> {
     return this.limiter.schedule("game-schema", async () => {
-      const path = `/ISteamUserStats/GetSchemaForGame/v2/?key=${encodeURIComponent(this.apiKey)}&appid=${appid}&l=english`;
-      const data = await this.fetchJson<SteamGetGameSchemaResponse>(path);
-      return data.game.availableGameStats?.achievements ?? [];
+      const path = `/IPlayerService/GetGameAchievements/v1/?key=${encodeURIComponent(this.apiKey)}&appid=${appid}&language=english`;
+      const data = await this.fetchJson<SteamGetGameAchievementsResponse>(path);
+      const rows = data.response.achievements ?? [];
+      return rows.map((r) => ({
+        apiName: r.internal_name,
+        displayName: r.localized_name,
+        description: r.localized_desc,
+        iconUrl: `https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/${appid}/${r.icon}`,
+        iconGrayUrl: `https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/${appid}/${r.icon_gray}`,
+        hidden: r.hidden,
+      }));
     });
   }
 

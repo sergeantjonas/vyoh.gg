@@ -187,33 +187,52 @@ export interface SteamGetTagListResponse {
 
 // ISteamUserStats/GetSchemaForGame/v2/. Games with no stats (demos,
 // dedicated-launcher entries) return `{ game: {} }`. Games with stats but
-// no achievements (CS2 historically) return `availableGameStats.stats` and
-// omit `achievements` entirely. We only surface achievements — `stats` is
-// a separate Steam concept (numeric counters) that isn't on the roadmap.
+// IPlayerService/GetGameAchievements/v1/. Supersedes ISteamUserStats/
+// GetSchemaForGame for our use case: the older schema endpoint blanks
+// `description` on hidden achievements anti-spoiler (caller can't be
+// identified). This newer endpoint returns the real `localized_desc`
+// for hidden rows. Anonymous-callable; the param is `language=english`
+// (not `l=english` — `l` returns an empty `{"response":{}}` here). As
+// a bonus, `player_percent_unlocked` carries the same global rarity the
+// v0002 rarity endpoint exposes, but we still rely on the separate
+// rarity poller until that consolidation lands. Empty `achievements`
+// array (or missing key) for games without an achievement schema.
 //
-// `hidden = 1` is Steam's spoiler flag: the client must mask `displayName`
-// and `description` until the owner unlocks the achievement. `icon` and
-// `icongray` are absolute community-CDN URLs returned directly.
-export interface SteamGameSchemaAchievementRaw {
-  name: string; // internal apiName (e.g. "ACH_KILL_BOSS")
-  defaultvalue: number;
-  displayName: string;
-  hidden: 0 | 1;
-  description?: string;
+// Icon fields are filenames only (e.g. `"abc.jpg"`), not absolute URLs
+// like the old endpoint returned. The client method composes the full
+// community-CDN URL at the boundary so downstream sees the same
+// `iconUrl`/`iconGrayUrl` strings the previous endpoint produced.
+export interface SteamPlayerServiceAchievementRaw {
+  internal_name: string;
+  localized_name: string;
+  localized_desc: string;
   icon: string;
-  icongray: string;
+  icon_gray: string;
+  hidden: boolean;
+  player_percent_unlocked: string; // float-as-string, e.g. "17.9"
+  internal_key: number;
+  min_progress: number;
+  max_progress: number;
+  groupid: number;
+  archived: boolean;
 }
 
-export interface SteamGameSchemaAvailableStatsRaw {
-  achievements?: SteamGameSchemaAchievementRaw[];
-}
-
-export interface SteamGetGameSchemaResponse {
-  game: {
-    gameName?: string;
-    gameVersion?: string;
-    availableGameStats?: SteamGameSchemaAvailableStatsRaw;
+export interface SteamGetGameAchievementsResponse {
+  response: {
+    achievements?: SteamPlayerServiceAchievementRaw[];
   };
+}
+
+// Normalized internal shape the schema service consumes. Decouples the
+// schema service from the raw endpoint response so we can swap endpoints
+// (or consolidate) without rippling field-name churn.
+export interface SteamGameAchievementSchema {
+  apiName: string;
+  displayName: string;
+  description: string;
+  iconUrl: string;
+  iconGrayUrl: string;
+  hidden: boolean;
 }
 
 // ISteamUserStats/GetPlayerAchievements/v1/. When `success` is false the

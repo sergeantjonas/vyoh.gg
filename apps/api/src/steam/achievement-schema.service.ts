@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
-import type { SteamGameSchemaAchievementRaw } from "./types";
+import type { SteamGameAchievementSchema } from "./types";
 
 export interface SchemaRefreshResult {
   fetched: number;
@@ -38,9 +38,9 @@ export class SteamAchievementSchemaService {
     let failed = 0;
 
     for (const appid of appids) {
-      let achievements: SteamGameSchemaAchievementRaw[];
+      let achievements: SteamGameAchievementSchema[];
       try {
-        achievements = await this.client.getGameSchema(appid);
+        achievements = await this.client.getGameAchievementSchema(appid);
       } catch (err) {
         failed += 1;
         this.logger.warn(`schema fetch for appid=${appid} failed: ${err}`);
@@ -51,23 +51,23 @@ export class SteamAchievementSchemaService {
       await this.prisma.$transaction(async (tx) => {
         for (const a of achievements) {
           await tx.steamGameAchievement.upsert({
-            where: { appid_apiName: { appid, apiName: a.name } },
+            where: { appid_apiName: { appid, apiName: a.apiName } },
             create: {
               appid,
-              apiName: a.name,
+              apiName: a.apiName,
               displayName: a.displayName,
-              description: a.description ?? "",
-              iconUrl: a.icon,
-              iconGrayUrl: a.icongray,
-              hidden: a.hidden === 1,
+              description: a.description,
+              iconUrl: a.iconUrl,
+              iconGrayUrl: a.iconGrayUrl,
+              hidden: a.hidden,
               schemaFetchedAt: now,
             },
             update: {
               displayName: a.displayName,
-              description: a.description ?? "",
-              iconUrl: a.icon,
-              iconGrayUrl: a.icongray,
-              hidden: a.hidden === 1,
+              description: a.description,
+              iconUrl: a.iconUrl,
+              iconGrayUrl: a.iconGrayUrl,
+              hidden: a.hidden,
               schemaFetchedAt: now,
             },
           });
