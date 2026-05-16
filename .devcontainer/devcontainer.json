@@ -3,10 +3,6 @@
   "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
 
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "22",
-      "nvmVersion": "none"
-    },
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": false
@@ -22,6 +18,10 @@
     "source=${localEnv:HOME}/.claude,target=${localEnv:HOME}/.claude,type=bind,consistency=cached"
   ],
 
+  "containerEnv": {
+    "TZ": "Europe/Brussels"
+  },
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -29,8 +29,7 @@
         "biomejs.biome",
         "ms-azuretools.vscode-docker",
         "prisma.prisma",
-        "bradlc.vscode-tailwindcss",
-        "antfu.unocss"
+        "bradlc.vscode-tailwindcss"
       ],
       "settings": {
         "editor.formatOnSave": true,
