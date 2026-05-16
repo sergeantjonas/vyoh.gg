@@ -181,6 +181,30 @@ model SteamGameAchievementMeta {
   game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }
 
+// Singleton-ish state for the live owner — refreshed every 2 min by
+// SteamPlayerStatePoller (1 call to GetPlayerSummaries). Drives the
+// "Now playing" chip and (in later S6 chunks) acts as the event source
+// for persisted play sessions + event-driven achievement refresh.
+//
+// `currentAppid` mirrors GetPlayerSummaries' `gameid` field (null when
+// not in-game). `currentGameName` is the `gameextrainfo` snapshot kept
+// inline so the chip can render the human label without a second lookup
+// against owned-games — and so it still renders for non-owned titles
+// (friend's shared library, family-share, etc.). `personaState` stores
+// the already-normalized string union from SteamSummary so the read
+// endpoint doesn't have to re-map on every request.
+model SteamPlayerState {
+  steamId           String   @id
+  personaName       String
+  avatarUrl         String
+  personaState      String
+  profileVisibility Int
+  currentAppid      Int?
+  currentGameName   String?
+  lastPolledAt      DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 // Steam's global community-tag catalog (id → name). Pulled monthly from
 // IStoreService/GetTagList. Resolves the `tagIds` carried on
 // SteamGameEnrichment into human labels for the library filter popover.

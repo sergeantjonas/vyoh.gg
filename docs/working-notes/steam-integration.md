@@ -308,19 +308,31 @@ Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing c
 
 **Chunk 6 (S5.A) shipped 2026-05-15** — per-game `AchievementPanel` wired into `routes/steam/game.$appid.tsx` below the playtime block. New `useGameAchievements` TanStack hook mirroring the owned-games pattern (30min stale-time matches the daily poller cadence; same shape as `useSteamOwnedGames`/`useSteamTags`). Panel renders nothing when `data.achievements === null` (game has no schema — CS2, demos), an "in flight" hint when the schema exists but rows haven't ingested yet (first-deploy edge case), and otherwise a 2-column grid of unlocked-newest-first / locked-alpha rows (server already sorts). Default preview is 12 rows with a "Show N more" expand affordance — large libraries (Stardew ~50, Hades 49, occasional 100+) don't need virtualization at this scale and the preview keeps the playtime block from being dwarfed. **Spoiler masking lives on the frontend** per the S4 decision: server returns truth, and the row renders `???` + "Hidden achievement" only when `hidden && !unlockedAt`. Once unlocked, hidden achievements reveal fully — matches Steam client behavior. Locked icons use `iconGrayUrl` at 60% opacity; unlocked use the full `iconUrl`. Global rarity (when available) renders right-aligned alongside the display name. The "achievements...land in a later phase" copy in the page subtitle was replaced with the active framing.
 
-### Phase S6 — Achievement signature surfaces
+### Phase S6 — Live presence + event-driven unlocks
+
+`GetPlayerSummaries` is the cheapest Steam endpoint we touch (one call per tick regardless of library size). Poll it often, use the state transitions as the *signal source*: when the owner stops playing a game, fire an achievement refresh for that specific appid — collapses the S5 full-library unlocks sweep (13.6k → ~3k calls/day) while making "you just earned X" detection effectively near-realtime. "Now playing: X" chip + future activity feed fall out of the same data.
+
+**Chunk 1 (S6.A) shipped 2026-05-16** — persisted player-state foundation. New `SteamPlayerState` model (singleton by `steamId`, holds `personaName`, `avatarUrl`, normalized `personaState` string, `profileVisibility` int, `currentAppid`/`currentGameName` for in-game state, plus `lastPolledAt` + `updatedAt`). `SteamPlayerStateService` does a single `GetPlayerSummaries` call → upsert; persona-state mapping duplicates the constant from `SteamService` rather than refactoring shared code (this row becomes the canonical home going forward — later chunks read sessions off this table). `SteamPlayerStatePoller` runs every 2 min (`*/2 * * * *` Europe/Brussels) — 720 calls/day, sub-1% of Steam's budget — with anti-overlap guard and a boot backfill via `OnModuleInit` so the read endpoint serves a row immediately. New shared DTO `SteamPlayerState` reuses `SteamCurrentGame` from `SteamSummary`. New `GET /steam/player-state` endpoint translates a null state row to 404 (boot-backfill should close that gap; frontend handles it as a loading state). Distinct from `/steam/summary` which makes a live call + fetches equipped cosmetics — the cached path is what surfaces poll on a short stale-time without amplifying Steam load. Migration `20260516001515_s6_player_state`.
+
+**Chunk 2 (S6.B) shipped 2026-05-16** — "Now playing" chip on Profile. New `useSteamPlayerState` TanStack hook with 30s stale-time + 30s `refetchInterval` (matched to the 2-min server cadence so the chip notices in-game/leave-game transitions within ~30s of the next poller tick); 404s don't retry (fresh-DB gap). New `NowPlayingChip` composes `CardShell` directly: in-game state gets emerald-accented border + pulsing live dot + 231×87 capsule image (via existing `steamCapsuleUrl` — falls through to legacy `header.jpg` filename since the chip can hit non-owned/family-shared appids without enrichment data) wrapped in a `<Link to="/steam/game/$appid">`; not-in-game falls back to a regular chip with persona-state dot (online=sky, busy/away=amber, offline=muted) + "Last checked N min ago" relative-time evidence. Wired into `routes/steam/index.tsx` as the first chip in the grid. Inline `Intl.RelativeTimeFormat` helper covers minute/hour/day buckets without a new util — single use site.
+
+**Chunk 3 (S6.C) planned** — persist session transitions. New `SteamPlaySession` model (`id`, `appid`, `startedAt`, `endedAt?`, `gameNameSnapshot`). Poller detects transitions on each tick: `null → X` opens, `X → Y` closes-then-opens, `X → null` closes. Boot reconciliation: any "open" session older than 10 min (gap larger than 2 poll intervals) gets force-closed so process restarts don't leave dangling rows. No UI surface yet — backend prep for chunk 4.
+
+**Chunk 4 (S6.D) planned** — event-driven unlocks + recently-played backstop. On session-close, fire `refreshUnlocksForGame(appid)` inline (factor out from existing sweep). Slow the current `player-unlocks.poller` from `5,20,35,50 * * * *` (every 15 min) to every 4 hours as a backstop. New `getRecentlyPlayedGames()` + hourly poller refreshing unlocks for games with a `playtime_2weeks` delta — covers offline-play sessions the in-game detector missed. Keep weekly full sweep. Net: ~13.6k → ~3k calls/day on the unlocks path, *plus* near-realtime "you just earned X" detection on every session-end.
+
+### Phase S7 — Achievement signature surfaces
 
 Rarity-weighted score, time-to-100%, hidden-unlock reveal, stuck-at-X / abandoned-at-X mirrors. Per-game `ConclusionCard` expansion.
 
-### Phase S7 — Temporal + cross-stream
+### Phase S8 — Temporal + cross-stream
 
 Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S4 achievement-anchor reconstruction), weekly gaming-total bento card, session-length distribution. The cross-stream payoff lands here.
 
-### Phase S8 — Yearly + career-narrative
+### Phase S9 — Yearly + career-narrative
 
 Your year in achievements, 100%'d games hall, cross-stream yearly hero. Folds Steam into the existing yearly-recap engine.
 
-S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S8 build on S4. S4.6 is independent of the achievement arc and can land in parallel with S5.
+S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S9 build on S4. S4.6 is independent of the achievement arc and can land in parallel with S5. S6 is independent of S5's remaining chunks (8 + 9) and chosen to land first because the unlocks-cadence question naturally bleeds into it.
 
 ---
 

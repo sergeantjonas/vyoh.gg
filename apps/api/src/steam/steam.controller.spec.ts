@@ -1,7 +1,9 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type {
   SteamLibrarySummary,
   SteamPlatformMix,
+  SteamPlayerState,
   SteamSummary,
   SteamTagCatalog,
   SteamWishlist,
@@ -9,6 +11,7 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 import { SteamAchievementsService } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
+import { SteamPlayerStateService } from "./player-state.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
@@ -33,6 +36,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
@@ -64,6 +68,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
@@ -88,6 +93,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: { getLibrarySummary: stub } },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
@@ -115,6 +121,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: { getPlatformMix: stub } },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
@@ -140,6 +147,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: { getCatalog: stub } },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
@@ -165,6 +173,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getGameAchievements: stub } },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
@@ -184,11 +193,58 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getRecentUnlocks: stub } },
+        { provide: SteamPlayerStateService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getRecentUnlocks(8)).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledWith(8);
+  });
+
+  it("delegates to SteamPlayerStateService.getPlayerState", async () => {
+    const state: SteamPlayerState = {
+      steamId: "76561198020053778",
+      personaName: "Vyoh",
+      avatarUrl: "https://example.com/avatar_full.jpg",
+      personaState: "online",
+      profileVisibility: 3,
+      currentGame: { appid: 730, name: "Counter-Strike 2" },
+      lastPolledAt: "2026-05-16T00:00:00.000Z",
+    };
+    const stub = vi.fn().mockResolvedValue(state);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getPlayerState()).resolves.toBe(state);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("translates a null player-state into a NotFoundException", async () => {
+    const stub = vi.fn().mockResolvedValue(null);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getPlayerState()).rejects.toBeInstanceOf(NotFoundException);
   });
 });

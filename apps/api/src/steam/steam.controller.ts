@@ -2,6 +2,7 @@ import {
   Controller,
   DefaultValuePipe,
   Get,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Query,
@@ -11,6 +12,7 @@ import type {
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatformMix,
+  SteamPlayerState,
   SteamRecentUnlocks,
   SteamSummary,
   SteamTagCatalog,
@@ -21,6 +23,7 @@ import {
   SteamAchievementsService,
 } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
+import { SteamPlayerStateService } from "./player-state.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
 
@@ -30,12 +33,29 @@ export class SteamController {
     private readonly steam: SteamService,
     private readonly ownedGames: SteamOwnedGamesService,
     private readonly tags: SteamTagService,
-    private readonly achievements: SteamAchievementsService
+    private readonly achievements: SteamAchievementsService,
+    private readonly playerState: SteamPlayerStateService
   ) {}
 
   @Get("summary")
   async getSummary(): Promise<SteamSummary> {
     return this.steam.getOwnerSummary();
+  }
+
+  // Cached presence snapshot, refreshed every 2 min by the player-state
+  // poller. Distinct from `/summary` (which makes a live call + fetches
+  // equipped cosmetics): this is the path frontend surfaces poll on a
+  // 30–60s stale-time to drive "Now playing" without amplifying Steam load.
+  @Get("player-state")
+  async getPlayerState(): Promise<SteamPlayerState> {
+    const state = await this.playerState.getPlayerState();
+    if (!state) {
+      // Boot backfill should close this gap immediately — a 404 here means
+      // the table is genuinely empty (fresh DB, poller hasn't finished its
+      // first call). Frontend renders nothing while it waits.
+      throw new NotFoundException("Steam player state not yet populated.");
+    }
+    return state;
   }
 
   @Get("wishlist")
