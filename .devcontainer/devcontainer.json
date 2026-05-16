@@ -30,7 +30,6 @@
         "ms-azuretools.vscode-docker",
         "prisma.prisma",
         "bradlc.vscode-tailwindcss",
-        "ms-vscode.vscode-typescript-next",
         "antfu.unocss"
       ],
       "settings": {
