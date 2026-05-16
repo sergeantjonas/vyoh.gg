@@ -142,10 +142,23 @@ export function LibraryControls({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {visibleCount === totalCount
-          ? `${totalCount.toLocaleString("en-US")} ${totalCount === 1 ? "game" : "games"}`
-          : `${visibleCount.toLocaleString("en-US")} of ${totalCount.toLocaleString("en-US")} games`}
+        {countLabel(appTypeFilter, visibleCount, totalCount)}
       </p>
     </div>
   );
+}
+
+function countLabel(
+  appTypeFilter: LibraryAppTypeFilter,
+  visibleCount: number,
+  totalCount: number
+): string {
+  const unit =
+    appTypeFilter === "app" ? "tool" : appTypeFilter === "game" ? "game" : "item";
+  const noun = totalCount === 1 ? unit : `${unit}s`;
+  const visible = visibleCount.toLocaleString("en-US");
+  const total = totalCount.toLocaleString("en-US");
+  return visibleCount === totalCount
+    ? `${total} ${noun}`
+    : `${visible} of ${total} ${noun}`;
 }

@@ -18,6 +18,15 @@ function LibraryPage() {
   const [query, setQuery] = useState("");
 
   const games = data?.games ?? [];
+  // The denominator on "X of Y items" should reflect the active type filter
+  // ("Games"/"Tools") — otherwise it includes the other type and reads as a
+  // bug ("167 of 175 games" when 8 of those 175 are tools).
+  const typedTotal = useMemo(() => {
+    if (appTypeFilter === "all") return games.length;
+    if (appTypeFilter === "game")
+      return games.filter((g) => g.appType === null || g.appType === 0).length;
+    return games.filter((g) => g.appType === 6).length;
+  }, [games, appTypeFilter]);
   const visible = useMemo(
     () =>
       applyFilters(games, {
@@ -68,7 +77,7 @@ function LibraryPage() {
             onSelectedTagIdsChange={(v) => updatePref("selectedTagIds", v)}
             layout={layout}
             onLayoutChange={(v) => updatePref("layout", v)}
-            totalCount={data.games.length}
+            totalCount={typedTotal}
             visibleCount={visible.length}
           />
 

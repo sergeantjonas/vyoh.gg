@@ -20,7 +20,7 @@ export interface LibraryPrefs {
 
 const STORAGE_KEY = "vyoh:steam-library-prefs";
 const DEFAULTS: LibraryPrefs = {
-  layout: "rows",
+  layout: "tiles",
   sort: "lifetime",
   playedFilter: "all",
   appTypeFilter: "game",
@@ -35,7 +35,7 @@ function parsePrefs(raw: string | null): LibraryPrefs {
   try {
     const parsed = JSON.parse(raw) as Partial<LibraryPrefs>;
     return {
-      layout: parsed.layout === "tiles" ? "tiles" : "rows",
+      layout: parsed.layout === "rows" ? "rows" : "tiles",
       sort:
         parsed.sort === "name" || parsed.sort === "twoWeeks" ? parsed.sort : "lifetime",
       playedFilter:
