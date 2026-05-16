@@ -4,6 +4,8 @@ Working plan for two new views and a cross-cutting habits/insights pass. Read th
 
 This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope.
 
+**Status (2026-05-16): Phases 0–6 all shipped.** Profile landing, Champion detail, habits/insights, LP history, season detection, and the role strip are all live. The detail is preserved below as a planning record; full ship-state with commit refs lives in the [Status section](#status) further down. No outstanding planning work in this note — adjacent Profile additions are tracked under [home-deck.md](home-deck.md) (cross-stream tiles) and [self-portrait-surfaces.md](self-portrait-surfaces.md) (candidate surfaces).
+
 ---
 
 ## Guiding principles

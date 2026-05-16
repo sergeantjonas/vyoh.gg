@@ -4,6 +4,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 **Maintenance rule:** when an item ships, descopes, splits, or promotes, edit this file in the same commit that lands the change. The detail lives in the owning note; this index only carries a one-line pointer and the current state. Entries here should never grow beyond a sentence.
 
+**Companion index:** [parked.md](parked.md) carries the inverse — items deliberately set aside until a trigger condition holds. Read it when looking for "what could we revisit when the mood strikes."
+
 ---
 
 ## Tracked arcs — next action

@@ -4,6 +4,8 @@ Working plan for reframing the Trends page from a "raw stats dashboard" into a "
 
 This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. Companion to [views-roadmap.md](views-roadmap.md) (which originally established the Profile/Champion-detail tracks) and [match-depth-roadmap.md](match-depth-roadmap.md) (which informs the Phase T4 dependencies below).
 
+**Status (2026-05-16): all phases shipped.** T1 + T2 + T3 (7 tiles) + T4 (Phase-A + Phase-B trios) live. Decision log frozen at 2026-05-10. The detail is preserved below as a planning record; full ship-state lives in the [Status section](#status) further down. No outstanding planning work in this note — new trends tiles enter via [vnext-ideas.md](vnext-ideas.md) or [personal-baselines.md](personal-baselines.md).
+
 ---
 
 ## Premise

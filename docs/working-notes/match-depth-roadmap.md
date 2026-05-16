@@ -4,6 +4,8 @@ Working plan for expanding the match detail page, adding a live-game view, and l
 
 This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. See [views-roadmap.md](views-roadmap.md) for the parallel Profile/Champion-detail track.
 
+**Status (2026-05-16): Phases A + B + C shipped; D and E partial.** Match detail / timeline / live game all live. Outstanding D items (squad detection, LP-overlay per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7) and E remainders (full rune page, composite S grade) are tracked in [open-work.md](open-work.md). Parked sub-items (build-order component-collapse, hover-highlight, boot collapse, soul drake type) are listed in [parked.md](parked.md). Full Status section with commit refs is [further down](#status).
+
 ---
 
 ## Guiding principles
