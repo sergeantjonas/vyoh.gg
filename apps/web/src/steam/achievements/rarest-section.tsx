@@ -4,7 +4,7 @@ import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
 import { Link } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
 
-const RAREST_LIMIT = 10;
+const RAREST_LIMIT = 50;
 
 // Matches the per-game RarestUnlockCard vocabulary so the cross-game and
 // per-game surfaces read in the same register.

@@ -19,7 +19,7 @@ import { useRef } from "react";
 // every entry that clears the sub-10% gate, so the upper bound is "how many
 // rare unlocks worth surfacing" not "how many tiles fit on screen". The gate
 // itself keeps the case meaningful as the library grows.
-const FETCH_LIMIT = 20;
+const FETCH_LIMIT = 50;
 const RARITY_GATE = 10;
 
 interface TrophyEntry {
