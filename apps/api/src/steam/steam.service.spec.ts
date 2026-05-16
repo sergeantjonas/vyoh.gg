@@ -157,12 +157,14 @@ describe("SteamService.getOwnerWishlist", () => {
         success: 1,
         name: "Alien: Isolation",
         store_url_path: "app/214490/Alien_Isolation",
+        release: { steam_release_date: 1412899200, is_coming_soon: false },
       },
       {
         appid: 383870,
         success: 1,
         name: "Firewatch",
         store_url_path: "app/383870/Firewatch",
+        release: { steam_release_date: 1455580800, is_coming_soon: false },
       },
     ]);
 
@@ -176,6 +178,8 @@ describe("SteamService.getOwnerWishlist", () => {
         dateAdded: 1466884835,
         priority: 2,
         storeUrl: "https://store.steampowered.com/app/214490/Alien_Isolation/",
+        releaseDate: 1412899200,
+        comingSoon: false,
       },
       {
         appid: 383870,
@@ -183,8 +187,32 @@ describe("SteamService.getOwnerWishlist", () => {
         dateAdded: 1455053806,
         priority: 0,
         storeUrl: "https://store.steampowered.com/app/383870/Firewatch/",
+        releaseDate: 1455580800,
+        comingSoon: false,
       },
     ]);
+  });
+
+  it("flags coming-soon and surfaces a null releaseDate when Steam omits the date", async () => {
+    const { service } = makeWishlistService(
+      [{ appid: 999999, priority: 0, date_added: 1700000000 }],
+      [
+        {
+          appid: 999999,
+          success: 1,
+          name: "Sequel: TBA",
+          store_url_path: "app/999999/Sequel_TBA",
+          release: { is_coming_soon: true },
+        },
+      ]
+    );
+
+    const wishlist = await service.getOwnerWishlist();
+    expect(wishlist.items[0]).toMatchObject({
+      appid: 999999,
+      releaseDate: null,
+      comingSoon: true,
+    });
   });
 
   it("surfaces null names when GetItems returns success=0", async () => {

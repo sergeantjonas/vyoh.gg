@@ -13,6 +13,16 @@ export interface SteamWishlistItem {
   // 0 means unprioritized; 1..N is explicit ordering set by the owner on Steam.
   priority: number;
   storeUrl: string;
+  // Unix seconds (UTC) when Steam has committed a release date; null for titles
+  // without a published date (TBA or pre-announcement). Frontend formats this
+  // in Europe/Brussels. Independent of `comingSoon` — Steam can flag a title as
+  // coming-soon *and* have a target date, or have a date without the flag (the
+  // common case for already-released titles).
+  releaseDate: number | null;
+  // True when Steam still classifies the title as unreleased (the store
+  // "Coming soon" badge). Stays true past `releaseDate` until Steam flips it on
+  // the actual launch sweep.
+  comingSoon: boolean;
 }
 
 export interface SteamWishlist {

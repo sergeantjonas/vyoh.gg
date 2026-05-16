@@ -57,6 +57,8 @@ describe("SteamController", () => {
           dateAdded: 1466884835,
           priority: 2,
           storeUrl: "https://store.steampowered.com/app/214490/Alien_Isolation/",
+          releaseDate: 1412899200,
+          comingSoon: false,
         },
       ],
       fetchedAt: 1715688000000,

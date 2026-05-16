@@ -29,6 +29,9 @@ interface CachedWishlist {
 interface CachedName {
   name: string | null;
   storeUrlPath: string | null;
+  // Unix seconds (UTC) when Steam has a committed release date; null otherwise.
+  releaseDate: number | null;
+  comingSoon: boolean;
   fetchedAt: number;
 }
 
@@ -100,6 +103,8 @@ export class SteamService {
         dateAdded: row.date_added,
         priority: row.priority,
         storeUrl: buildStoreUrl(row.appid, resolved?.storeUrlPath ?? null),
+        releaseDate: resolved?.releaseDate ?? null,
+        comingSoon: resolved?.comingSoon ?? false,
       };
     });
 
@@ -146,6 +151,8 @@ export class SteamService {
           this.nameCache.set(appid, {
             name: null,
             storeUrlPath: null,
+            releaseDate: null,
+            comingSoon: false,
             fetchedAt: now,
           });
         }
@@ -163,9 +170,17 @@ export class SteamService {
 
 function storeItemToCacheEntry(row: SteamStoreItemRaw, now: number): CachedName {
   const resolved = row.success === 1 && row.name ? row.name : null;
+  // `steam_release_date` is absent for unreleased titles without a published
+  // date, and zero on some legacy rows; both map to null. `is_coming_soon`
+  // defaults to false when omitted — Steam only sets it on titles still
+  // labelled "Coming soon" in the store.
+  const rawDate = row.release?.steam_release_date;
+  const releaseDate = typeof rawDate === "number" && rawDate > 0 ? rawDate : null;
   return {
     name: resolved,
     storeUrlPath: row.store_url_path ?? null,
+    releaseDate,
+    comingSoon: row.release?.is_coming_soon === true,
     fetchedAt: now,
   };
 }

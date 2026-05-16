@@ -108,7 +108,10 @@ export class SteamClientService {
       const input = {
         ids: appids.map((appid) => ({ appid })),
         context: { language: "english", country_code: "US" },
-        data_request: { include_basic_info: false },
+        // include_release surfaces steam_release_date + is_coming_soon — used by
+        // the wishlist surface to label unreleased titles. Same endpoint, no
+        // extra rate-limiter budget.
+        data_request: { include_basic_info: false, include_release: true },
       };
       const path = `/IStoreBrowseService/GetItems/v1/?key=${encodeURIComponent(this.apiKey)}&input_json=${encodeURIComponent(JSON.stringify(input))}`;
       const data = await this.fetchJson<SteamGetStoreItemsResponse>(path);
