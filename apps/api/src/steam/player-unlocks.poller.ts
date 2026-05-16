@@ -49,14 +49,16 @@ export class SteamPlayerUnlocksPoller implements OnModuleInit {
     }
   }
 
-  // Every 15 min (offset xx:05/20/35/50 so it lands ~5 min after the owned-
-  // games tick at xx:00/15/30/45). Was daily 06:00 — bumped 2026-05-15 to
-  // make achievement unlocks visible "shortly after the game closes" rather
-  // than next morning. ~142 calls/tick through the `player-achievements`
-  // limiter ≈ 2-3 min wall-clock, well inside the 15-min window. ~13.6k
-  // calls/day = ~14% of Steam's 100k-per-day budget — the heaviest poller
-  // we run, by far, but still comfortable.
-  @Cron("5,20,35,50 * * * *", {
+  // Every 4 hours at xx:05 (00:05, 04:05, 08:05, 12:05, 16:05, 20:05). Was
+  // every 15 min until S6.D (2026-05-16) — slowed to a backstop role now
+  // that two cheaper signals catch unlocks promptly: the session-close
+  // hook in play-sessions.service refreshes the just-closed appid inline,
+  // and the recently-played poller picks up offline-play sessions hourly.
+  // This full sweep is the safety net for the long tail (games with no
+  // playerstats configured at the time of close, edge cases the cheaper
+  // paths miss). ~142 calls/tick × 6 ticks/day = ~850 calls/day on this
+  // path alone — was 13.6k.
+  @Cron("5 */4 * * *", {
     name: "steam-player-unlocks",
     timeZone: "Europe/Brussels",
   })

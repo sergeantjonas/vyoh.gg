@@ -14,6 +14,7 @@ import { SteamPlayerStateService } from "./player-state.service";
 import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamRateLimiterService } from "./rate-limiter.service";
+import { SteamRecentlyPlayedUnlocksPoller } from "./recently-played-unlocks.poller";
 import { SteamClientService } from "./steam-client.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
@@ -37,6 +38,7 @@ import { SteamTagService } from "./tag.service";
     SteamPlayerStatePoller,
     SteamPlayerUnlocksService,
     SteamPlayerUnlocksPoller,
+    SteamRecentlyPlayedUnlocksPoller,
     SteamGlobalRarityService,
     SteamGlobalRarityPoller,
     SteamAchievementsService,

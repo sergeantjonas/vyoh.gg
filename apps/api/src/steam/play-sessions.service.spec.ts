@@ -57,7 +57,12 @@ describe("computeTransition", () => {
         next: { appid: null, gameName: null },
       })
     );
-    expect(action).toEqual({ type: "close", openId: "s1", endedAt: LAST_POLL });
+    expect(action).toEqual({
+      type: "close",
+      openId: "s1",
+      closedAppid: 1030300,
+      endedAt: LAST_POLL,
+    });
   });
 
   it("closes and opens on X → Y, anchoring endedAt to the previous tick", () => {
@@ -71,6 +76,7 @@ describe("computeTransition", () => {
     expect(action).toEqual({
       type: "closeAndOpen",
       openId: "s1",
+      closedAppid: 730,
       endedAt: LAST_POLL,
       openAppid: 1030300,
       name: "Silksong",
@@ -88,7 +94,12 @@ describe("computeTransition", () => {
         next: { appid: null, gameName: null },
       })
     );
-    expect(action).toEqual({ type: "close", openId: "orphan", endedAt: NOW });
+    expect(action).toEqual({
+      type: "close",
+      openId: "orphan",
+      closedAppid: 999,
+      endedAt: NOW,
+    });
   });
 
   it("falls back to `now` when previous state is missing (fresh DB orphan)", () => {
@@ -99,6 +110,11 @@ describe("computeTransition", () => {
         next: { appid: null, gameName: null },
       })
     );
-    expect(action).toEqual({ type: "close", openId: "ghost", endedAt: NOW });
+    expect(action).toEqual({
+      type: "close",
+      openId: "ghost",
+      closedAppid: 730,
+      endedAt: NOW,
+    });
   });
 });

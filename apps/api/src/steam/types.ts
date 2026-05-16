@@ -150,6 +150,17 @@ export interface SteamGetOwnedGamesResponse {
   };
 }
 
+// IPlayerService/GetRecentlyPlayedGames/v1/. Same per-game shape as
+// GetOwnedGames but only the rolling 2-week set (≤10 entries by default).
+// The Steam API trims to games with non-zero `playtime_2weeks`, so each
+// row here is a hot candidate for an event-driven unlock refresh.
+export interface SteamGetRecentlyPlayedGamesResponse {
+  response: {
+    total_count?: number;
+    games?: SteamOwnedGameRaw[];
+  };
+}
+
 // IPlayerService/GetProfileItemsEquipped/v1/. Returns the cosmetic items the
 // owner has equipped on their community profile. All slots are optional — an
 // account with the default profile returns `{ response: {} }`. `image_large`

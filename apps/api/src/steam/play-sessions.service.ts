@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 
 // Inputs to the transition state machine. `openSession` is the currently
 // open row in the DB (if any); `previous` is the prior player-state row
@@ -15,10 +16,11 @@ export interface TransitionInput {
 export type TransitionAction =
   | { type: "noop" }
   | { type: "open"; appid: number; name: string }
-  | { type: "close"; openId: string; endedAt: Date }
+  | { type: "close"; openId: string; closedAppid: number; endedAt: Date }
   | {
       type: "closeAndOpen";
       openId: string;
+      closedAppid: number;
       endedAt: Date;
       openAppid: number;
       name: string;
@@ -59,12 +61,18 @@ export function computeTransition(input: TransitionInput): TransitionAction {
   if (openSession.appid === targetAppid) return { type: "noop" };
 
   if (targetAppid === null) {
-    return { type: "close", openId: openSession.id, endedAt: closeEndedAt };
+    return {
+      type: "close",
+      openId: openSession.id,
+      closedAppid: openSession.appid,
+      endedAt: closeEndedAt,
+    };
   }
 
   return {
     type: "closeAndOpen",
     openId: openSession.id,
+    closedAppid: openSession.appid,
     endedAt: closeEndedAt,
     openAppid: targetAppid,
     name: next.gameName ?? `App ${targetAppid}`,
@@ -75,7 +83,10 @@ export function computeTransition(input: TransitionInput): TransitionAction {
 export class SteamPlaySessionsService {
   private readonly logger = new Logger(SteamPlaySessionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly playerUnlocks: SteamPlayerUnlocksService
+  ) {}
 
   // Called once per player-state tick after the upsert. Looks up the
   // currently-open session, computes the action via `computeTransition`,
@@ -113,6 +124,7 @@ export class SteamPlaySessionsService {
           data: { endedAt: action.endedAt },
         });
         this.logger.log(`session close: id=${action.openId}`);
+        this.fireUnlockRefresh(action.closedAppid);
         return;
       case "closeAndOpen":
         await this.prisma.$transaction([
@@ -127,7 +139,19 @@ export class SteamPlaySessionsService {
         this.logger.log(
           `session switch: closed id=${action.openId}, opened appid=${action.openAppid} (${action.name})`
         );
+        this.fireUnlockRefresh(action.closedAppid);
         return;
     }
+  }
+
+  // Fire-and-forget the per-game unlock refresh on session close. Decoupled
+  // from the player-state tick on purpose: a slow `GetPlayerAchievements`
+  // call (or the limiter being saturated) shouldn't delay the next tick or
+  // wedge the anti-overlap guard upstream. If this drops on the floor,
+  // the 4-hour backstop and the hourly recently-played poller both reconcile.
+  private fireUnlockRefresh(appid: number): void {
+    this.playerUnlocks.refreshUnlocksForGame(appid).catch((err) => {
+      this.logger.warn(`unlock refresh for closed session appid=${appid} failed: ${err}`);
+    });
   }
 }

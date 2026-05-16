@@ -35,6 +35,24 @@ export class SteamPlayerUnlocksService {
   // stamp `lastUnlocksCheckedAt` so the meta row reflects the most recent
   // attempt; we don't permanently skip these games because playerstats
   // visibility can flip back on at any time.
+  // Single-game refresh used by the event-driven path (session-close hook
+  // in play-sessions.service) and the recently-played backstop poller. Both
+  // callers operate per-appid rather than over the full library, so a thin
+  // wrapper that pre-checks `achievementCount > 0` keeps the FK invariant
+  // honest without forcing every caller to repeat the meta lookup. Games
+  // with no schema (CS2, demos) short-circuit silently — they'll never
+  // produce an unlock.
+  async refreshUnlocksForGame(appid: number): Promise<UnlocksSyncResult> {
+    const meta = await this.prisma.steamGameAchievementMeta.findUnique({
+      where: { appid },
+      select: { achievementCount: true },
+    });
+    if (!meta || meta.achievementCount === 0) {
+      return { checked: 0, newUnlocks: 0, failed: 0 };
+    }
+    return this.syncUnlocks([appid]);
+  }
+
   async syncUnlocks(appids: number[]): Promise<UnlocksSyncResult> {
     if (appids.length === 0) return { checked: 0, newUnlocks: 0, failed: 0 };
     const start = Date.now();

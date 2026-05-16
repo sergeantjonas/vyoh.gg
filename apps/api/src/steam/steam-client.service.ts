@@ -9,6 +9,7 @@ import type {
   SteamGetPlayerAchievementsResponse,
   SteamGetPlayerSummariesResponse,
   SteamGetProfileItemsEquippedResponse,
+  SteamGetRecentlyPlayedGamesResponse,
   SteamGetStoreItemsFullResponse,
   SteamGetStoreItemsResponse,
   SteamGetTagListResponse,
@@ -86,6 +87,17 @@ export class SteamClientService {
       // Steam returns `{ response: {} }` when the library is private — distinct
       // from a 4xx. Treat as "no games" so the caller can persist that as an
       // empty snapshot rather than throwing.
+      return data.response.games ?? [];
+    });
+  }
+
+  // Recent 2-week play set. Cheap (one call, ≤10 rows) — the hourly
+  // backstop poller leans on this to catch offline-play sessions the
+  // session-close hook missed.
+  async getRecentlyPlayedGames(steamId: string): Promise<SteamOwnedGameRaw[]> {
+    return this.limiter.schedule("recently-played", async () => {
+      const path = `/IPlayerService/GetRecentlyPlayedGames/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}`;
+      const data = await this.fetchJson<SteamGetRecentlyPlayedGamesResponse>(path);
       return data.response.games ?? [];
     });
   }
