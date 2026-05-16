@@ -4,7 +4,7 @@ import { RarestSection } from "@/steam/achievements/rarest-section";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
-export const Route = createFileRoute("/steam/achievements/signature")({
+export const Route = createFileRoute("/steam/achievements_/signature")({
   component: SignaturePage,
 });
 
