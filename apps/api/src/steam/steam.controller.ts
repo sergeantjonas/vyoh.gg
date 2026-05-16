@@ -20,6 +20,7 @@ import type {
   SteamWishlist,
 } from "@vyoh/shared";
 import {
+  RAREST_UNLOCKS_DEFAULT_LIMIT,
   RECENT_UNLOCKS_DEFAULT_LIMIT,
   SteamAchievementsService,
 } from "./achievements.service";
@@ -109,5 +110,16 @@ export class SteamController {
     limit: number
   ): Promise<SteamRecentUnlocks> {
     return this.achievements.getRecentUnlocks(limit);
+  }
+
+  // Cross-game rarest unlocks — top-N by ascending global rarity, library-
+  // wide. Shares the SteamRecentUnlocks shape with /achievements/recent;
+  // distinct route since the sort is different and the caps differ.
+  @Get("achievements/rarest")
+  async getCrossGameRarest(
+    @Query("limit", new DefaultValuePipe(RAREST_UNLOCKS_DEFAULT_LIMIT), ParseIntPipe)
+    limit: number
+  ): Promise<SteamRecentUnlocks> {
+    return this.achievements.getCrossGameRarest(limit);
   }
 }

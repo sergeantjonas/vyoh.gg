@@ -5,6 +5,12 @@ import { PrismaService } from "../prisma/prisma.service";
 export const RECENT_UNLOCKS_DEFAULT_LIMIT = 10;
 export const RECENT_UNLOCKS_MAX_LIMIT = 200;
 
+// Cross-game rarest is a curated leaderboard, not a feed — cap is tighter
+// than recent's 200 since past ~50 the visual register stops being a
+// "signature" and starts being noise.
+export const RAREST_UNLOCKS_DEFAULT_LIMIT = 10;
+export const RAREST_UNLOCKS_MAX_LIMIT = 50;
+
 @Injectable()
 export class SteamAchievementsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -84,6 +90,43 @@ export class SteamAchievementsService {
 
     const rows = await this.prisma.steamPlayerUnlock.findMany({
       orderBy: { unlockedAt: "desc" },
+      take: clamped,
+      include: {
+        achievement: {
+          include: {
+            game: { select: { name: true } },
+            rarity: true,
+          },
+        },
+      },
+    });
+
+    return {
+      unlocks: rows.map((r) => ({
+        appid: r.appid,
+        gameName: r.achievement.game.name,
+        apiName: r.apiName,
+        displayName: r.achievement.displayName,
+        iconUrl: r.achievement.iconUrl,
+        hidden: r.achievement.hidden,
+        unlockedAt: r.unlockedAt.toISOString(),
+        globalPercent: r.achievement.rarity?.percent ?? null,
+      })),
+    };
+  }
+
+  // Cross-game rarest unlocks — the owner's top-N rarest achievements across
+  // the entire library, ordered by `rarity.percent` ascending. Rows without
+  // a recorded rarity (`rarity` row missing — weekly poller hasn't covered
+  // them yet) are excluded rather than ranked as 0%; a null rarity isn't
+  // "very rare," it's "unknown." Shares the `SteamRecentUnlocks` payload
+  // shape since the fields needed are identical.
+  async getCrossGameRarest(limit: number): Promise<SteamRecentUnlocks> {
+    const clamped = Math.min(Math.max(1, Math.floor(limit)), RAREST_UNLOCKS_MAX_LIMIT);
+
+    const rows = await this.prisma.steamPlayerUnlock.findMany({
+      where: { achievement: { rarity: { isNot: null } } },
+      orderBy: { achievement: { rarity: { percent: "asc" } } },
       take: clamped,
       include: {
         achievement: {
