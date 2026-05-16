@@ -5,9 +5,14 @@ import {
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
+import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link } from "@tanstack/react-router";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { useState } from "react";
+import { LibraryTileHovercardContent } from "./library-tile-hovercard";
+
+const HOVERCARD_CONTENT_CLASS =
+  "z-50 w-64 overflow-hidden rounded-md border bg-popover/90 text-popover-foreground shadow-xl backdrop-blur-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 function formatPlaytime(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
@@ -33,52 +38,67 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
 
   return (
     <li className="group/tile">
-      <Link
-        to="/steam/game/$appid"
-        params={{ appid: String(game.appid) }}
-        className="flex flex-col gap-5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[filter,box-shadow,transform] duration-500 ease-out transform-[perspective(700px)_rotateX(0deg)_rotateY(0deg)_scale(1)] group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
-          {capsuleFailed ? (
-            <HeroFallback game={game} />
-          ) : (
-            <img
-              src={steamLibraryCapsuleUrl(
-                game.appid,
-                game.libraryCapsulePath,
-                game.assetTimestamp
+      <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
+        <HoverCardPrimitive.Trigger asChild>
+          <Link
+            to="/steam/game/$appid"
+            params={{ appid: String(game.appid) }}
+            className="flex flex-col gap-5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[filter,box-shadow,transform] duration-500 ease-out transform-[perspective(700px)_rotateX(0deg)_rotateY(0deg)_scale(1)] group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
+              {capsuleFailed ? (
+                <HeroFallback game={game} />
+              ) : (
+                <img
+                  src={steamLibraryCapsuleUrl(
+                    game.appid,
+                    game.libraryCapsulePath,
+                    game.assetTimestamp
+                  )}
+                  alt=""
+                  loading="lazy"
+                  onLoad={() => setCapsuleLoaded(true)}
+                  onError={() => setCapsuleFailed(true)}
+                  style={{ opacity: capsuleLoaded ? 1 : 0 }}
+                  className="h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
+                />
               )}
-              alt=""
-              loading="lazy"
-              onLoad={() => setCapsuleLoaded(true)}
-              onError={() => setCapsuleFailed(true)}
-              style={{ opacity: capsuleLoaded ? 1 : 0 }}
-              className="h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
-            />
-          )}
-          {/* Steam-style anchored sheen — gradient stays pinned at the
-              top-right corner (gradient direction 225° puts the bright stop
-              at the upper-right) and the transparent end-stop animates via
-              the registered --sheen-extent variable (see index.css). At
-              rest the falloff reaches 25% of the diagonal — a tight gloss
-              at the corner only. On hover it extends to 75%, growing
-              inward toward the middle without translating any hard edge
-              across the card. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
-          />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="truncate text-sm font-medium underline-offset-2 group-hover/tile:underline">
-            {game.name}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {lifetime ? `${lifetime} lifetime` : "Never launched"}
-            {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
-          </span>
-        </div>
-      </Link>
+              {/* Steam-style anchored sheen — gradient stays pinned at the
+                  top-right corner (gradient direction 225° puts the bright stop
+                  at the upper-right) and the transparent end-stop animates via
+                  the registered --sheen-extent variable (see index.css). At
+                  rest the falloff reaches 25% of the diagonal — a tight gloss
+                  at the corner only. On hover it extends to 75%, growing
+                  inward toward the middle without translating any hard edge
+                  across the card. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="truncate text-sm font-medium underline-offset-2 group-hover/tile:underline">
+                {game.name}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {lifetime ? `${lifetime} lifetime` : "Never launched"}
+                {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
+              </span>
+            </div>
+          </Link>
+        </HoverCardPrimitive.Trigger>
+        <HoverCardPrimitive.Portal>
+          <HoverCardPrimitive.Content
+            side="right"
+            align="start"
+            sideOffset={16}
+            collisionPadding={16}
+            className={HOVERCARD_CONTENT_CLASS}
+          >
+            <LibraryTileHovercardContent game={game} />
+          </HoverCardPrimitive.Content>
+        </HoverCardPrimitive.Portal>
+      </HoverCardPrimitive.Root>
     </li>
   );
 }
