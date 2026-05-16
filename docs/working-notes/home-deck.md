@@ -6,6 +6,16 @@ Direction inherits from [self-portrait-surfaces.md](self-portrait-surfaces.md). 
 
 ---
 
+## What belongs on `/` (sharpened 2026-05-16)
+
+`/` is for **cross-stream synthesis**, not stream-deep feeds. Anything that's really "the latest commit" or "top tracks this week" belongs on its own per-stream route (`/code`, `/music`) — not as another tile here. The home deck can carry at most a single curated highlight per stream that links into the deep route.
+
+The chronotype tile (chunk 2, shipped) is the canonical shape: hour-bucketing merged across whichever streams are wired produces a verdict no per-stream route could. Future tiles that pass the bar are similar — "what am I doing right now" across all live streams, "this week's dominant activity", a synthesis recap. Future tiles that *don't* pass the bar: a Spotify now-playing list, a GitHub contributions grid, a Steam recently-played feed. Those live on `/music`, `/code`, `/steam`.
+
+Without this rule, `/` accumulates one stream-feed per integration and the self-portrait synthesis story drowns in feeds. See [self-portrait-surfaces.md § Routing principle](self-portrait-surfaces.md#routing-principle-sharpened-2026-05-16) for the parallel articulation.
+
+---
+
 ## Framing decision
 
 Two layouts were weighed against each other:

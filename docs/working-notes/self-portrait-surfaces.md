@@ -18,15 +18,30 @@ Items that fail this filter are listed in [Filtered out](#filtered-out) with the
 
 ---
 
+## Routing principle (sharpened 2026-05-16)
+
+Each stream owns its own route, not its own tile on `/`. The home page is for **cross-stream synthesis** — content that combines multiple streams into one verdict (chronotype hour-bucketing across LoL + commits, "what am I doing right now" picking the dominant live stream) — not stream-deep feeds. A "latest commit" or "top track this week" tile on `/` is wrong-place: it belongs on `/code` or `/music`.
+
+Concrete implications for the candidates below:
+
+- **Spotify** ships behind a `/music` route. Top tracks/artists, listening history, recap overlays all live there. The home page is eligible only for a single curated highlight (e.g. now-playing chip when active) that links into the deep route.
+- **GitHub activity, reframed** ships behind a `/code` route. Streak, language mix, commit clusters, repo-level surfaces all live there. The home page gets at most a synthesis contribution (e.g. commit timestamps feeding the chronotype tile).
+- **WakaTime**, if it ever lands, also feeds `/code`.
+- **Chronotype** is the canonical `/` shape — it merges hour-bucketing across whatever streams are wired and produces a synthesis verdict no per-stream route could.
+
+Without this rule, `/` accumulates one stream-feed per integration (now-playing track + latest commit + now-playing game + last match) and the synthesis story drowns in feeds. Per-route deep content also reads cleaner for portfolio framing — each integration becomes its own case study (Riot, Steam, Spotify OAuth, GitHub GraphQL) with `/` as the aggregator. See [home-deck.md](home-deck.md) for the `/` implementation arc.
+
+---
+
 ## Live candidates ★★★
 
-**Inferred chronotype panel.** *"Your best ranked hour is 8pm. Your most productive coding hour is 10pm. They overlap on Sundays."* Pure derived insight — no new data sources required. Re-computes nightly on the server from LoL match timestamps already stored (and optionally GitHub commits via public API). Same architectural move as duo/squad detection, pointed at the owner instead of the match. Highest novel-insight-to-build-cost ratio on the board.
+**Inferred chronotype panel.** *"Your best ranked hour is 8pm. Your most productive coding hour is 10pm. They overlap on Sundays."* Pure derived insight — no new data sources required. Re-computes nightly on the server from LoL match timestamps already stored (and optionally GitHub commits via public API). Same architectural move as duo/squad detection, pointed at the owner instead of the match. Highest novel-insight-to-build-cost ratio on the board. **Lives on `/`** — canonical cross-stream synthesis shape per the [Routing principle](#routing-principle-sharpened-2026-05-16). LoL chunk shipped 2026-05-14; commit-timestamp source plugs in when `/code` lands.
 
-**GitHub activity, reframed.** Public API, polled server-side. Not the green-square grid — run it through the `ConclusionCard` engine: longest streak, busiest hour, language mix this year, commit clusters tied to case-study milestones. Pairs with the chronotype panel (shared commit-timestamp source).
+**GitHub activity, reframed.** Public API, polled server-side. Not the green-square grid — run it through the `ConclusionCard` engine: longest streak, busiest hour, language mix this year, commit clusters tied to case-study milestones. **Lives on its own `/code` route**, not as tiles on `/`. The synthesis-eligible piece for `/` is the commit-timestamp stream feeding chronotype; everything else stays under `/code`.
 
-**Spotify integration.** Server-side OAuth-refresh polls Spotify Web API on a cron; nothing local after one-time auth. Use as a recap overlay (top tracks/artists per LP-history window) and optionally a small now-playing strip. Owner has explicitly OK'd exploring this direction. **Not** Last.fm — owner doesn't use it.
+**Spotify integration.** Server-side OAuth-refresh polls Spotify Web API on a cron; nothing local after one-time auth. **Deep content lives on `/music`** — top tracks/artists, listening history, recap overlays. `/` is eligible at most for a small now-playing strip when active, linking into the deep route. Owner has explicitly OK'd exploring this direction. **Not** Last.fm — owner doesn't use it.
 
-**WakaTime — conditional.** Free IDE plugin → silent timeseries of coding minutes per language/project, exposed via JSON API. Plugin only ever runs on the **dev** machine (never the gaming desktop) and is dormant after install. If "any persistent plugin on any machine" is a no, skip; otherwise it drops straight into the trends/recap engine. Owner has not yet committed either way.
+**WakaTime — conditional.** Free IDE plugin → silent timeseries of coding minutes per language/project, exposed via JSON API. Plugin only ever runs on the **dev** machine (never the gaming desktop) and is dormant after install. If "any persistent plugin on any machine" is a no, skip; otherwise it drops into the `/code` route alongside GitHub activity (not a separate surface). Owner has not yet committed either way.
 
 ---
 
@@ -127,8 +142,8 @@ Reason: owner has explicitly excluded persistent local agents on the gaming desk
 
 ## What to pick first (if asked tomorrow)
 
-1. **Chronotype panel.** Highest insight-to-cost ratio. Zero new sources. Single nightly job derives the verdict from data already in the DB.
-2. **Spotify exploration spike.** Read the Web API docs, sketch what auth + refresh + recap-overlay looks like; decide whether to commit before scoping. Owner explicitly invited this.
-3. **GitHub activity, reframed.** Public API, low complexity, pairs with chronotype.
+1. **Chronotype panel.** Highest insight-to-cost ratio. Lives on `/`. LoL-only chunk already shipped 2026-05-14; the cross-stream extension (folding commit timestamps in) lights up automatically when `/code` lands.
+2. **Spotify integration as a `/music` route.** Read the Web API docs, sketch what auth + refresh + DB shape looks like. Deep listening-history surfaces live on `/music`; at most one curated synthesis tile (e.g. now-playing chip) drops into `/`. Owner explicitly invited this exploration. Scope as a route, not a tile.
+3. **GitHub activity as a `/code` route.** Public API, low complexity. Streak / language mix / commit clusters live on `/code`; commit timestamps feed the chronotype tile on `/` as the cross-stream contribution. WakaTime, if it lands, joins the same route.
 
-The other live candidates (WakaTime, mastery, free-week echo, TFT) sit one tier behind — promote when the top three have proven the framing, or when an adjacent arc makes one of them cheap to drop in.
+The other live candidates (mastery, free-week echo, TFT) sit one tier behind — promote when the top three have proven the framing, or when an adjacent arc makes one of them cheap to drop in.
