@@ -2,11 +2,11 @@ import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
 import { cn } from "@/lib/utils";
+import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
 import { type Variants, m, useReducedMotion } from "motion/react";
-import { createPortal } from "react-dom";
 
 export const Route = createFileRoute("/steam")({
   component: SteamLayout,
@@ -46,7 +46,6 @@ const tabIconVariants: Variants = {
 
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data: summary } = useSteamSummary();
   const prefersReducedMotion = useReducedMotion();
 
   const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
@@ -54,48 +53,7 @@ function SteamLayout() {
 
   return (
     <>
-      {summary?.profileBackgroundUrl &&
-        typeof document !== "undefined" &&
-        createPortal(
-          // Fade the backdrop in on mount instead of having it pop in the
-          // moment `summary` resolves — the network round-trip means the
-          // image/video appears noticeably after first paint, which reads as
-          // jarring without the easing.
-          <m.div
-            aria-hidden="true"
-            className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-            initial={prefersReducedMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={
-              prefersReducedMotion ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }
-            }
-          >
-            {summary.profileBackgroundVideoUrl && !prefersReducedMotion ? (
-              <video
-                key={summary.profileBackgroundVideoUrl}
-                src={summary.profileBackgroundVideoUrl}
-                poster={summary.profileBackgroundUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="size-full scale-105 object-cover blur-[2px]"
-              />
-            ) : (
-              <img
-                src={summary.profileBackgroundUrl}
-                alt=""
-                className="size-full scale-105 object-cover blur-[2px]"
-              />
-            )}
-            {/* Gradient mask anchored heavier at the bottom so the page content
-                cards stay focal. Mirrors the LoL splash gradient shape. The
-                bottom stop is /95 (not /100) so a hint of image texture
-                survives below the cards instead of fading to flat dark. */}
-            <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background/95" />
-          </m.div>,
-          document.body
-        )}
+      <SteamProfileBackdrop />
       <SectionShell
         pathname={pathname}
         slideDirection={slideDirection}
