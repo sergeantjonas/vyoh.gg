@@ -59,3 +59,23 @@ export interface SteamRecentUnlock {
 export interface SteamRecentUnlocks {
   unlocks: SteamRecentUnlock[];
 }
+
+// Per-game completion totals for the cross-game achievements page. Returned
+// by GET /api/steam/achievements/library-completion. `total` is the number
+// of rows in `SteamGameAchievement` for the appid; `unlocked` is the count
+// of matching `SteamPlayerUnlock` rows. Games with `total === 0` (no schema,
+// or schema-less titles like CS2) are excluded by the server — the page
+// only cares about titles where completion is a meaningful axis.
+export interface SteamGameCompletion {
+  appid: number;
+  total: number;
+  unlocked: number;
+  // ISO-8601 of the most recent unlock for this game, or null when nothing
+  // is unlocked yet. Drives the "100%'d hall" sort and a future "last
+  // touched" annotation on the completionist axis.
+  lastUnlockedAt: string | null;
+}
+
+export interface SteamLibraryCompletion {
+  stats: SteamGameCompletion[];
+}

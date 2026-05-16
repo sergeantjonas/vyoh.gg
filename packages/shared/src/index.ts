@@ -45,6 +45,8 @@ export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";
 export type {
   SteamAchievement,
   SteamGameAchievements,
+  SteamGameCompletion,
+  SteamLibraryCompletion,
   SteamRecentUnlock,
   SteamRecentUnlocks,
 } from "./steam/achievements.ts";

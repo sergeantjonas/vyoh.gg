@@ -10,6 +10,7 @@ import {
 import type {
   SteamGameAchievements,
   SteamGameMedia,
+  SteamLibraryCompletion,
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatformMix,
@@ -121,5 +122,15 @@ export class SteamController {
     limit: number
   ): Promise<SteamRecentUnlocks> {
     return this.achievements.getCrossGameRarest(limit);
+  }
+
+  // Per-game completion totals across the whole library. Drives the
+  // completionist axis card (median % across played-with-achievements
+  // games) and the 100%'d hall (filter total === unlocked > 0). One trip
+  // to the DB on the request — backed by two grouped queries joined in
+  // service code; no per-game N+1.
+  @Get("achievements/library-completion")
+  async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
+    return this.achievements.getLibraryCompletion();
   }
 }

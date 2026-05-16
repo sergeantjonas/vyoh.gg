@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import type { SteamGameAchievements, SteamRecentUnlocks } from "@vyoh/shared";
+import type {
+  SteamGameAchievements,
+  SteamLibraryCompletion,
+  SteamRecentUnlocks,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 export const RECENT_UNLOCKS_DEFAULT_LIMIT = 10;
@@ -150,5 +154,46 @@ export class SteamAchievementsService {
         globalPercent: r.achievement.rarity?.percent ?? null,
       })),
     };
+  }
+
+  // Per-game completion totals across the owner's whole library — the
+  // backing data for the completionist axis card and the 100%'d hall on
+  // /steam/achievements. Two grouped queries joined in JS:
+  //
+  //   1. SteamGameAchievement counts per appid → `total` (schema size)
+  //   2. SteamPlayerUnlock counts per appid    → `unlocked` + lastUnlockedAt
+  //
+  // Games with no schema (`total === 0`) are excluded server-side; they're
+  // not a meaningful entry on a "completion" axis. Games with a schema but
+  // zero unlocks are kept (the page's "untouched on the achievement front"
+  // group needs them). Sort is left to the client — different surfaces want
+  // different orderings (median calc wants pct asc, 100%'d hall wants
+  // lastUnlockedAt desc).
+  async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
+    const [totals, unlocks] = await Promise.all([
+      this.prisma.steamGameAchievement.groupBy({
+        by: ["appid"],
+        _count: { apiName: true },
+      }),
+      this.prisma.steamPlayerUnlock.groupBy({
+        by: ["appid"],
+        _count: { apiName: true },
+        _max: { unlockedAt: true },
+      }),
+    ]);
+
+    const unlockMap = new Map(unlocks.map((u) => [u.appid, u]));
+
+    const stats = totals.map((t) => {
+      const u = unlockMap.get(t.appid);
+      return {
+        appid: t.appid,
+        total: t._count.apiName,
+        unlocked: u?._count.apiName ?? 0,
+        lastUnlockedAt: u?._max.unlockedAt?.toISOString() ?? null,
+      };
+    });
+
+    return { stats };
   }
 }

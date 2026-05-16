@@ -1,4 +1,6 @@
 import { RarityPercent } from "@/steam/_shared/rarity-percent";
+import { CompletionistAxisCard } from "@/steam/achievements/completionist-axis-card";
+import { HundredPercentHall } from "@/steam/achievements/hundred-percent-hall";
 import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -47,15 +49,19 @@ function AchievementsPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Achievements</h1>
         <p className="text-sm text-muted-foreground">
-          A running feed of recent unlocks across the library, plus the rarest pulls so
-          far. Completionist axis and the 100%'d hall land next.
+          A running feed of recent unlocks across the library, the rarest pulls, and where
+          things stand on the completionist axis.
         </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <CompletionistAxisCard />
       </div>
       <RarestSection
         unlocks={rarest.data?.unlocks ?? []}
         isPending={rarest.isPending}
         isError={rarest.isError}
       />
+      <HundredPercentHall />
       <RecentSection
         unlocks={data?.unlocks ?? []}
         isPending={isPending}
