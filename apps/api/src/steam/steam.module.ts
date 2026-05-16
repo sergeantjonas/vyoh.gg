@@ -8,6 +8,7 @@ import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
 import { SteamOwnedGamesService } from "./owned-games.service";
+import { SteamPlaySessionsService } from "./play-sessions.service";
 import { SteamPlayerStatePoller } from "./player-state.poller";
 import { SteamPlayerStateService } from "./player-state.service";
 import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
@@ -31,6 +32,7 @@ import { SteamTagService } from "./tag.service";
     SteamEnrichmentPoller,
     SteamAchievementSchemaService,
     SteamAchievementSchemaPoller,
+    SteamPlaySessionsService,
     SteamPlayerStateService,
     SteamPlayerStatePoller,
     SteamPlayerUnlocksService,

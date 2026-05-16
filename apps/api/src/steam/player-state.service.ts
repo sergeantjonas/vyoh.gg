@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { SteamPlayerState } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamPlaySessionsService } from "./play-sessions.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 import type { SteamPlayerRaw } from "./types";
@@ -28,12 +29,14 @@ export class SteamPlayerStateService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly client: SteamClientService
+    private readonly client: SteamClientService,
+    private readonly playSessions: SteamPlaySessionsService
   ) {}
 
-  // Single GetPlayerSummaries call → upsert. Shared by the cron tick and the
-  // boot backfill so a fresh deploy doesn't sit with a missing state row
-  // until the first 2-min tick fires (the frontend chip 404s in the gap).
+  // Single GetPlayerSummaries call → upsert + transition record. Shared by
+  // the cron tick and the boot backfill so a fresh deploy doesn't sit with
+  // a missing state row until the first 2-min tick fires (the frontend
+  // chip 404s in the gap).
   async syncPlayerState(): Promise<void> {
     const player = await this.client.getPlayerSummary(STEAM_OWNER_ID);
     if (!player) {
@@ -46,6 +49,14 @@ export class SteamPlayerStateService {
     const currentAppid = player.gameid ? Number.parseInt(player.gameid, 10) : null;
     const currentGameName = player.gameextrainfo ?? null;
     const personaState = PERSONA_STATE[player.personastate];
+
+    // Capture the previous row before the upsert so the session
+    // transition logic can anchor `endedAt` on the previous tick's
+    // `lastPolledAt` rather than the post-upsert (now) value.
+    const previousRow = await this.prisma.steamPlayerState.findUnique({
+      where: { steamId: player.steamid },
+      select: { currentAppid: true, lastPolledAt: true },
+    });
 
     await this.prisma.steamPlayerState.upsert({
       where: { steamId: player.steamid },
@@ -67,6 +78,14 @@ export class SteamPlayerStateService {
         currentGameName,
         lastPolledAt: new Date(),
       },
+    });
+
+    await this.playSessions.recordTransition({
+      previous:
+        previousRow !== null
+          ? { appid: previousRow.currentAppid, lastPolledAt: previousRow.lastPolledAt }
+          : null,
+      next: { appid: currentAppid, gameName: currentGameName },
     });
   }
 

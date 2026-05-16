@@ -205,6 +205,35 @@ model SteamPlayerState {
   updatedAt         DateTime @updatedAt
 }
 
+// One row per play session — opened when the owner enters a game, closed
+// when they leave it (or transition to a different game). Driven by the
+// every-2-min player-state poller diffing `currentAppid` transitions:
+//   null → X   opens a session for X
+//   X → null   closes the open session for X
+//   X → Y      closes X, opens Y
+//
+// `endedAt` is set to the *previous* tick's `lastPolledAt` when the
+// transition fires — that's the last moment we observed the owner still in
+// the game, and it preserves a sensible close timestamp across poller
+// downtime (a crash window of N hours closes at the pre-crash lastPolledAt,
+// not the post-reboot wall clock). For orphan sessions with no matching
+// previous state, falls back to now().
+//
+// `gameNameSnapshot` captures `gameextrainfo` at open time so historical
+// rows stay legible after a publisher rebrand. `appid` is intentionally
+// *not* an FK to SteamOwnedGame — family-share / non-owned titles still
+// produce sessions.
+model SteamPlaySession {
+  id               String    @id @default(cuid())
+  appid            Int
+  gameNameSnapshot String
+  startedAt        DateTime  @default(now())
+  endedAt          DateTime?
+
+  @@index([endedAt])
+  @@index([appid, startedAt])
+}
+
 // Steam's global community-tag catalog (id → name). Pulled monthly from
 // IStoreService/GetTagList. Resolves the `tagIds` carried on
 // SteamGameEnrichment into human labels for the library filter popover.
