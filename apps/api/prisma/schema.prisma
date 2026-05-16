@@ -64,14 +64,15 @@ model SteamOwnedGame {
   rtimeLastPlayed DateTime?
 
   snapshots       SteamPlaytimeSnapshot[]
-  enrichment      SteamGameEnrichment?
   achievements    SteamGameAchievement[]
   achievementMeta SteamGameAchievementMeta?
 }
 
-// Per-app metadata fetched from IStoreBrowseService/GetItems. One row per
-// owned appid (the enrichment poller is keyed off SteamOwnedGame). Assets are
-// stored as path fragments (Steam's "${FILENAME}" substitutions, hash-prefixed
+// Per-app metadata fetched from IStoreBrowseService/GetItems. Keyed by appid
+// independently of SteamOwnedGame — the enrichment poller backfills both
+// owned and wishlist appids so the image proxy can resolve hashed asset
+// paths for wishlisted (not-yet-owned) titles too. Assets are stored as
+// path fragments (Steam's "${FILENAME}" substitutions, hash-prefixed
 // + asset filename in one string, e.g. "1eebc7e0…e4e3/library_capsule.jpg")
 // plus a single `assetUrlFormat` template + `assetTimestamp` cache-buster.
 // Caller composes the full URL by substituting the path into the format. A
@@ -116,8 +117,6 @@ model SteamGameEnrichment {
   // null timestamp means never fetched.
   screenshots          Json      @default("[]")
   screenshotsFetchedAt DateTime?
-
-  game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }
 
 // Per-game achievement schema from ISteamUserStats/GetSchemaForGame. Refreshed

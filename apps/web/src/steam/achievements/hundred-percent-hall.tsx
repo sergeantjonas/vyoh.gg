@@ -27,11 +27,7 @@ function joinEntries(stats: SteamGameCompletion[], owned: SteamOwnedGame[]): Hal
       name: game.name,
       total: s.total,
       lastUnlockedAt: s.lastUnlockedAt,
-      capsuleUrl: steamLibraryCapsuleUrl(
-        s.appid,
-        game.libraryCapsulePath,
-        game.assetTimestamp
-      ),
+      capsuleUrl: steamLibraryCapsuleUrl(s.appid, game.assetTimestamp),
       libraryCapsulePath: game.libraryCapsulePath,
       assetTimestamp: game.assetTimestamp,
     });

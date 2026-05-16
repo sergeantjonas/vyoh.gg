@@ -21,7 +21,10 @@ export const ROLE_POSITION_SLUGS = [
 export type RolePositionSlug = (typeof ROLE_POSITION_SLUGS)[number];
 
 export interface Resolved {
-  url: string;
+  // Upstream URLs to try in order; first 2xx wins. Single-element for sources
+  // with no fallback (LoL, achievement icons), multi-element for Steam's
+  // hashed → legacy fallback chain.
+  urls: string[];
   params: TranscodeParams;
 }
 
@@ -32,17 +35,17 @@ export class LolImageService {
     switch (variant) {
       case "square":
         return {
-          url: `${CDRAGON_CDN}/champion/${slug}/square`,
+          urls: [`${CDRAGON_CDN}/champion/${slug}/square`],
           params: { width: 72, quality: 85 },
         };
       case "card":
         return {
-          url: `${CDRAGON_CDN}/champion/${slug}/splash-art/centered`,
+          urls: [`${CDRAGON_CDN}/champion/${slug}/splash-art/centered`],
           params: { width: 500, quality: 90 },
         };
       case "backdrop":
         return {
-          url: `${CDRAGON_CDN}/champion/${slug}/splash-art/centered`,
+          urls: [`${CDRAGON_CDN}/champion/${slug}/splash-art/centered`],
           params: { width: 600, quality: 80, blur: 1 },
         };
     }
@@ -50,7 +53,7 @@ export class LolImageService {
 
   item(itemId: number, patch: string): Resolved {
     return {
-      url: `${DDRAGON_CDN}/${patch}/img/item/${itemId}.png`,
+      urls: [`${DDRAGON_CDN}/${patch}/img/item/${itemId}.png`],
       params: { width: 64, quality: 85 },
     };
   }
@@ -59,14 +62,14 @@ export class LolImageService {
   // to mirror perks.json client-side just to resolve id → iconPath.
   rune(keystoneId: number): Resolved {
     return {
-      url: `${CDRAGON_CDN}/perk/${keystoneId}/icon`,
+      urls: [`${CDRAGON_CDN}/perk/${keystoneId}/icon`],
       params: { width: 40, quality: 85 },
     };
   }
 
   spell(spellKey: number): Resolved {
     return {
-      url: `${CDRAGON_CDN}/spell/${spellKey}/icon`,
+      urls: [`${CDRAGON_CDN}/spell/${spellKey}/icon`],
       params: { width: 40, quality: 85 },
     };
   }

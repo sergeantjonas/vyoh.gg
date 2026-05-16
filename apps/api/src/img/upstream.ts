@@ -32,6 +32,8 @@ export async function fetchUpstream(url: string): Promise<Buffer> {
 
 export interface TranscodeParams {
   width?: number;
+  height?: number;
+  fit?: "cover" | "contain" | "fill" | "inside" | "outside";
   quality?: number;
   blur?: number;
 }
@@ -40,9 +42,34 @@ export async function transcodeToWebp(
   input: Buffer,
   params: TranscodeParams = {}
 ): Promise<Buffer> {
-  const { width, quality = 85, blur } = params;
+  const { width, height, fit, quality = 85, blur } = params;
   let pipeline = sharp(input);
-  if (width) pipeline = pipeline.resize({ width, withoutEnlargement: true });
+  if (width || height) {
+    pipeline = pipeline.resize({
+      width,
+      height,
+      fit,
+      withoutEnlargement: fit !== "cover",
+    });
+  }
   if (blur !== undefined) pipeline = pipeline.blur(blur);
   return pipeline.webp({ quality }).toBuffer();
+}
+
+// Attempt each candidate URL in order; return bytes from the first 2xx. Used
+// for Steam's hashed → legacy filename fallback chain — keeps the fallback
+// logic inside the proxy instead of distributing it across N URL helpers in
+// the web app or across two requests with a client-side onError handler.
+export async function fetchUpstreamChain(urls: string[]): Promise<Buffer> {
+  let lastErr: unknown;
+  for (const url of urls) {
+    try {
+      return await fetchUpstream(url);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new UpstreamError(urls[urls.length - 1] ?? "", lastErr);
 }

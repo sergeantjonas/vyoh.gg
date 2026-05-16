@@ -1,7 +1,4 @@
-import {
-  steamPageBackgroundGeneratedUrl,
-  steamPageBackgroundUrl,
-} from "@/steam/_shared/steam-image";
+import { steamPageBackgroundUrl } from "@/steam/_shared/steam-image";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { m, useReducedMotion } from "motion/react";
 import {
@@ -127,15 +124,13 @@ export function SteamProfileBackdrop({ children }: { children: ReactNode }) {
 }
 
 // Layer that overlays the profile backdrop while the user is on a game-detail
-// page. Sources Steam's store-page background — the same image the appdetails
-// endpoint exposes as `background` / `background_raw`. Opacity is driven by
-// the live claim from the provider.
-//
-// Internal state tracks the last non-null claim so the image stays painted
-// during fade-out (legitimate releases from the ref-counted provider). Many
-// titles don't ship the asset; on a wsrv silent-404 (`naturalWidth === 0`)
-// or a real onError, `failed` flips and the layer hides — the underlying
-// profile backdrop shows through unchanged.
+// page. Sources Steam's store-page background through the API proxy, which
+// internally tries the less-compressed `page_bg_generated_v6b.jpg` first and
+// falls back to the universally available `storepagebackground` mirror.
+// Opacity is driven by the live claim from the provider; internal state
+// tracks the last non-null claim so the image stays painted during fade-out.
+// On a real load error (proxy 502 — both upstreams missing for this title),
+// `failed` flips and the layer hides so the profile backdrop reads through.
 function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -147,11 +142,6 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
   const activeAppid = activeClaim?.appid ?? null;
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
-  // Two-source chain: try the less-compressed `page_bg_generated_v6b.jpg`
-  // first; on miss (wsrv silent-404 or onError) swap to the universally-
-  // available `storepagebackground`. On miss of that too, `failed` hides
-  // the layer and the profile backdrop reads through unchanged.
-  const [sourceVariant, setSourceVariant] = useState<"generated" | "store">("generated");
 
   // Reset load state when the image source actually changes (different game).
   // assetTimestamp changes hit the same image, so they don't reset. Render-
@@ -162,29 +152,11 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
     prevAppidRef.current = activeAppid;
     setFailed(false);
     setReady(false);
-    setSourceVariant("generated");
   }
-
-  const onSourceMiss = () => {
-    if (sourceVariant === "generated") {
-      setSourceVariant("store");
-      setReady(false);
-    } else {
-      setFailed(true);
-    }
-  };
-
-  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (e.currentTarget.naturalWidth === 0) onSourceMiss();
-    else setReady(true);
-  };
 
   if (!activeClaim) return null;
 
-  const src =
-    sourceVariant === "generated"
-      ? steamPageBackgroundGeneratedUrl(activeClaim.appid, activeClaim.assetTimestamp)
-      : steamPageBackgroundUrl(activeClaim.appid, activeClaim.assetTimestamp);
+  const src = steamPageBackgroundUrl(activeClaim.appid, activeClaim.assetTimestamp);
   const visible = claim !== null && ready && !failed;
 
   return (
@@ -201,8 +173,8 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
         <img
           src={src}
           alt=""
-          onLoad={handleLoad}
-          onError={onSourceMiss}
+          onLoad={() => setReady(true)}
+          onError={() => setFailed(true)}
           className="size-full scale-105 object-cover blur-[5px]"
         />
       )}
@@ -258,19 +230,18 @@ function BackdropVideo({ src, poster }: { src: string; poster: string }) {
 // `assetTimestamp` change, so live-count tracking stays accurate. `setClaim`
 // runs every time the claim shape changes (typical case: page mounts with a
 // null timestamp, then the owned-games query supplies the cache-buster).
-// Warm the browser image cache with the v6b backdrop URL ahead of navigation
-// — wired into library-tile / library-row hover and focus handlers so the
+// Warm the browser image cache with the backdrop URL ahead of navigation —
+// wired into library-tile / library-row hover and focus handlers so the
 // bytes are usually decoded by the time the user actually clicks. Deduped
-// per URL via a module-level Set; subsequent hovers are no-ops. Only the
-// primary (v6b) source is prefetched — for titles that fall back to
-// `storepagebackground`, we'd just be guessing wrong half the time.
+// per URL via a module-level Set; subsequent hovers are no-ops. The proxy
+// handles upstream fallback server-side, so one prefetch URL is enough.
 const prefetchedBackdrops = new Set<string>();
 export function prefetchSteamGameBackdrop(
   appid: number,
   assetTimestamp: number | null
 ): void {
   if (typeof window === "undefined") return;
-  const url = steamPageBackgroundGeneratedUrl(appid, assetTimestamp);
+  const url = steamPageBackgroundUrl(appid, assetTimestamp);
   if (prefetchedBackdrops.has(url)) return;
   prefetchedBackdrops.add(url);
   const img = new Image();

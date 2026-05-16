@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { RarityPercent } from "@/steam/_shared/rarity-percent";
+import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import type { SteamAchievement } from "@vyoh/shared";
 import { useEffect, useRef, useState } from "react";
 import { useGameAchievements } from "./use-game-achievements";
@@ -199,6 +200,7 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
         {visible.map((ach) => (
           <AchievementRow
             key={ach.apiName}
+            appid={appid}
             achievement={ach}
             isRevealed={revealed.has(ach.apiName)}
             onToggleReveal={() => toggleReveal(ach.apiName)}
@@ -220,6 +222,7 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
 }
 
 interface AchievementRowProps {
+  appid: number;
   achievement: SteamAchievement;
   isRevealed: boolean;
   onToggleReveal: () => void;
@@ -227,6 +230,7 @@ interface AchievementRowProps {
 }
 
 function AchievementRow({
+  appid,
   achievement: a,
   isRevealed,
   onToggleReveal,
@@ -252,7 +256,7 @@ function AchievementRow({
   const inner = (
     <>
       <img
-        src={unlocked ? a.iconUrl : a.iconGrayUrl}
+        src={steamAchievementIconUrl(appid, a.apiName, !unlocked)}
         alt=""
         loading="lazy"
         className={cn("size-16 shrink-0 rounded-md", !unlocked && "opacity-70")}

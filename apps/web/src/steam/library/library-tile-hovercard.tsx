@@ -85,12 +85,7 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
       <div className="relative aspect-[2/1] overflow-hidden bg-muted">
         {!heroFailed ? (
           <img
-            src={steamLibraryHeroUrl(
-              game.appid,
-              game.libraryHeroPath,
-              game.assetTimestamp,
-              640
-            )}
+            src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
             alt=""
             onLoad={handleHeroLoad}
             onError={() => setHeroFailed(true)}
@@ -99,7 +94,7 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
           />
         ) : (
           <img
-            src={steamCapsuleUrl(game.appid, game.headerPath, game.assetTimestamp, 640)}
+            src={steamCapsuleUrl(game.appid, game.assetTimestamp)}
             alt=""
             className="h-full w-full scale-105 object-cover blur-[2px]"
           />

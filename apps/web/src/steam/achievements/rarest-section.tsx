@@ -1,4 +1,5 @@
 import { RarityPercent } from "@/steam/_shared/rarity-percent";
+import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
 import { Link } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
@@ -75,7 +76,7 @@ function RarestRow({ unlock }: { unlock: SteamRecentUnlock }) {
         }
       >
         <img
-          src={unlock.iconUrl}
+          src={steamAchievementIconUrl(unlock.appid, unlock.apiName)}
           alt=""
           loading="lazy"
           className="size-16 shrink-0 rounded-md"

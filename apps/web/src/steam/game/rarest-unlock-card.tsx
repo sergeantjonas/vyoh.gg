@@ -1,5 +1,6 @@
 import { CardShell } from "@/components/card-shell";
 import { RarityPercent } from "@/steam/_shared/rarity-percent";
+import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { useGameAchievements } from "./use-game-achievements";
 
 interface RarestUnlockCardProps {
@@ -50,7 +51,7 @@ export function RarestUnlockCard({ appid }: RarestUnlockCardProps) {
       evidence={
         <div className="flex items-center gap-2.5">
           <img
-            src={rarest.iconUrl}
+            src={steamAchievementIconUrl(appid, rarest.apiName)}
             alt=""
             loading="lazy"
             className="size-9 shrink-0 rounded"

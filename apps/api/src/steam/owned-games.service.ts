@@ -335,34 +335,40 @@ export class SteamOwnedGamesService {
           select: {
             name: true,
             rtimeLastPlayed: true,
-            // Left-join: rows without an enrichment row (e.g. delisted, or
-            // before the monthly cron reached them) come back as `null` and
-            // map to the per-field nulls below — image helpers fall back to
-            // legacy unhashed paths.
-            enrichment: {
-              select: {
-                assetUrlFormat: true,
-                assetTimestamp: true,
-                libraryCapsulePath: true,
-                libraryCapsule2xPath: true,
-                libraryHeroPath: true,
-                libraryHero2xPath: true,
-                headerPath: true,
-                heroCapsulePath: true,
-                logoPath: true,
-                appType: true,
-                tagIds: true,
-              },
-            },
           },
         },
       },
       orderBy: { playtimeForeverMinutes: "desc" },
     });
 
+    // Enrichment is keyed by appid but no longer FK-related to SteamOwnedGame
+    // (it now covers wishlist titles too). Fetch in a second query and map by
+    // appid — left-join semantics preserved: rows without an enrichment entry
+    // serialize as per-field nulls and the image helpers fall back to legacy
+    // unhashed paths.
+    const appids = rows.map((r) => r.appid);
+    const enrichments = await this.prisma.steamGameEnrichment.findMany({
+      where: { appid: { in: appids } },
+      select: {
+        appid: true,
+        assetUrlFormat: true,
+        assetTimestamp: true,
+        libraryCapsulePath: true,
+        libraryCapsule2xPath: true,
+        libraryHeroPath: true,
+        libraryHero2xPath: true,
+        headerPath: true,
+        heroCapsulePath: true,
+        logoPath: true,
+        appType: true,
+        tagIds: true,
+      },
+    });
+    const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
+
     return {
       games: rows.map((r) => {
-        const e = r.game.enrichment;
+        const e = byAppid.get(r.appid);
         return {
           appid: r.appid,
           name: r.game.name,

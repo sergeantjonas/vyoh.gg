@@ -39,7 +39,7 @@ export function LibraryRow({ game }: { game: SteamOwnedGame }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <img
-        src={steamCapsuleUrl(game.appid, game.headerPath, game.assetTimestamp)}
+        src={steamCapsuleUrl(game.appid, game.assetTimestamp)}
         alt=""
         width={120}
         height={45}

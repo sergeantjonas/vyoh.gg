@@ -1,3 +1,4 @@
+import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
@@ -115,7 +116,7 @@ function RecentSection({ unlocks, isPending, isError }: SectionProps) {
                     className="flex items-center gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
                   >
                     <img
-                      src={u.iconUrl}
+                      src={steamAchievementIconUrl(u.appid, u.apiName)}
                       alt=""
                       loading="lazy"
                       className="size-16 shrink-0 rounded-md"

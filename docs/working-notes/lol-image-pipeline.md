@@ -370,6 +370,41 @@ These don't block proxy delivery — the proxy ships fine without them, and addi
 
 **Effort estimate.** Four chunks, each one focused session. Chunk 1 builds the substrate in isolation. Chunks 2 and 3 each switch one stream and clean up its bundled infrastructure in the same commit. Chunk 4 is the writeup. None individually large; the discipline is keeping each landable.
 
+**Phase 4 routes (set during chunk 1+2).** Final set of `/img/*` endpoints. Cache-key segments are browser-only; the proxy resolves DB-backed paths server-side.
+
+| Route | Cache-key segment | Source |
+|---|---|---|
+| `/img/lol/champion/:alias/:variant/:patch.webp` | `patch` | CDragon `latest` |
+| `/img/lol/item/:itemId/:patch.webp` | `patch` | DDragon `<patch>/img/item/<id>.png` |
+| `/img/lol/rune/:keystoneId/:patch.webp` | `patch` | CDragon `perk/<id>/icon` |
+| `/img/lol/spell/:spellKey/:patch.webp` | `patch` | CDragon `spell/<id>/icon` |
+| `/img/lol/role/:position.svg` | none | CDragon role-position SVG |
+| `/img/steam/capsule/:appid/:assetTimestamp.webp` | `assetTimestamp` | `header.jpg` cover-cropped to 231×87 |
+| `/img/steam/library-capsule/:appid/:assetTimestamp.webp` | `assetTimestamp` | `library_600x900.jpg` |
+| `/img/steam/hero/:appid/:assetTimestamp.webp` | `assetTimestamp` | `library_hero.jpg` |
+| `/img/steam/logo/:appid/:assetTimestamp.webp` | `assetTimestamp` | `logo.png` |
+| `/img/steam/backdrop/:appid/:assetTimestamp.webp` | `assetTimestamp` | `page_bg_generated_v6b.jpg` → `storepagebackground/app/{appid}` |
+| `/img/steam/achievement/:appid/:apiName/:schemaVersion.webp` | `schemaVersion` (static `1`) | `SteamGameAchievement.iconUrl` (Steam community icon) |
+| `/img/steam/achievement-gray/:appid/:apiName/:schemaVersion.webp` | `schemaVersion` (static `1`) | `SteamGameAchievement.iconGrayUrl` |
+
+### Phase 4 build log
+
+**Chunk 1 (2026-05-16) — proxy substrate (`d40b92b`).** Shipped: `apps/api/src/img/` module with [img.controller.ts](../../apps/api/src/img/img.controller.ts), [lol-image.service.ts](../../apps/api/src/img/lol-image.service.ts), [steam-image.service.ts](../../apps/api/src/img/steam-image.service.ts), [upstream.ts](../../apps/api/src/img/upstream.ts). All LoL routes + initial Steam routes. No frontend wiring; verified by hand-curated URL.
+
+**Chunk 2 (2026-05-16) — Steam switch + cleanup.** Shipped:
+- `Resolved.urls: string[]` shape with `fetchUpstreamChain` for server-side hashed→legacy fallback (kills client-side onError chains).
+- `TranscodeParams` gained `height` + `fit` so the 231×87 capsule can cover-crop from `header.jpg` (Sharp `withoutEnlargement: fit !== "cover"` permits upscaling for cover fits).
+- New routes: `library-capsule`, `backdrop`, `achievement-gray`.
+- Backdrop is single-route with cross-host fallback `page_bg_generated_v6b.jpg` → `storepagebackground/app/{appid}` in the `urls` chain — caller loses its two-source `<img onError>` state machine.
+- `SteamAchievement`/`SteamRecentUnlock` shed `iconUrl`/`iconGrayUrl`; web composes via `steamAchievementIconUrl(appid, apiName, gray?)` using `apiName` already in payload.
+- Web helper `steam-image.ts` reduced from 6 functions × wsrv+bundled-manifest fallback to 6 pure proxy-URL builders.
+- Deleted: bundled `apps/web/public/steam/` (apps + manifest), `apps/web/src/steam/_shared/{asset-manifest.ts,manifest.gen.ts}`, `scripts/refresh-steam-assets.mts`, `refresh:steam-assets` pnpm script.
+- Boot-time prewarm at [img-prewarm.service.ts](../../apps/api/src/img/img-prewarm.service.ts) walks `SteamOwnedGame` + wishlist appids × 5 routes, gated by `STEAM_PREWARM=1` env var (off by default — no Nginx cache yet, so prewarm does real work for no benefit until hosting sweep).
+
+Surprises:
+- **Chunk 1 had a latent bug** — the `capsule` route returned `libraryCapsulePath` (600×900 portrait) under width 231 with no crop, producing a 231×346 distortion rather than a 231×87 cover. Caught here because chunk 2 added `library-capsule` as a separate route, forcing the question of what `capsule` was for.
+- **`schemaVersion` segment retained for achievements as a static `1`.** Achievement icons are essentially content-addressed by `apiName`, so a cache-buster is rarely needed. Keeping the segment leaves a knob to bump globally without redeploying.
+
 ---
 
 ## Parked

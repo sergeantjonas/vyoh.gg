@@ -12,7 +12,6 @@
     "db:down": "docker compose down",
     "reset": "bash scripts/reset.sh",
     "refresh:lol-assets": "tsx scripts/refresh-lol-assets.mts",
-    "refresh:steam-assets": "tsx scripts/refresh-steam-assets.mts",
     "format": "biome format --write .",
     "check": "biome check --write .",
     "ci:check": "biome ci .",

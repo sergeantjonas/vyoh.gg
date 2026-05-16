@@ -20,6 +20,9 @@ interface PrismaStubs {
     aggregate: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
   };
+  steamGameEnrichment?: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makeService(prisma: PrismaStubs): SteamOwnedGamesService {
@@ -340,22 +343,27 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
             game: {
               name: "Hollow Knight",
               rtimeLastPlayed,
-              enrichment: {
-                assetUrlFormat: "steam/apps/367520/${FILENAME}?t=1776125684",
-                // BigInt → Number coercion at the wire boundary; the projection
-                // narrows this so the SteamOwnedGame type can stay number-typed.
-                assetTimestamp: BigInt(1_776_125_684),
-                libraryCapsulePath: "1eebc7e0/library_capsule.jpg",
-                libraryCapsule2xPath: "1eebc7e0/library_capsule_2x.jpg",
-                libraryHeroPath: "0daf3933/library_hero.jpg",
-                libraryHero2xPath: "0daf3933/library_hero_2x.jpg",
-                headerPath: "3c348949/header.jpg",
-                heroCapsulePath: "e6cd56db/hero_capsule.jpg",
-                logoPath: "abc123/logo.png",
-                appType: "game",
-                tagIds: [1628, 1625],
-              },
             },
+          },
+        ]),
+      },
+      steamGameEnrichment: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            appid: 367520,
+            assetUrlFormat: "steam/apps/367520/${FILENAME}?t=1776125684",
+            // BigInt → Number coercion at the wire boundary; the projection
+            // narrows this so the SteamOwnedGame type can stay number-typed.
+            assetTimestamp: BigInt(1_776_125_684),
+            libraryCapsulePath: "1eebc7e0/library_capsule.jpg",
+            libraryCapsule2xPath: "1eebc7e0/library_capsule_2x.jpg",
+            libraryHeroPath: "0daf3933/library_hero.jpg",
+            libraryHero2xPath: "0daf3933/library_hero_2x.jpg",
+            headerPath: "3c348949/header.jpg",
+            heroCapsulePath: "e6cd56db/hero_capsule.jpg",
+            logoPath: "abc123/logo.png",
+            appType: "game",
+            tagIds: [1628, 1625],
           },
         ]),
       },
@@ -398,9 +406,12 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
             appid: 730,
             playtimeForeverMinutes: 0,
             playtime2WeeksMinutes: null,
-            game: { name: "Counter-Strike 2", rtimeLastPlayed: null, enrichment: null },
+            game: { name: "Counter-Strike 2", rtimeLastPlayed: null },
           },
         ]),
+      },
+      steamGameEnrichment: {
+        findMany: vi.fn().mockResolvedValue([]),
       },
     };
 
@@ -435,6 +446,9 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         count: vi.fn(),
         aggregate: vi.fn(),
         findMany,
+      },
+      steamGameEnrichment: {
+        findMany: vi.fn().mockResolvedValue([]),
       },
     };
 

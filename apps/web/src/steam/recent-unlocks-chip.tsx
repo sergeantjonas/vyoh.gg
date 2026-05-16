@@ -1,5 +1,6 @@
 import { CardShell } from "@/components/card-shell";
 import { Link } from "@tanstack/react-router";
+import { steamAchievementIconUrl } from "./_shared/steam-image";
 import { useRecentUnlocks } from "./use-recent-unlocks";
 
 // Fetch 5 rows for the Profile chip — enough to fill the evidence list
@@ -64,7 +65,7 @@ export function RecentUnlocksChip() {
                 className="flex items-center gap-3 rounded-md p-2 -mx-2 transition-colors hover:bg-background/40"
               >
                 <img
-                  src={u.iconUrl}
+                  src={steamAchievementIconUrl(u.appid, u.apiName)}
                   alt=""
                   loading="lazy"
                   className="size-10 shrink-0 rounded"

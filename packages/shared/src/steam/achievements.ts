@@ -12,8 +12,6 @@ export interface SteamAchievement {
   apiName: string;
   displayName: string;
   description: string;
-  iconUrl: string;
-  iconGrayUrl: string;
   hidden: boolean;
   // ISO-8601 unlock timestamp (Steam's `unlocktime`), or null when locked.
   unlockedAt: string | null;
@@ -50,7 +48,6 @@ export interface SteamRecentUnlock {
   gameName: string;
   apiName: string;
   displayName: string;
-  iconUrl: string;
   hidden: boolean;
   unlockedAt: string;
   globalPercent: number | null;

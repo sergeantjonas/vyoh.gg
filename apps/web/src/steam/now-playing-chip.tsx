@@ -114,13 +114,13 @@ function InGameHeroCard({ appid, name, playtimeForeverMinutes }: InGameHeroCardP
           frame before the hero streams in *and* serves as the permanent
           backdrop when library_hero 404s on older titles. */}
       <img
-        src={steamCapsuleUrl(appid, null, null, 920)}
+        src={steamCapsuleUrl(appid)}
         alt=""
         className="absolute inset-0 size-full scale-110 object-cover blur-sm"
       />
       {!heroFailed && (
         <img
-          src={steamLibraryHeroUrl(appid, null, null, 1280)}
+          src={steamLibraryHeroUrl(appid)}
           alt=""
           loading="eager"
           onLoad={handleHeroLoad}

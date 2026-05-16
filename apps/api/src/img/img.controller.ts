@@ -11,6 +11,7 @@ import {
   type TranscodeParams,
   UpstreamError,
   fetchUpstream,
+  fetchUpstreamChain,
   transcodeToWebp,
 } from "./upstream";
 
@@ -42,7 +43,7 @@ export class ImgController {
       return;
     }
     const resolved = this.lol.champion(alias, variant as ChampionVariant);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("lol/item/:itemId/:patch.webp")
@@ -59,7 +60,7 @@ export class ImgController {
       return;
     }
     const resolved = this.lol.item(id, patch);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("lol/rune/:keystoneId/:patch.webp")
@@ -75,7 +76,7 @@ export class ImgController {
       return;
     }
     const resolved = this.lol.rune(id);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("lol/spell/:spellKey/:patch.webp")
@@ -88,7 +89,7 @@ export class ImgController {
       return;
     }
     const resolved = this.lol.spell(key);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   // Role-position SVG pass-through. Versionless — CDragon's role-position SVGs
@@ -125,7 +126,23 @@ export class ImgController {
       return;
     }
     const resolved = await this.steam.capsule(id);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  @Get("steam/library-capsule/:appid/:assetTimestamp.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async steamLibraryCapsule(
+    @Param("appid") appid: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = await this.steam.libraryCapsule(id);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("steam/hero/:appid/:assetTimestamp.webp")
@@ -138,7 +155,7 @@ export class ImgController {
       return;
     }
     const resolved = await this.steam.hero(id);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("steam/logo/:appid/:assetTimestamp.webp")
@@ -151,7 +168,23 @@ export class ImgController {
       return;
     }
     const resolved = await this.steam.logo(id);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  @Get("steam/backdrop/:appid/:assetTimestamp.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async steamBackdrop(
+    @Param("appid") appid: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = await this.steam.backdrop(id);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("steam/achievement/:appid/:apiName/:schemaVersion.webp")
@@ -168,16 +201,33 @@ export class ImgController {
       return;
     }
     const resolved = await this.steam.achievement(id, apiName);
-    await this.proxyWebp(resolved.url, resolved.params, res);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  @Get("steam/achievement-gray/:appid/:apiName/:schemaVersion.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async steamAchievementGray(
+    @Param("appid") appid: string,
+    @Param("apiName") apiName: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = await this.steam.achievementGray(id, apiName);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   private async proxyWebp(
-    url: string,
+    urls: string[],
     params: TranscodeParams,
     res: Response
   ): Promise<void> {
     try {
-      const bytes = await fetchUpstream(url);
+      const bytes = await fetchUpstreamChain(urls);
       const webp = await transcodeToWebp(bytes, params);
       res.send(webp);
     } catch (err) {

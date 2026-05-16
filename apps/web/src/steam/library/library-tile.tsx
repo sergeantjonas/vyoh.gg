@@ -51,11 +51,7 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
                 <HeroFallback game={game} />
               ) : (
                 <img
-                  src={steamLibraryCapsuleUrl(
-                    game.appid,
-                    game.libraryCapsulePath,
-                    game.assetTimestamp
-                  )}
+                  src={steamLibraryCapsuleUrl(game.appid, game.assetTimestamp)}
                   alt=""
                   loading="lazy"
                   onLoad={() => setCapsuleLoaded(true)}
@@ -136,7 +132,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
     return (
       <>
         <img
-          src={steamCapsuleUrl(game.appid, game.headerPath, game.assetTimestamp, 600)}
+          src={steamCapsuleUrl(game.appid, game.assetTimestamp)}
           alt=""
           loading="lazy"
           className="absolute inset-0 size-full scale-110 object-cover blur-sm"
@@ -154,12 +150,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
   return (
     <>
       <img
-        src={steamLibraryHeroUrl(
-          game.appid,
-          game.libraryHeroPath,
-          game.assetTimestamp,
-          600
-        )}
+        src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
         alt=""
         loading="lazy"
         onLoad={handleHeroLoad}
@@ -176,7 +167,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
         </span>
       ) : (
         <img
-          src={steamLibraryLogoUrl(game.appid, game.logoPath, 360)}
+          src={steamLibraryLogoUrl(game.appid, game.assetTimestamp)}
           alt={game.name}
           loading="lazy"
           onLoad={handleLogoLoad}
