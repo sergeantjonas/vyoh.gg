@@ -107,9 +107,7 @@ export class LolImageService {
   private loadPerkPaths(): Promise<Map<number, string>> {
     if (this.perkPaths) return Promise.resolve(this.perkPaths);
     if (this.perkPathsPending) return this.perkPathsPending;
-    this.perkPathsPending = this.fetchIdPathMap(
-      `${CDRAGON_GAME_DATA}/v1/perks.json`
-    )
+    this.perkPathsPending = this.fetchIdPathMap(`${CDRAGON_GAME_DATA}/v1/perks.json`)
       .then((map) => {
         this.perkPaths = map;
         return map;
