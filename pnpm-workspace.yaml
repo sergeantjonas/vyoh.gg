@@ -10,4 +10,5 @@ allowBuilds:
   esbuild: true
   msw: true
   prisma: true
+  protobufjs: true
   sharp: true

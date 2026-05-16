@@ -29,6 +29,39 @@ or a simple deploy script triggered by CI).
 
 ---
 
+## Steam network protocol (outbound TCP)
+
+`SteamPicsService` (added in S5.5.A) talks to Steam's Connection Managers via the
+Steam network protobuf protocol over **TCP**, not HTTPS. This is the only
+outbound non-HTTPS dependency in the API; everything else (Riot, the
+`api.steampowered.com` Web API, image CDNs) is HTTPS-only.
+
+**What it needs:** outbound TCP to Steam CMs on a rotating port range (the
+`steam-user` library handles CM discovery automatically; ports observed in the
+wild span 27015-27050 plus 443 fallbacks). No inbound port needed — connections
+are client-initiated, short-lived, and torn down per PICS fetch.
+
+**Per-option implications:**
+
+- **A (Vercel + Railway):** Railway permits arbitrary outbound TCP by default. No
+  config needed.
+- **B (Fly.io):** Same — Fly machines permit arbitrary outbound TCP.
+- **C (Hetzner VPS + Nginx):** Nginx is reverse-proxy only and never touches
+  outbound traffic from the Node process, so the proxy config is unaffected.
+  **But:** if a host-level firewall is set up (UFW, nftables, or Hetzner's
+  Cloud Firewall product), the egress policy must allow outbound TCP to
+  Steam CM IP ranges. Don't lock egress to 80/443 only — that would silently
+  break PICS enrichment with no error visible until a logo refresh runs.
+  The simplest policy: allow all outbound (which is the OS default) and only
+  filter ingress at the firewall.
+
+**Failure mode if blocked:** `steam-user` retries CM discovery and eventually
+times out. The enrichment tick will log the timeout and skip the logo hash for
+that pass; capsule/hero/header (HTTPS-only) still resolve. So a misconfigured
+firewall is graceful but silent — worth a smoke test post-deploy.
+
+---
+
 ## SSE compatibility across all options
 
 SSE (`/lol/summoners/:region/:gameName/:tagLine/matches/events`) works on all
