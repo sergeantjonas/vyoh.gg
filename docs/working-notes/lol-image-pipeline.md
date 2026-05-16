@@ -317,44 +317,58 @@ Note: SW caching of long-tail CDN URLs is the part that genuinely buys something
 
 ## Phase 4 — runtime image proxy (planned, multi-stream)
 
-**Status: decided 2026-05-14, sequenced after Steam S5.** Reverses the Parked-section "Backend image proxy" decision from 2026-05-10. The build-time bundle is being treated as a stepping stone, not the end state.
+**Status: decided 2026-05-14, sequenced after Steam S5. Chunk plan + decisions set 2026-05-16 after S5+S6+S7 shipped at scale, validating the bundled approach's limits with empirical evidence.** Reverses the Parked-section "Backend image proxy" decision from 2026-05-10. The build-time bundle is being treated as a stepping stone, not the end state.
 
 **Why the pivot.** Phases 0–2 solved the CDN-flakiness problem and traded it for a different one: **deployment cadence is now driven by content events.** A new LoL champion ships → I redeploy. I buy a Steam game or wishlist one → I redeploy. The Riot patch cadence (~3 weeks) made this tolerable for LoL; the Steam wishlist cadence (whenever I see a trailer) makes it obviously wrong. Surfaced concretely during Steam S3 chunk 3 (2026-05-14): the wishlist drill-in shipped with bundled capsules, three live wishlist titles came back blank because Steam's content-hashed URL scheme broke the unversioned-CDN assumption, and we spent a session adding a versioned-`appdetails` fallback to the script. The fallback chain works — but the fact that there *is* a fallback chain, and that it lives in N URL helpers across the codebase, is the smell.
 
-**Goal.** Move both LoL and Steam image handling onto a server-side proxy with persistent caching. Same shape for both — having two asset-handling philosophies is a guaranteed future-maintenance trap.
+**Goal.** Move both LoL and Steam image handling onto a server-side proxy. Same shape for both — having two asset-handling philosophies is a guaranteed future-maintenance trap.
 
 **Target shape:**
 
-- **Backend route(s)** on the API: `GET /img/steam/capsule/:appid`, `GET /img/lol/champion/:alias/:variant`, etc. Fetch from the relevant CDN on miss, transcode via Sharp, return.
-- **Caching layer.** Nginx `proxy_cache` in front with long TTL + `proxy_cache_use_stale updating` (stale-while-revalidate). Disk-backed, LRU eviction. The Hetzner VPS direction (see [hosting.md](hosting.md)) makes this cheap — no S3/R2 needed.
+- **Backend routes** on the API at `/img/*`. Fetch from upstream CDN on demand, transcode via Sharp, return with strong `Cache-Control` headers.
+- **No cache layer in the API.** Caching belongs in the deployment layer: browser HTTP cache (via `Cache-Control: public, max-age=31536000, immutable` on hash-keyed URLs) covers repeat views, Nginx `proxy_cache` in front covers shared users when it lands at the pre-launch hosting sweep. This keeps the proxy itself portable and small — the API just transcodes.
 - **No bundled assets, no `manifest.gen.ts`, no refresh script, no CI workflow.** The vendor-URL-knowledge that today lives in every URL helper + the refresh script collapses into one server-side resolver per stream.
-- **Content updates require no code path.** First viewer of a new wishlist game or new champion pays the cold-cache fetch; everyone after sees a cache hit. Steam moves a CDN path → one server-side fix updates all clients.
+- **Content updates require no code path.** First viewer of a new wishlist game or new champion pays the cold fetch; everyone after sees a browser or Nginx cache hit. Steam moves a CDN path → one server-side fix updates all clients.
 
-**Why deferred to after Steam S5, not now:**
+**URL shape — decided 2026-05-16: fixed variants in path segments, with the upstream version baked into the URL.**
 
-1. **S4 will roughly double the asset count** (achievement icons per game schema). Pivoting *before* S4 means refactoring once for new shape, then S4 lands on the new shape natively. Pivoting *after* S5 means the bundled approach gets validated at the scale where its limits become concrete (~200 capsules + thousands of achievement icons), which is the right time to retire it with empirical evidence.
-2. **Case-study writeup is stronger when the smell is demonstrated, not just argued.** The honest portfolio framing ("I shipped a build-time pipeline, ran it against a wider asset universe, then pivoted to a runtime proxy when the deploy-coupling cost outweighed the cold-cache predictability") is more interesting than the current planned framing.
-3. **Steam-side feature delivery shouldn't pause for a horizontal refactor.** Owned-games + S4 substrate + S5 surfaces are the higher-value next moves.
+```
+/img/steam/capsule/:appid/:assetTimestamp.webp
+/img/steam/hero/:appid/:assetTimestamp.webp
+/img/steam/logo/:appid/:assetTimestamp.webp
+/img/steam/achievement/:appid/:apiName/:schemaVersion.webp
+/img/lol/champion/:alias/:variant/:patch.webp     # variant ∈ {square, card, backdrop}
+/img/lol/item/:itemId/:patch.webp
+/img/lol/rune/:keystoneId/:patch.webp
+/img/lol/spell/:spellKey/:patch.webp
+/img/lol/role/:position.svg                       # static, no version
+```
 
-**Sequencing when the arc starts:**
+Bounded cache-key cardinality (no `?w=` pollution risk), CDN-safe (no query-param stripping), `immutable` headers safe because the URL changes when content does. The prewarm code knows exactly what URLs to walk. If a 2× DPR variant is ever needed, add `@2x` as a path segment; don't introduce query params.
 
-1. Build the proxy route(s) on the API + Nginx cache config. Validate against Steam first — smaller blast radius than LoL.
-2. Switch Steam consumers onto the proxy. Revert/remove the chunk-3 bundled Steam assets (commit `e1ab677`), [scripts/refresh-steam-assets.mts](../../scripts/refresh-steam-assets.mts), and the slim `manifest.gen.ts` mirror.
-3. Switch LoL consumers — `champion-icon.ts`, `role-icon.tsx`, `use-perks.ts`, `use-summoner-spells.ts`, `splash-resolver.ts` (which becomes thinner — no fallback chain to resolve).
-4. Delete [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts), the LoL manifest infrastructure, `apps/web/public/lol/`, and the `refresh-lol-assets.yml` CI workflow.
-5. **Fold in the deferred asset-bucket split** from [folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 1. The 13 asset-adjacent files still at the root of [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/) (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`) were intentionally left at root pending this pivot so they get reorganized once, not twice. Most will be deleted outright in step 4; the survivors (the icon URL helpers that become thin proxy-URL builders, plus any retained owner-rendered theming under `tools/champion-assets/`) get a final home decided here. Per the bucket-loop lessons in the cleanup ship note: pre-screen both `@/lol/_shared/<name>` and relative `../_shared/<name>` imports, and absorb biome format-only diffs into a single trailing commit, not per bucket.
-6. Annotate the `build-time-champion-assets` case study with the epilogue, or supersede it with a new case study `runtime-image-proxy` that includes the pivot as the lede.
+**No migration ceremony — pre-launch context.** With no live users, each chunk lands its switch directly. No feature flags, no per-stream env vars, no soak periods. If something breaks in dev, fix forward in the same commit. The bundled paths get deleted in the same chunk that switches their consumers, not days later.
+
+**Chunk plan (set 2026-05-16):**
+
+1. **Proxy substrate.** API `/img/*` routes + Sharp pipeline + `Cache-Control` headers. No cache code, no Nginx, no frontend changes. Validate by hitting a hand-curated URL in the browser. Pure backend, independently committable.
+2. **Steam switch + cleanup.** Flip all Steam helpers (`steamLibraryCapsuleUrl`, `steamLibraryHeroUrl`, `steamLibraryLogoUrl`, achievement icons) to proxy URLs. Delete the bundled Steam manifest, [scripts/refresh-steam-assets.mts](../../scripts/refresh-steam-assets.mts), and the slim `manifest.gen.ts` mirror (commit `e1ab677` revert path). Add boot-time prewarm walking `SteamOwnedGame` + wishlist (no-op against the cache until Nginx lands at hosting sweep, but verifies the loop runs). Verify `/steam` surfaces in dev browser.
+3. **LoL switch + cleanup.** Flip `champion-icon.ts`, `splash-resolver.ts` (becomes thinner — no fallback chain to resolve), `role-icon.tsx`, `use-perks.ts`, `use-summoner-spells.ts`. Delete [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts), the LoL manifest infrastructure, [apps/web/public/lol/](../../apps/web/public/lol/), and the `refresh-lol-assets.yml` CI workflow. Add prewarm for current roster + patch. **Fold in the deferred asset-bucket split** from [folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 1 — the 13 asset-adjacent files at the root of [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/) (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`) are mostly deleted by this chunk; the survivors (thin proxy-URL builders + retained owner-rendered theming under `tools/champion-assets/`) get a final home decided here. Per the bucket-loop lessons in the cleanup ship note: pre-screen both `@/lol/_shared/<name>` and relative `../_shared/<name>` imports, and absorb biome format-only diffs into a single trailing commit, not per bucket.
+4. **Case study writeup.** Annotate the `build-time-champion-assets` case study with the epilogue, or supersede it with a new case study `runtime-image-proxy` that includes the pivot as the lede.
 
 **Anti-pattern to avoid: client-side `<img onError>` chains to vendor CDNs as a last-ditch fallback.** Discussed and rejected (2026-05-14). It re-introduces the brittleness the proxy is meant to absorb — URL-pattern knowledge would live in both the proxy and the browser, doubling the maintenance surface. The proxy's *internal* fallback chain (unversioned → versioned `appdetails` → header.jpg etc.) is the right home for that logic because it can be tested, observed, and updated in one place. The only scenario where client-side fallback would buy anything is "API up, image route specifically broken" — fix the bug, don't paper over it.
 
-**Open questions to revisit when the arc starts:**
+**Steam asset-hash resolution: resolved.** All required Steam asset hashes (`library_capsule`, `library_hero`, `header`, `library_logo`) plus the `asset_url_format` timestamp now live in `SteamGameEnrichment` after S4.6 Chunk 2 and S5.5 (PICS-driven logo enrichment). The proxy's Steam resolver reads from this table directly — no on-demand `appdetails` lookups, no per-IP rate-limit risk, no resolver-side memoization needed because the data is already DB-resident.
 
-- **Cache layer placement.** Nginx `proxy_cache` is the obvious default; Cloudflare in front would be a stronger CDN story if/when the VPS gets one. Bake the decision around the hosting topology that's actually live at start time.
-- **Steam asset-hash resolution.** Steam serves canonical artwork at hash-prefixed paths (`…/apps/{appid}/{hash}/library_capsule.jpg`); the unhashed paths are frozen 2019-era mirrors. The hash isn't guessable — it has to be fetched per appid. Resolved by [steam-integration.md S4.6 Chunk 2](steam-integration.md#phase-s46--library-enrichment), which uses `api.steampowered.com/IStoreBrowseService/GetItems` (proper Steam Web API, much higher rate limit than `store.steampowered.com/api/appdetails`) to persist `library_capsule`, `library_hero`, `header`, and `hero_capsule` hashes + the `asset_url_format` timestamp into the enrichment table. The proxy's Steam resolver reads from this table — no on-demand `appdetails` lookups, no per-IP rate-limit risk, no resolver-side memoization needed because the data is already DB-resident. If Phase 4 ships before S4.6 Chunk 2, the proxy can fall back to the unhashed paths in the interim (current Chunk 1 behavior); if S4.6 Chunk 2 ships first, its image-pass updates the URL helpers client-side and the proxy inherits a clean source of truth when it lands.
-- **Stale-while-revalidate semantics.** Decide whether revalidation runs synchronously on first stale hit (bounded extra latency on that one request) or fire-and-forget in a background goroutine/job (no user-visible latency, slightly trickier failure handling).
-- **Do we keep `tools/champion-assets/` (theme/blurhash)?** That data is still build-time-derivable from splash bytes and isn't a deploy-cadence smell — owner-rendered theming, not user-fetchable content. Likely stays as-is; confirm at start time.
+**Deferred to the pre-launch hosting sweep:**
 
-**Effort estimate.** Multi-chunk arc. Proxy + cache + Steam switch is one session; LoL switch is another; cleanup + case-study annotation is a third. None individually big; the discipline is keeping each landable.
+- **Nginx `proxy_cache` config** with stale-while-revalidate (`proxy_cache_use_stale error timeout updating`) — serves stale bytes on transient origin errors instead of 502'ing.
+- **Cache size / LRU ceiling.** Working set is ~200MB (Steam capsules+heroes+logos ~30MB, achievement icons ~70MB, LoL splashes+icons ~100MB). 2GB ceiling is the current lean — 10× headroom over working set, no monitoring or tuning burden.
+- **CDN fronting.** Cloudflare in front for global edge cache if hosting topology supports it; decide alongside the hosting commitment.
+- **`tools/champion-assets/` (theme/blurhash) disposition.** Still build-time-derivable from splash bytes and not a deploy-cadence smell — owner-rendered theming, not user-fetchable content. Likely stays as-is; confirm at hosting sweep.
+
+These don't block proxy delivery — the proxy ships fine without them, and adding them is pure deployment config.
+
+**Effort estimate.** Four chunks, each one focused session. Chunk 1 builds the substrate in isolation. Chunks 2 and 3 each switch one stream and clean up its bundled infrastructure in the same commit. Chunk 4 is the writeup. None individually large; the discipline is keeping each landable.
 
 ---
 
