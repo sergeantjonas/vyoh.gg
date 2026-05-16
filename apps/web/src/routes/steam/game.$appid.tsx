@@ -14,6 +14,7 @@ import {
 } from "@/steam/_shared/steam-image";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
+import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -180,6 +181,8 @@ function SteamGamePage() {
           </div>
         </dl>
       )}
+
+      {game && <GameScreenshotStrip appid={appid} />}
 
       {game && <CompletionVerdictCard appid={appid} />}
       {game && <AchievementPanel appid={appid} />}
