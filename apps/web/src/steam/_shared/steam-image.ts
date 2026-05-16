@@ -49,24 +49,40 @@ export function steamCapsuleUrl(
   );
 }
 
+// Generated page background — `page_bg_generated_v6b.jpg` under the
+// `store_item_assets` family. Same dimensions as `storepagebackground`
+// (~1438×809) but encoded as a less-aggressively-compressed JPEG (≈4× the
+// bytes), so it visibly avoids the banding/blockiness in dark gradients
+// that the WebP-compressed `storepagebackground` exhibits. Not universally
+// available; callers should fall back to `steamPageBackgroundUrl` on
+// wsrv silent-404 (`naturalWidth === 0`) or onError.
+//
+// No `w=` on wsrv — the source is already low-res, and asking wsrv to
+// upscale just re-encodes a blurry larger version. Browser CSS scales the
+// native image to fill the viewport via `object-cover`.
+export function steamPageBackgroundGeneratedUrl(
+  appid: number,
+  timestamp?: number | null
+): string {
+  const t = timestamp != null ? `?t=${timestamp}` : "";
+  const src = `${STEAM_CDN_HOST}/${STEAM_STORE_ASSETS_PATH}/steam/apps/${appid}/page_bg_generated_v6b.jpg${t}`;
+  return wsrv(src, "output=webp&q=95");
+}
+
 // Store-page background — the same image Steam serves behind a game's store
 // page. The `appdetails` endpoint exposes this as both `background` and
 // `background_raw`, pointing at `store.akamai.steamstatic.com/images/
 // storepagebackground/app/{appid}` — a different host + path than the rest
 // of the `store_item_assets/...` family. Universally available across the
 // titles we sampled (CS2, Dota2, BG3, Helldivers, Terraria, Rust, indies),
-// so no per-game fallback is needed. The `?t=` cache-buster reuses the same
-// epoch as the enrichment row's `assetTimestamp`. wsrv handles resize +
-// WebP transcode; on the rare upstream miss it forwards 404 as 200 with
-// zero bytes (caller detects via `naturalWidth === 0`).
-export function steamPageBackgroundUrl(
-  appid: number,
-  timestamp?: number | null,
-  width = 1920
-): string {
+// so it's the safe fallback for `steamPageBackgroundGeneratedUrl`. The
+// `?t=` cache-buster reuses the same epoch as the enrichment row's
+// `assetTimestamp`. wsrv handles WebP transcode; no `w=` since the source
+// is already low-res (~1437×807) and upscaling it on the proxy just blurs.
+export function steamPageBackgroundUrl(appid: number, timestamp?: number | null): string {
   const t = timestamp != null ? `?t=${timestamp}` : "";
   const src = `store.akamai.steamstatic.com/images/storepagebackground/app/${appid}${t}`;
-  return wsrv(src, `w=${width}&output=webp&q=85`);
+  return wsrv(src, "output=webp&q=95");
 }
 
 // Library hero — the wide 1920×620 banner Steam uses behind library page game

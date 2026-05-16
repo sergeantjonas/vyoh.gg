@@ -68,8 +68,7 @@ function SteamLayout() {
   const slideDirection = prefersReducedMotion ? 0 : rawDirection;
 
   return (
-    <>
-      <SteamProfileBackdrop />
+    <SteamProfileBackdrop>
       <SectionShell
         pathname={pathname}
         slideDirection={slideDirection}
@@ -78,7 +77,7 @@ function SteamLayout() {
       >
         <Outlet />
       </SectionShell>
-    </>
+    </SteamProfileBackdrop>
   );
 }
 
