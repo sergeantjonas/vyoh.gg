@@ -38,6 +38,11 @@ export interface SteamOwnedGame {
   // enough across polls to drive a faceted filter; resolved to human labels
   // on the web side via a curated dictionary.
   tagIds: number[];
+  // ISO timestamp of the last client-reported launch (GetOwnedGames'
+  // `rtime_last_played`). Null on titles the owner has never started.
+  // Paired with the most recent unlock timestamp to surface a
+  // "still launching, not progressing" verdict.
+  rtimeLastPlayedAt: string | null;
 }
 
 export interface SteamOwnedGames {

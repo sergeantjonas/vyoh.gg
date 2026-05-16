@@ -141,6 +141,10 @@ export interface SteamOwnedGameRaw {
   playtime_mac_forever?: number;
   playtime_linux_forever?: number;
   playtime_deck_forever?: number;
+  // Unix epoch (seconds) of the most recent launch as reported by the Steam
+  // client. 0 / absent on titles the owner has never started — `> 0` is the
+  // meaningful signal, not just `!= undefined`.
+  rtime_last_played?: number;
 }
 
 export interface SteamGetOwnedGamesResponse {

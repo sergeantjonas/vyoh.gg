@@ -97,11 +97,23 @@ export class SteamOwnedGamesService {
       // Upsert each currently-owned game. firstSeenAt is only set on insert
       // (default). lastSeenAt advances on every poll. removedAt clears for
       // games that came back (e.g. unhidden, refunded-and-rebought).
+      // rtimeLastPlayed mirrors GetOwnedGames' epoch — Steam emits 0 for
+      // never-launched, so we narrow to `> 0` and keep the column null
+      // until the owner actually starts the game.
       for (const game of games) {
+        const rtimeLastPlayed =
+          game.rtime_last_played && game.rtime_last_played > 0
+            ? new Date(game.rtime_last_played * 1000)
+            : null;
         await tx.steamOwnedGame.upsert({
           where: { appid: game.appid },
-          create: { appid: game.appid, name: game.name },
-          update: { name: game.name, lastSeenAt: now, removedAt: null },
+          create: { appid: game.appid, name: game.name, rtimeLastPlayed },
+          update: {
+            name: game.name,
+            lastSeenAt: now,
+            removedAt: null,
+            rtimeLastPlayed,
+          },
         });
       }
 
@@ -322,6 +334,7 @@ export class SteamOwnedGamesService {
         game: {
           select: {
             name: true,
+            rtimeLastPlayed: true,
             // Left-join: rows without an enrichment row (e.g. delisted, or
             // before the monthly cron reached them) come back as `null` and
             // map to the per-field nulls below — image helpers fall back to
@@ -369,6 +382,7 @@ export class SteamOwnedGamesService {
           logoPath: e?.logoPath ?? null,
           appType: e?.appType ?? null,
           tagIds: e?.tagIds ?? [],
+          rtimeLastPlayedAt: r.game.rtimeLastPlayed?.toISOString() ?? null,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

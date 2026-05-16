@@ -57,6 +57,11 @@ model SteamOwnedGame {
   firstSeenAt DateTime  @default(now())
   lastSeenAt  DateTime  @default(now())
   removedAt   DateTime?
+  // GetOwnedGames `rtime_last_played` — epoch of the last client-reported
+  // launch. Null when Steam reports 0 (never launched) or omits the field.
+  // Refreshed on every daily owned-games sync; pairs with the latest unlock
+  // timestamp on `SteamPlayerUnlock` to drive the last-progressed verdict.
+  rtimeLastPlayed DateTime?
 
   snapshots       SteamPlaytimeSnapshot[]
   enrichment      SteamGameEnrichment?
