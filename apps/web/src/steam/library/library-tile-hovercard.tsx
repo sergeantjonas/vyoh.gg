@@ -48,30 +48,24 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
   const { data: media } = useGameMedia(game.appid, true);
   const screenshots = media?.screenshots ?? [];
   const [index, setIndex] = useState(0);
-  // Gate the first screenshot's appearance on a separate render tick so it
-  // animates *in* rather than popping in on top of the hero. Without this,
-  // layer 0 mounts at opacity-100 immediately when the query resolves —
-  // there's no prior opacity-0 state for the transition to interpolate from,
-  // so the eye reads a hard cut. Component unmounts on popover close (Radix
-  // Portal), so this resets per-hover automatically.
-  const [hasEntered, setHasEntered] = useState(false);
-
-  useEffect(() => {
-    if (screenshots.length === 0) return;
-    const handle = requestAnimationFrame(() => setHasEntered(true));
-    return () => cancelAnimationFrame(handle);
-  }, [screenshots.length]);
+  // Tracks whether at least one inter-screenshot rotation has happened. The
+  // first screenshot snaps in directly over the hero (no fade, no scrim) —
+  // starting on black or with a slow fade-in reads as a load stall. Only
+  // rotations between screenshots stagger through the scrim.
+  const [hasRotated, setHasRotated] = useState(false);
 
   useEffect(() => {
     if (screenshots.length <= 1) return;
     // Reset to the first frame each time the screenshot set changes so the
     // first paint of a freshly-loaded game starts at index 0.
     setIndex(0);
+    setHasRotated(false);
     const handle = setInterval(() => {
       // Pause cycling while the tab is backgrounded — the popover may still
       // technically be "open" from Radix's perspective if focus left the
       // window mid-hover. Cheap defensive skip rather than an interval clear.
       if (document.visibilityState === "hidden") return;
+      setHasRotated(true);
       setIndex((i) => (i + 1) % screenshots.length);
     }, SCREENSHOT_ROTATION_MS);
     return () => clearInterval(handle);
@@ -101,21 +95,22 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
         )}
         {screenshots.length > 0 && (
           <>
-            {/* Black scrim sits *between* hero and screenshots. Fades in with
-                the first screenshot, then stays at full opacity for the rest
-                of the popover lifetime. The screenshot layers above stagger
-                outgoing fade-out + delayed fade-in so during each inter-frame
-                gap both are at opacity 0 — this scrim shows through, producing
-                a brief blink-to-black. */}
+            {/* Black scrim sits *between* hero and screenshots. Stays hidden
+                during the first appearance so screenshot 0 cross-fades cleanly
+                from the hero, then fades in alongside the first rotation and
+                stays at full opacity for the rest of the popover lifetime. The
+                screenshot layers above stagger outgoing fade-out + delayed
+                fade-in so during each inter-frame gap both are at opacity 0 —
+                this scrim shows through then, producing a brief blink-to-black. */}
             <div
               className={cn(
                 "absolute inset-0 bg-black transition-opacity duration-300 ease-in-out",
-                hasEntered ? "opacity-100" : "opacity-0"
+                hasRotated ? "opacity-100" : "opacity-0"
               )}
             />
             <div className="absolute inset-0">
               {screenshots.map((s, i) => {
-                const isActive = hasEntered && i === index;
+                const isActive = i === index;
                 return (
                   <img
                     key={s.thumbUrl}
@@ -128,7 +123,10 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
                       // it enters fast off the black, also clearing the near-0
                       // region quickly. Combined with delay-300, the black
                       // window perceived between frames stays a flicker
-                      // (~50–100ms) instead of a hold.
+                      // (~50–100ms) instead of a hold. Screenshot 0's initial
+                      // mount has no prior opacity-0 state to interpolate
+                      // from, so it just snaps in over the hero — exactly
+                      // what we want for the first appearance.
                       "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
                       isActive
                         ? "opacity-100 delay-300 ease-out"
