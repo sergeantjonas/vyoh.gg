@@ -2,6 +2,12 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
+// Motion's `layout` projection on the outer shell left transient transform /
+// projection state after a route remount, breaking pointer hit-testing on
+// interactive children (the Recent Unlocks chip's Link rows). The visible
+// polish — verdict text swaps — is driven by the inner AnimatePresence, so
+// the outer container can be a plain div without losing perceived quality.
+
 // Layout primitive shared by ConclusionCard (LoL trends, statistical) and
 // FactCard (Steam catalog, non-statistical). Both have the same shape — title
 // row with a top-right indicator slot, an animated verdict body, optional
@@ -30,8 +36,7 @@ export function CardShell({
 }: CardShellProps) {
   const reduced = useReducedMotion();
   return (
-    <m.div
-      layout
+    <div
       className={cn(
         "flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4",
         className
@@ -41,10 +46,9 @@ export function CardShell({
         <h3 className="text-xs uppercase tracking-wide text-muted-foreground">{title}</h3>
         {indicator}
       </div>
-      <AnimatePresence mode="popLayout" initial={false}>
+      <AnimatePresence mode="wait" initial={false}>
         <m.p
           key={verdict}
-          layout="position"
           initial={reduced ? false : { opacity: 0, y: 4 }}
           animate={reduced ? undefined : { opacity: 1, y: 0 }}
           exit={reduced ? undefined : { opacity: 0, y: -4 }}
@@ -63,6 +67,6 @@ export function CardShell({
           {prescription}
         </p>
       )}
-    </m.div>
+    </div>
   );
 }
