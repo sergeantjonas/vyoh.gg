@@ -34,7 +34,7 @@ function parsePuuidPlatform(account: LolAccount): Platform {
 
 // Riot's spectator-v5 type says riotId is `string`, but in practice it can be
 // null/empty (streamer mode hides opponents' Riot IDs until post-game).
-function parseRiotId(riotId: string | null | undefined): {
+export function parseRiotId(riotId: string | null | undefined): {
   gameName: string;
   tagLine: string;
 } {
@@ -44,7 +44,7 @@ function parseRiotId(riotId: string | null | undefined): {
   return { gameName: riotId.slice(0, idx), tagLine: riotId.slice(idx + 1) };
 }
 
-function keystoneFromPerks(perks: RiotActiveGameParticipant["perks"]): number {
+export function keystoneFromPerks(perks: RiotActiveGameParticipant["perks"]): number {
   return perks.perkIds[0] ?? 0;
 }
 
