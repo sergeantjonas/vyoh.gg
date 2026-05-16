@@ -385,13 +385,44 @@ Rarity-weighted score, time-to-100%, hidden-unlock reveal, stuck-at-X / abandone
   - **Done.** Three new surfaces render on `/steam/achievements` alongside the recent feed; completionist axis hides gracefully when sample < 5; 100%'d hall collapses when no game is fully complete.
   - **Post-ship route split 2026-05-16.** Live, having axis + hall + rarest stacked above the recent feed pushed the running unlocks below several screens of signature content — recent kept feeling buried. Rejected tabs (third nav layer above the app + Steam navs); split the signature surfaces to `/steam/achievements/signature` as a contextual drill-in. `/steam/achievements` is now recent-feed-only again with a `View signatures →` link under the heading; the sub-route hosts axis + hall + rarest with an `← Recent unlocks` back link. Steam tab's `exact: false` keeps the parent Achievements tab active on the sub-route, so no Steam-level nav addition. `RarestSection` moved out of `routes/steam/achievements.tsx` into `apps/web/src/steam/achievements/rarest-section.tsx` (self-contained, no props). New file: `apps/web/src/routes/steam/achievements.signature.tsx`.
 
-**Sequencing:** A → B → C. A is the smallest highest-visible delta (mirrors S5 chunk 7's shape); B introduces the only new data; C is the largest cross-game lift and depends on chunk 9 having shipped the page shell. Order can be revisited at chunk boundaries.
+- **S7.D — Trophy case on `/steam` (planned 2026-05-16).** Owner-flagged 2026-05-16 idea: surface the top-N rarest unlocks as a small pride-of-place strip on the main Steam profile section, not buried in the `/steam/achievements/signature` drill-in. Closes the last S7 visible-deficit: signature surfaces today live two clicks deep; the headline view shows summary cards only.
+
+  - **Goal.** Compact horizontal strip on `/steam` between the identity row and the existing chip grid. Distinct visual register from `RarestUnlockCard` (per-game) and `RarestSection` (full vertical list on the signature sub-route).
+  - **New (web).** `apps/web/src/steam/profile/trophy-case-strip.tsx` — 4–5 entries, each a small capsule (184×69) with the achievement icon overlaid and a rarity % chip. `Link to="/steam/game/$appid"` with `prefetchSteamGameBackdrop` on both `onMouseEnter` and `onFocus` (canonical pattern — see auto-memory `feedback_steam_game_backdrop_prefetch`). Hides entirely when no unlocks under 10% rarity.
+  - **Modify (web).** `apps/web/src/routes/steam.index.tsx` — slot `<TrophyCaseStrip>` above `<RecentUnlocksChip>` per pride-of-place framing.
+  - **Reuse, do not recreate.** `useCrossGameRarest()` from S7.C — same hook the signature sub-route consumes. No new endpoint. `steamCapsuleUrl` + `steamAchievementIconUrl` for assets. `RarestSection` at `apps/web/src/steam/achievements/rarest-section.tsx` is the closest visual cousin; read it first, then deliberately diverge (horizontal vs vertical, capsule-led vs row-led).
+  - **Decisions baked in.** 4–5 entries (full list stays on signature sub-route); sub-10% rarity gate so it stays meaningful as the library grows; no first-paint animation (calm-aesthetic); hover affordances OK; backdrop prefetch mandatory.
+  - **Tidy-up in the same commit.** Replace the stale "Asset-pipeline pivot" entry in `docs/working-notes/open-work.md` line 19 with a fully-shipped pointer — the arc landed across `d40b92b` → `f29f3c6` → `de0961f` → `2aded02` → `c25e9d7` → `e92021c`.
+  - **Validation.** `pnpm run check:cc`, `pnpm run typecheck:cc`. Browser verify: renders on `/steam`, links navigate, capsules load via `/img/steam/capsule/*`, empty state hides cleanly.
+
+**Sequencing:** A → B → C → D. A is the smallest highest-visible delta (mirrors S5 chunk 7's shape); B introduces the only new data; C is the largest cross-game lift and depends on chunk 9 having shipped the page shell. D ports the cross-game rarest into a headline-visible strip. Order can be revisited at chunk boundaries.
 
 **Phase S7 exit criteria:** all four verdict families from the [achievement family brainstorm](#verdict-family-per-game-conclusioncards) visible somewhere — per-game on `/steam/game/$appid`, cross-game on `/steam/achievements`. Temporal surfaces (per-game timeline, cross-game heatmap, first-played-meaningfully, chronotype) stay in **Phase S8**.
 
 ### Phase S8 — Temporal + cross-stream
 
 Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S4 achievement-anchor reconstruction), weekly gaming-total bento card, session-length distribution. The cross-stream payoff lands here.
+
+**Chunk plan (set 2026-05-16, after S7.D).** Two chunks open S8 by realizing the cross-stream rule that was sharpened in `1a41fb1` (`/` is for synthesis, not feeds). The `/home` chronotype tile today buckets LoL match `playedAt` only — making it actually cross-stream is the smallest demonstrable payoff. Chunks 1 + 2 ship the substrate and the synthesis tile; the remaining S8 surfaces (per-game timeline, LoL-vs-Steam evening split, weekly bento, session-length distribution) chunk separately after these two land.
+
+- **S8.1 — Steam chronotype substrate (planned).** Steam side of chronotype, owner-local hour-bucketing over `SteamPlayerUnlock.unlockedAt`. Lives on `/steam/achievements/signature` per the cross-stream rule; substrate enables S8.2.
+  - **New (api).** `apps/api/src/steam/steam-chronotype.service.ts` — `getChronotype(count = 500)` against indexed `SteamPlayerUnlock` rows ordered by `unlockedAt desc`. Server-side bucketing in `Europe/Brussels` via `Intl.DateTimeFormat({ timeZone: "Europe/Brussels", hour: "2-digit", hourCycle: "h23" })`. Returns `{ timeZone, hours: ChronotypeHour[] }`. Mirrors the LoL chronotype service shape — find it via LSP and pattern-match the file structure.
+  - **New (api).** `apps/api/src/steam/steam.controller.ts` — `@Get("chronotype")`.
+  - **New (shared).** `packages/shared/src/steam/chronotype.ts` — `SteamChronotype` + `SteamChronotypeHour`. Barrel export from `packages/shared/src/index.ts`. Mirror `packages/shared/src/lol/chronotype.ts` so chunk 2 can treat both streams uniformly.
+  - **New (web).** `apps/web/src/steam/use-steam-chronotype.ts` — react-query hook. `apps/web/src/steam/achievements/steam-chronotype-tile.tsx` — 24-bar heatmap mirroring LoL `TileChronotype`. Slot onto `/steam/achievements/signature` between hall + axis.
+  - **Decisions baked in.** 500-unlock window matches LoL chronotype's 500-match default; the `[appid, unlockedAt]` index already exists. Color encoding is count-density only (no win-rate axis to color by) — single muted accent ramp; bars *are* the verdict. No sample-size gate (`SampleSizeBadge` carries n). Verdict-less, same as LoL chronotype.
+  - **Validation.** check + typecheck + unit test for the bucketing logic (pure function, deserves a `steam-chronotype.service.spec.ts`).
+
+- **S8.2 — `/home` chronotype becomes cross-stream (planned).** The synthesis payoff. The home-deck chronotype tile, today fed by LoL matches only, becomes the canonical cross-stream surface — bucketed across LoL `playedAt` + Steam `unlockedAt`. Directly realizes the rule from `1a41fb1`.
+  - **Modify (api).** The existing home chronotype endpoint (verify location via LSP — likely under `apps/api/src/home/` or `apps/api/src/lol/`) merges both streams server-side and returns a single `{ timeZone, hours }` with summed counts. Per-stream endpoints (LoL chronotype, S8.1 Steam chronotype) stay untouched as drill-in data.
+  - **Modify (web).** `apps/web/src/home/tile-chronotype.tsx` — copy update ("across LoL and Steam"). Single bar per hour summing both streams. Sample-size badge becomes "N matches + M unlocks".
+  - **Graceful degrade.** Empty-Steam case still renders LoL-only; the Steam contribution drops to zero without breaking the tile. Verifies at the API layer (Steam side returns empty `hours[]` if no unlocks) — no special-casing in the UI.
+  - **Out of scope (S8 follow-ups, not this chunk).** Per-stream toggle on the tile (stacked / LoL-only / Steam-only); per-game unlock timeline on `/steam/game/$appid`; first-played-meaningfully chip; LoL-vs-Steam evening split (separate S8 surface); weekly gaming-total bento; session-length distribution.
+  - **Validation.** Browser verify the merged tile reads cleanly with both streams populated. Then dev-test the empty-Steam path (or confirm by code-reading the merge logic).
+
+**Phase S8 entry criteria.** S7.D landed (cross-game-rarest data has a headline surface to compare against); chronotype LoL tile is on `/home` (chunk 2 of home-deck, shipped 2026-05-14); cross-stream rule articulated in [self-portrait-surfaces.md § Routing principle](self-portrait-surfaces.md#routing-principle-sharpened-2026-05-16).
+
+**Phase S8 exit criteria.** All five S8 brainstorm surfaces visible somewhere — cross-game heatmap (S8.1 + S8.2), per-game timeline, LoL-vs-Steam evening split, weekly gaming-total bento, session-length distribution. Yearly + career-narrative stays in **Phase S9**.
 
 ### Phase S9 — Yearly + career-narrative
 
