@@ -58,6 +58,26 @@ export class SteamPlayerStateService {
       select: { currentAppid: true, lastPolledAt: true },
     });
 
+    // recordTransition runs *before* the upsert. Two reasons:
+    //   1. Ordering invariant. The upsert writes `lastPolledAt = new
+    //      Date()` from Node's clock, while session rows take `startedAt`
+    //      from Postgres's CURRENT_TIMESTAMP default. If the upsert ran
+    //      first, a single-tick session (open at T, close at T+2min)
+    //      would record `endedAt < startedAt` by a few ms — the next
+    //      tick's close uses *this* tick's just-written `lastPolledAt`,
+    //      which precedes the session row's `startedAt`.
+    //   2. Failure recovery. If transition write fails, the upsert
+    //      doesn't run, so the next tick retries with the same prior
+    //      state — beats the reverse order, which would silently miss
+    //      the session event.
+    await this.playSessions.recordTransition({
+      previous:
+        previousRow !== null
+          ? { appid: previousRow.currentAppid, lastPolledAt: previousRow.lastPolledAt }
+          : null,
+      next: { appid: currentAppid, gameName: currentGameName },
+    });
+
     await this.prisma.steamPlayerState.upsert({
       where: { steamId: player.steamid },
       create: {
@@ -78,14 +98,6 @@ export class SteamPlayerStateService {
         currentGameName,
         lastPolledAt: new Date(),
       },
-    });
-
-    await this.playSessions.recordTransition({
-      previous:
-        previousRow !== null
-          ? { appid: previousRow.currentAppid, lastPolledAt: previousRow.lastPolledAt }
-          : null,
-      next: { appid: currentAppid, gameName: currentGameName },
     });
   }
 
