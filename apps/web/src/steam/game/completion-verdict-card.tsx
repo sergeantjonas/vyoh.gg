@@ -1,5 +1,9 @@
 import { CardShell } from "@/components/card-shell";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useGameAchievements } from "./use-game-achievements";
+
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 interface CompletionVerdictCardProps {
   appid: number;
@@ -71,9 +75,22 @@ export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
     <CardShell
       title="Completion"
       indicator={
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {unlocked}/{total} · {pct}%
-        </span>
+        <TooltipPrimitive.Root>
+          <TooltipPrimitive.Trigger asChild>
+            <span className="shrink-0 cursor-help text-xs tabular-nums text-muted-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+              {unlocked}/{total} · {pct}%
+            </span>
+          </TooltipPrimitive.Trigger>
+          <TooltipPrimitive.Portal>
+            <TooltipPrimitive.Content
+              side="top"
+              sideOffset={4}
+              className={TOOLTIP_CONTENT_CLASS}
+            >
+              Your completion: {unlocked} of {total} achievements unlocked ({pct}%).
+            </TooltipPrimitive.Content>
+          </TooltipPrimitive.Portal>
+        </TooltipPrimitive.Root>
       }
       verdict={verdictFor(unlocked, total, pct)}
       evidence={evidence || undefined}
