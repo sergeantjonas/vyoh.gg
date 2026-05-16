@@ -127,6 +127,7 @@ Owner-flagged 2026-05-14 as a wanted feature. Deep brainstorm in same session.
 
 - **Rarity-weighted score per game.** *"Average unlock rarity in Hades: 18%."* Pairs with the LoL signature radar.
 - **Rarest unlock chip.** Per-game and cross-game variants.
+  - **Trophy case on `/steam` (flagged 2026-05-16, owner idea).** Surface the top-N rarest as a small "trophy case" on the main Steam profile section — pulls the signature pulls forward of the drill-in so the headline view shows pride-of-place, not just summary cards. Composition TBD — likely 3–4 capsules/icons in a compact strip near the existing chips, distinct visual register from the per-game `RarestUnlockCard` and from the `/steam/achievements/signature` full list.
 - **Completionist axis verdict.** *"Median completion 14%. You only fully complete roguelikes."*
 - **Achievement game-design analysis.** Plot a game's *global* rarity distribution as a tiny chart — hardcore-vs-generous achievement design. Tier-3 quirky.
 
