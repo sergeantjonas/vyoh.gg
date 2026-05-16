@@ -15,12 +15,22 @@ import {
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
+import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
+import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
+import { TimeTo100Card } from "@/steam/game/time-to-100-card";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+interface SteamGameSearch {
+  ach?: string;
+}
+
 export const Route = createFileRoute("/steam/game/$appid")({
   component: SteamGamePage,
+  validateSearch: (search: Record<string, unknown>): SteamGameSearch => ({
+    ach: typeof search.ach === "string" ? search.ach : undefined,
+  }),
 });
 
 function formatPlaytime(minutes: number): string {
@@ -31,6 +41,7 @@ function formatPlaytime(minutes: number): string {
 
 function SteamGamePage() {
   const { appid: appidParam } = Route.useParams();
+  const { ach } = Route.useSearch();
   const appid = Number.parseInt(appidParam, 10);
   const { data, isPending, isError } = useSteamOwnedGames();
 
@@ -184,8 +195,15 @@ function SteamGamePage() {
 
       {game && <GameScreenshotStrip appid={appid} />}
 
-      {game && <CompletionVerdictCard appid={appid} />}
-      {game && <AchievementPanel appid={appid} />}
+      {game && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CompletionVerdictCard appid={appid} />
+          <TimeTo100Card appid={appid} />
+          <RaritySignatureCard appid={appid} />
+          <RarestUnlockCard appid={appid} />
+        </div>
+      )}
+      {game && <AchievementPanel appid={appid} highlightTarget={ach} />}
     </div>
   );
 }

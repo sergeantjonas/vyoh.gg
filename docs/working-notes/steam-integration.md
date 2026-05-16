@@ -343,7 +343,40 @@ Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing c
 
 ### Phase S7 — Achievement signature surfaces
 
-Rarity-weighted score, time-to-100%, hidden-unlock reveal, stuck-at-X / abandoned-at-X mirrors. Per-game `ConclusionCard` expansion.
+Rarity-weighted score, time-to-100%, hidden-unlock reveal, stuck-at-X / abandoned-at-X mirrors. Per-game `CardShell` expansion. Hidden-unlock reveal already shipped in S5 chunk 6 (mask + click-to-reveal pattern on `AchievementPanel`).
+
+**Chunk plan (set 2026-05-16, picked up after the S5 completion pass).** Signature surfaces only — Profile recent-unlocks chip + global page shell are S5's responsibility (chunks 8 + 9). S7.C extends the page S5.9 lands rather than creating it.
+
+- **S7.A — Per-game verdict expansion shipped 2026-05-16.**
+  - Three new verdict cards alongside `CompletionVerdictCard` (S5 chunk 7) on `/steam/game/$appid`, all composing `CardShell` and sharing the `useGameAchievements` query (TanStack dedupe → one wire fetch per page).
+    - **`TimeTo100Card`** (title "Timeline") — for 100%-complete games, `formatSpan(days)` between first and last unlock with densest-unit copy ("a single session" / "N days" / "N weeks" / "N months" / "N.N years"). For partial games, `Intl.RelativeTimeFormat` framing — "First unlock 2y ago — still pecking away." Indicator carries the raw day count ("47d" or "47d in" for partial).
+    - **`RaritySignatureCard`** (title "Signature") — mean of `globalPercent` across unlocked rows where rarity is populated (`null` rows skip; missing data ≠ 0%). Five verdict bands by mean (sub-10% "Hunter signature", 10–25% "Goes for the rare ones", 25–50% "Mix of standards and rarities", 50–75% "Mostly the standard track", ≥75% "Surface-level unlocks so far"). Sub-3-unlock sample renders an empty-state "Too few unlocks to read a signature yet." with `empty` flag. Indicator: `${mean.toFixed(1)}% avg · n=${sample.length}` — sample size is visible so the user can judge confidence.
+    - **`RarestUnlockCard`** — lowest `globalPercent` among unlocked rows. Verdict is the achievement's `displayName`; evidence shows the icon + rarity qualifier ("Very rare" < 1%, "Rare" < 5%, "Uncommon" < 25%, "Common" else) + description. Amber indicator for the percent. Hides entirely when no unlocked row has rarity data (still possible on a freshly-added game before the weekly rarity poller has covered it).
+  - Zero new backend — every needed field was already on `SteamGameAchievements`.
+  - Layout: replaced the inline `<CompletionVerdictCard />` placement with a `grid grid-cols-1 md:grid-cols-2` row holding all four cards (Completion → Timeline → Signature → Rarest, reading top-left → bottom-right). `AchievementPanel` continues to render below the grid.
+  - All cards null-render gracefully when their preconditions fail — `data === undefined` (loading), `achievements === null` (schema-less game like CS2), empty achievements array, or per-card empty (no unlocks for Timeline, no rarity data for Signature/Rarest). `CompletionVerdictCard` carries the only "owned but untouched" empty-state copy; the other three hide instead, so the grid collapses from 4→1 cell rather than showing four "no data yet" tiles.
+  - Files: `apps/web/src/steam/game/{time-to-100,rarity-signature,rarest-unlock}-card.tsx` (new), `apps/web/src/routes/steam/game.$appid.tsx` (modify: import + grid wrapper).
+
+- **S7.B — `rtime_last_played` + Last-progressed verdict.**
+  - Picks up the deferred S3 follow-up — `rtime_last_played` capture has waited for the surface that earns it.
+  - Backend: `rtimeLastPlayed` column on `SteamOwnedGame`, migration, upstream raw type, upsert write in `owned-games.service`, expose on the `SteamOwnedGame` DTO.
+  - Frontend: new `LastProgressedVerdictCard` on game detail combining `rtime_last_played` (still launching) with the latest unlock timestamp from achievements (last actual progress). Honest framing — *"Stuck at 47/49 — last unlock 6mo ago"* / *"Launching but not progressing"* when the launch/progress gap is large. No nudges (per the [pinned constraints](#constraints-pinned-now)).
+  - `/steam/library` row + tile gain a "last played Nmo ago" hint as the natural second consumer.
+  - Files: 1 Prisma schema + migration, 1 service upsert, 1 shared type, 1 new card, 1 modify on `routes/steam/game.$appid.tsx`, 2 modify on `/steam/library` row + tile.
+  - **Done when:** `rtimeLastPlayed` populates for every owned game on next sync; game-detail page renders the last-progressed card; `/steam/library` shows last-played timestamps.
+
+- **S7.C — Cross-game signature on `/steam/achievements`.**
+  - Expands the page S5 chunk 9 lands. New surfaces:
+    - **Cross-game rarest unlocks** — top-N rarest unlocked across the whole library. New backend read or `?sort=rarity` flag on the recent-unlocks endpoint.
+    - **Completionist axis verdict** — median completion % across games-with-achievements, plus the optional *"You only fully complete roguelikes"* tag-based slice using enrichment `tagIds`. Hides until N games-with-achievements ≥ 5.
+    - **100%'d games hall** — list of fully-completed games with library capsules.
+  - Backend: 1 new service method for cross-game rarest, 1 service method for completionist-axis aggregate, controller routes, shared DTOs.
+  - Files: 1-2 service methods, 1 controller route extension, 1-2 shared DTOs, 1 route extension, 3-4 new components.
+  - **Done when:** the three new surfaces render on `/steam/achievements` alongside chunk 9's recent-unlocks feed; the completionist axis hides gracefully when the sample is too small.
+
+**Sequencing:** A → B → C. A is the smallest highest-visible delta (mirrors S5 chunk 7's shape); B introduces the only new data; C is the largest cross-game lift and depends on chunk 9 having shipped the page shell. Order can be revisited at chunk boundaries.
+
+**Phase S7 exit criteria:** all four verdict families from the [achievement family brainstorm](#verdict-family-per-game-conclusioncards) visible somewhere — per-game on `/steam/game/$appid`, cross-game on `/steam/achievements`. Temporal surfaces (per-game timeline, cross-game heatmap, first-played-meaningfully, chronotype) stay in **Phase S8**.
 
 ### Phase S8 — Temporal + cross-stream
 
