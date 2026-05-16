@@ -75,7 +75,7 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = this.lol.rune(id);
+    const resolved = await this.lol.rune(id);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -88,7 +88,7 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = this.lol.spell(key);
+    const resolved = await this.lol.spell(key);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
