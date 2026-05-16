@@ -2,6 +2,8 @@ packages:
   - "apps/*"
   - "packages/*"
   - "tools/*"
+overrides:
+  protobufjs@<7.5.6: ^7.5.6
 allowBuilds:
   '@biomejs/biome': true
   '@nestjs/core': true
