@@ -1,0 +1,484 @@
+import { ForbiddenException } from "@nestjs/common";
+import { describe, expect, it, vi } from "vitest";
+import type { IdentityService } from "../identity/identity.service";
+import type { PrismaService } from "../prisma/prisma.service";
+import { LolAnalyticsService } from "./lol-analytics.service";
+import type { LolService } from "./lol.service";
+
+interface PrismaStubs {
+  summoner: { findUnique: ReturnType<typeof vi.fn> };
+  match: { findMany: ReturnType<typeof vi.fn> };
+  matchDetailCache: { findMany: ReturnType<typeof vi.fn> };
+  matchTimelineCache: { findMany: ReturnType<typeof vi.fn> };
+}
+
+function makePrisma(): PrismaStubs {
+  return {
+    summoner: { findUnique: vi.fn() },
+    match: { findMany: vi.fn().mockResolvedValue([]) },
+    matchDetailCache: { findMany: vi.fn().mockResolvedValue([]) },
+    matchTimelineCache: { findMany: vi.fn().mockResolvedValue([]) },
+  };
+}
+
+function makeService(
+  prisma: PrismaStubs,
+  opts: {
+    isLolAccountAllowed?: ReturnType<typeof vi.fn>;
+    resolveSummoner?: ReturnType<typeof vi.fn>;
+  } = {}
+): LolAnalyticsService {
+  const identity = {
+    isLolAccountAllowed: opts.isLolAccountAllowed ?? vi.fn().mockReturnValue(true),
+  } as unknown as IdentityService;
+  const lol = {
+    resolveSummoner: opts.resolveSummoner ?? vi.fn(),
+  } as unknown as LolService;
+  return new LolAnalyticsService(prisma as unknown as PrismaService, identity, lol);
+}
+
+describe("LolAnalyticsService.getChampionExtras", () => {
+  it("aggregates top items by games desc and matchups by lane opponent", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([
+      { items: [3157, 6655, 4645], laneOpponent: { championName: "Lux" }, win: true },
+      { items: [3157, 6655, 3020], laneOpponent: { championName: "Syndra" }, win: false },
+      { items: [3157, 3020], laneOpponent: { championName: "Lux" }, win: true },
+      // null laneOpponent — counted for items, dropped from matchups
+      { items: [3157], laneOpponent: null, win: false },
+    ]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    const result = await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(result.topItems[0]).toEqual({ itemId: 3157, games: 4, wins: 2 });
+    // Items tied at games=2 are kept in insertion order; sort is stable.
+    expect(result.topItems.slice(1, 3)).toEqual([
+      { itemId: 6655, games: 2, wins: 1 },
+      { itemId: 3020, games: 2, wins: 1 },
+    ]);
+    expect(result.matchups).toEqual([
+      { champion: "Lux", games: 2, wins: 2 },
+      { champion: "Syndra", games: 1, wins: 0 },
+    ]);
+  });
+
+  it("caps topItems at 6", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([
+      { items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], laneOpponent: null, win: true },
+    ]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    const result = await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(result.topItems).toHaveLength(6);
+  });
+
+  it("applies the queueType filter when a queue id is provided", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri",
+      420
+    );
+    expect(prisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ queueType: "Ranked Solo" }),
+      })
+    );
+  });
+});
+
+describe("LolAnalyticsService.getDuos", () => {
+  function detail(
+    participants: Array<{
+      puuid: string;
+      riotIdGameName: string;
+      riotIdTagline: string;
+      championName: string;
+      teamId: number;
+      win: boolean;
+    }>
+  ) {
+    return { info: { participants } };
+  }
+
+  it("throws Forbidden when the account isn't whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(service.getDuos("euw1", "Vyoh", "Ahri")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+
+  it("returns [] when the summoner row is missing", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue(null);
+    expect(await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri")).toEqual([]);
+  });
+
+  it("filters teammates below MIN_GAMES_TOGETHER (3) and picks the most-played champion per duo", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", playedAt: new Date("2026-05-15T20:00:00Z") },
+      { matchId: "EUW1_2", playedAt: new Date("2026-05-15T19:00:00Z") },
+      { matchId: "EUW1_3", playedAt: new Date("2026-05-15T18:00:00Z") },
+      { matchId: "EUW1_4", playedAt: new Date("2026-05-15T17:00:00Z") },
+    ]);
+    // Friend "DuoLuke" appears in 3 matches with us (qualifies). Two on Lux,
+    // one on Sona — topChampion should be "Lux".
+    // Random "OneShot" only appears once — must be filtered out.
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_1",
+        detail: detail([
+          {
+            puuid: "puuid-vyoh",
+            riotIdGameName: "Vyoh",
+            riotIdTagline: "Ahri",
+            championName: "Ahri",
+            teamId: 100,
+            win: true,
+          },
+          {
+            puuid: "puuid-luke",
+            riotIdGameName: "DuoLuke",
+            riotIdTagline: "EUW",
+            championName: "Lux",
+            teamId: 100,
+            win: true,
+          },
+          {
+            puuid: "puuid-oneshot",
+            riotIdGameName: "OneShot",
+            riotIdTagline: "EUW",
+            championName: "Zed",
+            teamId: 100,
+            win: true,
+          },
+        ]),
+      },
+      {
+        matchId: "EUW1_2",
+        detail: detail([
+          {
+            puuid: "puuid-vyoh",
+            riotIdGameName: "Vyoh",
+            riotIdTagline: "Ahri",
+            championName: "Ahri",
+            teamId: 200,
+            win: false,
+          },
+          {
+            puuid: "puuid-luke",
+            riotIdGameName: "DuoLuke",
+            riotIdTagline: "EUW",
+            championName: "Lux",
+            teamId: 200,
+            win: false,
+          },
+        ]),
+      },
+      {
+        matchId: "EUW1_3",
+        detail: detail([
+          {
+            puuid: "puuid-vyoh",
+            riotIdGameName: "Vyoh",
+            riotIdTagline: "Ahri",
+            championName: "Ahri",
+            teamId: 100,
+            win: true,
+          },
+          {
+            puuid: "puuid-luke",
+            riotIdGameName: "DuoLuke",
+            riotIdTagline: "EUW",
+            championName: "Sona",
+            teamId: 100,
+            win: true,
+          },
+        ]),
+      },
+    ]);
+
+    const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
+    expect(duos).toHaveLength(1);
+    expect(duos[0]).toEqual({
+      puuid: "puuid-luke",
+      gameName: "DuoLuke",
+      tagLine: "EUW",
+      games: 3,
+      wins: 2,
+      topChampion: "Lux",
+    });
+  });
+});
+
+describe("LolAnalyticsService.getChronotype", () => {
+  it("returns a 24-bucket empty grid when the summoner is unknown", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue(null);
+    const result = await makeService(prisma).getChronotype("euw1", "Vyoh", "Ahri");
+    expect(result.hours).toHaveLength(24);
+    expect(result.totalGames).toBe(0);
+    expect(result.totalWins).toBe(0);
+    expect(result.timezone).toBe("Europe/Brussels");
+    // every bucket is { hour, games: 0, wins: 0 }
+    expect(result.hours.every((h) => h.games === 0 && h.wins === 0)).toBe(true);
+  });
+
+  it("buckets matches in Europe/Brussels local hours and counts wins per bucket", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // 2026-01-15 (winter, UTC+1 in Brussels):
+    //   20:00 UTC → 21:00 local (hour bucket 21)
+    //   23:30 UTC → 00:30 local (hour bucket 0 of next local day)
+    prisma.match.findMany.mockResolvedValue([
+      { playedAt: new Date("2026-01-15T20:00:00Z"), win: true },
+      { playedAt: new Date("2026-01-15T20:30:00Z"), win: false },
+      { playedAt: new Date("2026-01-15T23:30:00Z"), win: true },
+    ]);
+
+    const result = await makeService(prisma).getChronotype("euw1", "Vyoh", "Ahri");
+    const bucket21 = result.hours.find((h) => h.hour === 21);
+    const bucket0 = result.hours.find((h) => h.hour === 0);
+    expect(bucket21).toEqual({ hour: 21, games: 2, wins: 1 });
+    expect(bucket0).toEqual({ hour: 0, games: 1, wins: 1 });
+    expect(result.totalGames).toBe(3);
+    expect(result.totalWins).toBe(2);
+  });
+
+  it("excludes remakes via the Prisma where clause", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    await makeService(prisma).getChronotype("euw1", "Vyoh", "Ahri");
+    expect(prisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ puuid: "puuid-vyoh", remake: false }),
+      })
+    );
+  });
+});
+
+describe("LolAnalyticsService.getChampionPairs", () => {
+  it("aggregates by (yourChamp, teammateChamp) and sorts by games desc", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_1" },
+      { matchId: "EUW1_2" },
+      { matchId: "EUW1_3" },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_1",
+        detail: {
+          info: {
+            participants: [
+              { puuid: "puuid-vyoh", championName: "Ahri", teamId: 100, win: true },
+              { puuid: "puuid-luke", championName: "Lux", teamId: 100, win: true },
+              { puuid: "puuid-luke", championName: "Lux", teamId: 200, win: false },
+            ],
+          },
+        },
+      },
+      {
+        matchId: "EUW1_2",
+        detail: {
+          info: {
+            participants: [
+              { puuid: "puuid-vyoh", championName: "Ahri", teamId: 100, win: false },
+              { puuid: "puuid-luke", championName: "Lux", teamId: 100, win: false },
+            ],
+          },
+        },
+      },
+      {
+        matchId: "EUW1_3",
+        detail: {
+          info: {
+            participants: [
+              { puuid: "puuid-vyoh", championName: "Syndra", teamId: 200, win: true },
+              { puuid: "puuid-luke", championName: "Sona", teamId: 200, win: true },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const pairs = await makeService(prisma).getChampionPairs("euw1", "Vyoh", "Ahri");
+    expect(pairs).toEqual([
+      { yourChamp: "Ahri", teammateChamp: "Lux", games: 2, wins: 1 },
+      { yourChamp: "Syndra", teammateChamp: "Sona", games: 1, wins: 1 },
+    ]);
+  });
+
+  it("returns [] when the summoner row is missing", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue(null);
+    expect(await makeService(prisma).getChampionPairs("euw1", "Vyoh", "Ahri")).toEqual(
+      []
+    );
+  });
+
+  it("throws Forbidden when the account isn't whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(service.getChampionPairs("euw1", "Vyoh", "Ahri")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+});
+
+describe("LolAnalyticsService.getChampionBuildFlow", () => {
+  it("filters remakes and intersects timeline PURCHASED events with final inventory", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_1",
+        items: [3157, 6655, 3020, 0, 0, 0, 3340],
+        win: true,
+        remake: false,
+      },
+      // remake — must be excluded
+      { matchId: "EUW1_2", items: [], win: false, remake: true },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_1",
+        timeline: {
+          metadata: { matchId: "EUW1_1", participants: ["puuid-vyoh", "p-other"] },
+          info: {
+            frameInterval: 60_000,
+            participants: [
+              { participantId: 1, puuid: "puuid-vyoh" },
+              { participantId: 2, puuid: "p-other" },
+            ],
+            frames: [
+              {
+                timestamp: 60_000,
+                participantFrames: {},
+                events: [
+                  // Component (Lost Chapter, 3802) — not in final inventory, drop
+                  {
+                    timestamp: 30_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 1,
+                    itemId: 3802,
+                  },
+                  // Final item Luden's (3157) — keep
+                  {
+                    timestamp: 60_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 1,
+                    itemId: 3157,
+                  },
+                  // Final item Shadowflame (6655) — keep
+                  {
+                    timestamp: 120_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 1,
+                    itemId: 6655,
+                  },
+                  // Wrong participant — drop
+                  {
+                    timestamp: 180_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 2,
+                    itemId: 3020,
+                  },
+                  // Re-purchase of trinket (3340) — second occurrence with same
+                  // slotKey gets deduped — only the first 3340 survives
+                  {
+                    timestamp: 240_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 1,
+                    itemId: 3340,
+                  },
+                  // Duplicate slotKey (same itemId, same occurrence position)
+                  // would only repeat if usedSlots check failed.
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([{ matchId: "EUW1_1", win: true, items: [3157, 6655, 3340] }]);
+  });
+
+  it("skips matches whose timeline cache row is missing", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_NO_TIMELINE", items: [3157], win: true, remake: false },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([]);
+
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([]);
+  });
+
+  it("returns [] when every match in the page is a remake", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_R1", items: [], win: false, remake: true },
+      { matchId: "EUW1_R2", items: [], win: false, remake: true },
+    ]);
+
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([]);
+    // No timeline lookup when there are no playable matches to dereference
+    expect(prisma.matchTimelineCache.findMany).not.toHaveBeenCalled();
+  });
+
+  it("throws Forbidden when the account isn't whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getChampionBuildFlow("euw1", "Vyoh", "Ahri", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
