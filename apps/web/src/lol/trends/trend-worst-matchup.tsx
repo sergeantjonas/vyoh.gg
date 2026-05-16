@@ -1,5 +1,5 @@
 // Baseline: personal — pair-level WR among your own matchups; no external comparison.
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { Link } from "@tanstack/react-router";

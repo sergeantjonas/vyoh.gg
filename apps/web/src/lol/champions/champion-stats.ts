@@ -1,4 +1,4 @@
-import { type RolePosition, isRolePosition } from "@/lol/_shared/role-icon";
+import { type RolePosition, isRolePosition } from "@/lol/_shared/assets/role-icon";
 import type { MatchSummary } from "@vyoh/shared";
 
 export interface ChampionStats {

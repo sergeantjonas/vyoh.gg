@@ -1,5 +1,6 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { championSquareIconUrl } from "@/lol/_shared/champion-icon";
+import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionPairs } from "@/lol/profile/use-champion-pairs";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
@@ -113,6 +114,7 @@ function displayName(prefixed: string): string {
 }
 
 function ChordChart({ data, accountSlug }: { data: ChordData; accountSlug: string }) {
+  const patch = useDDragonVersion();
   return (
     <ParentSize>
       {({ width }) => {
@@ -246,7 +248,7 @@ function ChordChart({ data, accountSlug }: { data: ChordData; accountSlug: strin
                           style={{ cursor: "pointer" }}
                         >
                           <image
-                            href={championSquareIconUrl(champ, 48)}
+                            href={championSquareIconUrl(champ, patch)}
                             x={x - iconSize / 2}
                             y={y - iconSize / 2}
                             width={iconSize}

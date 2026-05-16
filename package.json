@@ -11,7 +11,6 @@
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "reset": "bash scripts/reset.sh",
-    "refresh:lol-assets": "tsx scripts/refresh-lol-assets.mts",
     "format": "biome format --write .",
     "check": "biome check --write .",
     "ci:check": "biome ci .",
@@ -24,10 +23,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "blurhash": "^2.0.5",
     "concurrently": "^9.1.0",
-    "sharp": "^0.34.5",
-    "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }
 }

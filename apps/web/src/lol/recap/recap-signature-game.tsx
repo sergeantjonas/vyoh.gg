@@ -1,5 +1,5 @@
 // Baseline: personal — top KDA performance from your own games; tie-break favours wins, then biggest behind-at-15 comeback.
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";

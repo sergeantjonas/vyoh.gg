@@ -3,8 +3,8 @@ import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state"
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { ItemIcon } from "@/lol/_shared/item-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import {

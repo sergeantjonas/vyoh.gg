@@ -1,11 +1,9 @@
-import { getSummonerSpellAsset } from "@/lol/_shared/asset-manifest";
+import { summonerSpellIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useQuery } from "@tanstack/react-query";
 
 const SPELLS_URL =
   "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/summoner-spells.json";
-
-const ASSETS_BASE =
-  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default";
 
 interface RawSummonerSpell {
   id: number;
@@ -18,19 +16,12 @@ export interface SummonerSpellInfo {
   name: string;
 }
 
-// Same shape as use-perks: manifest covers icon URLs, runtime fetch still
-// needed for id→name mapping.
-function iconUrlFromPath(id: number, path: string): string {
-  const bundled = getSummonerSpellAsset(id);
-  if (bundled) return bundled;
-  const rawUrl = ASSETS_BASE + path.replace("/lol-game-data/assets/", "/").toLowerCase();
-  const src = rawUrl.replace("https://", "");
-  return `https://wsrv.nl/?url=${src}&w=40&output=webp`;
-}
-
+// Same shape as use-perks: runtime fetch needed for id→name mapping; icon
+// bytes come from the `/img/lol/spell/:id/:patch.webp` proxy.
 export function useSummonerSpells(): Map<number, SummonerSpellInfo> | undefined {
+  const patch = useDDragonVersion();
   return useQuery({
-    queryKey: ["lol", "summoner-spells"],
+    queryKey: ["lol", "summoner-spells", patch],
     queryFn: async () => {
       const res = await fetch(SPELLS_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -38,7 +29,7 @@ export function useSummonerSpells(): Map<number, SummonerSpellInfo> | undefined 
       return new Map(
         raw.map((s) => [
           s.id,
-          { iconUrl: iconUrlFromPath(s.id, s.iconPath), name: s.name },
+          { iconUrl: summonerSpellIconUrl(s.id, patch), name: s.name },
         ])
       );
     },

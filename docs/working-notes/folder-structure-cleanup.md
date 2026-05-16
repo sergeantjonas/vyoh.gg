@@ -53,6 +53,8 @@ Single PR. No behavior change. Verified with `tokf err pnpm run typecheck:cc` af
 
 Final state of [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/): 6 new bucket subfolders (`account/`, `analytics/`, `patch/`, `queue/`, `serious-queues/`, `ui/`) plus the deferred 13 asset-adjacent files at the root (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`).
 
+**Asset-bucket follow-up shipped 2026-05-16** as part of [lol-image-pipeline.md](lol-image-pipeline.md) Phase 4 Chunk 3. The 13 deferred files resolved to: 5 deleted entirely (`asset-manifest` + test, `manifest.gen`, `splash-resolver` + test), 10 moved into `_shared/assets/` (`champion-icon` rewritten as thin proxy-URL builders; the rest kept their behavior). Single trailing biome-format commit absorbed the path-string wrap shuffles, per the lesson recorded above.
+
 ### Chunk 2 — extract `lol-analytics.service.ts` (shipped 2026-05-14)
 
 Scope: 5 methods + their private helpers move to a new file alongside [apps/api/src/lol/lol.service.ts](../../apps/api/src/lol/lol.service.ts). Add to `LolModule` providers. Controller methods that currently call `this.lolService.getDuos(...)` etc. switch to `this.lolAnalyticsService.getDuos(...)`.

@@ -7,7 +7,7 @@ import {
   RoleIcon,
   type RolePosition,
   isRolePosition,
-} from "@/lol/_shared/role-icon";
+} from "@/lol/_shared/assets/role-icon";
 import {
   filterToSerious,
   useSeriousQueues,

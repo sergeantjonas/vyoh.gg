@@ -1,5 +1,5 @@
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { ROLE_LABEL, type RolePosition } from "@/lol/_shared/role-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { ROLE_LABEL, type RolePosition } from "@/lol/_shared/assets/role-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";

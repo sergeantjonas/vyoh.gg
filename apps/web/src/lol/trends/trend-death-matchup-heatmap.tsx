@@ -1,5 +1,6 @@
 // Baseline: personal — your deaths bucketed by lane opponent; no external comparison.
-import { championSquareIconUrl } from "@/lol/_shared/champion-icon";
+import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Group } from "@visx/group";
@@ -83,6 +84,7 @@ function computeStats(matches: readonly MatchSummary[]): Stats {
 }
 
 function Heatmap({ rows, maxValue }: { rows: MatchupRow[]; maxValue: number }) {
+  const patch = useDDragonVersion();
   return (
     <ParentSize>
       {({ width }) => {
@@ -136,7 +138,7 @@ function Heatmap({ rows, maxValue }: { rows: MatchupRow[]; maxValue: number }) {
                 return (
                   <Group key={row.championName}>
                     <image
-                      href={championSquareIconUrl(row.championName, 48)}
+                      href={championSquareIconUrl(row.championName, patch)}
                       x={2}
                       y={cellTop + (cellH - iconSize) / 2}
                       width={iconSize}

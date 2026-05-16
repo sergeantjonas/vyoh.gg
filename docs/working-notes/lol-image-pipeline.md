@@ -405,6 +405,24 @@ Surprises:
 - **Chunk 1 had a latent bug** — the `capsule` route returned `libraryCapsulePath` (600×900 portrait) under width 231 with no crop, producing a 231×346 distortion rather than a 231×87 cover. Caught here because chunk 2 added `library-capsule` as a separate route, forcing the question of what `capsule` was for.
 - **`schemaVersion` segment retained for achievements as a static `1`.** Achievement icons are essentially content-addressed by `apiName`, so a cache-buster is rarely needed. Keeping the segment leaves a knob to bump globally without redeploying.
 
+**Chunk 3 (2026-05-16) — LoL switch + cleanup + asset-bucket split.** Shipped:
+- New [apps/web/src/lol/_shared/assets/champion-icon.ts](../../apps/web/src/lol/_shared/assets/champion-icon.ts) — 6 pure proxy-URL builders (`championSquareIconUrl`, `championCardSplashUrl`, `championBackdropSplashUrl`, `itemIconUrl`, `runeIconUrl`, `summonerSpellIconUrl`) + `roleIconUrl`. All take `patch: string`; components call `useDDragonVersion()` and thread through.
+- `use-items`, `use-perks`, `use-summoner-spells` switched to proxy URLs keyed by id+patch (no more CDragon iconPath → wsrv.nl rewriting; URL helpers don't need the upstream's path-shape at all).
+- `useChampions` flipped from `/lol/champion-summary.json` (bundled) to live CDragon fetch — same content, ~14KB, React Query-cached `Infinity`.
+- **Folded in the deferred asset-bucket split** ([folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 1's `_shared/assets/` target): 10 surviving asset-adjacent files moved into `_shared/assets/` (champion-icon, champion-square-icon, splash-backdrop, item-icon, keystone-icon, role-icon, summoner-icon, summoner-spell-icon, champion-theme, champion-assets.json). Mechanical sed for `@/lol/_shared/<X>` → `@/lol/_shared/assets/<X>`; no relative `../_shared/<X>` imports left behind this time (pre-screen lesson from chunk-1 of cleanup paid off).
+- **`splash-resolver` deleted entirely** (162 LOC + test). With a single proxy URL per champion the dedupe/probe machinery had no fallback chain to dedupe.
+- `ChampionSplashLayer` (in [splash-backdrop.tsx](../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx)) collapsed from a 3-URL fallback chain + dynamic `imgFilter` to a single proxy URL + constant filter.
+- `ChampionCardChrome` (in [champions/champion-card.tsx](../../apps/web/src/lol/champions/champion-card.tsx)) lost its `splashObjectPosition(src)` switch (DDragon-vs-CDragon framing detection) — proxy serves the CDragon centered crop exclusively now, so `"center 30%"` is constant.
+- `ChampionSquareIcon` lost its `championIconUrl` onError fallback — proxy already returns 502 on upstream failure, so the client doesn't need to know the bare CDragon URL.
+- Deleted: `scripts/refresh-lol-assets.mts` (515 LOC), `apps/web/public/lol/` (manifest + 199 champions × 3 variants + items + runes + spells + role icons + champion-summary.json), `apps/web/src/lol/_shared/{asset-manifest.ts,asset-manifest.test.ts,manifest.gen.ts,splash-resolver.ts,splash-resolver.test.ts,champion-icon.ts,champion-theme.ts,champion-square-icon.tsx,item-icon.tsx,keystone-icon.tsx,role-icon.tsx,summoner-icon.ts,summoner-spell-icon.tsx,splash-backdrop.tsx,champion-assets.json}` (originals — all relocated or replaced), the `refresh:lol-assets` pnpm script, and `.github/workflows/refresh-lol-assets.yml`.
+- Removed root devDependencies that only existed for the refresh script: `sharp`, `tsx`, `blurhash` (sharp/tsx stay in `apps/api`; blurhash stays in `apps/web`).
+- LoL prewarm added to [img-prewarm.service.ts](../../apps/api/src/img/img-prewarm.service.ts), gated by `LOL_PREWARM=1`. Fetches CDragon `champion-summary.json` + DDragon `versions.json` at boot, walks roster × 3 variants. Steam and LoL prewarms are independent flags, can run in parallel post-boot delay.
+
+Surprises:
+- **`useChampions` was the silent dependency on the bundled tree.** Not in the original Chunk 3 scope list but it fetched `/lol/champion-summary.json` which the refresh script populated. Caught by typecheck (or rather, *not* by typecheck — Vite would have served the file as 404 at runtime once `public/lol/` was deleted). Switching it to live CDragon kept the no-bundled-state property of the pivot.
+- **Asset-bucket import-pattern lessons from cleanup chunk 1 held up.** Pre-screened both `@/lol/_shared/<name>` and relative `../_shared/<name>` before the sed pass; zero stragglers, single biome-fix commit absorbed the trailing format diffs.
+- **`recap-champion` was using `championBackdropSplashUrl(name, 800, 0)` — the blur=0 escape hatch.** Proxy backdrop is blur=1 hard-coded, so swapped to `championCardSplashUrl` (centered, no blur) which renders identically at the 0.6 opacity behind a mask gradient.
+
 ---
 
 ## Parked

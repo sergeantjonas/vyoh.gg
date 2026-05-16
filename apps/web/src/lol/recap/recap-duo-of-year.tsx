@@ -1,6 +1,6 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 // Baseline: personal — top duo by shared games from your own match history; WR is within the duo's games only.
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useDuos } from "@/lol/profile/use-duos";
 import { m, useReducedMotion } from "motion/react";

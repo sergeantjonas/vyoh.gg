@@ -1,8 +1,8 @@
 import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
-import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
+import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
+import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueries } from "@tanstack/react-query";

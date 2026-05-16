@@ -1,5 +1,5 @@
 import { mainScrollRef } from "@/lib/scroll-container";
-import { championTheme } from "@/lol/_shared/champion-theme";
+import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { AnimatePresence, m } from "motion/react";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";

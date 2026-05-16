@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";

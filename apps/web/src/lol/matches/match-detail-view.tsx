@@ -16,11 +16,11 @@ import {
   VisionIcon,
 } from "@/components/game-icons";
 import { cn } from "@/lib/utils";
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { ItemIcon } from "@/lol/_shared/item-icon";
-import { KeystoneIcon } from "@/lol/_shared/keystone-icon";
-import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
-import { SummonerSpellIcon } from "@/lol/_shared/summoner-spell-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { ItemIcon } from "@/lol/_shared/assets/item-icon";
+import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
+import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";

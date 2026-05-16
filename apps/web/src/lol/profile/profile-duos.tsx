@@ -1,6 +1,6 @@
 import { EmptyDuosIllustration, EmptyState } from "@/components/empty-state";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useDuos } from "@/lol/profile/use-duos";
 import { type Variants, m } from "motion/react";
 

@@ -4,7 +4,7 @@ import {
   RoleIcon,
   type RolePosition,
   isRolePosition,
-} from "@/lol/_shared/role-icon";
+} from "@/lol/_shared/assets/role-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";

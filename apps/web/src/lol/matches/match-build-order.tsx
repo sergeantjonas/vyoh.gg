@@ -1,7 +1,7 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { cn } from "@/lib/utils";
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
-import { ItemIcon } from "@/lol/_shared/item-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";

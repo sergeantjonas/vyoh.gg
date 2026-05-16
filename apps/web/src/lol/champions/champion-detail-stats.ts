@@ -1,7 +1,7 @@
 // Baseline: personal — per-champion aggregates from your own match history. The
 // Champion-detail delta tiles compare these to your account-wide averages — a
 // personal baseline both directions.
-import { type RolePosition, isRolePosition } from "@/lol/_shared/role-icon";
+import { type RolePosition, isRolePosition } from "@/lol/_shared/assets/role-icon";
 import type { MatchSummary } from "@vyoh/shared";
 import type { ChampionStats } from "./champion-stats";
 

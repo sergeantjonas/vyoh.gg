@@ -1,5 +1,6 @@
-import { championBackdropSplashUrl } from "@/lol/_shared/champion-icon";
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { championCardSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
@@ -50,6 +51,7 @@ export function RecapChampion({
   accountSlug: string;
 }) {
   const reduced = useReducedMotion();
+  const patch = useDDragonVersion();
   const top = useMemo(() => (matches ? aggregate(matches) : null), [matches]);
   const championName = useChampionName();
 
@@ -98,7 +100,7 @@ export function RecapChampion({
         }}
       >
         <img
-          src={championBackdropSplashUrl(top.champion, 800, 0)}
+          src={championCardSplashUrl(top.champion, patch)}
           alt=""
           aria-hidden="true"
           loading="eager"

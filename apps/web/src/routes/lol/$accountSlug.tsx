@@ -7,12 +7,15 @@ import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import championAssets from "@/lol/_shared/champion-assets.json";
+import championAssets from "@/lol/_shared/assets/champion-assets.json";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
+import {
+  profileIconFallbackUrl,
+  profileIconUrl,
+} from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
-import { useSplashChampion } from "@/lol/_shared/splash-backdrop";
-import { profileIconFallbackUrl, profileIconUrl } from "@/lol/_shared/summoner-icon";
 import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MAX_COUNT } from "@/lol/matches/match-count-selector";

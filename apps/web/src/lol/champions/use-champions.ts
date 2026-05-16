@@ -1,10 +1,10 @@
-import { normalizeChampionAlias } from "@/lol/_shared/champion-icon";
+import { normalizeChampionAlias } from "@/lol/_shared/assets/champion-icon";
 import { useQuery } from "@tanstack/react-query";
 
-// Served by Vite from apps/web/public/lol/champion-summary.json. The file is
-// refreshed by scripts/refresh-lol-assets.mts on every run, so there's no
-// CDN hop and the response is cacheable at the same domain as the app.
-const CHAMPIONS_URL = "/lol/champion-summary.json";
+// Pulled live from CDragon. Small (~14KB), refreshes itself patch-over-patch
+// without a redeploy. React Query caches it as `Infinity` so the runtime fetch
+// only happens once per page load.
+const CHAMPIONS_URL = "https://cdn.communitydragon.org/latest/champion-summary.json";
 
 interface RawChampion {
   id: number;

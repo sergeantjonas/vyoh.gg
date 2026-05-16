@@ -1,4 +1,4 @@
-import { ChampionSquareIcon } from "@/lol/_shared/champion-square-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatches } from "@/lol/matches/use-matches";
 import { Link } from "@tanstack/react-router";
