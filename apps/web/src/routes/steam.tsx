@@ -1,12 +1,14 @@
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
 import { type Variants, m, useReducedMotion } from "motion/react";
+import { useLayoutEffect, useRef } from "react";
 
 export const Route = createFileRoute("/steam")({
   component: SteamLayout,
@@ -47,6 +49,20 @@ const tabIconVariants: Variants = {
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const prefersReducedMotion = useReducedMotion();
+
+  // TanStack Router's built-in scrollRestoration is disabled app-wide, and the
+  // real scroll container is <main> (not window) — so a route change inside
+  // /steam inherits whatever scrollTop the previous page left behind. The most
+  // visible symptom: scrolling down the Library tile grid and clicking a tile
+  // lands on /steam/game/$appid mid-page. Mirror the LoL pattern and reset on
+  // every Steam path change.
+  const prevPathnameRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const prev = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+    if (prev === null || prev === pathname) return;
+    mainScrollRef.current?.scrollTo(0, 0);
+  }, [pathname]);
 
   const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
   const slideDirection = prefersReducedMotion ? 0 : rawDirection;
