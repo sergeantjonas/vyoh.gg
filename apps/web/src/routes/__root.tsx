@@ -2,6 +2,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
+import { OrbGlyph } from "@/components/orb-glyph";
 import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { SplashProvider } from "@/lol/_shared/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import {
   HeadContent,
+  Link,
   Outlet,
   createRootRoute,
   useRouterState,
@@ -18,7 +20,23 @@ import { m } from "motion/react";
 
 export const Route = createRootRoute({
   component: RootLayout,
+  notFoundComponent: NotFound,
 });
+
+function NotFound() {
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
+      <OrbGlyph className="size-24" />
+      <p className="text-lg font-medium">No such page.</p>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Wherever you were heading, vyoh.gg hasn't been there yet.
+      </p>
+      <Button variant="outline" size="sm" asChild>
+        <Link to="/">Back home</Link>
+      </Button>
+    </div>
+  );
+}
 
 function topLevelScope(pathname: string): string {
   const seg = pathname.split("/").filter(Boolean)[0];
@@ -50,7 +68,8 @@ function RootLayout() {
             <div className="mx-auto max-w-4xl p-6">
               <ErrorBoundary
                 fallback={(error) => (
-                  <div className="flex flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-4">
+                  <div className="flex flex-col items-center gap-4 rounded-md border border-destructive/30 bg-destructive/10 px-6 py-10 text-center">
+                    <OrbGlyph className="size-16" />
                     <p className="text-sm font-medium text-destructive">
                       Something broke on this page.
                     </p>
