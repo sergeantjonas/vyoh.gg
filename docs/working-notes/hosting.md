@@ -118,81 +118,106 @@ CORS error instead, step 2 is incomplete.
 
 ---
 
-## Static asset serving — bundled LoL image set
+## Static asset serving
 
-See [lol-image-pipeline.md](lol-image-pipeline.md) for the full arc. The
-short version: champion / item / profile-icon images are bundled into
-`apps/web/public/lol/**` (~25MB) and served by the frontend host. This
-section covers per-option deploy considerations.
+Superseded by [Phase 4 runtime image proxy](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
+The bundled `apps/web/public/lol/**` set, the per-option Nginx/Vercel/Fly
+`location /lol/` deploy notes, the CSP `img-src` forward-look against
+wsrv.nl + CDragon + DDragon, and the `refresh-lol-assets.yml` CI workflow
+all become obsolete the moment Phase 4 Chunk 3 lands and deletes the
+bundled set. Pre-launch hosting work should treat the `/img/*` proxy as
+the only static-image story; the CSP `img-src` reduces to `'self' data:`
+once vendor URLs no longer appear in the browser.
 
-### What ships in the frontend deploy
+---
 
-- `apps/web/public/lol/manifest.json` — runtime-readable
-- `apps/web/public/lol/<champion>/{square,card,backdrop}.webp`
-- `apps/web/public/lol/items/<itemId>.webp`
-- `apps/web/public/lol/profile-icons/<iconId>.webp`
-- `apps/web/public/lol/champion-summary.json`
+## Multi-site target shape (single Hetzner VPS, N projects)
 
-Total: ~25MB of static assets, refreshed by a CI cron (see
-`.github/workflows/refresh-lol-assets.yml`). Refresh PRs land asynchronously
-from feature work, so deploys remain deterministic.
+Option C above only describes vyoh.gg on its own box. The lean is to use
+the same VPS for additional sites and one-off projects, with vyoh.gg as
+the largest tenant. This section is the target shape — what to provision
+at the pre-launch hosting sweep, and what conventions every future site
+on the same box should follow.
 
-### Per-option notes
-
-**Option A — Vercel**
-
-- `public/` is served from Vercel's edge automatically with strong
-  `Cache-Control` headers. No config needed.
-- Vercel project settings have a 100MB deployment-size limit on the Hobby
-  tier; 25MB is well under.
-- Build output: assets pass through unchanged.
-
-**Option B — Fly.io**
-
-- Vite's static build is served by whatever process the Docker image
-  starts (typically `vite preview` or a static-file server like `caddy`,
-  `nginx`, or `serve`). Choose one with sensible default cache headers
-  for `*.webp` and `manifest.json`.
-- Recommended: bake a `Caddyfile` or `nginx.conf` into the image with:
-  - `*.webp` → `Cache-Control: public, max-age=31536000, immutable`
-  - `manifest.json` → `Cache-Control: public, max-age=300, must-revalidate`
-- 25MB extra in the image is negligible.
-
-**Option C — Hetzner VPS + Nginx**
-
-- Add an Nginx `location` block for `/lol/`:
-
-  ```nginx
-  location /lol/ {
-    alias /var/www/vyoh/dist/lol/;
-    expires 1y;
-    add_header Cache-Control "public, immutable";
-  }
-  location = /lol/manifest.json {
-    expires 5m;
-    add_header Cache-Control "public, must-revalidate";
-  }
-  ```
-
-- Asset bundle ships as part of `dist/`. No CDN involved by default —
-  add Cloudflare in front of the VPS if origin-bandwidth becomes a concern
-  (it shouldn't at portfolio scale).
-
-### Long-tail CDN fallback (CSP implications)
-
-Even with assets bundled, the runtime fallback path still loads from
-external CDNs for the long tail (new champions in the 24–72h window
-between release and CI catch-up). If we add a `Content-Security-Policy`
-header at the hosting layer later, the `img-src` directive must include:
+### Topology
 
 ```
-img-src 'self' https://wsrv.nl https://cdn.communitydragon.org https://ddragon.leagueoflegends.com data:;
+                  ┌──────────────────────────────────────────┐
+   :443  ─────►   │ Nginx (host-installed, not containerised)│
+                  │ - TLS termination (Certbot)              │
+                  │ - vhost routing by server_name           │
+                  │ - vyoh.gg          → SPA static root     │
+                  │ - api.vyoh.gg      → proxy_pass :20XX    │
+                  │ - other-site.tld   → static / proxy      │
+                  │ - /img/* proxy_cache (Phase 4)           │
+                  └────────────────┬─────────────────────────┘
+                                   │ 127.0.0.1:20XX (per-app loopback)
+                  ┌────────────────┼────────────────┐
+                  ▼                ▼                ▼
+            vyoh-api (Node)   site2-api (Node)   ...
+                  │                │
+                  └────────┬───────┘
+                           ▼
+              postgres (one cluster, DB+role per project)
 ```
 
-Today there's no CSP header set, so this is a forward-looking note.
+### Per-component conventions
 
-### CI workflow has no hosting dependency
+- **Nginx is host-installed, not containerised.** It's the TLS
+  termination and cert-renewal point; running it as a container forces
+  cert-volume gymnastics and buys nothing on a single VPS. Configs live
+  at `/etc/nginx/sites-available/<project>.conf`, symlinked into
+  `sites-enabled/`. One file per project — each contains its `server_name`,
+  TLS block, static `root`, and any `proxy_pass` lines.
+- **Static SPAs are served by Nginx directly, no container.** Vite's
+  `pnpm build` outputs plain HTML/JS/CSS to `apps/<app>/dist/`; deploys
+  are `rsync` to `/var/www/<project>/dist/` (from CI or local). A
+  container around `vite preview` or `serve` is pure overhead. Per site,
+  expect 0–1 backend containers, not 2.
+- **Backends run as per-project Docker Compose stacks.** Each project
+  gets `/srv/<project>/docker-compose.yml`. Backend containers bind to
+  a distinct `127.0.0.1:20XX` loopback port (no public bind, Nginx is
+  the only ingress). No cross-project Docker network meshing.
+- **One Postgres cluster, separate DB + role per project.** Postgres
+  itself is one container (or host-installed) shared across projects;
+  isolation is at the database + role layer, not the cluster layer.
+  Saves a few hundred MB of RAM vs a Postgres-per-project layout.
+  Example: `CREATE DATABASE vyoh; CREATE ROLE vyoh_app LOGIN; GRANT ALL
+  ON DATABASE vyoh TO vyoh_app;` — and a separate `vyoh_app` connection
+  string in vyoh-api's env.
+- **Certbot handles all hostnames in one install.** Nginx plugin for
+  the easy case; DNS-01 if/when we want wildcard certs. Renewal via
+  the bundled `certbot.timer`, no hand-rolled cron.
+- **Deploys are `rsync` + `docker compose up -d --build`.** Per
+  project. A simple `deploy.sh` is enough; full CI/CD orchestration is
+  out of scope for the portfolio tier. Watchtower is rejected — visible,
+  intentional deploys are more useful than auto-pulls for a few sites.
 
-The asset-refresh workflow uses `peter-evans/create-pull-request` with
-the default `GITHUB_TOKEN`. It runs regardless of which hosting option
-is chosen and produces no deploy-time coupling.
+### Sizing implications
+
+The multi-site shape ratchets up the case for **CAX31 (8 vCPU / 16 GB
+ARM / 160 GB NVMe, ~€12.49/mo)** over CAX21:
+
+- vyoh.gg API alone is in the 200–400 MB RSS range; with the Phase 4
+  image proxy Sharp transcodes add bursty allocation on top.
+- Postgres baseline ~500 MB–1 GB depending on `shared_buffers` and the
+  size of the LP history table.
+- Nginx + the `proxy_cache` working set live in page cache; healthy on
+  a 16 GB box, tight on 8 GB once a second project lands.
+- 160 GB disk easily absorbs the 2 GB Nginx cache ceiling plus a
+  multi-project Postgres data dir for the foreseeable future.
+
+### Cross-references
+
+- The Phase 4 runtime image proxy ([lol-image-pipeline.md §Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream))
+  is the single largest change to this shape vs the original Option C
+  draft. It adds the `/img/*` Nginx `proxy_cache` layer and removes the
+  bundled `/lol/**` static-asset block in §Static asset serving above.
+  The bundled-asset Nginx `location /lol/` config in that section
+  becomes obsolete the moment Phase 4 Chunk 3 lands; keep the section
+  as historical context until then.
+- The Steam outbound TCP block (§Steam network protocol above) applies
+  unchanged in the multi-site layout — egress-allow-all stays the
+  simplest correct policy.
+- Owner auth ([owner-auth.md](owner-auth.md)) gates the same set of
+  POST endpoints regardless of how many sites share the box.
