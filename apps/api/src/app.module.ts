@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { HealthController } from "./health/health.controller";
 import { IdentityModule } from "./identity/identity.module";
+import { ImgModule } from "./img/img.module";
 import { LolModule } from "./lol/lol.module";
 import { OgModule } from "./og/og.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -16,6 +17,7 @@ import { SteamModule } from "./steam/steam.module";
     IdentityModule,
     RiotModule,
     LolModule,
+    ImgModule,
     OgModule,
     StatusModule,
     SteamModule,
