@@ -84,4 +84,16 @@ describe("projectEnrichment", () => {
     ).toBeNull();
     expect(projectEnrichment(raw({ release: {} }))?.releaseDate).toBeNull();
   });
+
+  it("defaults logoPath to null when no PICS hash is supplied", () => {
+    expect(projectEnrichment(raw({}))?.logoPath).toBeNull();
+  });
+
+  it("merges the PICS-sourced logo hash when supplied", () => {
+    const row = projectEnrichment(
+      raw({ appid: 3764200 }),
+      "c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47"
+    );
+    expect(row?.logoPath).toBe("c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47");
+  });
 });

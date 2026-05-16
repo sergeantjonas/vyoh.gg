@@ -6,7 +6,12 @@ import { SteamPicsService } from "./pics.service";
 type FakeAppinfo = {
   common?: {
     library_assets?: { library_logo?: string };
-    library_assets_full?: { library_logo?: { image?: string; image2x?: string } };
+    library_assets_full?: {
+      library_logo?: {
+        image?: Record<string, string> | string;
+        image2x?: Record<string, string>;
+      };
+    };
   };
 };
 
@@ -74,7 +79,7 @@ describe("SteamPicsService.getLogoAssets", () => {
     expect(await service.getLogoAssets([])).toEqual([]);
   });
 
-  it("extracts the logo hash from `library_assets_full` (newer shape)", async () => {
+  it("picks the english locale variant when library_assets_full carries multi-locale images", async () => {
     FakeSteamUser.next = {
       productInfo: {
         apps: {
@@ -84,7 +89,11 @@ describe("SteamPicsService.getLogoAssets", () => {
               common: {
                 library_assets_full: {
                   library_logo: {
-                    image: "c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47",
+                    image: {
+                      english: "c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47/logo.png",
+                      japanese:
+                        "eb72437e3189209b84923e7b53f4fdec1b79fc72/logo_japanese.png",
+                    },
                   },
                 },
               },
@@ -98,13 +107,13 @@ describe("SteamPicsService.getLogoAssets", () => {
     expect(result).toEqual([
       {
         appid: 3764200,
-        logoHash: "c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47",
+        logoPath: "c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47/logo.png",
         changeNumber: 12345,
       },
     ]);
   });
 
-  it("extracts the logo hash from the flat `library_assets` (older shape)", async () => {
+  it("falls back to the first available locale when english is missing", async () => {
     FakeSteamUser.next = {
       productInfo: {
         apps: {
@@ -112,8 +121,13 @@ describe("SteamPicsService.getLogoAssets", () => {
             changenumber: 99,
             appinfo: {
               common: {
-                library_assets: {
-                  library_logo: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                library_assets_full: {
+                  library_logo: {
+                    image: {
+                      japanese: "eb72437e/logo_japanese.png",
+                      koreana: "deadbeef/logo_koreana.png",
+                    },
+                  },
                 },
               },
             },
@@ -123,22 +137,34 @@ describe("SteamPicsService.getLogoAssets", () => {
     };
     const service = new TestableSteamPicsService();
     const result = await service.getLogoAssets([440]);
-    expect(result[0]?.logoHash).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    expect(result[0]?.changeNumber).toBe(99);
+    expect(result[0]?.logoPath).toBe("eb72437e/logo_japanese.png");
   });
 
-  it("returns null hash for appids missing from the PICS response", async () => {
+  it("handles the older bare-string `image` shape defensively", async () => {
     FakeSteamUser.next = {
       productInfo: {
-        apps: {},
+        apps: {
+          "1": {
+            changenumber: 1,
+            appinfo: {
+              common: {
+                library_assets_full: {
+                  library_logo: {
+                    image: "abcdef01/logo.png",
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     };
     const service = new TestableSteamPicsService();
-    const result = await service.getLogoAssets([3764200]);
-    expect(result).toEqual([{ appid: 3764200, logoHash: null, changeNumber: null }]);
+    const result = await service.getLogoAssets([1]);
+    expect(result[0]?.logoPath).toBe("abcdef01/logo.png");
   });
 
-  it("returns null hash when `common.library_assets*` is absent", async () => {
+  it("returns null logoPath when library_assets_full is absent", async () => {
     FakeSteamUser.next = {
       productInfo: {
         apps: {
@@ -148,8 +174,39 @@ describe("SteamPicsService.getLogoAssets", () => {
     };
     const service = new TestableSteamPicsService();
     const result = await service.getLogoAssets([111]);
-    expect(result[0]?.logoHash).toBeNull();
+    expect(result[0]?.logoPath).toBeNull();
     expect(result[0]?.changeNumber).toBe(1);
+  });
+
+  it("ignores the flat `library_assets.library_logo` marker (no hash there)", async () => {
+    FakeSteamUser.next = {
+      productInfo: {
+        apps: {
+          "222": {
+            changenumber: 2,
+            appinfo: {
+              common: {
+                library_assets: { library_logo: "en,ja,ko" },
+              },
+            },
+          },
+        },
+      },
+    };
+    const service = new TestableSteamPicsService();
+    const result = await service.getLogoAssets([222]);
+    expect(result[0]?.logoPath).toBeNull();
+  });
+
+  it("returns null logoPath for appids missing from the PICS response", async () => {
+    FakeSteamUser.next = {
+      productInfo: {
+        apps: {},
+      },
+    };
+    const service = new TestableSteamPicsService();
+    const result = await service.getLogoAssets([3764200]);
+    expect(result).toEqual([{ appid: 3764200, logoPath: null, changeNumber: null }]);
   });
 
   it("preserves caller-supplied appid order even when PICS reorders", async () => {
@@ -170,29 +227,5 @@ describe("SteamPicsService.getLogoAssets", () => {
     FakeSteamUser.next = { logOnError: new Error("CM unreachable") };
     const service = new TestableSteamPicsService();
     await expect(service.getLogoAssets([3764200])).rejects.toThrow("CM unreachable");
-  });
-
-  it("strips trailing variant suffixes from non-canonical hashes", async () => {
-    FakeSteamUser.next = {
-      productInfo: {
-        apps: {
-          "1": {
-            changenumber: 1,
-            appinfo: {
-              common: {
-                library_assets_full: {
-                  library_logo: {
-                    image: "abcdef0123456789abcdef0123456789abcdef01_2x",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    };
-    const service = new TestableSteamPicsService();
-    const result = await service.getLogoAssets([1]);
-    expect(result[0]?.logoHash).toBe("abcdef0123456789abcdef0123456789abcdef01");
   });
 });

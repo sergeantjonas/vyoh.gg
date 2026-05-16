@@ -26,6 +26,11 @@ export interface SteamOwnedGame {
   libraryHero2xPath: string | null;
   headerPath: string | null;
   heroCapsulePath: string | null;
+  // PICS-sourced wordmark hash. Null when PICS returned no logo entry —
+  // frontend falls back to the unhashed legacy `…/apps/{appid}/logo.png` path
+  // and then to a typography overlay on a 404. The hash itself is the cache
+  // buster: a publisher refresh changes it, breaking the wsrv cache cleanly.
+  logoPath: string | null;
   // Steam StoreItemType: 0 = Game, 6 = Application (Wallpaper Engine, 3DMark).
   // Surfaced so the library can offer a Game-vs-Tool filter (see C-2.5).
   appType: number | null;

@@ -3,12 +3,14 @@ import SteamUser from "steam-user";
 
 export type SteamPicsLogoAsset = {
   appid: number;
-  // 40-char SHA1-shaped hash that goes into the
-  // `…/store_item_assets/steam/apps/<appid>/<hash>/logo.png` URL. Null when
-  // PICS didn't return a logo entry for this app.
-  logoHash: string | null;
+  // `<hash>/<filename>` fragment that slots into the
+  // `…/store_item_assets/steam/apps/<appid>/<path>` URL. Same shape as the
+  // other enrichment asset paths (`library_capsule: "1eebc7e0/library_capsule.jpg"`)
+  // so the frontend can share `composeSrc`. Null when PICS didn't return a
+  // logo entry for this app.
+  logoPath: string | null;
   // PICS change number for the app. Opaque integer that increments whenever
-  // the app's metadata changes; used as a `?t=` cache-buster downstream.
+  // the app's metadata changes; used for observability, not URL composition.
   changeNumber: number | null;
 };
 
@@ -85,48 +87,46 @@ export class SteamPicsService {
     appid: number,
     entry: { changenumber: number; appinfo: unknown } | undefined
   ): SteamPicsLogoAsset {
-    if (!entry) return { appid, logoHash: null, changeNumber: null };
-    const hash = extractLogoHash(entry.appinfo);
+    if (!entry) return { appid, logoPath: null, changeNumber: null };
+    const logoPath = extractLogoPath(entry.appinfo);
     return {
       appid,
-      logoHash: hash,
+      logoPath,
       changeNumber: entry.changenumber ?? null,
     };
   }
 }
 
-// Steam ships two shapes for `common.library_assets`. Older apps use the flat
-// form where each asset is a bare hash string; newer apps (RE Requiem,
-// Pragmata) use `library_assets_full` where each asset is an `{image, image2x}`
-// pair. We only need the standard-res `logo` hash — the public CDN serves the
-// 2x variant from the same hash directory.
-function extractLogoHash(appinfo: unknown): string | null {
+// PICS shape (confirmed against live anonymous logon, 2026-05-16):
+//   common.library_assets_full.library_logo.image = {
+//     english: "<hash>/logo.png", japanese: "<hash>/logo_japanese.png", ...
+//   }
+//   common.library_assets.library_logo = "en,ja,ko"   (just a marker, no hash)
+//
+// We persist the English variant as the canonical path — Steam serves it from
+// the same hashed CDN directory as the other assets. Falls through to the
+// first available locale if English is missing (rare), and to null when no
+// `library_assets_full` block exists (older titles where PICS doesn't carry
+// the full asset manifest).
+function extractLogoPath(appinfo: unknown): string | null {
   if (!isRecord(appinfo)) return null;
   const common = appinfo.common;
   if (!isRecord(common)) return null;
 
   const full = common.library_assets_full;
-  if (isRecord(full)) {
-    const logo = full.library_logo;
-    if (isRecord(logo) && typeof logo.image === "string") {
-      return normalizeHash(logo.image);
-    }
+  if (!isRecord(full)) return null;
+  const logo = full.library_logo;
+  if (!isRecord(logo)) return null;
+  const image = logo.image;
+  if (!isRecord(image)) {
+    // Defensive fallback for an older shape where `image` is a bare string.
+    return typeof image === "string" ? image : null;
   }
-
-  const flat = common.library_assets;
-  if (isRecord(flat) && typeof flat.library_logo === "string") {
-    return normalizeHash(flat.library_logo);
+  if (typeof image.english === "string") return image.english;
+  for (const value of Object.values(image)) {
+    if (typeof value === "string") return value;
   }
-
   return null;
-}
-
-function normalizeHash(value: string): string | null {
-  // Steam asset hashes are 40-char lowercase hex. PICS occasionally returns
-  // values with a trailing `_2x` suffix or other suffixes for variants;
-  // strip back to the canonical hash.
-  const match = value.match(/^[0-9a-f]{40}/);
-  return match ? match[0] : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

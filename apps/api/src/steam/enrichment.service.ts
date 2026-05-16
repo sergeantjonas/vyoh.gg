@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamPicsService } from "./pics.service";
 import { SteamClientService } from "./steam-client.service";
 import type { SteamStoreItemFullRaw } from "./types";
 
@@ -23,6 +24,11 @@ export interface EnrichmentUpsert {
   libraryHero2xPath: string | null;
   headerPath: string | null;
   heroCapsulePath: string | null;
+  // PICS-sourced wordmark hash; IStoreBrowseService doesn't expose this.
+  // Merged in by the enricher via SteamPicsService. Null when PICS returns no
+  // logo entry for the app (older titles where unhashed legacy is the only
+  // path); frontend falls back to that.
+  logoPath: string | null;
   appType: number | null;
   releaseDate: Date | null;
   isFree: boolean | null;
@@ -34,7 +40,11 @@ export interface EnrichmentUpsert {
 // Split out for testability and to keep the I/O wrapper a thin shell over
 // fetch + upsert. Returns null when the upstream item didn't resolve
 // (`success !== 1`) — caller should skip rather than persist garbage.
-export function projectEnrichment(raw: SteamStoreItemFullRaw): EnrichmentUpsert | null {
+// `logoPath` is merged in separately (PICS), not derived from `raw`.
+export function projectEnrichment(
+  raw: SteamStoreItemFullRaw,
+  logoPath: string | null = null
+): EnrichmentUpsert | null {
   if (raw.success !== 1) return null;
 
   const assets = raw.assets;
@@ -70,6 +80,7 @@ export function projectEnrichment(raw: SteamStoreItemFullRaw): EnrichmentUpsert 
     libraryHero2xPath: assets?.library_hero_2x ?? null,
     headerPath: assets?.header ?? null,
     heroCapsulePath: assets?.hero_capsule ?? null,
+    logoPath,
     appType: raw.type ?? null,
     releaseDate,
     isFree: raw.is_free ?? null,
@@ -84,7 +95,8 @@ export class SteamEnrichmentService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly client: SteamClientService
+    private readonly client: SteamClientService,
+    private readonly pics: SteamPicsService
   ) {}
 
   // Fetches IStoreBrowseService/GetItems for the supplied appids in batches
@@ -92,18 +104,24 @@ export class SteamEnrichmentService {
   // upstream doesn't resolve (delisted / region-blocked / hidden) so a single
   // bad id doesn't abort the rest of the batch. Returns the count of rows
   // actually persisted, for the caller's log line.
+  //
+  // PICS is queried once per call (single anonymous logon, all appids in one
+  // getProductInfo) and merged in by appid. A PICS failure is non-fatal:
+  // logged and the GetItems-derived enrichment still lands with logoPath null.
   async enrichApps(appids: number[]): Promise<number> {
     if (appids.length === 0) return 0;
     const start = Date.now();
     let written = 0;
     let skipped = 0;
 
+    const logoByAppid = await this.fetchLogoMap(appids);
+
     for (let i = 0; i < appids.length; i += ENRICHMENT_BATCH_SIZE) {
       const batch = appids.slice(i, i + ENRICHMENT_BATCH_SIZE);
       const items = await this.client.getStoreItemsFull(batch);
 
       for (const raw of items) {
-        const row = projectEnrichment(raw);
+        const row = projectEnrichment(raw, logoByAppid.get(raw.appid) ?? null);
         if (row === null) {
           skipped += 1;
           continue;
@@ -123,4 +141,25 @@ export class SteamEnrichmentService {
     );
     return written;
   }
+
+  private async fetchLogoMap(appids: number[]): Promise<Map<number, string>> {
+    const map = new Map<number, string>();
+    try {
+      const assets = await this.pics.getLogoAssets(appids);
+      for (const asset of assets) {
+        if (asset.logoPath) map.set(asset.appid, asset.logoPath);
+      }
+      this.logger.log(`PICS resolved ${map.size}/${appids.length} logo hashes`);
+    } catch (err) {
+      this.logger.warn(
+        `PICS logo fetch failed, continuing with logoPath=null: ${describeError(err)}`
+      );
+    }
+    return map;
+  }
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
 }

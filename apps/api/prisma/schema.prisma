@@ -79,8 +79,12 @@ model SteamOwnedGame {
 // stand-in for Steam's "genre" metadata which IStoreBrowseService doesn't
 // expose directly. `featureCategoryIds` is the small int list under
 // `categories.feature_categoryids` for feature-flag filters (single-player,
-// achievements, cloud save, etc.). Logo asset is not exposed by
-// IStoreBrowseService — the unhashed `logo.png` path stays in use.
+// achievements, cloud save, etc.). `logoPath` is the per-app SHA1 hash for
+// the wordmark/library_logo asset, sourced from PICS' `common.library_assets
+// (_full).library_logo` — IStoreBrowseService omits this field. Frontend
+// composes `…/store_item_assets/steam/apps/{appid}/{logoPath}/logo.png`.
+// Null when PICS didn't return a logo entry (older titles where the
+// unhashed legacy mirror is the only path); frontend falls back to that.
 model SteamGameEnrichment {
   appid                Int       @id
   assetUrlFormat       String?
@@ -91,6 +95,7 @@ model SteamGameEnrichment {
   libraryHero2xPath    String?
   headerPath           String?
   heroCapsulePath      String?
+  logoPath             String?
   appType              Int?
   releaseDate          DateTime? @db.Date
   isFree               Boolean?

@@ -49,6 +49,26 @@ export function steamCapsuleUrl(
   );
 }
 
+// Store-page background — the same image Steam serves behind a game's store
+// page. The `appdetails` endpoint exposes this as both `background` and
+// `background_raw`, pointing at `store.akamai.steamstatic.com/images/
+// storepagebackground/app/{appid}` — a different host + path than the rest
+// of the `store_item_assets/...` family. Universally available across the
+// titles we sampled (CS2, Dota2, BG3, Helldivers, Terraria, Rust, indies),
+// so no per-game fallback is needed. The `?t=` cache-buster reuses the same
+// epoch as the enrichment row's `assetTimestamp`. wsrv handles resize +
+// WebP transcode; on the rare upstream miss it forwards 404 as 200 with
+// zero bytes (caller detects via `naturalWidth === 0`).
+export function steamPageBackgroundUrl(
+  appid: number,
+  timestamp?: number | null,
+  width = 1920
+): string {
+  const t = timestamp != null ? `?t=${timestamp}` : "";
+  const src = `store.akamai.steamstatic.com/images/storepagebackground/app/${appid}${t}`;
+  return wsrv(src, `w=${width}&output=webp&q=85`);
+}
+
 // Library hero — the wide 1920×620 banner Steam uses behind library page game
 // headers. Proxied through wsrv.nl for resize + WebP transcode + caching.
 export function steamLibraryHeroUrl(
@@ -65,13 +85,22 @@ export function steamLibraryHeroUrl(
 
 // Logo overlay — transparent PNG with the game's wordmark, paired with the
 // library hero. Steam uses these together on its library page. Kept as PNG
-// through the proxy (no transcode) to preserve alpha. Steam's GetItems
-// payload doesn't surface a hashed logo path (no `logo` key in the assets
-// block), so this stays on the unhashed `logo.png` filename — kept on the
-// legacy un-encoded `url=` form to preserve the existing wsrv cache.
-export function steamLibraryLogoUrl(appid: number, width = 480): string {
-  const src = `${STEAM_CDN_HOST}/${STEAM_STORE_ASSETS_PATH}/steam/apps/${appid}/logo.png`;
-  return `https://wsrv.nl/?url=${src}&w=${width}`;
+// through the proxy (no transcode) to preserve alpha.
+//
+// `logoPath` comes from PICS (via SteamGameEnrichment.logoPath) and is the
+// same `<hash>/<filename>` shape as the other enrichment asset paths — the
+// PICS service picks the English-locale image from the localized `image`
+// map. When PICS returned no path (older titles, or PICS unreachable at
+// enrichment time) we fall through to Steam's unhashed legacy
+// `…/apps/{appid}/logo.png` mirror. That mirror is present for most pre-2025
+// titles and 404s for some recently-uploaded ones (RE Requiem, Pragmata) —
+// the caller's `onError` title-text fallback handles the residual 404 cases.
+export function steamLibraryLogoUrl(
+  appid: number,
+  logoPath?: string | null,
+  width = 480
+): string {
+  return wsrv(composeSrc(appid, logoPath, null, "logo.png"), `w=${width}`);
 }
 
 // Vertical 600×900 capsule — Steam's library-page tile art. Different asset

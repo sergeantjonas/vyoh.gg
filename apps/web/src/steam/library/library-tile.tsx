@@ -176,7 +176,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
         </span>
       ) : (
         <img
-          src={steamLibraryLogoUrl(game.appid, 360)}
+          src={steamLibraryLogoUrl(game.appid, game.logoPath, 360)}
           alt={game.name}
           loading="lazy"
           onLoad={handleLogoLoad}

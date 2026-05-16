@@ -18,6 +18,7 @@ import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
 import { TimeTo100Card } from "@/steam/game/time-to-100-card";
+import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -46,6 +47,16 @@ function SteamGamePage() {
   const { data, isPending, isError } = useSteamOwnedGames();
 
   const game = data?.games.find((g) => g.appid === appid);
+
+  // Swap the page backdrop to this game's art while the user is on the
+  // detail page; cleared on unmount so we fade back to the profile backdrop.
+  // Claim by appid as soon as we have it — the page-background URL only
+  // needs the appid (+ `assetTimestamp` as cache-buster, when enrichment has
+  // run) and we want the fade to start before the library snapshot resolves.
+  useSteamGameBackdrop({
+    appid,
+    assetTimestamp: game?.assetTimestamp ?? null,
+  });
 
   // Not every Steam game ships `library_hero.jpg` / `logo.png` — these are
   // part of the newer library-presentation asset set, missing on plenty of
@@ -118,7 +129,7 @@ function SteamGamePage() {
           </h2>
         ) : (
           <img
-            src={steamLibraryLogoUrl(appid)}
+            src={steamLibraryLogoUrl(appid, game?.logoPath)}
             alt={game?.name ?? `App ${appidParam}`}
             loading="eager"
             onLoad={handleLogoLoad}

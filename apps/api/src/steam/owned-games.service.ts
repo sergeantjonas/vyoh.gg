@@ -336,6 +336,7 @@ export class SteamOwnedGamesService {
                 libraryHero2xPath: true,
                 headerPath: true,
                 heroCapsulePath: true,
+                logoPath: true,
                 appType: true,
                 tagIds: true,
               },
@@ -365,6 +366,7 @@ export class SteamOwnedGamesService {
           libraryHero2xPath: e?.libraryHero2xPath ?? null,
           headerPath: e?.headerPath ?? null,
           heroCapsulePath: e?.heroCapsulePath ?? null,
+          logoPath: e?.logoPath ?? null,
           appType: e?.appType ?? null,
           tagIds: e?.tagIds ?? [],
         };

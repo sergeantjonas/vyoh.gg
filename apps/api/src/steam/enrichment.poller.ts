@@ -23,18 +23,27 @@ export class SteamEnrichmentPoller implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // Backfill unenriched rows once at boot so a first deploy (or a new game
-    // added by an out-of-band path) doesn't sit with placeholder assets until
+    // Backfill unenriched-or-incomplete rows once at boot so a first deploy
+    // (or a schema-added column like logoPath) doesn't sit with gaps until
     // the monthly tick. Self-healing — re-deploys are no-ops once every owned
-    // appid has an enrichment row.
-    const unenriched = await this.prisma.steamOwnedGame.findMany({
-      where: { removedAt: null, enrichment: null },
+    // appid has a complete enrichment row.
+    //
+    // "Incomplete" currently means logoPath IS NULL, which is the only field
+    // sourced from a separate channel (PICS) since S5.5.B. Titles PICS can't
+    // resolve (older / unpublished / hidden) stay null forever — boot will
+    // re-try them each restart; the cost is one PICS roundtrip + the
+    // GetItems pull for that small subset, well inside the daily budget.
+    const needsBackfill = await this.prisma.steamOwnedGame.findMany({
+      where: {
+        removedAt: null,
+        OR: [{ enrichment: null }, { enrichment: { is: { logoPath: null } } }],
+      },
       select: { appid: true },
     });
-    if (unenriched.length === 0) return;
-    this.logger.log(`backfilling ${unenriched.length} unenriched apps at boot`);
+    if (needsBackfill.length === 0) return;
+    this.logger.log(`backfilling ${needsBackfill.length} incomplete apps at boot`);
     try {
-      await this.service.enrichApps(unenriched.map((g) => g.appid));
+      await this.service.enrichApps(needsBackfill.map((g) => g.appid));
     } catch (err) {
       // Boot must not block on Steam — log and move on. Next month's cron
       // (or the on-add hook for incremental additions) will reconcile.

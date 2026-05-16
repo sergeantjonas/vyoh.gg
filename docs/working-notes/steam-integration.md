@@ -407,15 +407,32 @@ S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S9 buil
   - **Why the public Web API can't help.** Re-probed `IStoreBrowseService/GetItems` exhaustively with speculative `data_request` flags. Response asset block is a fixed 17-key shape (per `StoreItem.Assets` in `steammessages_storebrowse.steamclient.proto`); no `library_logo` field exists in *any* proto in the SteamDatabase/Protobufs repository (verified by grep). Other Web API endpoints (`ICommunityService/GetApps`, `IStoreService/GetAppInfo`, `store.steampowered.com/api/appdetails`, `IClientUI/*`, `IClient/GetClientLibraryAssets`) either lack the field or are auth-gated. SteamDB/SteamGridDB are JS SPAs with auth-gated APIs. Visual confirmation: RE Requiem's hero has intentional left-side negative space designed for an overlay; Capcom *did* upload a logo, it's just not at the unhashed legacy path the way MH Wilds is.
   - **Where the hash actually lives.** PICS — Steam's Product Info Cache Service, accessed via the Steam network protobuf protocol (TCP to a CM, not HTTPS). `common.library_assets.logo` carries the hash, plus a timestamp. This is how SteamDB and the desktop client populate the librarycache folder. Anonymous logon is sufficient — no user session token required.
 
-### Phase S5.5 — PICS-driven logo enrichment
+### Phase S5.5 — PICS-driven logo enrichment (shipped 2026-05-16)
 
-Closes the wordmark gap before S7.B (`rtime_last_played`) so the per-game verdict cards land with proper branding. Three chunks, each independently committable.
+Closed the wordmark gap before S7.B (`rtime_last_played`) so the per-game verdict cards land with proper branding. Three chunks landed sequentially, RE Requiem + Pragmata verified rendering live.
 
-- **S5.5.A — PICS connector wrapper.** Add `steam-user` dependency, new `SteamPicsService` that handles the anonymous-logon → `getProductInfo([appids])` → disconnect lifecycle with a sensible timeout, returns parsed `common.library_assets` (logo hash + timestamp). Standalone, unit-testable. Hosting implication captured in [hosting.md](hosting.md#steam-network-protocol-outbound-tcp) — this is the first outbound *non-HTTPS* dependency in the API; needs explicit firewall/Nginx note for the eventual Hetzner deploy. *Files: 3 new (`pics.service.ts`, `pics.service.spec.ts`, types) + `package.json` + `steam.module.ts`.*
-- **S5.5.B — Enrichment integration.** Add `logoPath` + `logoTimestamp` columns to `SteamGameEnrichment` (migration). Wire `SteamPicsService.getLibraryAssets()` into `SteamEnrichmentService.enrichApps` so each enrichment tick merges the logo hash into the same upsert. On-add path covers newly-owned apps in the sync tick; boot backfill covers existing rows (parallels the self-healing pattern from S4.6 C-2). Project to `OwnedGamesShape`. *Files: Prisma schema + migration, `enrichment.service.ts`, `owned-games.service.ts`, shared DTO, specs.*
-- **S5.5.C — Frontend wiring.** Rewrite `steamLibraryLogoUrl` to take `logoPath` + `timestamp` like the other helpers, emit hashed URL via `composeSrc`, keep unhashed `logo.png` as final-fallback string (for older titles where PICS still yields no logo entry). Drop the `onError`→title-text swap for titles where PICS gave us a path. Title-text fallback stays for PICS-null titles. *Files: `_shared/steam-image.ts`, `routes/steam/game.$appid.tsx`, possibly library tile wrapper.*
+- **S5.5.A shipped (commit `da06c5b`).** `steam-user@5.3.0` dep + `SteamPicsService` with anonymous-logon → `getProductInfo([appids])` → disconnect lifecycle, 20s logon + 30s product-info timeouts, ambient `steam-user.d.ts` since the package ships JS-only. Protected `createClient()` test seam — Nest can't resolve a constructor-injected factory at module init, so a method override beats DI gymnastics. Hosting implication captured in [hosting.md](hosting.md#steam-network-protocol-outbound-tcp) (first outbound non-HTTPS dep — firewall must not lock egress to 80/443).
+- **S5.5.B shipped.** Migration `20260516152748_s5_5_b_logo_path` adds `logoPath String?` to `SteamGameEnrichment`. `projectEnrichment` takes the path as a separate optional param (pure merge, not derived from the GetItems raw); `enrichApps` fetches PICS once per call (single logon, all appids in one `getProductInfo`) and merges by appid. PICS failure is non-fatal — logged and the row still lands with `logoPath: null`. Boot backfill predicate widened to `OR: [{ enrichment: null }, { enrichment: { is: { logoPath: null } } }]` so existing rows self-heal on first deploy. Projected through `SteamOwnedGame.logoPath`.
+- **S5.5.C shipped.** `steamLibraryLogoUrl(appid, logoPath?, width?)` now collapses to a one-line `wsrv(composeSrc(...), …)` — same shape as the other asset helpers. Library tile + game-detail page both pass `game.logoPath`; the existing `onError`→title-text fallback stays for the residual PICS-null + 404 cases.
 
-**Sequencing rationale.** A is standalone and de-risks the network-protocol choice (first time we touch Steam's non-HTTPS surface). B is the data lift — schema change + enrichment wiring + boot backfill — and depends on A. C is the rendering payoff and depends on B's DTO shape. Drop in before S7.B so the per-game verdict cards inherit the fixed wordmark on landing.
+**PICS shape surprise (worth knowing for future asset work).** First boot backfill landed 0/173 rows because the live response shape doesn't match what the SteamDB protobuf docs suggested. The actual layout, confirmed against an anonymous logon:
+
+```
+common.library_assets_full.library_logo = {
+  image: {
+    english: "<hash>/logo.png",
+    japanese: "<hash>/logo_japanese.png",
+    koreana: "<hash>/logo_koreana.png",
+  },
+  image2x: { english: "<hash>/logo_2x.png", ... },
+  logo_position: { pinned_position, width_pct, height_pct }
+}
+common.library_assets.library_logo = "en,ja,ko"   // just a locale marker, no hash
+```
+
+So `image` is a **locale-keyed map**, not a bare hash string; the flat `library_assets` form carries no hash at all (only a comma-separated language list). The extractor now picks `image.english`, falls back to first available locale, and treats an older bare-string `image` shape defensively. After the fix: 159/173 owned titles get a hash; the 14 nulls are older titles PICS doesn't carry a logo entry for (frontend falls back to the unhashed legacy mirror, which works for them).
+
+**Sequencing rationale held up.** A was a clean network-protocol de-risk (worked first try in production). B's schema + boot backfill landed without surprises. C surfaced the response-shape mismatch — a smoke test against the live API would have caught it earlier than a deploy + DB check did. Worth doing for the next PICS expansion.
 - **Asset pipeline is provisional.** S3 chunk 3 (commit `e1ab677`, 2026-05-14) shipped a bundled-manifest pipeline for capsules mirroring the LoL approach. A subsequent decision the same day plans to retire both the Steam and LoL bundled pipelines in favor of a server-side image proxy with stale-while-revalidate — content-driven deploys (every wishlist add) are the smell that surfaced it. The pivot is sequenced after Steam S5; the chunk-3 bundle will be reverted as part of that arc. Tracked in [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
 
 ---
