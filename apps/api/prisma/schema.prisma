@@ -97,6 +97,15 @@ model SteamGameEnrichment {
   tagIds               Int[]
   featureCategoryIds   Int[]
   enrichedAt           DateTime  @default(now())
+  // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
+  // tile-hover rather than by the monthly enrichment cron — appdetails caps
+  // at ~200 req / 5 min per IP, and only a handful of the 167+ owned games
+  // are ever hovered. JSON shape: `[{ thumbUrl, fullUrl }]`. Defaults to
+  // `[]` so a missing fetch + an empty upstream both serialize the same;
+  // `screenshotsFetchedAt` is the source of truth for "we've tried" — a
+  // null timestamp means never fetched.
+  screenshots          Json      @default("[]")
+  screenshotsFetchedAt DateTime?
 
   game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }

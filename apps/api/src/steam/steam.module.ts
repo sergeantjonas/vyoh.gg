@@ -15,6 +15,7 @@ import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import { SteamRecentlyPlayedUnlocksPoller } from "./recently-played-unlocks.poller";
+import { SteamScreenshotService } from "./screenshot.service";
 import { SteamClientService } from "./steam-client.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
@@ -44,6 +45,7 @@ import { SteamTagService } from "./tag.service";
     SteamAchievementsService,
     SteamTagService,
     SteamTagPoller,
+    SteamScreenshotService,
   ],
   exports: [
     SteamService,

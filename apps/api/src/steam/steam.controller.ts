@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import type {
   SteamGameAchievements,
+  SteamGameMedia,
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatformMix,
@@ -24,6 +25,7 @@ import {
 } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
+import { SteamScreenshotService } from "./screenshot.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
 
@@ -34,7 +36,8 @@ export class SteamController {
     private readonly ownedGames: SteamOwnedGamesService,
     private readonly tags: SteamTagService,
     private readonly achievements: SteamAchievementsService,
-    private readonly playerState: SteamPlayerStateService
+    private readonly playerState: SteamPlayerStateService,
+    private readonly screenshots: SteamScreenshotService
   ) {}
 
   @Get("summary")
@@ -88,6 +91,16 @@ export class SteamController {
     @Param("appid", ParseIntPipe) appid: number
   ): Promise<SteamGameAchievements> {
     return this.achievements.getGameAchievements(appid);
+  }
+
+  // Lazy-fetched media payload (screenshots) triggered by tile hover. Blocks on
+  // a fresh appdetails fetch on first hover; subsequent hovers within 30 days
+  // serve from cache. Past the TTL, returns cached + revalidates in background.
+  @Get("game/:appid/media")
+  async getGameMedia(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<SteamGameMedia> {
+    return this.screenshots.getGameMedia(appid);
   }
 
   @Get("achievements/recent")

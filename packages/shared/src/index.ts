@@ -39,6 +39,7 @@ export type { SteamWishlist, SteamWishlistItem } from "./steam/wishlist.ts";
 export type { SteamLibrarySummary } from "./steam/library-summary.ts";
 export type { SteamPlatform, SteamPlatformMix } from "./steam/platform-mix.ts";
 export type { SteamOwnedGame, SteamOwnedGames } from "./steam/owned-games.ts";
+export type { SteamGameMedia, SteamScreenshot } from "./steam/media.ts";
 export type { SteamPlayerState } from "./steam/player-state.ts";
 export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";
 export type {

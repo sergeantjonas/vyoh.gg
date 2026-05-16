@@ -1,6 +1,10 @@
+import { cn } from "@/lib/utils";
 import { steamCapsuleUrl, steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useGameMedia } from "./use-game-media";
+
+const SCREENSHOT_ROTATION_MS = 2_500;
 
 // Steam-client-style "TIME PLAYED" copy. Single-digit hours get a tenths
 // precision ("3.4 hrs"); ≥10h rounds to whole hours; sub-hour shows minutes;
@@ -24,6 +28,43 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
     if (e.currentTarget.naturalWidth === 0) setHeroFailed(true);
     else setHeroLoaded(true);
   };
+
+  // Component only mounts while the popover is open (Radix unmounts on close),
+  // so `enabled: true` here is the lazy-fetch trigger. The hook gates the
+  // request server-side via the SteamScreenshotService SWR layer; the first
+  // hover of a given game blocks on appdetails, subsequent hovers within the
+  // 30-day TTL serve from cache.
+  const { data: media } = useGameMedia(game.appid, true);
+  const screenshots = media?.screenshots ?? [];
+  const [index, setIndex] = useState(0);
+  // Gate the first screenshot's appearance on a separate render tick so it
+  // animates *in* rather than popping in on top of the hero. Without this,
+  // layer 0 mounts at opacity-100 immediately when the query resolves —
+  // there's no prior opacity-0 state for the transition to interpolate from,
+  // so the eye reads a hard cut. Component unmounts on popover close (Radix
+  // Portal), so this resets per-hover automatically.
+  const [hasEntered, setHasEntered] = useState(false);
+
+  useEffect(() => {
+    if (screenshots.length === 0) return;
+    const handle = requestAnimationFrame(() => setHasEntered(true));
+    return () => cancelAnimationFrame(handle);
+  }, [screenshots.length]);
+
+  useEffect(() => {
+    if (screenshots.length <= 1) return;
+    // Reset to the first frame each time the screenshot set changes so the
+    // first paint of a freshly-loaded game starts at index 0.
+    setIndex(0);
+    const handle = setInterval(() => {
+      // Pause cycling while the tab is backgrounded — the popover may still
+      // technically be "open" from Radix's perspective if focus left the
+      // window mid-hover. Cheap defensive skip rather than an interval clear.
+      if (document.visibilityState === "hidden") return;
+      setIndex((i) => (i + 1) % screenshots.length);
+    }, SCREENSHOT_ROTATION_MS);
+    return () => clearInterval(handle);
+  }, [screenshots.length]);
 
   const twoWeeks = game.playtime2WeeksMinutes ?? 0;
   const total = game.playtimeForeverMinutes;
@@ -51,6 +92,47 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
             alt=""
             className="h-full w-full scale-105 object-cover blur-[2px]"
           />
+        )}
+        {screenshots.length > 0 && (
+          <>
+            {/* Black scrim sits *between* hero and screenshots. Fades in with
+                the first screenshot, then stays at full opacity for the rest
+                of the popover lifetime. The screenshot layers above stagger
+                outgoing fade-out + delayed fade-in so during each inter-frame
+                gap both are at opacity 0 — this scrim shows through, producing
+                a brief blink-to-black. */}
+            <div
+              className={cn(
+                "absolute inset-0 bg-black transition-opacity duration-300 ease-in-out",
+                hasEntered ? "opacity-100" : "opacity-0"
+              )}
+            />
+            <div className="absolute inset-0">
+              {screenshots.map((s, i) => {
+                const isActive = hasEntered && i === index;
+                return (
+                  <img
+                    key={s.thumbUrl}
+                    src={s.thumbUrl}
+                    alt=""
+                    loading="lazy"
+                    className={cn(
+                      // Outgoing: ease-in so the tail finishes quickly rather
+                      // than lingering near opacity 0. Incoming: ease-out so
+                      // it enters fast off the black, also clearing the near-0
+                      // region quickly. Combined with delay-300, the black
+                      // window perceived between frames stays a flicker
+                      // (~50–100ms) instead of a hold.
+                      "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+                      isActive
+                        ? "opacity-100 delay-300 ease-out"
+                        : "opacity-0 delay-0 ease-in"
+                    )}
+                  />
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
       <div className="flex flex-col gap-2 p-3">
