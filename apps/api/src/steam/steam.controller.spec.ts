@@ -210,6 +210,7 @@ describe("SteamController", () => {
       personaState: "online",
       profileVisibility: 3,
       currentGame: { appid: 730, name: "Counter-Strike 2" },
+      currentGamePlaytimeForeverMinutes: 4_320,
       lastPolledAt: "2026-05-16T00:00:00.000Z",
     };
     const stub = vi.fn().mockResolvedValue(state);

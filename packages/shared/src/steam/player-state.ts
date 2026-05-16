@@ -25,5 +25,12 @@ export interface SteamPlayerState {
   // profile so we can't tell either way".
   profileVisibility: 1 | 2 | 3;
   currentGame: SteamCurrentGame | null;
+  // Lifetime playtime for the in-game appid in minutes — denormalized off
+  // the latest SteamPlaytimeSnapshot so the Now-playing surface can render
+  // "Xh lifetime" without a separate owned-games fetch. Null when not
+  // in-game, when the owner is playing a non-owned title (family-share,
+  // demo), or when the daily playtime poller hasn't snapshotted the game
+  // yet on a fresh deploy.
+  currentGamePlaytimeForeverMinutes: number | null;
   lastPolledAt: string;
 }

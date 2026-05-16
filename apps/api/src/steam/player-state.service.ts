@@ -78,6 +78,23 @@ export class SteamPlayerStateService {
       where: { steamId: STEAM_OWNER_ID },
     });
     if (!row) return null;
+
+    // Join the latest playtime snapshot for the in-game appid so the
+    // "Now playing" surface can render "Xh lifetime" without forcing the
+    // frontend to fetch the entire owned-games list. Null path covers
+    // three real cases: not in-game, non-owned title (family-share /
+    // demo / pirate), and fresh-DB owned games the daily snapshotter
+    // hasn't touched yet.
+    let currentGamePlaytimeForeverMinutes: number | null = null;
+    if (row.currentAppid !== null) {
+      const snapshot = await this.prisma.steamPlaytimeSnapshot.findFirst({
+        where: { appid: row.currentAppid },
+        orderBy: { snapshotDate: "desc" },
+        select: { playtimeForeverMinutes: true },
+      });
+      if (snapshot) currentGamePlaytimeForeverMinutes = snapshot.playtimeForeverMinutes;
+    }
+
     return {
       steamId: row.steamId,
       personaName: row.personaName,
@@ -91,6 +108,7 @@ export class SteamPlayerStateService {
               name: row.currentGameName ?? `App ${row.currentAppid}`,
             }
           : null,
+      currentGamePlaytimeForeverMinutes,
       lastPolledAt: row.lastPolledAt.toISOString(),
     };
   }
