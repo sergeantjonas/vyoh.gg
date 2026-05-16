@@ -15,6 +15,7 @@ import {
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
+import { LastProgressedCard } from "@/steam/game/last-progressed-card";
 import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
 import { TimeTo100Card } from "@/steam/game/time-to-100-card";
@@ -210,6 +211,7 @@ function SteamGamePage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <CompletionVerdictCard appid={appid} />
           <TimeTo100Card appid={appid} />
+          <LastProgressedCard appid={appid} />
           <RaritySignatureCard appid={appid} />
           <RarestUnlockCard appid={appid} />
         </div>
