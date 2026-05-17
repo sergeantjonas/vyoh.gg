@@ -1,10 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import type {
+  GameUnlockTimeline,
+  GameUnlockTimelineMonth,
   SteamGameAchievements,
   SteamLibraryCompletion,
   SteamRecentUnlocks,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+
+const TIME_ZONE = "Europe/Brussels";
 
 export const RECENT_UNLOCKS_DEFAULT_LIMIT = 10;
 export const RECENT_UNLOCKS_MAX_LIMIT = 200;
@@ -165,6 +169,59 @@ export class SteamAchievementsService {
   // group needs them). Sort is left to the client — different surfaces want
   // different orderings (median calc wants pct asc, 100%'d hall wants
   // lastUnlockedAt desc).
+  async getUnlockTimeline(appid: number): Promise<GameUnlockTimeline> {
+    const rows = await this.prisma.steamPlayerUnlock.findMany({
+      where: { appid },
+      select: { unlockedAt: true },
+      orderBy: { unlockedAt: "asc" },
+    });
+
+    if (rows.length === 0) return { months: [], total: 0 };
+
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+    });
+
+    const getYearMonth = (date: Date): { year: number; month: number } => {
+      const parts = fmt.formatToParts(date);
+      return {
+        year: Number(parts.find((p) => p.type === "year")?.value ?? "0"),
+        month: Number(parts.find((p) => p.type === "month")?.value ?? "1"),
+      };
+    };
+
+    const countByKey = new Map<string, number>();
+    for (const { unlockedAt } of rows) {
+      const { year, month } = getYearMonth(unlockedAt);
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
+    }
+
+    // rows ordered asc — first/last give us the span boundaries
+    const firstRow = rows[0];
+    const lastRow = rows[rows.length - 1];
+    if (!firstRow || !lastRow) return { months: [], total: 0 };
+    const { year: startYear, month: startMonth } = getYearMonth(firstRow.unlockedAt);
+    const { year: endYear, month: endMonth } = getYearMonth(lastRow.unlockedAt);
+
+    const months: GameUnlockTimelineMonth[] = [];
+    let y = startYear;
+    let m = startMonth;
+    while (y < endYear || (y === endYear && m <= endMonth)) {
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      months.push({ year: y, month: m, count: countByKey.get(key) ?? 0 });
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+    }
+
+    return { months, total: rows.length };
+  }
+
   async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
     const [totals, unlocks] = await Promise.all([
       this.prisma.steamGameAchievement.groupBy({

@@ -8,6 +8,7 @@ import {
   Query,
 } from "@nestjs/common";
 import type {
+  GameUnlockTimeline,
   SteamChronotype,
   SteamGameAchievements,
   SteamGameMedia,
@@ -135,6 +136,13 @@ export class SteamController {
   @Get("achievements/library-completion")
   async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
     return this.achievements.getLibraryCompletion();
+  }
+
+  @Get("game/:appid/unlock-timeline")
+  async getUnlockTimeline(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<GameUnlockTimeline> {
+    return this.achievements.getUnlockTimeline(appid);
   }
 
   @Get("chronotype")

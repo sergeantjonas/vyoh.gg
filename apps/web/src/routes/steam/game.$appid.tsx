@@ -15,6 +15,7 @@ import {
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
+import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
 import { LastProgressedCard } from "@/steam/game/last-progressed-card";
 import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
@@ -206,6 +207,8 @@ function SteamGamePage() {
       )}
 
       {game && <GameScreenshotStrip appid={appid} />}
+
+      {game && <GameUnlockTimeline appid={appid} />}
 
       {game && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
