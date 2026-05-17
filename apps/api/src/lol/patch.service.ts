@@ -13,7 +13,9 @@ import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch
 
 const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json";
 const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
+const CDRAGON_ICON_CDN = "https://cdn.communitydragon.org";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
+const WIKI_IMAGES = "https://wiki.leagueoflegends.com/en-us/images";
 // Wiki etiquette: identify the bot and provide a contact URL.
 const USER_AGENT = "vyoh.gg/1.0 (+https://vyoh.gg) patch-notes-sync";
 
@@ -26,14 +28,18 @@ interface MediaWikiParseResponse {
 }
 
 interface DdragonChampionListBody {
-  data: Record<string, { name: string; id: string }>;
+  data: Record<string, { name: string }>;
 }
 
-interface DdragonChampionDetailBody {
-  data: Record<
-    string,
-    { passive: { name: string }; spells: Array<{ name: string }> }
-  >;
+interface WikiModuleResponse {
+  query?: { pages?: Record<string, { revisions?: Array<{ slots?: { main?: { "*"?: string } } }> }> };
+}
+
+// Wiki image URLs follow a predictable convention — constructable from name alone,
+// no API call needed. Removed entities (e.g. Phase Rush) keep their image permanently.
+function wikiEntryIconUrl(name: string, kind: "item" | "rune"): string {
+  const slug = name.replace(/ /g, "_").replace(/'/g, "%27");
+  return `${WIKI_IMAGES}/${slug}_${kind}.png`;
 }
 
 @Injectable()
@@ -85,17 +91,34 @@ export class PatchService {
       );
       if (championNames.size > 0) {
         try {
-          const slotMaps = await this.fetchChampionSlots(fullDdragonVersion, championNames);
+          const { slotMaps, iconByChampionSlot } = await this.fetchChampionAbilityData(
+            fullDdragonVersion,
+            championNames
+          );
           for (const change of changes) {
             if (change.section !== "champion" || !change.ability || change.ability === "Base") continue;
-            change.slot = slotMaps.get(change.subject)?.get(change.ability) ?? null;
+            const slotMap = slotMaps.get(change.subject);
+            const iconMap = iconByChampionSlot.get(change.subject);
+            const resolvedSlot =
+              slotMap?.get(change.ability) ??
+              slotMap?.get(change.ability.replace(/ \d+$/, "")) ??
+              null;
+            change.slot = resolvedSlot;
+            change.iconPath = resolvedSlot ? (iconMap?.get(resolvedSlot) ?? null) : null;
           }
         } catch (err) {
           this.logger.warn(
-            `Champion slot lookup failed for ${truncatedVersion} — ability names stored verbatim`,
+            `Champion ability data lookup failed for ${truncatedVersion} — ability names stored verbatim`,
             err instanceof Error ? err.message : err
           );
         }
+      }
+    }
+    for (const change of changes) {
+      if (change.section === "item") {
+        change.iconPath = wikiEntryIconUrl(change.subject, "item");
+      } else if (change.section === "rune") {
+        change.iconPath = wikiEntryIconUrl(change.subject, "rune");
       }
     }
     await this.persist(truncatedVersion, changes, patchDate);
@@ -219,47 +242,73 @@ export class PatchService {
     };
   }
 
-  // Fetches ddragon champion list + per-champion detail files in parallel for
-  // the given champion display names. Returns a map of champion display name
-  // → ability name → slot label ("Q"/"W"/"E"/"R"/"Passive"). Champions not
-  // found in ddragon (new releases, renamed) are silently omitted.
-  private async fetchChampionSlots(
+  // Fetches the wiki's canonical champion skill module (one request, all
+  // champions) plus the ddragon list for string IDs (needed for CDragon icon
+  // URLs). Returns slot maps (ability name → slot) and icon maps (slot →
+  // CDragon icon URL) keyed by wiki champion display name.
+  //
+  // The wiki module has every named ability variant under skill_q/w/e/r/i,
+  // including empowered forms (Karma's "Renewal" under skill_w, Lee Sin's
+  // "Iron Will" under skill_w, etc.) — this is the canonical source the patch
+  // notes themselves come from. No heuristics needed.
+  private async fetchChampionAbilityData(
     ddragonVersion: string,
     championNames: ReadonlySet<string>
-  ): Promise<Map<string, Map<string, string>>> {
-    const listUrl = `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion.json`;
-    const listRes = await fetch(listUrl, { headers: { "User-Agent": USER_AGENT } });
-    if (!listRes.ok) throw new Error(`ddragon champion list HTTP ${listRes.status}`);
-    const listBody = (await listRes.json()) as DdragonChampionListBody;
+  ): Promise<{
+    slotMaps: Map<string, Map<string, string>>;
+    iconByChampionSlot: Map<string, Map<string, string>>;
+  }> {
+    const [listBody, skillModule] = await Promise.all([
+      fetch(`${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion.json`, {
+        headers: { "User-Agent": USER_AGENT },
+      }).then(async (r) => {
+        if (!r.ok) throw new Error(`ddragon champion list HTTP ${r.status}`);
+        return r.json() as Promise<DdragonChampionListBody>;
+      }),
+      fetch(
+        `${WIKI_API}?action=query&titles=Module:ChampionData/data&prop=revisions&rvprop=content&rvslots=main&format=json`,
+        { headers: { "User-Agent": USER_AGENT } }
+      ).then(async (r) => {
+        if (!r.ok) throw new Error(`wiki champion module HTTP ${r.status}`);
+        const body = (await r.json()) as WikiModuleResponse;
+        const page = Object.values(body.query?.pages ?? {})[0];
+        return page?.revisions?.[0]?.slots?.main?.["*"] ?? "";
+      }),
+    ]);
 
-    const nameToId = new Map<string, string>();
-    for (const [id, data] of Object.entries(listBody.data)) {
-      nameToId.set(data.name, id);
+    // ddragon string id (e.g. "MonkeyKing") indexed by display name ("Wukong")
+    // AND by string id itself ("MonkeyKing") so wiki names resolve correctly.
+    const toStringId = new Map<string, string>();
+    for (const [stringId, data] of Object.entries(listBody.data)) {
+      toStringId.set(data.name, stringId);
+      toStringId.set(stringId, stringId);
     }
 
-    const result = new Map<string, Map<string, string>>();
+    // Parse wiki module: skill_i→Passive, skill_q→Q, skill_w→W, skill_e→E, skill_r→R.
+    // Top-level champion blocks are indented with exactly 2 spaces.
+    const wikiSlots = parseChampionSkillModule(skillModule);
 
-    await Promise.all(
-      [...championNames].map(async (displayName) => {
-        const ddragonId = nameToId.get(displayName);
-        if (!ddragonId) return;
-        const url = `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion/${ddragonId}.json`;
-        const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-        if (!res.ok) return;
-        const body = (await res.json()) as DdragonChampionDetailBody;
-        const champion = body.data[ddragonId];
-        if (!champion) return;
-        const slotMap = new Map<string, string>();
-        slotMap.set(champion.passive.name, "Passive");
-        (["Q", "W", "E", "R"] as const).forEach((slot, i) => {
-          const spell = champion.spells[i];
-          if (spell) slotMap.set(spell.name, slot);
-        });
-        result.set(displayName, slotMap);
-      })
-    );
+    const slotMaps = new Map<string, Map<string, string>>();
+    const iconByChampionSlot = new Map<string, Map<string, string>>();
 
-    return result;
+    for (const displayName of championNames) {
+      const slotMap = wikiSlots.get(displayName);
+      if (!slotMap) continue;
+      slotMaps.set(displayName, slotMap);
+
+      const stringId = toStringId.get(displayName);
+      if (stringId) {
+        const iconMap = new Map<string, string>();
+        const uniqueSlots = [...new Set<string>(slotMap.values())];
+        for (const slot of uniqueSlots) {
+          const key = slot === "Passive" ? "p" : slot.toLowerCase();
+          iconMap.set(slot, `${CDRAGON_ICON_CDN}/latest/champion/${stringId}/ability-icon/${key}`);
+        }
+        iconByChampionSlot.set(displayName, iconMap);
+      }
+    }
+
+    return { slotMaps, iconByChampionSlot };
   }
 
   // Atomic upsert: insert the PatchVersion row and all change rows in a
@@ -284,6 +333,7 @@ export class PatchService {
           subject: c.subject,
           ability: c.ability,
           slot: c.slot ?? null,
+          iconPath: c.iconPath ?? null,
           changeText: c.changeText,
           changeType: c.changeType,
         })),
@@ -301,6 +351,7 @@ function groupChampionRows(
     subject: string;
     ability: string | null;
     slot: string | null;
+    iconPath: string | null;
     changeText: string;
     changeType: string | null;
   }>
@@ -315,6 +366,7 @@ function groupChampionRows(
     group.changes.push({
       ability: row.ability,
       slot: row.slot,
+      iconPath: row.iconPath,
       changeText: row.changeText,
       changeType: row.changeType as ChampionPatchChangeKind | null,
     });
@@ -323,10 +375,12 @@ function groupChampionRows(
 }
 
 // Group item/rune rows by subject. No ability layer — items and runes are
-// flat, so each row turns into one PatchEntryChangeLine.
+// flat, so each row turns into one PatchEntryChangeLine. iconPath is the same
+// for every row under a given subject (resolved per-subject at sync time).
 function groupEntryRows(
   rows: ReadonlyArray<{
     subject: string;
+    iconPath: string | null;
     changeText: string;
     changeType: string | null;
   }>
@@ -335,7 +389,7 @@ function groupEntryRows(
   for (const row of rows) {
     let group = groups.get(row.subject);
     if (!group) {
-      group = { name: row.subject, changes: [] };
+      group = { name: row.subject, iconUrl: row.iconPath, changes: [] };
       groups.set(row.subject, group);
     }
     group.changes.push({
@@ -344,6 +398,41 @@ function groupEntryRows(
     });
   }
   return [...groups.values()];
+}
+
+// Parses the wiki's Module:ChampionData/data Lua table into a map of
+// championName → (abilityName → slot). Each skill_x key in the Lua table
+// maps to a slot: i=Passive, q=Q, w=W, e=E, r=R. Every named variant is
+// listed (e.g. Karma's skill_w has both "Focused Resolve" and "Renewal").
+// Top-level champion blocks are identified by the 2-space indent of the Lua
+// return table; nested sub-tables use deeper indentation so they're skipped.
+function parseChampionSkillModule(lua: string): Map<string, Map<string, string>> {
+  const SLOT: Record<string, string> = { i: "Passive", q: "Q", w: "W", e: "E", r: "R" };
+  const result = new Map<string, Map<string, string>>();
+
+  // Split on top-level entries (2-space indent): `  ["ChampionName"] = {`
+  for (const block of lua.split(/\n {2}\["/)) {
+    const nameEnd = block.indexOf('"');
+    if (nameEnd < 0) continue;
+    const champName = block.slice(0, nameEnd);
+
+    const slotMap = new Map<string, string>();
+    for (const m of block.matchAll(/\["skill_([iqwer])"\]\s*=\s*\{([^}]+)\}/g)) {
+      const slotKey = m[1];
+      const names = m[2];
+      if (!slotKey || !names) continue;
+      const slot = SLOT[slotKey];
+      if (!slot) continue;
+      for (const n of names.matchAll(/\[\d+\]\s*=\s*"([^"]+)"/g)) {
+        const name = n[1];
+        if (name) slotMap.set(name, slot);
+      }
+    }
+
+    if (slotMap.size > 0) result.set(champName, slotMap);
+  }
+
+  return result;
 }
 
 // ddragon returns "16.10.1" — Riot's API still uses the legacy season major

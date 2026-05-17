@@ -14,10 +14,13 @@ export interface ChampionPatchChangeLine {
   // ability anchor (shouldn't happen in well-formed pages but stays nullable
   // to mirror the schema).
   ability: string | null;
-  // Ability slot derived from ddragon at sync time: "Q" | "W" | "E" | "R" |
-  // "Passive". Null for base-stat rows, items, runes, or when the ddragon
+  // Ability slot derived from CDragon at sync time: "Q" | "W" | "E" | "R" |
+  // "Passive". Null for base-stat rows, items, runes, or when the CDragon
   // lookup failed (ability name falls back to verbatim wiki name).
   slot: string | null;
+  // Full CDragon URL for the ability icon. Null for base-stat rows, items,
+  // runes, or when the CDragon lookup failed.
+  iconPath: string | null;
   changeText: string;
   changeType: ChampionPatchChangeKind | null;
 }
@@ -43,6 +46,9 @@ export interface PatchEntryChangeLine {
 export interface PatchEntryChangeGroup {
   // Wiki item or rune name verbatim (e.g. "Lich Bane", "Deathfire Touch").
   name: string;
+  // Full CDragon URL for the item/rune icon. Null when CDragon lookup failed
+  // or the entry is for a removed entity not present in either version's data.
+  iconUrl: string | null;
   changes: PatchEntryChangeLine[];
 }
 

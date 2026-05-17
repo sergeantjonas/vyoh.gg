@@ -349,10 +349,11 @@ model PatchChange {
   patchVersion String
   section      String   @default("champion")
   subject      String
-  ability      String?
-  slot         String?
-  changeText   String
-  changeType   String?
+  ability          String?
+  slot             String?
+  iconPath         String?
+  changeText       String
+  changeType       String?
   createdAt    DateTime @default(now())
 
   patch PatchVersion @relation(fields: [patchVersion], references: [version])

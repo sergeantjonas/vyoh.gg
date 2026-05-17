@@ -519,6 +519,28 @@ These decisions are baked into the phase plans above. Anything that re-opens the
 
 ---
 
+## Wiki as canonical image source (confirmed direction, 2026-05-17)
+
+During PN7 work (patch-tab icon consolidation) we discovered that the League wiki serves images at stable, constructable URLs — no API call needed:
+
+- **Runes:** `https://wiki.leagueoflegends.com/en-us/images/{Name_underscored}_rune.png`
+- **Items:** `https://wiki.leagueoflegends.com/en-us/images/{Name_underscored}_item.png`
+- Apostrophes encode as `%27`. All tested URLs return 200 direct (no redirect).
+- Removed/replaced entities (e.g. Phase Rush) keep their image on the wiki permanently — no version-fallback hacks needed.
+
+**This is the target for all LoL image assets going forward.** CDragon is the wrong default. Multiple CDN origins at the reverse proxy means cache fragmentation; the wiki consolidates everything to one origin.
+
+**What's already on wiki URLs (as of 2026-05-17):**
+- Patch-tab item and rune icons — stored in `PatchChange.iconPath` at sync time via `wikiEntryIconUrl()` in `patch.service.ts`.
+
+**What still needs migrating:**
+- Match history assets (~13 files in `apps/web/src/`) — champion icons, item icons in match cards, summoner spells, perks/keystones. Currently hitting `raw.communitydragon.org` and `cdn.communitydragon.org` client-side.
+- Champion ability icons — currently `cdn.communitydragon.org/latest/champion/{id}/ability-icon/{slot}`. Verify wiki URL pattern before migrating (likely `{Champion}_{Slot}_ability.png` or similar — needs a spot check).
+
+When picking this up: verify the ability icon pattern on the wiki first, then work through the match-history files. CDragon should end up with zero client-side usages.
+
+---
+
 ## Connections to existing notes
 
 - [hosting.md](hosting.md) — static asset serving per hosting option, CSP considerations. Has a section pointing back here.

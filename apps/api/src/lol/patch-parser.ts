@@ -33,8 +33,9 @@ export interface ParsedChange {
   section: PatchSection;
   subject: string;
   ability: string | null;
-  // Populated by PatchService after ddragon lookup; never set by the parser.
+  // Populated by PatchService after CDragon lookup; never set by the parser.
   slot?: string | null;
+  iconPath?: string | null;
   changeText: string;
   changeType: ChangeType | null;
 }
