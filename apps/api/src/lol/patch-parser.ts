@@ -97,11 +97,14 @@ function parseChampionSection(wikitext: string): ParsedChange[] {
     const changeMatch = line.match(CHAMPION_CHANGE_LINE);
     if (changeMatch?.[1] && currentChampion) {
       const raw = changeMatch[1];
+      if (isFileEmbedLine(raw)) continue;
+      const text = stripTemplates(raw);
+      if (!text) continue;
       changes.push({
         section: "champion",
         subject: currentChampion,
         ability: currentAbility,
-        changeText: stripTemplates(raw),
+        changeText: text,
         changeType: classify(raw),
       });
     }
@@ -137,17 +140,27 @@ function parseFlatAnchoredSection(
     const changeMatch = line.match(FLAT_CHANGE_LINE);
     if (changeMatch?.[1] && currentSubject) {
       const raw = changeMatch[1];
+      if (isFileEmbedLine(raw)) continue;
+      const text = stripTemplates(raw);
+      if (!text) continue;
       changes.push({
         section,
         subject: currentSubject,
         ability: null,
-        changeText: stripTemplates(raw),
+        changeText: text,
         changeType: classify(raw),
       });
     }
   }
 
   return changes;
+}
+
+// Lines whose raw content leads with a [[File:...]] embed are wiki category
+// descriptors (e.g. "[[File:Sorcery icon.png|...]] [[Sorcery]] Keystone rune.")
+// and carry no game-change information.
+function isFileEmbedLine(raw: string): boolean {
+  return /^\s*\[\[File:/i.test(raw);
 }
 
 function sliceSection(wikitext: string, heading: RegExp): string | null {
@@ -164,6 +177,11 @@ function sliceSection(wikitext: string, heading: RegExp): string | null {
 // and collapses whitespace.
 export function stripTemplates(input: string): string {
   let text = input;
+  // Strip [[File:...|...]] and [[Category:...|...]] embeds entirely — they're
+  // visual wiki decorators with no game-change information.
+  text = text.replace(/\[\[(?:File|Category):[^\]]*\]\]/gi, "");
+  // Resolve [[Target|Display]] → "Display" and [[Target]] → "Target".
+  text = text.replace(/\[\[(?:[^\]|]+\|)?([^\]|]+)\]\]/g, "$1");
   // Cap iterations to avoid pathological loops on malformed input.
   for (let i = 0; i < 50; i++) {
     const innermost = /\{\{([^{}]+)\}\}/;

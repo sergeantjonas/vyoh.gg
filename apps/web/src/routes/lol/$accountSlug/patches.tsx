@@ -6,13 +6,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { usePerks } from "@/lol/_shared/analytics/use-perks";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import {
   useChampionAliasFromName,
   useChampionName,
   useChampions,
 } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useItems } from "@/lol/matches/use-items";
 import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
@@ -78,6 +81,23 @@ function PatchesPage() {
       timeZone: "UTC",
     });
   }, [patchList, selectedVersion]);
+
+  const { data: itemsById } = useItems();
+  const perksById = usePerks();
+
+  const itemIconByName = useMemo(() => {
+    if (!itemsById) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const item of itemsById.values()) map.set(item.name, item.iconUrl);
+    return map;
+  }, [itemsById]);
+
+  const runeIconByName = useMemo(() => {
+    if (!perksById) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const perk of perksById.values()) map.set(perk.name, perk.iconUrl);
+    return map;
+  }, [perksById]);
 
   const [myOnly, setMyOnly] = useState(false);
 
@@ -197,10 +217,20 @@ function PatchesPage() {
       )}
 
       {items.length > 0 ? (
-        <PatchEntrySection title="Item changes" groups={items} />
+        <PatchEntrySection
+          title="Item changes"
+          groups={items}
+          iconByName={itemIconByName}
+          iconShape="square"
+        />
       ) : null}
       {runes.length > 0 ? (
-        <PatchEntrySection title="Rune changes" groups={runes} />
+        <PatchEntrySection
+          title="Rune changes"
+          groups={runes}
+          iconByName={runeIconByName}
+          iconShape="circle"
+        />
       ) : null}
     </div>
   );
@@ -209,9 +239,13 @@ function PatchesPage() {
 function PatchEntrySection({
   title,
   groups,
+  iconByName,
+  iconShape,
 }: {
   title: string;
   groups: PatchEntryChangeGroup[];
+  iconByName: Map<string, string>;
+  iconShape: "square" | "circle";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -237,20 +271,42 @@ function PatchEntrySection({
         </span>
       </button>
       {open ? (
-        <ul className="flex flex-col gap-2 border-t p-3">
-          {groups.map((group) => (
-            <li key={group.name} className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium">{group.name}</h3>
-              <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                {group.changes.map((line, i) => (
-                  <li key={`${group.name}-${i}`} className="flex items-start gap-1.5">
-                    <ChangeKindGlyph kind={line.changeType} />
-                    <span className="min-w-0">{line.changeText}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
+        <ul className="divide-y border-t">
+          {groups.map((group) => {
+            const iconUrl = iconByName.get(group.name);
+            return (
+              <li key={group.name} className="flex gap-3 p-3">
+                {iconUrl ? (
+                  <ItemIcon
+                    iconUrl={iconUrl}
+                    alt={group.name}
+                    className={cn(
+                      "size-9 shrink-0",
+                      iconShape === "circle" ? "rounded-full" : "rounded-md"
+                    )}
+                  />
+                ) : (
+                  <span
+                    className={cn(
+                      "size-9 shrink-0 bg-muted/40",
+                      iconShape === "circle" ? "rounded-full" : "rounded-md"
+                    )}
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium">{group.name}</h3>
+                  <ul className="mt-0.5 flex flex-col gap-0.5 text-xs text-muted-foreground">
+                    {group.changes.map((line, i) => (
+                      <li key={`${group.name}-${i}`} className="flex items-start gap-1.5">
+                        <ChangeKindGlyph kind={line.changeType} />
+                        <span className="min-w-0">{line.changeText}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </section>

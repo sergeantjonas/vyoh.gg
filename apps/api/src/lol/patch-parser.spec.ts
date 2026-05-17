@@ -213,4 +213,33 @@ describe("stripTemplates", () => {
   it("normalizes whitespace runs", () => {
     expect(stripTemplates("foo    bar\n\nbaz")).toBe("foo bar baz");
   });
+
+  it("strips [[File:...]] embeds entirely", () => {
+    expect(
+      stripTemplates(
+        "[[File:Sorcery icon.png|20px|link=Sorcery]] [[Sorcery]] Keystone rune."
+      )
+    ).toBe("Sorcery Keystone rune.");
+  });
+
+  it("resolves [[Target|Display]] to Display and [[Target]] to Target", () => {
+    expect(stripTemplates("See [[Lich Bane|this item]] for details.")).toBe(
+      "See this item for details."
+    );
+    expect(stripTemplates("Affects [[Blinding Dart]].")).toBe("Affects Blinding Dart.");
+  });
+});
+
+describe("parsePatchWikitext — file-embed line filtering", () => {
+  it("drops lines starting with [[File: from rune sections", () => {
+    const wikitext = `
+=== Runes ===
+;{{ri|Deathfire Touch}}
+* [[File:Sorcery icon.png|20px|link=Sorcery]] [[Sorcery]] Keystone rune.
+* Passive: Damaging abilities deal bonus damage.
+`;
+    const result = parsePatchWikitext(wikitext);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.changeText).toBe("Passive: Damaging abilities deal bonus damage.");
+  });
 });
