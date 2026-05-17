@@ -362,9 +362,7 @@ The caches are caches, not source-of-truth. Add an eviction policy: drop `MatchD
 
 ## Follow-up after landing
 
-When Tier 1A backfill ships, do a feature-ideation sweep against the data we deliberately kept. The owner's full `challenges` block (~100 sub-fields), full `perks` (rune page + shards), per-type damage breakdowns, ping counters, multikill / streak counters, spell casts, and counter-jungle splits all survive — most of them are currently unused. Realistic candidates already on the radar: rune page panel, KP-over-time tile. The sweep is for the rest: anything in `challenges` worth a small tile (skillshots-hit accuracy, control-ward uptime, lane-opponent lead peaks, weird-stats nominee list), anything cross-match worth a trend, anything that becomes possible cheaply because we're already paying for the data.
-
-Mechanics: review the audit section against current `apps/api/src/lol/lol-analytics.service.ts` + the read paths, list new candidate tiles in [vnext-ideas.md](vnext-ideas.md), and update [match-depth-roadmap.md](match-depth-roadmap.md) if any qualify for the active roadmap. Single sub-session, done in the same week as the backfill so the data shape is fresh.
+~~When Tier 1A backfill ships, do a feature-ideation sweep against the data we deliberately kept.~~ **Done 2026-05-17.** Full sweep written up in [lol-owner-data-features.md](lol-owner-data-features.md) — covers spell casts, multikills, challenges sub-fields, damage panels, CC/death stats, per-game match report card (PG4 expansion), and what was explicitly ruled out (all-10 damage-received bars). See that note for priority table and cross-references.
 
 ---
 
