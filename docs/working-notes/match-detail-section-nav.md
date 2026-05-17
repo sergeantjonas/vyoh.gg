@@ -1,6 +1,6 @@
 # Match-detail section nav — roadmap
 
-**Status (2026-05-17):** Scoped, tab grouping locked (Option A — Recap / Your game / Timeline). Not started. Add to [open-work.md](open-work.md) as a tracked arc.
+**Status (2026-05-17):** MDN1–MDN4 shipped. MDN5 deferred until queued owner-data sections land.
 
 Read this when starting the arc, when scoping where the next owner-data feature lands, or before adding any new section to `MatchDetailView` (so it goes into the right tab from day one).
 
@@ -110,21 +110,23 @@ Revisit the grouping if any of these become true:
 
 Only inside tabs whose section count exceeds 3. At plan time, that's **"Your game" only**; Recap and Timeline are fine without.
 
-### Mechanics
+### Mechanics (as shipped)
 
-- IntersectionObserver per section root in the active tab.
-- Active section = the one whose top edge most recently crossed below the sticky-chrome offset (`--account-header-h` + tab-bar height).
-- Sub-nav lives **inside the tab's scroll area**, not as a sticky third tier. It scrolls with content. Active highlight updates as sections scroll past.
-- Click on a sub-nav label → `scrollIntoView({ block: "start" })` to that section root.
+- Scroll-listener on `mainScrollRef` (same pattern as `useHeroScrolledPast`) — not IntersectionObserver, which was the original plan. Scroll-listener is simpler and handles tall sections reliably.
+- Active section = the last one whose top edge is ≤ the sticky-chrome threshold (`[data-champion-strip]` bottom when visible, else `[data-account-header]` bottom + 80px fallback). Implemented in `apps/web/src/lol/matches/use-scrollspy.ts`.
+- Sub-nav is a **sticky sidebar** on the right of the content column (`position: sticky; align-self: flex-start; top: calc(var(--account-header-h, 64px) + 88px)`). The original plan called for a non-sticky horizontal bar scrolling with content, but that proved useless — it disappeared before you could use it.
+- Sidebar is **gated on actual scrollability**: `ResizeObserver` on the scroll container checks `scrollHeight > clientHeight` after the tab mounts. Sidebar only renders when there is content to scroll through.
+- Sidebar is hidden on mobile (`hidden sm:flex`).
+- Click on a sub-nav label → programmatic `scrollEl.scrollTo()` offset by the sticky-chrome threshold.
 
 ### Reduced motion
 
-- `useReducedMotion()` short-circuits the scroll behaviour to `scrollIntoView({ behavior: "auto" })`.
-- Active-section highlight is a static color swap (no spring / no underline animation) under reduced motion.
+- `useReducedMotion()` passes `behavior: "auto"` to `scrollTo` instead of `"smooth"`.
+- Active-section highlight is a plain color/weight swap — no spring, no underline animation.
 
-### Why not a sticky third tier
+### Why the sidebar is sticky (deviation from original plan)
 
-Same constraint as the per-view-controls revert: three sticky chrome layers is too heavy. A scrollspy sub-nav that scrolls with content is the right pattern — discovers itself when the user reaches a long tab, gets out of the way otherwise.
+The original spec said "scrolls with content, not a sticky third tier." In practice, a non-sticky horizontal nav above the sections scrolls out of view as soon as you start reading, making it useless. A sticky sidebar within the content column is the right pattern — it is not a new sticky chrome tier (it doesn't span the full viewport width and sits inside the `max-w-4xl` content area), so the three-layer constraint isn't violated.
 
 ---
 
@@ -134,9 +136,10 @@ Same constraint as the per-view-controls revert: three sticky chrome layers is t
 [ ← Matches  ·  Match {matchId}              ]   ← breadcrumb row (above hero)
 [ MatchHero                                   ]   ← collapses to ChampionStickyStrip on scroll
 [ Recap | Your game | Timeline                ]   ← match-detail tab bar (sticks with champion strip)
-[ Active tab content                          ]
-[   (Your game only) [scrollspy sub-nav]      ]   ← in-tab, scrolls with content
-[   ...sections...                            ]
+[ Active tab content          | scrollspy nav ]   ← Your game: two-column; sidebar sticky on right
+[   ...sections...            | Build         ]
+[                             | Skills        ]
+[                             | Lane phase    ]
 ```
 
 ### Sticky envelope
@@ -167,32 +170,24 @@ Currently `< Matches` replaces the section tab bar slot via `isMatchDetail` in `
 
 Each chunk is independently committable and live-verifiable.
 
-### Chunk MDN1 — breadcrumb migration + tab primitive shell
+### Chunk MDN1 — breadcrumb migration + tab primitive shell ✓
 
-- Move breadcrumb out of section-tab-bar slot into a row above the hero.
-- Introduce `<MatchDetailTabs>` primitive in `apps/web/src/lol/matches/` (likely `match-detail-tabs.tsx`).
-- Render three tab labels: Recap / Your game / Timeline. All current content stays under Recap (Your game / Timeline inert / coming-soon placeholder).
-- No URL state yet — tab state local.
-- Validates chrome before splitting content.
+- Moved breadcrumb above the hero. Introduced `<MatchDetailTabs>` in `match-detail-tabs.tsx` with spring underline indicator. All content still under Recap; other tabs inert placeholder.
 
-### Chunk MDN2 — content split
+### Chunk MDN2 — content split ✓
 
-- Move sections into their target tabs per the inventory above.
-- URL fragment for tab state (`?tab=`).
-- Default tab = Recap.
-- All three tabs render real content.
+- Sections split per inventory. `?tab=` search param via TanStack Router `validateSearch`. Default recap omitted from URL. All three tabs render real content.
 
-### Chunk MDN3 — sticky behaviour
+### Chunk MDN3 — sticky behaviour ✓
 
-- Tab bar sticks with `ChampionStickyStrip` past the hero.
-- Decide single-row vs. stacked-row layout for the champion strip + tab bar.
-- Verify the single sticky envelope on mobile-narrow + 1080p + ultrawide.
+- Tab bar sticks inside `ChampionStickyStrip` past the hero. Two-row strip layout (champion info row + compact tab row). In-page tabs use `visibility: hidden` when strip is active to preserve layout space. Separate `layoutId` values prevent cross-instance Motion animations.
 
-### Chunk MDN4 — scrollspy in "Your game"
+### Chunk MDN4 — scrollspy in "Your game" ✓
 
-- IntersectionObserver-based in-tab sub-nav.
-- Reduced motion behaviour.
-- No URL state for sub-nav position.
+- `useScrollspy` hook in `use-scrollspy.ts` — scroll-listener, `refFor` factory, `navigateTo` with smooth/auto.
+- Sticky sidebar alongside content (see Scrollspy approach above for deviation from original spec).
+- Sidebar gated on `scrollHeight > clientHeight` with `ResizeObserver`.
+- Reduced motion: `behavior: "auto"` on scroll, static color swap on active item.
 
 ### Chunk MDN5 (soft, post-additions) — re-evaluate
 
