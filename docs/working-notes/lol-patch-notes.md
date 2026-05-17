@@ -137,7 +137,7 @@ CREATE INDEX ON champion_patch_changes (patch_version, champion_key);
 - ✅ `@Cron("0 */6 * * *")` wired on the service; 4 cheap GETs/day, parse only fires on detected change
 - ✅ One-shot `scripts/run-patch-sync.ts` for manual runs; smoke-tested against V26.10 → 58 changes across 24 champions (12 buff / 18 nerf / 4 new_effect / 1 removed / 23 unclassified — mostly bug-fix prose without direction words)
 
-**Deferred to PN2:** ability name → slot (Q/W/E/R/Passive) mapping needs ddragon champion data; stored verbatim as wiki name for now. `patchDate` stays nullable (backfill from MediaWiki revision timestamp later). Cosmetic parser nit: adjacent `{{ap|...}}` templates collapse without a separator (e.g. "15 to 20 3% of damage dealt" instead of "15 to 20% per 3% of damage dealt") — revisit when prose rendering becomes a UI concern.
+**Deferred to PN5 (shipped):** ability name → slot (Q/W/E/R/Passive) mapping needed ddragon champion data; stored verbatim as wiki name until PN5. `patchDate` stays nullable (backfill from MediaWiki revision timestamp later). Cosmetic parser nit: adjacent `{{ap|...}}` templates collapse without a separator (e.g. "15 to 20 3% of damage dealt" instead of "15 to 20% per 3% of damage dealt") — revisit when prose rendering becomes a UI concern.
 
 Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, `apps/api/src/lol/patch-parser.spec.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/api/prisma/migrations/20260517015157_patch_notes_pn1/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/api/src/lol/lol.module.ts`
 
@@ -150,7 +150,7 @@ Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, 
 - ✅ Per-line glyph: ↑ buff (emerald), ↓ nerf (rose), + new_effect (sky), × removed (muted); 3 lines visible per champion with `+N more` overflow line
 - ✅ 13 unit tests (`patch.service.spec.ts` getCurrentChanges + `patch.controller.spec.ts` normalizeChampions)
 
-**Deferred to PN3:** ability name → Q/W/E/R slot mapping (still stored verbatim as wiki ability name); `+N more` line is currently plain text — wire it to the patch-notes tab once PN3 lands.
+**Deferred to PN5 (shipped):** ability name → Q/W/E/R slot mapping shipped in PN5 alongside the patches tab.
 
 ### PN3 — Patch notes tab ✅ (shipped 2026-05-17)
 
@@ -171,6 +171,16 @@ Files: `apps/api/src/lol/patch.{controller,service}.ts`, `apps/api/src/lol/patch
 - ✅ System changes deliberately out of scope; the wiki `== System ==` section is too unstructured (free-form prose, no per-entry anchors) for the same parsing strategy
 
 Files: `apps/api/src/lol/patch-parser.{ts,spec.ts}`, `apps/api/src/lol/patch.{controller,service}.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20260517031646_patch_notes_pn4_items_runes/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/lol/patches/use-patch-changes.ts`, `packages/shared/src/lol/patch-changes.ts`
+
+### PN5 — Q/W/E/R slot mapping ✅ (shipped 2026-05-17)
+
+- ✅ `PatchChange.slot TEXT` column added via `20260517050000_patch_notes_pn5_slots` migration
+- ✅ `PatchService.syncVersion` fetches ddragon `champion.json` + per-champion detail files in parallel; maps `passive.name` → "Passive", `spells[0..3].name` → "Q"/"W"/"E"/"R"; non-fatal (warns + continues if ddragon unreachable)
+- ✅ `run-patch-sync.ts` backfill script threads `fullVersionFor` map through to `syncVersion` so slot lookup has the full ddragon version (e.g. `"16.10.1"` not just `"26.10"`)
+- ✅ UI prefers `slot` over `ability` for display (`line.slot ?? line.ability`) in both the patches tab and profile heads-up callout — shows "Q: ..." instead of "Safeguard: ..."
+- ✅ All 10 DB patches force-resynced with `--last 10 --force`; zero failures
+
+Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20260517050000_patch_notes_pn5_slots/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/lol/patches/profile-patch-notice.tsx`, `packages/shared/src/lol/patch-changes.ts`
 
 ---
 

@@ -14,6 +14,10 @@ export interface ChampionPatchChangeLine {
   // ability anchor (shouldn't happen in well-formed pages but stays nullable
   // to mirror the schema).
   ability: string | null;
+  // Ability slot derived from ddragon at sync time: "Q" | "W" | "E" | "R" |
+  // "Passive". Null for base-stat rows, items, runes, or when the ddragon
+  // lookup failed (ability name falls back to verbatim wiki name).
+  slot: string | null;
   changeText: string;
   changeType: ChampionPatchChangeKind | null;
 }

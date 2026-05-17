@@ -79,6 +79,12 @@ async function runBackfill(
   force: boolean
 ): Promise<void> {
   const ddragon = await patch.fetchVersionList();
+  // Build truncated → first matching full version for slot-lookup pass-through.
+  const fullVersionFor = new Map<string, string>();
+  for (const full of ddragon) {
+    const truncated = truncateVersion(full);
+    if (!fullVersionFor.has(truncated)) fullVersionFor.set(truncated, full);
+  }
   const candidates = Array.from(new Set(ddragon.slice(0, count).map(truncateVersion)));
   let missing: string[];
   if (force) {
@@ -104,7 +110,7 @@ async function runBackfill(
   for (const [i, version] of missing.entries()) {
     if (i > 0) await sleep(WIKI_THROTTLE_MS);
     try {
-      await patch.syncVersion(version);
+      await patch.syncVersion(version, fullVersionFor.get(version));
       await logSyncedVersion(logger, prisma, version);
     } catch (err) {
       logger.error(

@@ -6,7 +6,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { usePerks } from "@/lol/_shared/analytics/use-perks";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import {
@@ -15,8 +14,8 @@ import {
   useChampions,
 } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
-import { useItems } from "@/lol/matches/use-items";
 import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
+import { usePatchIcons } from "@/lol/patches/use-patch-icons";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
@@ -82,22 +81,7 @@ function PatchesPage() {
     });
   }, [patchList, selectedVersion]);
 
-  const { data: itemsById } = useItems();
-  const perksById = usePerks();
-
-  const itemIconByName = useMemo(() => {
-    if (!itemsById) return new Map<string, string>();
-    const map = new Map<string, string>();
-    for (const item of itemsById.values()) map.set(item.name, item.iconUrl);
-    return map;
-  }, [itemsById]);
-
-  const runeIconByName = useMemo(() => {
-    if (!perksById) return new Map<string, string>();
-    const map = new Map<string, string>();
-    for (const perk of perksById.values()) map.set(perk.name, perk.iconUrl);
-    return map;
-  }, [perksById]);
+  const { itemIconByName, runeIconByName } = usePatchIcons(selectedVersion);
 
   const [myOnly, setMyOnly] = useState(false);
 
@@ -346,8 +330,8 @@ function ChampionRow({
             <li key={`${group.champion}-${i}`} className="flex items-start gap-1.5">
               <ChangeKindGlyph kind={line.changeType} />
               <span className="min-w-0">
-                {line.ability ? (
-                  <span className="text-foreground/80">{line.ability}: </span>
+                {(line.slot ?? line.ability) ? (
+                  <span className="text-foreground/80">{line.slot ?? line.ability}: </span>
                 ) : null}
                 {line.changeText}
               </span>

@@ -350,6 +350,7 @@ model PatchChange {
   section      String   @default("champion")
   subject      String
   ability      String?
+  slot         String?
   changeText   String
   changeType   String?
   createdAt    DateTime @default(now())

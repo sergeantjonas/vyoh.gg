@@ -12,6 +12,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch-parser";
 
 const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json";
+const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
 // Wiki etiquette: identify the bot and provide a contact URL.
 const USER_AGENT = "vyoh.gg/1.0 (+https://vyoh.gg) patch-notes-sync";
@@ -22,6 +23,17 @@ interface MediaWikiParseResponse {
     wikitext?: { "*"?: string };
   };
   error?: { code?: string; info?: string };
+}
+
+interface DdragonChampionListBody {
+  data: Record<string, { name: string; id: string }>;
+}
+
+interface DdragonChampionDetailBody {
+  data: Record<
+    string,
+    { passive: { name: string }; spells: Array<{ name: string }> }
+  >;
 }
 
 @Injectable()
@@ -56,17 +68,36 @@ export class PatchService {
       return null;
     }
     this.logger.log(`New patch detected: ${truncated} — fetching wikitext`);
-    return this.syncVersion(truncated);
+    return this.syncVersion(truncated, latest);
   }
 
   // Force-sync a specific truncated version (e.g. "26.9"). Used by the
   // backfill path in `run-patch-sync.ts` after the caller has filtered out
   // versions already in the DB. Idempotent via `persist`'s pre-delete, so
   // re-running after a parser bugfix is safe.
-  async syncVersion(truncatedVersion: string): Promise<string> {
+  async syncVersion(truncatedVersion: string, fullDdragonVersion?: string): Promise<string> {
     const wikitext = await this.fetchWikitext(truncatedVersion);
     const changes = parsePatchWikitext(wikitext);
     const patchDate = parseReleaseDate(wikitext);
+    if (fullDdragonVersion) {
+      const championNames = new Set(
+        changes.filter((c) => c.section === "champion").map((c) => c.subject)
+      );
+      if (championNames.size > 0) {
+        try {
+          const slotMaps = await this.fetchChampionSlots(fullDdragonVersion, championNames);
+          for (const change of changes) {
+            if (change.section !== "champion" || !change.ability || change.ability === "Base") continue;
+            change.slot = slotMaps.get(change.subject)?.get(change.ability) ?? null;
+          }
+        } catch (err) {
+          this.logger.warn(
+            `Champion slot lookup failed for ${truncatedVersion} — ability names stored verbatim`,
+            err instanceof Error ? err.message : err
+          );
+        }
+      }
+    }
     await this.persist(truncatedVersion, changes, patchDate);
     this.logger.log(`Inserted ${changes.length} changes for patch ${truncatedVersion}`);
     return truncatedVersion;
@@ -188,6 +219,49 @@ export class PatchService {
     };
   }
 
+  // Fetches ddragon champion list + per-champion detail files in parallel for
+  // the given champion display names. Returns a map of champion display name
+  // → ability name → slot label ("Q"/"W"/"E"/"R"/"Passive"). Champions not
+  // found in ddragon (new releases, renamed) are silently omitted.
+  private async fetchChampionSlots(
+    ddragonVersion: string,
+    championNames: ReadonlySet<string>
+  ): Promise<Map<string, Map<string, string>>> {
+    const listUrl = `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion.json`;
+    const listRes = await fetch(listUrl, { headers: { "User-Agent": USER_AGENT } });
+    if (!listRes.ok) throw new Error(`ddragon champion list HTTP ${listRes.status}`);
+    const listBody = (await listRes.json()) as DdragonChampionListBody;
+
+    const nameToId = new Map<string, string>();
+    for (const [id, data] of Object.entries(listBody.data)) {
+      nameToId.set(data.name, id);
+    }
+
+    const result = new Map<string, Map<string, string>>();
+
+    await Promise.all(
+      [...championNames].map(async (displayName) => {
+        const ddragonId = nameToId.get(displayName);
+        if (!ddragonId) return;
+        const url = `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion/${ddragonId}.json`;
+        const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+        if (!res.ok) return;
+        const body = (await res.json()) as DdragonChampionDetailBody;
+        const champion = body.data[ddragonId];
+        if (!champion) return;
+        const slotMap = new Map<string, string>();
+        slotMap.set(champion.passive.name, "Passive");
+        (["Q", "W", "E", "R"] as const).forEach((slot, i) => {
+          const spell = champion.spells[i];
+          if (spell) slotMap.set(spell.name, slot);
+        });
+        result.set(displayName, slotMap);
+      })
+    );
+
+    return result;
+  }
+
   // Atomic upsert: insert the PatchVersion row and all change rows in a
   // single transaction. Pre-deletes any pre-existing changes for the
   // version so manual re-runs after a parser bugfix stay idempotent.
@@ -209,6 +283,7 @@ export class PatchService {
           section: c.section,
           subject: c.subject,
           ability: c.ability,
+          slot: c.slot ?? null,
           changeText: c.changeText,
           changeType: c.changeType,
         })),
@@ -225,6 +300,7 @@ function groupChampionRows(
   rows: ReadonlyArray<{
     subject: string;
     ability: string | null;
+    slot: string | null;
     changeText: string;
     changeType: string | null;
   }>
@@ -238,6 +314,7 @@ function groupChampionRows(
     }
     group.changes.push({
       ability: row.ability,
+      slot: row.slot,
       changeText: row.changeText,
       changeType: row.changeType as ChampionPatchChangeKind | null,
     });

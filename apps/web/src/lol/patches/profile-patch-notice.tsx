@@ -140,8 +140,8 @@ export function ProfilePatchNotice({
                     >
                       <ChangeKindGlyph kind={line.changeType} />
                       <span className="min-w-0">
-                        {line.ability ? (
-                          <span className="text-foreground/80">{line.ability}: </span>
+                        {(line.slot ?? line.ability) ? (
+                          <span className="text-foreground/80">{line.slot ?? line.ability}: </span>
                         ) : null}
                         {line.changeText}
                       </span>
