@@ -50,6 +50,52 @@ export interface RiotMatchParticipant {
   challenges?: RiotChallenges;
 }
 
+export type RiotMatchParticipantOwner = RiotMatchParticipant & { isOwner: true };
+
+export interface RiotMatchParticipantOther {
+  isOwner: false;
+  puuid: string;
+  riotIdGameName: string;
+  riotIdTagline: string;
+  championName: string;
+  teamId: number;
+  teamPosition: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  win: boolean;
+  item0: number;
+  item1: number;
+  item2: number;
+  item3: number;
+  item4: number;
+  item5: number;
+  item6: number;
+  goldEarned: number;
+  totalDamageDealtToChampions: number;
+  physicalDamageDealtToChampions: number;
+  magicDamageDealtToChampions: number;
+  trueDamageDealtToChampions: number;
+  totalMinionsKilled: number;
+  neutralMinionsKilled: number;
+  visionScore: number;
+  wardsPlaced: number;
+  wardsKilled: number;
+  detectorWardsPlaced: number;
+  summoner1Id: number;
+  summoner2Id: number;
+  champLevel: number;
+  perks: { styles: { selections: { perk: number }[] }[] };
+  challenges?: { killParticipation?: number };
+}
+
+export interface StoredMatch {
+  metadata: RiotMatch["metadata"];
+  info: Omit<RiotMatch["info"], "participants"> & {
+    participants: (RiotMatchParticipantOwner | RiotMatchParticipantOther)[];
+  };
+}
+
 export interface RiotMatchTeam {
   teamId: number;
   win: boolean;

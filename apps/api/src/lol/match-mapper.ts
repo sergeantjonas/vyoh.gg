@@ -1,5 +1,5 @@
 import type { MatchDetail, MatchSummary, TeamSummary } from "@vyoh/shared";
-import type { RiotMatch } from "../riot/types";
+import type { RiotMatch, StoredMatch } from "../riot/types";
 import { queueTypeName } from "./queue-types";
 
 export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummary {
@@ -91,7 +91,7 @@ export function extractItems(match: RiotMatch, puuid: string): { items: number[]
   return { items };
 }
 
-export function riotMatchToDetail(match: RiotMatch): MatchDetail {
+export function riotMatchToDetail(match: RiotMatch | StoredMatch): MatchDetail {
   const durationMin = match.info.gameDuration / 60;
 
   // Per-team totals needed for share computations

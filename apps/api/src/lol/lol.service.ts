@@ -26,6 +26,7 @@ import type { RiotMatchTimeline } from "../riot/types";
 import { LiveGamePollerService } from "./live-game-poller.service";
 import { MatchEventsService } from "./match-events.service";
 import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
+import { projectMatchForStorage } from "./match-projection";
 import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
 import { riotTimelineToProjection } from "./timeline-mapper";
 import {
@@ -638,11 +639,13 @@ export class LolService {
     if (!platform) throw new Error(`Cannot derive region from matchId ${matchId}`);
     const regional = platformToRegional(platform);
     const raw = await this.riot.getMatchById(matchId, regional);
+    const ownerPuuids = await this.resolveOwnerPuuids();
+    const projected = projectMatchForStorage(raw, ownerPuuids);
 
     await this.prisma.matchDetailCache.create({
-      data: { matchId, detail: raw as unknown as object },
+      data: { matchId, detail: projected as unknown as object },
     });
-    return riotMatchToDetail(raw);
+    return riotMatchToDetail(projected);
   }
 
   async getMatchTimeline(matchId: string): Promise<MatchTimelineProjection> {
@@ -902,7 +905,10 @@ export class LolService {
         await Promise.all([
           this.prisma.matchDetailCache.upsert({
             where: { matchId },
-            create: { matchId, detail: raw as unknown as object },
+            create: {
+              matchId,
+              detail: projectMatchForStorage(raw, new Set([puuid])) as unknown as object,
+            },
             update: {},
           }),
           this.prisma.match.upsert({
@@ -930,5 +936,21 @@ export class LolService {
         `backfill: ${failed.length}/${missing.length} matches failed for ${puuid} — partial results returned`
       );
     }
+  }
+
+  private async resolveOwnerPuuids(): Promise<Set<string>> {
+    const accounts = this.identity.getLolAccounts();
+    if (accounts.length === 0) return new Set();
+    const summoners = await this.prisma.summoner.findMany({
+      where: {
+        OR: accounts.map((a) => ({
+          gameName: a.gameName,
+          tagLine: a.tagLine,
+          region: a.region,
+        })),
+      },
+      select: { puuid: true },
+    });
+    return new Set(summoners.map((s) => s.puuid));
   }
 }

@@ -12,7 +12,7 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 ### Storage / data layer
 
-- **Match cache storage Tiers 1 + 2 + 3** — strip unused fields on ingest, then zstd BYTEA, then zstd dictionary. Whole arc deferred until DB size becomes a cost/quota concern *or* feature scope on Profile / Matches / Trends / Champions / Match detail feels stable. Tiers 0/4/5 explicitly remain safe-anytime. → [match-cache-storage.md](match-cache-storage.md)
+- **Match cache storage Tiers 1B + 2 + 3** — global field stripping on potentially-useful fields, then zstd BYTEA, then zstd dictionary. Tier 1A (owner-only retention) promoted to active work 2026-05-16 — see [open-work.md](open-work.md). These three remain deferred until DB size becomes a cost/quota concern *or* feature scope on Profile / Matches / Trends / Champions / Match detail feels stable. Tiers 0/4/5 explicitly remain safe-anytime. → [match-cache-storage.md](match-cache-storage.md)
 
 ### Match depth / Phase B + C remainders
 
