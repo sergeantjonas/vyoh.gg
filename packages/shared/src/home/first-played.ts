@@ -18,6 +18,12 @@ export interface HomeFirstPlayedLol {
   matchCount: number;
   /** Wins among `matchCount`. */
   wins: number;
+  /**
+   * Slug of the account the *first* match was played on — drives the champion
+   * detail link. Null if the puuid can't be resolved against the configured
+   * accounts (config drift); the tile falls back to a non-linked headline.
+   */
+  accountSlug: string | null;
 }
 
 export interface HomeFirstPlayedSteam {

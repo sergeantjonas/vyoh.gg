@@ -1,7 +1,7 @@
 import { useHomeFirstPlayed } from "@/home/use-home-first-played";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import type { HomeFirstPlayed, LolAccount } from "@vyoh/shared";
+import type { HomeFirstPlayed } from "@vyoh/shared";
 
 function formatRelative(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -48,13 +48,7 @@ function Empty({ verdict }: { verdict: string }) {
   );
 }
 
-function LolView({
-  data,
-  account,
-}: {
-  data: Extract<HomeFirstPlayed, { kind: "lol" }>;
-  account: LolAccount | undefined;
-}) {
+function LolView({ data }: { data: Extract<HomeFirstPlayed, { kind: "lol" }> }) {
   const championName = useChampionName();
   const losses = data.matchCount - data.wins;
   const record = `${data.matchCount} ${data.matchCount === 1 ? "match" : "matches"} (${data.wins}W-${losses}L)`;
@@ -63,10 +57,10 @@ function LolView({
   return (
     <Shell>
       <Heading />
-      {account ? (
+      {data.accountSlug ? (
         <Link
           to="/lol/$accountSlug/champions/$championKey"
-          params={{ accountSlug: account.slug, championKey: data.champion }}
+          params={{ accountSlug: data.accountSlug, championKey: data.champion }}
           className="group flex flex-col gap-0.5"
         >
           <span className="text-base font-semibold leading-snug text-foreground/90 group-hover:text-foreground">
@@ -107,13 +101,13 @@ function SteamView({ data }: { data: Extract<HomeFirstPlayed, { kind: "steam" }>
   );
 }
 
-export function TileFirstPlayed({ account }: { account: LolAccount | undefined }) {
+export function TileFirstPlayed() {
   const query = useHomeFirstPlayed();
   if (query.isPending) return <Empty verdict="Looking for what's new…" />;
   if (!query.data) return <Empty verdict="No rotation signal available." />;
   if (query.data.kind === "none") {
     return <Empty verdict={`Same rotation as the last ${query.data.windowDays} days.`} />;
   }
-  if (query.data.kind === "lol") return <LolView data={query.data} account={account} />;
+  if (query.data.kind === "lol") return <LolView data={query.data} />;
   return <SteamView data={query.data} />;
 }

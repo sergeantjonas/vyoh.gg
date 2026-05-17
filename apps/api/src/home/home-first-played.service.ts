@@ -4,6 +4,7 @@ import type {
   HomeFirstPlayedLol,
   HomeFirstPlayedSteam,
 } from "@vyoh/shared";
+import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const WINDOW_DAYS = 30;
@@ -13,6 +14,7 @@ export interface LolMatchRow {
   champion: string;
   playedAt: Date;
   win: boolean;
+  puuid: string;
 }
 
 export interface SteamSnapshotRow {
@@ -22,19 +24,30 @@ export interface SteamSnapshotRow {
   playtimeForeverMinutes: number;
 }
 
+export interface DetectedFirstLolChampion {
+  champion: string;
+  firstPlayedAt: Date;
+  matchCount: number;
+  wins: number;
+  /** puuid of the *first* match — used to resolve which account's slug to link. */
+  firstPuuid: string;
+}
+
 /**
  * Most-recently first-played LoL champion within the window, with aggregate
  * sample so the tile can render "N matches (W-L)". Returns null when no
- * champion's first non-remake match falls inside the window.
+ * champion's first non-remake match falls inside the window. Tracks the
+ * puuid of the earliest match per champion so the caller can resolve the
+ * correct account slug for the link.
  */
 export function detectFirstLolChampion(
   matches: LolMatchRow[],
   asOf: Date,
   windowDays: number
-): HomeFirstPlayedLol | null {
+): DetectedFirstLolChampion | null {
   const byChampion = new Map<
     string,
-    { firstPlayedAt: Date; matchCount: number; wins: number }
+    { firstPlayedAt: Date; firstPuuid: string; matchCount: number; wins: number }
   >();
 
   for (const m of matches) {
@@ -42,6 +55,7 @@ export function detectFirstLolChampion(
     if (!entry) {
       byChampion.set(m.champion, {
         firstPlayedAt: m.playedAt,
+        firstPuuid: m.puuid,
         matchCount: 1,
         wins: m.win ? 1 : 0,
       });
@@ -49,30 +63,21 @@ export function detectFirstLolChampion(
     }
     entry.matchCount += 1;
     if (m.win) entry.wins += 1;
-    if (m.playedAt < entry.firstPlayedAt) entry.firstPlayedAt = m.playedAt;
+    if (m.playedAt < entry.firstPlayedAt) {
+      entry.firstPlayedAt = m.playedAt;
+      entry.firstPuuid = m.puuid;
+    }
   }
 
   const windowStart = new Date(asOf.getTime() - windowDays * 24 * 60 * 60 * 1000);
-  let best: {
-    champion: string;
-    firstPlayedAt: Date;
-    matchCount: number;
-    wins: number;
-  } | null = null;
+  let best: DetectedFirstLolChampion | null = null;
   for (const [champion, entry] of byChampion) {
     if (entry.firstPlayedAt < windowStart) continue;
     if (!best || entry.firstPlayedAt > best.firstPlayedAt) {
       best = { champion, ...entry };
     }
   }
-  if (!best) return null;
-  return {
-    kind: "lol",
-    champion: best.champion,
-    firstPlayedAt: best.firstPlayedAt.toISOString(),
-    matchCount: best.matchCount,
-    wins: best.wins,
-  };
+  return best;
 }
 
 /**
@@ -158,14 +163,17 @@ export function pickMostRecent(
 
 @Injectable()
 export class HomeFirstPlayedService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identity: IdentityService
+  ) {}
 
   async getFirstPlayed(): Promise<HomeFirstPlayed> {
     const asOf = new Date();
     const [matchRows, snapshotRows] = await Promise.all([
       this.prisma.match.findMany({
         where: { remake: false },
-        select: { champion: true, playedAt: true, win: true },
+        select: { champion: true, playedAt: true, win: true, puuid: true },
       }),
       this.prisma.steamPlaytimeSnapshot.findMany({
         select: {
@@ -177,7 +185,9 @@ export class HomeFirstPlayedService {
       }),
     ]);
 
-    const lol = detectFirstLolChampion(matchRows, asOf, WINDOW_DAYS);
+    const detected = detectFirstLolChampion(matchRows, asOf, WINDOW_DAYS);
+    const lol = detected ? await this.toLolDto(detected) : null;
+
     const steam = detectFirstSteamCrossing(
       snapshotRows.map((r) => ({
         appid: r.appid,
@@ -193,5 +203,32 @@ export class HomeFirstPlayedService {
     const winner = pickMostRecent(lol, steam);
     if (winner) return winner;
     return { kind: "none", windowDays: WINDOW_DAYS };
+  }
+
+  private async toLolDto(
+    detected: DetectedFirstLolChampion
+  ): Promise<HomeFirstPlayedLol> {
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { puuid: detected.firstPuuid },
+      select: { gameName: true, tagLine: true, region: true },
+    });
+    const accountSlug = summoner
+      ? (this.identity
+          .getLolAccounts()
+          .find(
+            (a) =>
+              a.gameName.toLowerCase() === summoner.gameName.toLowerCase() &&
+              a.tagLine.toLowerCase() === summoner.tagLine.toLowerCase() &&
+              a.region.toLowerCase() === summoner.region.toLowerCase()
+          )?.slug ?? null)
+      : null;
+    return {
+      kind: "lol",
+      champion: detected.champion,
+      firstPlayedAt: detected.firstPlayedAt.toISOString(),
+      matchCount: detected.matchCount,
+      wins: detected.wins,
+      accountSlug,
+    };
   }
 }

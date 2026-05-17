@@ -7,10 +7,16 @@ import {
   pickMostRecent,
 } from "./home-first-played.service";
 
-const lolMatch = (champion: string, isoDate: string, win = true): LolMatchRow => ({
+const lolMatch = (
+  champion: string,
+  isoDate: string,
+  win = true,
+  puuid = "p1"
+): LolMatchRow => ({
   champion,
   playedAt: new Date(isoDate),
   win,
+  puuid,
 });
 
 const snapshot = (
@@ -65,12 +71,27 @@ describe("detectFirstLolChampion", () => {
     // 2026-05-10). Yasuo is older (2026-05-05). Ahri's first match is outside
     // the window despite recent activity — older first-encounter loses.
     expect(result).toEqual({
-      kind: "lol",
       champion: "Vex",
-      firstPlayedAt: new Date("2026-05-10T12:00:00Z").toISOString(),
+      firstPlayedAt: new Date("2026-05-10T12:00:00Z"),
       matchCount: 3,
       wins: 2,
+      firstPuuid: "p1",
     });
+  });
+
+  it("carries the puuid of the FIRST match so the caller can resolve account slug", () => {
+    // Same champion first played on account A, then later on account B.
+    // firstPuuid must be the account-A row regardless of input order.
+    const result = detectFirstLolChampion(
+      [
+        lolMatch("Vex", "2026-05-14T12:00:00Z", true, "puuid-B"),
+        lolMatch("Vex", "2026-05-10T12:00:00Z", true, "puuid-A"),
+        lolMatch("Vex", "2026-05-12T12:00:00Z", true, "puuid-A"),
+      ],
+      new Date("2026-05-17T12:00:00Z"),
+      30
+    );
+    expect(result?.firstPuuid).toBe("puuid-A");
   });
 
   it("aggregates W/L across all matches on the champion, not just the first", () => {
@@ -98,7 +119,7 @@ describe("detectFirstLolChampion", () => {
       asOf,
       30
     );
-    expect(result?.firstPlayedAt).toBe(new Date("2026-05-10T12:00:00Z").toISOString());
+    expect(result?.firstPlayedAt).toEqual(new Date("2026-05-10T12:00:00Z"));
   });
 });
 
@@ -215,6 +236,7 @@ describe("pickMostRecent", () => {
     firstPlayedAt: "2026-05-10T00:00:00.000Z",
     matchCount: 3,
     wins: 2,
+    accountSlug: "vyoh-euw",
   };
   const steam = {
     kind: "steam" as const,

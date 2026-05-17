@@ -41,7 +41,7 @@ function HomePage() {
           <TileWeeklyTotals />
         </BentoTile>
         <BentoTile width={2}>
-          <TileFirstPlayed account={account} />
+          <TileFirstPlayed />
         </BentoTile>
         <BentoTile>
           <TileBuildBadge />
