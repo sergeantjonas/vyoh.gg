@@ -30,6 +30,7 @@ import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
+import { useScrollspy } from "@/lol/matches/use-scrollspy";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
 import type {
@@ -785,6 +786,14 @@ function TeamBlock({
   );
 }
 
+const YOUR_GAME_SECTIONS = [
+  { id: "build-order", label: "Build" },
+  { id: "skill-order", label: "Skills" },
+  { id: "lane-phase", label: "Lane phase" },
+] as const;
+
+const YOUR_GAME_IDS = YOUR_GAME_SECTIONS.map((s) => s.id);
+
 export function MatchDetailView({
   detail,
   currentChampion,
@@ -799,6 +808,7 @@ export function MatchDetailView({
   tab: MatchDetailTabId;
 }) {
   const reduced = useReducedMotion();
+  const { activeId: scrollspyId, refFor, navigateTo } = useScrollspy(YOUR_GAME_IDS);
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
@@ -852,9 +862,32 @@ export function MatchDetailView({
       )}
       {tab === "your-game" && (
         <>
-          <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
-          <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
-          <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+          <nav className="flex gap-1" aria-label="Your game sections">
+            {YOUR_GAME_SECTIONS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => navigateTo(id, !reduced)}
+                className={cn(
+                  "cursor-pointer rounded-md px-2.5 py-1 text-sm transition-colors",
+                  scrollspyId === id
+                    ? "bg-foreground/8 font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div ref={refFor("build-order")}>
+            <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+          </div>
+          <div ref={refFor("skill-order")}>
+            <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
+          </div>
+          <div ref={refFor("lane-phase")}>
+            <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+          </div>
         </>
       )}
       {tab === "timeline" && (
