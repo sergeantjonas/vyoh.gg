@@ -4,8 +4,16 @@ import { PrismaService } from "../prisma/prisma.service";
 
 const TIME_ZONE = "Europe/Brussels";
 
-export function bucketDates(dates: Date[], timeZone: string): HomeChronotypeHour[] {
-  const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+export interface HourCount {
+  hour: number;
+  count: number;
+}
+
+export function bucketDates(dates: Date[], timeZone: string): HourCount[] {
+  const hours: HourCount[] = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    count: 0,
+  }));
   const fmt = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     hour: "2-digit",
@@ -19,6 +27,21 @@ export function bucketDates(dates: Date[], timeZone: string): HomeChronotypeHour
     bucket.count += 1;
   }
   return hours;
+}
+
+export function mergePerStream(
+  lol: HourCount[],
+  steam: HourCount[]
+): HomeChronotypeHour[] {
+  return lol.map((lolBucket, i) => {
+    const steamCount = steam[i]?.count ?? 0;
+    return {
+      hour: lolBucket.hour,
+      total: lolBucket.count + steamCount,
+      lol: lolBucket.count,
+      steam: steamCount,
+    };
+  });
 }
 
 @Injectable()
@@ -46,13 +69,8 @@ export class HomeChronotypeService {
     const lolBuckets = bucketDates(lolDates, TIME_ZONE);
     const steamBuckets = bucketDates(steamDates, TIME_ZONE);
 
-    const hours = lolBuckets.map((lol, i) => ({
-      hour: lol.hour,
-      count: lol.count + (steamBuckets[i]?.count ?? 0),
-    }));
-
     return {
-      hours,
+      hours: mergePerStream(lolBuckets, steamBuckets),
       totalLolCount: lolDates.length,
       totalSteamCount: steamDates.length,
       timeZone: TIME_ZONE,

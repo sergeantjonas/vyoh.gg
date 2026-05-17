@@ -444,7 +444,7 @@ Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S
   - **Out of scope.** Backfilling Steam first-played from pre-snapshot history. Surfacing both streams' newest game simultaneously.
   - **Validation.** check + typecheck + spec; browser-verify empty + populated paths.
 
-- **S8.6 — Per-stream toggle on home chronotype (planned).** The merged chronotype tile shipped in S8.2 gains a Both/LoL/Steam segmented control. One fetch, three views.
+- **S8.6 — Per-stream toggle on home chronotype (shipped 2026-05-17).** The merged chronotype tile shipped in S8.2 gains a Both/LoL/Steam segmented control. One fetch, three views.
   - **Modify (api).** `home-chronotype.service.ts` — returned `hours[]` carries `{ hour, total, lol, steam }`. Per-stream counts kept alongside the total instead of summed into a single field.
   - **Modify (shared).** `packages/shared/src/home/chronotype.ts` — DTO extended.
   - **Modify (api).** `home-chronotype.service.spec.ts` — per-stream attribution covered.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bucketDates } from "./home-chronotype.service";
+import { bucketDates, mergePerStream } from "./home-chronotype.service";
 
 const TZ = "Europe/Brussels";
 
@@ -41,5 +41,39 @@ describe("bucketDates", () => {
     expect(hours[12]?.count).toBe(1);
     expect(hours[23]?.count).toBe(1);
     expect(hours.reduce((s, h) => s + h.count, 0)).toBe(4);
+  });
+});
+
+describe("mergePerStream", () => {
+  it("returns 24 buckets when both streams are empty", () => {
+    const merged = mergePerStream(bucketDates([], TZ), bucketDates([], TZ));
+    expect(merged).toHaveLength(24);
+    expect(merged.every((h) => h.total === 0 && h.lol === 0 && h.steam === 0)).toBe(true);
+  });
+
+  it("keeps per-stream counts alongside the total", () => {
+    const lol = bucketDates([dateAtHour(20), dateAtHour(20), dateAtHour(21)], TZ);
+    const steam = bucketDates([dateAtHour(20), dateAtHour(22)], TZ);
+    const merged = mergePerStream(lol, steam);
+    expect(merged[20]).toEqual({ hour: 20, total: 3, lol: 2, steam: 1 });
+    expect(merged[21]).toEqual({ hour: 21, total: 1, lol: 1, steam: 0 });
+    expect(merged[22]).toEqual({ hour: 22, total: 1, lol: 0, steam: 1 });
+  });
+
+  it("attributes streams independently — no double counting", () => {
+    const lol = bucketDates([dateAtHour(9)], TZ);
+    const steam = bucketDates([dateAtHour(9)], TZ);
+    const merged = mergePerStream(lol, steam);
+    expect(merged[9]).toEqual({ hour: 9, total: 2, lol: 1, steam: 1 });
+    // Total across all hours should equal lol+steam total — never doubled.
+    const totalSum = merged.reduce((s, h) => s + h.total, 0);
+    const lolSum = merged.reduce((s, h) => s + h.lol, 0);
+    const steamSum = merged.reduce((s, h) => s + h.steam, 0);
+    expect(totalSum).toBe(lolSum + steamSum);
+  });
+
+  it("hour ordering is preserved 0..23", () => {
+    const merged = mergePerStream(bucketDates([], TZ), bucketDates([], TZ));
+    expect(merged.map((h) => h.hour)).toEqual(Array.from({ length: 24 }, (_, i) => i));
   });
 });

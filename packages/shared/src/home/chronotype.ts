@@ -1,7 +1,10 @@
 export interface HomeChronotypeHour {
   /** Hour of day, 0..23, in the response `timeZone`. */
   hour: number;
-  count: number;
+  /** lol + steam — convenience for the "Both" view. */
+  total: number;
+  lol: number;
+  steam: number;
 }
 
 export interface HomeChronotype {
