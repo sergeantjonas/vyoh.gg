@@ -1,5 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import type {
+  ChampionPatchChangeGroup,
+  ChampionPatchChangeKind,
+  CurrentPatchChangesResponse,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { type ParsedChange, parsePatchWikitext } from "./patch-parser";
 
@@ -85,6 +90,35 @@ export class PatchService {
     return text;
   }
 
+  // Read-side query for the PN2 profile heads-up. Returns the most recently
+  // *fetched* patch (cron writes one row per detected version), filtered to
+  // the caller-supplied wiki champion names. The caller is expected to have
+  // already resolved Riot-internal aliases (e.g. "MonkeyKing") to wiki
+  // display names (e.g. "Wukong") — the API matches `championKey` verbatim
+  // against the stored wiki name.
+  async getCurrentChanges(
+    championKeys: readonly string[]
+  ): Promise<CurrentPatchChangesResponse> {
+    const latest = await this.prisma.patchVersion.findFirst({
+      orderBy: { fetchedAt: "desc" },
+    });
+    if (!latest) return { patchVersion: null, changes: [] };
+    if (championKeys.length === 0) {
+      return { patchVersion: latest.version, changes: [] };
+    }
+    const rows = await this.prisma.championPatchChange.findMany({
+      where: {
+        patchVersion: latest.version,
+        championKey: { in: [...championKeys] },
+      },
+      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+    });
+    return {
+      patchVersion: latest.version,
+      changes: groupByChampion(rows),
+    };
+  }
+
   // Atomic upsert: insert the PatchVersion row and all change rows in a
   // single transaction. Pre-deletes any pre-existing changes for the
   // version so manual re-runs after a parser bugfix stay idempotent.
@@ -107,6 +141,33 @@ export class PatchService {
       }),
     ]);
   }
+}
+
+// Group raw change rows by champion, preserving DB order (already
+// championKey ASC, id ASC). The `changeType` cast is safe: it's only ever
+// written by the parser using the ChampionPatchChangeKind union or null.
+function groupByChampion(
+  rows: ReadonlyArray<{
+    championKey: string;
+    ability: string | null;
+    changeText: string;
+    changeType: string | null;
+  }>
+): ChampionPatchChangeGroup[] {
+  const groups = new Map<string, ChampionPatchChangeGroup>();
+  for (const row of rows) {
+    let group = groups.get(row.championKey);
+    if (!group) {
+      group = { champion: row.championKey, changes: [] };
+      groups.set(row.championKey, group);
+    }
+    group.changes.push({
+      ability: row.ability,
+      changeText: row.changeText,
+      changeType: row.changeType as ChampionPatchChangeKind | null,
+    });
+  }
+  return [...groups.values()];
 }
 
 // ddragon returns "16.10.1" — Riot's API still uses the legacy season major

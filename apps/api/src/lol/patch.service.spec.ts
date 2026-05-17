@@ -1,5 +1,22 @@
-import { describe, expect, it } from "vitest";
-import { truncateVersion, wikiPageTitle } from "./patch.service";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
+import { PatchService, truncateVersion, wikiPageTitle } from "./patch.service";
+
+interface PatchPrismaStubs {
+  patchVersion: { findFirst: ReturnType<typeof vi.fn> };
+  championPatchChange: { findMany: ReturnType<typeof vi.fn> };
+}
+
+function makePrisma(): PatchPrismaStubs {
+  return {
+    patchVersion: { findFirst: vi.fn() },
+    championPatchChange: { findMany: vi.fn() },
+  };
+}
+
+function makeService(prisma: PatchPrismaStubs): PatchService {
+  return new PatchService(prisma as unknown as PrismaService);
+}
 
 describe("truncateVersion", () => {
   it("translates legacy season major to year-based (+10)", () => {
@@ -25,5 +42,90 @@ describe("wikiPageTitle", () => {
 
   it("leaves two-digit minor untouched", () => {
     expect(wikiPageTitle("26.10")).toBe("V26.10");
+  });
+});
+
+describe("PatchService.getCurrentChanges", () => {
+  it("returns null version + no changes when no patches are synced yet", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findFirst.mockResolvedValue(null);
+
+    const result = await makeService(prisma).getCurrentChanges(["Ahri"]);
+
+    expect(result).toEqual({ patchVersion: null, changes: [] });
+    expect(prisma.championPatchChange.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the patch version with empty changes when no champion filter is given", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findFirst.mockResolvedValue({ version: "26.10" });
+
+    const result = await makeService(prisma).getCurrentChanges([]);
+
+    // Skip the DB hit entirely — PN2 always passes a filter, and an empty
+    // filter is a "tell me the patch label" probe, not a request for the
+    // entire patch's changes.
+    expect(result).toEqual({ patchVersion: "26.10", changes: [] });
+    expect(prisma.championPatchChange.findMany).not.toHaveBeenCalled();
+  });
+
+  it("groups rows by champion and preserves DB order within each group", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findFirst.mockResolvedValue({ version: "26.10" });
+    prisma.championPatchChange.findMany.mockResolvedValue([
+      {
+        championKey: "Ahri",
+        ability: "Q",
+        changeText: "Damage increased to 50 from 40.",
+        changeType: "buff",
+      },
+      {
+        championKey: "Ahri",
+        ability: "Q",
+        changeText: "Cooldown reduced to 7 from 8.",
+        changeType: "buff",
+      },
+      {
+        championKey: "Lee Sin",
+        ability: "W",
+        changeText: "Shield reduced to 60 from 70.",
+        changeType: "nerf",
+      },
+    ]);
+
+    const result = await makeService(prisma).getCurrentChanges(["Ahri", "Lee Sin"]);
+
+    expect(result.patchVersion).toBe("26.10");
+    expect(result.changes).toEqual([
+      {
+        champion: "Ahri",
+        changes: [
+          {
+            ability: "Q",
+            changeText: "Damage increased to 50 from 40.",
+            changeType: "buff",
+          },
+          {
+            ability: "Q",
+            changeText: "Cooldown reduced to 7 from 8.",
+            changeType: "buff",
+          },
+        ],
+      },
+      {
+        champion: "Lee Sin",
+        changes: [
+          {
+            ability: "W",
+            changeText: "Shield reduced to 60 from 70.",
+            changeType: "nerf",
+          },
+        ],
+      },
+    ]);
+    expect(prisma.championPatchChange.findMany).toHaveBeenCalledWith({
+      where: { patchVersion: "26.10", championKey: { in: ["Ahri", "Lee Sin"] } },
+      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+    });
   });
 });

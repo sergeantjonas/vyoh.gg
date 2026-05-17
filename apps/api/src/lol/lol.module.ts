@@ -7,11 +7,12 @@ import { LolService } from "./lol.service";
 import { MatchEventsService } from "./match-events.service";
 import { MatchSyncService } from "./match-sync.service";
 import { MatchController } from "./match.controller";
+import { PatchController } from "./patch.controller";
 import { PatchService } from "./patch.service";
 
 @Module({
   imports: [RiotModule],
-  controllers: [LolController, MatchController],
+  controllers: [LolController, MatchController, PatchController],
   providers: [
     LolService,
     LolAnalyticsService,
