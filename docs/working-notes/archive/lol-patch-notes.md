@@ -1,6 +1,6 @@
 # LoL patch notes
 
-**Status:** Shipped — PN1–PN7 all landed 2026-05-17: parser + daily cron (PN1), profile heads-up callout (PN2), patches tab with version selector + my-champions sort (PN3), items + runes sections (PN4), Q/W/E/R slot mapping via wiki `Module:ChampionData/data` (PN5), ability icons + patch date + item/rune icon display (PN6), wiki-first icon consolidation with server-side resolution (PN7). See [open-work.md](open-work.md) entry; only "Open questions" below remain — historical backfill and change-type classification reliability, both deferred without active arcs.
+**Status:** Shipped — archived 2026-05-17. PN1–PN7 all landed 2026-05-17: parser + daily cron (PN1), profile heads-up callout (PN2), patches tab with version selector + my-champions sort (PN3), items + runes sections (PN4), Q/W/E/R slot mapping via wiki `Module:ChampionData/data` (PN5), ability icons + patch date + item/rune icon display (PN6), wiki-first icon consolidation with server-side resolution (PN7). Only "Open questions" below remain — historical backfill and change-type classification reliability, both deferred without active arcs. See [archive/README.md](README.md).
 
 A working note for patch-awareness features in the LoL section. Two surfaces share a single data pipeline:
 

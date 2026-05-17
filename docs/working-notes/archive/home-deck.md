@@ -1,10 +1,10 @@
 # Home deck — bento self-portrait surface
 
-**Status:** Shipped — both chunks shipped: Chunk 1 (bento primitive + minimum-viable tile set: build-badge, domain-age, last-match, signature-game) and Chunk 2 (chronotype 2×2 hero tile, 2026-05-14). The deck has since grown beyond the original plan with additional self-portrait tiles wired in `apps/web/src/home/` (day-split, first-played, session-lengths, weekly-totals — most cross-stream synthesis once Steam landed). Future tile candidates live in [self-portrait-surfaces.md](self-portrait-surfaces.md), not here.
+**Status:** Shipped — archived 2026-05-17. Both chunks shipped: Chunk 1 (bento primitive + minimum-viable tile set: build-badge, domain-age, last-match, signature-game) and Chunk 2 (chronotype 2×2 hero tile, 2026-05-14). The deck has since grown beyond the original plan with additional self-portrait tiles wired in `apps/web/src/home/` (day-split, first-played, session-lengths, weekly-totals — most cross-stream synthesis once Steam landed). Future tile candidates live in [self-portrait-surfaces.md](../self-portrait-surfaces.md), not here. See [archive/README.md](README.md).
 
 This note tracks the original arc that turned the home page from an `<h1>` stub into the **self-portrait deck itself** — a bento mosaic of `ConclusionCard` tiles rendering verdicts about the owner, not a navigational entry hall.
 
-Direction inherits from [self-portrait-surfaces.md](self-portrait-surfaces.md). This note is the *implementation* arc; the parent note is the *content* candidate list.
+Direction inherits from [self-portrait-surfaces.md](../self-portrait-surfaces.md). This note is the *implementation* arc; the parent note is the *content* candidate list.
 
 ---
 
@@ -14,7 +14,7 @@ Direction inherits from [self-portrait-surfaces.md](self-portrait-surfaces.md). 
 
 The chronotype tile (chunk 2, shipped) is the canonical shape: hour-bucketing merged across whichever streams are wired produces a verdict no per-stream route could. Future tiles that pass the bar are similar — "what am I doing right now" across all live streams, "this week's dominant activity", a synthesis recap. Future tiles that *don't* pass the bar: a Spotify now-playing list, a GitHub contributions grid, a Steam recently-played feed. Those live on `/music`, `/code`, `/steam`.
 
-Without this rule, `/` accumulates one stream-feed per integration and the self-portrait synthesis story drowns in feeds. See [self-portrait-surfaces.md § Routing principle](self-portrait-surfaces.md#routing-principle-sharpened-2026-05-16) for the parallel articulation.
+Without this rule, `/` accumulates one stream-feed per integration and the self-portrait synthesis story drowns in feeds. See [self-portrait-surfaces.md § Routing principle](../self-portrait-surfaces.md#routing-principle-sharpened-2026-05-16) for the parallel articulation.
 
 ---
 
@@ -29,7 +29,7 @@ Two layouts were weighed against each other:
 
 1. The whole point of the self-portrait framing is freelance signal. Mosaic is the version that *does* that job; recap-vertical is the safe-ship version of an idea whose entire point was to take a swing.
 2. The empty-state risk (named in the self-portrait hard filter: *"an empty or stale panel reads worse than no panel"*) is neutralised by an **always-fills floor** — at least three tiles guaranteed to render under any data condition (build/deploy badge, domain-age, last match).
-3. `ConclusionCard` already supports an `empty` state (see [`conclusion-card.tsx:16`](../../apps/web/src/lol/trends/_shared/conclusion-card.tsx#L16)), so individual tiles degrade gracefully without the *grid* having to.
+3. `ConclusionCard` already supports an `empty` state (see [`conclusion-card.tsx:16`](../../../apps/web/src/lol/trends/_shared/conclusion-card.tsx#L16)), so individual tiles degrade gracefully without the *grid* having to.
 
 ---
 
@@ -37,9 +37,9 @@ Two layouts were weighed against each other:
 
 The deck does not introduce new card visuals. It composes existing primitives in a new layout.
 
-- [`ConclusionCard`](../../apps/web/src/lol/trends/_shared/conclusion-card.tsx) — tile body. Props already cover title, verdict, evidence, prescription, sample-size, empty.
+- [`ConclusionCard`](../../../apps/web/src/lol/trends/_shared/conclusion-card.tsx) — tile body. Props already cover title, verdict, evidence, prescription, sample-size, empty.
 - Recap composers under `apps/web/src/lol/recap/` — owner-scoped tile content. Each requires `account` + `matches`.
-- [`useMe()`](../../apps/web/src/identity/use-me.ts) — owner identity. First entry in `me.data?.lol` is the primary account; same convention used by [`apps/web/src/routes/lol/index.tsx:11`](../../apps/web/src/routes/lol/index.tsx#L11).
+- [`useMe()`](../../../apps/web/src/identity/use-me.ts) — owner identity. First entry in `me.data?.lol` is the primary account; same convention used by [`apps/web/src/routes/lol/index.tsx:11`](../../../apps/web/src/routes/lol/index.tsx#L11).
 
 The only *new* primitive the deck needs is a bento layout grid. Placed in `components/bento/` (not under `home/`) so future surfaces (Steam home, cross-account view) can reuse without promotion churn.
 
@@ -114,6 +114,6 @@ Shape decisions taken during implementation:
 
 ## Related arcs
 
-- [self-portrait-surfaces.md](self-portrait-surfaces.md) — parent direction. Candidate list for future tiles beyond chunk 1.
-- [trends-rework.md](archive/trends-rework.md) — origin of the `ConclusionCard` primitive.
-- [case-study-topics.md](case-study-topics.md) — the bento + self-portrait surface is a plausible freelance case-study topic; flag after chunk 1 ships, not before.
+- [self-portrait-surfaces.md](../self-portrait-surfaces.md) — parent direction. Candidate list for future tiles beyond chunk 1.
+- [trends-rework.md](trends-rework.md) — origin of the `ConclusionCard` primitive.
+- [case-study-topics.md](../case-study-topics.md) — the bento + self-portrait surface is a plausible freelance case-study topic; flag after chunk 1 ships, not before.

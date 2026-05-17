@@ -204,7 +204,7 @@ export function stripTemplates(input: string): string {
 
 // Render a single template body (the text between `{{` and `}}`, with
 // no further nesting) to its display string per the conventions in
-// docs/working-notes/lol-patch-notes.md.
+// docs/working-notes/archive/lol-patch-notes.md.
 function renderTemplate(body: string): string {
   const parts = body.split("|");
   const name = (parts[0] ?? "").trim().toLowerCase();

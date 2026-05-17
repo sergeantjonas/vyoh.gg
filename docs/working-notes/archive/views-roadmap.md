@@ -1,6 +1,6 @@
 # vyoh.gg — Profile + Champion detail roadmap
 
-**Status:** Shipped — archived 2026-05-17. Phases 0–6 all shipped by 2026-05-16: Profile landing, Champion detail, habits/insights, LP history, season detection, and the role strip. Adjacent Profile additions are tracked under [home-deck.md](../home-deck.md) (cross-stream tiles) and [self-portrait-surfaces.md](../self-portrait-surfaces.md) (candidate surfaces). See [archive/README.md](README.md).
+**Status:** Shipped — archived 2026-05-17. Phases 0–6 all shipped by 2026-05-16: Profile landing, Champion detail, habits/insights, LP history, season detection, and the role strip. Adjacent Profile additions are tracked under [home-deck.md](home-deck.md) (cross-stream tiles) and [self-portrait-surfaces.md](../self-portrait-surfaces.md) (candidate surfaces). See [archive/README.md](README.md).
 
 Working plan for two new views and a cross-cutting habits/insights pass. Read this when working on any of: profile/landing view, champion detail view, LP history, performance insights, tilt detection, or rank/season history.
 
