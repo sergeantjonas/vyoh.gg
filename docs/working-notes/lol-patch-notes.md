@@ -129,14 +129,17 @@ CREATE INDEX ON champion_patch_changes (patch_version, champion_key);
 
 ## Chunk plan
 
-### PN1 — Version detection + parse job (API only)
+### PN1 — Version detection + parse job (API only) — **shipped 2026-05-17**
 
-- `patch_versions` + `champion_patch_changes` Prisma migration
-- `PatchService` with version-check method + wikitext fetch + parser
-- Cron module wired to run daily
-- No UI; validate by running the job manually and inspecting DB rows
+- ✅ `PatchVersion` + `ChampionPatchChange` Prisma migration
+- ✅ `PatchService.syncIfNewPatch()` — ddragon `/versions.json` poll, `truncateVersion` (legacy season-major → year-based +10, mirroring `apps/web/src/lol/_shared/patch/patch-version.ts`), `wikiPageTitle` zero-pads minor for the wiki page name
+- ✅ `parsePatchWikitext` parser with 11 unit tests covering anchor extraction, nested template stripping, buff/nerf/sbc classification
+- ✅ `@Cron("0 */6 * * *")` wired on the service; 4 cheap GETs/day, parse only fires on detected change
+- ✅ One-shot `scripts/run-patch-sync.ts` for manual runs; smoke-tested against V26.10 → 58 changes across 24 champions (12 buff / 18 nerf / 4 new_effect / 1 removed / 23 unclassified — mostly bug-fix prose without direction words)
 
-Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, prisma migration, cron wiring
+**Deferred to PN2:** ability name → slot (Q/W/E/R/Passive) mapping needs ddragon champion data; stored verbatim as wiki name for now. `patchDate` stays nullable (backfill from MediaWiki revision timestamp later). Cosmetic parser nit: adjacent `{{ap|...}}` templates collapse without a separator (e.g. "15 to 20 3% of damage dealt" instead of "15 to 20% per 3% of damage dealt") — revisit when prose rendering becomes a UI concern.
+
+Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, `apps/api/src/lol/patch-parser.spec.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/api/prisma/migrations/20260517015157_patch_notes_pn1/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/api/src/lol/lol.module.ts`
 
 ### PN2 — Profile heads-up
 

@@ -7,6 +7,7 @@ import { LolService } from "./lol.service";
 import { MatchEventsService } from "./match-events.service";
 import { MatchSyncService } from "./match-sync.service";
 import { MatchController } from "./match.controller";
+import { PatchService } from "./patch.service";
 
 @Module({
   imports: [RiotModule],
@@ -17,7 +18,14 @@ import { MatchController } from "./match.controller";
     MatchSyncService,
     MatchEventsService,
     LiveGamePollerService,
+    PatchService,
   ],
-  exports: [LolService, LolAnalyticsService, MatchSyncService, MatchEventsService],
+  exports: [
+    LolService,
+    LolAnalyticsService,
+    MatchSyncService,
+    MatchEventsService,
+    PatchService,
+  ],
 })
 export class LolModule {}

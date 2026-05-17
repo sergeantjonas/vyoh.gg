@@ -10,7 +10,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Tracked arcs — next action
 
-- **Patch notes PN1 (next-up)** — version detection cron + wiki wikitext parse job + DB schema. No UI yet; validate by running manually. → [lol-patch-notes.md](lol-patch-notes.md)
+- **Patch notes PN2 (next-up)** — PN1 shipped 2026-05-17: schema + parser + `PatchService` cron + manual-run script; smoke run produced 58 changes across 24 champions for V26.10. Next: `/lol/patches/current/changes` endpoint + profile heads-up callout. → [lol-patch-notes.md](lol-patch-notes.md)
 
 - **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lp-forecast.md)
 - **Personal-baselines PB4** — cross-tile anomaly aggregator. Deferred until at least 2–3 more personal-baseline tiles ship past the current set. (PB1 doc-pass + PB2 weakest-matchup + PB3 patch-drift all shipped 2026-05-14.) → [personal-baselines.md](personal-baselines.md)
