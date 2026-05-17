@@ -1,12 +1,14 @@
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
+import { NotFound } from "@/components/not-found";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { toastMessage } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { useMe } from "@/identity/use-me";
 import championAssets from "@/lol/_shared/assets/champion-assets.json";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import {
@@ -89,6 +91,7 @@ function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
 
 export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
+  notFoundComponent: NotFound,
   validateSearch: (search: Record<string, unknown>): AccountSearch => ({
     queue: typeof search.queue === "number" ? search.queue : undefined,
     count:
@@ -103,6 +106,7 @@ function AccountLayout() {
   const { count: countParam } = Route.useSearch();
   const count = countParam ?? DEFAULT_COUNT;
   const navigate = useNavigate();
+  const me = useMe();
   const account = useAccountFromSlug(accountSlug);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -284,6 +288,10 @@ function AccountLayout() {
   const onHeaderRect = useCallback((rect: DOMRect) => {
     document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
   }, []);
+
+  if (!me.isPending && !me.isError && !account) {
+    return <NotFound />;
+  }
 
   return (
     <ActiveMatchProvider>

@@ -1,6 +1,7 @@
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
+import { NotFound } from "@/components/not-found";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
@@ -12,6 +13,7 @@ import { useLayoutEffect, useRef } from "react";
 
 export const Route = createFileRoute("/steam")({
   component: SteamLayout,
+  notFoundComponent: NotFound,
 });
 
 const TABS = [
