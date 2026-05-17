@@ -5,6 +5,7 @@ import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDomainAge } from "@/home/tile-domain-age";
 import { TileLastMatch } from "@/home/tile-last-match";
 import { TileSignatureGame } from "@/home/tile-signature-game";
+import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -34,6 +35,9 @@ function HomePage() {
         </BentoTile>
         <BentoTile width={2}>
           <TileLastMatch account={account} />
+        </BentoTile>
+        <BentoTile width={2}>
+          <TileWeeklyTotals />
         </BentoTile>
         <BentoTile>
           <TileBuildBadge />

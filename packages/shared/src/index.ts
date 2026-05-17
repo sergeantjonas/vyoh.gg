@@ -56,6 +56,7 @@ export type {
   GameUnlockTimelineMonth,
 } from "./steam/unlock-timeline.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
+export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,
