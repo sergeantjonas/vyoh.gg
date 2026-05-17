@@ -1,3 +1,10 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import {
@@ -9,12 +16,22 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import type { ChampionPatchChangeGroup, MatchSummary } from "@vyoh/shared";
 import { useMemo, useState } from "react";
 
+interface PatchesSearch {
+  patch?: string;
+}
+
 export const Route = createFileRoute("/lol/$accountSlug/patches")({
   component: PatchesPage,
+  validateSearch: (search: Record<string, unknown>): PatchesSearch => {
+    const raw = search.patch;
+    return {
+      patch: typeof raw === "string" && raw.length > 0 ? raw : undefined,
+    };
+  },
 });
 
 function PatchesPage() {
@@ -38,9 +55,14 @@ function PatchesPage() {
   );
 
   const { data: patchList } = usePatchList();
-  const currentVersion = patchList?.[0]?.version ?? null;
+  const navigate = useNavigate();
+  const { patch: searchPatch } = useSearch({ from: "/lol/$accountSlug/patches" });
+  const newestVersion = patchList?.[0]?.version ?? null;
+  // `?patch=` overrides; absent → newest. We strip the param on selection
+  // when the newest patch is picked so shareable URLs stay clean.
+  const selectedVersion = searchPatch ?? newestVersion;
   const { data: patchChanges, isPending: changesPending } =
-    usePatchChanges(currentVersion);
+    usePatchChanges(selectedVersion);
 
   const [myOnly, setMyOnly] = useState(false);
 
@@ -69,16 +91,42 @@ function PatchesPage() {
     return <PatchesLoading />;
   }
 
-  if (!currentVersion || !patchChanges?.patchVersion) {
+  if (!selectedVersion || !patchChanges?.patchVersion) {
     return <PatchesEmpty />;
   }
+
+  const onSelectVersion = (next: string) => {
+    // Newest = "current" — drop the param so the URL stays canonical.
+    const nextPatch = next === newestVersion ? undefined : next;
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, patch: nextPatch }),
+    });
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-12">
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
-          Patch {patchChanges.patchVersion}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
+            Patch {patchChanges.patchVersion}
+          </p>
+          {patchList && patchList.length > 1 ? (
+            <Select value={selectedVersion} onValueChange={onSelectVersion}>
+              <SelectTrigger size="sm" className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {patchList.map((p, i) => (
+                  <SelectItem key={p.version} value={p.version}>
+                    {p.version}
+                    {i === 0 ? " · current" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+        </div>
         <h1 className="text-2xl font-semibold leading-tight">Champion changes</h1>
         <p className="text-sm text-muted-foreground/80">
           {sortedGroups.length} champion{sortedGroups.length === 1 ? "" : "s"} changed

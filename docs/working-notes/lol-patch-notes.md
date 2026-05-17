@@ -152,15 +152,14 @@ Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, 
 
 **Deferred to PN3:** ability name → Q/W/E/R slot mapping (still stored verbatim as wiki ability name); `+N more` line is currently plain text — wire it to the patch-notes tab once PN3 lands.
 
-### PN3 — Patch notes tab
+### PN3 — Patch notes tab ✅ (shipped 2026-05-17)
 
-- Tab added to the account route tab bar
-- Full champion list for current patch, sorted by your play count
-- Your champions highlighted (badge/ring consistent with existing champion card style)
-- "My champions only" toggle
-- Patch selector (dropdown or prev/next) for browsing history
+- ✅ `GET /lol/patches` + `GET /lol/patches/:version/changes` endpoints; `PatchListEntry` shared type (C1)
+- ✅ Patches tab at `/lol/$accountSlug/patches`: full champion list for the selected patch, your champions ringed + "Yours" badge, sorted by your play count, "My champions only" toggle (C2)
+- ✅ Patch selector dropdown in the header + `?patch=<version>` search param; selecting the newest patch drops the param so canonical/current URLs stay clean (C3)
+- ✅ `ChangeKindGlyph` extracted to `apps/web/src/lol/patches/change-kind-glyph.tsx` for sharing between the profile callout and the tab
 
-Files: new tab route, patch notes list component, champion change card component
+Files: `apps/api/src/lol/patch.{controller,service}.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/routes/lol/$accountSlug.tsx`, `apps/web/src/lol/patches/{change-kind-glyph,use-patch-list,use-patch-changes}.{tsx,ts}`, `apps/web/src/lol/patches/profile-patch-notice.tsx`, `packages/shared/src/lol/patch-changes.ts`
 
 ### PN4 — Items, runes, system (stretch)
 
