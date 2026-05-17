@@ -64,6 +64,12 @@ export type {
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
 export type {
+  HomeFirstPlayed,
+  HomeFirstPlayedLol,
+  HomeFirstPlayedSteam,
+  HomeFirstPlayedNone,
+} from "./home/first-played.ts";
+export type {
   AppWindowSnapshot,
   LimiterCounts,
   MethodLimiterSnapshot,

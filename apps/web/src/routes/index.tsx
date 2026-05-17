@@ -3,6 +3,7 @@ import { OrbMark } from "@/home/orb-mark";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDomainAge } from "@/home/tile-domain-age";
+import { TileFirstPlayed } from "@/home/tile-first-played";
 import { TileLastMatch } from "@/home/tile-last-match";
 import { TileSignatureGame } from "@/home/tile-signature-game";
 import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
@@ -38,6 +39,9 @@ function HomePage() {
         </BentoTile>
         <BentoTile width={2}>
           <TileWeeklyTotals />
+        </BentoTile>
+        <BentoTile width={2}>
+          <TileFirstPlayed account={account} />
         </BentoTile>
         <BentoTile>
           <TileBuildBadge />
