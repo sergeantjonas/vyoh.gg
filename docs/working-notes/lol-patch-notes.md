@@ -175,17 +175,37 @@ Files: `apps/api/src/lol/patch-parser.{ts,spec.ts}`, `apps/api/src/lol/patch.{co
 ### PN5 — Q/W/E/R slot mapping ✅ (shipped 2026-05-17)
 
 - ✅ `PatchChange.slot TEXT` column added via `20260517050000_patch_notes_pn5_slots` migration
-- ✅ `PatchService.syncVersion` fetches ddragon `champion.json` + per-champion detail files in parallel; maps `passive.name` → "Passive", `spells[0..3].name` → "Q"/"W"/"E"/"R"; non-fatal (warns + continues if ddragon unreachable)
+- ✅ `PatchService.syncVersion` fetches ddragon `champion.json` + wiki `Module:ChampionData/data` in parallel; maps ability name → slot via the wiki module (canonical, covers all named variants including empowered forms like Karma's Renewal); CDragon named endpoint for ability icon URLs per slot
 - ✅ `run-patch-sync.ts` backfill script threads `fullVersionFor` map through to `syncVersion` so slot lookup has the full ddragon version (e.g. `"16.10.1"` not just `"26.10"`)
 - ✅ UI prefers `slot` over `ability` for display (`line.slot ?? line.ability`) in both the patches tab and profile heads-up callout — shows "Q: ..." instead of "Safeguard: ..."
 - ✅ All 10 DB patches force-resynced with `--last 10 --force`; zero failures
 
 Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20260517050000_patch_notes_pn5_slots/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/lol/patches/profile-patch-notice.tsx`, `packages/shared/src/lol/patch-changes.ts`
 
+### PN6 — Ability icons + patch date + item/rune icon display ✅ (shipped 2026-05-17)
+
+- ✅ `PatchChange.abilityIconPath TEXT` column added via `20260517060000_patch_notes_pn6_ability_icons` migration; stored at sync time from CDragon named endpoint (`cdn.communitydragon.org/latest/champion/{id}/ability-icon/{slot}`)
+- ✅ `patchDate` populated at parse time from the wiki infobox `release` field; patches tab header shows "Patch X.Y · Month D, Year"; patch list sorted by release date descending
+- ✅ Patches tab groups champion changes by slot — ability icon + slot badge + ability name displayed above each change group; base-stat rows rendered without a header; `groupBySlot` in `patches.tsx`
+- ✅ Item/rune icons in `PatchEntrySection` via client-side `use-patch-icons.ts` (CDragon `perks.json` + `items.json`; prev-version fallback for just-removed entries like Phase Rush)
+- ✅ Wiki file-embed lines (`[[File:...]]`) filtered from parser output to prevent stray image markup appearing in change text
+
+Files: `apps/api/src/lol/patch.service.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20260517060000_patch_notes_pn6_ability_icons/`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/lol/patches/use-patch-icons.ts`, `packages/shared/src/lol/patch-changes.ts`
+
+### PN7 — Wiki-first icon consolidation ✅ (shipped 2026-05-17)
+
+- ✅ `PatchChange.abilityIconPath` renamed → `iconPath` (`20260517130000_patch_notes_pn7_icon_path_rename` migration); field rename propagated through `ParsedChange`, `ChampionPatchChangeLine`, schema, service, and patches tab
+- ✅ Item/rune icon resolution moved server-side: `wikiEntryIconUrl(name, kind)` constructs `https://wiki.leagueoflegends.com/en-us/images/{Name}_item.png` / `{Name}_rune.png` from the subject name — no HTTP fetch, zero version math, works permanently for removed entries (Phase Rush et al.)
+- ✅ `PatchEntryChangeGroup` gains `iconUrl: string | null`; `groupEntryRows` reads it from the DB row
+- ✅ `use-patch-icons.ts` deleted; `PatchEntrySection` reads `group.iconUrl` directly; no CDragon requests from the browser for the patches tab
+- ✅ 5 patches force-resynced to populate wiki URLs; verified in DB (`Doran%27s_Bow_item.png`, `Phase_Rush_rune.png`, etc.)
+
+Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20260517130000_patch_notes_pn7_icon_path_rename/`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `packages/shared/src/lol/patch-changes.ts`, `docs/working-notes/lol-image-pipeline.md`
+
 ---
 
 ## Open questions
 
-- **Patch date display.** ddragon version strings don't carry a calendar date. Options: derive from the wiki page's `timestamp` field in the MediaWiki API response, maintain a manual schedule, or just show the version string without a date.
+- ~~**Patch date display.**~~ Resolved in PN6: parsed from wiki infobox `release` field.
 - **Rolling history depth.** Keep all patches indefinitely — storage is negligible (a few hundred rows per patch, 26 patches/year) and history enables future surfaces: buff/nerf trajectory badges, LP timeline patch markers, win-rate-before/after-nerf correlations. The wiki has every historical patch page going back years at the same API endpoint and format, so a one-shot backfill is available any time.
 - **Change type reliability.** "Reduced to / increased to" classification will mis-fire on complex lines. Consider leaving `change_type` null for mechanic-change lines and only classifying clean numeric lines.

@@ -10,7 +10,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Tracked arcs — next action
 
-- **Patch notes PN1–PN4** — **Fully shipped 2026-05-17.** Patch parser + sync cron (PN1), profile callout on `/lol/$accountSlug/` (PN2), patch-notes tab at `/lol/$accountSlug/patches` with my-champions sort, "My champions only" toggle, and `?patch=<version>` selector (PN3), items + runes parser extension stored under `PatchChange` with a `section` discriminator and surfaced as collapsible sections below champions (PN4). → [lol-patch-notes.md](lol-patch-notes.md)
+- **Patch notes PN1–PN7** — **Fully shipped 2026-05-17.** Parser + cron (PN1), profile callout (PN2), patches tab with selector + my-champions sort (PN3), items/runes sections (PN4), Q/W/E/R slot mapping via wiki `Module:ChampionData/data` (PN5), ability icons + patch date + item/rune icon display (PN6), wiki-first icon consolidation — server-side resolution, `use-patch-icons.ts` deleted, CDragon removed from browser for patch tab (PN7). → [lol-patch-notes.md](lol-patch-notes.md)
 
 - **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lp-forecast.md)
 - **Personal-baselines PB4** — cross-tile anomaly aggregator. Deferred until at least 2–3 more personal-baseline tiles ship past the current set. (PB1 doc-pass + PB2 weakest-matchup + PB3 patch-drift all shipped 2026-05-14.) → [personal-baselines.md](personal-baselines.md)
