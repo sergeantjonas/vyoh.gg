@@ -11,7 +11,7 @@ import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const TOP_N = 5;
-const MAX_LINES_PER_CHAMPION = 3;
+const MAX_LINES_PER_CHAMPION = 6;
 const STORAGE_PREFIX = "vyoh:patch-notice-dismissed:";
 
 // Pick the user's most-played wiki champion names from the current match
@@ -75,8 +75,12 @@ export function ProfilePatchNotice({
 
   const patchVersion = data?.patchVersion ?? null;
   const [dismissed, setDismissed] = useState(false);
+  // Per-champion expanded set, reset whenever the patch flips so a fresh
+  // patch starts collapsed again.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     setDismissed(patchVersion ? isDismissed(patchVersion) : false);
+    setExpanded(new Set());
   }, [patchVersion]);
 
   if (!data || !patchVersion || dismissed) return null;
@@ -85,6 +89,15 @@ export function ProfilePatchNotice({
   const onDismiss = () => {
     markDismissed(patchVersion);
     setDismissed(true);
+  };
+
+  const toggleExpanded = (champion: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(champion)) next.delete(champion);
+      else next.add(champion);
+      return next;
+    });
   };
 
   return (
@@ -104,7 +117,11 @@ export function ProfilePatchNotice({
       </div>
       <div className="flex flex-col gap-3">
         {data.changes.map((group) => {
-          const extra = Math.max(0, group.changes.length - MAX_LINES_PER_CHAMPION);
+          const isExpanded = expanded.has(group.champion);
+          const visibleCount = isExpanded
+            ? group.changes.length
+            : Math.min(MAX_LINES_PER_CHAMPION, group.changes.length);
+          const hiddenCount = group.changes.length - visibleCount;
           return (
             <div key={group.champion} className="flex gap-3">
               <ChampionSquareIcon
@@ -115,7 +132,7 @@ export function ProfilePatchNotice({
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium">{group.champion}</div>
                 <ul className="mt-0.5 flex flex-col gap-0.5 text-xs text-muted-foreground">
-                  {group.changes.slice(0, MAX_LINES_PER_CHAMPION).map((line, i) => (
+                  {group.changes.slice(0, visibleCount).map((line, i) => (
                     <li
                       key={`${group.champion}-${i}`}
                       className="flex items-start gap-1.5"
@@ -129,12 +146,18 @@ export function ProfilePatchNotice({
                       </span>
                     </li>
                   ))}
-                  {extra > 0 ? (
-                    <li className="pl-3.5 text-muted-foreground/70">
-                      +{extra} more {extra === 1 ? "change" : "changes"}
-                    </li>
-                  ) : null}
                 </ul>
+                {hiddenCount > 0 || isExpanded ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(group.champion)}
+                    className="mt-1 text-xs text-muted-foreground/70 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  >
+                    {isExpanded
+                      ? "Show less"
+                      : `+${hiddenCount} more ${hiddenCount === 1 ? "change" : "changes"}`}
+                  </button>
+                ) : null}
               </div>
             </div>
           );
