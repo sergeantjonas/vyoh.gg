@@ -111,7 +111,7 @@ Before the library suggestions below pull anyone in a different direction: **Mot
 
 ### LoL surfaces
 
-**Cmd+K palette extension.** Extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold. Match-list filter UI is mostly redundant once the palette can do all of that. Also picks up the "change view scope from deep scroll" use case that briefly motivated a sticky controls bar on the long-list pages — Matches/Champions/Trends now use inline non-sticky controls (consistent across the three) and Cmd+K is the proper answer for "filter without scrolling back to the top."
+**Cmd+K palette extension.** Promoted to its own working note on 2026-05-17 — see [command-palette.md](./command-palette.md) for the phased plan (discoverability chip, match search mode, typed verb grammar, recents). Original framing retained for context: extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold; absorb the "change view scope from deep scroll" use case handed off when sticky controls were reverted.
 
 **Goal setting + projection.** "Reach Diamond by July." Show projected ETA based on current LP/day velocity. Honest projection — variance shown, not a single number.
 
