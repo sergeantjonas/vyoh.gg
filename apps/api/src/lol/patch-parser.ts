@@ -216,6 +216,20 @@ function renderTemplate(body: string): string {
   }
 }
 
+// Extracts the release date from the {{Infobox patch}} block. The wiki format
+// is `|Release = Month D, YYYY` where D may be wrapped in `{{NumberSup|N}}`.
+// Returns null when the field is absent or unparseable.
+export function parseReleaseDate(wikitext: string): Date | null {
+  const head = wikitext.slice(0, 4096);
+  const match = head.match(/^\|\s*Release\s*=\s*(.+?)$/m);
+  if (!match?.[1]) return null;
+  const raw = stripTemplates(match[1]).trim();
+  // Strip ordinal suffixes so "May 13th, 2026" → "May 13, 2026" etc.
+  const normalized = raw.replace(/(\d+)(?:st|nd|rd|th)\b/i, "$1");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function classify(rawLine: string): ChangeType | null {
   if (/\{\{sbc\|\s*new effect:?\s*\}\}/i.test(rawLine)) return "new_effect";
   if (/\{\{sbc\|\s*removed:?\s*\}\}/i.test(rawLine)) return "removed";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePatchWikitext, stripTemplates } from "./patch-parser";
+import { parsePatchWikitext, parseReleaseDate, stripTemplates } from "./patch-parser";
 
 const FIXTURE = `
 Some preamble we ignore.
@@ -164,6 +164,24 @@ describe("parsePatchWikitext", () => {
     expect(changes.filter((c) => c.section === "champion")).toHaveLength(1);
     expect(changes.filter((c) => c.section === "item")).toHaveLength(1);
     expect(changes.filter((c) => c.section === "rune")).toHaveLength(0);
+  });
+});
+
+describe("parseReleaseDate", () => {
+  it("extracts date when the day is wrapped in NumberSup", () => {
+    const wikitext =
+      "{{Infobox patch\n|Release = May {{NumberSup|13}}, 2026\n|other = stuff\n}}";
+    const result = parseReleaseDate(wikitext);
+    expect(result).toEqual(new Date("May 13, 2026"));
+  });
+
+  it("extracts a plain date without ordinal templates", () => {
+    const wikitext = "{{Infobox patch\n|Release = January 8, 2025\n}}";
+    expect(parseReleaseDate(wikitext)).toEqual(new Date("January 8, 2025"));
+  });
+
+  it("returns null when Release field is absent", () => {
+    expect(parseReleaseDate("{{Infobox patch\n|Patch = 26.10\n}}")).toBeNull();
   });
 });
 

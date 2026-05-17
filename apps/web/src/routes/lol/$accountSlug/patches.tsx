@@ -119,19 +119,24 @@ function PatchesPage() {
             Patch {patchChanges.patchVersion}
           </p>
           {patchList && patchList.length > 1 ? (
-            <Select value={selectedVersion} onValueChange={onSelectVersion}>
-              <SelectTrigger size="sm" className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {patchList.map((p, i) => (
-                  <SelectItem key={p.version} value={p.version}>
-                    {p.version}
-                    {i === 0 ? " · current" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              {selectedVersion === newestVersion ? (
+                <span className="text-xs text-muted-foreground/70">current</span>
+              ) : null}
+              <Select value={selectedVersion} onValueChange={onSelectVersion}>
+                <SelectTrigger size="sm" className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {patchList.map((p, i) => (
+                    <SelectItem key={p.version} value={p.version}>
+                      {p.version}
+                      {i === 0 ? " · current" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           ) : null}
         </div>
         <h1 className="text-2xl font-semibold leading-tight">Champion changes</h1>

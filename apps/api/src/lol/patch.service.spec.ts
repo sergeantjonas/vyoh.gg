@@ -151,7 +151,7 @@ describe("PatchService.listPatches", () => {
 
     expect(result).toEqual([]);
     expect(prisma.patchVersion.findMany).toHaveBeenCalledWith({
-      orderBy: { fetchedAt: "desc" },
+      orderBy: [{ patchDate: { sort: "desc", nulls: "last" } }, { version: "desc" }],
       take: 10,
     });
   });
@@ -192,7 +192,7 @@ describe("PatchService.listPatches", () => {
     await makeService(prisma).listPatches(3);
 
     expect(prisma.patchVersion.findMany).toHaveBeenCalledWith({
-      orderBy: { fetchedAt: "desc" },
+      orderBy: [{ patchDate: { sort: "desc", nulls: "last" } }, { version: "desc" }],
       take: 3,
     });
   });

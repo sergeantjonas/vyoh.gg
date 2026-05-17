@@ -9,7 +9,7 @@ import type {
   PatchListEntry,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
-import { type ParsedChange, parsePatchWikitext } from "./patch-parser";
+import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch-parser";
 
 const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
@@ -56,17 +56,34 @@ export class PatchService {
       return null;
     }
     this.logger.log(`New patch detected: ${truncated} — fetching wikitext`);
-    const wikitext = await this.fetchWikitext(truncated);
-    const changes = parsePatchWikitext(wikitext);
-    await this.persist(truncated, changes);
-    this.logger.log(`Inserted ${changes.length} changes for patch ${truncated}`);
-    return truncated;
+    return this.syncVersion(truncated);
   }
 
-  private async fetchLatestVersion(): Promise<string> {
+  // Force-sync a specific truncated version (e.g. "26.9"). Used by the
+  // backfill path in `run-patch-sync.ts` after the caller has filtered out
+  // versions already in the DB. Idempotent via `persist`'s pre-delete, so
+  // re-running after a parser bugfix is safe.
+  async syncVersion(truncatedVersion: string): Promise<string> {
+    const wikitext = await this.fetchWikitext(truncatedVersion);
+    const changes = parsePatchWikitext(wikitext);
+    const patchDate = parseReleaseDate(wikitext);
+    await this.persist(truncatedVersion, changes, patchDate);
+    this.logger.log(`Inserted ${changes.length} changes for patch ${truncatedVersion}`);
+    return truncatedVersion;
+  }
+
+  // Full ddragon versions list (newest-first). Exposed for the backfill
+  // script — head-only callers should keep using `syncIfNewPatch`.
+  async fetchVersionList(): Promise<string[]> {
     const res = await fetch(DDRAGON_VERSIONS, { headers: { "User-Agent": USER_AGENT } });
     if (!res.ok) throw new Error(`ddragon versions HTTP ${res.status}`);
     const versions = (await res.json()) as string[];
+    if (versions.length === 0) throw new Error("ddragon versions response was empty");
+    return versions;
+  }
+
+  private async fetchLatestVersion(): Promise<string> {
+    const versions = await this.fetchVersionList();
     const first = versions[0];
     if (!first) throw new Error("ddragon versions response was empty");
     return first;
@@ -104,7 +121,7 @@ export class PatchService {
     championKeys: readonly string[]
   ): Promise<CurrentPatchChangesResponse> {
     const latest = await this.prisma.patchVersion.findFirst({
-      orderBy: { fetchedAt: "desc" },
+      orderBy: [{ patchDate: { sort: "desc", nulls: "last" } }, { version: "desc" }],
     });
     if (!latest) return { patchVersion: null, changes: [] };
     if (championKeys.length === 0) {
@@ -124,12 +141,12 @@ export class PatchService {
     };
   }
 
-  // PN3 patch-selector source. `fetchedAt` desc mirrors getCurrentChanges'
-  // notion of "current" — both index off the same column so what shows as
-  // first in the dropdown is exactly what the heads-up surfaces.
+  // PN3 patch-selector source. Both `listPatches` and `getCurrentChanges` use
+  // patchDate desc (nulls last) + version desc as a tiebreaker so the current
+  // patch is always whichever has the most-recent release date.
   async listPatches(limit = 10): Promise<PatchListEntry[]> {
     const rows = await this.prisma.patchVersion.findMany({
-      orderBy: { fetchedAt: "desc" },
+      orderBy: [{ patchDate: { sort: "desc", nulls: "last" } }, { version: "desc" }],
       take: limit,
     });
     return rows.map((r) => ({
@@ -174,13 +191,17 @@ export class PatchService {
   // Atomic upsert: insert the PatchVersion row and all change rows in a
   // single transaction. Pre-deletes any pre-existing changes for the
   // version so manual re-runs after a parser bugfix stay idempotent.
-  private async persist(version: string, changes: ParsedChange[]): Promise<void> {
+  private async persist(
+    version: string,
+    changes: ParsedChange[],
+    patchDate: Date | null
+  ): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.patchChange.deleteMany({ where: { patchVersion: version } }),
       this.prisma.patchVersion.upsert({
         where: { version },
-        create: { version },
-        update: {},
+        create: { version, patchDate },
+        update: { patchDate },
       }),
       this.prisma.patchChange.createMany({
         data: changes.map((c) => ({
