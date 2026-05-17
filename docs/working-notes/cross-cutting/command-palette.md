@@ -79,7 +79,7 @@ Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the inp
 
 - Persist the last ~5 selected items in `localStorage` (debounced; per-account namespace).
 - Surface them as a "Recent" group at the top when the input is empty.
-- Honors the per-stream isolation memory ([feedback_no_cross_stream_mixing](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_no_cross_stream_mixing.md)) — Steam recents don't leak into LoL context and vice versa.
+- Honors the per-stream routing rule ([repo-conventions.md § Per-stream routes](../../repo-conventions.md)) — Steam recents don't leak into LoL context and vice versa.
 
 ## Non-goals
 
