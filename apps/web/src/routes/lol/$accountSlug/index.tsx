@@ -1,6 +1,7 @@
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
@@ -32,6 +33,7 @@ function ProfilePage() {
     <div className="flex flex-col gap-6">
       <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
       <LiveGameChip accountSlug={accountSlug} />
+      <ProfilePatchNotice accountSlug={accountSlug} />
       <ProfilePregameRitual accountSlug={accountSlug} />
       <ProfilePostGame accountSlug={accountSlug} />
       <ProfileRecentForm accountSlug={accountSlug} />
