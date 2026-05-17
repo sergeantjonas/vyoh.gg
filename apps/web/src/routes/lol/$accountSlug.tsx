@@ -39,6 +39,7 @@ import {
   History,
   LayoutDashboard,
   Radio,
+  ScrollText,
   TrendingUp,
 } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
@@ -59,6 +60,7 @@ const TABS = [
   { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History, exact: false },
   { to: "/lol/$accountSlug/trends", label: "Trends", Icon: TrendingUp, exact: false },
   { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown, exact: false },
+  { to: "/lol/$accountSlug/patches", label: "Patches", Icon: ScrollText, exact: false },
 ] as const;
 
 function iconPop(label: string): { scale: number; rotate?: number; y?: number } {
@@ -523,6 +525,7 @@ function LolTabLink({
     | "/lol/$accountSlug/matches"
     | "/lol/$accountSlug/trends"
     | "/lol/$accountSlug/champions"
+    | "/lol/$accountSlug/patches"
     | "/lol/$accountSlug/live";
   accountSlug: string;
   label: string;

@@ -23,6 +23,7 @@ import { Route as SteamGameAppidRouteImport } from './routes/steam/game.$appid'
 import { Route as SteamAchievementsSignatureRouteImport } from './routes/steam/achievements_.signature'
 import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountSlug/trends'
 import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
+import { Route as LolAccountSlugPatchesRouteImport } from './routes/lol/$accountSlug/patches'
 import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
 import { Route as LolAccountSlugMatchesIndexRouteImport } from './routes/lol/$accountSlug/matches/index'
 import { Route as LolAccountSlugChampionsIndexRouteImport } from './routes/lol/$accountSlug/champions/index'
@@ -100,6 +101,11 @@ const LolAccountSlugRecapRoute = LolAccountSlugRecapRouteImport.update({
   path: '/recap',
   getParentRoute: () => LolAccountSlugRoute,
 } as any)
+const LolAccountSlugPatchesRoute = LolAccountSlugPatchesRouteImport.update({
+  id: '/patches',
+  path: '/patches',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
 const LolAccountSlugLiveRoute = LolAccountSlugLiveRouteImport.update({
   id: '/live',
   path: '/live',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
+  '/lol/$accountSlug/patches': typeof LolAccountSlugPatchesRoute
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
   '/steam/achievements/signature': typeof SteamAchievementsSignatureRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/lol': typeof LolIndexRoute
   '/steam': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
+  '/lol/$accountSlug/patches': typeof LolAccountSlugPatchesRoute
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
   '/steam/achievements/signature': typeof SteamAchievementsSignatureRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
+  '/lol/$accountSlug/patches': typeof LolAccountSlugPatchesRoute
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
   '/lol/$accountSlug/trends': typeof LolAccountSlugTrendsRoute
   '/steam/achievements_/signature': typeof SteamAchievementsSignatureRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/lol/'
     | '/steam/'
     | '/lol/$accountSlug/live'
+    | '/lol/$accountSlug/patches'
     | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
     | '/steam/achievements/signature'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/lol'
     | '/steam'
     | '/lol/$accountSlug/live'
+    | '/lol/$accountSlug/patches'
     | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
     | '/steam/achievements/signature'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/lol/'
     | '/steam/'
     | '/lol/$accountSlug/live'
+    | '/lol/$accountSlug/patches'
     | '/lol/$accountSlug/recap'
     | '/lol/$accountSlug/trends'
     | '/steam/achievements_/signature'
@@ -364,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugRecapRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
+    '/lol/$accountSlug/patches': {
+      id: '/lol/$accountSlug/patches'
+      path: '/patches'
+      fullPath: '/lol/$accountSlug/patches'
+      preLoaderRoute: typeof LolAccountSlugPatchesRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
     '/lol/$accountSlug/live': {
       id: '/lol/$accountSlug/live'
       path: '/live'
@@ -424,6 +443,7 @@ const SteamRouteWithChildren = SteamRoute._addFileChildren(SteamRouteChildren)
 
 interface LolAccountSlugRouteChildren {
   LolAccountSlugLiveRoute: typeof LolAccountSlugLiveRoute
+  LolAccountSlugPatchesRoute: typeof LolAccountSlugPatchesRoute
   LolAccountSlugRecapRoute: typeof LolAccountSlugRecapRoute
   LolAccountSlugTrendsRoute: typeof LolAccountSlugTrendsRoute
   LolAccountSlugIndexRoute: typeof LolAccountSlugIndexRoute
@@ -435,6 +455,7 @@ interface LolAccountSlugRouteChildren {
 
 const LolAccountSlugRouteChildren: LolAccountSlugRouteChildren = {
   LolAccountSlugLiveRoute: LolAccountSlugLiveRoute,
+  LolAccountSlugPatchesRoute: LolAccountSlugPatchesRoute,
   LolAccountSlugRecapRoute: LolAccountSlugRecapRoute,
   LolAccountSlugTrendsRoute: LolAccountSlugTrendsRoute,
   LolAccountSlugIndexRoute: LolAccountSlugIndexRoute,

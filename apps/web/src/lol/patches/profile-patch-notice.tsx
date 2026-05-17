@@ -5,8 +5,9 @@ import {
   useChampions,
 } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { useCurrentPatchChanges } from "@/lol/patches/use-current-patch-changes";
-import type { ChampionPatchChangeKind, MatchSummary } from "@vyoh/shared";
+import type { MatchSummary } from "@vyoh/shared";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -165,23 +166,4 @@ export function ProfilePatchNotice({
       </div>
     </div>
   );
-}
-
-function ChangeKindGlyph({ kind }: { kind: ChampionPatchChangeKind | null }) {
-  const cls = "inline-block w-2 shrink-0 text-center tabular-nums";
-  switch (kind) {
-    case "buff":
-      return <span className={`${cls} text-emerald-400`}>↑</span>;
-    case "nerf":
-      return <span className={`${cls} text-rose-400`}>↓</span>;
-    case "new_effect":
-      return <span className={`${cls} text-sky-400`}>+</span>;
-    case "removed":
-      return <span className={`${cls} text-muted-foreground`}>×</span>;
-    // `adjustment` + unclassified prose (mostly bug-fix lines) share the
-    // same neutral marker — both communicate "something changed, but the
-    // parser couldn't read a direction." Keeps every row visually aligned.
-    default:
-      return <span className={`${cls} text-muted-foreground/60`}>·</span>;
-  }
 }
