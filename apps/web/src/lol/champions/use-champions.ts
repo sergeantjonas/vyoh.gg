@@ -1,5 +1,6 @@
 import { normalizeChampionAlias } from "@/lol/_shared/assets/champion-icon";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 // Pulled live from CDragon. Small (~14KB), refreshes itself patch-over-patch
 // without a redeploy. React Query caches it as `Infinity` so the runtime fetch
@@ -66,4 +67,25 @@ export function useChampionName() {
 export function useChampionInfo(alias: string): ChampionInfo | undefined {
   const champions = useChampions();
   return champions.data?.get(lookupKey(alias));
+}
+
+/**
+ * Returns a function that maps a champion display name (the wiki name, e.g.
+ * "Wukong", "Lee Sin") back to its Riot internal alias (e.g. "MonkeyKing",
+ * "LeeSin"). Useful when a server response carries the display name but a
+ * downstream consumer (image proxy, route param) needs the alias. Falls
+ * back to the input itself if the champion map hasn't loaded yet or the
+ * name isn't found.
+ */
+export function useChampionAliasFromName() {
+  const champions = useChampions();
+  const reverse = useMemo(() => {
+    if (!champions.data) return null;
+    const map = new Map<string, string>();
+    for (const [aliasLower, info] of champions.data.entries()) {
+      map.set(info.name, aliasLower);
+    }
+    return map;
+  }, [champions.data]);
+  return (displayName: string) => reverse?.get(displayName) ?? displayName;
 }

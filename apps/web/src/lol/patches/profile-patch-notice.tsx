@@ -1,5 +1,9 @@
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
-import { useChampionName, useChampions } from "@/lol/champions/use-champions";
+import {
+  useChampionAliasFromName,
+  useChampionName,
+  useChampions,
+} from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useCurrentPatchChanges } from "@/lol/patches/use-current-patch-changes";
 import type { ChampionPatchChangeKind, MatchSummary } from "@vyoh/shared";
@@ -53,6 +57,10 @@ export function ProfilePatchNotice({
 }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const championName = useChampionName();
+  // Server returns wiki names ("Wukong"); the icon proxy expects Riot
+  // aliases ("MonkeyKing"). Reverse-map via the same CDragon data so the
+  // round-trip stays consistent.
+  const championAliasFromName = useChampionAliasFromName();
   // Gate on the CDragon champion map being loaded — pre-load, `championName`
   // falls back to the raw Riot alias (e.g. "MonkeyKing") which won't match
   // the wiki-name keys stored on the API side ("Wukong").
@@ -100,7 +108,7 @@ export function ProfilePatchNotice({
           return (
             <div key={group.champion} className="flex gap-3">
               <ChampionSquareIcon
-                championName={group.champion}
+                championName={championAliasFromName(group.champion)}
                 alt={group.champion}
                 className="size-9 shrink-0 rounded-md"
               />
@@ -147,7 +155,10 @@ function ChangeKindGlyph({ kind }: { kind: ChampionPatchChangeKind | null }) {
       return <span className={`${cls} text-sky-400`}>+</span>;
     case "removed":
       return <span className={`${cls} text-muted-foreground`}>×</span>;
+    // `adjustment` + unclassified prose (mostly bug-fix lines) share the
+    // same neutral marker — both communicate "something changed, but the
+    // parser couldn't read a direction." Keeps every row visually aligned.
     default:
-      return <span className={cls}> </span>;
+      return <span className={`${cls} text-muted-foreground/60`}>·</span>;
   }
 }
