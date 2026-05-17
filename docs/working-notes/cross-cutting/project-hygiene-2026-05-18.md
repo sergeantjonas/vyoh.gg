@@ -82,3 +82,45 @@ API code references `CUTOFF_DAYS`, `LOL_PREWARM`, `MATCH_SYNC_ENABLED`, `STEAM_P
 3. Decide on `routeTree.gen.ts` — commit or ignore, update `repo-conventions.md`.
 4. Add a Nest `ValidationPipe` + DTO/Zod validation pass before any write surface grows. Sequence with owner-auth.
 5. Flip `exactOptionalPropertyTypes` on, fix fallout in the same commit.
+
+## Chunked plan (2026-05-18)
+
+Scoped for items 2, 3, 4 in the priority list above. Decisions baked in: helper named `excludeRemakes` (not `filterRanked` — accurate scope, since ARAM and normals also pass the filter); validator is `class-validator` + `class-transformer` (Nest canonical, no pipe adapter needed); remake migration split into R1 + R2 so the helper lands as shippable value before the long tail.
+
+Item 1 (web test coverage) deferred to the next session per owner. Items 5–9 stay in priority-order backlog above.
+
+### F1 — Formatter extraction (1 chunk, ~17 files)
+
+New `packages/shared/src/format.ts` exporting `formatDuration`, `formatHoursMinutes`, `formatPlaytime`, `formatGameTime`, `formatGold`. Read each existing copy first to detect drift — the audit flagged enough variation between them to risk a future display inconsistency. For each formatter, pick one canonical shape and note the dropped variants in the commit message so any subtle output change is reviewable.
+
+Migrate 16 web files (`match-row`, `match-hero`, `match-build-order`, `match-map-overlay`, `match-event-timelines`, `match-lane-phase`, `match-gold-lead`, `library-row`, `library-tile`, `library-tile-hovercard`, `champion-table`, `routes/steam/game.$appid`, `tile-first-played`, `tile-day-split`, `tile-weekly-totals`, plus any new ones surfaced during reads) and `apps/api/src/og/og.service.ts`. Add re-export to `packages/shared/src/index.ts`. Validate with `verify:cc`; visual smoke on home tiles, match list, match detail, steam library, OG card.
+
+### R1 — `excludeRemakes()` helper + first 9 sites (1 chunk)
+
+New `packages/shared/src/lol/exclude-remakes.ts` with signature `excludeRemakes<T extends { remake: boolean }>(matches: T[]): T[]`. Export from `packages/shared/src/lol/` barrel. In the same commit, update the example in [repo-conventions.md § Centralise domain invariants](../../repo-conventions.md#centralise-domain-invariants-that-must-apply-to-every-aggregation-in-a-feature) to name the helper.
+
+Migrate `apps/api/src/lol/lol-analytics.service.ts` plus the 8 sites in `apps/web/src/lol/recap/` and `apps/web/src/lol/profile/`. Read each first to confirm the predicate is a pure remake filter; if a compound `m => !m.remake && other` appears, keep it inline and only swap any sibling pure-filter call.
+
+Validate with `verify:cc`; spot-check recap and profile-stats-bar counts haven't shifted.
+
+### R2 — Remaining 24 sites (1 chunk)
+
+Migrate `apps/web/src/lol/trends/*` (13), `apps/web/src/lol/champions/*` (2), `apps/web/src/home/tile-last-match.tsx`, and the three `routes/lol/$accountSlug/{recap,trends,champions/$championKey}.tsx`. Pure search/replace once R1 establishes the helper.
+
+Validate with `verify:cc`; spot-check trends and champions counts.
+
+### V1 — Global ValidationPipe (1 chunk)
+
+Add `class-validator` and `class-transformer` as deps on `apps/api`. Wire `app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))` in [apps/api/src/main.ts](../../../apps/api/src/main.ts). No DTOs yet — pipe is a no-op for existing string-param controllers but enforces the contract for V2 + V3.
+
+Validate with `verify:cc`; smoke every API route through the web app to confirm no regression (the `whitelist` + `forbidNonWhitelisted` combination can reject extra fields if a DTO is partial — with no DTOs yet, this should pass).
+
+### V2 — DTO-ify GET string params (1 chunk, ~6–10 controllers)
+
+For each controller using string params (`gameName`, `tagLine`, `champion`, `matchId`, etc.) create a `*ParamsDto` class with `@IsString` / `@Length` / `@Matches` decorators. Riot ID regex: `^[\p{L}\p{N} ._-]{3,16}$` for `gameName`, `^[A-Za-z0-9]{3,5}$` for `tagLine` (verify against existing test fixtures). `champion` should match the existing champion-key set; `matchId` is `EUW1_<digits>` shape.
+
+Validate with `verify:cc`; test that valid params pass and invalid params return 400.
+
+### V3 — Body DTOs for POST/PUT/PATCH (1 chunk, sequenced with owner-auth)
+
+Defer scoping until V1 + V2 land and the owner-auth surface is concrete. Per the audit's sequencing note, this pairs with the owner-auth pre-deploy item — may be small/empty depending on the write surface at that point.

@@ -33,6 +33,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 - **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces (including the new status-page triggers below). Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](ops/owner-auth.md)
 - **Status page admin surface** — (a) surface Steam sync status/progress alongside the existing LoL sync rows; (b) add manually-triggerable LoL sync actions (patch note fetch, future: backfills) as explicit buttons/endpoints in the status page. Gate both behind GitHub OAuth (depends on the owner-auth item above) before exposing. → [owner-auth.md](ops/owner-auth.md)
+- **API ValidationPipe V1 → V3** — V1 wires the global `class-validator` pipe (no DTOs, contract enforcement only); V2 DTO-ifies GET string params (~6–10 controllers); V3 covers POST/PUT/PATCH bodies and sequences with owner-auth. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
 
 ## Adjacent maintenance (sub-session each)
 
@@ -44,6 +45,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
+- **Formatter consolidation F1** — extract 5 formatters (`formatDuration`/`formatHoursMinutes`/`formatPlaytime`/`formatGameTime`/`formatGold`) into `packages/shared/src/format.ts`, migrate 17 call sites; reconcile drift in the same change. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
+- **`excludeRemakes()` helper R1 + R2** — centralise the remake invariant (33 sites across api + web), split as R1 (helper + 9 recap/profile sites, updates repo-conventions example) and R2 (24 trends/champions/home/routes sites). → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
 
 ### Ops
 
