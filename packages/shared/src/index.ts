@@ -73,6 +73,7 @@ export type {
   HomeFirstPlayedSteam,
   HomeFirstPlayedNone,
 } from "./home/first-played.ts";
+export type { HomeDaySplit, HomeDaySplitHour } from "./home/day-split.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,

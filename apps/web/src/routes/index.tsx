@@ -2,6 +2,7 @@ import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { OrbMark } from "@/home/orb-mark";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
+import { TileDaySplit } from "@/home/tile-day-split";
 import { TileDomainAge } from "@/home/tile-domain-age";
 import { TileFirstPlayed } from "@/home/tile-first-played";
 import { TileLastMatch } from "@/home/tile-last-match";
@@ -42,6 +43,9 @@ function HomePage() {
         </BentoTile>
         <BentoTile width={2}>
           <TileFirstPlayed />
+        </BentoTile>
+        <BentoTile width={2} height={2}>
+          <TileDaySplit />
         </BentoTile>
         <BentoTile>
           <TileBuildBadge />

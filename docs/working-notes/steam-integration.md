@@ -452,14 +452,12 @@ Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S
   - **Decisions baked in.** Toggle state is component-local — passive surface, not a deep view. Default "Both" preserves S8.2's synthesis framing.
   - **Validation.** check + typecheck + updated spec; browser-verify all three views.
 
-- **S8.7 — LoL-vs-Steam evening split (planned, exit criterion).** 24-bar tile on `/` showing minutes-by-hour-of-day split by stream. LoL from `Match.playedAt` + `durationSec`; Steam from closed `SteamPlaySession` rows. Both bucketed in `Europe/Brussels`. Intervals crossing hour boundaries split proportionally per minute.
-  - **New (api).** `home-day-split.service.ts` — pure-function `splitIntervalsByHour(intervals, timeZone)` taking `{ startedAt, endedAt }[]` and returning `Record<hour, minutes>`. LoL matches (`{ playedAt, playedAt + durationSec }`) + closed Steam sessions flow through the same splitter.
-  - **New (api).** `home-day-split.service.spec.ts` — within-hour, exact-boundary, multi-hour span, midnight-crossing, Brussels DST spring + fall, empty.
-  - **New (shared).** `packages/shared/src/home/day-split.ts` — `HomeDaySplit` DTO with `{ timeZone, hours: { hour, lolMinutes, steamMinutes }[] }`.
-  - **New (web).** hook + `tile-day-split.tsx` (24-hour x-axis matching chronotype; stacked bars unless side-by-side reads better — final call during impl).
-  - **Modify (web).** route slot.
-  - **Decisions baked in.** Proportional split. Steam uses *closed* sessions only. No rolling cap — both surfaces want long-horizon shape.
-  - **Validation.** check + typecheck + spec; DST cases live in the spec.
+- **S8.7 — LoL-vs-Steam evening split (shipped 2026-05-17, exit criterion).** 24-bar tile on `/` showing minutes-by-hour-of-day split by stream. LoL from `Match.playedAt` + `durationSec`; Steam from closed `SteamPlaySession` rows. Both bucketed in `Europe/Brussels`. Intervals crossing hour boundaries are walked minute-by-minute via `Intl.DateTimeFormat`, which makes DST transitions correct without a hand-rolled offset table — fall-back's doubled local hour and spring-forward's vanished hour both fall out naturally. Stacked-bar render (LoL sky / Steam amber, matching the chronotype palette) sized 2×2 in the bento. Steam coverage will be thin until the poller's session history accumulates — substrate is correct, surface will fill in.
+  - **New (api).** `home-day-split.service.ts` — pure-function `splitIntervalsByHour(intervals, timeZone)` taking `{ startedAt, endedAt }[]` and returning `number[24]`. LoL matches (`{ playedAt, playedAt + durationSec }`) + closed Steam sessions flow through the same splitter.
+  - **New (api).** `home-day-split.service.spec.ts` — empty, within-hour, multi-hour span, boundary-end, midnight-crossing, Brussels DST spring-forward + fall-back, sub-minute rounding, inverted intervals, multi-interval accumulation (10 tests).
+  - **New (shared).** `packages/shared/src/home/day-split.ts` — `HomeDaySplit` DTO with `{ timeZone, hours: { hour, lolMinutes, steamMinutes }[], totalLolMinutes, totalSteamMinutes }`.
+  - **New (web).** `use-home-day-split.ts` + `tile-day-split.tsx` (stacked bars, 24h x-axis, Brussels timezone footer, share-as-percent headline).
+  - **Modify (web).** `routes/index.tsx` — slotted as a 2×2 tile.
 
 - **S8.8 — Session-length distribution (planned, exit criterion).** Histogram tile on `/` showing session-length distribution across both streams. Buckets: `<30m`, `30m–1h`, `1h–2h`, `2h–4h`, `4h+`.
   - **LoL session = block of matches with ≤30 min gap between consecutive matches** — length = sum of `durationSec`. Single-match sessions valid. 30-min gap covers queue dodge / champ select / quick break but separates "done now" from "next one."

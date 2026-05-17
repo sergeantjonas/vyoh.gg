@@ -1,6 +1,12 @@
 import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query } from "@nestjs/common";
-import type { HomeChronotype, HomeFirstPlayed, HomeWeeklyTotals } from "@vyoh/shared";
+import type {
+  HomeChronotype,
+  HomeDaySplit,
+  HomeFirstPlayed,
+  HomeWeeklyTotals,
+} from "@vyoh/shared";
 import { HomeChronotypeService } from "./home-chronotype.service";
+import { HomeDaySplitService } from "./home-day-split.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
 import { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 
@@ -9,7 +15,8 @@ export class HomeController {
   constructor(
     private readonly chronotype: HomeChronotypeService,
     private readonly weeklyTotals: HomeWeeklyTotalsService,
-    private readonly firstPlayed: HomeFirstPlayedService
+    private readonly firstPlayed: HomeFirstPlayedService,
+    private readonly daySplit: HomeDaySplitService
   ) {}
 
   @Get("chronotype")
@@ -27,5 +34,10 @@ export class HomeController {
   @Get("first-played")
   async getFirstPlayed(): Promise<HomeFirstPlayed> {
     return this.firstPlayed.getFirstPlayed();
+  }
+
+  @Get("day-split")
+  async getDaySplit(): Promise<HomeDaySplit> {
+    return this.daySplit.getDaySplit();
   }
 }
