@@ -5,9 +5,11 @@ import {
   useChampions,
 } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
-import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
+import { AbilityChangeList } from "@/lol/patches/ability-change-list";
 import { useCurrentPatchChanges } from "@/lol/patches/use-current-patch-changes";
+import { Separator } from "@/components/ui/separator";
 import type { MatchSummary } from "@vyoh/shared";
+import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -54,7 +56,7 @@ function markDismissed(patchVersion: string): void {
 }
 
 export function ProfilePatchNotice({
-  accountSlug: _accountSlug,
+  accountSlug,
 }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const championName = useChampionName();
@@ -104,9 +106,13 @@ export function ProfilePatchNotice({
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-card/50 px-4 py-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-          Patch {patchVersion} · changes for your champions
-        </div>
+        <Link
+          to="/lol/$accountSlug/patches"
+          params={{ accountSlug }}
+          className="text-xs uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Patch {patchVersion} · changes for your champions →
+        </Link>
         <button
           type="button"
           onClick={onDismiss}
@@ -116,49 +122,42 @@ export function ProfilePatchNotice({
           <X className="size-3.5" />
         </button>
       </div>
-      <div className="flex flex-col gap-3">
-        {data.changes.map((group) => {
+      <div className="flex flex-col gap-0">
+        {data.changes.map((group, idx) => {
           const isExpanded = expanded.has(group.champion);
           const visibleCount = isExpanded
             ? group.changes.length
             : Math.min(MAX_LINES_PER_CHAMPION, group.changes.length);
           const hiddenCount = group.changes.length - visibleCount;
           return (
-            <div key={group.champion} className="flex gap-3">
-              <ChampionSquareIcon
-                championName={championAliasFromName(group.champion)}
-                alt={group.champion}
-                className="size-9 shrink-0 rounded-md"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">{group.champion}</div>
-                <ul className="mt-0.5 flex flex-col gap-0.5 text-xs text-muted-foreground">
-                  {group.changes.slice(0, visibleCount).map((line, i) => (
-                    <li
-                      key={`${group.champion}-${i}`}
-                      className="flex items-start gap-1.5"
+            <div key={group.champion}>
+              {data.changes.length > 1 && idx > 0 && (
+                <Separator className="my-3 bg-border/50" />
+              )}
+              <div className="flex gap-3">
+                <ChampionSquareIcon
+                  championName={championAliasFromName(group.champion)}
+                  alt={group.champion}
+                  className="size-9 shrink-0 rounded-md"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">{group.champion}</div>
+                  <AbilityChangeList
+                    changes={group.changes.slice(0, visibleCount)}
+                    className="mt-0.5"
+                  />
+                  {hiddenCount > 0 || isExpanded ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(group.champion)}
+                      className="mt-1 cursor-pointer text-xs text-muted-foreground/70 underline-offset-2 transition-colors hover:text-foreground hover:underline"
                     >
-                      <ChangeKindGlyph kind={line.changeType} />
-                      <span className="min-w-0">
-                        {(line.slot ?? line.ability) ? (
-                          <span className="text-foreground/80">{line.slot ?? line.ability}: </span>
-                        ) : null}
-                        {line.changeText}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {hiddenCount > 0 || isExpanded ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleExpanded(group.champion)}
-                    className="mt-1 cursor-pointer text-xs text-muted-foreground/70 underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  >
-                    {isExpanded
-                      ? "Show less"
-                      : `+${hiddenCount} more ${hiddenCount === 1 ? "change" : "changes"}`}
-                  </button>
-                ) : null}
+                      {isExpanded
+                        ? "Show less"
+                        : `+${hiddenCount} more ${hiddenCount === 1 ? "change" : "changes"}`}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           );

@@ -14,6 +14,7 @@ import {
   useChampions,
 } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { AbilityChangeList } from "@/lol/patches/ability-change-list";
 import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
@@ -289,31 +290,6 @@ function PatchEntrySection({
   );
 }
 
-type AbilityGroup = {
-  key: string;
-  slot: string | null;
-  abilityNames: string[];
-  iconPath: string | null;
-  changes: ChampionPatchChangeGroup["changes"];
-};
-
-function groupBySlot(changes: ChampionPatchChangeGroup["changes"]): AbilityGroup[] {
-  const map = new Map<string, AbilityGroup>();
-  for (const line of changes) {
-    const key = line.ability === "Base" ? "__base__" : (line.slot ?? line.ability ?? "__base__");
-    let entry = map.get(key);
-    if (!entry) {
-      entry = { key, slot: line.slot, abilityNames: [], iconPath: line.iconPath, changes: [] };
-      map.set(key, entry);
-    }
-    if (line.ability && !entry.abilityNames.includes(line.ability)) {
-      entry.abilityNames.push(line.ability);
-    }
-    entry.changes.push(line);
-  }
-  return [...map.values()];
-}
-
 function ChampionRow({
   group,
   aliasFromName,
@@ -323,8 +299,6 @@ function ChampionRow({
   aliasFromName: (n: string) => string;
   isMyChampion: boolean;
 }) {
-  const slotGroups = useMemo(() => groupBySlot(group.changes), [group.changes]);
-
   return (
     <div className="flex gap-3 rounded-lg border bg-card/30 p-3">
       <ChampionSquareIcon
@@ -344,42 +318,7 @@ function ChampionRow({
             </span>
           ) : null}
         </div>
-        <ul className="mt-1 flex flex-col gap-2 text-xs text-muted-foreground">
-          {slotGroups.map((sg) => (
-            <li key={sg.key}>
-              {sg.key !== "__base__" ? (
-                <div className="mb-0.5 flex items-center gap-1.5">
-                  {sg.iconPath ? (
-                    <img
-                      src={sg.iconPath}
-                      alt=""
-                      className="size-4 shrink-0 rounded-sm"
-                    />
-                  ) : null}
-                  {sg.slot ? (
-                    <span className="rounded-sm bg-muted px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-foreground/70">
-                      {sg.slot}
-                    </span>
-                  ) : null}
-                  {sg.abilityNames.length > 0 ? (
-                    <span className="text-foreground/80">{sg.abilityNames.join(" / ")}</span>
-                  ) : null}
-                </div>
-              ) : null}
-              <ul className="flex flex-col gap-0.5">
-                {sg.changes.map((line, ci) => (
-                  <li
-                    key={`${sg.key}-${ci}`}
-                    className={cn("flex items-start gap-1.5", sg.key !== "__base__" && "pl-5")}
-                  >
-                    <ChangeKindGlyph kind={line.changeType} />
-                    <span className="min-w-0">{line.changeText}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+        <AbilityChangeList changes={group.changes} className="mt-1" />
       </div>
     </div>
   );
