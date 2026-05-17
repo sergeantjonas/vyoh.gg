@@ -1,15 +1,15 @@
-import { mainScrollRef } from "@/lib/scroll-container";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { AnimatePresence, m } from "motion/react";
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
  * Compact strip pinned just below the account header. Appears when the user
  * has scrolled past a champion-themed hero. Rendered via portal so its
  * `position: fixed` and `backdrop-blur` escape any ancestor stacking-context
- * (e.g. the page-slide transition wrapper). Width matches the header's
- * clipped width — does not overlay the scrollbar.
+ * (e.g. the page-slide transition wrapper). Spans the true viewport width,
+ * matching the header band above it — both sit under the scrollbar so the
+ * left and right edges stay symmetric across <main>'s scrollbar-gutter reserve.
  */
 export function ChampionStickyStrip({
   visible,
@@ -22,13 +22,6 @@ export function ChampionStickyStrip({
   championAlias: string;
   children: ReactNode;
 }) {
-  const [stripRight, setStripRight] = useState(0);
-
-  useEffect(() => {
-    const el = mainScrollRef.current;
-    if (el) setStripRight(el.offsetWidth - el.clientWidth);
-  }, []);
-
   return createPortal(
     <AnimatePresence>
       {visible && (
@@ -42,11 +35,9 @@ export function ChampionStickyStrip({
             {
               "--theme-color": championTheme(championAlias).dominantHex,
               top,
-              left: 0,
-              right: stripRight,
             } as CSSProperties
           }
-          className="fixed z-40 bg-background/50 backdrop-blur-md"
+          className="fixed inset-x-0 z-40 bg-background/50 backdrop-blur-md"
         >
           <div
             aria-hidden="true"
