@@ -1,12 +1,12 @@
 # Owner auth — GitHub OAuth for gated admin surfaces
 
-**Status:** Active — pre-deploy work, plan written 2026-05-14, not started. Deferred until the pre-launch sweep (not gated to any content arc finishing). The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — also waits on this guard. See [open-work.md](open-work.md) for both items.
+**Status:** Active — pre-deploy work, plan written 2026-05-14, not started. Deferred until the pre-launch sweep (not gated to any content arc finishing). The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — also waits on this guard. See [open-work.md](../open-work.md) for both items.
 
 A working note for the planned auth layer. The status page currently exposes mutating POSTs unguarded — `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume`, plus a per-account sync trigger — and the surface of "owner-only" actions will grow once Steam integration toggles, manual refreshes, secret-rotation indicators, and draft content previews land. The fix is worth shipping deliberately (real OAuth flow, session table, guard pattern) rather than as a `?key=` env hack — both as freelance-profile signal and because the half-fix isn't faster to write.
 
 Direction (owner, 2026-05-14): **single-owner auth via GitHub OAuth**, session cookie backed by a Prisma `Session` table, applied as a NestJS guard. Public read-only views stay untouched; admin surfaces stay *visibly* gated (locked button + Radix tooltip), not hidden — half the point is that a reviewer poking around can see the layer exists.
 
-Sequencing (owner, 2026-05-14): **not urgent — pre-deploy work.** Owner only hosts vyoh.gg when the app feels pretty done, so while it's unhosted the unguarded POSTs aren't reachable to anyone but the owner. This is not gated to Steam S2 finishing; it stays parked in [open-work.md](open-work.md) as a pre-deploy item alongside CORS hardening, prod env vars, and the hosting choice itself — and lands as part of one deliberate pre-launch sweep rather than as a "next" arc.
+Sequencing (owner, 2026-05-14): **not urgent — pre-deploy work.** Owner only hosts vyoh.gg when the app feels pretty done, so while it's unhosted the unguarded POSTs aren't reachable to anyone but the owner. This is not gated to Steam S2 finishing; it stays parked in [open-work.md](../open-work.md) as a pre-deploy item alongside CORS hardening, prod env vars, and the hosting choice itself — and lands as part of one deliberate pre-launch sweep rather than as a "next" arc.
 
 Sibling docs: [security.md](security.md) (this lands the "auth surface" CodeQL was deferred against), [hosting.md](hosting.md) (cookie/callback URL depends on which option ships).
 
@@ -187,7 +187,7 @@ Files touched: 1 modified controller + ~5 new frontend files + ~3 modified front
 - Prod GitHub OAuth app + env vars set on the chosen hosting target.
 - Cookie `domain` configured per the hosting-dependent section above.
 - README section documenting the env vars and the "log in to use admin controls" flow.
-- Optional: candidate entry in [case-study-topics.md](case-study-topics.md) — *"Single-owner auth without a framework"* is genuinely a good write-up topic (the CSRF / SameSite / state-cookie reasoning is the substance).
+- Optional: candidate entry in [case-study-topics.md](../cross-cutting/case-study-topics.md) — *"Single-owner auth without a framework"* is genuinely a good write-up topic (the CSRF / SameSite / state-cookie reasoning is the substance).
 
 Files touched: docs only + env config on hosting platform. Lands once a hosting option is chosen.
 

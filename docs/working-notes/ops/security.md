@@ -1,6 +1,6 @@
 # Security baseline
 
-**Status:** Active — baseline shipped 2026-05-14 (`pnpm audit` in CI, Dependabot alerts + malware alerts + security updates, secret scanning + push protection). CodeQL SAST deferred as a freelance-signal layer; revisit when bandwidth allows or auth surface lands. Tracked under "Adjacent maintenance" in [open-work.md](open-work.md).
+**Status:** Active — baseline shipped 2026-05-14 (`pnpm audit` in CI, Dependabot alerts + malware alerts + security updates, secret scanning + push protection). CodeQL SAST deferred as a freelance-signal layer; revisit when bandwidth allows or auth surface lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Captures the supply-chain / credentials layer for this repo and what's deliberately deferred. Right-sized for a solo-dev, no-auth, no-PII, no-payments portfolio project — not a SaaS posture.
 

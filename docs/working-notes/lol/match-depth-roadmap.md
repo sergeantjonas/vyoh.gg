@@ -1,17 +1,17 @@
 # vyoh.gg — Match depth + live game + learning-surfaces roadmap
 
-**Status:** Active — Phases A + B + C fully shipped (2026-05-16). Phase D and Phase E partial: outstanding D items (squad detection, LP-overlay per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7) and E remainders (full rune page, composite S grade) tracked in [open-work.md](open-work.md); parked sub-items (build-order component-collapse, hover-highlight, boot collapse, soul drake type) in [parked.md](parked.md). Full Status section with commit refs is [further down](#status).
+**Status:** Active — Phases A + B + C fully shipped (2026-05-16). Phase D and Phase E partial: outstanding D items (squad detection, LP-overlay per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7) and E remainders (full rune page, composite S grade) tracked in [open-work.md](../open-work.md); parked sub-items (build-order component-collapse, hover-highlight, boot collapse, soul drake type) in [parked.md](../parked.md). Full Status section with commit refs is [further down](#status).
 
 Working plan for expanding the match detail page, adding a live-game view, and layering deeper per-match / per-account learning surfaces. Read this when working on any of: match detail enrichment, Match-V5 timeline, Spectator-V5 live game, lane-phase metrics, build order, kill/objective timelines, damage breakdowns, or rune/skill-order display.
 
-This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. See [archive/views-roadmap.md](archive/views-roadmap.md) for the parallel Profile/Champion-detail track.
+This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. See [archive/views-roadmap.md](../archive/views-roadmap.md) for the parallel Profile/Champion-detail track.
 
 ---
 
 ## Guiding principles
 
 - **Smallest shippable slice.** Each phase below is a single weekend's worth or smaller. Big-bang rewrites of the match detail page are explicitly avoided — we extend the DTO, add panels, keep the existing roster as the spine.
-- **Surface what we already have before fetching more.** [`MatchDetailCache`](../../apps/api/prisma/schema.prisma) stores the full Match-V5 payload as JSON. We currently project ~10 fields per participant out of ~150 available. Phase A is mostly DTO-projection work, no new Riot calls.
+- **Surface what we already have before fetching more.** [`MatchDetailCache`](../../../apps/api/prisma/schema.prisma) stores the full Match-V5 payload as JSON. We currently project ~10 fields per participant out of ~150 available. Phase A is mostly DTO-projection work, no new Riot calls.
 - **Calm aesthetic.** No celebratory primitives. Damage breakdown bars, kill timelines, build orders all default to subtle/ambient — matches existing tone (cf. `feedback_calm_aesthetic` memory).
 - **Motion is showcase territory, push the ambition.** When a phase opens up motion opportunity (kill-strip → minimap morph, rune wheel, gold-lead area chart drawing), pitch 5–8 ideas, don't pre-filter to one safe pick.
 - **Insights inside views, not a separate "Insights" tab.** Every learning surface lives on Match detail, Champion detail, or Profile — never a top-level tab.
@@ -24,7 +24,7 @@ This is a living plan, not a contract. Phases are sequenced so each one ships va
 
 Concrete inventory as of this doc's writing — useful so each phase below can describe a delta rather than restating the baseline.
 
-**Match detail page** ([apps/web/src/lol/matches/match-detail-view.tsx](../../apps/web/src/lol/matches/match-detail-view.tsx)):
+**Match detail page** ([apps/web/src/lol/matches/match-detail-view.tsx](../../../apps/web/src/lol/matches/match-detail-view.tsx)):
 
 - Two-column blue/red roster split.
 - Per row: champion icon, name, KDA, items 0–6 (with rich CDragon tooltip), total damage bar, gold bar.
@@ -32,7 +32,7 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
 - Sticky champion strip when hero scrolls past.
 - LP delta badge (when available).
 
-**Match list rows** ([apps/web/src/lol/matches/match-row.tsx](../../apps/web/src/lol/matches/match-row.tsx)):
+**Match list rows** ([apps/web/src/lol/matches/match-row.tsx](../../../apps/web/src/lol/matches/match-row.tsx)):
 
 - Own KDA, win/loss, queue, duration, time-ago, LP delta. Champion of *the user only*.
 - No information about lane opponent, premades, full-team comp, or per-game performance signals (CS, vision, KP).
@@ -52,7 +52,7 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
 - `Champion-Mastery-V4` ← mastery points/level on a champion, useful in Live view.
 - `League-V4 challenges` (`Lol-Challenges-V1` global config + per-summoner) ← a calm, player-facing achievement system, well-suited to the aesthetic.
 
-**DTO gap.** [`MatchDetail.ParticipantDetail`](../../packages/shared/src/lol/match-detail.ts) projects 12 fields. The Riot payload's `participants[i].challenges` block alone has ~120 — CS/min, KP, damage share, time CC dealt, vision score, control wards purchased, first-blood/first-tower, lane phase metrics like `goldPerMinute`, `laneMinionsFirst10Minutes`, `kda`, `damagePerMinute`, etc. **Most of "the things op.gg shows" are in data we already have, just not projected.**
+**DTO gap.** [`MatchDetail.ParticipantDetail`](../../../packages/shared/src/lol/match-detail.ts) projects 12 fields. The Riot payload's `participants[i].challenges` block alone has ~120 — CS/min, KP, damage share, time CC dealt, vision score, control wards purchased, first-blood/first-tower, lane phase metrics like `goldPerMinute`, `laneMinionsFirst10Minutes`, `kda`, `damagePerMinute`, etc. **Most of "the things op.gg shows" are in data we already have, just not projected.**
 
 **Rate-limit headroom.** Single user, 4 whitelisted accounts. Cron every 5 min. Limiter detailed in [riot-investigation-2026-05-07.md](riot-investigation-2026-05-07.md). One extra Match-V5 timeline call per *new* match (paged by detail backfill) doubles the per-match Riot call count from 1 → 2 — well within reservoir capacity. Live-view polling at 60 s/account is also negligible.
 
@@ -68,7 +68,7 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
 
 1. **Player names + tags on match list rows.**
    - Add a `laneOpponent: { championName, gameName, tagLine }` field to `MatchSummary`. Already extracted (kind of) — `extractItemsAndOpponents` only stores opponent champion as a string. Promote to a structured field stored on the `Match` row.
-   - Update [match-row.tsx](../../apps/web/src/lol/matches/match-row.tsx) to show "vs Caitlyn (Faker#KR1)" when teamPosition non-empty, omit for ARAM/Arena.
+   - Update [match-row.tsx](../../../apps/web/src/lol/matches/match-row.tsx) to show "vs Caitlyn (Faker#KR1)" when teamPosition non-empty, omit for ARAM/Arena.
    - Hover the row → reveal a 10-name popover with both teams' players (champion + name, color-coded by team, your row highlighted). Lazy-load from cached `MatchDetailCache` if not already in client cache.
 
 2. **Match header strip.** Single horizontal panel above the team rosters. Per-team aggregates at a glance:
@@ -103,12 +103,12 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
 
 ### Files touched
 
-- [packages/shared/src/lol/match-detail.ts](../../packages/shared/src/lol/match-detail.ts) — extend `ParticipantDetail`, add `TeamSummary`.
-- [packages/shared/src/lol/match.ts](../../packages/shared/src/lol/match.ts) — extend `MatchSummary` with `laneOpponent`.
-- [apps/api/src/lol/match-mapper.ts](../../apps/api/src/lol/match-mapper.ts) — extend projection.
-- [apps/api/src/riot/types.ts](../../apps/api/src/riot/types.ts) — add `RiotMatchTeam`, `RiotChallenges` (typed sliver of the challenges block we project).
-- [apps/web/src/lol/matches/match-detail-view.tsx](../../apps/web/src/lol/matches/match-detail-view.tsx) — add header strip, score badges, expanded participant row.
-- [apps/web/src/lol/matches/match-row.tsx](../../apps/web/src/lol/matches/match-row.tsx) — lane-opponent slot, hover popover.
+- [packages/shared/src/lol/match-detail.ts](../../../packages/shared/src/lol/match-detail.ts) — extend `ParticipantDetail`, add `TeamSummary`.
+- [packages/shared/src/lol/match.ts](../../../packages/shared/src/lol/match.ts) — extend `MatchSummary` with `laneOpponent`.
+- [apps/api/src/lol/match-mapper.ts](../../../apps/api/src/lol/match-mapper.ts) — extend projection.
+- [apps/api/src/riot/types.ts](../../../apps/api/src/riot/types.ts) — add `RiotMatchTeam`, `RiotChallenges` (typed sliver of the challenges block we project).
+- [apps/web/src/lol/matches/match-detail-view.tsx](../../../apps/web/src/lol/matches/match-detail-view.tsx) — add header strip, score badges, expanded participant row.
+- [apps/web/src/lol/matches/match-row.tsx](../../../apps/web/src/lol/matches/match-row.tsx) — lane-opponent slot, hover popover.
 - New: `apps/web/src/lol/matches/match-team-summary.tsx`, `match-list-row-popover.tsx`, `participant-row.tsx` (extracted).
 
 ### Reuse opportunities
@@ -129,7 +129,7 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
 
 ### Cost / risk
 
-- **Cache shape change.** `MatchDetailCache.detail` today stores the *projected* `MatchDetail`, not the raw Riot payload (cf. [lol.service.ts:514](../../apps/api/src/lol/lol.service.ts#L514) — `detail as unknown as object` after `riotMatchToDetail`). Pre-prod, so the simplest path is: switch the cache to store the raw Riot payload, drop the existing rows, let backfill re-fetch. No migration shim needed. After this, every future DTO extension is a free re-projection on read — no Riot round-trip.
+- **Cache shape change.** `MatchDetailCache.detail` today stores the *projected* `MatchDetail`, not the raw Riot payload (cf. [lol.service.ts:514](../../../apps/api/src/lol/lol.service.ts#L514) — `detail as unknown as object` after `riotMatchToDetail`). Pre-prod, so the simplest path is: switch the cache to store the raw Riot payload, drop the existing rows, let backfill re-fetch. No migration shim needed. After this, every future DTO extension is a free re-projection on read — no Riot round-trip.
 - Hover popovers on virtualized list rows — careful with the popover-portal interaction with the virtualizer's transform. Pattern from current item tooltip should generalize.
 
 ---
@@ -143,8 +143,8 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
 ### Deliverables
 
 1. **Backend wiring.**
-   - `getMatchTimelineById(matchId, regional)` in [apps/api/src/riot/riot.service.ts](../../apps/api/src/riot/riot.service.ts).
-   - New method-family entry `match-timeline-by-id` in [method-families.ts](../../apps/api/src/riot/method-families.ts) (same 2000/10s envelope as `match-by-id`).
+   - `getMatchTimelineById(matchId, regional)` in [apps/api/src/riot/riot.service.ts](../../../apps/api/src/riot/riot.service.ts).
+   - New method-family entry `match-timeline-by-id` in [method-families.ts](../../../apps/api/src/riot/method-families.ts) (same 2000/10s envelope as `match-by-id`).
    - New Prisma model `MatchTimelineCache { matchId, timeline Json, cachedAt }` mirroring `MatchDetailCache`.
    - Fetched lazily on first match-detail-page visit (not eagerly during sync) — keeps the cron tick fast and avoids storing 2 MB blobs we may never view.
 
@@ -156,7 +156,7 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
    - `skillOrders: { participantId, slots: { ts, slot: 1|2|3|4 }[] }[]`.
    - Project on the API side. Web sees ~30–80 KB instead of 0.5–2 MB.
 
-3. **Build order panel** ([apps/web/src/lol/matches/match-build-order.tsx](../../apps/web/src/lol/matches/match-build-order.tsx)).
+3. **Build order panel** ([apps/web/src/lol/matches/match-build-order.tsx](../../../apps/web/src/lol/matches/match-build-order.tsx)).
    - Two horizontal timelines stacked: yours on top, your lane opponent's below. Same time axis, aligned.
    - Items purchased in chronological order, with timestamps relative to game time.
    - Hover an item → highlight its components (which were merged into it). Component tree is in the items dataset.
@@ -168,13 +168,13 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
      - On ARAM/Arena (no real lane), fall back to single-row (yours only).
    - The "show enemy laner build" toggle starts ON for ranked, OFF for normals — different learning posture per queue.
 
-4. **Gold-lead chart** ([apps/web/src/lol/matches/match-gold-lead.tsx](../../apps/web/src/lol/matches/match-gold-lead.tsx)).
+4. **Gold-lead chart** ([apps/web/src/lol/matches/match-gold-lead.tsx](../../../apps/web/src/lol/matches/match-gold-lead.tsx)).
    - Recharts area chart of `team100_gold − team200_gold` per minute.
    - Y-axis is signed; positive emerald, negative rose; the 0-line is the visual anchor.
    - Lead-flip moments marked with vertical reference lines (subtle).
    - On hover, show absolute team golds for that minute in the tooltip.
 
-5. **Kill strip** ([apps/web/src/lol/matches/match-kill-strip.tsx](../../apps/web/src/lol/matches/match-kill-strip.tsx)).
+5. **Kill strip** ([apps/web/src/lol/matches/match-kill-strip.tsx](../../../apps/web/src/lol/matches/match-kill-strip.tsx)).
    - Thin horizontal strip aligned with game-time. Each kill = a colored dot (team-colored).
    - Hover → "14:02 — Caitlyn killed Jhin (assist: Yasuo)".
    - Click → expands into minimap mode (Phase B.6).
@@ -185,22 +185,22 @@ Concrete inventory as of this doc's writing — useful so each phase below can d
    - Animation idea: dots stagger-reveal in chronological order on first paint, ~600 ms total.
    - Reduced-motion: instant render, no stagger.
 
-7. **Objective timeline** ([apps/web/src/lol/matches/match-objective-timeline.tsx](../../apps/web/src/lol/matches/match-objective-timeline.tsx)).
+7. **Objective timeline** ([apps/web/src/lol/matches/match-objective-timeline.tsx](../../../apps/web/src/lol/matches/match-objective-timeline.tsx)).
    - Horizontal lane below kill strip showing dragon (with element), herald, baron, elder, towers.
    - Pip per event, color-coded by team taking it. Hover for "12:14 Mountain Drake — Blue".
 
-8. **Skill order grid** ([apps/web/src/lol/matches/match-skill-order.tsx](../../apps/web/src/lol/matches/match-skill-order.tsx)).
+8. **Skill order grid** ([apps/web/src/lol/matches/match-skill-order.tsx](../../../apps/web/src/lol/matches/match-skill-order.tsx)).
    - 4-row × 18-col grid (QWER × levels). User's participant by default, dropdown to switch.
    - Each cell filled with the slot that was leveled at that level. Standard champion-page artifact.
 
-9. **Lane-phase callouts** ([apps/web/src/lol/matches/match-lane-phase.tsx](../../apps/web/src/lol/matches/match-lane-phase.tsx)).
+9. **Lane-phase callouts** ([apps/web/src/lol/matches/match-lane-phase.tsx](../../../apps/web/src/lol/matches/match-lane-phase.tsx)).
    - At-a-glance card: "+24 CS at 10 min", "−1.2k gold at 15 min", "vs your average +6 / −0.6k".
    - Pulled from `frames[10]` and `frames[15]` `participantFrames`. Compared against per-champion or overall averages.
    - This is the highest-density "what could I have done differently" surface.
 
 ### Charting library choice
 
-- **Default to visx for non-stock charts** (minimap kill plot, custom radial layouts, anything we'd otherwise hack into Recharts). Recharts stays for stock cases (gold-lead area chart, KDA line). This avoids a Recharts → visx rewrite later — see [vnext-ideas.md](vnext-ideas.md).
+- **Default to visx for non-stock charts** (minimap kill plot, custom radial layouts, anything we'd otherwise hack into Recharts). Recharts stays for stock cases (gold-lead area chart, KDA line). This avoids a Recharts → visx rewrite later — see [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
 - Specifically, the **minimap kill plot** (B.6) should be built on visx from day one. Recharts can't do "dots on an arbitrary 2D map background" cleanly.
 
 ### Reuse opportunities
@@ -242,9 +242,9 @@ Why server-side:
 - Single source of truth. The "Live now" chip can render on Profile of accounts not currently being viewed — the API already knows which accounts are in game.
 - Lighter clients. No per-tab polling overhead.
 - Cleaner architecture for the rate-limit story — one polling loop, one cache, one fairness budget across accounts.
-- Aligns with the existing match-events SSE pattern in [match-events.service.ts](../../apps/api/src/lol/match-events.service.ts).
+- Aligns with the existing match-events SSE pattern in [match-events.service.ts](../../../apps/api/src/lol/match-events.service.ts).
 
-This was originally drafted as a client polling loop. The shift to server-side was decided in [vnext-ideas.md](vnext-ideas.md). Documenting it up-front so Phase C v1 doesn't get built client-side first.
+This was originally drafted as a client polling loop. The shift to server-side was decided in [vnext-ideas.md](../cross-cutting/vnext-ideas.md). Documenting it up-front so Phase C v1 doesn't get built client-side first.
 
 ### Deliverables
 
@@ -258,7 +258,7 @@ This was originally drafted as a client polling loop. The shift to server-side w
 
 2. **"Live now" chip on Profile.** Small pill near the rank tiles when active game detected. Click → navigate to `/lol/$accountSlug/live`. Receives state via SSE — animates in when a game starts on this account, animates out when it ends.
 
-3. **Live match page** ([apps/web/src/routes/lol/$accountSlug/live.tsx](../../apps/web/src/routes/lol/$accountSlug/live.tsx)).
+3. **Live match page** ([apps/web/src/routes/lol/$accountSlug/live.tsx](../../../apps/web/src/routes/lol/$accountSlug/live.tsx)).
    - Game time counter (counts up client-side from `gameStartTime`).
    - Queue type, map, mode badges.
    - 5v5 grid (opportunistic enrichment — all 10 players):
@@ -287,7 +287,7 @@ This was originally drafted as a client polling loop. The shift to server-side w
 ### Reuse opportunities
 
 - Profile rank-tile component for per-player rank display.
-- Last-5 pips component already lives in [profile-recent-form.tsx](../../apps/web/src/lol/profile/profile-recent-form.tsx).
+- Last-5 pips component already lives in [profile-recent-form.tsx](../../../apps/web/src/lol/profile/profile-recent-form.tsx).
 - Champion icon/splash machinery already proxied via `wsrv.nl`.
 
 ### Implementation order within the phase
@@ -327,7 +327,7 @@ Most of these depend on Phase A (extended DTO) or Phase B (timeline). Listed her
 
 9. **Rune-page diversity** on Champion detail. Pie chart of which keystones you've run on this champion + win rate per keystone. Depends on Phase A (perks projection).
 
-10. **Duo / squad detection.** Across many matches, certain non-self puuids recur — that's a duo. Detect them, surface "you and {DuoName} are 22–8 in lane swap games." Shared champion-pair stats. LP graph overlays. Touches both match list rows ("we played together") and Profile (a duo-stats panel). Cross-cutting; depends on the lane-opponent + full-roster data already stored from Phase A. Promoted to Phase D from [vnext-ideas.md](vnext-ideas.md).
+10. **Duo / squad detection.** Across many matches, certain non-self puuids recur — that's a duo. Detect them, surface "you and {DuoName} are 22–8 in lane swap games." Shared champion-pair stats. LP graph overlays. Touches both match list rows ("we played together") and Profile (a duo-stats panel). Cross-cutting; depends on the lane-opponent + full-roster data already stored from Phase A. Promoted to Phase D from [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
 
 ### Sequencing
 
@@ -352,7 +352,7 @@ Things called out elsewhere in this doc as "follow-up" so they don't get lost. N
 
 **Cache shape change.** `MatchDetailCache.detail` today stores the projected `MatchDetail`, not the raw Riot payload. Pre-prod, so we simply switch it to raw, drop existing rows, and let backfill re-fetch — no migration shim. After this, every DTO extension is a free re-projection on read.
 
-**Caching keys.** `useMatchDetail` keys on `["lol", "match", matchId]` with infinite staleTime (cf. [use-match-detail.ts](../../apps/web/src/lol/matches/use-match-detail.ts)). Phase B's timeline goes under `["lol", "match", matchId, "timeline"]` — separate query, separate fetch, but same staleTime semantics.
+**Caching keys.** `useMatchDetail` keys on `["lol", "match", matchId]` with infinite staleTime (cf. [use-match-detail.ts](../../../apps/web/src/lol/matches/use-match-detail.ts)). Phase B's timeline goes under `["lol", "match", matchId, "timeline"]` — separate query, separate fetch, but same staleTime semantics.
 
 **Reduced motion.** Every new visualization needs a reduced-motion pass. The existing patterns (gating `initial`/`animate` on `useReducedMotion`) cover everything new here. Kill-dot stagger reveals, gold-lead chart drawing, build-order item slide-ins all need the gate.
 
@@ -407,8 +407,8 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — score-of-game: separate badges in Phase A ("Most damage", "Highest KP", etc.). Composite S+/S/A grade parked in Phase E backlog as a follow-up if separate badges read as cluttered.
 - **2026-05-09** — build order in Phase B: render both the user and the lane opponent on a shared time axis. Anti-clutter rules: hide consumables/trinkets/wards by default, collapse boots upgrade into a single tick, components fold into the completed item. ARAM/Arena fall back to single-row.
 - **2026-05-09** — Phase C live-view enrichment: opportunistic for all 10 players (rank + mastery), cached per `gameId` so each detected game costs a 21-call burst once. Last-5 form pips stay whitelist-only — computing them for the 9 others would cost 50+ extra Riot calls per game. Affordable in this app's 1-user / 4-account setting; the same approach would not generalize to multi-tenant.
-- **2026-05-09** — Phase B chart library decision: visx for the minimap and any non-stock chart shape; Recharts for stock cases. Avoids a Recharts → visx rewrite later (decision sourced from [vnext-ideas.md](vnext-ideas.md)).
-- **2026-05-09** — Phase C polling architecture flipped from client-side to **server-side polling + SSE push**. Single source of truth, "Live now" can render on Profile of accounts not currently being viewed, lighter clients. Built on existing `MatchEventsService` SSE infrastructure. Decision sourced from [vnext-ideas.md](vnext-ideas.md).
+- **2026-05-09** — Phase B chart library decision: visx for the minimap and any non-stock chart shape; Recharts for stock cases. Avoids a Recharts → visx rewrite later (decision sourced from [vnext-ideas.md](../cross-cutting/vnext-ideas.md)).
+- **2026-05-09** — Phase C polling architecture flipped from client-side to **server-side polling + SSE push**. Single source of truth, "Live now" can render on Profile of accounts not currently being viewed, lighter clients. Built on existing `MatchEventsService` SSE infrastructure. Decision sourced from [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
 - **2026-05-09** — Phase D extended with **duo / squad detection** (D.10) — recurring non-self puuids surface as "duo" with shared stats. Promoted from vNext top-tier given low marginal cost on top of Phase A's lane-opponent restructure.
 - **2026-05-10** — Phase A + B substantially shipped (see Status above). Phase E: added **Timeline + map integration** followup — op.gg-style scrollable event feed synced to a Rift mini-map, gold-lead scrubber, event-type filters. Full-screen modal triggered from existing event timelines section. All data available from Phase B projection; motion showcase candidate.
 - **2026-05-10** — boot collapse in build order (collapsing tier-1 → tier-2 boots into a single upgraded slot) will not be implemented. Requires detecting upgrade relationships across timeline item events and maintaining a boot-item ID map, meaningful complexity for marginal readability gain. The consumables toggle already handles the main clutter concern. Closed as won't-do.
@@ -416,7 +416,7 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-10** — Phase C verified shipped. Lane sort heuristic added on top of the existing live page (Smite for jungle + CDragon champion role tags for the rest, ~80% accuracy). Spectator-V5 confirmed to expose no `teamPosition` and no champion level. Soul drake / dragon element type also unavailable from Match-V5 team objectives — needs Phase B timeline events to resolve, parked.
 - **2026-05-10** — D.10 (duo detection) v1 shipped. `GET /lol/.../duos` reads `MatchDetailCache.detail` for the user's recent matches, finds same-team puuids, aggregates by puuid (games / wins / top champion), filters at ≥ 3 games together, returns top 10. Profile component (`ProfileDuos`) renders top 3 between role strip and queue distribution; renders a "you mostly queue solo" empty state when no recurring duo. No new schema/table — pure read off the existing cache. Riot ID gameName/tagLine kept fresh by using the most-recent match per puuid (Riot IDs can change). Deferred follow-ups: squad detection (3+ recurring puuids), LP-overlay graphs per duo, shared champion-pair stats ("you on Lulu + them on Vayne"), match-list highlighting of duo games — each a candidate session.
 - **2026-05-10** — Spectator-V5 deactivation announcement (Oct 2025) was partially walked back: the `getCurrentGameInfoByPuuid` endpoint we depend on was reactivated alongside in-client streamer mode. No active deprecation risk to Phase C as of this date.
-- **2026-05-11** — Three Phase D items landed (D.1 minute×matchup heatmap, D.8 build-order Sankey) plus the champion-synergy chord as a D.10 follow-on. The shared backend pattern: each is a new `GET …/<route>` on `LolController` that reads existing `Match` / `MatchDetailCache` / `MatchTimelineCache` rows and projects into a slice-specific DTO. No new tables; no Riot calls. **Frontend pattern established**: non-stock viz (heatmap, chord, Sankey) ships in a single Champion-detail tile via `ConclusionCard` evidence slot. `MIN_LINK_GAMES` / `MIN_RIBBON_GAMES` etc. filter weak edges; lift-vs-baseline (not raw 50%) colors links to suppress sample-size noise. visx packages installed: see [library-shortlist.md](library-shortlist.md).
+- **2026-05-11** — Three Phase D items landed (D.1 minute×matchup heatmap, D.8 build-order Sankey) plus the champion-synergy chord as a D.10 follow-on. The shared backend pattern: each is a new `GET …/<route>` on `LolController` that reads existing `Match` / `MatchDetailCache` / `MatchTimelineCache` rows and projects into a slice-specific DTO. No new tables; no Riot calls. **Frontend pattern established**: non-stock viz (heatmap, chord, Sankey) ships in a single Champion-detail tile via `ConclusionCard` evidence slot. `MIN_LINK_GAMES` / `MIN_RIBBON_GAMES` etc. filter weak edges; lift-vs-baseline (not raw 50%) colors links to suppress sample-size noise. visx packages installed: see [library-shortlist.md](../cross-cutting/library-shortlist.md).
 - **2026-05-11** — D.1 design decision: minute-bucket × matchup-champion grid (not Rift-map position heatmap). The Rift-position version is now paired with Phase E (op.gg overlay) — both need timeline event x/y projected onto `MatchSummary` (`deathTimings` has timestamps only today). Stacking them avoids two rounds of backend projection. Plan: Phase E first (single-match overlay on match-detail), then the position-aggregate heatmap on Champion detail falls out as a small follow-up.
-- **2026-05-11** — Phase E **Timeline + map integration** shipped (`db80d95`). Single 838-line component ([match-map-overlay.tsx](../../apps/web/src/lol/matches/match-map-overlay.tsx)) lazy-loaded from `MatchEventTimelines`. The minimap is one static SVG with absolutely-positioned `<motion.circle>` dots; feed↔map sync uses `selectedId` state + `feedRefs` map + `scrollIntoView({ block: "nearest" })`. Gold-lead brush is a custom visx `Brush` traveller — clamped to the match's gold-data range so the window can't escape data — and drives `brushStartMin`/`brushEndMin` which `passesFilter` consults to gate both feed and dots. Filter chips use a flat `FilterState` object (per-event-type bools + `yourKillsOnly` / `yourDeathsOnly` exclusivity toggle). Replaced the old `match-kill-map.tsx` inline strip (the modal is now the canonical surface). Motion budget: spring-staggered reveal on open, gated on `useReducedMotion`.
-- **2026-05-12** — Phase-D.1 Rift-position follow-on shipped (`a1fb10c`). Added death x/y to `MatchSummary` via the same `timeline-summary-mapper` projection that powered the Phase E overlay (one schema change, two consumers). `backfill-position-metrics.ts` re-projects historical timeline rows; new matches get it through the eager-timeline-sync path documented in the architecture note above. Rendered as a hex-binned heatmap on Champion detail ([champion-position-heatmap.tsx](../../apps/web/src/lol/champions/champion-position-heatmap.tsx)). Closes the original D.1 ask (Rift-position heatmap was the rejected first design before the minute×matchup grid landed) — both forms now exist on Champion detail.
+- **2026-05-11** — Phase E **Timeline + map integration** shipped (`db80d95`). Single 838-line component ([match-map-overlay.tsx](../../../apps/web/src/lol/matches/match-map-overlay.tsx)) lazy-loaded from `MatchEventTimelines`. The minimap is one static SVG with absolutely-positioned `<motion.circle>` dots; feed↔map sync uses `selectedId` state + `feedRefs` map + `scrollIntoView({ block: "nearest" })`. Gold-lead brush is a custom visx `Brush` traveller — clamped to the match's gold-data range so the window can't escape data — and drives `brushStartMin`/`brushEndMin` which `passesFilter` consults to gate both feed and dots. Filter chips use a flat `FilterState` object (per-event-type bools + `yourKillsOnly` / `yourDeathsOnly` exclusivity toggle). Replaced the old `match-kill-map.tsx` inline strip (the modal is now the canonical surface). Motion budget: spring-staggered reveal on open, gated on `useReducedMotion`.
+- **2026-05-12** — Phase-D.1 Rift-position follow-on shipped (`a1fb10c`). Added death x/y to `MatchSummary` via the same `timeline-summary-mapper` projection that powered the Phase E overlay (one schema change, two consumers). `backfill-position-metrics.ts` re-projects historical timeline rows; new matches get it through the eager-timeline-sync path documented in the architecture note above. Rendered as a hex-binned heatmap on Champion detail ([champion-position-heatmap.tsx](../../../apps/web/src/lol/champions/champion-position-heatmap.tsx)). Closes the original D.1 ask (Rift-position heatmap was the rejected first design before the minute×matchup grid landed) — both forms now exist on Champion detail.

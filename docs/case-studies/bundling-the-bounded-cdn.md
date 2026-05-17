@@ -153,11 +153,11 @@ Things deliberately deferred but worth watching:
 
 ## Future work
 
-**Phase 3 — service worker.** Scoped in [the working note](../working-notes/lol-image-pipeline.md#phase-3--service-worker-polish-defer) but deferred. The bundled `/lol/**` paths already get strong cache headers from every hosting option we'd pick, so the SW would primarily benefit the long-tail runtime fallback URLs (the wsrv.nl chain). That's a real benefit — offline-capable thumbnails after first visit — but it's polish, not a pain reliever. Worth ~150 LOC if we ever want the portfolio bullet. Cache-first with stale-while-revalidate on `/lol/**` and the long-tail CDN URLs; the standard `skipWaiting` + `clientsClaim` foot-gun applies.
+**Phase 3 — service worker.** Scoped in [the working note](../working-notes/lol/lol-image-pipeline.md#phase-3--service-worker-polish-defer) but deferred. The bundled `/lol/**` paths already get strong cache headers from every hosting option we'd pick, so the SW would primarily benefit the long-tail runtime fallback URLs (the wsrv.nl chain). That's a real benefit — offline-capable thumbnails after first visit — but it's polish, not a pain reliever. Worth ~150 LOC if we ever want the portfolio bullet. Cache-first with stale-while-revalidate on `/lol/**` and the long-tail CDN URLs; the standard `skipWaiting` + `clientsClaim` foot-gun applies.
 
 **Hosting CSP.** When we land an explicit `Content-Security-Policy` header at the hosting layer, `img-src` needs to permit `https://wsrv.nl`, `https://cdn.communitydragon.org`, `https://ddragon.leagueoflegends.com`, plus `'self'`. The runtime fallback chain depends on it; today there's no policy header and direct `<img>` tags don't need fetch-policy permission.
 
-**Backend image proxy.** Originally framed as the architecturally "proper" answer — Nest controller + Sharp + R2/S3. Replaced by Phase 1 (build-time prefetch). The proxy framing is overkill for a portfolio app's actual needs once self-hosting is in place. Kept as a parked design in [lol-image-pipeline.md](../working-notes/lol-image-pipeline.md#backend-image-proxy) because it's the right answer for a different problem — user uploads, dynamic transforms, unbounded asset handling — and worth referencing if a future project needs it.
+**Backend image proxy.** Originally framed as the architecturally "proper" answer — Nest controller + Sharp + R2/S3. Replaced by Phase 1 (build-time prefetch). The proxy framing is overkill for a portfolio app's actual needs once self-hosting is in place. Kept as a parked design in [lol-image-pipeline.md](../working-notes/lol/lol-image-pipeline.md#backend-image-proxy) because it's the right answer for a different problem — user uploads, dynamic transforms, unbounded asset handling — and worth referencing if a future project needs it.
 
 ## Cost / benefit
 
@@ -175,4 +175,4 @@ The three phases sit naturally on top of each other and don't depend on one bein
 
 - [build-time-champion-assets.md](./build-time-champion-assets.md) — the older case study on theme palette + blurhash extraction. The Phase 1 refresh script supersedes its `tools/champion-assets/` workspace by running theme/blurhash regeneration in the same pass; the two pipelines can never desync now.
 - [frontend-perf.md](./frontend-perf.md) — broader frontend perf arc this fits into.
-- [lol-image-pipeline.md](../working-notes/lol-image-pipeline.md) — the working note this case study summarizes. Build log, parked options, and failure-mode table live there.
+- [lol-image-pipeline.md](../working-notes/lol/lol-image-pipeline.md) — the working note this case study summarizes. Build log, parked options, and failure-mode table live there.

@@ -1,8 +1,8 @@
 # Post-game close-the-loop surface — roadmap
 
-**Status:** Active — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 (peer-route post-game artifact) explicitly v2, gated on PG1–PG3 proving out. See [open-work.md](open-work.md).
+**Status:** Active — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 (peer-route post-game artifact) explicitly v2, gated on PG1–PG3 proving out. See [open-work.md](../open-work.md).
 
-After-game counterpart to [Pregame Ritual](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx). Promoted from [vnext-ideas.md](vnext-ideas.md) ("Top tier — eye-catching wins") and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #1) into a tracked arc because it is the **single highest-payoff missing surface** in the LoL section and the strongest case-study candidate currently in the backlog.
+After-game counterpart to [Pregame Ritual](../../../apps/web/src/lol/profile/profile-pregame-ritual.tsx). Promoted from [vnext-ideas.md](../cross-cutting/vnext-ideas.md) ("Top tier — eye-catching wins") and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #1) into a tracked arc because it is the **single highest-payoff missing surface** in the LoL section and the strongest case-study candidate currently in the backlog.
 
 Read this when starting the arc, or when the question is "what's the next big visible-payoff feature."
 
@@ -28,7 +28,7 @@ Most of the work is composition, not new computation. Inputs available today:
 | Signal | Source | Notes |
 |---|---|---|
 | Outcome | `MatchSummary.win` | Trivially derived. |
-| Streak break / extension | Form computation in [`profile-pregame-ritual.tsx`](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) `buildFormSignal` | Mirror it for post-game framing. |
+| Streak break / extension | Form computation in [`profile-pregame-ritual.tsx`](../../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) `buildFormSignal` | Mirror it for post-game framing. |
 | Game length | `MatchSummary.gameDurationSec` | Cluster by short / normal / long for verdict shading. |
 | Tilt risk after this game | `buildTiltSignal` logic | Same primitive; phrasing flips ("you tilt 30% more after this kind of loss"). |
 | Performance vs personal baseline | `damageShare`, `visionScore`, KDA, `csAt15` | Already present on `MatchSummary` via Phase A/B trends backfill. |
@@ -103,8 +103,8 @@ Hybrid: section always exists on Profile, but on SSE arrival the section animate
 
 Sibling block to Pregame Ritual, reads the most-recent serious match. Four signals deterministic per match: outcome (streak framing), baseline (largest role-delta of damage / vision), tilt forecast (historical WR after wins/losses), champion read (this match's KDA vs your average on this champion).
 
-- Component: [`apps/web/src/lol/profile/profile-post-game.tsx`](../../apps/web/src/lol/profile/profile-post-game.tsx).
-- Shared `RitualSignal` model + `SignalTile` extracted to [`apps/web/src/lol/profile/ritual-tile.tsx`](../../apps/web/src/lol/profile/ritual-tile.tsx) so Pregame and Post-game read as a paired set.
+- Component: [`apps/web/src/lol/profile/profile-post-game.tsx`](../../../apps/web/src/lol/profile/profile-post-game.tsx).
+- Shared `RitualSignal` model + `SignalTile` extracted to [`apps/web/src/lol/profile/ritual-tile.tsx`](../../../apps/web/src/lol/profile/ritual-tile.tsx) so Pregame and Post-game read as a paired set.
 - Filters via `useSeriousMatches` — ARAM/Arena don't trigger a post-game read (the role-baseline and lane-phase reads wouldn't fit).
 - Commit `a7f3299` (bundled with PG2).
 
@@ -112,7 +112,7 @@ Sibling block to Pregame Ritual, reads the most-recent serious match. Four signa
 
 Pulse + slight scale lift on the tile grid when a new matchId arrives. No new SSE listener — `useSeriousMatches → useMatchWindow` already invalidates on the existing flow, so the latest matchId change is the trigger.
 
-- Hook: [`apps/web/src/lol/profile/use-new-match-notice.ts`](../../apps/web/src/lol/profile/use-new-match-notice.ts). Suppresses the initial mount transition (undefined → first matchId) so a fresh profile load doesn't fire. 6s TTL.
+- Hook: [`apps/web/src/lol/profile/use-new-match-notice.ts`](../../../apps/web/src/lol/profile/use-new-match-notice.ts). Suppresses the initial mount transition (undefined → first matchId) so a fresh profile load doesn't fire. 6s TTL.
 - Motion: tinted ring (emerald for wins, rose for losses) animates 0 → 0.55 alpha → 0 over the TTL; `scale: [1, 1.005, 1]` lift. `useReducedMotion` short-circuits both.
 - Commit `a7f3299` (bundled with PG1).
 - Live-verified 2026-05-14 — ring fired on first Profile open after a new match arrived via SSE (the initial-mount suppression rules out a refresh false-positive); end-to-end tile re-derive on a real new match arrival confirmed the same day.
@@ -150,7 +150,7 @@ The arc embodies the tonal bet of the whole app: stats sites describe; vyoh.gg *
 - The reuse story is concrete: pregame and post-game share 80% of the computation surface and 100% of the visual language.
 - The SSE story comes along for free — the post-game section is the most visible application of the existing real-time invalidation work.
 
-Companion to (or replacement for) the open ConclusionCard-pattern case study tracked in [case-study-topics.md](case-study-topics.md).
+Companion to (or replacement for) the open ConclusionCard-pattern case study tracked in [case-study-topics.md](../cross-cutting/case-study-topics.md).
 
 ---
 
@@ -175,8 +175,8 @@ Companion to (or replacement for) the open ConclusionCard-pattern case study tra
 
 ## Connections to existing notes
 
-- [`vnext-ideas.md`](vnext-ideas.md) — promoted from "Other gaps in the broader app" / top-tier.
+- [`vnext-ideas.md`](../cross-cutting/vnext-ideas.md) — promoted from "Other gaps in the broader app" / top-tier.
 - [`app-state-analysis.md`](app-state-analysis.md) — Phase 2 in the recommended phasing.
-- [`motion-backlog.md`](motion-backlog.md) — Phase PG2 motion work belongs there once specced.
-- [`case-study-topics.md`](case-study-topics.md) — strongest current case-study candidate.
-- [`trends-rework.md`](archive/trends-rework.md) — re-uses the `ConclusionCard` pattern established there.
+- [`motion-backlog.md`](../cross-cutting/motion-backlog.md) — Phase PG2 motion work belongs there once specced.
+- [`case-study-topics.md`](../cross-cutting/case-study-topics.md) — strongest current case-study candidate.
+- [`trends-rework.md`](../archive/trends-rework.md) — re-uses the `ConclusionCard` pattern established there.

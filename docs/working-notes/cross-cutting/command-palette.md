@@ -1,25 +1,25 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Active — v1 shipped, untouched since the lazy-load split (2026-05-12). Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav. Phases A–E ahead — see [open-work.md](./open-work.md).
+**Status:** Active — v1 shipped, untouched since the lazy-load split (2026-05-12). Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav. Phases A–E ahead — see [open-work.md](../open-work.md).
 
 ## What v1 does today
 
-[apps/web/src/components/command-palette.tsx](../../apps/web/src/components/command-palette.tsx) is a 28-line eager shell that listens for `⌘K` / `Ctrl+K`, gates render on `hasOpened`, and lazy-imports the dialog body.
+[apps/web/src/components/command-palette.tsx](../../../apps/web/src/components/command-palette.tsx) is a 28-line eager shell that listens for `⌘K` / `Ctrl+K`, gates render on `hasOpened`, and lazy-imports the dialog body.
 
-[apps/web/src/components/command-palette-dialog.tsx](../../apps/web/src/components/command-palette-dialog.tsx) renders the dialog with three static groups:
+[apps/web/src/components/command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) renders the dialog with three static groups:
 
 - **Pages** — Home, LoL, Steam.
 - **Accounts** — every `me.data.lol` Riot ID (gameName#tagLine).
 - **Current account** — Profile / Matches / Trends / Champions, only when path matches `/lol/<slug>`.
 
-Mounted once in [apps/web/src/routes/\_\_root.tsx:55](../../apps/web/src/routes/__root.tsx#L55). Footer carries a "Press ⌘K anywhere" hint, but only after the palette has already been opened — which is the wrong moment to discover the shortcut.
+Mounted once in [apps/web/src/routes/\_\_root.tsx:55](../../../apps/web/src/routes/__root.tsx#L55). Footer carries a "Press ⌘K anywhere" hint, but only after the palette has already been opened — which is the wrong moment to discover the shortcut.
 
 ## Goals (in priority order)
 
 1. **Make the shortcut discoverable from the chrome**, not from the dialog itself.
-2. **Make it the primary surface for filtering long match/champion lists** — the explicit handoff recorded in [project-history.md:93](./project-history.md#L93) and [vnext-ideas.md:235](./vnext-ideas.md#L235) when the sticky-controls bar was reverted.
+2. **Make it the primary surface for filtering long match/champion lists** — the explicit handoff recorded in [project-history.md:93](../project-history.md#L93) and [vnext-ideas.md:235](./vnext-ideas.md#L235) when the sticky-controls bar was reverted.
 3. **Find-anything inside the loaded match cache** — by champion, win/loss, queue, role, KDA threshold, patch, date range, duo.
-4. **Keep the eager shell slim.** The 7.75 kB lazy split documented in [docs/case-studies/frontend-perf.md:94-125](../case-studies/frontend-perf.md#L94-L125) is a feature; new scope must not migrate code into the eager shell.
+4. **Keep the eager shell slim.** The 7.75 kB lazy split documented in [docs/case-studies/frontend-perf.md:94-125](../../case-studies/frontend-perf.md#L94-L125) is a feature; new scope must not migrate code into the eager shell.
 
 ## Phased plan
 
@@ -29,8 +29,8 @@ Each phase is independently committable and fits one context window.
 
 Add a visible trigger so users learn the shortcut exists.
 
-- Render a `⌘K` / `Ctrl K` chip in [components/nav.tsx](../../apps/web/src/components/nav.tsx), right-aligned (after the page links, before the right edge). Clicking opens the palette.
-- Style the chip to match the existing `<CommandShortcut>` rendering in [command-palette-dialog.tsx:99-103](../../apps/web/src/components/command-palette-dialog.tsx#L99-L103) — `rounded border bg-muted/50 px-1.5 py-0.5` — so the chrome teaches the dialog's own visual language.
+- Render a `⌘K` / `Ctrl K` chip in [components/nav.tsx](../../../apps/web/src/components/nav.tsx), right-aligned (after the page links, before the right edge). Clicking opens the palette.
+- Style the chip to match the existing `<CommandShortcut>` rendering in [command-palette-dialog.tsx:99-103](../../../apps/web/src/components/command-palette-dialog.tsx#L99-L103) — `rounded border bg-muted/50 px-1.5 py-0.5` — so the chrome teaches the dialog's own visual language.
 - Platform-aware label: `⌘K` on macOS (`/Mac/i.test(navigator.platform)`), `Ctrl K` elsewhere. Compute once at module scope; the value is stable per session.
 - Wrap in a Radix `TooltipPrimitive` ("Open command palette") per the project's tooltip convention — never native `title=`.
 - `aria-label="Open command palette"` on the button; visible label is the keys themselves, which doubles as both affordance and instruction.
@@ -60,7 +60,7 @@ Promote freeform input to a small structured grammar. Three styles for one featu
 | `vs:` | `vs:khazix` | Matches where the lane opponent was Kha'Zix (uses `MatchSummary.laneOpponent.championName`) |
 | `queue:` | `queue:soloq` / `queue:flex` / `queue:aram` | Filter by queue |
 | `role:` | `role:jungle` | Filter by `MatchSummary.teamPosition` |
-| `patch:` | `patch:14.20` | Reuses [lol/_shared/patch-version.ts](../../apps/web/src/lol/_shared/patch-version.ts) `truncatePatch` |
+| `patch:` | `patch:14.20` | Reuses [lol/_shared/patch-version.ts](../../../apps/web/src/lol/_shared/patch-version.ts) `truncatePatch` |
 | `since:` / `until:` | `since:7d` | Relative or ISO date bounds |
 | `kda>` / `kda<` | `kda>4` | Threshold filter |
 | `duo:` | `duo:tagline#EUW` | Matches played with this duo (Phase 4 duo data already exists) |
@@ -103,7 +103,7 @@ Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the inp
   - *Alternate shapes if we do want one:* in-chip pulse animation on first session, a one-time tooltip auto-opened on the chip, a subtle keycap-press animation triggered after N seconds of inactivity. Each is a different point on the active↔passive axis.
   - *If we ship any variant:* gate behind a `localStorage` key, namespace per visitor (not per account), and ensure it never re-fires after dismissal.
 - **Result count cap.** Show top N per group with "+M more" footer, or scroll the whole list? Lean: cap at 8 per group, total scroll length stays bounded.
-- **Steam search.** Steam has games + playtime; the palette extension here is LoL-shaped. Worth a `with:` / `played:` parallel grammar for Steam? Track in [steam-integration.md](./steam-integration.md), not here.
+- **Steam search.** Steam has games + playtime; the palette extension here is LoL-shaped. Worth a `with:` / `played:` parallel grammar for Steam? Track in [steam-integration.md](../steam/steam-integration.md), not here.
 
 ## Acceptance criteria
 
@@ -115,8 +115,8 @@ Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the inp
 ## References
 
 - [docs/working-notes/vnext-ideas.md:114](./vnext-ideas.md#L114) — the original one-paragraph stub (replace with a pointer to this file when Phase A lands).
-- [docs/working-notes/project-history.md:93,277-279](./project-history.md#L93) — original ship + the explicit handoff from sticky-controls revert.
-- [docs/working-notes/archive/views-roadmap.md:192,219](./archive/views-roadmap.md#L192) — current routing into Profile.
-- [docs/case-studies/frontend-perf.md:94-125](../case-studies/frontend-perf.md#L94-L125) — lazy-load architecture; the perf budget the expansion must respect.
+- [docs/working-notes/project-history.md:93,277-279](../project-history.md#L93) — original ship + the explicit handoff from sticky-controls revert.
+- [docs/working-notes/archive/views-roadmap.md:192,219](../archive/views-roadmap.md#L192) — current routing into Profile.
+- [docs/case-studies/frontend-perf.md:94-125](../../case-studies/frontend-perf.md#L94-L125) — lazy-load architecture; the perf budget the expansion must respect.
 - [docs/working-notes/perf-baseline.md:16-18,30](./perf-baseline.md#L16-L18) — bundle ceilings.
 - Tooltip convention: project `CLAUDE.md` + `feedback_radix_tooltip` auto-memory.

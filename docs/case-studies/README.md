@@ -2,7 +2,7 @@
 
 Public-facing write-ups of shipped arcs. Freelance-positioning surface — each one tells one engineering story end-to-end (problem → constraints → approach → trade-offs → result).
 
-Companion to [working-notes/](../working-notes/) (planning surface, internal) and [repo-conventions.md](../repo-conventions.md) (portable rules). Case-study candidates are tracked in [working-notes/case-study-topics.md](../working-notes/case-study-topics.md).
+Companion to [working-notes/](../working-notes/) (planning surface, internal) and [repo-conventions.md](../repo-conventions.md) (portable rules). Case-study candidates are tracked in [working-notes/case-study-topics.md](../working-notes/cross-cutting/case-study-topics.md).
 
 ## Inventory
 

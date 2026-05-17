@@ -2,7 +2,7 @@
 
 **Status:** Shipped — archived 2026-05-17. All five chunks landed 2026-05-15: audit + frozen API (docs-only), primitive at `_shared/section-layout/` (3 files: `section-shell.tsx`, `section-shell-context.ts`, `use-tab-slide-direction.ts`), Steam migration (315 → ~210 lines), LoL migration (683 → ~545 lines), cleanup. Both routes now compose `<SectionShell>` with identity / actions / nav slots and read `compact` from context. Tabs stayed inline (per-section variation too wide to extract). When TFT lands it composes the same shell; if its tab markup matches Steam's uniformity, revisit a `<SectionTabs>` extraction then. See [archive/README.md](README.md).
 
-Trigger: Steam S4.5 Chunk C-1 surfaced that the LoL and Steam section layouts are converging on the same pattern, with significant duplicated logic between [routes/lol/$accountSlug.tsx](../../apps/web/src/routes/lol/$accountSlug.tsx) and [routes/steam.tsx](../../apps/web/src/routes/steam.tsx). A third section (TFT — warm queue, see [tft-integration.md](tft-integration.md)) would compound the duplication. The pattern is well-formed enough to extract.
+Trigger: Steam S4.5 Chunk C-1 surfaced that the LoL and Steam section layouts are converging on the same pattern, with significant duplicated logic between [routes/lol/$accountSlug.tsx](../../apps/web/src/routes/lol/$accountSlug.tsx) and [routes/steam.tsx](../../apps/web/src/routes/steam.tsx). A third section (TFT — warm queue, see [tft-integration.md](../tft/tft-integration.md)) would compound the duplication. The pattern is well-formed enough to extract.
 
 ## What's shared
 

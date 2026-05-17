@@ -10,7 +10,20 @@ Planning surface for vyoh.gg. Each file is one arc, one bug, one idea, or one re
 - **What's deliberately paused?** → [parked.md](parked.md)
 - **What's already shipped?** → [archive/](archive/) for fully-resolved notes; otherwise skim each active note's `**Status:**` line.
 - **Why is it the way it is?** → [project-history.md](project-history.md) (append-only ship log) or the relevant note's own decision log.
-- **Browse before scoping** → [vnext-ideas.md](vnext-ideas.md), [self-portrait-surfaces.md](self-portrait-surfaces.md), [lol-owner-data-features.md](lol-owner-data-features.md), [motion-backlog.md](motion-backlog.md), [library-shortlist.md](library-shortlist.md).
+- **Browse before scoping** → [vnext-ideas.md](cross-cutting/vnext-ideas.md), [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md), [lol-owner-data-features.md](lol/lol-owner-data-features.md), [motion-backlog.md](cross-cutting/motion-backlog.md), [library-shortlist.md](cross-cutting/library-shortlist.md).
+
+## Folder layout
+
+| Folder | Contents |
+|---|---|
+| [lol/](lol/) | LoL feature arcs and LoL-specific reference (match-depth, LP forecast, personal-baselines, image pipeline, Riot rate-limit investigation, etc.). |
+| [steam/](steam/) | Steam integration notes. |
+| [tft/](tft/) | TFT integration notes. |
+| [cross-cutting/](cross-cutting/) | Notes that span multiple streams or the app at large (vnext-ideas, self-portrait surfaces, command palette, motion backlog, library shortlist, perf baseline, case-study topics). |
+| [ops/](ops/) | Pre-deploy, auth, security, and structural concerns (hosting, owner-auth, security, folder-structure-cleanup). |
+| [archive/](archive/) | Fully-shipped notes whose planning detail is no longer load-bearing. |
+
+Stream singletons (currently `steam/` and `tft/` carry one note each) sit in their own folder so new notes land in the right place by default as the integration grows. The indexes ([open-work.md](open-work.md), [parked.md](parked.md)), this README, and [project-history.md](project-history.md) stay at the root.
 
 ## Status convention
 

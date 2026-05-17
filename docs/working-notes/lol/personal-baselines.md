@@ -1,6 +1,6 @@
 # Personal baselines — cross-cutting framing note
 
-**Status:** Active — PB1 (doc-pass) + PB2 (weakest-matchup) + PB3 (patch-drift) all shipped 2026-05-14. PB4 (cross-tile anomaly aggregator) deferred until at least 2–3 more personal-baseline tiles ship past the current set. See [open-work.md](open-work.md).
+**Status:** Active — PB1 (doc-pass) + PB2 (weakest-matchup) + PB3 (patch-drift) all shipped 2026-05-14. PB4 (cross-tile anomaly aggregator) deferred until at least 2–3 more personal-baseline tiles ship past the current set. See [open-work.md](../open-work.md).
 
 Most stats sites benchmark against a global player base (*"your damage share is in the top 30% of ADCs at your rank"*). Vyoh's distinctive frame is the inverse: **you-vs-you**. *"Your damage share on Vex is +6pp above your own ADC baseline."* This note tracks where the pattern already exists, where it could extend, and the framing decision behind it.
 
@@ -30,21 +30,21 @@ This note exists to make the pattern explicit so we apply it deliberately, not b
 
 | Surface | Personal-baseline form |
 |---|---|
-| [`trend-champion-focus.tsx`](../../apps/web/src/lol/trends/trend-champion-focus.tsx) | Top-3 share of your own games. |
-| [`trend-role-performance.tsx`](../../apps/web/src/lol/trends/trend-role-performance.tsx) | Each role's WR vs your overall, with the best/worst delta verdict. |
-| [`trend-worst-matchup.tsx`](../../apps/web/src/lol/trends/trend-worst-matchup.tsx) | Pair-level WR among your matchups, not global. |
-| [`trend-time-heatmap.tsx`](../../apps/web/src/lol/trends/trend-time-heatmap.tsx) | Your hour-of-week WR. |
-| [`trend-kda.tsx`](../../apps/web/src/lol/trends/trend-kda.tsx) | Your KDA trajectory over the window. |
-| [`trend-lp-economy.tsx`](../../apps/web/src/lol/trends/trend-lp-economy.tsx) | LP per game and accumulated, your data only. |
-| [`trend-session-fatigue.tsx`](../../apps/web/src/lol/trends/trend-session-fatigue.tsx) | Your WR by game-of-session. |
+| [`trend-champion-focus.tsx`](../../../apps/web/src/lol/trends/trend-champion-focus.tsx) | Top-3 share of your own games. |
+| [`trend-role-performance.tsx`](../../../apps/web/src/lol/trends/trend-role-performance.tsx) | Each role's WR vs your overall, with the best/worst delta verdict. |
+| [`trend-worst-matchup.tsx`](../../../apps/web/src/lol/trends/trend-worst-matchup.tsx) | Pair-level WR among your matchups, not global. |
+| [`trend-time-heatmap.tsx`](../../../apps/web/src/lol/trends/trend-time-heatmap.tsx) | Your hour-of-week WR. |
+| [`trend-kda.tsx`](../../../apps/web/src/lol/trends/trend-kda.tsx) | Your KDA trajectory over the window. |
+| [`trend-lp-economy.tsx`](../../../apps/web/src/lol/trends/trend-lp-economy.tsx) | LP per game and accumulated, your data only. |
+| [`trend-session-fatigue.tsx`](../../../apps/web/src/lol/trends/trend-session-fatigue.tsx) | Your WR by game-of-session. |
 | Champion detail delta tiles | Stats on this champion vs your own account average. |
 | Patch history strip on Champion detail | This patch vs your previous patch — your own data. |
 | LP history with streak overlay | Your snapshots only. |
 
 The only places that explicitly use a **non-personal** baseline:
 
-- [`role-baselines.ts`](../../apps/web/src/lol/_shared/role-baselines.ts) — static per-role damage-share and vision-score baselines (TOP 22%, JUNGLE 19%, MID 28%, BOT 30%, SUP 8%). Used by Phase T4 Phase-A trio (damage role consistency, vision investment, first-blood gold conversion). **These are role-population averages, not personal baselines.**
-- [`trend-comeback-resilience.tsx`](../../apps/web/src/lol/trends/trend-comeback-resilience.tsx) — compares the user's comeback rate to a fixed 30% reference.
+- [`role-baselines.ts`](../../../apps/web/src/lol/_shared/role-baselines.ts) — static per-role damage-share and vision-score baselines (TOP 22%, JUNGLE 19%, MID 28%, BOT 30%, SUP 8%). Used by Phase T4 Phase-A trio (damage role consistency, vision investment, first-blood gold conversion). **These are role-population averages, not personal baselines.**
+- [`trend-comeback-resilience.tsx`](../../../apps/web/src/lol/trends/trend-comeback-resilience.tsx) — compares the user's comeback rate to a fixed 30% reference.
 
 The role baselines are the principled exception. The user only has data on the role(s) they play; comparing their damage share to *their own damage share on the same role* would be vacuous. So we pull in a static baseline as the comparison surface — but the verdict still reads as "you vs the baseline for *your* role," not "you vs the world."
 
@@ -111,14 +111,14 @@ Codified labels: `personal`, `role-population`, `fixed-reference`. A typed `Base
 
 ### PB2 — Extend champion detail with personal-matchup verdict line — **shipped 2026-05-14**
 
-- Helper: [`apps/web/src/lol/champions/weakest-matchup.ts`](../../apps/web/src/lol/champions/weakest-matchup.ts) — `buildWeakestMatchup()` filters matchups to `games ≥ 5`, picks the min-WR pair, and returns `{ champion, games, wr, baselineWr, deltaPP }` against the per-champion baseline (sum of matchup wins ÷ sum of matchup games).
-- Render: [`$championKey.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a tone-tinted verdict line above the matchup grid: *"vs X — N% WR, Δpp below your B% baseline on this champion."* Warning tone when `deltaPP ≥ 15`, neutral otherwise. Suppressed entirely if no matchup meets the sample threshold.
+- Helper: [`apps/web/src/lol/champions/weakest-matchup.ts`](../../../apps/web/src/lol/champions/weakest-matchup.ts) — `buildWeakestMatchup()` filters matchups to `games ≥ 5`, picks the min-WR pair, and returns `{ champion, games, wr, baselineWr, deltaPP }` against the per-champion baseline (sum of matchup wins ÷ sum of matchup games).
+- Render: [`$championKey.tsx`](../../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a tone-tinted verdict line above the matchup grid: *"vs X — N% WR, Δpp below your B% baseline on this champion."* Warning tone when `deltaPP ≥ 15`, neutral otherwise. Suppressed entirely if no matchup meets the sample threshold.
 - Sample threshold of 5 matches the codified value in open question #1 (matchup-level needs ≥ 5 same-pair games).
 
 ### PB3 — Personal patch-drift verdict — **shipped 2026-05-14**
 
-- Helper: [`apps/web/src/lol/champions/patch-drift.ts`](../../apps/web/src/lol/champions/patch-drift.ts) — `buildPatchDrift()` groups all serious matches by patch (reusing `groupByPatch`), computes this-champion's share of total games on the latest two patches, and returns `{ currentPatch, previousPatch, currentShare, previousShare, currentChampGames, currentTotalGames, direction, relativeChangePct }` only when the drift is meaningful (both patches ≥ 5 total games; relative change ≥ 20% and absolute change ≥ 3pp).
-- Render: [`$championKey.tsx`](../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a neutral-tone verdict line above the patch-history strip: *"Up on patch 26.9 — 18% of your 28 games (vs 10% on 26.8). 5 games this patch."* Suppressed entirely when no drift is meaningful (the common case keeps the page quiet).
+- Helper: [`apps/web/src/lol/champions/patch-drift.ts`](../../../apps/web/src/lol/champions/patch-drift.ts) — `buildPatchDrift()` groups all serious matches by patch (reusing `groupByPatch`), computes this-champion's share of total games on the latest two patches, and returns `{ currentPatch, previousPatch, currentShare, previousShare, currentChampGames, currentTotalGames, direction, relativeChangePct }` only when the drift is meaningful (both patches ≥ 5 total games; relative change ≥ 20% and absolute change ≥ 3pp).
+- Render: [`$championKey.tsx`](../../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) renders a neutral-tone verdict line above the patch-history strip: *"Up on patch 26.9 — 18% of your 28 games (vs 10% on 26.8). 5 games this patch."* Suppressed entirely when no drift is meaningful (the common case keeps the page quiet).
 - Tone stays neutral: this is a behavior observation, not a performance verdict.
 
 ### PB4 — Cross-tile personal anomalies
@@ -152,7 +152,7 @@ A single `Compare to my rank` toggle on tiles that have a meaningful global base
 ## Connections to existing notes
 
 - [`app-state-analysis.md`](app-state-analysis.md) — the personal-baseline frame is the deeper version of "Champions is the only tab without a verdict."
-- [`vnext-ideas.md`](vnext-ideas.md) — PB2/PB3 belong as second-tier entries; PB4 is a top-tier "system notices something" candidate.
-- [`trends-rework.md`](archive/trends-rework.md) — establishes the verdict-pattern primitives all of this rides on.
-- [`case-study-topics.md`](case-study-topics.md) — *"a stats site where the user is the unit of analysis"* is a strong narrative for a write-up.
+- [`vnext-ideas.md`](../cross-cutting/vnext-ideas.md) — PB2/PB3 belong as second-tier entries; PB4 is a top-tier "system notices something" candidate.
+- [`trends-rework.md`](../archive/trends-rework.md) — establishes the verdict-pattern primitives all of this rides on.
+- [`case-study-topics.md`](../cross-cutting/case-study-topics.md) — *"a stats site where the user is the unit of analysis"* is a strong narrative for a write-up.
 - [`post-game-close-the-loop.md`](post-game-close-the-loop.md) — the post-game read leans heavily on personal baselines.

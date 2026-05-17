@@ -1,6 +1,6 @@
 # Match-detail section nav — roadmap
 
-**Status:** Active — MDN1–MDN4 shipped 2026-05-17; MDN5 (page-level tabs Recap/Your game/Timeline + scrollspy) scoped but not started, gated on queued owner-data section additions. See [open-work.md](open-work.md).
+**Status:** Active — MDN1–MDN4 shipped 2026-05-17; MDN5 (page-level tabs Recap/Your game/Timeline + scrollspy) scoped but not started, gated on queued owner-data section additions. See [open-work.md](../open-work.md).
 
 Read this when starting the arc, when scoping where the next owner-data feature lands, or before adding any new section to `MatchDetailView` (so it goes into the right tab from day one).
 
@@ -15,7 +15,7 @@ The fix is two-fold:
 1. **Tabs at the page level.** The match-detail page introduces its own tab bar — three tabs, not a content dump. Different from the section-level tab bar (Matches / Champions / Trends / Live) which is hidden on this route today and stays hidden.
 2. **Scrollspy inside any tab whose section count grows past ~3.** A second tier of navigation *within* a tab, not a second sticky chrome layer. Scrolls with content, highlights active section via IntersectionObserver.
 
-This explicitly does **not** introduce a fourth sticky chrome layer. The prior sticky per-view controls slot was reverted on 2026-05-10 because three stacked sticky layers (global nav + account header + sticky sub-controls) was structurally too heavy on a 1080p viewport ([vnext-ideas.md:235](vnext-ideas.md)). Match-detail tabs must live *inside* the existing sticky envelope (with the `ChampionStickyStrip` past the hero), not as a new tier.
+This explicitly does **not** introduce a fourth sticky chrome layer. The prior sticky per-view controls slot was reverted on 2026-05-10 because three stacked sticky layers (global nav + account header + sticky sub-controls) was structurally too heavy on a 1080p viewport ([vnext-ideas.md:235](../cross-cutting/vnext-ideas.md)). Match-detail tabs must live *inside* the existing sticky envelope (with the `ChampionStickyStrip` past the hero), not as a new tier.
 
 ---
 
@@ -154,7 +154,7 @@ No new sticky layer is introduced. The champion strip and the tab bar share the 
 
 ### Breadcrumb migration
 
-Currently `< Matches` replaces the section tab bar slot via `isMatchDetail` in `AccountLayout` (see [section-layout-extraction.md](archive/section-layout-extraction.md)). Moves to a slim row above the hero: `← Matches · Match {matchId}` or just `← Matches`. The section-tab-bar slot stays hidden on this route (the new match-detail tab bar is page-owned, not section-shell-owned).
+Currently `< Matches` replaces the section tab bar slot via `isMatchDetail` in `AccountLayout` (see [section-layout-extraction.md](../archive/section-layout-extraction.md)). Moves to a slim row above the hero: `← Matches · Match {matchId}` or just `← Matches`. The section-tab-bar slot stays hidden on this route (the new match-detail tab bar is page-owned, not section-shell-owned).
 
 ---
 
@@ -207,7 +207,7 @@ After the queued owner-data additions ship (spell casts / damage profile / CC ti
 
 ## Status
 
-- **2026-05-17** — arc scoped, Option A locked, working note written. Promoted to [open-work.md](open-work.md). Not started.
+- **2026-05-17** — arc scoped, Option A locked, working note written. Promoted to [open-work.md](../open-work.md). Not started.
 
 ---
 
@@ -216,5 +216,5 @@ After the queued owner-data additions ship (spell casts / damage profile / CC ti
 - [lol-owner-data-features.md](lol-owner-data-features.md) — the queued sections that motivate this arc; every new section there names its target tab here.
 - [post-game-close-the-loop.md](post-game-close-the-loop.md) — PG4 peer route, the separate surface this arc explicitly does not duplicate.
 - [match-depth-roadmap.md](match-depth-roadmap.md) — Phase E remainders (full rune page, composite S+ grade) land under "Your game" when picked up.
-- [section-layout-extraction.md](archive/section-layout-extraction.md) — `SectionShell` primitive whose section-tab-bar slot stays hidden on this route.
-- [vnext-ideas.md](vnext-ideas.md) line 235 — sticky per-view controls revert, the precedent for "no fourth sticky layer."
+- [section-layout-extraction.md](../archive/section-layout-extraction.md) — `SectionShell` primitive whose section-tab-bar slot stays hidden on this route.
+- [vnext-ideas.md](../cross-cutting/vnext-ideas.md) line 235 — sticky per-view controls revert, the precedent for "no fourth sticky layer."

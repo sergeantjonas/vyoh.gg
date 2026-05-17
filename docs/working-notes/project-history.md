@@ -31,7 +31,7 @@ Multi-account LoL dashboard with deep-linked accounts, infinite-scroll match his
 
 ### LoL image pipeline — bounded-CDN bundling (Phase 0 → 2)
 
-Three-phase fix for flaky runtime image delivery via wsrv.nl, shipped over a week. Working note: [lol-image-pipeline.md](./lol-image-pipeline.md). Case study: [bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md).
+Three-phase fix for flaky runtime image delivery via wsrv.nl, shipped over a week. Working note: [lol-image-pipeline.md](lol/lol-image-pipeline.md). Case study: [bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md).
 
 **Phase 0 — splash-resolver per-probe timeout (`fd0754e`).** `splash-resolver.ts`'s `probe()` had no deadline, so a hung wsrv.nl connection blocked the whole fallback chain. Added `DEFAULT_PROBE_TIMEOUT_MS = 2000`; worst case bounded to `candidates.length * timeoutMs`. ~15 LOC, stopped the user-visible hangs immediately, bought time for the architectural fix.
 

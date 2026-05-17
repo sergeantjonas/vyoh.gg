@@ -1,10 +1,10 @@
 # vyoh.gg — Trends-as-conclusions rework
 
-**Status:** Shipped — archived 2026-05-17. T1 + T2 + T3 (7 tiles) + T4 (Phase-A + Phase-B trios) all shipped by 2026-05-16. Decision log frozen at 2026-05-10. New trends tiles enter via [vnext-ideas.md](../vnext-ideas.md) or [personal-baselines.md](../personal-baselines.md), not here. See [archive/README.md](README.md).
+**Status:** Shipped — archived 2026-05-17. T1 + T2 + T3 (7 tiles) + T4 (Phase-A + Phase-B trios) all shipped by 2026-05-16. Decision log frozen at 2026-05-10. New trends tiles enter via [vnext-ideas.md](../cross-cutting/vnext-ideas.md) or [personal-baselines.md](../lol/personal-baselines.md), not here. See [archive/README.md](README.md).
 
 Working plan for reframing the Trends page from a "raw stats dashboard" into a "what should I improve?" briefing. Read this when working on any of: trends page layout, time-window selector for trends, conclusion-card visual pattern, profile/trends content split, or any new trends insight tile.
 
-This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. Companion to [archive/views-roadmap.md](views-roadmap.md) (which originally established the Profile/Champion-detail tracks) and [match-depth-roadmap.md](../match-depth-roadmap.md) (which informs the Phase T4 dependencies below).
+This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. Companion to [archive/views-roadmap.md](views-roadmap.md) (which originally established the Profile/Champion-detail tracks) and [match-depth-roadmap.md](../lol/match-depth-roadmap.md) (which informs the Phase T4 dependencies below).
 
 ---
 
@@ -177,7 +177,7 @@ This is the visual showoff project. The Trends page becomes a *briefing*. Each c
 
 **Layout:** magazine-style irregular grid, not a uniform 3-col. The headline briefing card spans full width at top. Below, cards flow at 1, 2, or 3 column widths based on content density. Use CSS grid `auto-fit` plus per-card explicit `grid-column` spans.
 
-**Layout primitive constraint (locked early to avoid rebuild):** the grid container and each `ConclusionCard` must wrap in `m.div` with the `layout` prop set, so when the user switches the range selector and cards re-derive their verdicts + sample sizes, the grid physically reflows with springs (cards may swap positions, change column-span, etc.). This is the **flagship motion moment for the trends page** and is documented in [vnext-ideas.md](vnext-ideas.md). Pin the layout system to `LazyMotion domMax` + Motion `layout` from day one of T2 — switching layout primitives later is expensive.
+**Layout primitive constraint (locked early to avoid rebuild):** the grid container and each `ConclusionCard` must wrap in `m.div` with the `layout` prop set, so when the user switches the range selector and cards re-derive their verdicts + sample sizes, the grid physically reflows with springs (cards may swap positions, change column-span, etc.). This is the **flagship motion moment for the trends page** and is documented in [vnext-ideas.md](../cross-cutting/vnext-ideas.md). Pin the layout system to `LazyMotion domMax` + Motion `layout` from day one of T2 — switching layout primitives later is expensive.
 
 **Motion direction (Phase T2 + T3):**
 
@@ -236,7 +236,7 @@ This is the visual showoff project. The Trends page becomes a *briefing*. Each c
 
 ### Deliverables
 
-1. **`ConclusionCard` primitive.** New component at `apps/web/src/lol/trends/_shared/conclusion-card.tsx`. Slots: `title`, `sampleSize`, `verdict` (also `verdictMarkdown` for export), `evidence`, `prescription?` (also `prescriptionMarkdown?`). Encapsulates the visual anatomy from "Visual design principles." The markdown variants exist so the **weekly digest as markdown export** (vNext top tier, see [vnext-ideas.md](vnext-ideas.md)) can consume the same `summarize(stats): {...}` output that the cards consume — no parallel parser, no copy drift.
+1. **`ConclusionCard` primitive.** New component at `apps/web/src/lol/trends/_shared/conclusion-card.tsx`. Slots: `title`, `sampleSize`, `verdict` (also `verdictMarkdown` for export), `evidence`, `prescription?` (also `prescriptionMarkdown?`). Encapsulates the visual anatomy from "Visual design principles." The markdown variants exist so the **weekly digest as markdown export** (vNext top tier, see [vnext-ideas.md](../cross-cutting/vnext-ideas.md)) can consume the same `summarize(stats): {...}` output that the cards consume — no parallel parser, no copy drift.
 2. **`SampleSizeBadge` primitive.** New component, partial-circle visualization. Empty / partial / full based on game count thresholds (<10 = empty, 10–30 = half, 30+ = full). One short label inside. **The badge primitive must land in T2 so all retrofitted tiles use it consistently.** The animated draw-on-mount fill is a T3-tier polish item — primitive ships static in T2, gains the fill animation in T3.
 3. **Two-window comparison plumbing.** Real implementation of `useTrendsWindows(rangeId)` returning `{ current, previous }` slices. Trends route now fetches enough match history to populate previous-window for the longest range (need ~2× max-range games — re-evaluate cache TTL on `MatchWindowContext` since trends' needs differ from Matches').
 4. **Retrofit existing tiles to ConclusionCard.**
@@ -334,7 +334,7 @@ Note: T3.5 (worst matchup) and T3.7 (role performance) both depend on `MatchSumm
 
 ## Phase T4 — Match-depth-dependent insights (later)
 
-**Goal:** Insight tiles that require the extended DTO from [match-depth-roadmap.md](match-depth-roadmap.md) Phase A or Phase B. Listed here so the dependency graph is clear.
+**Goal:** Insight tiles that require the extended DTO from [match-depth-roadmap.md](../lol/match-depth-roadmap.md) Phase A or Phase B. Listed here so the dependency graph is clear.
 
 ### Phase A dependencies (extended `ParticipantDetail`)
 
@@ -431,8 +431,8 @@ Each of these is a candidate for a long-form case study (one of the README's fir
 - **2026-05-09** — sample-size badge thresholds confirmed: <10 = empty (directional only), 10–30 = half, 30+ = full (confident). Tunable after dogfooding.
 - **2026-05-09** — Champion focus + pool entropy merged into a single tile. Pool entropy moves to Trends in T1, gets a standalone retrofit in T2 as an interim, then subsumed by the merged Champion-focus tile in T3.4 (delete the standalone when T3.4 ships).
 - **2026-05-09** — Worst-matchup tile hardcoded to ranked queues (lane positions are absent in ARAM/Arena). Renders a small "ranked only" badge on the card. No queue toggle.
-- **2026-05-09** — `summarize(stats)` per-tile pattern extended to also produce `{ verdictMarkdown, prescriptionMarkdown? }`. Lets the **weekly digest as markdown export** (vNext top tier) consume the same source as the UI — no parallel parser. Decision sourced from [vnext-ideas.md](vnext-ideas.md).
-- **2026-05-09** — Magazine grid pinned to `LazyMotion domMax` + `m.div layout` from day one of T2. Range-change reflow is the flagship motion moment for the rework — switching layout primitives later would be expensive. Decision sourced from [vnext-ideas.md](vnext-ideas.md).
+- **2026-05-09** — `summarize(stats)` per-tile pattern extended to also produce `{ verdictMarkdown, prescriptionMarkdown? }`. Lets the **weekly digest as markdown export** (vNext top tier) consume the same source as the UI — no parallel parser. Decision sourced from [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
+- **2026-05-09** — Magazine grid pinned to `LazyMotion domMax` + `m.div layout` from day one of T2. Range-change reflow is the flagship motion moment for the rework — switching layout primitives later would be expensive. Decision sourced from [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
 - **2026-05-09** — `SampleSizeBadge` primitive lands in T2 (static); fill-on-mount animation lifted to T3 polish so all T2 retrofits use the badge consistently.
 - **2026-05-09** — T3 shipped (five tiles). All grid tiles now always render a `ConclusionCard` — no null returns that leave empty grid cells; insufficient-data paths show a muted empty-state verdict instead. `SampleSizeBadge` tooltip migrated from native `title=` to Radix `TooltipPrimitive`. Percentage-point deltas use `%` not `pp` in all verdict strings.
 - **2026-05-09** — T3.5 (worst matchup callouts) deferred: `MatchSummary` has no opponent data. `laneOpponent` is added to `MatchSummary` in match-depth Phase A — T3.5 unblocks the moment that ships.

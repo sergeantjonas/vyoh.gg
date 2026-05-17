@@ -1,6 +1,6 @@
 # Folder structure cleanup — 2026-05-14
 
-**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 conditional (Steam subfoldering revisited at S4.5 re-look; cross-domain `_assets/` only if TFT lands). Tracked under "Adjacent maintenance" in [open-work.md](open-work.md).
+**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 conditional (Steam subfoldering revisited at S4.5 re-look; cross-domain `_assets/` only if TFT lands). Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goal: identify cleanliness wins that can ride between content arcs without disrupting active work. **No code changes proposed mid-arc** — this note exists so the cleanup can be picked up cold when timing fits.
 
@@ -8,8 +8,8 @@ Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goa
 
 The repo is structurally sound. Naming is consistent (kebab-case across both apps), no cross-stream leakage (the "Steam under /steam, LoL under /lol" rule holds), no orphan files, no migration sprawl. Two real targets stand out:
 
-1. [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/) has grown to **37 files** — supply-closet pattern. Clear taxonomy exists; split is mechanical.
-2. [apps/api/src/lol/lol.service.ts](../../apps/api/src/lol/lol.service.ts) is **1,308 LOC / 21 public methods** across 5 cohesive responsibility groups. One extraction (analytics) is clean and earns testability.
+1. [apps/web/src/lol/_shared/](../../../apps/web/src/lol/_shared/) has grown to **37 files** — supply-closet pattern. Clear taxonomy exists; split is mechanical.
+2. [apps/api/src/lol/lol.service.ts](../../../apps/api/src/lol/lol.service.ts) is **1,308 LOC / 21 public methods** across 5 cohesive responsibility groups. One extraction (analytics) is clean and earns testability.
 
 Everything else (Steam folder shape, asset-manifest duplication, cross-domain `_shared`) is **decision-deferred until later milestones**, not actionable now.
 
@@ -53,13 +53,13 @@ Single PR. No behavior change. Verified with `tokf err pnpm run typecheck:cc` af
 1. **Alias-only sed is insufficient.** One file (`apps/web/src/lol/champions/champion-patch-history.tsx`) used a relative `../_shared/patch-version` import that the alias-rewrite missed; typecheck caught it but only after the bucket commit landed. Pre-screen *both* `@/lol/_shared/<name>` *and* `\.\./_shared/<name>` before each bucket from now on.
 2. **Biome ci wasn't part of the per-bucket loop.** Path-string changes shuffled alphabetical import order and grew some lines past Biome's wrap threshold (16 files needed re-org/re-wrap, plus one residual line from Chunk 2's `lol.controller.ts` that snuck through). Single closing `chore:` commit applied `check:fix:cc`. For the asset-bucket pivot, run `tokf err pnpm run check:cc` once at the end (not per bucket) and absorb the format-only fix-ups into a single trailing commit.
 
-Final state of [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/): 6 new bucket subfolders (`account/`, `analytics/`, `patch/`, `queue/`, `serious-queues/`, `ui/`) plus the deferred 13 asset-adjacent files at the root (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`).
+Final state of [apps/web/src/lol/_shared/](../../../apps/web/src/lol/_shared/): 6 new bucket subfolders (`account/`, `analytics/`, `patch/`, `queue/`, `serious-queues/`, `ui/`) plus the deferred 13 asset-adjacent files at the root (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`).
 
-**Asset-bucket follow-up shipped 2026-05-16** as part of [lol-image-pipeline.md](lol-image-pipeline.md) Phase 4 Chunk 3. The 13 deferred files resolved to: 5 deleted entirely (`asset-manifest` + test, `manifest.gen`, `splash-resolver` + test), 10 moved into `_shared/assets/` (`champion-icon` rewritten as thin proxy-URL builders; the rest kept their behavior). Single trailing biome-format commit absorbed the path-string wrap shuffles, per the lesson recorded above.
+**Asset-bucket follow-up shipped 2026-05-16** as part of [lol-image-pipeline.md](../lol/lol-image-pipeline.md) Phase 4 Chunk 3. The 13 deferred files resolved to: 5 deleted entirely (`asset-manifest` + test, `manifest.gen`, `splash-resolver` + test), 10 moved into `_shared/assets/` (`champion-icon` rewritten as thin proxy-URL builders; the rest kept their behavior). Single trailing biome-format commit absorbed the path-string wrap shuffles, per the lesson recorded above.
 
 ### Chunk 2 — extract `lol-analytics.service.ts` (shipped 2026-05-14)
 
-Scope: 5 methods + their private helpers move to a new file alongside [apps/api/src/lol/lol.service.ts](../../apps/api/src/lol/lol.service.ts). Add to `LolModule` providers. Controller methods that currently call `this.lolService.getDuos(...)` etc. switch to `this.lolAnalyticsService.getDuos(...)`.
+Scope: 5 methods + their private helpers move to a new file alongside [apps/api/src/lol/lol.service.ts](../../../apps/api/src/lol/lol.service.ts). Add to `LolModule` providers. Controller methods that currently call `this.lolService.getDuos(...)` etc. switch to `this.lolAnalyticsService.getDuos(...)`.
 
 Risk: the analytics methods pull from `this.prisma` and a `summoner` lookup helper that's duplicated inline across most methods (every analytics method starts with `summoner = await this.prisma.lolSummoner.findUnique({ where: { gameName_tagLine_region: ... } })`). Worth noting but **not in scope** — extracting that helper is its own pass.
 
@@ -81,8 +81,8 @@ Scope: hoisting the asset-manifest pattern out of `lol/_shared/` and `steam/_sha
 
 **Best slot: post-Steam S3 ship, before Steam S4 starts.** The S4.5 (navigation + visual baseline) phase inserted on 2026-05-14 doesn't shift this window — S4 substrate is API/data-layer-only and S4.5 is entirely Steam-side, so both downstream phases are equally valid boundaries. Three constraints govern this:
 
-1. **Asset-pipeline pivot is the bottleneck.** [lol-image-pipeline.md](lol-image-pipeline.md) is sequenced after Steam S5; the `_shared/assets/` and `_shared/assets/manifest/` buckets will be reworked when the runtime-proxy pivot lands. Splitting them now means doing the same split twice. The plan above already defers them — but if Steam S5 ships and the pivot is still queued, hold Chunk 1's assets sub-split until the pivot is the next thing in line, then bundle them.
-2. **Steam S3 shipped 2026-05-14.** No parallel arc active at write-time of this update — no merge-conflict risk on `lol/_shared/`. (Original framing was "S3 is mid-flight"; updating in place rather than rewriting history.) Steam fact-card lives in [steam/_shared/fact-card.tsx](../../apps/web/src/steam/_shared/fact-card.tsx); the LoL split shouldn't reach across the boundary regardless.
+1. **Asset-pipeline pivot is the bottleneck.** [lol-image-pipeline.md](../lol/lol-image-pipeline.md) is sequenced after Steam S5; the `_shared/assets/` and `_shared/assets/manifest/` buckets will be reworked when the runtime-proxy pivot lands. Splitting them now means doing the same split twice. The plan above already defers them — but if Steam S5 ships and the pivot is still queued, hold Chunk 1's assets sub-split until the pivot is the next thing in line, then bundle them.
+2. **Steam S3 shipped 2026-05-14.** No parallel arc active at write-time of this update — no merge-conflict risk on `lol/_shared/`. (Original framing was "S3 is mid-flight"; updating in place rather than rewriting history.) Steam fact-card lives in [steam/_shared/fact-card.tsx](../../../apps/web/src/steam/_shared/fact-card.tsx); the LoL split shouldn't reach across the boundary regardless.
 3. **Stack-rank against open-work.md.** This is a tidy-up pass, not a content arc. It belongs in the "Adjacent maintenance" lane alongside the host-Chrome re-measure and CodeQL evaluation, not in "Tracked arcs". Take it when there's a content-arc lull or a session that's too short for an arc but too long for a one-shot.
 
 **Don't pick up if:**
@@ -104,4 +104,4 @@ Scope: hoisting the asset-manifest pattern out of `lol/_shared/` and `steam/_sha
 - Test-layout changes — co-located `.spec.ts` / `.test.ts` is consistent and good.
 - Migration cleanup — schema history is sound.
 - `packages/shared/` reorg — already cleanly split by domain.
-- Anything touching [apps/api/src/riot/](../../apps/api/src/riot/) — correctly positioned as shared plumbing.
+- Anything touching [apps/api/src/riot/](../../../apps/api/src/riot/) — correctly positioned as shared plumbing.

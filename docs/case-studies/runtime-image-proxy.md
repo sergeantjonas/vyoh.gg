@@ -68,7 +68,7 @@ What this collapses, by deletion:
 
 **Chunk 2 — Steam switch + bundled cleanup.** Flipped every Steam URL helper to a proxy URL. Generalized the upstream resolver to take `urls: string[]` and a `fetchUpstreamChain` that tries each in order — first 2xx wins. Caller stops needing the two-source `<img onError>` state machine that lived on the backdrop component. Deleted the bundled Steam infrastructure in the same commit. `TranscodeParams` gained `height` + `fit` so the 231×87 capsule can cover-crop from `header.jpg` instead of returning a 600×900 portrait squashed into 231 pixels (this caught a latent bug from chunk 1 — see surprises).
 
-**Chunk 3 — LoL switch + bundled cleanup + folded-in folder reorg.** Flipped every LoL URL helper. Deleted everything bundled. Folded in a deferred `_shared/assets/` bucket split from [folder-structure-cleanup.md](../working-notes/folder-structure-cleanup.md) Chunk 1, because the 13 deferred files were exactly the files this chunk was rewriting or deleting. Result: 10 surviving files moved into `_shared/assets/`, 5 deleted entirely. The split's pre-screen lesson (check both `@/lol/_shared/<X>` *and* relative `../_shared/<X>` import patterns) was carried forward — zero stragglers, single trailing biome-format commit absorbed the path-string wrap diffs. Net diff: +330 / −11,883 lines.
+**Chunk 3 — LoL switch + bundled cleanup + folded-in folder reorg.** Flipped every LoL URL helper. Deleted everything bundled. Folded in a deferred `_shared/assets/` bucket split from [folder-structure-cleanup.md](../working-notes/ops/folder-structure-cleanup.md) Chunk 1, because the 13 deferred files were exactly the files this chunk was rewriting or deleting. Result: 10 surviving files moved into `_shared/assets/`, 5 deleted entirely. The split's pre-screen lesson (check both `@/lol/_shared/<X>` *and* relative `../_shared/<X>` import patterns) was carried forward — zero stragglers, single trailing biome-format commit absorbed the path-string wrap diffs. Net diff: +330 / −11,883 lines.
 
 ## What worked
 
@@ -96,7 +96,7 @@ What this collapses, by deletion:
 
 ## Open questions and deferrals
 
-**Nginx `proxy_cache`, stale-while-revalidate, and the LRU ceiling** are all deferred to the [pre-launch hosting sweep](../working-notes/hosting.md). The proxy ships fine without them; browser HTTP cache covers repeat views by the same user, and the working set is small (~200 MB across both streams at full coverage). `proxy_cache_use_stale error timeout updating` is the right shape — serve stale bytes when upstream is flaky, refresh in the background. The 2 GB ceiling is 10× headroom over working set, low monitoring burden. Adding these is pure deployment config, not a code change.
+**Nginx `proxy_cache`, stale-while-revalidate, and the LRU ceiling** are all deferred to the [pre-launch hosting sweep](../working-notes/ops/hosting.md). The proxy ships fine without them; browser HTTP cache covers repeat views by the same user, and the working set is small (~200 MB across both streams at full coverage). `proxy_cache_use_stale error timeout updating` is the right shape — serve stale bytes when upstream is flaky, refresh in the background. The 2 GB ceiling is 10× headroom over working set, low monitoring burden. Adding these is pure deployment config, not a code change.
 
 **CDN fronting (Cloudflare or similar).** Decide alongside the hosting commitment. If the topology supports it, an edge cache in front of the proxy moves the cache-hit boundary global. Today's leaning is single-host Hetzner with Nginx in front; whether to add a CDN layer depends on whether portfolio traffic ever shows up.
 
@@ -135,7 +135,7 @@ The bundled write-up was the right shape for "here's the fix we shipped." This w
 ## Connections
 
 - [bundling-the-bounded-cdn.md](./bundling-the-bounded-cdn.md) — the prior architecture this supersedes. Read for the original three-phase arc; the assumptions that earned it ("biweekly patches, bounded asset universe") are the same ones that aged out when Steam landed.
-- [lol-image-pipeline.md](../working-notes/lol-image-pipeline.md) — working note, Phase 4 section + build log. Raw material for this write-up; chunk-level decisions and surprises live there in higher detail.
-- [folder-structure-cleanup.md](../working-notes/folder-structure-cleanup.md) — the deferred asset-bucket split folded into chunk 3 of this arc. Shows up here because deletion-driven reorgs are cheaper than introduction-driven ones.
-- [hosting.md](../working-notes/hosting.md) — where Nginx `proxy_cache`, CDN fronting, and the LRU ceiling decisions land at the pre-launch sweep.
+- [lol-image-pipeline.md](../working-notes/lol/lol-image-pipeline.md) — working note, Phase 4 section + build log. Raw material for this write-up; chunk-level decisions and surprises live there in higher detail.
+- [folder-structure-cleanup.md](../working-notes/ops/folder-structure-cleanup.md) — the deferred asset-bucket split folded into chunk 3 of this arc. Shows up here because deletion-driven reorgs are cheaper than introduction-driven ones.
+- [hosting.md](../working-notes/ops/hosting.md) — where Nginx `proxy_cache`, CDN fronting, and the LRU ceiling decisions land at the pre-launch sweep.
 - [frontend-perf.md](./frontend-perf.md) — broader frontend perf arc this fits into.

@@ -1,8 +1,8 @@
 # vyoh.gg — vNext ideas (post-current-roadmaps)
 
-**Status:** Reference — idea backlog. Items promote out of here into their own working note (with a tracked entry in [open-work.md](open-work.md)) when they become real arcs. Browse when picking the next big visible-payoff feature.
+**Status:** Reference — idea backlog. Items promote out of here into their own working note (with a tracked entry in [open-work.md](../open-work.md)) when they become real arcs. Browse when picking the next big visible-payoff feature.
 
-Ideas that surface *after* the three active roadmaps land — [match-depth-roadmap.md](match-depth-roadmap.md), and the now-shipped [archive/views-roadmap.md](archive/views-roadmap.md) + [archive/trends-rework.md](archive/trends-rework.md). Read this when looking for "what's next after the planned work" or when picking the next big arc.
+Ideas that surface *after* the three active roadmaps land — [match-depth-roadmap.md](../lol/match-depth-roadmap.md), and the now-shipped [archive/views-roadmap.md](../archive/views-roadmap.md) + [archive/trends-rework.md](../archive/trends-rework.md). Read this when looking for "what's next after the planned work" or when picking the next big arc.
 
 This doc is intentionally a backlog, not a phased plan. Items are categorized and prioritized by visible-payoff vs. invisible-foundation. The owner has been clear about prioritizing **eye-catching, demoable** work — anything that shows up in a screenshot, animation, or shared link beats anything that lives in CI logs.
 
@@ -25,7 +25,7 @@ This is a backlog. Bands set the search order, not commitment:
 
 ### LoL surfaces
 
-**Duo / squad detection.** ⚠️ v1 shipped 2026-05-10 (top recurring teammates with W-L + most-played champion); cross-team champion synergy chord shipped 2026-05-11. Squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, and match-list duo highlight remain — tracked in [match-depth-roadmap.md](match-depth-roadmap.md) Phase D under [open-work.md](open-work.md). Original framing retained: we see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
+**Duo / squad detection.** ⚠️ v1 shipped 2026-05-10 (top recurring teammates with W-L + most-played champion); cross-team champion synergy chord shipped 2026-05-11. Squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, and match-list duo highlight remain — tracked in [match-depth-roadmap.md](../lol/match-depth-roadmap.md) Phase D under [open-work.md](../open-work.md). Original framing retained: we see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
 
 **Pre-game ritual widget.** ✅ Shipped 2026-05-10 as a Profile section (`profile-pregame-ritual.tsx`) between live chip and recent form: form, after-last-game tilt, current-hour slot WR, top recent champion. Original framing: glanceable card before queueing — small focused surface (peer route, modal, or Profile section). Best embodiment of the "calm coaching" tonal bet.
 
@@ -39,13 +39,13 @@ This is a backlog. Bands set the search order, not commitment:
 
 **"Same day, last year."** Time-machine card on Profile — what were you playing exactly 365 days ago. Cheap to implement once historical backfill is complete; emotional payoff disproportionate to effort.
 
-**Post-game close-the-loop surface.** ✅ PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG4 (peer-route post-game artifact) deferred to v2. See [post-game-close-the-loop.md](post-game-close-the-loop.md). The after-game counterpart to Pregame Ritual; reuses every primitive that already exists (`ConclusionCard`, `RitualSignal`, SSE invalidation). Strongest single visible-payoff move on the board and the cleanest case-study candidate.
+**Post-game close-the-loop surface.** ✅ PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG4 (peer-route post-game artifact) deferred to v2. See [post-game-close-the-loop.md](../lol/post-game-close-the-loop.md). The after-game counterpart to Pregame Ritual; reuses every primitive that already exists (`ConclusionCard`, `RitualSignal`, SSE invalidation). Strongest single visible-payoff move on the board and the cleanest case-study candidate.
 
-**Composite LP forecast tile.** ✅ Phase LP1 (directional verdict) shipped; Phase LP2 (confidence calibration) is data-gated, tracked in [open-work.md](open-work.md). See [lp-forecast.md](lp-forecast.md). Composes the four Pregame Ritual signals into a single verdict + confidence. LP3 (personal linear fit) remains data-blocked until LP-history snapshots accumulate.
+**Composite LP forecast tile.** ✅ Phase LP1 (directional verdict) shipped; Phase LP2 (confidence calibration) is data-gated, tracked in [open-work.md](../open-work.md). See [lp-forecast.md](../lol/lp-forecast.md). Composes the four Pregame Ritual signals into a single verdict + confidence. LP3 (personal linear fit) remains data-blocked until LP-history snapshots accumulate.
 
 **Match annotations.** A 1-line note attached to a game ("tilted, ff15", "great teamfight", "should've banned Yasuo"). Personal, optional, locally-stored or sync-backed. Builds a personal review system over time and unlocks the "let me reread my notes from when I was climbing last season" use case. Strong "this is a real personal app" signal that op.gg/u.gg structurally cannot replicate. Cheap backend (a single nullable `note` field on Match, or a separate `MatchAnnotation` table if we want history). Surfaces on match-row hover, match-detail header, and optionally as a searchable index on Profile. Combines naturally with the post-game close-the-loop card — the read fires the verdict, the user pins their own note next to it.
 
-**Patch-aware champion memory.** ✅ Shipped 2026-05-14 as PB3 (patch-drift verdict). See [personal-baselines.md](personal-baselines.md). Original framing: *"Last time you played Vex, the patch was 14.18 — she got Q-CD reduced in 14.19; you went 4-1 in 14.18 and 1-5 since."* Surfaces the deltas as a `ConclusionCard` framing on Champion detail, not just a chip on the patch row. Low complexity, no new data, high reward — patch awareness is severely underutilized signal across the genre.
+**Patch-aware champion memory.** ✅ Shipped 2026-05-14 as PB3 (patch-drift verdict). See [personal-baselines.md](../lol/personal-baselines.md). Original framing: *"Last time you played Vex, the patch was 14.18 — she got Q-CD reduced in 14.19; you went 4-1 in 14.18 and 1-5 since."* Surfaces the deltas as a `ConclusionCard` framing on Champion detail, not just a chip on the patch row. Low complexity, no new data, high reward — patch awareness is severely underutilized signal across the genre.
 
 ### Self-portrait surfaces
 
@@ -55,9 +55,9 @@ This is a backlog. Bands set the search order, not commitment:
 
 **Magazine-grid reflow on Trends range change.** ✅ Shipped 2026-05-10 as part of trends-rework: priority-band sort with insufficient-data tiles drifting to the bottom, verdict cross-fade in `ConclusionCard` via `AnimatePresence mode="popLayout"`, sample-size badge `pathLength` draw on count change. Original framing: when the user switches "30d ↔ 7d" on the trends selector, each `ConclusionCard` re-derives its verdict + chart. Use Motion's `layout` prop on the grid so cards flow physically into new positions, with verdicts cross-fading. Flagship motion moment for the rework — "my trends respond to my question."
 
-**Kill strip ↔ minimap morph.** ✅ Shipped as part of match-depth Phase B (see [match-depth-roadmap.md](match-depth-roadmap.md)). Original framing: linear strip of dots → rect-based morph onto a Rift SVG, dots travel to their `position.x/y`. Best motion-storytelling moment in the app.
+**Kill strip ↔ minimap morph.** ✅ Shipped as part of match-depth Phase B (see [match-depth-roadmap.md](../lol/match-depth-roadmap.md)). Original framing: linear strip of dots → rect-based morph onto a Rift SVG, dots travel to their `position.x/y`. Best motion-storytelling moment in the app.
 
-**Build-order items emerging on a time axis.** ✅ Shipped as part of match-depth Phase B (see [match-depth-roadmap.md](match-depth-roadmap.md)). Original framing: items "drop into" their timestamps with springs, faint connector line draws to the gold-lead chart at the matching timestamp. Cross-chart visual lockstep.
+**Build-order items emerging on a time axis.** ✅ Shipped as part of match-depth Phase B (see [match-depth-roadmap.md](../lol/match-depth-roadmap.md)). Original framing: items "drop into" their timestamps with springs, faint connector line draws to the gold-lead chart at the matching timestamp. Cross-chart visual lockstep.
 
 **Live game minute pulse.** The Live page timer pulses one cycle each minute boundary; champion icons get a near-imperceptible scale-bob synced to game time. Page feels alive without being noisy.
 
@@ -99,7 +99,7 @@ Before the library suggestions below pull anyone in a different direction: **Mot
 
 ### Server-driven & shareable artifacts
 
-**Server-side live-game polling.** ✅ Shipped 2026-05-10 as match-depth Phase C. `LiveGamePollerService` polls Spectator-V5 server-side; SSE emits transitions via the existing `MatchEventsService`. "Live now" chip on Profile renders even when the account isn't currently viewed. See [match-depth-roadmap.md](match-depth-roadmap.md).
+**Server-side live-game polling.** ✅ Shipped 2026-05-10 as match-depth Phase C. `LiveGamePollerService` polls Spectator-V5 server-side; SSE emits transitions via the existing `MatchEventsService`. "Live now" chip on Profile renders even when the account isn't currently viewed. See [match-depth-roadmap.md](../lol/match-depth-roadmap.md).
 
 **Weekly digest as markdown export.** Each week, auto-generate a markdown post from Trends conclusions. Personal log + portfolio fodder; case-study material. Low complexity given conclusion data is already structured by the trends rework.
 
@@ -113,7 +113,7 @@ Before the library suggestions below pull anyone in a different direction: **Mot
 
 ### LoL surfaces
 
-**Cmd+K palette extension.** ✅ Promoted 2026-05-17 to [command-palette.md](./command-palette.md); v1 shipped, Phases A–E ahead and tracked in [open-work.md](./open-work.md). Original framing retained for context: extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold; absorb the "change view scope from deep scroll" use case handed off when sticky controls were reverted.
+**Cmd+K palette extension.** ✅ Promoted 2026-05-17 to [command-palette.md](./command-palette.md); v1 shipped, Phases A–E ahead and tracked in [open-work.md](../open-work.md). Original framing retained for context: extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold; absorb the "change view scope from deep scroll" use case handed off when sticky controls were reverted.
 
 **Goal setting + projection.** "Reach Diamond by July." Show projected ETA based on current LP/day velocity. Honest projection — variance shown, not a single number.
 
@@ -151,7 +151,7 @@ The things that don't land in screenshots but matter long-term. Cherry-pick when
 
 ### Observability
 
-**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing `reportWebVitals` import in [main.tsx](../../apps/web/src/main.tsx) is the entry point; currently unused. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
+**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing `reportWebVitals` import in [main.tsx](../../../apps/web/src/main.tsx) is the entry point; currently unused. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
 
 **Bundle size budgets in CI.** Per-route chunk thresholds, CI fails the PR if exceeded. Cheap to wire; portfolio-credible perf evidence.
 
@@ -194,7 +194,7 @@ These are off the table for the foreseeable future. Listed so they don't quietly
 
 ## Cross-references — what to reflect in the active roadmaps
 
-So later phases don't undo earlier work, the following changes need to flow back into [match-depth-roadmap.md](match-depth-roadmap.md) and [trends-rework.md](archive/trends-rework.md):
+So later phases don't undo earlier work, the following changes need to flow back into [match-depth-roadmap.md](../lol/match-depth-roadmap.md) and [trends-rework.md](../archive/trends-rework.md):
 
 ### match-depth-roadmap.md
 
@@ -241,8 +241,8 @@ If asked tomorrow "what's the next arc after the documented roadmaps land," in p
 - **2026-05-11** — Death-matchup heatmap design note: shipped as **minute × matchup grid** (Champion detail), not as position-on-Rift-map. Cleaner scope (no backend changes needed — reads `deathTimings` and `laneOpponent.championName` from `MatchSummary`) and a stronger fit for the matchup-comparison story. Position-based heatmap on the Rift map (originally framed as D.1) is now paired with the op.gg-style overlay (Phase E) — both need event x/y projected onto MatchSummary and are best built together. See match-depth-roadmap.md.
 - **2026-05-11** — `.tanstack/` scratch dir added to `.gitignore` (generated by `@tanstack/router-plugin/vite` for route-tree generation, was untracked but visible in working tree).
 - **2026-05-13** — three items promoted to tracked working notes:
-  - **Post-game close-the-loop** → [post-game-close-the-loop.md](post-game-close-the-loop.md). Promoted because it's the highest-payoff missing surface in the LoL section and the cleanest case-study candidate currently in the backlog.
-  - **Composite LP forecast** → [lp-forecast.md](lp-forecast.md). Promoted because the confidence-model decision (naive vs. personal linear fit) is non-trivial and benefits from being thought through before implementation.
-  - **Personal-baselines framing** → [personal-baselines.md](personal-baselines.md). Promoted from implicit pattern to explicit design principle. The "you-vs-you" framing is what makes the verdict pattern land; documenting it prevents drift toward global-percentile defaults in future tiles.
+  - **Post-game close-the-loop** → [post-game-close-the-loop.md](../lol/post-game-close-the-loop.md). Promoted because it's the highest-payoff missing surface in the LoL section and the cleanest case-study candidate currently in the backlog.
+  - **Composite LP forecast** → [lp-forecast.md](../lol/lp-forecast.md). Promoted because the confidence-model decision (naive vs. personal linear fit) is non-trivial and benefits from being thought through before implementation.
+  - **Personal-baselines framing** → [personal-baselines.md](../lol/personal-baselines.md). Promoted from implicit pattern to explicit design principle. The "you-vs-you" framing is what makes the verdict pattern land; documenting it prevents drift toward global-percentile defaults in future tiles.
   - Two new entries added in this pass: **match annotations** (personal-app signal, cheap backend) and **patch-aware champion memory** (verdict layer on top of existing patch-boundary chart work).
-  - Reframe driven by [app-state-analysis.md](app-state-analysis.md) 2026-05-13 rewrite, which centred on the *cross-link / dossier* gap rather than the *Champions-tab weakness* — see that doc for the structural argument.
+  - Reframe driven by [app-state-analysis.md](../lol/app-state-analysis.md) 2026-05-13 rewrite, which centred on the *cross-link / dossier* gap rather than the *Champions-tab weakness* — see that doc for the structural argument.

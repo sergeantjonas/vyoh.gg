@@ -1,6 +1,6 @@
 # vyoh.gg — Match cache storage arc
 
-**Status:** Parked — Tier 1A (owner-only retention) shipped 2026-05-17 (chunks A–C; `VACUUM FULL` 195 MB → 43 MB, 78% reduction). Tiers 1B (global field stripping), 2 (zstd BYTEA), and 3 (zstd dictionary) remain deferred until DB size becomes a cost/quota concern *or* feature scope on Profile / Matches / Trends / Champions / Match detail feels stable. See [parked.md](parked.md). Read this when DB size becomes a cost/quota issue or when explicitly revisiting storage cost.
+**Status:** Parked — Tier 1A (owner-only retention) shipped 2026-05-17 (chunks A–C; `VACUUM FULL` 195 MB → 43 MB, 78% reduction). Tiers 1B (global field stripping), 2 (zstd BYTEA), and 3 (zstd dictionary) remain deferred until DB size becomes a cost/quota concern *or* feature scope on Profile / Matches / Trends / Champions / Match detail feels stable. See [parked.md](../parked.md). Read this when DB size becomes a cost/quota issue or when explicitly revisiting storage cost.
 
 This is a deliberate hold, not an oversight. The conversation that produced this note was on 2026-05-10, when `MatchSummary` had just been extended with `csAt10`, `csAt15`, `goldAt10`, `goldAt15`, and two more fields — proving the "don't strip caches mid-iteration" point in real time. The arc waits until features stabilize.
 
@@ -14,10 +14,10 @@ The match caches store Riot's raw JSON payload. Each row is huge and most of the
 
 Two Prisma `Json` columns (Postgres `jsonb` under the hood):
 
-- [`MatchDetailCache.detail`](../../apps/api/prisma/schema.prisma#L42-L46) — full raw `RiotMatch` payload from `/lol/match/v5/matches/{id}`. **Typical size: 80–120KB per row.**
-- [`MatchTimelineCache.timeline`](../../apps/api/prisma/schema.prisma#L48-L52) — full raw `RiotMatchTimeline` payload. **Typical size: 200–500KB per row.**
+- [`MatchDetailCache.detail`](../../../apps/api/prisma/schema.prisma#L42-L46) — full raw `RiotMatch` payload from `/lol/match/v5/matches/{id}`. **Typical size: 80–120KB per row.**
+- [`MatchTimelineCache.timeline`](../../../apps/api/prisma/schema.prisma#L48-L52) — full raw `RiotMatchTimeline` payload. **Typical size: 200–500KB per row.**
 
-We project these to leaner shapes (`MatchDetail`, `MatchTimelineProjection`) at **read time** via [`riotMatchToDetail`](../../apps/api/src/lol/match-mapper.ts) and [`riotTimelineToProjection`](../../apps/api/src/lol/timeline-mapper.ts). The mappers read maybe 20 fields per row out of the ~100+ Riot returns. Everything else is dead weight on disk that survives only as a forward-compat hedge.
+We project these to leaner shapes (`MatchDetail`, `MatchTimelineProjection`) at **read time** via [`riotMatchToDetail`](../../../apps/api/src/lol/match-mapper.ts) and [`riotTimelineToProjection`](../../../apps/api/src/lol/timeline-mapper.ts). The mappers read maybe 20 fields per row out of the ~100+ Riot returns. Everything else is dead weight on disk that survives only as a forward-compat hedge.
 
 Napkin scale: ~400KB/match × 1000 matches × 2 accounts ≈ 800MB. Free-tier Postgres (Neon, Supabase) sits at 0.5–1GB. We're close to the ceiling now and will cross it with normal usage.
 
@@ -45,7 +45,7 @@ Discussion-driven walk through what we store vs what we consume. Three independe
 | Globally-dead fields (legacy IDs, Arena, redundant gameEnd*, PAUSE / CHAMPION_SPECIAL_KILL / GAME_END events) | Low — deprecated, redundant, off-scope | ~10–15% combined |
 | Global field stripping on potentially-useful fields (Tier 1B) | High — original Tier 1 hazard | The big remaining lever |
 
-**Typed surface is already lean.** Every field in `RiotMatch` / `RiotMatchTimeline` ([apps/api/src/riot/types.ts](../../apps/api/src/riot/types.ts)) is consumed by a mapper or by one of the three direct `findMany` callers in [lol-analytics.service.ts](../../apps/api/src/lol/lol-analytics.service.ts) (`getDuos`, `getChampionPairs`, `getChampionBuildFlow`). The bytes-to-save discussion is *not* "find dead fields in our types" — it's "what does Riot return that we never type?"
+**Typed surface is already lean.** Every field in `RiotMatch` / `RiotMatchTimeline` ([apps/api/src/riot/types.ts](../../../apps/api/src/riot/types.ts)) is consumed by a mapper or by one of the three direct `findMany` callers in [lol-analytics.service.ts](../../../apps/api/src/lol/lol-analytics.service.ts) (`getDuos`, `getChampionPairs`, `getChampionBuildFlow`). The bytes-to-save discussion is *not* "find dead fields in our types" — it's "what does Riot return that we never type?"
 
 ### Chopping-block — owner-only retention (Tier 1A)
 
@@ -56,7 +56,7 @@ Owner-meaningful, never read on non-owner participants. Strip on non-owner parti
 - All ping counters (~14: allInPings, assistMePings, …, basicPings)
 - Multikill / streak counters: doubleKills, tripleKills, quadraKills, pentaKills, unrealKills, killingSprees, largestKillingSpree, largestMultiKill, largestCriticalStrike, longestTimeSpentLiving, totalTimeSpentDead
 - Spell / summoner casts: spell1Casts..spell4Casts, summoner1Casts, summoner2Casts
-- `perks` beyond `styles[0].selections[0].perk` (full rune page + statPerks + var1/var2/var3) — **owner keeps full `perks` intact**; the "full rune page panel" tile in match-depth Phase E remainder ([open-work.md](open-work.md)) depends on it
+- `perks` beyond `styles[0].selections[0].perk` (full rune page + statPerks + var1/var2/var3) — **owner keeps full `perks` intact**; the "full rune page panel" tile in match-depth Phase E remainder ([open-work.md](../open-work.md)) depends on it
 - Counter-jungle splits: totalAllyJungleMinionsKilled, totalEnemyJungleMinionsKilled
 
 Non-owner participants must keep:
@@ -67,8 +67,8 @@ Non-owner participants must keep:
 - Team aggregates: `totalDamageDealtToChampions`, `goldEarned`, `totalMinionsKilled` + `neutralMinionsKilled`
 - Per-type damage split: `physicalDamageDealtToChampions`, `magicDamageDealtToChampions`, `trueDamageDealtToChampions` (read per-participant by `riotMatchToDetail`)
 - Card extras: `visionScore`, `wardsPlaced`, `wardsKilled`, `detectorWardsPlaced`, `summoner1Id`/`summoner2Id`
-- Reduced `perks`: `styles[0].selections[0].perk` only (keystone — read for all participants at [match-mapper.ts:128](../../apps/api/src/lol/match-mapper.ts#L128))
-- Reduced `challenges`: `{ killParticipation }` only (read for all participants at [match-mapper.ts:152](../../apps/api/src/lol/match-mapper.ts#L152))
+- Reduced `perks`: `styles[0].selections[0].perk` only (keystone — read for all participants at [match-mapper.ts:128](../../../apps/api/src/lol/match-mapper.ts#L128))
+- Reduced `challenges`: `{ killParticipation }` only (read for all participants at [match-mapper.ts:152](../../../apps/api/src/lol/match-mapper.ts#L152))
 
 ### Chopping-block — globally safe
 
@@ -139,13 +139,13 @@ Record results in the "Decision log" section below. **Effort:** 5 minutes.
 
 **Goal:** Strip heavy per-participant fields on non-owner participants. Keep the owner's row intact. **Estimated effect: detail row ~30–40% smaller. No risk to any planned self-portrait view.**
 
-**Why this is not parked (and Tier 1B is):** the parked-arc hazard is "we strip a field today we want for a feature next month." Owner-only retention sidesteps this — the owner's data stays whole, and the only reversibility loss is "we can never compute a teammate's solo-kill count," which doesn't conflict with the per-stream / self-portrait scope ([self-portrait-surfaces.md](self-portrait-surfaces.md)).
+**Why this is not parked (and Tier 1B is):** the parked-arc hazard is "we strip a field today we want for a feature next month." Owner-only retention sidesteps this — the owner's data stays whole, and the only reversibility loss is "we can never compute a teammate's solo-kill count," which doesn't conflict with the per-stream / self-portrait scope ([self-portrait-surfaces.md](../cross-cutting/self-portrait-surfaces.md)).
 
 **Files (modify):**
 
-- [`apps/api/src/lol/lol.service.ts`](../../apps/api/src/lol/lol.service.ts) — project to owner-scoped shape before `matchDetailCache.create` / `.upsert`. Owner = participant whose `puuid` matches an allowed account (via the identity service used by [lol-analytics.service.ts](../../apps/api/src/lol/lol-analytics.service.ts); see [owner-auth.md](owner-auth.md))
-- [`apps/api/src/riot/types.ts`](../../apps/api/src/riot/types.ts) — split `RiotMatchParticipant` into `RiotMatchParticipantOwner` (full) and `RiotMatchParticipantOther` (lean). Discriminated union keeps mapper code honest
-- [`apps/api/src/lol/match-mapper.ts`](../../apps/api/src/lol/match-mapper.ts) — already reads only lean-shape fields for non-owner participants; verify with TS narrowing
+- [`apps/api/src/lol/lol.service.ts`](../../../apps/api/src/lol/lol.service.ts) — project to owner-scoped shape before `matchDetailCache.create` / `.upsert`. Owner = participant whose `puuid` matches an allowed account (via the identity service used by [lol-analytics.service.ts](../../../apps/api/src/lol/lol-analytics.service.ts); see [owner-auth.md](../ops/owner-auth.md))
+- [`apps/api/src/riot/types.ts`](../../../apps/api/src/riot/types.ts) — split `RiotMatchParticipant` into `RiotMatchParticipantOwner` (full) and `RiotMatchParticipantOther` (lean). Discriminated union keeps mapper code honest
+- [`apps/api/src/lol/match-mapper.ts`](../../../apps/api/src/lol/match-mapper.ts) — already reads only lean-shape fields for non-owner participants; verify with TS narrowing
 
 **Strip-list on non-owner participants:** see "Chopping-block — owner-only retention" in the audit section above.
 
@@ -181,10 +181,10 @@ Stretch picks if there's display real estate: `maxLevelLeadLaneOpponent`, `maxCs
 
 **Files (modify):**
 
-- [`apps/api/src/riot/types.ts`](../../apps/api/src/riot/types.ts) — define a leaner `StoredRiotMatch` / `StoredRiotTimeline` interface alongside the raw `RiotMatch` / `RiotMatchTimeline`
-- [`apps/api/src/lol/lol.service.ts`](../../apps/api/src/lol/lol.service.ts) `getMatchDetail` / `getMatchTimeline` — project to stored shape before `matchDetailCache.create` / `matchTimelineCache.create`
-- [`apps/api/src/lol/match-mapper.ts`](../../apps/api/src/lol/match-mapper.ts) — accept `StoredRiotMatch` as input
-- [`apps/api/src/lol/timeline-mapper.ts`](../../apps/api/src/lol/timeline-mapper.ts) — accept `StoredRiotTimeline`
+- [`apps/api/src/riot/types.ts`](../../../apps/api/src/riot/types.ts) — define a leaner `StoredRiotMatch` / `StoredRiotTimeline` interface alongside the raw `RiotMatch` / `RiotMatchTimeline`
+- [`apps/api/src/lol/lol.service.ts`](../../../apps/api/src/lol/lol.service.ts) `getMatchDetail` / `getMatchTimeline` — project to stored shape before `matchDetailCache.create` / `matchTimelineCache.create`
+- [`apps/api/src/lol/match-mapper.ts`](../../../apps/api/src/lol/match-mapper.ts) — accept `StoredRiotMatch` as input
+- [`apps/api/src/lol/timeline-mapper.ts`](../../../apps/api/src/lol/timeline-mapper.ts) — accept `StoredRiotTimeline`
 
 **Strip-list (conservative)** — drop only what we're certain is dead:
 
@@ -199,7 +199,7 @@ Stretch picks if there's display real estate: `maxLevelLeadLaneOpponent`, `maxCs
 
 **Strip-list (conservative-but-tempting — defer unless certain)**:
 
-- ~~`perks.statPerks`~~ — **off-limits.** Full rune page panel is a planned tile ([open-work.md](open-work.md) — match-depth Phase E) and needs stat shards alongside the keystone path. Decided 2026-05-16. Even if revisited, must remain kept on the owner participant.
+- ~~`perks.statPerks`~~ — **off-limits.** Full rune page panel is a planned tile ([open-work.md](../open-work.md) — match-depth Phase E) and needs stat shards alongside the keystone path. Decided 2026-05-16. Even if revisited, must remain kept on the owner participant.
 - Item-purchase-time `goldGain` / `goldCost` fields — used today for nothing, plausibly useful in future build-order tooltips
 
 **Migration plan:**
@@ -305,7 +305,7 @@ The caches are caches, not source-of-truth. Add an eviction policy: drop `MatchD
 
 **Mechanics:**
 
-- A cron / scheduled task in [`apps/api/src/lol/match-sync.service.ts`](../../apps/api/src/lol/match-sync.service.ts) (or a sibling) that runs daily:
+- A cron / scheduled task in [`apps/api/src/lol/match-sync.service.ts`](../../../apps/api/src/lol/match-sync.service.ts) (or a sibling) that runs daily:
   ```sql
   DELETE FROM "MatchDetailCache"
   WHERE "matchId" IN (
@@ -339,12 +339,12 @@ The caches are caches, not source-of-truth. Add an eviction policy: drop `MatchD
   - **Timeline is already implicitly owner-scoped on populate.** Only 198 of 4 415 detail-cached matches have a timeline row (22:1 ratio). Tier 1A on timelines is therefore much lower-value than on detail; deprioritized — pursue only after detail-side proves out, or roll into Tier 2.
   - **Owner-only strip saves ~54% of uncompressed JSON** (200-row sample, owner=first participant by metadata index). Projected compressed-bytes saving is materially lower because pglz already dedupes repeated `challenges`/`perks` field-name strings — realistic estimate ~30 %. So ~55 MB recovered on `MatchDetailCache` post-`VACUUM FULL`. Worth doing, not screaming urgent.
   - **All 8 challenges starter fields validated.** In a 100-row sample of participant-0: `soloKills`, `outnumberedKills`, `survivedSingleDigitHpCount`, `effectiveHealAndShielding`, `enemyChampionImmobilizations`, `damagePerMinute`, `laneMinionsFirst10Minutes` all present 100/100. `killParticipation` present 98/100 (minor gap on remakes / older patches). Resolves open question #6.
-  - **Strip-list correction — two non-owner field reads were missed in the audit.** `riotMatchToDetail` ([match-mapper.ts:128, 152](../../apps/api/src/lol/match-mapper.ts)) reads `p.perks.styles[0].selections[0].perk` (keystone) and `p.challenges?.killParticipation` (kp) for **all** participants, not just the owner. Tier 1A must keep both on non-owner rows: keep just the keystone selection inside `perks` (not the full rune page), and keep `challenges` reduced to `{ killParticipation }` rather than removed entirely. Update the strip-list in Chunk B.
-  - **Owner-puuid resolution path identified.** [`IdentityService.getLolAccounts()`](../../apps/api/src/identity/identity.service.ts#L53) returns the allowed `LolAccount[]` (slug + gameName + tagLine + region — no puuid). Chunk B needs `Set<string>` of allowed puuids; resolve once per ingest by joining `Summoner` table on `(gameName, tagLine, region)`, or memoise inside `LolService`. Keep DB-aware lookup in `LolService` rather than adding Prisma dependency to identity.
+  - **Strip-list correction — two non-owner field reads were missed in the audit.** `riotMatchToDetail` ([match-mapper.ts:128, 152](../../../apps/api/src/lol/match-mapper.ts)) reads `p.perks.styles[0].selections[0].perk` (keystone) and `p.challenges?.killParticipation` (kp) for **all** participants, not just the owner. Tier 1A must keep both on non-owner rows: keep just the keystone selection inside `perks` (not the full rune page), and keep `challenges` reduced to `{ killParticipation }` rather than removed entirely. Update the strip-list in Chunk B.
+  - **Owner-puuid resolution path identified.** [`IdentityService.getLolAccounts()`](../../../apps/api/src/identity/identity.service.ts#L53) returns the allowed `LolAccount[]` (slug + gameName + tagLine + region — no puuid). Chunk B needs `Set<string>` of allowed puuids; resolve once per ingest by joining `Summoner` table on `(gameName, tagLine, region)`, or memoise inside `LolService`. Keep DB-aware lookup in `LolService` rather than adding Prisma dependency to identity.
   - **Analytics callers clean.** `lol-analytics.service.ts` does not reference `challenges` or `perks` anywhere — confirms the three owner-gated `findMany` callers (`getDuos`, `getChampionPairs`, `getChampionBuildFlow`) read only `{ puuid, riotIdGameName, riotIdTagline, championName, teamId, win }` on non-owner participants. Tier 1A strip is safe against current analytics.
-  - **Full owner `perks` locked in.** Owner participant keeps the entire `perks` object (full rune page incl. `statPerks` shards and per-perk `var1/var2/var3`). The "full rune page panel" tile listed under match-depth Phase E remainder ([open-work.md](open-work.md)) is now an explicit retention constraint, and Tier 1B's "conservative-but-tempting `perks.statPerks` strip" is marked off-limits as a result.
+  - **Full owner `perks` locked in.** Owner participant keeps the entire `perks` object (full rune page incl. `statPerks` shards and per-perk `var1/var2/var3`). The "full rune page panel" tile listed under match-depth Phase E remainder ([open-work.md](../open-work.md)) is now an explicit retention constraint, and Tier 1B's "conservative-but-tempting `perks.statPerks` strip" is marked off-limits as a result.
   - **Owner `killParticipation` locked in.** Already retained as part of the owner's full `challenges` block, but flagged explicitly so it survives any later "slim owner challenges" temptation — KP is a planned owner-side analytics/trend stat.
-  - **Post-arc follow-up scheduled.** After Tier 1A backfill ships, sweep "what feature ideas does the kept owner data unlock that weren't on the roadmap before?" — full rune page panel and KP-over-time tile already on the list; expect 5–10 more from the remaining ~100 owner-side `challenges` sub-fields and the timeline build/skill data we now preserve. Add the surfaced ideas to [vnext-ideas.md](vnext-ideas.md) / the relevant roadmap notes in the same commit. See "Follow-up after landing" below.
+  - **Post-arc follow-up scheduled.** After Tier 1A backfill ships, sweep "what feature ideas does the kept owner data unlock that weren't on the roadmap before?" — full rune page panel and KP-over-time tile already on the list; expect 5–10 more from the remaining ~100 owner-side `challenges` sub-fields and the timeline build/skill data we now preserve. Add the surfaced ideas to [vnext-ideas.md](../cross-cutting/vnext-ideas.md) / the relevant roadmap notes in the same commit. See "Follow-up after landing" below.
 - **2026-05-17** — **Chunks B + C landed** (projection at ingest + backfill script). `VACUUM FULL` run immediately after. Post-vacuum measurement: **43 MB total** (336 kB heap + TOAST + 152 kB indexes). Baseline was 195 MB — **152 MB recovered (78% reduction)**. Projected saving was ~30% / ~55 MB; actual was ~3× the estimate. The Chunk A assumption that pglz already deduped repeated `challenges`/`perks` field-name strings across TOAST blocks was overly conservative — the stripped rows compress far better than the raw payloads. Tier 1A arc complete. Feature-ideation sweep and `match-cache-storage.md § Follow-up` still pending.
 
 ---
@@ -355,7 +355,7 @@ The caches are caches, not source-of-truth. Add an eviction policy: drop `MatchD
 2. **Compression level for Tier 2.** zstd levels 3, 6, and 9 all have different ratio/CPU tradeoffs. Benchmark on representative data before committing.
 3. **Dictionary versioning if Tier 3 happens.** How do we keep old rows readable when a new dictionary is trained?
 4. **TTL window for Tier 5.** 180 days is a guess. Inform with read-frequency data once we have it.
-5. **Hosting implications.** Does the chosen hosting option (see [hosting.md](hosting.md)) provide Postgres 14+ for `lz4`, and `VACUUM FULL` privileges? Verify before Tier 4.
+5. **Hosting implications.** Does the chosen hosting option (see [hosting.md](../ops/hosting.md)) provide Postgres 14+ for `lz4`, and `VACUUM FULL` privileges? Verify before Tier 4.
 6. **Tier 1A challenges sub-list.** ~~Validate the 8 starter picks against a real cached row.~~ Resolved 2026-05-16 in Chunk A — 7/8 present 100%, `killParticipation` 98% (only gap is remakes/older patches; mapper already uses `?? 0`).
 
 ---
@@ -368,7 +368,7 @@ The caches are caches, not source-of-truth. Add an eviction policy: drop `MatchD
 
 ## Connections to existing notes
 
-- [hosting.md](hosting.md) — DB hosting choice (Neon / Railway-managed / Fly Postgres) determines available compression options and storage limits.
-- [project-history.md](project-history.md) — once any tier lands, log it here as a shipped initiative.
-- [case-study-topics.md](case-study-topics.md) — "Cut DB row size 30× via projection-on-ingest + zstd" is a strong standalone write-up if Tier 1 + 2 land.
-- [vnext-ideas.md](vnext-ideas.md) — record the trigger conditions here too if the team wants visibility into "what's parked and why."
+- [hosting.md](../ops/hosting.md) — DB hosting choice (Neon / Railway-managed / Fly Postgres) determines available compression options and storage limits.
+- [project-history.md](../project-history.md) — once any tier lands, log it here as a shipped initiative.
+- [case-study-topics.md](../cross-cutting/case-study-topics.md) — "Cut DB row size 30× via projection-on-ingest + zstd" is a strong standalone write-up if Tier 1 + 2 land.
+- [vnext-ideas.md](../cross-cutting/vnext-ideas.md) — record the trigger conditions here too if the team wants visibility into "what's parked and why."

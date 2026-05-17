@@ -1,10 +1,10 @@
 # Composite LP forecast tile — design note
 
-**Status:** Active — Phase LP1 (directional-only verdict) shipped; Phase LP2 (confidence calibration: validate directional verdicts against outcomes once LP history accrues, per-signal sample-size weighting, "How is this computed?" disclosure) is data-gated and tracked in [open-work.md](open-work.md).
+**Status:** Active — Phase LP1 (directional-only verdict) shipped; Phase LP2 (confidence calibration: validate directional verdicts against outcomes once LP history accrues, per-signal sample-size weighting, "How is this computed?" disclosure) is data-gated and tracked in [open-work.md](../open-work.md).
 
 A single tile on Profile that composes the four existing Pregame Ritual signals (form, tilt, time-slot, top-champion) into one forward-looking verdict: *"Composite read for your next ranked: +X expected LP — confidence Y."*
 
-Promoted from [vnext-ideas.md](vnext-ideas.md) ("Goal setting + projection" and the implied composite-of-signals idea in Pregame Ritual) and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #2) into a tracked design note.
+Promoted from [vnext-ideas.md](../cross-cutting/vnext-ideas.md) ("Goal setting + projection" and the implied composite-of-signals idea in Pregame Ritual) and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #2) into a tracked design note.
 
 Read this before starting work on the tile, or when deciding the confidence-model approach.
 
@@ -12,7 +12,7 @@ Read this before starting work on the tile, or when deciding the confidence-mode
 
 ## Premise
 
-[Pregame Ritual](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) computes four signals independently:
+[Pregame Ritual](../../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) computes four signals independently:
 
 1. **Form** — recent win/loss curve.
 2. **Tilt** — minutes-since-last-loss + back-to-back loss detection.
@@ -74,7 +74,7 @@ Two viable approaches.
 - Strong case-study material — a real (if tiny) personal-model story.
 
 **Cons:**
-- Needs months of LP-history snapshots to be meaningful. Today we have rank snapshots accumulating but not enough — Phase 4 of [views-roadmap.md](archive/views-roadmap.md) is "shipped (code)" with no rank snapshots having accumulated yet. **The data prerequisite is the limiting factor.**
+- Needs months of LP-history snapshots to be meaningful. Today we have rank snapshots accumulating but not enough — Phase 4 of [views-roadmap.md](../archive/views-roadmap.md) is "shipped (code)" with no rank snapshots having accumulated yet. **The data prerequisite is the limiting factor.**
 - More moving parts; the case-study story has to handle "this model is fitting on N=37 games and overfit risk is real."
 - Naïve fit on small samples will overstate confidence unless regularized.
 
@@ -119,8 +119,8 @@ A `ConclusionCard`-shaped tile elsewhere on Profile (e.g. above LP history). Rea
 
 ### Phase LP1 — Naive composite, Option B placement — **shipped 2026-05-14**
 
-- Helper: [`apps/web/src/lol/profile/pregame-composite.ts`](../../apps/web/src/lol/profile/pregame-composite.ts) — `buildComposite()` maps each signal's tone to a {-1, 0, +1} score, averages, and produces an LP band centred at `score * 20` with ±5 width.
-- Tile: [`profile-pregame-ritual.tsx`](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) renders a verdict row (`Composite read · next ranked` label + LP band) above the four signal tiles, tone-tinted by composite sign.
+- Helper: [`apps/web/src/lol/profile/pregame-composite.ts`](../../../apps/web/src/lol/profile/pregame-composite.ts) — `buildComposite()` maps each signal's tone to a {-1, 0, +1} score, averages, and produces an LP band centred at `score * 20` with ±5 width.
+- Tile: [`profile-pregame-ritual.tsx`](../../../apps/web/src/lol/profile/profile-pregame-ritual.tsx) renders a verdict row (`Composite read · next ranked` label + LP band) above the four signal tiles, tone-tinted by composite sign.
 - Confidence label is gated on count of non-neutral firing signals: 3–4 → no label, 2 → "directional only", 1 → "low confidence — small sample".
 - Empty path: zero firing signals → muted "Play a few games and we'll have a read".
 - **LP1 shortcut to revisit in LP2/LP3:** confidence currently ignores each signal's *internal* sample size (e.g. time-slot's `slot.games`). It only counts how many signals had a non-neutral read. The honest version threads sample-size into per-signal weight.
@@ -135,7 +135,7 @@ A `ConclusionCard`-shaped tile elsewhere on Profile (e.g. above LP history). Rea
 - Once 100+ ranked games of LP history have accrued, fit a small linear regression on the four-signal vector.
 - Render both the naive and personal-fit verdicts side-by-side for a release; collect feedback on which reads as more useful.
 - Decide whether to retire the naive model or keep both as transparency layer.
-- Write up as a case study (target: [case-study-topics.md](case-study-topics.md)).
+- Write up as a case study (target: [case-study-topics.md](../cross-cutting/case-study-topics.md)).
 
 ---
 
@@ -151,7 +151,7 @@ The composite is interesting structurally because it demonstrates:
 
 ## Status
 
-- **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](archive/views-roadmap.md) Phase 4 caveat).
+- **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](../archive/views-roadmap.md) Phase 4 caveat).
 - **2026-05-14** — Phase LP1 shipped (naive equal-weight composite + verdict row above Pregame Ritual signals). LP2 next (confidence calibration once LP history has accrued); LP3 still data-blocked.
 
 ---
@@ -168,8 +168,8 @@ The composite is interesting structurally because it demonstrates:
 
 ## Connections to existing notes
 
-- [`vnext-ideas.md`](vnext-ideas.md) — promoted from "Goal setting + projection".
+- [`vnext-ideas.md`](../cross-cutting/vnext-ideas.md) — promoted from "Goal setting + projection".
 - [`app-state-analysis.md`](app-state-analysis.md) — Phase 4 in the recommended phasing; broader-app gap #2.
-- [`views-roadmap.md`](archive/views-roadmap.md) — Phase 4 LP history is the data prerequisite for Phase LP3.
+- [`views-roadmap.md`](../archive/views-roadmap.md) — Phase 4 LP history is the data prerequisite for Phase LP3.
 - [`post-game-close-the-loop.md`](post-game-close-the-loop.md) — sibling arc. Pregame composite + post-game read are the bookends of the play loop.
-- [`case-study-topics.md`](case-study-topics.md) — Phase LP3 is the case-study moment.
+- [`case-study-topics.md`](../cross-cutting/case-study-topics.md) — Phase LP3 is the case-study moment.

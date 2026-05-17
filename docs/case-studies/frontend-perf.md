@@ -55,7 +55,7 @@ The instinctive perf move on the audit is to shrink the 112 kB motion footprint.
 
 What's actually in the 112 kB is *appropriately* sized for the features used: `LazyMotion + m` is everywhere (`m` imported in 48/53 motion-using files), `useReducedMotion` is honored in 26/53, no stray `framer-motion` direct imports leak the eager bundle (the visible `framer-motion` 29 kB inside the 112 kB total is a transitive dep of `motion@12`, not a duplicate), and `domMax` is the smallest preset that includes layout animations. Motion v12 has no "animation + layout but no drag" intermediate preset.
 
-The rule, codified in [docs/working-notes/perf-baseline.md](../working-notes/perf-baseline.md) so the next session doesn't redo the audit:
+The rule, codified in [docs/working-notes/cross-cutting/perf-baseline.md](../working-notes/cross-cutting/perf-baseline.md) so the next session doesn't redo the audit:
 
 > The 112 kB / 28.5% motion footprint is intentional spend, not a misconfiguration. Future perf work targets non-visual code. Don't propose downgrading motion features, async-loading the pack, or removing decorative motion usage to "save weight."
 
@@ -298,12 +298,12 @@ Now the sort memo inside `ChampionTable` can keep its sorted output stable acros
 | Lazy command palette dialog + slim eager shell | [apps/web/src/components/command-palette.tsx](../../apps/web/src/components/command-palette.tsx), [apps/web/src/components/command-palette-dialog.tsx](../../apps/web/src/components/command-palette-dialog.tsx) |
 | `web-vitals` collection with live reporting | [apps/web/src/lib/web-vitals.ts](../../apps/web/src/lib/web-vitals.ts) |
 | Dev-only `PerfOverlay` + session-persistent flag | [apps/web/src/components/perf-overlay.tsx](../../apps/web/src/components/perf-overlay.tsx), [apps/web/src/lib/use-perf-flag.ts](../../apps/web/src/lib/use-perf-flag.ts) |
-| Accepted-spend rule + open levers | [docs/working-notes/perf-baseline.md](../working-notes/perf-baseline.md) |
+| Accepted-spend rule + open levers | [docs/working-notes/cross-cutting/perf-baseline.md](../working-notes/cross-cutting/perf-baseline.md) |
 | `MatchWindowProvider` value memoisation | [apps/web/src/routes/lol/$accountSlug.tsx](../../apps/web/src/routes/lol/$accountSlug.tsx) |
 | Memoised champion stats aggregation | [apps/web/src/routes/lol/$accountSlug/champions/index.tsx](../../apps/web/src/routes/lol/$accountSlug/champions/index.tsx) |
 
 ## Open
 
-- **Lighthouse on a throttled Chrome from the host machine.** Firefox doesn't expose the live CPU-throttling primitive Chrome offers; the devcontainer has no Chrome. A throttled cold-network baseline against `/`, `/lol/<slug>`, `/lol/<slug>/trends`, `/lol/<slug>/matches/<id>`, `/lol/<slug>/champions` would yield defensible numbers and the README screenshots [case-study-topics.md](../working-notes/case-study-topics.md) is waiting for.
+- **Lighthouse on a throttled Chrome from the host machine.** Firefox doesn't expose the live CPU-throttling primitive Chrome offers; the devcontainer has no Chrome. A throttled cold-network baseline against `/`, `/lol/<slug>`, `/lol/<slug>/trends`, `/lol/<slug>/matches/<id>`, `/lol/<slug>/champions` would yield defensible numbers and the README screenshots [case-study-topics.md](../working-notes/cross-cutting/case-study-topics.md) is waiting for.
 - **Host-Chrome Profiler validation of the two render fixes above.** The fixes are structurally correct but landed without measured before/after. Cycle Profile ↔ Matches ↔ Trends ↔ Champions five times each on the host, check that Profile widgets no longer commit on pathname-only changes and that `ChampionTable`'s sort row work stays stable while matches are unchanged. Revert if a fix doesn't earn its keep.
 - **Recharts → visx consolidation.** The 77 kB Recharts lazy chunk is the largest remaining single dependency. Both libraries coexist by design (workhorse vs. showpiece), but full migration is the only remaining significant chart-page cut. Worth pursuing only if there's no visual regression on the Recharts surfaces.

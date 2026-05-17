@@ -1,12 +1,12 @@
 # vyoh.gg — LoL image asset pipeline
 
-**Status:** Active — Phases 0–4 all shipped (runtime image proxy chunks 1–4 landed 2026-05-16). One open tail: the wiki-image migration — 12 files spread across matches, profile, champions, shared analytics/assets, the live tab, and `components/game-icons.tsx` still resolve images through `cdn.communitydragon.org`/`raw.communitydragon.org` client-side; target end state is zero CDragon client usages via `wikiEntryIconUrl()` (direction confirmed 2026-05-17 during patch-notes PN7). Tracked in [open-work.md](open-work.md).
+**Status:** Active — Phases 0–4 all shipped (runtime image proxy chunks 1–4 landed 2026-05-16). One open tail: the wiki-image migration — 12 files spread across matches, profile, champions, shared analytics/assets, the live tab, and `components/game-icons.tsx` still resolve images through `cdn.communitydragon.org`/`raw.communitydragon.org` client-side; target end state is zero CDragon client usages via `wikiEntryIconUrl()` (direction confirmed 2026-05-17 during patch-notes PN7). Tracked in [open-work.md](../open-work.md).
 
 Working plan for the image-loading arc. Read this when working on: champion icon / splash performance, the splash-resolver, build-time asset prefetch, the CI refresh workflow, runtime URL helpers, or the static-asset story in the hosting note.
 
 This is a living plan. Phases are sequenced so each one ships value on its own. Phase 0 alone is enough to fix the worst pain.
 
-Cross-references: [hosting.md](hosting.md) (deployment-side asset handling), [case-study-topics.md](case-study-topics.md) (write-up framing), [views-roadmap.md](archive/views-roadmap.md) (downstream consumers of these assets).
+Cross-references: [hosting.md](../ops/hosting.md) (deployment-side asset handling), [case-study-topics.md](../cross-cutting/case-study-topics.md) (write-up framing), [views-roadmap.md](../archive/views-roadmap.md) (downstream consumers of these assets).
 
 ---
 
@@ -18,7 +18,7 @@ Today the app fetches every champion icon, splash, profile icon, and item icon f
 - **CDragon** (`cdn.communitydragon.org/latest`) — direct splash + icon source. No resize.
 - **DDragon** (`ddragon.leagueoflegends.com`) — versioned source for items, loading portraits, last-resort splash, profile icon fallback.
 
-Owner-observed pain: image loads can take **30–60 seconds** on first paint. Diagnosed root cause is in [`splash-resolver.ts`](../../apps/web/src/lol/_shared/splash-resolver.ts):
+Owner-observed pain: image loads can take **30–60 seconds** on first paint. Diagnosed root cause is in [`splash-resolver.ts`](../../../apps/web/src/lol/_shared/splash-resolver.ts):
 
 1. The probe (`new Image()` + `onload`/`onerror`) has **no timeout**. A hung wsrv.nl connection blocks indefinitely.
 2. Probes run **sequentially**. If candidate 1 hangs, candidate 2 never runs. The fallback chain actively makes the tail latency worse.
@@ -52,7 +52,7 @@ The non-goal: a backend image proxy with persistent storage. Parked. See "Parked
 
 **Goal:** Cap the worst-case image wait at ~2s. Independent of any asset pipeline. **Ship this first.**
 
-**Files:** [`apps/web/src/lol/_shared/splash-resolver.ts`](../../apps/web/src/lol/_shared/splash-resolver.ts)
+**Files:** [`apps/web/src/lol/_shared/splash-resolver.ts`](../../../apps/web/src/lol/_shared/splash-resolver.ts)
 
 **Changes:**
 
@@ -81,7 +81,7 @@ The non-goal: a backend image proxy with persistent storage. Parked. See "Parked
 
 **Effort:** 30 min implementation + manual verification.
 
-**Status: shipped 2026-05-13.** Sequential-with-timeout chosen over parallel `Promise.any` — the bound `N × timeoutMs` (≈6s for a 3-candidate chain, down from the unbounded 30–60s tail) is already a 10× improvement, and the simpler shape preserves the existing candidate-order preference without head-start tricks. Default `timeoutMs = 2000`. Unit coverage added at [`splash-resolver.test.ts`](../../apps/web/src/lol/_shared/splash-resolver.test.ts) stubbing `globalThis.Image` to drive the timeout and onload paths under fake timers. Owner verified manually on 2026-05-13 by repointing the wsrv.nl primary at the non-routable IP `10.255.255.1` to force a TCP-level hang — splashes settled to the CDragon fallback within ~2s instead of the pre-fix 30s+ wait.
+**Status: shipped 2026-05-13.** Sequential-with-timeout chosen over parallel `Promise.any` — the bound `N × timeoutMs` (≈6s for a 3-candidate chain, down from the unbounded 30–60s tail) is already a 10× improvement, and the simpler shape preserves the existing candidate-order preference without head-start tricks. Default `timeoutMs = 2000`. Unit coverage added at [`splash-resolver.test.ts`](../../../apps/web/src/lol/_shared/splash-resolver.test.ts) stubbing `globalThis.Image` to drive the timeout and onload paths under fake timers. Owner verified manually on 2026-05-13 by repointing the wsrv.nl primary at the non-routable IP `10.255.255.1` to force a TCP-level hang — splashes settled to the CDragon fallback within ~2s instead of the pre-fix 30s+ wait.
 
 ---
 
@@ -106,14 +106,14 @@ The non-goal: a backend image proxy with persistent storage. Parked. See "Parked
 
 **Modified files:**
 
-- [`apps/web/src/lol/_shared/champion-icon.ts`](../../apps/web/src/lol/_shared/champion-icon.ts) — every URL helper checks the manifest first, falls back to existing wsrv.nl chain if the asset isn't bundled
-- [`apps/web/src/lol/_shared/summoner-icon.ts`](../../apps/web/src/lol/_shared/summoner-icon.ts) — **unchanged** for profile icons (intentional skip), but if it has helpers for summoner-spell icons too, those route through the manifest
-- [`apps/web/src/lol/_shared/role-icon.tsx`](../../apps/web/src/lol/_shared/role-icon.tsx) — `roleIconUrl` returns the bundled `/lol/role-icons/<slug>.svg` path; existing `RoleIconFallback` SVG stays as deepest fallback
-- [`apps/web/src/lol/_shared/use-summoner-spells.ts`](../../apps/web/src/lol/_shared/use-summoner-spells.ts) — manifest-aware
-- [`apps/web/src/lol/_shared/use-perks.ts`](../../apps/web/src/lol/_shared/use-perks.ts) — manifest-aware (runes/keystones)
-- [`apps/web/src/lol/_shared/keystone-icon.tsx`](../../apps/web/src/lol/_shared/keystone-icon.tsx) — manifest-aware
-- [`apps/web/src/lol/champions/use-champions.ts`](../../apps/web/src/lol/champions/use-champions.ts) — read `champion-summary.json` from `/lol/` instead of CDragon at runtime
-- [`apps/web/src/lol/_shared/champion-assets.json`](../../apps/web/src/lol/_shared/champion-assets.json) — **stays as theme/blurhash data**. Refresh script updates this file alongside the new manifest in one pass, so blurhash regenerates when a splash changes (rework). Single-responsibility split intentional.
+- [`apps/web/src/lol/_shared/champion-icon.ts`](../../../apps/web/src/lol/_shared/champion-icon.ts) — every URL helper checks the manifest first, falls back to existing wsrv.nl chain if the asset isn't bundled
+- [`apps/web/src/lol/_shared/summoner-icon.ts`](../../../apps/web/src/lol/_shared/summoner-icon.ts) — **unchanged** for profile icons (intentional skip), but if it has helpers for summoner-spell icons too, those route through the manifest
+- [`apps/web/src/lol/_shared/role-icon.tsx`](../../../apps/web/src/lol/_shared/role-icon.tsx) — `roleIconUrl` returns the bundled `/lol/role-icons/<slug>.svg` path; existing `RoleIconFallback` SVG stays as deepest fallback
+- [`apps/web/src/lol/_shared/use-summoner-spells.ts`](../../../apps/web/src/lol/_shared/use-summoner-spells.ts) — manifest-aware
+- [`apps/web/src/lol/_shared/use-perks.ts`](../../../apps/web/src/lol/_shared/use-perks.ts) — manifest-aware (runes/keystones)
+- [`apps/web/src/lol/_shared/keystone-icon.tsx`](../../../apps/web/src/lol/_shared/keystone-icon.tsx) — manifest-aware
+- [`apps/web/src/lol/champions/use-champions.ts`](../../../apps/web/src/lol/champions/use-champions.ts) — read `champion-summary.json` from `/lol/` instead of CDragon at runtime
+- [`apps/web/src/lol/_shared/champion-assets.json`](../../../apps/web/src/lol/_shared/champion-assets.json) — **stays as theme/blurhash data**. Refresh script updates this file alongside the new manifest in one pass, so blurhash regenerates when a splash changes (rework). Single-responsibility split intentional.
 - `package.json` — add `refresh:lol-assets` script, `sharp` as a dev dependency
 - `.gitignore` — ignore `.cache/lol-images/`
 
@@ -154,7 +154,7 @@ export function championSquareIconUrl(name: string, width = 72): string {
 }
 ```
 
-**Important:** `champion-assets.json` already exists at [`apps/web/src/lol/_shared/champion-assets.json`](../../apps/web/src/lol/_shared/champion-assets.json). Decide before starting whether the new manifest replaces it, extends it, or coexists. They should not both be sources of truth for champion identity.
+**Important:** `champion-assets.json` already exists at [`apps/web/src/lol/_shared/champion-assets.json`](../../../apps/web/src/lol/_shared/champion-assets.json). Decide before starting whether the new manifest replaces it, extends it, or coexists. They should not both be sources of truth for champion identity.
 
 ### Script behavior
 
@@ -313,7 +313,7 @@ If/when we do this, scope:
 - Skip-waiting + clientsClaim with care (the standard SW update foot-gun).
 - Pre-cache the manifest entries on `install` for instant offline-first behavior.
 
-Note: SW caching of long-tail CDN URLs is the part that genuinely buys something post-Phase 1. The bundled `/lol/**` paths are already served with strong cache headers by every hosting option (see [hosting.md](hosting.md)).
+Note: SW caching of long-tail CDN URLs is the part that genuinely buys something post-Phase 1. The bundled `/lol/**` paths are already served with strong cache headers by every hosting option (see [hosting.md](../ops/hosting.md)).
 
 ---
 
@@ -354,10 +354,10 @@ Bounded cache-key cardinality (no `?w=` pollution risk), CDN-safe (no query-para
 
 1. **Proxy substrate.** API `/img/*` routes + Sharp pipeline + `Cache-Control` headers. No cache code, no Nginx, no frontend changes. Validate by hitting a hand-curated URL in the browser. Pure backend, independently committable.
 2. **Steam switch + cleanup.** Flip all Steam helpers (`steamLibraryCapsuleUrl`, `steamLibraryHeroUrl`, `steamLibraryLogoUrl`, achievement icons) to proxy URLs. Delete the bundled Steam manifest, [scripts/refresh-steam-assets.mts](../../scripts/refresh-steam-assets.mts), and the slim `manifest.gen.ts` mirror (commit `e1ab677` revert path). Add boot-time prewarm walking `SteamOwnedGame` + wishlist (no-op against the cache until Nginx lands at hosting sweep, but verifies the loop runs). Verify `/steam` surfaces in dev browser.
-3. **LoL switch + cleanup.** Flip `champion-icon.ts`, `splash-resolver.ts` (becomes thinner — no fallback chain to resolve), `role-icon.tsx`, `use-perks.ts`, `use-summoner-spells.ts`. Delete [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts), the LoL manifest infrastructure, [apps/web/public/lol/](../../apps/web/public/lol/), and the `refresh-lol-assets.yml` CI workflow. Add prewarm for current roster + patch. **Fold in the deferred asset-bucket split** from [folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 1 — the 13 asset-adjacent files at the root of [apps/web/src/lol/_shared/](../../apps/web/src/lol/_shared/) (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`) are mostly deleted by this chunk; the survivors (thin proxy-URL builders + retained owner-rendered theming under `tools/champion-assets/`) get a final home decided here. Per the bucket-loop lessons in the cleanup ship note: pre-screen both `@/lol/_shared/<name>` and relative `../_shared/<name>` imports, and absorb biome format-only diffs into a single trailing commit, not per bucket.
+3. **LoL switch + cleanup.** Flip `champion-icon.ts`, `splash-resolver.ts` (becomes thinner — no fallback chain to resolve), `role-icon.tsx`, `use-perks.ts`, `use-summoner-spells.ts`. Delete [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts), the LoL manifest infrastructure, [apps/web/public/lol/](../../../apps/web/public/lol/), and the `refresh-lol-assets.yml` CI workflow. Add prewarm for current roster + patch. **Fold in the deferred asset-bucket split** from [folder-structure-cleanup.md](../ops/folder-structure-cleanup.md) Chunk 1 — the 13 asset-adjacent files at the root of [apps/web/src/lol/_shared/](../../../apps/web/src/lol/_shared/) (`champion-icon`, `champion-square-icon`, `splash-resolver` + test, `splash-backdrop`, `item-icon`, `keystone-icon`, `role-icon`, `summoner-icon`, `summoner-spell-icon`, `champion-assets.json`, `champion-theme`, `asset-manifest` + test, `manifest.gen`) are mostly deleted by this chunk; the survivors (thin proxy-URL builders + retained owner-rendered theming under `tools/champion-assets/`) get a final home decided here. Per the bucket-loop lessons in the cleanup ship note: pre-screen both `@/lol/_shared/<name>` and relative `../_shared/<name>` imports, and absorb biome format-only diffs into a single trailing commit, not per bucket.
 4. **Case study writeup.** Annotate the `build-time-champion-assets` case study with the epilogue, or supersede it with a new case study `runtime-image-proxy` that includes the pivot as the lede.
 
-**Chunk 4 (2026-05-16) — case study writeup.** Shipped [runtime-image-proxy.md](../case-studies/runtime-image-proxy.md). Chose the new-case-study path over annotating the bundled one — two shipped architectures with empirical evidence for the pivot is a stronger freelance signal than an epilogue that undermines the original thesis. The bundled case study stays as the "first architecture" story and gets a `superseded by` pointer at the head pointing here; the new write-up uses the Steam S3 chunk 3 incident as the lede ("trigger event, restated") and centers on the senior call of deleting working code. Build log entries from chunks 1–3 surfaced as the "surprises" section. Net new doc ~210 LOC, mirrors the bundled case study's structure (TL;DR / Setup / chunk shipped / what worked / surprises / open questions / cost-benefit table / connections).
+**Chunk 4 (2026-05-16) — case study writeup.** Shipped [runtime-image-proxy.md](../../case-studies/runtime-image-proxy.md). Chose the new-case-study path over annotating the bundled one — two shipped architectures with empirical evidence for the pivot is a stronger freelance signal than an epilogue that undermines the original thesis. The bundled case study stays as the "first architecture" story and gets a `superseded by` pointer at the head pointing here; the new write-up uses the Steam S3 chunk 3 incident as the lede ("trigger event, restated") and centers on the senior call of deleting working code. Build log entries from chunks 1–3 surfaced as the "surprises" section. Net new doc ~210 LOC, mirrors the bundled case study's structure (TL;DR / Setup / chunk shipped / what worked / surprises / open questions / cost-benefit table / connections).
 
 **Anti-pattern to avoid: client-side `<img onError>` chains to vendor CDNs as a last-ditch fallback.** Discussed and rejected (2026-05-14). It re-introduces the brittleness the proxy is meant to absorb — URL-pattern knowledge would live in both the proxy and the browser, doubling the maintenance surface. The proxy's *internal* fallback chain (unversioned → versioned `appdetails` → header.jpg etc.) is the right home for that logic because it can be tested, observed, and updated in one place. The only scenario where client-side fallback would buy anything is "API up, image route specifically broken" — fix the bug, don't paper over it.
 
@@ -393,7 +393,7 @@ These don't block proxy delivery — the proxy ships fine without them, and addi
 
 ### Phase 4 build log
 
-**Chunk 1 (2026-05-16) — proxy substrate (`d40b92b`).** Shipped: `apps/api/src/img/` module with [img.controller.ts](../../apps/api/src/img/img.controller.ts), [lol-image.service.ts](../../apps/api/src/img/lol-image.service.ts), [steam-image.service.ts](../../apps/api/src/img/steam-image.service.ts), [upstream.ts](../../apps/api/src/img/upstream.ts). All LoL routes + initial Steam routes. No frontend wiring; verified by hand-curated URL.
+**Chunk 1 (2026-05-16) — proxy substrate (`d40b92b`).** Shipped: `apps/api/src/img/` module with [img.controller.ts](../../../apps/api/src/img/img.controller.ts), [lol-image.service.ts](../../../apps/api/src/img/lol-image.service.ts), [steam-image.service.ts](../../../apps/api/src/img/steam-image.service.ts), [upstream.ts](../../../apps/api/src/img/upstream.ts). All LoL routes + initial Steam routes. No frontend wiring; verified by hand-curated URL.
 
 **Chunk 2 (2026-05-16) — Steam switch + cleanup.** Shipped:
 - `Resolved.urls: string[]` shape with `fetchUpstreamChain` for server-side hashed→legacy fallback (kills client-side onError chains).
@@ -403,24 +403,24 @@ These don't block proxy delivery — the proxy ships fine without them, and addi
 - `SteamAchievement`/`SteamRecentUnlock` shed `iconUrl`/`iconGrayUrl`; web composes via `steamAchievementIconUrl(appid, apiName, gray?)` using `apiName` already in payload.
 - Web helper `steam-image.ts` reduced from 6 functions × wsrv+bundled-manifest fallback to 6 pure proxy-URL builders.
 - Deleted: bundled `apps/web/public/steam/` (apps + manifest), `apps/web/src/steam/_shared/{asset-manifest.ts,manifest.gen.ts}`, `scripts/refresh-steam-assets.mts`, `refresh:steam-assets` pnpm script.
-- Boot-time prewarm at [img-prewarm.service.ts](../../apps/api/src/img/img-prewarm.service.ts) walks `SteamOwnedGame` + wishlist appids × 5 routes, gated by `STEAM_PREWARM=1` env var (off by default — no Nginx cache yet, so prewarm does real work for no benefit until hosting sweep).
+- Boot-time prewarm at [img-prewarm.service.ts](../../../apps/api/src/img/img-prewarm.service.ts) walks `SteamOwnedGame` + wishlist appids × 5 routes, gated by `STEAM_PREWARM=1` env var (off by default — no Nginx cache yet, so prewarm does real work for no benefit until hosting sweep).
 
 Surprises:
 - **Chunk 1 had a latent bug** — the `capsule` route returned `libraryCapsulePath` (600×900 portrait) under width 231 with no crop, producing a 231×346 distortion rather than a 231×87 cover. Caught here because chunk 2 added `library-capsule` as a separate route, forcing the question of what `capsule` was for.
 - **`schemaVersion` segment retained for achievements as a static `1`.** Achievement icons are essentially content-addressed by `apiName`, so a cache-buster is rarely needed. Keeping the segment leaves a knob to bump globally without redeploying.
 
 **Chunk 3 (2026-05-16) — LoL switch + cleanup + asset-bucket split.** Shipped:
-- New [apps/web/src/lol/_shared/assets/champion-icon.ts](../../apps/web/src/lol/_shared/assets/champion-icon.ts) — 6 pure proxy-URL builders (`championSquareIconUrl`, `championCardSplashUrl`, `championBackdropSplashUrl`, `itemIconUrl`, `runeIconUrl`, `summonerSpellIconUrl`) + `roleIconUrl`. All take `patch: string`; components call `useDDragonVersion()` and thread through.
+- New [apps/web/src/lol/_shared/assets/champion-icon.ts](../../../apps/web/src/lol/_shared/assets/champion-icon.ts) — 6 pure proxy-URL builders (`championSquareIconUrl`, `championCardSplashUrl`, `championBackdropSplashUrl`, `itemIconUrl`, `runeIconUrl`, `summonerSpellIconUrl`) + `roleIconUrl`. All take `patch: string`; components call `useDDragonVersion()` and thread through.
 - `use-items`, `use-perks`, `use-summoner-spells` switched to proxy URLs keyed by id+patch (no more CDragon iconPath → wsrv.nl rewriting; URL helpers don't need the upstream's path-shape at all).
 - `useChampions` flipped from `/lol/champion-summary.json` (bundled) to live CDragon fetch — same content, ~14KB, React Query-cached `Infinity`.
-- **Folded in the deferred asset-bucket split** ([folder-structure-cleanup.md](folder-structure-cleanup.md) Chunk 1's `_shared/assets/` target): 10 surviving asset-adjacent files moved into `_shared/assets/` (champion-icon, champion-square-icon, splash-backdrop, item-icon, keystone-icon, role-icon, summoner-icon, summoner-spell-icon, champion-theme, champion-assets.json). Mechanical sed for `@/lol/_shared/<X>` → `@/lol/_shared/assets/<X>`; no relative `../_shared/<X>` imports left behind this time (pre-screen lesson from chunk-1 of cleanup paid off).
+- **Folded in the deferred asset-bucket split** ([folder-structure-cleanup.md](../ops/folder-structure-cleanup.md) Chunk 1's `_shared/assets/` target): 10 surviving asset-adjacent files moved into `_shared/assets/` (champion-icon, champion-square-icon, splash-backdrop, item-icon, keystone-icon, role-icon, summoner-icon, summoner-spell-icon, champion-theme, champion-assets.json). Mechanical sed for `@/lol/_shared/<X>` → `@/lol/_shared/assets/<X>`; no relative `../_shared/<X>` imports left behind this time (pre-screen lesson from chunk-1 of cleanup paid off).
 - **`splash-resolver` deleted entirely** (162 LOC + test). With a single proxy URL per champion the dedupe/probe machinery had no fallback chain to dedupe.
-- `ChampionSplashLayer` (in [splash-backdrop.tsx](../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx)) collapsed from a 3-URL fallback chain + dynamic `imgFilter` to a single proxy URL + constant filter.
-- `ChampionCardChrome` (in [champions/champion-card.tsx](../../apps/web/src/lol/champions/champion-card.tsx)) lost its `splashObjectPosition(src)` switch (DDragon-vs-CDragon framing detection) — proxy serves the CDragon centered crop exclusively now, so `"center 30%"` is constant.
+- `ChampionSplashLayer` (in [splash-backdrop.tsx](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx)) collapsed from a 3-URL fallback chain + dynamic `imgFilter` to a single proxy URL + constant filter.
+- `ChampionCardChrome` (in [champions/champion-card.tsx](../../../apps/web/src/lol/champions/champion-card.tsx)) lost its `splashObjectPosition(src)` switch (DDragon-vs-CDragon framing detection) — proxy serves the CDragon centered crop exclusively now, so `"center 30%"` is constant.
 - `ChampionSquareIcon` lost its `championIconUrl` onError fallback — proxy already returns 502 on upstream failure, so the client doesn't need to know the bare CDragon URL.
 - Deleted: `scripts/refresh-lol-assets.mts` (515 LOC), `apps/web/public/lol/` (manifest + 199 champions × 3 variants + items + runes + spells + role icons + champion-summary.json), `apps/web/src/lol/_shared/{asset-manifest.ts,asset-manifest.test.ts,manifest.gen.ts,splash-resolver.ts,splash-resolver.test.ts,champion-icon.ts,champion-theme.ts,champion-square-icon.tsx,item-icon.tsx,keystone-icon.tsx,role-icon.tsx,summoner-icon.ts,summoner-spell-icon.tsx,splash-backdrop.tsx,champion-assets.json}` (originals — all relocated or replaced), the `refresh:lol-assets` pnpm script, and `.github/workflows/refresh-lol-assets.yml`.
 - Removed root devDependencies that only existed for the refresh script: `sharp`, `tsx`, `blurhash` (sharp/tsx stay in `apps/api`; blurhash stays in `apps/web`).
-- LoL prewarm added to [img-prewarm.service.ts](../../apps/api/src/img/img-prewarm.service.ts), gated by `LOL_PREWARM=1`. Fetches CDragon `champion-summary.json` + DDragon `versions.json` at boot, walks roster × 3 variants. Steam and LoL prewarms are independent flags, can run in parallel post-boot delay.
+- LoL prewarm added to [img-prewarm.service.ts](../../../apps/api/src/img/img-prewarm.service.ts), gated by `LOL_PREWARM=1`. Fetches CDragon `champion-summary.json` + DDragon `versions.json` at boot, walks roster × 3 variants. Steam and LoL prewarms are independent flags, can run in parallel post-boot delay.
 
 Surprises:
 - **`useChampions` was the silent dependency on the bundled tree.** Not in the original Chunk 3 scope list but it fetched `/lol/champion-summary.json` which the refresh script populated. Caught by typecheck (or rather, *not* by typecheck — Vite would have served the file as 404 at runtime once `public/lol/` was deleted). Switching it to live CDragon kept the no-bundled-state property of the pivot.
@@ -467,7 +467,7 @@ package.json                                  # `refresh:lol-assets` script entr
 
 ## Hosting implications (cross-ref)
 
-[hosting.md](hosting.md) covers deploy options. The image pipeline interacts with hosting in three ways:
+[hosting.md](../ops/hosting.md) covers deploy options. The image pipeline interacts with hosting in three ways:
 
 1. **Static asset serving.** `apps/web/public/lol/**` is served by whichever host serves the frontend. Vercel auto-applies long `Cache-Control` to `public/`; Railway and a Hetzner/Nginx setup need explicit config. See hosting.md for per-option notes.
 2. **Deploy artifact size.** +25MB at first commit, small deltas after. None of the hosting options choke on this.
@@ -501,7 +501,7 @@ Capture before/after:
 - **Worst-case image render time** under throttled network (synthetic)
 - **PR cadence** for asset refresh (qualitative — "auto-PRs land weekly without my involvement")
 
-These become the meat of the [case-study-topics.md](case-study-topics.md) entry on this arc.
+These become the meat of the [case-study-topics.md](../cross-cutting/case-study-topics.md) entry on this arc.
 
 ---
 
@@ -509,11 +509,11 @@ These become the meat of the [case-study-topics.md](case-study-topics.md) entry 
 
 1. **Manifest coexists with `champion-assets.json`.** Different concerns: `champion-assets.json` holds theme metadata (dominantHex, blurhash); the new `manifest.json` holds asset paths/hashes. Keep both as separate single-responsibility files. The refresh script updates **both** in one pass — when a champion's splash changes, theme + blurhash regenerate alongside the new asset hash, so they can never desync.
 2. **Auto-merge purely-additive PRs from day one.** Modified-file diffs (reworks, updated existing assets) still require human review. Solo project — cheap to flip the toggle if it bites.
-3. **Manifest stays a build artifact, but the JS bundle gets a slim mirror — not the JSON.** Original decision (2026-05-10) was to `import "../../public/lol/manifest.json"` at module init for synchronous, race-free availability. Three days later (2026-05-13) the `size-limit` budget caught the consequence: the full manifest is ~250 KB, and inlining it blew the main-bundle budget by 41.72 kB gzipped. Replaced by a build-time–generated `manifest.gen.ts` next to the URL helpers — a presence-only mirror (variant bitmasks for champions, `Set<string>` for the other buckets) with paths derived from bucket conventions at the call site. The script writes both `public/lol/manifest.json` (for its own diffing and for the case-study artifact) and `manifest.gen.ts` (for runtime). Synchronous availability is preserved; the bundle drops back to 180.14 kB. Fetch is still rejected for the same reason as before: the manifest can't update without a deploy. See [bundling-the-bounded-cdn.md surprise #5](../case-studies/bundling-the-bounded-cdn.md#what-didnt--surprises-from-the-build-log).
+3. **Manifest stays a build artifact, but the JS bundle gets a slim mirror — not the JSON.** Original decision (2026-05-10) was to `import "../../public/lol/manifest.json"` at module init for synchronous, race-free availability. Three days later (2026-05-13) the `size-limit` budget caught the consequence: the full manifest is ~250 KB, and inlining it blew the main-bundle budget by 41.72 kB gzipped. Replaced by a build-time–generated `manifest.gen.ts` next to the URL helpers — a presence-only mirror (variant bitmasks for champions, `Set<string>` for the other buckets) with paths derived from bucket conventions at the call site. The script writes both `public/lol/manifest.json` (for its own diffing and for the case-study artifact) and `manifest.gen.ts` (for runtime). Synchronous availability is preserved; the bundle drops back to 180.14 kB. Fetch is still rejected for the same reason as before: the manifest can't update without a deploy. See [bundling-the-bounded-cdn.md surprise #5](../../case-studies/bundling-the-bounded-cdn.md#what-didnt--surprises-from-the-build-log).
 4. **Item icons bundled at native source resolution (64×64) with no variants.** WebP q=85. ~250 items × ~3KB ≈ 800KB. Covers our largest display target (~40px today, comfortable headroom up to 50px) with retina headroom. If sharper icons matter later, CDragon has higher-res data-driven endpoints for some items — pursue then, not now.
 5. **Bundle scope expanded:**
    - **Keystones / runes (~70):** bundle. ~140KB.
-   - **Role icons (5):** bundle the official CDragon SVGs. The inline `RoleIconFallback` in [role-icon.tsx](../../apps/web/src/lol/_shared/role-icon.tsx) stays as the deepest fallback when even bundled SVGs fail to load.
+   - **Role icons (5):** bundle the official CDragon SVGs. The inline `RoleIconFallback` in [role-icon.tsx](../../../apps/web/src/lol/_shared/role-icon.tsx) stays as the deepest fallback when even bundled SVGs fail to load.
    - **Summoner spells (~30):** bundle. ~60KB.
    - **Profile icons (6000+ in game):** **skip** — bundle is unbounded vs. sparse usage. Runtime fetch through wsrv.nl + Phase 0 timeout is the right call.
 
@@ -545,8 +545,8 @@ When picking this up: verify the ability icon pattern on the wiki first, then wo
 
 ## Connections to existing notes
 
-- [hosting.md](hosting.md) — static asset serving per hosting option, CSP considerations. Has a section pointing back here.
-- [case-study-topics.md](case-study-topics.md) — write-up framing for the full arc.
-- [vnext-ideas.md](vnext-ideas.md) — pre-Phase-0 record of the "30–60s waits hurt" problem if it's listed there.
-- [project-history.md](project-history.md) — shipped arc summarized under "Recent arcs (2026-05-13)".
-- [../case-studies/bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md) — landed write-up of the full three-phase arc.
+- [hosting.md](../ops/hosting.md) — static asset serving per hosting option, CSP considerations. Has a section pointing back here.
+- [case-study-topics.md](../cross-cutting/case-study-topics.md) — write-up framing for the full arc.
+- [vnext-ideas.md](../cross-cutting/vnext-ideas.md) — pre-Phase-0 record of the "30–60s waits hurt" problem if it's listed there.
+- [project-history.md](../project-history.md) — shipped arc summarized under "Recent arcs (2026-05-13)".
+- [../case-studies/bundling-the-bounded-cdn.md](../../case-studies/bundling-the-bounded-cdn.md) — landed write-up of the full three-phase arc.

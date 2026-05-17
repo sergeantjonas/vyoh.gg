@@ -1,6 +1,6 @@
 # Self-portrait surfaces
 
-**Status:** Active — parent direction note + candidate backlog. Several tile candidates from here have shipped via [home-deck.md](archive/home-deck.md). Routing principle (cross-stream synthesis on `/`, stream-deep feeds on per-stream routes) sharpened 2026-05-16 and is now the canonical rule.
+**Status:** Active — parent direction note + candidate backlog. Several tile candidates from here have shipped via [home-deck.md](../archive/home-deck.md). Routing principle (cross-stream synthesis on `/`, stream-deep feeds on per-stream routes) sharpened 2026-05-16 and is now the canonical rule.
 
 A working note tracking the "vyoh.gg as self-portrait engine" direction — panels on the site sourced from streams of the owner's life beyond LoL, each rendered as a `ConclusionCard` from the trends-rework engine. The reframe is from *another op.gg clone* to *a self-portrait engine where every panel is a verdict-card from a different data stream*. Stronger freelance signal; reuses every primitive already built (`ConclusionCard`, `RitualSignal`, SSE backfill, recap composer, patch-aware boundaries).
 
@@ -31,7 +31,7 @@ Concrete implications for the candidates below:
 - **WakaTime**, if it ever lands, also feeds `/code`.
 - **Chronotype** is the canonical `/` shape — it merges hour-bucketing across whatever streams are wired and produces a synthesis verdict no per-stream route could.
 
-Without this rule, `/` accumulates one stream-feed per integration (now-playing track + latest commit + now-playing game + last match) and the synthesis story drowns in feeds. Per-route deep content also reads cleaner for portfolio framing — each integration becomes its own case study (Riot, Steam, Spotify OAuth, GitHub GraphQL) with `/` as the aggregator. See [home-deck.md](archive/home-deck.md) for the `/` implementation arc.
+Without this rule, `/` accumulates one stream-feed per integration (now-playing track + latest commit + now-playing game + last match) and the synthesis story drowns in feeds. Per-route deep content also reads cleaner for portfolio framing — each integration becomes its own case study (Riot, Steam, Spotify OAuth, GitHub GraphQL) with `/` as the aggregator. See [home-deck.md](../archive/home-deck.md) for the `/` implementation arc.
 
 ---
 
@@ -56,7 +56,7 @@ These respect the filter but haven't been pulled into a focused panel yet. Liste
 - **Champion mastery + emblems.** Currently unused endpoint. Surface as its own "I've put 412k points into Vex" panel or feed an existing `ConclusionCard`.
 - **Free-week / rotation echo.** *"Three of this week's free-week champions are ones you've never played."* Passive, automatic, calm. Cheap.
 
-TFT lives in its own working note now — see [tft-integration.md](tft-integration.md). It's a separate game integration, not just an "untapped endpoint."
+TFT lives in its own working note now — see [tft-integration.md](../tft/tft-integration.md). It's a separate game integration, not just an "untapped endpoint."
 
 ### Temporal anniversaries (LoL data, all liked 2026-05-14)
 
@@ -103,7 +103,7 @@ TFT lives in its own working note now — see [tft-integration.md](tft-integrati
 
 ### Cross-pollination with the Steam roadmap
 
-When Steam integration lands — owner intends to start it *soon, once the LoL feature backlog runs lower* (stated 2026-05-14) — the same recap-engine framing applies: *"you played 6h of Helldivers this week"* reads exactly like the LoL recap. Worth flagging up-front so Steam doesn't get built as a parallel system — share the trends/recap primitives. See [steam-integration.md](steam-integration.md) for the Steam-specific candidate list (wishlist is the confirmed first surface).
+When Steam integration lands — owner intends to start it *soon, once the LoL feature backlog runs lower* (stated 2026-05-14) — the same recap-engine framing applies: *"you played 6h of Helldivers this week"* reads exactly like the LoL recap. Worth flagging up-front so Steam doesn't get built as a parallel system — share the trends/recap primitives. See [steam-integration.md](../steam/steam-integration.md) for the Steam-specific candidate list (wishlist is the confirmed first surface).
 
 ---
 
@@ -136,7 +136,7 @@ Reason: owner has explicitly excluded persistent local agents on the gaming desk
 - **Strava**, **location / timezone card**, **creative wildcards** (live presence indicator, guestbook, "what I'm into now" rotator). Owner excluded all in the 2026-05-14 brainstorm.
 - **Last.fm.** Owner doesn't use it. Spotify is the audio integration to consider.
 - **Birthday card.** Owner declined 2026-05-14. The rest of the temporal-anniversary family (on-this-day, first-of-season firsts, last-time chips, anniversary chips) is in scope; the birthday-specific variant is not.
-- **External public-activity feeds** — HackerNews, Mastodon, Dev.to, Reddit, Stack Overflow profile, NPM/PyPI maintainership, GitHub Sponsors, AniList / MyAnimeList. Owner declined the category 2026-05-14. The only external public surface still in scope is **Steam wishlist**, which lives under the Steam integration roadmap, not here — see [steam-integration.md](steam-integration.md).
+- **External public-activity feeds** — HackerNews, Mastodon, Dev.to, Reddit, Stack Overflow profile, NPM/PyPI maintainership, GitHub Sponsors, AniList / MyAnimeList. Owner declined the category 2026-05-14. The only external public surface still in scope is **Steam wishlist**, which lives under the Steam integration roadmap, not here — see [steam-integration.md](../steam/steam-integration.md).
 - **AI-derived weekly narrative.** A server-side LLM call producing a natural-language "you this week" digest as a Coach's note on the recap surface. Owner declined 2026-05-14. Note for future suggestions: do not propose LLM-curated digests as a self-portrait surface; the calm-coaching tone is intentionally human/derived, not generative.
 - **Public read-only API of own data** (e.g. `/api/v1/profile/me/recent`). Owner declined 2026-05-14 — not interested in exposing personal data as a public API surface for portfolio reasons.
 

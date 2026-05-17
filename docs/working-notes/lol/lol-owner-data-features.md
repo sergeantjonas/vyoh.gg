@@ -1,6 +1,6 @@
 # LoL owner-data feature ideas
 
-**Status:** Reference — ideation catalog opened 2026-05-17 after Match cache Tier 1A shipped. Browse when looking for a small-tile or sub-section idea that doesn't need new Riot calls. Items here promote to [open-work.md](open-work.md) when picked up.
+**Status:** Reference — ideation catalog opened 2026-05-17 after Match cache Tier 1A shipped. Browse when looking for a small-tile or sub-section idea that doesn't need new Riot calls. Items here promote to [open-work.md](../open-work.md) when picked up.
 
 Post-Tier-1A ideation sweep (2026-05-17). The owner participant in `MatchDetailCache` retains the full Riot payload — every field Riot returns, not just what we type. Non-owner participants keep only the lean `RiotMatchParticipantOther` shape. This note catalogs the features that become possible from the owner data, organized by surface.
 
@@ -132,4 +132,4 @@ PG4 effectively merges the post-game signal set with the match report card conce
 - [match-depth-roadmap.md](match-depth-roadmap.md) — Phase E (full rune page) already planned; spell cast strip and damage panel belong in a Phase F or Phase E extension
 - [personal-baselines.md](personal-baselines.md) — highlight reel, CS@10, lane dominance, skillshot accuracy all fit the you-vs-you frame documented there
 - [post-game-close-the-loop.md](post-game-close-the-loop.md) — PG4 peer route is the landing zone for the per-game match report card
-- [vnext-ideas.md](vnext-ideas.md) — lifetime multikill strip, objective presence, support effectiveness are candidate tiles for the unpromoted pool
+- [vnext-ideas.md](../cross-cutting/vnext-ideas.md) — lifetime multikill strip, objective presence, support effectiveness are candidate tiles for the unpromoted pool

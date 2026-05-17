@@ -1,6 +1,6 @@
 # vyoh.gg — case study and write-up topics
 
-**Status:** Reference — fourteen full case studies shipped through 2026-05-17 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`, `conclusion-card-pattern`, `runtime-image-proxy`). One descoped (runtime-validation). Read this when scoping a new write-up or refining portfolio narrative; consult [../case-studies/README.md](../case-studies/README.md) for the live inventory.
+**Status:** Reference — fourteen full case studies shipped through 2026-05-17 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`, `conclusion-card-pattern`, `runtime-image-proxy`). One descoped (runtime-validation). Read this when scoping a new write-up or refining portfolio narrative; consult [../case-studies/README.md](../../case-studies/README.md) for the live inventory.
 
 The project is a portfolio piece. README, deploy URL, write-ups, and performance evidence are deliverables, not afterthoughts.
 
@@ -53,8 +53,8 @@ Avoid a pure marketing README. It should read like a technical case study a clie
 
 Status: **shipped (two write-ups)**.
 
-- [docs/case-studies/riot-rate-limits.md](../case-studies/riot-rate-limits.md) — the rolling-window vs. fixed-window primitive bug, three wrong hypotheses on the way to it, and the architectural pivot to take Riot off the user-facing critical path.
-- [docs/case-studies/historical-backfill-and-sse.md](../case-studies/historical-backfill-and-sse.md) — follow-up arc covering the limiter slot leak (deadline abandonment + reservoir-update drift), the time-anchored historical worker (`endTime` + `min(playedAt)`), and the per-account SSE channel that streams new rows to TanStack invalidations.
+- [docs/case-studies/riot-rate-limits.md](../../case-studies/riot-rate-limits.md) — the rolling-window vs. fixed-window primitive bug, three wrong hypotheses on the way to it, and the architectural pivot to take Riot off the user-facing critical path.
+- [docs/case-studies/historical-backfill-and-sse.md](../../case-studies/historical-backfill-and-sse.md) — follow-up arc covering the limiter slot leak (deadline abandonment + reservoir-update drift), the time-anchored historical worker (`endTime` + `min(playedAt)`), and the per-account SSE channel that streams new rows to TanStack invalidations.
 
 Further material parked for a third pass once production-tier key behaviour, per-account TTL self-healing, and parallel-account fairness become real concerns.
 
@@ -103,7 +103,7 @@ Portfolio signal:
 
 ## Candidate write-up 3 — Frontend performance as a product feature
 
-Status: **shipped** — [docs/case-studies/frontend-perf.md](../case-studies/frontend-perf.md). Angle is "what do you do when 28% of the bundle is intentional?": audit, accept-and-codify the motion spend, lazy-load the decorations that don't render on first paint (sonner + cmdk, -23.75 kB gzip), live Web Vitals behind a session flag, `size-limit` budget in CI to lock the ceiling.
+Status: **shipped** — [docs/case-studies/frontend-perf.md](../../case-studies/frontend-perf.md). Angle is "what do you do when 28% of the bundle is intentional?": audit, accept-and-codify the motion spend, lazy-load the decorations that don't render on first paint (sonner + cmdk, -23.75 kB gzip), live Web Vitals behind a session flag, `size-limit` budget in CI to lock the ceiling.
 
 Open follow-ups (also tracked in [perf-baseline.md](./perf-baseline.md)):
 
@@ -113,7 +113,7 @@ Open follow-ups (also tracked in [perf-baseline.md](./perf-baseline.md)):
 
 ## Candidate write-up 4 — Motion without gimmicks
 
-Status: **shipped** — [docs/case-studies/motion-without-gimmicks.md](../case-studies/motion-without-gimmicks.md). Frames motion as a vocabulary of *information-bearing verbs* rather than decoration: count-ups settle to truth, card-to-hero shared-element transition replaces a cut, new-match pulse encodes outcome. Structural decisions: `LazyMotion + domMax` for bundle posture; `useReducedMotion` as a first-class runtime branch (component) layered with `@media (prefers-reduced-motion)` (CSS loops). Closes on the discipline of what was rejected (stagger, auto-rotate, parallax, refetch shimmer).
+Status: **shipped** — [docs/case-studies/motion-without-gimmicks.md](../../case-studies/motion-without-gimmicks.md). Frames motion as a vocabulary of *information-bearing verbs* rather than decoration: count-ups settle to truth, card-to-hero shared-element transition replaces a cut, new-match pulse encodes outcome. Structural decisions: `LazyMotion + domMax` for bundle posture; `useReducedMotion` as a first-class runtime branch (component) layered with `@media (prefers-reduced-motion)` (CSS loops). Closes on the discipline of what was rejected (stagger, auto-rotate, parallax, refetch shimmer).
 
 Potential title:
 
@@ -149,7 +149,7 @@ Portfolio signal:
 
 ## Candidate write-up 5 — Runtime validation
 
-Status: **descoped (2026-05-14)**. The candidate was always speculative — note the "*possible* Zod schemas" language below. Reconnaissance confirms no Zod / valibot / yup / class-validator anywhere in `apps/api` or `apps/web`, no NestJS `ValidationPipe`, no DTO decorators. The shipped pattern is opportunistic defensiveness at parse-time (`?? 0`, optional fields) plus end-to-end TypeScript types via `@vyoh/shared` — *not* runtime schema validation. Writing a case study claiming we validate would be dishonest; the closest honest piece is the "trust the type system, isolate the failure mode" framing, which is thin on its own and partly absorbed by [pagination-partial-failure](../case-studies/pagination-partial-failure.md). Reopen if Zod (or equivalent) actually lands.
+Status: **descoped (2026-05-14)**. The candidate was always speculative — note the "*possible* Zod schemas" language below. Reconnaissance confirms no Zod / valibot / yup / class-validator anywhere in `apps/api` or `apps/web`, no NestJS `ValidationPipe`, no DTO decorators. The shipped pattern is opportunistic defensiveness at parse-time (`?? 0`, optional fields) plus end-to-end TypeScript types via `@vyoh/shared` — *not* runtime schema validation. Writing a case study claiming we validate would be dishonest; the closest honest piece is the "trust the type system, isolate the failure mode" framing, which is thin on its own and partly absorbed by [pagination-partial-failure](../../case-studies/pagination-partial-failure.md). Reopen if Zod (or equivalent) actually lands.
 
 Potential title:
 
@@ -181,7 +181,7 @@ Portfolio signal:
 
 ## Candidate write-up — LP history without a time-series database
 
-Status: **shipped** — [docs/case-studies/lp-history-postgres.md](../case-studies/lp-history-postgres.md). Covers snapshot-on-change ingest, tier-normalized LP shared across packages, the visual-gap compression (`MAX_VISUAL_GAP_MS`) that keeps the line continuous across overnight gaps without lying in tooltips, patch-boundary interpolation onto the compressed axis, and the brush + Y-axis fit. Package-boundary footnote (subpath exports vs barrel re-exports) appears as a single line; the full diagnostic could become its own piece if the broader monorepo story ever needs framing.
+Status: **shipped** — [docs/case-studies/lp-history-postgres.md](../../case-studies/lp-history-postgres.md). Covers snapshot-on-change ingest, tier-normalized LP shared across packages, the visual-gap compression (`MAX_VISUAL_GAP_MS`) that keeps the line continuous across overnight gaps without lying in tooltips, patch-boundary interpolation onto the compressed axis, and the brush + Y-axis fit. Package-boundary footnote (subpath exports vs barrel re-exports) appears as a single line; the full diagnostic could become its own piece if the broader monorepo story ever needs framing.
 
 A LoL companion app that visualizes ranked-LP-over-time normally implies a time-series database — but the data is sparse (one snapshot per change, maybe a few per week per account) and Postgres handles it fine. The interesting story is *what makes that workable*:
 
@@ -209,7 +209,7 @@ Portfolio signal:
 
 ## Candidate write-up 6 — Killing fullscreen-blur flicker on a 4K dashboard
 
-Status: **shipped** — [docs/case-studies/fullscreen-blur-flicker.md](../case-studies/fullscreen-blur-flicker.md). Written as a two-act piece: the diagnostic arc (six suspects ranked by frame-cost shape, attack live-filter blur first) lands intact, and the closing explicitly acknowledges that the "wsrv.nl as durable supplier" framing was superseded by the bounded-CDN bundling arc. Substitution-not-rewrite framing: *what shape the input bitmap needs* (pre-blurred upstream) survived; *where the bitmap lives* (third-party query strings → build-time bundle) was the later pivot. See [Candidate write-up 8](#candidate-write-up-8--bundling-the-bounded-cdn).
+Status: **shipped** — [docs/case-studies/fullscreen-blur-flicker.md](../../case-studies/fullscreen-blur-flicker.md). Written as a two-act piece: the diagnostic arc (six suspects ranked by frame-cost shape, attack live-filter blur first) lands intact, and the closing explicitly acknowledges that the "wsrv.nl as durable supplier" framing was superseded by the bounded-CDN bundling arc. Substitution-not-rewrite framing: *what shape the input bitmap needs* (pre-blurred upstream) survived; *where the bitmap lives* (third-party query strings → build-time bundle) was the later pivot. See [Candidate write-up 8](#candidate-write-up-8--bundling-the-bounded-cdn).
 
 The splash backdrop layered five concurrent things on a near-fullscreen surface — `filter: blur(5px)` on the splash image, infinite Ken Burns transform, a 0.7 s opacity cross-fade keyed remount, an offsetX shift, and a fade-in opacity. On a 4K monitor this caused visible flicker during scroll-and-hover. The fix was a cluster, not one line.
 
@@ -240,7 +240,7 @@ Portfolio signal:
 
 ## Candidate write-up 7 — An operator console for the limiter chain
 
-Status: **shipped** — [docs/case-studies/operator-console.md](../case-studies/operator-console.md). Companion to [riot-rate-limits.md](../case-studies/riot-rate-limits.md) and [historical-backfill-and-sse.md](../case-studies/historical-backfill-and-sse.md). In-memory MVP, no auth gate yet — durable hosting is a separate problem.
+Status: **shipped** — [docs/case-studies/operator-console.md](../../case-studies/operator-console.md). Companion to [riot-rate-limits.md](../../case-studies/riot-rate-limits.md) and [historical-backfill-and-sse.md](../../case-studies/historical-backfill-and-sse.md). In-memory MVP, no auth gate yet — durable hosting is a separate problem.
 
 The first two write-ups diagnose and fix two generations of Bottleneck bugs from log archaeology alone — `grep "EXECUTING"`, watch a counter climb, infer the cause. The natural closing chapter: stop reading the chain from a tail and make its live state visible from a screen, with knobs to actually take action on what you see.
 
@@ -274,14 +274,14 @@ Portfolio signal:
 
 ## Candidate write-up 8 — Bundling the bounded CDN
 
-Status: **shipped** — [docs/case-studies/bundling-the-bounded-cdn.md](../case-studies/bundling-the-bounded-cdn.md). Working note: [lol-image-pipeline.md](./lol-image-pipeline.md).
+Status: **shipped** — [docs/case-studies/bundling-the-bounded-cdn.md](../../case-studies/bundling-the-bounded-cdn.md). Working note: [lol-image-pipeline.md](../lol/lol-image-pipeline.md).
 
 Three-phase arc that turned the runtime CDN dependency for LoL image assets (wsrv.nl proxying CDragon + DDragon) into a build-time bundle with an automated daily refresh. The angle is "the image universe is bounded, so the proxy doesn't have to be load-bearing": Phase 0 (per-probe timeout) bounded the worst case so the rest of the work was unhurried; Phase 1 (refresh script + manifest + URL helpers) replaced the runtime path on the common case; Phase 2 (GitHub Actions cron + auto-PR with conditional auto-merge label) closed the manual loop. The wsrv.nl chain is preserved as a long-tail safety net rather than torn out — defense in depth, not either/or.
 
 Companion to:
 
-- [build-time-champion-assets.md](../case-studies/build-time-champion-assets.md) — the predecessor pipeline (theme + blurhash). Phase 1 supersedes it by running theme/blurhash regen in the same pass, so the two pipelines can never desync.
-- [frontend-perf.md](../case-studies/frontend-perf.md) — broader frontend-perf arc this fits into.
+- [build-time-champion-assets.md](../../case-studies/build-time-champion-assets.md) — the predecessor pipeline (theme + blurhash). Phase 1 supersedes it by running theme/blurhash regen in the same pass, so the two pipelines can never desync.
+- [frontend-perf.md](../../case-studies/frontend-perf.md) — broader frontend-perf arc this fits into.
 - Candidate 6 above — the wsrv.nl-as-primary chapter that this arc deliberately revisited.
 
 Topics (already covered in the case study, repeated here for the topic index):
@@ -307,7 +307,7 @@ Evidence to collect (for any external write-up; case study already cites them in
 
 ## Candidate write-up 9 — The ConclusionCard pattern: a stats site that talks
 
-Status: **shipped** — [docs/case-studies/conclusion-card-pattern.md](../case-studies/conclusion-card-pattern.md). The pattern itself is the most-reused, most-distinctive abstraction in the LoL section. Working notes that orbit it: [trends-rework.md](./archive/trends-rework.md) (where it was first formalized), [app-state-analysis.md](./app-state-analysis.md) (where it's identified as the differentiator), [personal-baselines.md](./personal-baselines.md) (the framing that makes the verdicts land), [post-game-close-the-loop.md](./post-game-close-the-loop.md) (its strongest forward application).
+Status: **shipped** — [docs/case-studies/conclusion-card-pattern.md](../../case-studies/conclusion-card-pattern.md). The pattern itself is the most-reused, most-distinctive abstraction in the LoL section. Working notes that orbit it: [trends-rework.md](../archive/trends-rework.md) (where it was first formalized), [app-state-analysis.md](../lol/app-state-analysis.md) (where it's identified as the differentiator), [personal-baselines.md](../lol/personal-baselines.md) (the framing that makes the verdicts land), [post-game-close-the-loop.md](../lol/post-game-close-the-loop.md) (its strongest forward application).
 
 The thesis: **most stats sites describe; vyoh talks.** Every league companion app — op.gg, u.gg, blitz, mobalytics — sits the user in front of a dashboard of charts and tables and trusts them to derive meaning. Vyoh inverts the work: each tile renders a structured `{ verdict, evidence, prescription? }` triple via a single `ConclusionCard` primitive, and the chart is demoted from the headline to the supporting evidence under a sentence that says what's happening.
 
@@ -317,7 +317,7 @@ The arc to write up:
 - The vyoh default is judgment → metric. *"Aurelion Sol is your workhorse — 12 games, +6pp above your account average."* The chart is the receipt, not the message.
 - The pattern composes: 12 Trends tiles, the Champions list (planned), Pregame Ritual, post-game close-the-loop, the composite LP forecast — all the same `{ verdict, evidence, prescription? }` shape. The single abstraction carries surprising weight.
 - The pattern *constrains*: every tile has to either fire a verdict, fire a muted "directional only" path, or render an empty-state. There are no neutral middles. That constraint is the design principle disguised as a TypeScript type.
-- The pattern depends on **personal baselines** (see [personal-baselines.md](./personal-baselines.md)). A genre-default global percentile would force the tile back to scoreboard tone; the you-vs-you frame keeps it conversational.
+- The pattern depends on **personal baselines** (see [personal-baselines.md](../lol/personal-baselines.md)). A genre-default global percentile would force the tile back to scoreboard tone; the you-vs-you frame keeps it conversational.
 
 Topics:
 
@@ -342,7 +342,7 @@ Evidence to collect:
 - the `RitualSignal` / verdict-shape types as the load-bearing TypeScript primitives
 - the muted / empty / verdict exit paths actually rendered, to show the no-neutral-middle rule in code
 
-Pairs naturally with a [personal-baselines.md](./personal-baselines.md) follow-on, or absorbs the personal-baselines framing into a single longer piece if revisited.
+Pairs naturally with a [personal-baselines.md](../lol/personal-baselines.md) follow-on, or absorbs the personal-baselines framing into a single longer piece if revisited.
 
 ## README sections to grow incrementally
 

@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — pre-deploy work, not started. Owner lean is Hetzner VPS (single-VM, same-origin behind Nginx) but not committed. Landing is gated to a deliberate pre-launch sweep, not to any single content arc finishing. See [open-work.md](open-work.md) for sibling pre-deploy items (owner auth, status admin surface).
+**Status:** Active — pre-deploy work, not started. Owner lean is Hetzner VPS (single-VM, same-origin behind Nginx) but not committed. Landing is gated to a deliberate pre-launch sweep, not to any single content arc finishing. See [open-work.md](../open-work.md) for sibling pre-deploy items (owner auth, status admin surface).
 
 ## Options under consideration
 
@@ -122,7 +122,7 @@ CORS error instead, step 2 is incomplete.
 
 ## Static asset serving
 
-Superseded by [Phase 4 runtime image proxy](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
+Superseded by [Phase 4 runtime image proxy](../lol/lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
 The bundled `apps/web/public/lol/**` set, the per-option Nginx/Vercel/Fly
 `location /lol/` deploy notes, the CSP `img-src` forward-look against
 wsrv.nl + CDragon + DDragon, and the `refresh-lol-assets.yml` CI workflow
@@ -211,7 +211,7 @@ ARM / 160 GB NVMe, ~€12.49/mo)** over CAX21:
 
 ### Cross-references
 
-- The Phase 4 runtime image proxy ([lol-image-pipeline.md §Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream))
+- The Phase 4 runtime image proxy ([lol-image-pipeline.md §Phase 4](../lol/lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream))
   is the single largest change to this shape vs the original Option C
   draft. It adds the `/img/*` Nginx `proxy_cache` layer and removes the
   bundled `/lol/**` static-asset block in §Static asset serving above.
