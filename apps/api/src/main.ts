@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { requireEnv } from "./env";
@@ -10,6 +11,9 @@ async function bootstrap() {
   requireEnv("RIOT_API_KEY");
 
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(
+    new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })
+  );
   app.useGlobalInterceptors(new HttpLoggingInterceptor());
   app.useGlobalFilters(new RiotExceptionFilter());
   app.enableCors({
