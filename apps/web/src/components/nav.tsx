@@ -1,5 +1,5 @@
-import { useCommandPalette } from "@/components/command-palette-context";
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
+import { useCommandPalette } from "@/components/command-palette-context";
 import { OrbGlyph } from "@/components/orb-glyph";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";

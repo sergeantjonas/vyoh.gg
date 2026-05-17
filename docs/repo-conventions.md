@@ -48,6 +48,14 @@ If a predicate or filter must hold for *every* stat computation, rollup, or disp
 
 **How to apply:** When writing a new aggregation, check whether the feature domain has must-hold preconditions. If it does, call the named helper rather than re-deriving the filter. If the helper doesn't exist yet, create it in `packages/shared/src/<domain>/` as part of the same change.
 
+### Use `useChampionName()` for all champion name display
+
+When rendering a champion's name in any UI component, call `useChampionName()` from `@/lol/champions/use-champions` and use the returned function at the render site — never render a raw alias string directly as a display label.
+
+**Why:** Champion aliases from the Riot API are internal identifiers that diverge from display names for multi-word champions and renamed champions (e.g. `"JarvanIV"` → `"Jarvan IV"`, `"MonkeyKing"` → `"Wukong"`, `"AurelionSol"` → `"Aurelion Sol"`). Rendering the alias produces incorrect UI silently.
+
+**How to apply:** `const championName = useChampionName()` once at the top of the component; call `championName(alias)` at each render site. The hook falls back to a normalized alias while champion data loads, so the string is always safe to render.
+
 ### Committed generated files must be documented here
 
 Generated files (codegen output, router manifests, OpenAPI clients, Prisma artefacts) default to gitignored. Commit a generated file only when there is a deliberate reason (e.g. zero-cold-start dev, diff-as-audit-log), and record that reason in this section so the next reviewer doesn't raise it as a defect.

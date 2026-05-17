@@ -57,7 +57,7 @@ Make "find a match by what happened in it" a real palette mode. Single chunk **B
 
 - Trigger: when the user types into the palette and there's a current account slug, surface a **Matches** group below Pages/Accounts/Current account.
 - **Data source:** read from the existing TanStack Query cache — the matches list query is already populated on Profile/Matches/Trends visits. Do not fire a new fetch on palette open.
-- **Cache-miss behavior — decide before starting B:** either render an "Visit Matches to enable search" empty state (cheaper, makes the data dependency explicit) or kick off the same prefetch the Matches route uses (more magical, but blurs where data is "really" loaded). Lean: empty state, with a "Load matches" action button that triggers the prefetch on demand. Resolve this in the working-note before opening the B PR.
+- **Cache-miss behavior — decided 2026-05-18:** render a "Match history not loaded yet" empty state in the Matches group with a "Load matches" `CommandItem` that fires the same prefetch the Matches route uses. User stays in the palette; the group populates once data arrives. Auto-prefetch on open is ruled out — it blurs data ownership and violates the "cache hit before fetch" architecture note.
 - **Per-match item:** champion icon + win/loss pip + KDA + queue + role + relative time. Selecting navigates to `/lol/<slug>/matches/<matchId>`.
 - **Default ranking:** most recent first, but boost matches whose champion name fuzzy-matches the input.
 - **Filterable axes (Phase B baseline = champion + win/loss):** champion name (substring + Riot's lowercase-no-spaces variants), `wins` / `losses` keyword.

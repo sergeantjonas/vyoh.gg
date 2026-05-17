@@ -5,6 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
 import { useEffect } from "react";
 
@@ -294,5 +295,24 @@ export function useCachedMatches(account: LolAccount | undefined, queue?: number
       return consumed;
     },
     enabled: account !== undefined,
+  });
+}
+
+export async function prefetchCachedMatches(
+  queryClient: QueryClient,
+  account: LolAccount
+): Promise<void> {
+  await queryClient.prefetchInfiniteQuery({
+    queryKey: [
+      "lol",
+      "matches-cached-infinite",
+      account.region,
+      account.gameName,
+      account.tagLine,
+      undefined,
+    ],
+    queryFn: ({ pageParam }) =>
+      fetchCachedMatches(account, pageParam as number, MATCHES_PAGE_SIZE, undefined),
+    initialPageParam: 0,
   });
 }
