@@ -1,4 +1,5 @@
 import { useHomeFirstPlayed } from "@/home/use-home-first-played";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
 import type { HomeFirstPlayed } from "@vyoh/shared";
@@ -50,30 +51,44 @@ function Empty({ verdict }: { verdict: string }) {
 
 function LolView({ data }: { data: Extract<HomeFirstPlayed, { kind: "lol" }> }) {
   const championName = useChampionName();
+  const resolvedName = championName(data.champion);
   const losses = data.matchCount - data.wins;
   const record = `${data.matchCount} ${data.matchCount === 1 ? "match" : "matches"} (${data.wins}W-${losses}L)`;
-  const headline = `${championName(data.champion)} · LoL`;
+  const headline = `${resolvedName} · LoL`;
   const detail = `${formatRelative(data.firstPlayedAt)} · ${record}`;
+  const icon = (
+    <ChampionSquareIcon
+      championName={data.champion}
+      alt={resolvedName}
+      className="size-10 shrink-0 rounded-md ring-1 ring-border/60"
+    />
+  );
   return (
     <Shell>
       <Heading />
       {data.accountSlug ? (
         <Link
-          to="/lol/$accountSlug/champions/$championKey"
-          params={{ accountSlug: data.accountSlug, championKey: data.champion }}
-          className="group flex flex-col gap-0.5"
+          to="/lol/$accountSlug/matches/$matchId"
+          params={{ accountSlug: data.accountSlug, matchId: data.matchId }}
+          className="group flex items-center gap-3"
         >
-          <span className="text-base font-semibold leading-snug text-foreground/90 group-hover:text-foreground">
-            {headline}
-          </span>
-          <span className="text-sm text-muted-foreground">{detail}</span>
+          {icon}
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate text-base font-semibold leading-snug text-foreground/90 group-hover:text-foreground">
+              {headline}
+            </span>
+            <span className="text-sm text-muted-foreground">{detail}</span>
+          </div>
         </Link>
       ) : (
-        <div className="flex flex-col gap-0.5">
-          <p className="text-base font-semibold leading-snug text-foreground/90">
-            {headline}
-          </p>
-          <p className="text-sm text-muted-foreground">{detail}</p>
+        <div className="flex items-center gap-3">
+          {icon}
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="truncate text-base font-semibold leading-snug text-foreground/90">
+              {headline}
+            </p>
+            <p className="text-sm text-muted-foreground">{detail}</p>
+          </div>
         </div>
       )}
     </Shell>

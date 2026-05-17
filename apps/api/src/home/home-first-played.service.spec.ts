@@ -7,12 +7,15 @@ import {
   pickMostRecent,
 } from "./home-first-played.service";
 
+let nextMatchId = 1;
 const lolMatch = (
   champion: string,
   isoDate: string,
   win = true,
-  puuid = "p1"
+  puuid = "p1",
+  matchId = `EUW1_${nextMatchId++}`
 ): LolMatchRow => ({
+  matchId,
   champion,
   playedAt: new Date(isoDate),
   win,
@@ -70,28 +73,32 @@ describe("detectFirstLolChampion", () => {
     // Vex is the most-recently first-played within the window (first match
     // 2026-05-10). Yasuo is older (2026-05-05). Ahri's first match is outside
     // the window despite recent activity — older first-encounter loses.
-    expect(result).toEqual({
-      champion: "Vex",
-      firstPlayedAt: new Date("2026-05-10T12:00:00Z"),
-      matchCount: 3,
-      wins: 2,
-      firstPuuid: "p1",
-    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        champion: "Vex",
+        firstPlayedAt: new Date("2026-05-10T12:00:00Z"),
+        matchCount: 3,
+        wins: 2,
+        firstPuuid: "p1",
+      })
+    );
+    expect(typeof result?.firstMatchId).toBe("string");
   });
 
-  it("carries the puuid of the FIRST match so the caller can resolve account slug", () => {
+  it("carries the puuid + matchId of the FIRST match for slug + match-detail routing", () => {
     // Same champion first played on account A, then later on account B.
-    // firstPuuid must be the account-A row regardless of input order.
+    // firstPuuid/firstMatchId must come from the account-A first row regardless of input order.
     const result = detectFirstLolChampion(
       [
-        lolMatch("Vex", "2026-05-14T12:00:00Z", true, "puuid-B"),
-        lolMatch("Vex", "2026-05-10T12:00:00Z", true, "puuid-A"),
-        lolMatch("Vex", "2026-05-12T12:00:00Z", true, "puuid-A"),
+        lolMatch("Vex", "2026-05-14T12:00:00Z", true, "puuid-B", "EUW1_B14"),
+        lolMatch("Vex", "2026-05-10T12:00:00Z", true, "puuid-A", "EUW1_A10"),
+        lolMatch("Vex", "2026-05-12T12:00:00Z", true, "puuid-A", "EUW1_A12"),
       ],
       new Date("2026-05-17T12:00:00Z"),
       30
     );
     expect(result?.firstPuuid).toBe("puuid-A");
+    expect(result?.firstMatchId).toBe("EUW1_A10");
   });
 
   it("aggregates W/L across all matches on the champion, not just the first", () => {
@@ -234,6 +241,7 @@ describe("pickMostRecent", () => {
     kind: "lol" as const,
     champion: "Vex",
     firstPlayedAt: "2026-05-10T00:00:00.000Z",
+    matchId: "EUW1_12345",
     matchCount: 3,
     wins: 2,
     accountSlug: "vyoh-euw",

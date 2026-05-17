@@ -14,14 +14,16 @@ export interface HomeFirstPlayedLol {
   champion: string;
   /** ISO timestamp of the owner's first tracked non-remake match on the champion. */
   firstPlayedAt: string;
+  /** Riot matchId of that first-played match — drives the match-detail link. */
+  matchId: string;
   /** Total non-remake matches played on the champion since first encounter. */
   matchCount: number;
   /** Wins among `matchCount`. */
   wins: number;
   /**
-   * Slug of the account the *first* match was played on — drives the champion
-   * detail link. Null if the puuid can't be resolved against the configured
-   * accounts (config drift); the tile falls back to a non-linked headline.
+   * Slug of the account the *first* match was played on. Null if the puuid
+   * can't be resolved against the configured accounts (config drift); the
+   * tile falls back to a non-linked headline.
    */
   accountSlug: string | null;
 }

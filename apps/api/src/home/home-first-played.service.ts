@@ -11,6 +11,7 @@ const WINDOW_DAYS = 30;
 const STEAM_THRESHOLD_MINUTES = 30;
 
 export interface LolMatchRow {
+  matchId: string;
   champion: string;
   playedAt: Date;
   win: boolean;
@@ -31,6 +32,8 @@ export interface DetectedFirstLolChampion {
   wins: number;
   /** puuid of the *first* match — used to resolve which account's slug to link. */
   firstPuuid: string;
+  /** matchId of the *first* match — drives the match-detail link target. */
+  firstMatchId: string;
 }
 
 /**
@@ -47,7 +50,13 @@ export function detectFirstLolChampion(
 ): DetectedFirstLolChampion | null {
   const byChampion = new Map<
     string,
-    { firstPlayedAt: Date; firstPuuid: string; matchCount: number; wins: number }
+    {
+      firstPlayedAt: Date;
+      firstPuuid: string;
+      firstMatchId: string;
+      matchCount: number;
+      wins: number;
+    }
   >();
 
   for (const m of matches) {
@@ -56,6 +65,7 @@ export function detectFirstLolChampion(
       byChampion.set(m.champion, {
         firstPlayedAt: m.playedAt,
         firstPuuid: m.puuid,
+        firstMatchId: m.matchId,
         matchCount: 1,
         wins: m.win ? 1 : 0,
       });
@@ -66,6 +76,7 @@ export function detectFirstLolChampion(
     if (m.playedAt < entry.firstPlayedAt) {
       entry.firstPlayedAt = m.playedAt;
       entry.firstPuuid = m.puuid;
+      entry.firstMatchId = m.matchId;
     }
   }
 
@@ -191,7 +202,13 @@ export class HomeFirstPlayedService {
     const [matchRows, snapshotRows] = await Promise.all([
       this.prisma.match.findMany({
         where: { remake: false, puuid: { in: resolvablePuuids } },
-        select: { champion: true, playedAt: true, win: true, puuid: true },
+        select: {
+          matchId: true,
+          champion: true,
+          playedAt: true,
+          win: true,
+          puuid: true,
+        },
       }),
       this.prisma.steamPlaytimeSnapshot.findMany({
         select: {
@@ -244,6 +261,7 @@ export class HomeFirstPlayedService {
       kind: "lol",
       champion: detected.champion,
       firstPlayedAt: detected.firstPlayedAt.toISOString(),
+      matchId: detected.firstMatchId,
       matchCount: detected.matchCount,
       wins: detected.wins,
       accountSlug,
