@@ -13,6 +13,6 @@
     "node-vibrant": "^4.0.3",
     "sharp": "^0.34.5",
     "tsx": "^4.20.6",
-    "typescript": "^6.0.0-beta"
+    "typescript": "^6.0.3"
   }
 }
