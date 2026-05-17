@@ -152,7 +152,7 @@ export function ProfilePatchNotice({
                   <button
                     type="button"
                     onClick={() => toggleExpanded(group.champion)}
-                    className="mt-1 text-xs text-muted-foreground/70 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                    className="mt-1 cursor-pointer text-xs text-muted-foreground/70 underline-offset-2 transition-colors hover:text-foreground hover:underline"
                   >
                     {isExpanded
                       ? "Show less"
