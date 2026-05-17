@@ -192,24 +192,6 @@ These are off the table for the foreseeable future. Listed so they don't quietly
 
 ---
 
-## Cross-references — what to reflect in the active roadmaps
-
-So later phases don't undo earlier work, the following changes need to flow back into [match-depth-roadmap.md](../lol/match-depth-roadmap.md) and [trends-rework.md](../archive/trends-rework.md):
-
-### match-depth-roadmap.md
-
-- **Phase B charting library:** default to **visx** for the minimap and any non-stock chart. Recharts stays for stock cases (kill strip, gold lead, KDA). Avoids a Recharts → visx rewrite.
-- **Phase C polling architecture:** explicitly note **server-side polling + SSE push** as the v1 architecture, not client polling Spectator-V5. Live-now chip can render on Profile of accounts not currently being viewed.
-- **Phase D shape:** add "duo / squad detection" as a candidate insight surface alongside the existing learning surfaces. Touches both match list and Profile.
-
-### trends-rework.md
-
-- **Phase T2 layout system:** the magazine grid must use a layout primitive that supports Motion's `layout` prop on grid children. Reflow on range-change is a flagship motion moment that rides on this — pinning it now saves a rebuild later.
-- **Phase T2 / T3 conclusion data structure:** the `summarize(stats): { verdict, prescription? }` per-tile pattern should also produce a markdown-friendly version of the verdict, so the **Weekly digest as markdown export** (top-tier vNext) gets it for free instead of needing a parallel parser.
-- **Phase T3 deliverable ordering:** sample-size badge fill animation lives in T3 / second-tier polish, but the badge primitive itself needs to be in T2 so all retrofitted tiles use it consistently.
-
----
-
 ## Ten-pick if I had to pick now
 
 If asked tomorrow "what's the next arc after the documented roadmaps land," in priority order:
