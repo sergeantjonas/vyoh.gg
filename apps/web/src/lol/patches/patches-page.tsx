@@ -18,7 +18,7 @@ import { AbilityChangeList } from "@/lol/patches/ability-change-list";
 import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type {
   ChampionPatchChangeGroup,
   MatchSummary,
@@ -26,21 +26,8 @@ import type {
 } from "@vyoh/shared";
 import { useMemo, useState } from "react";
 
-interface PatchesSearch {
-  patch?: string;
-}
-
-export const Route = createFileRoute("/lol/$accountSlug/patches")({
-  component: PatchesPage,
-  validateSearch: (search: Record<string, unknown>): PatchesSearch => {
-    const raw = search.patch;
-    return {
-      patch: typeof raw === "string" && raw.length > 0 ? raw : undefined,
-    };
-  },
-});
-
-function PatchesPage() {
+export function PatchesPage({ versionParam }: { versionParam: string | undefined }) {
+  const { accountSlug } = useParams({ from: "/lol/$accountSlug" });
   const { matches } = useMatchWindow();
   const championName = useChampionName();
   const championAliasFromName = useChampionAliasFromName();
@@ -62,11 +49,10 @@ function PatchesPage() {
 
   const { data: patchList } = usePatchList();
   const navigate = useNavigate();
-  const { patch: searchPatch } = useSearch({ from: "/lol/$accountSlug/patches" });
   const newestVersion = patchList?.[0]?.version ?? null;
-  // `?patch=` overrides; absent → newest. We strip the param on selection
-  // when the newest patch is picked so shareable URLs stay clean.
-  const selectedVersion = searchPatch ?? newestVersion;
+  // Path segment overrides; absent → newest. Selecting the newest patch
+  // navigates back to the unversioned route so shareable URLs stay clean.
+  const selectedVersion = versionParam ?? newestVersion;
   const { data: patchChanges, isPending: changesPending } =
     usePatchChanges(selectedVersion);
 
@@ -116,12 +102,14 @@ function PatchesPage() {
   }
 
   const onSelectVersion = (next: string) => {
-    // Newest = "current" — drop the param so the URL stays canonical.
-    const nextPatch = next === newestVersion ? undefined : next;
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, patch: nextPatch }),
-    });
+    if (next === newestVersion) {
+      navigate({ to: "/lol/$accountSlug/patches", params: { accountSlug } });
+    } else {
+      navigate({
+        to: "/lol/$accountSlug/patches/$version",
+        params: { accountSlug, version: next },
+      });
+    }
   };
 
   return (

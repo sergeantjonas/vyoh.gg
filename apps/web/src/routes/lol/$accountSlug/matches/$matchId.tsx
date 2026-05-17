@@ -3,17 +3,17 @@ import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
 import { type MatchDetailTabId, MatchDetailTabs } from "@/lol/matches/match-detail-tabs";
-import { MatchDetailView } from "@/lol/matches/match-detail-view";
 import { MatchHero } from "@/lol/matches/match-hero";
 import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { ChevronLeft } from "lucide-react";
 import { m } from "motion/react";
@@ -30,13 +30,8 @@ const BODY_HOLD_OPACITY = 0.6;
 
 const API_URL = "http://localhost:2010";
 
-type MatchDetailSearch = { tab?: "your-game" | "timeline" };
-
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
-  validateSearch: (search: Record<string, unknown>): MatchDetailSearch => ({
-    tab: search.tab === "your-game" || search.tab === "timeline" ? search.tab : undefined,
-  }),
-  component: MatchDetailPage,
+  component: MatchDetailLayout,
   head: ({ params }) => {
     const ogImage = `${API_URL}/og/match/${params.accountSlug}/${params.matchId}.png`;
     const title = `Match ${params.matchId} · vyoh.gg`;
@@ -88,11 +83,22 @@ function MatchBreadcrumb({
   );
 }
 
-function MatchDetailPage() {
+// Derives the active tab from the URL's trailing path segment. The match-detail
+// index route redirects to `/recap`, so a valid detail URL always lands on one
+// of the three tab segments — fall back to "recap" only for the brief frame
+// before the redirect runs.
+function useActiveTab(matchId: string): MatchDetailTabId {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const after = pathname.split(`/matches/${matchId}`)[1] ?? "";
+  const trimmed = after.replace(/^\/+|\/+$/g, "");
+  if (trimmed === "your-game") return "your-game";
+  if (trimmed === "timeline") return "timeline";
+  return "recap";
+}
+
+function MatchDetailLayout() {
   const { accountSlug, matchId } = Route.useParams();
-  const { tab: tabParam } = Route.useSearch();
-  const tab: MatchDetailTabId = tabParam ?? "recap";
-  const navigate = useNavigate({ from: Route.fullPath });
+  const tab = useActiveTab(matchId);
   const account = useAccountFromSlug(accountSlug);
   const detail = useMatchDetail(matchId);
   const championName = useChampionName();
@@ -108,9 +114,6 @@ function MatchDetailPage() {
 
   const [heroScrolledPast, heroRef] = useHeroScrolledPast();
 
-  const handleTabChange = (id: MatchDetailTabId) =>
-    navigate({ search: { tab: id === "recap" ? undefined : id }, replace: true });
-
   const myParticipant =
     detail.data && account
       ? detail.data.participants.find(
@@ -119,6 +122,8 @@ function MatchDetailPage() {
             p.riotIdTagline.toLowerCase() === account.tagLine.toLowerCase()
         )
       : undefined;
+
+  useSplashChampion(myParticipant?.championName);
 
   const heroSummary: MatchSummary | undefined =
     cachedSummary ??
@@ -223,8 +228,9 @@ function MatchDetailPage() {
               </span>
             </div>
             <MatchDetailTabs
-              value={tab}
-              onChange={handleTabChange}
+              accountSlug={accountSlug}
+              matchId={matchId}
+              active={tab}
               compact
               indicatorId="match-detail-tab-indicator-sticky"
               className="border-b-0"
@@ -233,7 +239,7 @@ function MatchDetailPage() {
         </ChampionStickyStrip>
       )}
       <div className={cn(heroScrolledPast && "invisible")}>
-        <MatchDetailTabs value={tab} onChange={handleTabChange} />
+        <MatchDetailTabs accountSlug={accountSlug} matchId={matchId} active={tab} />
       </div>
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
@@ -254,13 +260,7 @@ function MatchDetailPage() {
             </Button>
           </div>
         ) : detail.data ? (
-          <MatchDetailView
-            detail={detail.data}
-            currentChampion={myParticipant?.championName}
-            myPuuid={myParticipant?.puuid}
-            accountSlug={accountSlug}
-            tab={tab}
-          />
+          <Outlet />
         ) : null}
       </m.div>
     </div>

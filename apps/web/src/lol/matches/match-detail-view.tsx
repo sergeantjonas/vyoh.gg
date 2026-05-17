@@ -20,11 +20,9 @@ import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
-import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
-import type { MatchDetailTabId } from "@/lol/matches/match-detail-tabs";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
@@ -795,32 +793,16 @@ const YOUR_GAME_SECTIONS = [
 
 const YOUR_GAME_IDS = YOUR_GAME_SECTIONS.map((s) => s.id);
 
-export function MatchDetailView({
+export function MatchRecapTab({
   detail,
-  currentChampion,
   myPuuid,
   accountSlug,
-  tab,
 }: {
   detail: MatchDetail;
-  currentChampion?: string;
   myPuuid?: string;
   accountSlug: string;
-  tab: MatchDetailTabId;
 }) {
   const reduced = useReducedMotion();
-  const { activeId: scrollspyId, refFor, navigateTo } = useScrollspy(YOUR_GAME_IDS);
-  const [showScrollspy, setShowScrollspy] = useState(false);
-  useEffect(() => {
-    if (tab !== "your-game") return;
-    const scrollEl = mainScrollRef.current;
-    if (!scrollEl) return;
-    const check = () => setShowScrollspy(scrollEl.scrollHeight > scrollEl.clientHeight);
-    requestAnimationFrame(check);
-    const ro = new ResizeObserver(check);
-    ro.observe(scrollEl);
-    return () => ro.disconnect();
-  }, [tab]);
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
@@ -829,97 +811,122 @@ export function MatchDetailView({
   const blueGold = detail.teams.find((t) => t.teamId === 100)?.totalGold ?? 0;
   const redGold = detail.teams.find((t) => t.teamId === 200)?.totalGold ?? 0;
 
-  useSplashChampion(currentChampion);
-
   return (
     <div className="flex flex-col gap-6">
-      {tab === "recap" && (
-        <>
-          <MatchHeaderStrip matchId={detail.matchId} teams={detail.teams} />
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <m.div
-              initial={reduced ? {} : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            >
-              <TeamBlock
-                title="Blue side"
-                participants={blue}
-                myPuuid={myPuuid}
-                maxDamage={maxDamage}
-                maxGold={maxGold}
-                badges={badges}
-                goldLead={blueGold - redGold}
-                accountSlug={accountSlug}
-              />
-            </m.div>
-            <m.div
-              initial={reduced ? {} : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
-            >
-              <TeamBlock
-                title="Red side"
-                participants={red}
-                myPuuid={myPuuid}
-                maxDamage={maxDamage}
-                maxGold={maxGold}
-                badges={badges}
-                goldLead={redGold - blueGold}
-                accountSlug={accountSlug}
-              />
-            </m.div>
-          </div>
-        </>
-      )}
-      {tab === "your-game" && (
-        <div className="flex gap-8">
-          <div className="flex min-w-0 flex-1 flex-col gap-6">
-            <div ref={refFor("build-order")}>
-              <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
-            </div>
-            <div ref={refFor("skill-order")}>
-              <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
-            </div>
-            <div ref={refFor("lane-phase")}>
-              <MatchLanePhase detail={detail} myPuuid={myPuuid} />
-            </div>
-          </div>
-          {showScrollspy && (
-            <aside
-              aria-label="Your game sections"
-              className="hidden w-28 shrink-0 flex-col gap-0.5 sm:flex"
-              style={{
-                position: "sticky",
-                top: "calc(var(--account-header-h, 64px) + 88px)",
-                alignSelf: "flex-start",
-              }}
-            >
-              {YOUR_GAME_SECTIONS.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => navigateTo(id, !reduced)}
-                  className={cn(
-                    "cursor-pointer py-1 text-left text-sm transition-colors",
-                    scrollspyId === id
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </aside>
-          )}
+      <MatchHeaderStrip matchId={detail.matchId} teams={detail.teams} />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+        >
+          <TeamBlock
+            title="Blue side"
+            participants={blue}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+            badges={badges}
+            goldLead={blueGold - redGold}
+            accountSlug={accountSlug}
+          />
+        </m.div>
+        <m.div
+          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
+        >
+          <TeamBlock
+            title="Red side"
+            participants={red}
+            myPuuid={myPuuid}
+            maxDamage={maxDamage}
+            maxGold={maxGold}
+            badges={badges}
+            goldLead={redGold - blueGold}
+            accountSlug={accountSlug}
+          />
+        </m.div>
+      </div>
+    </div>
+  );
+}
+
+export function MatchYourGameTab({
+  detail,
+  myPuuid,
+}: {
+  detail: MatchDetail;
+  myPuuid?: string;
+}) {
+  const reduced = useReducedMotion();
+  const { activeId: scrollspyId, refFor, navigateTo } = useScrollspy(YOUR_GAME_IDS);
+  const [showScrollspy, setShowScrollspy] = useState(false);
+  useEffect(() => {
+    const scrollEl = mainScrollRef.current;
+    if (!scrollEl) return;
+    const check = () => setShowScrollspy(scrollEl.scrollHeight > scrollEl.clientHeight);
+    requestAnimationFrame(check);
+    const ro = new ResizeObserver(check);
+    ro.observe(scrollEl);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div className="flex gap-8">
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <div ref={refFor("build-order")}>
+          <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
         </div>
+        <div ref={refFor("skill-order")}>
+          <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
+        </div>
+        <div ref={refFor("lane-phase")}>
+          <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+        </div>
+      </div>
+      {showScrollspy && (
+        <aside
+          aria-label="Your game sections"
+          className="hidden w-28 shrink-0 flex-col gap-0.5 sm:flex"
+          style={{
+            position: "sticky",
+            top: "calc(var(--account-header-h, 64px) + 88px)",
+            alignSelf: "flex-start",
+          }}
+        >
+          {YOUR_GAME_SECTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => navigateTo(id, !reduced)}
+              className={cn(
+                "cursor-pointer py-1 text-left text-sm transition-colors",
+                scrollspyId === id
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </aside>
       )}
-      {tab === "timeline" && (
-        <>
-          <MatchGoldLead detail={detail} myPuuid={myPuuid} />
-          <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
-        </>
-      )}
+    </div>
+  );
+}
+
+export function MatchTimelineTab({
+  detail,
+  myPuuid,
+}: {
+  detail: MatchDetail;
+  myPuuid?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+      <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
     </div>
   );
 }
