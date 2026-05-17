@@ -2,7 +2,7 @@
 
 **Status:** Reference — append-only history log of shipped arcs and structural decisions. Read this when looking for "why is this here" or "when did X land"; don't add planning here — planning lives in the relevant active note.
 
-This file preserves historical context that should not live in always-loaded `CLAUDE.md`.
+This file preserves historical context.
 
 ## Repo layout
 
@@ -14,6 +14,10 @@ vyoh.gg/
 └── packages/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
+
+## Last captured status — 2026-05-17
+
+Cross-stream gaming dashboard (LoL + Steam). **Steam Phase S8 closing arc fully shipped** (S8.1–S8.8): all five Phase S8 exit-criteria surfaces visible, including a session-length histogram tile on `/` that reads across both streams; `SteamPlaySession` (forward-only) is canonical, achievement-anchor reconstruction parked. **LoL patch notes (PN1–PN7) shipped 2026-05-17**: wiki parser + daily cron (PN1), profile heads-up callout (PN2), patches tab with version selector and my-champions sort (PN3), items + runes sections (PN4), Q/W/E/R slot mapping via wiki `Module:ChampionData/data` (PN5), ability icons + patch date + item/rune icon display (PN6), wiki-first icon consolidation with server-side resolution (PN7). **Match-cache Tier 1A shipped** (chunks A–C): owner-only retention with `VACUUM FULL` 195 MB → 43 MB (78% reduction); Tiers 1B/2/3 deferred until DB cost or feature scope changes. **Match-detail section nav (MDN1–MDN4) shipped 2026-05-17**; MDN5 (page-level Recap / Your game / Timeline tabs + scrollspy) scoped Option A, not started — motivated by queued owner-data additions stacking the page past 7 sections. **Runtime image proxy shipped 2026-05-16** (Phases 0–4): build-time bundled assets replaced by a Nest controller proxying CDragon/DDragon through Sharp, with the wsrv.nl chain preserved as long-tail safety net. Case study: [runtime-image-proxy.md](../case-studies/runtime-image-proxy.md). One open tail tracked in [open-work.md](open-work.md) — the wiki-image migration moving the remaining 12 CDragon client usages onto `wikiEntryIconUrl()`. **Personal-baselines (PB1–PB3) shipped 2026-05-14**: doc-pass establishing the you-vs-you frame, weakest-matchup tile on Champion detail, and patch-drift verdict (the missing-piece verdict layer atop the existing patch-boundary chart work). **Section-layout extraction shipped 2026-05-15** (all five chunks, now archived): `<SectionShell>` primitive at `_shared/section-layout/` composed by both LoL and Steam routes via identity / actions / nav slots. **Folder-structure cleanup Chunks 1 + 2 shipped 2026-05-14**: `lol-analytics.service.ts` extracted from the previously monolithic service; `lol/_shared/` split into six non-asset buckets. Chunks 3 + 4 conditional on Steam S4.5 re-look and TFT landing. **Security baseline shipped 2026-05-14**: `pnpm audit` in CI, Dependabot alerts + malware alerts + security updates, secret scanning with push protection. CodeQL SAST deferred as a freelance-signal layer. **Trends-rework** (T1+T2+T3+T4) and **Views-roadmap** (Phases 0–6) both shipped 2026-05-16 and archived. **ConclusionCard pattern case study shipped 2026-05-17** ([conclusion-card-pattern.md](../case-studies/conclusion-card-pattern.md)) — the verdict-shape primitive identified as the LoL section's load-bearing differentiator. **Owner-auth plan written 2026-05-14**, deferred to the pre-launch sweep alongside hosting choice and the status-page admin surface. Adjacent open arcs and reference catalogs reorganized into a five-bucket subfolder layout (`lol/`, `steam/`, `tft/`, `cross-cutting/`, `ops/`) under [working-notes/](.) on 2026-05-17 to keep the top-level folder readable as the project grew past 28 notes.
 
 ## Last captured status — 2026-05-13
 
