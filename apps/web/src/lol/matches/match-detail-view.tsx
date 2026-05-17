@@ -861,34 +861,44 @@ export function MatchDetailView({
         </>
       )}
       {tab === "your-game" && (
-        <>
-          <nav className="flex gap-1" aria-label="Your game sections">
+        <div className="flex gap-8">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <div ref={refFor("build-order")}>
+              <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+            </div>
+            <div ref={refFor("skill-order")}>
+              <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
+            </div>
+            <div ref={refFor("lane-phase")}>
+              <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+            </div>
+          </div>
+          <aside
+            aria-label="Your game sections"
+            className="hidden w-28 shrink-0 flex-col gap-0.5 sm:flex"
+            style={{
+              position: "sticky",
+              top: "calc(var(--account-header-h, 64px) + 88px)",
+              alignSelf: "flex-start",
+            }}
+          >
             {YOUR_GAME_SECTIONS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => navigateTo(id, !reduced)}
                 className={cn(
-                  "cursor-pointer rounded-md px-2.5 py-1 text-sm transition-colors",
+                  "cursor-pointer py-1 text-left text-sm transition-colors",
                   scrollspyId === id
-                    ? "bg-foreground/8 font-medium text-foreground"
+                    ? "font-medium text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {label}
               </button>
             ))}
-          </nav>
-          <div ref={refFor("build-order")}>
-            <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
-          </div>
-          <div ref={refFor("skill-order")}>
-            <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
-          </div>
-          <div ref={refFor("lane-phase")}>
-            <MatchLanePhase detail={detail} myPuuid={myPuuid} />
-          </div>
-        </>
+          </aside>
+        </div>
       )}
       {tab === "timeline" && (
         <>
