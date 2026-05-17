@@ -3,8 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 
 // Pulled live from CDragon. Small (~14KB), refreshes itself patch-over-patch
 // without a redeploy. React Query caches it as `Infinity` so the runtime fetch
-// only happens once per page load.
-const CHAMPIONS_URL = "https://cdn.communitydragon.org/latest/champion-summary.json";
+// only happens once per page load. The shorthand `cdn.communitydragon.org`
+// alias for this file was retired upstream and now 404s — use the canonical
+// rcp-be-lol-game-data path, which is the source the CDragon docs point at.
+const CHAMPIONS_URL =
+  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json";
 
 interface RawChampion {
   id: number;
