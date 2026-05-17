@@ -141,14 +141,16 @@ CREATE INDEX ON champion_patch_changes (patch_version, champion_key);
 
 Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, `apps/api/src/lol/patch-parser.spec.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/api/prisma/migrations/20260517015157_patch_notes_pn1/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/api/src/lol/lol.module.ts`
 
-### PN2 — Profile heads-up
+### PN2 — Profile heads-up — **shipped 2026-05-17**
 
-- `GET /lol/patches/current/changes` endpoint (champion filter param)
-- Profile page: after champion frequency resolves, fetch changes for top 5
-- Callout component: "Patch X.Y — changes for your champions" with per-champion change lines
-- Dismissible per patch (localStorage key)
+- ✅ `GET /lol/patches/current/changes?champion=Ahri&champion=Wukong` — `PatchController` + `PatchService.getCurrentChanges`; repeated `champion` query param, max 20, dedupe + trim
+- ✅ Shared `CurrentPatchChangesResponse` / `ChampionPatchChangeGroup` / `ChampionPatchChangeLine` / `ChampionPatchChangeKind` types
+- ✅ `ProfilePatchNotice` callout mounted in `/lol/$accountSlug/` between the live-game chip and the pre-game ritual; derives top-5 champions from `useMatchWindow().matches`, resolves Riot aliases → wiki names via existing `useChampionName` (CDragon-backed)
+- ✅ Dismissible per patch via `vyoh:patch-notice-dismissed:{version}` localStorage key
+- ✅ Per-line glyph: ↑ buff (emerald), ↓ nerf (rose), + new_effect (sky), × removed (muted); 3 lines visible per champion with `+N more` overflow line
+- ✅ 13 unit tests (`patch.service.spec.ts` getCurrentChanges + `patch.controller.spec.ts` normalizeChampions)
 
-Files: `patch.controller.ts`, profile route component, new callout component
+**Deferred to PN3:** ability name → Q/W/E/R slot mapping (still stored verbatim as wiki ability name); `+N more` line is currently plain text — wire it to the patch-notes tab once PN3 lands.
 
 ### PN3 — Patch notes tab
 
