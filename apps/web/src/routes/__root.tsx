@@ -1,4 +1,5 @@
 import { CommandPalette } from "@/components/command-palette";
+import { CommandPaletteProvider } from "@/components/command-palette-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
@@ -34,7 +35,8 @@ function RootLayout() {
   });
   return (
     <TooltipPrimitive.Provider delayDuration={150}>
-      <SplashProvider>
+      <CommandPaletteProvider>
+        <SplashProvider>
         <HeadContent />
         <FetchProgress />
         <CommandPalette />
@@ -83,7 +85,8 @@ function RootLayout() {
             </div>
           </main>
         </div>
-      </SplashProvider>
+        </SplashProvider>
+      </CommandPaletteProvider>
     </TooltipPrimitive.Provider>
   );
 }

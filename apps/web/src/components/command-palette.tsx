@@ -1,9 +1,10 @@
+import { useCommandPalette } from "@/components/command-palette-context";
 import { Suspense, lazy, useEffect, useState } from "react";
 
 const CommandPaletteDialog = lazy(() => import("./command-palette-dialog"));
 
 export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useCommandPalette();
   const [hasOpened, setHasOpened] = useState(false);
 
   useEffect(() => {
@@ -11,12 +12,15 @@ export function CommandPalette() {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((o) => !o);
-        setHasOpened(true);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [setOpen]);
+
+  useEffect(() => {
+    if (open) setHasOpened(true);
+  }, [open]);
 
   if (!hasOpened) return null;
 
