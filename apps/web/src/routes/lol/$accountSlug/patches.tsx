@@ -68,6 +68,17 @@ function PatchesPage() {
   const { data: patchChanges, isPending: changesPending } =
     usePatchChanges(selectedVersion);
 
+  const patchDateLabel = useMemo(() => {
+    const iso = patchList?.find((p) => p.version === selectedVersion)?.patchDate;
+    if (!iso) return null;
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }, [patchList, selectedVersion]);
+
   const [myOnly, setMyOnly] = useState(false);
 
   const sortedChampions = useMemo(() => {
@@ -117,6 +128,7 @@ function PatchesPage() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
             Patch {patchChanges.patchVersion}
+            {patchDateLabel ? ` · ${patchDateLabel}` : ""}
           </p>
           {patchList && patchList.length > 1 ? (
             <div className="flex items-center gap-2">
@@ -128,10 +140,9 @@ function PatchesPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {patchList.map((p, i) => (
+                  {patchList.map((p) => (
                     <SelectItem key={p.version} value={p.version}>
                       {p.version}
-                      {i === 0 ? " · current" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
