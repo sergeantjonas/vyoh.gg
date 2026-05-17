@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Active — v1 shipped, untouched since the lazy-load split (2026-05-12). Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav. Phases A–E ahead — see [open-work.md](../open-work.md).
+**Status:** Active — v1 shipped, untouched since the lazy-load split (2026-05-12). Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav. 9 commit-boundary chunks across phases A–E ahead — see [open-work.md](../open-work.md).
 
 ## What v1 does today
 
@@ -23,28 +23,41 @@ Mounted once in [apps/web/src/routes/\_\_root.tsx:55](../../../apps/web/src/rout
 
 ## Phased plan
 
-Each phase is independently committable and fits one context window.
+Each chunk below is independently committable and fits one context window. Phases group related chunks; the chunk is the unit of work.
+
+**Commit-boundary chunks:**
+
+1. **A1 — Provider lift.** Pure refactor: extract `CommandPaletteProvider` + `useCommandPalette()` from [command-palette.tsx](../../../apps/web/src/components/command-palette.tsx); wrap in [__root.tsx](../../../apps/web/src/routes/__root.tsx). No new consumers yet.
+2. **A2 — Nav chip.** Visible ⌘K / Ctrl K affordance in [nav.tsx](../../../apps/web/src/components/nav.tsx) using `useCommandPalette().setOpen`. Includes mobile search-glyph fallback.
+3. **B — Match search mode.** New Matches group in the dialog reading from the cached matches query. Champion + win/loss filtering only.
+4. **C1 — Parser foundation.** Pure parser in `@vyoh/shared` + unit tests. Minimal verbs: `with:`, `vs:`, `wins`, `losses`. No UI changes.
+5. **C2 — Full verb set.** Extend parser with `queue:`, `role:`, `patch:`, `since:`/`until:`, `kda><`, `duo:` + tests. Wire into Matches-group filtering.
+6. **C3 — Parsed chips UI.** Render parsed chips in the palette input row; click-to-remove rewrites the query string.
+7. **D1 — Champion mode.** Champions group that jumps to `/lol/<slug>/champions/<champion>` when an account is active.
+8. **D2 — Cross-account scope.** From Steam/Home, surface a "Search matches in <account>" affordance that switches scope and pre-opens Phase B.
+9. **E — Recents.** Persist last ~5 selections in `localStorage` (per-account namespace); show as a Recent group when input is empty.
 
 ### Phase A — Discoverability affordance (small)
 
-Add a visible trigger so users learn the shortcut exists.
+Add a visible trigger so users learn the shortcut exists. Two commits: **A1** (provider refactor) before **A2** (chip consumer).
 
 - Render a `⌘K` / `Ctrl K` chip in [components/nav.tsx](../../../apps/web/src/components/nav.tsx), right-aligned (after the page links, before the right edge). Clicking opens the palette.
 - Style the chip to match the existing `<CommandShortcut>` rendering in [command-palette-dialog.tsx:99-103](../../../apps/web/src/components/command-palette-dialog.tsx#L99-L103) — `rounded border bg-muted/50 px-1.5 py-0.5` — so the chrome teaches the dialog's own visual language.
 - Platform-aware label: `⌘K` on macOS (`/Mac/i.test(navigator.platform)`), `Ctrl K` elsewhere. Compute once at module scope; the value is stable per session.
 - Wrap in a Radix `TooltipPrimitive` ("Open command palette") per the project's tooltip convention — never native `title=`.
 - `aria-label="Open command palette"` on the button; visible label is the keys themselves, which doubles as both affordance and instruction.
-- **Architecture:** the chip needs to dispatch `setOpen(true)` into state that currently lives inside `<CommandPalette />`. Lift it into a `CommandPaletteProvider` context exposed via `useCommandPalette()`. The shell still owns the keyboard listener and the lazy boundary; the provider just exposes `{ open, setOpen }` so the nav chip — and any future surface ("Filter from here", deep-link buttons) — can open it without import cycles.
+- **Architecture (A1):** the chip needs to dispatch `setOpen(true)` into state that currently lives inside `<CommandPalette />`. Lift it into a `CommandPaletteProvider` context exposed via `useCommandPalette()`. The shell still owns the keyboard listener and the lazy boundary; the provider just exposes `{ open, setOpen }` so the nav chip — and any future surface ("Filter from here", deep-link buttons) — can open it without import cycles. Land A1 with no new consumers so the refactor is reviewable on its own.
 - **Mobile fallback** (no keyboard, no hover): the chip is the only entry point. Render the keys label on `sm:` and up; below `sm`, render a search-glyph icon button (`Search` from lucide) with the same aria-label and tooltip. The dialog itself already works on touch — `CommandInput` autofocuses, virtual keyboard slides over the modal.
 
-Files: `nav.tsx`, `command-palette.tsx` (extract provider), `__root.tsx` (wrap with provider). Roughly 3-4 files.
+Files: `nav.tsx`, `command-palette.tsx` (extract provider), `__root.tsx` (wrap with provider). Roughly 3-4 files across A1+A2.
 
 ### Phase B — Match search mode (medium)
 
-Make "find a match by what happened in it" a real palette mode.
+Make "find a match by what happened in it" a real palette mode. Single chunk **B**.
 
 - Trigger: when the user types into the palette and there's a current account slug, surface a **Matches** group below Pages/Accounts/Current account.
-- **Data source:** read from the existing TanStack Query cache — the matches list query is already populated on Profile/Matches/Trends visits. Do not fire a new fetch on palette open; degrade gracefully if cache miss ("Visit Matches to enable search" empty state, or kick off the prefetch).
+- **Data source:** read from the existing TanStack Query cache — the matches list query is already populated on Profile/Matches/Trends visits. Do not fire a new fetch on palette open.
+- **Cache-miss behavior — decide before starting B:** either render an "Visit Matches to enable search" empty state (cheaper, makes the data dependency explicit) or kick off the same prefetch the Matches route uses (more magical, but blurs where data is "really" loaded). Lean: empty state, with a "Load matches" action button that triggers the prefetch on demand. Resolve this in the working-note before opening the B PR.
 - **Per-match item:** champion icon + win/loss pip + KDA + queue + role + relative time. Selecting navigates to `/lol/<slug>/matches/<matchId>`.
 - **Default ranking:** most recent first, but boost matches whose champion name fuzzy-matches the input.
 - **Filterable axes (Phase B baseline = champion + win/loss):** champion name (substring + Riot's lowercase-no-spaces variants), `wins` / `losses` keyword.
@@ -52,7 +65,7 @@ Make "find a match by what happened in it" a real palette mode.
 
 ### Phase C — Typed verb grammar (medium)
 
-Promote freeform input to a small structured grammar. Three styles for one feature:
+Promote freeform input to a small structured grammar. Three chunks: **C1** (parser + minimal verbs), **C2** (remaining verbs + wiring), **C3** (chips UI).
 
 | Verb | Example | Meaning |
 |---|---|---|
@@ -68,12 +81,19 @@ Promote freeform input to a small structured grammar. Three styles for one featu
 
 Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the input row so the user sees how the query was interpreted (and can click-remove individual chips).
 
+**Chunk split:**
+- **C1** ships the parser shell in `@vyoh/shared` + tests, with just `with:` / `vs:` / `wins` / `losses` recognised. No UI changes; B's Matches group keeps its current free-text behavior until C2 lands.
+- **C2** adds the remaining verbs (`queue:`, `role:`, `patch:`, `since:`/`until:`, `kda><`, `duo:`) to the parser + tests and rewires B's filter to call the parser.
+- **C3** is UI-only: render parsed chips in the input row, click-to-remove rewrites the input string. Pure addition; if it slips, C2 still ships value.
+
 **Implementation note:** parse incrementally on each keystroke; keep the parser pure and unit-tested in `packages/shared` so the same grammar can later power a URL-state encoding (`/matches?q=with:nidalee+wins`).
 
 ### Phase D — Global account + champion search (small-medium)
 
-- **Champion mode** (when account is active): "Type a champion name → jump to `/lol/<slug>/champions/<champion>`." Source: the existing champion list query from Champions page, or a static champion roster from the patch fetcher. Same fuzzy matching as Phase B.
-- **Cross-account scope:** if the user is on Steam or Home and types a Riot ID fragment, surface their accounts as today *plus* a "Search matches in <account>" affordance that switches scope and opens Phase B inside that account.
+Two independent chunks; ship in either order:
+
+- **D1 — Champion mode** (when account is active): "Type a champion name → jump to `/lol/<slug>/champions/<champion>`." Source: the existing champion list query from Champions page, or a static champion roster from the patch fetcher. Same fuzzy matching as Phase B.
+- **D2 — Cross-account scope:** if the user is on Steam or Home and types a Riot ID fragment, surface their accounts as today *plus* a "Search matches in <account>" affordance that switches scope and opens Phase B inside that account.
 
 ### Phase E — Recent commands + result persistence (small)
 
@@ -107,10 +127,29 @@ Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the inp
 
 ## Acceptance criteria
 
-- Phase A: a new user lands on the site, sees the ⌘K chip in the nav within first paint, clicking it opens the palette, the lazy chunk loads on click (not on first paint), no extra bytes shipped in the main bundle (`size-limit` budget unchanged).
-- Phase B: from `/lol/<slug>/matches` scrolled past row 30, ⌘K → typing "nida" surfaces all Nidalee games in the cached window within one frame of typing.
-- Phase C: `with:nidalee wins kda>3 since:14d` returns the correct intersection; parsed chips are visible in the input row; backspacing a chip widens the result set.
-- Phase E: closing and reopening the palette without typing shows the last 5 selections.
+- **A1:** provider is in place; ⌘K still opens the palette via the keyboard listener exactly as before; no visible UX change; no new bytes in the eager shell beyond the context object itself.
+- **A2:** a new user lands on the site, sees the ⌘K chip in the nav within first paint, clicking it opens the palette, the lazy chunk loads on click (not on first paint), `size-limit` budget unchanged.
+- **B:** from `/lol/<slug>/matches` scrolled past row 30, ⌘K → typing "nida" surfaces all Nidalee games in the cached window within one frame of typing. Cache-miss path renders the agreed empty state.
+- **C1:** `with:nidalee`, `vs:khazix`, bare `wins`/`losses` parse correctly in `@vyoh/shared` tests; no behavior change in the palette.
+- **C2:** `with:nidalee wins kda>3 since:14d` returns the correct intersection inside the Matches group.
+- **C3:** parsed chips are visible in the input row; backspacing or clicking a chip widens the result set.
+- **D1:** typing a champion fragment surfaces a Champions group that navigates to `/lol/<slug>/champions/<champion>`.
+- **D2:** from `/steam` or `/`, typing a Riot ID fragment surfaces "Search matches in <account>" that switches scope.
+- **E:** closing and reopening the palette without typing shows the last 5 selections, namespaced per account.
+
+## Extending the palette is part of new feature work
+
+Once A2 lands and the palette has a discoverable entry point, it becomes the default surface for new filter, find-by-X, and deep-link affordances. Don't ship a leaf-page dropdown, sticky controls bar, or one-off filter chip when the same intent could route through the palette's existing grammar.
+
+Concrete cases:
+
+- New filterable match attribute (objective participation, ping count, vision score) → extend the C2 verb grammar in the same PR. Don't add a parallel sort dropdown to Matches.
+- Champion-detail "filter to my games on this champion" button → dispatch `useCommandPalette().setOpen(true)` with `with:<champ>` pre-filled, not a new dropdown.
+- Cross-stream "find" intent (Steam, future verticals) → either add a stream-specific palette group or a parallel grammar in the same parser (see Open questions on Steam).
+
+**Why:** The palette is the explicit handoff from the reverted sticky-controls bar — scattering filter UI across leaf pages re-invents the problem that handoff was meant to solve, and dilutes the discoverability story the chip in A2 buys us. The parser in `@vyoh/shared` (C1) exists precisely so the grammar has one home; bypassing it for a leaf-page filter forks the vocabulary.
+
+**How to apply:** When scoping any task that touches a filterable surface or adds a "find by X" intent, include an "extend palette" sub-chunk in the plan. If the new affordance genuinely doesn't fit the palette (spatial selection, live-preview range slider, drag-to-reorder), call that out in the working-note before adding parallel UI. Cross-link from the working-note back to this file's chunk list so the addition slots into the right phase.
 
 ## References
 
