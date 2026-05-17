@@ -34,7 +34,6 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import {
-  ChevronLeft,
   Crown,
   History,
   LayoutDashboard,
@@ -76,37 +75,6 @@ const DEFAULT_COUNT = 20;
 interface AccountSearch {
   queue?: number;
   count?: number;
-}
-
-function BackButton({
-  accountSlug,
-  pathname,
-}: { accountSlug: string; pathname: string }) {
-  const { setOriginRect } = useActiveMatch();
-  const matchId = pathname.split("/").pop() ?? null;
-  return (
-    <Link
-      to="/lol/$accountSlug/matches"
-      params={{ accountSlug }}
-      search={(prev: AccountSearch) => prev}
-      onClick={() => {
-        if (matchId) {
-          const heroEl = document.querySelector(`[data-match-card="${matchId}"]`);
-          if (heroEl instanceof HTMLElement) {
-            setOriginRect({
-              matchId,
-              rect: heroEl.getBoundingClientRect(),
-              direction: "backward",
-            });
-          }
-        }
-      }}
-      className="group flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-      Matches
-    </Link>
-  );
 }
 
 function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
@@ -456,17 +424,7 @@ function LolNav({
 }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
-      {isMatchDetail ? (
-        <m.div
-          key="back-nav"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-        >
-          <BackButton accountSlug={accountSlug} pathname={pathname} />
-        </m.div>
-      ) : (
+      {isMatchDetail ? null : (
         <m.div
           key="tabs"
           initial={{ opacity: 0 }}

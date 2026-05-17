@@ -5,14 +5,17 @@ import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-p
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { useChampionName } from "@/lol/champions/use-champions";
+import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
+import { type MatchDetailTabId, MatchDetailTabs } from "@/lol/matches/match-detail-tabs";
 import { MatchDetailView } from "@/lol/matches/match-detail-view";
 import { MatchHero } from "@/lol/matches/match-hero";
 import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
+import { ChevronLeft } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -52,6 +55,42 @@ export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   },
 });
 
+function MatchBreadcrumb({
+  accountSlug,
+  matchId,
+}: { accountSlug: string; matchId: string }) {
+  const { setOriginRect } = useActiveMatch();
+  return (
+    <Link
+      to="/lol/$accountSlug/matches"
+      params={{ accountSlug }}
+      search={(prev: { queue?: number; count?: number }) => prev}
+      onClick={() => {
+        const heroEl = document.querySelector(`[data-match-card="${matchId}"]`);
+        if (heroEl instanceof HTMLElement) {
+          setOriginRect({
+            matchId,
+            rect: heroEl.getBoundingClientRect(),
+            direction: "backward",
+          });
+        }
+      }}
+      className="group inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+      Matches
+    </Link>
+  );
+}
+
+function ComingSoonPanel({ label }: { label: string }) {
+  return (
+    <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+      {label} — coming soon.
+    </div>
+  );
+}
+
 function MatchDetailPage() {
   const { accountSlug, matchId } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
@@ -68,6 +107,7 @@ function MatchDetailPage() {
   }, []);
 
   const [heroScrolledPast, heroRef] = useHeroScrolledPast();
+  const [tab, setTab] = useState<MatchDetailTabId>("recap");
 
   const myParticipant =
     detail.data && account
@@ -114,6 +154,7 @@ function MatchDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <MatchBreadcrumb accountSlug={accountSlug} matchId={matchId} />
       <div ref={heroRef}>
         {heroSummary && (
           <m.div
@@ -180,32 +221,39 @@ function MatchDetailPage() {
           </div>
         </ChampionStickyStrip>
       )}
+      <MatchDetailTabs value={tab} onChange={setTab} />
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="flex flex-col gap-6"
       >
-        {!bodyReady || detail.isPending ? (
-          // Hold the skeleton until the morph is done even if the query
-          // already has data cached — swapping to the full detail view
-          // mid-flight is the visual hitch the gate exists to absorb.
-          <MatchDetailSkeleton />
-        ) : detail.isError ? (
-          <div className="flex flex-col items-start gap-2">
-            <p className="text-sm text-destructive">{detail.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => detail.refetch()}>
-              Try again
-            </Button>
-          </div>
-        ) : detail.data ? (
-          <MatchDetailView
-            detail={detail.data}
-            currentChampion={myParticipant?.championName}
-            myPuuid={myParticipant?.puuid}
-            accountSlug={accountSlug}
-          />
-        ) : null}
+        {tab === "recap" ? (
+          !bodyReady || detail.isPending ? (
+            // Hold the skeleton until the morph is done even if the query
+            // already has data cached — swapping to the full detail view
+            // mid-flight is the visual hitch the gate exists to absorb.
+            <MatchDetailSkeleton />
+          ) : detail.isError ? (
+            <div className="flex flex-col items-start gap-2">
+              <p className="text-sm text-destructive">{detail.error.message}</p>
+              <Button variant="outline" size="sm" onClick={() => detail.refetch()}>
+                Try again
+              </Button>
+            </div>
+          ) : detail.data ? (
+            <MatchDetailView
+              detail={detail.data}
+              currentChampion={myParticipant?.championName}
+              myPuuid={myParticipant?.puuid}
+              accountSlug={accountSlug}
+            />
+          ) : null
+        ) : tab === "your-game" ? (
+          <ComingSoonPanel label="Your game" />
+        ) : (
+          <ComingSoonPanel label="Timeline" />
+        )}
       </m.div>
     </div>
   );
