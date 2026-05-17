@@ -26,12 +26,8 @@ function SignaturePage() {
           and the rarest pulls so far.
         </p>
       </div>
-      <div className="sm:max-w-md">
-        <CompletionistAxisCard />
-      </div>
-      <div className="sm:max-w-md">
-        <SteamChronotypeTile />
-      </div>
+      <CompletionistAxisCard />
+      <SteamChronotypeTile />
       <HundredPercentHall />
       <RarestSection />
     </div>

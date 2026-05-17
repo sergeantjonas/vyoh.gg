@@ -1,4 +1,3 @@
-import { SampleSizeBadge } from "@/lol/trends/_shared/sample-size-badge";
 import { useSteamChronotype } from "@/steam/use-steam-chronotype";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { SteamChronotypeHour } from "@vyoh/shared";
@@ -81,12 +80,9 @@ export function SteamChronotypeTile() {
 
   return (
     <Shell>
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
-          Chronotype
-        </h3>
-        <SampleSizeBadge count={totalCount} />
-      </div>
+      <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
+        Chronotype
+      </h3>
       <p className="text-base font-semibold leading-snug text-foreground/90">
         When I unlock achievements.
       </p>
