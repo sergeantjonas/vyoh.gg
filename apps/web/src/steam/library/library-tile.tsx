@@ -8,18 +8,13 @@ import {
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link } from "@tanstack/react-router";
+import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { useState } from "react";
 import { LibraryTileHovercardContent } from "./library-tile-hovercard";
 
 const HOVERCARD_CONTENT_CLASS =
   "z-50 w-64 overflow-hidden rounded-md border bg-popover/90 text-popover-foreground shadow-xl backdrop-blur-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
-
-function formatPlaytime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  return `${hours.toLocaleString("en-US")}h`;
-}
 
 export function LibraryTile({ game }: { game: SteamOwnedGame }) {
   // Library art priority mirrors Steam's own client: prefer the dedicated

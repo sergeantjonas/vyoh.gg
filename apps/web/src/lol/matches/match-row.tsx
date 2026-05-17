@@ -12,17 +12,12 @@ import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
 import { Link } from "@tanstack/react-router";
+import { formatDuration } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 
 const ARAM_ARENA_QUEUES = new Set(["ARAM", "ARAM Clash", "Arena"]);
-
-function formatDuration(sec: number): string {
-  const mins = Math.floor(sec / 60);
-  const secs = sec % 60;
-  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-}
 
 function formatTimeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();

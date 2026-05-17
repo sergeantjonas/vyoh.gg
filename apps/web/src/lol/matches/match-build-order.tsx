@@ -6,6 +6,7 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { formatGameTime } from "@vyoh/shared";
 import type {
   MatchTimelineBuildEvent,
   MatchTimelineProjection,
@@ -18,13 +19,6 @@ const NOISE_CATEGORIES = new Set(["Consumable", "Trinket"]);
 
 function isNoise(categories: string[]): boolean {
   return categories.some((c) => NOISE_CATEGORIES.has(c));
-}
-
-function formatGameTime(ms: number): string {
-  const totalSecs = Math.floor(ms / 1000);
-  const m = Math.floor(totalSecs / 60);
-  const s = totalSecs % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 interface DisplayEntry {

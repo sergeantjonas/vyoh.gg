@@ -1,6 +1,7 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { cn } from "@/lib/utils";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
+import { formatGold } from "@vyoh/shared";
 import type { MatchTimelineProjection, ParticipantDetail } from "@vyoh/shared";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import {
@@ -63,10 +64,6 @@ function detectFlips(data: GoldPoint[]): number[] {
     }
   }
   return flips;
-}
-
-function formatGold(g: number): string {
-  return g >= 1000 ? `${(g / 1000).toFixed(1)}k` : `${g}g`;
 }
 
 function formatLead(lead: number): string {

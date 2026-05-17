@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { formatGameTime } from "@vyoh/shared";
 import type {
   MatchTimelineKill,
   MatchTimelineObjective,
@@ -36,13 +37,6 @@ const springIn = {
   animate: { opacity: 1, y: 0 },
   transition: { type: "spring", stiffness: 280, damping: 28, delay: 0.22 },
 } as const;
-
-function formatGameTime(ms: number): string {
-  const totalSecs = Math.floor(ms / 1000);
-  const mins = Math.floor(totalSecs / 60);
-  const secs = totalSecs % 60;
-  return `${mins}:${String(secs).padStart(2, "0")}`;
-}
 
 function objectiveLabel(type: string): string {
   switch (type) {

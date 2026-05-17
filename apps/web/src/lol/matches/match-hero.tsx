@@ -8,6 +8,7 @@ import {
 import { useChampionName } from "@/lol/champions/use-champions";
 import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
+import { formatDuration } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
@@ -28,12 +29,6 @@ function LpBadge({ delta }: { delta: number }) {
       {delta} LP
     </span>
   );
-}
-
-function formatDuration(sec: number): string {
-  const mins = Math.floor(sec / 60);
-  const secs = sec % 60;
-  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
 }
 
 export function MatchHero({

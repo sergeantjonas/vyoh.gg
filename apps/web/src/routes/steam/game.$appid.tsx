@@ -23,6 +23,7 @@ import { TimeTo100Card } from "@/steam/game/time-to-100-card";
 import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { formatPlaytime } from "@vyoh/shared";
 import { useState } from "react";
 
 interface SteamGameSearch {
@@ -35,12 +36,6 @@ export const Route = createFileRoute("/steam/game/$appid")({
     ach: typeof search.ach === "string" ? search.ach : undefined,
   }),
 });
-
-function formatPlaytime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  return `${hours.toLocaleString("en-US")}h`;
-}
 
 function SteamGamePage() {
   const { appid: appidParam } = Route.useParams();

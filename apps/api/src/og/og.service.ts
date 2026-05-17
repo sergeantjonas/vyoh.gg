@@ -1,13 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { formatDuration } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { LolService } from "../lol/lol.service";
 import { renderMatchCard } from "./og-card";
-
-function formatDuration(sec: number): string {
-  const mins = Math.floor(sec / 60);
-  const secs = sec % 60;
-  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-}
 
 @Injectable()
 export class OgService {

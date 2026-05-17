@@ -1,6 +1,7 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { cn } from "@/lib/utils";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
+import { formatGold } from "@vyoh/shared";
 import type { MatchTimelineFrame, ParticipantDetail } from "@vyoh/shared";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import {
@@ -58,10 +59,6 @@ function buildLaneData(
         csDiff: myCs - oppCs,
       };
     });
-}
-
-function formatGold(g: number): string {
-  return g >= 1000 ? `${(g / 1000).toFixed(1)}k` : `${g}`;
 }
 
 function LaneTooltip({

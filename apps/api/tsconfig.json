@@ -15,7 +15,9 @@
     "experimentalDecorators": true,
     "sourceMap": true,
     "noFallthroughCasesInSwitch": true,
-    "resolvePackageJsonExports": true
+    "resolvePackageJsonExports": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": ["src"]
 }

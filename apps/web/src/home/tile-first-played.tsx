@@ -2,6 +2,7 @@ import { useHomeFirstPlayed } from "@/home/use-home-first-played";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
+import { formatHoursMinutes } from "@vyoh/shared";
 import type { HomeFirstPlayed } from "@vyoh/shared";
 
 function formatRelative(iso: string): string {
@@ -11,15 +12,6 @@ function formatRelative(iso: string): string {
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   return `${days}d ago`;
-}
-
-function formatHoursMinutes(minutes: number): string {
-  if (minutes <= 0) return "0m";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {

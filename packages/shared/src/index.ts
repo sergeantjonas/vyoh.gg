@@ -1,3 +1,10 @@
+export {
+  formatDuration,
+  formatGameTime,
+  formatGold,
+  formatPlaytime,
+  formatHoursMinutes,
+} from "./format.ts";
 export type { Me } from "./identity.ts";
 export type { LolAccount } from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";

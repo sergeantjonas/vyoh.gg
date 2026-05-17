@@ -1,18 +1,10 @@
 import { useHomeDaySplit } from "@/home/use-home-day-split";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { formatHoursMinutes } from "@vyoh/shared";
 import type { HomeDaySplitHour } from "@vyoh/shared";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
-
-function formatHoursMinutes(minutes: number): string {
-  if (minutes <= 0) return "0m";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (

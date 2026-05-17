@@ -1,6 +1,7 @@
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { Link } from "@tanstack/react-router";
+import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
 
 const DAY_MS = 86_400_000;
@@ -13,12 +14,6 @@ function relativeTimeAgo(iso: string): string {
   if (Math.abs(months) < 24) return relativeTime.format(months, "month");
   const years = Math.round(days / 365);
   return relativeTime.format(years, "year");
-}
-
-function formatPlaytime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
-  return `${hours.toLocaleString("en-US")}h`;
 }
 
 export function LibraryRow({ game }: { game: SteamOwnedGame }) {

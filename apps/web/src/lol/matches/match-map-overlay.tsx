@@ -19,6 +19,7 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { formatGameTime } from "@vyoh/shared";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import {
@@ -143,13 +144,6 @@ function objectiveLabel(type: string): string {
     default:
       return type.replace(/_/g, " ");
   }
-}
-
-function formatGameTime(ms: number): string {
-  const totalSecs = Math.floor(ms / 1000);
-  const mins = Math.floor(totalSecs / 60);
-  const secs = totalSecs % 60;
-  return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
 // ---- Gold-lead chart with internal brush ----
