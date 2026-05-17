@@ -15,6 +15,7 @@ import {
   TowerIcon,
   VisionIcon,
 } from "@/components/game-icons";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
@@ -809,6 +810,17 @@ export function MatchDetailView({
 }) {
   const reduced = useReducedMotion();
   const { activeId: scrollspyId, refFor, navigateTo } = useScrollspy(YOUR_GAME_IDS);
+  const [showScrollspy, setShowScrollspy] = useState(false);
+  useEffect(() => {
+    if (tab !== "your-game") return;
+    const scrollEl = mainScrollRef.current;
+    if (!scrollEl) return;
+    const check = () => setShowScrollspy(scrollEl.scrollHeight > scrollEl.clientHeight);
+    requestAnimationFrame(check);
+    const ro = new ResizeObserver(check);
+    ro.observe(scrollEl);
+    return () => ro.disconnect();
+  }, [tab]);
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
@@ -873,31 +885,33 @@ export function MatchDetailView({
               <MatchLanePhase detail={detail} myPuuid={myPuuid} />
             </div>
           </div>
-          <aside
-            aria-label="Your game sections"
-            className="hidden w-28 shrink-0 flex-col gap-0.5 sm:flex"
-            style={{
-              position: "sticky",
-              top: "calc(var(--account-header-h, 64px) + 88px)",
-              alignSelf: "flex-start",
-            }}
-          >
-            {YOUR_GAME_SECTIONS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => navigateTo(id, !reduced)}
-                className={cn(
-                  "cursor-pointer py-1 text-left text-sm transition-colors",
-                  scrollspyId === id
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </aside>
+          {showScrollspy && (
+            <aside
+              aria-label="Your game sections"
+              className="hidden w-28 shrink-0 flex-col gap-0.5 sm:flex"
+              style={{
+                position: "sticky",
+                top: "calc(var(--account-header-h, 64px) + 88px)",
+                alignSelf: "flex-start",
+              }}
+            >
+              {YOUR_GAME_SECTIONS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => navigateTo(id, !reduced)}
+                  className={cn(
+                    "cursor-pointer py-1 text-left text-sm transition-colors",
+                    scrollspyId === id
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </aside>
+          )}
         </div>
       )}
       {tab === "timeline" && (
