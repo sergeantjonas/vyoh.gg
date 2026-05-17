@@ -75,6 +75,11 @@ export type {
 } from "./home/first-played.ts";
 export type { HomeDaySplit, HomeDaySplitHour } from "./home/day-split.ts";
 export type {
+  HomeSessionLengths,
+  HomeSessionLengthsBucket,
+  SessionLengthBucketLabel,
+} from "./home/session-lengths.ts";
+export type {
   AppWindowSnapshot,
   LimiterCounts,
   MethodLimiterSnapshot,

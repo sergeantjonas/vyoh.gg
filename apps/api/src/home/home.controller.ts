@@ -3,11 +3,13 @@ import type {
   HomeChronotype,
   HomeDaySplit,
   HomeFirstPlayed,
+  HomeSessionLengths,
   HomeWeeklyTotals,
 } from "@vyoh/shared";
 import { HomeChronotypeService } from "./home-chronotype.service";
 import { HomeDaySplitService } from "./home-day-split.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
+import { HomeSessionLengthsService } from "./home-session-lengths.service";
 import { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 
 @Controller("home")
@@ -16,7 +18,8 @@ export class HomeController {
     private readonly chronotype: HomeChronotypeService,
     private readonly weeklyTotals: HomeWeeklyTotalsService,
     private readonly firstPlayed: HomeFirstPlayedService,
-    private readonly daySplit: HomeDaySplitService
+    private readonly daySplit: HomeDaySplitService,
+    private readonly sessionLengths: HomeSessionLengthsService
   ) {}
 
   @Get("chronotype")
@@ -39,5 +42,10 @@ export class HomeController {
   @Get("day-split")
   async getDaySplit(): Promise<HomeDaySplit> {
     return this.daySplit.getDaySplit();
+  }
+
+  @Get("session-lengths")
+  async getSessionLengths(): Promise<HomeSessionLengths> {
+    return this.sessionLengths.getSessionLengths();
   }
 }

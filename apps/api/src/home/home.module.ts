@@ -3,6 +3,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { HomeChronotypeService } from "./home-chronotype.service";
 import { HomeDaySplitService } from "./home-day-split.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
+import { HomeSessionLengthsService } from "./home-session-lengths.service";
 import { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 import { HomeController } from "./home.controller";
 
@@ -14,6 +15,7 @@ import { HomeController } from "./home.controller";
     HomeWeeklyTotalsService,
     HomeFirstPlayedService,
     HomeDaySplitService,
+    HomeSessionLengthsService,
   ],
 })
 export class HomeModule {}

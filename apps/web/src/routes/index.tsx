@@ -6,6 +6,7 @@ import { TileDaySplit } from "@/home/tile-day-split";
 import { TileDomainAge } from "@/home/tile-domain-age";
 import { TileFirstPlayed } from "@/home/tile-first-played";
 import { TileLastMatch } from "@/home/tile-last-match";
+import { TileSessionLengths } from "@/home/tile-session-lengths";
 import { TileSignatureGame } from "@/home/tile-signature-game";
 import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
 import { usePrimaryAccount } from "@/home/use-primary-account";
@@ -46,6 +47,9 @@ function HomePage() {
         </BentoTile>
         <BentoTile width={2} height={2}>
           <TileDaySplit />
+        </BentoTile>
+        <BentoTile width={2}>
+          <TileSessionLengths />
         </BentoTile>
         <BentoTile>
           <TileBuildBadge />

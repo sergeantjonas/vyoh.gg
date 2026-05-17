@@ -420,7 +420,7 @@ Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S
 
 - **S8.3 — Per-game unlock timeline (shipped `bb6d911` 2026-05-17).** Monthly bar chart of achievement unlocks on `/steam/game/$appid`, slotted between the screenshot strip and the verdict grid. Lives on the per-game route — not cross-stream, but a temporal surface the S8 exit criteria list. sqrt-scaled bar heights so outlier months don't crush sparse activity; zero-count months render at zero height but preserve time proportionality; minimum 12 bars via client-side padding avoids the single-bar full-width edge case; `min-w-2` + `overflow-x-auto` keeps bars usable on long spans. Reuses `SteamPlayerUnlock` directly (no schema change). New `getGameUnlockTimeline(appid)` on `SteamAchievementsService`, `GET /steam/achievements/games/:appid/unlock-timeline`, `apps/web/src/steam/game/game-unlock-timeline.tsx`.
 
-- **S8.4 — Weekly gaming-total bento tile (planned).** Cross-stream "this week" surface on `/`. LoL match count + LoL hours (sum `durationSec`) + Steam hours (per-appid playtime delta from `SteamPlaytimeSnapshot`) = total gaming this week. Smallest cross-stream surface beyond chronotype, called out in [self-portrait-surfaces.md](self-portrait-surfaces.md) as "best first cross-stream pick."
+- **S8.4 — Weekly gaming-total bento tile (shipped `cb79e2e` 2026-05-17).** Cross-stream "this week" surface on `/`. LoL match count + LoL hours (sum `durationSec`) + Steam hours (per-appid playtime delta from `SteamPlaytimeSnapshot`) = total gaming this week. Smallest cross-stream surface beyond chronotype, called out in [self-portrait-surfaces.md](self-portrait-surfaces.md) as "best first cross-stream pick."
   - **New (api).** `apps/api/src/home/home-weekly-totals.service.ts` — rolling 7-day window anchored on now (avoids the Monday-morning-empty cliff a calendar week would have). Pure-function `diffPlaytimeMinutes(rows, windowStart)` carve-out: per-appid, `latest.playtimeForeverMinutes − latestBaseline.playtimeForeverMinutes` where baseline is the latest snapshot at or before `windowStart`. Appids without a baseline at-or-before `windowStart` are excluded — within-window playtime is unknown. Negative deltas are clamped to 0 (defensive against family-share / refund anomalies). LoL: `match.findMany({ where: { remake: false, playedAt: { gte: weekStart } }, select: { durationSec: true } })`, sum and convert to minutes at the service boundary.
   - **New (api).** `apps/api/src/home/home.controller.ts` — `@Get('weekly-totals')`. Module wires the service.
   - **New (api).** `apps/api/src/home/home-weekly-totals.service.spec.ts` — covers the eight snapshot-diff cases (empty, no-baseline, exact-boundary-baseline, multi-appid sum, negative-delta clamp, idle-week, mixed-baseline exclusion).
@@ -459,18 +459,14 @@ Cross-game unlock heatmap, per-game timeline, LoL-vs-Steam evening split (uses S
   - **New (web).** `use-home-day-split.ts` + `tile-day-split.tsx` (stacked bars, 24h x-axis, Brussels timezone footer, share-as-percent headline).
   - **Modify (web).** `routes/index.tsx` — slotted as a 2×2 tile.
 
-- **S8.8 — Session-length distribution (planned, exit criterion).** Histogram tile on `/` showing session-length distribution across both streams. Buckets: `<30m`, `30m–1h`, `1h–2h`, `2h–4h`, `4h+`.
+- **S8.8 — Session-length distribution (shipped 2026-05-17, exit criterion).** Histogram tile on `/` showing session-length distribution across both streams. Five fixed buckets `<30m`, `30m–1h`, `1h–2h`, `2h–4h`, `4h+` ordered shortest → longest; sky/amber stacked columns matching the chronotype + day-split palette. Headline carries the "bursts vs sits" share (`{X}% of sessions are under 1h`) so the surface answers *how* the owner plays, not how much. Live data on first hit: 1071 LoL sessions stitched (190/332/267/154/128), 1 closed Steam session — substrate is correct; Steam fills in as the poller's session history accumulates (same caveat as S8.7).
   - **LoL session = block of matches with ≤30 min gap between consecutive matches** — length = sum of `durationSec`. Single-match sessions valid. 30-min gap covers queue dodge / champ select / quick break but separates "done now" from "next one."
   - **Steam session = closed `SteamPlaySession` rows** — length = `endedAt − startedAt`.
-  - **New (api).** `home-session-lengths.service.ts` — pure-function `stitchLolSessions(matches, gapMinutes)` carve-out; service queries both streams + histograms.
-  - **New (api).** `home-session-lengths.service.spec.ts` — single match, two within gap, two outside gap, three with mixed gaps, empty.
-  - **New (shared).** `packages/shared/src/home/session-lengths.ts` — `HomeSessionLengths` with `{ buckets: { label, lolCount, steamCount }[], lolSessionCount, steamSessionCount }`.
-  - **New (web).** hook + tile.
-  - **Modify (web).** route slot.
-  - **Decisions baked in.** 30-min stitch threshold. Fixed bucket boundaries. Counts not minutes — the surface answers "*how* do I play" (bursts vs sits), not "how much."
-  - **Validation.** check + typecheck + spec; browser-verify.
-
-**Bento density follow-up.** After S8.5 lands `/` carries 8 tiles; S8.6 doesn't add one (modifies chronotype); S8.7 + S8.8 each add one — 10 total. Decision needed before S8.7: cluster the cross-stream synthesis tiles into a sub-group, or absorb flat. I'll surface this before slotting S8.7.
+  - **New (api).** `apps/api/src/home/home-session-lengths.service.ts` — pure-function `stitchLolSessions(matches, gapMinutes)` + `histogramSessionLengths(lolMinutes, steamMinutes)` carve-outs; service queries `Match` (remake=false) and closed `SteamPlaySession` rows, runs both through the histogram. Inclusive-lower / exclusive-upper bucket boundaries (30m exact lands in `30m–1h`, 60m in `1h–2h`).
+  - **New (api).** `apps/api/src/home/home-session-lengths.service.spec.ts` — stitch: empty, single, within-gap, outside-gap, mixed-gap 3-match, unsorted input, non-positive duration skip; histogram: empty/canonical order, boundary placement, per-stream independence, non-finite/non-positive filtering (11 tests).
+  - **New (shared).** `packages/shared/src/home/session-lengths.ts` — `HomeSessionLengths` with `{ buckets: { label, lolCount, steamCount }[], lolSessionCount, steamSessionCount }` and the `SessionLengthBucketLabel` literal union.
+  - **New (web).** `apps/web/src/home/use-home-session-lengths.ts` + `tile-session-lengths.tsx` (stacked column bars, per-bucket Radix tooltips with LoL/Steam breakdown, "Counts, not minutes" footer).
+  - **Modify (web).** `apps/web/src/routes/index.tsx` — slotted as a 2×1 tile between TileDaySplit (2×2) and the 1×1 metadata pair.
 
 **Phase S8 entry criteria.** S7.D landed (cross-game-rarest data has a headline surface to compare against); chronotype LoL tile is on `/home` (chunk 2 of home-deck, shipped 2026-05-14); cross-stream rule articulated in [self-portrait-surfaces.md § Routing principle](self-portrait-surfaces.md#routing-principle-sharpened-2026-05-16).
 
@@ -484,10 +480,8 @@ S2 and S3 are independently shippable warm-ups; S4 is foundational; S5–S9 buil
 
 ---
 
-## Still open
+## Resolved & historical
 
-- Wishlist endpoint stability — `wishlistdata/` is widely used but undocumented. Have a lightweight backstop plan if it changes.
-- Hidden games. The owner can hide individual games from the public profile; those simply won't appear. No mitigation, just a known gap.
 - **Steam read-side test pass shipped 2026-05-16** (commits `cedf5f7`, `9eddd9d`, `afb9eef`). Three landable chunks: owned-games read paths (`getLibrarySummary` / `getPlatformMix` / `getOwnedGames`); read-only services without prior specs (`tag` / `achievements` / `player-state`); side-effect/cache services (`achievement-schema` / `global-rarity` / `player-unlocks` / `screenshot`). PrismaService mocked at the method surface, no DI test module — matches the seam pattern already used by `pics`, `play-sessions`, `enrichment`. Workspace test count moved from 187 → 226. `getOwnerWishlist` was already covered in `steam.service.spec.ts` from S2.
 - **Logo-asset gap on recent titles → resolved by S5.5 PICS arc (investigated + solved 2026-05-16).** Symptom: Steam client renders a wordmark for newer titles like RE Requiem (appid 3764200) and Pragmata (3357650), but the unhashed legacy mirror `…/apps/{appid}/logo.png` returns 404 — our text fallback kicks in. **Resolution: enrich `SteamGameEnrichment` with `logoPath` from PICS.** Tracked as S5.5 below.
   - **Breakthrough (2026-05-16).** RE Requiem's per-asset logo hash lives in the local Steam client at `Steam/appcache/librarycache/3764200/c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47/logo.png`. The same asset is publicly fetchable at `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3764200/c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47/logo.png` (200, 69688-byte PNG) — both `logo.png` and `logo_2x.png` resolve; the legacy filename `library_logo.png` does not. So the asset *is* on Steam's public CDN; the only missing piece is the per-app hash. The hash is per-asset-type (`library_capsule`, `library_hero`, `header`, `logo` all differ per app) — can't sibling-derive it from `GetItems`.
@@ -520,7 +514,6 @@ common.library_assets.library_logo = "en,ja,ko"   // just a locale marker, no ha
 So `image` is a **locale-keyed map**, not a bare hash string; the flat `library_assets` form carries no hash at all (only a comma-separated language list). The extractor now picks `image.english`, falls back to first available locale, and treats an older bare-string `image` shape defensively. After the fix: 159/173 owned titles get a hash; the 14 nulls are older titles PICS doesn't carry a logo entry for (frontend falls back to the unhashed legacy mirror, which works for them).
 
 **Sequencing rationale held up.** A was a clean network-protocol de-risk (worked first try in production). B's schema + boot backfill landed without surprises. C surfaced the response-shape mismatch — a smoke test against the live API would have caught it earlier than a deploy + DB check did. Worth doing for the next PICS expansion.
-- **Asset pipeline is provisional.** S3 chunk 3 (commit `e1ab677`, 2026-05-14) shipped a bundled-manifest pipeline for capsules mirroring the LoL approach. A subsequent decision the same day plans to retire both the Steam and LoL bundled pipelines in favor of a server-side image proxy with stale-while-revalidate — content-driven deploys (every wishlist add) are the smell that surfaced it. The pivot is sequenced after Steam S5; the chunk-3 bundle will be reverted as part of that arc. Tracked in [lol-image-pipeline.md Phase 4](lol-image-pipeline.md#phase-4--runtime-image-proxy-planned-multi-stream).
 
 ---
 
