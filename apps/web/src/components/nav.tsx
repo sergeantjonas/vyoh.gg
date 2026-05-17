@@ -83,7 +83,7 @@ export function Nav() {
               type="button"
               aria-label="Open command palette"
               onClick={() => setOpen(true)}
-              className="ml-auto rounded border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="ml-auto cursor-pointer rounded border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <span className="hidden sm:inline">{shortcutLabel}</span>
               <Search className="size-4 sm:hidden" aria-hidden />

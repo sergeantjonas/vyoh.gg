@@ -56,6 +56,43 @@ When rendering a champion's name in any UI component, call `useChampionName()` f
 
 **How to apply:** `const championName = useChampionName()` once at the top of the component; call `championName(alias)` at each render site. The hook falls back to a normalized alias while champion data loads, so the string is always safe to render.
 
+### Clickable elements must carry `cursor-pointer`
+
+Any element that is interactive but not a native `<a>` tag must include `cursor-pointer` in its Tailwind class list. Tailwind's preflight resets `<button>` (and other non-anchor elements) to `cursor: default`, so the pointer is never implicit.
+
+**Why:** Without an explicit class, hovering a button-styled chip or icon button shows the text cursor, which breaks the affordance that the element is clickable.
+
+**How to apply:** When adding a `<button>`, `role="button"` div, or any other click target that is not a native link, include `cursor-pointer` in the className. Applies equally to icon-only buttons, shortcut chips, and toggle controls.
+
+### Use `TooltipPrimitive` for all tooltip surfaces; never use `title=`
+
+When an element needs a tooltip, use `import * as TooltipPrimitive from "@radix-ui/react-tooltip"` — never the native HTML `title=` attribute. A `TooltipPrimitive.Provider` with `delayDuration={150}` is already mounted in [`__root.tsx`](../apps/web/src/routes/__root.tsx); do not add another.
+
+Standard compact structure (label-only tooltip, e.g. icon buttons):
+
+```tsx
+<TooltipPrimitive.Root>
+  <TooltipPrimitive.Trigger asChild>
+    {/* the trigger element */}
+  </TooltipPrimitive.Trigger>
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
+      side="bottom"
+      sideOffset={6}
+      className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+    >
+      Tooltip label
+    </TooltipPrimitive.Content>
+  </TooltipPrimitive.Portal>
+</TooltipPrimitive.Root>
+```
+
+For rich or animated tooltips (hover cards, sparkline popovers) use the fuller Content className with `data-[state=...]` open/close animation classes — see [match-pips.tsx:6-7](../apps/web/src/lol/_shared/ui/match-pips.tsx#L6) for the canonical constant.
+
+**Why:** The native `title=` attribute has no styling control, ignores design tokens, cannot be positioned reliably, and doesn't fire on touch.
+
+**How to apply:** Any new element that needs a label or explanation uses `TooltipPrimitive`. Add `aria-label` on the trigger when there is no visible text label (icon-only buttons). Reference: [nav.tsx](../apps/web/src/components/nav.tsx) for the compact form.
+
 ### Committed generated files must be documented here
 
 Generated files (codegen output, router manifests, OpenAPI clients, Prisma artefacts) default to gitignored. Commit a generated file only when there is a deliberate reason (e.g. zero-cold-start dev, diff-as-audit-log), and record that reason in this section so the next reviewer doesn't raise it as a defect.
