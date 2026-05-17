@@ -1,6 +1,6 @@
 // Baseline: personal — rolling WR within the current window compared to your prior window's mean.
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_CURRENT = 20;
@@ -83,9 +83,9 @@ export function TrendWrTrajectory({
   current: MatchSummary[];
   previous: MatchSummary[];
 }) {
-  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
+  const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const stats = useMemo(() => {
-    const played = current.filter((m) => !m.remake);
+    const played = excludeRemakes(current);
     if (played.length < MIN_CURRENT) return null;
 
     // Matches are newest-first; reverse to chronological for rolling window
@@ -94,7 +94,7 @@ export function TrendWrTrajectory({
 
     const currentWr = played.filter((m) => m.win).length / played.length;
 
-    const prevPlayed = previous.filter((m) => !m.remake);
+    const prevPlayed = excludeRemakes(previous);
     const previousMean =
       prevPlayed.length > 0
         ? prevPlayed.filter((m) => m.win).length / prevPlayed.length

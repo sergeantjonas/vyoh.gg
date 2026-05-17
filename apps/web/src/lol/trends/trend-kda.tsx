@@ -3,7 +3,7 @@ import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { computeKdaSeries, computeTrendSummary } from "@/lol/trends/trend-stats";
 import type { KdaPoint } from "@/lol/trends/trend-stats";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import {
@@ -148,8 +148,7 @@ export function TrendKda({
   // KDA points are 1-indexed in chronological order; mirror that order to find
   // boundaries that line up with the chart's X-axis game numbers.
   const boundaries = useMemo<ChartBoundary[]>(() => {
-    const chrono = current
-      .filter((m) => !m.remake)
+    const chrono = excludeRemakes(current)
       .slice()
       .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
     return findPatchBoundaries(

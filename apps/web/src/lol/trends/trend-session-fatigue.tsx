@@ -1,7 +1,7 @@
 // Baseline: personal — your WR by game-position-within-session.
 import { cn } from "@/lib/utils";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const SESSION_GAP_MS = 30 * 60 * 1000;
@@ -136,7 +136,7 @@ export function TrendSessionFatigue({
   previous: MatchSummary[];
 }) {
   const stats = useMemo(() => {
-    const played = current.filter((m) => !m.remake);
+    const played = excludeRemakes(current);
     const sessions = clusterSessions(played);
     const longSessions = sessions.filter((s) => s.length >= 4);
     if (longSessions.length < MIN_LONG_SESSIONS) return null;
@@ -171,7 +171,7 @@ export function TrendSessionFatigue({
     return { buckets, g1Wr, g4Wr, dropPp, sampleSize: played.length };
   }, [current]);
 
-  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
+  const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
 
   if (!stats) {
     return (

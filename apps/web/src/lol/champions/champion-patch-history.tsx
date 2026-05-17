@@ -1,7 +1,7 @@
 // Baseline: personal — this champion's WR by patch (your games only); verdict compares latest two patches.
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useMemo } from "react";
 import { groupByPatch } from "../_shared/patch/patch-version";
@@ -14,7 +14,7 @@ interface PatchStat {
 }
 
 function buildPatchStats(matches: readonly MatchSummary[]): PatchStat[] {
-  const realMatches = matches.filter((m) => !m.remake);
+  const realMatches = excludeRemakes(matches);
   const buckets = groupByPatch(realMatches, (m) => m.gameVersion);
   return buckets.map((b) => {
     const wins = b.items.filter((m) => m.win).length;

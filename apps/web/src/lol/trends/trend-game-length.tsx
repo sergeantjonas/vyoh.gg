@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { GameLengthBucket } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 function barColor(wr: number): string {
@@ -53,7 +53,7 @@ export function TrendGameLength({
   current: MatchSummary[];
   previous: MatchSummary[];
 }) {
-  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
+  const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const stats = useMemo(() => {
     if (current.length < 5) return null;
     return computeHabitsStats(current);

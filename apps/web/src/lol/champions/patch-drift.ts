@@ -1,6 +1,6 @@
 // Baseline: personal — this champion's share of your games this patch vs last patch.
 import { groupByPatch } from "@/lol/_shared/patch/patch-version";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 
 const MIN_PATCH_GAMES = 5;
 const MIN_CURRENT_CHAMP_GAMES = 1;
@@ -23,7 +23,7 @@ export function buildPatchDrift(
   matches: readonly MatchSummary[],
   championAlias: string
 ): PatchDrift | null {
-  const real = matches.filter((m) => !m.remake);
+  const real = excludeRemakes(matches);
   const buckets = groupByPatch(real, (m) => m.gameVersion);
   if (buckets.length < 2) return null;
 

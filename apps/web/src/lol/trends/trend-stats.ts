@@ -1,4 +1,4 @@
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 
 export interface TrendSummary {
   games: number;
@@ -13,7 +13,7 @@ export interface TrendSummary {
 }
 
 export function computeTrendSummary(matches: MatchSummary[]): TrendSummary {
-  const ms = matches.filter((m) => !m.remake);
+  const ms = excludeRemakes(matches);
   const wins = ms.filter((m) => m.win).length;
   const totalKills = ms.reduce((s, m) => s + m.kills, 0);
   const totalDeaths = ms.reduce((s, m) => s + m.deaths, 0);
@@ -43,8 +43,7 @@ export interface KdaPoint {
 }
 
 export function computeKdaSeries(matches: MatchSummary[]): KdaPoint[] {
-  return matches
-    .filter((m) => !m.remake)
+  return excludeRemakes(matches)
     .sort((a, b) => a.playedAt.localeCompare(b.playedAt))
     .map((m, i) => ({
       game: i + 1,
@@ -61,7 +60,7 @@ export interface QueueCount {
 
 export function computeQueueCounts(matches: MatchSummary[]): QueueCount[] {
   const counts = new Map<string, number>();
-  for (const m of matches.filter((m) => !m.remake)) {
+  for (const m of excludeRemakes(matches)) {
     counts.set(m.queueType, (counts.get(m.queueType) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -75,7 +74,7 @@ export interface Streak {
 }
 
 export function computeStreak(matches: MatchSummary[]): Streak | null {
-  const ms = matches.filter((m) => !m.remake);
+  const ms = excludeRemakes(matches);
   if (ms.length === 0) return null;
   const ordered = [...ms].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
   const latest = ordered[0];

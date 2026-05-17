@@ -23,7 +23,7 @@ import type { TrendsRangeId } from "@/lol/trends/trends-range-selector";
 import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
 import { useTrendsWindows } from "@/lol/trends/use-trends-windows";
 import { createFileRoute } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -70,7 +70,7 @@ function buildTiles(
   previous: MatchSummary[],
   accountSlug: string
 ): Tile[] {
-  const played = current.filter((m) => !m.remake);
+  const played = excludeRemakes(current);
   const playedRift = played.filter((m) => m.teamPosition !== "");
   const playedWithOpponent = played.filter((m) => m.laneOpponent !== null);
   const playedWithLp = played.filter((m) => m.snapshotLp !== undefined);

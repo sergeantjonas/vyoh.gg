@@ -1,7 +1,7 @@
 // Baseline: personal — your WR by day-of-week; weakest day is flagged against your other days.
 import { cn } from "@/lib/utils";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -75,9 +75,9 @@ export function TrendDowWr({
   current: MatchSummary[];
   previous: MatchSummary[];
 }) {
-  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
+  const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const stats = useMemo(() => {
-    const played = current.filter((m) => !m.remake);
+    const played = excludeRemakes(current);
     if (played.length < MIN_TOTAL) return null;
 
     const buckets = Array.from({ length: 7 }, () => ({ wins: 0, games: 0 }));

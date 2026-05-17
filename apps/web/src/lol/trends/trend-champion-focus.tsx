@@ -2,7 +2,7 @@
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DISPLAY_COUNT = 6;
@@ -26,7 +26,7 @@ export function TrendChampionFocus({
   accountSlug: string;
 }) {
   const { freq, total } = useMemo(() => {
-    const played = current.filter((m) => !m.remake);
+    const played = excludeRemakes(current);
     const counts = new Map<string, number>();
     for (const m of played) {
       counts.set(m.champion, (counts.get(m.champion) ?? 0) + 1);

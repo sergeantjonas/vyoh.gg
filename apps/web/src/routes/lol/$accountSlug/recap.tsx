@@ -8,6 +8,7 @@ import { RecapRankArc } from "@/lol/recap/recap-rank-arc";
 import { RecapSignatureGame } from "@/lol/recap/recap-signature-game";
 import { RecapTopInsight } from "@/lol/recap/recap-top-insight";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { excludeRemakes } from "@vyoh/shared";
 import { ChevronLeft } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 
@@ -22,7 +23,7 @@ function RecapPage() {
   // insight only count serious play. Rank arc has its own data hook.
   const { matches } = useSeriousMatches();
   const reduced = useReducedMotion();
-  const playedCount = matches?.filter((m) => !m.remake).length ?? 0;
+  const playedCount = excludeRemakes(matches ?? []).length;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-12">

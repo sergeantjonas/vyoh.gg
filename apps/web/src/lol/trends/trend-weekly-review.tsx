@@ -2,7 +2,7 @@
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HabitsStats } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -73,10 +73,10 @@ function pickInsights(stats: HabitsStats): string[] {
 }
 
 export function TrendWeeklyReview({ current }: { current: MatchSummary[] }) {
-  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
+  const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const insights = useMemo(() => {
     if (playedCount < 10) return [];
-    return pickInsights(computeHabitsStats(current.filter((m) => !m.remake)));
+    return pickInsights(computeHabitsStats(excludeRemakes(current)));
   }, [current, playedCount]);
 
   if (insights.length === 0) {

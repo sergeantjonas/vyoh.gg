@@ -1,6 +1,6 @@
 // Baseline: personal — your first-blood-game WR vs your overall WR (NOT a role-population baseline).
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 5;
@@ -71,7 +71,7 @@ export function TrendFirstBloodConversion({
   previous: MatchSummary[];
 }) {
   const stats = useMemo(() => {
-    const played = current.filter((m) => !m.remake);
+    const played = excludeRemakes(current);
     const fb = played.filter((m) => m.firstBloodKill);
     return {
       fbCount: fb.length,

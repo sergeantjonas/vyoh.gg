@@ -1,7 +1,7 @@
 // Baseline: personal — your WR after a win vs your WR after a loss.
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 5;
@@ -64,7 +64,7 @@ export function TrendTiltIndicator({
   current: MatchSummary[];
   previous: MatchSummary[];
 }) {
-  const playedCount = useMemo(() => current.filter((m) => !m.remake).length, [current]);
+  const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const stats = useMemo(() => {
     if (current.length < 5) return null;
     return computeHabitsStats(current);
