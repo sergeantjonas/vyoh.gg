@@ -1,8 +1,10 @@
+import { useCommandPalette } from "@/components/command-palette-context";
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { OrbGlyph } from "@/components/orb-glyph";
 import { cn } from "@/lib/utils";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, Home } from "lucide-react";
+import { Activity, Home, Search } from "lucide-react";
 import { m } from "motion/react";
 
 const NAV_ITEMS = [
@@ -12,6 +14,9 @@ const NAV_ITEMS = [
   { to: "/status", label: "Status", Icon: Activity },
 ] as const;
 
+const isMac = /Mac/i.test(navigator.platform);
+const shortcutLabel = isMac ? "⌘K" : "Ctrl K";
+
 function isItemActive(pathname: string, to: string) {
   if (to === "/") return pathname === "/";
   return pathname === to || pathname.startsWith(`${to}/`);
@@ -19,6 +24,7 @@ function isItemActive(pathname: string, to: string) {
 
 export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { setOpen } = useCommandPalette();
 
   return (
     <nav className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
@@ -71,6 +77,28 @@ export function Nav() {
             );
           })}
         </div>
+        <TooltipPrimitive.Root>
+          <TooltipPrimitive.Trigger asChild>
+            <button
+              type="button"
+              aria-label="Open command palette"
+              onClick={() => setOpen(true)}
+              className="ml-auto rounded border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <span className="hidden sm:inline">{shortcutLabel}</span>
+              <Search className="size-4 sm:hidden" aria-hidden />
+            </button>
+          </TooltipPrimitive.Trigger>
+          <TooltipPrimitive.Portal>
+            <TooltipPrimitive.Content
+              side="bottom"
+              sideOffset={6}
+              className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+            >
+              Open command palette
+            </TooltipPrimitive.Content>
+          </TooltipPrimitive.Portal>
+        </TooltipPrimitive.Root>
       </div>
     </nav>
   );
