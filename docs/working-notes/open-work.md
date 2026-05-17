@@ -44,8 +44,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Unpromoted vNext top-tier candidates
 
-ARAM dashboard · cross-account unified identity · "Same day last year" · match annotations · weekly markdown digest · PDF/image export of match detail · Discord webhook · drag-to-reorder Profile · empty-state illustrations · View Transitions API spike. → [vnext-ideas.md](vnext-ideas.md)
+ARAM dashboard · cross-account unified identity · "Same day last year" · match annotations · weekly markdown digest · PDF/image export of match detail · Discord webhook · drag-to-reorder Profile · View Transitions API spike. → [vnext-ideas.md](vnext-ideas.md)
 
 ## Case-study backlog
 
-One deferred write-up: **ConclusionCard pattern** — gated on the post-game close-the-loop arc proving out. Shipped inventory: [../case-studies/](../case-studies/). Topics catalog: [case-study-topics.md](case-study-topics.md).
+No active write-ups queued. Shipped inventory: [../case-studies/](../case-studies/) (14 case studies as of 2026-05-17). Topics catalog: [case-study-topics.md](case-study-topics.md).

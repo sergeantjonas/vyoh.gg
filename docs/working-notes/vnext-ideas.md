@@ -49,7 +49,7 @@ This is a backlog. Bands set the search order, not commitment:
 
 ### Self-portrait surfaces
 
-Promoted to its own working note — see [self-portrait-surfaces.md](self-portrait-surfaces.md). Reframes vyoh.gg from "LoL stats site" to "self-portrait engine: every panel is a `ConclusionCard` sourced from a different stream of life." Tracked candidates include chronotype panel, GitHub activity reframed, Spotify, and WakaTime (conditional), plus adjacent probes (mastery, free-week echo, identity-level signals).
+✅ Promoted to its own working note — see [self-portrait-surfaces.md](self-portrait-surfaces.md). Reframes vyoh.gg from "LoL stats site" to "self-portrait engine: every panel is a `ConclusionCard` sourced from a different stream of life." Tracked candidates include chronotype panel (shipped), GitHub activity reframed, Spotify, and WakaTime (conditional), plus adjacent probes (mastery, free-week echo, identity-level signals).
 
 ### Motion / UI showcase
 
@@ -113,7 +113,7 @@ Before the library suggestions below pull anyone in a different direction: **Mot
 
 ### LoL surfaces
 
-**Cmd+K palette extension.** Promoted to its own working note on 2026-05-17 — see [command-palette.md](./command-palette.md) for the phased plan (discoverability chip, match search mode, typed verb grammar, recents). Original framing retained for context: extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold; absorb the "change view scope from deep scroll" use case handed off when sticky controls were reverted.
+**Cmd+K palette extension.** ✅ Promoted 2026-05-17 to [command-palette.md](./command-palette.md); v1 shipped, Phases A–E ahead and tracked in [open-work.md](./open-work.md). Original framing retained for context: extend the existing palette to search matches by champion played, win/loss, date range, KDA threshold; absorb the "change view scope from deep scroll" use case handed off when sticky controls were reverted.
 
 **Goal setting + projection.** "Reach Diamond by July." Show projected ETA based on current LP/day velocity. Honest projection — variance shown, not a single number.
 

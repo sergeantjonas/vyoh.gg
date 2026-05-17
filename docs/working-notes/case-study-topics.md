@@ -1,6 +1,6 @@
 # vyoh.gg — case study and write-up topics
 
-**Status:** Reference — twelve full case studies shipped through 2026-05-17 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`). One descoped (runtime-validation), one deferred (ConclusionCard pattern, gated on post-game close-the-loop). Read this when scoping a new write-up or refining portfolio narrative.
+**Status:** Reference — fourteen full case studies shipped through 2026-05-17 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`, `conclusion-card-pattern`, `runtime-image-proxy`). One descoped (runtime-validation). Read this when scoping a new write-up or refining portfolio narrative; consult [../case-studies/README.md](../case-studies/README.md) for the live inventory.
 
 The project is a portfolio piece. README, deploy URL, write-ups, and performance evidence are deliverables, not afterthoughts.
 
@@ -342,7 +342,7 @@ Evidence to collect:
 - the `RitualSignal` / verdict-shape types as the load-bearing TypeScript primitives
 - the muted / empty / verdict exit paths actually rendered, to show the no-neutral-middle rule in code
 
-Best written *after* post-game close-the-loop ships, since that surface is the cleanest demonstration of the pattern composing across the play loop. Pairs naturally with a [personal-baselines.md](./personal-baselines.md) follow-on, or absorbs the personal-baselines framing into a single longer piece.
+Pairs naturally with a [personal-baselines.md](./personal-baselines.md) follow-on, or absorbs the personal-baselines framing into a single longer piece if revisited.
 
 ## README sections to grow incrementally
 
