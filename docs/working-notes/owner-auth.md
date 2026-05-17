@@ -1,5 +1,7 @@
 # Owner auth — GitHub OAuth for gated admin surfaces
 
+**Status:** Active — pre-deploy work, plan written 2026-05-14, not started. Deferred until the pre-launch sweep (not gated to any content arc finishing). The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — also waits on this guard. See [open-work.md](open-work.md) for both items.
+
 A working note for the planned auth layer. The status page currently exposes mutating POSTs unguarded — `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume`, plus a per-account sync trigger — and the surface of "owner-only" actions will grow once Steam integration toggles, manual refreshes, secret-rotation indicators, and draft content previews land. The fix is worth shipping deliberately (real OAuth flow, session table, guard pattern) rather than as a `?key=` env hack — both as freelance-profile signal and because the half-fix isn't faster to write.
 
 Direction (owner, 2026-05-14): **single-owner auth via GitHub OAuth**, session cookie backed by a Prisma `Session` table, applied as a NestJS guard. Public read-only views stay untouched; admin surfaces stay *visibly* gated (locked button + Radix tooltip), not hidden — half the point is that a reviewer poking around can see the layer exists.

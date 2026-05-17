@@ -1,6 +1,8 @@
 # Home deck — bento self-portrait surface
 
-The site's home page (`/`) is currently a stub: an `<h1>` plus a single muted paragraph pointing visitors at `/lol`. This note tracks the arc that turns the home page into the **self-portrait deck itself** — a bento mosaic of `ConclusionCard` tiles rendering verdicts about the owner, not a navigational entry hall.
+**Status:** Shipped — both chunks shipped: Chunk 1 (bento primitive + minimum-viable tile set: build-badge, domain-age, last-match, signature-game) and Chunk 2 (chronotype 2×2 hero tile, 2026-05-14). The deck has since grown beyond the original plan with additional self-portrait tiles wired in `apps/web/src/home/` (day-split, first-played, session-lengths, weekly-totals — most cross-stream synthesis once Steam landed). Future tile candidates live in [self-portrait-surfaces.md](self-portrait-surfaces.md), not here.
+
+This note tracks the original arc that turned the home page from an `<h1>` stub into the **self-portrait deck itself** — a bento mosaic of `ConclusionCard` tiles rendering verdicts about the owner, not a navigational entry hall.
 
 Direction inherits from [self-portrait-surfaces.md](self-portrait-surfaces.md). This note is the *implementation* arc; the parent note is the *content* candidate list.
 
@@ -47,7 +49,7 @@ The only *new* primitive the deck needs is a bento layout grid. Placed in `compo
 
 Two chunks. Chunk 1 is independently committable — ships a complete home page on its own. Chunk 2 is planned at a sketch level only; detailed plan happens in a fresh session after chunk 1 lands.
 
-### Chunk 1 — bento primitive + minimum-viable tile set
+### Chunk 1 — bento primitive + minimum-viable tile set *(shipped — chunk landed before chronotype on 2026-05-14)*
 
 **Goal:** replace the home stub with a real bento deck. Zero new derivations — owner-scoped tiles reuse existing recap composers, site-level tiles read build-time constants.
 

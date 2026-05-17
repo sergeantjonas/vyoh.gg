@@ -1,5 +1,7 @@
 # Composite LP forecast tile — design note
 
+**Status:** Active — Phase LP1 (directional-only verdict) shipped; Phase LP2 (confidence calibration: validate directional verdicts against outcomes once LP history accrues, per-signal sample-size weighting, "How is this computed?" disclosure) is data-gated and tracked in [open-work.md](open-work.md).
+
 A single tile on Profile that composes the four existing Pregame Ritual signals (form, tilt, time-slot, top-champion) into one forward-looking verdict: *"Composite read for your next ranked: +X expected LP — confidence Y."*
 
 Promoted from [vnext-ideas.md](vnext-ideas.md) ("Goal setting + projection" and the implied composite-of-signals idea in Pregame Ritual) and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #2) into a tracked design note.

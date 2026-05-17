@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-Status: **v1 shipped, untouched since the lazy-load split (2026-05-12).** Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav.
+**Status:** Active — v1 shipped, untouched since the lazy-load split (2026-05-12). Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav. Phases A–E ahead — see [open-work.md](./open-work.md).
 
 ## What v1 does today
 

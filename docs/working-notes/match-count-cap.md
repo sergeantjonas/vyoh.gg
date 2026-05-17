@@ -1,5 +1,7 @@
 # Match count cap — analytics vs. storage
 
+**Status:** Reference — the rule and rationale for `MAX_COUNT = 100`. Don't raise without profiling.
+
 The `MatchCountSelector` is capped at `MAX_COUNT = 100` (in `match-count-selector.tsx`). This value is also enforced at the route boundary in `$accountSlug.tsx` `validateSearch` via `Math.min(search.count, MAX_COUNT)`.
 
 **Why:** Accounts with 900+ games caused noticeable tab-navigation lag when 200+ matches were loaded into the Trends/Champions pages. 100 is enough for meaningful trend analysis and keeps Recharts renders within budget.

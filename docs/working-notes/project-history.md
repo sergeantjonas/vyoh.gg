@@ -1,5 +1,7 @@
 # vyoh.gg — project history and status
 
+**Status:** Reference — append-only history log of shipped arcs and structural decisions. Read this when looking for "why is this here" or "when did X land"; don't add planning here — planning lives in the relevant active note.
+
 This file preserves historical context that should not live in always-loaded `CLAUDE.md`.
 
 ## Repo layout

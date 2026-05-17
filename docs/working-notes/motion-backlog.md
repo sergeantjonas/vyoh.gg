@@ -1,5 +1,7 @@
 # vyoh.gg — motion and animation backlog
 
+**Status:** Reference — animation/polish idea backlog with guardrails. Consult when working on motion or scoping a polish pass; pick from here rather than inventing new motion ideas in flight.
+
 This project should feel polished and smooth. It is a portfolio showcase, so motion is not just decoration — it is part of the perceived engineering quality.
 
 Guardrails:

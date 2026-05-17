@@ -1,5 +1,7 @@
 # Performance baseline — 2026-05-12
 
+**Status:** Reference — tooling baseline (bundle visualizer, size-limit budgets, Web Vitals overlay) plus measured ceilings to defend in PRs. One open follow-up: re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome — the devcontainer can't run Lighthouse, so this is a not-a-coding task tracked in [open-work.md](open-work.md).
+
 Investigation started after the main roadmaps (views, match-depth, trends) shipped. Goal: understand how well the app runs, especially on lower-end machines, and produce screenshots `case-study-topics.md` is waiting for.
 
 ## Tooling in place

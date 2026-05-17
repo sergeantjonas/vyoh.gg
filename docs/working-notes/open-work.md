@@ -1,8 +1,12 @@
 # Open work index
 
+**Status:** Index — canonical list of tracked arcs and their next action.
+
 One-line pointers into the owning notes. Read this first when scoping the next session — it answers "what's still open across the working notes" without re-scanning each doc.
 
 **Maintenance rule:** when an item ships, descopes, splits, or promotes, edit this file in the same commit that lands the change. The detail lives in the owning note; this index only carries a one-line pointer and the current state. Entries here should never grow beyond a sentence.
+
+**Status-header convention:** every note in `working-notes/` carries a `**Status:** <Active|Shipped|Parked|Reference|Index> — <one-line>` header right under the H1, updated in the same commit as state changes. Skim-scanning the folder should reveal active arcs without opening each doc. Fully-shipped notes whose planning detail is no longer load-bearing live in [archive/](archive/) instead of here.
 
 **Companion index:** [parked.md](parked.md) carries the inverse — items deliberately set aside until a trigger condition holds. Read it when looking for "what could we revisit when the mood strikes."
 
@@ -17,6 +21,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](match-depth-roadmap.md)
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](match-depth-roadmap.md)
 - **Match-detail section nav** — page-level tabs (Recap / Your game / Timeline) + scrollspy in "Your game", motivated by the queued owner-data additions; breadcrumb moves out of the section-tab-bar slot. Scoped 2026-05-17, Option A locked, not started. → [match-detail-section-nav.md](match-detail-section-nav.md)
+- **Command palette expansion (Phases A–E)** — Phase A discoverability chip in nav + `CommandPaletteProvider` lift (small, unblocks B–E); then match-search mode (B), typed verb grammar (C), champion + cross-account search (D), recent-commands persistence (E). Promoted from vNext stub 2026-05-17; v1 untouched since 2026-05-12. → [command-palette.md](command-palette.md)
+- **Wiki-image migration tail** — ~13 match-history files + champion ability icons still resolve through `cdn.communitydragon.org`/`raw.communitydragon.org` client-side; target end state is zero CDragon client usages, all routes through the wiki via `wikiEntryIconUrl()`. Direction confirmed 2026-05-17 during PN7; ability-icon URL pattern needs a spot check before migration starts. → [lol-image-pipeline.md § Wiki as canonical image source](lol-image-pipeline.md#wiki-as-canonical-image-source-confirmed-direction-2026-05-17)
 - **PG4 peer-route post-game artifact** — explicitly v2; gated on the PG1–PG3 Profile framing proving out. → [post-game-close-the-loop.md](post-game-close-the-loop.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](app-state-analysis.md)
 - **Steam Phase S8 closing arc** — **Fully shipped 2026-05-17.** S8.1–S8.8 all landed; S8.8 added the session-length histogram tile on `/` (5-bucket stacked columns, 30-min stitch threshold, counts-not-minutes framing). All five Phase S8 exit-criteria surfaces are now visible. Substrate decision: `SteamPlaySession` (forward-only) is canonical; achievement-anchor reconstruction parked. → [steam-integration.md § S8](steam-integration.md#phase-s8--temporal--cross-stream)
@@ -31,7 +37,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - CodeQL SAST evaluation — deferred from the 2026-05-14 security baseline; freelance-signal layer, not threat-model-justified. Revisit when bandwidth allows or auth surface lands. → [security.md](security.md)
 - Folder-structure cleanup — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 remain conditional (Steam subfoldering on S4.5 re-look, cross-domain `_assets/` only if TFT lands). → [folder-structure-cleanup.md](folder-structure-cleanup.md)
 - LoL breadcrumb consistency pass — triggered post-Steam-S4.5 once the shadcn `@/components/ui/breadcrumb` primitive becomes canonical; decide per-surface whether deep drill-ins (match detail, champion detail) gain a breadcrumb trail alongside the existing `AccountLayout` tab bar. → [steam-integration.md](steam-integration.md) S4.5 post-ship follow-up
-- Section layout extraction — fully shipped 2026-05-15. `_shared/section-layout/` primitive (`section-shell.tsx` + context + slide-direction hook); both LoL and Steam routes now compose `<SectionShell>` with identity/actions/nav slots. Tabs kept inline (per-section variation too wide). TFT will compose the same shell when it lands. → [section-layout-extraction.md](section-layout-extraction.md)
+- Section layout extraction — fully shipped 2026-05-15. `_shared/section-layout/` primitive (`section-shell.tsx` + context + slide-direction hook); both LoL and Steam routes now compose `<SectionShell>` with identity/actions/nav slots. Tabs kept inline (per-section variation too wide). TFT will compose the same shell when it lands. → [archive/section-layout-extraction.md](archive/section-layout-extraction.md)
 
 ## Unpromoted vNext top-tier candidates
 

@@ -1,5 +1,7 @@
 # Steam integration
 
+**Status:** Active — Phase S8 closing arc fully shipped 2026-05-17 (S8.1–S8.8; all five Phase S8 exit-criteria surfaces visible, including the session-length histogram tile on `/`). `SteamPlaySession` (forward-only) is canonical; achievement-anchor reconstruction parked. This note remains the canonical Steam reference; consult before adding a new Steam surface. Adjacent open items: status-page admin surface to surface Steam sync, breadcrumb consistency pass post-S4.5. See [open-work.md](open-work.md).
+
 A working note for the planned Steam integration. Stated cadence (owner, 2026-05-14): **start soon, once the LoL feature backlog runs lower** — Steam is the next big content axis after LoL, not a parallel track.
 
 Steam shares the recap / `ConclusionCard` engine with LoL: *"you played 6h of Helldivers this week, mostly in 2-hour sessions, longest break in three months"* reads exactly like a LoL trends conclusion. The architectural rule: **do not build Steam as a parallel system.** Share the trends/recap primitives, the verdict-card pattern, and the timeseries plumbing.

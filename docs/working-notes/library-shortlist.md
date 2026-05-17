@@ -1,5 +1,7 @@
 # vyoh.gg — library shortlist
 
+**Status:** Reference — shipped/rejected/parked library decisions. Consult only when planning a feature or polish arc; never add a library just because it appears here.
+
 This file preserves shipped, rejected, and parked library ideas.
 
 Use this only when planning a feature/polish arc. Do not add libraries just because they are listed here.

@@ -1,5 +1,7 @@
 # Parked work index
 
+**Status:** Index — canonical list of deliberately-paused items and their trigger conditions.
+
 One-line pointers to work that was scoped, evaluated, and intentionally set aside — not abandoned, not in flight. Read this when looking for "what could we revisit when the mood strikes" without re-scanning every note for `parked` strings.
 
 **Inclusion rule:** items here are *deliberately parked* — they passed initial scoping and were paused for a stated reason (cost, sequencing, dependency, marginal payoff). Items that were rejected outright belong in their owning note's decision log, not here. Items that are *next-up open work* belong in [open-work.md](open-work.md), not here.

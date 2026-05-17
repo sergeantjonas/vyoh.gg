@@ -1,6 +1,6 @@
 # Match-detail section nav — roadmap
 
-**Status (2026-05-17):** MDN1–MDN4 shipped. MDN5 deferred until queued owner-data sections land.
+**Status:** Active — MDN1–MDN4 shipped 2026-05-17; MDN5 (page-level tabs Recap/Your game/Timeline + scrollspy) scoped but not started, gated on queued owner-data section additions. See [open-work.md](open-work.md).
 
 Read this when starting the arc, when scoping where the next owner-data feature lands, or before adding any new section to `MatchDetailView` (so it goes into the right tab from day one).
 

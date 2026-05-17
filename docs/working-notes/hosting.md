@@ -1,5 +1,7 @@
 # Hosting plan and pre-deploy checklist
 
+**Status:** Active — pre-deploy work, not started. Owner lean is Hetzner VPS (single-VM, same-origin behind Nginx) but not committed. Landing is gated to a deliberate pre-launch sweep, not to any single content arc finishing. See [open-work.md](open-work.md) for sibling pre-deploy items (owner auth, status admin surface).
+
 ## Options under consideration
 
 ### Option A — Vercel + Railway + Neon (lowest ops overhead)

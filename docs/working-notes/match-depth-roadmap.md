@@ -1,10 +1,10 @@
 # vyoh.gg — Match depth + live game + learning-surfaces roadmap
 
+**Status:** Active — Phases A + B + C fully shipped (2026-05-16). Phase D and Phase E partial: outstanding D items (squad detection, LP-overlay per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7) and E remainders (full rune page, composite S grade) tracked in [open-work.md](open-work.md); parked sub-items (build-order component-collapse, hover-highlight, boot collapse, soul drake type) in [parked.md](parked.md). Full Status section with commit refs is [further down](#status).
+
 Working plan for expanding the match detail page, adding a live-game view, and layering deeper per-match / per-account learning surfaces. Read this when working on any of: match detail enrichment, Match-V5 timeline, Spectator-V5 live game, lane-phase metrics, build order, kill/objective timelines, damage breakdowns, or rune/skill-order display.
 
-This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. See [views-roadmap.md](views-roadmap.md) for the parallel Profile/Champion-detail track.
-
-**Status (2026-05-16): Phases A + B + C shipped; D and E partial.** Match detail / timeline / live game all live. Outstanding D items (squad detection, LP-overlay per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7) and E remainders (full rune page, composite S grade) are tracked in [open-work.md](open-work.md). Parked sub-items (build-order component-collapse, hover-highlight, boot collapse, soul drake type) are listed in [parked.md](parked.md). Full Status section with commit refs is [further down](#status).
+This is a living plan, not a contract. Phases are sequenced so each one ships value on its own — don't block phase N on phase N+1's full scope. See [archive/views-roadmap.md](archive/views-roadmap.md) for the parallel Profile/Champion-detail track.
 
 ---
 

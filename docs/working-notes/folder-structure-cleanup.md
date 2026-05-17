@@ -1,5 +1,7 @@
 # Folder structure cleanup — 2026-05-14
 
+**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 conditional (Steam subfoldering revisited at S4.5 re-look; cross-domain `_assets/` only if TFT lands). Tracked under "Adjacent maintenance" in [open-work.md](open-work.md).
+
 Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goal: identify cleanliness wins that can ride between content arcs without disrupting active work. **No code changes proposed mid-arc** — this note exists so the cleanup can be picked up cold when timing fits.
 
 ## Verdict at a glance

@@ -1,6 +1,8 @@
 # vyoh.gg — vNext ideas (post-current-roadmaps)
 
-Ideas that surface *after* the three active roadmaps land — [views-roadmap.md](views-roadmap.md), [match-depth-roadmap.md](match-depth-roadmap.md), [trends-rework.md](trends-rework.md). Read this when looking for "what's next after the planned work" or when picking the next big arc.
+**Status:** Reference — idea backlog. Items promote out of here into their own working note (with a tracked entry in [open-work.md](open-work.md)) when they become real arcs. Browse when picking the next big visible-payoff feature.
+
+Ideas that surface *after* the three active roadmaps land — [match-depth-roadmap.md](match-depth-roadmap.md), and the now-shipped [archive/views-roadmap.md](archive/views-roadmap.md) + [archive/trends-rework.md](archive/trends-rework.md). Read this when looking for "what's next after the planned work" or when picking the next big arc.
 
 This doc is intentionally a backlog, not a phased plan. Items are categorized and prioritized by visible-payoff vs. invisible-foundation. The owner has been clear about prioritizing **eye-catching, demoable** work — anything that shows up in a screenshot, animation, or shared link beats anything that lives in CI logs.
 

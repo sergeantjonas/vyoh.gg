@@ -1,5 +1,7 @@
 # vyoh.gg — case study and write-up topics
 
+**Status:** Reference — twelve full case studies shipped through 2026-05-17 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`). One descoped (runtime-validation), one deferred (ConclusionCard pattern, gated on post-game close-the-loop). Read this when scoping a new write-up or refining portfolio narrative.
+
 The project is a portfolio piece. README, deploy URL, write-ups, and performance evidence are deliverables, not afterthoughts.
 
 ## Portfolio positioning

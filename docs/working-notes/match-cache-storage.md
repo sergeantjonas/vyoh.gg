@@ -1,6 +1,6 @@
 # vyoh.gg — Match cache storage arc
 
-**Status: Tier 1A (owner-only retention) green-lit and recommended next; Tiers 1B / 2 / 3 still parked.** Read this when DB size becomes a cost / quota issue, when feature scope on Profile / Matches / Trends / Champions / Match detail feels stable, or when explicitly revisiting storage cost.
+**Status:** Parked — Tier 1A (owner-only retention) shipped 2026-05-17 (chunks A–C; `VACUUM FULL` 195 MB → 43 MB, 78% reduction). Tiers 1B (global field stripping), 2 (zstd BYTEA), and 3 (zstd dictionary) remain deferred until DB size becomes a cost/quota concern *or* feature scope on Profile / Matches / Trends / Champions / Match detail feels stable. See [parked.md](parked.md). Read this when DB size becomes a cost/quota issue or when explicitly revisiting storage cost.
 
 This is a deliberate hold, not an oversight. The conversation that produced this note was on 2026-05-10, when `MatchSummary` had just been extended with `csAt10`, `csAt15`, `goldAt10`, `goldAt15`, and two more fields — proving the "don't strip caches mid-iteration" point in real time. The arc waits until features stabilize.
 

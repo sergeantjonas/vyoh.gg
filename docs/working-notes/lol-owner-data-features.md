@@ -1,5 +1,7 @@
 # LoL owner-data feature ideas
 
+**Status:** Reference — ideation catalog opened 2026-05-17 after Match cache Tier 1A shipped. Browse when looking for a small-tile or sub-section idea that doesn't need new Riot calls. Items here promote to [open-work.md](open-work.md) when picked up.
+
 Post-Tier-1A ideation sweep (2026-05-17). The owner participant in `MatchDetailCache` retains the full Riot payload — every field Riot returns, not just what we type. Non-owner participants keep only the lean `RiotMatchParticipantOther` shape. This note catalogs the features that become possible from the owner data, organized by surface.
 
 Read this when scoping the next LoL feature arc, or when looking for a small-tile idea that doesn't need new Riot calls.

@@ -1,5 +1,7 @@
 # Personal baselines — cross-cutting framing note
 
+**Status:** Active — PB1 (doc-pass) + PB2 (weakest-matchup) + PB3 (patch-drift) all shipped 2026-05-14. PB4 (cross-tile anomaly aggregator) deferred until at least 2–3 more personal-baseline tiles ship past the current set. See [open-work.md](open-work.md).
+
 Most stats sites benchmark against a global player base (*"your damage share is in the top 30% of ADCs at your rank"*). Vyoh's distinctive frame is the inverse: **you-vs-you**. *"Your damage share on Vex is +6pp above your own ADC baseline."* This note tracks where the pattern already exists, where it could extend, and the framing decision behind it.
 
 Promoted to a working note because the question *"is this comparison against the world or against the player?"* surfaces in nearly every new tile we ship — and answering it consistently is part of the app's tonal identity.

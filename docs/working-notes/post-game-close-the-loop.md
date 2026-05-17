@@ -1,5 +1,7 @@
 # Post-game close-the-loop surface — roadmap
 
+**Status:** Active — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 (peer-route post-game artifact) explicitly v2, gated on PG1–PG3 proving out. See [open-work.md](open-work.md).
+
 After-game counterpart to [Pregame Ritual](../../apps/web/src/lol/profile/profile-pregame-ritual.tsx). Promoted from [vnext-ideas.md](vnext-ideas.md) ("Top tier — eye-catching wins") and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #1) into a tracked arc because it is the **single highest-payoff missing surface** in the LoL section and the strongest case-study candidate currently in the backlog.
 
 Read this when starting the arc, or when the question is "what's the next big visible-payoff feature."

@@ -1,5 +1,7 @@
 # Riot API investigation — 2026-05-07
 
+**Status:** Reference — diagnostic chronology companion to the published case study. Small parked tail (per-account cache TTL self-healing, re-derive `reservoirIncreaseInterval` when prod-tier key lands, sync fairness if accounts ever run in parallel) tracked under "Adjacent maintenance" in [open-work.md](open-work.md).
+
 Internal log from the night the rate-limiter integration got its second pass. Companion to [docs/case-studies/riot-rate-limits.md](../case-studies/riot-rate-limits.md), which is the polished version. This file keeps the diagnostic chronology and dead-ends in case future me needs to re-derive any of it.
 
 ## In one sentence

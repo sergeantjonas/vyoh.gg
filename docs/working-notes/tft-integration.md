@@ -1,5 +1,7 @@
 # TFT integration
 
+**Status:** Active — warm but not urgent, queued behind Steam. Owner not playing the current set, so this is a "when it's cheap, not when it's urgent" arc. Shares Riot key, rate-limiter, and auth scaffolding with LoL; will compose `<SectionShell>` and the recap / `ConclusionCard` engine — do not build as a parallel system.
+
 A working note for the planned TFT (Teamfight Tactics) integration. Stated cadence (owner, 2026-05-14): **warm but not urgent** — owner played TFT heavily in earlier sets but is not playing the current set, so promoting this is a "when it's cheap, not when it's urgent" move. Steam ([steam-integration.md](steam-integration.md)) is the more committed near-term arc.
 
 TFT shares the Riot API key, rate-limiter (Bottleneck reservoir), and authentication scaffolding already in place for LoL. It's a separate `match-v5` endpoint family with TFT-specific match shape, and it's a separate ranked queue. **Architectural rule: share the recap / `ConclusionCard` engine and the rate-limiter; do not build TFT as a parallel system.** Same engine, second timeseries source — same rule as Steam.
