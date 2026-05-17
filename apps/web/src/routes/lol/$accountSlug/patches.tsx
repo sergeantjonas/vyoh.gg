@@ -17,7 +17,11 @@ import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import type { ChampionPatchChangeGroup, MatchSummary } from "@vyoh/shared";
+import type {
+  ChampionPatchChangeGroup,
+  MatchSummary,
+  PatchEntryChangeGroup,
+} from "@vyoh/shared";
 import { useMemo, useState } from "react";
 
 interface PatchesSearch {
@@ -66,12 +70,12 @@ function PatchesPage() {
 
   const [myOnly, setMyOnly] = useState(false);
 
-  const sortedGroups = useMemo(() => {
-    if (!patchChanges?.changes) return [];
+  const sortedChampions = useMemo(() => {
+    if (!patchChanges?.champions) return [];
     // My champions float to the top in play-count order; everything else
     // falls into alpha order. localeCompare gives a stable display order
     // patch-over-patch even when champion names have accents.
-    return [...patchChanges.changes].sort((a, b) => {
+    return [...patchChanges.champions].sort((a, b) => {
       const aCount = playCountByWikiName.get(a.champion) ?? 0;
       const bCount = playCountByWikiName.get(b.champion) ?? 0;
       if (aCount !== bCount) return bCount - aCount;
@@ -79,10 +83,13 @@ function PatchesPage() {
     });
   }, [patchChanges, playCountByWikiName]);
 
-  const visibleGroups = useMemo(() => {
-    if (!myOnly) return sortedGroups;
-    return sortedGroups.filter((g) => myChampions.has(g.champion));
-  }, [myOnly, sortedGroups, myChampions]);
+  const visibleChampions = useMemo(() => {
+    if (!myOnly) return sortedChampions;
+    return sortedChampions.filter((g) => myChampions.has(g.champion));
+  }, [myOnly, sortedChampions, myChampions]);
+
+  const items = patchChanges?.items ?? [];
+  const runes = patchChanges?.runes ?? [];
 
   // Loading rhythm: patches haven't synced yet, list is in flight, or the
   // changes query for the selected version is in flight. A single skeleton
@@ -129,14 +136,14 @@ function PatchesPage() {
         </div>
         <h1 className="text-2xl font-semibold leading-tight">Champion changes</h1>
         <p className="text-sm text-muted-foreground/80">
-          {sortedGroups.length} champion{sortedGroups.length === 1 ? "" : "s"} changed
-          this patch. Yours are ringed and sorted to the top.
+          {sortedChampions.length} champion{sortedChampions.length === 1 ? "" : "s"}{" "}
+          changed this patch. Yours are ringed and sorted to the top.
         </p>
       </header>
 
       <div className="flex items-center justify-between border-y py-2">
         <span className="text-xs uppercase tracking-wide text-muted-foreground">
-          {visibleGroups.length} shown
+          {visibleChampions.length} shown
         </span>
         <button
           type="button"
@@ -153,7 +160,7 @@ function PatchesPage() {
         </button>
       </div>
 
-      {visibleGroups.length === 0 ? (
+      {visibleChampions.length === 0 ? (
         <p className="py-12 text-center text-sm text-muted-foreground">
           {myOnly
             ? "None of your most-played champions were changed this patch."
@@ -161,7 +168,7 @@ function PatchesPage() {
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {visibleGroups.map((group) => (
+          {visibleChampions.map((group) => (
             <li key={group.champion}>
               <ChampionRow
                 group={group}
@@ -172,7 +179,65 @@ function PatchesPage() {
           ))}
         </ul>
       )}
+
+      {items.length > 0 ? (
+        <PatchEntrySection title="Item changes" groups={items} />
+      ) : null}
+      {runes.length > 0 ? (
+        <PatchEntrySection title="Rune changes" groups={runes} />
+      ) : null}
     </div>
+  );
+}
+
+function PatchEntrySection({
+  title,
+  groups,
+}: {
+  title: string;
+  groups: PatchEntryChangeGroup[];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-lg border bg-card/30">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center gap-2 p-3 text-left"
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "inline-block text-muted-foreground transition-transform",
+            open && "rotate-90"
+          )}
+        >
+          ›
+        </span>
+        <h2 className="text-sm font-medium">{title}</h2>
+        <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {groups.length}
+        </span>
+      </button>
+      {open ? (
+        <ul className="flex flex-col gap-2 border-t p-3">
+          {groups.map((group) => (
+            <li key={group.name} className="flex flex-col gap-1">
+              <h3 className="text-sm font-medium">{group.name}</h3>
+              <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                {group.changes.map((line, i) => (
+                  <li key={`${group.name}-${i}`} className="flex items-start gap-1.5">
+                    <ChangeKindGlyph kind={line.changeType} />
+                    <span className="min-w-0">{line.changeText}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 

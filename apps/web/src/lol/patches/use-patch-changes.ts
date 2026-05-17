@@ -1,10 +1,10 @@
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
-import type { CurrentPatchChangesResponse } from "@vyoh/shared";
+import type { PatchChangesResponse } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 
-async function fetchPatchChanges(version: string): Promise<CurrentPatchChangesResponse> {
+async function fetchPatchChanges(version: string): Promise<PatchChangesResponse> {
   const url = `${API_URL}/lol/patches/${encodeURIComponent(version)}/changes`;
   const res = await fetch(url);
   if (!res.ok) {
@@ -17,7 +17,7 @@ async function fetchPatchChanges(version: string): Promise<CurrentPatchChangesRe
     }
     throw new HttpError(res.status, message);
   }
-  return res.json() as Promise<CurrentPatchChangesResponse>;
+  return res.json() as Promise<PatchChangesResponse>;
 }
 
 const STALE_TIME_MS = 60_000;
