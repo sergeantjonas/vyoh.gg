@@ -2,13 +2,13 @@ import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
 import { NotFound } from "@/components/not-found";
+import { useMe } from "@/identity/use-me";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { toastMessage } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { useMe } from "@/identity/use-me";
 import championAssets from "@/lol/_shared/assets/champion-assets.json";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import {

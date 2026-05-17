@@ -23,7 +23,6 @@ export const Route = createRootRoute({
   notFoundComponent: NotFound,
 });
 
-
 function topLevelScope(pathname: string): string {
   const seg = pathname.split("/").filter(Boolean)[0];
   return seg ? `/${seg}` : "/";

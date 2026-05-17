@@ -199,18 +199,10 @@ function PatchesPage() {
       )}
 
       {items.length > 0 ? (
-        <PatchEntrySection
-          title="Item changes"
-          groups={items}
-          iconShape="square"
-        />
+        <PatchEntrySection title="Item changes" groups={items} iconShape="square" />
       ) : null}
       {runes.length > 0 ? (
-        <PatchEntrySection
-          title="Rune changes"
-          groups={runes}
-          iconShape="circle"
-        />
+        <PatchEntrySection title="Rune changes" groups={runes} iconShape="circle" />
       ) : null}
     </div>
   );

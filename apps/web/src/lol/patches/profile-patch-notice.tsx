@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import {
   useChampionAliasFromName,
@@ -7,9 +8,8 @@ import {
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { AbilityChangeList } from "@/lol/patches/ability-change-list";
 import { useCurrentPatchChanges } from "@/lol/patches/use-current-patch-changes";
-import { Separator } from "@/components/ui/separator";
-import type { MatchSummary } from "@vyoh/shared";
 import { Link } from "@tanstack/react-router";
+import type { MatchSummary } from "@vyoh/shared";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -55,9 +55,7 @@ function markDismissed(patchVersion: string): void {
   }
 }
 
-export function ProfilePatchNotice({
-  accountSlug,
-}: { accountSlug: string }) {
+export function ProfilePatchNotice({ accountSlug }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const championName = useChampionName();
   // Server returns wiki names ("Wukong"); the icon proxy expects Riot

@@ -32,7 +32,12 @@ interface DdragonChampionListBody {
 }
 
 interface WikiModuleResponse {
-  query?: { pages?: Record<string, { revisions?: Array<{ slots?: { main?: { "*"?: string } } }> }> };
+  query?: {
+    pages?: Record<
+      string,
+      { revisions?: Array<{ slots?: { main?: { "*"?: string } } }> }
+    >;
+  };
 }
 
 // Wiki image URLs follow a predictable convention — constructable from name alone,
@@ -81,7 +86,10 @@ export class PatchService {
   // backfill path in `run-patch-sync.ts` after the caller has filtered out
   // versions already in the DB. Idempotent via `persist`'s pre-delete, so
   // re-running after a parser bugfix is safe.
-  async syncVersion(truncatedVersion: string, fullDdragonVersion?: string): Promise<string> {
+  async syncVersion(
+    truncatedVersion: string,
+    fullDdragonVersion?: string
+  ): Promise<string> {
     const wikitext = await this.fetchWikitext(truncatedVersion);
     const changes = parsePatchWikitext(wikitext);
     const patchDate = parseReleaseDate(wikitext);
@@ -96,7 +104,12 @@ export class PatchService {
             championNames
           );
           for (const change of changes) {
-            if (change.section !== "champion" || !change.ability || change.ability === "Base") continue;
+            if (
+              change.section !== "champion" ||
+              !change.ability ||
+              change.ability === "Base"
+            )
+              continue;
             const slotMap = slotMaps.get(change.subject);
             const iconMap = iconByChampionSlot.get(change.subject);
             const resolvedSlot =
@@ -302,7 +315,10 @@ export class PatchService {
         const uniqueSlots = [...new Set<string>(slotMap.values())];
         for (const slot of uniqueSlots) {
           const key = slot === "Passive" ? "p" : slot.toLowerCase();
-          iconMap.set(slot, `${CDRAGON_ICON_CDN}/latest/champion/${stringId}/ability-icon/${key}`);
+          iconMap.set(
+            slot,
+            `${CDRAGON_ICON_CDN}/latest/champion/${stringId}/ability-icon/${key}`
+          );
         }
         iconByChampionSlot.set(displayName, iconMap);
       }

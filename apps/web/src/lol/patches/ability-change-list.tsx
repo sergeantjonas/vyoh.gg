@@ -11,13 +11,22 @@ export type AbilityGroup = {
   changes: ChampionPatchChangeGroup["changes"];
 };
 
-export function groupBySlot(changes: ChampionPatchChangeGroup["changes"]): AbilityGroup[] {
+export function groupBySlot(
+  changes: ChampionPatchChangeGroup["changes"]
+): AbilityGroup[] {
   const map = new Map<string, AbilityGroup>();
   for (const line of changes) {
-    const key = line.ability === "Base" ? "__base__" : (line.slot ?? line.ability ?? "__base__");
+    const key =
+      line.ability === "Base" ? "__base__" : (line.slot ?? line.ability ?? "__base__");
     let entry = map.get(key);
     if (!entry) {
-      entry = { key, slot: line.slot, abilityNames: [], iconPath: line.iconPath, changes: [] };
+      entry = {
+        key,
+        slot: line.slot,
+        abilityNames: [],
+        iconPath: line.iconPath,
+        changes: [],
+      };
       map.set(key, entry);
     }
     if (line.ability && !entry.abilityNames.includes(line.ability)) {
@@ -40,9 +49,7 @@ export function AbilityChangeList({
     <ul className={cn("flex flex-col gap-0 text-xs text-muted-foreground", className)}>
       {groups.map((sg, idx) => (
         <li key={sg.key}>
-          {groups.length > 1 && idx > 0 && (
-            <Separator className="my-2.5 bg-border/50" />
-          )}
+          {groups.length > 1 && idx > 0 && <Separator className="my-2.5 bg-border/50" />}
           {sg.key !== "__base__" ? (
             <div className="mb-0.5 flex items-center gap-1.5">
               {sg.iconPath ? (
@@ -62,7 +69,10 @@ export function AbilityChangeList({
             {sg.changes.map((line, ci) => (
               <li
                 key={`${sg.key}-${ci}`}
-                className={cn("flex items-start gap-1.5", sg.key !== "__base__" && "pl-5")}
+                className={cn(
+                  "flex items-start gap-1.5",
+                  sg.key !== "__base__" && "pl-5"
+                )}
               >
                 <ChangeKindGlyph kind={line.changeType} />
                 <span className="min-w-0">{line.changeText}</span>
