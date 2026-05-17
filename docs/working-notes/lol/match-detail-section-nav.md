@@ -1,6 +1,6 @@
 # Match-detail section nav — roadmap
 
-**Status:** Active — MDN1–MDN4 shipped 2026-05-17; MDN5 (page-level tabs Recap/Your game/Timeline + scrollspy) scoped but not started, gated on queued owner-data section additions. See [open-work.md](../open-work.md).
+**Status:** Active — MDN1–MDN4 shipped 2026-05-17 (breadcrumb migration, content split into Recap / Your game / Timeline tabs, sticky tab bar past the hero, scrollspy in "Your game"). MDN5 is a soft re-evaluation of the tab grouping after the queued owner-data additions land — not started, gated on those additions shipping. See [open-work.md](../open-work.md).
 
 Read this when starting the arc, when scoping where the next owner-data feature lands, or before adding any new section to `MatchDetailView` (so it goes into the right tab from day one).
 
@@ -160,9 +160,9 @@ Currently `< Matches` replaces the section tab bar slot via `isMatchDetail` in `
 
 ## URL state
 
-- Tab state in URL fragment: `?tab=your-game`, `?tab=timeline`. Default `recap` (omitted from URL).
+- Tab state is a **path segment**: `/lol/$accountSlug/matches/$matchId/{recap,your-game,timeline}`. The unversioned `/lol/$accountSlug/matches/$matchId` route redirects to `/recap` via `beforeLoad`, so the default tab still has a canonical URL — bookmarks and shares land on the same place regardless of which form was typed.
+- Originally shipped as `?tab=` search param (MDN2, 2026-05-17). Migrated to path segments on 2026-05-18 because the search param persisted in the URL after navigating away from the match-detail page — UI state leaking into the section-level URL surface. Path segments scope cleanly to the route, so the leak disappears.
 - Scrollspy sub-nav state is *not* URL-persisted by default — too noisy on history. If deep-linkable section anchors prove useful (e.g. "open rune page panel directly"), add `#section-id` as a v2.
-- TanStack Router search params, not hash, for tab state — consistent with the rest of the app and avoids hash-vs-route-hash conflicts.
 
 ---
 
@@ -176,7 +176,7 @@ Each chunk is independently committable and live-verifiable.
 
 ### Chunk MDN2 — content split ✓
 
-- Sections split per inventory. `?tab=` search param via TanStack Router `validateSearch`. Default recap omitted from URL. All three tabs render real content.
+- Sections split per inventory. Originally shipped with a `?tab=` search param via TanStack Router `validateSearch` (default `recap` omitted from URL). Migrated to nested path-segment routes on 2026-05-18 — see [URL state](#url-state) and the [path-segment status entry](#status).
 
 ### Chunk MDN3 — sticky behaviour ✓
 
@@ -208,6 +208,7 @@ After the queued owner-data additions ship (spell casts / damage profile / CC ti
 ## Status
 
 - **2026-05-17** — arc scoped, Option A locked, working note written. Promoted to [open-work.md](../open-work.md). Not started.
+- **2026-05-18** — tab URL state migrated from `?tab=` search param to nested path segments (`/recap`, `/your-game`, `/timeline`) with index → recap redirect. Done alongside the matching `/patches/$version` migration. Tab body components split out of `MatchDetailView` into `MatchRecapTab` / `MatchYourGameTab` / `MatchTimelineTab` exports in [`match-detail-view.tsx`](../../../apps/web/src/lol/matches/match-detail-view.tsx); each tab route consumes them via the cached `useMatchTabProps` hook.
 
 ---
 

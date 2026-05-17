@@ -16,7 +16,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### LoL surfaces
 
-- **Match-detail section nav** — page-level tabs (Recap / Your game / Timeline) + scrollspy in "Your game", motivated by the queued owner-data additions; breadcrumb moves out of the section-tab-bar slot. Scoped 2026-05-17, Option A locked, not started. → [match-detail-section-nav.md](lol/match-detail-section-nav.md)
+- **Match-detail section nav MDN5** — soft re-evaluation of the Recap / Your game / Timeline grouping after the queued owner-data additions land (spell casts, damage profile, CC time, multikills, rune page, etc.). MDN1–MDN4 shipped 2026-05-17; tab URL state migrated from `?tab=` search param to nested path segments on 2026-05-18. → [match-detail-section-nav.md](lol/match-detail-section-nav.md)
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
 - **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lol/lp-forecast.md)
