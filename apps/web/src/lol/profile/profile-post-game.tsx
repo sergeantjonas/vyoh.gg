@@ -11,7 +11,7 @@ import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { useNewMatchNotice } from "@/lol/profile/use-new-match-notice";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -160,7 +160,7 @@ function buildTiltForecastSignal({ last, history }: PostGameInput): RitualSignal
   }
   const overallWr =
     history.filter((m) => !m.remake && m.win).length /
-    Math.max(1, history.filter((m) => !m.remake).length);
+    Math.max(1, excludeRemakes(history).length);
   const wr = bucket.wins / bucket.games;
   const pct = Math.round(wr * 100);
   const delta = wr - overallWr;

@@ -2,12 +2,13 @@ import { MatchRecord } from "@/lol/_shared/ui/match-record";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { TrendStreak } from "@/lol/trends/trend-streak";
+import { excludeRemakes } from "@vyoh/shared";
 
 const FORM_LENGTH = 20;
 
 export function ProfileRecentForm({ accountSlug }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
-  const recent = matches?.filter((m) => !m.remake).slice(0, FORM_LENGTH) ?? [];
+  const recent = excludeRemakes(matches ?? []).slice(0, FORM_LENGTH);
 
   if (recent.length === 0) return null;
 

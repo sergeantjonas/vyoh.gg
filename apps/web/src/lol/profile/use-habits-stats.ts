@@ -1,5 +1,5 @@
 import { useMatchWindow } from "@/lol/matches/match-window-context";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 export interface HourDayStat {
@@ -41,7 +41,7 @@ function monFirstDay(date: Date): number {
 
 export function computeHourDayStats(matches: MatchSummary[]): HourDayStat[] {
   const map = new Map<number, { games: number; wins: number }>();
-  for (const m of matches.filter((m) => !m.remake)) {
+  for (const m of excludeRemakes(matches)) {
     const d = new Date(m.playedAt);
     const key = monFirstDay(d) * 24 + d.getHours();
     const s = map.get(key) ?? { games: 0, wins: 0 };
@@ -58,7 +58,7 @@ export function computeHourDayStats(matches: MatchSummary[]): HourDayStat[] {
 }
 
 export function computeTiltStats(matches: MatchSummary[]): TiltStats {
-  const ordered = [...matches.filter((m) => !m.remake)].sort((a, b) =>
+  const ordered = [...excludeRemakes(matches)].sort((a, b) =>
     a.playedAt.localeCompare(b.playedAt)
   );
   const stats: TiltStats = {
@@ -92,7 +92,7 @@ export function computeGameLengthStats(matches: MatchSummary[]): GameLengthBucke
     games: 0,
     wins: 0,
   }));
-  for (const m of matches.filter((m) => !m.remake)) {
+  for (const m of excludeRemakes(matches)) {
     const i = GAME_LENGTH_BUCKETS.findIndex((b) => m.durationSec <= b.maxSec);
     const b = i !== -1 ? buckets[i] : undefined;
     if (b) {
@@ -118,7 +118,7 @@ export function computePoolStats(matches: MatchSummary[]): PoolStats {
 }
 
 export function computeHabitsStats(matches: MatchSummary[]): HabitsStats {
-  const ms = matches.filter((m) => !m.remake);
+  const ms = excludeRemakes(matches);
   const wins = ms.filter((m) => m.win).length;
   return {
     hourDay: computeHourDayStats(matches),

@@ -6,7 +6,7 @@ import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -19,7 +19,7 @@ function nowMonFirstDay(d: Date): number {
 }
 
 function buildFormSignal(matches: MatchSummary[]): RitualSignal {
-  const played = matches.filter((m) => !m.remake);
+  const played = excludeRemakes(matches);
   if (played.length === 0) {
     return {
       id: "form",
@@ -51,7 +51,7 @@ function buildFormSignal(matches: MatchSummary[]): RitualSignal {
 }
 
 function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
-  const played = matches.filter((m) => !m.remake);
+  const played = excludeRemakes(matches);
   if (played.length < 5) {
     return {
       id: "tilt",
@@ -91,7 +91,7 @@ function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
 }
 
 function buildTimeSlotSignal(matches: MatchSummary[]): RitualSignal {
-  const played = matches.filter((m) => !m.remake);
+  const played = excludeRemakes(matches);
   if (played.length < 10) {
     return {
       id: "slot",

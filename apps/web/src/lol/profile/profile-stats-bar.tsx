@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
+import { excludeRemakes } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 import type { ReactNode } from "react";
 
@@ -33,7 +34,7 @@ export function ProfileStatsBar() {
 
   const s = computeTrendSummary(matches);
   const playtimeHours = s.totalDurationSec / 3600;
-  const nonRemakes = matches.filter((m) => !m.remake);
+  const nonRemakes = excludeRemakes(matches);
   const uniqueChamps = new Set(nonRemakes.map((m) => m.champion)).size;
 
   return (

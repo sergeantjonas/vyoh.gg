@@ -46,7 +46,7 @@ If a predicate or filter must hold for *every* stat computation, rollup, or disp
 
 **Why:** A 2026-05-18 audit found 12+ inlined `matches.filter((m) => !m.remake)` sites across the LoL feature. The remake filter is an explicit invariant (all stat computation must exclude remakes), yet nothing prevented a future aggregation from omitting it. The pattern applies to any domain that has must-hold preconditions — e.g. filtering invalid/incomplete records before aggregation, excluding test/bot accounts, excluding unsupported game modes.
 
-**How to apply:** When writing a new aggregation, check whether the feature domain has must-hold preconditions. If it does, call the named helper rather than re-deriving the filter. If the helper doesn't exist yet, create it in `packages/shared/src/<domain>/` as part of the same change.
+**How to apply:** When writing a new LoL aggregation, call `excludeRemakes()` from `@vyoh/shared` before computing stats — never re-derive `!m.remake` inline. For other feature domains, check whether must-hold preconditions exist and define a named helper in `packages/shared/src/<domain>/` the same way. If the helper doesn't exist yet, create it in the same change.
 
 ### Use `useChampionName()` for all champion name display
 

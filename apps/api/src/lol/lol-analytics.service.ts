@@ -1,10 +1,11 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
-import type {
-  ChampionBuildFlowEntry,
-  ChampionExtras,
-  ChampionPair,
-  Chronotype,
-  Duo,
+import {
+  type ChampionBuildFlowEntry,
+  type ChampionExtras,
+  type ChampionPair,
+  type Chronotype,
+  type Duo,
+  excludeRemakes,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -334,7 +335,7 @@ export class LolAnalyticsService {
       take: count,
       select: { matchId: true, items: true, win: true, remake: true },
     });
-    const playable = matches.filter((m) => !m.remake);
+    const playable = excludeRemakes(matches);
     if (playable.length === 0) return [];
 
     const timelineRows = await this.prisma.matchTimelineCache.findMany({

@@ -1,6 +1,6 @@
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -38,7 +38,7 @@ function streakInsight(matches: MatchSummary[]): Insight | null {
   let bestLoss = 0;
   let runWin = 0;
   let runLoss = 0;
-  const ordered = [...matches.filter((m) => !m.remake)].sort((a, b) =>
+  const ordered = [...excludeRemakes(matches)].sort((a, b) =>
     a.playedAt.localeCompare(b.playedAt)
   );
   for (const m of ordered) {
@@ -78,7 +78,7 @@ function hourInsight(matches: MatchSummary[]): Insight | null {
   if (matches.length < 15) return null;
   const overallWr =
     matches.filter((m) => m.win && !m.remake).length /
-    Math.max(matches.filter((m) => !m.remake).length, 1);
+    Math.max(excludeRemakes(matches).length, 1);
   const hourDay = computeHourDayStats(matches);
   let bestSlot: { day: number; hour: number; wr: number; games: number } | null = null;
   for (const slot of hourDay) {

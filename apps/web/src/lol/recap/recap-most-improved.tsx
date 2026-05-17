@@ -2,7 +2,7 @@
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -18,7 +18,7 @@ interface ImprovementCandidate {
 }
 
 function computeMostImproved(matches: MatchSummary[]): ImprovementCandidate | null {
-  const valid = matches.filter((m) => !m.remake);
+  const valid = excludeRemakes(matches);
   if (valid.length < MIN_GAMES_PER_HALF * 2) return null;
   const sorted = [...valid].sort((a, b) => a.playedAt.localeCompare(b.playedAt));
   const cutoff = Math.floor(sorted.length / 2);

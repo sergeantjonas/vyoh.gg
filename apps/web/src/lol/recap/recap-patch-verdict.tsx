@@ -1,6 +1,6 @@
 // Baseline: personal — per-patch WR from your own games; surfaces the best and worst patch with min-sample.
 import { groupByPatch } from "@/lol/_shared/patch/patch-version";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -12,7 +12,7 @@ interface PatchVerdict {
 }
 
 function computePatchVerdict(matches: MatchSummary[]): PatchVerdict | null {
-  const valid = matches.filter((m) => !m.remake);
+  const valid = excludeRemakes(matches);
   const buckets = groupByPatch(valid, (m) => m.gameVersion).filter(
     (b) => b.items.length >= MIN_GAMES_PER_PATCH
   );
