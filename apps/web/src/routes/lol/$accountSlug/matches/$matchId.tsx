@@ -108,6 +108,9 @@ function MatchDetailPage() {
 
   const [heroScrolledPast, heroRef] = useHeroScrolledPast();
 
+  const handleTabChange = (id: MatchDetailTabId) =>
+    navigate({ search: { tab: id === "recap" ? undefined : id }, replace: true });
+
   const myParticipant =
     detail.data && account
       ? detail.data.participants.find(
@@ -173,62 +176,65 @@ function MatchDetailPage() {
           top="var(--account-header-h)"
           championAlias={heroSummary.champion}
         >
-          <div className="flex items-center gap-3">
-            <ChampionSquareIcon
-              championName={heroSummary.champion}
-              className="size-6 rounded-sm"
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-3">
+              <ChampionSquareIcon
+                championName={heroSummary.champion}
+                className="size-6 rounded-sm"
+              />
+              <span className="text-sm font-medium">
+                {championName(heroSummary.champion)}
+              </span>
+              {heroSummary.remake ? (
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Remake
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-wider",
+                    heroSummary.win ? "text-emerald-400" : "text-red-400"
+                  )}
+                >
+                  {heroSummary.win ? "Win" : "Loss"}
+                </span>
+              )}
+              {!heroSummary.remake && lpDelta !== undefined && (
+                <span
+                  className={cn(
+                    "text-xs tabular-nums",
+                    lpDelta > 0
+                      ? "text-emerald-400"
+                      : lpDelta < 0
+                        ? "text-red-400"
+                        : "text-muted-foreground"
+                  )}
+                >
+                  {lpDelta > 0 ? "+" : ""}
+                  {lpDelta} LP
+                </span>
+              )}
+              <span className="font-mono text-sm tabular-nums">
+                <span className="text-emerald-400">{heroSummary.kills}</span>
+                <span className="text-muted-foreground"> / </span>
+                <span className="text-red-400">{heroSummary.deaths}</span>
+                <span className="text-muted-foreground"> / </span>
+                <span className="text-amber-400">{heroSummary.assists}</span>
+              </span>
+            </div>
+            <MatchDetailTabs
+              value={tab}
+              onChange={handleTabChange}
+              compact
+              indicatorId="match-detail-tab-indicator-sticky"
+              className="border-b-0"
             />
-            <span className="text-sm font-medium">
-              {championName(heroSummary.champion)}
-            </span>
-            {heroSummary.remake ? (
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Remake
-              </span>
-            ) : (
-              <span
-                className={cn(
-                  "text-xs font-semibold uppercase tracking-wider",
-                  heroSummary.win ? "text-emerald-400" : "text-red-400"
-                )}
-              >
-                {heroSummary.win ? "Win" : "Loss"}
-              </span>
-            )}
-            {!heroSummary.remake && lpDelta !== undefined && (
-              <span
-                className={cn(
-                  "text-xs tabular-nums",
-                  lpDelta > 0
-                    ? "text-emerald-400"
-                    : lpDelta < 0
-                      ? "text-red-400"
-                      : "text-muted-foreground"
-                )}
-              >
-                {lpDelta > 0 ? "+" : ""}
-                {lpDelta} LP
-              </span>
-            )}
-            <span className="font-mono text-sm tabular-nums">
-              <span className="text-emerald-400">{heroSummary.kills}</span>
-              <span className="text-muted-foreground"> / </span>
-              <span className="text-red-400">{heroSummary.deaths}</span>
-              <span className="text-muted-foreground"> / </span>
-              <span className="text-amber-400">{heroSummary.assists}</span>
-            </span>
           </div>
         </ChampionStickyStrip>
       )}
-      <MatchDetailTabs
-        value={tab}
-        onChange={(id) =>
-          navigate({
-            search: { tab: id === "recap" ? undefined : id },
-            replace: true,
-          })
-        }
-      />
+      <div className={cn(heroScrolledPast && "invisible")}>
+        <MatchDetailTabs value={tab} onChange={handleTabChange} />
+      </div>
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
