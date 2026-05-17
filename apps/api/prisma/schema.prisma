@@ -334,18 +334,21 @@ model PatchVersion {
   patchDate  DateTime?
   fetchedAt  DateTime @default(now())
 
-  changes ChampionPatchChange[]
+  changes PatchChange[]
 }
 
-// One row per change line, per ability, per champion, per patch.
-// `ability` is "Q" | "W" | "E" | "R" | "Passive" | "Base" or null when the
-// change is a non-ability adjustment. `changeType` is a best-effort
-// classification ("buff" | "nerf" | "adjustment" | "new_effect" | "removed")
-// derived from the wiki prose; null when the direction is ambiguous.
-model ChampionPatchChange {
+// One row per change line, per subject (champion/item/rune), per patch.
+// `section` is "champion" | "item" | "rune"; `subject` is the wiki name of
+// that section's entry (champion name, item name, rune name). `ability` is
+// only meaningful for champion rows (verbatim wiki ability name or "Base");
+// always null for items/runes. `changeType` is a best-effort classification
+// ("buff" | "nerf" | "adjustment" | "new_effect" | "removed") derived from
+// the wiki prose; null when the direction is ambiguous.
+model PatchChange {
   id           Int      @id @default(autoincrement())
   patchVersion String
-  championKey  String
+  section      String   @default("champion")
+  subject      String
   ability      String?
   changeText   String
   changeType   String?
@@ -353,5 +356,5 @@ model ChampionPatchChange {
 
   patch PatchVersion @relation(fields: [patchVersion], references: [version])
 
-  @@index([patchVersion, championKey])
+  @@index([patchVersion, section, subject])
 }

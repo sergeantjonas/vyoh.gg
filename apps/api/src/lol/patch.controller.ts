@@ -1,5 +1,9 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import type { CurrentPatchChangesResponse, PatchListEntry } from "@vyoh/shared";
+import type {
+  CurrentPatchChangesResponse,
+  PatchChangesResponse,
+  PatchListEntry,
+} from "@vyoh/shared";
 import { PatchService } from "./patch.service";
 
 // Hard cap to keep the IN-clause and JSON payload small. The PN2 profile
@@ -35,13 +39,14 @@ export class PatchController {
     return this.patch.getCurrentChanges(champions);
   }
 
-  // GET /lol/patches/26.10/changes → entire patch's changes, no champion
-  // filter. Powers the PN3 patch-notes tab, which renders the full slate
-  // and sorts client-side by the caller's play count.
+  // GET /lol/patches/26.10/changes → entire patch's changes, partitioned
+  // into champions/items/runes (PN4). Powers the PN3+PN4 patch-notes tab,
+  // which renders each section as its own block and sorts champion entries
+  // client-side by the caller's play count.
   @Get(":version/changes")
   async getChangesForVersion(
     @Param("version") version: string
-  ): Promise<CurrentPatchChangesResponse> {
+  ): Promise<PatchChangesResponse> {
     return this.patch.getChangesForVersion(version);
   }
 }

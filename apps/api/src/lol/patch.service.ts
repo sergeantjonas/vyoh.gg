@@ -4,6 +4,8 @@ import type {
   ChampionPatchChangeGroup,
   ChampionPatchChangeKind,
   CurrentPatchChangesResponse,
+  PatchChangesResponse,
+  PatchEntryChangeGroup,
   PatchListEntry,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
@@ -95,8 +97,9 @@ export class PatchService {
   // *fetched* patch (cron writes one row per detected version), filtered to
   // the caller-supplied wiki champion names. The caller is expected to have
   // already resolved Riot-internal aliases (e.g. "MonkeyKing") to wiki
-  // display names (e.g. "Wukong") — the API matches `championKey` verbatim
-  // against the stored wiki name.
+  // display names (e.g. "Wukong") — the API matches `subject` verbatim
+  // against the stored wiki name. Champion-only by design — items and runes
+  // never bleed into this surface.
   async getCurrentChanges(
     championKeys: readonly string[]
   ): Promise<CurrentPatchChangesResponse> {
@@ -107,16 +110,17 @@ export class PatchService {
     if (championKeys.length === 0) {
       return { patchVersion: latest.version, changes: [] };
     }
-    const rows = await this.prisma.championPatchChange.findMany({
+    const rows = await this.prisma.patchChange.findMany({
       where: {
         patchVersion: latest.version,
-        championKey: { in: [...championKeys] },
+        section: "champion",
+        subject: { in: [...championKeys] },
       },
-      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+      orderBy: [{ subject: "asc" }, { id: "asc" }],
     });
     return {
       patchVersion: latest.version,
-      changes: groupByChampion(rows),
+      changes: groupChampionRows(rows),
     };
   }
 
@@ -136,18 +140,35 @@ export class PatchService {
   }
 
   // PN3 read-side for the patch-notes tab. Unlike `getCurrentChanges`, this
-  // returns the entire patch's changes — no champion filter, no IN-clause
+  // returns the entire patch's changes — no subject filter, no IN-clause
   // cap — because the tab renders the full slate and sorts client-side by
-  // the caller's play count. Returns a null version when the requested
-  // patch isn't synced (treat as "unknown patch" on the client).
-  async getChangesForVersion(version: string): Promise<CurrentPatchChangesResponse> {
+  // the caller's play count. PN4: rows from all three sections are returned,
+  // partitioned by `section` so the UI can render champions / items / runes
+  // as separate blocks. Returns a null version when the requested patch
+  // isn't synced (treat as "unknown patch" on the client).
+  async getChangesForVersion(version: string): Promise<PatchChangesResponse> {
     const found = await this.prisma.patchVersion.findUnique({ where: { version } });
-    if (!found) return { patchVersion: null, changes: [] };
-    const rows = await this.prisma.championPatchChange.findMany({
+    if (!found) {
+      return { patchVersion: null, champions: [], items: [], runes: [] };
+    }
+    const rows = await this.prisma.patchChange.findMany({
       where: { patchVersion: version },
-      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+      orderBy: [{ section: "asc" }, { subject: "asc" }, { id: "asc" }],
     });
-    return { patchVersion: version, changes: groupByChampion(rows) };
+    const champions: typeof rows = [];
+    const items: typeof rows = [];
+    const runes: typeof rows = [];
+    for (const row of rows) {
+      if (row.section === "champion") champions.push(row);
+      else if (row.section === "item") items.push(row);
+      else if (row.section === "rune") runes.push(row);
+    }
+    return {
+      patchVersion: version,
+      champions: groupChampionRows(champions),
+      items: groupEntryRows(items),
+      runes: groupEntryRows(runes),
+    };
   }
 
   // Atomic upsert: insert the PatchVersion row and all change rows in a
@@ -155,16 +176,17 @@ export class PatchService {
   // version so manual re-runs after a parser bugfix stay idempotent.
   private async persist(version: string, changes: ParsedChange[]): Promise<void> {
     await this.prisma.$transaction([
-      this.prisma.championPatchChange.deleteMany({ where: { patchVersion: version } }),
+      this.prisma.patchChange.deleteMany({ where: { patchVersion: version } }),
       this.prisma.patchVersion.upsert({
         where: { version },
         create: { version },
         update: {},
       }),
-      this.prisma.championPatchChange.createMany({
+      this.prisma.patchChange.createMany({
         data: changes.map((c) => ({
           patchVersion: version,
-          championKey: c.champion,
+          section: c.section,
+          subject: c.subject,
           ability: c.ability,
           changeText: c.changeText,
           changeType: c.changeType,
@@ -174,12 +196,13 @@ export class PatchService {
   }
 }
 
-// Group raw change rows by champion, preserving DB order (already
-// championKey ASC, id ASC). The `changeType` cast is safe: it's only ever
-// written by the parser using the ChampionPatchChangeKind union or null.
-function groupByChampion(
+// Group raw champion-section rows by subject (wiki champion name),
+// preserving DB order (already subject ASC, id ASC). The `changeType` cast
+// is safe: it's only ever written by the parser using the
+// ChampionPatchChangeKind union or null.
+function groupChampionRows(
   rows: ReadonlyArray<{
-    championKey: string;
+    subject: string;
     ability: string | null;
     changeText: string;
     changeType: string | null;
@@ -187,13 +210,37 @@ function groupByChampion(
 ): ChampionPatchChangeGroup[] {
   const groups = new Map<string, ChampionPatchChangeGroup>();
   for (const row of rows) {
-    let group = groups.get(row.championKey);
+    let group = groups.get(row.subject);
     if (!group) {
-      group = { champion: row.championKey, changes: [] };
-      groups.set(row.championKey, group);
+      group = { champion: row.subject, changes: [] };
+      groups.set(row.subject, group);
     }
     group.changes.push({
       ability: row.ability,
+      changeText: row.changeText,
+      changeType: row.changeType as ChampionPatchChangeKind | null,
+    });
+  }
+  return [...groups.values()];
+}
+
+// Group item/rune rows by subject. No ability layer — items and runes are
+// flat, so each row turns into one PatchEntryChangeLine.
+function groupEntryRows(
+  rows: ReadonlyArray<{
+    subject: string;
+    changeText: string;
+    changeType: string | null;
+  }>
+): PatchEntryChangeGroup[] {
+  const groups = new Map<string, PatchEntryChangeGroup>();
+  for (const row of rows) {
+    let group = groups.get(row.subject);
+    if (!group) {
+      group = { name: row.subject, changes: [] };
+      groups.set(row.subject, group);
+    }
+    group.changes.push({
       changeText: row.changeText,
       changeType: row.changeType as ChampionPatchChangeKind | null,
     });

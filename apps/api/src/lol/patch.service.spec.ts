@@ -8,7 +8,7 @@ interface PatchPrismaStubs {
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
   };
-  championPatchChange: { findMany: ReturnType<typeof vi.fn> };
+  patchChange: { findMany: ReturnType<typeof vi.fn> };
 }
 
 function makePrisma(): PatchPrismaStubs {
@@ -18,7 +18,7 @@ function makePrisma(): PatchPrismaStubs {
       findMany: vi.fn(),
       findUnique: vi.fn(),
     },
-    championPatchChange: { findMany: vi.fn() },
+    patchChange: { findMany: vi.fn() },
   };
 }
 
@@ -61,7 +61,7 @@ describe("PatchService.getCurrentChanges", () => {
     const result = await makeService(prisma).getCurrentChanges(["Ahri"]);
 
     expect(result).toEqual({ patchVersion: null, changes: [] });
-    expect(prisma.championPatchChange.findMany).not.toHaveBeenCalled();
+    expect(prisma.patchChange.findMany).not.toHaveBeenCalled();
   });
 
   it("returns the patch version with empty changes when no champion filter is given", async () => {
@@ -74,27 +74,27 @@ describe("PatchService.getCurrentChanges", () => {
     // filter is a "tell me the patch label" probe, not a request for the
     // entire patch's changes.
     expect(result).toEqual({ patchVersion: "26.10", changes: [] });
-    expect(prisma.championPatchChange.findMany).not.toHaveBeenCalled();
+    expect(prisma.patchChange.findMany).not.toHaveBeenCalled();
   });
 
   it("groups rows by champion and preserves DB order within each group", async () => {
     const prisma = makePrisma();
     prisma.patchVersion.findFirst.mockResolvedValue({ version: "26.10" });
-    prisma.championPatchChange.findMany.mockResolvedValue([
+    prisma.patchChange.findMany.mockResolvedValue([
       {
-        championKey: "Ahri",
+        subject: "Ahri",
         ability: "Q",
         changeText: "Damage increased to 50 from 40.",
         changeType: "buff",
       },
       {
-        championKey: "Ahri",
+        subject: "Ahri",
         ability: "Q",
         changeText: "Cooldown reduced to 7 from 8.",
         changeType: "buff",
       },
       {
-        championKey: "Lee Sin",
+        subject: "Lee Sin",
         ability: "W",
         changeText: "Shield reduced to 60 from 70.",
         changeType: "nerf",
@@ -131,9 +131,13 @@ describe("PatchService.getCurrentChanges", () => {
         ],
       },
     ]);
-    expect(prisma.championPatchChange.findMany).toHaveBeenCalledWith({
-      where: { patchVersion: "26.10", championKey: { in: ["Ahri", "Lee Sin"] } },
-      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+    expect(prisma.patchChange.findMany).toHaveBeenCalledWith({
+      where: {
+        patchVersion: "26.10",
+        section: "champion",
+        subject: { in: ["Ahri", "Lee Sin"] },
+      },
+      orderBy: [{ subject: "asc" }, { id: "asc" }],
     });
   });
 });
@@ -195,30 +199,58 @@ describe("PatchService.listPatches", () => {
 });
 
 describe("PatchService.getChangesForVersion", () => {
-  it("returns null patchVersion when the requested version isn't in the DB", async () => {
+  it("returns null patchVersion + empty section arrays when the requested version isn't in the DB", async () => {
     const prisma = makePrisma();
     prisma.patchVersion.findUnique.mockResolvedValue(null);
 
     const result = await makeService(prisma).getChangesForVersion("99.9");
 
-    expect(result).toEqual({ patchVersion: null, changes: [] });
-    expect(prisma.championPatchChange.findMany).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      patchVersion: null,
+      champions: [],
+      items: [],
+      runes: [],
+    });
+    expect(prisma.patchChange.findMany).not.toHaveBeenCalled();
   });
 
-  it("returns every change for the version, grouped by champion", async () => {
+  it("partitions rows into champions/items/runes and groups each section by subject", async () => {
     const prisma = makePrisma();
     prisma.patchVersion.findUnique.mockResolvedValue({ version: "26.10" });
-    prisma.championPatchChange.findMany.mockResolvedValue([
+    prisma.patchChange.findMany.mockResolvedValue([
       {
-        championKey: "Ahri",
+        section: "champion",
+        subject: "Ahri",
         ability: "Q",
         changeText: "Damage increased to 50 from 40.",
         changeType: "buff",
       },
       {
-        championKey: "Yasuo",
+        section: "champion",
+        subject: "Yasuo",
         ability: "Passive",
         changeText: "Shield reduced to 100 from 120.",
+        changeType: "nerf",
+      },
+      {
+        section: "item",
+        subject: "Lich Bane",
+        ability: null,
+        changeText: "Movement speed increased to 6% from 4%.",
+        changeType: "buff",
+      },
+      {
+        section: "item",
+        subject: "Lich Bane",
+        ability: null,
+        changeText: "Cost reduced to 3000 from 3200.",
+        changeType: "buff",
+      },
+      {
+        section: "rune",
+        subject: "Deathfire Touch",
+        ability: null,
+        changeText: "Base damage reduced.",
         changeType: "nerf",
       },
     ]);
@@ -226,12 +258,17 @@ describe("PatchService.getChangesForVersion", () => {
     const result = await makeService(prisma).getChangesForVersion("26.10");
 
     expect(result.patchVersion).toBe("26.10");
-    expect(result.changes).toHaveLength(2);
-    expect(result.changes[0]?.champion).toBe("Ahri");
-    expect(result.changes[1]?.champion).toBe("Yasuo");
-    expect(prisma.championPatchChange.findMany).toHaveBeenCalledWith({
+    expect(result.champions).toHaveLength(2);
+    expect(result.champions[0]?.champion).toBe("Ahri");
+    expect(result.champions[1]?.champion).toBe("Yasuo");
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.name).toBe("Lich Bane");
+    expect(result.items[0]?.changes).toHaveLength(2);
+    expect(result.runes).toHaveLength(1);
+    expect(result.runes[0]?.name).toBe("Deathfire Touch");
+    expect(prisma.patchChange.findMany).toHaveBeenCalledWith({
       where: { patchVersion: "26.10" },
-      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+      orderBy: [{ section: "asc" }, { subject: "asc" }, { id: "asc" }],
     });
   });
 });

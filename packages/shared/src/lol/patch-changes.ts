@@ -26,13 +26,40 @@ export interface ChampionPatchChangeGroup {
   changes: ChampionPatchChangeLine[];
 }
 
+// PN4: items and runes share an identical shape — no ability layer, just a
+// flat list of changes per subject. Splitting them by name (rather than
+// reusing `ChampionPatchChangeGroup`) keeps the API surface explicit and
+// makes it harder to feed item rows into the champion-keyed personalization
+// path by mistake.
+export interface PatchEntryChangeLine {
+  changeText: string;
+  changeType: ChampionPatchChangeKind | null;
+}
+
+export interface PatchEntryChangeGroup {
+  // Wiki item or rune name verbatim (e.g. "Lich Bane", "Deathfire Touch").
+  name: string;
+  changes: PatchEntryChangeLine[];
+}
+
+// Response shape for the PN2 profile heads-up endpoint
+// (`/lol/patches/current/changes?champion=…`). Champion-only by design —
+// the heads-up surface only personalizes against the user's played champions.
 export interface CurrentPatchChangesResponse {
-  // null when the DB has no patches synced yet (fresh install pre-cron),
-  // or — for `getChangesForVersion` — when the requested version isn't in
-  // the DB. Always echoes the *requested* version on success; never falls
-  // back to "newest available" silently.
+  // null when the DB has no patches synced yet (fresh install pre-cron).
   patchVersion: string | null;
   changes: ChampionPatchChangeGroup[];
+}
+
+// PN4 response shape for the patches-tab endpoint
+// (`/lol/patches/:version/changes`). Returns the full slate for the
+// requested patch, partitioned by section. `patchVersion` is null when the
+// requested version isn't in the DB (treat as "unknown patch" on the client).
+export interface PatchChangesResponse {
+  patchVersion: string | null;
+  champions: ChampionPatchChangeGroup[];
+  items: PatchEntryChangeGroup[];
+  runes: PatchEntryChangeGroup[];
 }
 
 // One row per synced patch; powers the PN3 patch-selector dropdown.

@@ -11,6 +11,9 @@ export type {
   ChampionPatchChangeLine,
   ChampionPatchChangeGroup,
   CurrentPatchChangesResponse,
+  PatchChangesResponse,
+  PatchEntryChangeGroup,
+  PatchEntryChangeLine,
   PatchListEntry,
 } from "./lol/patch-changes.ts";
 export type { MatchDetail, ParticipantDetail, TeamSummary } from "./lol/match-detail.ts";

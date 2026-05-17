@@ -29,17 +29,28 @@ async function main() {
 
     const synced = await patch.syncIfNewPatch();
     if (synced) {
-      const count = await prisma.championPatchChange.count({
+      const counts = await prisma.patchChange.groupBy({
+        by: ["section"],
         where: { patchVersion: synced },
+        _count: { _all: true },
       });
-      const sample = await prisma.championPatchChange.findMany({
+      const total = counts.reduce((sum, c) => sum + c._count._all, 0);
+      const bySection = new Map(counts.map((c) => [c.section, c._count._all]));
+      const sample = await prisma.patchChange.findMany({
         where: { patchVersion: synced },
         take: 5,
         orderBy: { id: "asc" },
       });
-      logger.log(`Synced patch ${synced} — ${count} change rows total.`);
+      logger.log(
+        `Synced patch ${synced} — ${total} change rows ` +
+          `(champions: ${bySection.get("champion") ?? 0}, ` +
+          `items: ${bySection.get("item") ?? 0}, ` +
+          `runes: ${bySection.get("rune") ?? 0}).`
+      );
       for (const row of sample) {
-        logger.log(`  ${row.championKey} (${row.ability ?? "-"}): ${row.changeText}`);
+        logger.log(
+          `  [${row.section}] ${row.subject} (${row.ability ?? "-"}): ${row.changeText}`
+        );
       }
     } else {
       const versions = await prisma.patchVersion.findMany({
@@ -48,10 +59,19 @@ async function main() {
       });
       logger.log("No new patch — current head already recorded. Recent versions:");
       for (const v of versions) {
-        const count = await prisma.championPatchChange.count({
+        const counts = await prisma.patchChange.groupBy({
+          by: ["section"],
           where: { patchVersion: v.version },
+          _count: { _all: true },
         });
-        logger.log(`  ${v.version} — ${count} change rows`);
+        const total = counts.reduce((sum, c) => sum + c._count._all, 0);
+        const bySection = new Map(counts.map((c) => [c.section, c._count._all]));
+        logger.log(
+          `  ${v.version} — ${total} rows ` +
+            `(c:${bySection.get("champion") ?? 0} ` +
+            `i:${bySection.get("item") ?? 0} ` +
+            `r:${bySection.get("rune") ?? 0})`
+        );
       }
     }
   } finally {
