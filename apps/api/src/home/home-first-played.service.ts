@@ -170,9 +170,27 @@ export class HomeFirstPlayedService {
 
   async getFirstPlayed(): Promise<HomeFirstPlayed> {
     const asOf = new Date();
+
+    // Pre-resolve which summoners back a configured account, so matches owned
+    // by orphan/seed puuids (no matching entry in accounts.json) don't compete
+    // for the first-played slot — they'd resolve to a null slug and render
+    // unlinked, which defeats the tile's purpose.
+    const configured = this.identity.getLolAccounts();
+    const resolvableSummoners = await this.prisma.summoner.findMany({
+      where: {
+        OR: configured.map((a) => ({
+          gameName: { equals: a.gameName, mode: "insensitive" },
+          tagLine: { equals: a.tagLine, mode: "insensitive" },
+          region: { equals: a.region, mode: "insensitive" },
+        })),
+      },
+      select: { puuid: true },
+    });
+    const resolvablePuuids = resolvableSummoners.map((s) => s.puuid);
+
     const [matchRows, snapshotRows] = await Promise.all([
       this.prisma.match.findMany({
-        where: { remake: false },
+        where: { remake: false, puuid: { in: resolvablePuuids } },
         select: { champion: true, playedAt: true, win: true, puuid: true },
       }),
       this.prisma.steamPlaytimeSnapshot.findMany({
