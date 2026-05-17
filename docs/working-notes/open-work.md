@@ -20,7 +20,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](app-state-analysis.md)
 - **Steam Phase S8 closing arc** — **Fully shipped 2026-05-17.** S8.1–S8.8 all landed; S8.8 added the session-length histogram tile on `/` (5-bucket stacked columns, 30-min stitch threshold, counts-not-minutes framing). All five Phase S8 exit-criteria surfaces are now visible. Substrate decision: `SteamPlaySession` (forward-only) is canonical; achievement-anchor reconstruction parked. → [steam-integration.md § S8](steam-integration.md#phase-s8--temporal--cross-stream)
 - **Match cache storage Tier 1A** — **Fully shipped 2026-05-17.** Chunks A–C landed; `VACUUM FULL` recovered 152 MB (195 MB → 43 MB, 78% — 3× better than projected). Feature-ideation sweep complete → [lol-owner-data-features.md](lol-owner-data-features.md). Tiers 1B / 2 / 3 parked → [match-cache-storage.md](match-cache-storage.md)
-- **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces. Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](owner-auth.md)
+- **Status page admin surface** — (a) surface Steam sync status/progress alongside the existing LoL sync rows; (b) add manually-triggerable LoL sync actions (patch note fetch, future: backfills) as explicit buttons/endpoints in the status page. Gate both behind GitHub OAuth before exposing. → [owner-auth.md](owner-auth.md)
+- **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces (including the new status-page triggers above). Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](owner-auth.md)
 
 ## Adjacent maintenance (sub-session each)
 
