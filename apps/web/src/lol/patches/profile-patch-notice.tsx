@@ -111,7 +111,7 @@ export function ProfilePatchNotice({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss patch notice"
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+          className="cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
         >
           <X className="size-3.5" />
         </button>
