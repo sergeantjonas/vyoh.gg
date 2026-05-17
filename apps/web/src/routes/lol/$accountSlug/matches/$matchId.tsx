@@ -251,7 +251,7 @@ function MatchDetailLayout() {
           // Hold the skeleton until the morph is done even if the query
           // already has data cached — swapping to the full detail view
           // mid-flight is the visual hitch the gate exists to absorb.
-          <MatchDetailSkeleton />
+          <MatchDetailSkeleton tab={tab} />
         ) : detail.isError ? (
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-destructive">{detail.error.message}</p>
