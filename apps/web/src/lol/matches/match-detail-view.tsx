@@ -23,6 +23,7 @@ import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
+import type { MatchDetailTabId } from "@/lol/matches/match-detail-tabs";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
@@ -789,11 +790,13 @@ export function MatchDetailView({
   currentChampion,
   myPuuid,
   accountSlug,
+  tab,
 }: {
   detail: MatchDetail;
   currentChampion?: string;
   myPuuid?: string;
   accountSlug: string;
+  tab: MatchDetailTabId;
 }) {
   const reduced = useReducedMotion();
   const blue = detail.participants.filter((p) => p.teamId === 100);
@@ -808,46 +811,58 @@ export function MatchDetailView({
 
   return (
     <div className="flex flex-col gap-6">
-      <MatchHeaderStrip matchId={detail.matchId} teams={detail.teams} />
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
-        >
-          <TeamBlock
-            title="Blue side"
-            participants={blue}
-            myPuuid={myPuuid}
-            maxDamage={maxDamage}
-            maxGold={maxGold}
-            badges={badges}
-            goldLead={blueGold - redGold}
-            accountSlug={accountSlug}
-          />
-        </m.div>
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
-        >
-          <TeamBlock
-            title="Red side"
-            participants={red}
-            myPuuid={myPuuid}
-            maxDamage={maxDamage}
-            maxGold={maxGold}
-            badges={badges}
-            goldLead={redGold - blueGold}
-            accountSlug={accountSlug}
-          />
-        </m.div>
-      </div>
-      <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
-      <MatchGoldLead detail={detail} myPuuid={myPuuid} />
-      <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
-      <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
-      <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+      {tab === "recap" && (
+        <>
+          <MatchHeaderStrip matchId={detail.matchId} teams={detail.teams} />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <m.div
+              initial={reduced ? {} : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+            >
+              <TeamBlock
+                title="Blue side"
+                participants={blue}
+                myPuuid={myPuuid}
+                maxDamage={maxDamage}
+                maxGold={maxGold}
+                badges={badges}
+                goldLead={blueGold - redGold}
+                accountSlug={accountSlug}
+              />
+            </m.div>
+            <m.div
+              initial={reduced ? {} : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
+            >
+              <TeamBlock
+                title="Red side"
+                participants={red}
+                myPuuid={myPuuid}
+                maxDamage={maxDamage}
+                maxGold={maxGold}
+                badges={badges}
+                goldLead={redGold - blueGold}
+                accountSlug={accountSlug}
+              />
+            </m.div>
+          </div>
+        </>
+      )}
+      {tab === "your-game" && (
+        <>
+          <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+          <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
+          <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+        </>
+      )}
+      {tab === "timeline" && (
+        <>
+          <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+          <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
+        </>
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { MatchHero } from "@/lol/matches/match-hero";
 import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { MatchSummary } from "@vyoh/shared";
 import { ChevronLeft } from "lucide-react";
 import { m } from "motion/react";
@@ -30,7 +30,12 @@ const BODY_HOLD_OPACITY = 0.6;
 
 const API_URL = "http://localhost:2010";
 
+type MatchDetailSearch = { tab?: "your-game" | "timeline" };
+
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
+  validateSearch: (search: Record<string, unknown>): MatchDetailSearch => ({
+    tab: search.tab === "your-game" || search.tab === "timeline" ? search.tab : undefined,
+  }),
   component: MatchDetailPage,
   head: ({ params }) => {
     const ogImage = `${API_URL}/og/match/${params.accountSlug}/${params.matchId}.png`;
@@ -83,16 +88,11 @@ function MatchBreadcrumb({
   );
 }
 
-function ComingSoonPanel({ label }: { label: string }) {
-  return (
-    <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-      {label} — coming soon.
-    </div>
-  );
-}
-
 function MatchDetailPage() {
   const { accountSlug, matchId } = Route.useParams();
+  const { tab: tabParam } = Route.useSearch();
+  const tab: MatchDetailTabId = tabParam ?? "recap";
+  const navigate = useNavigate({ from: Route.fullPath });
   const account = useAccountFromSlug(accountSlug);
   const detail = useMatchDetail(matchId);
   const championName = useChampionName();
@@ -107,7 +107,6 @@ function MatchDetailPage() {
   }, []);
 
   const [heroScrolledPast, heroRef] = useHeroScrolledPast();
-  const [tab, setTab] = useState<MatchDetailTabId>("recap");
 
   const myParticipant =
     detail.data && account
@@ -221,39 +220,42 @@ function MatchDetailPage() {
           </div>
         </ChampionStickyStrip>
       )}
-      <MatchDetailTabs value={tab} onChange={setTab} />
+      <MatchDetailTabs
+        value={tab}
+        onChange={(id) =>
+          navigate({
+            search: { tab: id === "recap" ? undefined : id },
+            replace: true,
+          })
+        }
+      />
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="flex flex-col gap-6"
       >
-        {tab === "recap" ? (
-          !bodyReady || detail.isPending ? (
-            // Hold the skeleton until the morph is done even if the query
-            // already has data cached — swapping to the full detail view
-            // mid-flight is the visual hitch the gate exists to absorb.
-            <MatchDetailSkeleton />
-          ) : detail.isError ? (
-            <div className="flex flex-col items-start gap-2">
-              <p className="text-sm text-destructive">{detail.error.message}</p>
-              <Button variant="outline" size="sm" onClick={() => detail.refetch()}>
-                Try again
-              </Button>
-            </div>
-          ) : detail.data ? (
-            <MatchDetailView
-              detail={detail.data}
-              currentChampion={myParticipant?.championName}
-              myPuuid={myParticipant?.puuid}
-              accountSlug={accountSlug}
-            />
-          ) : null
-        ) : tab === "your-game" ? (
-          <ComingSoonPanel label="Your game" />
-        ) : (
-          <ComingSoonPanel label="Timeline" />
-        )}
+        {!bodyReady || detail.isPending ? (
+          // Hold the skeleton until the morph is done even if the query
+          // already has data cached — swapping to the full detail view
+          // mid-flight is the visual hitch the gate exists to absorb.
+          <MatchDetailSkeleton />
+        ) : detail.isError ? (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-destructive">{detail.error.message}</p>
+            <Button variant="outline" size="sm" onClick={() => detail.refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : detail.data ? (
+          <MatchDetailView
+            detail={detail.data}
+            currentChampion={myParticipant?.championName}
+            myPuuid={myParticipant?.puuid}
+            accountSlug={accountSlug}
+            tab={tab}
+          />
+        ) : null}
       </m.div>
     </div>
   );
