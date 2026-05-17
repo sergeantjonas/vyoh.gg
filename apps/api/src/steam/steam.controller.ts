@@ -8,6 +8,7 @@ import {
   Query,
 } from "@nestjs/common";
 import type {
+  SteamChronotype,
   SteamGameAchievements,
   SteamGameMedia,
   SteamLibraryCompletion,
@@ -28,6 +29,7 @@ import {
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
 import { SteamScreenshotService } from "./screenshot.service";
+import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
 
@@ -39,7 +41,8 @@ export class SteamController {
     private readonly tags: SteamTagService,
     private readonly achievements: SteamAchievementsService,
     private readonly playerState: SteamPlayerStateService,
-    private readonly screenshots: SteamScreenshotService
+    private readonly screenshots: SteamScreenshotService,
+    private readonly chronotype: SteamChronotypeService
   ) {}
 
   @Get("summary")
@@ -132,5 +135,12 @@ export class SteamController {
   @Get("achievements/library-completion")
   async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
     return this.achievements.getLibraryCompletion();
+  }
+
+  @Get("chronotype")
+  async getChronotype(
+    @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
+  ): Promise<SteamChronotype> {
+    return this.chronotype.getChronotype(count);
   }
 }

@@ -17,6 +17,7 @@ import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import { SteamRecentlyPlayedUnlocksPoller } from "./recently-played-unlocks.poller";
 import { SteamScreenshotService } from "./screenshot.service";
+import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamClientService } from "./steam-client.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
@@ -28,6 +29,7 @@ import { SteamTagService } from "./tag.service";
   providers: [
     SteamRateLimiterService,
     SteamClientService,
+    SteamChronotypeService,
     SteamService,
     SteamOwnedGamesService,
     SteamOwnedGamesPoller,

@@ -13,6 +13,7 @@ import { SteamAchievementsService } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
 import { SteamScreenshotService } from "./screenshot.service";
+import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
@@ -39,6 +40,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -74,6 +76,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -100,6 +103,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -129,6 +133,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -156,6 +161,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -183,6 +189,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: { getGameAchievements: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -204,6 +211,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: { getRecentUnlocks: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -234,6 +242,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 
@@ -254,6 +263,7 @@ describe("SteamController", () => {
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
 

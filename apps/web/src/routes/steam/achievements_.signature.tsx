@@ -1,6 +1,7 @@
 import { CompletionistAxisCard } from "@/steam/achievements/completionist-axis-card";
 import { HundredPercentHall } from "@/steam/achievements/hundred-percent-hall";
 import { RarestSection } from "@/steam/achievements/rarest-section";
+import { SteamChronotypeTile } from "@/steam/achievements/steam-chronotype-tile";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
@@ -27,6 +28,9 @@ function SignaturePage() {
       </div>
       <div className="sm:max-w-md">
         <CompletionistAxisCard />
+      </div>
+      <div className="sm:max-w-md">
+        <SteamChronotypeTile />
       </div>
       <HundredPercentHall />
       <RarestSection />
