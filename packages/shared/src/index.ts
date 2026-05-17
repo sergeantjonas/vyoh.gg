@@ -51,6 +51,7 @@ export type {
   SteamRecentUnlocks,
 } from "./steam/achievements.ts";
 export type { SteamChronotype, SteamChronotypeHour } from "./steam/chronotype.ts";
+export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,

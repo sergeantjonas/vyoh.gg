@@ -22,12 +22,12 @@ function HomePage() {
           vyoh.gg
         </p>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          A self-portrait, mostly in League games.
+          A self-portrait, in League and Steam.
         </h1>
       </header>
       <BentoGrid>
         <BentoTile width={2} height={2}>
-          <TileChronotype account={account} />
+          <TileChronotype />
         </BentoTile>
         <BentoTile width={2}>
           <TileSignatureGame account={account} />

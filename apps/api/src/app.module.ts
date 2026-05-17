@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { HealthController } from "./health/health.controller";
+import { HomeModule } from "./home/home.module";
 import { IdentityModule } from "./identity/identity.module";
 import { ImgModule } from "./img/img.module";
 import { LolModule } from "./lol/lol.module";
@@ -21,6 +22,7 @@ import { SteamModule } from "./steam/steam.module";
     OgModule,
     StatusModule,
     SteamModule,
+    HomeModule,
   ],
   controllers: [HealthController],
 })
