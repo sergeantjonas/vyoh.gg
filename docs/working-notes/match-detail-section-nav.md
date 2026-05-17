@@ -154,7 +154,7 @@ No new sticky layer is introduced. The champion strip and the tab bar share the 
 
 ### Breadcrumb migration
 
-Currently `< Matches` replaces the section tab bar slot via `isMatchDetail` in `AccountLayout` (see [section-layout-extraction.md](section-layout-extraction.md)). Moves to a slim row above the hero: `← Matches · Match {matchId}` or just `← Matches`. The section-tab-bar slot stays hidden on this route (the new match-detail tab bar is page-owned, not section-shell-owned).
+Currently `< Matches` replaces the section tab bar slot via `isMatchDetail` in `AccountLayout` (see [section-layout-extraction.md](archive/section-layout-extraction.md)). Moves to a slim row above the hero: `← Matches · Match {matchId}` or just `← Matches`. The section-tab-bar slot stays hidden on this route (the new match-detail tab bar is page-owned, not section-shell-owned).
 
 ---
 
@@ -216,5 +216,5 @@ After the queued owner-data additions ship (spell casts / damage profile / CC ti
 - [lol-owner-data-features.md](lol-owner-data-features.md) — the queued sections that motivate this arc; every new section there names its target tab here.
 - [post-game-close-the-loop.md](post-game-close-the-loop.md) — PG4 peer route, the separate surface this arc explicitly does not duplicate.
 - [match-depth-roadmap.md](match-depth-roadmap.md) — Phase E remainders (full rune page, composite S+ grade) land under "Your game" when picked up.
-- [section-layout-extraction.md](section-layout-extraction.md) — `SectionShell` primitive whose section-tab-bar slot stays hidden on this route.
+- [section-layout-extraction.md](archive/section-layout-extraction.md) — `SectionShell` primitive whose section-tab-bar slot stays hidden on this route.
 - [vnext-ideas.md](vnext-ideas.md) line 235 — sticky per-view controls revert, the precedent for "no fourth sticky layer."

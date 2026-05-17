@@ -153,6 +153,6 @@ A single `Compare to my rank` toggle on tiles that have a meaningful global base
 
 - [`app-state-analysis.md`](app-state-analysis.md) — the personal-baseline frame is the deeper version of "Champions is the only tab without a verdict."
 - [`vnext-ideas.md`](vnext-ideas.md) — PB2/PB3 belong as second-tier entries; PB4 is a top-tier "system notices something" candidate.
-- [`trends-rework.md`](trends-rework.md) — establishes the verdict-pattern primitives all of this rides on.
+- [`trends-rework.md`](archive/trends-rework.md) — establishes the verdict-pattern primitives all of this rides on.
 - [`case-study-topics.md`](case-study-topics.md) — *"a stats site where the user is the unit of analysis"* is a strong narrative for a write-up.
 - [`post-game-close-the-loop.md`](post-game-close-the-loop.md) — the post-game read leans heavily on personal baselines.

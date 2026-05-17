@@ -179,4 +179,4 @@ Companion to (or replacement for) the open ConclusionCard-pattern case study tra
 - [`app-state-analysis.md`](app-state-analysis.md) — Phase 2 in the recommended phasing.
 - [`motion-backlog.md`](motion-backlog.md) — Phase PG2 motion work belongs there once specced.
 - [`case-study-topics.md`](case-study-topics.md) — strongest current case-study candidate.
-- [`trends-rework.md`](trends-rework.md) — re-uses the `ConclusionCard` pattern established there.
+- [`trends-rework.md`](archive/trends-rework.md) — re-uses the `ConclusionCard` pattern established there.

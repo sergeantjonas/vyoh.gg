@@ -194,7 +194,7 @@ These are off the table for the foreseeable future. Listed so they don't quietly
 
 ## Cross-references — what to reflect in the active roadmaps
 
-So later phases don't undo earlier work, the following changes need to flow back into [match-depth-roadmap.md](match-depth-roadmap.md) and [trends-rework.md](trends-rework.md):
+So later phases don't undo earlier work, the following changes need to flow back into [match-depth-roadmap.md](match-depth-roadmap.md) and [trends-rework.md](archive/trends-rework.md):
 
 ### match-depth-roadmap.md
 

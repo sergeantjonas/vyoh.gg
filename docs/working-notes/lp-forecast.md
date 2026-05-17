@@ -74,7 +74,7 @@ Two viable approaches.
 - Strong case-study material — a real (if tiny) personal-model story.
 
 **Cons:**
-- Needs months of LP-history snapshots to be meaningful. Today we have rank snapshots accumulating but not enough — Phase 4 of [views-roadmap.md](views-roadmap.md) is "shipped (code)" with no rank snapshots having accumulated yet. **The data prerequisite is the limiting factor.**
+- Needs months of LP-history snapshots to be meaningful. Today we have rank snapshots accumulating but not enough — Phase 4 of [views-roadmap.md](archive/views-roadmap.md) is "shipped (code)" with no rank snapshots having accumulated yet. **The data prerequisite is the limiting factor.**
 - More moving parts; the case-study story has to handle "this model is fitting on N=37 games and overfit risk is real."
 - Naïve fit on small samples will overstate confidence unless regularized.
 
@@ -151,7 +151,7 @@ The composite is interesting structurally because it demonstrates:
 
 ## Status
 
-- **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](views-roadmap.md) Phase 4 caveat).
+- **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](archive/views-roadmap.md) Phase 4 caveat).
 - **2026-05-14** — Phase LP1 shipped (naive equal-weight composite + verdict row above Pregame Ritual signals). LP2 next (confidence calibration once LP history has accrued); LP3 still data-blocked.
 
 ---
@@ -170,6 +170,6 @@ The composite is interesting structurally because it demonstrates:
 
 - [`vnext-ideas.md`](vnext-ideas.md) — promoted from "Goal setting + projection".
 - [`app-state-analysis.md`](app-state-analysis.md) — Phase 4 in the recommended phasing; broader-app gap #2.
-- [`views-roadmap.md`](views-roadmap.md) — Phase 4 LP history is the data prerequisite for Phase LP3.
+- [`views-roadmap.md`](archive/views-roadmap.md) — Phase 4 LP history is the data prerequisite for Phase LP3.
 - [`post-game-close-the-loop.md`](post-game-close-the-loop.md) — sibling arc. Pregame composite + post-game read are the bookends of the play loop.
 - [`case-study-topics.md`](case-study-topics.md) — Phase LP3 is the case-study moment.

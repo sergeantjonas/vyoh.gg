@@ -301,8 +301,8 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 
 ## Connections to existing notes
 
-- [`views-roadmap.md`](views-roadmap.md) — Profile + Champion detail roadmap. Phases 1–6 ✅ shipped. Phase 4 (LP history) and Phase 5 (Season history) are code-complete with rendering still pending real data accrual.
-- [`trends-rework.md`](trends-rework.md) — T1–T4 ✅ shipped. Read before reordering Phase 3 (pulling `trend-champion-focus` up to Champions list).
+- [`views-roadmap.md`](archive/views-roadmap.md) — Profile + Champion detail roadmap. Phases 1–6 ✅ shipped. Phase 4 (LP history) and Phase 5 (Season history) are code-complete with rendering still pending real data accrual.
+- [`trends-rework.md`](archive/trends-rework.md) — T1–T4 ✅ shipped. Read before reordering Phase 3 (pulling `trend-champion-focus` up to Champions list).
 - [`match-depth-roadmap.md`](match-depth-roadmap.md) — Phase A/B/C ✅ shipped, D partial. Match-row champion icon cross-link (Phase 1 above) ties to match-row layout.
 - [`motion-backlog.md`](motion-backlog.md) — post-game close-the-loop and LP forecast tile are motion-showcase candidates.
 - [`vnext-ideas.md`](vnext-ideas.md) — broader-app gap items (#1–7) overlap with vNext top-tier and second-tier entries.

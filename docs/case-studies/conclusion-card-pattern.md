@@ -95,7 +95,7 @@ A partial-circle ring (Motion `pathLength` 0 → final fill on first paint) plus
 - **Moderate sample** (10–30)
 - **Confident estimate** (30+)
 
-The thresholds are values per [trends-rework.md](../working-notes/trends-rework.md) Phase T2 decision, "tunable after dogfooding." The badge is the same component on every tile — the ring shows you how much weight the sentence above it should carry, and the same tooltip text appears wherever you hover. The reader internalizes the calibration once and applies it to every card on the page.
+The thresholds are values per [trends-rework.md](../working-notes/archive/trends-rework.md) Phase T2 decision, "tunable after dogfooding." The badge is the same component on every tile — the ring shows you how much weight the sentence above it should carry, and the same tooltip text appears wherever you hover. The reader internalizes the calibration once and applies it to every card on the page.
 
 The asymmetry with the genre default is real. Op.gg-class tools render small-sample numbers exactly the same way as large-sample numbers — the user has to do the mental math of "this is one game, ignore it." Here the number is shown, the verdict is fired (or muted, or replaced with an empty-state read), *and* the badge encodes the confidence level visibly. The honest answer to "how much should I trust this" is in the same eye-fixation as the answer.
 
@@ -166,7 +166,7 @@ The screenshot pair to put under this section: the same player's most-played cha
 
 ## Looking back
 
-A pattern is portfolio-relevant when it carries weight beyond the page it was first built for. `ConclusionCard` started as the visual anatomy of a single Trends rework ([trends-rework.md](../working-notes/trends-rework.md) Phase T2), formalizing the verdict / evidence / prescription idea so retrofitted tiles all rendered the same way. Twelve months of feature work later it's reachable from 22 distinct call sites across two top-level routes, plus a sibling shape in two more surfaces. The single most-reused, most-distinctive abstraction in the LoL section is a 65-line component and a 9-field interface.
+A pattern is portfolio-relevant when it carries weight beyond the page it was first built for. `ConclusionCard` started as the visual anatomy of a single Trends rework ([trends-rework.md](../working-notes/archive/trends-rework.md) Phase T2), formalizing the verdict / evidence / prescription idea so retrofitted tiles all rendered the same way. Twelve months of feature work later it's reachable from 22 distinct call sites across two top-level routes, plus a sibling shape in two more surfaces. The single most-reused, most-distinctive abstraction in the LoL section is a 65-line component and a 9-field interface.
 
 A few things to call out about the design-as-engineering frame:
 
@@ -193,7 +193,7 @@ The remaining open question is at what scale the pattern saturates. Twenty-two c
 | Post-game close-the-loop surface | [apps/web/src/lol/profile/profile-post-game.tsx](../../apps/web/src/lol/profile/profile-post-game.tsx) |
 | Static role baselines (the principled population exception) | [apps/web/src/lol/_shared/role-baselines.ts](../../apps/web/src/lol/_shared/role-baselines.ts) |
 | Personal-baselines framing note | [docs/working-notes/personal-baselines.md](../working-notes/personal-baselines.md) |
-| Trends-as-conclusions rework (where the primitive was first formalized) | [docs/working-notes/trends-rework.md](../working-notes/trends-rework.md) |
+| Trends-as-conclusions rework (where the primitive was first formalized) | [docs/working-notes/archive/trends-rework.md](../working-notes/archive/trends-rework.md) |
 | Post-game close-the-loop arc | [docs/working-notes/post-game-close-the-loop.md](../working-notes/post-game-close-the-loop.md) |
 | App-state-analysis (where the pattern is identified as the differentiator) | [docs/working-notes/app-state-analysis.md](../working-notes/app-state-analysis.md) |
 

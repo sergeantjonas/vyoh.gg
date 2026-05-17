@@ -116,7 +116,7 @@ Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the inp
 
 - [docs/working-notes/vnext-ideas.md:114](./vnext-ideas.md#L114) — the original one-paragraph stub (replace with a pointer to this file when Phase A lands).
 - [docs/working-notes/project-history.md:93,277-279](./project-history.md#L93) — original ship + the explicit handoff from sticky-controls revert.
-- [docs/working-notes/views-roadmap.md:192,219](./views-roadmap.md#L192) — current routing into Profile.
+- [docs/working-notes/archive/views-roadmap.md:192,219](./archive/views-roadmap.md#L192) — current routing into Profile.
 - [docs/case-studies/frontend-perf.md:94-125](../case-studies/frontend-perf.md#L94-L125) — lazy-load architecture; the perf budget the expansion must respect.
 - [docs/working-notes/perf-baseline.md:16-18,30](./perf-baseline.md#L16-L18) — bundle ceilings.
 - Tooltip convention: project `CLAUDE.md` + `feedback_radix_tooltip` auto-memory.

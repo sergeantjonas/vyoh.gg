@@ -6,7 +6,7 @@ Working plan for the image-loading arc. Read this when working on: champion icon
 
 This is a living plan. Phases are sequenced so each one ships value on its own. Phase 0 alone is enough to fix the worst pain.
 
-Cross-references: [hosting.md](hosting.md) (deployment-side asset handling), [case-study-topics.md](case-study-topics.md) (write-up framing), [views-roadmap.md](views-roadmap.md) (downstream consumers of these assets).
+Cross-references: [hosting.md](hosting.md) (deployment-side asset handling), [case-study-topics.md](case-study-topics.md) (write-up framing), [views-roadmap.md](archive/views-roadmap.md) (downstream consumers of these assets).
 
 ---
 

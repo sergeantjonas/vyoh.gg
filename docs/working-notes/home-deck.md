@@ -115,5 +115,5 @@ Shape decisions taken during implementation:
 ## Related arcs
 
 - [self-portrait-surfaces.md](self-portrait-surfaces.md) — parent direction. Candidate list for future tiles beyond chunk 1.
-- [trends-rework.md](trends-rework.md) — origin of the `ConclusionCard` primitive.
+- [trends-rework.md](archive/trends-rework.md) — origin of the `ConclusionCard` primitive.
 - [case-study-topics.md](case-study-topics.md) — the bento + self-portrait surface is a plausible freelance case-study topic; flag after chunk 1 ships, not before.
