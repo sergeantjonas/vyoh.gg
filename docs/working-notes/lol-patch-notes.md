@@ -161,11 +161,16 @@ Files: `apps/api/src/lol/patch.service.ts`, `apps/api/src/lol/patch-parser.ts`, 
 
 Files: `apps/api/src/lol/patch.{controller,service}.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/routes/lol/$accountSlug.tsx`, `apps/web/src/lol/patches/{change-kind-glyph,use-patch-list,use-patch-changes}.{tsx,ts}`, `apps/web/src/lol/patches/profile-patch-notice.tsx`, `packages/shared/src/lol/patch-changes.ts`
 
-### PN4 — Items, runes, system (stretch)
+### PN4 — Items + runes ✅ (shipped 2026-05-17)
 
-- Extend parser to handle `== Items ==` and `== Runes ==` sections
-- Add `section` column to `champion_patch_changes` (rename to `patch_changes`)
-- Surface in the patch notes tab as collapsible sections below champions
+- ✅ Parser extended to scrape `== Items ==` and `== Runes ==` sections alongside Champions; same `{{ii|Item}}` / `{{rui|Rune}}` anchor → `**`-line collection pattern (no ability layer)
+- ✅ `ChampionPatchChange` → `PatchChange` table rename + `championKey` → `subject` column rename + `section TEXT DEFAULT 'champion'` discriminator via hand-written `ALTER TABLE` migration (`20260517031646_patch_notes_pn4_items_runes`); preserves all PN1–PN3 data instead of drop-recreate
+- ✅ Shared `PatchEntryChangeLine` / `PatchEntryChangeGroup` types (no ability field; mirrors champion shape otherwise); `PatchChangesResponse` extended with `items` / `runes` arrays alongside `champions`
+- ✅ Patches tab renders items + runes as collapsible sections below the champion list — default collapsed, count badge in the header, hidden entirely when the patch has none; champion list keeps its my-champions-first ordering and "Yours" ringing (items/runes are not personalized)
+- ✅ PN2 profile heads-up endpoint (`/lol/patches/current/changes?champion=…`) kept champion-only by design — items/runes never bleed into that surface
+- ✅ System changes deliberately out of scope; the wiki `== System ==` section is too unstructured (free-form prose, no per-entry anchors) for the same parsing strategy
+
+Files: `apps/api/src/lol/patch-parser.{ts,spec.ts}`, `apps/api/src/lol/patch.{controller,service}.ts`, `apps/api/src/lol/patch.service.spec.ts`, `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20260517031646_patch_notes_pn4_items_runes/`, `apps/api/src/scripts/run-patch-sync.ts`, `apps/web/src/routes/lol/$accountSlug/patches.tsx`, `apps/web/src/lol/patches/use-patch-changes.ts`, `packages/shared/src/lol/patch-changes.ts`
 
 ---
 
