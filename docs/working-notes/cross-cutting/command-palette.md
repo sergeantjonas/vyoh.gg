@@ -1,18 +1,21 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Active — v1 shipped, untouched since the lazy-load split (2026-05-12). Promoted from the [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17 because the palette is the right surface for several open-friction items (filter-from-deep-scroll, find-a-match-by-anything, discoverability of the shortcut itself) and the current scope ships nothing beyond static nav. 9 commit-boundary chunks across phases A–E ahead — see [open-work.md](../open-work.md).
+**Status:** Active — Phases A (provider lift + nav chip) and B (match search mode) shipped 2026-05-18. C1 (parser foundation in `@vyoh/shared`) is next. 6 commit-boundary chunks remaining (C1–C3, D1–D2, E) — see [open-work.md](../open-work.md). Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
 
-## What v1 does today
+## Current state (Phases A+B shipped 2026-05-18)
 
-[apps/web/src/components/command-palette.tsx](../../../apps/web/src/components/command-palette.tsx) is a 28-line eager shell that listens for `⌘K` / `Ctrl+K`, gates render on `hasOpened`, and lazy-imports the dialog body.
+[apps/web/src/components/command-palette-context.tsx](../../../apps/web/src/components/command-palette-context.tsx) — `CommandPaletteProvider` + `useCommandPalette()` hook, exposing `{ open, setOpen }`. Wrapped around the app in [\_\_root.tsx](../../../apps/web/src/routes/__root.tsx) (A1).
 
-[apps/web/src/components/command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) renders the dialog with three static groups:
+[apps/web/src/components/command-palette.tsx](../../../apps/web/src/components/command-palette.tsx) — slim eager shell; reads context via `useCommandPalette()`, owns the `⌘K` / `Ctrl+K` keyboard listener, gates render on `hasOpened`, lazy-imports the dialog body (A1).
+
+[apps/web/src/components/command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) — dialog body with four groups:
 
 - **Pages** — Home, LoL, Steam.
 - **Accounts** — every `me.data.lol` Riot ID (gameName#tagLine).
 - **Current account** — Profile / Matches / Trends / Champions, only when path matches `/lol/<slug>`.
+- **Matches** — champion + win/loss filter over the cached matches query when an account is active; cache-miss state renders a "Load matches" affordance (B).
 
-Mounted once in [apps/web/src/routes/\_\_root.tsx:55](../../../apps/web/src/routes/__root.tsx#L55). Footer carries a "Press ⌘K anywhere" hint, but only after the palette has already been opened — which is the wrong moment to discover the shortcut.
+[apps/web/src/components/nav.tsx](../../../apps/web/src/components/nav.tsx) — `⌘K` / `Ctrl K` chip (`sm:` and up) and mobile search-glyph icon button, both calling `useCommandPalette().setOpen(true)` (A2).
 
 ## Goals (in priority order)
 
@@ -27,9 +30,9 @@ Each chunk below is independently committable and fits one context window. Phase
 
 **Commit-boundary chunks:**
 
-1. **A1 — Provider lift.** Pure refactor: extract `CommandPaletteProvider` + `useCommandPalette()` from [command-palette.tsx](../../../apps/web/src/components/command-palette.tsx); wrap in [__root.tsx](../../../apps/web/src/routes/__root.tsx). No new consumers yet.
-2. **A2 — Nav chip.** Visible ⌘K / Ctrl K affordance in [nav.tsx](../../../apps/web/src/components/nav.tsx) using `useCommandPalette().setOpen`. Includes mobile search-glyph fallback.
-3. **B — Match search mode.** New Matches group in the dialog reading from the cached matches query. Champion + win/loss filtering only.
+1. ~~**A1 — Provider lift.**~~ ✅ shipped 2026-05-18
+2. ~~**A2 — Nav chip.**~~ ✅ shipped 2026-05-18
+3. ~~**B — Match search mode.**~~ ✅ shipped 2026-05-18
 4. **C1 — Parser foundation.** Pure parser in `@vyoh/shared` + unit tests. Minimal verbs: `with:`, `vs:`, `wins`, `losses`. No UI changes.
 5. **C2 — Full verb set.** Extend parser with `queue:`, `role:`, `patch:`, `since:`/`until:`, `kda><`, `duo:` + tests. Wire into Matches-group filtering.
 6. **C3 — Parsed chips UI.** Render parsed chips in the palette input row; click-to-remove rewrites the query string.
@@ -37,7 +40,7 @@ Each chunk below is independently committable and fits one context window. Phase
 8. **D2 — Cross-account scope.** From Steam/Home, surface a "Search matches in <account>" affordance that switches scope and pre-opens Phase B.
 9. **E — Recents.** Persist last ~5 selections in `localStorage` (per-account namespace); show as a Recent group when input is empty.
 
-### Phase A — Discoverability affordance (small)
+### Phase A — Discoverability affordance (small) ✅ shipped 2026-05-18
 
 Add a visible trigger so users learn the shortcut exists. Two commits: **A1** (provider refactor) before **A2** (chip consumer).
 
@@ -51,7 +54,7 @@ Add a visible trigger so users learn the shortcut exists. Two commits: **A1** (p
 
 Files: `nav.tsx`, `command-palette.tsx` (extract provider), `__root.tsx` (wrap with provider). Roughly 3-4 files across A1+A2.
 
-### Phase B — Match search mode (medium)
+### Phase B — Match search mode (medium) ✅ shipped 2026-05-18
 
 Make "find a match by what happened in it" a real palette mode. Single chunk **B**.
 
@@ -153,7 +156,7 @@ Concrete cases:
 
 ## References
 
-- [docs/working-notes/vnext-ideas.md:114](./vnext-ideas.md#L114) — the original one-paragraph stub (replace with a pointer to this file when Phase A lands).
+- [docs/working-notes/vnext-ideas.md:116](./vnext-ideas.md#L116) — the original one-paragraph stub, now marked ✅ and pointing to this file.
 - [docs/working-notes/project-history.md:93,277-279](../project-history.md#L93) — original ship + the explicit handoff from sticky-controls revert.
 - [docs/working-notes/archive/views-roadmap.md:192,219](../archive/views-roadmap.md#L192) — current routing into Profile.
 - [docs/case-studies/frontend-perf.md:94-125](../../case-studies/frontend-perf.md#L94-L125) — lazy-load architecture; the perf budget the expansion must respect.
