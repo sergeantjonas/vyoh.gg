@@ -13,6 +13,8 @@
   "workspaceFolder": "/workspaces/vyoh.gg",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/vyoh.gg,type=bind,consistency=cached",
 
+  "init": true,
+
   "mounts": [
     "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.claude,target=${localEnv:HOME}/.claude,type=bind,consistency=cached"
