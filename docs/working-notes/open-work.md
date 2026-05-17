@@ -10,6 +10,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Tracked arcs — next action
 
+- **Patch notes PN1 (next-up)** — version detection cron + wiki wikitext parse job + DB schema. No UI yet; validate by running manually. → [lol-patch-notes.md](lol-patch-notes.md)
+
 - **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lp-forecast.md)
 - **Personal-baselines PB4** — cross-tile anomaly aggregator. Deferred until at least 2–3 more personal-baseline tiles ship past the current set. (PB1 doc-pass + PB2 weakest-matchup + PB3 patch-drift all shipped 2026-05-14.) → [personal-baselines.md](personal-baselines.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](match-depth-roadmap.md)
