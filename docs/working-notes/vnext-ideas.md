@@ -25,13 +25,13 @@ This is a backlog. Bands set the search order, not commitment:
 
 ### LoL surfaces
 
-**Duo / squad detection.** We see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
+**Duo / squad detection.** ⚠️ v1 shipped 2026-05-10 (top recurring teammates with W-L + most-played champion); cross-team champion synergy chord shipped 2026-05-11. Squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, and match-list duo highlight remain — tracked in [match-depth-roadmap.md](match-depth-roadmap.md) Phase D under [open-work.md](open-work.md). Original framing retained: we see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
 
-**Pre-game ritual widget.** Glanceable card before queueing: recent form, tilt status (lost the last 2?), suggested champion, "your strongest hour is now / not now." Small focused surface — peer route, modal, or a Profile section. Best embodiment of the "calm coaching" tonal bet.
+**Pre-game ritual widget.** ✅ Shipped 2026-05-10 as a Profile section (`profile-pregame-ritual.tsx`) between live chip and recent form: form, after-last-game tilt, current-hour slot WR, top recent champion. Original framing: glanceable card before queueing — small focused surface (peer route, modal, or Profile section). Best embodiment of the "calm coaching" tonal bet.
 
-**Yearly recap (calm Wrapped).** End-of-season scrollable artifact summarizing trends conclusions. Animated, opt-in share image. Real motion-showcase territory and a built-in deadline — cadence-driven content that re-engages the audience. Tied to the trends-rework's `ConclusionCard` engine.
+**Yearly recap (calm Wrapped).** ✅ Shipped 2026-05-10 as `/lol/$accountSlug/recap` (3 hero sections: rank arc, headline champion, top insight); share-image and scrollytelling polish deferred. Original framing: end-of-season scrollable artifact summarizing trends conclusions. Animated, opt-in share image. Real motion-showcase territory and a built-in deadline — cadence-driven content that re-engages the audience. Tied to the trends-rework's `ConclusionCard` engine.
 
-**Patch-aware everything.** Shade chart backgrounds at patch boundaries; show per-patch champion WR; "you went 2–8 on Yasuo this patch — buffs/nerfs changed something" copy. Underutilized signal everywhere in the LoL-stat-site space.
+**Patch-aware everything.** ✅ Shipped 2026-05-10. `gameVersion` plumbed through `RiotMatch.info` → `MatchSummary` → `Match` table; existing rows backfilled. Four UI features ride on top: per-patch champion WR strip on Champion detail, patch boundary `ReferenceLine`s on LP history + KDA trend + champion-detail WR sparkline, "this patch vs last patch" range option on Trends, and a "Patch X.Y" badge with full-build hover on Champion detail. Original framing: shade chart backgrounds at patch boundaries; show per-patch champion WR; "you went 2–8 on Yasuo this patch — buffs/nerfs changed something" copy. Underutilized signal everywhere in the LoL-stat-site space.
 
 **ARAM-specific dashboard.** ARAM is the most-played queue but currently lumped in with everything. Heal-shield delivered, damage-tank ratio, healing-taken. Probably justifies its own sub-route. (Also called out in match-depth Phase D.7.)
 
@@ -39,13 +39,13 @@ This is a backlog. Bands set the search order, not commitment:
 
 **"Same day, last year."** Time-machine card on Profile — what were you playing exactly 365 days ago. Cheap to implement once historical backfill is complete; emotional payoff disproportionate to effort.
 
-**Post-game close-the-loop surface.** ✅ Promoted to a tracked arc — see [post-game-close-the-loop.md](post-game-close-the-loop.md). The after-game counterpart to Pregame Ritual; reuses every primitive that already exists (`ConclusionCard`, `RitualSignal`, SSE invalidation). Strongest single visible-payoff move on the board and the cleanest case-study candidate.
+**Post-game close-the-loop surface.** ✅ PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG4 (peer-route post-game artifact) deferred to v2. See [post-game-close-the-loop.md](post-game-close-the-loop.md). The after-game counterpart to Pregame Ritual; reuses every primitive that already exists (`ConclusionCard`, `RitualSignal`, SSE invalidation). Strongest single visible-payoff move on the board and the cleanest case-study candidate.
 
-**Composite LP forecast tile.** ✅ Promoted to a design note — see [lp-forecast.md](lp-forecast.md). Composes the four Pregame Ritual signals into a single verdict + confidence. Phase LP1 ships immediately; LP3 (personal linear fit) is data-blocked until LP-history snapshots accumulate.
+**Composite LP forecast tile.** ✅ Phase LP1 (directional verdict) shipped; Phase LP2 (confidence calibration) is data-gated, tracked in [open-work.md](open-work.md). See [lp-forecast.md](lp-forecast.md). Composes the four Pregame Ritual signals into a single verdict + confidence. LP3 (personal linear fit) remains data-blocked until LP-history snapshots accumulate.
 
 **Match annotations.** A 1-line note attached to a game ("tilted, ff15", "great teamfight", "should've banned Yasuo"). Personal, optional, locally-stored or sync-backed. Builds a personal review system over time and unlocks the "let me reread my notes from when I was climbing last season" use case. Strong "this is a real personal app" signal that op.gg/u.gg structurally cannot replicate. Cheap backend (a single nullable `note` field on Match, or a separate `MatchAnnotation` table if we want history). Surfaces on match-row hover, match-detail header, and optionally as a searchable index on Profile. Combines naturally with the post-game close-the-loop card — the read fires the verdict, the user pins their own note next to it.
 
-**Patch-aware champion memory.** *"Last time you played Vex, the patch was 14.18 — she got Q-CD reduced in 14.19; you went 4-1 in 14.18 and 1-5 since."* Patch boundaries are already shaded on charts ([trend-kda](../../apps/web/src/lol/trends/trend-kda.tsx), [profile-lp-history](../../apps/web/src/lol/profile/profile-lp-history.tsx), champion-detail WR sparkline) and per-patch WR is already computed for the patch history strip. The missing piece is the *verdict line*: surface the deltas as a `ConclusionCard` framing on Champion detail, not just a chip on the patch row. Companion to the [personal-baselines](personal-baselines.md) extension (PB3 — patch-drift verdict). Low complexity, no new data, high reward — patch awareness is severely underutilized signal across the genre.
+**Patch-aware champion memory.** ✅ Shipped 2026-05-14 as PB3 (patch-drift verdict). See [personal-baselines.md](personal-baselines.md). Original framing: *"Last time you played Vex, the patch was 14.18 — she got Q-CD reduced in 14.19; you went 4-1 in 14.18 and 1-5 since."* Surfaces the deltas as a `ConclusionCard` framing on Champion detail, not just a chip on the patch row. Low complexity, no new data, high reward — patch awareness is severely underutilized signal across the genre.
 
 ### Self-portrait surfaces
 
@@ -53,15 +53,15 @@ Promoted to its own working note — see [self-portrait-surfaces.md](self-portra
 
 ### Motion / UI showcase
 
-**Magazine-grid reflow on Trends range change.** When the user switches "30d ↔ 7d" on the trends selector, each `ConclusionCard` re-derives its verdict + chart. Use Motion's `layout` prop on the grid so cards flow physically into new positions, with verdicts cross-fading. Flagship motion moment for the rework — "my trends respond to my question." **Cross-reference: trends-rework T2.5 should pin the layout system to one that supports this from day one.**
+**Magazine-grid reflow on Trends range change.** ✅ Shipped 2026-05-10 as part of trends-rework: priority-band sort with insufficient-data tiles drifting to the bottom, verdict cross-fade in `ConclusionCard` via `AnimatePresence mode="popLayout"`, sample-size badge `pathLength` draw on count change. Original framing: when the user switches "30d ↔ 7d" on the trends selector, each `ConclusionCard` re-derives its verdict + chart. Use Motion's `layout` prop on the grid so cards flow physically into new positions, with verdicts cross-fading. Flagship motion moment for the rework — "my trends respond to my question."
 
-**Kill strip ↔ minimap morph.** Already in [match-depth-roadmap.md](match-depth-roadmap.md) Phase B as a showcase. Linear strip of dots → rect-based morph onto a Rift SVG, dots travel to their `position.x/y`. Best motion-storytelling moment in the app once it lands.
+**Kill strip ↔ minimap morph.** ✅ Shipped as part of match-depth Phase B (see [match-depth-roadmap.md](match-depth-roadmap.md)). Original framing: linear strip of dots → rect-based morph onto a Rift SVG, dots travel to their `position.x/y`. Best motion-storytelling moment in the app.
 
-**Build-order items emerging on a time axis.** Phase B build-order — items "drop into" their timestamps with springs, faint connector line draws to the gold-lead chart at the matching timestamp. Cross-chart visual lockstep.
+**Build-order items emerging on a time axis.** ✅ Shipped as part of match-depth Phase B (see [match-depth-roadmap.md](match-depth-roadmap.md)). Original framing: items "drop into" their timestamps with springs, faint connector line draws to the gold-lead chart at the matching timestamp. Cross-chart visual lockstep.
 
 **Live game minute pulse.** The Live page timer pulses one cycle each minute boundary; champion icons get a near-imperceptible scale-bob synced to game time. Page feels alive without being noisy.
 
-**Empty-state illustrations.** Currently text-only. Custom calm illustrations for "no matches yet" / "no rank data" / "first time on this champion" would lift the whole tonal bar. Either commissioned or hand-rolled SVG. Scales the perceived craft of the whole app.
+**Empty-state illustrations.** ✅ Shipped 2026-05-10/11. `EmptyState` primitive with 5 hand-rolled inline SVG illustrations (matches, LP history, champion portrait, duos, live game) rolled across 8 surfaces. Calm/abstract style: 1px strokes, dashed accents, `currentColor` driven by `text-muted-foreground/40` on the wrapper. Original framing retained — surfaces were text-only before; custom calm illustrations would lift the whole tonal bar.
 
 **Ambient backdrop polish.** Beyond the splash backdrop's current static state — explore subtle filter shifts (slow brightness/saturation breath), color-gradient drift, small particle-like ambient elements at very low alpha. **Note: scroll-linked y-transform parallax was tried and reverted (commit `4c60951`); explicitly excluded.**
 
@@ -87,7 +87,7 @@ Before the library suggestions below pull anyone in a different direction: **Mot
 
 ### UI library upgrades
 
-**visx (Airbnb).** D3-powered React components with finer-grained composition than Recharts. The minimap kill plot, custom radial layouts, anything Recharts forces a workaround for. **Cross-reference: match-depth-roadmap Phase B should default to visx for the minimap and any panel that's not a stock Recharts shape, to avoid a Recharts → visx rewrite.**
+**visx (Airbnb).** ✅ Shipped 2026-05-11 across four surfaces: death-matchup heatmap on Champion detail (`@visx/heatmap`), champion synergy chord on Profile (`@visx/chord` + `Ribbon`), LP history brush hybrid with the existing Recharts chart (`@visx/brush`), and build-order Sankey on Champion detail (`d3-sankey`). Pattern: visx for non-stock viz; Recharts stays for stock cases. See [library-shortlist.md](library-shortlist.md).
 
 **dnd-kit.** Drag-to-reorder, drag-from-list. Profile reorder, pinning matches, champion priority lists.
 
@@ -99,7 +99,7 @@ Before the library suggestions below pull anyone in a different direction: **Mot
 
 ### Server-driven & shareable artifacts
 
-**Server-side live-game polling.** Instead of client polling Spectator-V5 (current Phase C plan), move to server-side polling + SSE push. Lighter on client, single source of truth, and the "Live now" chip can render on the Profile of an account that isn't currently being viewed. **Cross-reference: match-depth Phase C should call out this architecture choice up-front so Phase C v1 doesn't get built client-side first.**
+**Server-side live-game polling.** ✅ Shipped 2026-05-10 as match-depth Phase C. `LiveGamePollerService` polls Spectator-V5 server-side; SSE emits transitions via the existing `MatchEventsService`. "Live now" chip on Profile renders even when the account isn't currently viewed. See [match-depth-roadmap.md](match-depth-roadmap.md).
 
 **Weekly digest as markdown export.** Each week, auto-generate a markdown post from Trends conclusions. Personal log + portfolio fodder; case-study material. Low complexity given conclusion data is already structured by the trends rework.
 
