@@ -4,6 +4,7 @@ import type {
   ChampionPatchChangeGroup,
   ChampionPatchChangeKind,
   CurrentPatchChangesResponse,
+  PatchListEntry,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { type ParsedChange, parsePatchWikitext } from "./patch-parser";
@@ -117,6 +118,36 @@ export class PatchService {
       patchVersion: latest.version,
       changes: groupByChampion(rows),
     };
+  }
+
+  // PN3 patch-selector source. `fetchedAt` desc mirrors getCurrentChanges'
+  // notion of "current" — both index off the same column so what shows as
+  // first in the dropdown is exactly what the heads-up surfaces.
+  async listPatches(limit = 10): Promise<PatchListEntry[]> {
+    const rows = await this.prisma.patchVersion.findMany({
+      orderBy: { fetchedAt: "desc" },
+      take: limit,
+    });
+    return rows.map((r) => ({
+      version: r.version,
+      patchDate: r.patchDate ? r.patchDate.toISOString() : null,
+      fetchedAt: r.fetchedAt.toISOString(),
+    }));
+  }
+
+  // PN3 read-side for the patch-notes tab. Unlike `getCurrentChanges`, this
+  // returns the entire patch's changes — no champion filter, no IN-clause
+  // cap — because the tab renders the full slate and sorts client-side by
+  // the caller's play count. Returns a null version when the requested
+  // patch isn't synced (treat as "unknown patch" on the client).
+  async getChangesForVersion(version: string): Promise<CurrentPatchChangesResponse> {
+    const found = await this.prisma.patchVersion.findUnique({ where: { version } });
+    if (!found) return { patchVersion: null, changes: [] };
+    const rows = await this.prisma.championPatchChange.findMany({
+      where: { patchVersion: version },
+      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+    });
+    return { patchVersion: version, changes: groupByChampion(rows) };
   }
 
   // Atomic upsert: insert the PatchVersion row and all change rows in a

@@ -27,7 +27,18 @@ export interface ChampionPatchChangeGroup {
 }
 
 export interface CurrentPatchChangesResponse {
-  // null when the DB has no patches synced yet (fresh install pre-cron).
+  // null when the DB has no patches synced yet (fresh install pre-cron),
+  // or — for `getChangesForVersion` — when the requested version isn't in
+  // the DB. Always echoes the *requested* version on success; never falls
+  // back to "newest available" silently.
   patchVersion: string | null;
   changes: ChampionPatchChangeGroup[];
+}
+
+// One row per synced patch; powers the PN3 patch-selector dropdown.
+// Dates arrive as ISO strings over the wire (Prisma `DateTime` → JSON).
+export interface PatchListEntry {
+  version: string;
+  patchDate: string | null;
+  fetchedAt: string;
 }

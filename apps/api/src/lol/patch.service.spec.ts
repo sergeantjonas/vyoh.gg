@@ -3,13 +3,21 @@ import type { PrismaService } from "../prisma/prisma.service";
 import { PatchService, truncateVersion, wikiPageTitle } from "./patch.service";
 
 interface PatchPrismaStubs {
-  patchVersion: { findFirst: ReturnType<typeof vi.fn> };
+  patchVersion: {
+    findFirst: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   championPatchChange: { findMany: ReturnType<typeof vi.fn> };
 }
 
 function makePrisma(): PatchPrismaStubs {
   return {
-    patchVersion: { findFirst: vi.fn() },
+    patchVersion: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
     championPatchChange: { findMany: vi.fn() },
   };
 }
@@ -125,6 +133,104 @@ describe("PatchService.getCurrentChanges", () => {
     ]);
     expect(prisma.championPatchChange.findMany).toHaveBeenCalledWith({
       where: { patchVersion: "26.10", championKey: { in: ["Ahri", "Lee Sin"] } },
+      orderBy: [{ championKey: "asc" }, { id: "asc" }],
+    });
+  });
+});
+
+describe("PatchService.listPatches", () => {
+  it("returns an empty list when nothing has been synced", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findMany.mockResolvedValue([]);
+
+    const result = await makeService(prisma).listPatches();
+
+    expect(result).toEqual([]);
+    expect(prisma.patchVersion.findMany).toHaveBeenCalledWith({
+      orderBy: { fetchedAt: "desc" },
+      take: 10,
+    });
+  });
+
+  it("serializes DateTime fields to ISO strings and preserves DB order", async () => {
+    const prisma = makePrisma();
+    const fetched = new Date("2026-05-17T01:00:00.000Z");
+    const patchDate = new Date("2026-05-15T00:00:00.000Z");
+    prisma.patchVersion.findMany.mockResolvedValue([
+      { version: "26.10", patchDate, fetchedAt: fetched },
+      {
+        version: "26.9",
+        patchDate: null,
+        fetchedAt: new Date("2026-05-01T00:00:00.000Z"),
+      },
+    ]);
+
+    const result = await makeService(prisma).listPatches();
+
+    expect(result).toEqual([
+      {
+        version: "26.10",
+        patchDate: "2026-05-15T00:00:00.000Z",
+        fetchedAt: "2026-05-17T01:00:00.000Z",
+      },
+      {
+        version: "26.9",
+        patchDate: null,
+        fetchedAt: "2026-05-01T00:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("honors a custom limit", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findMany.mockResolvedValue([]);
+
+    await makeService(prisma).listPatches(3);
+
+    expect(prisma.patchVersion.findMany).toHaveBeenCalledWith({
+      orderBy: { fetchedAt: "desc" },
+      take: 3,
+    });
+  });
+});
+
+describe("PatchService.getChangesForVersion", () => {
+  it("returns null patchVersion when the requested version isn't in the DB", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findUnique.mockResolvedValue(null);
+
+    const result = await makeService(prisma).getChangesForVersion("99.9");
+
+    expect(result).toEqual({ patchVersion: null, changes: [] });
+    expect(prisma.championPatchChange.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns every change for the version, grouped by champion", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findUnique.mockResolvedValue({ version: "26.10" });
+    prisma.championPatchChange.findMany.mockResolvedValue([
+      {
+        championKey: "Ahri",
+        ability: "Q",
+        changeText: "Damage increased to 50 from 40.",
+        changeType: "buff",
+      },
+      {
+        championKey: "Yasuo",
+        ability: "Passive",
+        changeText: "Shield reduced to 100 from 120.",
+        changeType: "nerf",
+      },
+    ]);
+
+    const result = await makeService(prisma).getChangesForVersion("26.10");
+
+    expect(result.patchVersion).toBe("26.10");
+    expect(result.changes).toHaveLength(2);
+    expect(result.changes[0]?.champion).toBe("Ahri");
+    expect(result.changes[1]?.champion).toBe("Yasuo");
+    expect(prisma.championPatchChange.findMany).toHaveBeenCalledWith({
+      where: { patchVersion: "26.10" },
       orderBy: [{ championKey: "asc" }, { id: "asc" }],
     });
   });
