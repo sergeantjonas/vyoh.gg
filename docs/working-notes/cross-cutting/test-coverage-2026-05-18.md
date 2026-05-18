@@ -1,18 +1,18 @@
 # Test coverage expansion — 2026-05-18
 
-**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (coverage instrumentation), S1 (shared test scaffold), and S2 (shared formatters) shipped 2026-05-18; S3–W3 remain.
+**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18. Shared is at 100% line coverage; only api + web work (A1, W1–W3) remains. S4 dropped — its files were all types-only.
 
 Follow-up to [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md), which closed the first wave of web component tests (T3 command palette + match-detail tab nav, T4 scroll restoration + splash provider, T5 jest-axe). Those addressed *highest-risk web surfaces*; this note scopes the broader push, including the structural gap the hygiene note didn't size: **`packages/shared` has zero tests**.
 
 ## Current state (file-level, 2026-05-18)
 
-Post-S2 (2026-05-18). Coverage tooling installed (`@vitest/coverage-v8` in shared, api, web; v8 provider; `text-summary` reporter; `lines: 0` stub threshold). Root script `coverage:cc` runs all three packages.
+Post-S3 (2026-05-18). Coverage tooling installed (`@vitest/coverage-v8` in shared, api, web; v8 provider; `text-summary` reporter; `lines: 0` stub threshold). Root script `coverage:cc` runs all three packages.
 
 | Package | Tests | Test files | Lines coverage | Functions coverage |
 |---|---|---|---|---|
 | `apps/api` | 386 | 46 | 54.33% (1612/2967) | 46.84% (290/619) |
 | `apps/web` | 100 | 14 | 9.89% (578/5842) | 9.63% (165/1712) |
-| `packages/shared` | 70 | 3 | 67.33% (101/150) | 71.42% (10/14) |
+| `packages/shared` | 88 | 4 | 100% (150/150) | 100% (14/14) |
 
 Pre-C1 baseline (file-level co-location, kept for reference): `apps/api` 46 test files / 93 sources (~50%); `apps/web` 12 / 264 (~4.5%); `packages/shared` 0 / 35 (1,218 LOC).
 
@@ -67,21 +67,19 @@ Added `packages/shared/src/format.test.ts` covering all 5 formatters with 20 cas
 
 Shared coverage moved 56% → 67.3% lines, 36% → 71% functions. 70 tests across 3 files.
 
-### S3 — Shared home aggregations (1 chunk)
+### S3 — Shared rank-history (shipped 2026-05-18)
 
-Files: `home/first-played.ts`, `home/chronotype.ts`, `home/weekly-totals.ts`, `home/day-split.ts`, `home/session-lengths.ts`. Each is a pure derive function consuming structured input. Tests double as the executable spec for the corresponding home tile.
+Scope collapsed substantially from the original plan, both for S3 and S4. **All five `packages/shared/src/home/` files are types-only** (response shape declarations — the actual derivers live in `apps/api`, where they already have spec coverage). **All four S4 LoL files except `rank-history.ts` are types-only too** (`patch-changes.ts`, `match-detail.ts`, `live-game.ts`), and **all three S4 Steam files are types-only** (`achievements.ts`, `owned-games.ts`, `summary.ts`).
 
-For each: empty input, single-event input, multi-event happy path, timezone-boundary case where relevant. Many of these derivers are already exercised indirectly by api specs (`home-chronotype.service.spec.ts` etc.) — that doesn't replace direct coverage, but use the api specs' fixtures as a starting point to avoid re-inventing test data.
+The original audit overstated `packages/shared` runtime — the package is mostly a contracts package, with runtime concentrated in `format.ts`, `lol/exclude-remakes.ts`, `lol/match-query.ts`, and `lol/rank-history.ts`. The first three were covered in S1+S2 (or pre-existed); the fourth shipped here.
 
-Validate with `pnpm test:cc`.
+Added `packages/shared/src/lol/rank-history.test.ts` covering all 3 runtime exports with 18 cases:
 
-### S4 — Shared LoL + Steam domain (1 chunk, may split)
+- `normalizeLp` — IRON IV anchor at 0, +100 per division, DIAMOND I at 2700, MASTER+ drops the rank offset, mixed-case input normalisation, unknown-tier fallback, ignored rank for MASTER+.
+- `formatRank` — sub-MASTER includes division, MASTER+ omits it (Master/Grandmaster/Challenger), mixed-case normalisation, unknown-tier passthrough.
+- `detectSeasons` — empty input, single-point ongoing season, continuous-play peak identification, split detection on large LP drop + >=7d gap, no-split on small drop with long gap, no-split on large drop with short gap (intra-season tilt), multi-season sequence with only last marked ongoing.
 
-Files: `lol/rank-history.ts` (151 LOC, biggest single file in shared), `lol/patch-changes.ts`, `lol/match-detail.ts`, `lol/live-game.ts`; `steam/achievements.ts`, `steam/owned-games.ts`, `steam/summary.ts`.
-
-`rank-history.ts` deserves dedicated attention — it's the LP-forecast and rank-progression backbone. If context pressure builds, split as S4a (LoL files) / S4b (Steam files).
-
-Validate with `pnpm test:cc` + `coverage:cc`; aim for shared lines coverage above 80% after S4.
+Shared coverage moved 67.3% → 100% lines, 71% → 100% functions. 88 tests across 4 files. **`packages/shared` is now fully covered.** No remaining shared-package work in the test-coverage arc — S4 dropped. Threshold tightening (e.g. `lines: 95` in shared `vitest.config.ts`) is a follow-up edit when convenient.
 
 ### A1 — API `img/` services + remake-threshold predicate (1 chunk)
 
