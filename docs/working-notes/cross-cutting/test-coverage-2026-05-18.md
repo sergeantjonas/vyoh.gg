@@ -1,18 +1,18 @@
 # Test coverage expansion — 2026-05-18
 
-**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (coverage instrumentation) and S1 (shared test scaffold) shipped 2026-05-18; S2–W3 remain.
+**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (coverage instrumentation), S1 (shared test scaffold), and S2 (shared formatters) shipped 2026-05-18; S3–W3 remain.
 
 Follow-up to [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md), which closed the first wave of web component tests (T3 command palette + match-detail tab nav, T4 scroll restoration + splash provider, T5 jest-axe). Those addressed *highest-risk web surfaces*; this note scopes the broader push, including the structural gap the hygiene note didn't size: **`packages/shared` has zero tests**.
 
 ## Current state (file-level, 2026-05-18)
 
-Post-C1 (2026-05-18). Coverage tooling now installed (`@vitest/coverage-v8` in shared, api, web; v8 provider; `text-summary` reporter; `lines: 0` stub threshold). Root script `coverage:cc` runs all three packages.
+Post-S2 (2026-05-18). Coverage tooling installed (`@vitest/coverage-v8` in shared, api, web; v8 provider; `text-summary` reporter; `lines: 0` stub threshold). Root script `coverage:cc` runs all three packages.
 
 | Package | Tests | Test files | Lines coverage | Functions coverage |
 |---|---|---|---|---|
 | `apps/api` | 386 | 46 | 54.33% (1612/2967) | 46.84% (290/619) |
 | `apps/web` | 100 | 14 | 9.89% (578/5842) | 9.63% (165/1712) |
-| `packages/shared` | 50 | 2 | 56% (84/150) | 35.71% (5/14) |
+| `packages/shared` | 70 | 3 | 67.33% (101/150) | 71.42% (10/14) |
 
 Pre-C1 baseline (file-level co-location, kept for reference): `apps/api` 46 test files / 93 sources (~50%); `apps/web` 12 / 264 (~4.5%); `packages/shared` 0 / 35 (1,218 LOC).
 
@@ -53,17 +53,19 @@ Added `@vitest/coverage-v8` as a devDep in `apps/api`, `apps/web`, and `packages
 
 Already partially in place pre-chunk (`vitest` devDep + `test` script + `vitest.config.ts` + an existing `match-query.test.ts`). This chunk filled the gaps: added `test:watch` script to `packages/shared/package.json` and an `excludeRemakes` test in `packages/shared/src/lol/exclude-remakes.test.ts` (5 cases: empty, all-remakes, none, mixed, subtype-preservation). Runner is proven; shared has 50 passing tests across 2 files.
 
-### S2 — Shared invariants + formatters (1 chunk)
+### S2 — Shared invariants + formatters (shipped 2026-05-18)
 
-Files: `lol/exclude-remakes.ts`, `format.ts`, `lol/chronotype.ts`, `steam/chronotype.ts`. Pick edge cases that matter:
+Scope reduced from the original plan: `lol/exclude-remakes.ts` was already covered in S1, and both `lol/chronotype.ts` + `steam/chronotype.ts` are types-only (no runtime logic — derivers live in `apps/api`, not shared). S2 collapsed to `format.ts` only.
 
-- `excludeRemakes`: empty array, all remakes, no remakes, mixed; verify the result is type-preserving on subtypes.
-- `format.ts`: each of the 5 formatters (`formatDuration`, `formatHoursMinutes`, `formatPlaytime`, `formatGameTime`, `formatGold`) — at minimum a typical, a zero, a boundary (59m59s, 1h, 24h+), and a negative if accepted.
-- chronotype derivers: hour bucketing in `Europe/Brussels` (per repo conventions), DST boundary if logic touches it, empty input.
+Added `packages/shared/src/format.test.ts` covering all 5 formatters with 20 cases:
 
-~20-30 tests. High blast radius — both api and web consume these.
+- `formatDuration` — zero, single-digit pad, 59m59s boundary, no-rollover-at-60min, 24h+.
+- `formatGameTime` — zero, mid-game typical, 59:59 boundary, no-rollover-at-60min, sub-second floor.
+- `formatGold` — sub-1000 'g' suffix at 0/800/999, 1000 → "1.0k", typical k-range.
+- `formatPlaytime` — sub-60min 'm' suffix, 60/89/90 rounding boundary, en-US thousands separator past 1000h.
+- `formatHoursMinutes` — 0 and negative early-return, minutes-only, hour-boundary "Xh" form, combined "Xh Ym" form.
 
-Validate with `pnpm test:cc` + `coverage:cc`; spot-check that shared coverage moves the needle in the summary output.
+Shared coverage moved 56% → 67.3% lines, 36% → 71% functions. 70 tests across 3 files.
 
 ### S3 — Shared home aggregations (1 chunk)
 

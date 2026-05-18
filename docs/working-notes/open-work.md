@@ -44,7 +44,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
-- **Test coverage expansion S2 → W3** — C1 (coverage tooling) + S1 (shared scaffold) shipped 2026-05-18. Remaining: shared invariants/formatters (S2 — highest leverage), shared home + LoL/Steam domain (S3, S4), api `img/` gap (A1), web Steam/LoL/home component tests (W1–W3). 7 chunks, ~3-4 sessions. → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
+- **Test coverage expansion S3 → W3** — C1 (coverage tooling) + S1 (shared scaffold) + S2 (shared formatters) shipped 2026-05-18. Remaining: shared home aggregations (S3 — highest leverage), shared LoL/Steam domain (S4), api `img/` gap (A1), web Steam/LoL/home component tests (W1–W3). 6 chunks, ~3 sessions. → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
 
 ### Ops
 
