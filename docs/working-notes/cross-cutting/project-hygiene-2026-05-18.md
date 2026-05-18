@@ -1,6 +1,6 @@
 # Project hygiene audit — 2026-05-18
 
-**Status:** Reference — full-repo hygiene sweep covering folder structure, duplication, industry-standard adherence, and dependency/build hygiene. Actionable items lifted into [open-work.md](../open-work.md) live there; this note is the source-of-record for what was checked, what passed, and the verification corrections that matter for future audits. **Chunks shipped: F1 (2026-05-18), R1 (2026-05-18), R2 (2026-05-18), V1 (2026-05-18), V2 (2026-05-18). Remaining: V3, T1, T2, T3, T4, T5.**
+**Status:** Reference — full-repo hygiene sweep covering folder structure, duplication, industry-standard adherence, and dependency/build hygiene. Actionable items lifted into [open-work.md](../open-work.md) live there; this note is the source-of-record for what was checked, what passed, and the verification corrections that matter for future audits. **Chunks shipped: F1 (2026-05-18), R1 (2026-05-18), R2 (2026-05-18), V1 (2026-05-18), V2 (2026-05-18), T1 (2026-05-18), T2 (2026-05-18), T3 (2026-05-18), T4 (2026-05-18), T5 (2026-05-18). Remaining: V3.**
 
 Run as a multi-subagent sweep: one Explore pass for each of structure, duplication, standards, and dependency hygiene, then verified against `git ls-files` and direct file reads before reporting. **Headline finding:** the repo is unusually disciplined for a single-author monorepo. Real gaps cluster in web-side test coverage, API input validation, and a handful of formatter utilities that drifted into 3–6 copies.
 
