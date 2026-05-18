@@ -183,6 +183,24 @@ describe("riotMatchToSummary", () => {
     expect(summary.remake).toBe(false);
   });
 
+  // Exact-boundary case for the load-bearing 210s threshold called out in
+  // CLAUDE.md. The predicate is `< 210` (strict), so 210s with the early-
+  // surrender flag is a Season 2 2026 inting-surrender, not a remake.
+  it("does not flag remake at exactly the 210s boundary (Season 2 inting-surrender)", () => {
+    const boundaryMatch: RiotMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        gameDuration: 210,
+        participants: [
+          buildParticipant({ puuid: "puuid-vyoh", gameEndedInEarlySurrender: true }),
+        ],
+      },
+    };
+    const summary = riotMatchToSummary(boundaryMatch, "puuid-vyoh");
+    expect(summary.remake).toBe(false);
+  });
+
   it("throws when the puuid is not in the participants", () => {
     expect(() => riotMatchToSummary(baseMatch, "puuid-not-in-match")).toThrow(
       /puuid-not-in-match/

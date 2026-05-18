@@ -1,6 +1,6 @@
 # Test coverage expansion — 2026-05-18
 
-**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18. Shared is at 100% line coverage; only api + web work (A1, W1–W3) remains. S4 dropped — its files were all types-only.
+**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18; A1 (api img + remake boundary) shipped 2026-05-19. Shared is at 100% line coverage; only web work (W1–W3) remains. S4 dropped — its files were all types-only.
 
 Follow-up to [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md), which closed the first wave of web component tests (T3 command palette + match-detail tab nav, T4 scroll restoration + splash provider, T5 jest-axe). Those addressed *highest-risk web surfaces*; this note scopes the broader push, including the structural gap the hygiene note didn't size: **`packages/shared` has zero tests**.
 
@@ -81,15 +81,19 @@ Added `packages/shared/src/lol/rank-history.test.ts` covering all 3 runtime expo
 
 Shared coverage moved 67.3% → 100% lines, 71% → 100% functions. 88 tests across 4 files. **`packages/shared` is now fully covered.** No remaining shared-package work in the test-coverage arc — S4 dropped. Threshold tightening (e.g. `lines: 95` in shared `vitest.config.ts`) is a follow-up edit when convenient.
 
-### A1 — API `img/` services + remake-threshold predicate (1 chunk)
+### A1 — API `img/` services + remake-threshold predicate (shipped 2026-05-19)
 
-Files: `apps/api/src/img/upstream.ts` (transform / cache headers), `apps/api/src/img/lol-image.service.ts`, `apps/api/src/img/steam-image.service.ts`, `apps/api/src/img/img-prewarm.service.ts`. Mirror the existing api spec pattern (NestJS testing module, mocked HTTP).
+Added three new specs covering the testable surface of `apps/api/src/img/`:
 
-Add one focused test against the 210s remake-vs-inting-surrender predicate in `apps/api/src/scripts/backfill-remake-flag.ts` — extract the predicate if currently inline, since CLAUDE.md flags this threshold as load-bearing.
+- `upstream.spec.ts` — `fetchUpstream` (2xx → Buffer, non-2xx → `UpstreamError` with status, network reject → `UpstreamError` preserving cause), `fetchUpstreamChain` (first-wins, fallback-on-404, last-error-when-all-fail). 6 cases. Skips `transcodeToWebp` — requires real image bytes + sharp; not productive to mock.
+- `lol-image.service.spec.ts` — `champion` for all 3 variants (square/card/backdrop URL + params + blur), `Strawberry_` Swarm-alias stripping, `item` (DDragon URL pinned to patch), `roleIconUrl`, `rune` + `spell` (CDragon `iconPath` lookup happy + unknown-id throws). 10 cases.
+- `steam-image.service.spec.ts` — `composeAssetUrls` chain via the 4 enrichment-backed methods: `capsule` (legacy-only vs hashed+legacy with `?t=` cache-buster), `libraryCapsule` (300px portrait), `hero` (1280px), `logo` (never emits `?t=` because it passes `null` for timestamp), `backdrop` (cross-host fallback chain to `storepagebackground`, with `?t=` on both URLs when timestamp present), `achievement` + `achievementGray` (happy path + `NotFoundException` when row missing). 12 cases.
 
-Skip `prisma/` (boilerplate) and the rest of `scripts/` (one-off ops).
+Added one boundary case to the existing `match-mapper.spec.ts`: exact-210s with `gameEndedInEarlySurrender: true` → NOT a remake. The predicate is `< 210` (strict), so 210s on the dot is a Season 2 2026 inting-surrender, not a remake. Picks up the CLAUDE.md "load-bearing threshold" call-out without extracting the literal — the existing 180s/900s tests already cover both sides; this just nails the inflection point.
 
-Validate with `pnpm --filter @vyoh/api test` then `pnpm verify:cc`.
+Deferred: `img-prewarm.service.ts` is a boot-time loop with timers, env-flag gating, two upstream JSON fetches, and HTTP self-calls. Testing it would need fake timers, env-stubbing, two fetch mocks, and a stubbed Nest HTTP context — low ROI for a service whose value is mostly configurational (which routes to walk). Revisit only if a behavior change introduces real risk (e.g. retry logic, dedup).
+
+API tests: 386 → 415 (+29). Validate with `pnpm verify:cc`.
 
 ### W1 — Web Steam vertical (1 chunk)
 
