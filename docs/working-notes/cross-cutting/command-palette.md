@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Active — Phases A (provider lift + nav chip), B (match search mode), C1–C3 (parser + verb wiring + parsed chips), D1 (champion mode), and D2 (cross-account scope) shipped 2026-05-18. Phase D complete. 1 commit-boundary chunk remaining (E recents persistence) — see [open-work.md](../open-work.md). Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
+**Status:** Shipped — All phases (A nav chip, B match search, C1–C3 parser + chips, D1 champion mode, D2 cross-account scope, E recents persistence) shipped 2026-05-18. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17. Open follow-ups would be specific feature additions (e.g. champion icon in recents instead of generic Crown), not arc continuations — these belong in [vnext-ideas.md](./vnext-ideas.md) if pursued.
 
 ## Current state (Phases A+B shipped 2026-05-18)
 
@@ -38,7 +38,7 @@ Each chunk below is independently committable and fits one context window. Phase
 6. ~~**C3 — Parsed chips UI.**~~ ✅ shipped 2026-05-18 — chip row renders between input and results when any verb is parsed. Pure chip-builder + token-remover in [apps/web/src/components/command-palette-chips.ts](../../../apps/web/src/components/command-palette-chips.ts) (16 unit tests). Click-to-remove drops the exact token for union verbs (`with:`/`vs:`/`queue:`/…); for last-wins verbs (`since:`/`until:`/`kda><`) it drops all occurrences of the prefix so shadowed values don't silently re-activate.
 7. ~~**D1 — Champion mode.**~~ ✅ shipped 2026-05-18 — `useChampions()` data filtered by freeText against name + alias, sorted by display name, top 6 results rendered as a "Champions" group between Current account and Matches. Gated on active `currentSlug`, non-empty freeText, and no structured verbs in play. Navigates to `/lol/<slug>/champions/<alias>` (matches the route param shape used by [champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx)).
 8. ~~**D2 — Cross-account scope.**~~ ✅ shipped 2026-05-18 — each matched account in the Accounts group renders a "Search matches in <gameName>#<tagLine>" companion item that navigates to `/lol/<slug>/matches` via a new `goAndKeepOpen(path)` helper. The palette stays open across the navigation, the input is cleared, and the next render picks up the new `currentSlug` so the Matches group loads the scoped account's cache. Works from any pathname, not just `/` or `/steam` — useful for switching scope from another account too.
-9. **E — Recents.** Persist last ~5 selections in `localStorage` (per-account namespace); show as a Recent group when input is empty.
+9. ~~**E — Recents.**~~ ✅ shipped 2026-05-18 — last 5 selections persisted in `localStorage` under `vyoh:palette-recents:<scope>`; scope derived from pathname: `lol:<slug>` per LoL account, plain `lol` / `steam` per top-level stream, `global` otherwise. Recent group renders at the top when input is empty. Dedup by path keeps the most-recent entry on top. Pure module: [command-palette-recents.ts](../../../apps/web/src/components/command-palette-recents.ts) + 11 unit tests + 3 dialog integration tests.
 
 ### Phase A — Discoverability affordance (small) ✅ shipped 2026-05-18
 
@@ -98,11 +98,12 @@ Two independent chunks; ship in either order:
 - ~~**D1 — Champion mode**~~ ✅ shipped 2026-05-18 — typed champion name surfaces a Champions group above Matches, navigates to `/lol/<slug>/champions/<alias>`. Source: `useChampions()` (already query-cached `Infinity` for the Champions page). Gated on active `currentSlug` and non-empty freeText so the palette doesn't dump 160+ champions when first opened.
 - ~~**D2 — Cross-account scope**~~ ✅ shipped 2026-05-18 — companion "Search matches in <account>" item per matched account, navigates to `/lol/<slug>/matches` and keeps the palette open with the input cleared. The pathname change re-derives `currentSlug` via `useRouterState`, so the Matches group rebinds to the scoped account on the next render without any explicit scope state in the palette.
 
-### Phase E — Recent commands + result persistence (small)
+### Phase E — Recent commands + result persistence ✅ shipped 2026-05-18
 
-- Persist the last ~5 selected items in `localStorage` (debounced; per-account namespace).
-- Surface them as a "Recent" group at the top when the input is empty.
-- Honors the per-stream routing rule ([repo-conventions.md § Per-stream routes](../../repo-conventions.md)) — Steam recents don't leak into LoL context and vice versa.
+- Last 5 selected items persisted in `localStorage` under `vyoh:palette-recents:<scope>` — scope from pathname: `lol:<slug>` per account, plain `lol` / `steam` per top-level stream, `global` for `/` and unknown paths.
+- Recent group rendered at the top when input is empty; suppressed once the user types.
+- Honors the per-stream routing rule ([repo-conventions.md § Per-stream routes](../../repo-conventions.md)) by construction — scope keys are derived from pathname, so steam recents are physically partitioned from LoL recents and vice versa.
+- Recorded on every navigation via `recordRecent` inside `go()` / `goAndKeepOpen()`. Dedup by `path`. Items shape: `{path, label, kind}` with `kind ∈ {page, account, tab, champion, match}` driving the icon. Generic icons per kind (Home/User/History/Crown/Swords) — store-and-replay is enough for navigation memory; the path keeps each entry uniquely identifiable.
 
 ## Non-goals
 
@@ -138,7 +139,7 @@ Two independent chunks; ship in either order:
 - ~~**C3:**~~ ✅ shipped — parsed chips render in the input row; clicking a chip rewrites the query string and widens the result set.
 - ~~**D1:**~~ ✅ shipped — typing a champion fragment surfaces a Champions group that navigates to `/lol/<slug>/champions/<champion>`.
 - ~~**D2:**~~ ✅ shipped — from `/steam` or `/`, typing a Riot ID fragment surfaces "Search matches in <account>" that switches scope.
-- **E:** closing and reopening the palette without typing shows the last 5 selections, namespaced per account.
+- ~~**E:**~~ ✅ shipped — closing and reopening the palette without typing shows the last 5 selections, namespaced per account.
 
 ## Extending the palette is part of new feature work
 

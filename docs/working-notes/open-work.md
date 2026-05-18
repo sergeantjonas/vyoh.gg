@@ -26,7 +26,6 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - **Wiki-image migration tail** — 12 files across matches (3), profile (2), champions (2), shared analytics + assets (3), live tab, and `components/game-icons.tsx` still resolve images client-side through `cdn.communitydragon.org`/`raw.communitydragon.org`; target end state is zero CDragon client usages, all routes through the wiki via `wikiEntryIconUrl()`. Direction confirmed 2026-05-17 during PN7; ability-icon URL pattern needs a spot check before migration starts. → [lol-image-pipeline.md § Wiki as canonical image source](lol/lol-image-pipeline.md#wiki-as-canonical-image-source-confirmed-direction-2026-05-17)
-- **Command palette expansion (E)** — Phases A (nav chip), B (match search), C (parser + chips), D1 (champion mode), D2 (cross-account scope) shipped 2026-05-18. Next: E recents persistence in localStorage. → [command-palette.md](cross-cutting/command-palette.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
 
 ### Pre-deploy / admin

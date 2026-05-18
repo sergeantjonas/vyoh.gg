@@ -2,6 +2,13 @@ import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { buildChips } from "@/components/command-palette-chips";
 import { matchesQuery } from "@/components/command-palette-matcher";
 import {
+  type RecentItem,
+  type RecentKind,
+  deriveRecentsScope,
+  loadRecents,
+  recordRecent,
+} from "@/components/command-palette-recents";
+import {
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -43,6 +50,21 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
+function recentIcon(kind: RecentKind) {
+  switch (kind) {
+    case "page":
+      return <Home className="size-4" />;
+    case "account":
+      return <User className="size-4" />;
+    case "tab":
+      return <History className="size-4" />;
+    case "champion":
+      return <Crown className="size-4" />;
+    case "match":
+      return <Swords className="size-4" />;
+  }
+}
+
 export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const me = useMe();
   const navigate = useNavigate();
@@ -59,6 +81,14 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const [allMatches, setAllMatches] = useState<MatchSummary[] | null>(null);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [input, setInput] = useState("");
+  const [recents, setRecents] = useState<RecentItem[]>([]);
+
+  const recentsScope = deriveRecentsScope(pathname);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    setRecents(loadRecents(recentsScope));
+  }, [open, recentsScope]);
 
   const parsed = useMemo(() => parseMatchQuery(input), [input]);
   const chips = useMemo(() => buildChips(input, parsed), [input, parsed]);
@@ -123,20 +153,22 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     setLoadingMatches(false);
   }
 
-  function go(path: string) {
+  function go(item: RecentItem) {
+    recordRecent(recentsScope, item);
     onOpenChange(false);
     // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
-    navigate({ to: path as any });
+    navigate({ to: item.path as any });
   }
 
   // Cross-account scope switch: navigate into a different account's match
   // surface without closing the palette, so the user can immediately type a
   // match query against the new scope. Input is cleared because the Riot ID
   // fragment that surfaced the account won't match any matches.
-  function goAndKeepOpen(path: string) {
+  function goAndKeepOpen(item: RecentItem) {
+    recordRecent(recentsScope, item);
     setInput("");
     // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
-    navigate({ to: path as any });
+    navigate({ to: item.path as any });
   }
 
   // Non-Matches groups are hidden once any structured verb is in play —
@@ -240,10 +272,29 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
 
+        {!input.trim() && recents.length > 0 && (
+          <CommandGroup heading="Recent">
+            {recents.map((r) => (
+              <CommandItem
+                key={r.path}
+                value={`${r.kind} ${r.path}`}
+                onSelect={() => go(r)}
+              >
+                {recentIcon(r.kind)}
+                <span>{r.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         {showNonMatchGroups && pages.length > 0 && (
           <CommandGroup heading="Pages">
             {pages.map((p) => (
-              <CommandItem key={p.value} value={p.value} onSelect={() => go(p.path)}>
+              <CommandItem
+                key={p.value}
+                value={p.value}
+                onSelect={() => go({ path: p.path, label: p.label, kind: "page" })}
+              >
                 {p.icon} {p.label}
               </CommandItem>
             ))}
@@ -256,7 +307,13 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               <CommandItem
                 key={acc.slug}
                 value={`${acc.gameName} ${acc.tagLine} ${acc.slug}`}
-                onSelect={() => go(`/lol/${acc.slug}`)}
+                onSelect={() =>
+                  go({
+                    path: `/lol/${acc.slug}`,
+                    label: `${acc.gameName}#${acc.tagLine}`,
+                    kind: "account",
+                  })
+                }
               >
                 <User />
                 <span>
@@ -267,7 +324,13 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               <CommandItem
                 key={`${acc.slug}-search`}
                 value={`search matches in ${acc.gameName} ${acc.tagLine} ${acc.slug}`}
-                onSelect={() => goAndKeepOpen(`/lol/${acc.slug}/matches`)}
+                onSelect={() =>
+                  goAndKeepOpen({
+                    path: `/lol/${acc.slug}/matches`,
+                    label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
+                    kind: "tab",
+                  })
+                }
               >
                 <Swords className="size-4" />
                 <span className="text-muted-foreground">Search matches in</span>
@@ -283,7 +346,11 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
         {showNonMatchGroups && currentTabs.length > 0 && (
           <CommandGroup heading="Current account">
             {currentTabs.map((t) => (
-              <CommandItem key={t.value} value={t.value} onSelect={() => go(t.path)}>
+              <CommandItem
+                key={t.value}
+                value={t.value}
+                onSelect={() => go({ path: t.path, label: t.label, kind: "tab" })}
+              >
                 {t.icon} {t.label}
               </CommandItem>
             ))}
@@ -299,7 +366,13 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 <CommandItem
                   key={c.alias}
                   value={`${c.alias} ${c.name.toLowerCase()}`}
-                  onSelect={() => go(`/lol/${currentSlug}/champions/${c.alias}`)}
+                  onSelect={() =>
+                    go({
+                      path: `/lol/${currentSlug}/champions/${c.alias}`,
+                      label: c.name,
+                      kind: "champion",
+                    })
+                  }
                 >
                   <ChampionSquareIcon
                     championName={c.alias}
@@ -339,7 +412,13 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 <CommandItem
                   key={match.matchId}
                   value={`${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
-                  onSelect={() => go(`/lol/${currentSlug}/matches/${match.matchId}`)}
+                  onSelect={() =>
+                    go({
+                      path: `/lol/${currentSlug}/matches/${match.matchId}`,
+                      label: `${championName(match.champion)} ${match.kills}/${match.deaths}/${match.assists} ${match.queueType}`,
+                      kind: "match",
+                    })
+                  }
                 >
                   <span
                     className={cn(

@@ -88,6 +88,7 @@ describe("CommandPaletteDialog", () => {
     pathnameRef.current = "/";
     accountsRef.current = [];
     navigateSpy.mockClear();
+    localStorage.clear();
   });
 
   it("shows Pages items when open", () => {
@@ -224,5 +225,47 @@ describe("CommandPaletteDialog", () => {
       screen.queryByRole("button", { name: "Remove filter: with: nidalee" })
     ).toBeNull();
     expect(screen.getByRole("button", { name: "Remove filter: wins" })).not.toBeNull();
+  });
+
+  it("persists Recent group across remounts when a Page is selected", () => {
+    pathnameRef.current = "/";
+    const { unmount } = wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    // Before selecting: only one Steam option (from Pages group).
+    expect(screen.getAllByRole("option", { name: /Steam/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("option", { name: /Steam/ }));
+    unmount();
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    // After re-open: Steam appears twice (Recent group + Pages group).
+    expect(screen.getAllByRole("option", { name: /Steam/ })).toHaveLength(2);
+  });
+
+  it("hides Recent group once the user starts typing", () => {
+    pathnameRef.current = "/";
+    localStorage.setItem(
+      "vyoh:palette-recents:global",
+      JSON.stringify([{ path: "/steam", label: "Steam", kind: "page" }])
+    );
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    // First render shows Recent group, then typing should hide it.
+    const recentBefore = screen.queryAllByRole("option").map((o) => o.textContent);
+    expect(recentBefore.some((t) => t?.includes("Steam"))).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "home" },
+    });
+    // After typing "home", the global Recent group is gone — only the matching
+    // Page item remains.
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toMatch(/Home/);
+  });
+
+  it("scopes recents per stream — steam recents do not appear on /lol/<slug>", () => {
+    localStorage.setItem(
+      "vyoh:palette-recents:steam",
+      JSON.stringify([{ path: "/steam/library/440", label: "TF2", kind: "page" }])
+    );
+    pathnameRef.current = "/lol/foo";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    expect(screen.queryByRole("option", { name: /TF2/ })).toBeNull();
   });
 });
