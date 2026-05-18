@@ -26,8 +26,8 @@ export class AccountParamsDto {
   region!: string;
 
   @IsString()
-  @Length(3, 16)
-  @Matches(/^[\p{L}\p{N} ._-]+$/u)
+  @Length(3, 32)
+  @Matches(/^[\p{L}\p{N}\p{Cf} ._-]+$/u)
   gameName!: string;
 
   @IsString()

@@ -57,9 +57,13 @@ describe("AccountParamsDto", () => {
     expect(errors.some((e) => e.property === "gameName")).toBe(true);
   });
 
-  it("rejects a gameName exceeding 16 chars", async () => {
-    const errors = await validate(make({ gameName: "A".repeat(17) }));
+  it("rejects a gameName exceeding 32 chars", async () => {
+    const errors = await validate(make({ gameName: "A".repeat(33) }));
     expect(errors.some((e) => e.property === "gameName")).toBe(true);
+  });
+
+  it("passes for a gameName with Unicode directional isolates", async () => {
+    expect(await validate(make({ gameName: "⁦Νine Tailed Fox⁩" }))).toHaveLength(0);
   });
 
   it("rejects a tagLine shorter than 3 chars", async () => {
