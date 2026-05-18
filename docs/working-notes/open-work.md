@@ -44,7 +44,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
-- **Test coverage expansion W2–W3** — C1/S1/S2/S3 shipped 2026-05-18; A1 (api img + remake boundary) + W1 (web Steam: achievement-panel, game-unlock-timeline, last-progressed-card) shipped 2026-05-19. `packages/shared` at 100% line coverage; api +29 tests (386 → 415); web +16 tests (100 → 116 across 14 → 17 files). S4 dropped (types-only); `img-prewarm.service.ts` deferred. Remaining: web LoL recap/patches (W2), web home tile interaction (W3). 2 chunks, ~1 session. → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
+- **Test coverage expansion (shipped 2026-05-19)** — Full arc closed: C1/S1/S2/S3 (2026-05-18), A1/W1/W2/W3 (2026-05-19). `packages/shared` 100% line coverage; api 386 → 415 tests (+29); web 100 → 127 tests (+27 across 14 → 20 files). S4 dropped (types-only); `img-prewarm.service.ts`, `orb-mark.tsx`, `profile-patch-notice.tsx` triaged out with rationale. Working note can move to archive once acknowledged. → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
 
 ### Ops
 

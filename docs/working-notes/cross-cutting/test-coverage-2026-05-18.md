@@ -1,6 +1,6 @@
 # Test coverage expansion — 2026-05-18
 
-**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18; A1 (api img + remake boundary) + W1 (web Steam) shipped 2026-05-19. Shared at 100% line coverage; web grew from 100 → 116 tests (+16) across the 3 Steam-game surfaces. S4 dropped — its files were all types-only. Remaining: W2 (LoL recap/patches), W3 (home tile interaction).
+**Status:** Shipped — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18; A1 (api img + remake boundary), W1 (web Steam), W2 (recap patch-verdict + top-insight), W3 (home chronotype) all shipped 2026-05-19. Shared at 100% line coverage; web grew from 100 → 127 tests (+27) across 14 → 20 files. S4 dropped (types-only); `orb-mark` skipped from W3 (pure animation chrome, no interactive state). API tests 386 → 415. Note can move to [archive/](../archive/) once acknowledged.
 
 Follow-up to [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md), which closed the first wave of web component tests (T3 command palette + match-detail tab nav, T4 scroll restoration + splash provider, T5 jest-axe). Those addressed *highest-risk web surfaces*; this note scopes the broader push, including the structural gap the hygiene note didn't size: **`packages/shared` has zero tests**.
 
@@ -109,27 +109,22 @@ Pattern: `vi.mock` each fetch-hook directly (`./use-game-achievements`, `./use-g
 
 Web test totals: 100 → 116 tests (+16) across 14 → 17 files. Validated with `pnpm verify:cc` (4/4 packages green; happy-dom `AbortError` teardown noise is pre-existing).
 
-### W2 — Web LoL untested cohorts (1 chunk)
+### W2 — Web LoL recap surfaces (shipped 2026-05-19)
 
-Pick 2–3 surfaces in `lol/recap/` (7 files) and `lol/patches/` (7 files) that carry hooks/state, skip purely presentational components. Candidates to triage during the chunk:
+Two new specs covering the two recap surfaces with the densest branchy derive logic. Both tested through the rendered component (no source export added) — verdict assertions track user-visible copy rather than implementation detail.
 
-- `lol/recap/` — recap surfaces tend to wrap aggregations; pick one with local interactive state.
-- `lol/patches/` — patch-list or patch-detail with filtering.
+- `apps/web/src/lol/recap/recap-patch-verdict.test.tsx` — 3 cases: empty placeholder when fewer than two qualifying patches, best/worst pick across two patches with the year-shaped display label (API major + 10), remake exclusion drops a borderline bucket below the 5-game threshold.
+- `apps/web/src/lol/recap/recap-top-insight.test.tsx` — 3 cases: empty placeholder on `[]`, streak insight when a 4+ win run exists and other categories are sub-threshold, tilt insight when after-win and after-loss WR diverge by ≥8pp.
 
-Read each candidate first; if it's a thin view-only wrapper around a shared derive function, skip and pick the next.
+`lol/patches/profile-patch-notice.tsx` was triaged out — its core paths are localStorage dismissal + champion-name lookup, requiring a heavier router/champions provider scaffold than the recap surfaces, with less behavioral payoff per test.
 
-Validate with `pnpm verify:cc`.
+### W3 — Web home tile interaction (shipped 2026-05-19)
 
-### W3 — Web home tile interaction (1 chunk)
+One new spec; `orb-mark.tsx` triaged out after LSP read showed it's pure animation chrome (SPARKLES, WISPS, halo pulses) with zero interactive state — no behavior to assert beyond "the JSX renders," which the existing axe scan + routing tests already cover transitively.
 
-Only the tiles with non-trivial *interactive* state (most derive logic is in shared, covered by S3):
+- `apps/web/src/home/tile-chronotype.test.tsx` — 5 cases: loading placeholder (`isPending`), no-data placeholder (`data === undefined && !isPending`), default Both headline + combined footer copy with the resolved tz label, headline/footer noun swap when toggling Both → LoL → Steam, `aria-pressed` reflects the active toggle.
 
-- `apps/web/src/home/orb-mark.tsx` (365 LOC) — gesture/motion behavior, hover/select state.
-- `apps/web/src/home/tile-chronotype.tsx` (196 LOC) — hour selection, range highlighting.
-
-Skip the use-`*` hooks (thin TanStack Query wrappers) and the smaller tiles (`tile-build-badge`, `tile-signature-game`, `tile-last-match`) unless reading reveals logic worth covering.
-
-Validate with `pnpm verify:cc`.
+Final web totals: 100 → 127 tests (+27) across 14 → 20 files. Validated with `pnpm verify:cc` (4/4 packages green).
 
 ## Sequencing
 
