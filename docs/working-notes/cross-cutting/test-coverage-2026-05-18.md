@@ -177,6 +177,19 @@ API lines coverage **54.33% → 57.56%** (+3.23pp); api threshold bumped 55 → 
 
 **Aggregate after H1–H4:** web 13% → 18.45% lines (+5.45pp across 22 new test files / ~95 new cases); api 54.33% → 57.56% lines (+3.23pp across 4 new files); shared still 100%.
 
+### H5 — Steam chip component sweep (shipped 2026-05-19)
+
+First component-render chunk after the pure-function harvest exhausted. Six Steam chip components (`apps/web/src/steam/**.tsx`), each at 56–162 LOC, tested via `vi.mock(hook)` + the `<a>` Link mock established in [match-list.test.tsx](../../../apps/web/src/lol/matches/match-list.test.tsx):
+
+- `apps/web/src/steam/library-composition-chip.test.tsx` — 5 cases (loading, error, first-poll empty, untouched-prescription, every-title-opened branch).
+- `apps/web/src/steam/owned-games-chip.test.tsx` — 5 cases (loading, error, nothing-played, singular `title`, plural `titles`).
+- `apps/web/src/steam/platform-mix-chip.test.tsx` — 5 cases covering every branch of `secondaryBreakdown` (loading, error, no-data, dominant + sorted rest, single-platform fallback).
+- `apps/web/src/steam/wishlist-chip.test.tsx` — 7 cases (loading, error, empty, oldest-with-name, oldest-no-name, PREVIEW_LIMIT cap, placeholder for null name in preview).
+- `apps/web/src/steam/recent-unlocks-chip.test.tsx` — 4 cases anchored at `2026-05-19T12:00:00Z` so the `Intl.RelativeTimeFormat` rendering stays deterministic.
+- `apps/web/src/steam/now-playing-chip.test.tsx` — 5 cases (loading, error, offline persona + LFG label, in-game `InGameHeroCard` rendering).
+
+Web lines coverage **18.45% → 20.38%** (+1.93pp — biggest single-chunk lift since H1); web threshold bumped 18 → 20. Steam vertical test count: 3 → 9 files.
+
 ## Sequencing
 
 1. **C1** first so every subsequent chunk has measurable signal in `coverage:cc` output.
