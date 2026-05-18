@@ -1,6 +1,6 @@
 # Test coverage expansion — 2026-05-18
 
-**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18; A1 (api img + remake boundary) shipped 2026-05-19. Shared is at 100% line coverage; only web work (W1–W3) remains. S4 dropped — its files were all types-only.
+**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (instrumentation), S1 (scaffold), S2 (formatters), S3 (rank-history) shipped 2026-05-18; A1 (api img + remake boundary) + W1 (web Steam) shipped 2026-05-19. Shared at 100% line coverage; web grew from 100 → 116 tests (+16) across the 3 Steam-game surfaces. S4 dropped — its files were all types-only. Remaining: W2 (LoL recap/patches), W3 (home tile interaction).
 
 Follow-up to [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md), which closed the first wave of web component tests (T3 command palette + match-detail tab nav, T4 scroll restoration + splash provider, T5 jest-axe). Those addressed *highest-risk web surfaces*; this note scopes the broader push, including the structural gap the hygiene note didn't size: **`packages/shared` has zero tests**.
 
@@ -95,17 +95,19 @@ Deferred: `img-prewarm.service.ts` is a boot-time loop with timers, env-flag gat
 
 API tests: 386 → 415 (+29). Validate with `pnpm verify:cc`.
 
-### W1 — Web Steam vertical (1 chunk)
+### W1 — Web Steam vertical (shipped 2026-05-19)
 
-2–3 tests on the steam surfaces with real component-local logic (skip view-only tiles — their derive logic is covered by S4):
+Three new specs covering the most interactive Steam-game surfaces (all colocated under `apps/web/src/steam/game/`):
 
-- `apps/web/src/steam/game/achievement-panel.tsx` (351 LOC) — sort/filter/section state, search input.
-- `apps/web/src/steam/game/game-unlock-timeline.tsx` (127 LOC) — bucketing into time ranges.
-- `apps/web/src/steam/game/last-progressed-card.tsx` (180 LOC) — recent-unlocks rendering and grouping.
+- `achievement-panel.test.tsx` — 6 cases: schema-less returns null, in-flight schema renders placeholder, ratio + row rendering, `PREVIEW_COUNT` truncation + "Show N more" expand, "Locked only" toggle hides unlocked + masks hidden-locked with `???`, search input visibility threshold (≥30 achievements) + `displayName` filter.
+- `game-unlock-timeline.test.tsx` — 4 cases: returns null while pending, returns null on empty months, singular/plural footer copy, `MIN_BARS` padding (3 real months → 12 rendered bars with leading zero buckets backfilled).
+- `last-progressed-card.test.tsx` — 6 cases covering 4 verdict branches in `computeVerdict` (100% complete, Stuck at X/Y, Launching but not progressing, schema-less last-launched) plus two early-return cases (game not in owned list, no timestamps at all). Uses `vi.useFakeTimers()` + `setSystemTime` to anchor "now" so `relativeTimeAgo` / `compactAgo` are deterministic.
 
-Reuse the testing patterns from `match-list.test.tsx` (component + happy-dom + minimal mocks).
+Pattern: `vi.mock` each fetch-hook directly (`./use-game-achievements`, `./use-game-unlock-timeline`, `@/steam/use-owned-games`), bypass `QueryClient` entirely. `TooltipPrimitive.Provider` wraps the trees that use Radix tooltips; `MotionConfig reducedMotion="always"` for the card that wraps in `CardShell` (motion/react).
 
-Validate with `pnpm --filter @vyoh/web test` then `pnpm verify:cc`.
+`computeVerdict` was *not* exported for testing — branchy logic verified through the component as rendered text. Trade-off: heavier setup (two hooks + fake timers) than a pure-function unit test, but no source modification, and the assertions track user-visible verdict copy rather than implementation detail.
+
+Web test totals: 100 → 116 tests (+16) across 14 → 17 files. Validated with `pnpm verify:cc` (4/4 packages green; happy-dom `AbortError` teardown noise is pre-existing).
 
 ### W2 — Web LoL untested cohorts (1 chunk)
 
