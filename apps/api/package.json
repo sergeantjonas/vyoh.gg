@@ -45,6 +45,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^24.12.2",
     "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.6",
     "prisma": "^7.8.0",
     "tsx": "^4.21.0",
     "unplugin-swc": "^1.5.1",

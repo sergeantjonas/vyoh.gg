@@ -58,5 +58,18 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.{test,spec}.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/main.tsx",
+        "src/routeTree.gen.ts",
+        "src/test-setup.ts",
+      ],
+      thresholds: { lines: 0 },
+    },
   },
 });

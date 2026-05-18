@@ -10,5 +10,12 @@ export default defineConfig({
   test: {
     include: ["src/**/*.spec.ts"],
     setupFiles: ["test/setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary"],
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.spec.ts", "src/**/*.d.ts", "src/main.ts"],
+      thresholds: { lines: 0 },
+    },
   },
 });

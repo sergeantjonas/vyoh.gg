@@ -1,18 +1,20 @@
 # Test coverage expansion — 2026-05-18
 
-**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. Scope baked in; no chunks shipped yet.
+**Status:** Active — chunked plan for broadening test coverage across `packages/shared`, `apps/api`, and `apps/web` after the 2026-05-18 hygiene sweep landed T3–T5. C1 (coverage instrumentation) and S1 (shared test scaffold) shipped 2026-05-18; S2–W3 remain.
 
 Follow-up to [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md), which closed the first wave of web component tests (T3 command palette + match-detail tab nav, T4 scroll restoration + splash provider, T5 jest-axe). Those addressed *highest-risk web surfaces*; this note scopes the broader push, including the structural gap the hygiene note didn't size: **`packages/shared` has zero tests**.
 
 ## Current state (file-level, 2026-05-18)
 
-No coverage tooling installed — no `@vitest/coverage-v8`, `c8`, or `istanbul` anywhere; no `test:coverage` scripts. Numbers below are file-level co-location, not line/branch coverage.
+Post-C1 (2026-05-18). Coverage tooling now installed (`@vitest/coverage-v8` in shared, api, web; v8 provider; `text-summary` reporter; `lines: 0` stub threshold). Root script `coverage:cc` runs all three packages.
 
-| Package | Tests | Non-test sources | Co-located | Coverage script? |
+| Package | Tests | Test files | Lines coverage | Functions coverage |
 |---|---|---|---|---|
-| `apps/api` | 46 | 93 | ~50% | no |
-| `apps/web` | 12 | 264 | ~4.5% | no |
-| `packages/shared` | **0** | 35 (1,218 LOC) | 0% | **no test script, no vitest config** |
+| `apps/api` | 386 | 46 | 54.33% (1612/2967) | 46.84% (290/619) |
+| `apps/web` | 100 | 14 | 9.89% (578/5842) | 9.63% (165/1712) |
+| `packages/shared` | 50 | 2 | 56% (84/150) | 35.71% (5/14) |
+
+Pre-C1 baseline (file-level co-location, kept for reference): `apps/api` 46 test files / 93 sources (~50%); `apps/web` 12 / 264 (~4.5%); `packages/shared` 0 / 35 (1,218 LOC).
 
 **Key observation:** the shared package hosts the domain primitives that both apps consume (`excludeRemakes`, formatters, chronotype derivers, aggregation helpers). A single bug in shared corrupts api stats *and* web display simultaneously — yet it has no safety net. This is the highest-leverage gap in the repo, not web breadth.
 
@@ -43,19 +45,13 @@ Solid co-location across home, lol, steam, riot, identity, og, status. Untested 
 
 Leverage-first ordering: shared first (one fix protects api + web), then api gaps, then web breadth. Coverage instrumentation lands first so every subsequent chunk has measurable signal.
 
-### C1 — Coverage instrumentation (1 chunk)
+### C1 — Coverage instrumentation (shipped 2026-05-18)
 
-Add `@vitest/coverage-v8` as a workspace devDep. Configure `coverage.provider = 'v8'` with `reporter: ['text-summary']` (Claude-friendly) and a stub threshold (e.g. `lines: 0` initially, raised as chunks land) in each `vitest.config.ts` (api, web, and the new shared config from S1 once it exists). Add a `coverage:cc` script at the workspace root: `pnpm -r test --coverage 2>&1 | head -400`.
+Added `@vitest/coverage-v8` as a devDep in `apps/api`, `apps/web`, and `packages/shared`. Configured `coverage.provider = 'v8'` with `reporter: ['text-summary']` and `thresholds: { lines: 0 }` in each `vitest.config.ts` / `vite.config.ts`. Added `coverage:cc` script at the workspace root: `pnpm -r test --coverage 2>&1 | head -400`. Baseline captured in **Current state** above. v8 coverage works under happy-dom (web reports cleanly; pre-existing happy-dom `AbortError` teardown noise unrelated to coverage).
 
-No new tests in this chunk. Capture the baseline coverage numbers in this working note after the run.
+### S1 — `packages/shared` test setup (shipped 2026-05-18)
 
-Validate with `pnpm coverage:cc`; sanity-check that v8 coverage works under happy-dom (web).
-
-### S1 — `packages/shared` test setup (1 chunk, micro)
-
-Add `vitest` devDep + `test` / `test:watch` scripts to `packages/shared/package.json`. Create `packages/shared/vitest.config.ts` matching the api/web shape (node env; no JSX). Write one trivial test against `excludeRemakes` to prove the runner wires up. Update root `test:cc` if it doesn't already pick up shared via `pnpm -r test` (it does, via workspace recursion — but verify).
-
-Validate with `pnpm --filter @vyoh/shared test` and `pnpm test:cc`.
+Already partially in place pre-chunk (`vitest` devDep + `test` script + `vitest.config.ts` + an existing `match-query.test.ts`). This chunk filled the gaps: added `test:watch` script to `packages/shared/package.json` and an `excludeRemakes` test in `packages/shared/src/lol/exclude-remakes.test.ts` (5 cases: empty, all-remakes, none, mixed, subtype-preservation). Runner is proven; shared has 50 passing tests across 2 files.
 
 ### S2 — Shared invariants + formatters (1 chunk)
 

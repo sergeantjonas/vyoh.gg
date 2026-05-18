@@ -19,6 +19,7 @@
     "check:fix:cc": "biome check --write . --colors=off --max-diagnostics=30",
     "typecheck:cc": "pnpm -r typecheck 2>&1 | head -300",
     "test:cc": "pnpm -r test 2>&1 | head -400",
+    "coverage:cc": "pnpm -r test --coverage 2>&1 | head -400",
     "verify:cc": "pnpm run check:cc && pnpm run typecheck:cc && pnpm run test:cc"
   },
   "devDependencies": {
