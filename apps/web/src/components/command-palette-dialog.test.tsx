@@ -70,4 +70,29 @@ describe("CommandPaletteDialog", () => {
     expect(screen.getByRole("option", { name: /Steam/ })).not.toBeNull();
     expect(screen.queryByRole("option", { name: /Home/ })).toBeNull();
   });
+
+  it("renders parsed chips for structured verbs", () => {
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "with:nidalee wins" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Remove filter: with: nidalee" })
+    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Remove filter: wins" })).not.toBeNull();
+  });
+
+  it("clicking a chip removes that token from the input and widens results", () => {
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    const input = screen.getByPlaceholderText(
+      "Type a command or search…"
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "with:nidalee wins" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove filter: with: nidalee" }));
+    expect(input.value).toBe("wins");
+    expect(
+      screen.queryByRole("button", { name: "Remove filter: with: nidalee" })
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove filter: wins" })).not.toBeNull();
+  });
 });

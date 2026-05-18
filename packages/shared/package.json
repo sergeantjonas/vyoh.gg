@@ -8,6 +8,10 @@
     "./lol/rank-history": "./src/lol/rank-history.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
   }
 }

@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Active — Phases A (provider lift + nav chip) and B (match search mode) shipped 2026-05-18. C1 (parser foundation in `@vyoh/shared`) is next. 6 commit-boundary chunks remaining (C1–C3, D1–D2, E) — see [open-work.md](../open-work.md). Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
+**Status:** Active — Phases A (provider lift + nav chip), B (match search mode), C1 (parser foundation), C2 (full verb set + wiring), and C3 (parsed chips UI) shipped 2026-05-18. Phase C complete. 3 commit-boundary chunks remaining (D1–D2, E) — see [open-work.md](../open-work.md). Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
 
 ## Current state (Phases A+B shipped 2026-05-18)
 
@@ -33,9 +33,9 @@ Each chunk below is independently committable and fits one context window. Phase
 1. ~~**A1 — Provider lift.**~~ ✅ shipped 2026-05-18
 2. ~~**A2 — Nav chip.**~~ ✅ shipped 2026-05-18
 3. ~~**B — Match search mode.**~~ ✅ shipped 2026-05-18
-4. **C1 — Parser foundation.** Pure parser in `@vyoh/shared` + unit tests. Minimal verbs: `with:`, `vs:`, `wins`, `losses`. No UI changes.
-5. **C2 — Full verb set.** Extend parser with `queue:`, `role:`, `patch:`, `since:`/`until:`, `kda><`, `duo:` + tests. Wire into Matches-group filtering.
-6. **C3 — Parsed chips UI.** Render parsed chips in the palette input row; click-to-remove rewrites the query string.
+4. ~~**C1 — Parser foundation.**~~ ✅ shipped 2026-05-18 — `parseMatchQuery` in [packages/shared/src/lol/match-query.ts](../../../packages/shared/src/lol/match-query.ts) with `with:`, `vs:`, `wins`, `losses` + 20 unit tests. No UI changes.
+5. ~~**C2 — Full verb set.**~~ ✅ shipped 2026-05-18 — parser extended with `queue:`, `role:`, `patch:`, `since:`/`until:`, `kda>`/`kda<`, `duo:` (multi-occurrence verbs union as arrays; `since`/`until`/`kda` are last-wins); `since`/`until` accept `Nh`/`Nd`/`Nw` relative offsets or ISO dates. `matchesQuery(match, parsed)` in [apps/web/src/components/command-palette-matcher.ts](../../../apps/web/src/components/command-palette-matcher.ts) wires structured filtering into the dialog; cmdk's auto-filter switched off via `shouldFilter={false}` and groups filter manually. `duo:` parses for grammar completeness but the matcher no-ops it until duo data is plumbed into the palette.
+6. ~~**C3 — Parsed chips UI.**~~ ✅ shipped 2026-05-18 — chip row renders between input and results when any verb is parsed. Pure chip-builder + token-remover in [apps/web/src/components/command-palette-chips.ts](../../../apps/web/src/components/command-palette-chips.ts) (16 unit tests). Click-to-remove drops the exact token for union verbs (`with:`/`vs:`/`queue:`/…); for last-wins verbs (`since:`/`until:`/`kda><`) it drops all occurrences of the prefix so shadowed values don't silently re-activate.
 7. **D1 — Champion mode.** Champions group that jumps to `/lol/<slug>/champions/<champion>` when an account is active.
 8. **D2 — Cross-account scope.** From Steam/Home, surface a "Search matches in <account>" affordance that switches scope and pre-opens Phase B.
 9. **E — Recents.** Persist last ~5 selections in `localStorage` (per-account namespace); show as a Recent group when input is empty.
@@ -85,9 +85,9 @@ Promote freeform input to a small structured grammar. Three chunks: **C1** (pars
 Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the input row so the user sees how the query was interpreted (and can click-remove individual chips).
 
 **Chunk split:**
-- **C1** ships the parser shell in `@vyoh/shared` + tests, with just `with:` / `vs:` / `wins` / `losses` recognised. No UI changes; B's Matches group keeps its current free-text behavior until C2 lands.
-- **C2** adds the remaining verbs (`queue:`, `role:`, `patch:`, `since:`/`until:`, `kda><`, `duo:`) to the parser + tests and rewires B's filter to call the parser.
-- **C3** is UI-only: render parsed chips in the input row, click-to-remove rewrites the input string. Pure addition; if it slips, C2 still ships value.
+- ~~**C1**~~ ✅ shipped 2026-05-18. `parseMatchQuery(input)` in `@vyoh/shared` returns `{ withChampions, vsChampions, outcome, freeText }`; outcome resolves last-keyword-wins on conflict; empty verb values are ignored; freeText is lowercased and whitespace-normalised. No UI consumer yet — B's Matches group keeps its current free-text behavior until C2 lands.
+- ~~**C2**~~ ✅ shipped 2026-05-18 — see commit-boundary chunk above.
+- ~~**C3**~~ ✅ shipped 2026-05-18 — see commit-boundary chunk above.
 
 **Implementation note:** parse incrementally on each keystroke; keep the parser pure and unit-tested in `packages/shared` so the same grammar can later power a URL-state encoding (`/matches?q=with:nidalee+wins`).
 
@@ -133,9 +133,9 @@ Two independent chunks; ship in either order:
 - **A1:** provider is in place; ⌘K still opens the palette via the keyboard listener exactly as before; no visible UX change; no new bytes in the eager shell beyond the context object itself.
 - **A2:** a new user lands on the site, sees the ⌘K chip in the nav within first paint, clicking it opens the palette, the lazy chunk loads on click (not on first paint), `size-limit` budget unchanged.
 - **B:** from `/lol/<slug>/matches` scrolled past row 30, ⌘K → typing "nida" surfaces all Nidalee games in the cached window within one frame of typing. Cache-miss path renders the agreed empty state.
-- **C1:** `with:nidalee`, `vs:khazix`, bare `wins`/`losses` parse correctly in `@vyoh/shared` tests; no behavior change in the palette.
-- **C2:** `with:nidalee wins kda>3 since:14d` returns the correct intersection inside the Matches group.
-- **C3:** parsed chips are visible in the input row; backspacing or clicking a chip widens the result set.
+- ~~**C1:**~~ ✅ shipped — `with:nidalee`, `vs:khazix`, bare `wins`/`losses` parse correctly in `@vyoh/shared` tests; no behavior change in the palette.
+- ~~**C2:**~~ ✅ shipped — `with:nidalee wins kda>3 since:14d` returns the correct intersection inside the Matches group via `matchesQuery`.
+- ~~**C3:**~~ ✅ shipped — parsed chips render in the input row; clicking a chip rewrites the query string and widens the result set.
 - **D1:** typing a champion fragment surfaces a Champions group that navigates to `/lol/<slug>/champions/<champion>`.
 - **D2:** from `/steam` or `/`, typing a Riot ID fragment surfaces "Search matches in <account>" that switches scope.
 - **E:** closing and reopening the palette without typing shows the last 5 selections, namespaced per account.

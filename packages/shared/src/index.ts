@@ -6,6 +6,8 @@ export {
   formatHoursMinutes,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
+export { parseMatchQuery } from "./lol/match-query.ts";
+export type { MatchOutcomeFilter, ParsedMatchQuery } from "./lol/match-query.ts";
 export type { Me } from "./identity.ts";
 export type { LolAccount } from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";

@@ -1,4 +1,6 @@
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
+import { buildChips } from "@/components/command-palette-chips";
+import { matchesQuery } from "@/components/command-palette-matcher";
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,9 +18,13 @@ import { prefetchCachedMatches } from "@/lol/matches/use-matches";
 import { useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import type { CachedMatchesResult, MatchSummary } from "@vyoh/shared";
-import { Crown, History, Home, Loader2, Swords, TrendingUp, User } from "lucide-react";
-import { useLayoutEffect, useState } from "react";
+import {
+  type CachedMatchesResult,
+  type MatchSummary,
+  parseMatchQuery,
+} from "@vyoh/shared";
+import { Crown, History, Home, Loader2, Swords, TrendingUp, User, X } from "lucide-react";
+import { useLayoutEffect, useMemo, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -49,6 +55,38 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const championName = useChampionName();
   const [allMatches, setAllMatches] = useState<MatchSummary[] | null>(null);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [input, setInput] = useState("");
+
+  const parsed = useMemo(() => parseMatchQuery(input), [input]);
+  const chips = useMemo(() => buildChips(input, parsed), [input, parsed]);
+
+  const filteredMatches = useMemo(
+    () => (allMatches ? allMatches.filter((m) => matchesQuery(m, parsed)) : null),
+    [allMatches, parsed]
+  );
+
+  const hasStructuredVerbs =
+    parsed.outcome !== null ||
+    parsed.withChampions.length > 0 ||
+    parsed.vsChampions.length > 0 ||
+    parsed.queues.length > 0 ||
+    parsed.roles.length > 0 ||
+    parsed.patches.length > 0 ||
+    parsed.duos.length > 0 ||
+    parsed.since !== null ||
+    parsed.until !== null ||
+    parsed.kdaGt !== null ||
+    parsed.kdaLt !== null;
+
+  function passesFreeText(haystack: string): boolean {
+    if (!parsed.freeText) return true;
+    return haystack.toLowerCase().includes(parsed.freeText);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) setInput("");
+    onOpenChange(next);
+  }
 
   useLayoutEffect(() => {
     if (!open || !currentAccount) {
@@ -92,28 +130,102 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     navigate({ to: path as any });
   }
 
+  // Non-Matches groups are hidden once any structured verb is in play —
+  // `with:nidalee` should not surface Pages/Accounts, only Matches.
+  const showNonMatchGroups = !hasStructuredVerbs;
+
+  const pages = [
+    { value: "home", icon: <Home />, label: "Home", path: "/" },
+    {
+      value: "lol league",
+      icon: <LeagueOfLegendsIcon className="size-4" />,
+      label: "League of Legends",
+      path: "/lol",
+    },
+    {
+      value: "steam",
+      icon: <SteamIcon className="size-4" />,
+      label: "Steam",
+      path: "/steam",
+    },
+  ].filter((p) => passesFreeText(p.value));
+
+  const accounts = (me.data?.lol ?? []).filter((acc) =>
+    passesFreeText(`${acc.gameName} ${acc.tagLine} ${acc.slug}`)
+  );
+
+  const currentTabs = currentSlug
+    ? [
+        {
+          value: `${currentSlug} profile overview`,
+          icon: <User />,
+          label: "Profile",
+          path: `/lol/${currentSlug}`,
+        },
+        {
+          value: `${currentSlug} matches history`,
+          icon: <History />,
+          label: "Matches",
+          path: `/lol/${currentSlug}/matches`,
+        },
+        {
+          value: `${currentSlug} trends stats`,
+          icon: <TrendingUp />,
+          label: "Trends",
+          path: `/lol/${currentSlug}/trends`,
+        },
+        {
+          value: `${currentSlug} champions mastery`,
+          icon: <Crown />,
+          label: "Champions",
+          path: `/lol/${currentSlug}/champions`,
+        },
+      ].filter((t) => passesFreeText(t.value))
+    : [];
+
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+    <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false}>
       <DialogTitle className="sr-only">Command palette</DialogTitle>
-      <CommandInput placeholder="Type a command or search…" />
+      <CommandInput
+        placeholder="Type a command or search…"
+        value={input}
+        onValueChange={setInput}
+      />
+      {chips.length > 0 && (
+        <div
+          className="flex flex-wrap gap-1.5 border-b px-3 py-2"
+          aria-label="Active filters"
+        >
+          {chips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setInput(chip.remove(input))}
+              aria-label={`Remove filter: ${chip.label}`}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <span>{chip.label}</span>
+              <X className="size-3" />
+            </button>
+          ))}
+        </div>
+      )}
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
 
-        <CommandGroup heading="Pages">
-          <CommandItem value="home" onSelect={() => go("/")}>
-            <Home /> Home
-          </CommandItem>
-          <CommandItem value="lol league" onSelect={() => go("/lol")}>
-            <LeagueOfLegendsIcon className="size-4" /> League of Legends
-          </CommandItem>
-          <CommandItem value="steam" onSelect={() => go("/steam")}>
-            <SteamIcon className="size-4" /> Steam
-          </CommandItem>
-        </CommandGroup>
+        {showNonMatchGroups && pages.length > 0 && (
+          <CommandGroup heading="Pages">
+            {pages.map((p) => (
+              <CommandItem key={p.value} value={p.value} onSelect={() => go(p.path)}>
+                {p.icon} {p.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
-        {me.data?.lol && me.data.lol.length > 0 && (
+        {showNonMatchGroups && accounts.length > 0 && (
           <CommandGroup heading="Accounts">
-            {me.data.lol.map((acc) => (
+            {accounts.map((acc) => (
               <CommandItem
                 key={acc.slug}
                 value={`${acc.gameName} ${acc.tagLine} ${acc.slug}`}
@@ -129,38 +241,19 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
 
-        {currentSlug && (
+        {showNonMatchGroups && currentTabs.length > 0 && (
           <CommandGroup heading="Current account">
-            <CommandItem
-              value={`${currentSlug} profile overview`}
-              onSelect={() => go(`/lol/${currentSlug}`)}
-            >
-              <User /> Profile
-            </CommandItem>
-            <CommandItem
-              value={`${currentSlug} matches history`}
-              onSelect={() => go(`/lol/${currentSlug}/matches`)}
-            >
-              <History /> Matches
-            </CommandItem>
-            <CommandItem
-              value={`${currentSlug} trends stats`}
-              onSelect={() => go(`/lol/${currentSlug}/trends`)}
-            >
-              <TrendingUp /> Trends
-            </CommandItem>
-            <CommandItem
-              value={`${currentSlug} champions mastery`}
-              onSelect={() => go(`/lol/${currentSlug}/champions`)}
-            >
-              <Crown /> Champions
-            </CommandItem>
+            {currentTabs.map((t) => (
+              <CommandItem key={t.value} value={t.value} onSelect={() => go(t.path)}>
+                {t.icon} {t.label}
+              </CommandItem>
+            ))}
           </CommandGroup>
         )}
 
         {currentAccount && (
           <CommandGroup heading="Matches">
-            {allMatches === null ? (
+            {filteredMatches === null ? (
               <>
                 <CommandItem disabled value="matches-not-loaded">
                   <Swords className="size-4" />
@@ -182,7 +275,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 </CommandItem>
               </>
             ) : (
-              allMatches.slice(0, 8).map((match) => (
+              filteredMatches.slice(0, 8).map((match) => (
                 <CommandItem
                   key={match.matchId}
                   value={`${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
