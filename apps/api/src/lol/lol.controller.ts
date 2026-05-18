@@ -23,6 +23,7 @@ import type {
   SummonerProfile,
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
+import { AccountParamsDto, ChampionAccountParamsDto } from "./account-params.dto";
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolService } from "./lol.service";
 
@@ -35,9 +36,7 @@ export class LolController {
 
   @Get("matches")
   async getMatches(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("start", new DefaultValuePipe(0), ParseIntPipe) start: number,
     @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number,
     @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
@@ -47,9 +46,7 @@ export class LolController {
 
   @Get("matches/cached")
   async getCachedMatches(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("start", new DefaultValuePipe(0), ParseIntPipe) start: number,
     @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number,
     @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
@@ -60,27 +57,21 @@ export class LolController {
   @Post("matches/sync")
   @HttpCode(200)
   async syncMatches(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string
+    @Param() { region, gameName, tagLine }: AccountParamsDto
   ): Promise<{ idCount: number; backfilled: number }> {
     return this.lol.syncForSummoner(region, gameName, tagLine);
   }
 
   @Get("rank")
   async getRank(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string
+    @Param() { region, gameName, tagLine }: AccountParamsDto
   ): Promise<SummonerProfile> {
     return this.lol.getSummonerProfile(region, gameName, tagLine);
   }
 
   @Get("duos")
   async getDuos(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<Duo[]> {
     return this.analytics.getDuos(region, gameName, tagLine, count);
@@ -88,9 +79,7 @@ export class LolController {
 
   @Get("chronotype")
   async getChronotype(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
   ): Promise<Chronotype> {
     return this.analytics.getChronotype(region, gameName, tagLine, count);
@@ -98,9 +87,7 @@ export class LolController {
 
   @Get("champion-pairs")
   async getChampionPairs(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionPair[]> {
     return this.analytics.getChampionPairs(region, gameName, tagLine, count);
@@ -108,10 +95,7 @@ export class LolController {
 
   @Get("champions/:championKey/build-flow")
   async getChampionBuildFlow(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
-    @Param("championKey") championKey: string,
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionBuildFlowEntry[]> {
     return this.analytics.getChampionBuildFlow(
@@ -125,9 +109,7 @@ export class LolController {
 
   @Get("rank/history")
   async getRankHistory(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("days", new ParseIntPipe({ optional: true })) days?: number
   ): Promise<RankHistoryResponse> {
     return this.lol.getRankHistory(region, gameName, tagLine, days);
@@ -135,10 +117,7 @@ export class LolController {
 
   @Get("champions/:championKey/stats")
   async getChampionExtras(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string,
-    @Param("championKey") championKey: string,
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
     @Query("queue", new DefaultValuePipe(undefined), new ParseIntPipe({ optional: true }))
     queue: number | undefined
   ): Promise<ChampionExtras> {
@@ -153,27 +132,21 @@ export class LolController {
 
   @Sse("matches/events")
   async matchEvents(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string
+    @Param() { region, gameName, tagLine }: AccountParamsDto
   ): Promise<Observable<MessageEvent>> {
     return this.lol.subscribeToMatchEvents(region, gameName, tagLine);
   }
 
   @Get("live")
   async getLiveGame(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string
+    @Param() { region, gameName, tagLine }: AccountParamsDto
   ): Promise<LiveMatch | null> {
     return this.lol.getLiveGame(region, gameName, tagLine);
   }
 
   @Sse("live/events")
   async liveEvents(
-    @Param("region") region: string,
-    @Param("gameName") gameName: string,
-    @Param("tagLine") tagLine: string
+    @Param() { region, gameName, tagLine }: AccountParamsDto
   ): Promise<Observable<MessageEvent>> {
     return this.lol.subscribeLiveEvents(region, gameName, tagLine);
   }

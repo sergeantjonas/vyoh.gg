@@ -1,5 +1,6 @@
 import { Controller, Get, Header, Param, Res } from "@nestjs/common";
 import type { Response } from "express";
+import { OgParamsDto } from "./og-params.dto";
 import { OgService } from "./og.service";
 
 @Controller("og")
@@ -10,8 +11,7 @@ export class OgController {
   @Header("Content-Type", "image/png")
   @Header("Cache-Control", "public, max-age=86400, s-maxage=2592000")
   async matchCard(
-    @Param("slug") slug: string,
-    @Param("matchId") matchId: string,
+    @Param() { slug, matchId }: OgParamsDto,
     @Res() res: Response
   ): Promise<void> {
     const png = await this.og.generateMatchCard(slug, matchId);

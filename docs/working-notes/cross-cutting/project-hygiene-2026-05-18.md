@@ -1,6 +1,6 @@
 # Project hygiene audit — 2026-05-18
 
-**Status:** Reference — full-repo hygiene sweep covering folder structure, duplication, industry-standard adherence, and dependency/build hygiene. Actionable items lifted into [open-work.md](../open-work.md) live there; this note is the source-of-record for what was checked, what passed, and the verification corrections that matter for future audits.
+**Status:** Reference — full-repo hygiene sweep covering folder structure, duplication, industry-standard adherence, and dependency/build hygiene. Actionable items lifted into [open-work.md](../open-work.md) live there; this note is the source-of-record for what was checked, what passed, and the verification corrections that matter for future audits. **Chunks shipped: F1 (2026-05-18), R1 (2026-05-18), R2 (2026-05-18), V1 (2026-05-18). Remaining: V2, V3.**
 
 Run as a multi-subagent sweep: one Explore pass for each of structure, duplication, standards, and dependency hygiene, then verified against `git ls-files` and direct file reads before reporting. **Headline finding:** the repo is unusually disciplined for a single-author monorepo. Real gaps cluster in web-side test coverage, API input validation, and a handful of formatter utilities that drifted into 3–6 copies.
 
@@ -47,9 +47,9 @@ Same conversions reimplemented in multiple files. Worth consolidating into `pack
 
 Numeric params use `ParseIntPipe` / `DefaultValuePipe`, but there's no global `ValidationPipe` with class-validator DTOs or Zod. String params (`gameName`, `tagLine`, `champion`) reach service code unvalidated. Low risk *today* (limited write surface) but it's the conventional Nest hardening step. Worth doing before owner-write surfaces grow — couples naturally with the owner-auth pre-deploy work in [ops/owner-auth.md](../ops/owner-auth.md).
 
-### 5. `routeTree.gen.ts` is tracked in git — review needed
+### 5. `routeTree.gen.ts` is tracked in git — ✓ closed
 
-[apps/web/src/routeTree.gen.ts](../../../apps/web/src/routeTree.gen.ts) is committed (verified). TanStack Router supports both — some teams commit it for zero-cold-start dev, others gitignore it. The rest of [.gitignore](../../../.gitignore) excludes generated files (`.tanstack/`, `*.tsbuildinfo`, `dist/`), so committing this one is inconsistent. **Decide deliberately**, then document the choice in [repo-conventions.md](../../repo-conventions.md) so it doesn't get re-raised.
+Intentionally committed for zero-cold-start dev; documented in [repo-conventions.md § Committed generated files](../../repo-conventions.md#committed-generated-files-must-be-documented-here). Do not re-raise.
 
 ### 6. Missing `exactOptionalPropertyTypes` — minor
 
@@ -57,12 +57,12 @@ With `noUncheckedIndexedAccess` already on, this is the obvious next strict flag
 
 ### 7. Tooling-dep version skew — minor
 
-- `typescript`: root `^6.0.3` vs `tools/champion-assets` `^6.0.0-beta` — pin tools to stable.
-- `@types/node`: web/tools `^24.12.2` vs api `^24.0.0` — unify, or document why API trails.
+- `typescript`: root `^6.0.3` vs `tools/champion-assets` `^6.0.0-beta` — pin tools to stable. ✓ done d363268
+- `@types/node`: web/tools `^24.12.2` vs api `^24.0.0` — unify, or document why API trails. **Still open.**
 
-### 8. `.env.example` is incomplete — minor
+### 8. `.env.example` is incomplete — ✓ closed d363268
 
-API code references `CUTOFF_DAYS`, `LOL_PREWARM`, `MATCH_SYNC_ENABLED`, `STEAM_PREWARM`, `PORT`; none documented in `.env.example`. Matters most for the freelance-portfolio framing — anyone cloning the repo should be able to boot it.
+All vars (`CUTOFF_DAYS`, `LOL_PREWARM`, `MATCH_SYNC_ENABLED`, `STEAM_PREWARM`, `PORT`) documented.
 
 ### 9. Accessibility is reactive — minor
 
@@ -89,13 +89,13 @@ Scoped for items 2, 3, 4 in the priority list above. Decisions baked in: helper 
 
 Item 1 (web test coverage) deferred to the next session per owner. Items 5–9 stay in priority-order backlog above.
 
-### F1 — Formatter extraction (1 chunk, ~17 files)
+### F1 — Formatter extraction (1 chunk, ~17 files) ✓ shipped cb57e29
 
 New `packages/shared/src/format.ts` exporting `formatDuration`, `formatHoursMinutes`, `formatPlaytime`, `formatGameTime`, `formatGold`. Read each existing copy first to detect drift — the audit flagged enough variation between them to risk a future display inconsistency. For each formatter, pick one canonical shape and note the dropped variants in the commit message so any subtle output change is reviewable.
 
 Migrate 16 web files (`match-row`, `match-hero`, `match-build-order`, `match-map-overlay`, `match-event-timelines`, `match-lane-phase`, `match-gold-lead`, `library-row`, `library-tile`, `library-tile-hovercard`, `champion-table`, `routes/steam/game.$appid`, `tile-first-played`, `tile-day-split`, `tile-weekly-totals`, plus any new ones surfaced during reads) and `apps/api/src/og/og.service.ts`. Add re-export to `packages/shared/src/index.ts`. Validate with `verify:cc`; visual smoke on home tiles, match list, match detail, steam library, OG card.
 
-### R1 — `excludeRemakes()` helper + first 9 sites (1 chunk)
+### R1 — `excludeRemakes()` helper + first 9 sites (1 chunk) ✓ shipped 89e0334
 
 New `packages/shared/src/lol/exclude-remakes.ts` with signature `excludeRemakes<T extends { remake: boolean }>(matches: T[]): T[]`. Export from `packages/shared/src/lol/` barrel. In the same commit, update the example in [repo-conventions.md § Centralise domain invariants](../../repo-conventions.md#centralise-domain-invariants-that-must-apply-to-every-aggregation-in-a-feature) to name the helper.
 
@@ -103,13 +103,13 @@ Migrate `apps/api/src/lol/lol-analytics.service.ts` plus the 8 sites in `apps/we
 
 Validate with `verify:cc`; spot-check recap and profile-stats-bar counts haven't shifted.
 
-### R2 — Remaining 24 sites (1 chunk)
+### R2 — Remaining 24 sites (1 chunk) ✓ shipped 073dc69
 
 Migrate `apps/web/src/lol/trends/*` (13), `apps/web/src/lol/champions/*` (2), `apps/web/src/home/tile-last-match.tsx`, and the three `routes/lol/$accountSlug/{recap,trends,champions/$championKey}.tsx`. Pure search/replace once R1 establishes the helper.
 
 Validate with `verify:cc`; spot-check trends and champions counts.
 
-### V1 — Global ValidationPipe (1 chunk)
+### V1 — Global ValidationPipe (1 chunk) ✓ shipped 1cbe7d5
 
 Add `class-validator` and `class-transformer` as deps on `apps/api`. Wire `app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))` in [apps/api/src/main.ts](../../../apps/api/src/main.ts). No DTOs yet — pipe is a no-op for existing string-param controllers but enforces the contract for V2 + V3.
 
@@ -124,3 +124,29 @@ Validate with `verify:cc`; test that valid params pass and invalid params return
 ### V3 — Body DTOs for POST/PUT/PATCH (1 chunk, sequenced with owner-auth)
 
 Defer scoping until V1 + V2 land and the owner-auth surface is concrete. Per the audit's sequencing note, this pairs with the owner-auth pre-deploy item — may be small/empty depending on the write surface at that point.
+
+### T1 — `@types/node` unification (micro, 1 line)
+
+Bump `apps/api/package.json` `@types/node` from `^24.0.0` to `^24.12.2` to match web. Run `pnpm install` + `typecheck:cc`. Not worth a dedicated session — do as a micro-commit alongside any API edit or opportunistically.
+
+### T2 — `exactOptionalPropertyTypes` (1 chunk, unknown fallout)
+
+Add `"exactOptionalPropertyTypes": true` to `tsconfig.base.json` (affects shared + web + api). Run `typecheck:cc`, fix all fallout in the same commit. With `noUncheckedIndexedAccess` already on, the codebase is likely disciplined, but API decorator/DTO patterns and React optional prop sites could surface 5–30 errors. Cannot size until the flag is flipped — budget a full context window.
+
+### T3 — Web tests: command palette + match-detail tab nav (1 chunk)
+
+3–5 tests. Both surfaces touch routing — `vi.mock('@tanstack/react-router')` pattern already established in `match-list.test.tsx`. Command palette: open/close via keyboard shortcut, search filtering narrows results. Match-detail tab nav: switching tabs renders the correct section; path-segment drives active tab on load. New files: `command-palette-dialog.test.tsx`, `match-detail-tab-nav.test.tsx`.
+
+Validate with `test:cc`; confirm no regressions in the existing 43 web tests.
+
+### T4 — Web tests: scroll restoration + splash provider (1 chunk)
+
+2–3 tests. Simpler than T3 — no router mocking needed. Scroll restoration: assert `mainScrollRef.current.scrollTo(0, 0)` fires on pathname change. Splash provider: assert `useSplashChampion` context updates and the backdrop wires to the nearest `SplashProvider`. New files: `scroll-restoration.test.tsx` (or alongside the hook), `splash-provider.test.tsx`.
+
+Validate with `test:cc`.
+
+### T5 — Accessibility (1 chunk, sequenced after T3)
+
+Add `jest-axe` dep to `apps/web`. Axe-scan the command palette (keyboard nav, `aria-label` on icon-only triggers), the nav keyboard-shortcut chip, and the match-card interactive surface. 3–4 tests. Sequence after T3 so the command palette test fixture exists to reuse.
+
+Validate with `test:cc`; address any `aria-*` violations surfaced by axe.
