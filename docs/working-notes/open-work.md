@@ -47,6 +47,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
 - **Formatter consolidation F1** — extract 5 formatters (`formatDuration`/`formatHoursMinutes`/`formatPlaytime`/`formatGameTime`/`formatGold`) into `packages/shared/src/format.ts`, migrate 17 call sites; reconcile drift in the same change. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
 - **`excludeRemakes()` helper R1 + R2** — centralise the remake invariant (33 sites across api + web), split as R1 (helper + 9 recap/profile sites, updates repo-conventions example) and R2 (24 trends/champions/home/routes sites). → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
+- **Test coverage expansion C1 → W3** — coverage instrumentation, then shared package tests (zero today), then api `img/` gap, then targeted web component tests. 9 chunks, ~3-5 sessions. Highest leverage chunk is S2 (shared invariants + formatters). → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
 
 ### Ops
 
