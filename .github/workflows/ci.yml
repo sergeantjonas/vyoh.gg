@@ -29,7 +29,27 @@ jobs:
 
       - run: pnpm typecheck
 
-      - run: pnpm -r test
+      - name: Test with coverage
+        run: pnpm -r test --coverage 2>&1 | tee coverage-output.log
+
+      - name: Append coverage summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Coverage summary"
+            echo
+            echo '```'
+            grep -E "Coverage summary|Statements|Branches|Functions|Lines|test:  %" coverage-output.log || tail -30 coverage-output.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./apps/api/coverage/lcov.info,./apps/web/coverage/lcov.info,./packages/shared/coverage/lcov.info
+          flags: api,web,shared
+          fail_ci_if_error: false
 
   audit:
     name: Production dependency audit

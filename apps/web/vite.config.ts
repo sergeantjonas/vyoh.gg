@@ -60,7 +60,7 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     coverage: {
       provider: "v8",
-      reporter: ["text-summary"],
+      reporter: ["text-summary", "lcov"],
       include: ["src/**/*.{ts,tsx}"],
       exclude: [
         "src/**/*.{test,spec}.{ts,tsx}",
@@ -69,7 +69,7 @@ export default defineConfig({
         "src/routeTree.gen.ts",
         "src/test-setup.ts",
       ],
-      thresholds: { lines: 0 },
+      thresholds: { lines: 13 },
     },
   },
 });

@@ -1,5 +1,8 @@
 # vyoh.gg
 
+[![CI](https://github.com/sergeantjonas/vyoh.gg/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sergeantjonas/vyoh.gg/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sergeantjonas/vyoh.gg/branch/main/graph/badge.svg)](https://codecov.io/gh/sergeantjonas/vyoh.gg)
+
 A personal cross-platform gaming dashboard. Aggregates League of Legends (Riot API) and Steam (Steam Web API) into a single view of my gaming life: match history, performance trends, playtime distribution, achievements.
 
 Built as a portfolio project — equal parts hobby and engineering case study. The README grows alongside the code.

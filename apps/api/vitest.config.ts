@@ -12,10 +12,10 @@ export default defineConfig({
     setupFiles: ["test/setup.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text-summary"],
+      reporter: ["text-summary", "lcov"],
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.spec.ts", "src/**/*.d.ts", "src/main.ts"],
-      thresholds: { lines: 0 },
+      thresholds: { lines: 55 },
     },
   },
 });
