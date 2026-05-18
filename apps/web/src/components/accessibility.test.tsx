@@ -44,6 +44,11 @@ vi.mock("@/identity/use-me", () => ({
 
 vi.mock("@/lol/champions/use-champions", () => ({
   useChampionName: () => (key: string) => key,
+  useChampions: () => ({ data: new Map() }),
+}));
+
+vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
+  ChampionSquareIcon: () => null,
 }));
 
 vi.mock("@/lol/matches/use-matches", () => ({

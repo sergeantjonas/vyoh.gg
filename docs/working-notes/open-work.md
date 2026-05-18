@@ -26,14 +26,14 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - **Wiki-image migration tail** — 12 files across matches (3), profile (2), champions (2), shared analytics + assets (3), live tab, and `components/game-icons.tsx` still resolve images client-side through `cdn.communitydragon.org`/`raw.communitydragon.org`; target end state is zero CDragon client usages, all routes through the wiki via `wikiEntryIconUrl()`. Direction confirmed 2026-05-17 during PN7; ability-icon URL pattern needs a spot check before migration starts. → [lol-image-pipeline.md § Wiki as canonical image source](lol/lol-image-pipeline.md#wiki-as-canonical-image-source-confirmed-direction-2026-05-17)
-- **Command palette expansion (Phases D–E)** — Phases A (provider lift + nav chip), B (match search mode), and C (parser + structured filtering + chips) shipped 2026-05-18. Next: champion + cross-account search (D), recent-commands persistence (E). → [command-palette.md](cross-cutting/command-palette.md)
+- **Command palette expansion (D2, E)** — Phases A (nav chip), B (match search), C (parser + chips), D1 (champion mode) shipped 2026-05-18. Next: D2 cross-account search, E recents persistence. → [command-palette.md](cross-cutting/command-palette.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
 
 ### Pre-deploy / admin
 
 - **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces (including the new status-page triggers below). Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](ops/owner-auth.md)
 - **Status page admin surface** — (a) surface Steam sync status/progress alongside the existing LoL sync rows; (b) add manually-triggerable LoL sync actions (patch note fetch, future: backfills) as explicit buttons/endpoints in the status page. Gate both behind GitHub OAuth (depends on the owner-auth item above) before exposing. → [owner-auth.md](ops/owner-auth.md)
-- **API ValidationPipe V1 → V3** — V1 wires the global `class-validator` pipe (no DTOs, contract enforcement only); V2 DTO-ifies GET string params (~6–10 controllers); V3 covers POST/PUT/PATCH bodies and sequences with owner-auth. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
+- **API ValidationPipe V3** — V1 (global pipe) + V2 (GET param DTOs) shipped 2026-05-18; V3 covers POST/PUT/PATCH bodies and sequences with owner-auth. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
 
 ## Adjacent maintenance (sub-session each)
 
@@ -45,8 +45,6 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
-- **Formatter consolidation F1** — extract 5 formatters (`formatDuration`/`formatHoursMinutes`/`formatPlaytime`/`formatGameTime`/`formatGold`) into `packages/shared/src/format.ts`, migrate 17 call sites; reconcile drift in the same change. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
-- **`excludeRemakes()` helper R1 + R2** — centralise the remake invariant (33 sites across api + web), split as R1 (helper + 9 recap/profile sites, updates repo-conventions example) and R2 (24 trends/champions/home/routes sites). → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
 - **Test coverage expansion C1 → W3** — coverage instrumentation, then shared package tests (zero today), then api `img/` gap, then targeted web component tests. 9 chunks, ~3-5 sessions. Highest leverage chunk is S2 (shared invariants + formatters). → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
 
 ### Ops

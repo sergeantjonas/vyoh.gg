@@ -6,13 +6,18 @@ import { CommandPalette } from "./command-palette";
 import { CommandPaletteProvider } from "./command-palette-context";
 import CommandPaletteDialog from "./command-palette-dialog";
 
+const { navigateSpy, pathnameRef } = vi.hoisted(() => ({
+  navigateSpy: vi.fn(),
+  pathnameRef: { current: "/" },
+}));
+
 vi.mock("@tanstack/react-router", () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateSpy,
   useRouterState: ({
     select,
   }: {
     select: (s: { location: { pathname: string } }) => unknown;
-  }) => select({ location: { pathname: "/" } }),
+  }) => select({ location: { pathname: pathnameRef.current } }),
 }));
 
 vi.mock("@/identity/use-me", () => ({
@@ -21,6 +26,19 @@ vi.mock("@/identity/use-me", () => ({
 
 vi.mock("@/lol/champions/use-champions", () => ({
   useChampionName: () => (key: string) => key,
+  useChampions: () => ({
+    data: new Map([
+      ["nidalee", { name: "Nidalee", description: "", roles: [] }],
+      ["ahri", { name: "Ahri", description: "", roles: [] }],
+      ["jarvaniv", { name: "Jarvan IV", description: "", roles: [] }],
+    ]),
+  }),
+}));
+
+vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
+  ChampionSquareIcon: ({ championName }: { championName: string }) => (
+    <span data-testid={`champ-icon-${championName}`} />
+  ),
 }));
 
 vi.mock("@/lol/matches/use-matches", () => ({
@@ -80,6 +98,54 @@ describe("CommandPaletteDialog", () => {
       screen.getByRole("button", { name: "Remove filter: with: nidalee" })
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: "Remove filter: wins" })).not.toBeNull();
+  });
+
+  it("does not show Champions group on freeText typing when no account is active", () => {
+    pathnameRef.current = "/";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "nid" },
+    });
+    expect(screen.queryByRole("option", { name: /Nidalee/ })).toBeNull();
+  });
+
+  it("renders Champions group filtered by typed name when account is active", () => {
+    pathnameRef.current = "/lol/foo";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "nid" },
+    });
+    expect(screen.getByRole("option", { name: /Nidalee/ })).not.toBeNull();
+    expect(screen.queryByRole("option", { name: /Ahri/ })).toBeNull();
+  });
+
+  it("matches multi-word champion display name via alias-stripped input", () => {
+    pathnameRef.current = "/lol/foo";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "jarvan" },
+    });
+    expect(screen.getByRole("option", { name: /Jarvan IV/ })).not.toBeNull();
+  });
+
+  it("selecting a champion navigates to /lol/<slug>/champions/<alias>", () => {
+    pathnameRef.current = "/lol/foo";
+    navigateSpy.mockClear();
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "nid" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: /Nidalee/ }));
+    expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/foo/champions/nidalee" });
+  });
+
+  it("hides Champions group when a structured verb is in play", () => {
+    pathnameRef.current = "/lol/foo";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "with:nidalee" },
+    });
+    expect(screen.queryByRole("option", { name: /^Nidalee$/ })).toBeNull();
   });
 
   it("clicking a chip removes that token from the input and widens results", () => {

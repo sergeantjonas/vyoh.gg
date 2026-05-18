@@ -13,7 +13,8 @@ import {
 import { DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/identity/use-me";
 import { cn } from "@/lib/utils";
-import { useChampionName } from "@/lol/champions/use-champions";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useChampionName, useChampions } from "@/lol/champions/use-champions";
 import { prefetchCachedMatches } from "@/lol/matches/use-matches";
 import { useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   type CachedMatchesResult,
   type MatchSummary,
+  excludeRemakes,
   parseMatchQuery,
 } from "@vyoh/shared";
 import { Crown, History, Home, Loader2, Swords, TrendingUp, User, X } from "lucide-react";
@@ -53,6 +55,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   );
 
   const championName = useChampionName();
+  const champions = useChampions();
   const [allMatches, setAllMatches] = useState<MatchSummary[] | null>(null);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [input, setInput] = useState("");
@@ -101,9 +104,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
       currentAccount.tagLine,
       undefined,
     ]);
-    setAllMatches(
-      data ? data.pages.flatMap((p) => p.matches).filter((m) => !m.remake) : null
-    );
+    setAllMatches(data ? excludeRemakes(data.pages.flatMap((p) => p.matches)) : null);
   }, [open, currentAccount, queryClient]);
 
   async function handleLoadMatches() {
@@ -118,9 +119,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
       currentAccount.tagLine,
       undefined,
     ]);
-    setAllMatches(
-      data ? data.pages.flatMap((p) => p.matches).filter((m) => !m.remake) : null
-    );
+    setAllMatches(data ? excludeRemakes(data.pages.flatMap((p) => p.matches)) : null);
     setLoadingMatches(false);
   }
 
@@ -153,6 +152,24 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const accounts = (me.data?.lol ?? []).filter((acc) =>
     passesFreeText(`${acc.gameName} ${acc.tagLine} ${acc.slug}`)
   );
+
+  const championList =
+    currentSlug && champions.data
+      ? (() => {
+          const entries: { alias: string; name: string; haystack: string }[] = [];
+          for (const [alias, info] of champions.data) {
+            entries.push({
+              alias,
+              name: info.name,
+              haystack: `${info.name.toLowerCase()} ${alias}`,
+            });
+          }
+          return entries
+            .filter((c) => passesFreeText(c.haystack))
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .slice(0, 6);
+        })()
+      : [];
 
   const currentTabs = currentSlug
     ? [
@@ -250,6 +267,27 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             ))}
           </CommandGroup>
         )}
+
+        {showNonMatchGroups &&
+          currentSlug &&
+          parsed.freeText &&
+          championList.length > 0 && (
+            <CommandGroup heading="Champions">
+              {championList.map((c) => (
+                <CommandItem
+                  key={c.alias}
+                  value={`${c.alias} ${c.name.toLowerCase()}`}
+                  onSelect={() => go(`/lol/${currentSlug}/champions/${c.alias}`)}
+                >
+                  <ChampionSquareIcon
+                    championName={c.alias}
+                    className="size-5 rounded-sm"
+                  />
+                  <span>{c.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
 
         {currentAccount && (
           <CommandGroup heading="Matches">
