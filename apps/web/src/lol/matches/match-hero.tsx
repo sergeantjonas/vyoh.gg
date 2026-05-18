@@ -34,7 +34,7 @@ function LpBadge({ delta }: { delta: number }) {
 export function MatchHero({
   summary,
   lpDelta,
-}: { summary: MatchSummary; lpDelta?: number }) {
+}: { summary: MatchSummary; lpDelta?: number | undefined }) {
   const championName = useChampionName();
   const { originRectRef, setOriginRect } = useActiveMatch();
   const reduced = useReducedMotion();

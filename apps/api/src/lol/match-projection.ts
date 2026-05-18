@@ -60,10 +60,14 @@ export function projectMatchForStorage(
                   ]
                 : [],
           },
-          challenges:
-            p.challenges !== undefined
-              ? { killParticipation: p.challenges.killParticipation }
-              : undefined,
+          ...(p.challenges !== undefined
+            ? {
+                challenges:
+                  p.challenges.killParticipation !== undefined
+                    ? { killParticipation: p.challenges.killParticipation }
+                    : {},
+              }
+            : {}),
         };
         return lean;
       }),

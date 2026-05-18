@@ -84,7 +84,10 @@ function MatchesPage() {
                 onClick={() =>
                   navigate({
                     to: ".",
-                    search: (prev) => ({ ...prev, queue: undefined }),
+                    search: (prev) => {
+                      const { queue: _, ...rest } = prev;
+                      return rest;
+                    },
                   })
                 }
               >

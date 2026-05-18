@@ -150,43 +150,43 @@ export function OrbMark({ className }: OrbMarkProps) {
         aria-hidden="true"
         className="absolute inset-[-32%] rounded-full bg-[radial-gradient(circle,rgba(56,118,255,0.7)_0%,rgba(56,118,255,0)_65%)] blur-2xl mix-blend-screen"
         animate={outerHalo}
-        transition={
-          reducedMotion
-            ? undefined
-            : {
+        {...(!reducedMotion
+          ? {
+              transition: {
                 duration: HALO_OUTER_DURATION,
                 repeat: Number.POSITIVE_INFINITY,
                 ease: "easeInOut",
-              }
-        }
+              },
+            }
+          : {})}
       />
       <m.div
         aria-hidden="true"
         className="absolute inset-[-14%] rounded-full bg-[radial-gradient(circle,rgba(125,211,252,0.65)_0%,rgba(125,211,252,0)_60%)] blur-xl mix-blend-screen"
         animate={innerHalo}
-        transition={
-          reducedMotion
-            ? undefined
-            : {
+        {...(!reducedMotion
+          ? {
+              transition: {
                 duration: HALO_INNER_DURATION,
                 repeat: Number.POSITIVE_INFINITY,
                 ease: "easeInOut",
-              }
-        }
+              },
+            }
+          : {})}
       />
       <m.div
         aria-hidden="true"
         className="absolute inset-[30%] rounded-full bg-[radial-gradient(circle,rgba(67,56,202,0.45)_0%,rgba(56,118,255,0.18)_40%,rgba(56,118,255,0)_62%)] blur-lg mix-blend-screen"
         animate={core}
-        transition={
-          reducedMotion
-            ? undefined
-            : {
+        {...(!reducedMotion
+          ? {
+              transition: {
                 duration: CORE_PULSE_DURATION,
                 repeat: Number.POSITIVE_INFINITY,
                 ease: "easeInOut",
-              }
-        }
+              },
+            }
+          : {})}
       />
       <img
         src={ORB_SRC}
@@ -326,15 +326,15 @@ export function OrbMark({ className }: OrbMarkProps) {
               ? { rotate: p.angle }
               : { rotate: p.angle + (p.reverse ? -360 : 360) }
           }
-          transition={
-            reducedMotion
-              ? undefined
-              : {
+          {...(!reducedMotion
+            ? {
+                transition: {
                   duration: p.duration,
                   repeat: Number.POSITIVE_INFINITY,
                   ease: "linear",
-                }
-          }
+                },
+              }
+            : {})}
         >
           <m.div
             className="absolute left-1/2 rounded-full mix-blend-screen"
@@ -347,20 +347,16 @@ export function OrbMark({ className }: OrbMarkProps) {
               background: p.color,
               boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 6}px ${p.color}`,
             }}
-            animate={
-              reducedMotion
-                ? undefined
-                : { opacity: [0.55, 1, 0.55], scale: [0.7, 1.15, 0.7] }
-            }
-            transition={
-              reducedMotion
-                ? undefined
-                : {
+            {...(!reducedMotion
+              ? {
+                  animate: { opacity: [0.55, 1, 0.55], scale: [0.7, 1.15, 0.7] },
+                  transition: {
                     duration: p.duration / 4,
                     repeat: Number.POSITIVE_INFINITY,
                     ease: "easeInOut",
-                  }
-            }
+                  },
+                }
+              : {})}
           />
         </m.div>
       ))}

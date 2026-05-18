@@ -72,7 +72,7 @@ export class LolService {
     const matchIds = await this.getMatchIds(summoner.puuid, regional, {
       start,
       count,
-      queue,
+      ...(queue !== undefined ? { queue } : {}),
     });
 
     // Match-list path is user-driven (fresh page view). Eager-fetch
@@ -135,12 +135,12 @@ export class LolService {
       }) => ({
         ...rest,
         playedAt: playedAt.toISOString(),
-        snapshotTier: snapshotTier ?? undefined,
-        snapshotRank: snapshotRank ?? undefined,
-        snapshotLp: snapshotLp ?? undefined,
-        snapshotTierBefore: snapshotTierBefore ?? undefined,
-        snapshotRankBefore: snapshotRankBefore ?? undefined,
-        snapshotLpBefore: snapshotLpBefore ?? undefined,
+        ...(snapshotTier != null ? { snapshotTier } : {}),
+        ...(snapshotRank != null ? { snapshotRank } : {}),
+        ...(snapshotLp != null ? { snapshotLp } : {}),
+        ...(snapshotTierBefore != null ? { snapshotTierBefore } : {}),
+        ...(snapshotRankBefore != null ? { snapshotRankBefore } : {}),
+        ...(snapshotLpBefore != null ? { snapshotLpBefore } : {}),
         laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
       })
     );
@@ -232,12 +232,12 @@ export class LolService {
       }) => ({
         ...rest,
         playedAt: playedAt.toISOString(),
-        snapshotTier: snapshotTier ?? undefined,
-        snapshotRank: snapshotRank ?? undefined,
-        snapshotLp: snapshotLp ?? undefined,
-        snapshotTierBefore: snapshotTierBefore ?? undefined,
-        snapshotRankBefore: snapshotRankBefore ?? undefined,
-        snapshotLpBefore: snapshotLpBefore ?? undefined,
+        ...(snapshotTier != null ? { snapshotTier } : {}),
+        ...(snapshotRank != null ? { snapshotRank } : {}),
+        ...(snapshotLp != null ? { snapshotLp } : {}),
+        ...(snapshotTierBefore != null ? { snapshotTierBefore } : {}),
+        ...(snapshotRankBefore != null ? { snapshotRankBefore } : {}),
+        ...(snapshotLpBefore != null ? { snapshotLpBefore } : {}),
         laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
       })
     );
@@ -894,12 +894,12 @@ export class LolService {
           items,
           // Prisma requires DbNull (not JS null) to store a SQL NULL in a Json? column.
           laneOpponent: (laneOpponent ?? Prisma.DbNull) as Prisma.InputJsonValue,
-          snapshotTier,
-          snapshotRank,
-          snapshotLp,
-          snapshotTierBefore,
-          snapshotRankBefore,
-          snapshotLpBefore,
+          snapshotTier: snapshotTier ?? null,
+          snapshotRank: snapshotRank ?? null,
+          snapshotLp: snapshotLp ?? null,
+          snapshotTierBefore: snapshotTierBefore ?? null,
+          snapshotRankBefore: snapshotRankBefore ?? null,
+          snapshotLpBefore: snapshotLpBefore ?? null,
         };
 
         await Promise.all([

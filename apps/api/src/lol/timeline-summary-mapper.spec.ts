@@ -34,7 +34,9 @@ function buildTimeline(args: {
     },
     info: {
       frameInterval: 60_000,
-      participants: args.infoParticipants,
+      ...(args.infoParticipants !== undefined
+        ? { participants: args.infoParticipants }
+        : {}),
       frames: (args.frames ?? []).map((f) => ({
         timestamp: f.timestamp,
         participantFrames: f.participantFrames ?? {},

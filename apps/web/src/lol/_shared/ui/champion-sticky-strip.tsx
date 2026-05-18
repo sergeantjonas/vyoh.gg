@@ -1,6 +1,6 @@
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
-import { AnimatePresence, m } from "motion/react";
-import type { CSSProperties, ReactNode } from "react";
+import { AnimatePresence, type MotionStyle, m } from "motion/react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -36,7 +36,7 @@ export function ChampionStickyStrip({
             {
               "--theme-color": championTheme(championAlias).dominantHex,
               top,
-            } as CSSProperties
+            } as MotionStyle
           }
           className="fixed inset-x-0 z-40 bg-background/50 backdrop-blur-md"
         >

@@ -5,7 +5,7 @@ export interface RitualSignal {
   id: string;
   label: string;
   verdict: ReactNode;
-  detail?: string;
+  detail?: string | undefined;
   tone: "neutral" | "positive" | "warning";
 }
 

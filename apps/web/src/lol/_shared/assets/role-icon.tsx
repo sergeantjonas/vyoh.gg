@@ -44,8 +44,8 @@ export function rolePositionIconUrl(position: RolePosition): string {
 
 interface RoleIconProps {
   position: RolePosition;
-  className?: string;
-  title?: string;
+  className?: string | undefined;
+  title?: string | undefined;
 }
 
 // Hand-rolled fallback used only when the proxy SVG fails to load.

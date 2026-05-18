@@ -7,7 +7,7 @@ export interface ConclusionCardProps extends Omit<CardShellProps, "indicator"> {
   // co-locate a markdown copy alongside the rendered string), but unused by
   // the renderer — kept off CardShell since it's LoL-trend-specific.
   verdictMarkdown?: string;
-  prescriptionMarkdown?: string;
+  prescriptionMarkdown?: string | undefined;
 }
 
 // LoL-trends cards make confidence-weighted claims — N games is a statistical

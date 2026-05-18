@@ -54,7 +54,7 @@ export function SeriousQueuesSettings() {
           <m.div
             initial={reduced ? false : { opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={reduced ? undefined : { opacity: 0, y: -4 }}
+            {...(!reduced ? { exit: { opacity: 0, y: -4 } } : {})}
             transition={{ duration: 0.15, ease: "easeOut" }}
             className="absolute right-0 top-full z-50 mt-2 w-72 rounded-lg border bg-popover/95 p-3 shadow-xl backdrop-blur-md"
           >

@@ -11,7 +11,7 @@ function PipTooltip({
   championName,
 }: {
   match: MatchSummary;
-  lpDelta?: number;
+  lpDelta?: number | undefined;
   championName: string;
 }) {
   const kda =

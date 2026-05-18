@@ -34,7 +34,10 @@ export function QueueFilter() {
         const nextQueue = next === ALL_VALUE ? undefined : Number(next);
         navigate({
           to: ".",
-          search: (prev) => ({ ...prev, queue: nextQueue }),
+          search: (prev) => {
+            const { queue: _, ...rest } = prev;
+            return nextQueue !== undefined ? { ...rest, queue: nextQueue } : rest;
+          },
         });
       }}
     >

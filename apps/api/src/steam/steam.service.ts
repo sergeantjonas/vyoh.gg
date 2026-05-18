@@ -221,15 +221,17 @@ function mapPlayerToSummary(
     personaName: player.personaname,
     profileUrl: player.profileurl,
     avatarUrl: player.avatarfull,
-    animatedAvatarUrl: animatedAvatarPath
-      ? `${STEAM_COMMUNITY_ITEMS_CDN}${animatedAvatarPath}`
-      : undefined,
-    profileBackgroundUrl: backgroundPath
-      ? `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundPath}`
-      : undefined,
-    profileBackgroundVideoUrl: backgroundVideoPath
-      ? `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundVideoPath}`
-      : undefined,
+    ...(animatedAvatarPath
+      ? { animatedAvatarUrl: `${STEAM_COMMUNITY_ITEMS_CDN}${animatedAvatarPath}` }
+      : {}),
+    ...(backgroundPath
+      ? { profileBackgroundUrl: `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundPath}` }
+      : {}),
+    ...(backgroundVideoPath
+      ? {
+          profileBackgroundVideoUrl: `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundVideoPath}`,
+        }
+      : {}),
     personaState: PERSONA_STATE[player.personastate],
     currentGame,
     privacyPrereqs: {

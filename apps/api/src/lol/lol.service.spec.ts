@@ -1069,9 +1069,6 @@ describe("LolService.syncAccountHistorical", () => {
     expect(prisma.match.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
-          snapshotTier: undefined,
-          snapshotRank: undefined,
-          snapshotLp: undefined,
           snapshotTierBefore: "GOLD",
           snapshotRankBefore: "I",
           snapshotLpBefore: 75,

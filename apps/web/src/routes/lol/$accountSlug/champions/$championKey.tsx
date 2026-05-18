@@ -32,7 +32,7 @@ import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
-import { m } from "motion/react";
+import { type MotionStyle, m } from "motion/react";
 import { useMemo, useState } from "react";
 import {
   Line,
@@ -217,7 +217,7 @@ function ChampionDetailPage() {
         >
           <m.div
             layoutId={`champ-card-${championKey}`}
-            style={championCardStyle(alias)}
+            style={championCardStyle(alias) as unknown as MotionStyle}
             className="relative isolate h-52 overflow-hidden rounded-lg border"
           >
             <ChampionCardChrome champion={alias} />

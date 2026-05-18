@@ -11,7 +11,7 @@ const TOOLTIP_CONTENT_CLASS =
 interface RarityPercentProps {
   percent: number;
   /** Optional prefix text rendered inline before the percentage (e.g. "Very rare · "). */
-  prefix?: string;
+  prefix?: string | undefined;
   className?: string;
 }
 

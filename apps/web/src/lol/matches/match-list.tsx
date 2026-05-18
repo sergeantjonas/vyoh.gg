@@ -38,10 +38,10 @@ export function MatchList({
 }: {
   matches: MatchSummary[];
   accountSlug: string;
-  onCardHover?: (champion: string) => void;
-  hasNextPage?: boolean;
-  fetchNextPage?: () => void;
-  isFetchingNextPage?: boolean;
+  onCardHover?: ((champion: string) => void) | undefined;
+  hasNextPage?: boolean | undefined;
+  fetchNextPage?: (() => void) | undefined;
+  isFetchingNextPage?: boolean | undefined;
 }) {
   const championName = useChampionName();
   const showPerf = usePerfFlag();
@@ -259,7 +259,7 @@ export function MatchList({
             {match && !heldDuringSettle ? (
               <m.div
                 initial={innerY ? { y: innerY.initial } : false}
-                animate={innerY ? { y: 0 } : undefined}
+                {...(innerY ? { animate: { y: 0 } } : {})}
                 transition={
                   innerY?.spring
                     ? { type: "spring", stiffness: 340, damping: 28 }

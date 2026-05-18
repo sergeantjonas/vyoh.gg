@@ -122,7 +122,7 @@ function KillStrip({
 }: {
   kills: MatchTimelineKill[];
   durationMs: number;
-  myParticipantId?: number;
+  myParticipantId?: number | undefined;
   championByPid: Map<number, string>;
 }) {
   // Jitter kills that fall within 2.5% of game time of the preceding kill,
@@ -247,7 +247,7 @@ export function MatchEventTimelines({
     durationSec: number;
     participants: ParticipantDetail[];
   };
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
   const championName = useChampionName();

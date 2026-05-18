@@ -7,7 +7,7 @@ import { ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 interface WishlistSearch {
-  appid?: number;
+  appid?: number | undefined;
 }
 
 export const Route = createFileRoute("/steam/wishlist")({

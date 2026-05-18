@@ -163,7 +163,7 @@ export function ChampionPoolDrift({
 }: {
   matches: MatchSummary[];
   now?: number;
-  role?: RolePosition;
+  role?: RolePosition | undefined;
 }) {
   // The route already pre-filters by role, but accept the same filter here
   // so the card stays self-contained when reused from a page that hands it

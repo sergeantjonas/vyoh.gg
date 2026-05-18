@@ -127,7 +127,7 @@ export function MatchGoldLead({
   myPuuid,
 }: {
   detail: { matchId: string; participants: ParticipantDetail[] };
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
   const reduced = useReducedMotion();

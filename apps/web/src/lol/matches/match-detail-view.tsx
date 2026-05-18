@@ -566,10 +566,10 @@ function ParticipantRow({
   accountSlug,
 }: {
   p: ParticipantDetail;
-  isMe?: boolean;
+  isMe?: boolean | undefined;
   maxDamage: number;
   maxGold: number;
-  badge?: { label: string; tip: string };
+  badge?: { label: string; tip: string } | undefined;
   accountSlug: string;
 }) {
   const championName = useChampionName();
@@ -731,7 +731,7 @@ function TeamBlock({
 }: {
   title: string;
   participants: ParticipantDetail[];
-  myPuuid?: string;
+  myPuuid?: string | undefined;
   maxDamage: number;
   maxGold: number;
   badges: Map<string, { label: string; tip: string }>;
@@ -799,7 +799,7 @@ export function MatchRecapTab({
   accountSlug,
 }: {
   detail: MatchDetail;
-  myPuuid?: string;
+  myPuuid?: string | undefined;
   accountSlug: string;
 }) {
   const reduced = useReducedMotion();
@@ -857,7 +857,7 @@ export function MatchYourGameTab({
   myPuuid,
 }: {
   detail: MatchDetail;
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   const reduced = useReducedMotion();
   const { activeId: scrollspyId, refFor, navigateTo } = useScrollspy(YOUR_GAME_IDS);
@@ -921,7 +921,7 @@ export function MatchTimelineTab({
   myPuuid,
 }: {
   detail: MatchDetail;
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   return (
     <div className="flex flex-col gap-6">

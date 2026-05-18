@@ -621,17 +621,21 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
               />
               {streak &&
-                visiblePoints[streak.startIdx] &&
-                visiblePoints[streak.endIdx] && (
-                  <ReferenceArea
-                    x1={visiblePoints[streak.startIdx]?.t}
-                    x2={visiblePoints[streak.endIdx]?.t}
-                    fill={streak.type === "win" ? "#34d399" : "#f87171"}
-                    fillOpacity={0.08}
-                    stroke="none"
-                    ifOverflow="hidden"
-                  />
-                )}
+                (() => {
+                  const pt1 = visiblePoints[streak.startIdx];
+                  const pt2 = visiblePoints[streak.endIdx];
+                  if (!pt1 || !pt2) return null;
+                  return (
+                    <ReferenceArea
+                      x1={pt1.t}
+                      x2={pt2.t}
+                      fill={streak.type === "win" ? "#34d399" : "#f87171"}
+                      fillOpacity={0.08}
+                      stroke="none"
+                      ifOverflow="hidden"
+                    />
+                  );
+                })()}
               {patchBoundaries.map((b) => (
                 <ReferenceLine
                   key={`patch-${b.fromPatch}-${b.toPatch}`}

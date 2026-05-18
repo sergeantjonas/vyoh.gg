@@ -43,9 +43,9 @@ export function MatchRow({
   match: MatchSummary;
   accountSlug: string;
   championDisplayName: string;
-  onCardHover?: (champion: string) => void;
-  isNew?: boolean;
-  lpDelta?: number;
+  onCardHover?: ((champion: string) => void) | undefined;
+  isNew?: boolean | undefined;
+  lpDelta?: number | undefined;
 }) {
   const { setActiveMatch, saveListScroll, originRectRef, setOriginRect } =
     useActiveMatch();

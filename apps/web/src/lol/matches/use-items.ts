@@ -17,8 +17,8 @@ interface RawItem {
 
 export interface Item {
   name: string;
-  description?: string;
-  priceTotal?: number;
+  description?: string | undefined;
+  priceTotal?: number | undefined;
   iconUrl: string;
   from: number[];
   categories: string[];

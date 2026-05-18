@@ -38,9 +38,8 @@ export const Route = createFileRoute("/lol/$accountSlug/champions/")({
   component: ChampionsPage,
   validateSearch: (search: Record<string, unknown>): ChampionsSearch => {
     const raw = search.role;
-    return {
-      role: typeof raw === "string" && isRolePosition(raw) ? raw : undefined,
-    };
+    const role = typeof raw === "string" && isRolePosition(raw) ? raw : undefined;
+    return role !== undefined ? { role } : {};
   },
 });
 
@@ -121,7 +120,13 @@ function ChampionsPage() {
   const setHoveredChampion = useHoverChampion();
 
   const setRole = (next: RolePosition | undefined) =>
-    navigate({ to: ".", search: (prev) => ({ ...prev, role: next }) });
+    navigate({
+      to: ".",
+      search: (prev) => {
+        const { role: _, ...rest } = prev;
+        return next !== undefined ? { ...rest, role: next } : rest;
+      },
+    });
 
   return (
     <div className="flex flex-col gap-3">

@@ -11,7 +11,7 @@ export function EmptyState({
 }: {
   illustration: ReactNode;
   title: string;
-  hint?: string;
+  hint?: string | undefined;
   action?: ReactNode;
   className?: string;
 }) {

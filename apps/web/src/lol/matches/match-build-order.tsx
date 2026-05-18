@@ -203,7 +203,7 @@ export function MatchBuildOrder({
   myPuuid,
 }: {
   detail: { matchId: string; queueType: string; participants: ParticipantDetail[] };
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
   const items = useItems();

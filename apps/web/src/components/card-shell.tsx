@@ -19,7 +19,7 @@ export interface CardShellProps {
   indicator?: ReactNode;
   verdict: string;
   evidence?: ReactNode;
-  prescription?: string;
+  prescription?: string | undefined;
   className?: string;
   /** When true, renders the verdict in muted style — use for insufficient-data empty states. */
   empty?: boolean;
@@ -50,8 +50,9 @@ export function CardShell({
         <m.p
           key={verdict}
           initial={reduced ? false : { opacity: 0, y: 4 }}
-          animate={reduced ? undefined : { opacity: 1, y: 0 }}
-          exit={reduced ? undefined : { opacity: 0, y: -4 }}
+          {...(!reduced
+            ? { animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } }
+            : {})}
           transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
           className={cn(
             "text-base font-semibold leading-snug",

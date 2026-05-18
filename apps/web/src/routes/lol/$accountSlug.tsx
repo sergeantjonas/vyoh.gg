@@ -92,13 +92,17 @@ function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
 export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
   notFoundComponent: NotFound,
-  validateSearch: (search: Record<string, unknown>): AccountSearch => ({
-    queue: typeof search.queue === "number" ? search.queue : undefined,
-    count:
+  validateSearch: (search: Record<string, unknown>): AccountSearch => {
+    const queue = typeof search.queue === "number" ? search.queue : undefined;
+    const count =
       typeof search.count === "number" && search.count > 0
         ? Math.min(search.count, MAX_COUNT)
-        : undefined,
-  }),
+        : undefined;
+    return {
+      ...(queue !== undefined && { queue }),
+      ...(count !== undefined && { count }),
+    };
+  },
 });
 
 function AccountLayout() {
@@ -134,10 +138,10 @@ function AccountLayout() {
     (next: number) => {
       navigate({
         to: ".",
-        search: (prev: AccountSearch) => ({
-          ...prev,
-          count: next === DEFAULT_COUNT ? undefined : next,
-        }),
+        search: (prev: AccountSearch) => {
+          const { count: _, ...rest } = prev;
+          return next === DEFAULT_COUNT ? rest : { ...rest, count: next };
+        },
       });
     },
     [navigate]

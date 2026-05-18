@@ -27,7 +27,7 @@ function formatUnlockedDate(iso: string): string {
 
 interface AchievementPanelProps {
   appid: number;
-  highlightTarget?: string;
+  highlightTarget?: string | undefined;
 }
 
 export function AchievementPanel({ appid, highlightTarget }: AchievementPanelProps) {

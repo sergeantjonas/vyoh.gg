@@ -28,7 +28,7 @@ type SectionShellProps = {
   children: ReactNode;
   pathname: string;
   slideDirection: number;
-  slideTransitionOverride?: SlideTransitionOverride;
+  slideTransitionOverride?: SlideTransitionOverride | undefined;
   // External ref to the sticky <header>; merged with the shell's internal ref.
   // Consumers who need DOM access (e.g. LoL writing `--account-header-h`) pass
   // a ref here OR use `onHeaderRect` for the callback flavour.

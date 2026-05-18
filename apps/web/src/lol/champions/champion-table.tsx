@@ -9,7 +9,7 @@ import {
 } from "@/lol/champions/champion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
-import { type Variants, m, useReducedMotion } from "motion/react";
+import { type MotionStyle, type Variants, m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
@@ -63,7 +63,7 @@ export function ChampionTable({
   stats: ChampionStats[];
   sort: ChampionSortOption;
   accountSlug: string;
-  onCardHover?: (champion: string) => void;
+  onCardHover?: ((champion: string) => void) | undefined;
 }) {
   const championName = useChampionName();
   const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
@@ -106,7 +106,7 @@ export function ChampionTable({
               >
                 <m.div
                   layoutId={layoutId}
-                  style={championCardStyle(s.champion)}
+                  style={championCardStyle(s.champion) as unknown as MotionStyle}
                   className={championCardClassName}
                 >
                   <ChampionCardChrome champion={s.champion} />

@@ -43,7 +43,7 @@ function Cell({
   filled: boolean;
   skillIdx: number;
   level: number;
-  ts?: number;
+  ts?: number | undefined;
 }) {
   const cell = (
     <span
@@ -84,7 +84,7 @@ function SpellRowLabel({
   colorClass,
 }: {
   label: string;
-  spell?: SpellInfo;
+  spell?: SpellInfo | undefined;
   colorClass: string;
 }) {
   const [failed, setFailed] = useState(false);
@@ -137,7 +137,7 @@ export function MatchSkillOrder({
   myPuuid,
 }: {
   detail: { matchId: string; participants: ParticipantDetail[] };
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
   const reduced = useReducedMotion();

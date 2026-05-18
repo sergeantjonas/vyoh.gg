@@ -517,7 +517,7 @@ interface MatchMapOverlayProps {
     durationSec: number;
     participants: ParticipantDetail[];
   };
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }
 
 export default function MatchMapOverlay({

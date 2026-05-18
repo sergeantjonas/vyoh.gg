@@ -129,7 +129,7 @@ export function MatchLanePhase({
   myPuuid,
 }: {
   detail: { matchId: string; durationSec: number; participants: ParticipantDetail[] };
-  myPuuid?: string;
+  myPuuid?: string | undefined;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
   const reduced = useReducedMotion();

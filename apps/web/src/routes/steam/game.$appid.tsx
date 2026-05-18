@@ -27,7 +27,7 @@ import { formatPlaytime } from "@vyoh/shared";
 import { useState } from "react";
 
 interface SteamGameSearch {
-  ach?: string;
+  ach?: string | undefined;
 }
 
 export const Route = createFileRoute("/steam/game/$appid")({

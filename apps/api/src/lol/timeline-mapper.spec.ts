@@ -41,7 +41,9 @@ function buildTimeline(overrides: {
     },
     info: {
       frameInterval: overrides.frameInterval ?? 60_000,
-      participants: overrides.infoParticipants,
+      ...(overrides.infoParticipants !== undefined
+        ? { participants: overrides.infoParticipants }
+        : {}),
       frames: (overrides.frames ?? []).map((f) => ({
         timestamp: f.timestamp,
         participantFrames: f.participantFrames ?? {},
