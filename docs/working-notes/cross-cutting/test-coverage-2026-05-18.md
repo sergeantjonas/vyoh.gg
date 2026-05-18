@@ -141,6 +141,42 @@ First chunk of a follow-on "increase coverage" arc focused on direct unit tests 
 
 Web lines coverage **13% → 17.23%** (+4.23pp); web threshold bumped 13 → 16 to ratchet the floor.
 
+### H2 — Champion alias/URL helpers + new-match notice hook (shipped 2026-05-19)
+
+Four pure-function modules covered after triaging out targets that already had complete tests (`champion-pool-drift.tsx`, `use-matches.ts`) or were too DOM-coupled to harvest cheaply (`useScrollspy` with `getBoundingClientRect`, `champion-table.tsx` and `match-row.tsx` which need full component-render scaffolding):
+
+- `apps/web/src/lol/champions/champion-direction.test.ts` — `shouldFlipChampion` (FACING_RIGHT set, default flip, Swarm-prefix normalization).
+- `apps/web/src/lol/_shared/assets/champion-icon.test.ts` — 7 URL builders + `normalizeChampionAlias` (proxy path, lowercasing, every champion variant).
+- `apps/web/src/lol/_shared/assets/champion-theme.test.ts` — `championTheme` (known champion shape, Strawberry-prefix lookup, fallback).
+- `apps/web/src/lol/profile/use-new-match-notice.test.ts` — `useNewMatchNotice` hook with fake timers (initial-transition suppression, 6s TTL, idempotent matchId, undefined reset).
+
+Web lines coverage **17.23% → 17.56%** (+0.33pp — modest, the remaining pure helpers were small).
+
+### H3 — Lib utilities + command-palette matcher (shipped 2026-05-19)
+
+Five pure-function modules:
+
+- `apps/web/src/lib/http-error.test.ts` — `HttpError` (explicit message + generic fallback, `instanceof Error`).
+- `apps/web/src/lib/utils.test.ts` — `cn()` (clsx + tailwind-merge semantics).
+- `apps/web/src/lib/use-perf-flag.test.ts` — `usePerfFlag` (URL param activates + persists, localStorage round-trip).
+- `apps/web/src/lib/web-vitals.test.ts` — pub/sub bus with mocked `web-vitals` module (broadcast, late-subscriber replay, unsubscribe, single-init guarantee, console reporter).
+- `apps/web/src/components/command-palette-matcher.test.ts` — 16 cases on `matchesQuery` covering every filter branch (outcome, withChampions, vsChampions, queues, roles, patches, since/until, kdaGt/Lt strict inequality, freeText haystack).
+
+Web lines coverage **17.56% → 18.45%** (+0.89pp); web threshold bumped 16 → 18.
+
+### H4 — API service-layer pure functions (shipped 2026-05-19)
+
+Pivoted from web to API for the bigger LOC blocks:
+
+- `apps/api/src/lol/match-projection.spec.ts` — 10 cases on `projectMatchForStorage` (owner vs non-owner branch, perks-tree shrinking to keystone-only, killParticipation preservation/elision, multi-owner duos).
+- `apps/api/src/riot/riot.error.spec.ts` — `RiotError` + `RateLimiterTimeoutError` (synthesized message + `regional:family` path).
+- `apps/api/src/lol/account-params.dto.spec.ts` — class-validator coverage (platform whitelist, unicode names, 3–32 length, allowed-char regex, 3–5 alphanumeric tagLine + `ChampionAccountParamsDto` inheritance).
+- `apps/api/src/og/og-params.dto.spec.ts` — slug + matchId regex.
+
+API lines coverage **54.33% → 57.56%** (+3.23pp); api threshold bumped 55 → 57.
+
+**Aggregate after H1–H4:** web 13% → 18.45% lines (+5.45pp across 22 new test files / ~95 new cases); api 54.33% → 57.56% lines (+3.23pp across 4 new files); shared still 100%.
+
 ## Sequencing
 
 1. **C1** first so every subsequent chunk has measurable signal in `coverage:cc` output.
