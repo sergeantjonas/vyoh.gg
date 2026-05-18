@@ -8,6 +8,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/identity/use-me";
 import { cn } from "@/lib/utils";
 import { useChampionName } from "@/lol/champions/use-champions";
@@ -93,6 +94,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <DialogTitle className="sr-only">Command palette</DialogTitle>
       <CommandInput placeholder="Type a command or search…" />
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>

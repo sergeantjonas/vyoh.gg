@@ -3,8 +3,8 @@ import { useSectionShellState } from "@/_shared/section-layout/section-shell-con
 import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
 import { NotFound } from "@/components/not-found";
 import { useMe } from "@/identity/use-me";
-import { mainScrollRef } from "@/lib/scroll-container";
 import { toastMessage } from "@/lib/toast";
+import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
@@ -48,7 +48,6 @@ import {
   type ComponentType,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -191,16 +190,7 @@ function AccountLayout() {
   // we left behind — so clicking Trends from a deep position in /matches
   // dumps you partway down the (much shorter) Trends page. Scroll to top
   // on every transition except the one MatchList still owns.
-  const prevPathnameRef = useRef<string | null>(null);
-  useLayoutEffect(() => {
-    const prev = prevPathnameRef.current;
-    prevPathnameRef.current = pathname;
-    if (prev === null || prev === pathname) return;
-    const isReturnFromDetail =
-      prev.startsWith(matchesPathPrefix) && pathname === matchesPath;
-    if (isReturnFromDetail) return;
-    mainScrollRef.current?.scrollTo(0, 0);
-  }, [pathname, matchesPath, matchesPathPrefix]);
+  useScrollResetOnNav(pathname, matchesPathPrefix, matchesPath);
 
   const prefersReducedMotion = useReducedMotion();
 
