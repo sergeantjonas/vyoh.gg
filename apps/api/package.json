@@ -43,7 +43,7 @@
     "@swc/cli": "^0.5.0",
     "@swc/core": "^1.10.7",
     "@types/express": "^5.0.0",
-    "@types/node": "^24.0.0",
+    "@types/node": "^24.12.2",
     "@types/pg": "^8.20.0",
     "prisma": "^7.8.0",
     "tsx": "^4.21.0",
