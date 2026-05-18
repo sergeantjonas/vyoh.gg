@@ -126,6 +126,21 @@ One new spec; `orb-mark.tsx` triaged out after LSP read showed it's pure animati
 
 Final web totals: 100 → 127 tests (+27) across 14 → 20 files. Validated with `pnpm verify:cc` (4/4 packages green).
 
+### H1 — Web pure-function harvest (shipped 2026-05-19)
+
+First chunk of a follow-on "increase coverage" arc focused on direct unit tests of pure functions (no component rendering). Two originally proposed targets (`patch-version.ts`, `command-palette-recents.ts`) were already covered; the chunk landed eight new specs instead:
+
+- `apps/web/src/lol/profile/use-habits-stats.test.ts` — 11 cases across `computeHourDayStats`, `computeTiltStats`, `computeGameLengthStats`, `computePoolStats`, `computeHabitsStats` (Mon-first day mapping, remake exclusion, tilt-pair sort/exclude semantics, 25/35-min bucket boundaries, 30-day pool window).
+- `apps/web/src/lol/champions/champion-detail-stats.test.ts` — 9 cases across `computeChampionDetail` + `buildWinRateSeries` (perfect-KDA branch, dominant-role pick, MIDDLE fallback, chronological matchHistory).
+- `apps/web/src/lol/matches/use-lp-delta.test.ts` — 5 cases on `computeLpDeltaMap` (missing-half skip, cross-tier promo, MASTER+ no-division branch).
+- `apps/web/src/lol/_shared/analytics/role-baselines.test.ts` — 6 cases on `isRole`, `aggregateByRole`, `primaryRole` (remake + non-positional drops).
+- `apps/web/src/lol/_shared/queue/queue-color.test.ts` — 4 cases (anchor map, stable hash for unknown queues).
+- `apps/web/src/lol/champions/patch-drift.test.ts` — 9 cases covering every gate (MIN_PATCH_GAMES, MIN_CURRENT_CHAMP_GAMES, MIN_PREVIOUS_CHAMP_GAMES, MIN_RELATIVE_CHANGE, MIN_PP_CHANGE) + up/down direction + remake exclusion.
+- `apps/web/src/lol/champions/weakest-matchup.test.ts` — 4 cases on `buildWeakestMatchup` (sample-size gate, baseline-vs-eligible delta semantics).
+- `apps/web/src/lol/profile/pregame-composite.test.ts` — 5 cases covering all three confidence bands (empty/low/directional/cleared) and signed-band formatting.
+
+Web lines coverage **13% → 17.23%** (+4.23pp); web threshold bumped 13 → 16 to ratchet the floor.
+
 ## Sequencing
 
 1. **C1** first so every subsequent chunk has measurable signal in `coverage:cc` output.
