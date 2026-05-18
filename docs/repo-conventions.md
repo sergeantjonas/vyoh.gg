@@ -103,6 +103,29 @@ Generated files (codegen output, router manifests, OpenAPI clients, Prisma artef
 
 **How to apply:** When introducing a new codegen plugin, decide commit-vs-ignore intentionally and add a line here if committing. When reviewing a PR, a committed generated file without an entry here is a finding.
 
+## Testing
+
+### New interactive surfaces get a test in the same commit
+
+When adding a component that has any of the following, include a test file in the same commit — not as a follow-up:
+
+- Routing (TanStack Router `Link`, `useRouterState`, `useNavigate`)
+- Keyboard interaction (keyboard shortcut handlers, `onKeyDown`)
+- Custom ARIA roles or `aria-*` attributes beyond simple `aria-label`
+- Context providers that drive visible state (e.g. `SplashProvider`, `CommandPaletteProvider`)
+
+**Why:** The T3–T5 hygiene sweep (2026-05-18) found the highest-risk surfaces (command palette, match-detail tab nav, scroll restoration, splash backdrop) had zero tests despite driving most user-perceived behavior. Test-after-the-fact costs more and is easy to defer indefinitely.
+
+**How to apply:** Write the test file alongside the component, not in a separate "add tests" commit. Use the patterns established in `apps/web/src/components/command-palette-dialog.test.tsx` (keyboard shortcut + filter behavior), `apps/web/src/lol/matches/match-detail-tab-nav.test.tsx` (ARIA tab roles), `apps/web/src/lib/use-scroll-reset-on-nav.test.ts` (hook with `renderHook`), and `apps/web/src/components/accessibility.test.tsx` (axe scan). For routing, mock `@tanstack/react-router` per the pattern in `apps/web/src/lol/matches/match-list.test.tsx`.
+
+### Axe-scan new interactive components
+
+When adding a component with interactive elements (buttons, links, dialogs, tabs, custom roles), include an axe scan in the test. Add it to `apps/web/src/components/accessibility.test.tsx` or colocate it in the component's own test file.
+
+**Why:** Axe catches structural a11y gaps (missing dialog titles, unlabelled icon buttons, broken role hierarchy) that are invisible in visual review. The T5 sweep found a real gap: `CommandPaletteDialog` lacked a screen-reader `DialogTitle` that would have been missed indefinitely without the scan.
+
+**How to apply:** Use `configureAxe` from `jest-axe` with `color-contrast` disabled (requires real computed styles) and `aria-hidden-focus` disabled (Radix Dialog false positive in happy-dom). Assert `results.violations` has length 0 so failures print the violation list. See `apps/web/src/components/accessibility.test.tsx` for the canonical setup.
+
 ## Environment
 
 ### Owner timezone: Brussels
