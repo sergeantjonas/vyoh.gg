@@ -129,6 +129,16 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     navigate({ to: path as any });
   }
 
+  // Cross-account scope switch: navigate into a different account's match
+  // surface without closing the palette, so the user can immediately type a
+  // match query against the new scope. Input is cleared because the Riot ID
+  // fragment that surfaced the account won't match any matches.
+  function goAndKeepOpen(path: string) {
+    setInput("");
+    // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
+    navigate({ to: path as any });
+  }
+
   // Non-Matches groups are hidden once any structured verb is in play —
   // `with:nidalee` should not surface Pages/Accounts, only Matches.
   const showNonMatchGroups = !hasStructuredVerbs;
@@ -242,7 +252,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
         {showNonMatchGroups && accounts.length > 0 && (
           <CommandGroup heading="Accounts">
-            {accounts.map((acc) => (
+            {accounts.flatMap((acc) => [
               <CommandItem
                 key={acc.slug}
                 value={`${acc.gameName} ${acc.tagLine} ${acc.slug}`}
@@ -253,8 +263,20 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                   {acc.gameName}
                   <span className="text-muted-foreground">#{acc.tagLine}</span>
                 </span>
-              </CommandItem>
-            ))}
+              </CommandItem>,
+              <CommandItem
+                key={`${acc.slug}-search`}
+                value={`search matches in ${acc.gameName} ${acc.tagLine} ${acc.slug}`}
+                onSelect={() => goAndKeepOpen(`/lol/${acc.slug}/matches`)}
+              >
+                <Swords className="size-4" />
+                <span className="text-muted-foreground">Search matches in</span>
+                <span>
+                  {acc.gameName}
+                  <span className="text-muted-foreground">#{acc.tagLine}</span>
+                </span>
+              </CommandItem>,
+            ])}
           </CommandGroup>
         )}
 

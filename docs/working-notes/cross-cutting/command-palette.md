@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Active — Phases A (provider lift + nav chip), B (match search mode), C1–C3 (parser + verb wiring + parsed chips), and D1 (champion mode) shipped 2026-05-18. 2 commit-boundary chunks remaining (D2 cross-account, E recents persistence) — see [open-work.md](../open-work.md). Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
+**Status:** Active — Phases A (provider lift + nav chip), B (match search mode), C1–C3 (parser + verb wiring + parsed chips), D1 (champion mode), and D2 (cross-account scope) shipped 2026-05-18. Phase D complete. 1 commit-boundary chunk remaining (E recents persistence) — see [open-work.md](../open-work.md). Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
 
 ## Current state (Phases A+B shipped 2026-05-18)
 
@@ -37,7 +37,7 @@ Each chunk below is independently committable and fits one context window. Phase
 5. ~~**C2 — Full verb set.**~~ ✅ shipped 2026-05-18 — parser extended with `queue:`, `role:`, `patch:`, `since:`/`until:`, `kda>`/`kda<`, `duo:` (multi-occurrence verbs union as arrays; `since`/`until`/`kda` are last-wins); `since`/`until` accept `Nh`/`Nd`/`Nw` relative offsets or ISO dates. `matchesQuery(match, parsed)` in [apps/web/src/components/command-palette-matcher.ts](../../../apps/web/src/components/command-palette-matcher.ts) wires structured filtering into the dialog; cmdk's auto-filter switched off via `shouldFilter={false}` and groups filter manually. `duo:` parses for grammar completeness but the matcher no-ops it until duo data is plumbed into the palette.
 6. ~~**C3 — Parsed chips UI.**~~ ✅ shipped 2026-05-18 — chip row renders between input and results when any verb is parsed. Pure chip-builder + token-remover in [apps/web/src/components/command-palette-chips.ts](../../../apps/web/src/components/command-palette-chips.ts) (16 unit tests). Click-to-remove drops the exact token for union verbs (`with:`/`vs:`/`queue:`/…); for last-wins verbs (`since:`/`until:`/`kda><`) it drops all occurrences of the prefix so shadowed values don't silently re-activate.
 7. ~~**D1 — Champion mode.**~~ ✅ shipped 2026-05-18 — `useChampions()` data filtered by freeText against name + alias, sorted by display name, top 6 results rendered as a "Champions" group between Current account and Matches. Gated on active `currentSlug`, non-empty freeText, and no structured verbs in play. Navigates to `/lol/<slug>/champions/<alias>` (matches the route param shape used by [champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx)).
-8. **D2 — Cross-account scope.** From Steam/Home, surface a "Search matches in <account>" affordance that switches scope and pre-opens Phase B.
+8. ~~**D2 — Cross-account scope.**~~ ✅ shipped 2026-05-18 — each matched account in the Accounts group renders a "Search matches in <gameName>#<tagLine>" companion item that navigates to `/lol/<slug>/matches` via a new `goAndKeepOpen(path)` helper. The palette stays open across the navigation, the input is cleared, and the next render picks up the new `currentSlug` so the Matches group loads the scoped account's cache. Works from any pathname, not just `/` or `/steam` — useful for switching scope from another account too.
 9. **E — Recents.** Persist last ~5 selections in `localStorage` (per-account namespace); show as a Recent group when input is empty.
 
 ### Phase A — Discoverability affordance (small) ✅ shipped 2026-05-18
@@ -96,7 +96,7 @@ Verbs compose: `with:nidalee wins kda>3 since:14d`. Show parsed chips in the inp
 Two independent chunks; ship in either order:
 
 - ~~**D1 — Champion mode**~~ ✅ shipped 2026-05-18 — typed champion name surfaces a Champions group above Matches, navigates to `/lol/<slug>/champions/<alias>`. Source: `useChampions()` (already query-cached `Infinity` for the Champions page). Gated on active `currentSlug` and non-empty freeText so the palette doesn't dump 160+ champions when first opened.
-- **D2 — Cross-account scope:** if the user is on Steam or Home and types a Riot ID fragment, surface their accounts as today *plus* a "Search matches in <account>" affordance that switches scope and opens Phase B inside that account.
+- ~~**D2 — Cross-account scope**~~ ✅ shipped 2026-05-18 — companion "Search matches in <account>" item per matched account, navigates to `/lol/<slug>/matches` and keeps the palette open with the input cleared. The pathname change re-derives `currentSlug` via `useRouterState`, so the Matches group rebinds to the scoped account on the next render without any explicit scope state in the palette.
 
 ### Phase E — Recent commands + result persistence (small)
 
@@ -137,7 +137,7 @@ Two independent chunks; ship in either order:
 - ~~**C2:**~~ ✅ shipped — `with:nidalee wins kda>3 since:14d` returns the correct intersection inside the Matches group via `matchesQuery`.
 - ~~**C3:**~~ ✅ shipped — parsed chips render in the input row; clicking a chip rewrites the query string and widens the result set.
 - ~~**D1:**~~ ✅ shipped — typing a champion fragment surfaces a Champions group that navigates to `/lol/<slug>/champions/<champion>`.
-- **D2:** from `/steam` or `/`, typing a Riot ID fragment surfaces "Search matches in <account>" that switches scope.
+- ~~**D2:**~~ ✅ shipped — from `/steam` or `/`, typing a Riot ID fragment surfaces "Search matches in <account>" that switches scope.
 - **E:** closing and reopening the palette without typing shows the last 5 selections, namespaced per account.
 
 ## Extending the palette is part of new feature work

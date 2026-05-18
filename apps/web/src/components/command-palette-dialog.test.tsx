@@ -1,14 +1,22 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "./command-palette";
 import { CommandPaletteProvider } from "./command-palette-context";
 import CommandPaletteDialog from "./command-palette-dialog";
 
-const { navigateSpy, pathnameRef } = vi.hoisted(() => ({
+type MockAccount = {
+  slug: string;
+  gameName: string;
+  tagLine: string;
+  region: string;
+};
+
+const { navigateSpy, pathnameRef, accountsRef } = vi.hoisted(() => ({
   navigateSpy: vi.fn(),
   pathnameRef: { current: "/" },
+  accountsRef: { current: [] as MockAccount[] },
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -21,7 +29,10 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@/identity/use-me", () => ({
-  useMe: () => ({ data: undefined }),
+  useMe: () =>
+    accountsRef.current.length > 0
+      ? { data: { lol: accountsRef.current } }
+      : { data: undefined },
 }));
 
 vi.mock("@/lol/champions/use-champions", () => ({
@@ -73,6 +84,12 @@ describe("CommandPalette keyboard shortcut", () => {
 });
 
 describe("CommandPaletteDialog", () => {
+  beforeEach(() => {
+    pathnameRef.current = "/";
+    accountsRef.current = [];
+    navigateSpy.mockClear();
+  });
+
   it("shows Pages items when open", () => {
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
     expect(screen.getByRole("option", { name: /Home/ })).not.toBeNull();
@@ -137,6 +154,53 @@ describe("CommandPaletteDialog", () => {
     });
     fireEvent.click(screen.getByRole("option", { name: /Nidalee/ }));
     expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/foo/champions/nidalee" });
+  });
+
+  it("renders 'Search matches in <account>' companion for each matched account", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+      { slug: "jonalt-na", gameName: "JonAlt", tagLine: "NA", region: "NA1" },
+    ];
+    pathnameRef.current = "/";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "jon" },
+    });
+    expect(
+      screen.getByRole("option", { name: /Search matches in.*Jonas/ })
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("option", { name: /Search matches in.*JonAlt/ })
+    ).not.toBeNull();
+  });
+
+  it("clicking 'Search matches in X' navigates to /matches and clears input without closing", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/steam";
+    const onOpenChange = vi.fn();
+    wrap(<CommandPaletteDialog open onOpenChange={onOpenChange} />);
+    const input = screen.getByPlaceholderText(
+      "Type a command or search…"
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "jon" } });
+    fireEvent.click(screen.getByRole("option", { name: /Search matches in.*Jonas/ }));
+    expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/jonas-euw/matches" });
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(input.value).toBe("");
+  });
+
+  it("hides 'Search matches in X' when a structured verb is in play", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "with:nidalee" },
+    });
+    expect(screen.queryByRole("option", { name: /Search matches in/ })).toBeNull();
   });
 
   it("hides Champions group when a structured verb is in play", () => {
