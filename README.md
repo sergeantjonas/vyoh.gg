@@ -9,17 +9,19 @@ Built as a portfolio project — equal parts hobby and engineering case study. T
 
 ## Status
 
-Personal multi-account LoL dashboard locked to a whitelist of my own accounts — no open Riot-key drainage. Shipped:
+Personal cross-platform gaming dashboard, locked to a whitelist of my own accounts — no open Riot-key drainage. LoL and Steam streams are live; TFT is queued. Each integration owns its own route subtree (`/lol/$accountSlug/...`, `/steam/...`); `/` is reserved for cross-stream synthesis. Shipped:
 
-- Multi-account routing under `/lol/$accountSlug/{matches,trends,champions}` with deep-link-friendly URLs and a sliding `layoutId` nav indicator.
-- Match detail with full participant breakdown, item tooltips (name + gold + rendered Riot ability markup), and a self-row highlight.
-- Trends with Recharts KDA line + queue distribution bars, a 20/50/100 windowed selector, streak badge, and a 365-day match-activity heatmap.
-- Per-champion theming from build-time Vibrant palette extraction; blurhash placeholders for an instant splash backdrop with zero visible hole.
+- Multi-account LoL routing under `/lol/$accountSlug/{matches,trends,champions,patches,recap,live}` with deep-link-friendly URLs and a sliding `layoutId` nav indicator.
+- Match detail with full participant breakdown, item tooltips (name + gold + rendered Riot ability markup), nested Recap / Your-game / Timeline tabs, and squad/duo detection.
+- Trends + LP-history backed by Postgres aggregations (no time-series DB), per-champion patch-drift verdicts, and personal-baseline tiles that explain *why* a stat changed.
+- Steam library with playtime distribution, achievement timeline, wishlist sync, per-game detail at `/steam/game/$appid`, and a server-rendered achievement signature card at `/steam/achievements/signature`.
+- Per-champion theming from build-time Vibrant palette extraction; blurhash placeholders for an instant splash backdrop with zero visible hole; runtime image proxy for League assets (replaced the previous build-time bundle once content cadence outgrew deploy cadence).
 - Background historical backfill via cron + SSE push — new matches surface live across all tabs without coupling renders to Riot latency.
 - Server-rendered OG share cards (Satori → resvg → PNG) per match URL — no headless browser, no Vercel dependency.
-- Cmd+K command palette, Radix Tooltip with auto-flip collision detection, Sonner toast feedback, and a live Core Web Vitals overlay (`?perf=1`).
+- Cmd+K command palette with a grammar parser in `@vyoh/shared`, Radix Tooltip with auto-flip collision detection, Sonner toast feedback, and a live Core Web Vitals overlay (`?perf=1`).
+- Remake detection (`gameEndedInEarlySurrender && < 210s`) enforced as a domain invariant — every LoL aggregation filters through a shared helper.
 
-Next: Steam integration and Lighthouse + bundle budget instrumentation per route.
+Next: TFT integration, owner auth + admin surfaces, and the pre-deploy sweep. Open arc index in [`docs/working-notes/open-work.md`](docs/working-notes/open-work.md).
 
 ## Stack
 
@@ -29,7 +31,7 @@ Next: Steam integration and Lighthouse + bundle budget instrumentation per route
 - **Database** — Postgres 16 (Docker Compose), Prisma 7 with the new driver-adapter API (`@prisma/adapter-pg` + `prisma.config.ts`). `Summoner` and `Match` (composite key `(matchId, puuid)`) tables back the per-summoner cache.
 - **Cache / queue** — the per-summoner Postgres cache currently does most of the work. Redis + BullMQ planned for historical-backfill workers when that arc lands.
 - **Tooling** — pnpm 10 workspaces, Biome 1.9 (single linter/formatter across the monorepo), TypeScript 6 strict with `noUncheckedIndexedAccess`.
-- **Hosting** — TBD (Vercel for web + Railway/Fly for api is the cheap default).
+- **Hosting** — TBD; current lean is a single Hetzner VPS with Docker Compose + Nginx (see [`docs/working-notes/ops/hosting.md`](docs/working-notes/ops/hosting.md) for the option matrix).
 
 ## Repo layout
 
@@ -74,7 +76,7 @@ pnpm -r test                               # vitest in every workspace package
 pnpm --filter @vyoh/web build              # production build with bundle report
 ```
 
-CI runs `pnpm ci:check` (Biome in non-writing CI mode) and `pnpm typecheck` on every PR and every push to `main`.
+CI runs `pnpm ci:check` (Biome in non-writing CI mode), `pnpm typecheck`, `pnpm -r test --coverage` (uploaded to Codecov), a production `pnpm audit`, and a web-bundle size budget on every PR and every push to `main`.
 
 ## Tracked metrics
 
@@ -90,17 +92,17 @@ Web bundle size is a deliberate, ongoing budget. Each layer of the bootstrap was
 
 Plus the Geist variable font, split into per-script woff2 files: Latin 28.4 kB, Latin-ext 15.3 kB, Cyrillic 14.7 kB — only the matching locale loads per visitor.
 
-The biggest single jump is `motion/react` (+39 kB gzip). It's accepted at the bootstrap stage because there are no routes yet to code-split against; the natural moment to revisit is when the router lands. `LazyMotion` + per-route code splitting are both on the table.
+The biggest single jump in the bootstrap was `motion/react` (+39 kB gzip). Once routes landed it was reined in by `LazyMotion` (`domMax` features only, loaded once at the root) plus per-route code splitting; the web-bundle size budget is now enforced as a dedicated CI job.
 
 **Real-user web vitals.** Beyond the build-time bundle budget, the web app reports the standard [Core Web Vitals](https://web.dev/articles/vitals) at runtime — LCP, INP, CLS, FCP, TTFB. Each metric streams from [apps/web/src/lib/web-vitals.ts](apps/web/src/lib/web-vitals.ts) to a multi-subscriber bus, with a console reporter wired by default (color-coded by `good` / `needs-improvement` / `poor`). A live overlay is available on any page by appending `?perf=1` to the URL — useful for local dev and for pulling numbers off the deployed site without DevTools. Additional sinks (an analytics endpoint, a Grafana exporter) plug into the same bus.
 
 ## Engineering case studies
 
-Deep-dives on the gnarlier parts of the stack:
+Deep-dives on the gnarlier parts of the stack. Full inventory in [`docs/case-studies/`](docs/case-studies/README.md) (14 write-ups as of 2026-05-19); a few starting points:
 
 - **[Riot API rate limiting](docs/case-studies/riot-rate-limits.md)** — layered Bottleneck chain, rolling-window semantics, header-driven drift correction, and bounded waits.
 - **[Historical backfill and SSE](docs/case-studies/historical-backfill-and-sse.md)** — cron-driven DB population, per-account Server-Sent-Events push, and the two bugs that nearly wedged the worker.
-- **[Build-time champion assets](docs/case-studies/build-time-champion-assets.md)** — Vibrant palette + blurhash precompute in a separate pnpm workspace, per-champion CSS theming, and the splash placeholder strategy.
+- **[Frontend perf when 28% of the bundle is on purpose](docs/case-studies/frontend-perf.md)** — what gets measured, what gets cut, and what stays because it's load-bearing for the brand.
+- **[Runtime image proxy](docs/case-studies/runtime-image-proxy.md)** — replacing a working build-time CDN bundle with a server-side proxy when content cadence outgrew deploy cadence.
+- **[LP history without a time-series DB](docs/case-studies/lp-history-postgres.md)** — Postgres aggregations that pretend to be a time-series store.
 - **[Server-rendered OG cards](docs/case-studies/og-card-satori.md)** — Satori → resvg pipeline, flexbox-only constraint, font format requirements, and an SWC `outDir` gotcha.
-- **[Visual layer](docs/case-studies/visual-layer.md)** — `SplashProvider` architecture, scope-keyed `AnimatePresence`, `LazyMotion domMax` requirement, and a context instantiation pitfall.
-- **[Pagination and partial-failure resilience](docs/case-studies/pagination-partial-failure.md)** — `useInfiniteQuery` cursor, `Promise.allSettled` batching, and the planned SSE progressive loader.
