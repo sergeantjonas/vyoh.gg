@@ -69,7 +69,7 @@ export default defineConfig({
         "src/routeTree.gen.ts",
         "src/test-setup.ts",
       ],
-      thresholds: { lines: 31 },
+      thresholds: { lines: 33 },
     },
   },
 });
