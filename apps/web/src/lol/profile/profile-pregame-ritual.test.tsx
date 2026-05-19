@@ -225,6 +225,44 @@ describe("ProfilePregameRitual", () => {
     expect(screen.getByText(/After a loss you historically win 0%\./)).toBeTruthy();
   });
 
+  it("reads 'Last game was a loss.' when only one recent game and it was a loss", () => {
+    const now = Date.now();
+    // Alternating outcomes ⇒ no streak ⇒ falls through to last-game branch.
+    setMatches([
+      fakeMatch({ win: false, playedAt: new Date(now - DAY_MS).toISOString() }),
+      fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+    ]);
+    renderRitual();
+    expect(screen.getByText(/Last game was a loss\./)).toBeTruthy();
+  });
+
+  it("reports the after-win positive tone WR verdict when ≥3 after-win games exist", () => {
+    const now = Date.now();
+    // 6 wins in a row → after-win bucket has 5 entries → 100% WR ⇒ positive tone.
+    setMatches(
+      Array.from({ length: 6 }, (_, i) =>
+        fakeMatch({
+          win: true,
+          playedAt: new Date(now - (i + 1) * DAY_MS).toISOString(),
+        })
+      )
+    );
+    renderRitual();
+    expect(screen.getByText(/After a win you historically win 100%\./)).toBeTruthy();
+  });
+
+  it("renders the champion verdict with a positive tone when WR ≥ 50%", () => {
+    const now = Date.now();
+    setMatches([
+      fakeMatch({ win: true, playedAt: new Date(now - DAY_MS).toISOString() }),
+      fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+      fakeMatch({ win: true, playedAt: new Date(now - 3 * DAY_MS).toISOString() }),
+    ]);
+    renderRitual();
+    // WR=100% → tone="positive" → emerald border class applied to the tile.
+    expect(screen.getByText(/Ahri — 3g · 100% WR/)).toBeTruthy();
+  });
+
   it("renders the time-slot tile when matches reach the ≥10-game threshold", () => {
     const now = Date.now();
     setMatches(

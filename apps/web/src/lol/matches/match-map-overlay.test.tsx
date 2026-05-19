@@ -264,4 +264,132 @@ describe("MatchMapOverlay", () => {
     fireEvent.click(row);
     expect(row).toBeTruthy();
   });
+
+  it("shows the 'No events match' empty state when every filter is disabled", () => {
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        participants: [{ participantId: 1, puuid: "P1" }],
+        kills: [
+          {
+            ts: 60_000,
+            position: { x: 5000, y: 5000 },
+            killerId: 1,
+            victimId: 2,
+            assistIds: [],
+          },
+        ],
+        objectives: [],
+        frames: [],
+      },
+    });
+    renderShell();
+    // Default: only "Kills" is in the dataset, so turning kills off empties the feed.
+    fireEvent.click(screen.getByRole("button", { name: "Kills" }));
+    expect(screen.getByText("No events match the active filters.")).toBeTruthy();
+  });
+
+  it("skips MapDot for events without position data", () => {
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        participants: [
+          { participantId: 1, puuid: "P1" },
+          { participantId: 6, puuid: "P6" },
+        ],
+        kills: [{ ts: 60_000, killerId: 1, victimId: 6, assistIds: [] }],
+        objectives: [{ ts: 120_000, type: "DRAGON_FIRE", teamId: 100 }],
+        frames: [],
+      },
+    });
+    renderShell();
+    // Dialog renders into a portal — query document.body, not the container.
+    const svgs = Array.from(document.body.querySelectorAll("svg"));
+    const eventLayer = svgs.find(
+      (s) => s.getAttribute("aria-label") === "Match event map"
+    );
+    expect(eventLayer).toBeDefined();
+    // Both event records lack `position` → MapDot returns null and no
+    // <circle>/<rect> elements are inserted into the event SVG layer.
+    expect(eventLayer?.children.length).toBe(0);
+  });
+
+  it("renders a third-party kill (neither side involves the active puuid)", () => {
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        participants: [
+          { participantId: 1, puuid: "P1" },
+          { participantId: 2, puuid: "P2" },
+          { participantId: 6, puuid: "P6" },
+        ],
+        kills: [
+          {
+            ts: 60_000,
+            position: { x: 100, y: 100 },
+            killerId: 2,
+            victimId: 6,
+            assistIds: [],
+          },
+        ],
+        objectives: [],
+        frames: [],
+      },
+    });
+    renderShell();
+    // Feed still surfaces the kill; this is the isMyEvent=false && isMyDeath=false branch.
+    expect(screen.getAllByText(/killed/).length).toBeGreaterThan(0);
+  });
+
+  it("renders the Tower MapDot as a rect (building branch)", () => {
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        participants: [{ participantId: 1, puuid: "P1" }],
+        kills: [],
+        objectives: [
+          { ts: 120_000, position: { x: 5000, y: 5000 }, type: "TOWER", teamId: 200 },
+        ],
+        frames: [],
+      },
+    });
+    renderShell();
+    const svgs = Array.from(document.body.querySelectorAll("svg"));
+    const eventLayer = svgs.find(
+      (s) => s.getAttribute("aria-label") === "Match event map"
+    );
+    expect(eventLayer).toBeDefined();
+    // Buildings render as <rect>; non-building objectives render as <circle>.
+    expect(eventLayer?.querySelectorAll("rect").length).toBe(1);
+    expect(eventLayer?.querySelectorAll("circle").length).toBe(0);
+  });
+
+  it("renders the gold-lead brush UI when frames produce a non-empty goldData series", () => {
+    setTimeline(defaultTimeline());
+    renderShell();
+    expect(screen.getByText(/Gold lead · drag to filter time window/)).toBeTruthy();
+    // The min/max range label format reflects the brush state.
+    expect(screen.getByText(/0m – /)).toBeTruthy();
+  });
+
+  it("hides the 'Your kills' chip when no participant matches the active puuid", () => {
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        // No timeline participants → myParticipantId resolves to undefined.
+        participants: [{ participantId: 9, puuid: "STRANGER" }],
+        kills: [],
+        objectives: [],
+        frames: [],
+      },
+    });
+    renderShell();
+    expect(screen.queryByRole("button", { name: "Your kills" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Your deaths" })).toBeNull();
+  });
 });

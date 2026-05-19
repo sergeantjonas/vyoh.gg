@@ -404,6 +404,212 @@ describe("StatusPage", () => {
     expect(screen.getByText(/3 new matches/)).toBeTruthy();
   });
 
+  it("fires toastInfo when syncNow.mutate resolves with triggered=true", async () => {
+    const { toastInfo } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Sync now/ }));
+    const opts = muts.syncNow.mutate.mock.calls[0]?.[1] as {
+      onSuccess: (r: { triggered: boolean; reason?: string }) => void;
+    };
+    opts.onSuccess({ triggered: true });
+    expect(toastInfo).toHaveBeenCalledWith("Sync triggered");
+  });
+
+  it("fires toastError with the skip reason when syncNow resolves with triggered=false", async () => {
+    const { toastError } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Sync now/ }));
+    const opts = muts.syncNow.mutate.mock.calls[0]?.[1] as {
+      onSuccess: (r: { triggered: boolean; reason?: string }) => void;
+    };
+    opts.onSuccess({ triggered: false, reason: "cooldown" });
+    expect(toastError).toHaveBeenCalledWith("Sync skipped: cooldown");
+  });
+
+  it("falls back to 'unknown' reason when syncNow returns triggered=false without a reason", async () => {
+    const { toastError } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Sync now/ }));
+    const opts = muts.syncNow.mutate.mock.calls[0]?.[1] as {
+      onSuccess: (r: { triggered: boolean; reason?: string }) => void;
+    };
+    opts.onSuccess({ triggered: false });
+    expect(toastError).toHaveBeenCalledWith("Sync skipped: unknown");
+  });
+
+  it("fires toastError when syncNow.mutate rejects", async () => {
+    const { toastError } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Sync now/ }));
+    const opts = muts.syncNow.mutate.mock.calls[0]?.[1] as {
+      onError: (e: Error) => void;
+    };
+    opts.onError(new Error("upstream 502"));
+    expect(toastError).toHaveBeenCalledWith("Sync failed: upstream 502");
+  });
+
+  it("fires toastInfo when setEnabled.mutate resolves (paused→resumed branch)", async () => {
+    const { toastInfo } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({
+      data: makeSnapshot({
+        sync: { enabled: false, running: false, lastTick: tick, history: [tick] },
+      }),
+    });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Resume/ }));
+    const opts = muts.setEnabled.mutate.mock.calls[0]?.[1] as {
+      onSuccess: () => void;
+    };
+    opts.onSuccess();
+    expect(toastInfo).toHaveBeenCalledWith("Sync resumed");
+  });
+
+  it("fires toastError when setEnabled.mutate rejects", async () => {
+    const { toastError } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Pause/ }));
+    const opts = muts.setEnabled.mutate.mock.calls[0]?.[1] as {
+      onError: (e: Error) => void;
+    };
+    opts.onError(new Error("forbidden"));
+    expect(toastError).toHaveBeenCalledWith("Toggle failed: forbidden");
+  });
+
+  it("toasts when per-account sync rejects (with plural matches wording when count != 1)", async () => {
+    const { toastSuccess, toastError } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Sync Ahri" }));
+    const opts = muts.syncAccount.mutate.mock.calls[0]?.[1] as {
+      onSuccess: (r: { backfilled: number; idCount: number }) => void;
+      onError: (e: Error) => void;
+    };
+    opts.onSuccess({ backfilled: 5, idCount: 10 });
+    expect(toastSuccess).toHaveBeenCalledWith("+5 new matches (10 ids)");
+    opts.onError(new Error("riot rate-limit"));
+    expect(toastError).toHaveBeenCalledWith("Sync failed: riot rate-limit");
+  });
+
+  it("uses singular wording when per-account sync returns exactly 1 new match", async () => {
+    const { toastSuccess } = await import("@/lib/toast");
+    const muts = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Sync Ahri" }));
+    const opts = muts.syncAccount.mutate.mock.calls[0]?.[1] as {
+      onSuccess: (r: { backfilled: number; idCount: number }) => void;
+    };
+    opts.onSuccess({ backfilled: 1, idCount: 1 });
+    expect(toastSuccess).toHaveBeenCalledWith("+1 new match (1 ids)");
+  });
+
+  it("renders the destructive tone bar when an app window's reservoir is below 20%", () => {
+    mockStatus({
+      data: makeSnapshot({
+        rateLimiter: {
+          capturedAt: "2026-05-19T12:00:00.000Z",
+          app: [
+            {
+              regional: "europe",
+              role: "fast",
+              windowSec: 10,
+              capacity: 100,
+              reservoir: 5,
+              counts: { RECEIVED: 0, QUEUED: 0, RUNNING: 0, EXECUTING: 0 },
+            },
+          ],
+          method: [],
+        },
+      }),
+    });
+    const { container } = renderWithTooltip(<StatusPage />);
+    // 5/100 = 5% → destructive tone
+    expect(container.querySelectorAll(".bg-destructive").length).toBeGreaterThan(0);
+  });
+
+  it("renders the amber tone bar when an app window's reservoir is 20–50%", () => {
+    mockStatus({
+      data: makeSnapshot({
+        rateLimiter: {
+          capturedAt: "2026-05-19T12:00:00.000Z",
+          app: [
+            {
+              regional: "europe",
+              role: "fast",
+              windowSec: 10,
+              capacity: 100,
+              reservoir: 30,
+              counts: { RECEIVED: 0, QUEUED: 0, RUNNING: 0, EXECUTING: 0 },
+            },
+          ],
+          method: [],
+        },
+      }),
+    });
+    const { container } = renderWithTooltip(<StatusPage />);
+    expect(container.querySelectorAll(".bg-amber-500").length).toBeGreaterThan(0);
+  });
+
+  it("treats null reservoir as a full window (100% emerald tone)", () => {
+    mockStatus({
+      data: makeSnapshot({
+        rateLimiter: {
+          capturedAt: "2026-05-19T12:00:00.000Z",
+          app: [
+            {
+              regional: "europe",
+              role: "fast",
+              windowSec: 10,
+              capacity: 100,
+              reservoir: null,
+              counts: { RECEIVED: 0, QUEUED: 0, RUNNING: 0, EXECUTING: 0 },
+            },
+          ],
+          method: [],
+        },
+      }),
+    });
+    const { container } = renderWithTooltip(<StatusPage />);
+    expect(container.querySelectorAll(".bg-emerald-500").length).toBeGreaterThan(0);
+  });
+
+  it("shows 'waiting' when historical is skipped but not yet done", () => {
+    mockStatus({
+      data: makeSnapshot({
+        sync: {
+          enabled: true,
+          running: false,
+          lastTick: {
+            ...tick,
+            accounts: [
+              {
+                slug: "ahri",
+                label: "Ahri",
+                head: { idCount: 0, backfilled: 0 },
+                historical: { idCount: 0, backfilled: 0, done: false, skipped: true },
+              },
+            ],
+          },
+          history: [tick],
+        },
+      }),
+    });
+    renderWithTooltip(<StatusPage />);
+    expect(screen.getByText(/hist waiting/)).toBeTruthy();
+  });
+
   it("uses the singular 'match' wording in recent ticks when count is exactly 1", () => {
     const singleBackfill: SyncTickAccountResult = {
       slug: "solo",

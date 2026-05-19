@@ -184,3 +184,59 @@ describe("MatchList settle + paging", () => {
     expect(() => unmount()).not.toThrow();
   });
 });
+
+describe("MatchList phantoms + near-end fetch", () => {
+  it("renders skeleton phantoms when isFetchingNextPage and hasNextPage are both true", () => {
+    const { container } = renderWithProviders(
+      <MatchList matches={matches} accountSlug="ahri" isFetchingNextPage hasNextPage />
+    );
+    // Phantom rows render with MatchCardSkeleton (h-28 outer wrapper). The
+    // visible rows plus phantoms exceed the matches.length count.
+    const skeletons = container.querySelectorAll(".h-28");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  it("invokes fetchNextPage once the virtualizer reaches the tail and a next page exists", () => {
+    const fetchNextPage = vi.fn();
+    renderWithProviders(
+      <MatchList
+        matches={matches}
+        accountSlug="ahri"
+        fetchNextPage={fetchNextPage}
+        hasNextPage
+        isFetchingNextPage={false}
+      />
+    );
+    // Both matches are virtualized (the mock returns every row), so the
+    // tail is reached immediately and fetchNextPage runs on mount.
+    expect(fetchNextPage).toHaveBeenCalled();
+  });
+
+  it("does not call fetchNextPage when there is no next page", () => {
+    const fetchNextPage = vi.fn();
+    renderWithProviders(
+      <MatchList
+        matches={matches}
+        accountSlug="ahri"
+        fetchNextPage={fetchNextPage}
+        hasNextPage={false}
+      />
+    );
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+
+  it("does not call fetchNextPage while a fetch is already in flight", () => {
+    const fetchNextPage = vi.fn();
+    renderWithProviders(
+      <MatchList
+        matches={matches}
+        accountSlug="ahri"
+        fetchNextPage={fetchNextPage}
+        hasNextPage
+        isFetchingNextPage
+      />
+    );
+    // The phantoms are visible, but fetchNextPage is gated by isFetchingNextPage.
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+});
