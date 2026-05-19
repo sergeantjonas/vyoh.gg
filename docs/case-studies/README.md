@@ -22,6 +22,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [patch-notes-pipeline.md](patch-notes-pipeline.md) | LoL patch-notes pipeline — wiki wikitext as a structured feed |
 | [riot-rate-limits.md](riot-rate-limits.md) | When the limiter never even tried — a Riot API debugging story |
 | [runtime-image-proxy.md](runtime-image-proxy.md) | Runtime image proxy — replacing a working build-time bundle with a server-side proxy when content cadence outgrew deploy cadence |
+| [steam-presence-as-signal.md](steam-presence-as-signal.md) | Polling presence as the signal source — Steam sessions and event-driven unlocks from one 2-minute tick |
 | [visual-layer.md](visual-layer.md) | Visual layer — the small patterns that hold the page together |
 
 ## Authoring conventions

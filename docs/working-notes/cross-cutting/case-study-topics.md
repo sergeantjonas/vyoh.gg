@@ -1,6 +1,6 @@
 # vyoh.gg — case study and write-up topics
 
-**Status:** Reference — fifteen full case studies shipped through 2026-05-19 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`, `conclusion-card-pattern`, `runtime-image-proxy`, `patch-notes-pipeline`). One descoped (runtime-validation). Read this when scoping a new write-up or refining portfolio narrative; consult [../case-studies/README.md](../../case-studies/README.md) for the live inventory.
+**Status:** Reference — sixteen full case studies shipped through 2026-05-19 (`bundling-the-bounded-cdn`, `riot-rate-limits`, `historical-backfill-and-sse`, `frontend-perf`, `operator-console`, `lp-history-postgres`, `fullscreen-blur-flicker`, `motion-without-gimmicks`, `pagination-partial-failure`, `visual-layer`, `build-time-champion-assets`, `og-card-satori`, `conclusion-card-pattern`, `runtime-image-proxy`, `patch-notes-pipeline`, `steam-presence-as-signal`). One descoped (runtime-validation). Read this when scoping a new write-up or refining portfolio narrative; consult [../case-studies/README.md](../../case-studies/README.md) for the live inventory.
 
 The project is a portfolio piece. README, deploy URL, write-ups, and performance evidence are deliverables, not afterthoughts.
 
