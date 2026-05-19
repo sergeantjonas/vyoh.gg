@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
+import { useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { ActiveMatchProvider } from "./active-match-context";
+import { ActiveMatchProvider, useActiveMatch } from "./active-match-context";
 import { MatchHero } from "./match-hero";
 
 vi.mock("@/lol/champions/use-champions", () => ({
@@ -97,5 +98,141 @@ describe("MatchHero", () => {
     const { container } = renderHero(summary());
     expect(container.textContent).toContain("Ranked Solo");
     expect(container.textContent).toContain("30m 00s");
+  });
+});
+
+describe("MatchHero entrance animation", () => {
+  function OriginPrimer({ matchId }: { matchId: string }) {
+    const { setOriginRect } = useActiveMatch();
+    useLayoutEffect(() => {
+      setOriginRect({
+        matchId,
+        rect: {
+          top: 100,
+          left: 50,
+          width: 200,
+          height: 80,
+          right: 250,
+          bottom: 180,
+          x: 50,
+          y: 100,
+          toJSON: () => ({}),
+        } as DOMRect,
+        direction: "forward",
+      });
+    }, [matchId, setOriginRect]);
+    return null;
+  }
+
+  function renderHeroWithOrigin(s: MatchSummary) {
+    return render(
+      <MotionConfig reducedMotion="never">
+        <ActiveMatchProvider>
+          <OriginPrimer matchId={s.matchId} />
+          <MatchHero summary={s} />
+        </ActiveMatchProvider>
+      </MotionConfig>
+    );
+  }
+
+  it("runs the FLIP transform when origin matches and motion is enabled", async () => {
+    const animate = vi.fn();
+    const originalAnimate = HTMLDivElement.prototype.animate;
+    HTMLDivElement.prototype.animate = animate as unknown as typeof originalAnimate;
+    const originalRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    }) as typeof globalThis.requestAnimationFrame;
+    try {
+      renderHeroWithOrigin(summary({ matchId: "EUW1_FLIP" }));
+      expect(animate).toHaveBeenCalled();
+      const args = animate.mock.calls[0] as unknown as [
+        Keyframe[],
+        KeyframeAnimationOptions,
+      ];
+      expect(args[1].duration).toBe(550);
+    } finally {
+      HTMLDivElement.prototype.animate = originalAnimate;
+      globalThis.requestAnimationFrame = originalRaf;
+    }
+  });
+
+  it("skips the animation when the origin matchId differs", () => {
+    function MismatchPrimer() {
+      const { setOriginRect } = useActiveMatch();
+      useLayoutEffect(() => {
+        setOriginRect({
+          matchId: "DIFFERENT",
+          rect: { top: 0, left: 0, width: 1, height: 1 } as DOMRect,
+          direction: "forward",
+        });
+      }, [setOriginRect]);
+      return null;
+    }
+    const animate = vi.fn();
+    const originalAnimate = HTMLDivElement.prototype.animate;
+    HTMLDivElement.prototype.animate = animate as unknown as typeof originalAnimate;
+    try {
+      render(
+        <MotionConfig reducedMotion="never">
+          <ActiveMatchProvider>
+            <MismatchPrimer />
+            <MatchHero summary={summary({ matchId: "EUW1_HERO" })} />
+          </ActiveMatchProvider>
+        </MotionConfig>
+      );
+      expect(animate).not.toHaveBeenCalled();
+    } finally {
+      HTMLDivElement.prototype.animate = originalAnimate;
+    }
+  });
+
+  it("skips the animation when origin direction is backward", () => {
+    function BackwardPrimer({ matchId }: { matchId: string }) {
+      const { setOriginRect } = useActiveMatch();
+      useLayoutEffect(() => {
+        setOriginRect({
+          matchId,
+          rect: { top: 0, left: 0, width: 1, height: 1 } as DOMRect,
+          direction: "backward",
+        });
+      }, [matchId, setOriginRect]);
+      return null;
+    }
+    const animate = vi.fn();
+    const originalAnimate = HTMLDivElement.prototype.animate;
+    HTMLDivElement.prototype.animate = animate as unknown as typeof originalAnimate;
+    try {
+      render(
+        <MotionConfig reducedMotion="never">
+          <ActiveMatchProvider>
+            <BackwardPrimer matchId="EUW1_BACK" />
+            <MatchHero summary={summary({ matchId: "EUW1_BACK" })} />
+          </ActiveMatchProvider>
+        </MotionConfig>
+      );
+      expect(animate).not.toHaveBeenCalled();
+    } finally {
+      HTMLDivElement.prototype.animate = originalAnimate;
+    }
+  });
+
+  it("cancels the pending RAF on unmount before it fires", () => {
+    const cancel = vi.fn();
+    const originalRaf = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    globalThis.requestAnimationFrame = (() =>
+      42) as typeof globalThis.requestAnimationFrame;
+    globalThis.cancelAnimationFrame =
+      cancel as unknown as typeof globalThis.cancelAnimationFrame;
+    try {
+      const { unmount } = renderHeroWithOrigin(summary({ matchId: "EUW1_UNMOUNT" }));
+      unmount();
+      expect(cancel).toHaveBeenCalledWith(42);
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
   });
 });

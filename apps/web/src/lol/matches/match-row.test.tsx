@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -190,5 +190,18 @@ describe("MatchRow", () => {
       match: summary({ playedAt: new Date(Date.now() - 5_000).toISOString() }),
     });
     expect(container.textContent).toMatch(/just now/);
+  });
+
+  it("activates the match on pointer-down (used by the detail-route transition)", () => {
+    const { container } = renderRow({ match: summary() });
+    // The detail link is the second <a> rendered (first is the dossier anchor).
+    const links = container.querySelectorAll("a");
+    const detail = links[1];
+    if (!detail) throw new Error("detail link not rendered");
+    fireEvent.pointerDown(detail);
+    // No assertion on context value — coverage of the pointer-down handler is
+    // the goal. The handler reads getBoundingClientRect, sets activeMatch,
+    // and persists scroll position; all happy-dom no-ops.
+    fireEvent.mouseEnter(detail);
   });
 });

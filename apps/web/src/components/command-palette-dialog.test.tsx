@@ -268,4 +268,186 @@ describe("CommandPaletteDialog", () => {
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
     expect(screen.queryByRole("option", { name: /TF2/ })).toBeNull();
   });
+
+  it("clears the input when the dialog is closed via onOpenChange(false)", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = wrap(<CommandPaletteDialog open onOpenChange={onOpenChange} />);
+    const input = screen.getByPlaceholderText(
+      "Type a command or search…"
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "hello" } });
+    expect(input.value).toBe("hello");
+    // Close the dialog by pressing escape — Radix wires this through onOpenChange.
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    // Re-mount to verify the input was reset by the close handler.
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <CommandPaletteDialog open onOpenChange={onOpenChange} />
+      </QueryClientProvider>
+    );
+    expect(
+      (screen.getByPlaceholderText("Type a command or search…") as HTMLInputElement).value
+    ).toBe("");
+  });
+
+  it("renders 'Match history not loaded' and a Load matches action on a current account", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/lol/jonas-euw";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    expect(screen.getByText(/Match history not loaded yet/)).toBeTruthy();
+    expect(screen.getByRole("option", { name: /Load matches/ })).toBeTruthy();
+  });
+
+  it("clicking Load matches calls prefetchCachedMatches", async () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/lol/jonas-euw";
+    const useMatchesMod = await import("@/lol/matches/use-matches");
+    const prefetch = vi.mocked(useMatchesMod.prefetchCachedMatches);
+    prefetch.mockResolvedValueOnce(undefined);
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole("option", { name: /Load matches/ }));
+    await waitFor(() => expect(prefetch).toHaveBeenCalled());
+  });
+
+  it("renders cached matches and 'Xm/h/d ago' relative timestamps when query data exists", async () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/lol/jonas-euw";
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const playedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    client.setQueryData(
+      ["lol", "matches-cached-infinite", "EUW1", "Jonas", "EUW", undefined],
+      {
+        pages: [
+          {
+            matches: [
+              {
+                matchId: "EUW1_42",
+                champion: "Ahri",
+                kills: 5,
+                deaths: 2,
+                assists: 7,
+                win: true,
+                queueType: "Ranked Solo",
+                playedAt,
+                remake: false,
+                teamPosition: "MIDDLE",
+                gameVersion: "16.9.1.1",
+                laneOpponent: null,
+              },
+            ],
+          },
+        ],
+      }
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <CommandPaletteDialog open onOpenChange={vi.fn()} />
+      </QueryClientProvider>
+    );
+    // The Matches group renders the match row with a relative timestamp.
+    expect(screen.getByText(/m ago|h ago|d ago/)).toBeTruthy();
+    // Clicking the match navigates to the detail route.
+    fireEvent.click(screen.getByRole("option", { name: /Ahri/ }));
+    expect(navigateSpy).toHaveBeenCalledWith({
+      to: "/lol/jonas-euw/matches/EUW1_42",
+    });
+  });
+
+  it("clicking an Account option navigates to /lol/<slug>", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "jonas" },
+    });
+    // The first option for the account (not the "Search matches in" companion).
+    const accountOption = screen
+      .getAllByRole("option", { name: /Jonas/ })
+      .find((el) => !el.textContent?.includes("Search matches in"));
+    if (!accountOption) throw new Error("account option not found");
+    fireEvent.click(accountOption);
+    expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/jonas-euw" });
+  });
+
+  it("relativeTime formats minute, hour, and day buckets distinctly", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/lol/jonas-euw";
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const now = Date.now();
+    const playedMinAgo = new Date(now - 10 * 60 * 1000).toISOString();
+    const playedHourAgo = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+    const playedDayAgo = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
+    client.setQueryData(
+      ["lol", "matches-cached-infinite", "EUW1", "Jonas", "EUW", undefined],
+      {
+        pages: [
+          {
+            matches: [
+              {
+                matchId: "EUW1_1",
+                champion: "Ahri",
+                kills: 1,
+                deaths: 1,
+                assists: 1,
+                win: true,
+                queueType: "Ranked Solo",
+                playedAt: playedMinAgo,
+                remake: false,
+                teamPosition: "MIDDLE",
+                gameVersion: "16.9.1.1",
+                laneOpponent: null,
+              },
+              {
+                matchId: "EUW1_2",
+                champion: "Ahri",
+                kills: 1,
+                deaths: 1,
+                assists: 1,
+                win: false,
+                queueType: "Ranked Solo",
+                playedAt: playedHourAgo,
+                remake: false,
+                teamPosition: "MIDDLE",
+                gameVersion: "16.9.1.1",
+                laneOpponent: null,
+              },
+              {
+                matchId: "EUW1_3",
+                champion: "Ahri",
+                kills: 1,
+                deaths: 1,
+                assists: 1,
+                win: true,
+                queueType: "Ranked Solo",
+                playedAt: playedDayAgo,
+                remake: false,
+                teamPosition: "MIDDLE",
+                gameVersion: "16.9.1.1",
+                laneOpponent: null,
+              },
+            ],
+          },
+        ],
+      }
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <CommandPaletteDialog open onOpenChange={vi.fn()} />
+      </QueryClientProvider>
+    );
+    expect(screen.getByText(/10m ago/)).toBeTruthy();
+    expect(screen.getByText(/3h ago/)).toBeTruthy();
+    expect(screen.getByText(/2d ago/)).toBeTruthy();
+  });
 });
