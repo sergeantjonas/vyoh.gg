@@ -9,6 +9,7 @@ import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
 import { mainScrollRef } from "@/lib/scroll-container";
+import { topLevelScope } from "@/lib/top-level-scope";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import {
@@ -23,11 +24,6 @@ export const Route = createRootRoute({
   component: RootLayout,
   notFoundComponent: NotFound,
 });
-
-function topLevelScope(pathname: string): string {
-  const seg = pathname.split("/").filter(Boolean)[0];
-  return seg ? `/${seg}` : "/";
-}
 
 function RootLayout() {
   const scope = useRouterState({

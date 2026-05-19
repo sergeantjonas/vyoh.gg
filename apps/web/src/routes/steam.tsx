@@ -5,6 +5,7 @@ import { NotFound } from "@/components/not-found";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
+import { isSteamTabActive, steamTabIndexOf } from "@/steam/tabs";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
@@ -29,19 +30,6 @@ const TABS = [
   { to: "/steam/achievements", label: "Achievements", Icon: Trophy, exact: false },
 ] as const;
 
-function isTabActive(tab: (typeof TABS)[number], pathname: string): boolean {
-  if (tab.exact) return pathname === tab.to;
-  if (pathname === tab.to || pathname.startsWith(`${tab.to}/`)) return true;
-  if ("extraPrefixes" in tab) {
-    return tab.extraPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  }
-  return false;
-}
-
-function tabIndexOf(pathname: string): number {
-  return TABS.findIndex((tab) => isTabActive(tab, pathname));
-}
-
 const tabIconVariants: Variants = {
   initial: { scale: 0.75, y: -4 },
   animate: { scale: 1, y: 0 },
@@ -53,7 +41,7 @@ function SteamLayout() {
 
   useScrollResetOnNav(pathname);
 
-  const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
+  const rawDirection = useTabSlideDirection(pathname, (p) => steamTabIndexOf(TABS, p));
   const slideDirection = prefersReducedMotion ? 0 : rawDirection;
 
   return (
@@ -112,7 +100,7 @@ function SteamTabs({ pathname }: { pathname: string }) {
   return (
     <nav aria-label="Steam sections" className="flex items-center gap-1">
       {TABS.map((tab) => {
-        const active = isTabActive(tab, pathname);
+        const active = isSteamTabActive(tab, pathname);
         return (
           <Link
             key={tab.to}

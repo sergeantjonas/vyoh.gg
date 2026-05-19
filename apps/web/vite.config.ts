@@ -67,9 +67,10 @@ export default defineConfig({
         "src/**/*.d.ts",
         "src/main.tsx",
         "src/routeTree.gen.ts",
+        "src/routes/**",
         "src/test-setup.ts",
       ],
-      thresholds: { lines: 89 },
+      thresholds: { lines: 91 },
     },
   },
 });

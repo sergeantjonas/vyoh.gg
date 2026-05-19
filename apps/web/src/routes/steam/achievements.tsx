@@ -1,4 +1,5 @@
 import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
+import { formatRowDate, groupByMonth } from "@/steam/achievements/group-by-month";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
@@ -9,24 +10,6 @@ export const Route = createFileRoute("/steam/achievements")({
 });
 
 const FEED_LIMIT = 100;
-
-const monthFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  year: "numeric",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-});
-
-function monthKey(iso: string): string {
-  return monthFormatter.format(new Date(iso));
-}
-
-function formatRowDate(iso: string): string {
-  return dateFormatter.format(new Date(iso));
-}
 
 function AchievementsPage() {
   const { data, isPending, isError } = useRecentUnlocks(FEED_LIMIT);
@@ -141,23 +124,4 @@ function RecentSection({ unlocks, isPending, isError }: SectionProps) {
       </div>
     </div>
   );
-}
-
-interface MonthGroup {
-  label: string;
-  rows: SteamRecentUnlock[];
-}
-
-// Server returns rows sorted by unlockedAt desc, so preserving insertion order
-// gives newest-month-first and newest-row-first within each group without an
-// extra sort. Map keys keep insertion order in JS, so this falls out for free.
-function groupByMonth(unlocks: SteamRecentUnlock[]): MonthGroup[] {
-  const buckets = new Map<string, SteamRecentUnlock[]>();
-  for (const u of unlocks) {
-    const key = monthKey(u.unlockedAt);
-    const existing = buckets.get(key);
-    if (existing) existing.push(u);
-    else buckets.set(key, [u]);
-  }
-  return Array.from(buckets.entries()).map(([label, rows]) => ({ label, rows }));
 }

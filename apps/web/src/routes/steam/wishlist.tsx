@@ -1,6 +1,10 @@
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useSteamWishlist } from "@/steam/use-wishlist";
+import {
+  formatWishlistDateAdded,
+  formatWishlistReleaseLabel,
+} from "@/steam/wishlist/format";
 import { createFileRoute } from "@tanstack/react-router";
 import type { SteamWishlistItem } from "@vyoh/shared";
 import { ExternalLink } from "lucide-react";
@@ -23,33 +27,6 @@ export const Route = createFileRoute("/steam/wishlist")({
     return { appid: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined };
   },
 });
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "Europe/Brussels",
-});
-
-function formatDateAdded(epochSeconds: number): string {
-  return DATE_FORMATTER.format(new Date(epochSeconds * 1_000));
-}
-
-function formatReleaseLabel(item: SteamWishlistItem): string | null {
-  // For coming-soon titles Steam's `steam_release_date` is usually a placeholder
-  // (Dec 31 of the target year for "later this year", quarter-end dates for
-  // "Q3 2026", etc.) — claiming month precision would lie about a value Steam
-  // itself doesn't commit to. Surface year only when comingSoon is true.
-  if (item.comingSoon) {
-    return item.releaseDate !== null
-      ? `Coming ${new Date(item.releaseDate * 1_000).getUTCFullYear()}`
-      : "Coming soon";
-  }
-  if (item.releaseDate !== null) {
-    return `Released ${new Date(item.releaseDate * 1_000).getUTCFullYear()}`;
-  }
-  return null;
-}
 
 function WishlistPage() {
   const { data, isPending, isError } = useSteamWishlist();
@@ -154,9 +131,9 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
           {item.name ?? `Unknown title (app ${item.appid})`}
         </p>
         <span className="text-sm text-muted-foreground">
-          Added {formatDateAdded(item.dateAdded)}
+          Added {formatWishlistDateAdded(item.dateAdded)}
           {(() => {
-            const release = formatReleaseLabel(item);
+            const release = formatWishlistReleaseLabel(item);
             return release ? (
               <>
                 {" · "}
