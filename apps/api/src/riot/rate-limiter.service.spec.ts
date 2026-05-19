@@ -122,6 +122,58 @@ describe("RateLimiterService", () => {
         service.syncFromHeaders("europe", "match-by-id", new Headers())
       ).resolves.toBeUndefined();
     });
+
+    it("silently skips rate-limit pairs for window seconds not in our configured buckets", async () => {
+      // Riot occasionally rolls out new window granularities (a 10s or 60s
+      // window in addition to the documented 1s/120s pair). Our two
+      // configured app windows only know about 1s + 120s — pairs for any
+      // other windowSec must skip without crashing the sync.
+      const service = new RateLimiterService();
+      await expect(
+        service.syncFromHeaders(
+          "europe",
+          "match-by-id",
+          new Headers({
+            // Only 60s pairs — neither tracked window matches, so both pairs
+            // hit the `if (!count || !window) continue` skip.
+            "X-App-Rate-Limit": "500:60",
+            "X-App-Rate-Limit-Count": "250:60",
+          })
+        )
+      ).resolves.toBeUndefined();
+
+      // Both tracked windows remain at full reservoir.
+      const fast = (service as unknown as Internals).appWindows
+        .get("europe")
+        ?.find((w) => w.windowSec === 1);
+      const slow = (service as unknown as Internals).appWindows
+        .get("europe")
+        ?.find((w) => w.windowSec === 120);
+      expect(await fast?.limiter.currentReservoir()).toBe(20);
+      expect(await slow?.limiter.currentReservoir()).toBe(100);
+    });
+
+    it("silently skips method-rate-limit pairs whose windowSec doesn't match our method limiter", async () => {
+      // Pre-create the method limiter so we know its windowSec.
+      const service = new RateLimiterService();
+      await service.schedule("europe", "match-by-id", async () => "ok");
+      const method = (service as unknown as Internals).methodLimiters.get(
+        "europe:match-by-id"
+      );
+      const trackedWindow = method?.windowSec ?? 0;
+      const mismatchedWindow = trackedWindow + 7;
+
+      await expect(
+        service.syncFromHeaders(
+          "europe",
+          "match-by-id",
+          new Headers({
+            "X-Method-Rate-Limit": `2000:${mismatchedWindow}`,
+            "X-Method-Rate-Limit-Count": `1900:${mismatchedWindow}`,
+          })
+        )
+      ).resolves.toBeUndefined();
+    });
   });
 
   describe("schedule deadline", () => {
@@ -153,6 +205,26 @@ describe("RateLimiterService", () => {
       const service = new RateLimiterService();
       const result = await service.schedule("europe", "match-by-id", async () => "fast");
       expect(result).toBe("fast");
+    });
+
+    it("short-circuits inside the Bottleneck callback when the deadline already expired before dispatch", async () => {
+      // Operational guard: when the outer deadline race has already rejected,
+      // the queued Bottleneck callback may still dispatch later (e.g. after a
+      // reservoir refresh). Without the inner `waited >= deadlineMs` check,
+      // the wrapped fn would consume a Bottleneck slot and EXECUTING would
+      // grow monotonically across cron ticks — the original bug this guard
+      // was added to fix.
+      const service = new RateLimiterService();
+      // deadlineMs = 0 forces the inner waited >= deadlineMs check to be true
+      // for any dispatch time, exercising the short-circuit deterministically.
+      service.deadlineMs = 0;
+
+      const fn = vi.fn().mockResolvedValue("never");
+      const error = await service
+        .schedule("europe", "match-by-id", fn)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(RateLimiterTimeoutError);
+      expect(fn).not.toHaveBeenCalled();
     });
   });
 
@@ -258,6 +330,41 @@ describe("RateLimiterService", () => {
         .mockImplementation(() => {});
       await (service as unknown as { dumpCounters: () => Promise<void> }).dumpCounters();
       expect(debug).not.toHaveBeenCalled();
+    });
+
+    it("includes a line for a busy method limiter (separate from the app-window logging)", async () => {
+      // Without testing this branch, a regression that filtered out method
+      // rows would silently strip the per-family debug info — the very signal
+      // the operator needs to tell which family is wedged.
+      const service = new RateLimiterService();
+      let unblock: () => void = () => {};
+      const gate = new Promise<void>((r) => {
+        unblock = r;
+      });
+      // Hold a method job in-flight so the family's EXECUTING > 0.
+      const inFlight = service.schedule("europe", "match-by-id", async () => {
+        await gate;
+      });
+      // Spin until the job actually entered EXECUTING before dumping.
+      const method = (service as unknown as Internals).methodLimiters.get(
+        "europe:match-by-id"
+      );
+      for (let i = 0; i < 50; i++) {
+        if ((method?.limiter.counts().EXECUTING ?? 0) > 0) break;
+        await new Promise((r) => setTimeout(r, 10));
+      }
+
+      const debug = vi
+        .spyOn((service as unknown as { logger: { debug: () => void } }).logger, "debug")
+        .mockImplementation(() => {});
+      await (service as unknown as { dumpCounters: () => Promise<void> }).dumpCounters();
+
+      expect(debug).toHaveBeenCalled();
+      const message = (debug.mock.calls[0] as unknown as [string])[0];
+      expect(message).toContain("match-by-id");
+
+      unblock();
+      await inFlight;
     });
   });
 
