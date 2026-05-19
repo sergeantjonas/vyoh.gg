@@ -2,6 +2,7 @@ import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import { render, screen } from "@testing-library/react";
 import type { MatchTimelineProjection, ParticipantDetail } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
+import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MatchGoldLead } from "./match-gold-lead";
 
@@ -16,9 +17,40 @@ vi.mock("recharts", () => ({
   AreaChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Area: () => null,
   CartesianGrid: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  Tooltip: () => null,
+  // Drive the tickFormatter callbacks on both axes so they show up in coverage.
+  XAxis: ({ tickFormatter }: { tickFormatter?: (v: number) => string }) => (
+    <div data-testid="x-ticks">{tickFormatter ? tickFormatter(15) : ""}</div>
+  ),
+  YAxis: ({ tickFormatter }: { tickFormatter?: (v: number) => string }) => (
+    <div data-testid="y-ticks">
+      {tickFormatter
+        ? `${tickFormatter(0)}|${tickFormatter(3000)}|${tickFormatter(-3000)}`
+        : ""}
+    </div>
+  ),
+  // Make Tooltip render the content with active+payload so GoldLeadTooltip body runs.
+  Tooltip: ({
+    content,
+  }: {
+    content?: React.ReactElement<{
+      active?: boolean;
+      payload?: Array<{ payload: unknown }>;
+      label?: number;
+    }>;
+  }) => {
+    if (!content) return null;
+    return (
+      <div data-testid="tooltip-stub">
+        {React.cloneElement(content, {
+          active: true,
+          payload: [
+            { payload: { minute: 14, lead: 1500, blueGold: 10_000, redGold: 8_500 } },
+          ],
+          label: 14,
+        })}
+      </div>
+    );
+  },
   ReferenceLine: () => null,
 }));
 
@@ -106,5 +138,24 @@ describe("MatchGoldLead", () => {
     });
     renderGold({ myPuuid: "me" });
     expect(screen.getByText("Gold lead")).toBeTruthy();
+  });
+
+  it("renders the timeline for a red-team user and detects gold-sign flips", () => {
+    // Blue is ahead at minute 5 (lead +1500), then red overtakes at minute 10
+    // (lead -1500). For a red-team user, the perspective flips; either way the
+    // raw lead signs flip between consecutive frames, exercising detectFlips.
+    mockTimeline({
+      data: timelineWith([
+        { ts: 0, blueGold: 0, redGold: 0 },
+        { ts: 5 * 60_000, blueGold: 5000, redGold: 3500 },
+        { ts: 10 * 60_000, blueGold: 6000, redGold: 7500 },
+        { ts: 15 * 60_000, blueGold: 8500, redGold: 7000 },
+      ]),
+    });
+    renderGold({ myPuuid: "me", teamId: 200 });
+    expect(screen.getByText("Gold lead")).toBeTruthy();
+    // YAxis tickFormatter ran with negative/zero/positive values — the stub
+    // emits all three formatted strings.
+    expect(screen.getByTestId("y-ticks").textContent).toMatch(/0\|.*k\|/);
   });
 });

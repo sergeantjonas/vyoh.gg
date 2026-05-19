@@ -65,9 +65,11 @@ function mockTimeline(value: {
 
 function mockItems() {
   vi.mocked(useItems).mockReturnValue({
-    data: new Map([
+    data: new Map<number, { name: string; iconUrl: string; categories: string[] }>([
       [1001, { name: "Boots", iconUrl: "x", categories: [] }],
       [3068, { name: "Sunfire", iconUrl: "x", categories: [] }],
+      [2003, { name: "Health Potion", iconUrl: "x", categories: ["Consumable"] }],
+      [3340, { name: "Stealth Ward", iconUrl: "x", categories: ["Trinket"] }],
     ]),
   } as unknown as ReturnType<typeof useItems>);
 }
@@ -165,5 +167,120 @@ describe("MatchBuildOrder", () => {
       participants: [participant("me", 100, "MIDDLE")],
     });
     expect(screen.queryByText(/opponent/i)).toBeNull();
+  });
+
+  it("renders 'No items' when the participant has no build events", () => {
+    mockTimeline({
+      participants: [{ puuid: "me", participantId: 1 }],
+      build: [{ participantId: 1, events: [] }],
+    });
+    mockItems();
+    renderBuild({ myPuuid: "me" });
+    expect(screen.getByText("No items")).toBeTruthy();
+  });
+
+  it("renders purchased items and filters out consumables by default", () => {
+    mockTimeline({
+      participants: [{ puuid: "me", participantId: 1 }],
+      build: [
+        {
+          participantId: 1,
+          events: [
+            { type: "PURCHASED", itemId: 1001, ts: 60_000 },
+            { type: "PURCHASED", itemId: 3068, ts: 300_000 },
+            // Health Potion is a Consumable — should be filtered out.
+            { type: "PURCHASED", itemId: 2003, ts: 60_000 },
+            // Stealth Ward is a Trinket — also filtered.
+            { type: "PURCHASED", itemId: 3340, ts: 60_000 },
+          ],
+        },
+      ],
+    });
+    mockItems();
+    renderBuild({ myPuuid: "me" });
+    expect(screen.getByAltText("Boots")).toBeTruthy();
+    expect(screen.getByAltText("Sunfire")).toBeTruthy();
+    expect(screen.queryByAltText("Health Potion")).toBeNull();
+    expect(screen.queryByAltText("Stealth Ward")).toBeNull();
+  });
+
+  it("includes consumables once the toggle is enabled", () => {
+    mockTimeline({
+      participants: [{ puuid: "me", participantId: 1 }],
+      build: [
+        {
+          participantId: 1,
+          events: [
+            { type: "PURCHASED", itemId: 1001, ts: 60_000 },
+            { type: "PURCHASED", itemId: 2003, ts: 90_000 },
+          ],
+        },
+      ],
+    });
+    mockItems();
+    renderBuild({ myPuuid: "me" });
+    expect(screen.queryByAltText("Health Potion")).toBeNull();
+    fireEvent.click(screen.getByText("Show consumables"));
+    expect(screen.getByAltText("Health Potion")).toBeTruthy();
+  });
+
+  it("removes the matching purchase when an UNDO event follows it", () => {
+    mockTimeline({
+      participants: [{ puuid: "me", participantId: 1 }],
+      build: [
+        {
+          participantId: 1,
+          events: [
+            { type: "PURCHASED", itemId: 1001, ts: 60_000 },
+            { type: "PURCHASED", itemId: 3068, ts: 120_000 },
+            { type: "UNDO", itemId: 3068, ts: 121_000 },
+          ],
+        },
+      ],
+    });
+    mockItems();
+    renderBuild({ myPuuid: "me" });
+    expect(screen.getByAltText("Boots")).toBeTruthy();
+    // Sunfire was undone — no entry should remain for it.
+    expect(screen.queryByAltText("Sunfire")).toBeNull();
+  });
+
+  it("converts a PURCHASED entry into SOLD when a SOLD event references it", () => {
+    mockTimeline({
+      participants: [{ puuid: "me", participantId: 1 }],
+      build: [
+        {
+          participantId: 1,
+          events: [
+            { type: "PURCHASED", itemId: 1001, ts: 60_000 },
+            { type: "SOLD", itemId: 1001, ts: 600_000 },
+            { type: "PURCHASED", itemId: 3068, ts: 700_000 },
+          ],
+        },
+      ],
+    });
+    mockItems();
+    const { container } = renderBuild({ myPuuid: "me" });
+    // Both icons still present (one as SOLD-styled, one as PURCHASED).
+    expect(screen.getByAltText("Boots")).toBeTruthy();
+    expect(screen.getByAltText("Sunfire")).toBeTruthy();
+    // SOLD entries get a red tint on the timestamp.
+    expect(container.querySelector(".text-red-400\\/50")).toBeTruthy();
+  });
+
+  it("toggles 'Hide opponent' → 'Show opponent' on click", () => {
+    mockTimeline({
+      participants: [
+        { puuid: "me", participantId: 1 },
+        { puuid: "opp", participantId: 6 },
+      ],
+    });
+    mockItems();
+    renderBuild({
+      myPuuid: "me",
+      participants: [participant("me", 100, "MIDDLE"), participant("opp", 200, "MIDDLE")],
+    });
+    fireEvent.click(screen.getByText("Hide opponent"));
+    expect(screen.getByText("Show opponent")).toBeTruthy();
   });
 });

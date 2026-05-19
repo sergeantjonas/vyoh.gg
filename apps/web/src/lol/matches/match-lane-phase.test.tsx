@@ -2,6 +2,7 @@ import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import { render, screen } from "@testing-library/react";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
+import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MatchLanePhase } from "./match-lane-phase";
 
@@ -16,9 +17,48 @@ vi.mock("recharts", () => ({
   AreaChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Area: () => null,
   CartesianGrid: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  Tooltip: () => null,
+  // Drive the tickFormatter for both axes so the inline arrow callbacks show
+  // up in coverage. The XAxis formatter renders "{v}m", the YAxis formatter
+  // produces "+/-Xk" / "0".
+  XAxis: ({ tickFormatter }: { tickFormatter?: (v: number) => string }) => (
+    <div data-testid="x-ticks">
+      {tickFormatter ? `${tickFormatter(0)}|${tickFormatter(10)}` : ""}
+    </div>
+  ),
+  YAxis: ({ tickFormatter }: { tickFormatter?: (v: number) => string }) => (
+    <div data-testid="y-ticks">
+      {tickFormatter
+        ? `${tickFormatter(0)}|${tickFormatter(2500)}|${tickFormatter(-2500)}`
+        : ""}
+    </div>
+  ),
+  // Recharts Tooltip clones the `content` element and injects active/payload.
+  // Mimic that so the LaneTooltip body actually renders.
+  Tooltip: ({
+    content,
+  }: {
+    content?: React.ReactElement<{
+      active?: boolean;
+      payload?: Array<{ payload: unknown }>;
+      label?: number;
+    }>;
+  }) => {
+    if (!content) return null;
+    const samplePayload = {
+      minute: 10,
+      goldDiff: 750,
+      csDiff: 12,
+    };
+    return (
+      <div data-testid="lane-tooltip-stub">
+        {React.cloneElement(content, {
+          active: true,
+          payload: [{ payload: samplePayload }],
+          label: 10,
+        })}
+      </div>
+    );
+  },
   ReferenceLine: () => null,
 }));
 
