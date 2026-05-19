@@ -90,4 +90,59 @@ describe("buildChips", () => {
     const target = chips.find((c) => c.label === "wins");
     expect(target?.remove("with:nidalee  wins  kda>3")).toBe("with:nidalee kda>3");
   });
+
+  it("removes a vs: chip cleanly via its remove handler", () => {
+    const chips = chipFor("vs:khazix wins");
+    const vs = chips.find((c) => c.label === "vs: khazix");
+    expect(vs?.remove("vs:khazix wins")).toBe("wins");
+  });
+
+  it("removes a queue: chip via its remove handler", () => {
+    const chips = chipFor("queue:soloq with:nidalee");
+    const q = chips.find((c) => c.label === "queue: soloq");
+    expect(q?.remove("queue:soloq with:nidalee")).toBe("with:nidalee");
+  });
+
+  it("removes a role: chip via its remove handler", () => {
+    const chips = chipFor("role:jungle wins");
+    const r = chips.find((c) => c.label === "role: jungle");
+    expect(r?.remove("role:jungle wins")).toBe("wins");
+  });
+
+  it("removes a patch: chip via its remove handler", () => {
+    const chips = chipFor("patch:14.20 wins");
+    const p = chips.find((c) => c.label === "patch: 14.20");
+    expect(p?.remove("patch:14.20 wins")).toBe("wins");
+  });
+
+  it("removes a duo: chip via its remove handler", () => {
+    const chips = chipFor("duo:foo#euw wins");
+    const d = chips.find((c) => c.label === "duo: foo#euw");
+    expect(d?.remove("duo:foo#euw wins")).toBe("wins");
+  });
+
+  it("renders a single until chip showing the user's literal value", () => {
+    const chips = chipFor("until:2026-01-01");
+    expect(chips.map((c) => c.label)).toEqual(["until: 2026-01-01"]);
+  });
+
+  it("removes ALL occurrences of until: when its chip is clicked", () => {
+    const chips = chipFor("until:7d until:1d");
+    expect(chips[0]?.remove("until:7d until:1d")).toBe("");
+  });
+
+  it("removes ALL kda< occurrences regardless of which value the chip displays", () => {
+    const chips = chipFor("kda<2 kda<4");
+    expect(chips[0]?.remove("kda<2 kda<4")).toBe("");
+  });
+
+  it("lastTailWithPrefix returns an empty label when the verb has no value (since:)", () => {
+    // `since:` with no trailing value — the parser may still flag since as
+    // present (when followed by another keyword); but since needs a value to
+    // even register, so this is more of a defensive null-return check.
+    const chips = chipFor("since: wins");
+    // since: with no value won't produce a since chip — the parsed.since
+    // is null. Confirm that and that we only see the outcome chip.
+    expect(chips.map((c) => c.label)).toEqual(["wins"]);
+  });
 });

@@ -192,17 +192,37 @@ describe("MatchRow", () => {
     expect(container.textContent).toMatch(/just now/);
   });
 
-  it("activates the match on pointer-down (used by the detail-route transition)", () => {
-    const { container } = renderRow({ match: summary() });
-    // The detail link is the second <a> rendered (first is the dossier anchor).
+  it("publishes the row's bounding rect + 'forward' origin to ActiveMatchContext on pointer-down", () => {
+    // Hoist the context value out of the provider so we can read what the
+    // handler wrote into it. The pointer-down path on the detail link
+    // captures the row's rect + matchId so MatchHero can morph from it.
+    const observed: { current: ReturnType<typeof useActiveMatch> | null } = {
+      current: null,
+    };
+    function Probe() {
+      observed.current = useActiveMatch();
+      return null;
+    }
+    const { container } = render(
+      <MotionConfig reducedMotion="always">
+        <ActiveMatchProvider>
+          <Probe />
+          <MatchRow
+            match={summary({ matchId: "EUW1_PD" })}
+            accountSlug="jonas-euw"
+            championDisplayName="Ahri"
+          />
+        </ActiveMatchProvider>
+      </MotionConfig>
+    );
     const links = container.querySelectorAll("a");
     const detail = links[1];
     if (!detail) throw new Error("detail link not rendered");
     fireEvent.pointerDown(detail);
-    // No assertion on context value — coverage of the pointer-down handler is
-    // the goal. The handler reads getBoundingClientRect, sets activeMatch,
-    // and persists scroll position; all happy-dom no-ops.
-    fireEvent.mouseEnter(detail);
+    // The origin ref was populated with the forward direction + matchId.
+    const origin = observed.current?.originRectRef.current;
+    expect(origin?.matchId).toBe("EUW1_PD");
+    expect(origin?.direction).toBe("forward");
   });
 });
 

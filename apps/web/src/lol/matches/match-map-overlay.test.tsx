@@ -146,9 +146,12 @@ describe("MatchMapOverlay", () => {
     expect(screen.getByText("Match map overlay")).toBeTruthy();
   });
 
-  it("handles a pending timeline gracefully (no events, no crash)", () => {
+  it("shows the dialog title and zero events while the timeline is pending", () => {
     setTimeline({ isPending: true, isError: false, data: undefined });
-    expect(() => renderShell()).not.toThrow();
+    renderShell();
+    expect(screen.getByText("Match map overlay")).toBeTruthy();
+    // The header counter reads "Events · 0" when no timeline data is loaded.
+    expect(screen.getByText(/Events · 0/)).toBeTruthy();
   });
 
   it("renders all distinct objective labels in the feed and on the map", () => {

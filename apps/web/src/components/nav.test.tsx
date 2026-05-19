@@ -3,7 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CommandPaletteProvider } from "./command-palette-context";
+import { CommandPaletteProvider, useCommandPalette } from "./command-palette-context";
 import { Nav } from "./nav";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -63,10 +63,28 @@ describe("Nav", () => {
 
   it("opens the command palette when the shortcut chip is clicked", () => {
     vi.mocked(useRouterState).mockReturnValue("/" as never);
-    renderNav();
+    // Probe captures the live context value so we can verify open flips
+    // from false to true after click.
+    const observed: { current: ReturnType<typeof useCommandPalette> | null } = {
+      current: null,
+    };
+    function Probe() {
+      observed.current = useCommandPalette();
+      return null;
+    }
+    render(
+      <MotionConfig reducedMotion="always">
+        <TooltipPrimitive.Provider>
+          <CommandPaletteProvider>
+            <Probe />
+            <Nav />
+          </CommandPaletteProvider>
+        </TooltipPrimitive.Provider>
+      </MotionConfig>
+    );
+    expect(observed.current?.open).toBe(false);
     const trigger = screen.getByRole("button", { name: "Open command palette" });
-    expect(trigger).toBeTruthy();
-    // Clicking shouldn't throw — provider state is internal, just verify it's wired.
     fireEvent.click(trigger);
+    expect(observed.current?.open).toBe(true);
   });
 });

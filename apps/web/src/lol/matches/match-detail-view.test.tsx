@@ -170,8 +170,7 @@ describe("MatchTimelineTab", () => {
 });
 
 describe("MatchRecapTab badges", () => {
-  it("assigns a single distinctive badge per participant via maxWinner/minWinner", () => {
-    // Vary one metric per participant so each one wins a different badge.
+  it("renders every category badge label when each metric has a distinct winner", () => {
     const detail = {
       matchId: "EUW1_BADGES",
       queueType: "Ranked Solo",
@@ -179,9 +178,7 @@ describe("MatchRecapTab badges", () => {
       playedAt: "2026-05-19T10:00:00Z",
       teams: [team(100, true, 60000, 20), team(200, false, 50000, 12)],
       participants: [
-        // Top damage
         participant({ puuid: "P_DMG", teamId: 100, totalDamage: 80000 }),
-        // Top KDA
         participant({
           puuid: "P_KDA",
           teamId: 100,
@@ -190,26 +187,25 @@ describe("MatchRecapTab badges", () => {
           assists: 15,
           totalDamage: 10000,
         }),
-        // Top vision
         participant({ puuid: "P_VIS", teamId: 100, visionScore: 90, totalDamage: 5000 }),
-        // Top KP
         participant({ puuid: "P_KP", teamId: 100, kp: 0.92, totalDamage: 4000 }),
-        // Top CS
         participant({ puuid: "P_CS", teamId: 200, csTotal: 320, totalDamage: 3000 }),
-        // Fewest deaths
         participant({ puuid: "P_FEW", teamId: 200, deaths: 0, totalDamage: 2000 }),
-        // Plain
         participant({ puuid: "P_PLAIN", teamId: 200, totalDamage: 1000 }),
         participant({ puuid: "P_X", teamId: 200, totalDamage: 500 }),
       ],
     } as unknown as MatchDetail;
     renderShell(<MatchRecapTab detail={detail} accountSlug="me" />);
-    // We can't easily assert which puuid got which badge (they're rendered
-    // through child icons), but the tab must render without throwing.
-    expect(screen.getByText("Blue side")).toBeTruthy();
+    // Each distinct winner produces its own badge label in the recap.
+    expect(screen.getByText("Top DMG")).toBeTruthy();
+    expect(screen.getByText("Top KDA")).toBeTruthy();
+    expect(screen.getByText("Top Vision")).toBeTruthy();
+    expect(screen.getByText("Top KP")).toBeTruthy();
+    expect(screen.getByText("Top CS")).toBeTruthy();
+    expect(screen.getByText("Low Deaths")).toBeTruthy();
   });
 
-  it("does not award a badge when the top two values are tied (no distinctive winner)", () => {
+  it("awards no badges when the top two values are tied across every metric", () => {
     const tied = {
       matchId: "EUW1_TIED",
       queueType: "Ranked Solo",
@@ -224,7 +220,13 @@ describe("MatchRecapTab badges", () => {
       ],
     } as unknown as MatchDetail;
     renderShell(<MatchRecapTab detail={tied} accountSlug="me" />);
-    // The recap still renders even though no badges are awarded.
-    expect(screen.getByText("Blue side")).toBeTruthy();
+    // None of the badge labels render — the recap surfaces them only on a
+    // distinctive winner.
+    expect(screen.queryByText("Top DMG")).toBeNull();
+    expect(screen.queryByText("Top KDA")).toBeNull();
+    expect(screen.queryByText("Top Vision")).toBeNull();
+    expect(screen.queryByText("Top KP")).toBeNull();
+    expect(screen.queryByText("Top CS")).toBeNull();
+    expect(screen.queryByText("Low Deaths")).toBeNull();
   });
 });
