@@ -132,6 +132,55 @@ describe("SteamProfileBackdrop", () => {
     spy.mockRestore();
   });
 
+  it("renders the <video> element when summary carries profileBackgroundVideoUrl", () => {
+    setSummary({
+      profileBackgroundUrl: "/static-bg.jpg",
+      profileBackgroundVideoUrl: "/bg.mp4",
+    });
+    renderShell(<span>child</span>);
+    const videos = document.querySelectorAll("video");
+    expect(videos.length).toBeGreaterThan(0);
+    expect(videos[0]?.getAttribute("src")).toBe("/bg.mp4");
+  });
+
+  it("pauses the backdrop <video> when the document is hidden and resumes on visibility change", () => {
+    setSummary({
+      profileBackgroundUrl: "/static-bg.jpg",
+      profileBackgroundVideoUrl: "/bg.mp4",
+    });
+    const { container } = renderShell(<span>child</span>);
+    const video = container.ownerDocument.querySelector("video") as HTMLVideoElement;
+    if (!video) throw new Error("expected the backdrop <video>");
+    const pause = vi.fn();
+    const play = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(video, "pause", { value: pause, configurable: true });
+    Object.defineProperty(video, "play", { value: play, configurable: true });
+    // Flip document.hidden true, fire the event, expect pause.
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(pause).toHaveBeenCalled();
+    // Flip back to visible, fire again, expect play.
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(play).toHaveBeenCalled();
+  });
+
+  it("flags the BackdropImg as ready after the img fires onLoad (no fade-out)", () => {
+    setSummary({ profileBackgroundUrl: null });
+    const { container } = renderShell(<GameConsumer appid={42} ts={null} />);
+    const img = container.ownerDocument.querySelector(
+      'img[src*="/steam-bg/42"]'
+    ) as HTMLImageElement | null;
+    if (!img) throw new Error("expected the backdrop img");
+    fireEvent.load(img);
+    // After load, the img stays mounted (no failover) — meaning no error was triggered.
+    expect(
+      Array.from(document.querySelectorAll("img")).some((i) =>
+        i.src.includes("/steam-bg/42")
+      )
+    ).toBe(true);
+  });
+
   it("does NOT re-create the GameBackdropLayer img when only assetTimestamp changes for the same appid", () => {
     setSummary({ profileBackgroundUrl: null });
     function Bump({ ts }: { ts: number }) {

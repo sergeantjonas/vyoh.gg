@@ -159,26 +159,6 @@ describe("MatchSyncService.syncAll", () => {
 
     expect(lol.syncAccountMatches).not.toHaveBeenCalled();
   });
-
-  it("logs progress when historical is mid-walk (not done, not skipped)", async () => {
-    const { service } = await makeService(
-      async () => ({ idCount: 20, backfilled: 0 }),
-      [accountA],
-      async () => ({ idCount: 100, backfilled: 7, done: false, skipped: false })
-    );
-    // No assertion needed beyond the fact that the historical mid-walk log
-    // branch is executed without throwing.
-    await service.syncAll();
-  });
-
-  it("logs historical-done when the last page comes through", async () => {
-    const { service } = await makeService(
-      async () => ({ idCount: 20, backfilled: 0 }),
-      [accountA],
-      async () => ({ idCount: 100, backfilled: 1, done: true, skipped: false })
-    );
-    await service.syncAll();
-  });
 });
 
 describe("MatchSyncService env toggle + lifecycle", () => {

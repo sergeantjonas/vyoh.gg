@@ -192,4 +192,52 @@ describe("ProfilePregameRitual", () => {
     renderRitual();
     expect(screen.getByText(/Play a few games and we'll have a read\./)).toBeTruthy();
   });
+
+  it("reports 'not enough games after a win' when ≥5 total but <3 after-win games", () => {
+    const now = Date.now();
+    // 5 games total: last 4 were losses (the "after-loss" bucket is fine);
+    // last game won, but the after-win bucket only has the games following
+    // wins in history — with only one win at the top, there are 0 after-win.
+    setMatches([
+      fakeMatch({ win: true, playedAt: new Date(now - 1 * DAY_MS).toISOString() }),
+      fakeMatch({ win: false, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+      fakeMatch({ win: false, playedAt: new Date(now - 3 * DAY_MS).toISOString() }),
+      fakeMatch({ win: false, playedAt: new Date(now - 4 * DAY_MS).toISOString() }),
+      fakeMatch({ win: false, playedAt: new Date(now - 5 * DAY_MS).toISOString() }),
+    ]);
+    renderRitual();
+    expect(screen.getByText(/Not enough games after a win yet\./)).toBeTruthy();
+  });
+
+  it("reports the after-loss WR verdict when ≥5 total and ≥3 in the after-loss bucket", () => {
+    const now = Date.now();
+    // 6 losses in a row → after-loss bucket has 5 entries.
+    setMatches(
+      Array.from({ length: 6 }, (_, i) =>
+        fakeMatch({
+          win: false,
+          playedAt: new Date(now - (i + 1) * DAY_MS).toISOString(),
+        })
+      )
+    );
+    renderRitual();
+    // 0% WR after a loss → the verdict surfaces as a warning.
+    expect(screen.getByText(/After a loss you historically win 0%\./)).toBeTruthy();
+  });
+
+  it("renders the time-slot tile when matches reach the ≥10-game threshold", () => {
+    const now = Date.now();
+    setMatches(
+      Array.from({ length: 12 }, (_, i) =>
+        fakeMatch({
+          win: i % 2 === 0,
+          playedAt: new Date(now - (i + 1) * HOUR_MS).toISOString(),
+        })
+      )
+    );
+    renderRitual();
+    // With 12 alternating games at arbitrary hours, no specific slot reaches
+    // the MIN_HOUR_SAMPLE threshold — the "Untested hour" verdict surfaces.
+    expect(screen.getByText(/Untested hour for you/)).toBeTruthy();
+  });
 });

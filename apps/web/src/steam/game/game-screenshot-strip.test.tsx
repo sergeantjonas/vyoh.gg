@@ -8,13 +8,46 @@ vi.mock("@/steam/library/use-game-media", () => ({
   useGameMedia: vi.fn(),
 }));
 
-// Embla's plugin interface is intricate enough that a hand-rolled mock crashes
-// the reactive-utils setup. Mock the entire Carousel wrapper instead so the
-// strip's own render branches can be exercised without engaging embla.
+// Capture the most-recent Carousel setApi callback so tests can drive the
+// strip's effects (modal-pause, preload, keyboard) without engaging embla.
+interface CarouselApiStub {
+  scrollPrev: () => void;
+  scrollNext: () => void;
+  scrollTo: (index: number, instant?: boolean) => void;
+  selectedScrollSnap: () => number;
+  on: (event: string, cb: () => void) => void;
+  off: (event: string, cb: () => void) => void;
+}
+
+let lastCarouselApi: CarouselApiStub | null = null;
+
+function makeCarouselApiStub(): CarouselApiStub {
+  return {
+    scrollPrev: vi.fn(),
+    scrollNext: vi.fn(),
+    scrollTo: vi.fn(),
+    selectedScrollSnap: vi.fn(() => 0),
+    on: vi.fn(),
+    off: vi.fn(),
+  };
+}
+
 vi.mock("@/components/ui/carousel", () => {
   const Passthrough = ({ children }: { children: ReactNode }) => <div>{children}</div>;
   return {
-    Carousel: Passthrough,
+    Carousel: ({
+      children,
+      setApi,
+    }: {
+      children: ReactNode;
+      setApi?: (api: CarouselApiStub) => void;
+    }) => {
+      if (setApi && !lastCarouselApi) {
+        lastCarouselApi = makeCarouselApiStub();
+        setApi(lastCarouselApi);
+      }
+      return <div>{children}</div>;
+    },
     CarouselContent: Passthrough,
     CarouselItem: Passthrough,
     useCarousel: () => ({ scrollPrev: () => {}, scrollNext: () => {} }),
@@ -23,7 +56,10 @@ vi.mock("@/components/ui/carousel", () => {
 });
 
 vi.mock("embla-carousel-autoplay", () => ({
-  default: () => () => ({}),
+  default: () => ({
+    play: vi.fn(),
+    stop: vi.fn(),
+  }),
 }));
 
 vi.mock("embla-carousel-fade", () => ({
@@ -38,6 +74,7 @@ function setMedia(screenshots: { thumbUrl: string; fullUrl: string }[] | undefin
 
 afterEach(() => {
   vi.mocked(useGameMedia).mockReset();
+  lastCarouselApi = null;
 });
 
 describe("GameScreenshotStrip", () => {
@@ -80,5 +117,50 @@ describe("GameScreenshotStrip", () => {
     render(<GameScreenshotStrip appid={42} />);
     expect(screen.queryByLabelText("Previous screenshot")).toBeNull();
     expect(screen.queryByLabelText("Next screenshot")).toBeNull();
+  });
+
+  it("subscribes to embla's 'select' and 'reInit' events when api becomes available", () => {
+    setMedia([
+      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
+      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    ]);
+    render(<GameScreenshotStrip appid={42} />);
+    expect(lastCarouselApi).not.toBeNull();
+    const events = (lastCarouselApi?.on as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => c[0] as string
+    );
+    expect(events).toContain("select");
+    expect(events).toContain("reInit");
+  });
+
+  it("snaps the carousel back to the first frame when the appid changes", () => {
+    setMedia([
+      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
+      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    ]);
+    const { rerender } = render(<GameScreenshotStrip appid={42} />);
+    const initialScrollToCalls = (lastCarouselApi?.scrollTo as ReturnType<typeof vi.fn>)
+      .mock.calls.length;
+    rerender(<GameScreenshotStrip appid={730} />);
+    expect(
+      (lastCarouselApi?.scrollTo as ReturnType<typeof vi.fn>).mock.calls.length
+    ).toBeGreaterThan(initialScrollToCalls);
+    expect(
+      (lastCarouselApi?.scrollTo as ReturnType<typeof vi.fn>).mock.calls.at(-1)
+    ).toEqual([0, true]);
+  });
+
+  it("unsubscribes from embla on unmount so the api callback doesn't leak", () => {
+    setMedia([
+      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
+      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    ]);
+    const { unmount } = render(<GameScreenshotStrip appid={42} />);
+    const offBefore = (lastCarouselApi?.off as ReturnType<typeof vi.fn>).mock.calls
+      .length;
+    unmount();
+    expect(
+      (lastCarouselApi?.off as ReturnType<typeof vi.fn>).mock.calls.length
+    ).toBeGreaterThan(offBefore);
   });
 });

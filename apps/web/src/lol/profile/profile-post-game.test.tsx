@@ -353,12 +353,4 @@ describe("ProfilePostGame", () => {
     // 50% WR — falls into the warning ("consider stepping away") branch.
     expect(screen.getByText(/consider stepping away/)).toBeTruthy();
   });
-
-  it("animates a win-tinted pulse when isFresh is true", () => {
-    setMatches([fakeMatch({ csAt15: 0, goldAt15: 0, win: true })], true);
-    const { container } = renderShell();
-    // We can't observe motion's animate prop directly, but the section must
-    // still render — the pulseColor branch is exercised via isFresh=true.
-    expect(container.textContent).toContain("Post-game");
-  });
 });

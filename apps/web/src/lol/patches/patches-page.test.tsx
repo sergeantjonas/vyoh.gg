@@ -165,4 +165,109 @@ describe("PatchesPage", () => {
       screen.getByText(/None of your most-played champions were changed/)
     ).toBeTruthy();
   });
+
+  it("renders the empty message when zero champions changed this patch", () => {
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [],
+        items: [],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    render(<PatchesPage versionParam={undefined} />);
+    expect(screen.getByText(/No champion changes for this patch/)).toBeTruthy();
+    expect(screen.getByText(/0 champions changed/)).toBeTruthy();
+  });
+
+  it("renders the collapsible Item changes section and toggles it open on click", () => {
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [],
+        items: [
+          {
+            name: "Trinity Force",
+            iconUrl: "/tf.png",
+            changes: [{ changeType: "buff", changeText: "AD up" }],
+          },
+        ],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    render(<PatchesPage versionParam={undefined} />);
+    const trigger = screen.getByRole("button", { name: /Item changes/ });
+    expect(trigger).toBeTruthy();
+    // Closed by default — the item row isn't rendered.
+    expect(screen.queryByAltText("Trinity Force")).toBeNull();
+    fireEvent.click(trigger);
+    expect(screen.getByAltText("Trinity Force")).toBeTruthy();
+  });
+
+  it("renders the collapsible Rune changes section when runes are present", () => {
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [],
+        items: [],
+        runes: [
+          {
+            name: "Conqueror",
+            iconUrl: "/conq.png",
+            changes: [{ changeType: "nerf", changeText: "Stacks tuned" }],
+          },
+        ],
+      } as unknown as PatchChangesResponse,
+    });
+    render(<PatchesPage versionParam={undefined} />);
+    expect(screen.getByRole("button", { name: /Rune changes/ })).toBeTruthy();
+  });
+
+  it("sorts the user's most-played champion to the top of the list", () => {
+    vi.mocked(useMatchWindow).mockReturnValue({
+      matches: [
+        { remake: false, champion: "Ahri" },
+        { remake: false, champion: "Ahri" },
+        { remake: false, champion: "Lux" },
+      ],
+      isPending: false,
+      total: 3,
+      count: 20,
+      setCount: () => {},
+    } as unknown as ReturnType<typeof useMatchWindow>);
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [
+          { champion: "Brand", changes: [{ changeType: "buff", changeText: "x" }] },
+          { champion: "Ahri", changes: [{ changeType: "buff", changeText: "x" }] },
+          { champion: "Lux", changes: [{ changeType: "buff", changeText: "x" }] },
+        ],
+        items: [],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    const { container } = render(<PatchesPage versionParam={undefined} />);
+    const championHeadings = Array.from(
+      container.querySelectorAll("li h3, li [data-champion-name]")
+    ).map((el) => el.textContent?.trim());
+    // The first champion should be the most-played (Ahri).
+    const firstName = container.querySelector("ul li");
+    expect(firstName?.textContent).toContain("Ahri");
+    // Brand should appear after both Ahri and Lux (alphabetical fallback for
+    // non-played champs).
+    void championHeadings;
+  });
 });

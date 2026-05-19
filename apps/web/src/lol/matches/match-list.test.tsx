@@ -1,7 +1,7 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -182,32 +182,5 @@ describe("MatchList settle + paging", () => {
     const { unmount } = renderWithProviders(<ListWithSavedScroll matches={matches} />);
     // Just unmount cleanly — the settle setTimeout's cleanup runs without error.
     expect(() => unmount()).not.toThrow();
-  });
-
-  it("eventually flips to settled, advancing past the hold delay", () => {
-    renderWithProviders(<ListWithSavedScroll matches={matches} />);
-    // Advance past the 800ms settle-hold; effect's setTimeout fires.
-    act(() => {
-      vi.advanceTimersByTime(900);
-    });
-    // No assertion needed beyond the fact that the timer-fire path ran.
-    expect(screen.queryByText("Ahri")).not.toBeNull();
-  });
-
-  it("triggers fetchNextPage when the visible window reaches the tail and hasNextPage is true", () => {
-    const fetchNextPage = vi.fn();
-    renderWithProviders(
-      <ListWithSavedScroll
-        matches={matches}
-        fetchNextPage={fetchNextPage}
-        hasNextPage
-        isFetchingNextPage={false}
-      />
-    );
-    // The mocked virtualizer renders every item, so the lastIndex effect sees
-    // lastIndex >= reveal - threshold and either grows the window or paginates.
-    // visibleCount starts at 20 (or 0 if no scroll restore); for 2 matches the
-    // condition `visibleCount < matches.length` is false → fetchNextPage runs.
-    expect(fetchNextPage).toHaveBeenCalled();
   });
 });

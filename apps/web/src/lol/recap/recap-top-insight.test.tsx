@@ -73,4 +73,33 @@ describe("RecapTopInsight", () => {
       screen.queryByText(/bounce back 100% better after a loss than a win/)
     ).not.toBeNull();
   });
+
+  it("surfaces the loss-streak insight when a 4+ loss run is the dominant signal", () => {
+    // 3 wins then 5 losses → bestWin=3 (< 4), bestLoss=5 → loss-streak wins.
+    const wins = Array.from({ length: 3 }, (_, i) => match(i + 1, true));
+    const losses = Array.from({ length: 5 }, (_, i) => match(i + 4, false));
+    renderInsight([...wins, ...losses]);
+
+    expect(screen.queryByText(/longest loss streak this window: 5 games/)).not.toBeNull();
+  });
+
+  it("surfaces the hour-slot insight when a (day, hour) bucket is well above the average WR", () => {
+    // Need: matches.length >= 15, a (day, hour) bucket with >= 4 games, and
+    // that bucket's WR at least 10pp above the overall WR.
+    // 4 wins on 4 consecutive Mondays (Jan 5/12/19/26 2026, all hour 12)
+    // + 12 losses spread across other days/hours.
+    const mondays = [5, 12, 19, 26];
+    const hot: MatchSummary[] = mondays.map((day, i) => {
+      const m = match(i + 1, true);
+      m.playedAt = new Date(Date.UTC(2026, 0, day, 12)).toISOString();
+      return m;
+    });
+    const others: MatchSummary[] = Array.from({ length: 12 }, (_, i) => {
+      const m = match(i + 100, false);
+      m.playedAt = new Date(Date.UTC(2026, 1, i + 1, 18)).toISOString();
+      return m;
+    });
+    renderInsight([...hot, ...others]);
+    expect(screen.queryByText(/strongest slot/)).not.toBeNull();
+  });
 });

@@ -86,4 +86,39 @@ describe("TrendWeeklyReview", () => {
       )
     ).toBeTruthy();
   });
+
+  it("surfaces a game-length insight when one duration bucket dominates win-rate", () => {
+    // 5 short games (10min, all wins) + 5 long games (40min, all losses).
+    // Short bucket → 100% WR, long bucket → 0% WR, spread = 1.0 >> 0.12 threshold.
+    const short = Array.from({ length: 5 }, (_, i) => match(i, true, 10 * 60));
+    const long = Array.from({ length: 5 }, (_, i) => match(i + 5, false, 40 * 60));
+    renderReview([...short, ...long]);
+    // Game-length insight text mentions the strongest bucket label + WR.
+    // We don't know the exact bucket label, but every variant ends with the same suffix.
+    expect(
+      screen.getAllByText(/is your strongest — 100% WR over 5 games\./).length
+    ).toBeGreaterThan(0);
+  });
+
+  it("surfaces a strong-hour-slot insight when an hour bucket beats overall WR by 15pp+", () => {
+    // computeHourDayStats buckets by (day-of-week, hour). To produce a bucket
+    // with 3+ games we need multiple matches on the same weekday + same hour.
+    // 4 wins on consecutive Mondays at 12:00 + 8 losses at 18:00 on other days.
+    // Overall WR = 4/12 = 33%; the Mon-12:00 slot WR = 100% → margin > 0.15.
+    const mondays = [5, 12, 19, 26]; // Jan 5/12/19/26 2026 are all Mondays
+    const hot = mondays.map((day, i) => {
+      const m = match(i, true, 1800);
+      m.playedAt = new Date(Date.UTC(2026, 0, day, 12)).toISOString();
+      return m;
+    });
+    const others = Array.from({ length: 8 }, (_, i) => {
+      const m = match(i + 100, false, 1800);
+      m.playedAt = new Date(Date.UTC(2026, 0, i + 1, 18)).toISOString();
+      return m;
+    });
+    renderReview([...hot, ...others]);
+    expect(
+      screen.getAllByText(/is a strong slot — 100% WR over 4 games\./).length
+    ).toBeGreaterThan(0);
+  });
 });

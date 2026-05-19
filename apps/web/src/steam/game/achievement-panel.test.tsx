@@ -147,4 +147,57 @@ describe("AchievementPanel", () => {
     expect(screen.queryByText("Needle Goal")).not.toBeNull();
     expect(screen.queryByText("Generic 0")).toBeNull();
   });
+
+  it("renders an unavailable error message when the achievements query errors", () => {
+    mockHook({ data: undefined, isPending: false, isError: true });
+    renderWithProviders(<AchievementPanel appid={440} />);
+    expect(screen.getByText(/Achievements are unavailable right now/)).toBeTruthy();
+  });
+
+  it("renders a pulsing skeleton while the achievements query is pending", () => {
+    mockHook({ data: undefined, isPending: true, isError: false });
+    const { container } = renderWithProviders(<AchievementPanel appid={440} />);
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it("clears the locked-only filter when a deep-link target is unlocked", () => {
+    const rows = [
+      makeAchievement({
+        apiName: "DEEP_HIT",
+        displayName: "Deep Linked Goal",
+        unlockedAt: "2026-04-01T00:00:00Z",
+      }),
+      makeAchievement({ apiName: "L1", displayName: "Locked One" }),
+    ];
+    mockHook({ data: makeData(rows), isPending: false, isError: false });
+    renderWithProviders(<AchievementPanel appid={440} highlightTarget="DEEP_HIT" />);
+    // The deep-link effect must clear lockedOnly so the unlocked row stays
+    // visible — it's the one the user came in to look at.
+    expect(screen.getByText("Deep Linked Goal")).toBeTruthy();
+  });
+
+  it("reveals a hidden achievement's name when its '???' label is clicked", () => {
+    const rows = [
+      makeAchievement({
+        apiName: "SECRET",
+        displayName: "The Secret Ending",
+        description: "Walk into the light.",
+        hidden: true,
+      }),
+    ];
+    mockHook({ data: makeData(rows), isPending: false, isError: false });
+    renderWithProviders(<AchievementPanel appid={440} />);
+    // The hidden row starts masked.
+    expect(screen.queryByText("The Secret Ending")).toBeNull();
+    const masked = screen.getAllByText("???")[0];
+    if (!masked) throw new Error("expected masked label");
+    // Walk up to the clickable trigger (the masked label is wrapped in a button).
+    const trigger = masked.closest("button");
+    if (!trigger) throw new Error("expected button trigger");
+    fireEvent.click(trigger);
+    expect(screen.getByText("The Secret Ending")).toBeTruthy();
+    // Re-click re-masks.
+    fireEvent.click(trigger);
+    expect(screen.queryByText("The Secret Ending")).toBeNull();
+  });
 });
