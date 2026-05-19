@@ -251,6 +251,126 @@ describe("SteamController", () => {
     expect(stub).toHaveBeenCalledOnce();
   });
 
+  it("delegates to SteamOwnedGamesService.getOwnedGames", async () => {
+    const payload = { totalCount: 0, games: [], lastSyncedAt: null } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: { getOwnedGames: stub } },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getOwnedGames()).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamScreenshotService.getGameMedia for game media", async () => {
+    const payload = { appid: 730, screenshots: [] } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamScreenshotService, useValue: { getGameMedia: stub } },
+        { provide: SteamChronotypeService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getGameMedia(730)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(730);
+  });
+
+  it("delegates to SteamAchievementsService.getCrossGameRarest with caller-supplied limit", async () => {
+    const payload = { unlocks: [] };
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: { getCrossGameRarest: stub } },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getCrossGameRarest(12)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(12);
+  });
+
+  it("delegates to SteamAchievementsService.getLibraryCompletion", async () => {
+    const payload = { games: [] } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: { getLibraryCompletion: stub } },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getLibraryCompletion()).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamAchievementsService.getUnlockTimeline for a given appid", async () => {
+    const payload = { appid: 730, unlocks: [] } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: { getUnlockTimeline: stub } },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getUnlockTimeline(730)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(730);
+  });
+
+  it("delegates to SteamChronotypeService.getChronotype with the parsed count param", async () => {
+    const payload = { buckets: [] } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamScreenshotService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: { getChronotype: stub } },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getChronotype(250)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(250);
+  });
+
   it("translates a null player-state into a NotFoundException", async () => {
     const stub = vi.fn().mockResolvedValue(null);
 
