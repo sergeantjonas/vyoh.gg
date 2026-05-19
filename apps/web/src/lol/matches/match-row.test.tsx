@@ -149,4 +149,46 @@ describe("MatchRow", () => {
     });
     expect(container.textContent).not.toContain("vs Yasuo");
   });
+
+  it("renders a negative LP delta without a + prefix and tints it red", () => {
+    const { container } = renderRow({ match: summary({ win: false }), lpDelta: -18 });
+    expect(container.textContent).toContain("-18 LP");
+  });
+
+  it("renders a 0-LP delta in the muted neutral tint", () => {
+    const { container } = renderRow({ match: summary(), lpDelta: 0 });
+    expect(container.textContent).toContain("0 LP");
+  });
+
+  it("formats hour-old games as 'Xh ago'", () => {
+    const { container } = renderRow({
+      match: summary({ playedAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString() }),
+    });
+    expect(container.textContent).toMatch(/3h ago/);
+  });
+
+  it("formats day-old games as 'Xd ago'", () => {
+    const { container } = renderRow({
+      match: summary({
+        playedAt: new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString(),
+      }),
+    });
+    expect(container.textContent).toMatch(/2d ago/);
+  });
+
+  it("formats week-old games as 'Xw ago'", () => {
+    const { container } = renderRow({
+      match: summary({
+        playedAt: new Date(Date.now() - 21 * 24 * 60 * 60_000).toISOString(),
+      }),
+    });
+    expect(container.textContent).toMatch(/3w ago/);
+  });
+
+  it("uses 'just now' for matches less than a minute old", () => {
+    const { container } = renderRow({
+      match: summary({ playedAt: new Date(Date.now() - 5_000).toISOString() }),
+    });
+    expect(container.textContent).toMatch(/just now/);
+  });
 });
