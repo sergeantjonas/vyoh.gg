@@ -211,6 +211,168 @@ describe("LiveGamePollerService poll → getForPuuid", () => {
     expect(service.getForPuuid("puuid-vyoh")).toBeNull();
   });
 
+  it("picks RANKED_SOLO_5x5 entries for enrichment and skips flex/TT queues", async () => {
+    // Real bug surface: Riot returns one league entry per queue. If the
+    // implementation picked the first entry instead of filtering by queueType,
+    // the live-game tile would silently surface flex rank for a player who's
+    // primarily a solo-queue grinder.
+    const stubs = makeStubs();
+    stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);
+    stubs.prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    stubs.riot.getActiveGameByPuuid.mockResolvedValueOnce(activeGame());
+    stubs.riot.getLeagueEntriesByPuuid.mockResolvedValue([
+      {
+        queueType: "RANKED_FLEX_SR",
+        tier: "DIAMOND",
+        rank: "I",
+        leaguePoints: 80,
+        wins: 50,
+        losses: 40,
+      },
+      {
+        queueType: "RANKED_SOLO_5x5",
+        tier: "PLATINUM",
+        rank: "III",
+        leaguePoints: 22,
+        wins: 30,
+        losses: 28,
+      },
+    ]);
+
+    const service = makeService(stubs);
+    await (service as unknown as { poll(): Promise<void> }).poll();
+    await drainMicrotasks();
+
+    const projection = service.getForPuuid("puuid-vyoh");
+    const me = projection?.participants.find((p) => p.puuid === "puuid-vyoh");
+    expect(me?.rank).toEqual({
+      tier: "PLATINUM",
+      rank: "III",
+      lp: 22,
+      wins: 30,
+      losses: 28,
+    });
+  });
+
+  it("surfaces partial enrichment when one Riot enrichment call rejects", async () => {
+    // Realistic Riot failure mode: rate-limited on league/mastery for one
+    // participant while the other call still succeeds. The projection should
+    // hold the successful side and null the rejected one — not omit the
+    // participant entirely or throw out of the enrichment promise.
+    const stubs = makeStubs();
+    stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);
+    stubs.prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    stubs.riot.getActiveGameByPuuid.mockResolvedValueOnce(activeGame());
+    stubs.riot.getLeagueEntriesByPuuid.mockRejectedValue(new Error("HTTP 429"));
+    stubs.riot.getChampionMasteryByChampion.mockResolvedValue({
+      championLevel: 7,
+      championPoints: 421_337,
+    });
+
+    const service = makeService(stubs);
+    await (service as unknown as { poll(): Promise<void> }).poll();
+    await drainMicrotasks();
+
+    const me = service
+      .getForPuuid("puuid-vyoh")
+      ?.participants.find((p) => p.puuid === "puuid-vyoh");
+    expect(me?.rank).toBeNull();
+    expect(me?.mastery).toEqual({ level: 7, points: 421_337 });
+  });
+
+  it("only attaches recentForm for whitelisted-owner participants, not random teammates", async () => {
+    // Privacy + rate-limit concern: recentForm is the *owner's* win/loss
+    // signal, surfaced when the live game contains another tracked account.
+    // For random teammates, we must not query Match by their puuid.
+    const stubs = makeStubs();
+    stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);
+    stubs.prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    stubs.riot.getActiveGameByPuuid.mockResolvedValueOnce(
+      activeGame({
+        participants: [
+          {
+            teamId: 100,
+            spell1Id: 4,
+            spell2Id: 14,
+            championId: 103,
+            puuid: "puuid-vyoh",
+            riotId: "Vyoh#Ahri",
+            perks: { perkIds: [8214], perkStyle: 8200, perkSubStyle: 8300 },
+          },
+          {
+            teamId: 200,
+            spell1Id: 4,
+            spell2Id: 14,
+            championId: 99,
+            puuid: "puuid-randomteammate",
+            riotId: "Stranger#EUW",
+            perks: { perkIds: [8005], perkStyle: 8000, perkSubStyle: 8100 },
+          },
+        ],
+      })
+    );
+    stubs.prisma.match.findMany.mockResolvedValue([{ win: true }, { win: false }]);
+
+    const service = makeService(stubs);
+    await (service as unknown as { poll(): Promise<void> }).poll();
+    await drainMicrotasks();
+
+    const calls = stubs.prisma.match.findMany.mock.calls;
+    // No match query should reference the random teammate's puuid.
+    const queriedPuuids = calls
+      .map(
+        (c: unknown[]) =>
+          (c[0] as { where?: { puuid?: string } } | undefined)?.where?.puuid
+      )
+      .filter(Boolean);
+    expect(queriedPuuids).not.toContain("puuid-randomteammate");
+  });
+
+  it("discards enrichment writes when the game ends mid-enrichment", async () => {
+    // Race condition: poll #1 detects an active game and kicks off enrichment.
+    // The Riot league call is slow; meanwhile poll #2 sees the game has
+    // ended. The resolved enrichment must NOT overwrite the now-cleared
+    // entry — otherwise the player-state UI shows stale ranks attached to
+    // a participant that is no longer in a game.
+    const stubs = makeStubs();
+    stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);
+    stubs.prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    // Defer the league-entries call so we can flip the cache before it lands.
+    let resolveLeague: (v: unknown) => void = () => {};
+    stubs.riot.getLeagueEntriesByPuuid.mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolveLeague = res;
+        })
+    );
+    // Poll #1: game exists. Poll #2: game has ended.
+    stubs.riot.getActiveGameByPuuid
+      .mockResolvedValueOnce(activeGame({ gameId: 1 }))
+      .mockResolvedValueOnce(null);
+
+    const service = makeService(stubs);
+    const poll = (service as unknown as { poll(): Promise<void> }).poll.bind(service);
+    await poll();
+    await poll();
+    await drainMicrotasks();
+    // Resolve the in-flight enrichment after the cache has been cleared.
+    resolveLeague([
+      {
+        queueType: "RANKED_SOLO_5x5",
+        tier: "MASTER",
+        rank: "I",
+        leaguePoints: 200,
+        wins: 1,
+        losses: 0,
+      },
+    ]);
+    await drainMicrotasks();
+
+    // Cache is cleared (game ended) — the stale enrichment must be dropped.
+    expect(service.getForPuuid("puuid-vyoh")).toBeNull();
+  });
+
   it("swallows per-account errors so one bad account doesn't break the loop", async () => {
     const stubs = makeStubs();
     stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);

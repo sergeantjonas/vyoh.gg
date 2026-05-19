@@ -134,6 +134,74 @@ describe("LolAnalyticsService.getDuos", () => {
     expect(await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri")).toEqual([]);
   });
 
+  it("returns [] without hitting the detail cache when the summoner has zero matches", async () => {
+    // Real path: tracked summoner who hasn't been backfilled yet (fresh account
+    // or first-boot). The early-return at userMatches.length === 0 prevents a
+    // redundant `matchId IN ()` query that some DB drivers reject.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([]);
+    const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
+    expect(duos).toEqual([]);
+    expect(prisma.matchDetailCache.findMany).not.toHaveBeenCalled();
+  });
+
+  it("skips cache rows whose participants array does not include the summoner's puuid", async () => {
+    // Real path: corrupted/stale detail cache, or cache-key collision across
+    // summoners. Without the !me guard, the next line dereferences `me.teamId`
+    // and crashes the whole endpoint.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_OK_1", playedAt: new Date("2026-05-15T20:00:00Z") },
+      { matchId: "EUW1_OK_2", playedAt: new Date("2026-05-15T19:00:00Z") },
+      { matchId: "EUW1_OK_3", playedAt: new Date("2026-05-15T18:00:00Z") },
+      { matchId: "EUW1_CORRUPT", playedAt: new Date("2026-05-15T17:00:00Z") },
+    ]);
+    const teammates = [
+      {
+        puuid: "puuid-vyoh",
+        riotIdGameName: "Vyoh",
+        riotIdTagline: "Ahri",
+        championName: "Ahri",
+        teamId: 100,
+        win: true,
+      },
+      {
+        puuid: "puuid-luke",
+        riotIdGameName: "DuoLuke",
+        riotIdTagline: "EUW",
+        championName: "Lux",
+        teamId: 100,
+        win: true,
+      },
+    ];
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      { matchId: "EUW1_OK_1", detail: detail(teammates) },
+      { matchId: "EUW1_OK_2", detail: detail(teammates) },
+      { matchId: "EUW1_OK_3", detail: detail(teammates) },
+      // Corrupted cache: summoner's puuid is absent from the participants list.
+      {
+        matchId: "EUW1_CORRUPT",
+        detail: detail([
+          {
+            puuid: "puuid-someone-else",
+            riotIdGameName: "Stranger",
+            riotIdTagline: "EUW",
+            championName: "Yasuo",
+            teamId: 100,
+            win: true,
+          },
+        ]),
+      },
+    ]);
+    const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
+    // Three valid matches with the same teammate; the corrupted row was
+    // silently skipped, not counted as a 4th game.
+    expect(duos).toHaveLength(1);
+    expect(duos[0]?.games).toBe(3);
+  });
+
   it("filters teammates below MIN_GAMES_TOGETHER (3) and picks the most-played champion per duo", async () => {
     const prisma = makePrisma();
     prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
@@ -480,5 +548,168 @@ describe("LolAnalyticsService.getChampionBuildFlow", () => {
     await expect(
       service.getChampionBuildFlow("euw1", "Vyoh", "Ahri", "Ahri")
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("falls back to metadata.participants index when info.participants is absent", async () => {
+    // Older Riot timeline schema (and several stored cache rows from before
+    // info.participants was added) only carry metadata.participants — an
+    // ordered list of puuids whose array index + 1 is the participantId.
+    // Without this fallback, every pre-schema-change cache row produces an
+    // empty Sankey entry.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_OLD", items: [3157, 0, 0, 0, 0, 0, 0], win: true, remake: false },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_OLD",
+        timeline: {
+          metadata: {
+            matchId: "EUW1_OLD",
+            // Index 2 → participantId 3.
+            participants: ["p-other-1", "p-other-2", "puuid-vyoh", "p-other-3"],
+          },
+          info: {
+            frameInterval: 60_000,
+            // No `participants` key — exercises the metadata-index fallback.
+            frames: [
+              {
+                timestamp: 60_000,
+                participantFrames: {},
+                events: [
+                  {
+                    timestamp: 60_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 3,
+                    itemId: 3157,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([{ matchId: "EUW1_OLD", win: true, items: [3157] }]);
+  });
+
+  it("skips matches whose timeline doesn't reference the summoner's puuid in either map", async () => {
+    // Corrupted / cross-summoner cache row — the summoner is in neither
+    // info.participants nor metadata.participants. The implementation must
+    // skip silently rather than crash trying to read `frames[].events` against
+    // an undefined participantId.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_CORRUPT", items: [3157], win: true, remake: false },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_CORRUPT",
+        timeline: {
+          metadata: { matchId: "EUW1_CORRUPT", participants: ["p-other-a", "p-other-b"] },
+          info: {
+            frameInterval: 60_000,
+            participants: [
+              { participantId: 1, puuid: "p-other-a" },
+              { participantId: 2, puuid: "p-other-b" },
+            ],
+            frames: [],
+          },
+        },
+      },
+    ]);
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([]);
+  });
+
+  it("skips matches whose final inventory is entirely empty", async () => {
+    // Player disconnected before buying anything (very short games, early
+    // remake-equivalent abandons that still didn't trigger the remake flag).
+    // The Sankey should omit them rather than emit a `{ items: [] }` entry.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_NOITEMS", items: [0, 0, 0, 0, 0, 0, 0], win: false, remake: false },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_NOITEMS",
+        timeline: {
+          metadata: { matchId: "EUW1_NOITEMS", participants: ["puuid-vyoh"] },
+          info: {
+            frameInterval: 60_000,
+            participants: [{ participantId: 1, puuid: "puuid-vyoh" }],
+            frames: [],
+          },
+        },
+      },
+    ]);
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([]);
+  });
+
+  it("skips matches whose timeline has no purchases intersecting the final inventory", async () => {
+    // Edge case where the cached final-items array references items the
+    // timeline never recorded a purchase for (data drift between Match row and
+    // its timeline cache). Empty-items entries would render as zero-width
+    // Sankey ribbons — surface nothing instead.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_DRIFT", items: [3157, 6655], win: true, remake: false },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([
+      {
+        matchId: "EUW1_DRIFT",
+        timeline: {
+          metadata: { matchId: "EUW1_DRIFT", participants: ["puuid-vyoh"] },
+          info: {
+            frameInterval: 60_000,
+            participants: [{ participantId: 1, puuid: "puuid-vyoh" }],
+            frames: [
+              {
+                timestamp: 60_000,
+                participantFrames: {},
+                events: [
+                  // Component that never made it to final items.
+                  {
+                    timestamp: 30_000,
+                    type: "ITEM_PURCHASED",
+                    participantId: 1,
+                    itemId: 3802,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ]);
+    const flow = await makeService(prisma).getChampionBuildFlow(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(flow).toEqual([]);
   });
 });
