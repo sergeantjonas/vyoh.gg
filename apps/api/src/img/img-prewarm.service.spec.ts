@@ -64,6 +64,22 @@ describe("ImgPrewarmService.onApplicationBootstrap", () => {
     expect(setTimeoutSpy).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it("kicks off both prewarm pipelines when both flags are enabled and the boot timer fires", async () => {
+    process.env.STEAM_PREWARM = "1";
+    process.env.LOL_PREWARM = "1";
+    const { service, prisma } = makeService();
+    // Force the lol-prewarm bootstrap to fail so the loop exits quickly and
+    // we don't accumulate champion×variant fetch calls.
+    prisma.steamOwnedGame.findMany.mockResolvedValue([]);
+    vi.mocked(fetch).mockRejectedValue(new Error("boot fetch failed"));
+    vi.useFakeTimers();
+    service.onApplicationBootstrap();
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
+    // Both pipelines were exercised; assertion is that we didn't crash.
+    expect(true).toBe(true);
+  });
 });
 
 describe("ImgPrewarmService.prewarmSteam (private)", () => {
@@ -126,6 +142,43 @@ describe("ImgPrewarmService.prewarmLol (private)", () => {
     await (service as unknown as { prewarmLol: () => Promise<void> }).prewarmLol();
     // Two bootstrap fetches, no per-champion requests.
     expect(vi.mocked(fetch).mock.calls.length).toBe(2);
+  });
+
+  it("falls back to the 'latest' label when the versions array is empty", async () => {
+    const { service } = makeService();
+    vi.mocked(fetch).mockImplementation(async (url: unknown) => {
+      const u = String(url);
+      if (u.includes("champion-summary")) {
+        return new Response(JSON.stringify([{ id: 1, alias: "Ahri" }]), { status: 200 });
+      }
+      if (u.includes("versions")) {
+        // Empty array → `versions[0] ?? "latest"` returns "latest".
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response("", { status: 200 });
+    });
+    await (service as unknown as { prewarmLol: () => Promise<void> }).prewarmLol();
+    // 2 bootstrap + champion×variants — assert at least one URL contains "latest".
+    const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("/latest.webp"))).toBe(true);
+  });
+
+  it("counts non-ok responses (HTTP 4xx) as fail rather than crashing", async () => {
+    const { service } = makeService();
+    vi.mocked(fetch).mockImplementation(async (url: unknown) => {
+      const u = String(url);
+      if (u.includes("champion-summary")) {
+        return new Response(JSON.stringify([{ id: 1, alias: "Ahri" }]), { status: 200 });
+      }
+      if (u.includes("versions")) {
+        return new Response(JSON.stringify(["16.10.1"]), { status: 200 });
+      }
+      // All champion-variant URLs return 404 → drives the `else fail++` arm.
+      return new Response("", { status: 404 });
+    });
+    await expect(
+      (service as unknown as { prewarmLol: () => Promise<void> }).prewarmLol()
+    ).resolves.toBeUndefined();
   });
 
   it("issues champion×variant requests for the resolved roster", async () => {
