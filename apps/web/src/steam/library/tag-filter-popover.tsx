@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useSteamTags } from "@/steam/use-tags";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { Tag, X } from "lucide-react";
+import { Check, Tag, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 // Floor: surface only tags that show up on at least this many owned titles.
@@ -129,12 +129,15 @@ export function TagFilterPopover({
                 aria-pressed={checked}
                 className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
               >
-                <Checkbox
-                  checked={checked}
-                  tabIndex={-1}
+                <span
                   aria-hidden
-                  className="pointer-events-none"
-                />
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded-sm border border-input",
+                    checked && "bg-primary text-primary-foreground border-primary"
+                  )}
+                >
+                  {checked && <Check className="size-3.5" strokeWidth={3} />}
+                </span>
                 <span className="min-w-0 flex-1 truncate">{opt.name}</span>
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {opt.count}

@@ -42,7 +42,7 @@ describe("Dialog", () => {
   it("opens by default when defaultOpen is true", () => {
     render(
       <Dialog defaultOpen>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogTitle>Always</DialogTitle>
         </DialogContent>
       </Dialog>

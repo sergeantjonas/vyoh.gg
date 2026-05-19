@@ -7,6 +7,7 @@ export default defineConfig({
       module: { type: "es6" },
     }),
   ],
+  oxc: false,
   test: {
     include: ["src/**/*.spec.ts"],
     setupFiles: ["test/setup.ts"],
