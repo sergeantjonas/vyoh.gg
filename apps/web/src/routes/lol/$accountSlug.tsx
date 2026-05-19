@@ -19,8 +19,15 @@ import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
 import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
+import { type AccountSearch, validateAccountSearch } from "@/lol/account/account-search";
+import {
+  iconPop,
+  isInMatchesSubtree as isInMatchesSubtreeFn,
+  isMatchDetail as isMatchDetailFn,
+  isTabActive,
+  tabIndexFromPath,
+} from "@/lol/account/account-tab-helpers";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
-import { MAX_COUNT } from "@/lol/matches/match-count-selector";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
 import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
 import {
@@ -63,20 +70,7 @@ const TABS = [
   { to: "/lol/$accountSlug/patches", label: "Patches", Icon: ScrollText, exact: false },
 ] as const;
 
-function iconPop(label: string): { scale: number; rotate?: number; y?: number } {
-  if (label === "Profile") return { scale: 0.75, y: -4 };
-  if (label === "Matches") return { scale: 0.75, rotate: -12 };
-  if (label === "Trends") return { scale: 0.75, y: 5 };
-  if (label === "Live") return { scale: 0.75, y: -4 };
-  return { scale: 0.65, rotate: 8 };
-}
-
 const DEFAULT_COUNT = 20;
-
-interface AccountSearch {
-  queue?: number;
-  count?: number;
-}
 
 function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
   const { clearListScroll, setActiveMatch } = useActiveMatch();
@@ -91,17 +85,7 @@ function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
 export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
   notFoundComponent: NotFound,
-  validateSearch: (search: Record<string, unknown>): AccountSearch => {
-    const queue = typeof search.queue === "number" ? search.queue : undefined;
-    const count =
-      typeof search.count === "number" && search.count > 0
-        ? Math.min(search.count, MAX_COUNT)
-        : undefined;
-    return {
-      ...(queue !== undefined && { queue }),
-      ...(count !== undefined && { count }),
-    };
-  },
+  validateSearch: validateAccountSearch,
 });
 
 function AccountLayout() {
@@ -175,14 +159,12 @@ function AccountLayout() {
 
   const matchesPath = `/lol/${accountSlug}/matches`;
   const matchesPathPrefix = `${matchesPath}/`;
-  const isMatchDetail =
-    pathname.startsWith(matchesPathPrefix) && pathname.length > matchesPathPrefix.length;
+  const isMatchDetail = isMatchDetailFn(pathname, accountSlug);
   // Saved-scroll/active-match state is only meaningful while we're inside
   // the matches subtree (list ↔ detail). Once the user navigates to Trends
   // or Champions, that state is stale — dropping it stops the back-nav
   // restore from firing on routine tab returns.
-  const isInMatchesSubtree =
-    pathname === matchesPath || pathname.startsWith(matchesPathPrefix);
+  const isInMatchesSubtree = isInMatchesSubtreeFn(pathname, accountSlug);
 
   // TanStack Router's built-in scrollRestoration was disabled to let
   // MatchList drive its own restore on detail → list back-nav. The side
@@ -200,11 +182,7 @@ function AccountLayout() {
   // circuited via slideTransitionOverride below — the card-morph animation
   // owns the visual transition there.
   const tabIndexOf = useCallback(
-    (path: string) => {
-      const norm = (s: string) => s.replace(/\/$/, "");
-      const resolve = (to: string) => norm(to.replace("$accountSlug", accountSlug));
-      return TABS.findIndex(({ to }) => norm(path) === resolve(to));
-    },
+    (path: string) => tabIndexFromPath(TABS, path, accountSlug),
     [accountSlug]
   );
   const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
@@ -218,11 +196,8 @@ function AccountLayout() {
   const prevPathnameForCutRef = useRef(pathname);
   if (prevPathnameForCutRef.current !== pathname) {
     const prev = prevPathnameForCutRef.current;
-    const prevIsDetail =
-      prev.startsWith(matchesPathPrefix) && prev.length > matchesPathPrefix.length;
-    const currIsDetail =
-      pathname.startsWith(matchesPathPrefix) &&
-      pathname.length > matchesPathPrefix.length;
+    const prevIsDetail = isMatchDetailFn(prev, accountSlug);
+    const currIsDetail = isMatchDetailFn(pathname, accountSlug);
     isMatchDetailTransitionRef.current = prevIsDetail || currIsDetail;
     prevPathnameForCutRef.current = pathname;
   }
@@ -436,10 +411,7 @@ function LolNav({
           className="flex gap-1"
         >
           {TABS.map(({ to, label, Icon, exact }) => {
-            const tabPath = to.replace("$accountSlug", accountSlug);
-            const active = exact
-              ? pathname === tabPath
-              : pathname === tabPath || pathname.startsWith(`${tabPath}/`);
+            const active = isTabActive({ to, exact }, pathname, accountSlug);
             return (
               <LolTabLink
                 key={to}
