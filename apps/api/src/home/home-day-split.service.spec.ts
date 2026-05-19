@@ -116,6 +116,17 @@ describe("splitIntervalsByHour", () => {
     expect(total(buckets)).toBe(0);
   });
 
+  it("skips intervals whose Date values are not finite (defensive guard)", () => {
+    const buckets = splitIntervalsByHour(
+      [
+        { startedAt: new Date(Number.NaN), endedAt: new Date("2026-01-15T19:30:00Z") },
+        { startedAt: new Date("2026-01-15T19:00:00Z"), endedAt: new Date(Number.NaN) },
+      ],
+      TZ
+    );
+    expect(total(buckets)).toBe(0);
+  });
+
   it("accumulates across multiple intervals into the same buckets", () => {
     const buckets = splitIntervalsByHour(
       [
