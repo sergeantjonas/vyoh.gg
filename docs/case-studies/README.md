@@ -19,6 +19,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [og-card-satori.md](og-card-satori.md) | Server-rendering OG share cards without a headless browser |
 | [operator-console.md](operator-console.md) | Putting a glass cover on a rate-limiter chain |
 | [pagination-partial-failure.md](pagination-partial-failure.md) | Pagination that survives partial failure |
+| [patch-notes-pipeline.md](patch-notes-pipeline.md) | LoL patch-notes pipeline — wiki wikitext as a structured feed |
 | [riot-rate-limits.md](riot-rate-limits.md) | When the limiter never even tried — a Riot API debugging story |
 | [runtime-image-proxy.md](runtime-image-proxy.md) | Runtime image proxy — replacing a working build-time bundle with a server-side proxy when content cadence outgrew deploy cadence |
 | [visual-layer.md](visual-layer.md) | Visual layer — the small patterns that hold the page together |
