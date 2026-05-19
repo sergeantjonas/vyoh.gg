@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { bucketDates, mergePerStream } from "./home-chronotype.service";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
+import {
+  HomeChronotypeService,
+  bucketDates,
+  mergePerStream,
+} from "./home-chronotype.service";
 
 const TZ = "Europe/Brussels";
 
@@ -75,5 +80,41 @@ describe("mergePerStream", () => {
   it("hour ordering is preserved 0..23", () => {
     const merged = mergePerStream(bucketDates([], TZ), bucketDates([], TZ));
     expect(merged.map((h) => h.hour)).toEqual(Array.from({ length: 24 }, (_, i) => i));
+  });
+});
+
+describe("HomeChronotypeService.getChronotype", () => {
+  function makeService(matches: { playedAt: Date }[], unlocks: { unlockedAt: Date }[]) {
+    const prisma = {
+      match: { findMany: vi.fn().mockResolvedValue(matches) },
+      steamPlayerUnlock: { findMany: vi.fn().mockResolvedValue(unlocks) },
+    } as unknown as PrismaService;
+    return new HomeChronotypeService(prisma);
+  }
+
+  it("returns 24 zeroed hours when there is no activity", async () => {
+    const service = makeService([], []);
+    const result = await service.getChronotype();
+    expect(result.hours).toHaveLength(24);
+    expect(result.totalLolCount).toBe(0);
+    expect(result.totalSteamCount).toBe(0);
+    expect(result.timeZone).toBe("Europe/Brussels");
+  });
+
+  it("buckets matches and unlocks into the correct Brussels hour", async () => {
+    const service = makeService(
+      [
+        { playedAt: dateAtHour(20) },
+        { playedAt: dateAtHour(20) },
+        { playedAt: dateAtHour(21) },
+      ],
+      [{ unlockedAt: dateAtHour(20) }, { unlockedAt: dateAtHour(22) }]
+    );
+    const result = await service.getChronotype();
+    expect(result.totalLolCount).toBe(3);
+    expect(result.totalSteamCount).toBe(2);
+    expect(result.hours[20]).toEqual({ hour: 20, total: 3, lol: 2, steam: 1 });
+    expect(result.hours[21]?.lol).toBe(1);
+    expect(result.hours[22]?.steam).toBe(1);
   });
 });

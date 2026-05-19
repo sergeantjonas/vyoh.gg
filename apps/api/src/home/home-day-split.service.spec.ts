@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { type DaySplitInterval, splitIntervalsByHour } from "./home-day-split.service";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
+import {
+  type DaySplitInterval,
+  HomeDaySplitService,
+  splitIntervalsByHour,
+} from "./home-day-split.service";
 
 const TZ = "Europe/Brussels";
 
@@ -123,5 +128,73 @@ describe("splitIntervalsByHour", () => {
     );
     expect(buckets[20]).toBe(60);
     expect(total(buckets)).toBe(60);
+  });
+});
+
+describe("HomeDaySplitService.getDaySplit", () => {
+  function makeService(
+    matches: { playedAt: Date; durationSec: number }[],
+    sessions: { startedAt: Date; endedAt: Date | null }[]
+  ) {
+    const prisma = {
+      match: { findMany: vi.fn().mockResolvedValue(matches) },
+      steamPlaySession: { findMany: vi.fn().mockResolvedValue(sessions) },
+    } as unknown as PrismaService;
+    return new HomeDaySplitService(prisma);
+  }
+
+  it("returns 24 zero-valued hours when there is no activity", async () => {
+    const service = makeService([], []);
+    const result = await service.getDaySplit();
+    expect(result.hours).toHaveLength(24);
+    expect(result.totalLolMinutes).toBe(0);
+    expect(result.totalSteamMinutes).toBe(0);
+    expect(result.timeZone).toBe("Europe/Brussels");
+    expect(result.hours.every((h) => h.lolMinutes === 0 && h.steamMinutes === 0)).toBe(
+      true
+    );
+  });
+
+  it("buckets LoL match duration into Brussels-local hours", async () => {
+    const service = makeService(
+      // 20:10 → 20:40 Brussels (Jan, UTC+1) = 30 min in hour 20.
+      [{ playedAt: new Date("2026-01-15T19:10:00Z"), durationSec: 30 * 60 }],
+      []
+    );
+    const result = await service.getDaySplit();
+    expect(result.hours[20]?.lolMinutes).toBe(30);
+    expect(result.totalLolMinutes).toBe(30);
+    expect(result.totalSteamMinutes).toBe(0);
+  });
+
+  it("skips Steam sessions still in flight (endedAt null)", async () => {
+    const service = makeService(
+      [],
+      [
+        { startedAt: new Date("2026-01-15T19:10:00Z"), endedAt: null },
+        {
+          startedAt: new Date("2026-01-15T19:10:00Z"),
+          endedAt: new Date("2026-01-15T19:40:00Z"),
+        },
+      ]
+    );
+    const result = await service.getDaySplit();
+    expect(result.hours[20]?.steamMinutes).toBe(30);
+    expect(result.totalSteamMinutes).toBe(30);
+  });
+
+  it("combines LoL and Steam activity in the same hour", async () => {
+    const service = makeService(
+      [{ playedAt: new Date("2026-01-15T19:10:00Z"), durationSec: 30 * 60 }],
+      [
+        {
+          startedAt: new Date("2026-01-15T19:30:00Z"),
+          endedAt: new Date("2026-01-15T19:50:00Z"),
+        },
+      ]
+    );
+    const result = await service.getDaySplit();
+    expect(result.hours[20]?.lolMinutes).toBe(30);
+    expect(result.hours[20]?.steamMinutes).toBe(20);
   });
 });

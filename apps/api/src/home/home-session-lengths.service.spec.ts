@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
 import {
+  HomeSessionLengthsService,
   type LolSessionMatch,
   histogramSessionLengths,
   stitchLolSessions,
@@ -118,5 +120,68 @@ describe("histogramSessionLengths", () => {
     expect(buckets[1]?.lolCount).toBe(1);
     const total = buckets.reduce((sum, b) => sum + b.lolCount, 0);
     expect(total).toBe(1);
+  });
+});
+
+describe("HomeSessionLengthsService.getSessionLengths", () => {
+  function makeService(
+    matches: { playedAt: Date; durationSec: number }[],
+    sessions: { startedAt: Date; endedAt: Date | null }[]
+  ) {
+    const prisma = {
+      match: { findMany: vi.fn().mockResolvedValue(matches) },
+      steamPlaySession: { findMany: vi.fn().mockResolvedValue(sessions) },
+    } as unknown as PrismaService;
+    return new HomeSessionLengthsService(prisma);
+  }
+
+  it("returns five empty buckets when there is no activity", async () => {
+    const service = makeService([], []);
+    const result = await service.getSessionLengths();
+    expect(result.buckets).toHaveLength(5);
+    expect(result.lolSessionCount).toBe(0);
+    expect(result.steamSessionCount).toBe(0);
+    expect(result.buckets.every((b) => b.lolCount === 0 && b.steamCount === 0)).toBe(
+      true
+    );
+  });
+
+  it("stitches matches into sessions and counts steam sessions, skipping in-flight", async () => {
+    const service = makeService(
+      // Two matches within the stitch gap collapse to one ~70min session (1h–2h bucket).
+      [
+        { playedAt: new Date("2026-05-01T18:00:00Z"), durationSec: 1800 },
+        { playedAt: new Date("2026-05-01T18:40:00Z"), durationSec: 2400 },
+      ],
+      [
+        // 45min session → 30m–1h bucket.
+        {
+          startedAt: new Date("2026-05-01T20:00:00Z"),
+          endedAt: new Date("2026-05-01T20:45:00Z"),
+        },
+        // Still-running session — must be skipped.
+        { startedAt: new Date("2026-05-01T22:00:00Z"), endedAt: null },
+      ]
+    );
+    const result = await service.getSessionLengths();
+    expect(result.lolSessionCount).toBe(1);
+    expect(result.steamSessionCount).toBe(1);
+    expect(result.buckets[2]?.lolCount).toBe(1); // 1h–2h
+    expect(result.buckets[1]?.steamCount).toBe(1); // 30m–1h
+  });
+
+  it("filters out non-positive steam session durations", async () => {
+    const service = makeService(
+      [],
+      [
+        // Zero-length session (start == end) → 0 minutes → filtered.
+        {
+          startedAt: new Date("2026-05-01T20:00:00Z"),
+          endedAt: new Date("2026-05-01T20:00:00Z"),
+        },
+      ]
+    );
+    const result = await service.getSessionLengths();
+    expect(result.steamSessionCount).toBe(0);
   });
 });

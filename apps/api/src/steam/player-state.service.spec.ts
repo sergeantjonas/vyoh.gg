@@ -104,3 +104,93 @@ describe("SteamPlayerStateService.getPlayerState", () => {
     expect(state?.currentGamePlaytimeForeverMinutes).toBeNull();
   });
 });
+
+describe("SteamPlayerStateService.syncPlayerState", () => {
+  function makeSyncService(opts: {
+    player?: {
+      steamid: string;
+      personaname: string;
+      avatarfull: string;
+      personastate: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+      communityvisibilitystate: 1 | 2 | 3;
+      gameid?: string;
+      gameextrainfo?: string;
+    } | null;
+    previousRow?: { currentAppid: number | null; lastPolledAt: Date } | null;
+  }) {
+    const getPlayerSummary = vi.fn().mockResolvedValue(opts.player);
+    const upsert = vi.fn().mockResolvedValue({});
+    const findUnique = vi.fn().mockResolvedValue(opts.previousRow ?? null);
+    const recordTransition = vi.fn().mockResolvedValue(undefined);
+    const prisma = {
+      steamPlayerState: { findUnique, upsert },
+      steamPlaytimeSnapshot: { findFirst: vi.fn() },
+    } as unknown as PrismaService;
+    const client = { getPlayerSummary } as unknown as SteamClientService;
+    const playSessions = {
+      recordTransition,
+    } as unknown as SteamPlaySessionsService;
+    const service = new SteamPlayerStateService(prisma, client, playSessions);
+    return { service, getPlayerSummary, upsert, findUnique, recordTransition };
+  }
+
+  it("warns and returns early when Steam returns no player", async () => {
+    const { service, upsert, recordTransition } = makeSyncService({ player: null });
+    await service.syncPlayerState();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(recordTransition).not.toHaveBeenCalled();
+  });
+
+  it("calls recordTransition before upserting, with null previous on fresh DB", async () => {
+    const order: string[] = [];
+    const { service, upsert, recordTransition } = makeSyncService({
+      player: {
+        steamid: "76561198020053778",
+        personaname: "Vyoh",
+        avatarfull: "https://x/a_full.jpg",
+        personastate: 1,
+        communityvisibilitystate: 3,
+        gameid: "1030300",
+        gameextrainfo: "Hollow Knight: Silksong",
+      },
+      previousRow: null,
+    });
+    recordTransition.mockImplementation(async () => {
+      order.push("transition");
+    });
+    upsert.mockImplementation(async () => {
+      order.push("upsert");
+    });
+    await service.syncPlayerState();
+    expect(order).toEqual(["transition", "upsert"]);
+    expect(recordTransition).toHaveBeenCalledWith({
+      previous: null,
+      next: { appid: 1030300, gameName: "Hollow Knight: Silksong" },
+    });
+  });
+
+  it("normalizes a null gameid to null appid and forwards prior state", async () => {
+    const prevDate = new Date("2026-05-16T11:58:00.000Z");
+    const { service, upsert, recordTransition } = makeSyncService({
+      player: {
+        steamid: "76561198020053778",
+        personaname: "Vyoh",
+        avatarfull: "https://x/a_full.jpg",
+        personastate: 3,
+        communityvisibilitystate: 3,
+        // gameid omitted — owner left the game.
+      },
+      previousRow: { currentAppid: 730, lastPolledAt: prevDate },
+    });
+    await service.syncPlayerState();
+    expect(recordTransition).toHaveBeenCalledWith({
+      previous: { appid: 730, lastPolledAt: prevDate },
+      next: { appid: null, gameName: null },
+    });
+    const upsertArg = upsert.mock.calls[0]?.[0] as {
+      update: { personaState: string; currentAppid: number | null };
+    };
+    expect(upsertArg.update.personaState).toBe("away");
+    expect(upsertArg.update.currentAppid).toBeNull();
+  });
+});

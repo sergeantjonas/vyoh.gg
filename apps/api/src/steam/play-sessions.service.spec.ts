@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { type TransitionInput, computeTransition } from "./play-sessions.service";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
+import {
+  SteamPlaySessionsService,
+  type TransitionInput,
+  computeTransition,
+} from "./play-sessions.service";
+import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
 
 const NOW = new Date("2026-05-16T12:00:00.000Z");
 const LAST_POLL = new Date("2026-05-16T11:58:00.000Z");
@@ -116,5 +122,107 @@ describe("computeTransition", () => {
       closedAppid: 730,
       endedAt: NOW,
     });
+  });
+});
+
+describe("SteamPlaySessionsService.recordTransition", () => {
+  function makeService(
+    opts: {
+      openSession?: { id: string; appid: number } | null;
+    } = {}
+  ) {
+    const create = vi.fn().mockResolvedValue({ id: "new" });
+    const update = vi.fn().mockResolvedValue({});
+    const findFirst = vi.fn().mockResolvedValue(opts.openSession ?? null);
+    const $transaction = vi.fn().mockResolvedValue([{}, { id: "new" }]);
+    const prisma = {
+      steamPlaySession: { create, update, findFirst },
+      $transaction,
+    } as unknown as PrismaService;
+    const refreshUnlocksForGame = vi.fn().mockResolvedValue(undefined);
+    const playerUnlocks = {
+      refreshUnlocksForGame,
+    } as unknown as SteamPlayerUnlocksService;
+    return {
+      service: new SteamPlaySessionsService(prisma, playerUnlocks),
+      create,
+      update,
+      $transaction,
+      refreshUnlocksForGame,
+    };
+  }
+
+  it("creates a new session row on open", async () => {
+    const { service, create } = makeService({ openSession: null });
+    await service.recordTransition({
+      previous: { appid: null, lastPolledAt: LAST_POLL },
+      next: { appid: 1030300, gameName: "Silksong" },
+    });
+    expect(create).toHaveBeenCalledWith({
+      data: { appid: 1030300, gameNameSnapshot: "Silksong" },
+    });
+  });
+
+  it("is a no-op when computeTransition returns noop", async () => {
+    const { service, create, update } = makeService({
+      openSession: { id: "s1", appid: 1030300 },
+    });
+    await service.recordTransition({
+      previous: { appid: 1030300, lastPolledAt: LAST_POLL },
+      next: { appid: 1030300, gameName: "Silksong" },
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("closes the open session and fires an unlock refresh on close", async () => {
+    const { service, update, refreshUnlocksForGame } = makeService({
+      openSession: { id: "s1", appid: 730 },
+    });
+    await service.recordTransition({
+      previous: { appid: 730, lastPolledAt: LAST_POLL },
+      next: { appid: null, gameName: null },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "s1" },
+      data: { endedAt: LAST_POLL },
+    });
+    // Wait a tick for the fire-and-forget unlock refresh to schedule.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(refreshUnlocksForGame).toHaveBeenCalledWith(730);
+  });
+
+  it("closes then opens within a $transaction on game switch", async () => {
+    const { service, $transaction, refreshUnlocksForGame } = makeService({
+      openSession: { id: "s1", appid: 730 },
+    });
+    await service.recordTransition({
+      previous: { appid: 730, lastPolledAt: LAST_POLL },
+      next: { appid: 1030300, gameName: "Silksong" },
+    });
+    expect($transaction).toHaveBeenCalledOnce();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(refreshUnlocksForGame).toHaveBeenCalledWith(730);
+  });
+
+  it("swallows unlock refresh errors so the next tick is not blocked", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "new" });
+    const update = vi.fn().mockResolvedValue({});
+    const findFirst = vi.fn().mockResolvedValue({ id: "s1", appid: 730 });
+    const prisma = {
+      steamPlaySession: { create, update, findFirst },
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const refreshUnlocksForGame = vi.fn().mockRejectedValue(new Error("boom"));
+    const service = new SteamPlaySessionsService(prisma, {
+      refreshUnlocksForGame,
+    } as unknown as SteamPlayerUnlocksService);
+    await service.recordTransition({
+      previous: { appid: 730, lastPolledAt: LAST_POLL },
+      next: { appid: null, gameName: null },
+    });
+    // Allow the rejected promise to settle without an unhandled-rejection.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(refreshUnlocksForGame).toHaveBeenCalledWith(730);
   });
 });

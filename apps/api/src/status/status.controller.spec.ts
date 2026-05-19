@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { EMPTY, type Observable, firstValueFrom } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
@@ -58,5 +59,22 @@ describe("StatusController", () => {
 
     expect(controller.resumeSync()).toEqual({ enabled: true });
     expect(setEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("stream() emits an initial snapshot event without waiting for the interval", async () => {
+    const syncStatus = { enabled: true, running: false, lastTick: null, history: [] };
+    const rateLimiterSnapshot = { app: [], method: [], capturedAt: "now" };
+    const controller = await buildController({
+      matchSync: { getStatus: vi.fn().mockReturnValue(syncStatus) },
+      rateLimiter: { getSnapshot: vi.fn().mockResolvedValue(rateLimiterSnapshot) },
+      events: { forSyncTick: vi.fn().mockReturnValue(EMPTY) as () => Observable<never> },
+    });
+
+    const first = await firstValueFrom(controller.stream());
+    expect(first.type).toBe("snapshot");
+    expect(first.data).toEqual({
+      sync: syncStatus,
+      rateLimiter: rateLimiterSnapshot,
+    });
   });
 });

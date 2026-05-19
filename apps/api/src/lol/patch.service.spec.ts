@@ -269,6 +269,37 @@ describe("PatchService.syncIfNewPatch", () => {
       where: { version: "26.10" },
     });
   });
+
+  it("syncs the latest version when not already recorded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("api/versions.json")) {
+          return new Response(JSON.stringify(["16.10.1"]), { status: 200 });
+        }
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: {
+                title: "V26.10",
+                wikitext: {
+                  "*": "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Orb of Deception|Ahri}}\n** Damage increased.\n",
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("{}", { status: 200 });
+      })
+    );
+    const prisma = makePrisma();
+    prisma.patchVersion.findUnique.mockResolvedValue(null);
+    const result = await makeService(prisma).syncIfNewPatch();
+    expect(result).toBe("26.10");
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+  });
 });
 
 describe("PatchService.syncVersion", () => {
@@ -371,6 +402,154 @@ describe("PatchService.syncVersion", () => {
     );
     const prisma = makePrisma();
     await expect(makeService(prisma).syncVersion("26.10")).rejects.toThrow(/no wikitext/);
+  });
+
+  it("resolves champion ability slot + CDragon icon when fullDdragonVersion is given", async () => {
+    const wikitext =
+      "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Orb of Deception|Ahri}}\n** Damage increased to 50 from 40.\n== Items ==\n;{{ii|Lich Bane}}\n* Movement speed increased to 6% from 4%.\n== Runes ==\n;{{ri|Phase Rush}}\n* Base damage reduced.\n";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: { title: "V26.10", wikitext: { "*": wikitext } },
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("ddragon.leagueoflegends.com/cdn/")) {
+          return new Response(
+            JSON.stringify({
+              data: {
+                Ahri: { name: "Ahri" },
+                MonkeyKing: { name: "Wukong" },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("Module:ChampionData")) {
+          return new Response(
+            JSON.stringify({
+              query: {
+                pages: {
+                  "1": {
+                    revisions: [
+                      {
+                        slots: {
+                          main: {
+                            "*":
+                              '\n  ["Ahri"] = {\n' +
+                              '    ["skill_q"] = {\n' +
+                              '      [1] = "Orb of Deception",\n' +
+                              "    }\n" +
+                              "  }",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("{}", { status: 200 });
+      })
+    );
+
+    const prisma = makePrisma();
+    await makeService(prisma).syncVersion("26.10", "16.10.1");
+
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(prisma.patchChange.createMany).toHaveBeenCalledOnce();
+    const createCall = prisma.patchChange.createMany.mock.calls[0]?.[0] as {
+      data: Array<{
+        section: string;
+        subject: string;
+        ability: string | null;
+        slot: string | null;
+        iconPath: string | null;
+      }>;
+    };
+    const rows = createCall.data;
+
+    const ahri = rows.find((r) => r.subject === "Ahri");
+    expect(ahri?.slot).toBe("Q");
+    expect(ahri?.iconPath).toBe(
+      "https://cdn.communitydragon.org/latest/champion/Ahri/ability-icon/q"
+    );
+
+    const lichBane = rows.find((r) => r.subject === "Lich Bane");
+    expect(lichBane?.section).toBe("item");
+    expect(lichBane?.iconPath).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Lich_Bane_item.png"
+    );
+
+    const phaseRush = rows.find((r) => r.subject === "Phase Rush");
+    expect(phaseRush?.section).toBe("rune");
+    expect(phaseRush?.iconPath).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Phase_Rush_rune.png"
+    );
+  });
+
+  it("leaves ability slot null when the ability is 'Base' (skipped resolution)", async () => {
+    const wikitext =
+      "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Base|Ahri}}\n** Base stat tweak.\n";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: { title: "V26.10", wikitext: { "*": wikitext } },
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("ddragon.leagueoflegends.com/cdn/")) {
+          return new Response(JSON.stringify({ data: { Ahri: { name: "Ahri" } } }), {
+            status: 200,
+          });
+        }
+        if (url.includes("Module:ChampionData")) {
+          return new Response(
+            JSON.stringify({
+              query: {
+                pages: {
+                  "1": {
+                    revisions: [
+                      {
+                        slots: {
+                          main: {
+                            "*": '\n  ["Ahri"] = {\n    ["skill_q"] = {\n      [1] = "Orb of Deception",\n    }\n  }',
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("{}", { status: 200 });
+      })
+    );
+
+    const prisma = makePrisma();
+    await makeService(prisma).syncVersion("26.10", "16.10.1");
+    const createCall = prisma.patchChange.createMany.mock.calls[0]?.[0] as {
+      data: Array<{ ability: string | null; slot: string | null }>;
+    };
+    const baseRow = createCall.data.find((r) => r.ability === "Base");
+    expect(baseRow?.slot).toBeNull();
   });
 
   it("warns and proceeds when champion ability data fetch fails (no slot annotation)", async () => {
