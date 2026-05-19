@@ -7,6 +7,7 @@ import {
   prefetchCachedMatches,
   useCachedMatchSummary,
   useCachedMatches,
+  useCachedMatchesWindow,
   useMatchEventsSubscription,
   useMatches,
   useMatchesWindow,
@@ -188,6 +189,91 @@ describe("useCachedMatches", () => {
       "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches/cached?start=0&count=20"
     );
   });
+
+  it("surfaces the api message on a non-OK cached-matches response", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: "Cache unavailable" }), { status: 503 })
+    );
+    const { result } = renderHook(() => useCachedMatches(account), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toBe("Cache unavailable");
+  });
+
+  it("falls back to 'HTTP <status>' when the cached-matches error body isn't JSON", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("<html>500 internal error</html>", { status: 500 })
+    );
+    const { result } = renderHook(() => useCachedMatches(account), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toMatch(/HTTP 500/);
+  });
+
+  it("stops paginating once consumed reaches total", async () => {
+    // total=2, page returns 2 matches → consumed (0+2) >= total → no next page.
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ matches: [sample, sample], total: 2 }), {
+        status: 200,
+      })
+    );
+    const { result } = renderHook(() => useCachedMatches(account), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.hasNextPage).toBe(false);
+  });
+
+  it("bails out of pagination when a page comes back empty before total is reached", async () => {
+    // total=10 but matches is empty → cache has gaps → no next page.
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ matches: [], total: 10 }), { status: 200 })
+    );
+    const { result } = renderHook(() => useCachedMatches(account), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.hasNextPage).toBe(false);
+  });
+});
+
+describe("useCachedMatchesWindow", () => {
+  it("does not fetch while account is undefined", () => {
+    renderHook(() => useCachedMatchesWindow(undefined, 20), { wrapper: makeWrapper() });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("fetches a single cached-matches window sized by `count`", async () => {
+    const page: CachedMatchesResult = {
+      matches: [sample],
+      total: 1,
+    } as unknown as CachedMatchesResult;
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(page), { status: 200 })
+    );
+    const { result } = renderHook(() => useCachedMatchesWindow(account, 10), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches/cached?start=0&count=10"
+    );
+  });
+
+  it("forwards an explicit queue param when supplied", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ matches: [], total: 0 }), { status: 200 })
+    );
+    const { result } = renderHook(() => useCachedMatchesWindow(account, 5, 420), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches/cached?start=0&count=5&queue=420"
+    );
+  });
 });
 
 describe("useSyncAccount (mutation)", () => {
@@ -211,6 +297,24 @@ describe("useSyncAccount (mutation)", () => {
       "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches/sync",
       { method: "POST" }
     );
+  });
+
+  it("surfaces the api message on a non-OK sync response", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: "Rate limited" }), { status: 429 })
+    );
+    const { result } = renderHook(() => useSyncAccount(account), {
+      wrapper: makeWrapper(),
+    });
+    await expect(result.current.mutateAsync()).rejects.toThrow(/Rate limited/);
+  });
+
+  it("falls back to 'HTTP <status>' when the sync error body isn't JSON", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("nope", { status: 502 }));
+    const { result } = renderHook(() => useSyncAccount(account), {
+      wrapper: makeWrapper(),
+    });
+    await expect(result.current.mutateAsync()).rejects.toThrow(/HTTP 502/);
   });
 
   it("invalidates matches-cached / champion-extras for this account on success", async () => {

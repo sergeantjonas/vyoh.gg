@@ -205,6 +205,54 @@ describe("MatchRecapTab badges", () => {
     expect(screen.getByText("Low Deaths")).toBeTruthy();
   });
 
+  it("renders First Blood + First Tower chips for whichever team claimed them", () => {
+    const detail = {
+      matchId: "EUW1_FB",
+      queueType: "Ranked Solo",
+      durationSec: 1800,
+      playedAt: "2026-05-19T10:00:00Z",
+      teams: [
+        {
+          teamId: 100,
+          win: true,
+          totalKills: 12,
+          totalGold: 50000,
+          objectives: {
+            baron: { first: false, kills: 0 },
+            champion: { first: true, kills: 12 },
+            dragon: { first: false, kills: 0 },
+            inhibitor: { first: false, kills: 0 },
+            riftHerald: { first: false, kills: 0 },
+            tower: { first: true, kills: 5 },
+          },
+        },
+        {
+          teamId: 200,
+          win: false,
+          totalKills: 6,
+          totalGold: 40000,
+          objectives: {
+            baron: { first: false, kills: 0 },
+            champion: { first: false, kills: 6 },
+            dragon: { first: false, kills: 0 },
+            inhibitor: { first: false, kills: 0 },
+            riftHerald: { first: false, kills: 0 },
+            tower: { first: false, kills: 0 },
+          },
+        },
+      ],
+      participants: [
+        participant({ puuid: "P1", teamId: 100 }),
+        participant({ puuid: "P2", teamId: 200 }),
+      ],
+    } as unknown as MatchDetail;
+    renderShell(<MatchRecapTab detail={detail} accountSlug="me" />);
+    // The First Blood + First Tower chips render once each, on the team that
+    // earned them.
+    expect(screen.getByText("First Blood")).toBeTruthy();
+    expect(screen.getByText("First Tower")).toBeTruthy();
+  });
+
   it("awards no badges when the top two values are tied across every metric", () => {
     const tied = {
       matchId: "EUW1_TIED",
