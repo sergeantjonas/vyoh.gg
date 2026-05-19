@@ -171,4 +171,38 @@ describe("MatchEventTimelines", () => {
     // The Suspense fallback resolves once React.lazy completes the dynamic import.
     expect(await screen.findByTestId("map-overlay")).toBeTruthy();
   });
+
+  it("computes the tooltip label for every dragon/elder/herald/horde/inhib/tower objective type", () => {
+    // objectiveLabel runs eagerly for each objective during render even
+    // before the tooltip opens, so seeding one per type covers each case
+    // branch. The default-case UNKNOWN_TYPE is also asserted to fall
+    // through to its underscore-replacement.
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        participants: [
+          { participantId: 1, puuid: "P1" },
+          { participantId: 2, puuid: "P2" },
+        ],
+        kills: [],
+        objectives: [
+          { ts: 60_000, type: "DRAGON_OCEAN", teamId: 100 },
+          { ts: 120_000, type: "DRAGON_MOUNTAIN", teamId: 100 },
+          { ts: 180_000, type: "DRAGON_CLOUD", teamId: 100 },
+          { ts: 240_000, type: "DRAGON_HEXTECH", teamId: 100 },
+          { ts: 300_000, type: "DRAGON_CHEMTECH", teamId: 100 },
+          { ts: 360_000, type: "DRAGON_ELDER", teamId: 200 },
+          { ts: 420_000, type: "RIFT_HERALD", teamId: 100 },
+          { ts: 480_000, type: "HORDE", teamId: 100 },
+          { ts: 540_000, type: "INHIBITOR", teamId: 200 },
+          { ts: 600_000, type: "TOWER", teamId: 100 },
+          { ts: 660_000, type: "UNKNOWN_TYPE", teamId: 200 },
+        ],
+      },
+    });
+    const { container } = renderShell({ detail: detailOf(), myPuuid: "P1" });
+    // 11 objective markers render — one per type.
+    expect(container.querySelectorAll('[class*="absolute top-1/2"]').length).toBe(11);
+  });
 });

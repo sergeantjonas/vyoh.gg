@@ -228,4 +228,43 @@ describe("SteamPicsService.getLogoAssets", () => {
     const service = new TestableSteamPicsService();
     await expect(service.getLogoAssets([3764200])).rejects.toThrow("CM unreachable");
   });
+
+  it("swallows and warns when logOff throws inside the finally block", async () => {
+    class ThrowingLogoffUser extends FakeSteamUser {
+      override logOff = vi.fn(() => {
+        throw new Error("client already disconnected");
+      });
+    }
+    class ServiceWithThrowingLogoff extends SteamPicsService {
+      protected override createClient(): SteamUser {
+        return new ThrowingLogoffUser() as unknown as SteamUser;
+      }
+    }
+    FakeSteamUser.next = {
+      productInfo: { apps: { "1": { changenumber: 1, appinfo: { common: {} } } } },
+    };
+    const service = new ServiceWithThrowingLogoff();
+    const result = await service.getLogoAssets([1]);
+    expect(result.map((r) => r.appid)).toEqual([1]);
+  });
+
+  it("describes non-Error rejection values via JSON.stringify (logOff cleanup branch)", async () => {
+    class WeirdRejectUser extends FakeSteamUser {
+      override logOff = vi.fn(() => {
+        // Throw something that is neither an Error nor a string.
+        throw { code: 42, status: "not-ready" };
+      });
+    }
+    class ServiceWithWeirdReject extends SteamPicsService {
+      protected override createClient(): SteamUser {
+        return new WeirdRejectUser() as unknown as SteamUser;
+      }
+    }
+    FakeSteamUser.next = {
+      productInfo: { apps: { "2": { changenumber: 2, appinfo: { common: {} } } } },
+    };
+    const service = new ServiceWithWeirdReject();
+    const result = await service.getLogoAssets([2]);
+    expect(result.map((r) => r.appid)).toEqual([2]);
+  });
 });

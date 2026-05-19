@@ -1,5 +1,11 @@
+import sharp from "sharp";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { UpstreamError, fetchUpstream, fetchUpstreamChain } from "./upstream";
+import {
+  UpstreamError,
+  fetchUpstream,
+  fetchUpstreamChain,
+  transcodeToWebp,
+} from "./upstream";
 
 function mockFetchOnce(impl: (url: string) => Response | Promise<Response>): void {
   vi.stubGlobal(
@@ -105,5 +111,43 @@ describe("fetchUpstreamChain", () => {
       url: "https://cdn.example/b.webp",
       message: expect.stringContaining("HTTP 404"),
     });
+  });
+
+  it("throws an UpstreamError on an empty chain (last URL fallback)", async () => {
+    await expect(fetchUpstreamChain([])).rejects.toBeInstanceOf(UpstreamError);
+  });
+});
+
+describe("transcodeToWebp", () => {
+  // A tiny 4×4 red PNG buffer is enough for sharp to round-trip.
+  async function makeRedPng(): Promise<Buffer> {
+    return sharp({
+      create: { width: 4, height: 4, channels: 3, background: { r: 255, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+  }
+
+  it("returns a WebP buffer for the default params (no resize, default quality)", async () => {
+    const input = await makeRedPng();
+    const out = await transcodeToWebp(input);
+    const meta = await sharp(out).metadata();
+    expect(meta.format).toBe("webp");
+  });
+
+  it("resizes when width or height is specified", async () => {
+    const input = await makeRedPng();
+    const out = await transcodeToWebp(input, { width: 2, height: 2, fit: "cover" });
+    const meta = await sharp(out).metadata();
+    expect(meta.width).toBe(2);
+    expect(meta.height).toBe(2);
+  });
+
+  it("applies a blur when blur radius is specified", async () => {
+    const input = await makeRedPng();
+    // A successful round-trip with blur is the assertion — sharp returns a
+    // buffer regardless, but the blur pipeline path must execute without error.
+    const out = await transcodeToWebp(input, { blur: 1 });
+    expect(out.length).toBeGreaterThan(0);
   });
 });

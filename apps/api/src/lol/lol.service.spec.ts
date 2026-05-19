@@ -1162,3 +1162,292 @@ describe("LolService.syncForSummoner", () => {
     expect(riot.getMatchIdsByPuuid).toHaveBeenCalledOnce();
   });
 });
+
+describe("LolService.syncSummonerProfile", () => {
+  async function makeProfileService(opts: { summoner: unknown | null }) {
+    const summonerFindUnique = vi.fn().mockResolvedValue(opts.summoner);
+    const summonerUpdate = vi.fn().mockResolvedValue(undefined);
+    const prisma = {
+      summoner: { findUnique: summonerFindUnique, update: summonerUpdate },
+    };
+    const riot = {
+      getSummonerByPuuid: vi
+        .fn()
+        .mockResolvedValue({ profileIconId: 42, summonerLevel: 250 }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: { isLolAccountAllowed: () => true } },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
+      ],
+    }).compile();
+    return { service: moduleRef.get(LolService), prisma, riot };
+  }
+
+  const account: LolAccount = {
+    slug: "ahri",
+    region: "euw1",
+    gameName: "Vyoh",
+    tagLine: "EUW",
+  };
+
+  it("returns early without calling Riot when the summoner is not yet in the local DB", async () => {
+    const { service, riot } = await makeProfileService({ summoner: null });
+    await service.syncSummonerProfile(account);
+    expect(riot.getSummonerByPuuid).not.toHaveBeenCalled();
+  });
+
+  it("fetches Riot's summoner-v5 payload and updates iconId + level on the cached row", async () => {
+    const summonerRow = { puuid: "puuid-vyoh" };
+    const { service, riot, prisma } = await makeProfileService({
+      summoner: summonerRow,
+    });
+    await service.syncSummonerProfile(account);
+    expect(riot.getSummonerByPuuid).toHaveBeenCalledWith("puuid-vyoh", "euw1");
+    expect(prisma.summoner.update).toHaveBeenCalledWith({
+      where: { puuid: "puuid-vyoh" },
+      data: expect.objectContaining({ profileIconId: 42, summonerLevel: 250 }),
+    });
+  });
+});
+
+describe("LolService.getLiveGame", () => {
+  async function makeLiveService(opts: {
+    summoner: unknown | null;
+    allowed?: boolean;
+    polledLive?: unknown;
+  }) {
+    const findUnique = vi.fn().mockResolvedValue(opts.summoner);
+    const prisma = { summoner: { findUnique } };
+    const identity = {
+      isLolAccountAllowed: vi.fn().mockReturnValue(opts.allowed ?? true),
+    };
+    const livePoller = {
+      getForPuuid: vi.fn().mockReturnValue(opts.polledLive ?? null),
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: {} },
+        { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
+        { provide: LiveGamePollerService, useValue: livePoller },
+      ],
+    }).compile();
+    return { service: moduleRef.get(LolService), livePoller, identity };
+  }
+
+  it("throws ForbiddenException when the account is not whitelisted", async () => {
+    const { service } = await makeLiveService({ summoner: null, allowed: false });
+    await expect(service.getLiveGame("euw1", "Vyoh", "EUW")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+
+  it("returns null when the summoner is not yet in the DB", async () => {
+    const { service, livePoller } = await makeLiveService({ summoner: null });
+    expect(await service.getLiveGame("euw1", "Vyoh", "EUW")).toBeNull();
+    expect(livePoller.getForPuuid).not.toHaveBeenCalled();
+  });
+
+  it("forwards the cached puuid to the live-game poller and returns its value", async () => {
+    const liveMatch = { gameId: "EUW1_LIVE", queueId: 420 };
+    const { service, livePoller } = await makeLiveService({
+      summoner: { puuid: "puuid-vyoh" },
+      polledLive: liveMatch,
+    });
+    expect(await service.getLiveGame("euw1", "Vyoh", "EUW")).toBe(liveMatch);
+    expect(livePoller.getForPuuid).toHaveBeenCalledWith("puuid-vyoh");
+  });
+});
+
+describe("LolService.subscribeLiveEvents", () => {
+  async function makeLiveEventsService(opts: {
+    summoner: unknown | null;
+    allowed?: boolean;
+  }) {
+    const findUnique = vi.fn().mockResolvedValue(opts.summoner);
+    const prisma = { summoner: { findUnique } };
+    const identity = {
+      isLolAccountAllowed: vi.fn().mockReturnValue(opts.allowed ?? true),
+    };
+    const liveSubject = new Subject<MatchUpdatedEvent>();
+    const events = {
+      emit: vi.fn(),
+      forPuuid: vi.fn(() => EMPTY),
+      forLiveGame: vi.fn(() => liveSubject.asObservable()),
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: {} },
+        { provide: IdentityService, useValue: identity },
+        { provide: MatchEventsService, useValue: events },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
+      ],
+    }).compile();
+    return { service: moduleRef.get(LolService), liveSubject, events };
+  }
+
+  it("throws ForbiddenException when the account is not whitelisted", async () => {
+    const { service } = await makeLiveEventsService({ summoner: null, allowed: false });
+    await expect(
+      service.subscribeLiveEvents("euw1", "Vyoh", "EUW")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("returns a heartbeat-only stream when the summoner is not yet in the DB", async () => {
+    const { service, events } = await makeLiveEventsService({ summoner: null });
+    const stream = await service.subscribeLiveEvents("euw1", "Vyoh", "EUW");
+    expect(events.forLiveGame).not.toHaveBeenCalled();
+    // The heartbeat stream is hot — just confirm it exists; consuming forever
+    // would block, so we don't subscribe.
+    expect(stream).toBeDefined();
+  });
+
+  it("merges live-game updates and emits a 'live-game-updated' MessageEvent per update", async () => {
+    const { service, liveSubject } = await makeLiveEventsService({
+      summoner: { puuid: "puuid-vyoh" },
+    });
+    const stream = await service.subscribeLiveEvents("euw1", "Vyoh", "EUW");
+    const firstEvent = firstValueFrom(stream.pipe(take(1)));
+    liveSubject.next({ puuid: "puuid-vyoh" } as unknown as MatchUpdatedEvent);
+    const ev = await firstEvent;
+    expect(ev.type).toBe("live-game-updated");
+  });
+});
+
+describe("LolService.getMatchDetail", () => {
+  async function makeDetailService(opts: {
+    cached?: unknown | null;
+    raw?: RiotMatch;
+    summoners?: { puuid: string }[];
+  }) {
+    const matchDetailCache = {
+      findUnique: vi.fn().mockResolvedValue(opts.cached ?? null),
+      create: vi.fn().mockResolvedValue(undefined),
+    };
+    const summonerFindMany = vi.fn().mockResolvedValue(opts.summoners ?? []);
+    const prisma = {
+      matchDetailCache,
+      summoner: { findMany: summonerFindMany },
+    };
+    const riot = {
+      getMatchById: vi.fn().mockResolvedValue(opts.raw ?? buildMatch("EUW1_1", 0)),
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        {
+          provide: IdentityService,
+          useValue: { isLolAccountAllowed: () => true, getLolAccounts: () => [] },
+        },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
+      ],
+    }).compile();
+    return { service: moduleRef.get(LolService), prisma, riot };
+  }
+
+  it("returns the cached detail without calling Riot when a row exists", async () => {
+    const cachedRaw = buildMatch("EUW1_CACHED", 1_000_000);
+    const { service, riot } = await makeDetailService({ cached: { detail: cachedRaw } });
+    const result = await service.getMatchDetail("EUW1_CACHED");
+    expect(riot.getMatchById).not.toHaveBeenCalled();
+    expect(result.matchId).toBe("EUW1_CACHED");
+  });
+
+  it("derives the regional cluster from the matchId prefix and persists the upstream payload", async () => {
+    const fresh = buildMatch("EUW1_FRESH", 2_000_000);
+    const { service, prisma, riot } = await makeDetailService({ raw: fresh });
+    const result = await service.getMatchDetail("EUW1_FRESH");
+    // EUW1 → europe regional cluster.
+    expect(riot.getMatchById).toHaveBeenCalledWith("EUW1_FRESH", "europe");
+    expect(prisma.matchDetailCache.create).toHaveBeenCalled();
+    expect(result.matchId).toBe("EUW1_FRESH");
+  });
+
+  it("throws when the matchId has no platform prefix", async () => {
+    const { service } = await makeDetailService({});
+    await expect(service.getMatchDetail("")).rejects.toThrow(
+      /Cannot derive region from matchId/
+    );
+  });
+});
+
+describe("LolService.getMatchTimeline", () => {
+  async function makeTimelineService(opts: {
+    cached?: unknown | null;
+    raw?: unknown;
+  }) {
+    const matchTimelineCache = {
+      findUnique: vi.fn().mockResolvedValue(opts.cached ?? null),
+      create: vi.fn().mockResolvedValue(undefined),
+    };
+    const prisma = { matchTimelineCache };
+    const rawTimeline = opts.raw ?? {
+      metadata: { matchId: "EUW1_T", participants: ["puuid-vyoh"] },
+      info: { frames: [], participants: [] },
+    };
+    const riot = {
+      getMatchTimelineById: vi.fn().mockResolvedValue(rawTimeline),
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        LolService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RiotService, useValue: riot },
+        { provide: IdentityService, useValue: { isLolAccountAllowed: () => true } },
+        { provide: MatchEventsService, useValue: makeEventsMock() },
+        {
+          provide: LiveGamePollerService,
+          useValue: { getForPuuid: vi.fn().mockReturnValue(null) },
+        },
+      ],
+    }).compile();
+    return { service: moduleRef.get(LolService), prisma, riot };
+  }
+
+  it("returns the cached projection when one exists", async () => {
+    const cachedTimeline = {
+      metadata: { matchId: "EUW1_T1", participants: ["puuid-vyoh"] },
+      info: { frames: [], participants: [] },
+    };
+    const { service, riot } = await makeTimelineService({
+      cached: { timeline: cachedTimeline },
+    });
+    await service.getMatchTimeline("EUW1_T1");
+    expect(riot.getMatchTimelineById).not.toHaveBeenCalled();
+  });
+
+  it("derives the regional cluster and persists the upstream timeline", async () => {
+    const { service, prisma, riot } = await makeTimelineService({});
+    await service.getMatchTimeline("EUW1_T2");
+    expect(riot.getMatchTimelineById).toHaveBeenCalledWith("EUW1_T2", "europe");
+    expect(prisma.matchTimelineCache.create).toHaveBeenCalled();
+  });
+
+  it("throws when the matchId has no platform prefix", async () => {
+    const { service } = await makeTimelineService({});
+    await expect(service.getMatchTimeline("")).rejects.toThrow(
+      /Cannot derive region from matchId/
+    );
+  });
+});
