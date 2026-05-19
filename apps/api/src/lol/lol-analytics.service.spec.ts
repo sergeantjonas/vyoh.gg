@@ -643,7 +643,12 @@ describe("LolAnalyticsService.getChampionBuildFlow", () => {
     const prisma = makePrisma();
     prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
     prisma.match.findMany.mockResolvedValue([
-      { matchId: "EUW1_NOITEMS", items: [0, 0, 0, 0, 0, 0, 0], win: false, remake: false },
+      {
+        matchId: "EUW1_NOITEMS",
+        items: [0, 0, 0, 0, 0, 0, 0],
+        win: false,
+        remake: false,
+      },
     ]);
     prisma.matchTimelineCache.findMany.mockResolvedValue([
       {

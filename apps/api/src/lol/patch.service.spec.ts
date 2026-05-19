@@ -497,6 +497,204 @@ describe("PatchService.syncVersion", () => {
     );
   });
 
+  it("uses 'p' (not 'passive') for the CDragon Passive ability icon URL", async () => {
+    // Real bug surface: CDragon's icon path uses the short key `p` for
+    // passives, not the lowercase slot name. If the implementation accidentally
+    // collapsed to slot.toLowerCase() everywhere, Passive icons would 404.
+    const wikitext =
+      "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Essence Theft|Ahri}}\n** Heal increased to 4 from 3.\n";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: { title: "V26.10", wikitext: { "*": wikitext } },
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("ddragon.leagueoflegends.com/cdn/")) {
+          return new Response(JSON.stringify({ data: { Ahri: { name: "Ahri" } } }), {
+            status: 200,
+          });
+        }
+        if (url.includes("Module:ChampionData")) {
+          return new Response(
+            JSON.stringify({
+              query: {
+                pages: {
+                  "1": {
+                    revisions: [
+                      {
+                        slots: {
+                          main: {
+                            "*":
+                              '\n  ["Ahri"] = {\n' +
+                              '    ["skill_i"] = {\n' +
+                              '      [1] = "Essence Theft",\n' +
+                              "    }\n" +
+                              "  }",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("{}", { status: 200 });
+      })
+    );
+
+    const prisma = makePrisma();
+    await makeService(prisma).syncVersion("26.10", "16.10.1");
+
+    const createCall = prisma.patchChange.createMany.mock.calls[0]?.[0] as {
+      data: Array<{ subject: string; slot: string | null; iconPath: string | null }>;
+    };
+    const ahri = createCall.data.find((r) => r.subject === "Ahri");
+    expect(ahri?.slot).toBe("Passive");
+    expect(ahri?.iconPath).toBe(
+      "https://cdn.communitydragon.org/latest/champion/Ahri/ability-icon/p"
+    );
+  });
+
+  it("falls back to stripping a trailing digit when the ability name has a wiki variant suffix", async () => {
+    // Wiki sometimes renders empowered or numbered variants as "Q 2" / "W 1"
+    // in patch notes even though the canonical skill module entry is just
+    // "Q" / "W". Without the fallback, those rows would lose their slot.
+    const wikitext =
+      "== Champions ==\n;{{ci|Aphelios}}\n* {{ai|Onslaught 2|Aphelios}}\n** Damage tweaked.\n";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: { title: "V26.10", wikitext: { "*": wikitext } },
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("ddragon.leagueoflegends.com/cdn/")) {
+          return new Response(
+            JSON.stringify({ data: { Aphelios: { name: "Aphelios" } } }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("Module:ChampionData")) {
+          return new Response(
+            JSON.stringify({
+              query: {
+                pages: {
+                  "1": {
+                    revisions: [
+                      {
+                        slots: {
+                          main: {
+                            "*":
+                              '\n  ["Aphelios"] = {\n' +
+                              '    ["skill_q"] = {\n' +
+                              '      [1] = "Onslaught",\n' +
+                              "    }\n" +
+                              "  }",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("{}", { status: 200 });
+      })
+    );
+
+    const prisma = makePrisma();
+    await makeService(prisma).syncVersion("26.10", "16.10.1");
+
+    const createCall = prisma.patchChange.createMany.mock.calls[0]?.[0] as {
+      data: Array<{ subject: string; slot: string | null }>;
+    };
+    const aphelios = createCall.data.find((r) => r.subject === "Aphelios");
+    expect(aphelios?.slot).toBe("Q");
+  });
+
+  it("silently skips slot annotation when the wiki module has no entry for the champion", async () => {
+    // Realistic during champion launches: patch notes mention a brand-new
+    // champion before the wiki ChampionData module is updated. The sync must
+    // persist the change (verbatim ability name) without crashing.
+    const wikitext =
+      "== Champions ==\n;{{ci|NewChamp}}\n* {{ai|Mystery Ability|NewChamp}}\n** Damage increased.\n";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: { title: "V26.10", wikitext: { "*": wikitext } },
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("ddragon.leagueoflegends.com/cdn/")) {
+          return new Response(JSON.stringify({ data: { Ahri: { name: "Ahri" } } }), {
+            status: 200,
+          });
+        }
+        if (url.includes("Module:ChampionData")) {
+          // Wiki module returns only Ahri — NewChamp is absent.
+          return new Response(
+            JSON.stringify({
+              query: {
+                pages: {
+                  "1": {
+                    revisions: [
+                      {
+                        slots: {
+                          main: {
+                            "*":
+                              '\n  ["Ahri"] = {\n' +
+                              '    ["skill_q"] = {\n' +
+                              '      [1] = "Orb of Deception",\n' +
+                              "    }\n" +
+                              "  }",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("{}", { status: 200 });
+      })
+    );
+
+    const prisma = makePrisma();
+    await makeService(prisma).syncVersion("26.10", "16.10.1");
+    const createCall = prisma.patchChange.createMany.mock.calls[0]?.[0] as {
+      data: Array<{ subject: string; ability: string | null; slot: string | null }>;
+    };
+    const newChamp = createCall.data.find((r) => r.subject === "NewChamp");
+    // Change row persisted (ability stored verbatim) but slot is null.
+    expect(newChamp?.ability).toBe("Mystery Ability");
+    expect(newChamp?.slot).toBeNull();
+  });
+
   it("leaves ability slot null when the ability is 'Base' (skipped resolution)", async () => {
     const wikitext =
       "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Base|Ahri}}\n** Base stat tweak.\n";
