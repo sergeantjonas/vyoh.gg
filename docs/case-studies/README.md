@@ -11,6 +11,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [build-time-champion-assets.md](build-time-champion-assets.md) | Precomputing champion assets at build time |
 | [bundling-the-bounded-cdn.md](bundling-the-bounded-cdn.md) | Bundling the bounded CDN — a three-phase fix for flaky LoL image delivery |
 | [conclusion-card-pattern.md](conclusion-card-pattern.md) | A stats site that talks — the ConclusionCard pattern |
+| [cross-stream-synthesis.md](cross-stream-synthesis.md) | Cross-stream synthesis on `/` — the self-portrait, not the feed |
 | [frontend-perf.md](frontend-perf.md) | Frontend perf when 28% of the bundle is on purpose |
 | [fullscreen-blur-flicker.md](fullscreen-blur-flicker.md) | Killing flicker on a fullscreen-blur backdrop |
 | [historical-backfill-and-sse.md](historical-backfill-and-sse.md) | Backfilling Riot history in the background, streaming deltas to the client |
@@ -20,6 +21,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [operator-console.md](operator-console.md) | Putting a glass cover on a rate-limiter chain |
 | [pagination-partial-failure.md](pagination-partial-failure.md) | Pagination that survives partial failure |
 | [patch-notes-pipeline.md](patch-notes-pipeline.md) | LoL patch-notes pipeline — wiki wikitext as a structured feed |
+| [pics-protocol-drop-down.md](pics-protocol-drop-down.md) | When the Web API can't help — dropping a layer to Steam's PICS for asset hashes |
 | [riot-rate-limits.md](riot-rate-limits.md) | When the limiter never even tried — a Riot API debugging story |
 | [runtime-image-proxy.md](runtime-image-proxy.md) | Runtime image proxy — replacing a working build-time bundle with a server-side proxy when content cadence outgrew deploy cadence |
 | [steam-presence-as-signal.md](steam-presence-as-signal.md) | Polling presence as the signal source — Steam sessions and event-driven unlocks from one 2-minute tick |
