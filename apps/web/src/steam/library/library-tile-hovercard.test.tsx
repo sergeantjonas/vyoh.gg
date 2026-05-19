@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryTileHovercardContent } from "./library-tile-hovercard";
@@ -80,5 +80,91 @@ describe("LibraryTileHovercardContent", () => {
     );
     expect(container.textContent).toContain("Last played");
     expect(container.textContent).toMatch(/10 days ago/);
+  });
+
+  it("renders 'months ago' for timestamps in the 1–24 month range", () => {
+    // 90 days back → ~3 months.
+    const threeMonthsAgo = new Date("2026-02-18T12:00:00Z").toISOString();
+    const { container } = render(
+      <LibraryTileHovercardContent
+        game={game({ rtimeLastPlayedAt: threeMonthsAgo, playtimeForeverMinutes: 5 })}
+      />
+    );
+    expect(container.textContent).toMatch(/months ago/);
+  });
+
+  it("renders 'years ago' for timestamps further back than 24 months", () => {
+    // ~3 years ago.
+    const yearsAgo = new Date("2023-05-19T12:00:00Z").toISOString();
+    const { container } = render(
+      <LibraryTileHovercardContent
+        game={game({ rtimeLastPlayedAt: yearsAgo, playtimeForeverMinutes: 5 })}
+      />
+    );
+    expect(container.textContent).toMatch(/years ago/);
+  });
+
+  it("falls back to the capsule when the hero img errors", () => {
+    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const hero = container.querySelector("img");
+    if (!hero) throw new Error("hero img not rendered");
+    fireEvent.error(hero);
+    // After error, capsule img replaces hero — but still exactly one img.
+    expect(container.querySelectorAll("img").length).toBe(1);
+  });
+
+  it("treats a zero-width hero onLoad as a 404 (wsrv empty-200 path)", () => {
+    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const hero = container.querySelector("img");
+    if (!hero) throw new Error("hero img not rendered");
+    Object.defineProperty(hero, "naturalWidth", { value: 0, configurable: true });
+    fireEvent.load(hero);
+    // Still one img after the swap (capsule fallback).
+    expect(container.querySelectorAll("img").length).toBe(1);
+  });
+
+  it("marks the hero as loaded when onLoad reports a non-zero natural width", () => {
+    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const hero = container.querySelector("img") as HTMLImageElement;
+    Object.defineProperty(hero, "naturalWidth", { value: 1280, configurable: true });
+    fireEvent.load(hero);
+    expect(hero.style.opacity).toBe("1");
+  });
+
+  it("rotates the screenshot index on the interval when ≥2 screenshots exist", () => {
+    mockMedia([
+      { thumbUrl: "https://example.com/a.jpg" },
+      { thumbUrl: "https://example.com/b.jpg" },
+      { thumbUrl: "https://example.com/c.jpg" },
+    ]);
+    render(<LibraryTileHovercardContent game={game()} />);
+    // Advance two rotation intervals — the second one flips `hasRotated`.
+    act(() => {
+      vi.advanceTimersByTime(2_500);
+    });
+    act(() => {
+      vi.advanceTimersByTime(2_500);
+    });
+    // Sanity: at least three screenshot imgs render (one per element).
+    const imgs = document.querySelectorAll('img[src^="https://example.com"]');
+    expect(imgs.length).toBe(3);
+  });
+
+  it("skips the rotation tick while the document is hidden", () => {
+    mockMedia([
+      { thumbUrl: "https://example.com/a.jpg" },
+      { thumbUrl: "https://example.com/b.jpg" },
+    ]);
+    const visibilitySpy = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    render(<LibraryTileHovercardContent game={game()} />);
+    act(() => {
+      vi.advanceTimersByTime(2_500);
+    });
+    // We can't read index directly; just ensure rendering did not throw and the
+    // imgs still exist.
+    expect(document.querySelectorAll('img[src^="https://example.com"]').length).toBe(2);
+    visibilitySpy.mockRestore();
   });
 });

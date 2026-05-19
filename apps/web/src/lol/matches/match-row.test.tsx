@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { ActiveMatchProvider } from "./active-match-context";
+import { ActiveMatchProvider, useActiveMatch } from "./active-match-context";
 import { MatchRow } from "./match-row";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -203,5 +203,81 @@ describe("MatchRow", () => {
     // the goal. The handler reads getBoundingClientRect, sets activeMatch,
     // and persists scroll position; all happy-dom no-ops.
     fireEvent.mouseEnter(detail);
+  });
+});
+
+describe("MatchRow return animation", () => {
+  function BackwardPrimer({ matchId }: { matchId: string }) {
+    const { setOriginRect } = useActiveMatch();
+    useLayoutEffect(() => {
+      setOriginRect({
+        matchId,
+        rect: {
+          top: 200,
+          left: 100,
+          width: 300,
+          height: 60,
+          right: 400,
+          bottom: 260,
+          x: 100,
+          y: 200,
+          toJSON: () => ({}),
+        } as DOMRect,
+        direction: "backward",
+      });
+    }, [matchId, setOriginRect]);
+    return null;
+  }
+
+  it("runs the FLIP transform when the row is the backward-navigation destination", () => {
+    const animate = vi.fn();
+    const originalAnimate = HTMLDivElement.prototype.animate;
+    HTMLDivElement.prototype.animate = animate as unknown as typeof originalAnimate;
+    const originalRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    }) as typeof globalThis.requestAnimationFrame;
+    try {
+      const match = summary({ matchId: "EUW1_BACK" });
+      render(
+        <MotionConfig reducedMotion="never">
+          <ActiveMatchProvider>
+            <BackwardPrimer matchId={match.matchId} />
+            <MatchRow match={match} accountSlug="jonas-euw" championDisplayName="Ahri" />
+          </ActiveMatchProvider>
+        </MotionConfig>
+      );
+      expect(animate).toHaveBeenCalled();
+    } finally {
+      HTMLDivElement.prototype.animate = originalAnimate;
+      globalThis.requestAnimationFrame = originalRaf;
+    }
+  });
+
+  it("cancels the pending RAF when the row unmounts before it fires", () => {
+    const cancel = vi.fn();
+    const originalRaf = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    globalThis.requestAnimationFrame = (() =>
+      99) as typeof globalThis.requestAnimationFrame;
+    globalThis.cancelAnimationFrame =
+      cancel as unknown as typeof globalThis.cancelAnimationFrame;
+    try {
+      const match = summary({ matchId: "EUW1_BACK_UNMOUNT" });
+      const { unmount } = render(
+        <MotionConfig reducedMotion="never">
+          <ActiveMatchProvider>
+            <BackwardPrimer matchId={match.matchId} />
+            <MatchRow match={match} accountSlug="jonas-euw" championDisplayName="Ahri" />
+          </ActiveMatchProvider>
+        </MotionConfig>
+      );
+      unmount();
+      expect(cancel).toHaveBeenCalledWith(99);
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
   });
 });

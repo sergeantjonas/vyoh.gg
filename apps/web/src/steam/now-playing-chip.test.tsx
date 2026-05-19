@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamPlayerState } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -109,5 +109,72 @@ describe("NowPlayingChip", () => {
     });
     renderChip();
     expect(screen.getByText("Team Fortress 2")).toBeTruthy();
+  });
+
+  it("formats lastPolledAt as 'X hours ago' for stale presence", () => {
+    mockHook({
+      data: makeState({
+        lastPolledAt: new Date(
+          new Date(NOW_ISO).getTime() - 3 * 60 * 60_000
+        ).toISOString(),
+      }),
+      isPending: false,
+      isError: false,
+    });
+    renderChip();
+    expect(screen.getByText(/3 hours ago/)).toBeTruthy();
+  });
+
+  it("formats lastPolledAt as 'X days ago' for very stale presence", () => {
+    mockHook({
+      data: makeState({
+        lastPolledAt: new Date(
+          new Date(NOW_ISO).getTime() - 2 * 24 * 60 * 60_000
+        ).toISOString(),
+      }),
+      isPending: false,
+      isError: false,
+    });
+    renderChip();
+    expect(screen.getByText(/2 days ago/)).toBeTruthy();
+  });
+
+  it("falls back to the capsule when the hero image fails to load (onError)", () => {
+    mockHook({
+      data: makeState({
+        currentGame: { appid: 440, name: "Team Fortress 2" },
+        currentGamePlaytimeForeverMinutes: 100,
+      }),
+      isPending: false,
+      isError: false,
+    });
+    const { container } = renderChip();
+    const heroImgs = container.querySelectorAll("img");
+    // Two img tags: capsule (always there) + hero. The second one is the hero.
+    expect(heroImgs.length).toBeGreaterThanOrEqual(2);
+    const hero = heroImgs[1];
+    if (!hero) throw new Error("hero img not rendered");
+    fireEvent.error(hero);
+    // After error, only the capsule img remains.
+    const afterImgs = container.querySelectorAll("img");
+    expect(afterImgs.length).toBe(1);
+  });
+
+  it("treats a zero-width onLoad as a 404 and removes the hero (wsrv fallback)", () => {
+    mockHook({
+      data: makeState({
+        currentGame: { appid: 440, name: "Team Fortress 2" },
+        currentGamePlaytimeForeverMinutes: 100,
+      }),
+      isPending: false,
+      isError: false,
+    });
+    const { container } = renderChip();
+    const heroImgs = container.querySelectorAll("img");
+    const hero = heroImgs[1];
+    if (!hero) throw new Error("hero img not rendered");
+    Object.defineProperty(hero, "naturalWidth", { value: 0, configurable: true });
+    fireEvent.load(hero);
+    expect(container.querySelectorAll("img").length).toBe(1);
   });
 });

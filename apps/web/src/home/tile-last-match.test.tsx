@@ -121,4 +121,28 @@ describe("TileLastMatch", () => {
     render(<TileLastMatch account={account} />);
     expect(screen.getByText("No recent games tracked.")).toBeTruthy();
   });
+
+  it("formats a match played a few hours ago as 'Xh ago'", () => {
+    mockMatches({
+      data: {
+        pages: [[makeMatch({ playedAt: new Date(NOW - 3 * 60 * 60_000).toISOString() })]],
+      },
+      isPending: false,
+    });
+    render(<TileLastMatch account={account} />);
+    expect(screen.getByText(/3h ago/)).toBeTruthy();
+  });
+
+  it("formats a match played several days ago as 'Xd ago'", () => {
+    mockMatches({
+      data: {
+        pages: [
+          [makeMatch({ playedAt: new Date(NOW - 2 * 24 * 60 * 60_000).toISOString() })],
+        ],
+      },
+      isPending: false,
+    });
+    render(<TileLastMatch account={account} />);
+    expect(screen.getByText(/2d ago/)).toBeTruthy();
+  });
 });
