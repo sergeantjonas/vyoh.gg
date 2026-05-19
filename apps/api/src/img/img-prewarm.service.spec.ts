@@ -1,0 +1,153 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
+import type { SteamService } from "../steam/steam.service";
+import { ImgPrewarmService } from "./img-prewarm.service";
+
+function makePrismaStub(): {
+  steamOwnedGame: { findMany: ReturnType<typeof vi.fn> };
+} {
+  return {
+    steamOwnedGame: { findMany: vi.fn().mockResolvedValue([]) },
+  };
+}
+
+function makeSteamStub(): {
+  getOwnerWishlist: ReturnType<typeof vi.fn>;
+} {
+  return {
+    getOwnerWishlist: vi.fn().mockResolvedValue({ items: [] }),
+  };
+}
+
+function makeService(
+  prisma = makePrismaStub(),
+  steam = makeSteamStub()
+): {
+  service: ImgPrewarmService;
+  prisma: ReturnType<typeof makePrismaStub>;
+  steam: ReturnType<typeof makeSteamStub>;
+} {
+  return {
+    service: new ImgPrewarmService(
+      prisma as unknown as PrismaService,
+      steam as unknown as SteamService
+    ),
+    prisma,
+    steam,
+  };
+}
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn());
+  process.env.STEAM_PREWARM = "";
+  process.env.LOL_PREWARM = "";
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("ImgPrewarmService.onApplicationBootstrap", () => {
+  it("no-ops when neither STEAM_PREWARM nor LOL_PREWARM is set", () => {
+    vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    makeService().service.onApplicationBootstrap();
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("schedules the boot delay when at least one prewarm flag is enabled", () => {
+    vi.useFakeTimers();
+    process.env.LOL_PREWARM = "1";
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    makeService().service.onApplicationBootstrap();
+    expect(setTimeoutSpy).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
+
+describe("ImgPrewarmService.prewarmSteam (private)", () => {
+  it("skips the loop when there are no owned games and the wishlist is empty", async () => {
+    const { service, prisma } = makeService();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([]);
+    await (service as unknown as { prewarmSteam: () => Promise<void> }).prewarmSteam();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it("falls back to owned-only when the wishlist fetch throws", async () => {
+    const { service, prisma, steam } = makeService();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
+    steam.getOwnerWishlist.mockRejectedValue(new Error("steam down"));
+    vi.mocked(fetch).mockResolvedValue(new Response("", { status: 200 }));
+    await (service as unknown as { prewarmSteam: () => Promise<void> }).prewarmSteam();
+    // 5 routes × 1 appid = 5 fetches
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(5);
+  });
+
+  it("dedupes appids that appear in both owned and wishlist", async () => {
+    const { service, prisma, steam } = makeService();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
+    steam.getOwnerWishlist.mockResolvedValue({ items: [{ appid: 42 }, { appid: 99 }] });
+    vi.mocked(fetch).mockResolvedValue(new Response("", { status: 200 }));
+    await (service as unknown as { prewarmSteam: () => Promise<void> }).prewarmSteam();
+    // 2 unique appids × 5 routes = 10 fetches
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(10);
+  });
+
+  it("counts upstream failures as 'fail' rather than crashing the loop", async () => {
+    const { service, prisma } = makeService();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+    await expect(
+      (service as unknown as { prewarmSteam: () => Promise<void> }).prewarmSteam()
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("ImgPrewarmService.prewarmLol (private)", () => {
+  it("aborts when the champion-summary fetch fails", async () => {
+    const { service } = makeService();
+    vi.mocked(fetch).mockResolvedValue(new Response("nope", { status: 500 }));
+    await (service as unknown as { prewarmLol: () => Promise<void> }).prewarmLol();
+    // The bootstrap fetches (champion-summary + versions) ran but no per-champion
+    // requests were issued — only the 2 bootstrap calls.
+    expect(vi.mocked(fetch).mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
+  it("skips the loop when the champion roster is empty", async () => {
+    const { service } = makeService();
+    vi.mocked(fetch).mockImplementation(async (url: unknown) => {
+      const u = String(url);
+      if (u.includes("champion-summary")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(JSON.stringify(["16.10.1"]), { status: 200 });
+    });
+    await (service as unknown as { prewarmLol: () => Promise<void> }).prewarmLol();
+    // Two bootstrap fetches, no per-champion requests.
+    expect(vi.mocked(fetch).mock.calls.length).toBe(2);
+  });
+
+  it("issues champion×variant requests for the resolved roster", async () => {
+    const { service } = makeService();
+    vi.mocked(fetch).mockImplementation(async (url: unknown) => {
+      const u = String(url);
+      if (u.includes("champion-summary")) {
+        return new Response(
+          JSON.stringify([
+            { id: -1, alias: "Default" },
+            { id: 1, alias: "Ahri" },
+          ]),
+          { status: 200 }
+        );
+      }
+      if (u.includes("versions")) {
+        return new Response(JSON.stringify(["16.10.1"]), { status: 200 });
+      }
+      return new Response("", { status: 200 });
+    });
+    await (service as unknown as { prewarmLol: () => Promise<void> }).prewarmLol();
+    // 2 bootstrap + 1 champion × 3 variants = 5 fetches
+    expect(vi.mocked(fetch).mock.calls.length).toBe(5);
+  });
+});

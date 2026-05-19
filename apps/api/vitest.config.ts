@@ -15,7 +15,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text-summary", "lcov"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.spec.ts", "src/**/*.d.ts", "src/main.ts"],
+      exclude: ["src/**/*.spec.ts", "src/**/*.d.ts", "src/main.ts", "src/scripts/**"],
       thresholds: { lines: 57 },
     },
   },

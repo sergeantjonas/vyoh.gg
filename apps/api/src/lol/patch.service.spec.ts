@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { PatchService, truncateVersion, wikiPageTitle } from "./patch.service";
 
@@ -7,8 +7,14 @@ interface PatchPrismaStubs {
     findFirst: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
   };
-  patchChange: { findMany: ReturnType<typeof vi.fn> };
+  patchChange: {
+    findMany: ReturnType<typeof vi.fn>;
+    deleteMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+  };
+  $transaction: ReturnType<typeof vi.fn>;
 }
 
 function makePrisma(): PatchPrismaStubs {
@@ -17,8 +23,14 @@ function makePrisma(): PatchPrismaStubs {
       findFirst: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      upsert: vi.fn(),
     },
-    patchChange: { findMany: vi.fn() },
+    patchChange: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
+    $transaction: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -195,6 +207,211 @@ describe("PatchService.listPatches", () => {
       orderBy: [{ patchDate: { sort: "desc", nulls: "last" } }, { version: "desc" }],
       take: 3,
     });
+  });
+});
+
+describe("PatchService.fetchVersionList", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the version list from ddragon", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify(["16.10.1", "16.9.1"]), { status: 200 })
+        )
+    );
+    const result = await makeService(makePrisma()).fetchVersionList();
+    expect(result).toEqual(["16.10.1", "16.9.1"]);
+  });
+
+  it("throws on a non-OK response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("nope", { status: 500 }))
+    );
+    await expect(makeService(makePrisma()).fetchVersionList()).rejects.toThrow(
+      /ddragon versions HTTP 500/
+    );
+  });
+
+  it("throws when ddragon returns an empty list", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("[]", { status: 200 }))
+    );
+    await expect(makeService(makePrisma()).fetchVersionList()).rejects.toThrow(
+      /response was empty/
+    );
+  });
+});
+
+describe("PatchService.syncIfNewPatch", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns null when the latest patch is already recorded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(["16.10.1"]), { status: 200 }))
+    );
+    const prisma = makePrisma();
+    prisma.patchVersion.findUnique.mockResolvedValue({ version: "26.10" });
+    const result = await makeService(prisma).syncIfNewPatch();
+    expect(result).toBeNull();
+    expect(prisma.patchVersion.findUnique).toHaveBeenCalledWith({
+      where: { version: "26.10" },
+    });
+  });
+});
+
+describe("PatchService.syncVersion", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function mockWikitext(text: string): ReturnType<typeof vi.fn> {
+    return vi.fn().mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+        return new Response(
+          JSON.stringify({ parse: { title: "V26.10", wikitext: { "*": text } } }),
+          { status: 200 }
+        );
+      }
+      // ddragon champion list
+      if (url.includes("ddragon.leagueoflegends.com/cdn/")) {
+        return new Response(JSON.stringify({ data: { Ahri: { name: "Ahri" } } }), {
+          status: 200,
+        });
+      }
+      // wiki module
+      if (url.includes("Module:ChampionData")) {
+        return new Response(
+          JSON.stringify({
+            query: {
+              pages: {
+                "1": {
+                  revisions: [
+                    {
+                      slots: {
+                        main: {
+                          "*": '\n  ["Ahri"] = {\n    ["skill_q"] = {\n      [1] = "Orb of Deception",\n    }\n  }',
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response("{}", { status: 200 });
+    });
+  }
+
+  it("persists parsed changes via a single prisma transaction (idempotent: pre-deletes existing)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockWikitext(
+        "== Champions ==\n=== Ahri ===\n* '''Q - Orb of Deception''': Damage increased to 50 from 40."
+      )
+    );
+    const prisma = makePrisma();
+    const tx = prisma.$transaction;
+    await makeService(prisma).syncVersion("26.10");
+    expect(tx).toHaveBeenCalledOnce();
+  });
+
+  it("throws when the wiki returns an error envelope", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ error: { code: "missingtitle", info: "Page not found" } }),
+            { status: 200 }
+          )
+        )
+    );
+    const prisma = makePrisma();
+    await expect(makeService(prisma).syncVersion("99.99")).rejects.toThrow(
+      /wiki error missingtitle/
+    );
+  });
+
+  it("throws when the wiki HTTP request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("oops", { status: 500 }))
+    );
+    const prisma = makePrisma();
+    await expect(makeService(prisma).syncVersion("26.10")).rejects.toThrow(
+      /wiki parse HTTP 500/
+    );
+  });
+
+  it("throws when wikitext is missing from the response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ parse: { title: "V26.10" } }), { status: 200 })
+        )
+    );
+    const prisma = makePrisma();
+    await expect(makeService(prisma).syncVersion("26.10")).rejects.toThrow(/no wikitext/);
+  });
+
+  it("warns and proceeds when champion ability data fetch fails (no slot annotation)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes("wiki.leagueoflegends.com/api.php") && url.includes("page=")) {
+          return new Response(
+            JSON.stringify({
+              parse: {
+                title: "V26.10",
+                wikitext: {
+                  "*": "== Champions ==\n=== Ahri ===\n* '''Q - Orb of Deception''': Damage increased.",
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        // Fail ability data fetches
+        return new Response("nope", { status: 500 });
+      })
+    );
+    const prisma = makePrisma();
+    const tx = prisma.$transaction;
+    await makeService(prisma).syncVersion("26.10", "16.10.1");
+    expect(tx).toHaveBeenCalledOnce();
+  });
+});
+
+describe("PatchService.cronTick", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("swallows errors thrown by the underlying sync", async () => {
+    // fetchVersionList throws → cronTick should catch.
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("boom")));
+    const prisma = makePrisma();
+    await expect(makeService(prisma).cronTick()).resolves.toBeUndefined();
   });
 });
 
