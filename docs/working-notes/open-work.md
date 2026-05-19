@@ -57,4 +57,4 @@ ARAM dashboard · cross-account unified identity · "Same day last year" · matc
 
 ## Case-study backlog
 
-No active write-ups queued. Shipped inventory: [../case-studies/](../case-studies/) (18 case studies as of 2026-05-19). Topics catalog: [case-study-topics.md](cross-cutting/case-study-topics.md).
+No active write-ups queued. Shipped inventory: [../case-studies/](../case-studies/) (19 case studies as of 2026-05-19). Topics catalog: [case-study-topics.md](cross-cutting/case-study-topics.md).

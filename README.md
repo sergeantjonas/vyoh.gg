@@ -98,7 +98,7 @@ The biggest single jump in the bootstrap was `motion/react` (+39 kB gzip). Once 
 
 ## Engineering case studies
 
-Deep-dives on the gnarlier parts of the stack. Full inventory in [`docs/case-studies/`](docs/case-studies/README.md) (18 write-ups as of 2026-05-19); a few starting points:
+Deep-dives on the gnarlier parts of the stack. Full inventory in [`docs/case-studies/`](docs/case-studies/README.md) (19 write-ups as of 2026-05-19); a few starting points:
 
 - **[Riot API rate limiting](docs/case-studies/riot-rate-limits.md)** — layered Bottleneck chain, rolling-window semantics, header-driven drift correction, and bounded waits.
 - **[Historical backfill and SSE](docs/case-studies/historical-backfill-and-sse.md)** — cron-driven DB population, per-account Server-Sent-Events push, and the two bugs that nearly wedged the worker.

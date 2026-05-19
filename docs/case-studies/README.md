@@ -16,6 +16,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [fullscreen-blur-flicker.md](fullscreen-blur-flicker.md) | Killing flicker on a fullscreen-blur backdrop |
 | [historical-backfill-and-sse.md](historical-backfill-and-sse.md) | Backfilling Riot history in the background, streaming deltas to the client |
 | [lp-history-postgres.md](lp-history-postgres.md) | An LP-history chart without a time-series database |
+| [match-detail-nested-routing.md](match-detail-nested-routing.md) | Tabs as routes — moving match-detail navigation from a query param to nested path segments |
 | [motion-without-gimmicks.md](motion-without-gimmicks.md) | Adding motion to a data dashboard without making it loud |
 | [og-card-satori.md](og-card-satori.md) | Server-rendering OG share cards without a headless browser |
 | [operator-console.md](operator-console.md) | Putting a glass cover on a rate-limiter chain |
