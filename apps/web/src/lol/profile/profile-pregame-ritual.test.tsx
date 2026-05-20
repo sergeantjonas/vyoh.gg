@@ -1,6 +1,10 @@
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { render, screen } from "@testing-library/react";
-import type { MatchSummary, PregameCalibrationByQueue } from "@vyoh/shared";
+import {
+  type MatchSummary,
+  type PregameCalibrationByQueue,
+  emptyBySignal,
+} from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -351,6 +355,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForPositive: 8,
         meanLpForNegative: -6,
         meanLpForNeutral: 0,
+        bySignal: emptyBySignal(),
       },
       "Ranked Flex": {
         n: 10,
@@ -359,6 +364,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForPositive: null,
         meanLpForNegative: null,
         meanLpForNeutral: null,
+        bySignal: emptyBySignal(),
       },
     });
     renderRitual();
@@ -393,6 +399,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForPositive: 18,
         meanLpForNegative: -16,
         meanLpForNeutral: 0,
+        bySignal: emptyBySignal(),
       },
       "Ranked Flex": {
         n: 35,
@@ -401,6 +408,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForPositive: 12,
         meanLpForNegative: -10,
         meanLpForNeutral: 0,
+        bySignal: emptyBySignal(),
       },
     });
     renderRitual();
@@ -461,6 +469,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForPositive: 14,
         meanLpForNegative: -18,
         meanLpForNeutral: 0,
+        bySignal: emptyBySignal(),
       },
     });
     renderRitual();

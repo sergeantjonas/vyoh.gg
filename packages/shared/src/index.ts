@@ -20,6 +20,8 @@ export {
   buildTimeSlotTone,
   computeCalibration,
   computeCalibrationByQueue,
+  emptyBySignal,
+  emptySignalAccuracy,
   replayHistory,
   toneToScore,
 } from "./lol/pregame-signals.ts";
@@ -27,6 +29,7 @@ export type {
   CalibrationStats,
   PregameCalibrationByQueue,
   ReplayPoint,
+  SignalAccuracy,
   SignalId,
   SignalTone,
 } from "./lol/pregame-signals.ts";

@@ -195,6 +195,83 @@ describe("computeCalibration", () => {
     expect(cal.n).toBe(0);
     expect(cal.directionalAccuracy).toBe(0);
     expect(cal.meanLpForPositive).toBeNull();
+    // Empty bySignal still has zeroed entries for every signal so consumers
+    // can index without null-checking.
+    expect(cal.bySignal.form).toEqual({
+      positiveN: 0,
+      positiveHits: 0,
+      negativeN: 0,
+      negativeHits: 0,
+    });
+    expect(Object.keys(cal.bySignal).sort()).toEqual(["champ", "form", "slot", "tilt"]);
+  });
+
+  it("attributes per-signal marginal accuracy across all points (independent of composite firing)", () => {
+    // Three points. Per-signal expectations below assume marginal accuracy
+    // independent of composite firing — Champion fires positive in all 3.
+    const points = [
+      // Composite: Form +, Champ +, Tilt 0, Slot 0 → firing=2, score=0.5,
+      // actual lpDelta +12 (positive sign).
+      {
+        matchId: "a",
+        playedAt: "2026-01-01T00:00:00Z",
+        queueType: "Ranked Solo",
+        score: 0.5,
+        firing: 2,
+        signalTones: {
+          form: "positive",
+          tilt: "neutral",
+          slot: "neutral",
+          champ: "positive",
+        },
+        lpDelta: 12,
+      },
+      // Form +, Tilt -, Slot 0, Champ + → firing=3, score=0.25,
+      // actual lpDelta -10 (Form was wrong here, Champ was wrong, Tilt right).
+      {
+        matchId: "b",
+        playedAt: "2026-01-02T00:00:00Z",
+        queueType: "Ranked Solo",
+        score: 0.25,
+        firing: 3,
+        signalTones: {
+          form: "positive",
+          tilt: "warning",
+          slot: "neutral",
+          champ: "positive",
+        },
+        lpDelta: -10,
+      },
+      // Form 0, Tilt 0, Slot 0, Champ + → firing=1, score=0.25,
+      // actual +14 (Champ right, no other signal fired).
+      {
+        matchId: "c",
+        playedAt: "2026-01-03T00:00:00Z",
+        queueType: "Ranked Solo",
+        score: 0.25,
+        firing: 1,
+        signalTones: {
+          form: "neutral",
+          tilt: "neutral",
+          slot: "neutral",
+          champ: "positive",
+        },
+        lpDelta: 14,
+      },
+    ] as const;
+    const cal = computeCalibration(points as never);
+    // Champion fired positive 3 times, hit 2/3 (matches a + c).
+    expect(cal.bySignal.champ.positiveN).toBe(3);
+    expect(cal.bySignal.champ.positiveHits).toBe(2);
+    // Form fired positive 2 times (a + b), hit 1/2 (a).
+    expect(cal.bySignal.form.positiveN).toBe(2);
+    expect(cal.bySignal.form.positiveHits).toBe(1);
+    // Tilt fired warning once (b), hit 1/1 (lpDelta was negative).
+    expect(cal.bySignal.tilt.negativeN).toBe(1);
+    expect(cal.bySignal.tilt.negativeHits).toBe(1);
+    // Slot never fired with a tone.
+    expect(cal.bySignal.slot.positiveN).toBe(0);
+    expect(cal.bySignal.slot.negativeN).toBe(0);
   });
 
   it("buckets lpDelta by score band", () => {

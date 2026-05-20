@@ -19,6 +19,7 @@ import {
   type CalibrationStats,
   type MatchSummary,
   type PregameCalibrationByQueue,
+  emptyBySignal,
   excludeRemakes,
 } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
@@ -35,6 +36,7 @@ const EMPTY_CALIBRATION: CalibrationStats = {
   meanLpForPositive: null,
   meanLpForNegative: null,
   meanLpForNeutral: null,
+  bySignal: emptyBySignal(),
 };
 
 // Solo and Flex are independent LP ladders. The active queue (= "what are

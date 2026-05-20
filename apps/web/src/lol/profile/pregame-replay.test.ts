@@ -1,4 +1,4 @@
-import { MIN_CALIBRATION_SAMPLE } from "@vyoh/shared";
+import { MIN_CALIBRATION_SAMPLE, emptyBySignal } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
 import { buildComposite } from "./pregame-composite";
 import { calibrateConfidence } from "./pregame-replay";
@@ -19,6 +19,7 @@ describe("calibrateConfidence", () => {
       meanLpForPositive: 8,
       meanLpForNegative: -6,
       meanLpForNeutral: 0,
+      bySignal: emptyBySignal(),
     });
     expect(cal.source).toBe("calibration");
     expect(cal.text).toMatch(/Directionally right/);
@@ -33,6 +34,7 @@ describe("calibrateConfidence", () => {
       meanLpForPositive: null,
       meanLpForNegative: null,
       meanLpForNeutral: null,
+      bySignal: emptyBySignal(),
     });
     expect(cal.source).toBe("heuristic");
     // The composite above is "directional only" (2 firing), so the LP1 string flows through.
@@ -50,6 +52,7 @@ describe("calibrateConfidence", () => {
       meanLpForPositive: null,
       meanLpForNegative: null,
       meanLpForNeutral: null,
+      bySignal: emptyBySignal(),
     });
     expect(cal.text).toBe("");
   });

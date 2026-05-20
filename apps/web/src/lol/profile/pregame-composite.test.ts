@@ -1,4 +1,5 @@
 import type { RitualSignal } from "@/lol/profile/ritual-tile";
+import { emptyBySignal } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
 import { buildComposite } from "./pregame-composite";
 
@@ -82,6 +83,7 @@ describe("buildComposite", () => {
         meanLpForPositive: 12,
         meanLpForNegative: -18,
         meanLpForNeutral: 1,
+        bySignal: emptyBySignal(),
       }
     );
     expect(result.bandSource).toBe("calibration");
@@ -98,6 +100,7 @@ describe("buildComposite", () => {
         meanLpForPositive: 12,
         meanLpForNegative: -18,
         meanLpForNeutral: 1,
+        bySignal: emptyBySignal(),
       }
     );
     expect(result.bandSource).toBe("calibration");
@@ -114,6 +117,7 @@ describe("buildComposite", () => {
         meanLpForPositive: 12,
         meanLpForNegative: null,
         meanLpForNeutral: null,
+        bySignal: emptyBySignal(),
       }
     );
     expect(result.bandSource).toBe("heuristic");
@@ -132,6 +136,7 @@ describe("buildComposite", () => {
         meanLpForPositive: 12,
         meanLpForNegative: null,
         meanLpForNeutral: 1,
+        bySignal: emptyBySignal(),
       }
     );
     expect(result.bandSource).toBe("heuristic");

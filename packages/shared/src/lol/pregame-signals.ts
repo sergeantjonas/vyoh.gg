@@ -94,6 +94,13 @@ export interface ReplayPoint {
   lpDelta: number;
 }
 
+export interface SignalAccuracy {
+  positiveN: number;
+  positiveHits: number;
+  negativeN: number;
+  negativeHits: number;
+}
+
 export interface CalibrationStats {
   n: number;
   directionalHits: number;
@@ -101,6 +108,26 @@ export interface CalibrationStats {
   meanLpForPositive: number | null;
   meanLpForNegative: number | null;
   meanLpForNeutral: number | null;
+  // Marginal directional accuracy per individual signal — independent of the
+  // composite firing. Used to decide whether LP2.5 (per-signal weighting) is
+  // worth the complexity: if Champion's marginal accuracy meaningfully beats
+  // Form's, equal-weight composition is hiding signal quality.
+  bySignal: Record<SignalId, SignalAccuracy>;
+}
+
+const SIGNAL_IDS: readonly SignalId[] = ["form", "tilt", "slot", "champ"];
+
+export function emptySignalAccuracy(): SignalAccuracy {
+  return { positiveN: 0, positiveHits: 0, negativeN: 0, negativeHits: 0 };
+}
+
+export function emptyBySignal(): Record<SignalId, SignalAccuracy> {
+  return {
+    form: emptySignalAccuracy(),
+    tilt: emptySignalAccuracy(),
+    slot: emptySignalAccuracy(),
+    champ: emptySignalAccuracy(),
+  };
 }
 
 // Minimum sample before calibration is trusted enough to surface in place of
@@ -189,6 +216,24 @@ export function computeCalibration(points: ReplayPoint[]): CalibrationStats {
       neuN += 1;
     }
   }
+  // Per-signal marginal accuracy. Scans ALL points (not just composite-firing
+  // ones) so a signal can be credited even when other signals canceled it
+  // out at the composite level.
+  const bySignal = emptyBySignal();
+  for (const p of points) {
+    const actualSign = Math.sign(p.lpDelta);
+    for (const signalId of SIGNAL_IDS) {
+      const tone = p.signalTones[signalId];
+      const bucket = bySignal[signalId];
+      if (tone === "positive") {
+        bucket.positiveN += 1;
+        if (actualSign === 1) bucket.positiveHits += 1;
+      } else if (tone === "warning") {
+        bucket.negativeN += 1;
+        if (actualSign === -1) bucket.negativeHits += 1;
+      }
+    }
+  }
   const n = firing.length;
   return {
     n,
@@ -197,5 +242,6 @@ export function computeCalibration(points: ReplayPoint[]): CalibrationStats {
     meanLpForPositive: posN > 0 ? posSum / posN : null,
     meanLpForNegative: negN > 0 ? negSum / negN : null,
     meanLpForNeutral: neuN > 0 ? neuSum / neuN : null,
+    bySignal,
   };
 }
