@@ -23,7 +23,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### Cross-cutting
 
-- **Wiki-image migration tail** — 12 files across matches (3), profile (2), champions (2), shared analytics + assets (3), live tab, and `components/game-icons.tsx` still resolve images client-side through `cdn.communitydragon.org`/`raw.communitydragon.org`; target end state is zero CDragon client usages, all routes through the wiki via `wikiEntryIconUrl()`. Direction confirmed 2026-05-17 during PN7; ability-icon URL pattern needs a spot check before migration starts. → [lol-image-pipeline.md § Wiki as canonical image source](lol/lol-image-pipeline.md#wiki-as-canonical-image-source-confirmed-direction-2026-05-17)
+- **Wiki-image migration tail** — Chunks 1–3 + icon unification shipped 2026-05-20/21 (commits `c055052`, `0dcaf82`, `c4af090`). Remaining images: profile icons (deferred to Chunk 6) and ability icons (gated on Chunk 5 — needs the static metadata pipeline first). → [lol-image-pipeline.md § Wiki as canonical image source](lol/lol-image-pipeline.md#wiki-as-canonical-image-source-confirmed-direction-2026-05-17)
+- **LoL static-metadata pipeline (wiki + DDragon-as-bridge)** — replaces the five remaining client-side CDragon JSON fetches (`useItems` / `useChampions` / `useChampionSpells` / `useSummonerSpells` / `usePerks`) with a server-side wiki-sourced pipeline. DDragon retained narrowly as the id↔name bridge for resources wiki doesn't self-identify (runes, summoner spells); wiki serves every description, stat, recipe, ability mapping. Drift-tolerant two-source sync, self-healing on wiki lag. Plan locked 2026-05-21, four chunks (4a/4b/4c + 5). → [lol-static-metadata.md](lol/lol-static-metadata.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
 
 ### Pre-deploy / admin
