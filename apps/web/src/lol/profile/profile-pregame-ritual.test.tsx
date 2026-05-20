@@ -210,7 +210,7 @@ describe("ProfilePregameRitual", () => {
       fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
     ]);
     renderRitual();
-    expect(screen.getByText(/Composite read · next ranked/)).toBeTruthy();
+    expect(screen.getByText(/Composite read · next/)).toBeTruthy();
   });
 
   it("renders the empty composite when no signal fires", () => {
@@ -406,6 +406,28 @@ describe("ProfilePregameRitual", () => {
     renderRitual();
     expect(screen.getByText("Composite read · next Ranked Flex")).toBeTruthy();
     expect(screen.getByText(/last 35 Ranked Flex games/)).toBeTruthy();
+  });
+
+  it("labels the verdict with the most-recent queue even when calibration is empty (no LP snapshots yet)", () => {
+    const now = Date.now();
+    // Two Flex matches with no LP snapshots → API returns {} for byQueue,
+    // but the prediction is still "next Ranked Flex" because that's what
+    // the user is about to queue.
+    setMatches([
+      fakeMatch({
+        queueType: "Ranked Flex",
+        win: true,
+        playedAt: new Date(now - HOUR_MS).toISOString(),
+      }),
+      fakeMatch({
+        queueType: "Ranked Flex",
+        win: true,
+        playedAt: new Date(now - DAY_MS).toISOString(),
+      }),
+    ]);
+    setCalibration({});
+    renderRitual();
+    expect(screen.getByText("Composite read · next Ranked Flex")).toBeTruthy();
   });
 
   it("uses the active queue's meanLpFor* for the band center once N >= 30", () => {

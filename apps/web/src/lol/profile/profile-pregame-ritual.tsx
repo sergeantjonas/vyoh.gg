@@ -37,23 +37,25 @@ const EMPTY_CALIBRATION: CalibrationStats = {
   meanLpForNeutral: null,
 };
 
-// Solo and Flex are independent LP ladders. The "active queue" — the queue
-// the user is most likely to play next — is taken to be the queueType of
-// their most recent serious match; if that queue doesn't have backtest data
-// yet, we fall back to the queue with the largest sample so the headline
-// still surfaces something useful.
-function pickActiveQueue(
+// Solo and Flex are independent LP ladders. The active queue (= "what are
+// you about to play next?") is always the queueType of the most recent
+// serious match — it drives the verdict label and the signal-history
+// filter regardless of whether calibration data exists yet. Calibration
+// is a separate concern: prefer the active queue's stats; if absent, fall
+// back to the largest-sample queue so the headline still surfaces a
+// directional read while the active queue accumulates LP snapshots.
+function pickActiveCalibration(
   byQueue: PregameCalibrationByQueue,
-  recentQueueType: string | null
-): { queueType: string | null; stats: CalibrationStats } {
-  if (recentQueueType && byQueue[recentQueueType]) {
-    return { queueType: recentQueueType, stats: byQueue[recentQueueType] };
+  activeQueueType: string | null
+): CalibrationStats {
+  if (activeQueueType && byQueue[activeQueueType]) {
+    return byQueue[activeQueueType];
   }
-  let best: { queueType: string; stats: CalibrationStats } | null = null;
-  for (const [queueType, stats] of Object.entries(byQueue)) {
-    if (!best || stats.n > best.stats.n) best = { queueType, stats };
+  let best: CalibrationStats | null = null;
+  for (const stats of Object.values(byQueue)) {
+    if (!best || stats.n > best.n) best = stats;
   }
-  return best ?? { queueType: null, stats: EMPTY_CALIBRATION };
+  return best ?? EMPTY_CALIBRATION;
 }
 
 function nowMonFirstDay(d: Date): number {
@@ -416,20 +418,22 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   const byQueue: PregameCalibrationByQueue = calibrationQuery.data ?? {};
 
   // Active queue = "what are you about to play next?", read from the most
-  // recent serious match's queueType. The signals and the headline both
-  // scope to this queue so a Solo prediction never carries Flex form/tilt.
-  const recentQueueType = useMemo(() => {
+  // recent serious match's queueType. The signals and the headline label
+  // both scope to this queue so a Solo prediction never carries Flex form
+  // or tilt. Calibration may not exist yet for this queue (LP snapshots
+  // can lag), so it's looked up separately and falls back gracefully.
+  const activeQueueType = useMemo(() => {
     if (!matches || matches.length === 0) return null;
     const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
     return ordered[0]?.queueType ?? null;
   }, [matches]);
-  const headline = pickActiveQueue(byQueue, recentQueueType);
+  const activeCalibration = pickActiveCalibration(byQueue, activeQueueType);
 
   const queueScopedMatches = useMemo(() => {
     if (!matches) return null;
-    if (!headline.queueType) return matches;
-    return matches.filter((m) => m.queueType === headline.queueType);
-  }, [matches, headline.queueType]);
+    if (!activeQueueType) return matches;
+    return matches.filter((m) => m.queueType === activeQueueType);
+  }, [matches, activeQueueType]);
 
   const signals = useMemo(() => {
     if (!queueScopedMatches) return null;
@@ -442,8 +446,8 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   }, [queueScopedMatches, accountSlug, nameFor]);
 
   const composite = useMemo(
-    () => (signals ? buildComposite(signals, headline.stats) : null),
-    [signals, headline.stats]
+    () => (signals ? buildComposite(signals, activeCalibration) : null),
+    [signals, activeCalibration]
   );
 
   if (!matches || matches.length === 0 || !signals || !composite) return null;
@@ -454,8 +458,8 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
       <CompositeVerdict
         composite={composite}
         signals={signals}
-        calibration={headline.stats}
-        headlineQueueType={headline.queueType}
+        calibration={activeCalibration}
+        headlineQueueType={activeQueueType}
         byQueue={byQueue}
       />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
