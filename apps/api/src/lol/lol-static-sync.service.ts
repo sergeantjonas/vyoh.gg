@@ -49,10 +49,9 @@ type DdragonRunesReforged = DdragonRunePath[];
 
 interface WikiModuleResponse {
   query?: {
-    pages?: Record<
-      string,
-      { revisions?: Array<{ slots?: { main?: { "*"?: string } } }> }
-    >;
+    pages?: Array<{
+      revisions?: Array<{ slots?: { main?: { content?: string } } }>;
+    }>;
   };
 }
 
@@ -595,8 +594,7 @@ export class LolStaticSyncService {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     if (!res.ok) throw new Error(`wiki ${title} HTTP ${res.status}`);
     const body = (await res.json()) as WikiModuleResponse;
-    const page = Object.values(body.query?.pages ?? {})[0];
-    return page?.revisions?.[0]?.slots?.main?.["*"] ?? null;
+    return body.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content ?? null;
   }
 
   private async renderWikitextToHtml(wikitext: string): Promise<string> {
@@ -628,8 +626,7 @@ export class LolStaticSyncService {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     if (!res.ok) throw new Error(`wiki ${title} HTTP ${res.status}`);
     const body = (await res.json()) as WikiModuleResponse;
-    const page = Object.values(body.query?.pages ?? {})[0];
-    const content = page?.revisions?.[0]?.slots?.main?.["*"];
+    const content = body.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
     if (!content) throw new Error(`wiki ${title} had no content`);
     return content;
   }

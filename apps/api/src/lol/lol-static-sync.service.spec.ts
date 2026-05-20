@@ -239,11 +239,11 @@ function jsonResponse(body: unknown): Response {
 }
 
 function wikiModuleResponse(content: string): Response {
+  // formatversion=2 shape: pages is an array, and the content slot key is
+  // `content`, not the legacy `*`.
   return jsonResponse({
     query: {
-      pages: {
-        "123": { revisions: [{ slots: { main: { "*": content } } }] },
-      },
+      pages: [{ revisions: [{ slots: { main: { content } } }] }],
     },
   });
 }

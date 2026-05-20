@@ -142,32 +142,64 @@ function parseFirstDescription(block: string): string | null {
 }
 
 // Parses `Module:ItemData/data` (~410KB Lua) into one record per item.
-// Top-level item blocks are indented with exactly 2 spaces — split on
-// `\n  ["NAME"]` to isolate each block, then extract named fields with
-// brace-balanced helpers. Items missing the required `id` field are skipped
-// (malformed entry, removed item, or comment block). Failure to parse one
-// item does not abort the rest — callers should log per-item warnings.
+// Enumerate `["NAME"] = { ... }` top-level entries inside a wiki Lua
+// module's outer `return { ... }` wrapper. Indentation varies between
+// modules (`Module:ChampionData/data` uses 2 spaces, `Module:ItemData/data`
+// uses 4 with tabs inside), so a regex split on indent over-matches every
+// nested key. Instead, walk the string with brace-aware depth tracking and
+// only emit entries seen at depth 1.
+function* enumerateTopLevelEntries(
+  lua: string
+): Generator<{ name: string; block: string }> {
+  let depth = 0;
+  let inString = false;
+  let i = 0;
+  while (i < lua.length) {
+    const c = lua[i];
+    if (inString) {
+      if (c === "\\" && i + 1 < lua.length) {
+        i += 2;
+        continue;
+      }
+      if (c === '"') inString = false;
+      i += 1;
+      continue;
+    }
+    if (c === '"') {
+      // Only treat as a top-level entry when we're at depth 1 and this
+      // string is in the `["NAME"]` opener position.
+      if (depth === 1) {
+        // Look back for `[` and ahead for `"]\s*=\s*{`.
+        const closeQuote = lua.indexOf('"', i + 1);
+        if (closeQuote < 0) break;
+        const after = lua.slice(closeQuote + 1, closeQuote + 32);
+        const m = after.match(/^\]\s*=\s*\{/);
+        if (lua[i - 1] === "[" && m) {
+          const name = lua.slice(i + 1, closeQuote);
+          const braceIdx = closeQuote + 1 + m[0].length - 1;
+          const block = extractBracedValue(lua, braceIdx);
+          if (block) yield { name, block };
+          i = braceIdx + block.length;
+          continue;
+        }
+      }
+      inString = true;
+      i += 1;
+      continue;
+    }
+    if (c === "{") depth += 1;
+    else if (c === "}") depth -= 1;
+    i += 1;
+  }
+}
+
+// Failure to parse one item does not abort the rest — callers should log
+// per-item warnings.
 export function parseItemDataModule(lua: string): ParsedItem[] {
   const results: ParsedItem[] = [];
-  // Split markers preserve item names; first chunk before the first marker
-  // is the module preamble and discarded.
-  const parts = lua.split(/\n {2}\["/);
-  for (let i = 1; i < parts.length; i++) {
-    const segment = parts[i];
-    if (!segment) continue;
-    const nameEnd = segment.indexOf('"');
-    if (nameEnd < 0) continue;
-    const name = segment.slice(0, nameEnd);
-
-    // The block's value starts at the `{` after `] = `.
-    const eqIdx = segment.indexOf("= {", nameEnd);
-    if (eqIdx < 0) continue;
-    const block = extractBracedValue(segment, eqIdx + 2);
-    if (!block) continue;
-
+  for (const { name, block } of enumerateTopLevelEntries(lua)) {
     const id = parseIntField(block, "id");
     if (id === null) continue;
-
     results.push({
       id,
       name,
@@ -190,14 +222,9 @@ export function parseItemDataModule(lua: string): ParsedItem[] {
 // Lee Sin's W) round-trip into discrete LolChampionAbility rows.
 export function parseChampionAbilityModule(lua: string): ParsedChampionAbilities[] {
   const result: ParsedChampionAbilities[] = [];
-  for (const segment of lua.split(/\n {2}\["/).slice(1)) {
-    if (!segment) continue;
-    const nameEnd = segment.indexOf('"');
-    if (nameEnd < 0) continue;
-    const championWikiName = segment.slice(0, nameEnd);
-
+  for (const { name: championWikiName, block } of enumerateTopLevelEntries(lua)) {
     const abilities: ParsedAbility[] = [];
-    for (const m of segment.matchAll(/\["skill_([iqwer])"\]\s*=\s*\{([^}]+)\}/g)) {
+    for (const m of block.matchAll(/\["skill_([iqwer])"\]\s*=\s*\{([^}]+)\}/g)) {
       const slotKey = m[1];
       const inner = m[2];
       if (!slotKey || !inner) continue;
@@ -208,7 +235,6 @@ export function parseChampionAbilityModule(lua: string): ParsedChampionAbilities
         if (abilityName) abilities.push({ slot, name: abilityName });
       }
     }
-
     if (abilities.length > 0) {
       result.push({ championWikiName, abilities });
     }
