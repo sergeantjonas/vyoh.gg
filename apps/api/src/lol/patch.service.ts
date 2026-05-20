@@ -1,12 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
-import type {
-  ChampionPatchChangeGroup,
-  ChampionPatchChangeKind,
-  CurrentPatchChangesResponse,
-  PatchChangesResponse,
-  PatchEntryChangeGroup,
-  PatchListEntry,
+import {
+  type ChampionPatchChangeGroup,
+  type ChampionPatchChangeKind,
+  type CurrentPatchChangesResponse,
+  type PatchChangesResponse,
+  type PatchEntryChangeGroup,
+  type PatchListEntry,
+  wikiEntryIconUrl,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch-parser";
@@ -15,7 +16,6 @@ const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json"
 const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
 const CDRAGON_ICON_CDN = "https://cdn.communitydragon.org";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
-const WIKI_IMAGES = "https://wiki.leagueoflegends.com/en-us/images";
 // Wiki etiquette: identify the bot and provide a contact URL.
 const USER_AGENT = "vyoh.gg/1.0 (+https://vyoh.gg) patch-notes-sync";
 
@@ -38,13 +38,6 @@ interface WikiModuleResponse {
       { revisions?: Array<{ slots?: { main?: { "*"?: string } } }> }
     >;
   };
-}
-
-// Wiki image URLs follow a predictable convention — constructable from name alone,
-// no API call needed. Removed entities (e.g. Phase Rush) keep their image permanently.
-function wikiEntryIconUrl(name: string, kind: "item" | "rune"): string {
-  const slug = name.replace(/ /g, "_").replace(/'/g, "%27");
-  return `${WIKI_IMAGES}/${slug}_${kind}.png`;
 }
 
 @Injectable()

@@ -537,9 +537,40 @@ During PN7 work (patch-tab icon consolidation) we discovered that the League wik
 
 **What still needs migrating:**
 - Match history assets (~13 files in `apps/web/src/`) — champion icons, item icons in match cards, summoner spells, perks/keystones. Currently hitting `raw.communitydragon.org` and `cdn.communitydragon.org` client-side.
-- Champion ability icons — currently `cdn.communitydragon.org/latest/champion/{id}/ability-icon/{slot}`. Verify wiki URL pattern before migrating (likely `{Champion}_{Slot}_ability.png` or similar — needs a spot check).
+- Champion ability icons — currently `cdn.communitydragon.org/latest/champion/{id}/ability-icon/{slot}`. Pattern verified 2026-05-20 (see below).
 
-When picking this up: verify the ability icon pattern on the wiki first, then work through the match-history files. CDragon should end up with zero client-side usages.
+**Wiki coverage matrix (probed 2026-05-20):**
+
+| Entity | Wiki? | Pattern | Notes |
+|---|---|---|---|
+| Champion ability icons | ✓ | `{ChampDisplayName}_{AbilityDisplayName}.png` | Needs display name + ability-name mapping; Nunu uses bare `Nunu` prefix |
+| Champion squares | ✓ | `{ChampDisplayName}_OriginalSquare.png` | Derivable from `useChampionName()` |
+| Items | ✓ | `{Name_underscored}_item.png` | Already used server-side |
+| Runes | ✓ | `{Name_underscored}_rune.png` | Already used server-side |
+| Profile icons (by numeric ID) | ⚠ partial | `{EditorialName}_profileicon.png` | Filename is editorial — *not* derivable from CDragon's `title`. Some titles strip trailing "Icon", some keep it, some diverge entirely (e.g. id=1 "Hammer Time" → wiki canonical name unknown). Needs a server-side resolver (~5000 icons) that walks `summoner-icons.json` and queries MediaWiki for the canonical filename per ID, persists `iconId → wikiSlug` in DB. Same shape as items/runes sync. |
+| Ranked emblems | ✓ | `Season_2023_-_{Tier}.png` | Confirmed working for all 10 tiers. 2023 was the last redesign — Riot has not shipped new crest art for 2024/2025, so the 2023 set *is* the current canonical emblem. No year parameter needed in the helper; hard-code 2023 until a future redesign actually lands on the wiki. |
+| SR minimap | ✓ | `Summoner%27s_Rift_Minimap.png` | Direct swap for both `match-map-overlay.tsx` and `champion-position-heatmap.tsx` |
+| ARAM minimap (Howling Abyss) | ✓ | `Howling_Abyss_Minimap.png` | Not used today but unblocks future ARAM heatmaps |
+| Nexus Blitz / Arena minimaps | ✗ | — | Not on wiki; not used today |
+| Match-history UX gold icon | ✓ | `Gold_colored_icon.svg` | SVG, scales cleanly |
+| Match-history UX CS / minion icon | ✓ | `Minion_icon.png` | |
+| Match-history UX ward icon | ✓ | `Ward_icon.png` | Bonus — not used today |
+| Match-history UX kills icon | ✗ | — | Wiki has `Death.png` (death animation, not UX icon) and a long tail of `Killstreak_*` SFX, no UX kills icon. Replace with a `game-icons.net` SVG to drop the last CDragon raster icon — used at `match-event-timelines.tsx:350`, `match-detail-view.tsx:397,446`, `match-map-overlay.tsx:427`. |
+| Champion JSON metadata (roles, ability slot → name) | ✗ | — | Wiki has no machine-readable metadata endpoint. Decision in Chunk 4: either fetch DDragon `championFull.json` once on app boot, or proxy the few fields we need through `apps/api`. |
+
+**Ability-icon URL pattern (verified 2026-05-20):** `{ChampionDisplayName}_{AbilityDisplayName}.png` with spaces → `_` and `'` → `%27`. Examples:
+- `Annie_Disintegrate.png`, `Lux_Light_Binding.png`, `Jarvan_IV_Dragon_Strike.png`
+- Passives use the passive's name: `Annie_Pyromania.png`, `K%27Sante_Dauntless_Instinct.png`
+- Apostrophes: `Kha%27Zix_Taste_Their_Fear.png`, `Vel%27Koz_Plasma_Fission.png`, `Bel%27Veth_Death_in_Lavender.png`
+- Multi-word names underscore cleanly: `Tahm_Kench_An_Acquired_Taste.png`, `Aurelion_Sol_Center_of_the_Universe.png`, `Twisted_Fate_Wild_Cards.png`, `Master_Yi_Alpha_Strike.png`, `Lee_Sin_Sonic_Wave.png`, `Renata_Glasc_Leverage.png`, `Aphelios_The_Hitman_and_the_Seer.png`
+- Punctuation in champion name is preserved: `Dr._Mundo_Goes_Where_He_Pleases.png`
+- Display name (not Riot alias) is required: `Wukong_Crushing_Blow.png` works; `MonkeyKing_...` does not.
+
+**Edge cases:**
+- **Nunu & Willump** — wiki uses bare `Nunu` as the prefix in ability image filenames, not the full display name (`Nunu_Consume.png`, `Nunu_Call_of_the_Freljord.png`). Other `&`-containing names should be probed before assuming the convention.
+- Ability display names must be sourced from a canonical mapping (not guessed). `patch.service.ts` already builds this via `fetchChampionAbilityData()` → `iconByChampionSlot` per champion; the client migration needs the same champion×slot → ability-name mapping available without per-champion CDragon JSON fetches. This is the load-bearing constraint that ties the ability-icon migration to the Chunk 4 JSON-metadata decision.
+
+When picking this up: helpers in `@vyoh/shared` first (Chunk 2), then the 7 pure image-URL sites (Chunk 3). Ability icons in `use-champion-spells.ts` are blocked on Chunk 4 (where champion × slot → ability-name lookup comes from). CDragon should end up with zero client-side usages.
 
 ---
 

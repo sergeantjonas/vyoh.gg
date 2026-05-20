@@ -1,0 +1,104 @@
+// Wiki image URLs follow a predictable convention — constructable from
+// display name alone, no API call needed. Removed entities (e.g. retired runes
+// like Phase Rush) keep their image permanently, so version fallbacks are
+// unnecessary.
+
+const WIKI_IMAGES = "https://wiki.leagueoflegends.com/en-us/images";
+
+function wikiImageSlug(name: string): string {
+  return name.replace(/ /g, "_").replace(/'/g, "%27");
+}
+
+export function wikiEntryIconUrl(name: string, kind: "item" | "rune"): string {
+  return `${WIKI_IMAGES}/${wikiImageSlug(name)}_${kind}.png`;
+}
+
+export function wikiChampionSquareUrl(championDisplayName: string): string {
+  return `${WIKI_IMAGES}/${wikiImageSlug(championDisplayName)}_OriginalSquare.png`;
+}
+
+// Wiki uses the bare `Nunu` prefix for Nunu & Willump's ability image files.
+// Other `&`-containing champion display names should be probed before
+// assuming the convention extends.
+function abilityChampionPrefix(championDisplayName: string): string {
+  if (championDisplayName === "Nunu & Willump") return "Nunu";
+  return championDisplayName;
+}
+
+export function wikiAbilityIconUrl(
+  championDisplayName: string,
+  abilityDisplayName: string
+): string {
+  const champ = wikiImageSlug(abilityChampionPrefix(championDisplayName));
+  const ability = wikiImageSlug(abilityDisplayName);
+  return `${WIKI_IMAGES}/${champ}_${ability}.png`;
+}
+
+const MINIMAP_NAME_BY_MAP_ID: Record<number, string> = {
+  11: "Summoner's Rift",
+  12: "Howling Abyss",
+};
+
+export function wikiMinimapUrl(mapId: number): string | null {
+  const mapName = MINIMAP_NAME_BY_MAP_ID[mapId];
+  if (!mapName) return null;
+  return `${WIKI_IMAGES}/${wikiImageSlug(mapName)}_Minimap.png`;
+}
+
+// Riot has not redesigned ranked crests since 2023, so the 2023 emblem set is
+// the current canonical art. Year is parameterised so the patch sync (Chunk 3)
+// can bump it without a code change if a future redesign lands on the wiki.
+export function wikiRankedEmblemUrl(tier: string, year = 2023): string {
+  const titleCased = tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
+  return `${WIKI_IMAGES}/Season_${year}_-_${titleCased}.png`;
+}
+
+export function wikiGoldIconUrl(): string {
+  return `${WIKI_IMAGES}/Gold_colored_icon.svg`;
+}
+
+export function wikiMinionIconUrl(): string {
+  return `${WIKI_IMAGES}/Minion_icon.png`;
+}
+
+export function wikiWardIconUrl(): string {
+  return `${WIKI_IMAGES}/Ward_icon.png`;
+}
+
+// Core LoL stat icons. The colored-icon SVG suite is visually consistent
+// (pairs with `Gold_colored_icon.svg`) and scales cleanly. Reserved for stat
+// rows that surface the actual numeric stat — *not* used for the kills icon,
+// which would clash with the AD stat semantics. Kills use `wikiAttackIconUrl`.
+export type WikiStatIcon =
+  | "Attack_damage"
+  | "Ability_power"
+  | "Armor"
+  | "Health"
+  | "Magic_resistance"
+  | "Mana";
+
+export function wikiStatIconUrl(stat: WikiStatIcon): string {
+  return `${WIKI_IMAGES}/${stat}_colored_icon.svg`;
+}
+
+// Generic attack/sword icon, distinct from the AD stat icon. Wiki has no
+// dedicated kill UX icon — this is the stand-in for kill counts in match
+// detail and timeline markers.
+export function wikiAttackIconUrl(): string {
+  return `${WIKI_IMAGES}/Attack.svg`;
+}
+
+// In-game ping icons. Kept for future surfaces (live-tab markers, ping-rate
+// stats). Not used for the kills stat-row icon — see `wikiStatIconUrl`.
+export type WikiPing =
+  | "All_In"
+  | "Assist_Me"
+  | "Bait"
+  | "Enemy_Missing"
+  | "Enemy_Vision"
+  | "On_My_Way"
+  | "Push";
+
+export function wikiPingUrl(ping: WikiPing): string {
+  return `${WIKI_IMAGES}/${ping}_ping.png`;
+}
