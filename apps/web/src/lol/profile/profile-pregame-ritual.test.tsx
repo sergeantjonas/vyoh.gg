@@ -327,11 +327,21 @@ describe("ProfilePregameRitual", () => {
     expect(screen.getByText(/low confidence — small sample/)).toBeTruthy();
   });
 
-  it("surfaces calibration text from the queue with the largest sample (Solo vs Flex)", () => {
+  it("surfaces calibration text from the most-recent match's queue (active queue)", () => {
     const now = Date.now();
+    // Two Solo matches — most recent is Solo, so the active queue is Solo
+    // even though Flex would beat it on sample size in the calibration below.
     setMatches([
-      fakeMatch({ win: true, playedAt: new Date(now - DAY_MS).toISOString() }),
-      fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+      fakeMatch({
+        queueType: "Ranked Solo",
+        win: true,
+        playedAt: new Date(now - DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        queueType: "Ranked Solo",
+        win: true,
+        playedAt: new Date(now - 2 * DAY_MS).toISOString(),
+      }),
     ]);
     setCalibration({
       "Ranked Solo": {
@@ -352,10 +362,87 @@ describe("ProfilePregameRitual", () => {
       },
     });
     renderRitual();
-    // Headline reads from Solo (larger n) — calibration text mentions 50 games.
+    expect(screen.getByText("Composite read · next Ranked Solo")).toBeTruthy();
     expect(screen.getByText(/last 50 Ranked Solo games/)).toBeTruthy();
-    // Disclosure carries a row for each queue with its own n.
     expect(screen.getByText(/60% directional · n=50/)).toBeTruthy();
     expect(screen.getByText(/n=10 \(need 30\)/)).toBeTruthy();
+  });
+
+  it("scopes the headline to the queue of the most recent match, even when another queue has a larger sample", () => {
+    const now = Date.now();
+    // Most recent match is Flex — even though Solo has 200 games of backtest
+    // history and Flex only has 35, the prediction is "next Flex" so we use
+    // the Flex calibration for the headline.
+    setMatches([
+      fakeMatch({
+        queueType: "Ranked Flex",
+        win: true,
+        playedAt: new Date(now - HOUR_MS).toISOString(),
+      }),
+      fakeMatch({
+        queueType: "Ranked Solo",
+        win: true,
+        playedAt: new Date(now - DAY_MS).toISOString(),
+      }),
+    ]);
+    setCalibration({
+      "Ranked Solo": {
+        n: 200,
+        directionalHits: 120,
+        directionalAccuracy: 0.6,
+        meanLpForPositive: 18,
+        meanLpForNegative: -16,
+        meanLpForNeutral: 0,
+      },
+      "Ranked Flex": {
+        n: 35,
+        directionalHits: 21,
+        directionalAccuracy: 0.6,
+        meanLpForPositive: 12,
+        meanLpForNegative: -10,
+        meanLpForNeutral: 0,
+      },
+    });
+    renderRitual();
+    expect(screen.getByText("Composite read · next Ranked Flex")).toBeTruthy();
+    expect(screen.getByText(/last 35 Ranked Flex games/)).toBeTruthy();
+  });
+
+  it("uses the active queue's meanLpFor* for the band center once N >= 30", () => {
+    const now = Date.now();
+    // Three same-queue wins → form signal positive, champion signal positive
+    // (Ahri 100% WR over 14 days), score >= 0.25 → positive bucket.
+    setMatches([
+      fakeMatch({
+        queueType: "Ranked Solo",
+        win: true,
+        playedAt: new Date(now - DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        queueType: "Ranked Solo",
+        win: true,
+        playedAt: new Date(now - 2 * DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        queueType: "Ranked Solo",
+        win: true,
+        playedAt: new Date(now - 3 * DAY_MS).toISOString(),
+      }),
+    ]);
+    setCalibration({
+      "Ranked Solo": {
+        n: 80,
+        directionalHits: 56,
+        directionalAccuracy: 0.7,
+        // Player gains ~14 LP on average when the composite reads positive
+        // — different from the heuristic which would predict +20 here.
+        meanLpForPositive: 14,
+        meanLpForNegative: -18,
+        meanLpForNeutral: 0,
+      },
+    });
+    renderRitual();
+    // Center 14, band 14 ± 5 → +9 to +19.
+    expect(screen.getByText("+9 to +19 LP")).toBeTruthy();
   });
 });

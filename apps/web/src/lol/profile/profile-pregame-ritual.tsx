@@ -37,14 +37,18 @@ const EMPTY_CALIBRATION: CalibrationStats = {
   meanLpForNeutral: null,
 };
 
-// Solo and Flex are independent LP ladders, so calibration is reported
-// per-queue. The headline confidence text only fits one number, so we surface
-// the best-calibrated queue (largest sample) and let the disclosure show the
-// full breakdown.
-function pickHeadlineCalibration(byQueue: PregameCalibrationByQueue): {
-  queueType: string | null;
-  stats: CalibrationStats;
-} {
+// Solo and Flex are independent LP ladders. The "active queue" — the queue
+// the user is most likely to play next — is taken to be the queueType of
+// their most recent serious match; if that queue doesn't have backtest data
+// yet, we fall back to the queue with the largest sample so the headline
+// still surfaces something useful.
+function pickActiveQueue(
+  byQueue: PregameCalibrationByQueue,
+  recentQueueType: string | null
+): { queueType: string | null; stats: CalibrationStats } {
+  if (recentQueueType && byQueue[recentQueueType]) {
+    return { queueType: recentQueueType, stats: byQueue[recentQueueType] };
+  }
   let best: { queueType: string; stats: CalibrationStats } | null = null;
   for (const [queueType, stats] of Object.entries(byQueue)) {
     if (!best || stats.n > best.stats.n) best = { queueType, stats };
@@ -294,7 +298,7 @@ function CompositeVerdict({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-          Composite read · next ranked
+          Composite read · next {headlineQueueType ?? "ranked"}
         </div>
         <CompositeDisclosure
           composite={composite}
@@ -404,25 +408,43 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   const queueIdsArr = useMemo(() => [...seriousQueueIds], [seriousQueueIds]);
   const calibrationQuery = usePregameCalibration(account, queueIdsArr);
 
-  const signals = useMemo(() => {
-    if (!matches) return null;
-    return [
-      buildFormSignal(matches),
-      buildTiltSignal(matches),
-      buildTimeSlotSignal(matches),
-      buildChampionSignal(matches, accountSlug, nameFor),
-    ];
-  }, [matches, accountSlug, nameFor]);
-
-  const composite = useMemo(() => (signals ? buildComposite(signals) : null), [signals]);
-
   // LP2 calibration backtest — server-side replay over the full ranked
   // history, reported per-queue (Solo vs Flex are independent LP ladders).
   // While the query is pending, fall through to an empty record so
   // calibrateConfidence() shows LP1's heuristic string rather than the tile
   // flickering out.
   const byQueue: PregameCalibrationByQueue = calibrationQuery.data ?? {};
-  const headline = pickHeadlineCalibration(byQueue);
+
+  // Active queue = "what are you about to play next?", read from the most
+  // recent serious match's queueType. The signals and the headline both
+  // scope to this queue so a Solo prediction never carries Flex form/tilt.
+  const recentQueueType = useMemo(() => {
+    if (!matches || matches.length === 0) return null;
+    const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
+    return ordered[0]?.queueType ?? null;
+  }, [matches]);
+  const headline = pickActiveQueue(byQueue, recentQueueType);
+
+  const queueScopedMatches = useMemo(() => {
+    if (!matches) return null;
+    if (!headline.queueType) return matches;
+    return matches.filter((m) => m.queueType === headline.queueType);
+  }, [matches, headline.queueType]);
+
+  const signals = useMemo(() => {
+    if (!queueScopedMatches) return null;
+    return [
+      buildFormSignal(queueScopedMatches),
+      buildTiltSignal(queueScopedMatches),
+      buildTimeSlotSignal(queueScopedMatches),
+      buildChampionSignal(queueScopedMatches, accountSlug, nameFor),
+    ];
+  }, [queueScopedMatches, accountSlug, nameFor]);
+
+  const composite = useMemo(
+    () => (signals ? buildComposite(signals, headline.stats) : null),
+    [signals, headline.stats]
+  );
 
   if (!matches || matches.length === 0 || !signals || !composite) return null;
 
