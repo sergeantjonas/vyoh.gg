@@ -12,7 +12,6 @@ import {
 } from "@nestjs/common";
 import type {
   CachedMatchesResult,
-  CalibrationStats,
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
@@ -20,6 +19,7 @@ import type {
   Duo,
   LiveMatch,
   MatchSummary,
+  PregameCalibrationByQueue,
   RankHistoryResponse,
   SummonerProfile,
 } from "@vyoh/shared";
@@ -82,7 +82,7 @@ export class LolController {
   async getPregameCalibration(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
     @Query("queueIds") queueIdsRaw?: string
-  ): Promise<CalibrationStats> {
+  ): Promise<PregameCalibrationByQueue> {
     const queueIds = queueIdsRaw
       ? queueIdsRaw
           .split(",")

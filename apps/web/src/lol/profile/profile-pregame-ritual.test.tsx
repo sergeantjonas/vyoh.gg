@@ -1,6 +1,6 @@
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { render, screen } from "@testing-library/react";
-import type { CalibrationStats, MatchSummary } from "@vyoh/shared";
+import type { MatchSummary, PregameCalibrationByQueue } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,23 +43,14 @@ function setMatches(matches: MatchSummary[] | undefined, isPending = false) {
   vi.mocked(useSeriousMatches).mockReturnValue({ matches, isPending });
 }
 
-function setCalibration(stats: CalibrationStats | undefined) {
+function setCalibration(byQueue: PregameCalibrationByQueue | undefined) {
   vi.mocked(usePregameCalibration).mockReturnValue({
-    data: stats,
+    data: byQueue,
   } as unknown as ReturnType<typeof usePregameCalibration>);
 }
 
-const EMPTY_CAL: CalibrationStats = {
-  n: 0,
-  directionalHits: 0,
-  directionalAccuracy: 0,
-  meanLpForPositive: null,
-  meanLpForNegative: null,
-  meanLpForNeutral: null,
-};
-
 beforeEach(() => {
-  setCalibration(EMPTY_CAL);
+  setCalibration({});
 });
 
 function renderRitual() {
@@ -334,5 +325,37 @@ describe("ProfilePregameRitual", () => {
     ]);
     renderRitual();
     expect(screen.getByText(/low confidence — small sample/)).toBeTruthy();
+  });
+
+  it("surfaces calibration text from the queue with the largest sample (Solo vs Flex)", () => {
+    const now = Date.now();
+    setMatches([
+      fakeMatch({ win: true, playedAt: new Date(now - DAY_MS).toISOString() }),
+      fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+    ]);
+    setCalibration({
+      "Ranked Solo": {
+        n: 50,
+        directionalHits: 30,
+        directionalAccuracy: 0.6,
+        meanLpForPositive: 8,
+        meanLpForNegative: -6,
+        meanLpForNeutral: 0,
+      },
+      "Ranked Flex": {
+        n: 10,
+        directionalHits: 6,
+        directionalAccuracy: 0.6,
+        meanLpForPositive: null,
+        meanLpForNegative: null,
+        meanLpForNeutral: null,
+      },
+    });
+    renderRitual();
+    // Headline reads from Solo (larger n) — calibration text mentions 50 games.
+    expect(screen.getByText(/last 50 Ranked Solo games/)).toBeTruthy();
+    // Disclosure carries a row for each queue with its own n.
+    expect(screen.getByText(/60% directional · n=50/)).toBeTruthy();
+    expect(screen.getByText(/n=10 \(need 30\)/)).toBeTruthy();
   });
 });

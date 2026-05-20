@@ -1,13 +1,13 @@
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
-import type { CalibrationStats, LolAccount } from "@vyoh/shared";
+import type { LolAccount, PregameCalibrationByQueue } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 
 async function fetchPregameCalibration(
   account: LolAccount,
   queueIds: readonly number[]
-): Promise<CalibrationStats> {
+): Promise<PregameCalibrationByQueue> {
   const url = new URL(
     `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/pregame-calibration`
   );
@@ -26,7 +26,7 @@ async function fetchPregameCalibration(
     }
     throw new HttpError(res.status, message);
   }
-  return res.json() as Promise<CalibrationStats>;
+  return res.json() as Promise<PregameCalibrationByQueue>;
 }
 
 export function usePregameCalibration(

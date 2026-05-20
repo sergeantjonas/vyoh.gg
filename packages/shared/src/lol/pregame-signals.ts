@@ -87,6 +87,7 @@ export function toneToScore(tone: SignalTone): number {
 export interface ReplayPoint {
   matchId: string;
   playedAt: string;
+  queueType: string;
   score: number;
   firing: number;
   signalTones: Record<SignalId, SignalTone>;
@@ -123,6 +124,7 @@ function replayPoint(history: MatchSummary[], match: MatchSummary): ReplayPoint 
   return {
     matchId: match.matchId,
     playedAt: match.playedAt,
+    queueType: match.queueType,
     score,
     firing,
     signalTones: { form, tilt, slot, champ },
@@ -138,6 +140,29 @@ export function replayHistory(matches: MatchSummary[]): ReplayPoint[] {
     if (point) points.push(point);
   }
   return points;
+}
+
+export type PregameCalibrationByQueue = Record<string, CalibrationStats>;
+
+// Solo and Flex are independent LP ladders — directional accuracy needs to
+// stay queue-scoped or "65% right on Solo" gets diluted by a smaller Flex
+// sample (or vice-versa). The signal *inputs* still mix across queues
+// because player state (tilt, form, time-of-day) carries between ladders;
+// only the LP-delta accuracy is partitioned.
+export function computeCalibrationByQueue(
+  points: ReplayPoint[]
+): PregameCalibrationByQueue {
+  const byQueue = new Map<string, ReplayPoint[]>();
+  for (const p of points) {
+    const bucket = byQueue.get(p.queueType) ?? [];
+    bucket.push(p);
+    byQueue.set(p.queueType, bucket);
+  }
+  const result: PregameCalibrationByQueue = {};
+  for (const [queueType, queuePoints] of byQueue.entries()) {
+    result[queueType] = computeCalibration(queuePoints);
+  }
+  return result;
 }
 
 export function computeCalibration(points: ReplayPoint[]): CalibrationStats {

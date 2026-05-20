@@ -19,11 +19,13 @@ export {
   buildTiltTone,
   buildTimeSlotTone,
   computeCalibration,
+  computeCalibrationByQueue,
   replayHistory,
   toneToScore,
 } from "./lol/pregame-signals.ts";
 export type {
   CalibrationStats,
+  PregameCalibrationByQueue,
   ReplayPoint,
   SignalId,
   SignalTone,

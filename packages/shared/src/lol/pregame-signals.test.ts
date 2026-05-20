@@ -6,6 +6,7 @@ import {
   buildTiltTone,
   buildTimeSlotTone,
   computeCalibration,
+  computeCalibrationByQueue,
   replayHistory,
   toneToScore,
 } from "./pregame-signals.ts";
@@ -201,6 +202,7 @@ describe("computeCalibration", () => {
       {
         matchId: "p",
         playedAt: "2026-01-01T00:00:00Z",
+        queueType: "Ranked Solo",
         score: 0.5,
         firing: 2,
         signalTones: {
@@ -214,6 +216,7 @@ describe("computeCalibration", () => {
       {
         matchId: "n",
         playedAt: "2026-01-02T00:00:00Z",
+        queueType: "Ranked Solo",
         score: -0.5,
         firing: 2,
         signalTones: {
@@ -227,6 +230,7 @@ describe("computeCalibration", () => {
       {
         matchId: "z",
         playedAt: "2026-01-03T00:00:00Z",
+        queueType: "Ranked Solo",
         score: 0,
         firing: 2,
         signalTones: {
@@ -241,5 +245,64 @@ describe("computeCalibration", () => {
     expect(cal.meanLpForPositive).toBe(10);
     expect(cal.meanLpForNegative).toBe(-8);
     expect(cal.meanLpForNeutral).toBe(4);
+  });
+});
+
+describe("computeCalibrationByQueue", () => {
+  it("partitions points by queueType and computes calibration per bucket", () => {
+    const points = [
+      {
+        matchId: "s1",
+        playedAt: "2026-01-01T00:00:00Z",
+        queueType: "Ranked Solo",
+        score: 0.5,
+        firing: 2,
+        signalTones: {
+          form: "positive",
+          tilt: "positive",
+          slot: "neutral",
+          champ: "neutral",
+        },
+        lpDelta: 18,
+      },
+      {
+        matchId: "s2",
+        playedAt: "2026-01-02T00:00:00Z",
+        queueType: "Ranked Solo",
+        score: 0.5,
+        firing: 2,
+        signalTones: {
+          form: "positive",
+          tilt: "positive",
+          slot: "neutral",
+          champ: "neutral",
+        },
+        lpDelta: 14,
+      },
+      {
+        matchId: "f1",
+        playedAt: "2026-01-03T00:00:00Z",
+        queueType: "Ranked Flex",
+        score: 0.5,
+        firing: 2,
+        signalTones: {
+          form: "positive",
+          tilt: "positive",
+          slot: "neutral",
+          champ: "neutral",
+        },
+        lpDelta: -12,
+      },
+    ] as const;
+    const by = computeCalibrationByQueue(points as never);
+    expect(Object.keys(by).sort()).toEqual(["Ranked Flex", "Ranked Solo"]);
+    expect(by["Ranked Solo"]?.n).toBe(2);
+    expect(by["Ranked Solo"]?.directionalAccuracy).toBe(1);
+    expect(by["Ranked Flex"]?.n).toBe(1);
+    expect(by["Ranked Flex"]?.directionalAccuracy).toBe(0);
+  });
+
+  it("returns an empty record for an empty points array", () => {
+    expect(computeCalibrationByQueue([])).toEqual({});
   });
 });

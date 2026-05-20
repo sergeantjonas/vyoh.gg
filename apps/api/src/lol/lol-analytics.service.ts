@@ -1,13 +1,13 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
-  type CalibrationStats,
   type ChampionBuildFlowEntry,
   type ChampionExtras,
   type ChampionPair,
   type Chronotype,
   type Duo,
   type MatchSummary,
-  computeCalibration,
+  type PregameCalibrationByQueue,
+  computeCalibrationByQueue,
   excludeRemakes,
   replayHistory,
 } from "@vyoh/shared";
@@ -17,14 +17,7 @@ import type { RiotMatchTimeline } from "../riot/types";
 import { LolService } from "./lol.service";
 import { queueTypeName } from "./queue-types";
 
-const EMPTY_CALIBRATION: CalibrationStats = {
-  n: 0,
-  directionalHits: 0,
-  directionalAccuracy: 0,
-  meanLpForPositive: null,
-  meanLpForNegative: null,
-  meanLpForNeutral: null,
-};
+const EMPTY_CALIBRATION: PregameCalibrationByQueue = {};
 
 const DEFAULT_PREGAME_QUEUE_IDS = [420, 440, 400] as const;
 
@@ -35,7 +28,7 @@ export class LolAnalyticsService {
   // playedAt against the cached key.
   private readonly calibrationCache = new Map<
     string,
-    { latestPlayedAt: string; stats: CalibrationStats }
+    { latestPlayedAt: string; byQueue: PregameCalibrationByQueue }
   >();
 
   constructor(
@@ -418,7 +411,7 @@ export class LolAnalyticsService {
     gameName: string,
     tagLine: string,
     queueIds?: readonly number[]
-  ): Promise<CalibrationStats> {
+  ): Promise<PregameCalibrationByQueue> {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
     }
@@ -441,17 +434,18 @@ export class LolAnalyticsService {
     const latestKey = latest.playedAt.toISOString();
 
     const cached = this.calibrationCache.get(cacheKey);
-    if (cached && cached.latestPlayedAt === latestKey) return cached.stats;
+    if (cached && cached.latestPlayedAt === latestKey) return cached.byQueue;
 
-    // Replay only reads matchId/playedAt/win/remake/champion + LP snapshots;
-    // we select that subset and cast at the boundary rather than rehydrating
-    // the full MatchSummary shape.
+    // Replay only reads matchId/playedAt/queueType/win/remake/champion + LP
+    // snapshots; we select that subset and cast at the boundary rather than
+    // rehydrating the full MatchSummary shape.
     const rows = await this.prisma.match.findMany({
       where: { puuid: summoner.puuid, queueType: { in: queueNames } },
       orderBy: { playedAt: "desc" },
       select: {
         matchId: true,
         playedAt: true,
+        queueType: true,
         win: true,
         remake: true,
         champion: true,
@@ -462,6 +456,7 @@ export class LolAnalyticsService {
     const matches = rows.map((r) => ({
       matchId: r.matchId,
       playedAt: r.playedAt.toISOString(),
+      queueType: r.queueType,
       win: r.win,
       remake: r.remake,
       champion: r.champion,
@@ -469,8 +464,8 @@ export class LolAnalyticsService {
       ...(r.snapshotLpBefore != null ? { snapshotLpBefore: r.snapshotLpBefore } : {}),
     })) as unknown as MatchSummary[];
 
-    const stats = computeCalibration(replayHistory(matches));
-    this.calibrationCache.set(cacheKey, { latestPlayedAt: latestKey, stats });
-    return stats;
+    const byQueue = computeCalibrationByQueue(replayHistory(matches));
+    this.calibrationCache.set(cacheKey, { latestPlayedAt: latestKey, byQueue });
+    return byQueue;
   }
 }

@@ -6,13 +6,21 @@ import {
 } from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type CompositeRead, buildComposite } from "@/lol/profile/pregame-composite";
-import { calibrateConfidence } from "@/lol/profile/pregame-replay";
+import {
+  MIN_CALIBRATION_SAMPLE,
+  calibrateConfidence,
+} from "@/lol/profile/pregame-replay";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { usePregameCalibration } from "@/lol/profile/use-pregame-calibration";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { Link } from "@tanstack/react-router";
-import { type CalibrationStats, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import {
+  type CalibrationStats,
+  type MatchSummary,
+  type PregameCalibrationByQueue,
+  excludeRemakes,
+} from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -28,6 +36,21 @@ const EMPTY_CALIBRATION: CalibrationStats = {
   meanLpForNegative: null,
   meanLpForNeutral: null,
 };
+
+// Solo and Flex are independent LP ladders, so calibration is reported
+// per-queue. The headline confidence text only fits one number, so we surface
+// the best-calibrated queue (largest sample) and let the disclosure show the
+// full breakdown.
+function pickHeadlineCalibration(byQueue: PregameCalibrationByQueue): {
+  queueType: string | null;
+  stats: CalibrationStats;
+} {
+  let best: { queueType: string; stats: CalibrationStats } | null = null;
+  for (const [queueType, stats] of Object.entries(byQueue)) {
+    if (!best || stats.n > best.stats.n) best = { queueType, stats };
+  }
+  return best ?? { queueType: null, stats: EMPTY_CALIBRATION };
+}
 
 function nowMonFirstDay(d: Date): number {
   return (d.getDay() + 6) % 7;
@@ -237,10 +260,14 @@ function CompositeVerdict({
   composite,
   signals,
   calibration,
+  headlineQueueType,
+  byQueue,
 }: {
   composite: CompositeRead;
   signals: RitualSignal[];
   calibration: CalibrationStats;
+  headlineQueueType: string | null;
+  byQueue: PregameCalibrationByQueue;
 }) {
   const reduced = useReducedMotion();
   const confidence = calibrateConfidence(composite, calibration);
@@ -274,6 +301,8 @@ function CompositeVerdict({
           signals={signals}
           calibration={calibration}
           confidenceSource={confidence.source}
+          headlineQueueType={headlineQueueType}
+          byQueue={byQueue}
         />
       </div>
       <div className="text-sm leading-snug text-foreground/90">
@@ -291,17 +320,22 @@ function CompositeDisclosure({
   signals,
   calibration,
   confidenceSource,
+  headlineQueueType,
+  byQueue,
 }: {
   composite: CompositeRead;
   signals: RitualSignal[];
   calibration: CalibrationStats;
   confidenceSource: "calibration" | "heuristic";
+  headlineQueueType: string | null;
+  byQueue: PregameCalibrationByQueue;
 }) {
   // Prefer a contributor aligned with the composite tone so the "dominant"
   // signal reads as evidence for the verdict, not against it.
   const aligned = signals.filter((s) => s.tone === composite.tone);
   const firing =
     aligned.length > 0 ? aligned : signals.filter((s) => s.tone !== "neutral");
+  const queueRows = Object.entries(byQueue).sort((a, b) => b[1].n - a[1].n);
   return (
     <details className="group text-[10px]">
       <summary className="cursor-pointer text-muted-foreground/70 hover:text-foreground/90">
@@ -338,9 +372,23 @@ function CompositeDisclosure({
         </div>
         <div>
           {confidenceSource === "calibration"
-            ? `Confidence is calibrated from your last ${calibration.n} ranked games (directional hits ${calibration.directionalHits}/${calibration.n}).`
-            : `Confidence is heuristic until enough ranked games accrue for a backtest (have ${calibration.n}, need 30).`}
+            ? `Headline confidence is calibrated from your last ${calibration.n} ${headlineQueueType ?? "ranked"} games (directional hits ${calibration.directionalHits}/${calibration.n}).`
+            : `Confidence is heuristic until enough ranked games accrue for a backtest (best queue has ${calibration.n}, need 30).`}
         </div>
+        {queueRows.length > 0 && (
+          <ul className="flex flex-col gap-0.5 border-t border-border/40 pt-1">
+            {queueRows.map(([queueType, stats]) => (
+              <li key={queueType} className="flex items-center justify-between gap-2">
+                <span className="text-foreground/70">{queueType}</span>
+                <span className="text-muted-foreground/60">
+                  {stats.n >= MIN_CALIBRATION_SAMPLE
+                    ? `${Math.round(stats.directionalAccuracy * 100)}% directional · n=${stats.n}`
+                    : `n=${stats.n} (need ${MIN_CALIBRATION_SAMPLE})`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </details>
   );
@@ -369,10 +417,12 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   const composite = useMemo(() => (signals ? buildComposite(signals) : null), [signals]);
 
   // LP2 calibration backtest — server-side replay over the full ranked
-  // history (vs the loaded match window the client sees). While the query is
-  // pending, fall through to an empty stats object so calibrateConfidence()
-  // shows LP1's heuristic string rather than the tile flickering out.
-  const calibration: CalibrationStats = calibrationQuery.data ?? EMPTY_CALIBRATION;
+  // history, reported per-queue (Solo vs Flex are independent LP ladders).
+  // While the query is pending, fall through to an empty record so
+  // calibrateConfidence() shows LP1's heuristic string rather than the tile
+  // flickering out.
+  const byQueue: PregameCalibrationByQueue = calibrationQuery.data ?? {};
+  const headline = pickHeadlineCalibration(byQueue);
 
   if (!matches || matches.length === 0 || !signals || !composite) return null;
 
@@ -382,7 +432,9 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
       <CompositeVerdict
         composite={composite}
         signals={signals}
-        calibration={calibration}
+        calibration={headline.stats}
+        headlineQueueType={headline.queueType}
+        byQueue={byQueue}
       />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {signals.map((s, i) => (

@@ -730,6 +730,7 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
     return {
       matchId: `M${Math.random()}`,
       playedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      queueType: "Ranked Solo",
       win: true,
       remake: false,
       champion: "Ahri",
@@ -753,7 +754,7 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
     const prisma = makePrisma();
     prisma.summoner.findUnique.mockResolvedValue(null);
     const stats = await makeService(prisma).getPregameCalibration("euw1", "Vyoh", "Ahri");
-    expect(stats.n).toBe(0);
+    expect(stats).toEqual({});
     expect(prisma.match.findFirst).not.toHaveBeenCalled();
   });
 
@@ -762,41 +763,33 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
     prisma.summoner.findUnique.mockResolvedValue({ puuid: "p1" });
     prisma.match.findFirst.mockResolvedValue(null);
     const stats = await makeService(prisma).getPregameCalibration("euw1", "Vyoh", "Ahri");
-    expect(stats.n).toBe(0);
+    expect(stats).toEqual({});
     expect(prisma.match.findMany).not.toHaveBeenCalled();
   });
 
-  it("computes calibration over the loaded match window", async () => {
+  it("partitions stats per queueType so Solo and Flex are reported separately", async () => {
     const prisma = makePrisma();
     prisma.summoner.findUnique.mockResolvedValue({ puuid: "p1" });
-    const latest = new Date("2026-05-20T00:00:00Z");
-    prisma.match.findFirst.mockResolvedValue({ playedAt: latest });
-    // Three matches with LP deltas; replay will see prior history for each.
-    const rows = [
+    prisma.match.findFirst.mockResolvedValue({
+      playedAt: new Date("2026-05-20T00:00:00Z"),
+    });
+    prisma.match.findMany.mockResolvedValue([
       fakeRow({
-        matchId: "m3",
+        matchId: "s",
         playedAt: new Date("2026-05-20T00:00:00Z"),
-        win: true,
+        queueType: "Ranked Solo",
       }),
       fakeRow({
-        matchId: "m2",
+        matchId: "f",
         playedAt: new Date("2026-05-19T00:00:00Z"),
-        win: false,
-        snapshotLp: 40,
-        snapshotLpBefore: 60,
+        queueType: "Ranked Flex",
       }),
-      fakeRow({
-        matchId: "m1",
-        playedAt: new Date("2026-05-18T00:00:00Z"),
-        win: true,
-      }),
-    ];
-    prisma.match.findMany.mockResolvedValue(rows);
+    ]);
     const stats = await makeService(prisma).getPregameCalibration("euw1", "Vyoh", "Ahri");
-    // Exact accuracy isn't the point — what we care about is that the pipeline
-    // ran end-to-end and produced a non-zero sample from the rows above.
-    expect(stats.n).toBeGreaterThanOrEqual(0);
-    expect(prisma.match.findMany).toHaveBeenCalledTimes(1);
+    // Structural contract: the response is keyed per queueType rather than
+    // mashed into a single combined number. The partitioning math itself is
+    // covered by computeCalibrationByQueue's unit tests in shared.
+    expect(Object.keys(stats).sort()).toEqual(["Ranked Flex", "Ranked Solo"]);
   });
 
   it("caches the result when the latest playedAt is unchanged", async () => {
