@@ -278,4 +278,26 @@ describe("ProfilePregameRitual", () => {
     // the MIN_HOUR_SAMPLE threshold — the "Untested hour" verdict surfaces.
     expect(screen.getByText(/Untested hour for you/)).toBeTruthy();
   });
+
+  it("renders the 'How is this computed?' disclosure alongside a fired composite", () => {
+    const now = Date.now();
+    setMatches([
+      fakeMatch({ win: true, playedAt: new Date(now - DAY_MS).toISOString() }),
+      fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+    ]);
+    renderRitual();
+    expect(screen.getByText(/How is this computed\?/)).toBeTruthy();
+  });
+
+  it("falls back to the heuristic confidence string when the LP-history sample is too small", () => {
+    const now = Date.now();
+    // Single loss ⇒ only the form signal fires (WR=0% leaves champion neutral;
+    // tilt + slot need more history). With zero snapshotLpBefore/snapshotLp
+    // pairs the calibration sample is 0 < 30 and LP1's heuristic flows through.
+    setMatches([
+      fakeMatch({ win: false, playedAt: new Date(now - DAY_MS).toISOString() }),
+    ]);
+    renderRitual();
+    expect(screen.getByText(/low confidence — small sample/)).toBeTruthy();
+  });
 });

@@ -19,7 +19,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **Match-detail section nav MDN5** — soft re-evaluation of the Recap / Your game / Timeline grouping after the queued owner-data additions land (spell casts, damage profile, CC time, multikills, rune page, etc.). MDN1–MDN4 shipped 2026-05-17; tab URL state migrated from `?tab=` search param to nested path segments on 2026-05-18. → [match-detail-section-nav.md](lol/match-detail-section-nav.md)
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
-- **LP forecast Phase LP2** — confidence calibration: backtest LP1's "directional only" verdicts against per-match LP delta via retroactive signal-replay (compute the four pregame signals as of each historical match's `playedAt`) on Agurin's data (N=174 matches with valid `snapshotLpBefore`+`snapshotLp` and growing); per-signal sample-size weighting; "How is this computed?" disclosure (data-independent, can ship any time). → [lp-forecast.md](lol/lp-forecast.md)
+- **LP forecast Phase LP2.5 (per-signal weighting)** — LP2 shipped 2026-05-20 (retroactive signal-replay + directional-accuracy calibration + "How is this computed?" disclosure). Per-signal sample-size weighting deferred: gated on whether the live calibration on Agurin's data shows uneven signal contribution. LP3 (personal linear fit) still long-tail. → [lp-forecast.md](lol/lp-forecast.md)
 
 ### Cross-cutting
 

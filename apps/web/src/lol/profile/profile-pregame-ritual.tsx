@@ -2,6 +2,12 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type CompositeRead, buildComposite } from "@/lol/profile/pregame-composite";
+import {
+  type CalibrationStats,
+  calibrateConfidence,
+  computeCalibration,
+  replayHistory,
+} from "@/lol/profile/pregame-replay";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
@@ -18,7 +24,9 @@ function nowMonFirstDay(d: Date): number {
   return (d.getDay() + 6) % 7;
 }
 
-function buildFormSignal(matches: MatchSummary[]): RitualSignal {
+// All signal builders accept `now` so replayComposite() can recompute signals
+// at historical points (LP2 calibration backtest).
+export function buildFormSignal(matches: MatchSummary[]): RitualSignal {
   const played = excludeRemakes(matches);
   if (played.length === 0) {
     return {
@@ -50,7 +58,7 @@ function buildFormSignal(matches: MatchSummary[]): RitualSignal {
   };
 }
 
-function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
+export function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
   const played = excludeRemakes(matches);
   if (played.length < 5) {
     return {
@@ -90,7 +98,10 @@ function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
   };
 }
 
-function buildTimeSlotSignal(matches: MatchSummary[]): RitualSignal {
+export function buildTimeSlotSignal(
+  matches: MatchSummary[],
+  now: Date = new Date()
+): RitualSignal {
   const played = excludeRemakes(matches);
   if (played.length < 10) {
     return {
@@ -102,7 +113,6 @@ function buildTimeSlotSignal(matches: MatchSummary[]): RitualSignal {
   }
   const overallWr = played.filter((m) => m.win).length / played.length;
   const hourDay = computeHourDayStats(played);
-  const now = new Date();
   const day = nowMonFirstDay(now);
   const hour = now.getHours();
   const slot = hourDay.find((s) => s.day === day && s.hour === hour);
@@ -145,12 +155,13 @@ function buildTimeSlotSignal(matches: MatchSummary[]): RitualSignal {
   };
 }
 
-function buildChampionSignal(
+export function buildChampionSignal(
   matches: MatchSummary[],
   accountSlug: string,
-  nameFor: (alias: string) => string
+  nameFor: (alias: string) => string,
+  now: Date = new Date()
 ): RitualSignal {
-  const cutoff = Date.now() - SUGGEST_DAYS * 24 * 60 * 60 * 1000;
+  const cutoff = now.getTime() - SUGGEST_DAYS * 24 * 60 * 60 * 1000;
   const recent = matches.filter(
     (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff
   );
@@ -213,8 +224,17 @@ const VERDICT_TONE: Record<RitualSignal["tone"], string> = {
   warning: "border-rose-500/40 bg-rose-500/10",
 };
 
-function CompositeVerdict({ composite }: { composite: CompositeRead }) {
+function CompositeVerdict({
+  composite,
+  signals,
+  calibration,
+}: {
+  composite: CompositeRead;
+  signals: RitualSignal[];
+  calibration: CalibrationStats;
+}) {
   const reduced = useReducedMotion();
+  const confidence = calibrateConfidence(composite, calibration);
   if (composite.empty) {
     return (
       <m.div
@@ -236,16 +256,84 @@ function CompositeVerdict({ composite }: { composite: CompositeRead }) {
       transition={{ duration: 0.35, ease: "easeOut" }}
       className={`flex flex-col gap-1 rounded-lg border px-3 py-2.5 ${VERDICT_TONE[composite.tone]}`}
     >
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-        Composite read · next ranked
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+          Composite read · next ranked
+        </div>
+        <CompositeDisclosure
+          composite={composite}
+          signals={signals}
+          calibration={calibration}
+          confidenceSource={confidence.source}
+        />
       </div>
       <div className="text-sm leading-snug text-foreground/90">
         {composite.band}
-        {composite.confidence && (
-          <span className="text-muted-foreground/70"> — {composite.confidence}</span>
+        {confidence.text && (
+          <span className="text-muted-foreground/70"> — {confidence.text}</span>
         )}
       </div>
     </m.div>
+  );
+}
+
+function CompositeDisclosure({
+  composite,
+  signals,
+  calibration,
+  confidenceSource,
+}: {
+  composite: CompositeRead;
+  signals: RitualSignal[];
+  calibration: CalibrationStats;
+  confidenceSource: "calibration" | "heuristic";
+}) {
+  // Prefer a contributor aligned with the composite tone so the "dominant"
+  // signal reads as evidence for the verdict, not against it.
+  const aligned = signals.filter((s) => s.tone === composite.tone);
+  const firing =
+    aligned.length > 0 ? aligned : signals.filter((s) => s.tone !== "neutral");
+  return (
+    <details className="group text-[10px]">
+      <summary className="cursor-pointer text-muted-foreground/70 hover:text-foreground/90">
+        How is this computed?
+      </summary>
+      <div className="mt-2 flex flex-col gap-1.5 rounded border border-border/60 bg-background/40 p-2 text-muted-foreground/80">
+        <div>
+          Each signal maps to <span className="text-foreground/80">+1, 0, or −1</span>.
+          The LP band is the mean × 20, ± 5.
+        </div>
+        <ul className="flex flex-col gap-0.5">
+          {signals.map((s) => (
+            <li key={s.id} className="flex items-center gap-1.5">
+              <span className="w-14 text-foreground/70">{s.id}</span>
+              <span
+                className={
+                  s.tone === "positive"
+                    ? "text-emerald-400/90"
+                    : s.tone === "warning"
+                      ? "text-rose-400/90"
+                      : "text-muted-foreground/60"
+                }
+              >
+                {s.tone === "positive" ? "+1" : s.tone === "warning" ? "−1" : "0"}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div>
+          {composite.firing} of {signals.length} signals fired ·{" "}
+          {firing.length > 0
+            ? `dominant: ${firing[0]?.id}`
+            : "no signal had a non-neutral read"}
+        </div>
+        <div>
+          {confidenceSource === "calibration"
+            ? `Confidence is calibrated from your last ${calibration.n} ranked games (directional hits ${calibration.directionalHits}/${calibration.n}).`
+            : `Confidence is heuristic until enough ranked games accrue for a backtest (have ${calibration.n}, need 30).`}
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -267,12 +355,26 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
 
   const composite = useMemo(() => (signals ? buildComposite(signals) : null), [signals]);
 
-  if (!matches || matches.length === 0 || !signals || !composite) return null;
+  // LP2 calibration backtest — retroactively replay the four signals as of each
+  // historical match and compare to the actual `snapshotLp - snapshotLpBefore`.
+  // Computed over the loaded match window; falls back to LP1 heuristic when
+  // the sample is too small (see MIN_CALIBRATION_SAMPLE).
+  const calibration = useMemo(() => {
+    if (!matches) return null;
+    return computeCalibration(replayHistory(matches, accountSlug));
+  }, [matches, accountSlug]);
+
+  if (!matches || matches.length === 0 || !signals || !composite || !calibration)
+    return null;
 
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium text-muted-foreground">Pre-game</h3>
-      <CompositeVerdict composite={composite} />
+      <CompositeVerdict
+        composite={composite}
+        signals={signals}
+        calibration={calibration}
+      />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {signals.map((s, i) => (
           <SignalTile key={s.id} signal={s} index={i} />

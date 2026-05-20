@@ -8,7 +8,7 @@ export interface CompositeRead {
   firing: number;
 }
 
-function toneToScore(tone: RitualSignal["tone"]): number {
+export function toneToScore(tone: RitualSignal["tone"]): number {
   if (tone === "positive") return 1;
   if (tone === "warning") return -1;
   return 0;

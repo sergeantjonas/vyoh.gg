@@ -1,6 +1,6 @@
 # Composite LP forecast tile — design note
 
-**Status:** Active — Phase LP1 (directional-only verdict) shipped 2026-05-14. Phase LP2 (confidence calibration, per-signal sample-size weighting, "How is this computed?" disclosure) is the next chunk; data prerequisite verified 2026-05-20 — Agurin#DND has 174 ranked solo matches with valid `snapshotLpBefore`+`snapshotLp` since the BEFORE/AFTER snapshot pipeline started running 2026-05-13, well past any threshold for backtesting a 5-bucket directional verdict against outcome. Phase LP3 (personal linear fit) remains the long-tail target. See [open-work.md](../open-work.md).
+**Status:** Active — Phase LP1 (directional-only verdict) shipped 2026-05-14. Phase LP2 shipped 2026-05-20 (retroactive signal-replay + directional-accuracy calibration, "How is this computed?" disclosure). Per-signal sample-size weighting deferred — gated on whether calibration shows uneven signal contribution once Agurin's window grows. Phase LP3 (personal linear fit) remains the long-tail target. See [open-work.md](../open-work.md).
 
 A single tile on Profile that composes the four existing Pregame Ritual signals (form, tilt, time-slot, top-champion) into one forward-looking verdict: *"Composite read for your next ranked: +X expected LP — confidence Y."*
 
@@ -125,10 +125,12 @@ A `ConclusionCard`-shaped tile elsewhere on Profile (e.g. above LP history). Rea
 - Empty path: zero firing signals → muted "Play a few games and we'll have a read".
 - **LP1 shortcut to revisit in LP2/LP3:** confidence currently ignores each signal's *internal* sample size (e.g. time-slot's `slot.games`). It only counts how many signals had a non-neutral read. The honest version threads sample-size into per-signal weight.
 
-### Phase LP2 — Confidence calibration
+### Phase LP2 — Confidence calibration — **shipped 2026-05-20**
 
-- Once enough LP history has accumulated to backtest, validate that the naive composite's "directional only" verdicts correlate with subsequent outcome. Adjust band widths if directionally wrong.
-- Add a "How is this computed?" disclosure that lists which signal drove the verdict ("dominant signal: time-slot — your Tue 23:00 WR is 38% on 6 games").
+- Helper: [`apps/web/src/lol/profile/pregame-replay.ts`](../../../apps/web/src/lol/profile/pregame-replay.ts) — `replayHistory()` walks every match with valid `snapshotLpBefore`+`snapshotLp`, slices history to matches strictly before that match's `playedAt`, and reruns the four signal builders with `now = match.playedAt`. `computeCalibration()` aggregates over points where the composite fired (`firing > 0`) and produces directional-accuracy + per-bucket mean-LP stats. `calibrateConfidence()` swaps the heuristic confidence string for a calibration-grounded one once the sample crosses `MIN_CALIBRATION_SAMPLE = 30`.
+- UI: `CompositeVerdict` now shows a `<details>` "How is this computed?" disclosure (signal-tone breakdown, dominant signal aligned with composite tone, band derivation, and source of confidence). Heuristic string flows through unchanged when N < 30.
+- Signal builders (`buildFormSignal` / `buildTiltSignal` / `buildTimeSlotSignal` / `buildChampionSignal`) now accept an optional `now: Date` so the replay can recompute signals at historical points; default behaviour at the live render is unchanged.
+- Deferred from LP2: per-signal sample-size weighting (the LP1 shortcut). Re-evaluate once the calibration has had a few weeks to read on Agurin's data — if directional accuracy is uneven across signal compositions, that's the trigger to thread per-signal weight in.
 
 ### Phase LP3 — Personal linear fit
 
@@ -154,6 +156,7 @@ The composite is interesting structurally because it demonstrates:
 - **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](../archive/views-roadmap.md) Phase 4 caveat).
 - **2026-05-14** — Phase LP1 shipped (naive equal-weight composite + verdict row above Pregame Ritual signals). LP2 next (confidence calibration once LP history has accrued); LP3 still data-blocked.
 - **2026-05-20** — Park reversed after data check. The BEFORE/AFTER snapshot pipeline pre-dates LP1 ship (shipped earlier as part of [views-roadmap.md](../archive/views-roadmap.md) Phase 4), so the relevant clock isn't "days since LP1 shipped" — it's "matches with valid LP delta." Agurin#DND has 174 such matches in DB (`SELECT COUNT(*) FROM "Match" WHERE puuid = <agurin> AND "queueType" = 'Ranked Solo' AND "snapshotLpBefore" IS NOT NULL AND "snapshotLp" IS NOT NULL`), and per-account validation is the honest unit (mixing accounts mashes different personal patterns together). LP2 stays in open-work; next-action is the retroactive signal-replay on Agurin's history.
+- **2026-05-20** — LP2 shipped. Retroactive signal-replay + directional-accuracy calibration + "How is this computed?" disclosure land in one chunk; per-signal sample-size weighting deferred until calibration data shows uneven contribution. Per-signal weighting moves to LP2.5 / LP3 territory rather than blocking the LP2 ship.
 
 ---
 
