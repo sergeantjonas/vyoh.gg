@@ -12,6 +12,22 @@ export {
   computeStreak,
 } from "./lol/match-stats.ts";
 export type { HourDayStat, Streak, TiltStats } from "./lol/match-stats.ts";
+export {
+  MIN_CALIBRATION_SAMPLE,
+  buildChampionTone,
+  buildFormTone,
+  buildTiltTone,
+  buildTimeSlotTone,
+  computeCalibration,
+  replayHistory,
+  toneToScore,
+} from "./lol/pregame-signals.ts";
+export type {
+  CalibrationStats,
+  ReplayPoint,
+  SignalId,
+  SignalTone,
+} from "./lol/pregame-signals.ts";
 export { parseMatchQuery } from "./lol/match-query.ts";
 export type { MatchOutcomeFilter, ParsedMatchQuery } from "./lol/match-query.ts";
 export type { Me } from "./identity.ts";

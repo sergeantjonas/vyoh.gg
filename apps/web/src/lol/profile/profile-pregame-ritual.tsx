@@ -361,8 +361,8 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   // the sample is too small (see MIN_CALIBRATION_SAMPLE).
   const calibration = useMemo(() => {
     if (!matches) return null;
-    return computeCalibration(replayHistory(matches, accountSlug));
-  }, [matches, accountSlug]);
+    return computeCalibration(replayHistory(matches));
+  }, [matches]);
 
   if (!matches || matches.length === 0 || !signals || !composite || !calibration)
     return null;
