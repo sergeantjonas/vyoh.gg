@@ -123,6 +123,35 @@ describe("tone builders", () => {
     expect(buildTimeSlotTone([])).toBe("neutral");
   });
 
+  it("buildTimeSlotTone is neutral even when the slot WR trails overall by 10pp+ (warning suppressed)", () => {
+    // 12 games at the current hour, 3 wins → wr 25%. Other 8 games elsewhere
+    // (different hour, 7 wins → 87.5%). Overall WR: 10/20 = 50%. Slot WR
+    // trails overall by 25pp — old behaviour fired warning; calibration
+    // data showed warning polarity is anti-predictive so we fall back to
+    // neutral.
+    const now = new Date("2026-05-20T14:00:00Z");
+    const ms: ReturnType<typeof fakeMatch>[] = [];
+    for (let i = 0; i < 12; i++) {
+      ms.push(
+        fakeMatch({
+          matchId: `slot-${i}`,
+          win: i < 3,
+          playedAt: new Date("2026-05-20T14:30:00Z").toISOString(),
+        })
+      );
+    }
+    for (let i = 0; i < 8; i++) {
+      ms.push(
+        fakeMatch({
+          matchId: `other-${i}`,
+          win: i < 7,
+          playedAt: new Date("2026-05-20T03:30:00Z").toISOString(),
+        })
+      );
+    }
+    expect(buildTimeSlotTone(ms, now)).toBe("neutral");
+  });
+
   it("buildTimeSlotTone is neutral when the slot delta is below the 10pp threshold", () => {
     // 12 games at the current hour, 7 wins → wr 58.3%. Other 8 games elsewhere
     // (different hour, 4 wins → 50%). Overall WR: 11/20 = 55%. Slot vs overall

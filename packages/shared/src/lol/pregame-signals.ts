@@ -62,7 +62,11 @@ export function buildTimeSlotTone(
   const wr = slot.wins / slot.games;
   const delta = wr - overallWr;
   if (delta >= TIME_SLOT_DELTA) return "positive";
-  if (delta <= -TIME_SLOT_DELTA) return "warning";
+  // Warning polarity on slot was anti-predictive on the first per-account
+  // calibration (Agurin: 29% directional accuracy on 41 fires — i.e. he
+  // wins 71% of his supposedly off-peak hours). Falling back to neutral
+  // until a second account's data either replicates the inversion or
+  // shows the signal works as written.
   return "neutral";
 }
 

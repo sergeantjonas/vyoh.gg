@@ -202,15 +202,9 @@ export function buildTimeSlotSignal(
       tone: "positive",
     };
   }
-  if (delta <= -TIME_SLOT_DELTA) {
-    return {
-      id: "slot",
-      label: "Time slot",
-      verdict: `Off-peak hour for you — ${wrPct}% WR at ${slotLabel}.`,
-      detail: `${slot.games} games at this hour`,
-      tone: "warning",
-    };
-  }
+  // See packages/shared/src/lol/pregame-signals.ts buildTimeSlotTone — the
+  // warning polarity is suppressed until calibration data on a second
+  // account either replicates the inversion or shows the signal works.
   return {
     id: "slot",
     label: "Time slot",
