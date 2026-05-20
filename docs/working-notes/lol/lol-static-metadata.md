@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Active — Chunk 4a shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
+**Status:** Active — Chunks 4a + 4b shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -161,9 +161,18 @@ model LolChampionAbility {
 - Drift detection: simulate Phase Rush retirement, assert `retiredAt` is set.
 - Idempotency: rerun against the same payload, no diff.
 
-### Chunk 4b — Read endpoints + shared types
+### Chunk 4b — Read endpoints + shared types — SHIPPED 2026-05-21
 
-**Files in scope:**
+**Files landed:**
+- `packages/shared/src/lol/static.ts` — DTOs (`LolItemDto`, `LolChampionDto`, `LolChampionAbilityDto`, `LolSummonerSpellDto`, `LolPerkDto`, `LolStaticBundle`). Retired rows are kept in the bundle so historical match data can still resolve old perkId/spellId references; web filters by `retiredAt === null` for current-meta UI.
+- `packages/shared/src/index.ts` — re-export of the six new types.
+- `apps/api/src/lol/lol-static.controller.ts` — `GET /lol/static` thin delegation to `LolStaticSyncService.getBundle()`.
+- `apps/api/src/lol/lol-static.controller.spec.ts` — delegation test.
+- `apps/api/src/lol/lol-static-sync.service.ts` — added `getBundle()` method (5 parallel `findMany` calls + DTO mapping + max-of-all `syncedAt` computation + `patchVersion` resolution falling back through items → champions → null).
+- `apps/api/src/lol/lol-static-sync.service.spec.ts` — added two getBundle tests: populated catalog with retired Phase Rush row preserved + cold-start empty catalog returning null envelope.
+- `apps/api/src/lol/lol.module.ts` — registered `LolStaticController`.
+
+**Files originally planned:**
 - New: `packages/shared/src/lol/static.ts` — DTOs (`LolItem`, `LolChampion`, `LolChampionAbility`, `LolSummonerSpell`, `LolPerk`, `LolStaticBundle`)
 - Modify: `packages/shared/src/index.ts` — re-export
 - New: `apps/api/src/lol/lol-static.controller.ts`

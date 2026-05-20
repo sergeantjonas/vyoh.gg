@@ -125,11 +125,18 @@ return {
 // --- Service ------------------------------------------------------------
 
 interface PrismaStubs {
-  lolItem: { upsert: ReturnType<typeof vi.fn> };
-  lolChampion: { upsert: ReturnType<typeof vi.fn> };
+  lolItem: {
+    upsert: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
+  lolChampion: {
+    upsert: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
   lolChampionAbility: {
     deleteMany: ReturnType<typeof vi.fn>;
     createMany: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
   };
   lolSummonerSpell: {
     upsert: ReturnType<typeof vi.fn>;
@@ -146,11 +153,18 @@ interface PrismaStubs {
 
 function makePrisma(): PrismaStubs {
   return {
-    lolItem: { upsert: vi.fn().mockResolvedValue({}) },
-    lolChampion: { upsert: vi.fn().mockResolvedValue({}) },
+    lolItem: {
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    lolChampion: {
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     lolChampionAbility: {
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     lolSummonerSpell: {
       upsert: vi.fn().mockResolvedValue({}),
@@ -393,5 +407,145 @@ return {
       id: 266,
       name: "Aatrox",
     });
+  });
+
+  it("getBundle() shapes prisma rows into the LolStaticBundle DTO with grouped abilities and max syncedAt", async () => {
+    const prisma = makePrisma();
+    const wikiEarly = new Date("2026-05-20T00:00:00.000Z");
+    const wikiLate = new Date("2026-05-21T12:00:00.000Z");
+    const ddragonLate = new Date("2026-05-21T11:30:00.000Z");
+    prisma.lolChampion.findMany.mockResolvedValueOnce([
+      {
+        id: 62,
+        alias: "MonkeyKing",
+        name: "Wukong",
+        roles: ["Fighter"],
+        ddragonSyncedAt: ddragonLate,
+        wikiSyncedAt: wikiEarly,
+        wikiSyncedPatchVersion: "26.10",
+      },
+    ]);
+    prisma.lolChampionAbility.findMany.mockResolvedValueOnce([
+      {
+        championId: 62,
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Crushing Blow",
+        iconWikiName: null,
+        descriptionWikitext: null,
+        descriptionHtml: null,
+      },
+      {
+        championId: 62,
+        slot: "Passive",
+        abilityIndex: 0,
+        name: "Stone Skin",
+        iconWikiName: null,
+        descriptionWikitext: null,
+        descriptionHtml: null,
+      },
+    ]);
+    prisma.lolItem.findMany.mockResolvedValueOnce([
+      {
+        id: 3078,
+        name: "Trinity Force",
+        tier: 3,
+        itemType: ["Legendary"],
+        priceTotal: 3333,
+        recipe: ["Sheen"],
+        categories: ["fighter"],
+        stats: { ad: 36 },
+        descriptionWikitext: "raw",
+        descriptionHtml: null,
+        iconWikiName: "Trinity Force",
+        wikiSyncedAt: wikiLate,
+        wikiSyncedPatchVersion: "26.10",
+      },
+    ]);
+    prisma.lolSummonerSpell.findMany.mockResolvedValueOnce([
+      {
+        id: 4,
+        name: "Flash",
+        iconWikiName: "Flash",
+        descriptionWikitext: null,
+        descriptionHtml: null,
+        ddragonSyncedAt: ddragonLate,
+        wikiSyncedAt: null,
+        retiredAt: null,
+      },
+    ]);
+    prisma.lolPerk.findMany.mockResolvedValueOnce([
+      {
+        id: 8005,
+        name: "Press the Attack",
+        path: "Precision",
+        slot: "Keystone",
+        iconWikiName: "Press the Attack",
+        descriptionWikitext: null,
+        descriptionHtml: null,
+        ddragonSyncedAt: ddragonLate,
+        wikiSyncedAt: null,
+        retiredAt: null,
+      },
+      {
+        id: 8230,
+        name: "Phase Rush",
+        path: "Sorcery",
+        slot: "Keystone",
+        iconWikiName: "Phase Rush",
+        descriptionWikitext: null,
+        descriptionHtml: null,
+        ddragonSyncedAt: ddragonLate,
+        wikiSyncedAt: null,
+        retiredAt: new Date("2026-05-19T00:00:00.000Z"),
+      },
+    ]);
+
+    const bundle = await makeService(prisma).getBundle();
+
+    expect(bundle.patchVersion).toBe("26.10");
+    expect(bundle.syncedAt).toBe(wikiLate.toISOString());
+    expect(bundle.champions).toEqual([
+      { id: 62, alias: "MonkeyKing", name: "Wukong", roles: ["Fighter"] },
+    ]);
+    // Abilities indexed by championId, in the order returned by prisma
+    // (caller sorts by slot then abilityIndex via orderBy clause).
+    expect(bundle.championAbilities[62]).toEqual([
+      {
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Crushing Blow",
+        iconWikiName: null,
+        descriptionWikitext: null,
+        descriptionHtml: null,
+      },
+      {
+        slot: "Passive",
+        abilityIndex: 0,
+        name: "Stone Skin",
+        iconWikiName: null,
+        descriptionWikitext: null,
+        descriptionHtml: null,
+      },
+    ]);
+    expect(bundle.items).toHaveLength(1);
+    expect(bundle.items[0]?.stats).toEqual({ ad: 36 });
+    expect(bundle.summonerSpells).toHaveLength(1);
+    expect(bundle.perks).toHaveLength(2);
+    // Retired perk is kept (historical matches reference it) but flagged.
+    const phaseRush = bundle.perks.find((p) => p.id === 8230);
+    expect(phaseRush?.retiredAt).toBe("2026-05-19T00:00:00.000Z");
+  });
+
+  it("getBundle() returns null patchVersion + null syncedAt on a cold-start empty catalog", async () => {
+    const prisma = makePrisma();
+    const bundle = await makeService(prisma).getBundle();
+    expect(bundle.patchVersion).toBeNull();
+    expect(bundle.syncedAt).toBeNull();
+    expect(bundle.champions).toEqual([]);
+    expect(bundle.championAbilities).toEqual({});
+    expect(bundle.items).toEqual([]);
+    expect(bundle.summonerSpells).toEqual([]);
+    expect(bundle.perks).toEqual([]);
   });
 });

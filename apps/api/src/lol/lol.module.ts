@@ -3,6 +3,7 @@ import { RiotModule } from "../riot/riot.module";
 import { LiveGamePollerService } from "./live-game-poller.service";
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolStaticSyncService } from "./lol-static-sync.service";
+import { LolStaticController } from "./lol-static.controller";
 import { LolController } from "./lol.controller";
 import { LolService } from "./lol.service";
 import { MatchEventsService } from "./match-events.service";
@@ -13,7 +14,7 @@ import { PatchService } from "./patch.service";
 
 @Module({
   imports: [RiotModule],
-  controllers: [LolController, MatchController, PatchController],
+  controllers: [LolController, MatchController, PatchController, LolStaticController],
   providers: [
     LolService,
     LolAnalyticsService,

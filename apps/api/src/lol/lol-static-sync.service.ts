@@ -1,5 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import type {
+  LolChampionAbilityDto,
+  LolChampionDto,
+  LolItemDto,
+  LolPerkDto,
+  LolStaticBundle,
+  LolSummonerSpellDto,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   type ParsedItem,
@@ -374,6 +382,117 @@ export class LolStaticSyncService {
         });
       }
     }
+  }
+
+  // Read-side: returns the entire static catalog as a single bundle for the
+  // web app to fetch once on boot. Retired rows are KEPT (web filters by
+  // `retiredAt === null` for current-meta UI) so historical match data can
+  // still resolve old perkId/spellId references. Bundle is ~50–80KB JSON
+  // before gzip; TanStack Query caches it with `staleTime: Infinity`.
+  async getBundle(): Promise<LolStaticBundle> {
+    const [champions, abilities, items, spells, perks] = await Promise.all([
+      this.prisma.lolChampion.findMany({ orderBy: { name: "asc" } }),
+      this.prisma.lolChampionAbility.findMany({
+        orderBy: [{ championId: "asc" }, { slot: "asc" }, { abilityIndex: "asc" }],
+      }),
+      this.prisma.lolItem.findMany({ orderBy: { id: "asc" } }),
+      this.prisma.lolSummonerSpell.findMany({ orderBy: { id: "asc" } }),
+      this.prisma.lolPerk.findMany({ orderBy: { id: "asc" } }),
+    ]);
+
+    const championAbilities: Record<number, LolChampionAbilityDto[]> = {};
+    for (const a of abilities) {
+      let list = championAbilities[a.championId];
+      if (!list) {
+        list = [];
+        championAbilities[a.championId] = list;
+      }
+      list.push({
+        slot: a.slot,
+        abilityIndex: a.abilityIndex,
+        name: a.name,
+        iconWikiName: a.iconWikiName,
+        descriptionWikitext: a.descriptionWikitext,
+        descriptionHtml: a.descriptionHtml,
+      });
+    }
+
+    // syncedAt: pick the freshest write across any source. ddragonSyncedAt
+    // moves on every perk/spell/champion sync; wikiSyncedAt on items +
+    // champion abilities. Max-of-all is the most honest "this snapshot was
+    // last touched at" value.
+    const timestamps: Date[] = [];
+    for (const c of champions) {
+      timestamps.push(c.ddragonSyncedAt);
+      if (c.wikiSyncedAt) timestamps.push(c.wikiSyncedAt);
+    }
+    for (const i of items) timestamps.push(i.wikiSyncedAt);
+    for (const s of spells) {
+      timestamps.push(s.ddragonSyncedAt);
+      if (s.wikiSyncedAt) timestamps.push(s.wikiSyncedAt);
+    }
+    for (const p of perks) {
+      timestamps.push(p.ddragonSyncedAt);
+      if (p.wikiSyncedAt) timestamps.push(p.wikiSyncedAt);
+    }
+    const syncedAt =
+      timestamps.length > 0
+        ? new Date(Math.max(...timestamps.map((d) => d.getTime()))).toISOString()
+        : null;
+
+    // Item rows always carry `wikiSyncedPatchVersion`; champions' is
+    // nullable until the wiki content sync catches up. Take items first,
+    // fall back to champions, then null on cold-start.
+    const patchVersion =
+      items[0]?.wikiSyncedPatchVersion ??
+      champions.find((c) => c.wikiSyncedPatchVersion)?.wikiSyncedPatchVersion ??
+      null;
+
+    return {
+      patchVersion,
+      syncedAt,
+      champions: champions.map<LolChampionDto>((c) => ({
+        id: c.id,
+        alias: c.alias,
+        name: c.name,
+        roles: Array.isArray(c.roles) ? (c.roles as string[]) : [],
+      })),
+      championAbilities,
+      items: items.map<LolItemDto>((i) => ({
+        id: i.id,
+        name: i.name,
+        tier: i.tier,
+        itemType: Array.isArray(i.itemType) ? (i.itemType as string[]) : [],
+        priceTotal: i.priceTotal,
+        recipe: Array.isArray(i.recipe) ? (i.recipe as string[]) : [],
+        categories: Array.isArray(i.categories) ? (i.categories as string[]) : [],
+        stats:
+          i.stats && typeof i.stats === "object" && !Array.isArray(i.stats)
+            ? (i.stats as Record<string, number>)
+            : {},
+        descriptionWikitext: i.descriptionWikitext,
+        descriptionHtml: i.descriptionHtml,
+        iconWikiName: i.iconWikiName,
+      })),
+      summonerSpells: spells.map<LolSummonerSpellDto>((s) => ({
+        id: s.id,
+        name: s.name,
+        iconWikiName: s.iconWikiName,
+        descriptionWikitext: s.descriptionWikitext,
+        descriptionHtml: s.descriptionHtml,
+        retiredAt: s.retiredAt ? s.retiredAt.toISOString() : null,
+      })),
+      perks: perks.map<LolPerkDto>((p) => ({
+        id: p.id,
+        name: p.name,
+        path: p.path,
+        slot: p.slot,
+        iconWikiName: p.iconWikiName,
+        descriptionWikitext: p.descriptionWikitext,
+        descriptionHtml: p.descriptionHtml,
+        retiredAt: p.retiredAt ? p.retiredAt.toISOString() : null,
+      })),
+    };
   }
 
   private async fetchLatestDdragonVersion(): Promise<string> {
