@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Active — Chunks 4a + 4b shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
+**Status:** Active — Chunks 4a + 4b + 4c shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -202,22 +202,31 @@ If granular endpoints are needed later (e.g. mobile clients pulling only items) 
 - Includes rows where `descriptionHtml` is null (drift case).
 - Filters retired perks (or doesn't — decision flagged in 4a) consistently.
 
-### Chunk 4c — Web migration
+### Chunk 4c — Web migration — SHIPPED 2026-05-21
 
-**Files in scope:**
+**Files landed:**
+- `apps/web/src/lol/_shared/static/use-lol-static.ts` — `useLolStatic()` plus `useLolStaticSelect<T>(select)` so each resource hook shares the same queryKey (single fetch) and runs its own derived selector. `staleTime: Infinity` keeps the bundle reference stable so select() output stays referentially stable across renders.
+- `apps/web/src/lol/_shared/static/mock-lol-static.ts` — `mockLolStaticFetch()` test helper, replacing the per-hook CDragon-fetch stubs.
+- `apps/web/src/lol/matches/use-items.ts` — bundle-derived `Map<number, Item>`. `recipe[]` (string ids) is parsed back to `number[]` to preserve the public `from` shape consumers depend on.
+- `apps/web/src/lol/_shared/analytics/use-perks.ts` — bundle-derived `Map<number, PerkInfo>`. Filters `retiredAt != null` so live UI never surfaces a defunct keystone.
+- `apps/web/src/lol/_shared/analytics/use-summoner-spells.ts` — bundle-derived `Map<number, SummonerSpellInfo>`. Same retired-row filter.
+- `apps/web/src/lol/champions/use-champions.ts` — bundle-derived `Map<aliasLower, ChampionInfo>`. `description` field removed from `ChampionInfo` (no remaining consumers — the lone `info?.description` reference in `$championKey.tsx` was dropped in the same change since the bundle has no champion bio text).
+- `apps/web/src/lol/_shared/patch/use-ddragon-version.ts` — kept as a thin shim returning `bundle.patchVersion ?? "16.9.1"`; 13 callers stay unchanged.
+- `apps/web/src/lol/matches/use-items.test.tsx`, `apps/web/src/lol/champions/use-champions.test.tsx`, `apps/web/src/lol/_shared/analytics/use-analytics-hooks.test.tsx` — rewritten against the bundle mock; new retired-row tests on perks/spells.
+
+**Deferred to Chunk 5:**
+- `apps/web/src/lol/matches/use-champion-spells.ts` was NOT migrated. The bundle currently carries champion ability `{slot, name}` only — descriptions and icon names are null until the per-ability MediaWiki fetch follow-up lands. Migrating now would regress tooltip text in [match-skill-order.tsx](../../../apps/web/src/lol/matches/match-skill-order.tsx). Chunk 5 bundles the per-template description sync + the wiki ability-icon swap together.
+
+**Decisions:**
+- `useLolStaticSelect` over per-hook `useQuery` — TanStack dedupes by queryKey, but the explicit helper makes the "all five resource hooks share one fetch" contract visible in the import line.
+- Hook return shapes preserved exactly: `useItems()` still returns `UseQueryResult<Map<number, Item>>`; the `.isSuccess` accessor that [patches-page.tsx](../../../apps/web/src/lol/patches/patches-page.tsx) and [profile-patch-notice.tsx](../../../apps/web/src/lol/patches/profile-patch-notice.tsx) gate on still works.
+- `ChampionInfo.description` field dropped — single consumer in `$championKey.tsx` was a flavor-text concatenation that now reads roles only. No backwards-compat shim per `~/.claude/CLAUDE.md` guidance.
+
+**Files originally planned:**
 - New: `apps/web/src/lol/_shared/static/use-lol-static.ts` — fetches the bundle, exposes typed selectors
 - Modify (or replace): five hooks listed at top
-- Delete: `apps/web/src/lol/_shared/patch/use-ddragon-version.ts` if no remaining consumer (verify before deletion)
+- Delete: `apps/web/src/lol/_shared/patch/use-ddragon-version.ts` if no remaining consumer (verify before deletion) — KEPT as thin bundle shim; 13 consumers benefit from the abstraction.
 - Update: All `useItems` / `useChampionSpells` / `useChampions` / `useSummonerSpells` / `usePerks` consumers — should be drop-in if the hook signatures stay stable
-
-**Behavior:**
-- `useLolStatic()` returns the full bundle once on app boot.
-- Existing hook shapes preserved at the public surface — `useItems()` still returns `useQueryResult<Map<number, Item>>`, just sourced from the bundle.
-- Test fixtures get a `mockLolStatic()` helper to seed tests that previously stubbed the CDragon fetches.
-
-**Tests:**
-- Per-hook: assert same map shape as before, sourced from API bundle.
-- Component tests that previously mocked CDragon fetches now mock the static bundle.
 
 ### Chunk 5 — Ability icons + last wiki swaps
 

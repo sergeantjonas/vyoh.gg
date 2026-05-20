@@ -1,3 +1,4 @@
+import { mockLolStaticFetch } from "@/lol/_shared/static/mock-lol-static";
 import {
   useChampionAliasFromName,
   useChampionInfo,
@@ -17,35 +18,15 @@ function makeWrapper() {
 }
 
 const CHAMPIONS = [
-  { id: -1, alias: "None", name: "None", description: "", roles: [] },
-  {
-    id: 1,
-    alias: "JarvanIV",
-    name: "Jarvan IV",
-    description: "exemplar of demacia",
-    roles: ["jungler"],
-  },
-  {
-    id: 2,
-    alias: "MonkeyKing",
-    name: "Wukong",
-    description: "the monkey king",
-    roles: ["jungler", "fighter"],
-  },
-  {
-    id: 3,
-    alias: "Ahri",
-    name: "Ahri",
-    description: "the nine-tailed fox",
-    roles: ["mage"],
-  },
+  { id: -1, alias: "None", name: "None", roles: [] },
+  { id: 1, alias: "JarvanIV", name: "Jarvan IV", roles: ["jungler"] },
+  { id: 2, alias: "MonkeyKing", name: "Wukong", roles: ["jungler", "fighter"] },
+  { id: 3, alias: "Ahri", name: "Ahri", roles: ["mage"] },
 ];
 
 beforeEach(() => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue(new Response(JSON.stringify(CHAMPIONS), { status: 200 }))
-  );
+  vi.stubGlobal("fetch", vi.fn());
+  mockLolStaticFetch({ champions: CHAMPIONS });
 });
 
 afterEach(() => {
@@ -53,7 +34,7 @@ afterEach(() => {
 });
 
 describe("useChampions", () => {
-  it("fetches and parses the champion-summary JSON, filtering out id=-1 placeholders", async () => {
+  it("derives a Map from the bundled /lol/static champions, filtering out id=-1 placeholders", async () => {
     const { result } = renderHook(() => useChampions(), { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.size).toBe(3);
@@ -61,7 +42,7 @@ describe("useChampions", () => {
     expect(result.current.data?.has("none")).toBe(false);
   });
 
-  it("propagates an error message on a non-OK response", async () => {
+  it("propagates an error message on a non-OK bundle response", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("nope", { status: 500 }));
     const { result } = renderHook(() => useChampions(), { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.isError).toBe(true));
@@ -77,10 +58,8 @@ describe("useChampionName", () => {
   });
 
   it("falls back to a normalized alias while data is still loading", () => {
-    // Mock fetch with an unresolved promise so the query stays pending
     vi.mocked(fetch).mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useChampionName(), { wrapper: makeWrapper() });
-    // normalizeChampionAlias passes through unmatched aliases as-is
     expect(result.current("JarvanIV")).toBe("JarvanIV");
   });
 });

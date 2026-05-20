@@ -1,50 +1,24 @@
 import { normalizeChampionAlias } from "@/lol/_shared/assets/champion-icon";
-import { useQuery } from "@tanstack/react-query";
+import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
+import type { LolStaticBundle } from "@vyoh/shared";
 import { useMemo } from "react";
-
-// Pulled live from CDragon. Small (~14KB), refreshes itself patch-over-patch
-// without a redeploy. React Query caches it as `Infinity` so the runtime fetch
-// only happens once per page load. The shorthand `cdn.communitydragon.org`
-// alias for this file was retired upstream and now 404s — use the canonical
-// rcp-be-lol-game-data path, which is the source the CDragon docs point at.
-const CHAMPIONS_URL =
-  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json";
-
-interface RawChampion {
-  id: number;
-  alias: string;
-  name: string;
-  description: string;
-  roles: string[];
-}
 
 export interface ChampionInfo {
   id: number;
   name: string;
-  description: string;
   roles: string[];
 }
 
-async function fetchChampions(): Promise<Map<string, ChampionInfo>> {
-  const res = await fetch(CHAMPIONS_URL);
-  if (!res.ok) throw new Error(`Failed to load champions: HTTP ${res.status}`);
-  const raw: RawChampion[] = await res.json();
+function buildChampionsMap(bundle: LolStaticBundle): Map<string, ChampionInfo> {
   return new Map(
-    raw
+    bundle.champions
       .filter((c) => c.id !== -1)
-      .map((c) => [
-        c.alias.toLowerCase(),
-        { id: c.id, name: c.name, description: c.description, roles: c.roles },
-      ])
+      .map((c) => [c.alias.toLowerCase(), { id: c.id, name: c.name, roles: c.roles }])
   );
 }
 
 export function useChampions() {
-  return useQuery({
-    queryKey: ["lol", "champions"],
-    queryFn: fetchChampions,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  return useLolStaticSelect(buildChampionsMap);
 }
 
 function lookupKey(alias: string): string {

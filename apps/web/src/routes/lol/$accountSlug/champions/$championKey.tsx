@@ -202,10 +202,9 @@ function ChampionDetailPage() {
   const alias = detail.champion;
   const kdaDelta = overall ? detail.avgKda - overall.avgKda : null;
   const wrDelta = overall ? detail.winRate - overall.winRate : null;
-  const flavorParts = [
-    info?.description,
-    ...(info?.roles ?? []).map((r) => r.charAt(0).toUpperCase() + r.slice(1)),
-  ].filter(Boolean);
+  const flavorParts = (info?.roles ?? []).map(
+    (r) => r.charAt(0).toUpperCase() + r.slice(1)
+  );
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,19 +1,6 @@
 import { itemIconUrl } from "@/lol/_shared/assets/champion-icon";
-import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
-import { useQuery } from "@tanstack/react-query";
-
-const ITEMS_URL =
-  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json";
-
-interface RawItem {
-  id: number;
-  name: string;
-  description?: string;
-  priceTotal?: number;
-  iconPath: string;
-  from?: number[];
-  categories?: string[];
-}
+import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
+import type { LolStaticBundle } from "@vyoh/shared";
 
 export interface Item {
   name: string;
@@ -24,30 +11,27 @@ export interface Item {
   categories: string[];
 }
 
-async function fetchItems(patch: string): Promise<Map<number, Item>> {
-  const res = await fetch(ITEMS_URL);
-  if (!res.ok) throw new Error(`Failed to load items: HTTP ${res.status}`);
-  const raw: RawItem[] = await res.json();
+function buildItemsMap(bundle: LolStaticBundle): Map<number, Item> {
+  const patch = bundle.patchVersion ?? "16.9.1";
   return new Map(
-    raw.map((it) => [
-      it.id,
-      {
+    bundle.items.map((it) => {
+      const from = it.recipe
+        .map((r) => Number.parseInt(r, 10))
+        .filter((n) => Number.isFinite(n));
+      const item: Item = {
         name: it.name,
-        description: it.description,
-        priceTotal: it.priceTotal,
         iconUrl: itemIconUrl(it.id, patch),
-        from: it.from ?? [],
-        categories: it.categories ?? [],
-      },
-    ])
+        from,
+        categories: it.categories,
+      };
+      const description = it.descriptionHtml ?? it.descriptionWikitext;
+      if (description != null) item.description = description;
+      if (it.priceTotal != null) item.priceTotal = it.priceTotal;
+      return [it.id, item];
+    })
   );
 }
 
 export function useItems() {
-  const patch = useDDragonVersion();
-  return useQuery({
-    queryKey: ["lol", "items", patch],
-    queryFn: () => fetchItems(patch),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  return useLolStaticSelect(buildItemsMap);
 }

@@ -1,15 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useLolStatic } from "@/lol/_shared/static/use-lol-static";
 
+// Thin re-export over the bundled `/lol/static` patchVersion. Kept as its own
+// hook so the ~13 call sites that need a patch string as an image cache key
+// don't have to know about the bundle shape. Fallback applies during the
+// brief cold-load window before the bundle resolves; the API image proxy
+// tolerates any string here and resolves to the latest available asset.
 export function useDDragonVersion(): string {
-  const { data } = useQuery({
-    queryKey: ["ddragon-version"],
-    queryFn: async (): Promise<string> => {
-      const res = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
-      const versions = (await res.json()) as string[];
-      return versions[0] ?? "16.9.1";
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: Number.POSITIVE_INFINITY,
-  });
-  return data ?? "16.9.1";
+  const { data } = useLolStatic();
+  return data?.patchVersion ?? "16.9.1";
 }
