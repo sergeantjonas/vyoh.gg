@@ -1,6 +1,6 @@
 # Personal baselines — cross-cutting framing note
 
-**Status:** Active — PB1 (doc-pass) + PB2 (weakest-matchup) + PB3 (patch-drift) all shipped 2026-05-14. PB4 (cross-tile anomaly aggregator) deferred until at least 2–3 more personal-baseline tiles ship past the current set. See [open-work.md](../open-work.md).
+**Status:** Parked — PB1 (doc-pass) + PB2 (weakest-matchup) + PB3 (patch-drift) all shipped 2026-05-14. PB4 (cross-tile anomaly aggregator) parked 2026-05-20: no new personal-baseline tiles have shipped since PB3, so the aggregator has nothing new to aggregate. Trigger: 2–3 more personal-baseline tiles shipped past the current PB1–PB3 set. See [parked.md](../parked.md). PB5 (optional global-comparison toggle) remains a future option, not actively scheduled.
 
 Most stats sites benchmark against a global player base (*"your damage share is in the top 30% of ADCs at your rank"*). Vyoh's distinctive frame is the inverse: **you-vs-you**. *"Your damage share on Vex is +6pp above your own ADC baseline."* This note tracks where the pattern already exists, where it could extend, and the framing decision behind it.
 
@@ -137,6 +137,7 @@ A single `Compare to my rank` toggle on tiles that have a meaningful global base
 - **2026-05-14** — PB2 shipped (weakest-matchup verdict on Champion detail). PB1 doc-pass and PB3 patch-drift verdict remain.
 - **2026-05-14** — PB3 shipped (time-on-this-champion patch-drift verdict on Champion detail). PB1 doc-pass remains; PB4 cross-tile anomalies still deferred until at least 2–3 more personal-baseline tiles ship.
 - **2026-05-14** — PB1 doc-pass shipped. Every tile file carries an explicit `// Baseline: <kind>` marker. Audit corrected one mis-classification (`trend-first-blood-conversion` is personal, not role-population) and added one new role-population label (`trend-lane-phase-prognosis`). Only PB4 remains, still deferred.
+- **2026-05-20** — PB4 parked (see [parked.md](../parked.md)). No new personal-baseline tiles have shipped past PB3, so the aggregator's input set hasn't grown. Trigger: 2–3 more personal-baseline tiles shipped past the current PB1–PB3 set.
 
 ---
 

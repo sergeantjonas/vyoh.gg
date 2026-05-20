@@ -33,6 +33,10 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 - **You-vs-you comparison surface** — same axes, two time windows. Owner flagged as reasonable but lower-priority than career-arc / tilt-protection / aesthetic-responses; revisit after those prove out. → [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md)
 
+### LoL signal calibration
+
+- **Personal-baselines PB4** — cross-tile anomaly aggregator. Parked 2026-05-20: PB1+PB2+PB3 shipped 2026-05-14 but no new personal-baseline tiles have shipped since. Trigger: 2–3 more personal-baseline tiles shipped past the current PB1–PB3 set. → [personal-baselines.md](lol/personal-baselines.md)
+
 ### Motion / polish
 
 - **Magnetic hover on key buttons** — cursor proximity pulls the button. High gimmick risk; one or two hero CTAs at most. Revisit only when other polish is complete. → [motion-backlog.md](cross-cutting/motion-backlog.md)

@@ -19,9 +19,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **Match-detail section nav MDN5** — soft re-evaluation of the Recap / Your game / Timeline grouping after the queued owner-data additions land (spell casts, damage profile, CC time, multikills, rune page, etc.). MDN1–MDN4 shipped 2026-05-17; tab URL state migrated from `?tab=` search param to nested path segments on 2026-05-18. → [match-detail-section-nav.md](lol/match-detail-section-nav.md)
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
-- **LP forecast Phase LP2** — confidence calibration: validate that LP1's "directional only" verdicts correlate with outcomes once LP history has accrued; thread per-signal sample-size into weighting; add "How is this computed?" disclosure. Data-gated. → [lp-forecast.md](lol/lp-forecast.md)
-- **Personal-baselines PB4** — cross-tile anomaly aggregator. Deferred until at least 2–3 more personal-baseline tiles ship past the current set. (PB1 doc-pass + PB2 weakest-matchup + PB3 patch-drift all shipped 2026-05-14.) → [personal-baselines.md](lol/personal-baselines.md)
-- **PG4 peer-route post-game artifact** — explicitly v2; gated on the PG1–PG3 Profile framing proving out. → [post-game-close-the-loop.md](lol/post-game-close-the-loop.md)
+- **LP forecast Phase LP2** — confidence calibration: backtest LP1's "directional only" verdicts against per-match LP delta via retroactive signal-replay (compute the four pregame signals as of each historical match's `playedAt`) on Agurin's data (N=174 matches with valid `snapshotLpBefore`+`snapshotLp` and growing); per-signal sample-size weighting; "How is this computed?" disclosure (data-independent, can ship any time). → [lp-forecast.md](lol/lp-forecast.md)
 
 ### Cross-cutting
 
@@ -44,7 +42,6 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
-- **Test coverage expansion (shipped 2026-05-19)** — Full arc closed: C1/S1/S2/S3 (2026-05-18), A1/W1/W2/W3 (2026-05-19). `packages/shared` 100% line coverage; api 386 → 415 tests (+29); web 100 → 127 tests (+27 across 14 → 20 files). S4 dropped (types-only); `img-prewarm.service.ts`, `orb-mark.tsx`, `profile-patch-notice.tsx` triaged out with rationale. Working note can move to archive once acknowledged. → [test-coverage-2026-05-18.md](cross-cutting/test-coverage-2026-05-18.md)
 
 ### Ops
 

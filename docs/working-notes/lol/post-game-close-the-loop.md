@@ -1,6 +1,6 @@
 # Post-game close-the-loop surface — roadmap
 
-**Status:** Active — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 (peer-route post-game artifact) explicitly v2, gated on PG1–PG3 proving out. See [open-work.md](../open-work.md).
+**Status:** Shipped — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 (peer-route post-game artifact) closed as won't-do 2026-05-20: PG1–PG3 has been live and verified for six days; the close-the-loop value lands on Profile and a separate share-friendly route/OG-image artifact is not load-bearing. Re-promote from this doc's decision log if a "share my game" surface ever surfaces as a distinct need.
 
 After-game counterpart to [Pregame Ritual](../../../apps/web/src/lol/profile/profile-pregame-ritual.tsx). Promoted from [vnext-ideas.md](../cross-cutting/vnext-ideas.md) ("Top tier — eye-catching wins") and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #1) into a tracked arc because it is the **single highest-payoff missing surface** in the LoL section and the strongest case-study candidate currently in the backlog.
 
@@ -160,7 +160,7 @@ Companion to (or replacement for) the open ConclusionCard-pattern case study tra
 - **2026-05-13** — PG1 + PG2 shipped (commit `a7f3299`). Section live on Profile, paired with Pregame Ritual; SSE-driven pulse fires off the existing match-window invalidation path.
 - **2026-05-13** — PG3 shipped (commit `3007552`). Game-shape signal added behind the timeline-projected sentinel.
 - **2026-05-14** — PG2 pulse live-verified on a real new-match arrival; full PG1–PG3 end-to-end re-derive confirmed after a fresh match landed on Profile.
-- **Remaining:** PG4 (peer-route artifact) — explicitly deferred, doc marks it for v2 promotion only after the Profile framing is proven.
+- **2026-05-20** — PG4 closed as won't-do. Profile-framing close-the-loop has been live and verified for six days and delivers the read where the user looks; a separate peer-route + OG-image share artifact is a distinct case-study/share-loop bet, not a continuation of the close-the-loop arc. If a "share my game" need surfaces independently, promote a fresh artifact note from vNext rather than reviving PG4 as part of this arc.
 
 ---
 

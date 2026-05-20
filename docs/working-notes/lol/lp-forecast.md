@@ -1,6 +1,6 @@
 # Composite LP forecast tile — design note
 
-**Status:** Active — Phase LP1 (directional-only verdict) shipped; Phase LP2 (confidence calibration: validate directional verdicts against outcomes once LP history accrues, per-signal sample-size weighting, "How is this computed?" disclosure) is data-gated and tracked in [open-work.md](../open-work.md).
+**Status:** Active — Phase LP1 (directional-only verdict) shipped 2026-05-14. Phase LP2 (confidence calibration, per-signal sample-size weighting, "How is this computed?" disclosure) is the next chunk; data prerequisite verified 2026-05-20 — Agurin#DND has 174 ranked solo matches with valid `snapshotLpBefore`+`snapshotLp` since the BEFORE/AFTER snapshot pipeline started running 2026-05-13, well past any threshold for backtesting a 5-bucket directional verdict against outcome. Phase LP3 (personal linear fit) remains the long-tail target. See [open-work.md](../open-work.md).
 
 A single tile on Profile that composes the four existing Pregame Ritual signals (form, tilt, time-slot, top-champion) into one forward-looking verdict: *"Composite read for your next ranked: +X expected LP — confidence Y."*
 
@@ -153,6 +153,7 @@ The composite is interesting structurally because it demonstrates:
 
 - **2026-05-13** — design note drafted, not yet started. Blocked on nothing for Phase LP1; LP3 is data-blocked until rank snapshots accumulate (see [views-roadmap.md](../archive/views-roadmap.md) Phase 4 caveat).
 - **2026-05-14** — Phase LP1 shipped (naive equal-weight composite + verdict row above Pregame Ritual signals). LP2 next (confidence calibration once LP history has accrued); LP3 still data-blocked.
+- **2026-05-20** — Park reversed after data check. The BEFORE/AFTER snapshot pipeline pre-dates LP1 ship (shipped earlier as part of [views-roadmap.md](../archive/views-roadmap.md) Phase 4), so the relevant clock isn't "days since LP1 shipped" — it's "matches with valid LP delta." Agurin#DND has 174 such matches in DB (`SELECT COUNT(*) FROM "Match" WHERE puuid = <agurin> AND "queueType" = 'Ranked Solo' AND "snapshotLpBefore" IS NOT NULL AND "snapshotLp" IS NOT NULL`), and per-account validation is the honest unit (mixing accounts mashes different personal patterns together). LP2 stays in open-work; next-action is the retroactive signal-replay on Agurin's history.
 
 ---
 
