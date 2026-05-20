@@ -360,3 +360,112 @@ model PatchChange {
 
   @@index([patchVersion, section, subject])
 }
+
+// LoL static metadata pipeline (replaces the five client-side CDragon JSON
+// fetches in apps/web). Wiki is the content source for descriptions, stats,
+// recipes, and ability names; DDragon is retained narrowly as the id↔name
+// bridge for resources wiki doesn't self-identify with Riot ids (summoner
+// spells, runes). Two-source sync is drift-tolerant: each row carries
+// `ddragonSyncedAt` and/or `wikiSyncedAt` so the API never lies about
+// freshness, and content can be null until the lagging source catches up.
+
+// Items self-identify on wiki via Module:ItemData/data's ["id"] field, so
+// no DDragon involvement is needed. `recipe` is stored as wiki ingredient
+// names (matches source); read-side resolves names → ids if required.
+// `descriptionWikitext` holds the raw wiki template markup (e.g.
+// "{{as|200% '''base''' AD}}"); `descriptionHtml` is the rendered output
+// from MediaWiki's action=parse — populated in a follow-up chunk so 4a
+// keeps the per-cron call count cheap. `iconWikiName` defaults to the
+// item name; only stored separately when wiki disambiguates (e.g. item
+// names colliding with champion names).
+model LolItem {
+  id                     Int      @id
+  name                   String   @unique
+  tier                   Int?
+  itemType               Json     @default("[]")
+  priceTotal             Int?
+  recipe                 Json     @default("[]")
+  categories             Json     @default("[]")
+  stats                  Json     @default("{}")
+  descriptionWikitext    String?
+  descriptionHtml        String?
+  iconWikiName           String?
+  wikiSyncedAt           DateTime
+  wikiSyncedPatchVersion String?
+}
+
+// Champions identify themselves in Match-V5 by both numeric `championId`
+// and `championName`, so `id` matches Riot's championKey int. `alias` is
+// the DDragon string id used in icon URL paths (e.g. "MonkeyKing"); `name`
+// is the wiki display name ("Wukong"). `roles` are the DDragon `tags`
+// array (Fighter/Tank/Mage/Marksman/Assassin/Support).
+model LolChampion {
+  id                     Int      @id
+  alias                  String   @unique
+  name                   String   @unique
+  roles                  Json     @default("[]")
+  ddragonSyncedAt        DateTime
+  wikiSyncedAt           DateTime?
+  wikiSyncedPatchVersion String?
+
+  abilities LolChampionAbility[]
+}
+
+// One row per ability *name variant* per champion + slot. Some champions
+// expose multiple named variants in a single slot (Karma's W is both
+// "Focused Resolve" and "Renewal"; Lee Sin's W lists "Safeguard" and
+// "Iron Will"). `index` orders them by appearance in the wiki module so
+// the patch-notes resolver can match either variant to the same slot.
+// `slot` is "Passive" | "Q" | "W" | "E" | "R".
+model LolChampionAbility {
+  championId          Int
+  slot                String
+  abilityIndex        Int      @default(0)
+  name                String
+  iconWikiName        String?
+  descriptionWikitext String?
+  descriptionHtml     String?
+
+  champion LolChampion @relation(fields: [championId], references: [id], onDelete: Cascade)
+
+  @@id([championId, slot, abilityIndex])
+}
+
+// Summoner spells — DDragon's `summoner.json` is the id↔name bridge.
+// Wiki carries the description in `Template:Summoner spell {Name}` or
+// `Module:SpellData/data`; fetched per-spell in a follow-up chunk.
+model LolSummonerSpell {
+  id                     Int      @id
+  name                   String   @unique
+  iconWikiName           String?
+  descriptionWikitext    String?
+  descriptionHtml        String?
+  ddragonSyncedAt        DateTime
+  wikiSyncedAt           DateTime?
+  wikiSyncedPatchVersion String?
+  missingSyncCycles      Int      @default(0)
+  retiredAt              DateTime?
+}
+
+// Runes — DDragon's `runesReforged.json` is the id↔name bridge. `path` is
+// the rune tree name ("Precision", "Domination", etc.) and `slot` is the
+// keystone/minor slot label ("Keystone", "Slot1" … "Slot3"), both derived
+// from the DDragon payload's nested shape. `missingSyncCycles` powers the
+// drift-tolerant retirement check: a perkId can briefly disappear between
+// Riot ship + CDN propagation, so we wait N consecutive missing cycles
+// before marking `retiredAt`. Phase Rush → Stormraider's Surge is the
+// canonical churn case this protects against.
+model LolPerk {
+  id                     Int      @id
+  name                   String
+  path                   String?
+  slot                   String?
+  iconWikiName           String?
+  descriptionWikitext    String?
+  descriptionHtml        String?
+  ddragonSyncedAt        DateTime
+  wikiSyncedAt           DateTime?
+  wikiSyncedPatchVersion String?
+  missingSyncCycles      Int      @default(0)
+  retiredAt              DateTime?
+}

@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Plan locked, not yet started. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
+**Status:** Active — Chunk 4a shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -60,9 +60,22 @@ If MediaWiki API returns an error or empty HTML for a description: keep last-kno
 
 Each chunk is independently committable. Run `tokf err pnpm run verify:cc` before each commit. Owner handles pushes.
 
-### Chunk 4a — Static metadata sync (api-only)
+### Chunk 4a — Static metadata sync (api-only) — SHIPPED 2026-05-21
 
-**Files in scope:**
+**Files landed:**
+- `apps/api/src/lol/lol-static-sync.service.ts` — service with `@Cron("5 */6 * * *")` offset 5 min from the patch cron, plus a manual `syncAll()` entry point.
+- `apps/api/src/lol/lol-static-parsers.ts` — pure Lua parsers (`parseItemDataModule`, `parseChampionAbilityModule`) extracted so the regex/Lua-shape handling is unit-testable without mocking fetch.
+- `apps/api/src/lol/lol-static-sync.service.spec.ts` — covers item upsert, failure isolation, perk retirement at threshold, single-cycle bump (no retirement), keystone-vs-minor-slot derivation, and champion+ability join.
+- `apps/api/prisma/schema.prisma` — added `LolItem`, `LolChampion`, `LolChampionAbility`, `LolSummonerSpell`, `LolPerk` plus migration `20260521000000_lol_static_metadata`.
+- `apps/api/src/lol/lol.module.ts` — registered `LolStaticSyncService` as provider + export.
+
+**Probe result confirmed:** `Module:ItemData/data` is fully bulk-parseable. One ~410KB fetch yields every item's id, tier, type, stats, recipe, categories (from `menu`), priceTotal (from `buy`), and a `descriptionWikitext` extracted from `effects.pass.description`. Parser handles wiki-template braces inside descriptions (`{{as|...}}`) via string-quote-aware brace counting — covered by a dedicated unit test.
+
+**Scope kept tight:** Descriptions stored as raw wikitext only — MediaWiki `action=parse` HTML rendering deferred to a follow-up so 4a stays cheap (5 fetches per cron tick, not ~500). Per-template wikitext for summoner spells, perks, and individual champion abilities is also deferred — DDragon bridge data is sufficient for the bridge contract (id↔name + path/slot for perks).
+
+**Refactor avoided:** `patch.service.ts` was not modified. The shared bits (`USER_AGENT`, `WIKI_API`, `DDRAGON_CDN`, `DDRAGON_VERSIONS`) are duplicated as constants in the new file rather than extracted to a shared module — a deliberate trade against premature abstraction. `truncateVersion` (already exported from `patch.service.ts`) is imported. The two cron jobs run independently on offset minutes; no inter-service coordination needed.
+
+**Files originally planned:**
 - New: `apps/api/src/lol/lol-static-sync.service.ts` (split from `patch.service.ts` to keep it under ~300 lines)
 - New: `apps/api/src/lol/lol-static-sync.service.spec.ts`
 - New: `apps/api/prisma/schema.prisma` additions — `LolItem`, `LolChampion`, `LolChampionAbility`, `LolSummonerSpell`, `LolPerk`
