@@ -2,7 +2,6 @@ import {
   BaronNashorIcon,
   ChemtechDrakeIcon,
   CloudDrakeIcon,
-  CrossedSwordsIcon,
   CsIcon,
   FireDrakeIcon,
   GoldIcon,
@@ -485,7 +484,7 @@ function SegmentedDamageBar({
       <TooltipPrimitive.Trigger asChild>
         <div className="flex cursor-default items-center gap-1.5">
           <span className="flex w-10 items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-red-400/80">
-            <CrossedSwordsIcon className="size-3" aria-hidden="true" />
+            <KillsIcon className="size-3" />
             <span>Dmg</span>
           </span>
           <div className="relative flex h-1 w-20 overflow-hidden rounded-full bg-muted/40">

@@ -4,7 +4,6 @@ import {
   BaronNashorIcon,
   ChemtechDrakeIcon,
   CloudDrakeIcon,
-  CrossedSwordsIcon,
   CsIcon,
   ElderDragonIcon,
   FireDrakeIcon,
@@ -16,22 +15,22 @@ import {
   OceanDrakeIcon,
   RiftHeraldIcon,
   TowerIcon,
-  TwoCoinsIcon,
   VisionIcon,
   VoidGrubIcon,
 } from "./game-icons";
 
 describe("game-icons", () => {
-  it("renders the img-based icons (Gold, Kills, Cs) with aria-hidden and a wiki src", () => {
+  it("renders the img-based icons (Gold, Kills, Cs, Vision) with aria-hidden and a wiki src", () => {
     const { container } = render(
       <>
         <GoldIcon className="g" />
         <KillsIcon className="k" />
         <CsIcon className="cs" />
+        <VisionIcon className="v" />
       </>
     );
     const imgs = container.querySelectorAll("img");
-    expect(imgs.length).toBe(3);
+    expect(imgs.length).toBe(4);
     for (const img of imgs) {
       expect(img.getAttribute("aria-hidden")).toBe("true");
       expect(img.getAttribute("src")).toMatch(/wiki\.leagueoflegends\.com/);
@@ -39,11 +38,10 @@ describe("game-icons", () => {
     expect(container.querySelector(".g")).not.toBeNull();
     expect(container.querySelector(".k")).not.toBeNull();
     expect(container.querySelector(".cs")).not.toBeNull();
+    expect(container.querySelector(".v")).not.toBeNull();
   });
 
   it.each([
-    ["VisionIcon", VisionIcon],
-    ["CrossedSwordsIcon", CrossedSwordsIcon],
     ["VoidGrubIcon", VoidGrubIcon],
     ["HextechDrakeIcon", HextechDrakeIcon],
     ["ChemtechDrakeIcon", ChemtechDrakeIcon],
@@ -56,17 +54,11 @@ describe("game-icons", () => {
     ["InhibitorIcon", InhibitorIcon],
     ["ElderDragonIcon", ElderDragonIcon],
     ["MountainDrakeIcon", MountainDrakeIcon],
-    ["TwoCoinsIcon", TwoCoinsIcon],
   ])("renders %s as an SVG with role=img and aria-hidden", (_, Icon) => {
     const { container } = render(<Icon />);
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
     expect(svg?.getAttribute("role")).toBe("img");
     expect(svg?.getAttribute("aria-hidden")).toBe("true");
-  });
-
-  it("forwards SVG props onto the svg element", () => {
-    const { container } = render(<VisionIcon className="vision-cls" />);
-    expect(container.querySelector(".vision-cls")).not.toBeNull();
   });
 });
