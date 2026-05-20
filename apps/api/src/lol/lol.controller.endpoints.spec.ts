@@ -20,6 +20,7 @@ function makeController() {
     getChampionPairs: vi.fn(),
     getChampionBuildFlow: vi.fn(),
     getChampionExtras: vi.fn(),
+    getPregameCalibration: vi.fn(),
   };
   return {
     controller: new LolController(
@@ -117,5 +118,27 @@ describe("LolController endpoint delegations", () => {
     const { controller, lol } = makeController();
     await controller.liveEvents(params);
     expect(lol.subscribeLiveEvents).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
+  });
+
+  it("getPregameCalibration parses CSV queueIds and forwards them", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getPregameCalibration(params, "420,440");
+    expect(analytics.getPregameCalibration).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      [420, 440]
+    );
+  });
+
+  it("getPregameCalibration forwards undefined when queueIds is omitted", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getPregameCalibration(params, undefined);
+    expect(analytics.getPregameCalibration).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      undefined
+    );
   });
 });

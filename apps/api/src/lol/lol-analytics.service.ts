@@ -1,11 +1,15 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
+  type CalibrationStats,
   type ChampionBuildFlowEntry,
   type ChampionExtras,
   type ChampionPair,
   type Chronotype,
   type Duo,
+  type MatchSummary,
+  computeCalibration,
   excludeRemakes,
+  replayHistory,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -13,8 +17,27 @@ import type { RiotMatchTimeline } from "../riot/types";
 import { LolService } from "./lol.service";
 import { queueTypeName } from "./queue-types";
 
+const EMPTY_CALIBRATION: CalibrationStats = {
+  n: 0,
+  directionalHits: 0,
+  directionalAccuracy: 0,
+  meanLpForPositive: null,
+  meanLpForNegative: null,
+  meanLpForNeutral: null,
+};
+
+const DEFAULT_PREGAME_QUEUE_IDS = [420, 440, 400] as const;
+
 @Injectable()
 export class LolAnalyticsService {
+  // Calibration is expensive (replay over full ranked history). Cache per
+  // account+queue-set; bust when a new match lands by comparing latest
+  // playedAt against the cached key.
+  private readonly calibrationCache = new Map<
+    string,
+    { latestPlayedAt: string; stats: CalibrationStats }
+  >();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly identity: IdentityService,
@@ -388,5 +411,66 @@ export class LolAnalyticsService {
     }
 
     return result;
+  }
+
+  async getPregameCalibration(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    queueIds?: readonly number[]
+  ): Promise<CalibrationStats> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const ids = queueIds?.length ? [...queueIds] : [...DEFAULT_PREGAME_QUEUE_IDS];
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return EMPTY_CALIBRATION;
+
+    const queueNames = ids.map((id) => queueTypeName(id));
+    const cacheKey = `${summoner.puuid}:${[...ids].sort((a, b) => a - b).join(",")}`;
+
+    // Cheap staleness probe — one row by ordered index ≈ free vs the full scan.
+    const latest = await this.prisma.match.findFirst({
+      where: { puuid: summoner.puuid, queueType: { in: queueNames }, remake: false },
+      orderBy: { playedAt: "desc" },
+      select: { playedAt: true },
+    });
+    if (!latest) return EMPTY_CALIBRATION;
+    const latestKey = latest.playedAt.toISOString();
+
+    const cached = this.calibrationCache.get(cacheKey);
+    if (cached && cached.latestPlayedAt === latestKey) return cached.stats;
+
+    // Replay only reads matchId/playedAt/win/remake/champion + LP snapshots;
+    // we select that subset and cast at the boundary rather than rehydrating
+    // the full MatchSummary shape.
+    const rows = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid, queueType: { in: queueNames } },
+      orderBy: { playedAt: "desc" },
+      select: {
+        matchId: true,
+        playedAt: true,
+        win: true,
+        remake: true,
+        champion: true,
+        snapshotLp: true,
+        snapshotLpBefore: true,
+      },
+    });
+    const matches = rows.map((r) => ({
+      matchId: r.matchId,
+      playedAt: r.playedAt.toISOString(),
+      win: r.win,
+      remake: r.remake,
+      champion: r.champion,
+      ...(r.snapshotLp != null ? { snapshotLp: r.snapshotLp } : {}),
+      ...(r.snapshotLpBefore != null ? { snapshotLpBefore: r.snapshotLpBefore } : {}),
+    })) as unknown as MatchSummary[];
+
+    const stats = computeCalibration(replayHistory(matches));
+    this.calibrationCache.set(cacheKey, { latestPlayedAt: latestKey, stats });
+    return stats;
   }
 }

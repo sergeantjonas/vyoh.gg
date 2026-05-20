@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 import type {
   CachedMatchesResult,
+  CalibrationStats,
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
@@ -75,6 +76,20 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<Duo[]> {
     return this.analytics.getDuos(region, gameName, tagLine, count);
+  }
+
+  @Get("pregame-calibration")
+  async getPregameCalibration(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("queueIds") queueIdsRaw?: string
+  ): Promise<CalibrationStats> {
+    const queueIds = queueIdsRaw
+      ? queueIdsRaw
+          .split(",")
+          .map((s) => Number.parseInt(s, 10))
+          .filter((n) => Number.isFinite(n))
+      : undefined;
+    return this.analytics.getPregameCalibration(region, gameName, tagLine, queueIds);
   }
 
   @Get("chronotype")

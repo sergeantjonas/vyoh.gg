@@ -1,24 +1,33 @@
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
-import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
+import {
+  useSeriousMatches,
+  useSeriousQueues,
+} from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type CompositeRead, buildComposite } from "@/lol/profile/pregame-composite";
-import {
-  type CalibrationStats,
-  calibrateConfidence,
-  computeCalibration,
-  replayHistory,
-} from "@/lol/profile/pregame-replay";
+import { calibrateConfidence } from "@/lol/profile/pregame-replay";
 import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
+import { usePregameCalibration } from "@/lol/profile/use-pregame-calibration";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type CalibrationStats, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 const SUGGEST_DAYS = 14;
 const TIME_SLOT_DELTA = 0.05;
 const MIN_HOUR_SAMPLE = 3;
+
+const EMPTY_CALIBRATION: CalibrationStats = {
+  n: 0,
+  directionalHits: 0,
+  directionalAccuracy: 0,
+  meanLpForPositive: null,
+  meanLpForNegative: null,
+  meanLpForNeutral: null,
+};
 
 function nowMonFirstDay(d: Date): number {
   return (d.getDay() + 6) % 7;
@@ -342,6 +351,10 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   // tilt patterns and ARAM time-of-day don't transfer.
   const { matches } = useSeriousMatches();
   const nameFor = useChampionName();
+  const account = useAccountFromSlug(accountSlug);
+  const { ids: seriousQueueIds } = useSeriousQueues();
+  const queueIdsArr = useMemo(() => [...seriousQueueIds], [seriousQueueIds]);
+  const calibrationQuery = usePregameCalibration(account, queueIdsArr);
 
   const signals = useMemo(() => {
     if (!matches) return null;
@@ -355,17 +368,13 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
 
   const composite = useMemo(() => (signals ? buildComposite(signals) : null), [signals]);
 
-  // LP2 calibration backtest — retroactively replay the four signals as of each
-  // historical match and compare to the actual `snapshotLp - snapshotLpBefore`.
-  // Computed over the loaded match window; falls back to LP1 heuristic when
-  // the sample is too small (see MIN_CALIBRATION_SAMPLE).
-  const calibration = useMemo(() => {
-    if (!matches) return null;
-    return computeCalibration(replayHistory(matches));
-  }, [matches]);
+  // LP2 calibration backtest — server-side replay over the full ranked
+  // history (vs the loaded match window the client sees). While the query is
+  // pending, fall through to an empty stats object so calibrateConfidence()
+  // shows LP1's heuristic string rather than the tile flickering out.
+  const calibration: CalibrationStats = calibrationQuery.data ?? EMPTY_CALIBRATION;
 
-  if (!matches || matches.length === 0 || !signals || !composite || !calibration)
-    return null;
+  if (!matches || matches.length === 0 || !signals || !composite) return null;
 
   return (
     <section className="flex flex-col gap-2">

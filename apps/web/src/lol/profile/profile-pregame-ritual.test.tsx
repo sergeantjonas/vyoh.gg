@@ -1,13 +1,28 @@
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
 import { render, screen } from "@testing-library/react";
-import type { MatchSummary } from "@vyoh/shared";
+import type { CalibrationStats, MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilePregameRitual } from "./profile-pregame-ritual";
+import { usePregameCalibration } from "./use-pregame-calibration";
 
 vi.mock("@/lol/_shared/serious-queues/serious-queues", () => ({
   useSeriousMatches: vi.fn(),
+  useSeriousQueues: () => ({ ids: new Set([420, 440]), set: () => {} }),
+}));
+
+vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
+  useAccountFromSlug: () => ({
+    slug: "ahri",
+    region: "euw1",
+    gameName: "Ahri",
+    tagLine: "EUW",
+  }),
+}));
+
+vi.mock("./use-pregame-calibration", () => ({
+  usePregameCalibration: vi.fn(),
 }));
 
 vi.mock("@/lol/champions/use-champions", () => ({
@@ -27,6 +42,25 @@ vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
 function setMatches(matches: MatchSummary[] | undefined, isPending = false) {
   vi.mocked(useSeriousMatches).mockReturnValue({ matches, isPending });
 }
+
+function setCalibration(stats: CalibrationStats | undefined) {
+  vi.mocked(usePregameCalibration).mockReturnValue({
+    data: stats,
+  } as unknown as ReturnType<typeof usePregameCalibration>);
+}
+
+const EMPTY_CAL: CalibrationStats = {
+  n: 0,
+  directionalHits: 0,
+  directionalAccuracy: 0,
+  meanLpForPositive: null,
+  meanLpForNegative: null,
+  meanLpForNeutral: null,
+};
+
+beforeEach(() => {
+  setCalibration(EMPTY_CAL);
+});
 
 function renderRitual() {
   return render(
@@ -74,6 +108,7 @@ function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
 
 afterEach(() => {
   vi.mocked(useSeriousMatches).mockReset();
+  vi.mocked(usePregameCalibration).mockReset();
   vi.useRealTimers();
 });
 

@@ -1,9 +1,5 @@
 import { excludeRemakes } from "./exclude-remakes.ts";
-import {
-  computeHourDayStats,
-  computeStreak,
-  computeTiltStats,
-} from "./match-stats.ts";
+import { computeHourDayStats, computeStreak, computeTiltStats } from "./match-stats.ts";
 import type { MatchSummary } from "./match.ts";
 
 export type SignalTone = "neutral" | "positive" | "warning";
@@ -110,10 +106,7 @@ export interface CalibrationStats {
 // the heuristic confidence string. Tuned against Agurin's full match history.
 export const MIN_CALIBRATION_SAMPLE = 30;
 
-function replayPoint(
-  history: MatchSummary[],
-  match: MatchSummary
-): ReplayPoint | null {
+function replayPoint(history: MatchSummary[], match: MatchSummary): ReplayPoint | null {
   const lpBefore = match.snapshotLpBefore;
   const lpAfter = match.snapshotLp;
   if (lpBefore === undefined || lpAfter === undefined) return null;
