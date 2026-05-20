@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
-import { parseChampionAbilityModule, parseItemDataModule } from "./lol-static-parsers";
+import {
+  parseAbilityTemplate,
+  parseChampionAbilityModule,
+  parseItemDataModule,
+} from "./lol-static-parsers";
 import { LolStaticSyncService } from "./lol-static-sync.service";
 
 // --- Lua parsers ---------------------------------------------------------
@@ -122,6 +126,47 @@ return {
   });
 });
 
+describe("parseAbilityTemplate", () => {
+  it("extracts description + icon, preserving nested wiki templates inside the value", () => {
+    const wikitext = `{{{{{1<noinclude>|Ability data</noinclude>}}}|Orb of Deception|{{{2|}}}|{{{3|}}}|{{{4|}}}|{{{5|}}}
+|champion     = Ahri
+|skill        = Q
+|icon         = Orb of Deception.png
+|description  = {{sbc|Active:}} '''Ahri''' sends her orb dealing {{as|magic damage}} on contact.
+|leveling     = {{st|Damage|{{ap|35 to 135}}}}
+|cooldown     = 7
+}}`;
+    const parsed = parseAbilityTemplate(wikitext);
+    expect(parsed.icon).toBe("Orb of Deception.png");
+    expect(parsed.description).toBe(
+      "{{sbc|Active:}} '''Ahri''' sends her orb dealing {{as|magic damage}} on contact."
+    );
+  });
+
+  it("returns null for absent fields rather than empty strings", () => {
+    const wikitext = `{{Ability data
+|champion = Annie
+|skill    = Q
+|cooldown = 4
+}}`;
+    const parsed = parseAbilityTemplate(wikitext);
+    expect(parsed.description).toBeNull();
+    expect(parsed.icon).toBeNull();
+  });
+
+  it("does not terminate the value when an inner template contains a pipe", () => {
+    // {{tt|1550|Outgoing missile}} carries its own pipe; the parser must
+    // count brace depth, not split on bare pipes.
+    const wikitext = `{{Ability data
+|description  = Speed {{dv|{{tt|1550|Outgoing missile}}|{{tt|60 - 2600|Returning, accel 1900}}}}
+|cooldown     = 7
+}}`;
+    const parsed = parseAbilityTemplate(wikitext);
+    expect(parsed.description).toContain("{{tt|1550|Outgoing missile}}");
+    expect(parsed.description).toContain("Returning, accel 1900");
+  });
+});
+
 // --- Service ------------------------------------------------------------
 
 interface PrismaStubs {
@@ -137,6 +182,7 @@ interface PrismaStubs {
     deleteMany: ReturnType<typeof vi.fn>;
     createMany: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   lolSummonerSpell: {
     upsert: ReturnType<typeof vi.fn>;
@@ -165,6 +211,7 @@ function makePrisma(): PrismaStubs {
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
       findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue({}),
     },
     lolSummonerSpell: {
       upsert: vi.fn().mockResolvedValue({}),
@@ -407,6 +454,123 @@ return {
       id: 266,
       name: "Aatrox",
     });
+  });
+
+  it("syncChampionAbilityDescriptions: fetches Template:Data X/Y per ability, renders HTML, and updates the row", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findMany.mockResolvedValueOnce([
+      {
+        championId: 103,
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Orb of Deception",
+        champion: { name: "Ahri" },
+      },
+    ]);
+    fetchSpy
+      .mockResolvedValueOnce(
+        wikiModuleResponse(
+          `{{Ability data
+|champion = Ahri
+|skill    = Q
+|icon     = Orb of Deception.png
+|description = {{sbc|Active:}} '''Ahri''' sends her orb dealing {{as|magic damage}}.
+|cooldown = 7
+}}`
+        )
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          parse: { text: "<p><b>Ahri</b> sends her orb dealing magic damage.</p>" },
+        })
+      );
+
+    const written = await makeService(prisma).syncChampionAbilityDescriptions("26.10");
+    expect(written).toBe(1);
+    expect(prisma.lolChampionAbility.update).toHaveBeenCalledTimes(1);
+    const updateCall = prisma.lolChampionAbility.update.mock.calls[0]?.[0];
+    expect(updateCall.where.championId_slot_abilityIndex).toEqual({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+    });
+    expect(updateCall.data.iconWikiName).toBe("Orb of Deception.png");
+    expect(updateCall.data.descriptionWikitext).toContain("{{as|magic damage}}");
+    expect(updateCall.data.descriptionHtml).toContain("<b>Ahri</b>");
+
+    // First fetch is the template, second is action=parse.
+    const templateCall = fetchSpy.mock.calls[0]?.[0];
+    expect(String(templateCall)).toContain(
+      "titles=Template%3AData+Ahri%2FOrb+of+Deception"
+    );
+    const parseCall = fetchSpy.mock.calls[1]?.[0];
+    expect(String(parseCall)).toContain("action=parse");
+  });
+
+  it("syncChampionAbilityDescriptions: keeps wikitext when action=parse fails so row is still persisted", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findMany.mockResolvedValueOnce([
+      {
+        championId: 1,
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Disintegrate",
+        champion: { name: "Annie" },
+      },
+    ]);
+    fetchSpy
+      .mockResolvedValueOnce(
+        wikiModuleResponse(
+          `{{Ability data
+|description = Deals magic damage.
+}}`
+        )
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    const written = await makeService(prisma).syncChampionAbilityDescriptions("26.10");
+    expect(written).toBe(1);
+    const updateCall = prisma.lolChampionAbility.update.mock.calls[0]?.[0];
+    expect(updateCall.data.descriptionWikitext).toBe("Deals magic damage.");
+    expect(updateCall.data.descriptionHtml).toBeNull();
+  });
+
+  it("syncChampionAbilityDescriptions: one ability template failure does not abort the batch", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findMany.mockResolvedValueOnce([
+      {
+        championId: 1,
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Broken",
+        champion: { name: "Annie" },
+      },
+      {
+        championId: 1,
+        slot: "W",
+        abilityIndex: 0,
+        name: "Incinerate",
+        champion: { name: "Annie" },
+      },
+    ]);
+    fetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(
+        wikiModuleResponse(
+          `{{Ability data
+|description = Deals magic damage in a cone.
+}}`
+        )
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ parse: { text: "<p>Deals magic damage in a cone.</p>" } })
+      );
+
+    const written = await makeService(prisma).syncChampionAbilityDescriptions("26.10");
+    expect(written).toBe(1);
+    expect(prisma.lolChampionAbility.update).toHaveBeenCalledTimes(1);
+    const updateCall = prisma.lolChampionAbility.update.mock.calls[0]?.[0];
+    expect(updateCall.where.championId_slot_abilityIndex.slot).toBe("W");
   });
 
   it("getBundle() shapes prisma rows into the LolStaticBundle DTO with grouped abilities and max syncedAt", async () => {

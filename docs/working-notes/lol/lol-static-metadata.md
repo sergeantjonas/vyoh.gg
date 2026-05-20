@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Active — Chunks 4a + 4b + 4c + 5 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) and per-ability description sync (5.5 follow-up) remain.
+**Status:** Active — Chunks 4a + 4b + 4c + 5 + 5.5 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) is the only remaining piece.
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -238,9 +238,18 @@ If granular endpoints are needed later (e.g. mobile clients pulling only items) 
 
 **Description regression (temporary):** the static-sync service stores `descriptionWikitext: null, descriptionHtml: null` for abilities pending the 5.5 follow-up (per-template MediaWiki fetch). Until that lands, skill-order tooltips render the ability name and icon but no description text — the SpellRowLabel tooltip tolerates an empty string gracefully. No code path errors.
 
-### Follow-up 5.5 — Per-ability description sync (deferred)
+### Follow-up 5.5 — Per-ability description sync — SHIPPED 2026-05-21
 
-API-only change: extend `syncChampionsAndAbilities` (or a new `syncChampionAbilityDescriptions`) to fetch `Template:Ability data {Champion}/{Ability}` (or whichever wiki template carries the canonical text — needs probing) per ability, run `action=parse` to render HTML, persist into `LolChampionAbility.descriptionWikitext` + `descriptionHtml`. ~170 fetches per cron tick, similar to the deferred per-item description sync. Once landed, skill-order tooltips repopulate with no further web changes.
+**Files landed:**
+- `apps/api/src/lol/lol-static-parsers.ts` — new `parseAbilityTemplate(wikitext)` extracts `description` + `icon` fields from `Template:Data {Champion}/{Ability}` payloads. Brace-depth tracking handles the common case of inner templates carrying their own pipe (e.g. `{{dv|{{tt|1550|Outgoing missile}}|{{tt|60|Return}}}}`) — bare pipes only terminate the value at depth 0.
+- `apps/api/src/lol/lol-static-sync.service.ts` — added `syncChampionAbilityDescriptions(patchVersion)` plus private `fetchWikiPage()` + `renderWikitextToHtml()` helpers (the latter calling MediaWiki `action=parse&text=...&contentmodel=wikitext&prop=text`). Wired into `syncAll` after `syncChampionsAndAbilities` so ability rows exist before we look them up. Per-ability try/catch isolates template-fetch + parse failures; `action=parse` failures preserve the wikitext + set `descriptionHtml = null` so the row is still persisted.
+- `apps/api/src/lol/lol-static-sync.service.spec.ts` — 6 new tests: 3 parser cases (nested templates, absent fields, inner-template pipes), 3 sync cases (happy-path with both fields, action=parse failure preserves wikitext, batch survives one bad template).
+
+**Wiki shape probed:** `Template:Data Ahri/Orb of Deception` (~2KB wikitext) carries `|description = ...rich markup...` and `|icon = Orb of Deception.png`. Format reused across all champions and abilities. Verified via `api.php?action=query&list=search` before coding the parser.
+
+**Volume:** ~170 abilities × 2 fetches (template + action=parse) per 6h cron = ~57 calls/hour, well under wiki's 200/min sustained guideline. Serial loop; no rate-limiting needed.
+
+**Always-refresh:** every cron tick re-syncs all abilities, matching the convention items already use. Balance-patch description rewrites land within one cycle. The deletion sweep in `syncChampionsAndAbilities` runs first, then descriptions repopulate — order preserved by the serial chain in `syncAll`.
 
 ### Chunk 6 (deferred, separable arc)
 

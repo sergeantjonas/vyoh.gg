@@ -25,6 +25,11 @@ export interface ParsedChampionAbilities {
   abilities: ParsedAbility[];
 }
 
+export interface ParsedAbilityTemplate {
+  description: string | null;
+  icon: string | null;
+}
+
 const SKILL_SLOT: Record<string, ParsedAbility["slot"]> = {
   i: "Passive",
   q: "Q",
@@ -209,4 +214,54 @@ export function parseChampionAbilityModule(lua: string): ParsedChampionAbilities
     }
   }
   return result;
+}
+
+// Extract one `|<field> = <value>` pair from a `Template:Data X/Y` wikitext
+// payload. Tracks `{{ }}` depth so a value containing nested wiki templates
+// (e.g. `{{as|magic damage}}`) isn't terminated by the inner pipe. The value
+// runs until the next top-level `\n|<field2>=` or the closing `\n}}` of the
+// outer template. Returns null when the field is absent or empty.
+function extractTemplateField(wikitext: string, field: string): string | null {
+  const re = new RegExp(`\\n\\|\\s*${field}\\s*=\\s*`);
+  const m = re.exec(wikitext);
+  if (!m) return null;
+  const start = m.index + m[0].length;
+
+  let depth = 0;
+  let i = start;
+  while (i < wikitext.length) {
+    if (wikitext[i] === "{" && wikitext[i + 1] === "{") {
+      depth += 1;
+      i += 2;
+      continue;
+    }
+    if (wikitext[i] === "}" && wikitext[i + 1] === "}") {
+      if (depth === 0) {
+        const v = wikitext.slice(start, i).trim();
+        return v.length > 0 ? v : null;
+      }
+      depth -= 1;
+      i += 2;
+      continue;
+    }
+    if (depth === 0 && wikitext[i] === "\n" && wikitext[i + 1] === "|") {
+      const v = wikitext.slice(start, i).trim();
+      return v.length > 0 ? v : null;
+    }
+    i += 1;
+  }
+  const v = wikitext.slice(start).trim();
+  return v.length > 0 ? v : null;
+}
+
+// `Template:Data {Champion}/{Ability}` carries `|description = ...` (rich
+// wikitext) and `|icon = ...` (filename) alongside leveling/cost/range
+// fields we don't yet persist. Pulls just the two fields useChampionSpells
+// needs; everything else is ignored on purpose so future template churn
+// in unused fields doesn't break the parser.
+export function parseAbilityTemplate(wikitext: string): ParsedAbilityTemplate {
+  return {
+    description: extractTemplateField(wikitext, "description"),
+    icon: extractTemplateField(wikitext, "icon"),
+  };
 }

@@ -11,6 +11,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import {
   type ParsedItem,
+  parseAbilityTemplate,
   parseChampionAbilityModule,
   parseItemDataModule,
 } from "./lol-static-parsers";
@@ -85,6 +86,7 @@ export class LolStaticSyncService {
     patchVersion: string;
     items: number;
     champions: number;
+    abilityDescriptions: number;
     summonerSpells: number;
     perks: number;
   }> {
@@ -92,20 +94,29 @@ export class LolStaticSyncService {
     const patchVersion = truncateVersion(ddragonVersion);
 
     // Run in series — wiki rate-limits sustained traffic at ~200/min and
-    // the calls overlap on the same host. The 5 fetches here are well under
-    // that, but per-template description fetches in a follow-up chunk will
-    // push close to the limit.
+    // the calls overlap on the same host. The bulk fetches above are well
+    // under that; the per-ability description fetches below run ~170 pairs
+    // (template + action=parse) per tick, ~57/hour, comfortably under.
     const items = await this.syncItems(patchVersion);
     const champions = await this.syncChampionsAndAbilities(ddragonVersion, patchVersion);
+    const abilityDescriptions = await this.syncChampionAbilityDescriptions(patchVersion);
     const summonerSpells = await this.syncSummonerSpells(ddragonVersion);
     const perks = await this.syncPerks(ddragonVersion);
 
     this.logger.log(
       `Static sync ${patchVersion}: items=${items}, champions=${champions}, ` +
+        `abilityDescriptions=${abilityDescriptions}, ` +
         `summonerSpells=${summonerSpells}, perks=${perks}`
     );
 
-    return { patchVersion, items, champions, summonerSpells, perks };
+    return {
+      patchVersion,
+      items,
+      champions,
+      abilityDescriptions,
+      summonerSpells,
+      perks,
+    };
   }
 
   async syncItems(patchVersion: string): Promise<number> {
@@ -506,6 +517,103 @@ export class LolStaticSyncService {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     if (!res.ok) throw new Error(`ddragon ${url} HTTP ${res.status}`);
     return (await res.json()) as T;
+  }
+
+  // Fetches `Template:Data {Champion}/{Ability}` for every persisted ability
+  // row, parses the `description` + `icon` fields, renders the description
+  // wikitext to HTML via MediaWiki's action=parse, and updates the ability
+  // row. Runs every cron tick — items follow the same always-refresh
+  // convention so balance-patch description rewrites land within one cycle.
+  // Per-ability try/catch isolates parse + network failures.
+  async syncChampionAbilityDescriptions(patchVersion: string): Promise<number> {
+    const abilities = await this.prisma.lolChampionAbility.findMany({
+      include: { champion: { select: { name: true } } },
+    });
+
+    let written = 0;
+    for (const a of abilities) {
+      try {
+        const wikitext = await this.fetchWikiPage(
+          `Template:Data ${a.champion.name}/${a.name}`
+        );
+        if (!wikitext) continue;
+        const parsed = parseAbilityTemplate(wikitext);
+        if (!parsed.description && !parsed.icon) continue;
+
+        let descriptionHtml: string | null = null;
+        if (parsed.description) {
+          try {
+            descriptionHtml = await this.renderWikitextToHtml(parsed.description);
+          } catch (err) {
+            this.logger.warn(
+              `action=parse failed for ${a.champion.name}/${a.name}: ${
+                err instanceof Error ? err.message : err
+              }`
+            );
+          }
+        }
+
+        await this.prisma.lolChampionAbility.update({
+          where: {
+            championId_slot_abilityIndex: {
+              championId: a.championId,
+              slot: a.slot,
+              abilityIndex: a.abilityIndex,
+            },
+          },
+          data: {
+            descriptionWikitext: parsed.description,
+            descriptionHtml,
+            iconWikiName: parsed.icon,
+          },
+        });
+        written++;
+      } catch (err) {
+        this.logger.warn(
+          `Ability description sync failed for ${a.champion.name}/${a.name}: ${
+            err instanceof Error ? err.message : err
+          }`
+        );
+      }
+    }
+    // patchVersion is logged via syncAll; ability rows don't carry the
+    // per-row sync-state columns that items + bridge resources do — the
+    // parent LolChampion row owns wikiSyncedAt/wikiSyncedPatchVersion.
+    void patchVersion;
+    return written;
+  }
+
+  private async fetchWikiPage(title: string): Promise<string | null> {
+    const url = new URL(WIKI_API);
+    url.searchParams.set("action", "query");
+    url.searchParams.set("titles", title);
+    url.searchParams.set("prop", "revisions");
+    url.searchParams.set("rvprop", "content");
+    url.searchParams.set("rvslots", "main");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("formatversion", "2");
+    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    if (!res.ok) throw new Error(`wiki ${title} HTTP ${res.status}`);
+    const body = (await res.json()) as WikiModuleResponse;
+    const page = Object.values(body.query?.pages ?? {})[0];
+    return page?.revisions?.[0]?.slots?.main?.["*"] ?? null;
+  }
+
+  private async renderWikitextToHtml(wikitext: string): Promise<string> {
+    const url = new URL(WIKI_API);
+    url.searchParams.set("action", "parse");
+    url.searchParams.set("text", wikitext);
+    url.searchParams.set("contentmodel", "wikitext");
+    url.searchParams.set("prop", "text");
+    url.searchParams.set("disablelimitreport", "1");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("formatversion", "2");
+    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    if (!res.ok) throw new Error(`wiki parse HTTP ${res.status}`);
+    const body = (await res.json()) as { parse?: { text?: string } };
+    const html = body.parse?.text;
+    if (!html) throw new Error("wiki parse returned no text");
+    return html;
   }
 
   private async fetchWikiModule(title: string): Promise<string> {
