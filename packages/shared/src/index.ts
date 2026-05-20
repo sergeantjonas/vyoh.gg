@@ -6,6 +6,12 @@ export {
   formatHoursMinutes,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
+export {
+  computeHourDayStats,
+  computeTiltStats,
+  computeStreak,
+} from "./lol/match-stats.ts";
+export type { HourDayStat, Streak, TiltStats } from "./lol/match-stats.ts";
 export { parseMatchQuery } from "./lol/match-query.ts";
 export type { MatchOutcomeFilter, ParsedMatchQuery } from "./lol/match-query.ts";
 export type { Me } from "./identity.ts";
