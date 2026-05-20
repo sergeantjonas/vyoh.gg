@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Active — Chunks 4a + 4b + 4c shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) stays deferred until 4 + 5 land.
+**Status:** Active — Chunks 4a + 4b + 4c + 5 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) and per-ability description sync (5.5 follow-up) remain.
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -228,15 +228,19 @@ If granular endpoints are needed later (e.g. mobile clients pulling only items) 
 - Delete: `apps/web/src/lol/_shared/patch/use-ddragon-version.ts` if no remaining consumer (verify before deletion) — KEPT as thin bundle shim; 13 consumers benefit from the abstraction.
 - Update: All `useItems` / `useChampionSpells` / `useChampions` / `useSummonerSpells` / `usePerks` consumers — should be drop-in if the hook signatures stay stable
 
-### Chunk 5 — Ability icons + last wiki swaps
+### Chunk 5 — Ability icons + last wiki swaps — SHIPPED 2026-05-21
 
-**Files in scope:**
-- Modify: `apps/web/src/lol/matches/use-champion-spells.ts` (or its successor in 4c) — replace `spellIconUrl()` CDragon path with `wikiAbilityIconUrl(championName, abilityName)` from `@vyoh/shared`
-- Verify: no remaining `raw.communitydragon.org` or `cdn.communitydragon.org` strings in `apps/web/src/**` (other than profile-icon, Chunk 6).
+**Files landed:**
+- `apps/web/src/lol/matches/use-champion-spells.ts` — fully migrated to `useLolStaticSelect`. Champion id resolved from `bundle.champions` (alias OR display name), Q/W/E/R rows built from `bundle.championAbilities[id]`, icons via `wikiAbilityIconUrl(displayName, ability.name)`. Both prior CDragon JSON fetches (`champion-summary.json` + per-champion `/champions/:id.json`) are gone.
+- `apps/web/src/lol/matches/use-champion-spells.test.tsx` — rewritten against the bundle mock; covers slot ordering, alias-vs-display-name lookup, descriptionHtml/wikitext fallback, missing-champion miss.
 
-The slot→ability-name mapping arrives in 4b via `LolChampionAbility.iconWikiName`, so `wikiAbilityIconUrl()` finally has the data it needs.
+**Done-criteria check:** `ugrep -rn "raw\.communitydragon\.org|cdn\.communitydragon\.org" apps/web/src` returns 0 matches.
 
-After this chunk, only profile icons remain CDragon-sourced.
+**Description regression (temporary):** the static-sync service stores `descriptionWikitext: null, descriptionHtml: null` for abilities pending the 5.5 follow-up (per-template MediaWiki fetch). Until that lands, skill-order tooltips render the ability name and icon but no description text — the SpellRowLabel tooltip tolerates an empty string gracefully. No code path errors.
+
+### Follow-up 5.5 — Per-ability description sync (deferred)
+
+API-only change: extend `syncChampionsAndAbilities` (or a new `syncChampionAbilityDescriptions`) to fetch `Template:Ability data {Champion}/{Ability}` (or whichever wiki template carries the canonical text — needs probing) per ability, run `action=parse` to render HTML, persist into `LolChampionAbility.descriptionWikitext` + `descriptionHtml`. ~170 fetches per cron tick, similar to the deferred per-item description sync. Once landed, skill-order tooltips repopulate with no further web changes.
 
 ### Chunk 6 (deferred, separable arc)
 

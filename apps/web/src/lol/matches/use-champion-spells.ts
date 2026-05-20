@@ -1,7 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
-const SUMMARY_URL =
-  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json";
+import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
+import { type LolStaticBundle, wikiAbilityIconUrl } from "@vyoh/shared";
 
 export interface SpellInfo {
   iconUrl: string;
@@ -9,72 +7,49 @@ export interface SpellInfo {
   description: string;
 }
 
-interface ChampionSummary {
-  id: number;
-  name: string;
-  alias: string;
+// Slot ordering matches match-skill-order's row layout: Q, W, E, R. The
+// passive row is rendered separately and is not part of the four-spell array
+// the consumer iterates over.
+const SLOTS_IN_ORDER = ["Q", "W", "E", "R"] as const;
+
+function buildChampionSpellsIndex(bundle: LolStaticBundle): Map<string, SpellInfo[]> {
+  const idByAlias = new Map<string, number>();
+  const nameById = new Map<number, string>();
+  for (const c of bundle.champions) {
+    if (c.id === -1) continue;
+    idByAlias.set(c.alias, c.id);
+    idByAlias.set(c.name, c.id);
+    nameById.set(c.id, c.name);
+  }
+
+  const result = new Map<string, SpellInfo[]>();
+  for (const [aliasOrName, id] of idByAlias.entries()) {
+    const championName = nameById.get(id);
+    if (!championName) continue;
+    const abilities = bundle.championAbilities[id] ?? [];
+    const spells: SpellInfo[] = SLOTS_IN_ORDER.map((slot) => {
+      const ability = abilities.find((a) => a.slot === slot);
+      if (!ability) return { iconUrl: "", name: "", description: "" };
+      const description = ability.descriptionHtml ?? ability.descriptionWikitext ?? "";
+      return {
+        iconUrl: wikiAbilityIconUrl(championName, ability.name),
+        name: ability.name,
+        description,
+      };
+    });
+    result.set(aliasOrName, spells);
+  }
+  return result;
 }
 
-interface ChampionDetail {
-  spells: { abilityIconPath: string; name: string; description: string }[];
-}
-
-function spellIconUrl(abilityIconPath: string): string {
-  // /lol-game-data/assets/ASSETS/Characters/Annie/HUD/Icons2D/Annie_Q.png
-  // → https://wsrv.nl/?url=raw.communitydragon.org/latest/game/assets/characters/annie/hud/icons2d/annie_q.png&w=40&output=webp
-  const stripped = abilityIconPath
-    .replace(/^\/lol-game-data\/assets\//i, "")
-    .toLowerCase();
-  return `https://wsrv.nl/?url=raw.communitydragon.org/latest/game/${stripped}&w=40&output=webp`;
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function useChampionSummary() {
-  return useQuery({
-    queryKey: ["lol", "champion-summary"],
-    queryFn: async () => {
-      const res = await fetch(SUMMARY_URL);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ChampionSummary[] = await res.json();
-      const map = new Map<string, number>();
-      for (const c of data) {
-        // alias matches Riot API championName (e.g. "MonkeyKing" for Wukong)
-        map.set(c.alias, c.id);
-        map.set(c.name, c.id);
-      }
-      return map;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-}
-
+// Pulls the Q/W/E/R ability data for a champion from the bundled `/lol/static`
+// payload. Icons resolve to wiki image URLs via `wikiAbilityIconUrl`, names
+// come from `Module:ChampionData/data`, and descriptions follow the same
+// drift-tolerant policy as items: `descriptionHtml` is preferred when the
+// MediaWiki per-template sync has populated it, falling back to raw
+// wikitext while the API catches up. Empty string when neither has landed.
 export function useChampionSpells(championName: string): SpellInfo[] | undefined {
-  const summary = useChampionSummary();
-  const championId = summary.data?.get(championName);
-
-  const detail = useQuery({
-    queryKey: ["lol", "champion-spells", championId],
-    queryFn: async () => {
-      const res = await fetch(
-        `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champions/${championId}.json`
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ChampionDetail = await res.json();
-      return data.spells.map((s) => ({
-        iconUrl: spellIconUrl(s.abilityIconPath),
-        name: s.name,
-        description: stripHtml(s.description),
-      }));
-    },
-    enabled: championId !== undefined,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
-  return detail.data;
+  const index = useLolStaticSelect(buildChampionSpellsIndex).data;
+  if (!index) return undefined;
+  return index.get(championName);
 }
