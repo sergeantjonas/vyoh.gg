@@ -26,8 +26,11 @@ import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 const SUGGEST_DAYS = 14;
-const TIME_SLOT_DELTA = 0.05;
+// Keep the thresholds in lockstep with @vyoh/shared's pregame-signals.ts —
+// the backtest there fires the tone variant and the live UI must match.
+const TIME_SLOT_DELTA = 0.1;
 const MIN_HOUR_SAMPLE = 3;
+const SIGNAL_WR_DELTA = 0.05;
 
 const EMPTY_CALIBRATION: CalibrationStats = {
   n: 0,
@@ -128,13 +131,35 @@ export function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
     };
   }
   const wr = bucket.wins / bucket.games;
+  const overallWr = played.filter((m) => m.win).length / played.length;
+  const delta = wr - overallWr;
   const pct = Math.round(wr * 100);
+  const overallPct = Math.round(overallWr * 100);
+  const result = last.win ? "win" : "loss";
+  if (delta >= SIGNAL_WR_DELTA) {
+    return {
+      id: "tilt",
+      label: "After last game",
+      verdict: `After a ${result} your WR climbs to ${pct}% (vs. ${overallPct}% overall).`,
+      detail: `${bucket.games} games tracked`,
+      tone: "positive",
+    };
+  }
+  if (delta <= -SIGNAL_WR_DELTA) {
+    return {
+      id: "tilt",
+      label: "After last game",
+      verdict: `After a ${result} your WR drops to ${pct}% (vs. ${overallPct}% overall).`,
+      detail: `${bucket.games} games tracked`,
+      tone: "warning",
+    };
+  }
   return {
     id: "tilt",
     label: "After last game",
-    verdict: `After a ${last.win ? "win" : "loss"} you historically win ${pct}%.`,
+    verdict: `After a ${result} you hold ${pct}% — close to your ${overallPct}% baseline.`,
     detail: `${bucket.games} games tracked`,
-    tone: wr >= 0.5 ? "positive" : "warning",
+    tone: "neutral",
   };
 }
 
@@ -231,7 +256,13 @@ export function buildChampionSignal(
     };
   }
   const [name, stat] = top;
-  const wr = Math.round((stat.wins / stat.games) * 100);
+  const wrFloat = stat.wins / stat.games;
+  const wr = Math.round(wrFloat * 100);
+  const overallWr = recent.filter((m) => m.win).length / recent.length;
+  const delta = wrFloat - overallWr;
+  let tone: RitualSignal["tone"] = "neutral";
+  if (delta >= SIGNAL_WR_DELTA) tone = "positive";
+  else if (delta <= -SIGNAL_WR_DELTA) tone = "warning";
   return {
     id: "champ",
     label: "Most played",
@@ -254,7 +285,7 @@ export function buildChampionSignal(
       </span>
     ),
     detail: `Last ${SUGGEST_DAYS} days`,
-    tone: wr >= 50 ? "positive" : "neutral",
+    tone,
   };
 }
 

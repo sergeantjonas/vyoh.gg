@@ -239,20 +239,24 @@ describe("ProfilePregameRitual", () => {
     expect(screen.getByText(/Not enough games after a win yet\./)).toBeTruthy();
   });
 
-  it("reports the after-loss WR verdict when ≥5 total and ≥3 in the after-loss bucket", () => {
+  it("reports a warning after-loss verdict when the bucket WR trails overall by ≥5pp", () => {
     const now = Date.now();
-    // 6 losses in a row → after-loss bucket has 5 entries.
+    // 5 wins (oldest) → 5 losses (newest). Chronologically: W W W W W L L L L L.
+    // afterLoss: 4 games / 0 wins = 0%. Overall: 5/10 = 50%. Delta -50pp → warning.
+    const wins = [true, true, true, true, true, false, false, false, false, false];
     setMatches(
-      Array.from({ length: 6 }, (_, i) =>
+      wins.map((win, i) =>
         fakeMatch({
-          win: false,
-          playedAt: new Date(now - (i + 1) * DAY_MS).toISOString(),
+          // Newest first to match the chronological pattern above.
+          playedAt: new Date(now - (wins.length - i) * HOUR_MS).toISOString(),
+          win,
         })
       )
     );
     renderRitual();
-    // 0% WR after a loss → the verdict surfaces as a warning.
-    expect(screen.getByText(/After a loss you historically win 0%\./)).toBeTruthy();
+    expect(
+      screen.getByText(/After a loss your WR drops to 0% \(vs\. 50% overall\)\./)
+    ).toBeTruthy();
   });
 
   it("reads 'Last game was a loss.' when only one recent game and it was a loss", () => {
@@ -266,30 +270,56 @@ describe("ProfilePregameRitual", () => {
     expect(screen.getByText(/Last game was a loss\./)).toBeTruthy();
   });
 
-  it("reports the after-win positive tone WR verdict when ≥3 after-win games exist", () => {
+  it("reports a positive after-win verdict when the bucket WR beats overall by ≥5pp", () => {
     const now = Date.now();
-    // 6 wins in a row → after-win bucket has 5 entries → 100% WR ⇒ positive tone.
+    // 5 losses (oldest) → 5 wins (newest). Chronologically: L L L L L W W W W W.
+    // afterWin: 4 games / 4 wins = 100%. Overall: 5/10 = 50%. Delta +50pp → positive.
+    const wins = [false, false, false, false, false, true, true, true, true, true];
     setMatches(
-      Array.from({ length: 6 }, (_, i) =>
+      wins.map((win, i) =>
         fakeMatch({
-          win: true,
-          playedAt: new Date(now - (i + 1) * DAY_MS).toISOString(),
+          playedAt: new Date(now - (wins.length - i) * HOUR_MS).toISOString(),
+          win,
         })
       )
     );
     renderRitual();
-    expect(screen.getByText(/After a win you historically win 100%\./)).toBeTruthy();
+    expect(
+      screen.getByText(/After a win your WR climbs to 100% \(vs\. 50% overall\)\./)
+    ).toBeTruthy();
   });
 
-  it("renders the champion verdict with a positive tone when WR ≥ 50%", () => {
+  it("renders the champion verdict with a positive tone when the top champion beats overall by ≥5pp", () => {
     const now = Date.now();
+    // 3 wins on Ahri + 2 losses on Lux → overall 60%, Ahri (most-played) at 100%.
     setMatches([
-      fakeMatch({ win: true, playedAt: new Date(now - DAY_MS).toISOString() }),
-      fakeMatch({ win: true, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
-      fakeMatch({ win: true, playedAt: new Date(now - 3 * DAY_MS).toISOString() }),
+      fakeMatch({
+        champion: "Ahri",
+        win: true,
+        playedAt: new Date(now - DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        champion: "Ahri",
+        win: true,
+        playedAt: new Date(now - 2 * DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        champion: "Ahri",
+        win: true,
+        playedAt: new Date(now - 3 * DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        champion: "Lux",
+        win: false,
+        playedAt: new Date(now - 4 * DAY_MS).toISOString(),
+      }),
+      fakeMatch({
+        champion: "Lux",
+        win: false,
+        playedAt: new Date(now - 5 * DAY_MS).toISOString(),
+      }),
     ]);
     renderRitual();
-    // WR=100% → tone="positive" → emerald border class applied to the tile.
     expect(screen.getByText(/Ahri — 3g · 100% WR/)).toBeTruthy();
   });
 

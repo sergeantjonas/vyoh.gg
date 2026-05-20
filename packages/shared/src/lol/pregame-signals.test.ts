@@ -78,8 +78,76 @@ describe("tone builders", () => {
     expect(buildTiltTone(ms)).toBe("neutral");
   });
 
+  it("buildTiltTone is positive when the after-bucket WR beats overall by >= 5pp", () => {
+    // L L L L L W W W W W (chronological). last = W → checks afterWin bucket.
+    // afterWin: 4 games / 4 wins = 100%. Overall: 5/10 = 50%. Delta +50pp.
+    const wins = [false, false, false, false, false, true, true, true, true, true];
+    const ms = wins.map((win, i) =>
+      fakeMatch({
+        matchId: `m${i}`,
+        win,
+        playedAt: new Date(Date.now() - (10 - i) * HOUR_MS).toISOString(),
+      })
+    );
+    expect(buildTiltTone(ms)).toBe("positive");
+  });
+
+  it("buildTiltTone is warning when the after-bucket WR trails overall by >= 5pp", () => {
+    // W W W W W L L L L L. last = L → checks afterLoss bucket.
+    // afterLoss: 4 games / 0 wins = 0%. Overall: 50%. Delta -50pp.
+    const wins = [true, true, true, true, true, false, false, false, false, false];
+    const ms = wins.map((win, i) =>
+      fakeMatch({
+        matchId: `m${i}`,
+        win,
+        playedAt: new Date(Date.now() - (10 - i) * HOUR_MS).toISOString(),
+      })
+    );
+    expect(buildTiltTone(ms)).toBe("warning");
+  });
+
+  it("buildTiltTone is neutral when the bucket sits within ±5pp of overall", () => {
+    // Every game a win → overall=100%, afterWin bucket=100%, delta=0.
+    // Previously this returned "positive" via the absolute >= 50% rule.
+    const ms = Array.from({ length: 10 }, (_, i) =>
+      fakeMatch({
+        matchId: `m${i}`,
+        win: true,
+        playedAt: new Date(Date.now() - (10 - i) * HOUR_MS).toISOString(),
+      })
+    );
+    expect(buildTiltTone(ms)).toBe("neutral");
+  });
+
   it("buildTimeSlotTone is neutral with fewer than 10 games", () => {
     expect(buildTimeSlotTone([])).toBe("neutral");
+  });
+
+  it("buildTimeSlotTone is neutral when the slot delta is below the 10pp threshold", () => {
+    // 12 games at the current hour, 7 wins → wr 58.3%. Other 8 games elsewhere
+    // (different hour, 4 wins → 50%). Overall WR: 11/20 = 55%. Slot vs overall
+    // delta = +3.3pp, well below the new 10pp threshold.
+    const now = new Date("2026-05-20T14:00:00Z");
+    const ms: ReturnType<typeof fakeMatch>[] = [];
+    for (let i = 0; i < 12; i++) {
+      ms.push(
+        fakeMatch({
+          matchId: `slot-${i}`,
+          win: i < 7,
+          playedAt: new Date("2026-05-20T14:30:00Z").toISOString(),
+        })
+      );
+    }
+    for (let i = 0; i < 8; i++) {
+      ms.push(
+        fakeMatch({
+          matchId: `other-${i}`,
+          win: i < 4,
+          playedAt: new Date("2026-05-20T03:30:00Z").toISOString(),
+        })
+      );
+    }
+    expect(buildTimeSlotTone(ms, now)).toBe("neutral");
   });
 
   it("buildChampionTone is neutral when no games in the recent window", () => {
@@ -87,6 +155,43 @@ describe("tone builders", () => {
       playedAt: new Date(Date.now() - 60 * DAY_MS).toISOString(),
     });
     expect(buildChampionTone([oldMatch])).toBe("neutral");
+  });
+
+  it("buildChampionTone is positive when the top champion beats overall by >= 5pp", () => {
+    // 6 games on Ahri (all wins) + 4 games on Lux (all losses) = overall 60%.
+    // Top by game count is Ahri at 100%. Delta +40pp → positive.
+    const ms = [
+      ...Array.from({ length: 6 }, (_, i) =>
+        fakeMatch({ matchId: `ahri-${i}`, champion: "Ahri", win: true })
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        fakeMatch({ matchId: `lux-${i}`, champion: "Lux", win: false })
+      ),
+    ];
+    expect(buildChampionTone(ms)).toBe("positive");
+  });
+
+  it("buildChampionTone is warning when the top champion trails overall by >= 5pp", () => {
+    // 6 games on Ahri (all losses) + 4 games on Lux (all wins). Overall 40%.
+    // Top by game count is Ahri at 0%. Delta -40pp → warning. Previously this
+    // collapsed to neutral because the absolute rule only fired positive.
+    const ms = [
+      ...Array.from({ length: 6 }, (_, i) =>
+        fakeMatch({ matchId: `ahri-${i}`, champion: "Ahri", win: false })
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        fakeMatch({ matchId: `lux-${i}`, champion: "Lux", win: true })
+      ),
+    ];
+    expect(buildChampionTone(ms)).toBe("warning");
+  });
+
+  it("buildChampionTone is neutral when the top champion matches overall WR", () => {
+    // Single champion, 5/10 WR. Overall = top WR = 50%. Delta = 0 → neutral.
+    const ms = Array.from({ length: 10 }, (_, i) =>
+      fakeMatch({ matchId: `m${i}`, champion: "Ahri", win: i < 5 })
+    );
+    expect(buildChampionTone(ms)).toBe("neutral");
   });
 });
 

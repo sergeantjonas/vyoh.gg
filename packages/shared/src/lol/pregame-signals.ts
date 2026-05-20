@@ -6,8 +6,16 @@ export type SignalTone = "neutral" | "positive" | "warning";
 export type SignalId = "form" | "tilt" | "slot" | "champ";
 
 const SUGGEST_DAYS = 14;
-const TIME_SLOT_DELTA = 0.05;
+// Bumped from 0.05 → 0.10 after the LP2 backtest showed slot warnings were
+// anti-predictive in noisy hour buckets (Agurin: 31% hit-rate on warnings).
+// A wider deadband suppresses spurious slot reads.
+const TIME_SLOT_DELTA = 0.1;
 const MIN_HOUR_SAMPLE = 3;
+// Tilt and champion signals fire when the bucket WR diverges from the
+// player's overall WR by at least this amount. Comparing against an
+// absolute 50% baseline stuck high-WR players (e.g. Agurin) at "always
+// positive" — every bucket sat above 50% by construction.
+const SIGNAL_WR_DELTA = 0.05;
 
 function monFirstDay(d: Date): number {
   return (d.getDay() + 6) % 7;
@@ -32,7 +40,11 @@ export function buildTiltTone(matches: MatchSummary[]): SignalTone {
   const bucket = last.win ? tilt.afterWin : tilt.afterLoss;
   if (bucket.games < 3) return "neutral";
   const wr = bucket.wins / bucket.games;
-  return wr >= 0.5 ? "positive" : "warning";
+  const overallWr = played.filter((m) => m.win).length / played.length;
+  const delta = wr - overallWr;
+  if (delta >= SIGNAL_WR_DELTA) return "positive";
+  if (delta <= -SIGNAL_WR_DELTA) return "warning";
+  return "neutral";
 }
 
 export function buildTimeSlotTone(
@@ -74,8 +86,12 @@ export function buildChampionTone(
   const top = [...counts.entries()].sort((a, b) => b[1].games - a[1].games)[0];
   if (!top) return "neutral";
   const [, stat] = top;
-  const wr = Math.round((stat.wins / stat.games) * 100);
-  return wr >= 50 ? "positive" : "neutral";
+  const wr = stat.wins / stat.games;
+  const overallWr = recent.filter((m) => m.win).length / recent.length;
+  const delta = wr - overallWr;
+  if (delta >= SIGNAL_WR_DELTA) return "positive";
+  if (delta <= -SIGNAL_WR_DELTA) return "warning";
+  return "neutral";
 }
 
 export function toneToScore(tone: SignalTone): number {
