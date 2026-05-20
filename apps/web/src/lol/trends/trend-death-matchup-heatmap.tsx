@@ -6,7 +6,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleBand, scaleLinear } from "@visx/scale";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_MATCHES = 5;
@@ -72,7 +72,7 @@ interface Stats {
 }
 
 function computeStats(matches: readonly MatchSummary[]): Stats {
-  const projected = matches.filter((m) => !m.remake && m.csAt10 > 0);
+  const projected = excludeRemakes(matches).filter((m) => m.csAt10 > 0);
   const rows = buildRows(projected);
   let maxCellValue = 0;
   for (const r of rows) {

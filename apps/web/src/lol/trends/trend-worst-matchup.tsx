@@ -3,7 +3,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 3;
@@ -103,7 +103,7 @@ export function TrendWorstMatchup({
   accountSlug: string;
 }) {
   const { rows, sampleSize } = useMemo(() => {
-    const filtered = current.filter((m) => !m.remake && m.laneOpponent !== null);
+    const filtered = excludeRemakes(current).filter((m) => m.laneOpponent !== null);
     const aggregated = aggregate(filtered);
     const losing = aggregated
       .filter((r) => r.games >= MIN_SAMPLE && r.wr < 0.5)

@@ -1,6 +1,7 @@
 // Baseline: personal — your death-timing histogram; peak window is internal to your data, no external floor.
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 5;
@@ -20,7 +21,7 @@ function computeStats(matches: readonly MatchSummary[]): DeathStats | null {
   // Match must have a projected timeline (any csAt10 > 0 is a fine sentinel
   // for "this match has been processed"; matches that ended before 10 min
   // can't have lane phase data anyway).
-  const projected = matches.filter((m) => !m.remake && m.csAt10 > 0);
+  const projected = excludeRemakes(matches).filter((m) => m.csAt10 > 0);
   if (projected.length === 0) return null;
 
   const bins = new Array<number>(BUCKETS).fill(0);
@@ -65,12 +66,23 @@ function Histogram({ bins }: { bins: number[] }) {
           const heightPct = (value / max) * 100;
           const label = bucketLabel(i);
           return (
-            <div
-              key={label}
-              className="flex-1 rounded-sm bg-rose-500/70 transition-[height] duration-500"
-              style={{ height: `${heightPct}%`, minHeight: value > 0 ? 1 : 0 }}
-              title={`${label} min: ${value}`}
-            />
+            <TooltipPrimitive.Root key={label}>
+              <TooltipPrimitive.Trigger asChild>
+                <div
+                  className="flex-1 rounded-sm bg-rose-500/70 transition-[height] duration-500"
+                  style={{ height: `${heightPct}%`, minHeight: value > 0 ? 1 : 0 }}
+                />
+              </TooltipPrimitive.Trigger>
+              <TooltipPrimitive.Portal>
+                <TooltipPrimitive.Content
+                  side="top"
+                  sideOffset={6}
+                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                >
+                  {`${label} min: ${value}`}
+                </TooltipPrimitive.Content>
+              </TooltipPrimitive.Portal>
+            </TooltipPrimitive.Root>
           );
         })}
       </div>

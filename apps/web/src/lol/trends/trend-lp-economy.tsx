@@ -1,7 +1,7 @@
 // Baseline: personal — average LP gain vs average LP loss from your ranked games.
 import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 4; // min wins+losses with computable LP delta
@@ -64,12 +64,12 @@ export function TrendLpEconomy({
   previous: MatchSummary[];
 }) {
   const rankedCount = useMemo(
-    () => current.filter((m) => !m.remake && m.snapshotTier !== undefined).length,
+    () => excludeRemakes(current).filter((m) => m.snapshotTier !== undefined).length,
     [current]
   );
 
   const stats = useMemo(() => {
-    const ranked = current.filter((m) => !m.remake && m.snapshotTier !== undefined);
+    const ranked = excludeRemakes(current).filter((m) => m.snapshotTier !== undefined);
     if (ranked.length < MIN_SAMPLE) return null;
 
     const deltaMap = computeLpDeltaMap(ranked);

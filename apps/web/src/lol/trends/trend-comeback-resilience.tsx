@@ -1,6 +1,6 @@
 // Baseline: fixed-reference — your behind-5k WR vs a fixed POPULATION_BEHIND_WR (~30%).
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 // "Behind early" threshold: the user's team is down at least 5k gold by the
@@ -63,7 +63,7 @@ export function TrendComebackResilience({
     // teamGoldDiffAt15 = 0 is our sentinel for "no projection yet" — drop
     // those out of the sample. The case where the match was actually exactly
     // even at 15 min is statistically rare and not worth a dedicated flag.
-    const projected = current.filter((m) => !m.remake && m.teamGoldDiffAt15 !== 0);
+    const projected = excludeRemakes(current).filter((m) => m.teamGoldDiffAt15 !== 0);
     const behind = projected.filter((m) => m.teamGoldDiffAt15 <= BEHIND_THRESHOLD);
     const behindWins = behind.filter((m) => m.win).length;
     return {

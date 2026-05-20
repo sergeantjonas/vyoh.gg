@@ -159,7 +159,7 @@ function buildTiltForecastSignal({ last, history }: PostGameInput): RitualSignal
     };
   }
   const overallWr =
-    history.filter((m) => !m.remake && m.win).length /
+    excludeRemakes(history).filter((m) => m.win).length /
     Math.max(1, excludeRemakes(history).length);
   const wr = bucket.wins / bucket.games;
   const pct = Math.round(wr * 100);
@@ -190,7 +190,7 @@ function buildChampionReadSignal({
   accountSlug,
   nameFor,
 }: PostGameInput): RitualSignal {
-  const same = history.filter((m) => !m.remake && m.champion === last.champion);
+  const same = excludeRemakes(history).filter((m) => m.champion === last.champion);
   const others = same.filter((m) => m.matchId !== last.matchId);
   const displayName = nameFor(last.champion);
   const iconLink = (
