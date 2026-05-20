@@ -866,3 +866,60 @@ describe("PatchService.getChangesForVersion", () => {
     });
   });
 });
+
+describe("PatchService.getRankedEmblemYear", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns the current year when the wiki has that year's emblem", async () => {
+    const currentYear = new Date().getUTCFullYear();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+
+    const service = makeService(makePrisma());
+    const year = await service.getRankedEmblemYear();
+
+    expect(year).toBe(currentYear);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const firstCallUrl = String(fetchSpy.mock.calls[0]?.[0]);
+    expect(firstCallUrl).toContain(`Season_${currentYear}_-_Diamond.png`);
+  });
+
+  it("walks backwards until it finds an existing year", async () => {
+    const currentYear = new Date().getUTCFullYear();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      const ok = url.includes(`Season_${currentYear - 2}_-_Diamond.png`);
+      return Promise.resolve(new Response(null, { status: ok ? 200 : 404 }));
+    });
+
+    const service = makeService(makePrisma());
+    const year = await service.getRankedEmblemYear();
+
+    expect(year).toBe(currentYear - 2);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("falls back to 2023 when every probe fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 404 }));
+
+    const year = await makeService(makePrisma()).getRankedEmblemYear();
+
+    expect(year).toBe(2023);
+  });
+
+  it("caches the result across calls", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+
+    const service = makeService(makePrisma());
+    const first = await service.getRankedEmblemYear();
+    const second = await service.getRankedEmblemYear();
+
+    expect(first).toBe(second);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});

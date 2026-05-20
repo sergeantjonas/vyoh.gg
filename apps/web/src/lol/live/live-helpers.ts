@@ -36,18 +36,6 @@ export function mapLabel(mapId: number): string {
   return MAP_NAMES[mapId] ?? `Map ${mapId}`;
 }
 
-// Primary champion-square URL goes through wsrv.nl for CDN-side WebP
-// conversion + width-aware downscaling. The community-dragon raw asset is the
-// canonical fallback if wsrv ever 404s or returns a 0-byte body.
-export function championPrimaryUrl(championId: number, width: number): string {
-  const src = `cdn.communitydragon.org/latest/champion/${championId}/square`;
-  return `https://wsrv.nl/?url=${src}&w=${width}&output=webp&q=85`;
-}
-
-export function championFallbackUrl(championId: number): string {
-  return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/${championId}.png`;
-}
-
 // Case-insensitive Riot-ID match. Spectator-V5 occasionally returns
 // `riotIdGameName` in a different casing than the canonical account name,
 // so we lowercase both sides before comparing.

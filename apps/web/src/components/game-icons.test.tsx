@@ -22,7 +22,7 @@ import {
 } from "./game-icons";
 
 describe("game-icons", () => {
-  it("renders the img-based icons (Gold, Kills, Cs) with aria-hidden and a wsrv.nl src", () => {
+  it("renders the img-based icons (Gold, Kills, Cs) with aria-hidden and a wiki src", () => {
     const { container } = render(
       <>
         <GoldIcon className="g" />
@@ -34,7 +34,7 @@ describe("game-icons", () => {
     expect(imgs.length).toBe(3);
     for (const img of imgs) {
       expect(img.getAttribute("aria-hidden")).toBe("true");
-      expect(img.getAttribute("src")).toMatch(/wsrv\.nl/);
+      expect(img.getAttribute("src")).toMatch(/wiki\.leagueoflegends\.com/);
     }
     expect(container.querySelector(".g")).not.toBeNull();
     expect(container.querySelector(".k")).not.toBeNull();

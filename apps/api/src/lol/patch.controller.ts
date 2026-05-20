@@ -23,6 +23,14 @@ export class PatchController {
     return this.patch.listPatches();
   }
 
+  // GET /lol/patches/ranked-emblem-year → integer year string for the wiki
+  // ranked emblem set the client should reference. Declared before any
+  // `:version` matcher so the literal segment wins routing.
+  @Get("ranked-emblem-year")
+  async getRankedEmblemYear(): Promise<{ year: number }> {
+    return { year: await this.patch.getRankedEmblemYear() };
+  }
+
   // GET /lol/patches/current/changes?champion=Ahri&champion=Wukong
   // Repeated `champion` query params; Nest decodes single → string, multiple
   // → string[]. With no `champion` param the response carries the patch

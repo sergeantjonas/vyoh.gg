@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { RankEntry } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
@@ -18,10 +19,15 @@ function entry(overrides: Partial<RankEntry> = {}): RankEntry {
 }
 
 function renderTiles(entries: RankEntry[]) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MotionConfig reducedMotion="always">
-      <ProfileRankTiles entries={entries} />
-    </MotionConfig>
+    <QueryClientProvider client={client}>
+      <MotionConfig reducedMotion="always">
+        <ProfileRankTiles entries={entries} />
+      </MotionConfig>
+    </QueryClientProvider>
   );
 }
 

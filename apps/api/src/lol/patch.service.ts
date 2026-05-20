@@ -44,6 +44,18 @@ interface WikiModuleResponse {
 export class PatchService {
   private readonly logger = new Logger(PatchService.name);
 
+  // The wiki hosts ranked emblems at `Season_YYYY_-_<Tier>.png`. Riot has not
+  // redesigned the set since 2023, so that year is the *current* canonical
+  // art — not a legacy fallback. The resolver below probes the wiki on demand
+  // so a future redesign is picked up without a code change. Cached in-memory
+  // for the process lifetime (TTL guard) to keep the wiki HEAD load to ~one
+  // request per worker per day.
+  private cachedEmblemYear: number | null = null;
+  private cachedEmblemYearAt = 0;
+  private static readonly EMBLEM_YEAR_TTL_MS = 24 * 60 * 60 * 1000;
+  private static readonly EMBLEM_YEAR_FALLBACK = 2023;
+  private static readonly EMBLEM_YEAR_LOOKBACK = 10;
+
   constructor(private readonly prisma: PrismaService) {}
 
   // Every 6h on the hour. Patch detection lag is bounded by this interval;
@@ -130,6 +142,40 @@ export class PatchService {
     await this.persist(truncatedVersion, changes, patchDate);
     this.logger.log(`Inserted ${changes.length} changes for patch ${truncatedVersion}`);
     return truncatedVersion;
+  }
+
+  // Returns the latest year for which the wiki hosts a ranked emblem set,
+  // walking backwards from the current year. Cached for 24h to keep wiki
+  // HEAD load bounded. Falls back to the known-good 2023 set if every probe
+  // fails (offline dev, wiki outage) so the UI never renders broken images.
+  async getRankedEmblemYear(): Promise<number> {
+    const now = Date.now();
+    if (
+      this.cachedEmblemYear !== null &&
+      now - this.cachedEmblemYearAt < PatchService.EMBLEM_YEAR_TTL_MS
+    ) {
+      return this.cachedEmblemYear;
+    }
+    const currentYear = new Date().getUTCFullYear();
+    for (let y = currentYear; y >= currentYear - PatchService.EMBLEM_YEAR_LOOKBACK; y--) {
+      const url = `https://wiki.leagueoflegends.com/en-us/images/Season_${y}_-_Diamond.png`;
+      try {
+        const res = await fetch(url, {
+          method: "HEAD",
+          headers: { "User-Agent": USER_AGENT },
+        });
+        if (res.ok) {
+          this.cachedEmblemYear = y;
+          this.cachedEmblemYearAt = now;
+          return y;
+        }
+      } catch {
+        // ignore network errors and try the next year
+      }
+    }
+    this.cachedEmblemYear = PatchService.EMBLEM_YEAR_FALLBACK;
+    this.cachedEmblemYearAt = now;
+    return PatchService.EMBLEM_YEAR_FALLBACK;
   }
 
   // Full ddragon versions list (newest-first). Exposed for the backfill

@@ -1,6 +1,7 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { DetectedSeason, LolAccount } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
@@ -78,12 +79,17 @@ function setHistoryWithPoints(opts: {
 }
 
 function renderShell() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MotionConfig reducedMotion="always">
-      <TooltipPrimitive.Provider>
-        <ProfileSeasonHistory accountSlug="jonas-euw" />
-      </TooltipPrimitive.Provider>
-    </MotionConfig>
+    <QueryClientProvider client={client}>
+      <MotionConfig reducedMotion="always">
+        <TooltipPrimitive.Provider>
+          <ProfileSeasonHistory accountSlug="jonas-euw" />
+        </TooltipPrimitive.Provider>
+      </MotionConfig>
+    </QueryClientProvider>
   );
 }
 

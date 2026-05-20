@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { DetectedSeason } from "@vyoh/shared";
+import { type DetectedSeason, wikiRankedEmblemUrl } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
@@ -31,12 +32,6 @@ const TIER_COLOR: Record<string, string> = {
 };
 
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
-
-function rankedEmblemUrl(tier: string): string {
-  const name = tier.toLowerCase();
-  const src = `raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${name}.png`;
-  return `https://wsrv.nl/?url=${src}&w=72&trim=10&output=webp&q=85`;
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -106,6 +101,7 @@ function SeasonRow({
   index: number;
   reduced: boolean;
 }) {
+  const emblemYear = useRankedEmblemYear();
   const endTier = season.endRank.tier.toUpperCase();
   const peakTier = season.peakRank.tier.toUpperCase();
   const endLabel = season.ongoing ? "Currently" : "Ended";
@@ -121,7 +117,7 @@ function SeasonRow({
       )}
     >
       <img
-        src={rankedEmblemUrl(endTier)}
+        src={wikiRankedEmblemUrl(endTier, emblemYear)}
         alt={endTier}
         loading="lazy"
         className="size-9 shrink-0 object-contain opacity-90 drop-shadow-sm"

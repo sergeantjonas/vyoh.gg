@@ -3,11 +3,10 @@ import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
+import { useChampionNameById } from "@/lol/champions/use-champions";
 import { type LaneAssignment, assignLanes } from "@/lol/live/lane-assignment";
 import {
   COMP_AXES,
-  championFallbackUrl,
-  championPrimaryUrl,
   computeTeamComp,
   fetchChampionInfo,
   formatSeconds,
@@ -19,6 +18,7 @@ import { useLiveGame } from "@/lol/matches/use-live-match";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { wikiChampionSquareUrl } from "@vyoh/shared";
 import type { LiveGameParticipant, LiveMatch, LolAccount } from "@vyoh/shared";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -60,24 +60,17 @@ function useGameTimer(match: LiveMatch | null | undefined): string {
 
 function ChampionImg({
   championId,
-  width = 48,
+  width: _width = 48,
   className,
 }: {
   championId: number;
   width?: number;
   className?: string;
 }) {
-  return (
-    <img
-      src={championPrimaryUrl(championId, width)}
-      alt=""
-      className={className}
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = championFallbackUrl(championId);
-      }}
-    />
-  );
+  const nameById = useChampionNameById();
+  const name = nameById(championId);
+  if (!name) return <span className={cn(className, "bg-muted/50")} aria-hidden />;
+  return <img src={wikiChampionSquareUrl(name)} alt="" className={className} />;
 }
 
 function FormPips({ form }: { form: boolean[] }) {

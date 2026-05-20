@@ -19,6 +19,7 @@ interface RawChampion {
 }
 
 export interface ChampionInfo {
+  id: number;
   name: string;
   description: string;
   roles: string[];
@@ -33,7 +34,7 @@ async function fetchChampions(): Promise<Map<string, ChampionInfo>> {
       .filter((c) => c.id !== -1)
       .map((c) => [
         c.alias.toLowerCase(),
-        { name: c.name, description: c.description, roles: c.roles },
+        { id: c.id, name: c.name, description: c.description, roles: c.roles },
       ])
   );
 }
@@ -67,6 +68,25 @@ export function useChampionName() {
 export function useChampionInfo(alias: string): ChampionInfo | undefined {
   const champions = useChampions();
   return champions.data?.get(lookupKey(alias));
+}
+
+/**
+ * Returns a function that maps a champion id (Spectator-V5 `championId`) to
+ * its display name. Returns `null` for unknown ids — callers decide how to
+ * render the missing state (the wiki helper needs a name to construct a URL
+ * and has no sensible fallback for a bare id).
+ */
+export function useChampionNameById() {
+  const champions = useChampions();
+  const byId = useMemo(() => {
+    if (!champions.data) return null;
+    const map = new Map<number, string>();
+    for (const info of champions.data.values()) {
+      map.set(info.id, info.name);
+    }
+    return map;
+  }, [champions.data]);
+  return (id: number) => byId?.get(id) ?? null;
 }
 
 /**

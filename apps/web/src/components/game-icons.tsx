@@ -1,16 +1,10 @@
-import { cn } from "@/lib/utils";
+import { wikiAttackIconUrl, wikiGoldIconUrl, wikiMinionIconUrl } from "@vyoh/shared";
 import type { SVGProps } from "react";
-
-// CDragon image icons — proxied through wsrv.nl
-
-const MH =
-  "raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default";
-const UX = "raw.communitydragon.org/latest/game/assets/ux";
 
 export function GoldIcon({ className }: { className?: string }) {
   return (
     <img
-      src={`https://wsrv.nl/?url=${UX}/floatingtext/goldicon.png&w=24&output=webp`}
+      src={wikiGoldIconUrl()}
       alt=""
       aria-hidden={true}
       className={className}
@@ -22,7 +16,7 @@ export function GoldIcon({ className }: { className?: string }) {
 export function KillsIcon({ className }: { className?: string }) {
   return (
     <img
-      src={`https://wsrv.nl/?url=${MH}/kills.png&w=24&output=webp`}
+      src={wikiAttackIconUrl()}
       alt=""
       aria-hidden={true}
       className={className}
@@ -31,19 +25,15 @@ export function KillsIcon({ className }: { className?: string }) {
   );
 }
 
-// icon_minions.png is a vertical 1:2 sprite (two copies stacked).
-// Wrap in an overflow-hidden square so only the top half (first icon) is visible.
 export function CsIcon({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-block overflow-hidden shrink-0", className)}>
-      <img
-        src={`https://wsrv.nl/?url=${MH}/icon_minions.png&output=webp`}
-        alt=""
-        aria-hidden={true}
-        className="-mt-px w-full h-auto max-h-none"
-        draggable={false}
-      />
-    </span>
+    <img
+      src={wikiMinionIconUrl()}
+      alt=""
+      aria-hidden={true}
+      className={className}
+      draggable={false}
+    />
   );
 }
 

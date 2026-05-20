@@ -1,8 +1,6 @@
 import type { LiveGameParticipant, LolAccount } from "@vyoh/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  championFallbackUrl,
-  championPrimaryUrl,
   computeTeamComp,
   fetchChampionInfo,
   formatSeconds,
@@ -34,25 +32,6 @@ describe("mapLabel", () => {
 
   it("falls back to 'Map <id>' for unknown map ids", () => {
     expect(mapLabel(999)).toBe("Map 999");
-  });
-});
-
-describe("championPrimaryUrl", () => {
-  it("builds a wsrv-proxied WebP URL with the requested width", () => {
-    const url = championPrimaryUrl(266, 96);
-    expect(url).toContain("wsrv.nl");
-    expect(url).toContain("w=96");
-    expect(url).toContain("output=webp");
-    expect(url).toContain("/champion/266/square");
-  });
-});
-
-describe("championFallbackUrl", () => {
-  it("points at the community-dragon raw champion icon", () => {
-    const url = championFallbackUrl(266);
-    expect(url).toBe(
-      "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/266.png"
-    );
   });
 });
 

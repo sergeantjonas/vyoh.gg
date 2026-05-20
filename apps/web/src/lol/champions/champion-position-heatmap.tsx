@@ -2,7 +2,7 @@ import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, wikiMinimapUrl } from "@vyoh/shared";
 import { hexbin as d3Hexbin } from "d3-hexbin";
 import { useMemo, useState } from "react";
 
@@ -14,11 +14,7 @@ const OPACITY_CEIL = 0.85;
 
 const MIN_MATCHES_WITH_POSITION = 5;
 
-// Raw 720px wsrv variant of CDragon's `2dlevelminimap_npe_1.png`. Same asset
-// the match-map-overlay already uses, so the browser cache hits across both
-// surfaces.
-const MINIMAP_URL =
-  "https://wsrv.nl/?url=raw.communitydragon.org/latest/game/assets/maps/info/map11/2dlevelminimap_npe_1.png&w=720&output=webp";
+const MINIMAP_URL = wikiMinimapUrl(11) ?? undefined;
 
 // Riot's CHAMPION_KILL positions are in 0–15000 game-space, with Y *not*
 // inverted relative to SVG. We flip at render time (`RIFT_MAX - y`) so the

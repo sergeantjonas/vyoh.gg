@@ -19,7 +19,7 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { formatGameTime } from "@vyoh/shared";
+import { formatGameTime, wikiMinimapUrl } from "@vyoh/shared";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import {
@@ -41,8 +41,7 @@ import {
   YAxis,
 } from "recharts";
 
-const MINIMAP_URL =
-  "https://wsrv.nl/?url=raw.communitydragon.org/latest/game/assets/maps/info/map11/2dlevelminimap_npe_1.png&w=720&output=webp";
+const MINIMAP_URL = wikiMinimapUrl(11) ?? undefined;
 
 type EventKind =
   | "kill"

@@ -59,6 +59,12 @@ describe("PatchController", () => {
     expect(getCurrentChanges).toHaveBeenCalledWith([]);
   });
 
+  it("getRankedEmblemYear() wraps the service result in a { year } envelope", async () => {
+    const getRankedEmblemYear = vi.fn().mockResolvedValue(2026);
+    const ctrl = makeController({ getRankedEmblemYear });
+    expect(await ctrl.getRankedEmblemYear()).toEqual({ year: 2026 });
+  });
+
   it("getChangesForVersion() forwards the version string to the service", async () => {
     const payload = {
       version: "26.10",
