@@ -1,4 +1,5 @@
 import { runeIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
 import type { LolStaticBundle } from "@vyoh/shared";
 
@@ -7,8 +8,7 @@ export interface PerkInfo {
   name: string;
 }
 
-function buildPerksMap(bundle: LolStaticBundle): Map<number, PerkInfo> {
-  const patch = bundle.patchVersion ?? "16.9.1";
+function buildPerksMap(bundle: LolStaticBundle, patch: string): Map<number, PerkInfo> {
   return new Map(
     bundle.perks
       .filter((p) => p.retiredAt == null)
@@ -20,5 +20,6 @@ function buildPerksMap(bundle: LolStaticBundle): Map<number, PerkInfo> {
 // from the `/img/lol/rune/:id/:patch.webp` proxy. Retired perks are filtered
 // out so the live UI never surfaces a defunct keystone (e.g. Phase Rush).
 export function usePerks(): Map<number, PerkInfo> | undefined {
-  return useLolStaticSelect(buildPerksMap).data;
+  const patch = useDDragonVersion();
+  return useLolStaticSelect((bundle) => buildPerksMap(bundle, patch)).data;
 }

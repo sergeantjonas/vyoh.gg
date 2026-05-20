@@ -1,4 +1,5 @@
 import { itemIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
 import type { LolStaticBundle } from "@vyoh/shared";
 
@@ -11,8 +12,7 @@ export interface Item {
   categories: string[];
 }
 
-function buildItemsMap(bundle: LolStaticBundle): Map<number, Item> {
-  const patch = bundle.patchVersion ?? "16.9.1";
+function buildItemsMap(bundle: LolStaticBundle, patch: string): Map<number, Item> {
   return new Map(
     bundle.items.map((it) => {
       const from = it.recipe
@@ -33,5 +33,6 @@ function buildItemsMap(bundle: LolStaticBundle): Map<number, Item> {
 }
 
 export function useItems() {
-  return useLolStaticSelect(buildItemsMap);
+  const patch = useDDragonVersion();
+  return useLolStaticSelect((bundle) => buildItemsMap(bundle, patch));
 }
