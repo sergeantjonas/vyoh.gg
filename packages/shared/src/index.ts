@@ -63,6 +63,7 @@ export type {
   LolStaticBundle,
   LolSummonerSpellDto,
 } from "./lol/static.ts";
+export { sanitizeRichHtml } from "./lol/sanitize-rich-html.ts";
 export { stripWikitext } from "./lol/strip-wikitext.ts";
 export type { MatchDetail, ParticipantDetail, TeamSummary } from "./lol/match-detail.ts";
 export type { RankEntry, SummonerProfile } from "./lol/profile.ts";
