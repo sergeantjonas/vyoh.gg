@@ -5,6 +5,7 @@ import type {
   LolChampionDto,
   LolItemDto,
   LolPerkDto,
+  LolProfileIconDto,
   LolStaticBundle,
   LolSummonerSpellDto,
 } from "@vyoh/shared";
@@ -448,7 +449,7 @@ export class LolStaticSyncService {
   // still resolve old perkId/spellId references. Bundle is ~50–80KB JSON
   // before gzip; TanStack Query caches it with `staleTime: Infinity`.
   async getBundle(): Promise<LolStaticBundle> {
-    const [champions, abilities, items, spells, perks] = await Promise.all([
+    const [champions, abilities, items, spells, perks, profileIcons] = await Promise.all([
       this.prisma.lolChampion.findMany({ orderBy: { name: "asc" } }),
       this.prisma.lolChampionAbility.findMany({
         orderBy: [{ championId: "asc" }, { slot: "asc" }, { abilityIndex: "asc" }],
@@ -456,6 +457,7 @@ export class LolStaticSyncService {
       this.prisma.lolItem.findMany({ orderBy: { id: "asc" } }),
       this.prisma.lolSummonerSpell.findMany({ orderBy: { id: "asc" } }),
       this.prisma.lolPerk.findMany({ orderBy: { id: "asc" } }),
+      this.prisma.lolProfileIcon.findMany({ orderBy: { id: "asc" } }),
     ]);
 
     const championAbilities: Record<number, LolChampionAbilityDto[]> = {};
@@ -549,6 +551,12 @@ export class LolStaticSyncService {
         descriptionWikitext: p.descriptionWikitext,
         descriptionHtml: p.descriptionHtml,
         retiredAt: p.retiredAt ? p.retiredAt.toISOString() : null,
+      })),
+      profileIcons: profileIcons.map<LolProfileIconDto>((p) => ({
+        id: p.id,
+        title: p.title,
+        availability: p.availability,
+        release: p.release,
       })),
     };
   }

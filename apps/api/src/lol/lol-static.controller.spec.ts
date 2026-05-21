@@ -17,6 +17,7 @@ describe("LolStaticController", () => {
       items: [],
       summonerSpells: [],
       perks: [],
+      profileIcons: [],
     };
     const getBundle = vi.fn().mockResolvedValue(bundle);
     const ctrl = makeController({ getBundle });

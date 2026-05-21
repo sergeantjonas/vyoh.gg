@@ -78,6 +78,19 @@ export interface LolPerkDto {
   retiredAt: string | null;
 }
 
+// Profile icons sourced from wiki `Module:IconData/data`. `title` is the
+// editorial title — both a display label and the slug the image proxy
+// uses to build the wiki upstream URL (`{Title}_profileicon.png`).
+// Availability + release are surfaced for future filtering (Available vs
+// Legacy vs Limited; chronological grouping). Icons are never retired —
+// wiki retains editorial history indefinitely — so no `retiredAt`.
+export interface LolProfileIconDto {
+  id: number;
+  title: string;
+  availability: string | null;
+  release: number | null;
+}
+
 export interface LolStaticBundle {
   // Latest `wikiSyncedPatchVersion` observed across rows, or null when the
   // sync has never run (cold-start before the first cron tick).
@@ -93,4 +106,5 @@ export interface LolStaticBundle {
   items: LolItemDto[];
   summonerSpells: LolSummonerSpellDto[];
   perks: LolPerkDto[];
+  profileIcons: LolProfileIconDto[];
 }

@@ -9,6 +9,7 @@ export const EMPTY_LOL_STATIC: LolStaticBundle = {
   items: [],
   summonerSpells: [],
   perks: [],
+  profileIcons: [],
 };
 
 export function mockLolStaticFetch(bundle: Partial<LolStaticBundle>): void {

@@ -775,6 +775,15 @@ return {
         retiredAt: new Date("2026-05-19T00:00:00.000Z"),
       },
     ]);
+    prisma.lolProfileIcon.findMany.mockResolvedValueOnce([
+      {
+        id: 1132,
+        title: "00 Reactivated",
+        availability: "Available",
+        release: 2016,
+        wikiSyncedAt: wikiLate,
+      },
+    ]);
 
     const bundle = await makeService(prisma).getBundle();
 
@@ -810,6 +819,9 @@ return {
     // Retired perk is kept (historical matches reference it) but flagged.
     const phaseRush = bundle.perks.find((p) => p.id === 8230);
     expect(phaseRush?.retiredAt).toBe("2026-05-19T00:00:00.000Z");
+    expect(bundle.profileIcons).toEqual([
+      { id: 1132, title: "00 Reactivated", availability: "Available", release: 2016 },
+    ]);
   });
 
   it("getBundle() returns null patchVersion + null syncedAt on a cold-start empty catalog", async () => {
@@ -822,5 +834,6 @@ return {
     expect(bundle.items).toEqual([]);
     expect(bundle.summonerSpells).toEqual([]);
     expect(bundle.perks).toEqual([]);
+    expect(bundle.profileIcons).toEqual([]);
   });
 });

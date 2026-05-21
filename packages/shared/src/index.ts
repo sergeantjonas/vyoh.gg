@@ -72,6 +72,7 @@ export type {
   LolChampionDto,
   LolItemDto,
   LolPerkDto,
+  LolProfileIconDto,
   LolStaticBundle,
   LolSummonerSpellDto,
 } from "./lol/static.ts";
