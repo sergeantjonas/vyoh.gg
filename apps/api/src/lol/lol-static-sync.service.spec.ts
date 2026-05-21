@@ -363,6 +363,165 @@ return {
     expect(prisma.lolItem.upsert).toHaveBeenCalledTimes(2);
   });
 
+  it("syncItems: renders descriptionHtml via action=parse for items with wikitext on first sync", async () => {
+    const prisma = makePrisma();
+    const lua = `
+return {
+  ["Trinity Force"] = {
+    ["id"] = 3078,
+    ["tier"] = 3,
+    ["effects"] = {
+      ["pass"] = {
+        ["description"] = "After using an {{ai|ability}}, deals {{as|200% AD}} bonus damage.",
+      },
+    },
+  },
+}
+`.trim();
+    fetchSpy.mockResolvedValueOnce(wikiModuleResponse(lua)).mockResolvedValueOnce(
+      jsonResponse({
+        parse: { text: "<p>After using an ability, deals 200% AD bonus damage.</p>" },
+      })
+    );
+
+    const written = await makeService(prisma).syncItems("26.10");
+    expect(written).toBe(1);
+    const call = prisma.lolItem.upsert.mock.calls[0]?.[0];
+    expect(call.create.descriptionWikitext).toContain("{{as|200% AD}}");
+    expect(call.create.descriptionHtml).toContain("<p>After using an ability");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const parseCall = fetchSpy.mock.calls[1]?.[0];
+    expect(String(parseCall)).toContain("action=parse");
+  });
+
+  it("syncItems: skips action=parse when wikitext is unchanged and prior html exists", async () => {
+    const prisma = makePrisma();
+    const wikitext = "After using an {{ai|ability}}, deals {{as|200% AD}} bonus damage.";
+    prisma.lolItem.findMany.mockResolvedValueOnce([
+      {
+        id: 3078,
+        descriptionWikitext: wikitext,
+        descriptionHtml: "<p>cached html</p>",
+      },
+    ]);
+    const lua = `
+return {
+  ["Trinity Force"] = {
+    ["id"] = 3078,
+    ["tier"] = 3,
+    ["effects"] = {
+      ["pass"] = {
+        ["description"] = "${wikitext}",
+      },
+    },
+  },
+}
+`.trim();
+    fetchSpy.mockResolvedValueOnce(wikiModuleResponse(lua));
+
+    const written = await makeService(prisma).syncItems("26.10");
+    expect(written).toBe(1);
+    // Only the bulk module fetch — no per-item parse round-trip.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const call = prisma.lolItem.upsert.mock.calls[0]?.[0];
+    expect(call.update.descriptionHtml).toBe("<p>cached html</p>");
+  });
+
+  it("syncItems: re-renders descriptionHtml when wikitext changed from prior row", async () => {
+    const prisma = makePrisma();
+    prisma.lolItem.findMany.mockResolvedValueOnce([
+      {
+        id: 3078,
+        descriptionWikitext: "old wikitext",
+        descriptionHtml: "<p>old html</p>",
+      },
+    ]);
+    const lua = `
+return {
+  ["Trinity Force"] = {
+    ["id"] = 3078,
+    ["tier"] = 3,
+    ["effects"] = {
+      ["pass"] = {
+        ["description"] = "new wikitext",
+      },
+    },
+  },
+}
+`.trim();
+    fetchSpy
+      .mockResolvedValueOnce(wikiModuleResponse(lua))
+      .mockResolvedValueOnce(jsonResponse({ parse: { text: "<p>new html</p>" } }));
+
+    const written = await makeService(prisma).syncItems("26.10");
+    expect(written).toBe(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const call = prisma.lolItem.upsert.mock.calls[0]?.[0];
+    expect(call.update.descriptionHtml).toBe("<p>new html</p>");
+  });
+
+  it("syncItems: re-renders descriptionHtml when wikitext is unchanged but prior html is null", async () => {
+    const prisma = makePrisma();
+    const wikitext = "Deals magic damage.";
+    prisma.lolItem.findMany.mockResolvedValueOnce([
+      {
+        id: 3078,
+        descriptionWikitext: wikitext,
+        descriptionHtml: null,
+      },
+    ]);
+    const lua = `
+return {
+  ["Trinity Force"] = {
+    ["id"] = 3078,
+    ["tier"] = 3,
+    ["effects"] = {
+      ["pass"] = {
+        ["description"] = "${wikitext}",
+      },
+    },
+  },
+}
+`.trim();
+    fetchSpy
+      .mockResolvedValueOnce(wikiModuleResponse(lua))
+      .mockResolvedValueOnce(
+        jsonResponse({ parse: { text: "<p>Deals magic damage.</p>" } })
+      );
+
+    const written = await makeService(prisma).syncItems("26.10");
+    expect(written).toBe(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const call = prisma.lolItem.upsert.mock.calls[0]?.[0];
+    expect(call.update.descriptionHtml).toBe("<p>Deals magic damage.</p>");
+  });
+
+  it("syncItems: keeps wikitext when action=parse fails so the row still upserts", async () => {
+    const prisma = makePrisma();
+    const lua = `
+return {
+  ["Trinity Force"] = {
+    ["id"] = 3078,
+    ["tier"] = 3,
+    ["effects"] = {
+      ["pass"] = {
+        ["description"] = "Deals magic damage.",
+      },
+    },
+  },
+}
+`.trim();
+    fetchSpy
+      .mockResolvedValueOnce(wikiModuleResponse(lua))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    const written = await makeService(prisma).syncItems("26.10");
+    expect(written).toBe(1);
+    const call = prisma.lolItem.upsert.mock.calls[0]?.[0];
+    expect(call.create.descriptionWikitext).toBe("Deals magic damage.");
+    expect(call.create.descriptionHtml).toBeNull();
+  });
+
   it("syncs summoner spells from DDragon and resets missingSyncCycles on every seen row", async () => {
     const prisma = makePrisma();
     fetchSpy.mockResolvedValueOnce(

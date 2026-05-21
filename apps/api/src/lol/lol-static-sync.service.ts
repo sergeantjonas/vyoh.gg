@@ -131,11 +131,31 @@ export class LolStaticSyncService {
       this.logger.warn("Module:ItemData/data parsed to 0 items — skipping upsert");
       return 0;
     }
+    // Read existing rows up-front so we can skip rendering descriptionHtml
+    // when the wikitext hasn't changed since the last sync. The HTML render
+    // is a per-item wiki action=parse call (~325 items), so deduping keeps
+    // steady-state ticks at zero parse calls; balance-patch text rewrites
+    // still pick up a fresh render in the same cycle that bumps wikitext.
+    const existing = new Map(
+      (
+        await this.prisma.lolItem.findMany({
+          select: {
+            id: true,
+            descriptionWikitext: true,
+            descriptionHtml: true,
+          },
+        })
+      ).map((r) => [r.id, r])
+    );
     const now = new Date();
     let written = 0;
     for (const item of parsed) {
       try {
-        await this.upsertItem(item, patchVersion, now);
+        const descriptionHtml = await this.resolveItemDescriptionHtml(
+          item,
+          existing.get(item.id) ?? null
+        );
+        await this.upsertItem(item, descriptionHtml, patchVersion, now);
         written++;
       } catch (err) {
         this.logger.warn(
@@ -147,8 +167,40 @@ export class LolStaticSyncService {
     return written;
   }
 
+  // Decide whether to call wiki action=parse for this item. Reuses the row's
+  // existing HTML when the wikitext is unchanged AND a render already
+  // landed. A parse failure logs and falls back to null so the upsert still
+  // refreshes the rest of the item's metadata.
+  private async resolveItemDescriptionHtml(
+    item: ParsedItem,
+    prior: {
+      descriptionWikitext: string | null;
+      descriptionHtml: string | null;
+    } | null
+  ): Promise<string | null> {
+    if (!item.descriptionWikitext) return null;
+    if (
+      prior &&
+      prior.descriptionWikitext === item.descriptionWikitext &&
+      prior.descriptionHtml !== null
+    ) {
+      return prior.descriptionHtml;
+    }
+    try {
+      return await this.renderWikitextToHtml(item.descriptionWikitext);
+    } catch (err) {
+      this.logger.warn(
+        `action=parse failed for item ${item.name} (${item.id}): ${
+          err instanceof Error ? err.message : err
+        }`
+      );
+      return null;
+    }
+  }
+
   private async upsertItem(
     item: ParsedItem,
+    descriptionHtml: string | null,
     patchVersion: string,
     now: Date
   ): Promise<void> {
@@ -161,6 +213,7 @@ export class LolStaticSyncService {
       categories: item.categories,
       stats: item.stats,
       descriptionWikitext: item.descriptionWikitext,
+      descriptionHtml,
       iconWikiName: item.name,
       wikiSyncedAt: now,
       wikiSyncedPatchVersion: patchVersion,
