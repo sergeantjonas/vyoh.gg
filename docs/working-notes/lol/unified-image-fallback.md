@@ -33,6 +33,8 @@ Summoner spells aren't in the existing wiki-coverage matrix. Quick probe needed:
 
 Wiki has champion *splash* art (`{Name}_OriginalSplash.png` and per-skin variants), but our `card` and `backdrop` variants use CDragon's centered splash crops (`splash-art/centered`). Open question: is the centered crop available on wiki, or only the full splash? If only the full splash, can the proxy do the centering crop server-side via Sharp instead of relying on CDragon's pre-cropped variant?
 
+**Hard constraint:** the current visual must be preserved exactly — champion cards, splash backdrops, and the `card-splash-breathe` hover animation all read against CDragon's centered crop framing today. Any wiki-primary swap on chunks A/B/C must pass a side-by-side visual check on a representative roster (multi-champion cards page, profile splash backdrop, recap hero) before it ships. If wiki crops differ even subtly, do the crop server-side via Sharp on the wiki source rather than landing visual drift. No "close enough" allowed for splash art — this is the section's load-bearing aesthetic surface.
+
 ### D — Wire fallbacks where a second upstream exists
 
 The note I'd written claimed `ability()` returns `[wikiUrl, cdragonAbilityUrl]` — actual code has a single-element array. CDragon does serve `/champion/{slug}/abilities/{slot}` so the fallback is buildable. Same pattern applies to whatever items/runes/spells settle into after A/B.
