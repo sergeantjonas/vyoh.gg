@@ -104,18 +104,22 @@ describe("wikiFileIconUrl", () => {
 });
 
 describe("rewriteWikiImageSrc", () => {
-  it("rewrites a plain wiki upload path to the proxy", () => {
-    expect(rewriteWikiImageSrc("/en-us/images/2/2a/Magic_damage.png")).toBe(
-      "http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp"
+  it("rewrites a flat wiki upload path to the proxy", () => {
+    expect(rewriteWikiImageSrc("/en-us/images/Sight_icon.png")).toBe(
+      "http://localhost:2010/img/lol/wiki-file/Sight_icon.png.webp"
+    );
+  });
+
+  it("strips the wiki cachebuster querystring", () => {
+    expect(rewriteWikiImageSrc("/en-us/images/Sight_icon.png?0aaf0")).toBe(
+      "http://localhost:2010/img/lol/wiki-file/Sight_icon.png.webp"
     );
   });
 
   it("rewrites a wiki thumbnail path by extracting the original filename", () => {
-    expect(
-      rewriteWikiImageSrc(
-        "/en-us/images/thumb/2/2a/Magic_damage.png/16px-Magic_damage.png"
-      )
-    ).toBe("http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp");
+    expect(rewriteWikiImageSrc("/en-us/images/thumb/Dash.png/20px-Dash.png?e5c61")).toBe(
+      "http://localhost:2010/img/lol/wiki-file/Dash.png.webp"
+    );
   });
 
   it("returns null for non-wiki srcs", () => {

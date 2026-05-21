@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   wikiAbilityIconUrl,
@@ -160,15 +159,11 @@ describe("wikiAttackIconUrl", () => {
 });
 
 describe("wikiFileUrl", () => {
-  it("places the file under the MediaWiki MD5 bucket dirs", () => {
-    const filename = "Magic_damage.png";
-    const hash = createHash("md5").update(filename).digest("hex");
-    expect(wikiFileUrl(filename)).toBe(
-      `${BASE}/${hash[0]}/${hash.slice(0, 2)}/${filename}`
-    );
+  it("returns the flat /en-us/images/<filename> URL", () => {
+    expect(wikiFileUrl("Magic_damage.png")).toBe(`${BASE}/Magic_damage.png`);
   });
 
-  it("produces distinct buckets for distinct filenames", () => {
-    expect(wikiFileUrl("Gold.png")).not.toBe(wikiFileUrl("Magic_damage.png"));
+  it("preserves underscores and dots in the filename", () => {
+    expect(wikiFileUrl("Spirit_Rush.png")).toBe(`${BASE}/Spirit_Rush.png`);
   });
 });

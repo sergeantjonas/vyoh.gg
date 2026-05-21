@@ -17,16 +17,17 @@ describe("toRichDescription", () => {
   });
 
   it("rewrites wiki <img src> to a proxy URL", () => {
-    const html = '<img src="/en-us/images/2/2a/Magic_damage.png" alt="Magic">';
+    const html = '<img src="/en-us/images/Magic_damage.png" alt="Magic">';
     expect(toRichDescription(html)).toBe(
       '<img src="http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp" alt="Magic">'
     );
   });
 
   it("rewrites a wiki thumbnail src by extracting the original filename", () => {
-    const html = '<img src="/en-us/images/thumb/2/2a/Gold.png/16px-Gold.png" alt="Gold">';
+    const html =
+      '<img src="/en-us/images/thumb/Dash.png/20px-Dash.png?e5c61" alt="Dash">';
     expect(toRichDescription(html)).toBe(
-      '<img src="http://localhost:2010/img/lol/wiki-file/Gold.png.webp" alt="Gold">'
+      '<img src="http://localhost:2010/img/lol/wiki-file/Dash.png.webp" alt="Dash">'
     );
   });
 

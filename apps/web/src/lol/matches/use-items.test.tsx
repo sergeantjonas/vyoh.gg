@@ -64,7 +64,7 @@ describe("useItems", () => {
           stats: {},
           descriptionWikitext: null,
           descriptionHtml:
-            'Deals <span class="callout"><img src="/en-us/images/2/2a/Magic_damage.png" alt="Magic"> 200</span> magic damage.',
+            'Deals <span class="callout"><img src="/en-us/images/Magic_damage.png" alt="Magic"> 200</span> magic damage.',
           iconWikiName: null,
         },
       ],

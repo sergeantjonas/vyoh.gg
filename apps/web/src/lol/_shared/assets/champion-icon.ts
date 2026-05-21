@@ -100,14 +100,15 @@ export function wikiFileIconUrl(filename: string): string {
   return `${API_URL}/img/lol/wiki-file/${encodeURIComponent(filename)}.webp`;
 }
 
-// Extract the original filename from a wiki `action=parse` <img src>. The
-// regular path is `/en-us/images/X/Xy/Magic_damage.png`; thumbnails are
-// `/en-us/images/thumb/X/Xy/Magic_damage.png/16px-Magic_damage.png` — both
-// shapes carry the canonical filename right after the two-char hash dir, so
-// one regex covers them. Returns null when the src is not a recognised wiki
-// upload path (cross-origin URL, absolute http, etc.) — the sanitizer will
-// drop the resulting img.
-const WIKI_IMG_SRC_RE = /\/images\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/;
+// Extract the original filename from a wiki `action=parse` <img src>.
+// wiki.leagueoflegends.com serves files flat under `/en-us/images/<filename>`
+// — MediaWiki's hash-bucket layout is disabled there. Thumbnails are
+// `/en-us/images/thumb/<filename>/<size>px-<filename>?<cachebuster>`; the
+// canonical filename is whatever sits directly under `/images/` (or
+// `/images/thumb/`), terminated by the next slash or `?`. Returns null when
+// the src is not a recognised wiki upload path — the sanitizer drops the
+// resulting img.
+const WIKI_IMG_SRC_RE = /\/images\/(?:thumb\/)?([^/?]+)/;
 export function rewriteWikiImageSrc(src: string): string | null {
   const m = src.match(WIKI_IMG_SRC_RE);
   if (!m?.[1]) return null;

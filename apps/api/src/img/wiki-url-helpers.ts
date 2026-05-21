@@ -4,19 +4,18 @@
 // only boundary that should know wiki URL shapes. See
 // docs/working-notes/lol/unified-image-fallback.md.
 
-import { createHash } from "node:crypto";
-
 const WIKI_IMAGES = "https://wiki.leagueoflegends.com/en-us/images";
 
-// MediaWiki stores uploaded files under `/<a>/<ab>/<filename>`, where `a` is
-// the first hex char of `md5(filename)` and `ab` is the first two. The
-// `action=parse` HTML emits paths that already include these buckets, but the
-// proxy receives only the filename — we re-derive the bucket here so the web
-// helper can pass a clean `Magic_damage.png`-style identifier without
-// carrying wiki's storage layout into the URL.
+// wiki.leagueoflegends.com serves uploaded files flat under
+// `/en-us/images/<filename>` — MediaWiki's default `<a>/<ab>/<filename>` hash
+// buckets are disabled in their config. The `action=parse` HTML routinely
+// emits two shapes for the same file: a thumbnail
+// `/en-us/images/thumb/Dash.png/20px-Dash.png?e5c61` and an original
+// `/en-us/images/Dash.png?e5c61`. We always proxy to the original — Sharp
+// transcodes to our chosen width downstream — so the URL is just
+// `<base>/<filename>` with no hash bucket lookup.
 export function wikiFileUrl(filename: string): string {
-  const hash = createHash("md5").update(filename).digest("hex");
-  return `${WIKI_IMAGES}/${hash[0]}/${hash.slice(0, 2)}/${filename}`;
+  return `${WIKI_IMAGES}/${filename}`;
 }
 
 function wikiImageSlug(name: string): string {
