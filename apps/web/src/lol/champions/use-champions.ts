@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 export interface ChampionInfo {
   id: number;
+  alias: string;
   name: string;
   roles: string[];
 }
@@ -13,7 +14,10 @@ function buildChampionsMap(bundle: LolStaticBundle): Map<string, ChampionInfo> {
   return new Map(
     bundle.champions
       .filter((c) => c.id !== -1)
-      .map((c) => [c.alias.toLowerCase(), { id: c.id, name: c.name, roles: c.roles }])
+      .map((c) => [
+        c.alias.toLowerCase(),
+        { id: c.id, alias: c.alias, name: c.name, roles: c.roles },
+      ])
   );
 }
 
@@ -78,6 +82,24 @@ export function useChampionInfoById(): Map<number, ChampionInfo> | undefined {
     }
     return map;
   }, [champions.data]);
+}
+
+/**
+ * Returns a function that maps a champion id (Spectator-V5 `championId`) to
+ * its Riot alias (the value the image proxy's `:alias` segment expects).
+ * Returns `null` for unknown ids — callers should render a blank tile.
+ */
+export function useChampionAliasById() {
+  const champions = useChampions();
+  const byId = useMemo(() => {
+    if (!champions.data) return null;
+    const map = new Map<number, string>();
+    for (const info of champions.data.values()) {
+      map.set(info.id, info.alias);
+    }
+    return map;
+  }, [champions.data]);
+  return (id: number) => byId?.get(id) ?? null;
 }
 
 /**

@@ -1,9 +1,11 @@
 import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
-import { useChampionInfoById, useChampionNameById } from "@/lol/champions/use-champions";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { useChampionAliasById, useChampionInfoById } from "@/lol/champions/use-champions";
 import { type LaneAssignment, assignLanes } from "@/lol/live/lane-assignment";
 import {
   COMP_AXES,
@@ -16,7 +18,6 @@ import {
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { wikiChampionSquareUrl } from "@vyoh/shared";
 import type { LiveGameParticipant, LiveMatch, LolAccount } from "@vyoh/shared";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -65,10 +66,11 @@ function ChampionImg({
   width?: number;
   className?: string;
 }) {
-  const nameById = useChampionNameById();
-  const name = nameById(championId);
-  if (!name) return <span className={cn(className, "bg-muted/50")} aria-hidden />;
-  return <img src={wikiChampionSquareUrl(name)} alt="" className={className} />;
+  const aliasById = useChampionAliasById();
+  const patch = useDDragonVersion();
+  const alias = aliasById(championId);
+  if (!alias) return <span className={cn(className, "bg-muted/50")} aria-hidden />;
+  return <img src={championSquareIconUrl(alias, patch)} alt="" className={className} />;
 }
 
 function FormPips({ form }: { form: boolean[] }) {

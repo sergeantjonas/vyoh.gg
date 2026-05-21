@@ -9,11 +9,15 @@ interface PrismaStub {
   lolChampionAbility: {
     findUnique: ReturnType<typeof vi.fn>;
   };
+  lolChampion: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makePrisma(
   rows: Array<{ id: number; title: string }> = [],
-  ability: unknown = null
+  ability: unknown = null,
+  champions: Array<{ alias: string; name: string }> = []
 ): PrismaStub {
   return {
     lolProfileIcon: {
@@ -22,50 +26,78 @@ function makePrisma(
     lolChampionAbility: {
       findUnique: vi.fn().mockResolvedValue(ability),
     },
+    lolChampion: {
+      findMany: vi.fn().mockResolvedValue(champions),
+    },
   };
 }
 
 function makeService(
   rows: Array<{ id: number; title: string }> = [],
-  ability: unknown = null
+  ability: unknown = null,
+  champions: Array<{ alias: string; name: string }> = []
 ): {
   service: LolImageService;
   prisma: PrismaStub;
 } {
-  const prisma = makePrisma(rows, ability);
+  const prisma = makePrisma(rows, ability, champions);
   const service = new LolImageService(prisma as unknown as PrismaService);
   return { service, prisma };
 }
 
 describe("LolImageService.champion", () => {
-  const { service } = makeService();
-
-  it("builds the CDragon square URL with a lower-cased alias", () => {
-    const resolved = service.champion("Ahri", "square");
+  it("returns wiki-primary + CDragon-fallback for the 'square' variant when the alias has a display name", async () => {
+    const { service, prisma } = makeService([], null, [{ alias: "Ahri", name: "Ahri" }]);
+    const resolved = await service.champion("Ahri", "square");
     expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ahri_OriginalSquare.png",
       "https://cdn.communitydragon.org/latest/champion/ahri/square",
     ]);
     expect(resolved.params).toEqual({ width: 72, quality: 85 });
+    expect(prisma.lolChampion.findMany).toHaveBeenCalledTimes(1);
   });
 
-  it("uses splash-art for the 'card' variant at a wider width", () => {
-    const resolved = service.champion("Ahri", "card");
+  it("uses the wiki display name (not the Riot alias) for the wiki URL on multi-word champions", async () => {
+    const { service } = makeService([], null, [{ alias: "MonkeyKing", name: "Wukong" }]);
+    const resolved = await service.champion("MonkeyKing", "square");
+    expect(resolved.urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Wukong_OriginalSquare.png"
+    );
+    expect(resolved.urls[1]).toBe(
+      "https://cdn.communitydragon.org/latest/champion/monkeyking/square"
+    );
+  });
+
+  it("falls back to CDragon alone for 'square' when the alias is missing from the champion table", async () => {
+    const { service } = makeService([], null, []);
+    const resolved = await service.champion("Ahri", "square");
+    expect(resolved.urls).toEqual([
+      "https://cdn.communitydragon.org/latest/champion/ahri/square",
+    ]);
+  });
+
+  it("uses splash-art for the 'card' variant at a wider width", async () => {
+    const { service } = makeService();
+    const resolved = await service.champion("Ahri", "card");
     expect(resolved.urls[0]).toContain("/splash-art/centered");
     expect(resolved.params).toMatchObject({ width: 500, quality: 90 });
     expect(resolved.params.blur).toBeUndefined();
   });
 
-  it("applies a blur and 80 quality for the 'backdrop' variant", () => {
-    const resolved = service.champion("Ahri", "backdrop");
+  it("applies a blur and 80 quality for the 'backdrop' variant", async () => {
+    const { service } = makeService();
+    const resolved = await service.champion("Ahri", "backdrop");
     expect(resolved.urls[0]).toContain("/splash-art/centered");
     expect(resolved.params).toMatchObject({ width: 600, quality: 80, blur: 1 });
   });
 
-  it("strips the Strawberry_ prefix used for Swarm-mode champion aliases", () => {
-    const resolved = service.champion("Strawberry_Yuumi", "square");
-    expect(resolved.urls[0]).toBe(
-      "https://cdn.communitydragon.org/latest/champion/yuumi/square"
-    );
+  it("strips the Strawberry_ prefix used for Swarm-mode champion aliases", async () => {
+    const { service } = makeService([], null, [{ alias: "Yuumi", name: "Yuumi" }]);
+    const resolved = await service.champion("Strawberry_Yuumi", "square");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Yuumi_OriginalSquare.png",
+      "https://cdn.communitydragon.org/latest/champion/yuumi/square",
+    ]);
   });
 });
 

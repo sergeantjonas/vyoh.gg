@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { wikiAbilityIconUrl, wikiProfileIconUrl } from "@vyoh/shared";
+import {
+  wikiAbilityIconUrl,
+  wikiChampionSquareUrl,
+  wikiProfileIconUrl,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TranscodeParams } from "./upstream";
 
@@ -55,17 +59,27 @@ export class LolImageService {
   private spellPathsPending: Promise<Map<number, string>> | null = null;
   private profileIconTitles: Map<number, string> | null = null;
   private profileIconTitlesPending: Promise<Map<number, string>> | null = null;
+  private championDisplayNames: Map<string, string> | null = null;
+  private championDisplayNamesPending: Promise<Map<string, string>> | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
-  champion(alias: string, variant: ChampionVariant): Resolved {
+  async champion(alias: string, variant: ChampionVariant): Promise<Resolved> {
     const slug = normalizeChampionAlias(alias).toLowerCase();
+    const cdragonSquare = `${CDRAGON_CDN}/champion/${slug}/square`;
     switch (variant) {
-      case "square":
-        return {
-          urls: [`${CDRAGON_CDN}/champion/${slug}/square`],
-          params: { width: 72, quality: 85 },
-        };
+      case "square": {
+        // Wiki primary (`OriginalSquare` — the saturated launch art) with
+        // CDragon as a resilience fallback (CDragon serves the desaturated
+        // client variant — visually drifted, but better than a blank tile
+        // during a wiki outage). Cold-start before the first static sync
+        // lands cleanly on CDragon alone.
+        const displayName = await this.lookupDisplayName(alias);
+        const urls = displayName
+          ? [wikiChampionSquareUrl(displayName), cdragonSquare]
+          : [cdragonSquare];
+        return { urls, params: { width: 72, quality: 85 } };
+      }
       case "card":
         return {
           urls: [`${CDRAGON_CDN}/champion/${slug}/splash-art/centered`],
@@ -77,6 +91,32 @@ export class LolImageService {
           params: { width: 600, quality: 80, blur: 1 },
         };
     }
+  }
+
+  private async lookupDisplayName(alias: string): Promise<string | null> {
+    const normalized = normalizeChampionAlias(alias);
+    const map = await this.loadChampionDisplayNames();
+    return map.get(normalized.toLowerCase()) ?? null;
+  }
+
+  // Sticky in-process cache. Champion display names change very rarely (new
+  // champion releases / VGUs rename only the alias→name binding on the same
+  // primary key). Mirrors `loadProfileIconTitles`.
+  private loadChampionDisplayNames(): Promise<Map<string, string>> {
+    if (this.championDisplayNames) return Promise.resolve(this.championDisplayNames);
+    if (this.championDisplayNamesPending) return this.championDisplayNamesPending;
+    const pending = this.prisma.lolChampion
+      .findMany({ select: { alias: true, name: true } })
+      .then((rows) => {
+        const map = new Map(rows.map((r) => [r.alias.toLowerCase(), r.name]));
+        this.championDisplayNames = map;
+        return map;
+      })
+      .finally(() => {
+        this.championDisplayNamesPending = null;
+      });
+    this.championDisplayNamesPending = pending;
+    return pending;
   }
 
   item(itemId: number, patch: string): Resolved {

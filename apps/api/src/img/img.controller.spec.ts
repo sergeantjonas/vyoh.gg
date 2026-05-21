@@ -32,7 +32,7 @@ function makeController(
   steamOverrides: Partial<SteamImageService> = {}
 ): ImgController {
   const lol = {
-    champion: vi.fn().mockReturnValue({ urls: ["https://lol/champ"], params: {} }),
+    champion: vi.fn().mockResolvedValue({ urls: ["https://lol/champ"], params: {} }),
     item: vi.fn().mockReturnValue({ urls: ["https://lol/item"], params: {} }),
     profileIcon: vi
       .fn()

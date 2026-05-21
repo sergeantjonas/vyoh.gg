@@ -1,5 +1,6 @@
 import { mockLolStaticFetch } from "@/lol/_shared/static/mock-lol-static";
 import {
+  useChampionAliasById,
   useChampionAliasFromName,
   useChampionInfo,
   useChampionName,
@@ -78,6 +79,32 @@ describe("useChampionInfo", () => {
       wrapper: makeWrapper(),
     });
     await waitFor(() => expect(result.current).toBeUndefined());
+  });
+});
+
+describe("useChampionAliasById", () => {
+  it("returns the Riot alias for a champion id (proxy URL segment)", async () => {
+    const { result } = renderHook(() => useChampionAliasById(), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current(1)).toBe("JarvanIV"));
+    expect(result.current(2)).toBe("MonkeyKing");
+  });
+
+  it("returns null for an unknown id (caller renders a blank tile)", async () => {
+    const { result } = renderHook(() => useChampionAliasById(), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current(1)).toBe("JarvanIV"));
+    expect(result.current(99999)).toBeNull();
+  });
+
+  it("returns null before champion data loads", () => {
+    vi.mocked(fetch).mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useChampionAliasById(), {
+      wrapper: makeWrapper(),
+    });
+    expect(result.current(1)).toBeNull();
   });
 });
 

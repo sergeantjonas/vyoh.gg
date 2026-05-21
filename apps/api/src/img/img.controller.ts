@@ -42,7 +42,7 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = this.lol.champion(alias, variant as ChampionVariant);
+    const resolved = await this.lol.champion(alias, variant as ChampionVariant);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
