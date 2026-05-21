@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { wikiProfileIconUrl } from "@vyoh/shared";
+import { wikiAbilityIconUrl, wikiProfileIconUrl } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TranscodeParams } from "./upstream";
 
@@ -98,6 +98,29 @@ export class LolImageService {
     const title = titles.get(iconId);
     const urls = title ? [wikiProfileIconUrl(title), ddragonUrl] : [ddragonUrl];
     return { urls, params: { width: 72, quality: 85 } };
+  }
+
+  // Wiki-sourced ability icon, routed through the proxy so wiki blips don't
+  // blank the spell tooltips. `:patch` is a browser cache buster only — wiki
+  // URLs are stable, so the resolver ignores the param value. Throws when
+  // the row is missing so the controller can return 404; the bundle ships
+  // every ability row, so a miss here means an invalid request.
+  async ability(
+    championId: number,
+    slot: string,
+    abilityIndex: number
+  ): Promise<Resolved> {
+    const row = await this.prisma.lolChampionAbility.findUnique({
+      where: { championId_slot_abilityIndex: { championId, slot, abilityIndex } },
+      include: { champion: { select: { name: true } } },
+    });
+    if (!row) {
+      throw new Error(`unknown ability ${championId}/${slot}/${abilityIndex}`);
+    }
+    return {
+      urls: [wikiAbilityIconUrl(row.champion.name, row.name)],
+      params: { width: 40, quality: 85 },
+    };
   }
 
   async rune(keystoneId: number): Promise<Resolved> {

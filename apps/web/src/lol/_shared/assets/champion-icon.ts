@@ -56,6 +56,19 @@ export function summonerSpellIconUrl(spellKey: number, patch: string): string {
   return `${API_URL}/img/lol/spell/${spellKey}/${patch}.webp`;
 }
 
+// Ability icon proxy. Identity is `(championId, slot, abilityIndex)` —
+// matches the lazy `LolChampionAbility` row that owns `iconWikiName` +
+// description text. `:patch` is a browser cache key only because wiki URLs
+// are stable.
+export function abilityIconUrl(
+  championId: number,
+  slot: string,
+  abilityIndex: number,
+  patch: string
+): string {
+  return `${API_URL}/img/lol/ability/${championId}/${slot}/${abilityIndex}/${patch}.webp`;
+}
+
 // Role-position SVG is versionless — the upstream SVGs change too rarely to
 // warrant a cache-key segment.
 export function roleIconUrl(positionSlug: string): string {

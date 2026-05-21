@@ -80,6 +80,35 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
+  // Wiki-sourced ability icon proxy. Identity comes from the bundle
+  // (`championId`, `slot`, `abilityIndex`); the resolver reads the matching
+  // Prisma row and builds the wiki URL from champion + ability name.
+  // `:patch` is a browser cache key only.
+  @Get("lol/ability/:championId/:slot/:abilityIndex/:patch.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async ability(
+    @Param("championId") championId: string,
+    @Param("slot") slot: string,
+    @Param("abilityIndex") abilityIndex: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const cid = Number.parseInt(championId, 10);
+    const idx = Number.parseInt(abilityIndex, 10);
+    if (!Number.isFinite(cid) || !Number.isFinite(idx)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    let resolved: Awaited<ReturnType<LolImageService["ability"]>>;
+    try {
+      resolved = await this.lol.ability(cid, slot, idx);
+    } catch {
+      res.status(HttpStatus.NOT_FOUND).send();
+      return;
+    }
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
   @Get("lol/rune/:keystoneId/:patch.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)

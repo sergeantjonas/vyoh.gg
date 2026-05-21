@@ -37,6 +37,7 @@ function makeController(
     profileIcon: vi
       .fn()
       .mockResolvedValue({ urls: ["https://lol/profile-icon"], params: {} }),
+    ability: vi.fn().mockResolvedValue({ urls: ["https://lol/ability"], params: {} }),
     rune: vi.fn().mockResolvedValue({ urls: ["https://lol/rune"], params: {} }),
     spell: vi.fn().mockResolvedValue({ urls: ["https://lol/spell"], params: {} }),
     roleIconUrl: vi.fn().mockReturnValue("https://lol/role-mid"),
@@ -212,6 +213,38 @@ describe("ImgController happy paths", () => {
     const res = makeRes();
     await makeController().steamAchievementGray("42", "FIRST_KILL", res as never);
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+});
+
+describe("ImgController.ability", () => {
+  it("returns 400 when championId is non-numeric", async () => {
+    const res = makeRes();
+    await makeController().ability("abc", "Q", "1", res as never);
+    expect(res._status).toBe(400);
+  });
+
+  it("returns 400 when abilityIndex is non-numeric", async () => {
+    const res = makeRes();
+    await makeController().ability("103", "Q", "x", res as never);
+    expect(res._status).toBe(400);
+  });
+
+  it("returns 404 when the resolver throws (ability row missing)", async () => {
+    const controller = makeController({
+      ability: vi.fn().mockRejectedValue(new Error("unknown ability 999/Q/0")),
+    } as unknown as Partial<LolImageService>);
+    const res = makeRes();
+    await controller.ability("999", "Q", "0", res as never);
+    expect(res._status).toBe(404);
+    expect(upstream.fetchUpstreamChain).not.toHaveBeenCalled();
+  });
+
+  it("proxies through fetchUpstreamChain + transcodeToWebp for a valid ability", async () => {
+    const res = makeRes();
+    await makeController().ability("103", "Q", "1", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+    expect(upstream.transcodeToWebp).toHaveBeenCalled();
+    expect(res.send).toHaveBeenCalled();
   });
 });
 

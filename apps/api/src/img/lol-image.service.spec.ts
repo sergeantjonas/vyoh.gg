@@ -6,21 +6,33 @@ interface PrismaStub {
   lolProfileIcon: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  lolChampionAbility: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
 }
 
-function makePrisma(rows: Array<{ id: number; title: string }> = []): PrismaStub {
+function makePrisma(
+  rows: Array<{ id: number; title: string }> = [],
+  ability: unknown = null
+): PrismaStub {
   return {
     lolProfileIcon: {
       findMany: vi.fn().mockResolvedValue(rows),
     },
+    lolChampionAbility: {
+      findUnique: vi.fn().mockResolvedValue(ability),
+    },
   };
 }
 
-function makeService(rows: Array<{ id: number; title: string }> = []): {
+function makeService(
+  rows: Array<{ id: number; title: string }> = [],
+  ability: unknown = null
+): {
   service: LolImageService;
   prisma: PrismaStub;
 } {
-  const prisma = makePrisma(rows);
+  const prisma = makePrisma(rows, ability);
   const service = new LolImageService(prisma as unknown as PrismaService);
   return { service, prisma };
 }
@@ -66,6 +78,35 @@ describe("LolImageService.item", () => {
       "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/item/3001.png",
     ]);
     expect(resolved.params).toEqual({ width: 64, quality: 85 });
+  });
+});
+
+describe("LolImageService.ability", () => {
+  it("builds the wiki ability URL from the DB row's champion + ability names", async () => {
+    const { service, prisma } = makeService([], {
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 1,
+      name: "Orb of Deception",
+      iconWikiName: null,
+      champion: { name: "Ahri" },
+    });
+    const resolved = await service.ability(103, "Q", 1);
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ahri_Orb_of_Deception.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 40, quality: 85 });
+    expect(prisma.lolChampionAbility.findUnique).toHaveBeenCalledWith({
+      where: {
+        championId_slot_abilityIndex: { championId: 103, slot: "Q", abilityIndex: 1 },
+      },
+      include: { champion: { select: { name: true } } },
+    });
+  });
+
+  it("throws when the ability row does not exist", async () => {
+    const { service } = makeService([], null);
+    await expect(service.ability(999, "Q", 0)).rejects.toThrow(/unknown ability/);
   });
 });
 

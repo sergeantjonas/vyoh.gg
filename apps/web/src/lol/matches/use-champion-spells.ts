@@ -1,5 +1,6 @@
+import { abilityIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
-import { type LolStaticBundle, wikiAbilityIconUrl } from "@vyoh/shared";
+import type { LolStaticBundle } from "@vyoh/shared";
 
 // Identity-only spell row. Descriptions are fetched per-spell via
 // `useAbilityDescription` (lazy endpoint with patch-watermark caching) so
@@ -28,6 +29,11 @@ function buildChampionSpellsIndex(bundle: LolStaticBundle): Map<string, SpellInf
     nameById.set(c.id, c.name);
   }
 
+  // Proxy URLs use the bundle's patchVersion as a cache key. Falls back to
+  // "0" on cold-start (before the first static sync) — the proxy ignores the
+  // value anyway since wiki URLs are stable.
+  const patch = bundle.patchVersion ?? "0";
+
   const result = new Map<string, SpellInfo[]>();
   for (const [aliasOrName, id] of idByAlias.entries()) {
     const championName = nameById.get(id);
@@ -42,7 +48,7 @@ function buildChampionSpellsIndex(bundle: LolStaticBundle): Map<string, SpellInf
         championId: id,
         slot,
         abilityIndex: ability.abilityIndex,
-        iconUrl: wikiAbilityIconUrl(championName, ability.name),
+        iconUrl: abilityIconUrl(id, slot, ability.abilityIndex, patch),
         name: ability.name,
       };
     });

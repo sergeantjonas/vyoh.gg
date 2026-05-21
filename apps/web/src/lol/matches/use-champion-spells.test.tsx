@@ -79,11 +79,15 @@ describe("useChampionSpells", () => {
       championId: 103,
       slot: "Q",
       abilityIndex: 1,
-      iconUrl: expect.stringContaining("Ahri_Orb_of_Deception.png"),
+      // Icon now resolves through the image proxy keyed by id/slot/idx — the
+      // proxy reads the wiki URL server-side, so web call sites no longer
+      // hit wiki directly.
+      iconUrl: expect.stringMatching(/\/img\/lol\/ability\/103\/Q\/1\/[^/]+\.webp$/),
       name: "Orb of Deception",
     });
     expect(result.current?.[3]?.name).toBe("Spirit Rush");
     expect(result.current?.[3]?.abilityIndex).toBe(4);
+    expect(result.current?.[3]?.iconUrl).toContain("/img/lol/ability/103/R/4/");
   });
 
   it("resolves the champion by Riot alias as well as display name", async () => {
@@ -108,8 +112,9 @@ describe("useChampionSpells", () => {
     await waitFor(() => expect(byAlias.result.current).not.toBeUndefined());
     expect(byAlias.result.current?.[0]?.name).toBe("Crushing Blow");
     expect(byAlias.result.current?.[0]?.championId).toBe(62);
-    // Wiki URL uses the canonical display name, not the Riot alias.
-    expect(byAlias.result.current?.[0]?.iconUrl).toContain("Wukong_");
+    // Proxy URL uses championId (not alias) since the resolver looks up the
+    // row by primary key — the display-name handling lives server-side.
+    expect(byAlias.result.current?.[0]?.iconUrl).toContain("/img/lol/ability/62/Q/1/");
   });
 
   it("returns undefined for an unknown champion name", async () => {
