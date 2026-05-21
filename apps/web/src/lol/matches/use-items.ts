@@ -1,7 +1,7 @@
 import { itemIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
-import type { LolStaticBundle } from "@vyoh/shared";
+import { type LolStaticBundle, stripWikitext } from "@vyoh/shared";
 
 export interface Item {
   name: string;
@@ -24,8 +24,8 @@ function buildItemsMap(bundle: LolStaticBundle, patch: string): Map<number, Item
         from,
         categories: it.categories,
       };
-      const description = it.descriptionHtml ?? it.descriptionWikitext;
-      if (description != null) item.description = description;
+      const rawDescription = it.descriptionHtml ?? it.descriptionWikitext;
+      if (rawDescription != null) item.description = stripWikitext(rawDescription);
       if (it.priceTotal != null) item.priceTotal = it.priceTotal;
       return [it.id, item];
     })

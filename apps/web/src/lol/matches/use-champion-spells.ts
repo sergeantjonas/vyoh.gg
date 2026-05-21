@@ -1,5 +1,5 @@
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
-import { type LolStaticBundle, wikiAbilityIconUrl } from "@vyoh/shared";
+import { type LolStaticBundle, stripWikitext, wikiAbilityIconUrl } from "@vyoh/shared";
 
 export interface SpellInfo {
   iconUrl: string;
@@ -30,11 +30,11 @@ function buildChampionSpellsIndex(bundle: LolStaticBundle): Map<string, SpellInf
     const spells: SpellInfo[] = SLOTS_IN_ORDER.map((slot) => {
       const ability = abilities.find((a) => a.slot === slot);
       if (!ability) return { iconUrl: "", name: "", description: "" };
-      const description = ability.descriptionHtml ?? ability.descriptionWikitext ?? "";
+      const rawDescription = ability.descriptionHtml ?? ability.descriptionWikitext ?? "";
       return {
         iconUrl: wikiAbilityIconUrl(championName, ability.name),
         name: ability.name,
-        description,
+        description: stripWikitext(rawDescription),
       };
     });
     result.set(aliasOrName, spells);

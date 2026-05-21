@@ -78,7 +78,8 @@ describe("useChampionSpells", () => {
     expect(result.current?.[0]).toEqual({
       iconUrl: expect.stringContaining("Ahri_Orb_of_Deception.png"),
       name: "Orb of Deception",
-      description: "<i>Deals</i> magic damage.",
+      // stripWikitext strips inline HTML tags too.
+      description: "Deals magic damage.",
     });
     expect(result.current?.[3]?.name).toBe("Spirit Rush");
   });
@@ -103,7 +104,8 @@ describe("useChampionSpells", () => {
       wrapper: makeWrapper(),
     });
     await waitFor(() => expect(result.current).not.toBeUndefined());
-    expect(result.current?.[0]?.description).toBe("{{as|Deals magic damage.}}");
+    // stripWikitext unwraps the {{as|...}} template, keeping the inner text.
+    expect(result.current?.[0]?.description).toBe("Deals magic damage.");
   });
 
   it("resolves the champion by Riot alias as well as display name", async () => {

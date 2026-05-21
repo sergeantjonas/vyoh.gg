@@ -380,7 +380,7 @@ model PatchChange {
 // names colliding with champion names).
 model LolItem {
   id                     Int      @id
-  name                   String   @unique
+  name                   String
   tier                   Int?
   itemType               Json     @default("[]")
   priceTotal             Int?
@@ -436,7 +436,7 @@ model LolChampionAbility {
 // `Module:SpellData/data`; fetched per-spell in a follow-up chunk.
 model LolSummonerSpell {
   id                     Int      @id
-  name                   String   @unique
+  name                   String
   iconWikiName           String?
   descriptionWikitext    String?
   descriptionHtml        String?
