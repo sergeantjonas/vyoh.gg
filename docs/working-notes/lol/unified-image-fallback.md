@@ -1,6 +1,6 @@
 # vyoh.gg — Unified LoL image fallback
 
-**Status:** In progress — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes are now wiki-primary with DDragon/CDragon fallback. Chunks B (summoner-spell probe), C (champion card/backdrop probe, gated by [splash visual-parity](#c--champion-card--backdrop-wiki-coverage-probe)), and D (ability fallback + map/rank/UI single-upstream documentation) remain.
+**Status:** In progress — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes are now wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability now has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented in code. Chunks B (summoner-spell probe) and C (champion card/backdrop probe, gated by [splash visual-parity](#c--champion-card--backdrop-wiki-coverage-probe)) remain.
 
 ## What shipped
 
@@ -12,8 +12,8 @@ Per-asset upstream + fallback state, read directly from [lol-image.service.ts](.
 |---|---|---|---|
 | `champion(square)` | wiki | CDragon | Real 2-stage chain. Lookup by `lolChampion.name` (alias→name map). |
 | `profileIcon(iconId)` | wiki | DDragon | Real 2-stage chain. Lookup via `Module:IconData/data` sync. |
-| `ability(...)` | wiki | **none** | Single-element `urls`. Wiki outage blanks tooltips. |
-| `map(mapId)`, `rankEmblem(...)`, `uiIcon(...)`, `wikiFile(...)` | wiki | **none** | Single-element `urls`. No second upstream exists (DDragon doesn't ship these). Cache-only resilience. |
+| `ability(...)` | wiki | CDragon | Real 2-stage chain (chunk D). CDragon `/champion/{slug}/ability-icon/{slot}` as fallback. |
+| `map(mapId)`, `rankEmblem(...)`, `uiIcon(...)`, `wikiFile(...)` | wiki | **none** | Intentionally single-upstream — DDragon/CDragon do not ship these assets. Documented in resolver comments (chunk D). |
 | `champion(card)`, `champion(backdrop)` | CDragon splash | **none** | Not wiki-sourced. CDragon splash art only. |
 | `item(itemId)` | wiki | DDragon | Real 2-stage chain (chunk A, `58309f5`). Lookup via `LolItem.iconWikiName`; falls through to DDragon alone when the row is missing. |
 | `rune(keystoneId)` | wiki | CDragon game-data | Real 2-stage chain (chunk A, `58309f5`). Lookup via `LolPerk.iconWikiName`; existing CDragon `iconPath` lookup retained as the second-stage fallback. |
@@ -35,11 +35,11 @@ Wiki has champion *splash* art (`{Name}_OriginalSplash.png` and per-skin variant
 
 **Hard constraint:** the current visual must be preserved exactly — champion cards, splash backdrops, and the `card-splash-breathe` hover animation all read against CDragon's centered crop framing today. Any wiki-primary swap on chunk C must pass a side-by-side visual check on a representative roster (multi-champion cards page, profile splash backdrop, recap hero) before it ships. If wiki crops differ even subtly, do the crop server-side via Sharp on the wiki source rather than landing visual drift. No "close enough" allowed for splash art — this is the section's load-bearing aesthetic surface.
 
-### D — Wire fallbacks where a second upstream exists
+### D — Wire fallbacks where a second upstream exists (shipped 2026-05-21)
 
-The note I'd written claimed `ability()` returns `[wikiUrl, cdragonAbilityUrl]` — actual code has a single-element array. CDragon does serve `/champion/{slug}/abilities/{slot}` so the fallback is buildable. Same pattern applies to whatever items/runes/spells settle into after A/B.
+`ability()` now returns `[wikiUrl, cdragonAbilityUrl]`. CDragon serves `/champion/{slug}/ability-icon/{slot}` (lowercase slot, normalised alias). Slot "Passive" lowercases to "passive"; compound aliases like "JarvanIV" lowercase directly. The Prisma include was updated to also select `alias` so the slug can be built without an extra lookup.
 
-`map`, `rankEmblem`, `uiIcon`, `wikiFile` genuinely have no second upstream — these stay single-element. Document that explicitly in the resolver comments so future readers don't add a phantom fallback.
+`map`, `rankEmblem`, `uiIcon`, `wikiFile` have no second upstream — intentionally single-element. Each resolver now carries an explicit "Single-upstream intentionally" comment so future readers don't add phantom fallbacks.
 
 ## How to extend
 

@@ -165,6 +165,8 @@ export class LolImageService {
   // URLs are stable, so the resolver ignores the param value. Throws when
   // the row is missing so the controller can return 404; the bundle ships
   // every ability row, so a miss here means an invalid request.
+  // Wiki-first with CDragon ability-icon fallback. CDragon serves
+  // `/champion/{slug}/ability-icon/{slot}` for all slots including Passive.
   async ability(
     championId: number,
     slot: string,
@@ -172,13 +174,15 @@ export class LolImageService {
   ): Promise<Resolved> {
     const row = await this.prisma.lolChampionAbility.findUnique({
       where: { championId_slot_abilityIndex: { championId, slot, abilityIndex } },
-      include: { champion: { select: { name: true } } },
+      include: { champion: { select: { name: true, alias: true } } },
     });
     if (!row) {
       throw new Error(`unknown ability ${championId}/${slot}/${abilityIndex}`);
     }
+    const slug = normalizeChampionAlias(row.champion.alias).toLowerCase();
+    const cdragonUrl = `${CDRAGON_CDN}/champion/${slug}/ability-icon/${slot.toLowerCase()}`;
     return {
-      urls: [wikiAbilityIconUrl(row.champion.name, row.name)],
+      urls: [wikiAbilityIconUrl(row.champion.name, row.name), cdragonUrl],
       params: { width: 40, quality: 85 },
     };
   }
@@ -189,6 +193,7 @@ export class LolImageService {
   // The resolver re-derives the MD5 bucket dirs so the URL stays a clean
   // `filename.png`-shaped identifier on the proxy boundary. Filename is
   // validated as a wiki-safe slug to keep arbitrary paths off the proxy.
+  // Single-upstream intentionally — no second source serves wiki file assets.
   wikiFile(filename: string): Resolved {
     if (!/^[A-Za-z0-9_.\-%']+$/.test(filename)) {
       throw new Error(`invalid wiki filename ${filename}`);
@@ -201,6 +206,7 @@ export class LolImageService {
 
   // Minimap art. Deterministic from `mapId` — no Prisma lookup. Throws when
   // the mapId isn't recognised (only 11/12 today) so the controller can 400.
+  // Single-upstream intentionally — DDragon/CDragon do not ship minimap art.
   map(mapId: number): Resolved {
     const url = wikiMinimapUrl(mapId);
     if (!url) {
@@ -211,6 +217,7 @@ export class LolImageService {
 
   // Ranked tier emblem. `year` lets a future emblem redesign land via URL
   // bump only — `wikiRankedEmblemUrl` does the title-casing.
+  // Single-upstream intentionally — DDragon/CDragon do not ship rank emblems.
   rankEmblem(tier: string, year: number): Resolved {
     return {
       urls: [wikiRankedEmblemUrl(tier, year)],
@@ -220,6 +227,7 @@ export class LolImageService {
 
   // UI singleton icons (gold/cs/vision/kills). Deterministic switch on the
   // canonical name — keeps the route's `:name` param to a closed set.
+  // Single-upstream intentionally — these wiki UI icons have no CDragon/DDragon equivalent.
   uiIcon(name: UiIconName): Resolved {
     const url =
       name === "gold"

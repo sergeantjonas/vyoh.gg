@@ -222,26 +222,42 @@ describe("LolImageService.uiIcon", () => {
 });
 
 describe("LolImageService.ability", () => {
-  it("builds the wiki ability URL from the DB row's champion + ability names", async () => {
+  it("returns wiki-first + CDragon fallback for a normal slot", async () => {
     const { service, prisma } = makeService([], {
       championId: 103,
       slot: "Q",
       abilityIndex: 1,
       name: "Orb of Deception",
       iconWikiName: null,
-      champion: { name: "Ahri" },
+      champion: { name: "Ahri", alias: "Ahri" },
     });
     const resolved = await service.ability(103, "Q", 1);
     expect(resolved.urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Ahri_Orb_of_Deception.png",
+      "https://cdn.communitydragon.org/latest/champion/ahri/ability-icon/q",
     ]);
     expect(resolved.params).toEqual({ width: 40, quality: 85 });
     expect(prisma.lolChampionAbility.findUnique).toHaveBeenCalledWith({
       where: {
         championId_slot_abilityIndex: { championId: 103, slot: "Q", abilityIndex: 1 },
       },
-      include: { champion: { select: { name: true } } },
+      include: { champion: { select: { name: true, alias: true } } },
     });
+  });
+
+  it("lowercases Passive slot and compound alias for CDragon URL", async () => {
+    const { service } = makeService([], {
+      championId: 59,
+      slot: "Passive",
+      abilityIndex: 0,
+      name: "Martial Cadence",
+      iconWikiName: null,
+      champion: { name: "Jarvan IV", alias: "JarvanIV" },
+    });
+    const resolved = await service.ability(59, "Passive", 0);
+    expect(resolved.urls[1]).toBe(
+      "https://cdn.communitydragon.org/latest/champion/jarvaniv/ability-icon/passive"
+    );
   });
 
   it("throws when the ability row does not exist", async () => {
