@@ -5,10 +5,24 @@ import { MatchBaselineService, winsorizedMedian } from "./match-baseline.service
 
 const PUUID = "test-puuid";
 
-function makeService(matchRows: unknown[]): MatchBaselineService {
+function makeDetailRows(matchIds: string[], timeDeadPerMatch: number[]): unknown[] {
+  return matchIds.map((matchId, i) => ({
+    matchId,
+    detail: {
+      info: {
+        participants: [{ puuid: PUUID, totalTimeSpentDead: timeDeadPerMatch[i] ?? 0 }],
+      },
+    },
+  }));
+}
+
+function makeService(matchRows: unknown[], detailRows?: unknown[]): MatchBaselineService {
   const prisma = {
     match: {
       findMany: vi.fn().mockResolvedValue(matchRows),
+    },
+    matchDetailCache: {
+      findMany: vi.fn().mockResolvedValue(detailRows ?? []),
     },
   } as unknown as PrismaService;
   const lol = {
@@ -19,6 +33,7 @@ function makeService(matchRows: unknown[]): MatchBaselineService {
 
 function makeRow(
   overrides: Partial<{
+    matchId: string;
     kills: number;
     deaths: number;
     assists: number;
@@ -29,6 +44,7 @@ function makeRow(
   }> = {}
 ) {
   return {
+    matchId: "EUW1_1",
     kills: 5,
     deaths: 2,
     assists: 8,
@@ -141,5 +157,22 @@ describe("MatchBaselineService.getBaseline", () => {
     expect(result.state).toBe("full");
     // Median of 5× 0.3 = 0.3
     expect(result.damageShare).toBeCloseTo(0.3, 5);
+  });
+
+  it("includes timeDead from detail cache when available", async () => {
+    const matchIds = Array.from({ length: 5 }, (_, i) => `EUW1_${i + 1}`);
+    const rows = matchIds.map((matchId) => makeRow({ matchId, teamPosition: "MIDDLE" }));
+    const detailRows = makeDetailRows(matchIds, [60, 90, 120, 90, 60]);
+    const svc = makeService(rows, detailRows);
+    const result = await svc.getBaseline(...ARGS);
+    // Median of [60, 60, 90, 90, 120] = 90
+    expect(result.timeDead).toBeCloseTo(90, 5);
+  });
+
+  it("omits timeDead when detail cache has no matching rows", async () => {
+    const rows = Array.from({ length: 5 }, () => makeRow({ teamPosition: "MIDDLE" }));
+    const svc = makeService(rows, []);
+    const result = await svc.getBaseline(...ARGS);
+    expect(result.timeDead).toBeUndefined();
   });
 });

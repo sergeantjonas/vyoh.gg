@@ -18,4 +18,6 @@ export interface MatchBaseline {
   csAt10?: number;
   /** Winsorized median vision score; undefined when state is "first-game" */
   visionScore?: number;
+  /** Winsorized median total time spent dead (seconds); undefined when state is "first-game" */
+  timeDead?: number;
 }

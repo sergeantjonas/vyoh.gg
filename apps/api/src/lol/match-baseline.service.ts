@@ -43,6 +43,7 @@ export class MatchBaselineService {
         teamPosition: { not: "" },
       },
       select: {
+        matchId: true,
         kills: true,
         deaths: true,
         assists: true,
@@ -59,6 +60,26 @@ export class MatchBaselineService {
       return { state: "first-game", sampleSize: 0 };
     }
 
+    // Second query: fetch totalTimeSpentDead from the detail cache for the
+    // same matchIds. One IN query — not N+1. The field lives in the raw Riot
+    // JSON, not in the Match summary row.
+    type DetailJson = {
+      info: { participants: Array<{ puuid: string; totalTimeSpentDead: number }> };
+    };
+    const detailRows = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: rows.map((r) => r.matchId) } },
+      select: { matchId: true, detail: true },
+    });
+    const timeDeadByMatchId = new Map<string, number>();
+    for (const dr of detailRows) {
+      const p = (dr.detail as DetailJson).info?.participants?.find(
+        (participant) => participant.puuid === summoner.puuid
+      );
+      if (p?.totalTimeSpentDead !== undefined) {
+        timeDeadByMatchId.set(dr.matchId, p.totalTimeSpentDead);
+      }
+    }
+
     const sameRole = rows.filter((r) => r.teamPosition === role);
     const useRows = sameRole.length >= SAMPLE_MIN ? sameRole : rows;
     const state =
@@ -72,6 +93,10 @@ export class MatchBaselineService {
       return { state, sampleSize: useRows.length };
     }
 
+    const timeDeadValues = useRows
+      .map((r) => timeDeadByMatchId.get(r.matchId))
+      .filter((v): v is number => v !== undefined);
+
     return {
       state,
       sampleSize: useRows.length,
@@ -81,6 +106,9 @@ export class MatchBaselineService {
       damageShare: winsorizedMedian(useRows.map((r) => r.damageShare)),
       csAt10: winsorizedMedian(useRows.map((r) => r.csAt10)),
       visionScore: winsorizedMedian(useRows.map((r) => r.visionScore)),
+      ...(timeDeadValues.length > 0
+        ? { timeDead: winsorizedMedian(timeDeadValues) }
+        : {}),
     };
   }
 }

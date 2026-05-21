@@ -636,10 +636,23 @@ type BaselineTile = {
   thisGame: number;
   baseline: number;
   format: (v: number) => string;
+  lowerIsBetter?: boolean;
 };
 
+function fmtSeconds(v: number): string {
+  return v < 60
+    ? `${Math.round(v)}s`
+    : `${Math.floor(v / 60)}m ${String(Math.round(v % 60)).padStart(2, "0")}s`;
+}
+
 function buildBaselineTiles(
-  thisGame: { kda: number; damageShare: number; csAt10: number; visionScore: number },
+  thisGame: {
+    kda: number;
+    damageShare: number;
+    csAt10: number;
+    visionScore: number;
+    timeDead: number | undefined;
+  },
   baseline: MatchBaseline
 ): BaselineTile[] {
   if (
@@ -650,7 +663,7 @@ function buildBaselineTiles(
   ) {
     return [];
   }
-  return [
+  const tiles: BaselineTile[] = [
     {
       label: "KDA",
       thisGame: thisGame.kda,
@@ -676,6 +689,16 @@ function buildBaselineTiles(
       format: (v) => String(Math.round(v)),
     },
   ];
+  if (thisGame.timeDead !== undefined && baseline.timeDead !== undefined) {
+    tiles.push({
+      label: "Time dead",
+      thisGame: thisGame.timeDead,
+      baseline: baseline.timeDead,
+      format: fmtSeconds,
+      lowerIsBetter: true,
+    });
+  }
+  return tiles;
 }
 
 function BaselineDeviationPanel({
@@ -688,7 +711,13 @@ function BaselineDeviationPanel({
   championAlias: string | undefined;
   role: string | undefined;
   thisGame:
-    | { kda: number; damageShare: number; csAt10: number; visionScore: number }
+    | {
+        kda: number;
+        damageShare: number;
+        csAt10: number;
+        visionScore: number;
+        timeDead: number | undefined;
+      }
     | undefined;
 }) {
   const { data: baseline, isPending } = useMatchBaseline(account, championAlias, role);
@@ -723,12 +752,14 @@ function BaselineDeviationPanel({
       </div>
       {isPending && !baseline ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(["KDA", "Damage share", "CS @ 10", "Vision score"] as const).map((label) => (
-            <div
-              key={label}
-              className="h-16 animate-pulse rounded-lg border border-border/50 bg-muted/30"
-            />
-          ))}
+          {(["KDA", "Damage share", "CS @ 10", "Vision score", "Time dead"] as const).map(
+            (label) => (
+              <div
+                key={label}
+                className="h-16 animate-pulse rounded-lg border border-border/50 bg-muted/30"
+              />
+            )
+          )}
         </div>
       ) : baseline?.state === "first-game" ? (
         <p className="text-sm italic text-muted-foreground">
@@ -740,7 +771,7 @@ function BaselineDeviationPanel({
             const rel =
               (tile.thisGame - tile.baseline) / Math.max(0.01, Math.abs(tile.baseline));
             const showDelta = Math.abs(rel) >= 0.05;
-            const positive = rel >= 0;
+            const better = tile.lowerIsBetter ? rel <= 0 : rel >= 0;
             return (
               <div
                 key={tile.label}
@@ -755,10 +786,10 @@ function BaselineDeviationPanel({
                     <span
                       className={cn(
                         "text-xs font-medium tabular-nums",
-                        positive ? "text-emerald-400" : "text-red-400"
+                        better ? "text-emerald-400" : "text-red-400"
                       )}
                     >
-                      {positive ? "+" : ""}
+                      {rel >= 0 ? "+" : ""}
                       {Math.round(rel * 100)}%
                     </span>
                   )}
@@ -914,6 +945,7 @@ export function MatchReviewView({
                   damageShare: summary.damageShare,
                   csAt10: summary.csAt10,
                   visionScore: summary.visionScore,
+                  timeDead: ownerDetail?.owner?.survival.totalTimeSpentDead,
                 }
               : undefined
           }
