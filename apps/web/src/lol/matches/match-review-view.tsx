@@ -6,6 +6,8 @@ import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import type {
+  LolAccount,
+  MatchBaseline,
   MatchDetail,
   MatchSummary,
   MatchTimelineProjection,
@@ -24,6 +26,7 @@ import {
 } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { type MouseEvent, useMemo, useState } from "react";
+import { useMatchBaseline } from "./use-match-baseline";
 
 // Summoner's Rift queues — lane-phase review makes sense for these.
 const SR_QUEUES = new Set([
@@ -626,14 +629,162 @@ function MomentHighlightsStrip({ owner }: { owner: ParticipantOwnerExtras | unde
   );
 }
 
+// --- Baseline deviation panel ---
+
+type BaselineTile = {
+  label: string;
+  thisGame: number;
+  baseline: number;
+  format: (v: number) => string;
+};
+
+function buildBaselineTiles(
+  thisGame: { kda: number; damageShare: number; csAt10: number; visionScore: number },
+  baseline: MatchBaseline
+): BaselineTile[] {
+  if (
+    !baseline.kda ||
+    !baseline.damageShare ||
+    !baseline.csAt10 ||
+    !baseline.visionScore
+  ) {
+    return [];
+  }
+  return [
+    {
+      label: "KDA",
+      thisGame: thisGame.kda,
+      baseline: baseline.kda,
+      format: (v) => v.toFixed(2),
+    },
+    {
+      label: "Damage share",
+      thisGame: thisGame.damageShare,
+      baseline: baseline.damageShare,
+      format: (v) => `${Math.round(v * 100)}%`,
+    },
+    {
+      label: "CS @ 10",
+      thisGame: thisGame.csAt10,
+      baseline: baseline.csAt10,
+      format: (v) => String(Math.round(v)),
+    },
+    {
+      label: "Vision score",
+      thisGame: thisGame.visionScore,
+      baseline: baseline.visionScore,
+      format: (v) => String(Math.round(v)),
+    },
+  ];
+}
+
+function BaselineDeviationPanel({
+  account,
+  championAlias,
+  role,
+  thisGame,
+}: {
+  account: LolAccount | undefined;
+  championAlias: string | undefined;
+  role: string | undefined;
+  thisGame:
+    | { kda: number; damageShare: number; csAt10: number; visionScore: number }
+    | undefined;
+}) {
+  const { data: baseline, isPending } = useMatchBaseline(account, championAlias, role);
+
+  const ROLE_LABEL: Record<string, string> = {
+    TOP: "Top",
+    JUNGLE: "Jungle",
+    MIDDLE: "Mid",
+    BOTTOM: "Bot",
+    UTILITY: "Support",
+  };
+
+  const tiles =
+    baseline &&
+    thisGame &&
+    (baseline.state === "full" || baseline.state === "champion-only")
+      ? buildBaselineTiles(thisGame, baseline)
+      : [];
+
+  const subtext =
+    baseline?.state === "full"
+      ? `vs. your ${baseline.sampleSize} games as ${championAlias} ${ROLE_LABEL[role ?? ""] ?? role}`
+      : baseline?.state === "champion-only"
+        ? `vs. your ${baseline.sampleSize} ${championAlias} games (any role)`
+        : null;
+
+  return (
+    <>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-sm font-medium">Your baseline</span>
+        {subtext && <span className="text-xs text-muted-foreground">{subtext}</span>}
+      </div>
+      {isPending && !baseline ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(["KDA", "Damage share", "CS @ 10", "Vision score"] as const).map((label) => (
+            <div
+              key={label}
+              className="h-16 animate-pulse rounded-lg border border-border/50 bg-muted/30"
+            />
+          ))}
+        </div>
+      ) : baseline?.state === "first-game" ? (
+        <p className="text-sm italic text-muted-foreground">
+          First tracked game on this champion.
+        </p>
+      ) : tiles.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {tiles.map((tile) => {
+            const rel =
+              (tile.thisGame - tile.baseline) / Math.max(0.01, Math.abs(tile.baseline));
+            const showDelta = Math.abs(rel) >= 0.05;
+            const positive = rel >= 0;
+            return (
+              <div
+                key={tile.label}
+                className="flex flex-col gap-1 rounded-lg border border-border/50 bg-card/50 px-3 py-2.5"
+              >
+                <span className="text-xs text-muted-foreground">{tile.label}</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-semibold tabular-nums">
+                    {tile.format(tile.thisGame)}
+                  </span>
+                  {showDelta && (
+                    <span
+                      className={cn(
+                        "text-xs font-medium tabular-nums",
+                        positive ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {positive ? "+" : ""}
+                      {Math.round(rel * 100)}%
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs tabular-nums text-muted-foreground/70">
+                  avg {tile.format(tile.baseline)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 // --- Main view ---
 
 export function MatchReviewView({
+  account,
   detail,
   myPuuid,
   summary,
   timeline,
 }: {
+  account: LolAccount | undefined;
   detail: MatchDetail;
   myPuuid: string | undefined;
   summary: MatchSummary | undefined;
@@ -749,6 +900,24 @@ export function MatchReviewView({
 
       <section aria-label="Moment highlights">
         <MomentHighlightsStrip owner={ownerDetail?.owner} />
+      </section>
+
+      <section aria-label="Personal baselines">
+        <BaselineDeviationPanel
+          account={account}
+          championAlias={ownerDetail?.championName}
+          role={ownerDetail?.teamPosition}
+          thisGame={
+            summary
+              ? {
+                  kda: (summary.kills + summary.assists) / Math.max(1, summary.deaths),
+                  damageShare: summary.damageShare,
+                  csAt10: summary.csAt10,
+                  visionScore: summary.visionScore,
+                }
+              : undefined
+          }
+        />
       </section>
 
       <section aria-label="Phase verdicts">

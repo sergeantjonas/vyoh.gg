@@ -5,6 +5,7 @@ import {
   getLateVerdict,
   getMidVerdict,
 } from "@/lol/matches/match-review-view";
+import { useMatchBaseline } from "@/lol/matches/use-match-baseline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type {
@@ -16,7 +17,11 @@ import type {
 } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lol/matches/use-match-baseline", () => ({
+  useMatchBaseline: vi.fn().mockReturnValue({ data: undefined, isPending: false }),
+}));
 
 // --- Fixtures ---
 
@@ -500,6 +505,7 @@ function renderReview(
     <TooltipPrimitive.Provider>
       <MotionConfig reducedMotion="always">
         <MatchReviewView
+          account={undefined}
           detail={detail}
           myPuuid="owner-puuid"
           summary={summary}
@@ -619,5 +625,88 @@ describe("MatchReviewView", () => {
     const { container } = renderReview();
     const results = await axe(container);
     expect(results.violations).toHaveLength(0);
+  });
+});
+
+describe("BaselineDeviationPanel", () => {
+  const mockBaseline = vi.mocked(useMatchBaseline);
+
+  const ACCOUNT = {
+    slug: "euw1-ahri-euw",
+    region: "euw1",
+    gameName: "Ahri",
+    tagLine: "EUW",
+  };
+
+  function renderWithBaseline(baselineData: Partial<ReturnType<typeof mockBaseline>>) {
+    mockBaseline.mockReturnValue(baselineData as ReturnType<typeof mockBaseline>);
+    const summary = makeSummary({
+      kills: 5,
+      deaths: 2,
+      assists: 8,
+      damageShare: 0.28,
+      csAt10: 72,
+      visionScore: 25,
+    });
+    const detail = makeDetail();
+    return render(
+      <TooltipPrimitive.Provider>
+        <MotionConfig reducedMotion="always">
+          <MatchReviewView
+            account={ACCOUNT}
+            detail={detail}
+            myPuuid="owner-puuid"
+            summary={summary}
+            timeline={undefined}
+          />
+        </MotionConfig>
+      </TooltipPrimitive.Provider>
+    );
+  }
+
+  it("shows first-game text when no prior games on champion", () => {
+    renderWithBaseline({
+      data: { state: "first-game", sampleSize: 0 },
+      isPending: false,
+    });
+    expect(screen.getByText(/first tracked game/i)).not.toBeNull();
+  });
+
+  it("renders 4 metric tiles in full state", () => {
+    renderWithBaseline({
+      data: {
+        state: "full",
+        sampleSize: 10,
+        kda: 4.5,
+        damageShare: 0.25,
+        csAt10: 68,
+        visionScore: 22,
+      },
+      isPending: false,
+    });
+    expect(screen.getByText("KDA")).not.toBeNull();
+    expect(screen.getByText("Damage share")).not.toBeNull();
+    expect(screen.getByText("CS @ 10")).not.toBeNull();
+    expect(screen.getByText("Vision score")).not.toBeNull();
+  });
+
+  it("shows champion-only subtext when fewer than 5 role games", () => {
+    renderWithBaseline({
+      data: {
+        state: "champion-only",
+        sampleSize: 6,
+        kda: 3.0,
+        damageShare: 0.22,
+        csAt10: 65,
+        visionScore: 20,
+      },
+      isPending: false,
+    });
+    expect(screen.getByText(/any role/i)).not.toBeNull();
+  });
+
+  it("renders skeleton tiles while pending", () => {
+    renderWithBaseline({ data: undefined, isPending: true });
+    expect(screen.getByText("Your baseline")).not.toBeNull();
   });
 });
