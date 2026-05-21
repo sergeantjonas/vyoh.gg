@@ -469,3 +469,19 @@ model LolPerk {
   missingSyncCycles      Int      @default(0)
   retiredAt              DateTime?
 }
+
+// Profile icons — sourced from wiki `Module:IconData/data`. `id` is Riot's
+// numeric profileIconId returned by the Summoner-V4 API; `title` is the
+// wiki's editorial title (the key under which it appears in the module),
+// which doubles as the image filename slug — wiki serves
+// `{Title with underscores}_profileicon.png` for every entry. `availability`
+// / `release` are kept for future filtering (Available vs Legacy vs Limited;
+// chronological grouping). No DDragon bridge: wiki self-identifies these by
+// id alone, the same way item rows do.
+model LolProfileIcon {
+  id           Int      @id
+  title        String
+  availability String?
+  release      Int?
+  wikiSyncedAt DateTime
+}

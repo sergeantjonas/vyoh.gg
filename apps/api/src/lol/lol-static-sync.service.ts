@@ -11,8 +11,10 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import {
   type ParsedItem,
+  type ParsedProfileIcon,
   parseAbilityTemplate,
   parseChampionAbilityModule,
+  parseIconDataModule,
   parseItemDataModule,
 } from "./lol-static-parsers";
 import { truncateVersion } from "./patch.service";
@@ -88,6 +90,7 @@ export class LolStaticSyncService {
     abilityDescriptions: number;
     summonerSpells: number;
     perks: number;
+    profileIcons: number;
   }> {
     const ddragonVersion = await this.fetchLatestDdragonVersion();
     const patchVersion = truncateVersion(ddragonVersion);
@@ -101,11 +104,12 @@ export class LolStaticSyncService {
     const abilityDescriptions = await this.syncChampionAbilityDescriptions(patchVersion);
     const summonerSpells = await this.syncSummonerSpells(ddragonVersion);
     const perks = await this.syncPerks(ddragonVersion);
+    const profileIcons = await this.syncProfileIcons();
 
     this.logger.log(
       `Static sync ${patchVersion}: items=${items}, champions=${champions}, ` +
         `abilityDescriptions=${abilityDescriptions}, ` +
-        `summonerSpells=${summonerSpells}, perks=${perks}`
+        `summonerSpells=${summonerSpells}, perks=${perks}, profileIcons=${profileIcons}`
     );
 
     return {
@@ -115,6 +119,7 @@ export class LolStaticSyncService {
       abilityDescriptions,
       summonerSpells,
       perks,
+      profileIcons,
     };
   }
 
@@ -299,6 +304,49 @@ export class LolStaticSyncService {
     }
     await this.bumpMissingCycles("lolSummonerSpell", seenIds, now);
     return written;
+  }
+
+  // Profile icons come straight from the wiki (no DDragon bridge — wiki
+  // identifies icons by their numeric id directly, the same way items do).
+  // `Module:IconData/data` is ~540KB / ~2400 icons; one bulk fetch per cron
+  // tick. Icons are never *removed* from the module on wiki — editorial
+  // history is preserved indefinitely — so no `missingSyncCycles` /
+  // `retiredAt` plumbing is needed, unlike the perk + summoner-spell paths.
+  async syncProfileIcons(): Promise<number> {
+    const lua = await this.fetchWikiModule("Module:IconData/data");
+    const parsed = parseIconDataModule(lua);
+    if (parsed.length === 0) {
+      this.logger.warn("Module:IconData/data parsed to 0 icons — skipping upsert");
+      return 0;
+    }
+    const now = new Date();
+    let written = 0;
+    for (const icon of parsed) {
+      try {
+        await this.upsertProfileIcon(icon, now);
+        written++;
+      } catch (err) {
+        this.logger.warn(
+          `Profile-icon upsert failed for ${icon.title} (${icon.id})`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
+    return written;
+  }
+
+  private async upsertProfileIcon(icon: ParsedProfileIcon, now: Date): Promise<void> {
+    const data = {
+      title: icon.title,
+      availability: icon.availability,
+      release: icon.release,
+      wikiSyncedAt: now,
+    };
+    await this.prisma.lolProfileIcon.upsert({
+      where: { id: icon.id },
+      create: { id: icon.id, ...data },
+      update: data,
+    });
   }
 
   async syncPerks(ddragonVersion: string): Promise<number> {

@@ -3,6 +3,7 @@ import type { PrismaService } from "../prisma/prisma.service";
 import {
   parseAbilityTemplate,
   parseChampionAbilityModule,
+  parseIconDataModule,
   parseItemDataModule,
 } from "./lol-static-parsers";
 import { LolStaticSyncService } from "./lol-static-sync.service";
@@ -126,6 +127,51 @@ return {
   });
 });
 
+describe("parseIconDataModule", () => {
+  it("parses an icon row with id, availability, and release", () => {
+    const lua = `
+return {
+  ["00 Reactivated"] = {
+    ["id"] = 1132,
+    ["set"] = {"Mechas vs Kaiju"},
+    ["availability"] = "Available",
+    ["release"] = 2016,
+  },
+}
+`.trim();
+    const icons = parseIconDataModule(lua);
+    expect(icons).toEqual([
+      { id: 1132, title: "00 Reactivated", availability: "Available", release: 2016 },
+    ]);
+  });
+
+  it("preserves diacritics and special characters in editorial titles", () => {
+    const lua = `
+return {
+  ["1907 Fenerbahçe 2017 (Gold)"] = {
+    ["id"] = 1542,
+    ["availability"] = "Unavailable",
+  },
+}
+`.trim();
+    const icons = parseIconDataModule(lua);
+    expect(icons).toHaveLength(1);
+    expect(icons[0]?.title).toBe("1907 Fenerbahçe 2017 (Gold)");
+    expect(icons[0]?.release).toBeNull();
+  });
+
+  it("skips entries without an id", () => {
+    const lua = `
+return {
+  ["Real"] = { ["id"] = 42, ["availability"] = "Available" },
+  ["Malformed"] = { ["availability"] = "Available" },
+}
+`.trim();
+    const icons = parseIconDataModule(lua);
+    expect(icons.map((i) => i.id)).toEqual([42]);
+  });
+});
+
 describe("parseAbilityTemplate", () => {
   it("extracts description + icon, preserving nested wiki templates inside the value", () => {
     const wikitext = `{{{{{1<noinclude>|Ability data</noinclude>}}}|Orb of Deception|{{{2|}}}|{{{3|}}}|{{{4|}}}|{{{5|}}}
@@ -194,6 +240,10 @@ interface PrismaStubs {
     findMany: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  lolProfileIcon: {
+    upsert: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
   $transaction: ReturnType<typeof vi.fn>;
 }
 
@@ -222,6 +272,10 @@ function makePrisma(): PrismaStubs {
       upsert: vi.fn().mockResolvedValue({}),
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
+    },
+    lolProfileIcon: {
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     $transaction: vi.fn().mockResolvedValue([]),
   };
@@ -402,6 +456,63 @@ return {
       { id: 8005, slot: "Keystone", path: "Precision" },
       { id: 9101, slot: "Slot1", path: "Precision" },
     ]);
+  });
+
+  it("syncs profile icons end-to-end from the bulk wiki module", async () => {
+    const prisma = makePrisma();
+    const lua = `
+return {
+  ["00 Reactivated"] = {
+    ["id"] = 1132,
+    ["set"] = {"Mechas vs Kaiju"},
+    ["availability"] = "Available",
+    ["release"] = 2016,
+  },
+  ["1907 Fenerbahçe 2017"] = {
+    ["id"] = 1534,
+    ["availability"] = "Unavailable",
+    ["release"] = 2017,
+  },
+}
+`.trim();
+    fetchSpy.mockResolvedValueOnce(wikiModuleResponse(lua));
+
+    const written = await makeService(prisma).syncProfileIcons();
+    expect(written).toBe(2);
+    expect(prisma.lolProfileIcon.upsert).toHaveBeenCalledTimes(2);
+    const calls = prisma.lolProfileIcon.upsert.mock.calls.map(([c]) => ({
+      id: c.where.id,
+      title: c.create.title,
+      availability: c.create.availability,
+      release: c.create.release,
+    }));
+    expect(calls).toEqual([
+      { id: 1132, title: "00 Reactivated", availability: "Available", release: 2016 },
+      {
+        id: 1534,
+        title: "1907 Fenerbahçe 2017",
+        availability: "Unavailable",
+        release: 2017,
+      },
+    ]);
+  });
+
+  it("one profile-icon upsert failure does not abort the rest", async () => {
+    const prisma = makePrisma();
+    prisma.lolProfileIcon.upsert
+      .mockRejectedValueOnce(new Error("constraint violation"))
+      .mockResolvedValueOnce({});
+    const lua = `
+return {
+  ["Bad"] = { ["id"] = 1 },
+  ["Good"] = { ["id"] = 2 },
+}
+`.trim();
+    fetchSpy.mockResolvedValueOnce(wikiModuleResponse(lua));
+
+    const written = await makeService(prisma).syncProfileIcons();
+    expect(written).toBe(1);
+    expect(prisma.lolProfileIcon.upsert).toHaveBeenCalledTimes(2);
   });
 
   it("joins champion DDragon rows with wiki ability rows by display name", async () => {

@@ -30,6 +30,13 @@ export interface ParsedAbilityTemplate {
   icon: string | null;
 }
 
+export interface ParsedProfileIcon {
+  id: number;
+  title: string;
+  availability: string | null;
+  release: number | null;
+}
+
 const SKILL_SLOT: Record<string, ParsedAbility["slot"]> = {
   i: "Passive",
   q: "Q",
@@ -76,6 +83,14 @@ function findFieldValueStart(block: string, key: string): number {
   const m = re.exec(block);
   if (!m) return -1;
   return m.index + m[0].length;
+}
+
+function parseStringField(block: string, key: string): string | null {
+  const start = findFieldValueStart(block, key);
+  if (start < 0) return null;
+  const m = block.slice(start).match(/^"((?:[^"\\]|\\.)*)"/);
+  if (!m || m[1] === undefined) return null;
+  return m[1].replaceAll('\\"', '"').replaceAll("\\\\", "\\");
 }
 
 function parseIntField(block: string, key: string): number | null {
@@ -210,6 +225,27 @@ export function parseItemDataModule(lua: string): ParsedItem[] {
       categories: parseRecordKeys(block, "menu"),
       stats: parseNumericRecord(block, "stats"),
       descriptionWikitext: parseFirstDescription(block),
+    });
+  }
+  return results;
+}
+
+// Parse `Module:IconData/data` into one record per profile icon. The wiki
+// keys entries by editorial title (e.g. `"Fenerbahçe 2017"`), which doubles
+// as the image filename slug — `{Title}_profileicon.png` resolves under
+// `wiki.leagueoflegends.com/en-us/images/`. `id` matches Riot's numeric
+// profileIconId returned by Summoner-V4. Entries without an `id` field
+// (rare malformed rows) are skipped silently.
+export function parseIconDataModule(lua: string): ParsedProfileIcon[] {
+  const results: ParsedProfileIcon[] = [];
+  for (const { name, block } of enumerateTopLevelEntries(lua)) {
+    const id = parseIntField(block, "id");
+    if (id === null) continue;
+    results.push({
+      id,
+      title: name,
+      availability: parseStringField(block, "availability"),
+      release: parseIntField(block, "release"),
     });
   }
   return results;
