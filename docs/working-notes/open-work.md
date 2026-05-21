@@ -23,6 +23,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### Cross-cutting
 
+- **Unified image fallback (partial)** — proxy-routing landed 2026-05-21 (zero direct-to-wiki render URLs in `apps/web/src`), but the deeper ambition is incomplete: items/runes/summoner-spells/champion-card/champion-backdrop still resolve from DDragon/CDragon as sole upstream, and ability/map/rank/UI routes are wiki-primary but single-element (no fallback when wiki blinks). Four chunks remaining: items+runes onto wiki primary, summoner-spell coverage probe, champion card/backdrop coverage probe, wire ability+items+runes fallbacks. → [unified-image-fallback.md](lol/unified-image-fallback.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
 
 ### Pre-deploy / admin
