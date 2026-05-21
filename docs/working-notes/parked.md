@@ -42,10 +42,6 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 - **Magnetic hover on key buttons** — cursor proximity pulls the button. High gimmick risk; one or two hero CTAs at most. Revisit only when other polish is complete. → [motion-backlog.md](cross-cutting/motion-backlog.md)
 - **First-visit cascade reveal across Trends layout** — header → summary → chart → list staggered cascade with per-session suppression. Parked alongside the shipped Trends entrance. → [motion-backlog.md](cross-cutting/motion-backlog.md)
 
-### Image pipeline tail
-
-- **Unified image fallback** — proposed 2026-05-21 immediately after the profile-icon resolver shipped. Today `apps/web` routes some LoL images through the project image proxy (champions, items, profile icons, runes, summoner spells, role icons) and some directly to wiki (ability icons, live-tab champion squares, minimaps, ranked emblems, gold/minion/ward/attack icons). Owner principle: *the image proxy should always route images, with the fallback chain as the failure-tolerance layer.* Surface inventory + per-helper proxy-route plan already written. Trigger: a wiki blink visibly degrades the ability tooltips or rank tiles, or hosting work starts (the proxy hides upstream from the browser, which matters more once we have real users). → [unified-image-fallback.md](lol/unified-image-fallback.md)
-
 ### Library / dependency picks
 
 - **Recharts → visx consolidation** — 77 kB lazy chunk; both libraries coexist by design (visx for non-stock viz, Recharts for stock cases). Not a "park then ship" — this is a deliberate co-existence. → [library-shortlist.md](cross-cutting/library-shortlist.md)
