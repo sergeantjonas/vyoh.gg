@@ -6,6 +6,22 @@ export interface RiotAccount {
 
 export interface RiotChallenges {
   killParticipation?: number;
+  soloKills?: number;
+  outnumberedKills?: number;
+  survivedSingleDigitHpCount?: number;
+  effectiveHealAndShielding?: number;
+  enemyChampionImmobilizations?: number;
+  damagePerMinute?: number;
+  laneMinionsFirst10Minutes?: number;
+  skillshotsHit?: number;
+  skillshotsDodged?: number;
+  maxCsAdvantageOnLaneOpponent?: number;
+  maxLevelLeadLaneOpponent?: number;
+  visionScoreAdvantageLaneOpponent?: number;
+  dragonTakedowns?: number;
+  baronTakedowns?: number;
+  riftHeraldTakedowns?: number;
+  timeCCingOthers?: number;
 }
 
 export interface RiotMatchParticipant {
@@ -42,6 +58,24 @@ export interface RiotMatchParticipant {
   summoner1Id: number;
   summoner2Id: number;
   champLevel: number;
+  spell1Casts: number;
+  spell2Casts: number;
+  spell3Casts: number;
+  spell4Casts: number;
+  summoner1Casts: number;
+  summoner2Casts: number;
+  doubleKills: number;
+  tripleKills: number;
+  quadraKills: number;
+  pentaKills: number;
+  killingSprees: number;
+  largestKillingSpree: number;
+  totalDamageTaken: number;
+  damageSelfMitigated: number;
+  totalHeal: number;
+  totalTimeCCDealt: number;
+  totalTimeSpentDead: number;
+  longestTimeSpentLiving: number;
   perks: {
     styles: {
       selections: { perk: number }[];

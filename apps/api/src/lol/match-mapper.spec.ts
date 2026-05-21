@@ -1,5 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
-import type { RiotMatch, RiotMatchParticipant } from "../riot/types";
+import type {
+  RiotMatch,
+  RiotMatchParticipant,
+  RiotMatchParticipantOther,
+  RiotMatchParticipantOwner,
+  StoredMatch,
+} from "../riot/types";
 import { riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 
 function buildParticipant(
@@ -39,7 +45,72 @@ function buildParticipant(
     summoner1Id: 4,
     summoner2Id: 14,
     champLevel: 18,
+    spell1Casts: 0,
+    spell2Casts: 0,
+    spell3Casts: 0,
+    spell4Casts: 0,
+    summoner1Casts: 0,
+    summoner2Casts: 0,
+    doubleKills: 0,
+    tripleKills: 0,
+    quadraKills: 0,
+    pentaKills: 0,
+    killingSprees: 0,
+    largestKillingSpree: 0,
+    totalDamageTaken: 0,
+    damageSelfMitigated: 0,
+    totalHeal: 0,
+    totalTimeCCDealt: 0,
+    totalTimeSpentDead: 0,
+    longestTimeSpentLiving: 0,
     perks: { styles: [{ selections: [{ perk: 8214 }] }] },
+    ...overrides,
+  };
+}
+
+function buildOwner(
+  overrides: Partial<RiotMatchParticipant> = {}
+): RiotMatchParticipantOwner {
+  return { ...buildParticipant(overrides), isOwner: true as const };
+}
+
+function buildOther(
+  overrides: Partial<RiotMatchParticipantOther> = {}
+): RiotMatchParticipantOther {
+  return {
+    isOwner: false,
+    puuid: "puuid-other",
+    riotIdGameName: "Other",
+    riotIdTagline: "EUW",
+    championName: "Lux",
+    teamId: 200,
+    teamPosition: "BOTTOM",
+    kills: 4,
+    deaths: 6,
+    assists: 9,
+    win: false,
+    item0: 0,
+    item1: 0,
+    item2: 0,
+    item3: 0,
+    item4: 0,
+    item5: 0,
+    item6: 0,
+    goldEarned: 9000,
+    totalDamageDealtToChampions: 18000,
+    physicalDamageDealtToChampions: 4000,
+    magicDamageDealtToChampions: 12000,
+    trueDamageDealtToChampions: 2000,
+    totalMinionsKilled: 140,
+    neutralMinionsKilled: 0,
+    visionScore: 18,
+    wardsPlaced: 6,
+    wardsKilled: 2,
+    detectorWardsPlaced: 1,
+    summoner1Id: 4,
+    summoner2Id: 7,
+    champLevel: 15,
+    perks: { styles: [{ selections: [{ perk: 8229 }] }] },
     ...overrides,
   };
 }
@@ -265,5 +336,107 @@ describe("riotMatchToDetail", () => {
     expect(detail.teams).toHaveLength(2);
     expect(detail.teams[0]?.teamId).toBe(100);
     expect(detail.teams[0]?.objectives.tower.first).toBe(true);
+  });
+
+  it("does not populate owner extras when input is raw RiotMatch (no isOwner discriminator)", () => {
+    const detail = riotMatchToDetail(baseMatch);
+    for (const p of detail.participants) {
+      expect(p.owner).toBeUndefined();
+    }
+  });
+
+  it("populates owner extras for stored owner participants only", () => {
+    const stored: StoredMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        teams: [baseTeam, { ...baseTeam, teamId: 200, win: false }],
+        participants: [
+          buildOwner({
+            puuid: "puuid-vyoh",
+            spell1Casts: 320,
+            spell2Casts: 87,
+            spell3Casts: 124,
+            spell4Casts: 12,
+            summoner1Casts: 2,
+            summoner2Casts: 3,
+            doubleKills: 2,
+            tripleKills: 1,
+            quadraKills: 0,
+            pentaKills: 0,
+            killingSprees: 3,
+            largestKillingSpree: 5,
+            totalDamageTaken: 18000,
+            damageSelfMitigated: 9000,
+            totalHeal: 1500,
+            totalTimeCCDealt: 87,
+            totalTimeSpentDead: 260,
+            longestTimeSpentLiving: 1320,
+            challenges: {
+              killParticipation: 0.74,
+              soloKills: 4,
+              timeCCingOthers: 147,
+              skillshotsHit: 22,
+            },
+          }),
+          buildOther({ puuid: "puuid-other" }),
+        ],
+      },
+    };
+
+    const detail = riotMatchToDetail(stored);
+    const vyoh = detail.participants.find((p) => p.puuid === "puuid-vyoh");
+    const other = detail.participants.find((p) => p.puuid === "puuid-other");
+    assert(vyoh !== undefined && other !== undefined);
+
+    expect(other.owner).toBeUndefined();
+    assert(vyoh.owner !== undefined);
+
+    expect(vyoh.owner.spellCasts).toEqual({
+      q: 320,
+      w: 87,
+      e: 124,
+      r: 12,
+      summoner1: 2,
+      summoner2: 3,
+    });
+    expect(vyoh.owner.multikills).toEqual({
+      double: 2,
+      triple: 1,
+      quadra: 0,
+      penta: 0,
+      killingSprees: 3,
+      largestKillingSpree: 5,
+    });
+    expect(vyoh.owner.survival).toEqual({
+      totalDamageTaken: 18000,
+      damageSelfMitigated: 9000,
+      totalHeal: 1500,
+      totalTimeCCDealt: 87,
+      totalTimeSpentDead: 260,
+      longestTimeSpentLiving: 1320,
+    });
+    expect(vyoh.owner.challenges).toEqual({
+      soloKills: 4,
+      timeCCingOthers: 147,
+      skillshotsHit: 22,
+    });
+  });
+
+  it("tolerates a stored owner with no challenges block (empty challenges sub-object)", () => {
+    const stored: StoredMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        teams: [baseTeam],
+        participants: [buildOwner({ puuid: "puuid-vyoh" })],
+      },
+    };
+
+    const detail = riotMatchToDetail(stored);
+    const vyoh = detail.participants[0];
+    assert(vyoh !== undefined && vyoh.owner !== undefined);
+    expect(vyoh.owner.challenges).toEqual({});
+    expect(vyoh.owner.spellCasts).toBeDefined();
   });
 });

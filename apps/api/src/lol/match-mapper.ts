@@ -1,6 +1,79 @@
-import type { MatchDetail, MatchSummary, TeamSummary } from "@vyoh/shared";
-import type { RiotMatch, StoredMatch } from "../riot/types";
+import type {
+  MatchDetail,
+  MatchSummary,
+  ParticipantOwnerExtras,
+  TeamSummary,
+} from "@vyoh/shared";
+import type { RiotMatch, RiotMatchParticipantOwner, StoredMatch } from "../riot/types";
 import { queueTypeName } from "./queue-types";
+
+function projectOwnerExtras(p: RiotMatchParticipantOwner): ParticipantOwnerExtras {
+  const c = p.challenges;
+  return {
+    spellCasts: {
+      q: p.spell1Casts,
+      w: p.spell2Casts,
+      e: p.spell3Casts,
+      r: p.spell4Casts,
+      summoner1: p.summoner1Casts,
+      summoner2: p.summoner2Casts,
+    },
+    multikills: {
+      double: p.doubleKills,
+      triple: p.tripleKills,
+      quadra: p.quadraKills,
+      penta: p.pentaKills,
+      killingSprees: p.killingSprees,
+      largestKillingSpree: p.largestKillingSpree,
+    },
+    survival: {
+      totalDamageTaken: p.totalDamageTaken,
+      damageSelfMitigated: p.damageSelfMitigated,
+      totalHeal: p.totalHeal,
+      totalTimeCCDealt: p.totalTimeCCDealt,
+      totalTimeSpentDead: p.totalTimeSpentDead,
+      longestTimeSpentLiving: p.longestTimeSpentLiving,
+    },
+    challenges: {
+      ...(c?.soloKills !== undefined ? { soloKills: c.soloKills } : {}),
+      ...(c?.outnumberedKills !== undefined
+        ? { outnumberedKills: c.outnumberedKills }
+        : {}),
+      ...(c?.survivedSingleDigitHpCount !== undefined
+        ? { survivedSingleDigitHpCount: c.survivedSingleDigitHpCount }
+        : {}),
+      ...(c?.effectiveHealAndShielding !== undefined
+        ? { effectiveHealAndShielding: c.effectiveHealAndShielding }
+        : {}),
+      ...(c?.enemyChampionImmobilizations !== undefined
+        ? { enemyChampionImmobilizations: c.enemyChampionImmobilizations }
+        : {}),
+      ...(c?.damagePerMinute !== undefined ? { damagePerMinute: c.damagePerMinute } : {}),
+      ...(c?.laneMinionsFirst10Minutes !== undefined
+        ? { laneMinionsFirst10Minutes: c.laneMinionsFirst10Minutes }
+        : {}),
+      ...(c?.skillshotsHit !== undefined ? { skillshotsHit: c.skillshotsHit } : {}),
+      ...(c?.skillshotsDodged !== undefined
+        ? { skillshotsDodged: c.skillshotsDodged }
+        : {}),
+      ...(c?.maxCsAdvantageOnLaneOpponent !== undefined
+        ? { maxCsAdvantageOnLaneOpponent: c.maxCsAdvantageOnLaneOpponent }
+        : {}),
+      ...(c?.maxLevelLeadLaneOpponent !== undefined
+        ? { maxLevelLeadLaneOpponent: c.maxLevelLeadLaneOpponent }
+        : {}),
+      ...(c?.visionScoreAdvantageLaneOpponent !== undefined
+        ? { visionScoreAdvantageLaneOpponent: c.visionScoreAdvantageLaneOpponent }
+        : {}),
+      ...(c?.dragonTakedowns !== undefined ? { dragonTakedowns: c.dragonTakedowns } : {}),
+      ...(c?.baronTakedowns !== undefined ? { baronTakedowns: c.baronTakedowns } : {}),
+      ...(c?.riftHeraldTakedowns !== undefined
+        ? { riftHeraldTakedowns: c.riftHeraldTakedowns }
+        : {}),
+      ...(c?.timeCCingOthers !== undefined ? { timeCCingOthers: c.timeCCingOthers } : {}),
+    },
+  };
+}
 
 export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummary {
   const participant = match.info.participants.find((p) => p.puuid === puuid);
@@ -127,6 +200,12 @@ export function riotMatchToDetail(match: RiotMatch | StoredMatch): MatchDetail {
     const totals = teamTotals.get(p.teamId) ?? { damage: 1, gold: 1 };
     const keystone = p.perks.styles[0]?.selections[0]?.perk ?? 0;
 
+    // Stored owner participants retain the full Riot payload (see
+    // projectMatchForStorage owner branch). Raw RiotMatch input has no isOwner
+    // discriminator — we surface owner extras only from StoredMatch.
+    const isStoredOwner = "isOwner" in p && p.isOwner === true;
+    const owner = isStoredOwner ? projectOwnerExtras(p) : undefined;
+
     return {
       puuid: p.puuid,
       riotIdGameName: p.riotIdGameName,
@@ -159,6 +238,7 @@ export function riotMatchToDetail(match: RiotMatch | StoredMatch): MatchDetail {
       summoner2Id: p.summoner2Id,
       keystone,
       championLevel: p.champLevel,
+      ...(owner !== undefined ? { owner } : {}),
     };
   });
 

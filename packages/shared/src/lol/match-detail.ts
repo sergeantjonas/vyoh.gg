@@ -1,3 +1,48 @@
+export interface ParticipantOwnerExtras {
+  spellCasts: {
+    q: number;
+    w: number;
+    e: number;
+    r: number;
+    summoner1: number;
+    summoner2: number;
+  };
+  multikills: {
+    double: number;
+    triple: number;
+    quadra: number;
+    penta: number;
+    killingSprees: number;
+    largestKillingSpree: number;
+  };
+  survival: {
+    totalDamageTaken: number;
+    damageSelfMitigated: number;
+    totalHeal: number;
+    totalTimeCCDealt: number;
+    totalTimeSpentDead: number;
+    longestTimeSpentLiving: number;
+  };
+  challenges: {
+    soloKills?: number;
+    outnumberedKills?: number;
+    survivedSingleDigitHpCount?: number;
+    effectiveHealAndShielding?: number;
+    enemyChampionImmobilizations?: number;
+    damagePerMinute?: number;
+    laneMinionsFirst10Minutes?: number;
+    skillshotsHit?: number;
+    skillshotsDodged?: number;
+    maxCsAdvantageOnLaneOpponent?: number;
+    maxLevelLeadLaneOpponent?: number;
+    visionScoreAdvantageLaneOpponent?: number;
+    dragonTakedowns?: number;
+    baronTakedowns?: number;
+    riftHeraldTakedowns?: number;
+    timeCCingOthers?: number;
+  };
+}
+
 export interface ParticipantDetail {
   puuid: string;
   riotIdGameName: string;
@@ -28,6 +73,7 @@ export interface ParticipantDetail {
   summoner2Id: number;
   keystone: number;
   championLevel: number;
+  owner?: ParticipantOwnerExtras;
 }
 
 export interface TeamSummary {
