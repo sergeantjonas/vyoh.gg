@@ -45,6 +45,18 @@ describe("LolImageService.item", () => {
   });
 });
 
+describe("LolImageService.profileIcon", () => {
+  const service = new LolImageService();
+
+  it("builds the DDragon profile-icon URL pinned to the requested patch", () => {
+    const resolved = service.profileIcon(588, "14.10.1");
+    expect(resolved.urls).toEqual([
+      "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/588.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 72, quality: 85 });
+  });
+});
+
 describe("LolImageService.roleIconUrl", () => {
   const service = new LolImageService();
 

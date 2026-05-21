@@ -34,6 +34,9 @@ function makeController(
   const lol = {
     champion: vi.fn().mockReturnValue({ urls: ["https://lol/champ"], params: {} }),
     item: vi.fn().mockReturnValue({ urls: ["https://lol/item"], params: {} }),
+    profileIcon: vi
+      .fn()
+      .mockReturnValue({ urls: ["https://lol/profile-icon"], params: {} }),
     rune: vi.fn().mockResolvedValue({ urls: ["https://lol/rune"], params: {} }),
     spell: vi.fn().mockResolvedValue({ urls: ["https://lol/spell"], params: {} }),
     roleIconUrl: vi.fn().mockReturnValue("https://lol/role-mid"),
@@ -109,6 +112,11 @@ describe("ImgController numeric-id BAD_REQUEST guards", () => {
       call: (c: ImgController, res: ResStub) => c.item("abc", "10.1", res as never),
     },
     {
+      name: "profileIcon",
+      call: (c: ImgController, res: ResStub) =>
+        c.profileIcon("abc", "10.1", res as never),
+    },
+    {
       name: "rune",
       call: (c: ImgController, res: ResStub) => c.rune("abc", res as never),
     },
@@ -158,6 +166,12 @@ describe("ImgController happy paths", () => {
   it("item proxies through the lol service and upstream chain", async () => {
     const res = makeRes();
     await makeController().item("3001", "26.10", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+
+  it("profileIcon proxies through the lol service and upstream chain", async () => {
+    const res = makeRes();
+    await makeController().profileIcon("588", "26.10", res as never);
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
   });
 

@@ -1,8 +1,7 @@
 import type { LiveGameParticipant, LolAccount } from "@vyoh/shared";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   computeTeamComp,
-  fetchChampionInfo,
   formatSeconds,
   isUserParticipant,
   mapLabel,
@@ -141,31 +140,5 @@ describe("formatSeconds", () => {
 
   it("handles 0 seconds", () => {
     expect(formatSeconds(0)).toBe("0:00");
-  });
-});
-
-describe("fetchChampionInfo", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("returns the parsed JSON body on a 200 response", async () => {
-    const payload = { name: "Aatrox", roles: ["fighter"] };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(payload), { status: 200 }) as unknown as Response
-    );
-    expect(await fetchChampionInfo(266)).toEqual(payload);
-  });
-
-  it("returns null on a non-OK response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("not found", { status: 404 }) as unknown as Response
-    );
-    expect(await fetchChampionInfo(99999)).toBeNull();
-  });
-
-  it("returns null when fetch itself throws (network error)", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("offline"));
-    expect(await fetchChampionInfo(1)).toBeNull();
   });
 });

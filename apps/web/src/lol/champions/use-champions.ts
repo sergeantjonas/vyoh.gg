@@ -64,6 +64,23 @@ export function useChampionNameById() {
 }
 
 /**
+ * Returns a `Map<championId, ChampionInfo>` derived from the bundled
+ * `/lol/static` payload, or `undefined` while the bundle is loading. Lets
+ * callers do O(1) id → roles lookups for live-game lane assignment.
+ */
+export function useChampionInfoById(): Map<number, ChampionInfo> | undefined {
+  const champions = useChampions();
+  return useMemo(() => {
+    if (!champions.data) return undefined;
+    const map = new Map<number, ChampionInfo>();
+    for (const info of champions.data.values()) {
+      map.set(info.id, info);
+    }
+    return map;
+  }, [champions.data]);
+}
+
+/**
  * Returns a function that maps a champion display name (the wiki name, e.g.
  * "Wukong", "Lee Sin") back to its Riot internal alias (e.g. "MonkeyKing",
  * "LeeSin"). Useful when a server response carries the display name but a

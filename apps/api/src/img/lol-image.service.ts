@@ -80,6 +80,19 @@ export class LolImageService {
     };
   }
 
+  // Profile icons are a DDragon-native concept; the wiki's `Module:Profile-Icons/V1`
+  // exists but the image set is unpopulated (only a placeholder lockfile lives
+  // on wiki today), so wiki-sourcing isn't viable. Routing through the same
+  // proxy as items/spells removes the last CDragon dependency in `apps/web`
+  // and the wsrv.nl flakiness layer without taking a wiki dependency that
+  // doesn't yet exist.
+  profileIcon(iconId: number, patch: string): Resolved {
+    return {
+      urls: [`${DDRAGON_CDN}/${patch}/img/profileicon/${iconId}.png`],
+      params: { width: 72, quality: 85 },
+    };
+  }
+
   async rune(keystoneId: number): Promise<Resolved> {
     const paths = await this.loadPerkPaths();
     const iconPath = paths.get(keystoneId);

@@ -11,10 +11,7 @@ import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-butt
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import championAssets from "@/lol/_shared/assets/champion-assets.json";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
-import {
-  profileIconFallbackUrl,
-  profileIconUrl,
-} from "@/lol/_shared/assets/summoner-icon";
+import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
@@ -333,16 +330,12 @@ function LolIdentity({
       {iconId != null ? (
         <div className="relative shrink-0">
           <img
-            src={profileIconUrl(iconId)}
+            src={profileIconUrl(iconId, ddVersion)}
             alt=""
             className={cn(
               "rounded-full object-cover ring-1 ring-border transition-all",
               compact ? "size-10" : "size-12"
             )}
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = profileIconFallbackUrl(iconId, ddVersion);
-            }}
           />
           {level != null && !compact && (
             <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">

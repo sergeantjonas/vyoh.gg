@@ -63,6 +63,23 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
+  @Get("lol/profile-icon/:iconId/:patch.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async profileIcon(
+    @Param("iconId") iconId: string,
+    @Param("patch") patch: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(iconId, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = this.lol.profileIcon(id, patch);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
   @Get("lol/rune/:keystoneId/:patch.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)

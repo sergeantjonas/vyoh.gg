@@ -84,27 +84,6 @@ export function computeTeamComp(
   return counts;
 }
 
-export interface ChampionInfo {
-  name: string;
-  roles: string[];
-}
-
-// Fetches the community-dragon role tags for one champion. Returns null on
-// any non-OK response or network error so the caller can fall through to an
-// empty role set rather than blocking the whole live-game render.
-export async function fetchChampionInfo(
-  championId: number
-): Promise<ChampionInfo | null> {
-  const url = `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champions/${championId}.json`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return (await res.json()) as ChampionInfo;
-  } catch {
-    return null;
-  }
-}
-
 export function formatSeconds(totalSeconds: number): string {
   const s = Math.floor(totalSeconds);
   const m = Math.floor(s / 60);

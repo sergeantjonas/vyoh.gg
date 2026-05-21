@@ -1,8 +1,7 @@
-// w=72 covers 2× retina for the largest display size (size-9 = 36 CSS px).
-export function profileIconUrl(iconId: number, width = 72): string {
-  return `https://wsrv.nl/?url=cdn.communitydragon.org/latest/profile-icon/${iconId}&w=${width}&output=webp&q=85`;
-}
-
-export function profileIconFallbackUrl(iconId: number, version: string): string {
-  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${iconId}.png`;
+// Profile icons route through the project image proxy
+// (`/img/lol/profile-icon/:iconId/:patch.webp`) which fetches from DDragon
+// upstream. Wiki hosts a `Module:Profile-Icons/V1` shell but the actual image
+// set isn't populated, so wiki-sourcing isn't yet viable.
+export function profileIconUrl(iconId: number, patch: string): string {
+  return `/img/lol/profile-icon/${iconId}/${patch}.webp`;
 }

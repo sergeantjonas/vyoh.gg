@@ -3,12 +3,11 @@ import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
-import { useChampionNameById } from "@/lol/champions/use-champions";
+import { useChampionInfoById, useChampionNameById } from "@/lol/champions/use-champions";
 import { type LaneAssignment, assignLanes } from "@/lol/live/lane-assignment";
 import {
   COMP_AXES,
   computeTeamComp,
-  fetchChampionInfo,
   formatSeconds,
   isUserParticipant,
   mapLabel,
@@ -16,7 +15,6 @@ import {
 } from "@/lol/live/live-helpers";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { useQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { wikiChampionSquareUrl } from "@vyoh/shared";
 import type { LiveGameParticipant, LiveMatch, LolAccount } from "@vyoh/shared";
@@ -298,20 +296,14 @@ function LiveContent({
   const timer = useGameTimer(match);
 
   const allChampionIds = match.participants.map((p) => p.championId);
-  const championResults = useQueries({
-    queries: allChampionIds.map((id) => ({
-      queryKey: ["cdragon-champion", id] as const,
-      queryFn: () => fetchChampionInfo(id),
-      staleTime: Number.POSITIVE_INFINITY,
-    })),
-  });
+  const championInfoById = useChampionInfoById();
   const rolesByChampion: Record<number, string[]> = Object.fromEntries(
-    allChampionIds.map((id, i) => [id, championResults[i]?.data?.roles ?? []])
+    allChampionIds.map((id) => [id, championInfoById?.get(id)?.roles ?? []])
   );
   const nameByChampion: Record<number, string | undefined> = Object.fromEntries(
-    allChampionIds.map((id, i) => [id, championResults[i]?.data?.name])
+    allChampionIds.map((id) => [id, championInfoById?.get(id)?.name])
   );
-  const allLoaded = championResults.every((r) => !r.isPending);
+  const allLoaded = championInfoById != null;
 
   const team100Raw = match.participants.filter((p) => p.teamId === 100);
   const team200Raw = match.participants.filter((p) => p.teamId === 200);

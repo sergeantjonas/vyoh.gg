@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Active — Chunks 4a + 4b + 4c + 5 + 5.5 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). Profile-icon resolver (Chunk 6) is the only remaining piece.
+**Status:** Complete — Chunks 4a + 4b + 4c + 5 + 5.5 + 6 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). All five client-side CDragon JSON fetches in `apps/web` plus the live-game per-champion role fetch are removed; profile icons route through the project image proxy. Done criteria below all met.
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -251,11 +251,11 @@ If granular endpoints are needed later (e.g. mobile clients pulling only items) 
 
 **Always-refresh:** every cron tick re-syncs all abilities, matching the convention items already use. Balance-patch description rewrites land within one cycle. The deletion sweep in `syncChampionsAndAbilities` runs first, then descriptions repopulate — order preserved by the serial chain in `syncAll`.
 
-### Chunk 6 (deferred, separable arc)
+### Chunk 6 (shipped)
 
-Profile-icon resolver. Per [lol-image-pipeline.md](./lol-image-pipeline.md) the wiki hosts profile icons but with editorial filenames that don't transform cleanly from CDragon's `title` field. Needs a one-time MediaWiki sync that walks Riot's `summoner-icons.json` and queries MediaWiki for the canonical filename per icon id, persists `iconId → wikiSlug` in DB. Same shape as items/runes sync but with a different parsing strategy.
+Profile-icon resolver. Wiki probe on 2026-05-21 found `Module:Profile-Icons/V1` exists as a shell but the image set is *unpopulated* (only `Profile-Icons-V1-lockfile.png` lives on wiki today), so wiki-sourcing isn't viable yet. Instead the existing project image proxy gained a `GET /img/lol/profile-icon/:iconId/:patch.webp` route backed by DDragon — same shape as items, removes the last `cdn.communitydragon.org` string from `apps/web` and drops the wsrv.nl flakiness layer. The wiki-sync route stays open for a follow-up arc once Profile-Icons/V1 actually populates.
 
-Sequence: do not start until 4 + 5 ship. Profile-icon work is independently valuable but doesn't gate Chunk 4's portfolio narrative.
+Also rolled in: the live-game per-champion role fetch (`fetchChampionInfo` against `raw.communitydragon.org`) was the unaccounted sixth client-side CDragon dependency. Replaced with a bundle-derived `useChampionInfoById()` hook — the bundle already carries `roles` per champion.
 
 ---
 
