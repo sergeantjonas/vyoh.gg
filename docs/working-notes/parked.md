@@ -33,6 +33,12 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 - **You-vs-you comparison surface** — same axes, two time windows. Owner flagged as reasonable but lower-priority than career-arc / tilt-protection / aesthetic-responses; revisit after those prove out. → [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md)
 
+### LoL owner-data — surface-specific tiers
+
+- **Champion-detail owner-data tier** — 5 bundled tiles (lane dominance peaks, skillshot accuracy, rune WR correlation, spell usage ratio, CC contribution). Parked 2026-05-21 because Champion detail has no planned arc on the books. Trigger: next dedicated Champion-detail polish/expansion pass, or one tile growing legs and pulling the others. Lift all 5 together — they share aggregation work and the surface deserves one design pass. → [lol-owner-data-features.md § Champion-detail tier](lol/lol-owner-data-features.md#champion-detail-owner-data-tier)
+- **Objective presence tile** — `dragonTakedowns`/`baronTakedowns`/`riftHeraldTakedowns` per role/champion. Parked 2026-05-21: owner role mix has too few jungle games to justify a top-level Profile tile. Trigger: sustained 30%+ of games in jungle. → [lol-owner-data-features.md § overflow](lol/lol-owner-data-features.md#profile-narrative-tier--overflow)
+- **Support effectiveness tile** — `effectiveHealAndShielding` for enchanter games. Parked 2026-05-21: owner doesn't main support. Trigger: sustained 30%+ of games in support/enchanter. → [lol-owner-data-features.md § overflow](lol/lol-owner-data-features.md#profile-narrative-tier--overflow)
+
 ### LoL signal calibration
 
 - **Personal-baselines PB4** — cross-tile anomaly aggregator. Parked 2026-05-20: PB1+PB2+PB3 shipped 2026-05-14 but no new personal-baseline tiles have shipped since. Trigger: 2–3 more personal-baseline tiles shipped past the current PB1–PB3 set. → [personal-baselines.md](lol/personal-baselines.md)

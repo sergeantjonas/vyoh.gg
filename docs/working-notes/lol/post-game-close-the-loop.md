@@ -1,6 +1,6 @@
 # Post-game close-the-loop surface — roadmap
 
-**Status:** Shipped — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 (peer-route post-game artifact) closed as won't-do 2026-05-20: PG1–PG3 has been live and verified for six days; the close-the-loop value lands on Profile and a separate share-friendly route/OG-image artifact is not load-bearing. Re-promote from this doc's decision log if a "share my game" surface ever surfaces as a distinct need.
+**Status:** Shipped — PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG2 live-verified 2026-05-14. PG4 *as originally scoped* (denser share-friendly peer route + OG-image artifact) closed as won't-do 2026-05-20: PG1–PG3 deliver the close-the-loop read on Profile and a share artifact is a distinct case-study/share-loop bet, not a continuation of this arc. A *different* framing of a per-match peer surface — learning-oriented game-arc narrative + personal baseline deviation, rooted in owner-data + timeline — is scoped separately in [lol-owner-data-features.md](lol-owner-data-features.md#match-review--learning-oriented-per-match-surface) and is not a continuation of this arc.
 
 After-game counterpart to [Pregame Ritual](../../../apps/web/src/lol/profile/profile-pregame-ritual.tsx). Promoted from [vnext-ideas.md](../cross-cutting/vnext-ideas.md) ("Top tier — eye-catching wins") and [app-state-analysis.md](app-state-analysis.md) (broader-app gap #1) into a tracked arc because it is the **single highest-payoff missing surface** in the LoL section and the strongest case-study candidate currently in the backlog.
 
@@ -125,11 +125,13 @@ Pulse + slight scale lift on the tile grid when a new matchId arrives. No new SS
 - Thresholds: `< 1.5k` gold-diff at 15 = "even"; `≥ 5k` = stomp tier with emphasized phrasing.
 - Commit `3007552`.
 
-### Phase PG4 (optional) — Peer-route artifact
+### Phase PG4 — Peer-route share artifact ❌ closed 2026-05-20
 
-Promote to `/lol/$accountSlug/post-game/$matchId` as a peer route opened via a "View the read" link on the Profile section. Becomes the share-friendly artifact (calm Wrapped, but per-game).
+Original scope: promote PG1–PG3 to `/lol/$accountSlug/post-game/$matchId` as a denser share-friendly peer route with an OG-image variant — "calm Wrapped, but per-game."
 
-- Reuses the same component shell, denser layout, OG-image variant. Ties to the recap-density expansion arc.
+Closed as won't-do — PG1–PG3 deliver the close-the-loop value on Profile and a share artifact is a distinct case-study/share-loop bet, not a continuation of this arc. If a "share my game" need ever surfaces independently, promote a fresh artifact note from vNext rather than reviving PG4 here.
+
+A *different* per-match peer surface — **learning-oriented match review** (game-arc narrative + personal baseline deviation, rooted in owner-data + timeline) — is a distinct arc with its own concrete plan in [match-review.md](match-review.md). It shares the peer-route *shape* but answers a different question (what can I learn from this game) and reuses different data primitives.
 
 ---
 
@@ -160,7 +162,8 @@ Companion to (or replacement for) the open ConclusionCard-pattern case study tra
 - **2026-05-13** — PG1 + PG2 shipped (commit `a7f3299`). Section live on Profile, paired with Pregame Ritual; SSE-driven pulse fires off the existing match-window invalidation path.
 - **2026-05-13** — PG3 shipped (commit `3007552`). Game-shape signal added behind the timeline-projected sentinel.
 - **2026-05-14** — PG2 pulse live-verified on a real new-match arrival; full PG1–PG3 end-to-end re-derive confirmed after a fresh match landed on Profile.
-- **2026-05-20** — PG4 closed as won't-do. Profile-framing close-the-loop has been live and verified for six days and delivers the read where the user looks; a separate peer-route + OG-image share artifact is a distinct case-study/share-loop bet, not a continuation of the close-the-loop arc. If a "share my game" need surfaces independently, promote a fresh artifact note from vNext rather than reviving PG4 as part of this arc.
+- **2026-05-20** — PG4 closed as won't-do *as originally scoped* (share-friendly peer route + OG-image artifact). Profile-framing close-the-loop has been live and verified for six days and delivers the read where the user looks; a share artifact is a distinct case-study/share-loop bet, not a continuation of the close-the-loop arc. If a "share my game" need surfaces independently, promote a fresh artifact note from vNext rather than reviving PG4 as part of this arc.
+- **2026-05-21** — Acknowledged that the closure was specific to the share-artifact framing. A *learning-oriented* per-match peer surface (game-arc narrative + personal baseline deviation, rooted in owner-data + timeline) is a distinct arc with its own plan in [match-review.md](match-review.md) and is not a continuation of this arc.
 
 ---
 
