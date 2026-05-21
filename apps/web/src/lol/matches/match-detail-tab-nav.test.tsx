@@ -47,9 +47,9 @@ describe("MatchDetailTabs", () => {
     expect(screen.getByRole("tab", { name: "Recap" }).getAttribute("aria-selected")).toBe(
       "false"
     );
-    expect(screen.getByRole("tab", { name: "Review" }).getAttribute("aria-selected")).toBe(
-      "false"
-    );
+    expect(
+      screen.getByRole("tab", { name: "Review" }).getAttribute("aria-selected")
+    ).toBe("false");
     expect(
       screen.getByRole("tab", { name: "Timeline" }).getAttribute("aria-selected")
     ).toBe("false");
@@ -57,9 +57,9 @@ describe("MatchDetailTabs", () => {
 
   it("marks the review tab as active when selected", () => {
     renderTabs("review");
-    expect(screen.getByRole("tab", { name: "Review" }).getAttribute("aria-selected")).toBe(
-      "true"
-    );
+    expect(
+      screen.getByRole("tab", { name: "Review" }).getAttribute("aria-selected")
+    ).toBe("true");
     expect(screen.getByRole("tab", { name: "Recap" }).getAttribute("aria-selected")).toBe(
       "false"
     );

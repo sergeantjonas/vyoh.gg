@@ -1,6 +1,16 @@
-import { MatchReviewView, getLaningVerdict, getMidVerdict, getLateVerdict } from "@/lol/matches/match-review-view";
+import {
+  MatchReviewView,
+  getLaningVerdict,
+  getLateVerdict,
+  getMidVerdict,
+} from "@/lol/matches/match-review-view";
 import { render, screen } from "@testing-library/react";
-import type { MatchDetail, MatchSummary, MatchTimelineProjection, TeamSummary } from "@vyoh/shared";
+import type {
+  MatchDetail,
+  MatchSummary,
+  MatchTimelineProjection,
+  TeamSummary,
+} from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import { describe, expect, it } from "vitest";
@@ -109,7 +119,14 @@ function makeDetail(overrides: Partial<MatchDetail> = {}): MatchDetail {
         championLevel: 16,
         owner: {
           spellCasts: { q: 120, w: 80, e: 60, r: 20, summoner1: 4, summoner2: 3 },
-          multikills: { double: 2, triple: 1, quadra: 0, penta: 0, killingSprees: 3, largestKillingSpree: 3 },
+          multikills: {
+            double: 2,
+            triple: 1,
+            quadra: 0,
+            penta: 0,
+            killingSprees: 3,
+            largestKillingSpree: 3,
+          },
           survival: {
             totalDamageTaken: 18000,
             damageSelfMitigated: 2000,
@@ -136,14 +153,27 @@ function makeDetail(overrides: Partial<MatchDetail> = {}): MatchDetail {
 // Each frame covers 1 min. 30 frames = 30 min game.
 function makeTimeline(goldDiffPerFrame: number[]): MatchTimelineProjection {
   const frames = goldDiffPerFrame.map((diff, i) => {
-    const perParticipant: Record<number, { gold: number; level: number; cs: number; position: { x: number; y: number } }> = {};
+    const perParticipant: Record<
+      number,
+      { gold: number; level: number; cs: number; position: { x: number; y: number } }
+    > = {};
     // Owner team (pids 1-5): share diff evenly
     for (let pid = 1; pid <= 5; pid++) {
-      perParticipant[pid] = { gold: 5000 + diff / 5, level: 8, cs: 100, position: { x: 5000, y: 5000 } };
+      perParticipant[pid] = {
+        gold: 5000 + diff / 5,
+        level: 8,
+        cs: 100,
+        position: { x: 5000, y: 5000 },
+      };
     }
     // Enemy team (pids 6-10): base gold only
     for (let pid = 6; pid <= 10; pid++) {
-      perParticipant[pid] = { gold: 5000, level: 8, cs: 100, position: { x: 10000, y: 10000 } };
+      perParticipant[pid] = {
+        gold: 5000,
+        level: 8,
+        cs: 100,
+        position: { x: 10000, y: 10000 },
+      };
     }
     return { ts: i * 60000, perParticipant };
   });
@@ -342,10 +372,7 @@ describe("MatchReviewView", () => {
   });
 
   it("shows unsupported queue message for ARAM", () => {
-    renderReview(
-      { queueType: "ARAM" },
-      { queueType: "ARAM" }
-    );
+    renderReview({ queueType: "ARAM" }, { queueType: "ARAM" });
     expect(screen.getByText(/ARAM/)).not.toBeNull();
     expect(screen.queryByText("Laning")).toBeNull();
   });
