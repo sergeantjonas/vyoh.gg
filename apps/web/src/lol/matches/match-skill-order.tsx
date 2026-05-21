@@ -1,4 +1,5 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
+import { toRichDescription } from "@/lol/_shared/static/rich-description";
 import { useAbilityDescription } from "@/lol/matches/use-ability-description";
 import type { SpellInfo } from "@/lol/matches/use-champion-spells";
 import { useChampionSpells } from "@/lol/matches/use-champion-spells";
@@ -99,11 +100,13 @@ function SpellRowLabel({
     spell?.abilityIndex ?? 0,
     { enabled }
   );
-  const rawDescription =
-    descriptionQuery.data?.descriptionHtml ??
-    descriptionQuery.data?.descriptionWikitext ??
-    "";
-  const description = stripWikitext(rawDescription);
+  const rawHtml = descriptionQuery.data?.descriptionHtml ?? null;
+  const descriptionRich = toRichDescription(rawHtml);
+  // Plain-text fallback path used when the wiki sync hasn't populated
+  // descriptionHtml yet — the lazy endpoint may return wikitext only on
+  // cold-start, and we still want a useful tooltip body.
+  const rawFallback = rawHtml ?? descriptionQuery.data?.descriptionWikitext ?? "";
+  const description = stripWikitext(rawFallback);
 
   if (spell && !failed) {
     return (
@@ -123,17 +126,21 @@ function SpellRowLabel({
             side="left"
             sideOffset={5}
             collisionPadding={8}
-            className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md max-w-[200px]"
+            className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md max-w-xs"
           >
             <div className="flex flex-col gap-1">
               <span className="font-medium">{spell.name}</span>
               {descriptionQuery.isPending && enabled ? (
                 <ShimmerBlock className="h-3 w-32 rounded" />
+              ) : descriptionRich ? (
+                <div
+                  className="ability-tooltip-body text-[10px] leading-snug text-muted-foreground"
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via toRichDescription (allowlist sanitiser + wiki→proxy src rewrite)
+                  dangerouslySetInnerHTML={{ __html: descriptionRich }}
+                />
               ) : (
-                <span className="text-[10px] leading-snug text-muted-foreground">
-                  {description.length > 180
-                    ? `${description.slice(0, 180).trimEnd()}…`
-                    : description}
+                <span className="text-[10px] leading-snug text-muted-foreground line-clamp-6">
+                  {description}
                 </span>
               )}
             </div>

@@ -49,6 +49,59 @@ describe("useItems", () => {
     expect(map?.get(3074)?.description).toBe("Active");
   });
 
+  it("populates descriptionRich with sanitized wiki HTML when present", async () => {
+    mockLolStaticFetch({
+      patchVersion: "15.1.1",
+      items: [
+        {
+          id: 3157,
+          name: "Zhonya's Hourglass",
+          tier: 3,
+          itemType: [],
+          priceTotal: 3250,
+          recipe: [],
+          categories: [],
+          stats: {},
+          descriptionWikitext: null,
+          descriptionHtml:
+            'Deals <span class="callout"><img src="/en-us/images/2/2a/Magic_damage.png" alt="Magic"> 200</span> magic damage.',
+          iconWikiName: null,
+        },
+      ],
+    });
+    const { result } = renderHook(() => useItems(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const rich = result.current.data?.get(3157)?.descriptionRich;
+    expect(rich).toContain('<span class="callout">');
+    expect(rich).toContain(
+      'src="http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp"'
+    );
+  });
+
+  it("leaves descriptionRich undefined when descriptionHtml is null", async () => {
+    mockLolStaticFetch({
+      items: [
+        {
+          id: 1054,
+          name: "Doran's Shield",
+          tier: 1,
+          itemType: [],
+          priceTotal: null,
+          recipe: [],
+          categories: [],
+          stats: {},
+          descriptionWikitext: "+80 health.",
+          descriptionHtml: null,
+          iconWikiName: null,
+        },
+      ],
+    });
+    const { result } = renderHook(() => useItems(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.get(1054)?.descriptionRich).toBeUndefined();
+    expect(result.current.data?.get(1054)?.description).toBe("+80 health.");
+  });
+
   it("defaults missing `from` and `categories` to empty arrays", async () => {
     mockLolStaticFetch({
       items: [

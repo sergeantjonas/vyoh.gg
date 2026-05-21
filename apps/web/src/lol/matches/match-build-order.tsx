@@ -120,7 +120,7 @@ function BuildItemSlot({
             side="top"
             sideOffset={6}
             collisionPadding={8}
-            className="pointer-events-none z-50 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md"
+            className="pointer-events-none z-50 w-max max-w-sm rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md"
           >
             {item ? (
               <>
@@ -140,11 +140,17 @@ function BuildItemSlot({
                     ) : null}
                   </div>
                 </div>
-                {item.description && (
+                {item.descriptionRich ? (
+                  <div
+                    className="item-tooltip-body mt-2 text-xs leading-relaxed text-muted-foreground"
+                    // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via toRichDescription (allowlist sanitiser + wiki→proxy src rewrite)
+                    dangerouslySetInnerHTML={{ __html: item.descriptionRich }}
+                  />
+                ) : item.description ? (
                   <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
                     {item.description}
                   </div>
-                )}
+                ) : null}
               </>
             ) : (
               <div className="text-sm font-medium">Item {entry.itemId}</div>

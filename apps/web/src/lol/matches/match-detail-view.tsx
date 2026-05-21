@@ -154,7 +154,7 @@ function ItemSlot({ id }: { id: number }) {
           align="end"
           sideOffset={6}
           collisionPadding={8}
-          className="pointer-events-none z-50 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+          className="pointer-events-none z-50 w-max max-w-sm rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
         >
           <div className="flex items-start gap-3">
             <img
@@ -170,13 +170,17 @@ function ItemSlot({ id }: { id: number }) {
               ) : null}
             </div>
           </div>
-          {item.description && (
+          {item.descriptionRich ? (
             <div
               className="item-tooltip-body mt-2 text-xs leading-relaxed text-muted-foreground"
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: trusted Riot item data from CDragon
-              dangerouslySetInnerHTML={{ __html: item.description }}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via toRichDescription (allowlist sanitiser + wiki→proxy src rewrite)
+              dangerouslySetInnerHTML={{ __html: item.descriptionRich }}
             />
-          )}
+          ) : item.description ? (
+            <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {item.description}
+            </div>
+          ) : null}
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
