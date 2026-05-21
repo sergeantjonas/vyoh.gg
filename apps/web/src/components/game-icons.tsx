@@ -1,15 +1,10 @@
-import {
-  wikiAttackIconUrl,
-  wikiGoldIconUrl,
-  wikiMinionIconUrl,
-  wikiWardIconUrl,
-} from "@vyoh/shared";
+import { uiIconUrl } from "@/lol/_shared/assets/champion-icon";
 import type { SVGProps } from "react";
 
 export function GoldIcon({ className }: { className?: string }) {
   return (
     <img
-      src={wikiGoldIconUrl()}
+      src={uiIconUrl("gold")}
       alt=""
       aria-hidden={true}
       className={className}
@@ -21,7 +16,7 @@ export function GoldIcon({ className }: { className?: string }) {
 export function KillsIcon({ className }: { className?: string }) {
   return (
     <img
-      src={wikiAttackIconUrl()}
+      src={uiIconUrl("attack")}
       alt=""
       aria-hidden={true}
       className={className}
@@ -33,7 +28,7 @@ export function KillsIcon({ className }: { className?: string }) {
 export function CsIcon({ className }: { className?: string }) {
   return (
     <img
-      src={wikiMinionIconUrl()}
+      src={uiIconUrl("minion")}
       alt=""
       aria-hidden={true}
       className={className}
@@ -45,7 +40,7 @@ export function CsIcon({ className }: { className?: string }) {
 export function VisionIcon({ className }: { className?: string }) {
   return (
     <img
-      src={wikiWardIconUrl()}
+      src={uiIconUrl("ward")}
       alt=""
       aria-hidden={true}
       className={className}

@@ -38,6 +38,9 @@ function makeController(
       .fn()
       .mockResolvedValue({ urls: ["https://lol/profile-icon"], params: {} }),
     ability: vi.fn().mockResolvedValue({ urls: ["https://lol/ability"], params: {} }),
+    map: vi.fn().mockReturnValue({ urls: ["https://lol/map"], params: {} }),
+    rankEmblem: vi.fn().mockReturnValue({ urls: ["https://lol/rank"], params: {} }),
+    uiIcon: vi.fn().mockReturnValue({ urls: ["https://lol/ui"], params: {} }),
     rune: vi.fn().mockResolvedValue({ urls: ["https://lol/rune"], params: {} }),
     spell: vi.fn().mockResolvedValue({ urls: ["https://lol/spell"], params: {} }),
     roleIconUrl: vi.fn().mockReturnValue("https://lol/role-mid"),
@@ -246,6 +249,63 @@ describe("ImgController.ability", () => {
     expect(upstream.transcodeToWebp).toHaveBeenCalled();
     expect(res.send).toHaveBeenCalled();
   });
+});
+
+describe("ImgController.map", () => {
+  it("returns 400 when mapId is non-numeric", async () => {
+    const res = makeRes();
+    await makeController().map("abc", res as never);
+    expect(res._status).toBe(400);
+  });
+
+  it("returns 404 when the resolver throws (unknown mapId)", async () => {
+    const controller = makeController({
+      map: vi.fn().mockImplementation(() => {
+        throw new Error("unknown mapId 999");
+      }),
+    } as unknown as Partial<LolImageService>);
+    const res = makeRes();
+    await controller.map("999", res as never);
+    expect(res._status).toBe(404);
+    expect(upstream.fetchUpstreamChain).not.toHaveBeenCalled();
+  });
+
+  it("proxies through the chain for a valid mapId", async () => {
+    const res = makeRes();
+    await makeController().map("11", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+});
+
+describe("ImgController.rankEmblem", () => {
+  it("returns 400 when year is non-numeric", async () => {
+    const res = makeRes();
+    await makeController().rankEmblem("GOLD", "abc", res as never);
+    expect(res._status).toBe(400);
+  });
+
+  it("proxies through the chain for a valid tier + year", async () => {
+    const res = makeRes();
+    await makeController().rankEmblem("GOLD", "2023", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+});
+
+describe("ImgController.uiIcon", () => {
+  it("returns 400 for an unknown UI icon name", async () => {
+    const res = makeRes();
+    await makeController().uiIcon("notarealicon", res as never);
+    expect(res._status).toBe(400);
+  });
+
+  it.each([["gold"], ["minion"], ["ward"], ["attack"]])(
+    "proxies the chain for the '%s' icon",
+    async (name) => {
+      const res = makeRes();
+      await makeController().uiIcon(name, res as never);
+      expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+    }
+  );
 });
 
 describe("ImgController.role", () => {

@@ -69,6 +69,23 @@ export function abilityIconUrl(
   return `${API_URL}/img/lol/ability/${championId}/${slot}/${abilityIndex}/${patch}.webp`;
 }
 
+// Minimap art. Versionless cache key — only the mapId matters.
+export function mapIconUrl(mapId: number): string {
+  return `${API_URL}/img/lol/map/${mapId}.webp`;
+}
+
+// Ranked tier emblem. `year` is the cache key — bumping it forces a refetch
+// when a future emblem redesign lands on the wiki.
+export function rankEmblemUrl(tier: string, year: number): string {
+  return `${API_URL}/img/lol/rank/${tier}/${year}.webp`;
+}
+
+// UI singleton icons. Closed set: "gold" | "minion" | "ward" | "attack".
+export type UiIconName = "gold" | "minion" | "ward" | "attack";
+export function uiIconUrl(name: UiIconName): string {
+  return `${API_URL}/img/lol/ui/${name}.webp`;
+}
+
 // Role-position SVG is versionless — the upstream SVGs change too rarely to
 // warrant a cache-key segment.
 export function roleIconUrl(positionSlug: string): string {

@@ -20,7 +20,7 @@ import {
 } from "./game-icons";
 
 describe("game-icons", () => {
-  it("renders the img-based icons (Gold, Kills, Cs, Vision) with aria-hidden and a wiki src", () => {
+  it("renders the img-based icons (Gold, Kills, Cs, Vision) with aria-hidden and a proxy src", () => {
     const { container } = render(
       <>
         <GoldIcon className="g" />
@@ -33,7 +33,8 @@ describe("game-icons", () => {
     expect(imgs.length).toBe(4);
     for (const img of imgs) {
       expect(img.getAttribute("aria-hidden")).toBe("true");
-      expect(img.getAttribute("src")).toMatch(/wiki\.leagueoflegends\.com/);
+      // Each UI icon now routes through the proxy: /img/lol/ui/:name.webp
+      expect(img.getAttribute("src")).toMatch(/\/img\/lol\/ui\/[a-z]+\.webp$/);
     }
     expect(container.querySelector(".g")).not.toBeNull();
     expect(container.querySelector(".k")).not.toBeNull();

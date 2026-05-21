@@ -113,6 +113,62 @@ describe("LolImageService.item", () => {
   });
 });
 
+describe("LolImageService.map", () => {
+  const { service } = makeService();
+
+  it("returns the wiki minimap URL for a known mapId", () => {
+    const resolved = service.map(11);
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Summoner%27s_Rift_Minimap.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 256, quality: 85 });
+  });
+
+  it("throws for an unknown mapId so the controller can 400/404", () => {
+    expect(() => service.map(999)).toThrow(/unknown mapId/);
+  });
+});
+
+describe("LolImageService.rankEmblem", () => {
+  const { service } = makeService();
+
+  it("builds the wiki emblem URL parameterised by tier + year", () => {
+    const resolved = service.rankEmblem("GOLD", 2023);
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Season_2023_-_Gold.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 128, quality: 85 });
+  });
+});
+
+describe("LolImageService.uiIcon", () => {
+  const { service } = makeService();
+
+  it("returns the wiki gold-icon SVG for 'gold'", () => {
+    expect(service.uiIcon("gold").urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Gold_colored_icon.svg",
+    ]);
+  });
+
+  it("returns the wiki minion-icon PNG for 'minion'", () => {
+    expect(service.uiIcon("minion").urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Minion_icon.png",
+    ]);
+  });
+
+  it("returns the wiki ward-icon PNG for 'ward'", () => {
+    expect(service.uiIcon("ward").urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ward_icon.png",
+    ]);
+  });
+
+  it("returns the wiki attack-icon SVG for 'attack'", () => {
+    expect(service.uiIcon("attack").urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Attack.svg",
+    ]);
+  });
+});
+
 describe("LolImageService.ability", () => {
   it("builds the wiki ability URL from the DB row's champion + ability names", async () => {
     const { service, prisma } = makeService([], {

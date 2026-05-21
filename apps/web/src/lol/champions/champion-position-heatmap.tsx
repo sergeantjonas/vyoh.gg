@@ -1,8 +1,9 @@
+import { mapIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
-import { type MatchSummary, wikiMinimapUrl } from "@vyoh/shared";
+import type { MatchSummary } from "@vyoh/shared";
 import { hexbin as d3Hexbin } from "d3-hexbin";
 import { useMemo, useState } from "react";
 
@@ -14,7 +15,7 @@ const OPACITY_CEIL = 0.85;
 
 const MIN_MATCHES_WITH_POSITION = 5;
 
-const MINIMAP_URL = wikiMinimapUrl(11) ?? undefined;
+const MINIMAP_URL = mapIconUrl(11);
 
 // Riot's CHAMPION_KILL positions are in 0–15000 game-space, with Y *not*
 // inverted relative to SVG. We flip at render time (`RIFT_MAX - y`) so the

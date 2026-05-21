@@ -5,6 +5,8 @@ import {
   LolImageService,
   ROLE_POSITION_SLUGS,
   type RolePositionSlug,
+  UI_ICON_NAMES,
+  type UiIconName,
 } from "./lol-image.service";
 import { SteamImageService } from "./steam-image.service";
 import {
@@ -19,6 +21,7 @@ const IMMUTABLE_YEAR = "public, max-age=31536000, immutable";
 
 const CHAMPION_VARIANTS = new Set<ChampionVariant>(["square", "card", "backdrop"]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
+const UI_ICONS = new Set<UiIconName>(UI_ICON_NAMES);
 
 @Controller("img")
 export class ImgController {
@@ -135,6 +138,59 @@ export class ImgController {
       return;
     }
     const resolved = await this.lol.spell(key);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  // Minimap art. Wiki-sourced, no fallback chain (wiki is the only host for
+  // these). `:mapId` segment is also the cache key.
+  @Get("lol/map/:mapId.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async map(@Param("mapId") mapId: string, @Res() res: Response): Promise<void> {
+    const id = Number.parseInt(mapId, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    let resolved: ReturnType<LolImageService["map"]>;
+    try {
+      resolved = this.lol.map(id);
+    } catch {
+      res.status(HttpStatus.NOT_FOUND).send();
+      return;
+    }
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  // Ranked tier emblem. `:year` is the cache key — bump it to invalidate
+  // when a future emblem redesign lands on the wiki.
+  @Get("lol/rank/:tier/:year.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async rankEmblem(
+    @Param("tier") tier: string,
+    @Param("year") year: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const yearNum = Number.parseInt(year, 10);
+    if (!Number.isFinite(yearNum)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = this.lol.rankEmblem(tier, yearNum);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  // UI singleton icons (gold, cs, vision, kills). Closed set on `:name`.
+  @Get("lol/ui/:name.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async uiIcon(@Param("name") name: string, @Res() res: Response): Promise<void> {
+    if (!UI_ICONS.has(name as UiIconName)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = this.lol.uiIcon(name as UiIconName);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 

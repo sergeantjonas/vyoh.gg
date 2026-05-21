@@ -1,5 +1,6 @@
+import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
-import { type RankEntry, wikiRankedEmblemUrl } from "@vyoh/shared";
+import type { RankEntry } from "@vyoh/shared";
 import { Flame } from "lucide-react";
 import { m } from "motion/react";
 import { useState } from "react";
@@ -28,7 +29,7 @@ const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
 function RankTileContent({ entry }: { entry: RankEntry }) {
   const emblemYear = useRankedEmblemYear();
-  const emblemUrl = wikiRankedEmblemUrl(entry.tier, emblemYear);
+  const emblemUrl = rankEmblemUrl(entry.tier, emblemYear);
   const [emblemLoaded, setEmblemLoaded] = useState(() => loadedEmblems.has(emblemUrl));
   const tierColor = TIER_COLOR[entry.tier] ?? "text-foreground";
   const label = QUEUE_LABEL[entry.queueId] ?? entry.queueId;

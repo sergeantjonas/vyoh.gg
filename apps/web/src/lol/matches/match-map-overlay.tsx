@@ -15,11 +15,12 @@ import {
 } from "@/components/game-icons";
 import { DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { mapIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { formatGameTime, wikiMinimapUrl } from "@vyoh/shared";
+import { formatGameTime } from "@vyoh/shared";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import {
@@ -41,7 +42,7 @@ import {
   YAxis,
 } from "recharts";
 
-const MINIMAP_URL = wikiMinimapUrl(11) ?? undefined;
+const MINIMAP_URL = mapIconUrl(11);
 
 type EventKind =
   | "kill"

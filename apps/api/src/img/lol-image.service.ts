@@ -1,8 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import {
   wikiAbilityIconUrl,
+  wikiAttackIconUrl,
   wikiChampionSquareUrl,
+  wikiGoldIconUrl,
+  wikiMinimapUrl,
+  wikiMinionIconUrl,
   wikiProfileIconUrl,
+  wikiRankedEmblemUrl,
+  wikiWardIconUrl,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TranscodeParams } from "./upstream";
@@ -33,6 +39,9 @@ function normalizeChampionAlias(alias: string): string {
 }
 
 export type ChampionVariant = "square" | "card" | "backdrop";
+
+export const UI_ICON_NAMES = ["gold", "minion", "ward", "attack"] as const;
+export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 export const ROLE_POSITION_SLUGS = [
   "top",
@@ -161,6 +170,39 @@ export class LolImageService {
       urls: [wikiAbilityIconUrl(row.champion.name, row.name)],
       params: { width: 40, quality: 85 },
     };
+  }
+
+  // Minimap art. Deterministic from `mapId` — no Prisma lookup. Throws when
+  // the mapId isn't recognised (only 11/12 today) so the controller can 400.
+  map(mapId: number): Resolved {
+    const url = wikiMinimapUrl(mapId);
+    if (!url) {
+      throw new Error(`unknown mapId ${mapId}`);
+    }
+    return { urls: [url], params: { width: 256, quality: 85 } };
+  }
+
+  // Ranked tier emblem. `year` lets a future emblem redesign land via URL
+  // bump only — `wikiRankedEmblemUrl` does the title-casing.
+  rankEmblem(tier: string, year: number): Resolved {
+    return {
+      urls: [wikiRankedEmblemUrl(tier, year)],
+      params: { width: 128, quality: 85 },
+    };
+  }
+
+  // UI singleton icons (gold/cs/vision/kills). Deterministic switch on the
+  // canonical name — keeps the route's `:name` param to a closed set.
+  uiIcon(name: UiIconName): Resolved {
+    const url =
+      name === "gold"
+        ? wikiGoldIconUrl()
+        : name === "minion"
+          ? wikiMinionIconUrl()
+          : name === "ward"
+            ? wikiWardIconUrl()
+            : wikiAttackIconUrl();
+    return { urls: [url], params: { width: 64, quality: 85 } };
   }
 
   async rune(keystoneId: number): Promise<Resolved> {
