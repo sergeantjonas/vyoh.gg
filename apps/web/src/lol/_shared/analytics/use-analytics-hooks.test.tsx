@@ -70,6 +70,28 @@ describe("usePerks", () => {
     const { result } = renderHook(() => usePerks(), { wrapper: makeWrapper() });
     expect(result.current).toBeUndefined();
   });
+
+  it("strips wikitext templates from descriptions for plain-text tooltips", async () => {
+    mockLolStaticFetch({
+      perks: [
+        {
+          id: 8005,
+          name: "Press the Attack",
+          path: "Precision",
+          slot: "Keystone",
+          iconWikiName: null,
+          descriptionWikitext: "Hitting an enemy with {{as|3 basic attacks}} marks them.",
+          descriptionHtml: null,
+          retiredAt: null,
+        },
+      ],
+    });
+    const { result } = renderHook(() => usePerks(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current).toBeInstanceOf(Map));
+    expect(result.current?.get(8005)?.description).toBe(
+      "Hitting an enemy with 3 basic attacks marks them."
+    );
+  });
 });
 
 describe("useSummonerSpells", () => {
@@ -91,6 +113,26 @@ describe("useSummonerSpells", () => {
     const entry = result.current?.get(4);
     expect(entry?.name).toBe("Flash");
     expect(entry?.iconUrl).toContain("4");
+  });
+
+  it("strips wikitext templates from descriptions for plain-text tooltips", async () => {
+    mockLolStaticFetch({
+      summonerSpells: [
+        {
+          id: 4,
+          name: "Flash",
+          iconWikiName: null,
+          descriptionWikitext: "Teleports your champion {{as|400 units}}.",
+          descriptionHtml: null,
+          retiredAt: null,
+        },
+      ],
+    });
+    const { result } = renderHook(() => useSummonerSpells(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current).toBeInstanceOf(Map));
+    expect(result.current?.get(4)?.description).toBe(
+      "Teleports your champion 400 units."
+    );
   });
 
   it("filters out retired summoner spells", async () => {

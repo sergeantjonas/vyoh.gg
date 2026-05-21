@@ -21,7 +21,14 @@ describe("KeystoneIcon", () => {
   it("renders an img with the perk icon URL when perks are loaded", () => {
     vi.mocked(usePerks).mockReturnValue(
       new Map([
-        [8005, { iconUrl: "/img/lol/rune/8005/26.9.webp", name: "Press the Attack" }],
+        [
+          8005,
+          {
+            iconUrl: "/img/lol/rune/8005/26.9.webp",
+            name: "Press the Attack",
+            description: "Hitting an enemy with 3 basic attacks marks them.",
+          },
+        ],
       ])
     );
     renderIcon(8005);

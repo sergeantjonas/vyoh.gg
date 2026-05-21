@@ -20,9 +20,20 @@ function renderIcon(id: number) {
 describe("SummonerSpellIcon", () => {
   it("renders the spell icon when spells are loaded", () => {
     vi.mocked(useSummonerSpells).mockReturnValue(
-      new Map([[4, { iconUrl: "/img/lol/spell/4/26.9.webp", name: "Flash" }]])
+      new Map([
+        [
+          4,
+          {
+            iconUrl: "/img/lol/spell/4/26.9.webp",
+            name: "Flash",
+            description: "Teleports a short distance.",
+          },
+        ],
+      ])
     );
     renderIcon(4);
+    // The trigger renders a visible img; the tooltip content also renders an
+    // img but only while open, so screen.getByRole("img") matches the trigger.
     const img = screen.getByRole("img") as HTMLImageElement;
     expect(img.getAttribute("src")).toBe("/img/lol/spell/4/26.9.webp");
     expect(img.getAttribute("alt")).toBe("Flash");

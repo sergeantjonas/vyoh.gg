@@ -1,18 +1,29 @@
 import { runeIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
-import type { LolStaticBundle } from "@vyoh/shared";
+import { type LolStaticBundle, stripWikitext } from "@vyoh/shared";
 
 export interface PerkInfo {
   iconUrl: string;
   name: string;
+  description: string;
 }
 
 function buildPerksMap(bundle: LolStaticBundle, patch: string): Map<number, PerkInfo> {
   return new Map(
     bundle.perks
       .filter((p) => p.retiredAt == null)
-      .map((p) => [p.id, { iconUrl: runeIconUrl(p.id, patch), name: p.name }])
+      .map((p) => {
+        const raw = p.descriptionHtml ?? p.descriptionWikitext ?? "";
+        return [
+          p.id,
+          {
+            iconUrl: runeIconUrl(p.id, patch),
+            name: p.name,
+            description: stripWikitext(raw),
+          },
+        ];
+      })
   );
 }
 

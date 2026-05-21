@@ -118,11 +118,37 @@ function BuildItemSlot({
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content
             side="top"
-            sideOffset={5}
+            sideOffset={6}
             collisionPadding={8}
-            className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
+            className="pointer-events-none z-50 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md"
           >
-            <div className="font-medium">{item?.name ?? `Item ${entry.itemId}`}</div>
+            {item ? (
+              <>
+                <div className="flex items-start gap-3">
+                  <img
+                    src={item.iconUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="size-10 shrink-0 rounded-md bg-muted"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="text-sm font-semibold leading-tight">{item.name}</div>
+                    {item.priceTotal ? (
+                      <div className="font-mono text-xs text-amber-400">
+                        {item.priceTotal}g
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                {item.description && (
+                  <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    {item.description}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-sm font-medium">Item {entry.itemId}</div>
+            )}
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>
