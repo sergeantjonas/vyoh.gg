@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import type { TranscodeParams } from "./upstream";
 import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
@@ -9,9 +11,7 @@ import {
   wikiProfileIconUrl,
   wikiRankedEmblemUrl,
   wikiWardIconUrl,
-} from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import type { TranscodeParams } from "./upstream";
+} from "./wiki-url-helpers";
 
 const CDRAGON_CDN = "https://cdn.communitydragon.org/latest";
 const CDRAGON_GAME_DATA =

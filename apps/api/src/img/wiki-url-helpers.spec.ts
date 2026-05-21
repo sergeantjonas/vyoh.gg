@@ -11,7 +11,7 @@ import {
   wikiRankedEmblemUrl,
   wikiStatIconUrl,
   wikiWardIconUrl,
-} from "./wiki-image-urls.ts";
+} from "./wiki-url-helpers";
 
 const BASE = "https://wiki.leagueoflegends.com/en-us/images";
 

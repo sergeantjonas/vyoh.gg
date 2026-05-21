@@ -1,14 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
-import {
-  type ChampionPatchChangeGroup,
-  type ChampionPatchChangeKind,
-  type CurrentPatchChangesResponse,
-  type PatchChangesResponse,
-  type PatchEntryChangeGroup,
-  type PatchListEntry,
-  wikiEntryIconUrl,
+import type {
+  ChampionPatchChangeGroup,
+  ChampionPatchChangeKind,
+  CurrentPatchChangesResponse,
+  PatchChangesResponse,
+  PatchEntryChangeGroup,
+  PatchListEntry,
 } from "@vyoh/shared";
+import { wikiEntryIconUrl } from "../img/wiki-url-helpers";
 import { PrismaService } from "../prisma/prisma.service";
 import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch-parser";
 

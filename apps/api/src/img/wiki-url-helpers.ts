@@ -1,7 +1,8 @@
-// Wiki image URLs follow a predictable convention — constructable from
-// display name alone, no API call needed. Removed entities (e.g. retired runes
-// like Phase Rush) keep their image permanently, so version fallbacks are
-// unnecessary.
+// API-internal wiki image URL builders. Consumed by `LolImageService`
+// (image proxy) and `PatchService` (persists wiki URLs into
+// `change.iconPath`). Apps/web does NOT import from here — the proxy is the
+// only boundary that should know wiki URL shapes. See
+// docs/working-notes/lol/unified-image-fallback.md.
 
 const WIKI_IMAGES = "https://wiki.leagueoflegends.com/en-us/images";
 
