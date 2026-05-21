@@ -163,6 +163,16 @@ function AccountLayout() {
   // restore from firing on routine tab returns.
   const isInMatchesSubtree = isInMatchesSubtreeFn(pathname, accountSlug);
 
+  // Coarsen the AnimatePresence key for match-detail routes so switching
+  // between /recap, /your-game, /timeline does not remount the shell (which
+  // would reset bodyReady, show the skeleton, and re-run entry animations on
+  // every tab click). Strip the trailing tab segment; leave all other paths
+  // (section-level navigations) keyed on the full pathname so slide
+  // transitions still fire correctly.
+  const slideKey = isMatchDetail
+    ? matchesPathPrefix + (pathname.slice(matchesPathPrefix.length).split("/")[0] ?? "")
+    : pathname;
+
   // TanStack Router's built-in scrollRestoration was disabled to let
   // MatchList drive its own restore on detail → list back-nav. The side
   // effect: every other route transition inherits whatever scroll position
@@ -266,7 +276,7 @@ function AccountLayout() {
         <SeriousQueuesProvider>
           <MatchWindowProvider value={matchWindowValue}>
             <SectionShell
-              pathname={pathname}
+              pathname={slideKey}
               slideDirection={slideDirection}
               slideTransitionOverride={slideTransitionOverride}
               headerRef={setHeaderEl}

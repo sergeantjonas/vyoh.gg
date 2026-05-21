@@ -43,6 +43,10 @@ import type {
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { type ComponentType, useEffect, useState } from "react";
 
+// Tracks which matchId recap tabs have already played their entry animations.
+// Cleared only on full page reload — tab switches within a session skip re-animating.
+const recapSeen = new Set<string>();
+
 const itemsContainer: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
@@ -190,12 +194,15 @@ function ItemSlot({ id }: { id: number }) {
   );
 }
 
-function ItemSlots({ items }: { items: number[] }) {
+function ItemSlots({
+  items,
+  skipAnimation,
+}: { items: number[]; skipAnimation?: boolean | undefined }) {
   const reduced = useReducedMotion();
   return (
     <m.div
       variants={itemsContainer}
-      initial={reduced ? "show" : "hidden"}
+      initial={reduced || skipAnimation ? "show" : "hidden"}
       animate="show"
       className="flex gap-0.5"
     >
@@ -216,6 +223,7 @@ function StatBar({
   max,
   fillClassName,
   labelClassName,
+  skipAnimation,
 }: {
   Icon: ComponentType<{ className?: string }>;
   label: string;
@@ -223,8 +231,10 @@ function StatBar({
   max: number;
   fillClassName: string;
   labelClassName: string;
+  skipAnimation?: boolean | undefined;
 }) {
   const reduced = useReducedMotion();
+  const skip = reduced || skipAnimation;
   const target = max > 0 ? value / max : 0;
   return (
     <div className="flex items-center gap-1.5">
@@ -241,10 +251,10 @@ function StatBar({
         <m.div
           className={cn("absolute inset-y-0 left-0 w-full rounded-full", fillClassName)}
           style={{ transformOrigin: "left" }}
-          initial={{ scaleX: reduced ? target : 0 }}
+          initial={{ scaleX: skip ? target : 0 }}
           animate={{ scaleX: target }}
           transition={
-            reduced
+            skip
               ? { duration: 0 }
               : { type: "spring", stiffness: 220, damping: 28, delay: 0.18 }
           }
@@ -468,14 +478,16 @@ function SegmentedDamageBar({
   magic,
   trueDmg,
   max,
+  skipAnimation,
 }: {
   physical: number;
   magic: number;
   trueDmg: number;
   max: number;
+  skipAnimation?: boolean | undefined;
 }) {
   const reduced = useReducedMotion();
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(() => !!skipAnimation);
   useEffect(() => {
     const raf = requestAnimationFrame(() => setPlaying(true));
     return () => cancelAnimationFrame(raf);
@@ -570,6 +582,7 @@ function ParticipantRow({
   maxGold,
   badge,
   accountSlug,
+  skipAnimation,
 }: {
   p: ParticipantDetail;
   isMe?: boolean | undefined;
@@ -577,6 +590,7 @@ function ParticipantRow({
   maxGold: number;
   badge?: { label: string; tip: string } | undefined;
   accountSlug: string;
+  skipAnimation?: boolean | undefined;
 }) {
   const championName = useChampionName();
   const reduced = useReducedMotion();
@@ -703,13 +717,14 @@ function ParticipantRow({
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5">
-        <ItemSlots items={p.items} />
+        <ItemSlots items={p.items} skipAnimation={skipAnimation} />
         <div className="flex flex-col gap-0.5">
           <SegmentedDamageBar
             physical={p.damageDealtPhysical}
             magic={p.damageDealtMagic}
             trueDmg={p.damageDealtTrue}
             max={maxDamage}
+            skipAnimation={skipAnimation}
           />
           <StatBar
             Icon={GoldIcon}
@@ -718,6 +733,7 @@ function ParticipantRow({
             max={maxGold}
             fillClassName="bg-gradient-to-r from-amber-500/80 to-yellow-300/80"
             labelClassName="text-amber-400/80"
+            skipAnimation={skipAnimation}
           />
         </div>
       </div>
@@ -734,6 +750,7 @@ function TeamBlock({
   badges,
   goldLead,
   accountSlug,
+  skipAnimation,
 }: {
   title: string;
   participants: ParticipantDetail[];
@@ -743,6 +760,7 @@ function TeamBlock({
   badges: Map<string, { label: string; tip: string }>;
   goldLead: number;
   accountSlug: string;
+  skipAnimation?: boolean | undefined;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -770,7 +788,7 @@ function TeamBlock({
         )}
       </h3>
       <m.ul
-        initial="hidden"
+        initial={skipAnimation ? "show" : "hidden"}
         animate="show"
         variants={teamContainer}
         className="flex flex-col gap-2"
@@ -784,6 +802,7 @@ function TeamBlock({
             maxGold={maxGold}
             badge={badges.get(p.puuid)}
             accountSlug={accountSlug}
+            skipAnimation={skipAnimation}
           />
         ))}
       </m.ul>
@@ -812,6 +831,11 @@ export function MatchRecapTab({
   accountSlug: string;
 }) {
   const reduced = useReducedMotion();
+  const skip = reduced || recapSeen.has(detail.matchId);
+  useEffect(() => {
+    recapSeen.add(detail.matchId);
+  }, [detail.matchId]);
+
   const blue = detail.participants.filter((p) => p.teamId === 100);
   const red = detail.participants.filter((p) => p.teamId === 200);
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
@@ -825,7 +849,7 @@ export function MatchRecapTab({
       <MatchHeaderStrip matchId={detail.matchId} teams={detail.teams} />
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <m.div
-          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          initial={skip ? {} : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 28 }}
         >
@@ -838,10 +862,11 @@ export function MatchRecapTab({
             badges={badges}
             goldLead={blueGold - redGold}
             accountSlug={accountSlug}
+            skipAnimation={skip}
           />
         </m.div>
         <m.div
-          initial={reduced ? {} : { opacity: 0, y: 12 }}
+          initial={skip ? {} : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 28, delay: 0.12 }}
         >
@@ -854,6 +879,7 @@ export function MatchRecapTab({
             badges={badges}
             goldLead={redGold - blueGold}
             accountSlug={accountSlug}
+            skipAnimation={skip}
           />
         </m.div>
       </div>

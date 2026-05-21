@@ -2,6 +2,7 @@ import { runeIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
 import { type LolStaticBundle, stripWikitext } from "@vyoh/shared";
+import { useCallback } from "react";
 
 export interface PerkInfo {
   iconUrl: string;
@@ -9,8 +10,18 @@ export interface PerkInfo {
   description: string;
 }
 
+const perksCache = new WeakMap<LolStaticBundle, Map<string, Map<number, PerkInfo>>>();
+
 function buildPerksMap(bundle: LolStaticBundle, patch: string): Map<number, PerkInfo> {
-  return new Map(
+  let byPatch = perksCache.get(bundle);
+  if (!byPatch) {
+    byPatch = new Map();
+    perksCache.set(bundle, byPatch);
+  }
+  const cached = byPatch.get(patch);
+  if (cached) return cached;
+
+  const result = new Map(
     bundle.perks
       .filter((p) => p.retiredAt == null)
       .map((p) => {
@@ -25,6 +36,8 @@ function buildPerksMap(bundle: LolStaticBundle, patch: string): Map<number, Perk
         ];
       })
   );
+  byPatch.set(patch, result);
+  return result;
 }
 
 // Map sourced from the bundled `/lol/static` payload; icon bytes still come
@@ -32,5 +45,9 @@ function buildPerksMap(bundle: LolStaticBundle, patch: string): Map<number, Perk
 // out so the live UI never surfaces a defunct keystone (e.g. Phase Rush).
 export function usePerks(): Map<number, PerkInfo> | undefined {
   const patch = useDDragonVersion();
-  return useLolStaticSelect((bundle) => buildPerksMap(bundle, patch)).data;
+  const select = useCallback(
+    (bundle: LolStaticBundle) => buildPerksMap(bundle, patch),
+    [patch]
+  );
+  return useLolStaticSelect(select).data;
 }

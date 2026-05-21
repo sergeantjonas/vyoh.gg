@@ -3,6 +3,7 @@ import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { toRichDescription } from "@/lol/_shared/static/rich-description";
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
 import { type LolStaticBundle, stripWikitext } from "@vyoh/shared";
+import { useCallback } from "react";
 
 export interface Item {
   name: string;
@@ -19,8 +20,22 @@ export interface Item {
   categories: string[];
 }
 
+// Bundle reference is stable (staleTime: Infinity). Keying on bundle + patch
+// ensures we reuse the derived Map across the 70 ItemSlot instances that call
+// useItems() simultaneously on Recap mount, instead of re-running the full
+// O(n_items × description_processing) work once per subscriber.
+const itemsCache = new WeakMap<LolStaticBundle, Map<string, Map<number, Item>>>();
+
 function buildItemsMap(bundle: LolStaticBundle, patch: string): Map<number, Item> {
-  return new Map(
+  let byPatch = itemsCache.get(bundle);
+  if (!byPatch) {
+    byPatch = new Map();
+    itemsCache.set(bundle, byPatch);
+  }
+  const cached = byPatch.get(patch);
+  if (cached) return cached;
+
+  const result = new Map(
     bundle.items.map((it) => {
       const from = it.recipe
         .map((r) => Number.parseInt(r, 10))
@@ -39,9 +54,15 @@ function buildItemsMap(bundle: LolStaticBundle, patch: string): Map<number, Item
       return [it.id, item];
     })
   );
+  byPatch.set(patch, result);
+  return result;
 }
 
 export function useItems() {
   const patch = useDDragonVersion();
-  return useLolStaticSelect((bundle) => buildItemsMap(bundle, patch));
+  const select = useCallback(
+    (bundle: LolStaticBundle) => buildItemsMap(bundle, patch),
+    [patch]
+  );
+  return useLolStaticSelect(select);
 }
