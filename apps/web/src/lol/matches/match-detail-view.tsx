@@ -22,6 +22,7 @@ import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
+import { MatchDamageProfile } from "@/lol/matches/match-damage-profile";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
@@ -792,6 +793,7 @@ function TeamBlock({
 const YOUR_GAME_SECTIONS = [
   { id: "build-order", label: "Build" },
   { id: "spell-casts", label: "Casts" },
+  { id: "damage-profile", label: "Damage" },
   { id: "skill-order", label: "Skills" },
   { id: "lane-phase", label: "Lane phase" },
 ] as const;
@@ -885,6 +887,9 @@ export function MatchYourGameTab({
         </div>
         <div ref={refFor("spell-casts")}>
           <MatchSpellCasts detail={detail} myPuuid={myPuuid} />
+        </div>
+        <div ref={refFor("damage-profile")}>
+          <MatchDamageProfile detail={detail} myPuuid={myPuuid} />
         </div>
         <div ref={refFor("skill-order")}>
           <MatchSkillOrder detail={detail} myPuuid={myPuuid} />

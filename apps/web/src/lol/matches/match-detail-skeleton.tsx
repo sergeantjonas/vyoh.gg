@@ -105,6 +105,25 @@ function SpellCastsSkeleton() {
   );
 }
 
+function DamageProfileSkeleton() {
+  return (
+    <section className="flex flex-col gap-3">
+      <ShimmerBlock className="h-4 w-28 rounded" />
+      <div className="flex flex-col gap-4 rounded-md border bg-card/60 p-4 backdrop-blur-sm">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <ShimmerBlock className="h-3 w-12 rounded" />
+              <ShimmerBlock className="h-3 w-16 rounded" />
+            </div>
+            <ShimmerBlock className="h-2 w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SkillOrderSkeleton() {
   return (
     <section className="flex flex-col gap-3">
@@ -141,11 +160,12 @@ function YourGameSkeleton() {
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         <BuildOrderSkeleton />
         <SpellCastsSkeleton />
+        <DamageProfileSkeleton />
         <SkillOrderSkeleton />
         <LanePhaseSkeleton />
       </div>
       <aside className="hidden w-28 shrink-0 flex-col gap-1.5 sm:flex">
-        {[0, 1, 2, 3].map((i) => (
+        {[0, 1, 2, 3, 4].map((i) => (
           <ShimmerBlock key={i} className="h-4 w-20 rounded" />
         ))}
       </aside>
