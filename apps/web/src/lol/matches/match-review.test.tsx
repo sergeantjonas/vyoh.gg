@@ -1,14 +1,17 @@
 import {
   MatchReviewView,
+  buildHighlightChips,
   getLaningVerdict,
   getLateVerdict,
   getMidVerdict,
 } from "@/lol/matches/match-review-view";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type {
   MatchDetail,
   MatchSummary,
   MatchTimelineProjection,
+  ParticipantOwnerExtras,
   TeamSummary,
 } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
@@ -323,6 +326,159 @@ describe("getLateVerdict", () => {
   });
 });
 
+// --- buildHighlightChips unit tests ---
+
+function makeOwner(
+  overrides: Partial<ParticipantOwnerExtras> = {}
+): ParticipantOwnerExtras {
+  return {
+    spellCasts: { q: 0, w: 0, e: 0, r: 0, summoner1: 0, summoner2: 0 },
+    multikills: {
+      double: 0,
+      triple: 0,
+      quadra: 0,
+      penta: 0,
+      killingSprees: 0,
+      largestKillingSpree: 0,
+    },
+    survival: {
+      totalDamageTaken: 0,
+      damageSelfMitigated: 0,
+      totalHeal: 0,
+      totalTimeCCDealt: 0,
+      totalTimeSpentDead: 0,
+      longestTimeSpentLiving: 0,
+    },
+    challenges: {},
+    ...overrides,
+  };
+}
+
+describe("buildHighlightChips", () => {
+  it("returns empty array when all values are below threshold", () => {
+    const result = buildHighlightChips(makeOwner());
+    expect(result).toHaveLength(0);
+  });
+
+  it("penta = 1 renders as 'Pentakill'", () => {
+    const result = buildHighlightChips(
+      makeOwner({
+        multikills: {
+          double: 0,
+          triple: 0,
+          quadra: 0,
+          penta: 1,
+          killingSprees: 0,
+          largestKillingSpree: 0,
+        },
+      })
+    );
+    expect(result[0]?.label).toBe("Pentakill");
+    expect(result[0]?.tone).toBe("positive");
+  });
+
+  it("penta > 1 renders as 'N× Pentakill'", () => {
+    const result = buildHighlightChips(
+      makeOwner({
+        multikills: {
+          double: 0,
+          triple: 0,
+          quadra: 0,
+          penta: 2,
+          killingSprees: 0,
+          largestKillingSpree: 0,
+        },
+      })
+    );
+    expect(result[0]?.label).toBe("2× Pentakill");
+  });
+
+  it("soloKills=1 → singular label; soloKills=3 → plural", () => {
+    const one = buildHighlightChips(makeOwner({ challenges: { soloKills: 1 } }));
+    expect(one.find((c) => c.label.includes("solo kill"))?.label).toBe("1 solo kill");
+    const three = buildHighlightChips(makeOwner({ challenges: { soloKills: 3 } }));
+    expect(three.find((c) => c.label.includes("solo kill"))?.label).toBe("3 solo kills");
+  });
+
+  it("largestKillingSpree < 3 → no spree chip; ≥ 3 → chip present", () => {
+    const below = buildHighlightChips(
+      makeOwner({
+        multikills: {
+          double: 0,
+          triple: 0,
+          quadra: 0,
+          penta: 0,
+          killingSprees: 1,
+          largestKillingSpree: 2,
+        },
+      })
+    );
+    expect(below.find((c) => c.label.includes("spree"))).toBeUndefined();
+    const above = buildHighlightChips(
+      makeOwner({
+        multikills: {
+          double: 0,
+          triple: 0,
+          quadra: 0,
+          penta: 0,
+          killingSprees: 1,
+          largestKillingSpree: 5,
+        },
+      })
+    );
+    expect(above.find((c) => c.label.includes("spree"))?.label).toBe("5-kill spree");
+  });
+
+  it("enemyChampionImmobilizations < 20 → no chip; ≥ 20 → cc chip", () => {
+    const below = buildHighlightChips(
+      makeOwner({ challenges: { enemyChampionImmobilizations: 15 } })
+    );
+    expect(below.find((c) => c.label.includes("immobilization"))).toBeUndefined();
+    const above = buildHighlightChips(
+      makeOwner({ challenges: { enemyChampionImmobilizations: 34 } })
+    );
+    expect(above.find((c) => c.label.includes("immobilization"))?.tone).toBe("cc");
+  });
+
+  it("longestTimeSpentLiving < 300s → no streak; ≥ 300s → minutes shown", () => {
+    const below = buildHighlightChips(
+      makeOwner({
+        survival: {
+          totalDamageTaken: 0,
+          damageSelfMitigated: 0,
+          totalHeal: 0,
+          totalTimeCCDealt: 0,
+          totalTimeSpentDead: 0,
+          longestTimeSpentLiving: 240,
+        },
+      })
+    );
+    expect(below.find((c) => c.label.includes("streak"))).toBeUndefined();
+    const above = buildHighlightChips(
+      makeOwner({
+        survival: {
+          totalDamageTaken: 0,
+          damageSelfMitigated: 0,
+          totalHeal: 0,
+          totalTimeCCDealt: 0,
+          totalTimeSpentDead: 0,
+          longestTimeSpentLiving: 780,
+        },
+      })
+    );
+    expect(above.find((c) => c.label.includes("streak"))?.label).toBe("13m streak");
+  });
+
+  it("clutch survival shows correct tone", () => {
+    const result = buildHighlightChips(
+      makeOwner({ challenges: { survivedSingleDigitHpCount: 2 } })
+    );
+    const chip = result.find((c) => c.label.includes("clutch"));
+    expect(chip?.label).toBe("2 clutches");
+    expect(chip?.tone).toBe("survival");
+  });
+});
+
 // --- MatchReviewView render tests ---
 
 const axe = configureAxe({
@@ -341,14 +497,16 @@ function renderReview(
   const detail = makeDetail(detailOverrides);
   const timeline = goldDiffPerFrame ? makeTimeline(goldDiffPerFrame) : undefined;
   return render(
-    <MotionConfig reducedMotion="always">
-      <MatchReviewView
-        detail={detail}
-        myPuuid="owner-puuid"
-        summary={summary}
-        timeline={timeline}
-      />
-    </MotionConfig>
+    <TooltipPrimitive.Provider>
+      <MotionConfig reducedMotion="always">
+        <MatchReviewView
+          detail={detail}
+          myPuuid="owner-puuid"
+          summary={summary}
+          timeline={timeline}
+        />
+      </MotionConfig>
+    </TooltipPrimitive.Provider>
   );
 }
 
@@ -381,6 +539,80 @@ describe("MatchReviewView", () => {
     const diffs = Array.from({ length: 30 }, (_, i) => i * 300);
     renderReview({}, {}, diffs);
     expect(screen.getByText("Gold lead")).not.toBeNull();
+  });
+
+  it("renders the highlights section with chips for qualifying moments", () => {
+    renderReview();
+    // default fixture has triple kill + solo kills + outnumbered + spree + clutch + streak
+    expect(screen.getByText("1× triple kill")).not.toBeNull();
+    expect(screen.getByText("3 solo kills")).not.toBeNull();
+    expect(screen.getByText("1 vs. outnumbered")).not.toBeNull();
+    expect(screen.getByText("3-kill spree")).not.toBeNull();
+    expect(screen.getByText("1 clutch")).not.toBeNull();
+    expect(screen.getByText("10m streak")).not.toBeNull();
+  });
+
+  it("shows 'A quiet game.' when no chips clear thresholds", () => {
+    const silentOwner = {
+      spellCasts: { q: 0, w: 0, e: 0, r: 0, summoner1: 0, summoner2: 0 },
+      multikills: {
+        double: 0,
+        triple: 0,
+        quadra: 0,
+        penta: 0,
+        killingSprees: 0,
+        largestKillingSpree: 0,
+      },
+      survival: {
+        totalDamageTaken: 0,
+        damageSelfMitigated: 0,
+        totalHeal: 0,
+        totalTimeCCDealt: 0,
+        totalTimeSpentDead: 0,
+        longestTimeSpentLiving: 0,
+      },
+      challenges: {},
+    };
+    renderReview(
+      {},
+      {
+        participants: [
+          {
+            puuid: "owner-puuid",
+            riotIdGameName: "Ahri",
+            riotIdTagline: "EUW",
+            championName: "Ahri",
+            teamId: 100,
+            teamPosition: "MIDDLE",
+            kills: 0,
+            deaths: 0,
+            assists: 0,
+            win: true,
+            items: [],
+            goldEarned: 0,
+            totalDamage: 0,
+            csTotal: 0,
+            csPerMin: 0,
+            visionScore: 0,
+            wardsPlaced: 0,
+            wardsKilled: 0,
+            controlWardsPurchased: 0,
+            kp: 0,
+            damageShare: 0,
+            goldShare: 0,
+            damageDealtPhysical: 0,
+            damageDealtMagic: 0,
+            damageDealtTrue: 0,
+            summoner1Id: 4,
+            summoner2Id: 14,
+            keystone: 8214,
+            championLevel: 1,
+            owner: silentOwner,
+          },
+        ],
+      }
+    );
+    expect(screen.getByText("A quiet game.")).not.toBeNull();
   });
 
   it("passes axe scan", async () => {

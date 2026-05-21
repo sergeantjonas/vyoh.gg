@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
@@ -11,6 +12,16 @@ import type {
   ParticipantOwnerExtras,
   TeamSummary,
 } from "@vyoh/shared";
+import {
+  Crosshair,
+  Flame,
+  HeartPulse,
+  type LucideIcon,
+  Swords,
+  Timer,
+  Users,
+  Zap,
+} from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { type MouseEvent, useMemo, useState } from "react";
 
@@ -24,6 +35,99 @@ const SR_QUEUES = new Set([
   "Quickplay",
   "Clash",
 ]);
+
+// --- Moment highlights ---
+
+type HighlightChip = {
+  Icon: LucideIcon;
+  label: string;
+  description: string;
+  tone: "positive" | "survival" | "cc";
+};
+
+export function buildHighlightChips(owner: ParticipantOwnerExtras): HighlightChip[] {
+  const chips: HighlightChip[] = [];
+  const { multikills, challenges, survival } = owner;
+
+  if (multikills.penta >= 1) {
+    chips.push({
+      Icon: Swords,
+      label: multikills.penta === 1 ? "Pentakill" : `${multikills.penta}× Pentakill`,
+      description: "Killed all 5 enemies consecutively without dying",
+      tone: "positive",
+    });
+  }
+  if (multikills.quadra >= 1) {
+    chips.push({
+      Icon: Swords,
+      label: `${multikills.quadra}× quadra kill`,
+      description: "Killed 4 enemies in quick succession",
+      tone: "positive",
+    });
+  }
+  if (multikills.triple >= 1) {
+    chips.push({
+      Icon: Swords,
+      label: `${multikills.triple}× triple kill`,
+      description: "Killed 3 enemies in quick succession",
+      tone: "positive",
+    });
+  }
+  const soloKills = challenges.soloKills ?? 0;
+  if (soloKills >= 1) {
+    chips.push({
+      Icon: Crosshair,
+      label: `${soloKills} solo kill${soloKills > 1 ? "s" : ""}`,
+      description: "Kills earned without your team nearby",
+      tone: "positive",
+    });
+  }
+  const outnumbered = challenges.outnumberedKills ?? 0;
+  if (outnumbered >= 1) {
+    chips.push({
+      Icon: Users,
+      label: `${outnumbered} vs. outnumbered`,
+      description: "Kills scored while 2 or more enemies were present",
+      tone: "positive",
+    });
+  }
+  if (multikills.largestKillingSpree >= 3) {
+    chips.push({
+      Icon: Flame,
+      label: `${multikills.largestKillingSpree}-kill spree`,
+      description: "Most consecutive kills you had without dying",
+      tone: "positive",
+    });
+  }
+  const clutches = challenges.survivedSingleDigitHpCount ?? 0;
+  if (clutches >= 1) {
+    chips.push({
+      Icon: HeartPulse,
+      label: `${clutches} clutch${clutches > 1 ? "es" : ""}`,
+      description: "Survived with less than 10% health",
+      tone: "survival",
+    });
+  }
+  if (survival.longestTimeSpentLiving >= 300) {
+    const minutes = Math.floor(survival.longestTimeSpentLiving / 60);
+    chips.push({
+      Icon: Timer,
+      label: `${minutes}m streak`,
+      description: "Your longest uninterrupted stretch without dying",
+      tone: "survival",
+    });
+  }
+  const immob = challenges.enemyChampionImmobilizations ?? 0;
+  if (immob >= 20) {
+    chips.push({
+      Icon: Zap,
+      label: `${immob} immobilizations`,
+      description: "Times you rooted, stunned, or hard-CC'd an enemy",
+      tone: "cc",
+    });
+  }
+  return chips;
+}
 
 // --- Data helpers ---
 
@@ -472,6 +576,56 @@ function PhaseVerdictStrip({ verdicts }: { verdicts: PhaseVerdict[] }) {
   );
 }
 
+const CHIP_TONE_CLASSES: Record<HighlightChip["tone"], string> = {
+  positive: "border-emerald-400/30 bg-emerald-400/10 text-emerald-400",
+  survival: "border-sky-400/30 bg-sky-400/10 text-sky-400",
+  cc: "border-violet-400/30 bg-violet-400/10 text-violet-400",
+};
+
+function MomentHighlightsStrip({ owner }: { owner: ParticipantOwnerExtras | undefined }) {
+  const chips = owner ? buildHighlightChips(owner) : [];
+  return (
+    <>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-sm font-medium">Highlights</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {chips.length === 0 ? (
+          <span className="text-sm italic text-muted-foreground">A quiet game.</span>
+        ) : (
+          chips.map((chip) => {
+            const { Icon } = chip;
+            return (
+              <TooltipPrimitive.Root key={chip.label}>
+                <TooltipPrimitive.Trigger asChild>
+                  <div
+                    className={cn(
+                      "flex cursor-default items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+                      CHIP_TONE_CLASSES[chip.tone]
+                    )}
+                  >
+                    <Icon className="size-3 shrink-0" aria-hidden />
+                    {chip.label}
+                  </div>
+                </TooltipPrimitive.Trigger>
+                <TooltipPrimitive.Portal>
+                  <TooltipPrimitive.Content
+                    side="bottom"
+                    sideOffset={6}
+                    className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                  >
+                    {chip.description}
+                  </TooltipPrimitive.Content>
+                </TooltipPrimitive.Portal>
+              </TooltipPrimitive.Root>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+}
+
 // --- Main view ---
 
 export function MatchReviewView({
@@ -591,6 +745,10 @@ export function MatchReviewView({
             </p>
           </div>
         )}
+      </section>
+
+      <section aria-label="Moment highlights">
+        <MomentHighlightsStrip owner={ownerDetail?.owner} />
       </section>
 
       <section aria-label="Phase verdicts">
