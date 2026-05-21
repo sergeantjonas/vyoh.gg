@@ -26,6 +26,7 @@ import { MatchDamageProfile } from "@/lol/matches/match-damage-profile";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
+import { MatchOwnerStats } from "@/lol/matches/match-owner-stats";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { MatchSpellCasts } from "@/lol/matches/match-spell-casts";
 import { useItems } from "@/lol/matches/use-items";
@@ -794,6 +795,7 @@ const YOUR_GAME_SECTIONS = [
   { id: "build-order", label: "Build" },
   { id: "spell-casts", label: "Casts" },
   { id: "damage-profile", label: "Damage" },
+  { id: "owner-stats", label: "Stats" },
   { id: "skill-order", label: "Skills" },
   { id: "lane-phase", label: "Lane phase" },
 ] as const;
@@ -890,6 +892,9 @@ export function MatchYourGameTab({
         </div>
         <div ref={refFor("damage-profile")}>
           <MatchDamageProfile detail={detail} myPuuid={myPuuid} />
+        </div>
+        <div ref={refFor("owner-stats")}>
+          <MatchOwnerStats detail={detail} myPuuid={myPuuid} />
         </div>
         <div ref={refFor("skill-order")}>
           <MatchSkillOrder detail={detail} myPuuid={myPuuid} />

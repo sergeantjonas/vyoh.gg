@@ -56,6 +56,10 @@ vi.mock("@/lol/matches/match-damage-profile", () => ({
   MatchDamageProfile: () => <div data-testid="damage-profile">damage-profile</div>,
 }));
 
+vi.mock("@/lol/matches/match-owner-stats", () => ({
+  MatchOwnerStats: () => <div data-testid="owner-stats">owner-stats</div>,
+}));
+
 vi.mock("@/lol/matches/match-lane-phase", () => ({
   MatchLanePhase: () => <div data-testid="lane-phase">lane-phase</div>,
 }));
@@ -159,12 +163,13 @@ describe("MatchRecapTab", () => {
 });
 
 describe("MatchYourGameTab", () => {
-  it("renders the five section blocks", () => {
+  it("renders the six section blocks", () => {
     const detail = buildDetail();
     renderShell(<MatchYourGameTab detail={detail} myPuuid="PA" />);
     expect(screen.getByTestId("build-order")).toBeTruthy();
     expect(screen.getByTestId("spell-casts")).toBeTruthy();
     expect(screen.getByTestId("damage-profile")).toBeTruthy();
+    expect(screen.getByTestId("owner-stats")).toBeTruthy();
     expect(screen.getByTestId("skill-order")).toBeTruthy();
     expect(screen.getByTestId("lane-phase")).toBeTruthy();
   });

@@ -124,6 +124,24 @@ function DamageProfileSkeleton() {
   );
 }
 
+function OwnerStatsSkeleton() {
+  return (
+    <section className="flex flex-col gap-3">
+      <ShimmerBlock className="h-4 w-16 rounded" />
+      <div className="flex flex-col gap-3 rounded-md border bg-card/60 p-4 backdrop-blur-sm">
+        <div className="flex flex-col gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center justify-between">
+              <ShimmerBlock className="h-3 w-20 rounded" />
+              <ShimmerBlock className="h-3 w-10 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SkillOrderSkeleton() {
   return (
     <section className="flex flex-col gap-3">
@@ -161,11 +179,12 @@ function YourGameSkeleton() {
         <BuildOrderSkeleton />
         <SpellCastsSkeleton />
         <DamageProfileSkeleton />
+        <OwnerStatsSkeleton />
         <SkillOrderSkeleton />
         <LanePhaseSkeleton />
       </div>
       <aside className="hidden w-28 shrink-0 flex-col gap-1.5 sm:flex">
-        {[0, 1, 2, 3, 4].map((i) => (
+        {[0, 1, 2, 3, 4, 5].map((i) => (
           <ShimmerBlock key={i} className="h-4 w-20 rounded" />
         ))}
       </aside>
