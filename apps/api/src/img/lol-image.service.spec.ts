@@ -12,35 +12,57 @@ interface PrismaStub {
   lolChampion: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  lolItem: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
+  lolPerk: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 }
 
-function makePrisma(
-  rows: Array<{ id: number; title: string }> = [],
-  ability: unknown = null,
-  champions: Array<{ alias: string; name: string }> = []
-): PrismaStub {
+interface MakeServiceOpts {
+  profileIcons?: Array<{ id: number; title: string }>;
+  ability?: unknown;
+  champions?: Array<{ alias: string; name: string }>;
+  items?: Array<{ id: number; iconWikiName: string | null }>;
+  perks?: Array<{ id: number; iconWikiName: string | null }>;
+}
+
+function makePrisma(opts: MakeServiceOpts = {}): PrismaStub {
   return {
     lolProfileIcon: {
-      findMany: vi.fn().mockResolvedValue(rows),
+      findMany: vi.fn().mockResolvedValue(opts.profileIcons ?? []),
     },
     lolChampionAbility: {
-      findUnique: vi.fn().mockResolvedValue(ability),
+      findUnique: vi.fn().mockResolvedValue(opts.ability ?? null),
     },
     lolChampion: {
-      findMany: vi.fn().mockResolvedValue(champions),
+      findMany: vi.fn().mockResolvedValue(opts.champions ?? []),
+    },
+    lolItem: {
+      findMany: vi.fn().mockResolvedValue(opts.items ?? []),
+    },
+    lolPerk: {
+      findMany: vi.fn().mockResolvedValue(opts.perks ?? []),
     },
   };
 }
 
+// Back-compat shim so the existing positional callers keep working while
+// the new tests use the opts shape directly.
 function makeService(
-  rows: Array<{ id: number; title: string }> = [],
+  profileIcons: Array<{ id: number; title: string }> = [],
   ability: unknown = null,
-  champions: Array<{ alias: string; name: string }> = []
+  champions: Array<{ alias: string; name: string }> = [],
+  extra: { items?: MakeServiceOpts["items"]; perks?: MakeServiceOpts["perks"] } = {}
 ): {
   service: LolImageService;
   prisma: PrismaStub;
 } {
-  const prisma = makePrisma(rows, ability, champions);
+  const opts: MakeServiceOpts = { profileIcons, ability, champions };
+  if (extra.items !== undefined) opts.items = extra.items;
+  if (extra.perks !== undefined) opts.perks = extra.perks;
+  const prisma = makePrisma(opts);
   const service = new LolImageService(prisma as unknown as PrismaService);
   return { service, prisma };
 }
@@ -102,14 +124,44 @@ describe("LolImageService.champion", () => {
 });
 
 describe("LolImageService.item", () => {
-  const { service } = makeService();
+  it("returns wiki-primary + DDragon-fallback when iconWikiName is known", async () => {
+    const { service } = makeService([], null, [], {
+      items: [{ id: 3078, iconWikiName: "Trinity Force" }],
+    });
+    const resolved = await service.item(3078, "14.10.1");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Trinity_Force_item.png",
+      "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/item/3078.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 64, quality: 85 });
+  });
 
-  it("builds the DDragon item URL pinned to the requested patch", () => {
-    const resolved = service.item(3001, "14.10.1");
+  it("escapes apostrophes in the wiki slug for items like Luden's Echo", async () => {
+    const { service } = makeService([], null, [], {
+      items: [{ id: 6655, iconWikiName: "Luden's Echo" }],
+    });
+    const resolved = await service.item(6655, "14.10.1");
+    expect(resolved.urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Luden%27s_Echo_item.png"
+    );
+  });
+
+  it("falls back to DDragon alone when the itemId is missing from the static sync", async () => {
+    const { service } = makeService();
+    const resolved = await service.item(3001, "14.10.1");
     expect(resolved.urls).toEqual([
       "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/item/3001.png",
     ]);
-    expect(resolved.params).toEqual({ width: 64, quality: 85 });
+  });
+
+  it("memoizes the id→iconWikiName map across calls (single prisma fetch)", async () => {
+    const { service, prisma } = makeService([], null, [], {
+      items: [{ id: 3078, iconWikiName: "Trinity Force" }],
+    });
+    await service.item(3078, "14.10.1");
+    await service.item(3078, "14.10.2");
+    await service.item(3001, "14.10.1");
+    expect(prisma.lolItem.findMany).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -272,13 +324,24 @@ describe("LolImageService.rune", () => {
     vi.unstubAllGlobals();
   });
 
-  it("resolves to the lower-cased CDragon game-data icon URL for a known keystone", async () => {
+  it("returns wiki-primary + CDragon-fallback when iconWikiName is known for the keystone", async () => {
+    const { service } = makeService([], null, [], {
+      perks: [{ id: 8005, iconWikiName: "Press the Attack" }],
+    });
+    const resolved = await service.rune(8005);
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Press_the_Attack_rune.png",
+      "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/perks/styles/precision/presstheattack/presstheattack.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 40, quality: 85 });
+  });
+
+  it("falls back to CDragon alone when iconWikiName is missing from the static sync", async () => {
     const { service } = makeService();
     const resolved = await service.rune(8005);
     expect(resolved.urls).toEqual([
       "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/perks/styles/precision/presstheattack/presstheattack.png",
     ]);
-    expect(resolved.params).toEqual({ width: 40, quality: 85 });
   });
 
   it("throws for an unknown perk id rather than constructing a 404-bound URL", async () => {

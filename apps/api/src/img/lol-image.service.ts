@@ -5,6 +5,7 @@ import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
   wikiChampionSquareUrl,
+  wikiEntryIconUrl,
   wikiFileUrl,
   wikiGoldIconUrl,
   wikiMinimapUrl,
@@ -71,6 +72,10 @@ export class LolImageService {
   private profileIconTitlesPending: Promise<Map<number, string>> | null = null;
   private championDisplayNames: Map<string, string> | null = null;
   private championDisplayNamesPending: Promise<Map<string, string>> | null = null;
+  private itemIconNames: Map<number, string> | null = null;
+  private itemIconNamesPending: Promise<Map<number, string>> | null = null;
+  private perkIconNames: Map<number, string> | null = null;
+  private perkIconNamesPending: Promise<Map<number, string>> | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -129,11 +134,16 @@ export class LolImageService {
     return pending;
   }
 
-  item(itemId: number, patch: string): Resolved {
-    return {
-      urls: [`${DDRAGON_CDN}/${patch}/img/item/${itemId}.png`],
-      params: { width: 64, quality: 85 },
-    };
+  // Wiki-first with DDragon fallback. `iconWikiName` is populated by the
+  // static-sync service (mirrors the `name` for items); a miss means the
+  // item shipped between cron ticks, in which case DDragon's id-keyed image
+  // is still served as a single-element fallback so cold-start is graceful.
+  async item(itemId: number, patch: string): Promise<Resolved> {
+    const ddragonUrl = `${DDRAGON_CDN}/${patch}/img/item/${itemId}.png`;
+    const names = await this.loadItemIconNames();
+    const name = names.get(itemId);
+    const urls = name ? [wikiEntryIconUrl(name, "item"), ddragonUrl] : [ddragonUrl];
+    return { urls, params: { width: 64, quality: 85 } };
   }
 
   // Wiki-first with DDragon fallback. Wiki's `Module:IconData/data` carries
@@ -222,16 +232,22 @@ export class LolImageService {
     return { urls: [url], params: { width: 64, quality: 85 } };
   }
 
+  // Wiki-first with CDragon-game-data fallback. `iconWikiName` is populated
+  // by the static-sync service (mirrors the perk `name`); a miss falls
+  // through to the existing CDragon `iconPath` lookup so cold-start before
+  // the first sync still resolves. The CDragon iconPath is also required
+  // when no wiki name is known.
   async rune(keystoneId: number): Promise<Resolved> {
     const paths = await this.loadPerkPaths();
     const iconPath = paths.get(keystoneId);
     if (!iconPath) {
       throw new Error(`unknown perk id ${keystoneId}`);
     }
-    return {
-      urls: [gameDataUrlFromIconPath(iconPath)],
-      params: { width: 40, quality: 85 },
-    };
+    const cdragonUrl = gameDataUrlFromIconPath(iconPath);
+    const names = await this.loadPerkIconNames();
+    const name = names.get(keystoneId);
+    const urls = name ? [wikiEntryIconUrl(name, "rune"), cdragonUrl] : [cdragonUrl];
+    return { urls, params: { width: 40, quality: 85 } };
   }
 
   async spell(spellKey: number): Promise<Resolved> {
@@ -264,6 +280,48 @@ export class LolImageService {
         this.profileIconTitlesPending = null;
       });
     this.profileIconTitlesPending = pending;
+    return pending;
+  }
+
+  // Sticky in-process cache for id → iconWikiName from the static-sync
+  // table. Same shape as `loadProfileIconTitles`. The map is small (~325
+  // items / ~62 perks) and changes only on patches, so one fetch per
+  // service instance is enough.
+  private loadItemIconNames(): Promise<Map<number, string>> {
+    if (this.itemIconNames) return Promise.resolve(this.itemIconNames);
+    if (this.itemIconNamesPending) return this.itemIconNamesPending;
+    const pending = this.prisma.lolItem
+      .findMany({ select: { id: true, iconWikiName: true } })
+      .then((rows) => {
+        const map = new Map(
+          rows.flatMap((r) => (r.iconWikiName ? [[r.id, r.iconWikiName] as const] : []))
+        );
+        this.itemIconNames = map;
+        return map;
+      })
+      .finally(() => {
+        this.itemIconNamesPending = null;
+      });
+    this.itemIconNamesPending = pending;
+    return pending;
+  }
+
+  private loadPerkIconNames(): Promise<Map<number, string>> {
+    if (this.perkIconNames) return Promise.resolve(this.perkIconNames);
+    if (this.perkIconNamesPending) return this.perkIconNamesPending;
+    const pending = this.prisma.lolPerk
+      .findMany({ select: { id: true, iconWikiName: true } })
+      .then((rows) => {
+        const map = new Map(
+          rows.flatMap((r) => (r.iconWikiName ? [[r.id, r.iconWikiName] as const] : []))
+        );
+        this.perkIconNames = map;
+        return map;
+      })
+      .finally(() => {
+        this.perkIconNamesPending = null;
+      });
+    this.perkIconNamesPending = pending;
     return pending;
   }
 
