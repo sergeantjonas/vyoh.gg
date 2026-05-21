@@ -35,4 +35,16 @@ describe("toRichDescription", () => {
     const html = 'before<img src="https://elsewhere.example/x.png" alt="x">after';
     expect(toRichDescription(html)).toBe("beforeafter");
   });
+
+  it("unwraps wiki {{ft|long|short}} to the long arm without brackets", () => {
+    const html =
+      'deals <span class="flipText1 active">「&#160;200 damage&#160;」</span><span class="flipText2">「&#160;200&#160;」</span>';
+    expect(toRichDescription(html)).toBe("deals 200 damage");
+  });
+
+  it("strips the flipText2 arm even when flipText1 is missing the active class", () => {
+    const html =
+      '<span class="flipText1">「&#160;long form&#160;」</span><span class="flipText2">「&#160;short&#160;」</span>';
+    expect(toRichDescription(html)).toBe("long form");
+  });
 });

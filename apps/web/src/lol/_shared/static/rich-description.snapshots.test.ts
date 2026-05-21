@@ -35,6 +35,15 @@ const TRINITY_FORCE_HTML = `<div class="mw-content-ltr mw-parser-output" lang="e
 // an AP-ratio sub-span).
 const HEXTECH_ROCKETBELT_HTML = `<div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p><span class="glossary" style="white-space:pre; position:relative;" data-game="lol" data-tip="Dash"><span typeof="mw:File"><a href="/en-us/Dash" title="An icon representing the keyword Dash"><img alt="An icon representing the keyword Dash" src="/en-us/images/thumb/Dash.png/20px-Dash.png?e5c61" decoding="async" loading="lazy" width="20" height="20" class="mw-file-element" srcset="/en-us/images/thumb/Dash.png/40px-Dash.png?e5c61 2x" data-file-width="64" data-file-height="64" /></a></span> <a href="/en-us/Dash" title="Dash">Dash</a></span> 275 units in the target direction, though not through terrain, then unleash an arc of 7 rockets forward which travel up to 1050 units; and upon collision with an enemy or terrain, explode in a <span class="glossary" style="white-space:pre; position:relative;" data-game="lol" data-tip="Cr"><span typeof="mw:File"><a href="/en-us/Range" title="An icon representing the keyword Centered range"><img alt="An icon representing the keyword Centered range" src="/en-us/images/thumb/Range_center.png/20px-Range_center.png?cbed4" decoding="async" loading="lazy" width="20" height="20" class="mw-file-element" srcset="/en-us/images/thumb/Range_center.png/40px-Range_center.png?cbed4 2x" data-file-width="480" data-file-height="480" /></a></span></span> <span class="basic-tooltip" style="border-bottom:1px dotted gray;cursor:help;" title="estimated">185-radius</span> area. Enemies within <span class="basic-tooltip" style="border-bottom:1px dotted gray;cursor:help;" title="center-to-edge, estimated">85 units</span> of your dash and ones hit by any rocket's explosion are dealt <span style="color: #00B0F0; white-space:normal">100 <span style="color: #7A6DFF; white-space:normal">(+ 10% AP)</span> magic damage</span>, once per cast.\n</p></div>`;
 
+// Wiki's {{ft|long|short}} template rendered via action=parse. Source:
+// \`text=Deals {{ft|massive damage to the primary target|big damage}}.\`
+// Exercises the flip-template unwrap: the inactive \`flipText2\` arm and the
+// bracket padding (「&#160; ... &#160;」) on the active \`flipText1\` arm are
+// both stripped before sanitisation, leaving just the long-form text. The
+// outer \`<span class="container">\` wrapper passes through sanitisation
+// inert (span without styling renders invisibly).
+const FLIP_TEMPLATE_HTML = `<div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr"><p>Deals <span id="container" class="container" style="cursor:help;"><span class="flipText1 active">「&#160;massive damage to the primary target&#160;」</span><span class="flipText2">「&#160;big damage&#160;」</span></span>.\n</p></div>`;
+
 describe("toRichDescription against canonical wiki HTML", () => {
   it("Ahri Q (Orb of Deception) — ability with damage spans and inline icon", () => {
     expect(toRichDescription(AHRI_Q_HTML)).toMatchInlineSnapshot(`
@@ -46,6 +55,13 @@ describe("toRichDescription against canonical wiki HTML", () => {
   it("Trinity Force passive — item with anchor links and stat callouts", () => {
     expect(toRichDescription(TRINITY_FORCE_HTML)).toMatchInlineSnapshot(`
       "<p>After using an ability, your next basic attack within 10 seconds deals <span>200% <b>base</b> AD</span> <span><b>bonus</b> physical damage</span> on-hit (1.5 second cooldown, starts after using the empowered attack).
+      </p>"
+    `);
+  });
+
+  it("flip template — unwraps {{ft|long|short}} to the long arm without bracket padding", () => {
+    expect(toRichDescription(FLIP_TEMPLATE_HTML)).toMatchInlineSnapshot(`
+      "<p>Deals <span class="container">massive damage to the primary target</span>.
       </p>"
     `);
   });
