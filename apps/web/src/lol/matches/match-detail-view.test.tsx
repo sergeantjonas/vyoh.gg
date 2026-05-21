@@ -48,6 +48,10 @@ vi.mock("@/lol/matches/match-skill-order", () => ({
   MatchSkillOrder: () => <div data-testid="skill-order">skill-order</div>,
 }));
 
+vi.mock("@/lol/matches/match-spell-casts", () => ({
+  MatchSpellCasts: () => <div data-testid="spell-casts">spell-casts</div>,
+}));
+
 vi.mock("@/lol/matches/match-lane-phase", () => ({
   MatchLanePhase: () => <div data-testid="lane-phase">lane-phase</div>,
 }));
@@ -151,10 +155,11 @@ describe("MatchRecapTab", () => {
 });
 
 describe("MatchYourGameTab", () => {
-  it("renders the three section blocks", () => {
+  it("renders the four section blocks", () => {
     const detail = buildDetail();
     renderShell(<MatchYourGameTab detail={detail} myPuuid="PA" />);
     expect(screen.getByTestId("build-order")).toBeTruthy();
+    expect(screen.getByTestId("spell-casts")).toBeTruthy();
     expect(screen.getByTestId("skill-order")).toBeTruthy();
     expect(screen.getByTestId("lane-phase")).toBeTruthy();
   });

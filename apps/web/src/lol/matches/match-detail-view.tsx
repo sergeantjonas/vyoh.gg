@@ -26,6 +26,7 @@ import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
 import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
+import { MatchSpellCasts } from "@/lol/matches/match-spell-casts";
 import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import { useScrollspy } from "@/lol/matches/use-scrollspy";
@@ -790,6 +791,7 @@ function TeamBlock({
 
 const YOUR_GAME_SECTIONS = [
   { id: "build-order", label: "Build" },
+  { id: "spell-casts", label: "Casts" },
   { id: "skill-order", label: "Skills" },
   { id: "lane-phase", label: "Lane phase" },
 ] as const;
@@ -880,6 +882,9 @@ export function MatchYourGameTab({
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         <div ref={refFor("build-order")}>
           <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+        </div>
+        <div ref={refFor("spell-casts")}>
+          <MatchSpellCasts detail={detail} myPuuid={myPuuid} />
         </div>
         <div ref={refFor("skill-order")}>
           <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
