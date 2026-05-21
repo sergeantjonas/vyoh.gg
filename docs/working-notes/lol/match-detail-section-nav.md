@@ -1,6 +1,6 @@
 # Match-detail section nav — roadmap
 
-**Status:** Active — MDN1–MDN4 shipped 2026-05-17 (breadcrumb migration, content split into Recap / Your game / Timeline tabs, sticky tab bar past the hero, scrollspy in "Your game"). MDN5 is a soft re-evaluation of the tab grouping after the queued owner-data additions land — not started, gated on those additions shipping. See [open-work.md](../open-work.md).
+**Status:** Active — MDN1–MDN4 shipped 2026-05-17 (breadcrumb migration, content split into Recap / Your game / Timeline tabs, sticky tab bar past the hero, scrollspy in "Your game"). MDN5 (soft re-evaluation of the tab grouping) is now unblocked: all queued owner-data additions (spell casts, damage profile, CC/death stats, multikill badges) shipped 2026-05-21. See [open-work.md](../open-work.md).
 
 Read this when starting the arc, when scoping where the next owner-data feature lands, or before adding any new section to `MatchDetailView` (so it goes into the right tab from day one).
 

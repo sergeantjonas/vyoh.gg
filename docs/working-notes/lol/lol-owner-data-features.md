@@ -1,6 +1,6 @@
 # LoL owner-data feature ideas
 
-**Status:** Active — data path (1.A) + spell-cast strip (1.B) shipped 2026-05-21. Damage profile (1.C) and owner stats/multikills (1.D) in progress.
+**Status:** Shipped — data path (1.A) + spell-cast strip (1.B) + damage profile (1.C) + owner stats/multikills (1.D) all shipped 2026-05-21. MDN5 re-eval now unblocked.
 
 Post-Tier-1A ideation sweep (2026-05-17). The owner participant in `MatchDetailCache` retains the full Riot payload — every field Riot returns, not just what we type. Non-owner participants keep only the lean `RiotMatchParticipantOther` shape. This note catalogs the features that become possible from the owner data, organized by surface.
 
@@ -116,6 +116,9 @@ PG4 effectively merges the post-game signal set with the match report card conce
 | Idea | Surface | Effort | Why it stands out |
 |---|---|---|---|
 | ~~Spell cast strip~~ | ~~Match detail hero~~ | **Shipped 2026-05-21** | — |
+| ~~Damage profile (dealt/taken/mitigated)~~ | ~~Match detail Your game~~ | **Shipped 2026-05-21** | — |
+| ~~CC time / time dead / longest survival~~ | ~~Match detail Your game~~ | **Shipped 2026-05-21** | — |
+| ~~Multikill badge strip~~ | ~~Match detail Your game~~ | **Shipped 2026-05-21** | — |
 | Highlight reel tile | Profile / Trends | Low — 3 challenges fields summed | Narrative framing, not metric |
 | Damage stacked bar | Match detail panel | Low — frontend only, DTO already has it | Completes the existing damage bar |
 | Lifetime multikill strip | Profile | Very low — 4 additive fields | Milestone / nostalgia feel |
