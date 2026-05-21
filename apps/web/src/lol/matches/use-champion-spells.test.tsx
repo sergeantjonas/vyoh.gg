@@ -29,22 +29,22 @@ describe("useChampionSpells", () => {
     expect(result.current).toBeUndefined();
   });
 
-  it("maps the bundle abilities to Q/W/E/R rows with wiki icon URLs", async () => {
+  it("maps the bundle abilities to Q/W/E/R identity rows with wiki icon URLs", async () => {
     mockLolStaticFetch({
       champions: [{ id: 103, alias: "Ahri", name: "Ahri", roles: ["mage"] }],
       championAbilities: {
         103: [
           {
             slot: "Q",
-            abilityIndex: 0,
+            abilityIndex: 1,
             name: "Orb of Deception",
             iconWikiName: null,
-            descriptionHtml: "<i>Deals</i> magic damage.",
+            descriptionHtml: null,
             descriptionWikitext: null,
           },
           {
             slot: "W",
-            abilityIndex: 0,
+            abilityIndex: 2,
             name: "Fox-Fire",
             iconWikiName: null,
             descriptionHtml: null,
@@ -52,7 +52,7 @@ describe("useChampionSpells", () => {
           },
           {
             slot: "E",
-            abilityIndex: 0,
+            abilityIndex: 3,
             name: "Charm",
             iconWikiName: null,
             descriptionHtml: null,
@@ -60,7 +60,7 @@ describe("useChampionSpells", () => {
           },
           {
             slot: "R",
-            abilityIndex: 0,
+            abilityIndex: 4,
             name: "Spirit Rush",
             iconWikiName: null,
             descriptionHtml: null,
@@ -76,36 +76,14 @@ describe("useChampionSpells", () => {
     await waitFor(() => expect(result.current).not.toBeUndefined());
     expect(result.current?.length).toBe(4);
     expect(result.current?.[0]).toEqual({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 1,
       iconUrl: expect.stringContaining("Ahri_Orb_of_Deception.png"),
       name: "Orb of Deception",
-      // stripWikitext strips inline HTML tags too.
-      description: "Deals magic damage.",
     });
     expect(result.current?.[3]?.name).toBe("Spirit Rush");
-  });
-
-  it("falls back to descriptionWikitext when descriptionHtml is null", async () => {
-    mockLolStaticFetch({
-      champions: [{ id: 1, alias: "Annie", name: "Annie", roles: [] }],
-      championAbilities: {
-        1: [
-          {
-            slot: "Q",
-            abilityIndex: 0,
-            name: "Disintegrate",
-            iconWikiName: null,
-            descriptionHtml: null,
-            descriptionWikitext: "{{as|Deals magic damage.}}",
-          },
-        ],
-      },
-    });
-    const { result } = renderHook(() => useChampionSpells("Annie"), {
-      wrapper: makeWrapper(),
-    });
-    await waitFor(() => expect(result.current).not.toBeUndefined());
-    // stripWikitext unwraps the {{as|...}} template, keeping the inner text.
-    expect(result.current?.[0]?.description).toBe("Deals magic damage.");
+    expect(result.current?.[3]?.abilityIndex).toBe(4);
   });
 
   it("resolves the champion by Riot alias as well as display name", async () => {
@@ -115,7 +93,7 @@ describe("useChampionSpells", () => {
         62: [
           {
             slot: "Q",
-            abilityIndex: 0,
+            abilityIndex: 1,
             name: "Crushing Blow",
             iconWikiName: null,
             descriptionHtml: null,
@@ -129,6 +107,7 @@ describe("useChampionSpells", () => {
     });
     await waitFor(() => expect(byAlias.result.current).not.toBeUndefined());
     expect(byAlias.result.current?.[0]?.name).toBe("Crushing Blow");
+    expect(byAlias.result.current?.[0]?.championId).toBe(62);
     // Wiki URL uses the canonical display name, not the Riot alias.
     expect(byAlias.result.current?.[0]?.iconUrl).toContain("Wukong_");
   });

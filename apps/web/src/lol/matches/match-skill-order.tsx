@@ -1,9 +1,10 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
+import { useAbilityDescription } from "@/lol/matches/use-ability-description";
 import type { SpellInfo } from "@/lol/matches/use-champion-spells";
 import { useChampionSpells } from "@/lol/matches/use-champion-spells";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { ParticipantDetail } from "@vyoh/shared";
+import { type ParticipantDetail, stripWikitext } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import type { CSSProperties } from "react";
 import { useState } from "react";
@@ -88,6 +89,21 @@ function SpellRowLabel({
   colorClass: string;
 }) {
   const [failed, setFailed] = useState(false);
+  // Lazy per-ability fetch. Disabled for empty rows (champion missing from
+  // bundle or ability not yet populated) so we don't hit the API with a
+  // bogus championId.
+  const enabled = !!spell && spell.name.length > 0;
+  const descriptionQuery = useAbilityDescription(
+    spell?.championId ?? 0,
+    spell?.slot ?? "",
+    spell?.abilityIndex ?? 0,
+    { enabled }
+  );
+  const rawDescription =
+    descriptionQuery.data?.descriptionHtml ??
+    descriptionQuery.data?.descriptionWikitext ??
+    "";
+  const description = stripWikitext(rawDescription);
 
   if (spell && !failed) {
     return (
@@ -111,11 +127,15 @@ function SpellRowLabel({
           >
             <div className="flex flex-col gap-1">
               <span className="font-medium">{spell.name}</span>
-              <span className="text-[10px] leading-snug text-muted-foreground">
-                {spell.description.length > 180
-                  ? `${spell.description.slice(0, 180).trimEnd()}…`
-                  : spell.description}
-              </span>
+              {descriptionQuery.isPending && enabled ? (
+                <ShimmerBlock className="h-3 w-32 rounded" />
+              ) : (
+                <span className="text-[10px] leading-snug text-muted-foreground">
+                  {description.length > 180
+                    ? `${description.slice(0, 180).trimEnd()}…`
+                    : description}
+                </span>
+              )}
             </div>
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>

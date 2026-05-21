@@ -1,10 +1,16 @@
 import { useLolStaticSelect } from "@/lol/_shared/static/use-lol-static";
-import { type LolStaticBundle, stripWikitext, wikiAbilityIconUrl } from "@vyoh/shared";
+import { type LolStaticBundle, wikiAbilityIconUrl } from "@vyoh/shared";
 
+// Identity-only spell row. Descriptions are fetched per-spell via
+// `useAbilityDescription` (lazy endpoint with patch-watermark caching) so
+// the bundle stays small and never blocks on the wiki-template sync. See
+// docs/working-notes/lol/lazy-ability-descriptions.md.
 export interface SpellInfo {
+  championId: number;
+  slot: string;
+  abilityIndex: number;
   iconUrl: string;
   name: string;
-  description: string;
 }
 
 // Slot ordering matches match-skill-order's row layout: Q, W, E, R. The
@@ -29,12 +35,15 @@ function buildChampionSpellsIndex(bundle: LolStaticBundle): Map<string, SpellInf
     const abilities = bundle.championAbilities[id] ?? [];
     const spells: SpellInfo[] = SLOTS_IN_ORDER.map((slot) => {
       const ability = abilities.find((a) => a.slot === slot);
-      if (!ability) return { iconUrl: "", name: "", description: "" };
-      const rawDescription = ability.descriptionHtml ?? ability.descriptionWikitext ?? "";
+      if (!ability) {
+        return { championId: id, slot, abilityIndex: 0, iconUrl: "", name: "" };
+      }
       return {
+        championId: id,
+        slot,
+        abilityIndex: ability.abilityIndex,
         iconUrl: wikiAbilityIconUrl(championName, ability.name),
         name: ability.name,
-        description: stripWikitext(rawDescription),
       };
     });
     result.set(aliasOrName, spells);
@@ -42,12 +51,9 @@ function buildChampionSpellsIndex(bundle: LolStaticBundle): Map<string, SpellInf
   return result;
 }
 
-// Pulls the Q/W/E/R ability data for a champion from the bundled `/lol/static`
-// payload. Icons resolve to wiki image URLs via `wikiAbilityIconUrl`, names
-// come from `Module:ChampionData/data`, and descriptions follow the same
-// drift-tolerant policy as items: `descriptionHtml` is preferred when the
-// MediaWiki per-template sync has populated it, falling back to raw
-// wikitext while the API catches up. Empty string when neither has landed.
+// Returns sync identity for a champion's Q/W/E/R rows (id, slot,
+// abilityIndex, icon URL, display name) from the `/lol/static` bundle.
+// Descriptions are fetched per-spell via `useAbilityDescription`.
 export function useChampionSpells(championName: string): SpellInfo[] | undefined {
   const index = useLolStaticSelect(buildChampionSpellsIndex).data;
   if (!index) return undefined;
