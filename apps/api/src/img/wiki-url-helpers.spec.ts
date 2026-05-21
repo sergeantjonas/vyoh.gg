@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
   wikiChampionSquareUrl,
   wikiEntryIconUrl,
+  wikiFileUrl,
   wikiGoldIconUrl,
   wikiMinimapUrl,
   wikiMinionIconUrl,
@@ -154,5 +156,19 @@ describe("wikiStatIconUrl", () => {
 describe("wikiAttackIconUrl", () => {
   it("returns the generic attack SVG", () => {
     expect(wikiAttackIconUrl()).toBe(`${BASE}/Attack.svg`);
+  });
+});
+
+describe("wikiFileUrl", () => {
+  it("places the file under the MediaWiki MD5 bucket dirs", () => {
+    const filename = "Magic_damage.png";
+    const hash = createHash("md5").update(filename).digest("hex");
+    expect(wikiFileUrl(filename)).toBe(
+      `${BASE}/${hash[0]}/${hash.slice(0, 2)}/${filename}`
+    );
+  });
+
+  it("produces distinct buckets for distinct filenames", () => {
+    expect(wikiFileUrl("Gold.png")).not.toBe(wikiFileUrl("Magic_damage.png"));
   });
 });

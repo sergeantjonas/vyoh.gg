@@ -112,6 +112,27 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
+  // Generic wiki-file proxy — the inline-icon path for rich tooltip
+  // descriptions. The route segment carries the bare filename
+  // (e.g. `Magic_damage.png.webp`); the resolver re-derives the MediaWiki
+  // MD5 bucket dirs. 400 on filenames outside the wiki-safe slug set.
+  @Get("lol/wiki-file/:filename.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async wikiFile(
+    @Param("filename") filename: string,
+    @Res() res: Response
+  ): Promise<void> {
+    let resolved: ReturnType<LolImageService["wikiFile"]>;
+    try {
+      resolved = this.lol.wikiFile(filename);
+    } catch {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
   @Get("lol/rune/:keystoneId/:patch.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)

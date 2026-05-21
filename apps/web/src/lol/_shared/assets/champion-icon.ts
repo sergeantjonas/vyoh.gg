@@ -91,3 +91,25 @@ export function uiIconUrl(name: UiIconName): string {
 export function roleIconUrl(positionSlug: string): string {
   return `${API_URL}/img/lol/role/${positionSlug}.svg`;
 }
+
+// Generic wiki-file icon — the inline-icon path for rich tooltip descriptions
+// after `descriptionHtml` is sanitized. The proxy re-derives the wiki MD5
+// bucket dirs, so callers pass the bare filename (`Magic_damage.png`) and
+// stay decoupled from wiki's storage layout.
+export function wikiFileIconUrl(filename: string): string {
+  return `${API_URL}/img/lol/wiki-file/${encodeURIComponent(filename)}.webp`;
+}
+
+// Extract the original filename from a wiki `action=parse` <img src>. The
+// regular path is `/en-us/images/X/Xy/Magic_damage.png`; thumbnails are
+// `/en-us/images/thumb/X/Xy/Magic_damage.png/16px-Magic_damage.png` — both
+// shapes carry the canonical filename right after the two-char hash dir, so
+// one regex covers them. Returns null when the src is not a recognised wiki
+// upload path (cross-origin URL, absolute http, etc.) — the sanitizer will
+// drop the resulting img.
+const WIKI_IMG_SRC_RE = /\/images\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/;
+export function rewriteWikiImageSrc(src: string): string | null {
+  const m = src.match(WIKI_IMG_SRC_RE);
+  if (!m?.[1]) return null;
+  return wikiFileIconUrl(m[1]);
+}

@@ -82,6 +82,14 @@ function isSafeImgSrc(src: string): boolean {
   return true;
 }
 
+export interface SanitizeRichHtmlOptions {
+  // Optional rewrite for `<img src>` values. Web supplies a wiki→proxy mapper
+  // here so inline icons route through the image proxy instead of leaking the
+  // wiki upstream into the browser. Return `null` to drop the `<img>` entirely
+  // (e.g. when the src doesn't match a recognised wiki upload path).
+  rewriteImgSrc?: (src: string) => string | null;
+}
+
 function escapeAttr(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -90,7 +98,10 @@ function escapeAttr(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export function sanitizeRichHtml(input: string | null | undefined): string {
+export function sanitizeRichHtml(
+  input: string | null | undefined,
+  options: SanitizeRichHtmlOptions = {}
+): string {
   if (!input) return "";
   let html = input.replace(DROP_ELEMENT_RE, "").replace(COMMENT_RE, "");
   html = html.replace(TAG_RE, (_full, slash: string, tag: string, attrs: string) => {
@@ -99,6 +110,20 @@ export function sanitizeRichHtml(input: string | null | undefined): string {
     if (slash) return `</${name}>`;
     const allowed = ATTR_ALLOW[name] ?? EMPTY_ATTRS;
     const parsed = parseAttrs(attrs);
+    if (name === "img") {
+      const rawSrc = parsed.get("src");
+      if (rawSrc === undefined || !isSafeImgSrc(rawSrc)) {
+        // No src or unsafe scheme — drop the img. `<img>` without a src is
+        // a layout-shifting empty box; the rich-tooltip surface always wants
+        // an image-or-nothing.
+        return "";
+      }
+      if (options.rewriteImgSrc) {
+        const rewritten = options.rewriteImgSrc(rawSrc);
+        if (rewritten === null) return "";
+        parsed.set("src", rewritten);
+      }
+    }
     const kept: string[] = [];
     for (const [k, v] of parsed) {
       if (!allowed.has(k)) continue;

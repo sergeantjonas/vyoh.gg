@@ -6,9 +6,11 @@ import {
   championSquareIconUrl,
   itemIconUrl,
   normalizeChampionAlias,
+  rewriteWikiImageSrc,
   roleIconUrl,
   runeIconUrl,
   summonerSpellIconUrl,
+  wikiFileIconUrl,
 } from "./champion-icon";
 
 describe("normalizeChampionAlias", () => {
@@ -84,5 +86,41 @@ describe("non-champion icon helpers", () => {
 
   it("roleIconUrl is versionless (no patch in the URL)", () => {
     expect(roleIconUrl("middle")).toBe("http://localhost:2010/img/lol/role/middle.svg");
+  });
+});
+
+describe("wikiFileIconUrl", () => {
+  it("composes a wiki-file proxy URL with the filename URL-encoded", () => {
+    expect(wikiFileIconUrl("Magic_damage.png")).toBe(
+      "http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp"
+    );
+  });
+
+  it("percent-encodes path-reserved characters in the filename", () => {
+    expect(wikiFileIconUrl("Magic damage.png")).toBe(
+      "http://localhost:2010/img/lol/wiki-file/Magic%20damage.png.webp"
+    );
+  });
+});
+
+describe("rewriteWikiImageSrc", () => {
+  it("rewrites a plain wiki upload path to the proxy", () => {
+    expect(rewriteWikiImageSrc("/en-us/images/2/2a/Magic_damage.png")).toBe(
+      "http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp"
+    );
+  });
+
+  it("rewrites a wiki thumbnail path by extracting the original filename", () => {
+    expect(
+      rewriteWikiImageSrc(
+        "/en-us/images/thumb/2/2a/Magic_damage.png/16px-Magic_damage.png"
+      )
+    ).toBe("http://localhost:2010/img/lol/wiki-file/Magic_damage.png.webp");
+  });
+
+  it("returns null for non-wiki srcs", () => {
+    expect(rewriteWikiImageSrc("https://example.com/foo.png")).toBeNull();
+    expect(rewriteWikiImageSrc("/somewhere/else.png")).toBeNull();
+    expect(rewriteWikiImageSrc("")).toBeNull();
   });
 });

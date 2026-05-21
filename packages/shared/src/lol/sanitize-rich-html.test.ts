@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { sanitizeRichHtml } from "./sanitize-rich-html";
 
 describe("sanitizeRichHtml", () => {
@@ -50,14 +50,18 @@ describe("sanitizeRichHtml", () => {
     expect(sanitizeRichHtml(html)).toBe("beforeafter");
   });
 
-  it("rejects javascript: img src", () => {
-    const html = '<img src="javascript:alert(1)" alt="x">';
-    expect(sanitizeRichHtml(html)).toBe('<img alt="x">');
+  it("drops the entire <img> when src uses an unsafe scheme (javascript:)", () => {
+    const html = 'before<img src="javascript:alert(1)" alt="x">after';
+    expect(sanitizeRichHtml(html)).toBe("beforeafter");
   });
 
-  it("rejects data: img src", () => {
-    const html = '<img src="data:text/html;base64,PHNjcmlwdD4=" alt="x">';
-    expect(sanitizeRichHtml(html)).toBe('<img alt="x">');
+  it("drops the entire <img> when src uses an unsafe scheme (data:)", () => {
+    const html = 'before<img src="data:text/html;base64,PHNjcmlwdD4=" alt="x">after';
+    expect(sanitizeRichHtml(html)).toBe("beforeafter");
+  });
+
+  it("drops <img> with no src", () => {
+    expect(sanitizeRichHtml('before<img alt="x">after')).toBe("beforeafter");
   });
 
   it("strips disallowed tags like <iframe> entirely", () => {
@@ -97,5 +101,37 @@ describe("sanitizeRichHtml", () => {
 
   it("strips HTML comments", () => {
     expect(sanitizeRichHtml("foo<!-- editor note -->bar")).toBe("foobar");
+  });
+
+  describe("with rewriteImgSrc", () => {
+    it("rewrites the src via the supplied mapper", () => {
+      const html = '<img src="/en-us/images/2/2a/Magic_damage.png" alt="Magic">';
+      expect(
+        sanitizeRichHtml(html, {
+          rewriteImgSrc: (s) => s.replace(/^\/en-us\/images\//, "/proxy/"),
+        })
+      ).toBe('<img src="/proxy/2/2a/Magic_damage.png" alt="Magic">');
+    });
+
+    it("drops the <img> when the mapper returns null", () => {
+      const html = 'before<img src="https://evil.example.com/x.png" alt="x">after';
+      expect(sanitizeRichHtml(html, { rewriteImgSrc: () => null })).toBe("beforeafter");
+    });
+
+    it("does not call the mapper for unsafe schemes (img already dropped)", () => {
+      const mapper = vi.fn(() => "anything");
+      sanitizeRichHtml('<img src="javascript:alert(1)" alt="x">', {
+        rewriteImgSrc: mapper,
+      });
+      expect(mapper).not.toHaveBeenCalled();
+    });
+
+    it("escapes the rewritten src in the output", () => {
+      const html = '<img src="/orig.png" alt="x">';
+      const out = sanitizeRichHtml(html, {
+        rewriteImgSrc: () => "/proxy?q=a&b",
+      });
+      expect(out).toContain('src="/proxy?q=a&amp;b"');
+    });
   });
 });

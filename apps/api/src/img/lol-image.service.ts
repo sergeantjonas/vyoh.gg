@@ -5,6 +5,7 @@ import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
   wikiChampionSquareUrl,
+  wikiFileUrl,
   wikiGoldIconUrl,
   wikiMinimapUrl,
   wikiMinionIconUrl,
@@ -169,6 +170,22 @@ export class LolImageService {
     return {
       urls: [wikiAbilityIconUrl(row.champion.name, row.name)],
       params: { width: 40, quality: 85 },
+    };
+  }
+
+  // Generic wiki-file passthrough — the inline-icon path for rich tooltip
+  // descriptions. The caller (web sanitizer) extracts the filename from
+  // wiki `<img src>` attributes in `descriptionHtml` and routes it here.
+  // The resolver re-derives the MD5 bucket dirs so the URL stays a clean
+  // `filename.png`-shaped identifier on the proxy boundary. Filename is
+  // validated as a wiki-safe slug to keep arbitrary paths off the proxy.
+  wikiFile(filename: string): Resolved {
+    if (!/^[A-Za-z0-9_.\-%']+$/.test(filename)) {
+      throw new Error(`invalid wiki filename ${filename}`);
+    }
+    return {
+      urls: [wikiFileUrl(filename)],
+      params: { width: 32, quality: 85 },
     };
   }
 
