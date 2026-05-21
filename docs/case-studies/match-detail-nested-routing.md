@@ -146,7 +146,7 @@ The principle was promoted to a repo convention after this arc: *a skeleton load
 ## Open questions
 
 - **Deep-linkable section anchors.** Scrollspy sub-nav state inside "Your game" is not URL-persisted today. If "open the rune page panel directly" becomes a real use case (e.g. from a Profile-page tile), `#section-id` is the obvious v2. Deferred until that use case shows up — adds noise to history otherwise.
-- **MDN5 — does the grouping still hold once the queued sections land?** Spell casts, damage profile, CC time, multikills, all-10 damage stacked bar, full rune page. Re-evaluate the Recap / Your game / Timeline split once those ship. If "Your game" grows past ~7 stacked sections even with scrollspy, splitting runes/build off into its own tab is the most likely move.
+- **MDN5 — does the grouping still hold once the queued sections land?** Re-evaluated 2026-05-21 after spell casts, damage profile, CC time, and multikill badges shipped. Grouping is stable: Recap / Your game / Timeline holds; Recap does not need scrollspy. The re-eval also surfaced three perf issues that were fixed: WeakMap + useCallback on TanStack Query selectors (2s INP fix), AnimatePresence key coarsening (skeleton flash on tab switch), and a module-level `recapSeen` set (entry animations on revisit). Closed.
 - **Champion strip + tab bar — single row or two rows.** Currently two thin rows past the hero (champion info above, compact tab bar below). Denser single-row variant (tabs to the right of K/D/A) was decided against during MDN3 — reads busier on a 1366px viewport.
 
 ## Portfolio framing

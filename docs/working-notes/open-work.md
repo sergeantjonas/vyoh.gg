@@ -16,7 +16,6 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### LoL surfaces
 
-- **Match-detail section nav MDN5** — soft re-evaluation of the Recap / Your game / Timeline grouping. All queued owner-data additions (1.A–1.D) shipped 2026-05-21; MDN5 is now unblocked. → [match-detail-section-nav.md](lol/match-detail-section-nav.md)
 - **Match-depth Phase D remainders** — squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, match-list duo highlight, D.2–D.7. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
 - **Match-depth Phase E remainder** — full rune page panel; composite "Score-of-game" S+/S/A grade. Deprioritized polish. → [match-depth-roadmap.md](lol/match-depth-roadmap.md)
 - **LP forecast Phase LP3 (personal linear fit)** — LP2 (calibration) + LP2.6 (threshold tuning) + LP2.7 (slot warning suppression) shipped 2026-05-20. Agurin's calibration first showed two stuck-positive signals (tilt/champ); LP2.6 re-threshold-ed them against the player's overall WR. The follow-up calibration then exposed slot warnings as anti-predictive (29% directional accuracy on 41 fires) — LP2.7 dropped the warning polarity. LP2.5 (per-signal weighting) parked until a re-run shows variance per signal. LP3 (personal linear fit) still long-tail. → [lp-forecast.md](lol/lp-forecast.md)

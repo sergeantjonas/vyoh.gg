@@ -1,6 +1,6 @@
 # Match-detail section nav — roadmap
 
-**Status:** Active — MDN1–MDN4 shipped 2026-05-17 (breadcrumb migration, content split into Recap / Your game / Timeline tabs, sticky tab bar past the hero, scrollspy in "Your game"). MDN5 (soft re-evaluation of the tab grouping) is now unblocked: all queued owner-data additions (spell casts, damage profile, CC/death stats, multikill badges) shipped 2026-05-21. See [open-work.md](../open-work.md).
+**Status:** Shipped — MDN1–MDN5 all shipped 2026-05-21. Tab grouping is stable: Recap / Your game / Timeline holds; Recap does not need scrollspy. Three perf fixes landed alongside MDN5 close: WeakMap + useCallback on TanStack Query selectors (eliminated 70× redundant item-map builds per mount), AnimatePresence key coarsening to prevent skeleton flash on tab switches, and a module-level `recapSeen` set to skip Recap entry animations on revisits.
 
 Read this when starting the arc, when scoping where the next owner-data feature lands, or before adding any new section to `MatchDetailView` (so it goes into the right tab from day one).
 
@@ -189,9 +189,9 @@ Each chunk is independently committable and live-verifiable.
 - Sidebar gated on `scrollHeight > clientHeight` with `ResizeObserver`.
 - Reduced motion: `behavior: "auto"` on scroll, static color swap on active item.
 
-### Chunk MDN5 (soft, post-additions) — re-evaluate
+### Chunk MDN5 (soft, post-additions) — re-evaluate ✓
 
-After the queued owner-data additions ship (spell casts / damage profile / CC time / multikills / rune page), reassess whether the tab grouping still holds and whether Recap needs scrollspy too.
+Tab grouping holds. Recap did not gain enough new sections to warrant scrollspy; "Your game" scrollspy remains sufficient. Perf issues surfaced during the re-eval (2s INP, skeleton on every tab switch) and were fixed: WeakMap memoization + `useCallback` on `useItems`/`usePerks`/`useSummonerSpells` selectors, `slideKey` coarsening in `$accountSlug.tsx` to prevent `AnimatePresence` from remounting on tab navigation, `recapSeen` module-level set to skip entry animations on Recap revisits. Shipped 2026-05-21 (`339f8a7`).
 
 ---
 
@@ -209,6 +209,7 @@ After the queued owner-data additions ship (spell casts / damage profile / CC ti
 
 - **2026-05-17** — arc scoped, Option A locked, working note written. Promoted to [open-work.md](../open-work.md). Not started.
 - **2026-05-18** — tab URL state migrated from `?tab=` search param to nested path segments (`/recap`, `/your-game`, `/timeline`) with index → recap redirect. Done alongside the matching `/patches/$version` migration. Tab body components split out of `MatchDetailView` into `MatchRecapTab` / `MatchYourGameTab` / `MatchTimelineTab` exports in [`match-detail-view.tsx`](../../../apps/web/src/lol/matches/match-detail-view.tsx); each tab route consumes them via the cached `useMatchTabProps` hook.
+- **2026-05-21** — MDN5 closed. Tab grouping confirmed stable; Recap does not need scrollspy. Three perf fixes committed (`339f8a7`): WeakMap + useCallback on TanStack Query selectors (eliminated 70× redundant `buildItemsMap` calls per mount, fixing a 2s INP), AnimatePresence key coarsening to prevent skeleton flash on tab switches, `recapSeen` set to skip Recap entry animations on revisits. Arc complete; removed from [open-work.md](../open-work.md).
 
 ---
 
