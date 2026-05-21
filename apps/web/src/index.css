@@ -295,3 +295,21 @@ body {
     opacity: 0.06;
   }
 }
+
+/* Rich wiki tooltip bodies inject inline `<img>` icons via dangerouslySetInnerHTML.
+   Tailwind's preflight sets `img { display: block }`, which would push every
+   inline icon onto its own line and break the surrounding sentence flow.
+   Scope an override to the two rich-tooltip wrappers so icons sit inline with
+   the text. Vertical-align middle keeps them centred against the x-height.
+   The `border` class wiki applies to image-wrapper spans collides with the
+   Tailwind utility that draws a 1px border around any element using it; null
+   it out inside the tooltip body so the icon doesn't render with a box. */
+.item-tooltip-body img,
+.ability-tooltip-body img {
+  display: inline-block;
+  vertical-align: middle;
+}
+.item-tooltip-body .border,
+.ability-tooltip-body .border {
+  border: 0;
+}
