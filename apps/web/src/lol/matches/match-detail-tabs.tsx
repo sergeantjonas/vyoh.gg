@@ -5,6 +5,7 @@ import { m } from "motion/react";
 export const MATCH_DETAIL_TABS = [
   { id: "recap", label: "Recap" },
   { id: "your-game", label: "Your game" },
+  { id: "review", label: "Review" },
   { id: "timeline", label: "Timeline" },
 ] as const;
 
@@ -13,6 +14,7 @@ export type MatchDetailTabId = (typeof MATCH_DETAIL_TABS)[number]["id"];
 const TAB_TO_ROUTE = {
   recap: "/lol/$accountSlug/matches/$matchId/recap",
   "your-game": "/lol/$accountSlug/matches/$matchId/your-game",
+  review: "/lol/$accountSlug/matches/$matchId/review",
   timeline: "/lol/$accountSlug/matches/$matchId/timeline",
 } as const;
 

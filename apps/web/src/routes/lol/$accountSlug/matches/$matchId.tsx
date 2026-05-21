@@ -92,6 +92,7 @@ function useActiveTab(matchId: string): MatchDetailTabId {
   const after = pathname.split(`/matches/${matchId}`)[1] ?? "";
   const trimmed = after.replace(/^\/+|\/+$/g, "");
   if (trimmed === "your-game") return "your-game";
+  if (trimmed === "review") return "review";
   if (trimmed === "timeline") return "timeline";
   return "recap";
 }

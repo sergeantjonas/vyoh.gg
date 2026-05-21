@@ -33,6 +33,7 @@ import { Route as LolAccountSlugChampionsChampionKeyRouteImport } from './routes
 import { Route as LolAccountSlugMatchesMatchIdIndexRouteImport } from './routes/lol/$accountSlug/matches/$matchId/index'
 import { Route as LolAccountSlugMatchesMatchIdYourGameRouteImport } from './routes/lol/$accountSlug/matches/$matchId/your-game'
 import { Route as LolAccountSlugMatchesMatchIdTimelineRouteImport } from './routes/lol/$accountSlug/matches/$matchId/timeline'
+import { Route as LolAccountSlugMatchesMatchIdReviewRouteImport } from './routes/lol/$accountSlug/matches/$matchId/review'
 import { Route as LolAccountSlugMatchesMatchIdRecapRouteImport } from './routes/lol/$accountSlug/matches/$matchId/recap'
 
 const SteamRoute = SteamRouteImport.update({
@@ -165,6 +166,12 @@ const LolAccountSlugMatchesMatchIdTimelineRoute =
     path: '/timeline',
     getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
   } as any)
+const LolAccountSlugMatchesMatchIdReviewRoute =
+  LolAccountSlugMatchesMatchIdReviewRouteImport.update({
+    id: '/review',
+    path: '/review',
+    getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
+  } as any)
 const LolAccountSlugMatchesMatchIdRecapRoute =
   LolAccountSlugMatchesMatchIdRecapRouteImport.update({
     id: '/recap',
@@ -195,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/lol/$accountSlug/matches/': typeof LolAccountSlugMatchesIndexRoute
   '/lol/$accountSlug/patches/': typeof LolAccountSlugPatchesIndexRoute
   '/lol/$accountSlug/matches/$matchId/recap': typeof LolAccountSlugMatchesMatchIdRecapRoute
+  '/lol/$accountSlug/matches/$matchId/review': typeof LolAccountSlugMatchesMatchIdReviewRoute
   '/lol/$accountSlug/matches/$matchId/timeline': typeof LolAccountSlugMatchesMatchIdTimelineRoute
   '/lol/$accountSlug/matches/$matchId/your-game': typeof LolAccountSlugMatchesMatchIdYourGameRoute
   '/lol/$accountSlug/matches/$matchId/': typeof LolAccountSlugMatchesMatchIdIndexRoute
@@ -219,6 +227,7 @@ export interface FileRoutesByTo {
   '/lol/$accountSlug/matches': typeof LolAccountSlugMatchesIndexRoute
   '/lol/$accountSlug/patches': typeof LolAccountSlugPatchesIndexRoute
   '/lol/$accountSlug/matches/$matchId/recap': typeof LolAccountSlugMatchesMatchIdRecapRoute
+  '/lol/$accountSlug/matches/$matchId/review': typeof LolAccountSlugMatchesMatchIdReviewRoute
   '/lol/$accountSlug/matches/$matchId/timeline': typeof LolAccountSlugMatchesMatchIdTimelineRoute
   '/lol/$accountSlug/matches/$matchId/your-game': typeof LolAccountSlugMatchesMatchIdYourGameRoute
   '/lol/$accountSlug/matches/$matchId': typeof LolAccountSlugMatchesMatchIdIndexRoute
@@ -247,6 +256,7 @@ export interface FileRoutesById {
   '/lol/$accountSlug/matches/': typeof LolAccountSlugMatchesIndexRoute
   '/lol/$accountSlug/patches/': typeof LolAccountSlugPatchesIndexRoute
   '/lol/$accountSlug/matches/$matchId/recap': typeof LolAccountSlugMatchesMatchIdRecapRoute
+  '/lol/$accountSlug/matches/$matchId/review': typeof LolAccountSlugMatchesMatchIdReviewRoute
   '/lol/$accountSlug/matches/$matchId/timeline': typeof LolAccountSlugMatchesMatchIdTimelineRoute
   '/lol/$accountSlug/matches/$matchId/your-game': typeof LolAccountSlugMatchesMatchIdYourGameRoute
   '/lol/$accountSlug/matches/$matchId/': typeof LolAccountSlugMatchesMatchIdIndexRoute
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug/matches/'
     | '/lol/$accountSlug/patches/'
     | '/lol/$accountSlug/matches/$matchId/recap'
+    | '/lol/$accountSlug/matches/$matchId/review'
     | '/lol/$accountSlug/matches/$matchId/timeline'
     | '/lol/$accountSlug/matches/$matchId/your-game'
     | '/lol/$accountSlug/matches/$matchId/'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug/matches'
     | '/lol/$accountSlug/patches'
     | '/lol/$accountSlug/matches/$matchId/recap'
+    | '/lol/$accountSlug/matches/$matchId/review'
     | '/lol/$accountSlug/matches/$matchId/timeline'
     | '/lol/$accountSlug/matches/$matchId/your-game'
     | '/lol/$accountSlug/matches/$matchId'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug/matches/'
     | '/lol/$accountSlug/patches/'
     | '/lol/$accountSlug/matches/$matchId/recap'
+    | '/lol/$accountSlug/matches/$matchId/review'
     | '/lol/$accountSlug/matches/$matchId/timeline'
     | '/lol/$accountSlug/matches/$matchId/your-game'
     | '/lol/$accountSlug/matches/$matchId/'
@@ -510,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugMatchesMatchIdTimelineRouteImport
       parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
     }
+    '/lol/$accountSlug/matches/$matchId/review': {
+      id: '/lol/$accountSlug/matches/$matchId/review'
+      path: '/review'
+      fullPath: '/lol/$accountSlug/matches/$matchId/review'
+      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdReviewRouteImport
+      parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
+    }
     '/lol/$accountSlug/matches/$matchId/recap': {
       id: '/lol/$accountSlug/matches/$matchId/recap'
       path: '/recap'
@@ -542,6 +562,7 @@ const SteamRouteWithChildren = SteamRoute._addFileChildren(SteamRouteChildren)
 
 interface LolAccountSlugMatchesMatchIdRouteChildren {
   LolAccountSlugMatchesMatchIdRecapRoute: typeof LolAccountSlugMatchesMatchIdRecapRoute
+  LolAccountSlugMatchesMatchIdReviewRoute: typeof LolAccountSlugMatchesMatchIdReviewRoute
   LolAccountSlugMatchesMatchIdTimelineRoute: typeof LolAccountSlugMatchesMatchIdTimelineRoute
   LolAccountSlugMatchesMatchIdYourGameRoute: typeof LolAccountSlugMatchesMatchIdYourGameRoute
   LolAccountSlugMatchesMatchIdIndexRoute: typeof LolAccountSlugMatchesMatchIdIndexRoute
@@ -551,6 +572,8 @@ const LolAccountSlugMatchesMatchIdRouteChildren: LolAccountSlugMatchesMatchIdRou
   {
     LolAccountSlugMatchesMatchIdRecapRoute:
       LolAccountSlugMatchesMatchIdRecapRoute,
+    LolAccountSlugMatchesMatchIdReviewRoute:
+      LolAccountSlugMatchesMatchIdReviewRoute,
     LolAccountSlugMatchesMatchIdTimelineRoute:
       LolAccountSlugMatchesMatchIdTimelineRoute,
     LolAccountSlugMatchesMatchIdYourGameRoute:

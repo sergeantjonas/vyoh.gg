@@ -31,10 +31,11 @@ function renderTabs(active: MatchDetailTabId) {
 }
 
 describe("MatchDetailTabs", () => {
-  it("renders all three tab labels", () => {
+  it("renders all four tab labels", () => {
     renderTabs("recap");
     expect(screen.getByRole("tab", { name: "Recap" })).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Your game" })).not.toBeNull();
+    expect(screen.getByRole("tab", { name: "Review" })).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Timeline" })).not.toBeNull();
   });
 
@@ -46,9 +47,22 @@ describe("MatchDetailTabs", () => {
     expect(screen.getByRole("tab", { name: "Recap" }).getAttribute("aria-selected")).toBe(
       "false"
     );
+    expect(screen.getByRole("tab", { name: "Review" }).getAttribute("aria-selected")).toBe(
+      "false"
+    );
     expect(
       screen.getByRole("tab", { name: "Timeline" }).getAttribute("aria-selected")
     ).toBe("false");
+  });
+
+  it("marks the review tab as active when selected", () => {
+    renderTabs("review");
+    expect(screen.getByRole("tab", { name: "Review" }).getAttribute("aria-selected")).toBe(
+      "true"
+    );
+    expect(screen.getByRole("tab", { name: "Recap" }).getAttribute("aria-selected")).toBe(
+      "false"
+    );
   });
 
   it("updates active selection when prop changes", () => {

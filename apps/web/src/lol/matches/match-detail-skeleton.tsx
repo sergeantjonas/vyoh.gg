@@ -226,11 +226,29 @@ function TimelineSkeleton() {
   );
 }
 
+function ReviewSkeleton() {
+  return (
+    <>
+      <ShimmerBlock className="h-[148px] w-full rounded-lg" />
+      <div className="grid grid-cols-3 gap-3">
+        {(["laning", "mid", "late"] as const).map((phase) => (
+          <div key={phase} className="flex flex-col gap-2 rounded-lg border border-border/50 p-3">
+            <ShimmerBlock className="h-3 w-16 rounded" />
+            <ShimmerBlock className="h-4 w-full rounded" />
+            <ShimmerBlock className="h-4 w-3/4 rounded" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function MatchDetailSkeleton({ tab = "recap" }: { tab?: MatchDetailTabId }) {
   return (
     <div className="flex flex-col gap-6">
       {tab === "recap" && <RecapSkeleton />}
       {tab === "your-game" && <YourGameSkeleton />}
+      {tab === "review" && <ReviewSkeleton />}
       {tab === "timeline" && <TimelineSkeleton />}
     </div>
   );
