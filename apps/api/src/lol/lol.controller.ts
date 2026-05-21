@@ -18,21 +18,28 @@ import type {
   Chronotype,
   Duo,
   LiveMatch,
+  MatchBaseline,
   MatchSummary,
   PregameCalibrationByQueue,
   RankHistoryResponse,
   SummonerProfile,
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
-import { AccountParamsDto, ChampionAccountParamsDto } from "./account-params.dto";
+import {
+  AccountParamsDto,
+  BaselineParamsDto,
+  ChampionAccountParamsDto,
+} from "./account-params.dto";
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolService } from "./lol.service";
+import { MatchBaselineService } from "./match-baseline.service";
 
 @Controller("lol/summoners/:region/:gameName/:tagLine")
 export class LolController {
   constructor(
     private readonly lol: LolService,
-    private readonly analytics: LolAnalyticsService
+    private readonly analytics: LolAnalyticsService,
+    private readonly baseline: MatchBaselineService
   ) {}
 
   @Get("matches")
@@ -164,5 +171,12 @@ export class LolController {
     @Param() { region, gameName, tagLine }: AccountParamsDto
   ): Promise<Observable<MessageEvent>> {
     return this.lol.subscribeLiveEvents(region, gameName, tagLine);
+  }
+
+  @Get("baselines/:championAlias/:role")
+  async getBaseline(
+    @Param() { region, gameName, tagLine, championAlias, role }: BaselineParamsDto
+  ): Promise<MatchBaseline> {
+    return this.baseline.getBaseline(region, gameName, tagLine, championAlias, role);
   }
 }

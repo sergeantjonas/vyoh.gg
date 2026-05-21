@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { LolAnalyticsService } from "./lol-analytics.service";
 import { LolController } from "./lol.controller";
 import type { LolService } from "./lol.service";
+import type { MatchBaselineService } from "./match-baseline.service";
 
 function makeController() {
   const lol = {
@@ -22,10 +23,12 @@ function makeController() {
     getChampionExtras: vi.fn(),
     getPregameCalibration: vi.fn(),
   };
+  const baseline = { getBaseline: vi.fn() };
   return {
     controller: new LolController(
       lol as unknown as LolService,
-      analytics as unknown as LolAnalyticsService
+      analytics as unknown as LolAnalyticsService,
+      baseline as unknown as MatchBaselineService
     ),
     lol,
     analytics,

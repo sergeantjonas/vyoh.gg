@@ -6,6 +6,7 @@ import { LolStaticSyncService } from "./lol-static-sync.service";
 import { LolStaticController } from "./lol-static.controller";
 import { LolController } from "./lol.controller";
 import { LolService } from "./lol.service";
+import { MatchBaselineService } from "./match-baseline.service";
 import { MatchEventsService } from "./match-events.service";
 import { MatchSyncService } from "./match-sync.service";
 import { MatchController } from "./match.controller";
@@ -18,6 +19,7 @@ import { PatchService } from "./patch.service";
   providers: [
     LolService,
     LolAnalyticsService,
+    MatchBaselineService,
     MatchSyncService,
     MatchEventsService,
     LiveGamePollerService,
@@ -27,6 +29,7 @@ import { PatchService } from "./patch.service";
   exports: [
     LolService,
     LolAnalyticsService,
+    MatchBaselineService,
     MatchSyncService,
     MatchEventsService,
     PatchService,

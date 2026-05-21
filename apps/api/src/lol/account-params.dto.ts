@@ -41,3 +41,12 @@ export class ChampionAccountParamsDto extends AccountParamsDto {
   @Matches(/^[A-Za-z][A-Za-z0-9]{0,29}$/)
   championKey!: string;
 }
+
+export class BaselineParamsDto extends AccountParamsDto {
+  @IsString()
+  @Matches(/^[A-Za-z][A-Za-z0-9]{0,29}$/)
+  championAlias!: string;
+
+  @IsIn(["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"])
+  role!: string;
+}
