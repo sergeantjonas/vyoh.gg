@@ -257,6 +257,16 @@ Profile-icon resolver. Wiki probe on 2026-05-21 found `Module:Profile-Icons/V1` 
 
 Also rolled in: the live-game per-champion role fetch (`fetchChampionInfo` against `raw.communitydragon.org`) was the unaccounted sixth client-side CDragon dependency. Replaced with a bundle-derived `useChampionInfoById()` hook — the bundle already carries `roles` per champion.
 
+### Chunk 6.5 (shipped)
+
+Wiki-sourced profile-icon resolver landed after a deeper wiki probe surfaced `Module:IconData/data` — an old editorial-name catalog that *is* fully populated (~2400 entries) with matching `{Title}_profileicon.png` images. The V1 system was a red herring; the legacy module was the real path.
+
+- **6.5a:** `LolProfileIcon` Prisma model + migration. `parseIconDataModule` reuses the brace-aware Lua walker. `syncProfileIcons()` wires into the 6h cron.
+- **6.5b:** `LolProfileIconDto` surfaces in the static bundle.
+- **6.5c:** `LolImageService.profileIcon()` now returns `urls: [wikiUrl, ddragonUrl]`. `fetchUpstreamChain` handles the fallback. Web call sites unchanged — `profileIconUrl(iconId, patch)` still resolves to `/img/lol/profile-icon/:iconId/:patch.webp`; the fallback is invisible to web.
+
+The owner's architectural principle that crystallised here: **the image proxy should always route images, with the fallback chain as the failure-tolerance layer.** Today this principle is realized only for profile icons; the other wiki helpers (`wikiAbilityIconUrl`, `wikiChampionSquareUrl`, `wikiEntryIconUrl`) still resolve to direct wiki URLs from the browser. Unifying those is the [unified-image-fallback.md](./unified-image-fallback.md) follow-up arc.
+
 ---
 
 ## Sequence + handoff between chunks
