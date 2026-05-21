@@ -1,72 +1,34 @@
-# vyoh.gg — Rich icon-embedded descriptions (follow-up)
+# vyoh.gg — Rich icon-embedded descriptions
 
-**Status:** Parked — proposed 2026-05-21 during the LoL static-metadata arc tooltip pass. Direct follow-up to chunk 4–6 of [lol-static-metadata.md](./lol-static-metadata.md).
+**Status:** Shipped 2026-05-21 across [lol-static-metadata.md](./lol-static-metadata.md) chunks 4–6 and three follow-up commits. Item and ability tooltips on the wider surfaces now render sanitised wiki HTML with inline icons; compact label-style tooltips intentionally kept the plain-text path.
 
-## Motivation
+## What landed
 
-The current tooltip pipeline runs the bundle's `descriptionWikitext` / `descriptionHtml` through `stripWikitext` (in [packages/shared/src/lol/strip-wikitext.ts](../../../packages/shared/src/lol/strip-wikitext.ts)), which:
+Approach A from the original options below was the chosen path — keep wiki's `action=parse` HTML, sanitise via a small in-repo allowlist, route inline icons through the existing image proxy.
 
-- Unwraps wiki templates like `{{as|200% '''base''' AD}}` → `200% base AD`.
-- Strips HTML tags from the `action=parse` output so both source paths land at the same plain-text shape.
-- Drops `[[wiki/link|display]]` markup.
+| Commit | What |
+| --- | --- |
+| `eaf44d1` | Allowlist sanitiser in [`@vyoh/shared`](../../../packages/shared/src/lol/sanitize-rich-html.ts) (~10 tags, only `src/alt/width/height` on `<img>`, only `class` on `<span>`; `<a>` stripped to text on purpose — tooltips don't navigate). |
+| `127999b` | Wiki-file image-proxy route + [`rewriteWikiImageSrc`](../../../packages/shared/src/lol/wiki-url-helpers.ts) helper so wiki `<img src>` survives the rewrite into a proxied URL. |
+| `8a9e68d` | Rich tooltip variant on `ItemSlot` / `BuildItemSlot` / `SpellRowLabel`, with `max-w-sm` for items and `max-w-xs` for abilities. |
+| `0df7b93` | Drop md5 buckets in the wiki-file proxy — leaguepedia serves flat `/en-us/images/<filename>` paths. |
+| `eb1d02c` | Tooltip CSS: inline-block icons + null out wiki's `.border` class collision with Tailwind. |
+| `7cc584f` | Canonical-wiki snapshot tests — see [`rich-description.snapshots.test.ts`](../../../apps/web/src/lol/_shared/static/rich-description.snapshots.test.ts). |
+| `9efec7b` | Eager item `descriptionHtml` sync during `syncItems` with wikitext-unchanged dedup (zero parse calls at steady state). |
+| `71046b9` | Unwrap wiki `{{ft\|long\|short}}` flip template before sanitisation so both the inactive arm and the `「 」` bracket padding disappear. |
 
-This is correct for compact label-style tooltips (the summoner-spell icon, keystone icon, build-order item slot, participant-row item slots) — every tooltip in the app today fits in a 288px-wide box and reads as one paragraph.
+## How to extend
 
-But the wiki source actually carries rich content the strip loses:
+If a new surface needs rich wiki HTML: import `toRichDescription(rawHtml)` from [`apps/web/src/lol/_shared/static/rich-description.ts`](../../../apps/web/src/lol/_shared/static/rich-description.ts) — it wires sanitiser + image proxy + flip-template unwrap into one call. Width: `max-w-sm` for items, `max-w-xs` for abilities; anything tighter cramps the inline icons.
 
-- Inline damage-type icons (`{{ai|...}}` template) — e.g. Hextech Proto-Belt's tooltip on the wiki interleaves `[Magic Damage]` icons with the numeric values.
-- Champion-name icons, monster icons, item icons, gold icons (`{{g|...}}`).
-- Color-coded stat callouts (red for damage, gold for cost).
-- Bullet lists for multi-effect items.
+If a new wiki template pattern shows up (drift on existing fixtures, or a new template that mangles): add a canonical fixture to [`rich-description.snapshots.test.ts`](../../../apps/web/src/lol/_shared/static/rich-description.snapshots.test.ts). The pre-process step lives in `rich-description.ts` (see `unwrapFlipTemplate`); add another stripper there for new wiki-specific quirks, not in the shared sanitiser.
 
-The owner's screenshot reference (Hextech Proto-Belt on the wiki) shows what a rich rendering of these descriptions looks like — small inline icons make the description scannable instead of a wall of plain text.
+Plain-text `description` stays alongside `descriptionRich` on the hooks because abilities use a lazy fetch — the tooltip needs something to render while HTML is pending.
 
-## Out of scope for the tooltip-enrichment pass that shipped
+## Surfaces that intentionally kept plain text
 
-The pass that landed in `123c593` (summoner spells + keystones + build-order tooltips) intentionally kept the simple text path. The plumbing is:
+- `SummonerSpellIcon` and `KeystoneIcon` — 4-line summaries; inline icons would be visual noise at this density.
 
-- `useSummonerSpells()` / `usePerks()` / `useItems()` already strip the description on the way through `stripWikitext`.
-- The icon components (`SummonerSpellIcon`, `KeystoneIcon`, `BuildItemSlot`, `ItemSlot`) render the stripped string directly inside a `TooltipPrimitive.Content`.
-- `ItemSlot` in [match-detail-view.tsx](../../../apps/web/src/lol/matches/match-detail-view.tsx) still uses `dangerouslySetInnerHTML` against `item.description` as a placeholder for where rich HTML would land — but since `stripWikitext` returns plain text, it currently just renders text. The `dangerouslySetInnerHTML` marker stays as the breadcrumb for this follow-up.
+## Original options (kept for context)
 
-## Approach options
-
-### A — Preserve HTML, scope per-surface
-
-Keep `descriptionHtml` (from `action=parse`) untouched in the bundle, expose it as a separate field on the icon hook (e.g. `description` stays the plain text, `descriptionHtml` is new). Tooltips that want rich rendering opt in by reading `descriptionHtml`; compact tooltips keep `description`.
-
-- Pros: Compact tooltips still get the safe plain text. No surprise re-flow in label-only icons.
-- Cons: Need to sanitize wiki HTML (it ships with absolute `[[File:...]]` URLs that need rewriting and `<a>` tags that should not navigate). The wiki's `action=parse` already returns relative URLs for the wiki domain, so a base-URL rewrite + a tag allowlist (img, span, ul, li, b, i, br) is the minimum.
-
-### B — Custom render pipeline from wikitext
-
-Skip `descriptionHtml`. Parse a richer subset of wikitext templates in `packages/shared/src/lol/wikitext-to-react.tsx` returning a `ReactNode[]` instead of a string. Each template handler returns a JSX node (e.g. `{{ai|magic}}` → `<img src={wikiAttackIconUrl("magic-damage")} ... />`).
-
-- Pros: No HTML sanitization. No dependency on wiki's HTML rendering staying stable. Output is real React, so it composes with existing motion/click handlers.
-- Cons: Carrying a wikitext parser per-template is its own maintenance surface. Wiki adds new templates over time; we'd discover them as missing icons.
-
-**Recommended:** A. The HTML approach is one fewer parser to maintain, and the wiki's `action=parse` output is already what the wiki renders — staying current with it is automatic.
-
-## Concrete scope when this arc starts
-
-Surfaces that should get the rich rendering:
-
-- [`ItemSlot`](../../../apps/web/src/lol/matches/match-detail-view.tsx) — participant row item tooltip in match detail (largest, most-read tooltip).
-- [`BuildItemSlot`](../../../apps/web/src/lol/matches/match-build-order.tsx) — already wider than the summoner-spell tooltip, room for inline icons.
-- `useChampionSpells()` ability tooltips wherever they surface (champion detail page, currently rendering plain text).
-
-Surfaces that should keep plain text:
-
-- `SummonerSpellIcon` and `KeystoneIcon` — these are 4-line summaries at most; inline icons would be visual noise at this density.
-
-## Dependencies / pre-work
-
-- `descriptionHtml` is already in the bundle DTOs ([packages/shared/src/lol/static.ts](../../../packages/shared/src/lol/static.ts)) for items, perks, summoner spells, abilities. No schema change needed.
-- Image URLs for inline icons need to resolve from wiki File names. The existing wiki-image helpers in [packages/shared/src/lol/wiki-image-urls.ts](../../../packages/shared/src/lol/wiki-image-urls.ts) cover the common ones (champion squares, stat icons, gold). Anything else either lives on wiki and can be added there, or comes from DDragon (item, profile-icon, summoner-spell) which we already serve via the proxy.
-- HTML sanitization: pull in `dompurify` *or* write a small allowlist sanitizer scoped to the wiki's known tag set. The owner generally prefers small purpose-built utilities over deps when the surface is small (~10 tags).
-
-## Risks
-
-- **Wiki HTML drift.** If wiki changes its template rendering, descriptions could land mangled. Snapshot tests against a handful of canonical descriptions (Trinity Force passive, Hextech Proto-Belt active, Ahri Q) would catch this.
-- **Tooltip width.** Rich content tends to want more horizontal space. The current `max-w-72` (288px) caps it tightly; may want `max-w-sm` (384px) for the rich variant.
-- **Image-proxy cold cache.** Inline icons hit the same proxy; first render of a rich tooltip with 6 inline icons fans out 6 proxy requests. The proxy already caches with `IMMUTABLE_YEAR` headers, so this is only a cold-cache concern, but worth noting in case it surfaces as jank.
+The motivation, approach options A/B, and the decision to go with A are preserved in the auto-memory entry `project_rich_descriptions.md` (per-machine) and in the commit messages above. The short version: B (custom wikitext-to-React parser) would carry its own per-template maintenance surface; A piggybacks on wiki's own render path and stays current automatically.
