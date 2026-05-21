@@ -50,6 +50,21 @@ export interface LolChampionAbilityDto {
   descriptionHtml: string | null;
 }
 
+// Resolved payload from the lazy `GET /lol/static/ability/...` route.
+// Identifies the ability for caching keys plus the resolved content.
+// Fields may be null if the wiki has no template page or the upstream is
+// failing — the row is still returned so the UI can render name + icon
+// without the description body.
+export interface LolAbilityDescriptionDto {
+  championId: number;
+  slot: string;
+  abilityIndex: number;
+  name: string;
+  iconWikiName: string | null;
+  descriptionWikitext: string | null;
+  descriptionHtml: string | null;
+}
+
 export interface LolSummonerSpellDto {
   id: number;
   name: string;

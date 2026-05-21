@@ -69,6 +69,7 @@ export type {
   PatchListEntry,
 } from "./lol/patch-changes.ts";
 export type {
+  LolAbilityDescriptionDto,
   LolChampionAbilityDto,
   LolChampionDto,
   LolItemDto,

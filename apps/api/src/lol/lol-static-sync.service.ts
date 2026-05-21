@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import type {
+  LolAbilityDescriptionDto,
   LolChampionAbilityDto,
   LolChampionDto,
   LolItemDto,
@@ -88,7 +89,6 @@ export class LolStaticSyncService {
     patchVersion: string;
     items: number;
     champions: number;
-    abilityDescriptions: number;
     summonerSpells: number;
     perks: number;
     profileIcons: number;
@@ -96,20 +96,21 @@ export class LolStaticSyncService {
     const ddragonVersion = await this.fetchLatestDdragonVersion();
     const patchVersion = truncateVersion(ddragonVersion);
 
-    // Run in series — wiki rate-limits sustained traffic at ~200/min and
-    // the calls overlap on the same host. The bulk fetches above are well
-    // under that; the per-ability description fetches below run ~170 pairs
-    // (template + action=parse) per tick, ~57/hour, comfortably under.
+    // Ability descriptions are NOT bulk-synced — they're populated on
+    // demand via `ensureAbilityDescription` keyed by patch version. The
+    // bulk path (~800 per-row wiki calls per tick) was retired because it
+    // burned the wiki budget on champions nobody ever views, while a
+    // patch-watermarked lazy fetch covers played champions in a single
+    // per-ability request per patch. `syncChampionAbilityDescriptions`
+    // remains as a manual warmup entry point for offline backfill jobs.
     const items = await this.syncItems(patchVersion);
     const champions = await this.syncChampionsAndAbilities(ddragonVersion, patchVersion);
-    const abilityDescriptions = await this.syncChampionAbilityDescriptions(patchVersion);
     const summonerSpells = await this.syncSummonerSpells(ddragonVersion);
     const perks = await this.syncPerks(ddragonVersion);
     const profileIcons = await this.syncProfileIcons();
 
     this.logger.log(
       `Static sync ${patchVersion}: items=${items}, champions=${champions}, ` +
-        `abilityDescriptions=${abilityDescriptions}, ` +
         `summonerSpells=${summonerSpells}, perks=${perks}, profileIcons=${profileIcons}`
     );
 
@@ -117,7 +118,6 @@ export class LolStaticSyncService {
       patchVersion,
       items,
       champions,
-      abilityDescriptions,
       summonerSpells,
       perks,
       profileIcons,
@@ -577,6 +577,121 @@ export class LolStaticSyncService {
   // Fetches `Template:Data {Champion}/{Ability}` for every persisted ability
   // row, parses the `description` + `icon` fields, renders the description
   // wikitext to HTML via MediaWiki's action=parse, and updates the ability
+  // Lazy resolver — called from the per-ability HTTP route. Returns a
+  // description-shaped DTO without forcing a wiki round-trip when the row
+  // is already current for the active patch. See
+  // docs/working-notes/lol/lazy-ability-descriptions.md.
+  async ensureAbilityDescription(
+    championId: number,
+    slot: string,
+    abilityIndex: number
+  ): Promise<LolAbilityDescriptionDto | null> {
+    const key = `${championId}:${slot}:${abilityIndex}`;
+    const existing = this.ensureAbilityPending.get(key);
+    if (existing) return existing;
+    const pending = this.resolveAbilityDescription(
+      championId,
+      slot,
+      abilityIndex
+    ).finally(() => {
+      this.ensureAbilityPending.delete(key);
+    });
+    this.ensureAbilityPending.set(key, pending);
+    return pending;
+  }
+
+  // Per-process dedup so a hover-spam fan-out collapses to one wiki
+  // round-trip. Cleared when the in-flight promise settles.
+  private readonly ensureAbilityPending = new Map<
+    string,
+    Promise<LolAbilityDescriptionDto | null>
+  >();
+
+  // 5 min is short enough to pick up a manual patch bump from the
+  // patch-detection cron without coupling to it, long enough that the
+  // hot-tooltip read path doesn't hammer DDragon `versions.json`.
+  private static readonly PATCH_CACHE_TTL_MS = 5 * 60 * 1000;
+  private cachedPatchVersion: string | null = null;
+  private cachedPatchVersionAt = 0;
+
+  private async getCurrentPatchVersion(): Promise<string> {
+    const now = Date.now();
+    if (
+      this.cachedPatchVersion !== null &&
+      now - this.cachedPatchVersionAt < LolStaticSyncService.PATCH_CACHE_TTL_MS
+    ) {
+      return this.cachedPatchVersion;
+    }
+    const ddragonVersion = await this.fetchLatestDdragonVersion();
+    const patch = truncateVersion(ddragonVersion);
+    this.cachedPatchVersion = patch;
+    this.cachedPatchVersionAt = now;
+    return patch;
+  }
+
+  private async resolveAbilityDescription(
+    championId: number,
+    slot: string,
+    abilityIndex: number
+  ): Promise<LolAbilityDescriptionDto | null> {
+    const row = await this.prisma.lolChampionAbility.findUnique({
+      where: {
+        championId_slot_abilityIndex: { championId, slot, abilityIndex },
+      },
+      include: { champion: { select: { name: true } } },
+    });
+    if (!row) return null;
+
+    const currentPatch = await this.getCurrentPatchVersion();
+    if (row.wikiSyncedPatchVersion === currentPatch) {
+      return toAbilityDescriptionDto(row);
+    }
+
+    try {
+      const wikitext = await this.fetchWikiPage(
+        `Template:Data ${row.champion.name}/${row.name}`
+      );
+      const parsed = wikitext ? parseAbilityTemplate(wikitext) : null;
+      let descriptionHtml: string | null = null;
+      if (parsed?.description) {
+        try {
+          descriptionHtml = await this.renderWikitextToHtml(parsed.description);
+        } catch (err) {
+          this.logger.warn(
+            `action=parse failed for ${row.champion.name}/${row.name}: ${
+              err instanceof Error ? err.message : err
+            }`
+          );
+        }
+      }
+      // Bump the watermark even when wikitext is null / has no content,
+      // so a missing template doesn't trigger a refetch on every read
+      // within the same patch.
+      const updated = await this.prisma.lolChampionAbility.update({
+        where: {
+          championId_slot_abilityIndex: { championId, slot, abilityIndex },
+        },
+        data: {
+          descriptionWikitext: parsed?.description ?? row.descriptionWikitext,
+          descriptionHtml: parsed?.description ? descriptionHtml : row.descriptionHtml,
+          iconWikiName: parsed?.icon ?? row.iconWikiName,
+          wikiSyncedPatchVersion: currentPatch,
+        },
+      });
+      return toAbilityDescriptionDto(updated);
+    } catch (err) {
+      // 429 / network failure — return the previous-patch DB row so the
+      // tooltip still renders something. Do NOT bump the watermark, so
+      // the next read retries the upstream.
+      this.logger.warn(
+        `ensureAbilityDescription ${row.champion.name}/${row.name}: ${
+          err instanceof Error ? err.message : err
+        }`
+      );
+      return toAbilityDescriptionDto(row);
+    }
+  }
+
   // row. Runs every cron tick — items follow the same always-refresh
   // convention so balance-patch description rewrites land within one cycle.
   // Per-ability try/catch isolates parse + network failures.
@@ -686,4 +801,24 @@ export class LolStaticSyncService {
     if (!content) throw new Error(`wiki ${title} had no content`);
     return content;
   }
+}
+
+function toAbilityDescriptionDto(row: {
+  championId: number;
+  slot: string;
+  abilityIndex: number;
+  name: string;
+  iconWikiName: string | null;
+  descriptionWikitext: string | null;
+  descriptionHtml: string | null;
+}): LolAbilityDescriptionDto {
+  return {
+    championId: row.championId,
+    slot: row.slot,
+    abilityIndex: row.abilityIndex,
+    name: row.name,
+    iconWikiName: row.iconWikiName,
+    descriptionWikitext: row.descriptionWikitext,
+    descriptionHtml: row.descriptionHtml,
+  };
 }

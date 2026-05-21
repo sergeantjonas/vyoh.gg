@@ -418,13 +418,17 @@ model LolChampion {
 // the patch-notes resolver can match either variant to the same slot.
 // `slot` is "Passive" | "Q" | "W" | "E" | "R".
 model LolChampionAbility {
-  championId          Int
-  slot                String
-  abilityIndex        Int      @default(0)
-  name                String
-  iconWikiName        String?
-  descriptionWikitext String?
-  descriptionHtml     String?
+  championId             Int
+  slot                   String
+  abilityIndex           Int      @default(0)
+  name                   String
+  iconWikiName           String?
+  descriptionWikitext    String?
+  descriptionHtml        String?
+  // Watermark for the lazy resolver — see ensureAbilityDescription. Null
+  // until the first per-ability fetch lands; rows whose value doesn't
+  // match the current patch are re-fetched on next read.
+  wikiSyncedPatchVersion String?
 
   champion LolChampion @relation(fields: [championId], references: [id], onDelete: Cascade)
 

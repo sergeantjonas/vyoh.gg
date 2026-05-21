@@ -228,6 +228,7 @@ interface PrismaStubs {
     deleteMany: ReturnType<typeof vi.fn>;
     createMany: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
   lolSummonerSpell: {
@@ -261,6 +262,7 @@ function makePrisma(): PrismaStubs {
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
       findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn().mockResolvedValue(null),
       update: vi.fn().mockResolvedValue({}),
     },
     lolSummonerSpell: {
@@ -682,6 +684,167 @@ return {
     expect(prisma.lolChampionAbility.update).toHaveBeenCalledTimes(1);
     const updateCall = prisma.lolChampionAbility.update.mock.calls[0]?.[0];
     expect(updateCall.where.championId_slot_abilityIndex.slot).toBe("W");
+  });
+
+  it("ensureAbilityDescription: returns cached row without fetching when wikiSyncedPatchVersion matches current patch", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findUnique.mockResolvedValueOnce({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "Orb of Deception",
+      iconWikiName: "Orb of Deception.png",
+      descriptionWikitext: "cached wikitext",
+      descriptionHtml: "<p>cached</p>",
+      wikiSyncedPatchVersion: "26.10",
+      champion: { name: "Ahri" },
+    });
+    // Only DDragon `versions.json` is fetched — no wiki round-trip when the
+    // watermark is current.
+    fetchSpy.mockResolvedValueOnce(jsonResponse(["16.10.1"]));
+
+    const dto = await makeService(prisma).ensureAbilityDescription(103, "Q", 0);
+    expect(dto).toEqual({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "Orb of Deception",
+      iconWikiName: "Orb of Deception.png",
+      descriptionWikitext: "cached wikitext",
+      descriptionHtml: "<p>cached</p>",
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(prisma.lolChampionAbility.update).not.toHaveBeenCalled();
+  });
+
+  it("ensureAbilityDescription: stale row triggers refetch + bumps wikiSyncedPatchVersion", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findUnique.mockResolvedValueOnce({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "Orb of Deception",
+      iconWikiName: null,
+      descriptionWikitext: null,
+      descriptionHtml: null,
+      wikiSyncedPatchVersion: "26.09",
+      champion: { name: "Ahri" },
+    });
+    prisma.lolChampionAbility.update.mockImplementationOnce(
+      async ({ data }: { data: Record<string, unknown> }) => ({
+        championId: 103,
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Orb of Deception",
+        ...data,
+      })
+    );
+    fetchSpy
+      .mockResolvedValueOnce(jsonResponse(["16.10.1"]))
+      .mockResolvedValueOnce(
+        wikiModuleResponse(
+          `{{Ability data
+|icon        = Orb of Deception.png
+|description = {{sbc|Active:}} Ahri sends her orb dealing {{as|magic damage}}.
+}}`
+        )
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          parse: { text: "<p>Ahri sends her orb dealing magic damage.</p>" },
+        })
+      );
+
+    const dto = await makeService(prisma).ensureAbilityDescription(103, "Q", 0);
+    expect(dto?.descriptionWikitext).toContain("{{as|magic damage}}");
+    expect(dto?.descriptionHtml).toContain("<p>Ahri");
+    expect(dto?.iconWikiName).toBe("Orb of Deception.png");
+    expect(prisma.lolChampionAbility.update).toHaveBeenCalledTimes(1);
+    const updateCall = prisma.lolChampionAbility.update.mock.calls[0]?.[0];
+    expect(updateCall.where.championId_slot_abilityIndex).toEqual({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+    });
+    expect(updateCall.data.wikiSyncedPatchVersion).toBe("26.10");
+  });
+
+  it("ensureAbilityDescription: in-process dedup collapses concurrent calls for the same ability into one wiki round-trip", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findUnique.mockResolvedValue({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "Orb of Deception",
+      iconWikiName: null,
+      descriptionWikitext: null,
+      descriptionHtml: null,
+      wikiSyncedPatchVersion: null,
+      champion: { name: "Ahri" },
+    });
+    prisma.lolChampionAbility.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) => ({
+        championId: 103,
+        slot: "Q",
+        abilityIndex: 0,
+        name: "Orb of Deception",
+        ...data,
+      })
+    );
+    fetchSpy
+      .mockResolvedValueOnce(jsonResponse(["16.10.1"]))
+      .mockResolvedValueOnce(
+        wikiModuleResponse(
+          `{{Ability data
+|description = Deals magic damage.
+}}`
+        )
+      )
+      .mockResolvedValueOnce(jsonResponse({ parse: { text: "<p>x</p>" } }));
+
+    const service = makeService(prisma);
+    const [first, second] = await Promise.all([
+      service.ensureAbilityDescription(103, "Q", 0),
+      service.ensureAbilityDescription(103, "Q", 0),
+    ]);
+    expect(first).toEqual(second);
+    // Two wiki round-trips would be 4 fetches (DDragon + 2× template + 2×
+    // parse). Dedup keeps it at 3: DDragon once, then template + parse once.
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(prisma.lolChampionAbility.findUnique).toHaveBeenCalledTimes(1);
+    expect(prisma.lolChampionAbility.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("ensureAbilityDescription: wiki 429 returns previously cached row without bumping the watermark", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findUnique.mockResolvedValueOnce({
+      championId: 103,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "Orb of Deception",
+      iconWikiName: "Orb of Deception.png",
+      descriptionWikitext: "previous patch wikitext",
+      descriptionHtml: "<p>previous patch</p>",
+      wikiSyncedPatchVersion: "26.09",
+      champion: { name: "Ahri" },
+    });
+    fetchSpy
+      .mockResolvedValueOnce(jsonResponse(["16.10.1"]))
+      .mockResolvedValueOnce(new Response(null, { status: 429 }));
+
+    const dto = await makeService(prisma).ensureAbilityDescription(103, "Q", 0);
+    expect(dto?.descriptionWikitext).toBe("previous patch wikitext");
+    expect(dto?.descriptionHtml).toBe("<p>previous patch</p>");
+    expect(prisma.lolChampionAbility.update).not.toHaveBeenCalled();
+  });
+
+  it("ensureAbilityDescription: returns null when the ability row does not exist", async () => {
+    const prisma = makePrisma();
+    prisma.lolChampionAbility.findUnique.mockResolvedValueOnce(null);
+
+    const dto = await makeService(prisma).ensureAbilityDescription(999, "Q", 0);
+    expect(dto).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("getBundle() shapes prisma rows into the LolStaticBundle DTO with grouped abilities and max syncedAt", async () => {
