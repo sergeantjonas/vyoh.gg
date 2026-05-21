@@ -1,6 +1,6 @@
 # LoL owner-data feature ideas
 
-**Status:** Reference — ideation catalog opened 2026-05-17 after Match cache Tier 1A shipped. Browse when looking for a small-tile or sub-section idea that doesn't need new Riot calls. Items here promote to [open-work.md](../open-work.md) when picked up.
+**Status:** Active — data path (1.A) + spell-cast strip (1.B) shipped 2026-05-21. Damage profile (1.C) and owner stats/multikills (1.D) in progress.
 
 Post-Tier-1A ideation sweep (2026-05-17). The owner participant in `MatchDetailCache` retains the full Riot payload — every field Riot returns, not just what we type. Non-owner participants keep only the lean `RiotMatchParticipantOther` shape. This note catalogs the features that become possible from the owner data, organized by surface.
 
@@ -115,7 +115,7 @@ PG4 effectively merges the post-game signal set with the match report card conce
 
 | Idea | Surface | Effort | Why it stands out |
 |---|---|---|---|
-| Spell cast strip | Match detail hero | Low — type + DTO + one strip | No other site shows this |
+| ~~Spell cast strip~~ | ~~Match detail hero~~ | **Shipped 2026-05-21** | — |
 | Highlight reel tile | Profile / Trends | Low — 3 challenges fields summed | Narrative framing, not metric |
 | Damage stacked bar | Match detail panel | Low — frontend only, DTO already has it | Completes the existing damage bar |
 | Lifetime multikill strip | Profile | Very low — 4 additive fields | Milestone / nostalgia feel |
