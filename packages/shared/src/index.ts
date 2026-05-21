@@ -44,6 +44,7 @@ export {
   wikiMinimapUrl,
   wikiMinionIconUrl,
   wikiPingUrl,
+  wikiProfileIconUrl,
   wikiRankedEmblemUrl,
   wikiStatIconUrl,
   wikiWardIconUrl,

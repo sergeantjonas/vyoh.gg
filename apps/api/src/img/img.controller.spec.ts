@@ -36,7 +36,7 @@ function makeController(
     item: vi.fn().mockReturnValue({ urls: ["https://lol/item"], params: {} }),
     profileIcon: vi
       .fn()
-      .mockReturnValue({ urls: ["https://lol/profile-icon"], params: {} }),
+      .mockResolvedValue({ urls: ["https://lol/profile-icon"], params: {} }),
     rune: vi.fn().mockResolvedValue({ urls: ["https://lol/rune"], params: {} }),
     spell: vi.fn().mockResolvedValue({ urls: ["https://lol/spell"], params: {} }),
     roleIconUrl: vi.fn().mockReturnValue("https://lol/role-mid"),

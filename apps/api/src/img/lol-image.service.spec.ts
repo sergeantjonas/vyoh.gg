@@ -1,8 +1,32 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
 import { LolImageService } from "./lol-image.service";
 
+interface PrismaStub {
+  lolProfileIcon: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
+}
+
+function makePrisma(rows: Array<{ id: number; title: string }> = []): PrismaStub {
+  return {
+    lolProfileIcon: {
+      findMany: vi.fn().mockResolvedValue(rows),
+    },
+  };
+}
+
+function makeService(rows: Array<{ id: number; title: string }> = []): {
+  service: LolImageService;
+  prisma: PrismaStub;
+} {
+  const prisma = makePrisma(rows);
+  const service = new LolImageService(prisma as unknown as PrismaService);
+  return { service, prisma };
+}
+
 describe("LolImageService.champion", () => {
-  const service = new LolImageService();
+  const { service } = makeService();
 
   it("builds the CDragon square URL with a lower-cased alias", () => {
     const resolved = service.champion("Ahri", "square");
@@ -34,7 +58,7 @@ describe("LolImageService.champion", () => {
 });
 
 describe("LolImageService.item", () => {
-  const service = new LolImageService();
+  const { service } = makeService();
 
   it("builds the DDragon item URL pinned to the requested patch", () => {
     const resolved = service.item(3001, "14.10.1");
@@ -46,19 +70,39 @@ describe("LolImageService.item", () => {
 });
 
 describe("LolImageService.profileIcon", () => {
-  const service = new LolImageService();
-
-  it("builds the DDragon profile-icon URL pinned to the requested patch", () => {
-    const resolved = service.profileIcon(588, "14.10.1");
+  it("returns wiki-first with DDragon fallback when an iconId has a wiki title", async () => {
+    const { service, prisma } = makeService([
+      { id: 588, title: "Doom Bots Singed" },
+      { id: 1132, title: "00 Reactivated" },
+    ]);
+    const resolved = await service.profileIcon(588, "14.10.1");
     expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Doom_Bots_Singed_profileicon.png",
       "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/588.png",
     ]);
     expect(resolved.params).toEqual({ width: 72, quality: 85 });
+    expect(prisma.lolProfileIcon.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to DDragon alone when the iconId is missing from the wiki sync", async () => {
+    const { service } = makeService([{ id: 1132, title: "00 Reactivated" }]);
+    const resolved = await service.profileIcon(99999, "14.10.1");
+    expect(resolved.urls).toEqual([
+      "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/99999.png",
+    ]);
+  });
+
+  it("memoizes the id→title map across calls (single prisma fetch)", async () => {
+    const { service, prisma } = makeService([{ id: 588, title: "Doom Bots Singed" }]);
+    await service.profileIcon(588, "14.10.1");
+    await service.profileIcon(99999, "14.10.1");
+    await service.profileIcon(588, "14.10.2");
+    expect(prisma.lolProfileIcon.findMany).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("LolImageService.roleIconUrl", () => {
-  const service = new LolImageService();
+  const { service } = makeService();
 
   it("returns the static role-icon URL by slug", () => {
     expect(service.roleIconUrl("middle")).toBe(
@@ -100,7 +144,7 @@ describe("LolImageService.rune", () => {
   });
 
   it("resolves to the lower-cased CDragon game-data icon URL for a known keystone", async () => {
-    const service = new LolImageService();
+    const { service } = makeService();
     const resolved = await service.rune(8005);
     expect(resolved.urls).toEqual([
       "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/perks/styles/precision/presstheattack/presstheattack.png",
@@ -109,7 +153,7 @@ describe("LolImageService.rune", () => {
   });
 
   it("throws for an unknown perk id rather than constructing a 404-bound URL", async () => {
-    const service = new LolImageService();
+    const { service } = makeService();
     await expect(service.rune(99_999)).rejects.toThrow(/unknown perk id 99999/);
   });
 });
@@ -145,7 +189,7 @@ describe("LolImageService.spell", () => {
   });
 
   it("resolves to the CDragon icon URL for a known summoner spell id", async () => {
-    const service = new LolImageService();
+    const { service } = makeService();
     const resolved = await service.spell(4);
     expect(resolved.urls[0]).toBe(
       "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/data/spells/icons2d/summoner_flash.png"
@@ -153,7 +197,7 @@ describe("LolImageService.spell", () => {
   });
 
   it("throws for an unknown summoner spell id", async () => {
-    const service = new LolImageService();
+    const { service } = makeService();
     await expect(service.spell(99_999)).rejects.toThrow(
       /unknown summoner spell id 99999/
     );

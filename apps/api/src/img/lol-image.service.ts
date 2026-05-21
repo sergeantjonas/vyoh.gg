@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { wikiProfileIconUrl } from "@vyoh/shared";
+import { PrismaService } from "../prisma/prisma.service";
 import type { TranscodeParams } from "./upstream";
 
 const CDRAGON_CDN = "https://cdn.communitydragon.org/latest";
@@ -51,6 +53,10 @@ export class LolImageService {
   private spellPaths: Map<number, string> | null = null;
   private perkPathsPending: Promise<Map<number, string>> | null = null;
   private spellPathsPending: Promise<Map<number, string>> | null = null;
+  private profileIconTitles: Map<number, string> | null = null;
+  private profileIconTitlesPending: Promise<Map<number, string>> | null = null;
+
+  constructor(private readonly prisma: PrismaService) {}
 
   champion(alias: string, variant: ChampionVariant): Resolved {
     const slug = normalizeChampionAlias(alias).toLowerCase();
@@ -80,17 +86,18 @@ export class LolImageService {
     };
   }
 
-  // Profile icons are a DDragon-native concept; the wiki's `Module:Profile-Icons/V1`
-  // exists but the image set is unpopulated (only a placeholder lockfile lives
-  // on wiki today), so wiki-sourcing isn't viable. Routing through the same
-  // proxy as items/spells removes the last CDragon dependency in `apps/web`
-  // and the wsrv.nl flakiness layer without taking a wiki dependency that
-  // doesn't yet exist.
-  profileIcon(iconId: number, patch: string): Resolved {
-    return {
-      urls: [`${DDRAGON_CDN}/${patch}/img/profileicon/${iconId}.png`],
-      params: { width: 72, quality: 85 },
-    };
+  // Wiki-first with DDragon fallback. Wiki's `Module:IconData/data` carries
+  // the editorial title for every iconId; the matching `{Title}_profileicon.png`
+  // image is populated under `wiki.leagueoflegends.com/en-us/images/`. The
+  // fallback survives both wiki outages and id→title misses (icon shipped by
+  // Riot but not yet synced from wiki — sync cadence is 6h). Cold-start
+  // before the first static sync also lands cleanly on DDragon.
+  async profileIcon(iconId: number, patch: string): Promise<Resolved> {
+    const ddragonUrl = `${DDRAGON_CDN}/${patch}/img/profileicon/${iconId}.png`;
+    const titles = await this.loadProfileIconTitles();
+    const title = titles.get(iconId);
+    const urls = title ? [wikiProfileIconUrl(title), ddragonUrl] : [ddragonUrl];
+    return { urls, params: { width: 72, quality: 85 } };
   }
 
   async rune(keystoneId: number): Promise<Resolved> {
@@ -115,6 +122,27 @@ export class LolImageService {
       urls: [gameDataUrlFromIconPath(iconPath)],
       params: { width: 40, quality: 85 },
     };
+  }
+
+  // Sticky in-process cache. Profile-icon titles change far less often than
+  // patches (new icons are append-only on wiki; existing titles stay stable).
+  // A single fetch on first request is good enough until the service restarts
+  // or the cron sync runs.
+  private loadProfileIconTitles(): Promise<Map<number, string>> {
+    if (this.profileIconTitles) return Promise.resolve(this.profileIconTitles);
+    if (this.profileIconTitlesPending) return this.profileIconTitlesPending;
+    const pending = this.prisma.lolProfileIcon
+      .findMany({ select: { id: true, title: true } })
+      .then((rows) => {
+        const map = new Map(rows.map((r) => [r.id, r.title]));
+        this.profileIconTitles = map;
+        return map;
+      })
+      .finally(() => {
+        this.profileIconTitlesPending = null;
+      });
+    this.profileIconTitlesPending = pending;
+    return pending;
   }
 
   private loadPerkPaths(): Promise<Map<number, string>> {

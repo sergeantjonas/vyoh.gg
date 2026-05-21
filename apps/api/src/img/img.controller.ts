@@ -76,7 +76,7 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = this.lol.profileIcon(id, patch);
+    const resolved = await this.lol.profileIcon(id, patch);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 

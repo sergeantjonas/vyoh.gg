@@ -13,6 +13,15 @@ export function wikiEntryIconUrl(name: string, kind: "item" | "rune"): string {
   return `${WIKI_IMAGES}/${wikiImageSlug(name)}_${kind}.png`;
 }
 
+// Profile icons live at `{Title with underscores}_profileicon.png`. The
+// `title` is the editorial key from wiki `Module:IconData/data` — synced
+// server-side into the `LolProfileIcon` table and surfaced via the static
+// bundle. The image proxy is the only consumer in practice; web call sites
+// resolve icons by id through the proxy URL.
+export function wikiProfileIconUrl(title: string): string {
+  return `${WIKI_IMAGES}/${wikiImageSlug(title)}_profileicon.png`;
+}
+
 export function wikiChampionSquareUrl(championDisplayName: string): string {
   return `${WIKI_IMAGES}/${wikiImageSlug(championDisplayName)}_OriginalSquare.png`;
 }
