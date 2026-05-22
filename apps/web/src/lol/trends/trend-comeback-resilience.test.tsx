@@ -23,6 +23,10 @@ function match(idx: number, win: boolean, teamGoldDiffAt15: number): MatchSummar
     damageShare: 0,
     firstBloodKill: false,
     csAt10: 0,
+    // The tile's projection sentinel is now hasTimeline; every fixture row
+    // here is implicitly "timeline projected" since we're stamping a real
+    // teamGoldDiffAt15.
+    hasTimeline: true,
     csAt15: 0,
     goldAt10: 0,
     goldAt15: 0,
@@ -57,8 +61,8 @@ describe("TrendComebackResilience", () => {
     ).toBeTruthy();
   });
 
-  it("renders the 'not behind that early' empty state when fewer than 5 games are behind 5k", () => {
-    // 6 projected games, only 2 behind 5k+.
+  it("renders the 'not behind that early' empty state when fewer than 3 games are behind 5k", () => {
+    // 6 projected games, only 2 behind 5k+ (under the new 3-game floor).
     const matches = [
       match(0, true, -6000),
       match(1, true, -5500),

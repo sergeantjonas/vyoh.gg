@@ -70,27 +70,23 @@ function renderTile(matches: MatchSummary[]) {
 
 describe("TrendSessionFatigue", () => {
   it("renders the not-enough-sessions empty state under MIN_LONG_SESSIONS", () => {
-    // 4 long sessions (need 5+).
+    // 2 long sessions (need 3+).
     const matches = [
       ...session(0, [true, true, true, true]),
       ...session(1, [true, true, true, true]),
-      ...session(2, [true, true, true, true]),
-      ...session(3, [true, true, true, true]),
     ];
     renderTile(matches);
     expect(
-      screen.getByText("Need 5+ sessions of 4 games or more to detect fatigue patterns.")
+      screen.getByText("Need 3+ sessions of 4 games or more to detect fatigue patterns.")
     ).toBeTruthy();
   });
 
   it("emits the 'no fatigue' verdict when G1 and G4+ WRs are within the threshold", () => {
-    // 5 long sessions, every game a win → G1 = 100%, G4+ = 100% → drop = 0.
+    // 3 long sessions, every game a win → G1 = 100%, G4+ = 100% → drop = 0.
     const matches = [
       ...session(0, [true, true, true, true]),
       ...session(1, [true, true, true, true]),
       ...session(2, [true, true, true, true]),
-      ...session(3, [true, true, true, true]),
-      ...session(4, [true, true, true, true]),
     ];
     renderTile(matches);
     expect(
@@ -105,8 +101,6 @@ describe("TrendSessionFatigue", () => {
       ...session(0, [true, false, false, false]),
       ...session(1, [true, false, false, false]),
       ...session(2, [true, false, false, false]),
-      ...session(3, [true, false, false, false]),
-      ...session(4, [true, false, false, false]),
     ];
     renderTile(matches);
     expect(

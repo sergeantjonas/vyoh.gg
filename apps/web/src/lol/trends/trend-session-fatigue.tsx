@@ -5,7 +5,11 @@ import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const SESSION_GAP_MS = 30 * 60 * 1000;
-const MIN_LONG_SESSIONS = 5;
+// Trigger after 3 long sessions instead of 5. Each long session contributes
+// ≥1 game to the G4+ bucket, so the verdict still has a defensible sample;
+// the prior threshold gated the tile off for anyone who plays in mostly
+// 2–3 game spurts (most non-grinder accounts).
+const MIN_LONG_SESSIONS = 3;
 const PRESCRIPTION_THRESHOLD_PP = 10;
 
 const SVG_W = 200;
@@ -178,7 +182,7 @@ export function TrendSessionFatigue({
       <ConclusionCard
         title="Session fatigue"
         sampleSize={playedCount}
-        verdict="Need 5+ sessions of 4 games or more to detect fatigue patterns."
+        verdict="Need 3+ sessions of 4 games or more to detect fatigue patterns."
         empty
       />
     );

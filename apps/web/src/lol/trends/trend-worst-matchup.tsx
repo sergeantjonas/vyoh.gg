@@ -11,21 +11,24 @@ const BAN_WR_THRESHOLD = 0.25;
 const DISPLAY_COUNT = 3;
 
 interface MatchupRow {
-  yourChamp: string;
   oppChamp: string;
   games: number;
   wins: number;
   wr: number;
 }
 
+// Aggregate by opponent only — same-role matchups across whatever you picked.
+// The prior `yourChamp × oppChamp` aggregation gated the tile off for anyone
+// with a wide champion pool: 65 lane-opp games can easily produce zero 3-game
+// pairings if your pick varies. The prescription is "ban this opponent" so
+// the aggregation should match the action.
 function aggregate(matches: MatchSummary[]): MatchupRow[] {
   const map = new Map<string, MatchupRow>();
   for (const m of matches) {
     if (m.remake) continue;
     if (!m.laneOpponent) continue;
-    const key = `${m.champion}::${m.laneOpponent.championName}`;
+    const key = m.laneOpponent.championName;
     const prev = map.get(key) ?? {
-      yourChamp: m.champion,
       oppChamp: m.laneOpponent.championName,
       games: 0,
       wins: 0,
@@ -57,17 +60,6 @@ function MatchupRowView({
   const losses = row.games - row.wins;
   return (
     <div className="flex items-center gap-2 text-xs">
-      <Link
-        to="/lol/$accountSlug/champions/$championKey"
-        params={{ accountSlug, championKey: row.yourChamp.toLowerCase() }}
-        className="shrink-0"
-      >
-        <ChampionSquareIcon
-          championName={row.yourChamp}
-          className="size-5 shrink-0 rounded-sm opacity-80"
-        />
-      </Link>
-      <span className="text-muted-foreground/60">vs</span>
       <Link
         to="/lol/$accountSlug/champions/$championKey"
         params={{ accountSlug, championKey: row.oppChamp.toLowerCase() }}
@@ -149,9 +141,8 @@ export function TrendWorstMatchup({
   }
 
   const losses = worst.games - worst.wins;
-  const yourName = championName(worst.yourChamp);
   const oppName = championName(worst.oppChamp);
-  const verdict = `${worst.wins}–${losses} on ${yourName} into ${oppName}.`;
+  const verdict = `${worst.wins}–${losses} into ${oppName} across this window.`;
   const prescription =
     worst.wr <= BAN_WR_THRESHOLD ? `Consider banning ${oppName}.` : undefined;
 
@@ -167,7 +158,7 @@ export function TrendWorstMatchup({
         <div className="flex flex-col gap-1.5">
           {rows.map((r, i) => (
             <MatchupRowView
-              key={`${r.yourChamp}-${r.oppChamp}`}
+              key={r.oppChamp}
               row={r}
               isWorst={i === 0}
               accountSlug={accountSlug}

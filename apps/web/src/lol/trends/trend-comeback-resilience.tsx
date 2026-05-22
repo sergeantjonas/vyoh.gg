@@ -8,7 +8,11 @@ import { useMemo } from "react";
 // kills + objective gold — and is the canonical "are you good at playing
 // from behind?" definition in coaching content.
 const BEHIND_THRESHOLD = -5000;
-const MIN_BEHIND_SAMPLE = 5;
+// 3-game floor: enough for a directional verdict. Down-5k games are rare
+// (most players sit at or near even-gold at 15 min), so requiring 5 of them
+// kept the tile off for accounts that don't routinely fall behind early.
+const MIN_TIMELINE_SAMPLE = 5;
+const MIN_BEHIND_SAMPLE = 3;
 
 // Reference baseline: roughly the population-level WR for behind-early
 // games. Climbing-from-behind is hard so the typical figure hovers
@@ -60,10 +64,10 @@ export function TrendComebackResilience({
   previous: MatchSummary[];
 }) {
   const stats = useMemo(() => {
-    // teamGoldDiffAt15 = 0 is our sentinel for "no projection yet" — drop
-    // those out of the sample. The case where the match was actually exactly
-    // even at 15 min is statistically rare and not worth a dedicated flag.
-    const projected = excludeRemakes(current).filter((m) => m.teamGoldDiffAt15 !== 0);
+    // Use the explicit hasTimeline flag — teamGoldDiffAt15 === 0 used to be
+    // the implicit sentinel but it can't distinguish "no projection" from
+    // "even game" (rare but real).
+    const projected = excludeRemakes(current).filter((m) => m.hasTimeline);
     const behind = projected.filter((m) => m.teamGoldDiffAt15 <= BEHIND_THRESHOLD);
     const behindWins = behind.filter((m) => m.win).length;
     return {
@@ -74,7 +78,7 @@ export function TrendComebackResilience({
     };
   }, [current]);
 
-  if (stats.projected < MIN_BEHIND_SAMPLE) {
+  if (stats.projected < MIN_TIMELINE_SAMPLE) {
     return (
       <ConclusionCard
         title="Comeback resilience"

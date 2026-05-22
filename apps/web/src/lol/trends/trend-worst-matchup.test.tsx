@@ -90,15 +90,15 @@ describe("TrendWorstMatchup", () => {
     ).toBeTruthy();
   });
 
-  it("emits the worst-matchup verdict with W-L count and champion names", () => {
-    // 3 games vs Zed, 0 wins, 3 losses → 0% WR (below ban threshold).
+  it("emits the worst-matchup verdict with W-L count and opponent name", () => {
+    // 3 games vs Zed (across varied own picks), 0 wins → 0% WR.
     const matches = [
       match(0, false, "Ahri", "Zed"),
-      match(1, false, "Ahri", "Zed"),
-      match(2, false, "Ahri", "Zed"),
+      match(1, false, "Syndra", "Zed"),
+      match(2, false, "LeBlanc", "Zed"),
     ];
     renderTile(matches);
-    expect(screen.getByText("0–3 on Ahri into Zed.")).toBeTruthy();
+    expect(screen.getByText("0–3 into Zed across this window.")).toBeTruthy();
     expect(screen.getByText("Consider banning Zed.")).toBeTruthy();
   });
 
@@ -106,12 +106,28 @@ describe("TrendWorstMatchup", () => {
     // 3 games vs Zed, 1 win, 2 losses → 33% WR (above 25% threshold).
     const matches = [
       match(0, true, "Ahri", "Zed"),
-      match(1, false, "Ahri", "Zed"),
-      match(2, false, "Ahri", "Zed"),
+      match(1, false, "Syndra", "Zed"),
+      match(2, false, "LeBlanc", "Zed"),
     ];
     renderTile(matches);
-    expect(screen.getByText("1–2 on Ahri into Zed.")).toBeTruthy();
+    expect(screen.getByText("1–2 into Zed across this window.")).toBeTruthy();
     expect(screen.queryByText("Consider banning Zed.")).toBeNull();
+  });
+
+  it("aggregates the same opponent across different self picks (the relaxation)", () => {
+    // Under the old `yourChamp × opp` aggregation, none of these reached the
+    // 3-game floor — Ahri vs Zed had 1, Syndra vs Zed had 1, LeBlanc vs Zed
+    // had 1. Opp-only aggregation surfaces Zed as the 3-game worst matchup.
+    const matches = [
+      match(0, false, "Ahri", "Zed"),
+      match(1, false, "Syndra", "Zed"),
+      match(2, false, "LeBlanc", "Zed"),
+      // Filler so the matchup pool isn't trivially small.
+      match(3, true, "Ahri", "Yasuo"),
+      match(4, true, "Ahri", "Yone"),
+    ];
+    renderTile(matches);
+    expect(screen.getByText("0–3 into Zed across this window.")).toBeTruthy();
   });
 
   it("excludes remakes from the sample size", () => {

@@ -219,7 +219,10 @@ function buildTiles(
       id: "comeback-resilience",
       span: 1,
       designPriority: 410,
-      active: played.filter((m) => m.teamGoldDiffAt15 <= -5000).length >= 5,
+      // Mirror the tile's internal gate: 3 behind-5k games is enough for a
+      // directional verdict. Higher thresholds left this tile off for most
+      // accounts since down-5k-at-15 is genuinely rare.
+      active: played.filter((m) => m.teamGoldDiffAt15 <= -5000).length >= 3,
       node: <TrendComebackResilience current={current} previous={previous} />,
     },
     {
