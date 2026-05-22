@@ -1,6 +1,6 @@
 # vyoh.gg — Unified LoL image fallback
 
-**Status:** In progress — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes are now wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability now has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented in code. Chunk B landed 2026-05-23: summoner spells are now wiki-primary with CDragon fallback (14/16 wiki coverage; Arena `Flee` + UltBook `Placeholder` fall through). Chunk C (champion card/backdrop probe, gated by [splash visual-parity](#c--champion-card--backdrop-wiki-coverage-probe)) remains.
+**Status:** Shipped — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented. Chunk B landed 2026-05-23 (`6ce40f8`): summoner spells wiki-primary with CDragon fallback (14/16 coverage). Chunk C parked 2026-05-23 after probe — wiki ships only the uncropped `_OriginalSkin.jpg`, no centered variant; the visual-parity constraint cannot be met without depending on CDragon's focal-point metadata. Card/backdrop remain single-upstream CDragon by design.
 
 ## What shipped
 
@@ -31,11 +31,18 @@ Probe on 2026-05-23: the hypothesised `{Name}_spell.png` pattern returned 404 fo
 
 Added `wikiSummonerSpellIconUrl(name)` in `wiki-url-helpers.ts` (bare-name shape, distinct from `wikiEntryIconUrl`'s `_{kind}` suffix). `LolImageService.spell()` now mirrors the rune pattern: `loadSpellIconNames()` is sticky+lazy, one Prisma round-trip per process lifetime; missing rows fall through cleanly. Tests cover wiki-primary, multi-word slugging ("To the King!"), missing-row fallback, and memoization.
 
-### C — Champion card / backdrop: wiki coverage probe
+### C — Champion card / backdrop: wiki coverage probe (parked 2026-05-23)
 
-Wiki has champion *splash* art (`{Name}_OriginalSplash.png` and per-skin variants), but our `card` and `backdrop` variants use CDragon's centered splash crops (`splash-art/centered`). Open question: is the centered crop available on wiki, or only the full splash? If only the full splash, can the proxy do the centering crop server-side via Sharp instead of relying on CDragon's pre-cropped variant?
+**Probe outcome (2026-05-23):** wiki ships champion splash art as `{Name}_OriginalSkin.jpg` at 1215×717 — byte-identical to CDragon's full `/splash-art` endpoint (both pull from Riot's source). The hypothesised `_OriginalSplash.png` shape returns 404 across the roster; the actual filename is `_OriginalSkin.jpg`. Edge cases verified: `Aurelion_Sol`, `Jarvan_IV`, `Bel%27Veth`, `K%27Sante`, `Renata_Glasc` all resolve. Nunu & Willump follows the ability-icon convention — bare `Nunu_OriginalSkin.jpg` (not `Nunu_%26_Willump_OriginalSkin.jpg`).
 
-**Hard constraint:** the current visual must be preserved exactly — champion cards, splash backdrops, and the `card-splash-breathe` hover animation all read against CDragon's centered crop framing today. Any wiki-primary swap on chunk C must pass a side-by-side visual check on a representative roster (multi-champion cards page, profile splash backdrop, recap hero) before it ships. If wiki crops differ even subtly, do the crop server-side via Sharp on the wiki source rather than landing visual drift. No "close enough" allowed for splash art — this is the section's load-bearing aesthetic surface.
+**Centered crop is unavailable on wiki.** CDragon's `splash-art/centered` (1280×720) is a Riot-focal-point-driven re-crop, not a simple center crop of the full splash. The per-champion focal coordinates that drive Riot's centering are not exposed on wiki — only the full uncropped splash is. A naive Sharp center-crop of `_OriginalSkin.jpg` would mis-frame champions whose focal point is off-centre in the full art (Yasuo's face vs. desert background, splash arts with side-positioned characters, etc.). Reusing CDragon's focal metadata to crop wiki sources server-side would reintroduce the CDragon dependency the wiki-primary pattern aims to remove.
+
+**Hard constraint stands:** the current visual must be preserved exactly — champion cards, splash backdrops, and the `card-splash-breathe` hover animation all read against CDragon's centered crop framing. No "close enough" allowed on splash art.
+
+**Decision: parked.** The wiki-primary pattern that worked for items/runes/spells does not extend to splash art under the visual-parity constraint. Card/backdrop remain single-upstream CDragon. Two pivots are available if outage resilience becomes a priority — neither matches the wiki-primary goal:
+
+- **Wiki full-splash as degraded-mode fallback:** add `_OriginalSkin.jpg` as a second-stage URL behind CDragon `/centered`. Activates only during a CDragon outage; visible crop drift in degraded mode, but pixels instead of blank cards. Re-evaluate if a CDragon outage actually surfaces in production.
+- **Server-side Sharp centering via Riot focal coordinates:** would require sourcing focal data (likely from CDragon JSON metadata) and applying a per-champion crop transform. Doesn't satisfy wiki-primary resilience — included only for completeness.
 
 ### D — Wire fallbacks where a second upstream exists (shipped 2026-05-21)
 
