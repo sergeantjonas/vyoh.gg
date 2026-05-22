@@ -6,6 +6,7 @@ import {
   wikiAttackIconUrl,
   wikiChampionCenteredUrl,
   wikiChampionSquareUrl,
+  wikiClassIconUrl,
   wikiEntryIconUrl,
   wikiFileUrl,
   wikiGoldIconUrl,
@@ -74,6 +75,20 @@ export const ROLE_POSITION_SLUGS = [
   "utility",
 ] as const;
 export type RolePositionSlug = (typeof ROLE_POSITION_SLUGS)[number];
+
+// Champion-class slugs — lowercase DDragon `tags` values. Wiki/Riot renamed
+// `assassin` → `Slayer` and `support` → `Controller` in the modern taxonomy;
+// the rename happens inside `wikiClassIconUrl`, keeping the slug stable
+// against the data we ingest from DDragon.
+export const CHAMPION_CLASS_SLUGS = [
+  "fighter",
+  "mage",
+  "marksman",
+  "tank",
+  "assassin",
+  "support",
+] as const;
+export type ChampionClassSlug = (typeof CHAMPION_CLASS_SLUGS)[number];
 
 export interface Resolved {
   // Upstream URLs to try in order; first 2xx wins. Single-element for sources
@@ -462,7 +477,18 @@ export class LolImageService {
   // matches every other LoL asset on the proxy.
   role(slug: RolePositionSlug): Resolved {
     const wikiUrl = wikiRoleIconUrl(slug);
-    const cdragonUrl = `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${slug}.svg`;
+    const cdragonUrl = `${CDRAGON_STATIC_ASSETS}/svg/position-${slug}.svg`;
+    const urls = wikiUrl ? [wikiUrl, cdragonUrl] : [cdragonUrl];
+    return { urls, params: { width: 64, quality: 85 } };
+  }
+
+  // Champion-class icon (Fighter/Mage/Tank/etc.) — wiki primary with the
+  // legacy CDragon `npe-ft-role-icon-{slug}.png` as fallback. The slug uses
+  // DDragon's pre-rename names (assassin, support); `wikiClassIconUrl`
+  // translates internally to wiki's modern Slayer/Controller titles.
+  champClass(slug: ChampionClassSlug): Resolved {
+    const wikiUrl = wikiClassIconUrl(slug);
+    const cdragonUrl = `${CDRAGON_STATIC_ASSETS}/npe-ft-role-icon-${slug}.png`;
     const urls = wikiUrl ? [wikiUrl, cdragonUrl] : [cdragonUrl];
     return { urls, params: { width: 64, quality: 85 } };
   }

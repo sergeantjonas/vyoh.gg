@@ -1,6 +1,8 @@
 import { Controller, Get, Header, HttpStatus, Param, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
+  CHAMPION_CLASS_SLUGS,
+  type ChampionClassSlug,
   type ChampionVariant,
   LolImageService,
   ROLE_POSITION_SLUGS,
@@ -21,6 +23,7 @@ const IMMUTABLE_YEAR = "public, max-age=31536000, immutable";
 const CHAMPION_VARIANTS = new Set<ChampionVariant>(["square", "card", "backdrop"]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
 const UI_ICONS = new Set<UiIconName>(UI_ICON_NAMES);
+const CHAMPION_CLASSES = new Set<ChampionClassSlug>(CHAMPION_CLASS_SLUGS);
 
 @Controller("img")
 export class ImgController {
@@ -226,6 +229,21 @@ export class ImgController {
       return;
     }
     const resolved = this.lol.role(position as RolePositionSlug);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  // Champion-class archetype icon (fighter/mage/tank/etc.). Closed slug set
+  // matches DDragon's legacy 6 tags; versionless cache key — Riot's modern
+  // class taxonomy changes too rarely to encode in the URL.
+  @Get("lol/class/:slug.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", "public, max-age=86400")
+  async champClass(@Param("slug") slug: string, @Res() res: Response): Promise<void> {
+    if (!CHAMPION_CLASSES.has(slug as ChampionClassSlug)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = this.lol.champClass(slug as ChampionClassSlug);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 

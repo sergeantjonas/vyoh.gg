@@ -150,6 +150,26 @@ export function wikiRoleIconUrl(positionSlug: string): string | null {
   return `${WIKI_IMAGES}/${title}_icon.png`;
 }
 
+// Champion-class icons (Riot's archetype taxonomy — Fighter/Mage/Tank/etc.)
+// indexed alongside the role icons in wiki's `Category:Role_icons`. Slugs are
+// the lowercase DDragon `tags` we already store on `LolChampion.roles`; wiki
+// renamed two of the six in the modern classification (Assassin → Slayer,
+// Support → Controller), so the slug → wiki-title mapping carries the rename.
+const CLASS_WIKI_TITLE: Record<string, string> = {
+  fighter: "Fighter",
+  mage: "Mage",
+  marksman: "Marksman",
+  tank: "Tank",
+  assassin: "Slayer",
+  support: "Controller",
+};
+
+export function wikiClassIconUrl(classSlug: string): string | null {
+  const title = CLASS_WIKI_TITLE[classSlug];
+  if (!title) return null;
+  return `${WIKI_IMAGES}/${title}_icon.png`;
+}
+
 // In-game ping icons. Kept for future surfaces (live-tab markers, ping-rate
 // stats). Not used for the kills stat-row icon — see `wikiStatIconUrl`.
 export type WikiPing =

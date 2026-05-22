@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   championBackdropSplashUrl,
   championCardSplashUrl,
+  championClassIconUrl,
   championIconUrl,
   championSquareIconUrl,
   itemIconUrl,
@@ -86,6 +87,15 @@ describe("non-champion icon helpers", () => {
 
   it("roleIconUrl is versionless (no patch in the URL)", () => {
     expect(roleIconUrl("middle")).toBe("http://localhost:2010/img/lol/role/middle.webp");
+  });
+
+  it("championClassIconUrl builds the proxy URL for the DDragon-style class slug", () => {
+    expect(championClassIconUrl("assassin")).toBe(
+      "http://localhost:2010/img/lol/class/assassin.webp"
+    );
+    expect(championClassIconUrl("mage")).toBe(
+      "http://localhost:2010/img/lol/class/mage.webp"
+    );
   });
 });
 

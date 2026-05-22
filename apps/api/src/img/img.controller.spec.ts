@@ -43,6 +43,7 @@ function makeController(
     rune: vi.fn().mockResolvedValue({ urls: ["https://lol/rune"], params: {} }),
     spell: vi.fn().mockResolvedValue({ urls: ["https://lol/spell"], params: {} }),
     role: vi.fn().mockReturnValue({ urls: ["https://lol/role-mid"], params: {} }),
+    champClass: vi.fn().mockReturnValue({ urls: ["https://lol/class-mage"], params: {} }),
     ...lolOverrides,
   } as unknown as LolImageService;
   const steam = {
@@ -327,5 +328,21 @@ describe("ImgController.role", () => {
     const res = makeRes();
     await makeController().role("middle", res as never);
     expect(res._status).toBe(502);
+  });
+});
+
+describe("ImgController.champClass", () => {
+  it("returns 400 for an unknown class slug", async () => {
+    const res = makeRes();
+    await makeController().champClass("notaclass", res as never);
+    expect(res._status).toBe(400);
+  });
+
+  it("proxies through fetchUpstreamChain + transcodeToWebp for a valid class", async () => {
+    const res = makeRes();
+    await makeController().champClass("mage", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+    expect(upstream.transcodeToWebp).toHaveBeenCalled();
+    expect(res.send).toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state"
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
+import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
@@ -202,9 +203,20 @@ function ChampionDetailPage() {
   const alias = detail.champion;
   const kdaDelta = overall ? detail.avgKda - overall.avgKda : null;
   const wrDelta = overall ? detail.winRate - overall.winRate : null;
-  const flavorParts = (info?.roles ?? []).map(
-    (r) => r.charAt(0).toUpperCase() + r.slice(1)
-  );
+  // Riot's class taxonomy renamed Assassin → Slayer and Support → Controller;
+  // wiki + the proxy honour the rename, so we keep DDragon's tag for the slug
+  // (lowercased) and remap only the display label.
+  const CLASS_DISPLAY_LABEL: Record<string, string> = {
+    assassin: "Slayer",
+    support: "Controller",
+  };
+  const classFlavor = (info?.roles ?? []).map((r) => {
+    const slug = r.toLowerCase();
+    return {
+      slug,
+      label: CLASS_DISPLAY_LABEL[slug] ?? r.charAt(0).toUpperCase() + r.slice(1),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -232,9 +244,20 @@ function ChampionDetailPage() {
                   />
                 )}
               </div>
-              {flavorParts.length > 0 && (
-                <div className="relative text-xs text-muted-foreground/70">
-                  {flavorParts.join(" · ")}
+              {classFlavor.length > 0 && (
+                <div className="relative mt-0.5 flex items-center gap-2 text-xs text-muted-foreground/70">
+                  {classFlavor.map(({ slug, label }) => (
+                    <span key={slug} className="inline-flex items-center gap-1">
+                      <img
+                        src={championClassIconUrl(slug)}
+                        alt=""
+                        aria-hidden={true}
+                        className="size-4 shrink-0"
+                        draggable={false}
+                      />
+                      {label}
+                    </span>
+                  ))}
                 </div>
               )}
               <div className="relative mt-0.5 flex gap-3 text-sm text-muted-foreground">

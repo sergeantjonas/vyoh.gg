@@ -93,6 +93,13 @@ export function roleIconUrl(positionSlug: string): string {
   return `${API_URL}/img/lol/role/${positionSlug}.webp`;
 }
 
+// Champion-class archetype icon (Fighter/Mage/Tank/etc.). Slug is the
+// lowercase DDragon `tag` we already store on `LolChampion.roles`; the API
+// translates Assassin→Slayer and Support→Controller when fetching from wiki.
+export function championClassIconUrl(classSlug: string): string {
+  return `${API_URL}/img/lol/class/${classSlug}.webp`;
+}
+
 // Generic wiki-file icon — the inline-icon path for rich tooltip descriptions
 // after `descriptionHtml` is sanitized. The proxy re-derives the wiki MD5
 // bucket dirs, so callers pass the bare filename (`Magic_damage.png`) and

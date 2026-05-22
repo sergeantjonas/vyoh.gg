@@ -383,6 +383,34 @@ describe("LolImageService.role", () => {
   });
 });
 
+describe("LolImageService.champClass", () => {
+  it("returns wiki PNG + legacy CDragon `npe-ft-role-icon-{slug}.png` fallback", () => {
+    const { service } = makeService();
+    expect(service.champClass("mage").urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Mage_icon.png",
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/npe-ft-role-icon-mage.png",
+    ]);
+  });
+
+  it("maps the DDragon 'assassin' slug to wiki's 'Slayer_icon.png' while keeping the CDragon legacy name", () => {
+    const { service } = makeService();
+    const resolved = service.champClass("assassin");
+    expect(resolved.urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Slayer_icon.png"
+    );
+    expect(resolved.urls[1]).toBe(
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/npe-ft-role-icon-assassin.png"
+    );
+  });
+
+  it("maps the DDragon 'support' slug to wiki's 'Controller_icon.png'", () => {
+    const { service } = makeService();
+    expect(service.champClass("support").urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Controller_icon.png"
+    );
+  });
+});
+
 describe("LolImageService.rune", () => {
   beforeEach(() => {
     vi.stubGlobal(
