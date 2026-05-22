@@ -44,6 +44,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - Re-measure MatchWindowProvider + ChampionsPage memoization fixes in host Chrome (devcontainer can't). Not a coding task. → [perf-baseline.md](cross-cutting/perf-baseline.md)
+- Frontend-2026 KB gaps — Round 1 bundles A (head baseline + LCP-element identification), B (React Compiler), C (app-root + widget error boundaries) ready as sub-session each; D (RUM backend) post-launch; E (route-tier boundaries) folds into Start migration. Round 2 added 2026-05-22: F (color-scheme + container-query pilot), G (charting decision tree docs), H (Radix import consolidation). Gap #5 corrected — splash isn't LCP. → [frontend-2026-gaps.md](cross-cutting/frontend-2026-gaps.md)
+- TanStack Start + SSR migration — parked structural arc; gated to pre-launch sweep alongside owner-auth + hosting. Trigger: MR3/MR4 + PN1–PN4 shipped, TFT shape decided, before owner-auth started. → [tanstack-start-migration.md](cross-cutting/tanstack-start-migration.md)
 
 ### Ops
 
