@@ -150,4 +150,17 @@ describe("transcodeToWebp", () => {
     const out = await transcodeToWebp(input, { blur: 1 });
     expect(out.length).toBeGreaterThan(0);
   });
+
+  it("crops the upper half before resizing when extractTopHalf is set", async () => {
+    // 8×16 sprite — extractTopHalf should clip to 8×8 before resize is applied.
+    const sprite = await sharp({
+      create: { width: 8, height: 16, channels: 3, background: { r: 0, g: 200, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+    const out = await transcodeToWebp(sprite, { extractTopHalf: true });
+    const meta = await sharp(out).metadata();
+    expect(meta.width).toBe(8);
+    expect(meta.height).toBe(8);
+  });
 });

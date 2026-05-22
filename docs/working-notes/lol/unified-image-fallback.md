@@ -1,6 +1,6 @@
 # vyoh.gg — Unified LoL image fallback
 
-**Status:** Shipped — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented. Chunk B landed 2026-05-23 (`6ce40f8`): summoner spells wiki-primary with CDragon fallback (14/16 coverage). Chunk C landed 2026-05-23 (`849839a`): champion card/backdrop wiki-primary with CDragon fallback. Chunk E landed 2026-05-23: role-position icons (the last non-wiki-primary asset) now go through the same WebP proxy — wiki `{Title}_icon.png` primary, CDragon `position-{slug}.svg` fallback. Every 2-upstream LoL asset family is now wiki-primary.
+**Status:** Shipped — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented. Chunk B landed 2026-05-23 (`6ce40f8`): summoner spells wiki-primary with CDragon fallback (14/16 coverage). Chunk C landed 2026-05-23 (`849839a`): champion card/backdrop wiki-primary with CDragon fallback. Chunk E landed 2026-05-23 (`4485fc1`): role-position icons wiki-primary with CDragon fallback. Chunk F landed 2026-05-23: map + rankEmblem + uiIcon(gold/minion/attack) gained CDragon fallbacks sourced from the pre-wiki git history; transcode layer grew an `extractTopHalf` param so the minion 1:2 sprite renders as a single icon. Only `uiIcon("ward")` and `wikiFile` remain single-upstream by design.
 
 ## What shipped
 
@@ -13,7 +13,11 @@ Per-asset upstream + fallback state, read directly from [lol-image.service.ts](.
 | `champion(square)` | wiki | CDragon | Real 2-stage chain. Lookup by `lolChampion.name` (alias→name map). |
 | `profileIcon(iconId)` | wiki | DDragon | Real 2-stage chain. Lookup via `Module:IconData/data` sync. |
 | `ability(...)` | wiki | CDragon | Real 2-stage chain (chunk D). CDragon `/champion/{slug}/ability-icon/{slot}` as fallback. |
-| `map(mapId)`, `rankEmblem(...)`, `uiIcon(...)`, `wikiFile(...)` | wiki | **none** | Intentionally single-upstream — DDragon/CDragon do not ship these assets. Documented in resolver comments (chunk D). |
+| `map(mapId)` | wiki `{MapName}_Minimap.png` | CDragon `game/assets/maps/info/map{N}/{filename}.png` | Real 2-stage chain (chunk F). Per-map filename: SR uses `2dlevelminimap_npe_1.png`, HA uses bare `2dlevelminimap.png`. |
+| `rankEmblem(...)` | wiki `Season_{year}_-_{Tier}.png` | CDragon `ranked-emblem/emblem-{tier}.png` | Real 2-stage chain (chunk F). Same CDragon path covers all 10 tiers including Emerald. |
+| `uiIcon("gold" \| "minion" \| "attack")` | wiki | CDragon (per-icon path, see resolver) | Real 2-stage chain (chunk F). Minion sprite is a vertical 1:2 — Sharp `extractTopHalf` clips the bottom half before resize. |
+| `uiIcon("ward")` | wiki `Ward_icon.png` | **none** | Single-upstream intentionally — original implementation was a hand-rolled SVG (game-icons.net CC BY 3.0), no CDragon image equivalent. |
+| `wikiFile(...)` | wiki | **none** | Single-upstream intentionally — generic wiki-file passthrough for inline tooltip icons; wiki-only by definition. |
 | `champion(card)`, `champion(backdrop)` | wiki `OriginalCentered.jpg` | CDragon `/splash-art/centered` | Real 2-stage chain (chunk C). Wiki ships Riot's pre-cropped 1280×720 centered art — same source bytes as CDragon for the spot-checked champions. Lookup reuses `loadChampionDisplayNames()`. |
 | `role(positionSlug)` | wiki `{Title}_icon.png` (136×136) | CDragon `position-{slug}.svg` | Real 2-stage chain (chunk E). Route changed from `.svg` pass-through to `.webp` via `proxyWebp`; slug→title shim maps `utility` → `Support`. Same Riot icon design across both upstreams. |
 | `item(itemId)` | wiki | DDragon | Real 2-stage chain (chunk A, `58309f5`). Lookup via `LolItem.iconWikiName`; falls through to DDragon alone when the row is missing. |

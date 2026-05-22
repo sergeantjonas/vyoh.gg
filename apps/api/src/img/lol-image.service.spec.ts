@@ -206,57 +206,80 @@ describe("LolImageService.item", () => {
 });
 
 describe("LolImageService.map", () => {
-  const { service } = makeService();
-
-  it("returns the wiki minimap URL for a known mapId", () => {
+  it("returns wiki + CDragon fallback for Summoner's Rift (mapId 11)", () => {
+    const { service } = makeService();
     const resolved = service.map(11);
     expect(resolved.urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Summoner%27s_Rift_Minimap.png",
+      "https://raw.communitydragon.org/latest/game/assets/maps/info/map11/2dlevelminimap_npe_1.png",
     ]);
     expect(resolved.params).toEqual({ width: 256, quality: 85 });
   });
 
+  it("uses the bare '2dlevelminimap.png' filename for Howling Abyss (mapId 12)", () => {
+    const { service } = makeService();
+    const resolved = service.map(12);
+    expect(resolved.urls[1]).toBe(
+      "https://raw.communitydragon.org/latest/game/assets/maps/info/map12/2dlevelminimap.png"
+    );
+  });
+
   it("throws for an unknown mapId so the controller can 400/404", () => {
+    const { service } = makeService();
     expect(() => service.map(999)).toThrow(/unknown mapId/);
   });
 });
 
 describe("LolImageService.rankEmblem", () => {
-  const { service } = makeService();
-
-  it("builds the wiki emblem URL parameterised by tier + year", () => {
+  it("builds wiki primary + CDragon `emblem-{tier}` fallback", () => {
+    const { service } = makeService();
     const resolved = service.rankEmblem("GOLD", 2023);
     expect(resolved.urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Season_2023_-_Gold.png",
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-gold.png",
     ]);
     expect(resolved.params).toEqual({ width: 128, quality: 85 });
+  });
+
+  it("lowercases the tier for the CDragon path (emerald included)", () => {
+    const { service } = makeService();
+    expect(service.rankEmblem("EMERALD", 2023).urls[1]).toBe(
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-emerald.png"
+    );
   });
 });
 
 describe("LolImageService.uiIcon", () => {
-  const { service } = makeService();
-
-  it("returns the wiki gold-icon SVG for 'gold'", () => {
+  it("returns wiki + CDragon `goldicon.png` fallback for 'gold'", () => {
+    const { service } = makeService();
     expect(service.uiIcon("gold").urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Gold_colored_icon.svg",
+      "https://raw.communitydragon.org/latest/game/assets/ux/floatingtext/goldicon.png",
     ]);
   });
 
-  it("returns the wiki minion-icon PNG for 'minion'", () => {
-    expect(service.uiIcon("minion").urls).toEqual([
+  it("returns wiki + CDragon `icon_minions.png` for 'minion' with extractTopHalf to crop the 1:2 sprite", () => {
+    const { service } = makeService();
+    const resolved = service.uiIcon("minion");
+    expect(resolved.urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Minion_icon.png",
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/icon_minions.png",
     ]);
+    expect(resolved.params).toMatchObject({ extractTopHalf: true });
   });
 
-  it("returns the wiki ward-icon PNG for 'ward'", () => {
+  it("stays single-upstream for 'ward' — no historical CDragon source existed", () => {
+    const { service } = makeService();
     expect(service.uiIcon("ward").urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Ward_icon.png",
     ]);
   });
 
-  it("returns the wiki attack-icon SVG for 'attack'", () => {
+  it("returns wiki + CDragon `kills.png` fallback for 'attack'", () => {
+    const { service } = makeService();
     expect(service.uiIcon("attack").urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Attack.svg",
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png",
     ]);
   });
 });

@@ -21,7 +21,25 @@ import {
 const CDRAGON_CDN = "https://cdn.communitydragon.org/latest";
 const CDRAGON_GAME_DATA =
   "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default";
+const CDRAGON_STATIC_ASSETS =
+  "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default";
+const CDRAGON_MATCH_HISTORY =
+  "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default";
 const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
+
+// CDragon's minimap PNGs live under `game/assets/maps/info/map{N}/` but the
+// filename differs per map. Probed against `/info/map12/` directly; if Riot
+// adds a new map and we don't ship a mapping yet, the fallback skips and the
+// wiki primary is the only upstream.
+const CDRAGON_MINIMAP_FILENAME: Record<number, string> = {
+  11: "2dlevelminimap_npe_1.png",
+  12: "2dlevelminimap.png",
+};
+function cdragonMinimapUrl(mapId: number): string | null {
+  const filename = CDRAGON_MINIMAP_FILENAME[mapId];
+  if (!filename) return null;
+  return `https://raw.communitydragon.org/latest/game/assets/maps/info/map${mapId}/${filename}`;
+}
 
 // `/perk/<id>/icon` and `/spell/<id>/icon` on cdn.communitydragon.org return
 // 404 — the real icon paths come from perks.json / summoner-spells.json
@@ -220,40 +238,65 @@ export class LolImageService {
     };
   }
 
-  // Minimap art. Deterministic from `mapId` — no Prisma lookup. Throws when
-  // the mapId isn't recognised (only 11/12 today) so the controller can 400.
-  // Single-upstream intentionally — DDragon/CDragon do not ship minimap art.
+  // Wiki primary with CDragon `game/assets/maps/info` fallback. CDragon's
+  // per-map filename differs (SR uses `2dlevelminimap_npe_1.png`, HA uses the
+  // bare `2dlevelminimap.png`) so the mapping is explicit.
   map(mapId: number): Resolved {
-    const url = wikiMinimapUrl(mapId);
-    if (!url) {
+    const wikiUrl = wikiMinimapUrl(mapId);
+    const cdragonUrl = cdragonMinimapUrl(mapId);
+    if (!wikiUrl && !cdragonUrl) {
       throw new Error(`unknown mapId ${mapId}`);
     }
-    return { urls: [url], params: { width: 256, quality: 85 } };
+    const urls = [wikiUrl, cdragonUrl].filter((u): u is string => u !== null);
+    return { urls, params: { width: 256, quality: 85 } };
   }
 
-  // Ranked tier emblem. `year` lets a future emblem redesign land via URL
-  // bump only — `wikiRankedEmblemUrl` does the title-casing.
-  // Single-upstream intentionally — DDragon/CDragon do not ship rank emblems.
+  // Wiki primary with CDragon `ranked-emblem/emblem-{tier}.png` fallback —
+  // resolves for every tier including Emerald. `year` is the wiki-only cache
+  // key; CDragon serves the current redesign under the same path regardless.
   rankEmblem(tier: string, year: number): Resolved {
+    const lowered = tier.toLowerCase();
     return {
-      urls: [wikiRankedEmblemUrl(tier, year)],
+      urls: [
+        wikiRankedEmblemUrl(tier, year),
+        `${CDRAGON_STATIC_ASSETS}/images/ranked-emblem/emblem-${lowered}.png`,
+      ],
       params: { width: 128, quality: 85 },
     };
   }
 
-  // UI singleton icons (gold/cs/vision/kills). Deterministic switch on the
-  // canonical name — keeps the route's `:name` param to a closed set.
-  // Single-upstream intentionally — these wiki UI icons have no CDragon/DDragon equivalent.
+  // UI singleton icons (gold/cs/vision/kills). Three of four have a CDragon
+  // counterpart preserved from the pre-wiki implementation; ward stays
+  // single-upstream because the original was a hand-rolled SVG and there is
+  // no CDragon image equivalent.
   uiIcon(name: UiIconName): Resolved {
-    const url =
-      name === "gold"
-        ? wikiGoldIconUrl()
-        : name === "minion"
-          ? wikiMinionIconUrl()
-          : name === "ward"
-            ? wikiWardIconUrl()
-            : wikiAttackIconUrl();
-    return { urls: [url], params: { width: 64, quality: 85 } };
+    switch (name) {
+      case "gold":
+        return {
+          urls: [
+            wikiGoldIconUrl(),
+            "https://raw.communitydragon.org/latest/game/assets/ux/floatingtext/goldicon.png",
+          ],
+          params: { width: 64, quality: 85 },
+        };
+      case "minion":
+        // CDragon's `icon_minions.png` is a vertical 1:2 sprite — Sharp crops
+        // the upper half before resizing so the fallback renders as a single
+        // CS icon instead of two stacked copies.
+        return {
+          urls: [wikiMinionIconUrl(), `${CDRAGON_MATCH_HISTORY}/icon_minions.png`],
+          params: { width: 64, quality: 85, extractTopHalf: true },
+        };
+      case "attack":
+        return {
+          urls: [wikiAttackIconUrl(), `${CDRAGON_MATCH_HISTORY}/kills.png`],
+          params: { width: 64, quality: 85 },
+        };
+      case "ward":
+        // Single-upstream intentionally — the historical implementation used
+        // a hand-rolled SVG (game-icons.net CC BY 3.0), never CDragon.
+        return { urls: [wikiWardIconUrl()], params: { width: 64, quality: 85 } };
+    }
   }
 
   // Wiki-first with CDragon-game-data fallback. `iconWikiName` is populated

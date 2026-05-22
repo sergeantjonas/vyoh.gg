@@ -36,14 +36,30 @@ export interface TranscodeParams {
   fit?: "cover" | "contain" | "fill" | "inside" | "outside";
   quality?: number;
   blur?: number;
+  // Crops the upper 50% of the source before resizing. Used for CDragon's
+  // `icon_minions.png` — a 1:2 vertical sprite that needs the bottom half
+  // clipped to render as a single CS icon. Resolved from `.metadata()` at
+  // transcode time so callers don't need to know sprite dimensions.
+  extractTopHalf?: boolean;
 }
 
 export async function transcodeToWebp(
   input: Buffer,
   params: TranscodeParams = {}
 ): Promise<Buffer> {
-  const { width, height, fit, quality = 85, blur } = params;
+  const { width, height, fit, quality = 85, blur, extractTopHalf } = params;
   let pipeline = sharp(input);
+  if (extractTopHalf) {
+    const meta = await pipeline.metadata();
+    if (meta.width && meta.height) {
+      pipeline = sharp(input).extract({
+        left: 0,
+        top: 0,
+        width: meta.width,
+        height: Math.floor(meta.height / 2),
+      });
+    }
+  }
   if (width || height) {
     pipeline = pipeline.resize({
       width,
