@@ -1,6 +1,6 @@
 # vyoh.gg — Unified LoL image fallback
 
-**Status:** In progress — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes are now wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability now has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented in code. Chunks B (summoner-spell probe) and C (champion card/backdrop probe, gated by [splash visual-parity](#c--champion-card--backdrop-wiki-coverage-probe)) remain.
+**Status:** In progress — proxy-routing landed 2026-05-21 (`36ac902` / `209cc45` / `6865f8e` / `644a74c` / `96a21cb`). Chunk A landed 2026-05-21 (`58309f5`): items + runes are now wiki-primary with DDragon/CDragon fallback. Chunk D landed 2026-05-21: ability now has CDragon fallback; map/rankEmblem/uiIcon/wikiFile single-upstream documented in code. Chunk B landed 2026-05-23: summoner spells are now wiki-primary with CDragon fallback (14/16 wiki coverage; Arena `Flee` + UltBook `Placeholder` fall through). Chunk C (champion card/backdrop probe, gated by [splash visual-parity](#c--champion-card--backdrop-wiki-coverage-probe)) remains.
 
 ## What shipped
 
@@ -17,7 +17,7 @@ Per-asset upstream + fallback state, read directly from [lol-image.service.ts](.
 | `champion(card)`, `champion(backdrop)` | CDragon splash | **none** | Not wiki-sourced. CDragon splash art only. |
 | `item(itemId)` | wiki | DDragon | Real 2-stage chain (chunk A, `58309f5`). Lookup via `LolItem.iconWikiName`; falls through to DDragon alone when the row is missing. |
 | `rune(keystoneId)` | wiki | CDragon game-data | Real 2-stage chain (chunk A, `58309f5`). Lookup via `LolPerk.iconWikiName`; existing CDragon `iconPath` lookup retained as the second-stage fallback. |
-| `spell(spellKey)` | CDragon game-data | **none** | Not wiki-sourced. CDragon `iconPath` lookup. Gated on chunk B probe. |
+| `spell(spellKey)` | wiki | CDragon game-data | Real 2-stage chain (chunk B). Lookup via `LolSummonerSpell.iconWikiName` (mirrors DDragon `name`). Bare-name `{Name}.png` shape — no `_spell` suffix. Arena `Flee` + UltBook `Placeholder` 404 on wiki and rely on the fallback. |
 
 ## What's left
 
@@ -25,9 +25,11 @@ Per-asset upstream + fallback state, read directly from [lol-image.service.ts](.
 
 Landed as `58309f5`. `LolItem.iconWikiName` and `LolPerk.iconWikiName` (populated by the static-sync service, mirror the row's `name`) drive `wikiEntryIconUrl(name, "item" | "rune")`; cold-start before the first sync lands cleanly on DDragon (items) / CDragon `iconPath` (runes). Lookup maps are lazy + sticky on the service instance, mirroring `loadProfileIconTitles` — one Prisma round-trip per process lifetime. Tests cover wiki-primary, missing-row fallback, apostrophe-escape (Luden's Echo case), and memoization.
 
-### B — Summoner spells: wiki coverage probe
+### B — Summoner spells: wiki-primary with CDragon fallback (shipped 2026-05-23)
 
-Summoner spells aren't in the existing wiki-coverage matrix. Quick probe needed: does `https://wiki.leagueoflegends.com/en-us/images/{Name}_spell.png` (or similar pattern) work for the 18 summoner spells? If yes, mirror item/rune migration. If no, document why and leave `spell()` on CDragon.
+Probe on 2026-05-23: the hypothesised `{Name}_spell.png` pattern returned 404 for all 16 DDragon-listed summoner spells. The actual wiki convention is bare `{Name}.png` (verified by parsing the wiki Flash page), which resolves for 14/16: Flash, Ignite, Heal, Teleport, Smite, Cleanse, Exhaust, Ghost, Barrier, Clarity, Mark, Poro Toss, To the King!, "Placeholder and Attack-Smite". The two 404s — Arena's `Flee` (Cherry-mode `SummonerCherryHold`) and UltBook's bare `Placeholder` — fall through to the CDragon `iconPath` lookup.
+
+Added `wikiSummonerSpellIconUrl(name)` in `wiki-url-helpers.ts` (bare-name shape, distinct from `wikiEntryIconUrl`'s `_{kind}` suffix). `LolImageService.spell()` now mirrors the rune pattern: `loadSpellIconNames()` is sticky+lazy, one Prisma round-trip per process lifetime; missing rows fall through cleanly. Tests cover wiki-primary, multi-word slugging ("To the King!"), missing-row fallback, and memoization.
 
 ### C — Champion card / backdrop: wiki coverage probe
 

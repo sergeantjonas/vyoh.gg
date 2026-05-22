@@ -22,7 +22,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### Cross-cutting
 
-- **Unified image fallback (in progress)** — proxy-routing landed 2026-05-21 (zero direct-to-wiki render URLs in `apps/web/src`). Chunk A shipped 2026-05-21 (`58309f5`): items + runes now wiki-primary with DDragon/CDragon fallback. Three chunks remain: B (summoner-spell wiki-coverage probe), C (champion card/backdrop probe, gated by splash visual-parity constraint), D (ability CDragon fallback + document the genuinely single-upstream routes). → [unified-image-fallback.md](lol/unified-image-fallback.md)
+- **Unified image fallback (in progress)** — proxy-routing landed 2026-05-21. Chunks A (`58309f5`, items + runes wiki-primary) and D (`73b8c62`, ability CDragon fallback + single-upstream routes documented) shipped 2026-05-21; chunk B shipped 2026-05-23 (summoner spells wiki-primary with CDragon fallback, 14/16 wiki coverage). Only chunk C remains: champion card/backdrop probe, gated by splash visual-parity constraint. → [unified-image-fallback.md](lol/unified-image-fallback.md)
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
 
 ### Pre-deploy / admin

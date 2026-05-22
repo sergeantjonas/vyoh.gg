@@ -26,6 +26,16 @@ export function wikiEntryIconUrl(name: string, kind: "item" | "rune"): string {
   return `${WIKI_IMAGES}/${wikiImageSlug(name)}_${kind}.png`;
 }
 
+// Summoner spells live at `{Name}.png` (no `_spell` suffix — verified by
+// probing the 16 DDragon-listed spell names). The 14 canonical spells
+// (Flash, Ignite, Heal, Teleport, Smite, Cleanse, Exhaust, Ghost, Barrier,
+// Clarity, Mark, Poro Toss, To the King!, Placeholder and Attack-Smite)
+// resolve; Arena's `Flee` and UltBook's bare `Placeholder` 404 and rely on
+// the CDragon fallback in `LolImageService.spell()`.
+export function wikiSummonerSpellIconUrl(name: string): string {
+  return `${WIKI_IMAGES}/${wikiImageSlug(name)}.png`;
+}
+
 // Profile icons live at `{Title with underscores}_profileicon.png`. The
 // `title` is the editorial key from wiki `Module:IconData/data` — synced
 // server-side into the `LolProfileIcon` table and surfaced via the static

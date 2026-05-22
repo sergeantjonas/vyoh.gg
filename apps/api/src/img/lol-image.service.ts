@@ -12,6 +12,7 @@ import {
   wikiMinionIconUrl,
   wikiProfileIconUrl,
   wikiRankedEmblemUrl,
+  wikiSummonerSpellIconUrl,
   wikiWardIconUrl,
 } from "./wiki-url-helpers";
 
@@ -76,6 +77,8 @@ export class LolImageService {
   private itemIconNamesPending: Promise<Map<number, string>> | null = null;
   private perkIconNames: Map<number, string> | null = null;
   private perkIconNamesPending: Promise<Map<number, string>> | null = null;
+  private spellIconNames: Map<number, string> | null = null;
+  private spellIconNamesPending: Promise<Map<number, string>> | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -258,16 +261,23 @@ export class LolImageService {
     return { urls, params: { width: 40, quality: 85 } };
   }
 
+  // Wiki-first with CDragon-game-data fallback. `iconWikiName` is populated
+  // by the static-sync service (mirrors the DDragon `name`); wiki coverage
+  // probe (2026-05-23) confirmed `{Name}.png` resolves for 14/16 spells —
+  // the two gaps (Arena `Flee`, UltBook `Placeholder`) fall through to the
+  // CDragon `iconPath` lookup. Cold-start before the first sync also lands
+  // on CDragon alone.
   async spell(spellKey: number): Promise<Resolved> {
     const paths = await this.loadSpellPaths();
     const iconPath = paths.get(spellKey);
     if (!iconPath) {
       throw new Error(`unknown summoner spell id ${spellKey}`);
     }
-    return {
-      urls: [gameDataUrlFromIconPath(iconPath)],
-      params: { width: 40, quality: 85 },
-    };
+    const cdragonUrl = gameDataUrlFromIconPath(iconPath);
+    const names = await this.loadSpellIconNames();
+    const name = names.get(spellKey);
+    const urls = name ? [wikiSummonerSpellIconUrl(name), cdragonUrl] : [cdragonUrl];
+    return { urls, params: { width: 40, quality: 85 } };
   }
 
   // Sticky in-process cache. Profile-icon titles change far less often than
@@ -330,6 +340,25 @@ export class LolImageService {
         this.perkIconNamesPending = null;
       });
     this.perkIconNamesPending = pending;
+    return pending;
+  }
+
+  private loadSpellIconNames(): Promise<Map<number, string>> {
+    if (this.spellIconNames) return Promise.resolve(this.spellIconNames);
+    if (this.spellIconNamesPending) return this.spellIconNamesPending;
+    const pending = this.prisma.lolSummonerSpell
+      .findMany({ select: { id: true, iconWikiName: true } })
+      .then((rows) => {
+        const map = new Map(
+          rows.flatMap((r) => (r.iconWikiName ? [[r.id, r.iconWikiName] as const] : []))
+        );
+        this.spellIconNames = map;
+        return map;
+      })
+      .finally(() => {
+        this.spellIconNamesPending = null;
+      });
+    this.spellIconNamesPending = pending;
     return pending;
   }
 

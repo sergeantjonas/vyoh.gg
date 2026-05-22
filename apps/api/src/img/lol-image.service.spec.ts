@@ -18,6 +18,9 @@ interface PrismaStub {
   lolPerk: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  lolSummonerSpell: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 interface MakeServiceOpts {
@@ -26,6 +29,7 @@ interface MakeServiceOpts {
   champions?: Array<{ alias: string; name: string }>;
   items?: Array<{ id: number; iconWikiName: string | null }>;
   perks?: Array<{ id: number; iconWikiName: string | null }>;
+  spells?: Array<{ id: number; iconWikiName: string | null }>;
 }
 
 function makePrisma(opts: MakeServiceOpts = {}): PrismaStub {
@@ -45,6 +49,9 @@ function makePrisma(opts: MakeServiceOpts = {}): PrismaStub {
     lolPerk: {
       findMany: vi.fn().mockResolvedValue(opts.perks ?? []),
     },
+    lolSummonerSpell: {
+      findMany: vi.fn().mockResolvedValue(opts.spells ?? []),
+    },
   };
 }
 
@@ -54,7 +61,11 @@ function makeService(
   profileIcons: Array<{ id: number; title: string }> = [],
   ability: unknown = null,
   champions: Array<{ alias: string; name: string }> = [],
-  extra: { items?: MakeServiceOpts["items"]; perks?: MakeServiceOpts["perks"] } = {}
+  extra: {
+    items?: MakeServiceOpts["items"];
+    perks?: MakeServiceOpts["perks"];
+    spells?: MakeServiceOpts["spells"];
+  } = {}
 ): {
   service: LolImageService;
   prisma: PrismaStub;
@@ -62,6 +73,7 @@ function makeService(
   const opts: MakeServiceOpts = { profileIcons, ability, champions };
   if (extra.items !== undefined) opts.items = extra.items;
   if (extra.perks !== undefined) opts.perks = extra.perks;
+  if (extra.spells !== undefined) opts.spells = extra.spells;
   const prisma = makePrisma(opts);
   const service = new LolImageService(prisma as unknown as PrismaService);
   return { service, prisma };
@@ -396,12 +408,63 @@ describe("LolImageService.spell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("resolves to the CDragon icon URL for a known summoner spell id", async () => {
+  it("returns wiki-primary + CDragon-fallback when iconWikiName is known for the spell", async () => {
+    const { service } = makeService([], null, [], {
+      spells: [{ id: 4, iconWikiName: "Flash" }],
+    });
+    const resolved = await service.spell(4);
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Flash.png",
+      "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/data/spells/icons2d/summoner_flash.png",
+    ]);
+    expect(resolved.params).toEqual({ width: 40, quality: 85 });
+  });
+
+  it("slugs multi-word and exclamation-mark spell names like 'To the King!'", async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = url.toString();
+        if (u.endsWith("/v1/summoner-spells.json")) {
+          return new Response(
+            JSON.stringify([
+              {
+                id: 30,
+                iconPath:
+                  "/lol-game-data/assets/data/spells/icons2d/summoner_porothrow.png",
+              },
+            ]),
+            { status: 200, headers: { "content-type": "application/json" } }
+          );
+        }
+        throw new Error(`unexpected fetch ${u}`);
+      })
+    );
+    const { service } = makeService([], null, [], {
+      spells: [{ id: 30, iconWikiName: "To the King!" }],
+    });
+    const resolved = await service.spell(30);
+    expect(resolved.urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/To_the_King!.png"
+    );
+  });
+
+  it("falls back to CDragon alone when iconWikiName is missing from the static sync", async () => {
     const { service } = makeService();
     const resolved = await service.spell(4);
-    expect(resolved.urls[0]).toBe(
-      "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/data/spells/icons2d/summoner_flash.png"
-    );
+    expect(resolved.urls).toEqual([
+      "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/data/spells/icons2d/summoner_flash.png",
+    ]);
+  });
+
+  it("memoizes the id→iconWikiName map across calls (single prisma fetch)", async () => {
+    const { service, prisma } = makeService([], null, [], {
+      spells: [{ id: 4, iconWikiName: "Flash" }],
+    });
+    await service.spell(4);
+    await service.spell(4);
+    expect(prisma.lolSummonerSpell.findMany).toHaveBeenCalledTimes(1);
   });
 
   it("throws for an unknown summoner spell id", async () => {
