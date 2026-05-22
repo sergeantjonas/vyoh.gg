@@ -13,6 +13,7 @@ import {
   wikiMinionIconUrl,
   wikiProfileIconUrl,
   wikiRankedEmblemUrl,
+  wikiRoleIconUrl,
   wikiSummonerSpellIconUrl,
   wikiWardIconUrl,
 } from "./wiki-url-helpers";
@@ -411,7 +412,15 @@ export class LolImageService {
     return new Map(raw.map((it) => [it.id, it.iconPath]));
   }
 
-  roleIconUrl(slug: RolePositionSlug): string {
-    return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${slug}.svg`;
+  // Wiki-primary with CDragon SVG fallback. Wiki ships these as `{Title}_icon.png`
+  // under `Category:Role_icons` — same Riot icon design as CDragon's
+  // `rcp-fe-lol-static-assets` SVGs, just rasterised at 136×136. Sharp
+  // transcodes both formats down to a 64px WebP so the format unification
+  // matches every other LoL asset on the proxy.
+  role(slug: RolePositionSlug): Resolved {
+    const wikiUrl = wikiRoleIconUrl(slug);
+    const cdragonUrl = `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${slug}.svg`;
+    const urls = wikiUrl ? [wikiUrl, cdragonUrl] : [cdragonUrl];
+    return { urls, params: { width: 64, quality: 85 } };
   }
 }

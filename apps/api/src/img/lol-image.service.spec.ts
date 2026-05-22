@@ -338,13 +338,25 @@ describe("LolImageService.profileIcon", () => {
   });
 });
 
-describe("LolImageService.roleIconUrl", () => {
-  const { service } = makeService();
+describe("LolImageService.role", () => {
+  it("returns wiki PNG + CDragon SVG fallback for the canonical slugs", () => {
+    const { service } = makeService();
+    expect(service.role("middle").urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Middle_icon.png",
+      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-middle.svg",
+    ]);
+  });
 
-  it("returns the static role-icon URL by slug", () => {
-    expect(service.roleIconUrl("middle")).toBe(
-      "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-middle.svg"
+  it("maps the Match-V5 'utility' slug to wiki's 'Support_icon.png'", () => {
+    const { service } = makeService();
+    expect(service.role("utility").urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Support_icon.png"
     );
+  });
+
+  it("transcodes to a 64px WebP", () => {
+    const { service } = makeService();
+    expect(service.role("top").params).toEqual({ width: 64, quality: 85 });
   });
 });
 

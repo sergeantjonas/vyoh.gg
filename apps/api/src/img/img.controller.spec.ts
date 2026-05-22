@@ -5,7 +5,6 @@ import { SteamImageService } from "./steam-image.service";
 import * as upstream from "./upstream";
 
 const fetchChainSpy = vi.spyOn(upstream, "fetchUpstreamChain");
-const fetchUpstreamSpy = vi.spyOn(upstream, "fetchUpstream");
 const transcodeSpy = vi.spyOn(upstream, "transcodeToWebp");
 
 interface ResStub {
@@ -43,7 +42,7 @@ function makeController(
     uiIcon: vi.fn().mockReturnValue({ urls: ["https://lol/ui"], params: {} }),
     rune: vi.fn().mockResolvedValue({ urls: ["https://lol/rune"], params: {} }),
     spell: vi.fn().mockResolvedValue({ urls: ["https://lol/spell"], params: {} }),
-    roleIconUrl: vi.fn().mockReturnValue("https://lol/role-mid"),
+    role: vi.fn().mockReturnValue({ urls: ["https://lol/role-mid"], params: {} }),
     ...lolOverrides,
   } as unknown as LolImageService;
   const steam = {
@@ -66,12 +65,10 @@ function makeController(
 beforeEach(() => {
   fetchChainSpy.mockResolvedValue(Buffer.from([1, 2, 3]));
   transcodeSpy.mockResolvedValue(Buffer.from([4, 5, 6]));
-  fetchUpstreamSpy.mockResolvedValue(Buffer.from("<svg/>"));
 });
 
 afterEach(() => {
   fetchChainSpy.mockReset();
-  fetchUpstreamSpy.mockReset();
   transcodeSpy.mockReset();
 });
 
@@ -315,25 +312,20 @@ describe("ImgController.role", () => {
     expect(res._status).toBe(400);
   });
 
-  it("proxies the SVG through fetchUpstream for a valid role", async () => {
+  it("proxies through fetchUpstreamChain + transcodeToWebp for a valid role", async () => {
     const res = makeRes();
     await makeController().role("middle", res as never);
-    expect(upstream.fetchUpstream).toHaveBeenCalled();
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+    expect(upstream.transcodeToWebp).toHaveBeenCalled();
     expect(res.send).toHaveBeenCalled();
   });
 
-  it("returns 502 when fetchUpstream throws an UpstreamError", async () => {
-    fetchUpstreamSpy.mockRejectedValueOnce(
-      new upstream.UpstreamError("https://up", new Error("svg upstream dead"))
+  it("returns 502 when the upstream chain throws an UpstreamError", async () => {
+    fetchChainSpy.mockRejectedValueOnce(
+      new upstream.UpstreamError("https://up", new Error("role upstreams dead"))
     );
     const res = makeRes();
     await makeController().role("middle", res as never);
     expect(res._status).toBe(502);
-  });
-
-  it("rethrows non-UpstreamError errors from fetchUpstream", async () => {
-    fetchUpstreamSpy.mockRejectedValueOnce(new Error("bug"));
-    const res = makeRes();
-    await expect(makeController().role("middle", res as never)).rejects.toThrow(/bug/);
   });
 });

@@ -86,10 +86,11 @@ export function uiIconUrl(name: UiIconName): string {
   return `${API_URL}/img/lol/ui/${name}.webp`;
 }
 
-// Role-position SVG is versionless — the upstream SVGs change too rarely to
-// warrant a cache-key segment.
+// Role-position icon is versionless — the upstream art changes too rarely to
+// warrant a cache-key segment. Served as WebP from the proxy (wiki PNG primary
+// with CDragon SVG fallback; both transcoded to WebP server-side).
 export function roleIconUrl(positionSlug: string): string {
-  return `${API_URL}/img/lol/role/${positionSlug}.svg`;
+  return `${API_URL}/img/lol/role/${positionSlug}.webp`;
 }
 
 // Generic wiki-file icon — the inline-icon path for rich tooltip descriptions

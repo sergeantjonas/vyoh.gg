@@ -132,6 +132,24 @@ export function wikiAttackIconUrl(): string {
   return `${WIKI_IMAGES}/Attack.svg`;
 }
 
+// Role-position icons indexed under wiki's `Category:Role_icons` as
+// `{Title}_icon.png` (136×136 PNG). The `utility` slug maps to the wiki
+// `Support_icon.png` because wiki uses the Riot client's "Support" label
+// rather than the `UTILITY` Match-V5 slug.
+const ROLE_WIKI_TITLE: Record<string, string> = {
+  top: "Top",
+  jungle: "Jungle",
+  middle: "Middle",
+  bottom: "Bottom",
+  utility: "Support",
+};
+
+export function wikiRoleIconUrl(positionSlug: string): string | null {
+  const title = ROLE_WIKI_TITLE[positionSlug];
+  if (!title) return null;
+  return `${WIKI_IMAGES}/${title}_icon.png`;
+}
+
 // In-game ping icons. Kept for future surfaces (live-tab markers, ping-rate
 // stats). Not used for the kills stat-row icon — see `wikiStatIconUrl`.
 export type WikiPing =

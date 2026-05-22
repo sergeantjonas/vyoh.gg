@@ -85,7 +85,7 @@ describe("non-champion icon helpers", () => {
   });
 
   it("roleIconUrl is versionless (no patch in the URL)", () => {
-    expect(roleIconUrl("middle")).toBe("http://localhost:2010/img/lol/role/middle.svg");
+    expect(roleIconUrl("middle")).toBe("http://localhost:2010/img/lol/role/middle.webp");
   });
 });
 

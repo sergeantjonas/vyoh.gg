@@ -6,7 +6,7 @@ describe("RoleIcon", () => {
   it("renders an img with the proxy URL for the position", () => {
     render(<RoleIcon position="MIDDLE" />);
     const img = screen.getByRole("img", { name: "Mid" }) as HTMLImageElement;
-    expect(img.getAttribute("src")).toContain("/img/lol/role/middle.svg");
+    expect(img.getAttribute("src")).toContain("/img/lol/role/middle.webp");
   });
 
   it("uses the explicit title prop for alt when provided", () => {
@@ -38,7 +38,7 @@ describe("role-icon helpers", () => {
   });
 
   it("rolePositionIconUrl maps each role to its slug", () => {
-    expect(rolePositionIconUrl("TOP")).toContain("/img/lol/role/top.svg");
-    expect(rolePositionIconUrl("UTILITY")).toContain("/img/lol/role/utility.svg");
+    expect(rolePositionIconUrl("TOP")).toContain("/img/lol/role/top.webp");
+    expect(rolePositionIconUrl("UTILITY")).toContain("/img/lol/role/utility.webp");
   });
 });

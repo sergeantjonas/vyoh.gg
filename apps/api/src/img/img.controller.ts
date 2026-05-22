@@ -12,7 +12,6 @@ import { SteamImageService } from "./steam-image.service";
 import {
   type TranscodeParams,
   UpstreamError,
-  fetchUpstream,
   fetchUpstreamChain,
   transcodeToWebp,
 } from "./upstream";
@@ -215,28 +214,19 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
-  // Role-position SVG pass-through. Versionless — CDragon's role-position SVGs
-  // change too rarely to warrant a cache-key segment, and the SVG is small
-  // enough that any revalidation cost is negligible.
-  @Get("lol/role/:position.svg")
-  @Header("Content-Type", "image/svg+xml")
+  // Role-position icon. Versionless — the underlying art changes too rarely
+  // to warrant a cache-key segment. Wiki PNG primary with CDragon SVG fallback;
+  // Sharp transcodes both into WebP so the format matches the other LoL assets.
+  @Get("lol/role/:position.webp")
+  @Header("Content-Type", "image/webp")
   @Header("Cache-Control", "public, max-age=86400")
   async role(@Param("position") position: string, @Res() res: Response): Promise<void> {
     if (!ROLE_POSITIONS.has(position as RolePositionSlug)) {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const url = this.lol.roleIconUrl(position as RolePositionSlug);
-    try {
-      const svg = await fetchUpstream(url);
-      res.send(svg);
-    } catch (err) {
-      if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
-        return;
-      }
-      throw err;
-    }
+    const resolved = this.lol.role(position as RolePositionSlug);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
   @Get("steam/capsule/:appid/:assetTimestamp.webp")
