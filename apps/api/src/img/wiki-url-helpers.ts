@@ -152,9 +152,17 @@ export function wikiRoleIconUrl(positionSlug: string): string | null {
 
 // Champion-class icons (Riot's archetype taxonomy — Fighter/Mage/Tank/etc.)
 // indexed alongside the role icons in wiki's `Category:Role_icons`. Slugs are
-// the lowercase DDragon `tags` we already store on `LolChampion.roles`; wiki
-// renamed two of the six in the modern classification (Assassin → Slayer,
-// Support → Controller), so the slug → wiki-title mapping carries the rename.
+// the lowercase DDragon `tags` stored on `LolChampion.roles`. Riot's modern
+// taxonomy (wiki-canonical) reorganised two top-level slots that DDragon
+// still ships under the old names:
+//   - `assassin` is mapped to **Slayer** — the modern umbrella class that
+//     subsumes both the Assassin and Skirmisher subclasses. DDragon's tag is
+//     the closest legacy proxy.
+//   - `support` is mapped to **Controller** — the modern name for the
+//     defensive-caster class. "Support" is now used for the lane position,
+//     not the class.
+// `Specialist` is a modern wiki class without a DDragon tag equivalent, so
+// it has no slug here.
 const CLASS_WIKI_TITLE: Record<string, string> = {
   fighter: "Fighter",
   mage: "Mage",

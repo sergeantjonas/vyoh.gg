@@ -76,10 +76,12 @@ export const ROLE_POSITION_SLUGS = [
 ] as const;
 export type RolePositionSlug = (typeof ROLE_POSITION_SLUGS)[number];
 
-// Champion-class slugs — lowercase DDragon `tags` values. Wiki/Riot renamed
-// `assassin` → `Slayer` and `support` → `Controller` in the modern taxonomy;
-// the rename happens inside `wikiClassIconUrl`, keeping the slug stable
-// against the data we ingest from DDragon.
+// Champion-class slugs — lowercase DDragon `tags` values. The modern wiki
+// taxonomy maps `assassin` → Slayer (now an umbrella with Assassin +
+// Skirmisher subclasses) and `support` → Controller; the rename lives inside
+// `wikiClassIconUrl` so the slug remains aligned with the DDragon data we
+// ingest. The modern `Specialist` class has no DDragon tag and is therefore
+// not in this set.
 export const CHAMPION_CLASS_SLUGS = [
   "fighter",
   "mage",

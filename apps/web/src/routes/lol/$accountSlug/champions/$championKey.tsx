@@ -203,9 +203,11 @@ function ChampionDetailPage() {
   const alias = detail.champion;
   const kdaDelta = overall ? detail.avgKda - overall.avgKda : null;
   const wrDelta = overall ? detail.winRate - overall.winRate : null;
-  // Riot's class taxonomy renamed Assassin → Slayer and Support → Controller;
-  // wiki + the proxy honour the rename, so we keep DDragon's tag for the slug
-  // (lowercased) and remap only the display label.
+  // DDragon ships the legacy class tags (Assassin, Support); the modern wiki
+  // taxonomy reframes these as Slayer (an umbrella with Assassin + Skirmisher
+  // subclasses) and Controller (the lane name "Support" now refers to the
+  // position, not the class). The display label and class icon both use the
+  // modern name; the slug stays aligned with the underlying DDragon tag.
   const CLASS_DISPLAY_LABEL: Record<string, string> = {
     assassin: "Slayer",
     support: "Controller",
