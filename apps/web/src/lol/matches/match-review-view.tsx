@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { type MouseEvent, useMemo, useState } from "react";
+import { type NarrativeSentence, buildNarrativeSentences } from "./narrativeTemplates";
 import { useMatchBaseline } from "./use-match-baseline";
 
 // Summoner's Rift queues — lane-phase review makes sense for these.
@@ -702,12 +703,12 @@ function buildBaselineTiles(
 }
 
 function BaselineDeviationPanel({
-  account,
   championAlias,
   role,
   thisGame,
+  baseline,
+  isPending,
 }: {
-  account: LolAccount | undefined;
   championAlias: string | undefined;
   role: string | undefined;
   thisGame:
@@ -719,9 +720,9 @@ function BaselineDeviationPanel({
         timeDead: number | undefined;
       }
     | undefined;
+  baseline: MatchBaseline | undefined;
+  isPending: boolean;
 }) {
-  const { data: baseline, isPending } = useMatchBaseline(account, championAlias, role);
-
   const ROLE_LABEL: Record<string, string> = {
     TOP: "Top",
     JUNGLE: "Jungle",
@@ -751,7 +752,7 @@ function BaselineDeviationPanel({
         {subtext && <span className="text-xs text-muted-foreground">{subtext}</span>}
       </div>
       {isPending && !baseline ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {(["KDA", "Damage share", "CS @ 10", "Vision score", "Time dead"] as const).map(
             (label) => (
               <div
@@ -766,7 +767,7 @@ function BaselineDeviationPanel({
           First tracked game on this champion.
         </p>
       ) : tiles.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {tiles.map((tile) => {
             const rel =
               (tile.thisGame - tile.baseline) / Math.max(0.01, Math.abs(tile.baseline));
@@ -806,6 +807,51 @@ function BaselineDeviationPanel({
   );
 }
 
+// --- Decision narrative ---
+
+const TONE_CLASS: Record<NarrativeSentence["tone"], string> = {
+  positive: "text-emerald-400",
+  warning: "text-amber-400",
+  neutral: "text-muted-foreground",
+};
+
+function DecisionNarrativePanel({
+  summary,
+  owner,
+  baselineTimeDead,
+}: {
+  summary: MatchSummary;
+  owner: ParticipantOwnerExtras | undefined;
+  baselineTimeDead: number | undefined;
+}) {
+  const sentences = useMemo(() => {
+    if (!owner) return [];
+    return buildNarrativeSentences({
+      totalTimeSpentDead: owner.survival.totalTimeSpentDead,
+      baselineTimeDead,
+      spellCasts: owner.spellCasts,
+      durationSec: summary.durationSec,
+      deathTimings: summary.deathTimings,
+      timeCCingOthers: owner.challenges.timeCCingOthers,
+    });
+  }, [owner, baselineTimeDead, summary]);
+
+  if (!owner || sentences.length === 0) return null;
+
+  return (
+    <>
+      <p className="mb-2 text-sm font-medium">Decision quality</p>
+      <div className="space-y-1.5">
+        {sentences.map((s) => (
+          <p key={s.text} className={cn("text-sm", TONE_CLASS[s.tone])}>
+            {s.text}
+          </p>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // --- Main view ---
 
 export function MatchReviewView({
@@ -826,6 +872,12 @@ export function MatchReviewView({
   const ownerDetail = myPuuid
     ? detail.participants.find((p) => p.puuid === myPuuid)
     : undefined;
+
+  const { data: baseline, isPending: baselinePending } = useMatchBaseline(
+    account,
+    ownerDetail?.championName,
+    ownerDetail?.teamPosition
+  );
   const ownerTeamId = ownerDetail?.teamId;
   const ownerTeam =
     ownerTeamId !== undefined
@@ -935,7 +987,6 @@ export function MatchReviewView({
 
       <section aria-label="Personal baselines">
         <BaselineDeviationPanel
-          account={account}
           championAlias={ownerDetail?.championName}
           role={ownerDetail?.teamPosition}
           thisGame={
@@ -949,6 +1000,16 @@ export function MatchReviewView({
                 }
               : undefined
           }
+          baseline={baseline}
+          isPending={baselinePending}
+        />
+      </section>
+
+      <section aria-label="Decision quality">
+        <DecisionNarrativePanel
+          summary={summary}
+          owner={ownerDetail?.owner}
+          baselineTimeDead={baseline?.timeDead}
         />
       </section>
 

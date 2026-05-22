@@ -1,8 +1,8 @@
 # LoL owner-data feature ideas
 
-**Status:** Tier 1 shipped 2026-05-21 (4 small Your-game additions). Three follow-on arcs scoped 2026-05-21: **Match review surface** (headline next move, scoped in [match-review.md](match-review.md)), **Profile narrative tier** (4 bundled tiles, scoped below), **Match detail panel additions** (damage stacked bar, scoped below). Champion-detail tier parked with explicit trigger. MDN5 re-eval unblocked.
+**Status:** Tier 1 shipped 2026-05-21 (4 small Your-game additions). MD1 (damage stacked bar) shipped 2026-05-22. Match review MR1–MR3 shipped 2026-05-22. Remaining open arcs: **Match review MR4** (decision-quality narrative), **Profile narrative tier** (PN1–PN4). Champion-detail tier parked with explicit trigger.
 
-**Headline next move:** the **match review surface** — a learning-oriented per-match peer tab that turns a single game into a *story* (lane / mid / late phase verdicts, where the lead changed hands, where this game diverged from your norm) — is the 4-phase arc in [match-review.md](match-review.md). It is the highest-impact use of the owner-data primitives shipped in Tier 1.
+**Headline next move:** **MR4** — decision-quality narrative in the review tab. Template-fill sentences from spell casts per minute vs baseline, time dead vs baseline, CC contribution. Depends on the MR2 baseline service (shipped).
 
 This catalog was originally a Post-Tier-1A ideation sweep (2026-05-17). The owner participant in `MatchDetailCache` retains the full Riot payload — every field Riot returns, not just what we type. Non-owner participants keep only the lean `RiotMatchParticipantOther` shape. Restructured 2026-05-21 from an idea catalog into shipped / promoted / parked arcs so each idea has a concrete next action.
 
@@ -18,6 +18,11 @@ Read this when scoping the next LoL feature arc.
 | 1.B | Spell-cast strip on match-detail Your game | 2026-05-21 |
 | 1.C | Damage profile (dealt / taken / mitigated) on Your game | 2026-05-21 |
 | 1.D | Owner stats strip + multikill badges on Your game | 2026-05-21 |
+| MD1 | Damage dealt stacked bar (physical/magic/true) on match detail | 2026-05-22 |
+| MR1 | Review tab — gold arc chart + phase verdict strip | 2026-05-22 |
+| MR2 | Review tab — personal baseline deviation panel (5 tiles, winsorized median) | 2026-05-22 |
+| MR3 | Review tab — moment highlights strip with tooltips | 2026-05-22 |
+| MR4 | Review tab — decision-quality narrative (`narrativeTemplates.ts`) | 2026-05-22 |
 
 ---
 
@@ -31,7 +36,7 @@ A per-match interpretive sub-route — `/lol/$accountSlug/matches/$matchId/revie
 
 **Why this isn't PG4.** The original PG4 was a share-friendly peer route + OG-image artifact, closed 2026-05-20 because PG1–PG3 already deliver the close-the-loop value (see [post-game-close-the-loop.md](post-game-close-the-loop.md)). Match review reuses the per-match peer-surface *shape* but answers a different question — what can I learn from this game — and pulls a different data primitive set.
 
-**Next action:** MR1 (game arc viz + phase verdict strip + route plumbing).
+**Status:** Arc complete. MR1–MR4 all shipped 2026-05-22.
 
 ---
 
@@ -114,9 +119,9 @@ Two ideas from the original catalog that didn't make it into Arc 2 because they'
 | Item | Surface | Effort | State |
 |---|---|---|---|
 | Tier 1 (1.A–1.D) | Match detail Your game | — | **Shipped 2026-05-21** |
-| **Match review surface (MR1–MR4)** | Sub-route under match detail | Medium — new tab + 4 phases | **Promoted** — [match-review.md](match-review.md); MR1 is next-up |
+| Match review surface (MR1–MR4) | Sub-route under match detail | — | **Shipped 2026-05-22** |
 | **Profile narrative tier (PN1–PN4)** | Profile / Trends | Low — 1 PR or 2–3 closely-spaced | **Promoted** — concrete plan above |
-| **Damage stacked bar (MD1)** | Match detail panel | Low — frontend only | **Promoted** — scoped above |
+| **Damage stacked bar (MD1)** | Match detail panel | — | **Shipped 2026-05-22** |
 | Full rune page panel (MD2) | Match detail panel | Low — Phase E | Tracked in [match-depth-roadmap.md](match-depth-roadmap.md) |
 | Champion-detail owner-data tier | Champion detail | Medium × 5 | **Parked** — trigger: Champion-detail arc |
 | Objective presence | Profile | Low | **Parked** — trigger: role-mix shift to jungle |

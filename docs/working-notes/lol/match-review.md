@@ -1,6 +1,6 @@
 # Match review — learning-oriented per-match surface
 
-**Status:** Scoping note (2026-05-21). Headline next move after Tier 1 of owner-data shipped same day. Four phases (MR1–MR4); MR1 is next-up open work pending owner go-ahead.
+**Status:** Shipped (2026-05-22). All four phases complete. MR4 note: spell cast and CC sentences use absolute rates, not vs-baseline comparisons — the baseline service does not track those metrics. Time dead vs baseline is the primary "vs your norm" signal. Extend baseline if spell-cast or CC norms become a priority.
 
 A per-match interpretive sub-route — `/lol/$accountSlug/matches/$matchId/review` — alongside the existing Recap / Your game / Timeline tabs. Turns a single game's data into a *story*: lane / mid / late phase verdicts, decisive moments where the lead changed hands, and where this game diverged from your personal norm on this champion and role.
 
@@ -161,12 +161,10 @@ Sentence templates are deliberately small and human — not generated prose. The
 
 ## Sequencing and gating
 
-- **MR1** is next-up open work pending owner go-ahead. Ships as one PR — route + arc + phase verdict strip + tests + skeleton extension + tab nav extension.
-- **MR2** depends on the baseline service extraction. The extraction itself can land as a refactor PR ahead of MR2 if Profile gets value from it (re-uses existing logic, just relocates).
-- **MR3** is independent of MR2 — could ship in parallel if the chip-strip pattern lands first.
-- **MR4** depends on MR2 (templates reference baselines).
-
-Suggested order: MR1 → baseline service extraction → MR2 → MR3 → MR4. Or MR1 → MR3 → baseline service → MR2 → MR4 if the chip strip lands faster.
+- **MR1** shipped 2026-05-22 — gold arc chart + phase verdict strip + route + tab nav.
+- **MR2** shipped 2026-05-22 — baseline service + deviation panel (5 tiles incl. time dead).
+- **MR3** shipped 2026-05-22 — moment highlights strip with tooltips.
+- **MR4** shipped 2026-05-22 — decision-quality narrative (`narrativeTemplates.ts`): time dead vs baseline, spell cast rate, death timing phase split, CC contribution.
 
 ---
 

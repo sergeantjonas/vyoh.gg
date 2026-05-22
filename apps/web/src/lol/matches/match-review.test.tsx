@@ -5,6 +5,13 @@ import {
   getLateVerdict,
   getMidVerdict,
 } from "@/lol/matches/match-review-view";
+import {
+  buildNarrativeSentences,
+  getCCSentence,
+  getDeathTimingSentence,
+  getSpellActivitySentence,
+  getTimeDeadSentence,
+} from "@/lol/matches/narrativeTemplates";
 import { useMatchBaseline } from "@/lol/matches/use-match-baseline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
@@ -708,5 +715,153 @@ describe("BaselineDeviationPanel", () => {
   it("renders skeleton tiles while pending", () => {
     renderWithBaseline({ data: undefined, isPending: true });
     expect(screen.getByText("Your baseline")).not.toBeNull();
+  });
+});
+
+// --- narrativeTemplates unit tests ---
+
+describe("getTimeDeadSentence", () => {
+  it("returns null when baseline is undefined", () => {
+    expect(getTimeDeadSentence(90, undefined)).toBeNull();
+  });
+
+  it("returns positive tone when 20%+ below baseline", () => {
+    const result = getTimeDeadSentence(60, 90);
+    expect(result?.tone).toBe("positive");
+    expect(result?.text).toMatch(/below your baseline/);
+  });
+
+  it("returns warning tone when 20%+ above baseline", () => {
+    const result = getTimeDeadSentence(120, 90);
+    expect(result?.tone).toBe("warning");
+    expect(result?.text).toMatch(/above your baseline/);
+  });
+
+  it("returns neutral tone when within 20% of baseline", () => {
+    const result = getTimeDeadSentence(90, 90);
+    expect(result?.tone).toBe("neutral");
+    expect(result?.text).toMatch(/near your baseline/);
+  });
+});
+
+describe("getSpellActivitySentence", () => {
+  it("warns when ult is used fewer than 0.5× per minute in a 20+ min game", () => {
+    // 30 min game, R used 3 times = 0.1/min
+    const result = getSpellActivitySentence({ q: 200, w: 100, e: 100, r: 3 }, 1800);
+    expect(result?.tone).toBe("warning");
+    expect(result?.text).toMatch(/ult may be underused/);
+  });
+
+  it("returns positive tone for high cast rate", () => {
+    // 30 min game, 360 + 180 + 120 + 60 = 720 casts = 24/min
+    const result = getSpellActivitySentence({ q: 360, w: 180, e: 120, r: 60 }, 1800);
+    expect(result?.tone).toBe("positive");
+    expect(result?.text).toMatch(/high activity/);
+  });
+
+  it("returns warning for very passive game", () => {
+    // 30 min game, 60 + 30 + 30 + 20 = 140 casts = 4.7/min; r=20 → 0.67/min skips ult check
+    const result = getSpellActivitySentence({ q: 60, w: 30, e: 30, r: 20 }, 1800);
+    expect(result?.tone).toBe("warning");
+    expect(result?.text).toMatch(/passive game/);
+  });
+
+  it("returns neutral for normal cast rate", () => {
+    // 30 min game, 7/min
+    const result = getSpellActivitySentence({ q: 120, w: 60, e: 60, r: 20 }, 1800);
+    expect(result?.tone).toBe("neutral");
+  });
+});
+
+describe("getDeathTimingSentence", () => {
+  it("returns positive for zero deaths", () => {
+    const result = getDeathTimingSentence([], 1800);
+    expect(result?.tone).toBe("positive");
+    expect(result?.text).toMatch(/no deaths/i);
+  });
+
+  it("returns null for single death", () => {
+    expect(getDeathTimingSentence([300], 1800)).toBeNull();
+  });
+
+  it("returns warning when 60%+ deaths are early", () => {
+    // 3 early deaths, 1 late
+    const result = getDeathTimingSentence([200, 400, 700, 1800], 2100);
+    expect(result?.tone).toBe("warning");
+    expect(result?.text).toMatch(/before 14 minutes/);
+  });
+
+  it("returns neutral when 60%+ deaths are late in a long game", () => {
+    const result = getDeathTimingSentence([1600, 1800, 2000, 400], 2400);
+    expect(result?.tone).toBe("neutral");
+    expect(result?.text).toMatch(/after 25 minutes/);
+  });
+
+  it("returns null when deaths are spread across phases", () => {
+    expect(getDeathTimingSentence([300, 900, 1800], 2400)).toBeNull();
+  });
+});
+
+describe("getCCSentence", () => {
+  it("returns null when CC is undefined", () => {
+    expect(getCCSentence(undefined)).toBeNull();
+  });
+
+  it("returns null when CC is below threshold", () => {
+    expect(getCCSentence(20)).toBeNull();
+  });
+
+  it("returns positive for 120s+ CC", () => {
+    const result = getCCSentence(150);
+    expect(result?.tone).toBe("positive");
+    expect(result?.text).toMatch(/strong CC game/);
+  });
+
+  it("returns neutral for moderate CC", () => {
+    const result = getCCSentence(60);
+    expect(result?.tone).toBe("neutral");
+    expect(result?.text).toMatch(/crowd control applied/);
+  });
+});
+
+describe("buildNarrativeSentences", () => {
+  const BASE_PARAMS = {
+    totalTimeSpentDead: 80,
+    baselineTimeDead: 90,
+    spellCasts: { q: 120, w: 80, e: 60, r: 20 },
+    durationSec: 1800,
+    deathTimings: [620, 1200],
+    timeCCingOthers: undefined,
+  };
+
+  it("returns sentences for a typical game", () => {
+    const sentences = buildNarrativeSentences(BASE_PARAMS);
+    expect(sentences.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("omits CC sentence when timeCCingOthers is below threshold", () => {
+    const sentences = buildNarrativeSentences({ ...BASE_PARAMS, timeCCingOthers: 10 });
+    expect(sentences.every((s) => !s.text.includes("crowd control"))).toBe(true);
+  });
+
+  it("includes CC sentence when timeCCingOthers is above threshold", () => {
+    const sentences = buildNarrativeSentences({ ...BASE_PARAMS, timeCCingOthers: 120 });
+    expect(sentences.some((s) => s.text.includes("crowd control"))).toBe(true);
+  });
+});
+
+describe("DecisionNarrativePanel", () => {
+  it("renders at least one sentence for a typical SR game", () => {
+    renderReview();
+    // The fixture has 80s dead, ~7 casts/min, 2 deaths — should produce sentences
+    expect(screen.getByText("Decision quality")).not.toBeNull();
+  });
+
+  it("does not render section heading when owner data is absent", () => {
+    const p = makeDetail().participants[0];
+    if (!p) throw new Error("fixture missing participant");
+    const { owner: _o, ...rest } = p;
+    renderReview({}, { participants: [rest] });
+    expect(screen.queryByText("Decision quality")).toBeNull();
   });
 });
