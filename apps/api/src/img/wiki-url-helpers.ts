@@ -45,23 +45,35 @@ export function wikiProfileIconUrl(title: string): string {
   return `${WIKI_IMAGES}/${wikiImageSlug(title)}_profileicon.png`;
 }
 
-export function wikiChampionSquareUrl(championDisplayName: string): string {
-  return `${WIKI_IMAGES}/${wikiImageSlug(championDisplayName)}_OriginalSquare.png`;
-}
-
-// Wiki uses the bare `Nunu` prefix for Nunu & Willump's ability image files.
-// Other `&`-containing champion display names should be probed before
+// Wiki uses the bare `Nunu` prefix for every `Nunu & Willump` file
+// (`Nunu_OriginalSquare.png`, `Nunu_OriginalCentered.jpg`, ability images).
+// Other `&`-containing display names would need a separate probe before
 // assuming the convention extends.
-function abilityChampionPrefix(championDisplayName: string): string {
+function wikiChampionPrefix(championDisplayName: string): string {
   if (championDisplayName === "Nunu & Willump") return "Nunu";
   return championDisplayName;
+}
+
+export function wikiChampionSquareUrl(championDisplayName: string): string {
+  const champ = wikiImageSlug(wikiChampionPrefix(championDisplayName));
+  return `${WIKI_IMAGES}/${champ}_OriginalSquare.png`;
+}
+
+// Centered splash — Riot's pre-cropped 1280×720 art that the wiki
+// `Category:Champion_centered_skins` indexes. Byte-identical to CDragon's
+// `/splash-art/centered` for the champions we spot-checked (same Riot source
+// upload); minor re-encoding variance on some champions but framing is
+// preserved, which is what the [[splash-visual-parity]] constraint requires.
+export function wikiChampionCenteredUrl(championDisplayName: string): string {
+  const champ = wikiImageSlug(wikiChampionPrefix(championDisplayName));
+  return `${WIKI_IMAGES}/${champ}_OriginalCentered.jpg`;
 }
 
 export function wikiAbilityIconUrl(
   championDisplayName: string,
   abilityDisplayName: string
 ): string {
-  const champ = wikiImageSlug(abilityChampionPrefix(championDisplayName));
+  const champ = wikiImageSlug(wikiChampionPrefix(championDisplayName));
   const ability = wikiImageSlug(abilityDisplayName);
   return `${WIKI_IMAGES}/${champ}_${ability}.png`;
 }

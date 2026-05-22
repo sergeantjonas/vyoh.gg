@@ -110,19 +110,47 @@ describe("LolImageService.champion", () => {
     ]);
   });
 
-  it("uses splash-art for the 'card' variant at a wider width", async () => {
-    const { service } = makeService();
+  it("returns wiki-primary + CDragon-fallback for the 'card' variant at a wider width", async () => {
+    const { service } = makeService([], null, [{ alias: "Ahri", name: "Ahri" }]);
     const resolved = await service.champion("Ahri", "card");
-    expect(resolved.urls[0]).toContain("/splash-art/centered");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ahri_OriginalCentered.jpg",
+      "https://cdn.communitydragon.org/latest/champion/ahri/splash-art/centered",
+    ]);
     expect(resolved.params).toMatchObject({ width: 500, quality: 90 });
     expect(resolved.params.blur).toBeUndefined();
   });
 
-  it("applies a blur and 80 quality for the 'backdrop' variant", async () => {
-    const { service } = makeService();
+  it("returns wiki-primary + CDragon-fallback for the 'backdrop' variant with blur and 80 quality", async () => {
+    const { service } = makeService([], null, [{ alias: "Ahri", name: "Ahri" }]);
     const resolved = await service.champion("Ahri", "backdrop");
-    expect(resolved.urls[0]).toContain("/splash-art/centered");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ahri_OriginalCentered.jpg",
+      "https://cdn.communitydragon.org/latest/champion/ahri/splash-art/centered",
+    ]);
     expect(resolved.params).toMatchObject({ width: 600, quality: 80, blur: 1 });
+  });
+
+  it("falls back to CDragon alone for 'card' when the alias is missing from the champion table", async () => {
+    const { service } = makeService([], null, []);
+    const resolved = await service.champion("Ahri", "card");
+    expect(resolved.urls).toEqual([
+      "https://cdn.communitydragon.org/latest/champion/ahri/splash-art/centered",
+    ]);
+  });
+
+  it("uses the bare 'Nunu' wiki prefix for Nunu & Willump on both square and centered crops", async () => {
+    const { service } = makeService([], null, [
+      { alias: "Nunu", name: "Nunu & Willump" },
+    ]);
+    const square = await service.champion("Nunu", "square");
+    expect(square.urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Nunu_OriginalSquare.png"
+    );
+    const card = await service.champion("Nunu", "card");
+    expect(card.urls[0]).toBe(
+      "https://wiki.leagueoflegends.com/en-us/images/Nunu_OriginalCentered.jpg"
+    );
   });
 
   it("strips the Strawberry_ prefix used for Swarm-mode champion aliases", async () => {

@@ -4,6 +4,7 @@ import type { TranscodeParams } from "./upstream";
 import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
+  wikiChampionCenteredUrl,
   wikiChampionSquareUrl,
   wikiEntryIconUrl,
   wikiFileUrl,
@@ -98,16 +99,27 @@ export class LolImageService {
           : [cdragonSquare];
         return { urls, params: { width: 72, quality: 85 } };
       }
-      case "card":
-        return {
-          urls: [`${CDRAGON_CDN}/champion/${slug}/splash-art/centered`],
-          params: { width: 500, quality: 90 },
-        };
-      case "backdrop":
-        return {
-          urls: [`${CDRAGON_CDN}/champion/${slug}/splash-art/centered`],
-          params: { width: 600, quality: 80, blur: 1 },
-        };
+      case "card": {
+        // Wiki-primary (`OriginalCentered.jpg`) with CDragon `/centered` as
+        // resilience fallback. Wiki ships the same Riot-source centered crop
+        // — byte-identical for the champions spot-checked, framing preserved
+        // across the rest — so the [[splash-visual-parity]] constraint holds.
+        // Cold-start before the first sync lands on CDragon alone.
+        const displayName = await this.lookupDisplayName(alias);
+        const cdragonCentered = `${CDRAGON_CDN}/champion/${slug}/splash-art/centered`;
+        const urls = displayName
+          ? [wikiChampionCenteredUrl(displayName), cdragonCentered]
+          : [cdragonCentered];
+        return { urls, params: { width: 500, quality: 90 } };
+      }
+      case "backdrop": {
+        const displayName = await this.lookupDisplayName(alias);
+        const cdragonCentered = `${CDRAGON_CDN}/champion/${slug}/splash-art/centered`;
+        const urls = displayName
+          ? [wikiChampionCenteredUrl(displayName), cdragonCentered]
+          : [cdragonCentered];
+        return { urls, params: { width: 600, quality: 80, blur: 1 } };
+      }
     }
   }
 
