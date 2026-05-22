@@ -83,38 +83,69 @@ describe("TrendDeathTiming", () => {
     ).toBeTruthy();
   });
 
-  it("emits the cluster verdict and transition prescription when peak is at 12–15min", () => {
-    // 5 matches, each with 5 deaths in the 12–15 min window (720–900s).
-    // Bucket index 4 = 12–15. Each match contributes 5 deaths there.
-    const matches = Array.from({ length: 5 }, (_, i) =>
-      match(i, true, { deathTimings: [780, 800, 820, 840, 860] })
-    );
-    renderTile(matches);
-    expect(
-      screen.getByText(/Deaths cluster at minutes 12–15 — 25 of 25 \(100%\)\./)
-    ).toBeTruthy();
-    expect(
-      screen.getByText("Be cautious during transition — prefer farm over fight.")
-    ).toBeTruthy();
-  });
-
-  it("emits early-game prescription when deaths peak at 0–3min", () => {
+  it("leads with early-phase narrative when ≥40% of deaths land before 15 minutes (PN4)", () => {
+    // All deaths under 15 min → 100% early → phase-dominant verdict wins
+    // over the existing peak-bucket framing.
     const matches = Array.from({ length: 5 }, (_, i) =>
       match(i, true, { deathTimings: [60, 90, 120, 150, 175] })
     );
     renderTile(matches);
     expect(
-      screen.getByText(/Deaths cluster at minutes 0–3 — 25 of 25 \(100%\)\./)
+      screen.getByText(
+        /100% of your deaths happen in the first 15 minutes — 25 of 25 across 5 games\./
+      )
     ).toBeTruthy();
     expect(
       screen.getByText("Early-game safety: ward early and respect lane swap-ins.")
     ).toBeTruthy();
   });
 
-  it("emits the evenly-spread verdict when no bucket holds 25% of deaths", () => {
-    // 5 matches, deaths spread across many buckets so no single bucket dominates.
-    // Each match has 12 deaths, one per bucket (60 deaths total, ~8% per bucket).
-    const deaths = Array.from({ length: 12 }, (_, i) => i * 180 + 30);
+  it("leads with late-phase narrative when ≥40% of deaths land after 25 minutes (PN4)", () => {
+    // All deaths past 25 min (1500s+).
+    const matches = Array.from({ length: 5 }, (_, i) =>
+      match(i, true, { deathTimings: [1600, 1750, 1900, 2050, 2200] })
+    );
+    renderTile(matches);
+    expect(
+      screen.getByText(
+        /100% of your deaths happen after 25 minutes — 25 of 25 across 5 games\./
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Late-game positioning: hold tempo, group for objectives, avoid solo picks."
+      )
+    ).toBeTruthy();
+  });
+
+  it("falls back to the peak-bucket cluster verdict when no phase dominates (PN4 fallback)", () => {
+    // Each phase holds exactly 33% — under the 40% phase-dominant threshold
+    // — but a single 3-min bucket clusters at 33% (above the 25% peak floor),
+    // so the fallback verdict fires.
+    const matches = Array.from({ length: 5 }, (_, i) =>
+      match(i, true, {
+        deathTimings: [
+          // 4 early-phase deaths spread across early buckets
+          120, 300, 500, 700,
+          // 4 mid-phase deaths all clustered at 15–18 (bucket 5).
+          // Note: 1080 = exactly 6 × 180 → Math.floor → bucket 6, so keep
+          // values strictly under 1080.
+          920, 970, 1020, 1070,
+          // 4 late-phase deaths spread across late buckets
+          1600, 1800, 2000, 2200,
+        ],
+      })
+    );
+    renderTile(matches);
+    expect(
+      screen.getByText(/Deaths cluster at minutes 15–18 — 20 of 60 \(33%\)\./)
+    ).toBeTruthy();
+  });
+
+  it("emits the evenly-spread verdict when no phase OR bucket dominates", () => {
+    // 6 deaths per match, evenly distributed across all 3 phases and 6
+    // buckets — no phase reaches 40%, no bucket reaches 25%.
+    const deaths = [300, 600, 1100, 1300, 1700, 1900];
     const matches = Array.from({ length: 5 }, (_, i) =>
       match(i, true, { deathTimings: deaths })
     );

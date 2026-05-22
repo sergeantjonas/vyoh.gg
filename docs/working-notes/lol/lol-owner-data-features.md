@@ -1,8 +1,8 @@
 # LoL owner-data feature ideas
 
-**Status:** Tier 1 shipped 2026-05-21 (4 small Your-game additions). MD1 (damage stacked bar) shipped 2026-05-22. Match review MR1–MR3 shipped 2026-05-22. Remaining open arcs: **Match review MR4** (decision-quality narrative), **Profile narrative tier** (PN1–PN4). Champion-detail tier parked with explicit trigger.
+**Status:** Tier 1 shipped 2026-05-21. MD1 + Match review MR1–MR4 shipped 2026-05-22. Profile narrative tier PN1–PN4 shipped 2026-05-22. Remaining open arcs: none on this catalog. Champion-detail tier parked with explicit trigger.
 
-**Headline next move:** **MR4** — decision-quality narrative in the review tab. Template-fill sentences from spell casts per minute vs baseline, time dead vs baseline, CC contribution. Depends on the MR2 baseline service (shipped).
+**Headline next move:** No open arcs on this catalog. Next candidate work surfaces from the parked Champion-detail owner-data tier (trigger: dedicated Champion-detail arc) or [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
 
 This catalog was originally a Post-Tier-1A ideation sweep (2026-05-17). The owner participant in `MatchDetailCache` retains the full Riot payload — every field Riot returns, not just what we type. Non-owner participants keep only the lean `RiotMatchParticipantOther` shape. Restructured 2026-05-21 from an idea catalog into shipped / promoted / parked arcs so each idea has a concrete next action.
 
@@ -23,6 +23,10 @@ Read this when scoping the next LoL feature arc.
 | MR2 | Review tab — personal baseline deviation panel (5 tiles, winsorized median) | 2026-05-22 |
 | MR3 | Review tab — moment highlights strip with tooltips | 2026-05-22 |
 | MR4 | Review tab — decision-quality narrative (`narrativeTemplates.ts`) | 2026-05-22 |
+| PN1 | Highlight reel tile (Trends) — soloKills + outnumberedKills + survivedSingleDigitHpCount sum via POST narrative endpoint | 2026-05-22 |
+| PN2 | Lifetime multikill milestone strip (Profile) — pentas/quadras/triples/doubles + best killing spree via GET narrative/lifetime | 2026-05-22 |
+| PN3 | csAt10 seeded from `laneMinionsFirst10Minutes` for lane positions + explicit `hasTimeline` flag on Match (sentinel migration on death-timing tiles) | 2026-05-22 |
+| PN4 | Death-timing phase narrative augmentation (early/mid/late split above existing 12-bucket histogram) | 2026-05-22 |
 
 ---
 
@@ -40,29 +44,18 @@ A per-match interpretive sub-route — `/lol/$accountSlug/matches/$matchId/revie
 
 ---
 
-### Arc 2: Profile narrative tier
+### Arc 2: Profile narrative tier (shipped 2026-05-22)
 
-A bundled mini-arc that adds four narrative tiles to Profile / Trends. Treat as one arc rather than four independent tiles because they share three things: (a) all read owner-data fields already on `Match` or owner challenges, (b) all need the same window-aggregation plumbing on the API side, (c) all share the "narrative framing, not metric" voice. Ship as one PR or 2–3 closely-spaced PRs.
+Four narrative tiles, shipped as two commits (feat: PN1–PN3 bundle + feat: PN4) on 2026-05-22. Surface decisions made during implementation:
 
-**Why bundled, not solo:** the per-tile build cost is small but the voice/framing is the load-bearing part. Designing them in isolation risks tonal drift between tiles ("34 solo kills" vs "you've died 42% of the time before 15 minutes" — different registers). One pass = one voice.
+- **PN1 Highlight reel** → Trends (windowed). New `POST /lol/.../narrative` endpoint takes the trends-window match IDs and sums owner challenges from `MatchDetailCache.detail`. Tile slot priority 900 — between weekly review and time-heatmap. Sample-size guardrail: 5+ non-remake matches in window.
+- **PN2 Lifetime multikill strip** → Profile (lifetime). New `GET /lol/.../narrative/lifetime` endpoint scans all non-remake owner matches (capped at 10k) and sums multikills + takes max `largestKillingSpree`. Slotted directly after `ProfileStatsBar` to share the lifetime-aggregate visual rhythm. Suppressed when totals are all zero.
+- **PN3 CS@10 fill + `hasTimeline` flag** → schema migration + match-mapper change. Discovered mid-flight: `laneMinionsFirst10Minutes` is genuinely ~0 for junglers, and timeline-derived `csAt10` includes jungle camps — so the backfill is gated to TOP/MIDDLE/BOTTOM/UTILITY only. Explicit `hasTimeline` Boolean column disambiguates the new csAt10 source from a real timeline projection. Sentinel migration on death-timing and death-matchup-heatmap tiles + their activity gates.
+- **PN4 Death-timing phase narrative** → augmented the existing `trend-death-timing.tsx` 12-bucket histogram with a coarse early (0–15) / mid (15–25) / late (25+) phase strip. Verdict leads with the dominant-phase narrative when one phase holds ≥40% (e.g. "62% of your deaths happen in the first 15 minutes"); falls back to the existing peak-bucket framing when no phase dominates.
 
-**PN1 — Highlight reel tile.** `soloKills + outnumberedKills + survivedSingleDigitHpCount` summed over the current Trends window. Framed as narrative: *"This month: 34 solo kills, 12 outnumbered takedowns, 9 clutch survivals."* Nothing else in the genre frames it this way. Lives on Profile or Trends — surface decision deferred to implementation time.
+**Notable side effect:** Two `select` clauses in [lol.service.ts](../../apps/api/src/lol/lol.service.ts) had to gain `hasTimeline: true` — the field was returning as `undefined` on every MatchSummary, which silently hid the death-timing tile for all accounts even after PN3 landed. Documented in the commit message for future reference.
 
-**PN2 — Lifetime multikill milestone strip.** Total `pentaKills`, `quadraKills`, `tripleKills`, `doubleKills` across all stored games (lifetime, not windowed). *"2 pentas, 14 quadras, 58 triples."* Milestone / nostalgia feel. Purely additive. Owner-data fields already retained from 1.A.
-
-**PN3 — CS@10 series fill.** `laneMinionsFirst10Minutes` from owner challenges gives CS@10 without `MatchTimelineCache`. Covers the ~98% of the match library that has no timeline row. Extends the existing `csAt10` series so the line plot fills back through history. Lives in Trends, possibly Champion detail later.
-
-**PN4 — Death timing breakdown.** `deathTimings` is already stored on every timeline-enriched `Match`. Aggregate: *"42% of your deaths happen in the first 15 minutes."* Phase-of-game death pattern — coaching signal, cheap to compute. Feeds MR4 templates as a side benefit.
-
-**Open decisions for the arc:**
-
-- Profile vs Trends placement per tile — PN1 + PN2 lean Profile (lifetime / monthly), PN3 + PN4 lean Trends (windowed).
-- Whether PN1 and the moment highlights strip in MR3 share the same component (likely yes — same data shape).
-- Animation / cascade entrance respects the existing motion-backlog `motion-trends-entrance` shipped pattern.
-
-**Tests in same commit:** aggregation unit tests + tile render tests + axe scan (each tile is a new interactive surface).
-
-**Sample-size guardrails:** PN1 + PN2 + PN4 only render if window contains ≥ 5 matches; otherwise show "tracking — come back after a few more games."
+**Operational follow-up:** [backfill-cs-at-10-from-challenges.ts](../../apps/api/src/scripts/backfill-cs-at-10-from-challenges.ts) populates `csAt10` for historical lane-position rows from cached detail JSON. On the owner's dev DB it updated 0 rows (all non-timeline rows are jungle/non-Rift); useful for other accounts with laner-heavy histories.
 
 ---
 
@@ -120,7 +113,7 @@ Two ideas from the original catalog that didn't make it into Arc 2 because they'
 |---|---|---|---|
 | Tier 1 (1.A–1.D) | Match detail Your game | — | **Shipped 2026-05-21** |
 | Match review surface (MR1–MR4) | Sub-route under match detail | — | **Shipped 2026-05-22** |
-| **Profile narrative tier (PN1–PN4)** | Profile / Trends | Low — 1 PR or 2–3 closely-spaced | **Promoted** — concrete plan above |
+| Profile narrative tier (PN1–PN4) | Profile / Trends | — | **Shipped 2026-05-22** |
 | **Damage stacked bar (MD1)** | Match detail panel | — | **Shipped 2026-05-22** |
 | Full rune page panel (MD2) | Match detail panel | Low — Phase E | Tracked in [match-depth-roadmap.md](match-depth-roadmap.md) |
 | Champion-detail owner-data tier | Champion detail | Medium × 5 | **Parked** — trigger: Champion-detail arc |
@@ -133,15 +126,16 @@ Two ideas from the original catalog that didn't make it into Arc 2 because they'
 
 Fields below exist in the JSON stored for owner participants today. The TypeScript type is the only barrier — no backfill, no new Riot calls, no schema migration. Kept here so future ideas have a single reference point.
 
-**`RiotChallenges` — only `killParticipation` typed today:**
+**`RiotChallenges` — all typed in `apps/api/src/riot/types.ts` since the Tier 1.A retention pass:**
 
-`soloKills`, `outnumberedKills`, `survivedSingleDigitHpCount`, `effectiveHealAndShielding`,
-`enemyChampionImmobilizations`, `damagePerMinute`, `laneMinionsFirst10Minutes`,
-`skillshotsHit`, `skillshotsDodged`, `maxCsAdvantageOnLaneOpponent`,
-`maxLevelLeadLaneOpponent`, `visionScoreAdvantageLaneOpponent`,
-`dragonTakedowns`, `baronTakedowns`, `riftHeraldTakedowns`, `timeCCingOthers`
+`killParticipation`, `soloKills`, `outnumberedKills`, `survivedSingleDigitHpCount`,
+`effectiveHealAndShielding`, `enemyChampionImmobilizations`, `damagePerMinute`,
+`laneMinionsFirst10Minutes`, `skillshotsHit`, `skillshotsDodged`,
+`maxCsAdvantageOnLaneOpponent`, `maxLevelLeadLaneOpponent`,
+`visionScoreAdvantageLaneOpponent`, `dragonTakedowns`, `baronTakedowns`,
+`riftHeraldTakedowns`, `timeCCingOthers`
 
-**`RiotMatchParticipant` — missing from type:**
+**`RiotMatchParticipant` — all typed since Tier 1.A:**
 
 Spell casts: `spell1Casts`–`spell4Casts`, `summoner1Casts`, `summoner2Casts`
 Multikills: `doubleKills`, `tripleKills`, `quadraKills`, `pentaKills`, `killingSprees`, `largestKillingSpree`
