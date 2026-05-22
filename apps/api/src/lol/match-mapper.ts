@@ -7,6 +7,14 @@ import type {
 import type { RiotMatch, RiotMatchParticipantOwner, StoredMatch } from "../riot/types";
 import { queueTypeName } from "./queue-types";
 
+// Rift lane positions where `laneMinionsFirst10Minutes` is a faithful proxy
+// for `csAt10`. JUNGLE is excluded — jungle CS comes from camps, not lanes —
+// and empty teamPosition (ARAM/URF/Arena) has no lane phase.
+const LANE_ROLES = new Set(["TOP", "MIDDLE", "BOTTOM", "UTILITY"]);
+function isLaneRole(teamPosition: string): boolean {
+  return LANE_ROLES.has(teamPosition);
+}
+
 function projectOwnerExtras(p: RiotMatchParticipantOwner): ParticipantOwnerExtras {
   const c = p.challenges;
   return {
@@ -130,10 +138,16 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     visionScore: participant.visionScore,
     damageShare,
     firstBloodKill: participant.firstBloodKill,
-    // Timeline-derived metrics default to zero / empty when no timeline has
-    // been projected. Callers that fetched the timeline overlay these via
-    // spread before the row is upserted.
-    csAt10: 0,
+    // PN3: seed csAt10 from the owner's `laneMinionsFirst10Minutes` challenge
+    // for lane positions only. Junglers farm camps — their lane-minion count
+    // is genuinely ~0, but the timeline-derived csAt10 *includes* jungle camps
+    // (see csOf in timeline-summary-mapper). Backfilling a jungler with the
+    // lane-minion proxy would silently under-represent their CS. Empty
+    // teamPosition (ARAM/URF/Arena) is skipped for the same reason.
+    csAt10: isLaneRole(participant.teamPosition)
+      ? (participant.challenges?.laneMinionsFirst10Minutes ?? 0)
+      : 0,
+    hasTimeline: false,
     csAt15: 0,
     goldAt10: 0,
     goldAt15: 0,

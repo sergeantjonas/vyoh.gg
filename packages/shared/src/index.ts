@@ -43,6 +43,12 @@ export type { ChampionPair } from "./lol/champion-pair.ts";
 export type { Chronotype, ChronotypeHour } from "./lol/chronotype.ts";
 export type { Duo } from "./lol/duo.ts";
 export type { MatchBaseline, MatchBaselineState } from "./lol/match-baseline.ts";
+export type {
+  MatchNarrativeHighlightReel,
+  MatchNarrativeLifetime,
+  MatchNarrativeMultikills,
+  MatchNarrativeWindow,
+} from "./lol/match-narrative.ts";
 export type { MatchSummary } from "./lol/match.ts";
 export type {
   ChampionPatchChangeKind,

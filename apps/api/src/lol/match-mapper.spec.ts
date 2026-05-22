@@ -175,6 +175,7 @@ describe("riotMatchToSummary", () => {
       damageShare: 1,
       firstBloodKill: false,
       csAt10: 0,
+      hasTimeline: false,
       csAt15: 0,
       goldAt10: 0,
       goldAt15: 0,
@@ -187,6 +188,25 @@ describe("riotMatchToSummary", () => {
       killYs: [],
       laneOpponent: null,
     });
+  });
+
+  it("seeds csAt10 from challenges.laneMinionsFirst10Minutes when present (PN3)", () => {
+    const matchWithChallenges: RiotMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        participants: baseMatch.info.participants.map((p) =>
+          p.puuid === "puuid-vyoh"
+            ? { ...p, challenges: { laneMinionsFirst10Minutes: 74 } }
+            : p
+        ),
+      },
+    };
+    const summary = riotMatchToSummary(matchWithChallenges, "puuid-vyoh");
+    expect(summary.csAt10).toBe(74);
+    // The flag stays false because no timeline overlay has run — only the
+    // overlay site in lol.service flips it.
+    expect(summary.hasTimeline).toBe(false);
   });
 
   it("populates laneOpponent when a matching position exists on the enemy team", () => {

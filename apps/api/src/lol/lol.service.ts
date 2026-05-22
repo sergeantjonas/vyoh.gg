@@ -101,6 +101,7 @@ export class LolService {
         damageShare: true,
         firstBloodKill: true,
         csAt10: true,
+        hasTimeline: true,
         csAt15: true,
         goldAt10: true,
         goldAt15: true,
@@ -197,6 +198,7 @@ export class LolService {
           damageShare: true,
           firstBloodKill: true,
           csAt10: true,
+          hasTimeline: true,
           csAt15: true,
           goldAt10: true,
           goldAt15: true,
@@ -803,7 +805,7 @@ export class LolService {
         }
 
         const summary: MatchSummary = timelineMetrics
-          ? { ...baseSummary, ...timelineMetrics }
+          ? { ...baseSummary, ...timelineMetrics, hasTimeline: true }
           : baseSummary;
 
         return { matchId, raw, summary, items, rawTimeline };

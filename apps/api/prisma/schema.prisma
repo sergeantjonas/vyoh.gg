@@ -311,6 +311,11 @@ model Match {
   killXs       Int[]    @default([])
   killYs       Int[]    @default([])
   remake       Boolean  @default(false)
+  // True only when timeline-derived metrics (csAt15, goldAt10/15, death/kill
+  // arrays) have been projected onto this row. csAt10 alone can no longer act
+  // as that sentinel because PN3 seeds it from challenges.laneMinionsFirst10Minutes
+  // for matches that never had a timeline fetched.
+  hasTimeline  Boolean  @default(false)
   snapshotTier       String?
   snapshotRank       String?
   snapshotLp         Int?

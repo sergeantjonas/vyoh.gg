@@ -5,6 +5,7 @@ import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
+import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfilePostGame } from "@/lol/profile/profile-post-game";
 import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
@@ -46,6 +47,7 @@ function ProfilePage() {
       <ProfileQueueDistribution />
       <ProfileActivityCalendar accountSlug={accountSlug} />
       <ProfileStatsBar />
+      <ProfileMultikillStrip accountSlug={accountSlug} />
       {matches && matches.length > 0 && (
         <Link
           to="/lol/$accountSlug/recap"

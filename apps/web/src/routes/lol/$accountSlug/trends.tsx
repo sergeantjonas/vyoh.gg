@@ -7,6 +7,7 @@ import { TrendDeathTiming } from "@/lol/trends/trend-death-timing";
 import { TrendDowWr } from "@/lol/trends/trend-dow-wr";
 import { TrendFirstBloodConversion } from "@/lol/trends/trend-first-blood-conversion";
 import { TrendGameLength } from "@/lol/trends/trend-game-length";
+import { TrendHighlightReel } from "@/lol/trends/trend-highlight-reel";
 import { TrendKda } from "@/lol/trends/trend-kda";
 import { TrendLanePhasePrognosis } from "@/lol/trends/trend-lane-phase-prognosis";
 import { TrendLpEconomy } from "@/lol/trends/trend-lp-economy";
@@ -23,7 +24,7 @@ import type { TrendsRangeId } from "@/lol/trends/trends-range-selector";
 import { TrendsSkeleton } from "@/lol/trends/trends-skeleton";
 import { useTrendsWindows } from "@/lol/trends/use-trends-windows";
 import { createFileRoute } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type LolAccount, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -68,7 +69,8 @@ const INACTIVE_PENALTY = 1000;
 function buildTiles(
   current: MatchSummary[],
   previous: MatchSummary[],
-  accountSlug: string
+  accountSlug: string,
+  account: LolAccount | undefined
 ): Tile[] {
   const played = excludeRemakes(current);
   const playedRift = played.filter((m) => m.teamPosition !== "");
@@ -82,6 +84,17 @@ function buildTiles(
       designPriority: 1000,
       active: played.length >= 1,
       node: <TrendWeeklyReview current={current} />,
+    },
+    {
+      id: "highlight-reel",
+      span: 2,
+      // Narrative tile — surfaces clutch-moment counts the user couldn't
+      // derive themselves. Slots between weekly review (3-wide story) and
+      // time-heatmap so the eye lands on "here's what stood out" before the
+      // grindier KDA/role tiles below.
+      designPriority: 900,
+      active: played.length >= 5,
+      node: <TrendHighlightReel current={current} account={account} />,
     },
     {
       id: "time-heatmap",
@@ -197,7 +210,9 @@ function buildTiles(
       id: "death-timing",
       span: 2,
       designPriority: 420,
-      active: played.filter((m) => m.csAt10 > 0).length >= 5,
+      // Death-timing needs timeline data — see trend-death-timing.tsx for the
+      // PN3 rationale (csAt10 is no longer a reliable "has timeline" sentinel).
+      active: played.filter((m) => m.hasTimeline).length >= 5,
       node: <TrendDeathTiming current={current} previous={previous} />,
     },
     {
@@ -224,14 +239,14 @@ function TrendsPage() {
   const { current, previous, isPending } = useTrendsWindows(rangeId, account);
 
   const sortedTiles = useMemo(() => {
-    const tiles = buildTiles(current, previous, accountSlug);
+    const tiles = buildTiles(current, previous, accountSlug, account);
     return tiles
       .map((t) => ({
         ...t,
         priority: t.active ? t.designPriority : t.designPriority - INACTIVE_PENALTY,
       }))
       .sort((a, b) => b.priority - a.priority);
-  }, [current, previous, accountSlug]);
+  }, [current, previous, accountSlug, account]);
 
   return (
     <div className="flex flex-col gap-6">

@@ -38,7 +38,9 @@ interface MatchupRow {
 function buildRows(matches: readonly MatchSummary[]): MatchupRow[] {
   const map = new Map<string, MatchupRow>();
   for (const m of matches) {
-    if (m.remake || !m.laneOpponent || m.csAt10 === 0) continue;
+    // hasTimeline gates death-timing aggregation — see trend-death-timing.tsx
+    // for the PN3 rationale.
+    if (m.remake || !m.laneOpponent || !m.hasTimeline) continue;
     const opp = m.laneOpponent.championName;
     let row = map.get(opp);
     if (!row) {
@@ -72,7 +74,7 @@ interface Stats {
 }
 
 function computeStats(matches: readonly MatchSummary[]): Stats {
-  const projected = excludeRemakes(matches).filter((m) => m.csAt10 > 0);
+  const projected = excludeRemakes(matches).filter((m) => m.hasTimeline);
   const rows = buildRows(projected);
   let maxCellValue = 0;
   for (const r of rows) {

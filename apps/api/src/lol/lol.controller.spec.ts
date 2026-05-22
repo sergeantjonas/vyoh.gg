@@ -6,6 +6,8 @@ import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolController } from "./lol.controller";
 import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
+import { NarrativeWindowDto } from "./match-narrative.dto";
+import { MatchNarrativeService } from "./match-narrative.service";
 
 describe("LolController", () => {
   it("delegates to LolService.getMatchesForSummoner", async () => {
@@ -17,6 +19,7 @@ describe("LolController", () => {
         { provide: LolService, useValue: { getMatchesForSummoner: stub } },
         { provide: LolAnalyticsService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
+        { provide: MatchNarrativeService, useValue: {} },
       ],
     }).compile();
 
@@ -28,6 +31,57 @@ describe("LolController", () => {
     );
 
     expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 0, 20, undefined);
+  });
+
+  it("delegates to MatchNarrativeService.getNarrativeWindow", async () => {
+    const stub = vi.fn().mockResolvedValue({
+      matchCount: 1,
+      remakeCount: 0,
+      highlightReel: { soloKills: 0, outnumberedKills: 0, survivedSingleDigitHpCount: 0 },
+    });
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LolController],
+      providers: [
+        { provide: LolService, useValue: {} },
+        { provide: LolAnalyticsService, useValue: {} },
+        { provide: MatchBaselineService, useValue: {} },
+        { provide: MatchNarrativeService, useValue: { getNarrativeWindow: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(LolController);
+    await controller.getNarrativeWindow(
+      { region: "euw1", gameName: "Vyoh", tagLine: "EUW" } as AccountParamsDto,
+      { matchIds: ["EUW1_1", "EUW1_2"] } as NarrativeWindowDto
+    );
+
+    expect(stub).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", ["EUW1_1", "EUW1_2"]);
+  });
+});
+
+describe("NarrativeWindowDto", () => {
+  function make(matchIds: string[]): NarrativeWindowDto {
+    return Object.assign(new NarrativeWindowDto(), { matchIds });
+  }
+
+  it("accepts an empty array (zero-state response)", async () => {
+    expect(await validate(make([]))).toHaveLength(0);
+  });
+
+  it("accepts well-formed Riot match IDs", async () => {
+    expect(await validate(make(["EUW1_1234567890", "NA1_99"]))).toHaveLength(0);
+  });
+
+  it("rejects malformed match IDs", async () => {
+    const errors = await validate(make(["not-a-match-id"]));
+    expect(errors.some((e) => e.property === "matchIds")).toBe(true);
+  });
+
+  it("rejects arrays larger than the 1000 cap", async () => {
+    const ids = Array.from({ length: 1001 }, (_, i) => `EUW1_${i}`);
+    const errors = await validate(make(ids));
+    expect(errors.some((e) => e.property === "matchIds")).toBe(true);
   });
 });
 

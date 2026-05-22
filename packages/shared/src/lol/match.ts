@@ -14,8 +14,18 @@ export interface MatchSummary {
   visionScore: number;
   damageShare: number;
   firstBloodKill: boolean;
+  // Explicit "this row has timeline-derived metrics" flag. csAt10 alone is no
+  // longer a reliable sentinel: PN3 seeds csAt10 from
+  // challenges.laneMinionsFirst10Minutes for matches that never had a timeline
+  // fetched. Use `hasTimeline` for any "do we have timeline data" check.
+  // Optional so older cached MatchSummary rows in client-side caches keep
+  // typechecking (undefined → falsy → same as the new false default).
+  hasTimeline?: boolean;
   // Timeline-derived fields. 0 / empty when the timeline hasn't been
   // projected yet (historical matches before the eager-fetch wiring).
+  // Note: csAt10 may be non-zero without a timeline (PN3 backfill from
+  // owner challenge `laneMinionsFirst10Minutes`); the other fields here
+  // remain strictly timeline-sourced.
   csAt10: number;
   csAt15: number;
   goldAt10: number;

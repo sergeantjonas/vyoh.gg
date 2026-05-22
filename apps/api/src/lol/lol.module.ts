@@ -8,6 +8,7 @@ import { LolController } from "./lol.controller";
 import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
 import { MatchEventsService } from "./match-events.service";
+import { MatchNarrativeService } from "./match-narrative.service";
 import { MatchSyncService } from "./match-sync.service";
 import { MatchController } from "./match.controller";
 import { PatchController } from "./patch.controller";
@@ -20,6 +21,7 @@ import { PatchService } from "./patch.service";
     LolService,
     LolAnalyticsService,
     MatchBaselineService,
+    MatchNarrativeService,
     MatchSyncService,
     MatchEventsService,
     LiveGamePollerService,
@@ -30,6 +32,7 @@ import { PatchService } from "./patch.service";
     LolService,
     LolAnalyticsService,
     MatchBaselineService,
+    MatchNarrativeService,
     MatchSyncService,
     MatchEventsService,
     PatchService,

@@ -55,6 +55,9 @@ function match(
     damageShare: 0,
     firstBloodKill: false,
     csAt10: opts.csAt10 ?? 80,
+    // See trend-death-timing.test.tsx — csAt10:0 is the empty-state knob; any
+    // other value implies a timeline ran.
+    hasTimeline: (opts.csAt10 ?? 80) !== 0,
     csAt15: 0,
     goldAt10: 0,
     goldAt15: 0,

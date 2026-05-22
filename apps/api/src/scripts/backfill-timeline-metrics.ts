@@ -102,7 +102,7 @@ async function main() {
           const metrics = riotTimelineToSummaryMetrics(raw, summoner.puuid);
           await prisma.match.update({
             where: { matchId_puuid: { matchId, puuid: summoner.puuid } },
-            data: metrics,
+            data: { ...metrics, hasTimeline: true },
           });
           totalUpdated++;
 

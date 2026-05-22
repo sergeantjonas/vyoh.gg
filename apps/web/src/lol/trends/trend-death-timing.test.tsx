@@ -27,6 +27,10 @@ function match(
     damageShare: 0,
     firstBloodKill: false,
     csAt10: opts.csAt10 ?? 80,
+    // The fixture's prior "csAt10:80 means timeline projected" convention now
+    // routes through the explicit flag — anything other than csAt10:0
+    // (the empty-state knob) implies a timeline ran.
+    hasTimeline: (opts.csAt10 ?? 80) !== 0,
     csAt15: 0,
     goldAt10: 0,
     goldAt15: 0,

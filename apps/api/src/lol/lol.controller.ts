@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   DefaultValuePipe,
   Get,
@@ -19,6 +20,8 @@ import type {
   Duo,
   LiveMatch,
   MatchBaseline,
+  MatchNarrativeLifetime,
+  MatchNarrativeWindow,
   MatchSummary,
   PregameCalibrationByQueue,
   RankHistoryResponse,
@@ -33,13 +36,16 @@ import {
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
+import { NarrativeWindowDto } from "./match-narrative.dto";
+import { MatchNarrativeService } from "./match-narrative.service";
 
 @Controller("lol/summoners/:region/:gameName/:tagLine")
 export class LolController {
   constructor(
     private readonly lol: LolService,
     private readonly analytics: LolAnalyticsService,
-    private readonly baseline: MatchBaselineService
+    private readonly baseline: MatchBaselineService,
+    private readonly narrative: MatchNarrativeService
   ) {}
 
   @Get("matches")
@@ -178,5 +184,21 @@ export class LolController {
     @Param() { region, gameName, tagLine, championAlias, role }: BaselineParamsDto
   ): Promise<MatchBaseline> {
     return this.baseline.getBaseline(region, gameName, tagLine, championAlias, role);
+  }
+
+  @Post("narrative")
+  @HttpCode(200)
+  async getNarrativeWindow(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Body() { matchIds }: NarrativeWindowDto
+  ): Promise<MatchNarrativeWindow> {
+    return this.narrative.getNarrativeWindow(region, gameName, tagLine, matchIds);
+  }
+
+  @Get("narrative/lifetime")
+  async getNarrativeLifetime(
+    @Param() { region, gameName, tagLine }: AccountParamsDto
+  ): Promise<MatchNarrativeLifetime> {
+    return this.narrative.getLifetimeNarrative(region, gameName, tagLine);
   }
 }

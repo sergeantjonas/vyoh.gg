@@ -18,10 +18,11 @@ interface DeathStats {
 }
 
 function computeStats(matches: readonly MatchSummary[]): DeathStats | null {
-  // Match must have a projected timeline (any csAt10 > 0 is a fine sentinel
-  // for "this match has been processed"; matches that ended before 10 min
-  // can't have lane phase data anyway).
-  const projected = excludeRemakes(matches).filter((m) => m.csAt10 > 0);
+  // Match must have a projected timeline. Use the explicit `hasTimeline` flag
+  // — csAt10 > 0 used to be the sentinel, but PN3 seeds csAt10 from owner
+  // challenges for matches that never had a timeline fetched, so the value
+  // alone no longer implies the death-timing arrays are populated.
+  const projected = excludeRemakes(matches).filter((m) => m.hasTimeline);
   if (projected.length === 0) return null;
 
   const bins = new Array<number>(BUCKETS).fill(0);

@@ -3,6 +3,7 @@ import type { LolAnalyticsService } from "./lol-analytics.service";
 import { LolController } from "./lol.controller";
 import type { LolService } from "./lol.service";
 import type { MatchBaselineService } from "./match-baseline.service";
+import type { MatchNarrativeService } from "./match-narrative.service";
 
 function makeController() {
   const lol = {
@@ -24,11 +25,13 @@ function makeController() {
     getPregameCalibration: vi.fn(),
   };
   const baseline = { getBaseline: vi.fn() };
+  const narrative = { getNarrativeWindow: vi.fn() };
   return {
     controller: new LolController(
       lol as unknown as LolService,
       analytics as unknown as LolAnalyticsService,
-      baseline as unknown as MatchBaselineService
+      baseline as unknown as MatchBaselineService,
+      narrative as unknown as MatchNarrativeService
     ),
     lol,
     analytics,
