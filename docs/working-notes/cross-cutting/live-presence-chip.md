@@ -176,6 +176,7 @@ Modified:
 - **Cold start spectator delay.** Riot's spectator endpoint can lag 60–120s behind actual game start. Document this — "Playing X" may appear up to 2 min after the queue accept.
 - **Privacy.** Public site, public data, owner consents. Future multi-user scenarios need consent UX.
 - **Cost.** A 30s cache + multiple page views = many spectator calls. Single Redis-cached upstream call would be the prod-quality answer; for now NodeCache or in-memory Map is fine until Redis lands.
+- **EventSource and auth — post-[owner-auth.md](../ops/owner-auth.md) consideration (2026-05-23).** The native `EventSource` constructor doesn't accept custom headers — only cookies are sent automatically. The Chunk 5 implementation should rely on same-origin cookie auth, which works as-is once owner-auth ships a session cookie. **Gotcha if changed:** if the SSE endpoint ever moves cross-origin (e.g. presence served from a separate edge worker) or starts requiring a header-based bearer token, `EventSource` is no longer sufficient — switch to the `fetch + ReadableStream + Last-Event-ID` parsing pattern (KB `15-realtime-state-forms.md` §1.2 — "this is what most production SSE clients do"). Same-origin cookie auth is the path of least resistance for this app; mention this only if the deployment shape changes.
 
 ---
 

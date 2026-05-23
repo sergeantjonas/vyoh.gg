@@ -450,6 +450,85 @@ Caveat:
 
 Overkill for current load. Relevant if client-side timeline parsing arrives.
 
+## State / realtime / forms — evaluated, no library added (2026-05-23)
+
+Surfaced from a `15-realtime-state-forms.md` KB refresh pass tracked in [frontend-2026-kb-refresh-queue.md](frontend-2026-kb-refresh-queue.md). Every library below was considered against the project's actual surfaces and parked with explicit triggers. The default state of the project is: **TanStack Query for server state, React state + Context for client state, SSE for one-way realtime push, no client form library, no sync engine.** This section exists so the same evaluation doesn't get re-run.
+
+### Client-state libraries — Zustand / Jotai / Valtio / Legend-State
+
+Status: parked
+
+What they cover: small client UI state with slices, persistence, derived/dependent state, selector-driven re-renders. KB §2.7 decision table.
+
+Why parked: The app has two app-level providers ([SplashProvider](../../../apps/web/src/lol/_shared/splash-backdrop.tsx), [CommandPaletteProvider](../../../apps/web/src/components/command-palette-provider.tsx)) — both small, low-rerender-rate, and well-served by Context. No surface today needs persisted + cross-component + selector-shaped state.
+
+When to reconsider:
+
+- A single surface needs **persisted + cross-component + selector-shaped state** — the canonical Zustand fit. Most likely candidate today: the daily-changing accent-color from [self-portrait-surfaces.md § Ambient / aesthetic responses](self-portrait-surfaces.md#ambient--aesthetic-responses-2026-05-14), if it persists client-side rather than nightly server-side. (It will likely persist server-side — Context still wins.)
+- A list-virtualization site needs **per-row atoms** to avoid re-rendering siblings on single-row updates — the canonical Jotai `splitAtom` fit. Match list currently uses `@tanstack/react-virtual` against derived data; no `splitAtom`-shaped need.
+- Game-loop-style mutation frequency where proxy ergonomics matter — Valtio's niche. Not in scope.
+- A direct preference for signals-as-the-programming-model — Legend-State v3 or Solid migration. Not on the table; project bet is React Compiler (per [frontend-2026-gaps.md Gap #2](frontend-2026-gaps.md)).
+
+Pick when triggered: **Zustand** for persistence + slices (smallest API, immer + persist cover 95%); **Jotai** for atom composition + suspense-native async; both per KB §2.7.
+
+### Form libraries — react-hook-form / Conform / TanStack Form
+
+Status: parked
+
+What they cover: client-side form validation, error display, server-action integration, multi-step wizards. KB §4.7 decision table.
+
+Why parked: No client forms exist. The cmdk command palette ([apps/web/src/components/command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx)) is the only "input" surface today. Upcoming form-shaped surfaces are single-button or OAuth-redirect, not form-library territory:
+
+- Status-page admin POST actions ([open-work.md § Status page admin surface](../open-work.md)) — single buttons with toast feedback, no form library.
+- Owner-auth GitHub OAuth flow ([owner-auth.md](../ops/owner-auth.md)) — redirect, no form.
+- API `ValidationPipe V3` ([open-work.md](../open-work.md)) — server-side, NestJS `class-validator` continues to be the right pick.
+
+When to reconsider:
+
+- A single surface lands with **≥3 validated fields** (match annotations, custom champion tags, multi-step admin action). Pick is then **react-hook-form + zod** — KB §4.7 row for "Large existing React app, Pages Router or non-Next" applies. Conform is rejected because there are no server actions in this stack (NestJS API + Vite SPA, not Next App Router / Remix).
+- **TanStack Form** is tempting because the rest of the stack is TanStack-everything (Router, Query, Virtual) — defer until **2+ surfaces** would benefit. Single-library inertia + ecosystem alignment isn't worth a new dep for one form.
+
+### Sync engines — Convex / Zero / Triplit / Jazz / InstantDB / ElectricSQL / TanStack DB
+
+Status: parked
+
+What they cover: local-first databases with sync, optimistic mutations, conflict resolution, multi-device + offline. KB §3 decision table.
+
+Why parked: vyoh.gg is **server-truth** — Riot API and Steam API are the authoritative data sources, and the app is read-only-portfolio framing. No offline-first stakes. Single-user. The "local DB on the device, sync in the background" pitch doesn't apply.
+
+When to reconsider — concrete triggers:
+
+- **Offline-first becomes a hard requirement.** Won't happen for the portfolio framing; would happen if a mobile companion app ships and needs to work on poor mobile networks.
+- **A multi-user shared-state surface lands.** Most plausible candidate: spectator viewing rooms (multiple users watching a single live game with shared annotations). Currently not in scope; flagged in [self-portrait-surfaces.md § What this is NOT — multi-user](self-portrait-surfaces.md) as out of scope.
+- **Collaborative annotations on matches** — owner + viewer comments on a match detail. Would require a sync model. Not on any current roadmap.
+
+Pick when triggered, per KB §3.10:
+
+- **Postgres backend already in place, want typed queries** (the project's shape if a sync engine ever lands) → **Zero** (Rocicorp, 1.0+ as of 2026) — query-based sync, lowest friction.
+- **Convex** if also willing to migrate domain logic — Convex is a full backend, not a client lib; it would replace NestJS, not augment it. Off the table.
+- **ElectricSQL** as alternative to Zero — shape-based sync, HTTP delivery, more mature ecosystem but currently in a reliability sprint.
+- **Yjs** for any rich-text editing slot (none today).
+
+### `persistQueryClient` (TanStack Query localStorage/IndexedDB hydration)
+
+Status: parked — superseded by Start migration loaders
+
+What it covers: hydrate the TanStack Query cache from localStorage/IndexedDB on boot, so cold loads show last-seen data immediately rather than shell-then-data.
+
+Why tempting: the app is CSR; cold loads currently show the SPA shell before any data. `persistQueryClient` is ~30 lines of wire-up and would give "instant last-seen profile" on revisit.
+
+Why parked: [tanstack-start-migration.md](tanstack-start-migration.md) (parked structural arc) ships server-side loaders that prime the cache on first render — strictly better than client-side hydration (no cache-key version-drift, no localStorage 5MB quota, no flash of stale data). Adding `persistQueryClient` now would be replaced when Start lands.
+
+When to reconsider:
+
+- The Start migration is descoped or deferred indefinitely. Then `persistQueryClient` becomes the right call (the IndexedDB persister, not localStorage — the cache will exceed 5MB).
+
+### EventSource (Web API, not a library) — auth gotcha for post-owner-auth
+
+Status: ship as planned in [live-presence-chip.md](live-presence-chip.md)
+
+Note for post-owner-auth: the native `EventSource` constructor doesn't support custom headers. Once [owner-auth.md](../ops/owner-auth.md) lands, the SSE consumer either continues to rely on cookie auth (same-origin, works as-is) or switches to the `fetch + ReadableStream + Last-Event-ID` pattern (KB §1.2 "this is what most production SSE clients do"). The chip plan already pairs with same-origin cookie auth; this only becomes a gotcha if the SSE endpoint ever moves cross-origin or needs a header-based bearer token. Documented in [live-presence-chip.md § Risks](live-presence-chip.md) for Chunk 5.
+
 ## Evaluated alternatives — kept current stack (2026-05-23)
 
 These libraries surfaced during a "what's popular in 2026 web dev" sweep. None should be added; this section exists so the same evaluation doesn't get re-run next quarter.

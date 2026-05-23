@@ -65,22 +65,19 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 | 12 | security | ⏸️ skip (spec-driven) | — | CSP, Trusted Types, SBOM, provenance. Citation refresh when OWASP top 10 updates. |
 | 13 | seo | ⏸️ light refresh worth doing | — | AI crawler landscape (ChatGPT-Search, Perplexity, ClaudeBot tokens) shifts faster than W3C specs. Not Tier 1 because the moves are small and additive, but worth a 30-min sweep when convenient. |
 | 14 | observability | ⏸️ deferred | — | Sentry / PostHog space stable. New entrants (Highlight, OpenReplay, Datadog RUM evolution) worth a note but lower variance. |
-| 15 | realtime-state-forms | 🔴 **Tier 1 — do first** | — | **Biggest unfinished one.** Local-first / sync-engine space is the hottest area in 2026: TanStack DB (launched 2025), Electric SQL, InstantDB, Convex, Triplit, Jazz, Y.js, Automerge — overlapping pitches, real architectural lock-in, easy to pick wrong. Realtime transport (SSE vs WebSocket vs WebTransport) shifting as WebTransport Safari support lands. State libs (Zustand / Jotai / Valtio / Legend-State) need a 2026 slot-matrix. Highest variance in cost-of-wrong-decision. |
+| 15 | realtime-state-forms | ✅ refreshed | 2026-05-23 | Project-first sweep + KB refresh. Project outputs: Gap #14 (per-query `staleTime: Infinity` for patch-keyed static metadata), library-shortlist State/realtime/forms section (Zustand/Jotai/Valtio/Legend-State, RHF/Conform/TanStack Form, sync engines all parked with triggers), live-presence-chip EventSource auth gotcha, tanstack-start-migration persistQueryClient alternative. KB outputs: §1.2 EventSource header-auth gotcha + fetch/ReadableStream fallback, §2.1 persistQueryClient-vs-SSR-loaders trade-off, §2.6 Legend-State v3 entry, §2.7 decision-table row + sharpened "loses when" notes, §3.9–§3.13 new entries (Convex promoted, InstantDB, Triplit, Jazz + PowerSync/Loro/TinyBase one-liners), §3.15 decision-table rows for all new entries. |
 | 16 | web-platform-apis | ⏸️ skip (spec-driven) | — | WebGPU, View Transitions, OPFS, WebTransport. Citation refresh when major browser ships a new capability. |
 | 17 | cross-platform-edge-auth | 🔵 **Tier 2** | — | Tauri 2.x, Expo SDK 53+, Capacitor 7, Better Auth maturity, passkeys-everywhere status. Edge platforms (Cloudflare Workers vs Vercel Functions vs Deno Deploy vs Bun + Hetzner) deserve a per-shape picker like the one in README. Pick up naturally when this project's owner-auth working note gets reopened — natural timing. |
 
 ## Suggested order
 
-1. **15 — realtime-state-forms** *(Tier 1)*
-   The local-first / sync-engine landscape changes monthly and the cost of picking the wrong sync engine (e.g. committing to Electric SQL then needing Convex's reactivity model, or building on Zustand-as-server-state when TanStack Query is the right slot) is days-to-weeks of refactor. Start here.
+1. **05 — frameworks** *(Tier 1)*
+   Now top of queue after 15 landed 2026-05-23. The sync-engine ranking from 15 is fresh, so this is the right moment to refresh meta-framework picks (Next 16 PPR maturity, TanStack Start 1.x, RedwoodSDK / Smith, Waku, Million.js, Astro-for-content). "Which framework integrates cleanly with which sync engine" pairs naturally with 15's output.
 
-2. **05 — frameworks** *(Tier 1)*
-   Pairs naturally with 15 because realtime architecture interacts with SSR boundary (RSC + sync engines, hydration cost on collaborative surfaces). Meta-framework picks compound — refresh after 15 so the sync-engine ranking is fresh when evaluating "which framework integrates cleanly with which sync engine."
+2. **07 — build-tooling** *(Tier 1)*
+   Independent of 05, lower stakes, easy win. Good "fresh-context" session — doesn't need 05 loaded.
 
-3. **07 — build-tooling** *(Tier 1)*
-   Independent of 15/05, lower stakes, easy win. Good "fresh-context" session — doesn't need 15 or 05 loaded.
-
-4. **17 — cross-platform-edge-auth** *(Tier 2)*
+3. **17 — cross-platform-edge-auth** *(Tier 2)*
    Pick up opportunistically when [owner-auth.md](owner-auth.md) gets reopened or the [hosting.md](hosting.md) decisions firm up. Don't do it speculatively.
 
 5. **10 — testing** *(Tier 2)*

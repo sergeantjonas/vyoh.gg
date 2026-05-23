@@ -24,6 +24,8 @@ The frontend-2026 knowledge base's migration-cost ladder rates **"Vite + React S
 
 Alternatives considered and rejected: **Astro** (cost 3, requires rewriting the SPA shell, kills the dashboard-shaped programming model); **React Router 7 Framework Mode** (cost 2, weaker typed search-params story than current TanStack Router, would also lose typed loader inference we'd gain from Start); **Next.js 16** (overkill, App Router migration is medium-to-hard, no RSC story we actually need for chart-heavy interactive surfaces).
 
+Also considered and rejected as a non-SSR mitigation: **`persistQueryClient`** (TanStack Query localStorage/IndexedDB hydration on boot). It would give "instant last-seen data on cold load" without an SSR migration, and is ~30 lines of wire-up. Rejected because server-side loaders are strictly better at the same goal (no cache-key version-drift, no localStorage 5MB quota, no flash of stale data) and adding it now would be replaced by chunk 4. If this migration is ever descoped or deferred indefinitely, revisit `persistQueryClient` as the consolation prize. Parked entry in [library-shortlist.md § persistQueryClient](library-shortlist.md).
+
 ## What changes architecturally
 
 **Entry contract changes; route components don't.** The delta is at the boundary:
