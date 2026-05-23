@@ -403,12 +403,18 @@ model LolItem {
 // and `championName`, so `id` matches Riot's championKey int. `alias` is
 // the DDragon string id used in icon URL paths (e.g. "MonkeyKing"); `name`
 // is the wiki display name ("Wukong"). `roles` are the DDragon `tags`
-// array (Fighter/Tank/Mage/Marksman/Assassin/Support).
+// array (Fighter/Tank/Mage/Marksman/Assassin/Support) — legacy taxonomy
+// that DDragon hasn't updated. `modernClasses` and `modernSubclasses`
+// carry Riot's current wiki-canonical taxonomy (Slayer/Controller/
+// Specialist + Burst/Skirmisher/Enchanter/etc.) inverted from wiki's
+// `Category:<Class>_champion` / `Category:<Subclass>_champion` pages.
 model LolChampion {
   id                     Int      @id
   alias                  String   @unique
   name                   String   @unique
   roles                  Json     @default("[]")
+  modernClasses          Json     @default("[]")
+  modernSubclasses       Json     @default("[]")
   ddragonSyncedAt        DateTime
   wikiSyncedAt           DateTime?
   wikiSyncedPatchVersion String?

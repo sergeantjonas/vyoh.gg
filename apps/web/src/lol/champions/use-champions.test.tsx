@@ -19,10 +19,38 @@ function makeWrapper() {
 }
 
 const CHAMPIONS = [
-  { id: -1, alias: "None", name: "None", roles: [] },
-  { id: 1, alias: "JarvanIV", name: "Jarvan IV", roles: ["jungler"] },
-  { id: 2, alias: "MonkeyKing", name: "Wukong", roles: ["jungler", "fighter"] },
-  { id: 3, alias: "Ahri", name: "Ahri", roles: ["mage"] },
+  {
+    id: -1,
+    alias: "None",
+    name: "None",
+    roles: [],
+    modernClasses: [],
+    modernSubclasses: [],
+  },
+  {
+    id: 1,
+    alias: "JarvanIV",
+    name: "Jarvan IV",
+    roles: ["jungler"],
+    modernClasses: ["Fighter"],
+    modernSubclasses: ["Diver"],
+  },
+  {
+    id: 2,
+    alias: "MonkeyKing",
+    name: "Wukong",
+    roles: ["jungler", "fighter"],
+    modernClasses: ["Slayer"],
+    modernSubclasses: ["Skirmisher"],
+  },
+  {
+    id: 3,
+    alias: "Ahri",
+    name: "Ahri",
+    roles: ["mage"],
+    modernClasses: ["Mage"],
+    modernSubclasses: ["Burst"],
+  },
 ];
 
 beforeEach(() => {
@@ -72,6 +100,10 @@ describe("useChampionInfo", () => {
     });
     await waitFor(() => expect(result.current?.name).toBe("Ahri"));
     expect(result.current?.roles).toEqual(["mage"]);
+    // Modern taxonomy fields flow through from the bundle untouched —
+    // wiki classifies Ahri as Mage/Burst, not DDragon's Mage/Assassin.
+    expect(result.current?.modernClasses).toEqual(["Mage"]);
+    expect(result.current?.modernSubclasses).toEqual(["Burst"]);
   });
 
   it("returns undefined for an unknown alias", async () => {

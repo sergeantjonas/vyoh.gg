@@ -77,20 +77,35 @@ export const ROLE_POSITION_SLUGS = [
 export type RolePositionSlug = (typeof ROLE_POSITION_SLUGS)[number];
 
 // Champion-class slugs — lowercase DDragon `tags` values. The modern wiki
-// taxonomy maps `assassin` → Slayer (now an umbrella with Assassin +
-// Skirmisher subclasses) and `support` → Controller; the rename lives inside
-// `wikiClassIconUrl` so the slug remains aligned with the DDragon data we
-// ingest. The modern `Specialist` class has no DDragon tag and is therefore
-// not in this set.
+// taxonomy fed by `LolChampion.modernClasses` (wiki category-page inversion
+// in `LolStaticSyncService.syncChampionClasses`). DDragon's legacy `tags`
+// (assassin/support) are NOT valid slugs here — Slayer replaced Assassin
+// as a parent class and Controller replaced Support. Specialist is the
+// 7th modern class with no DDragon equivalent and only resolves on wiki.
 export const CHAMPION_CLASS_SLUGS = [
   "fighter",
   "mage",
   "marksman",
   "tank",
-  "assassin",
-  "support",
+  "slayer",
+  "controller",
+  "specialist",
 ] as const;
 export type ChampionClassSlug = (typeof CHAMPION_CLASS_SLUGS)[number];
+
+// CDragon's `npe-ft-role-icon-{slug}.png` set predates Riot's taxonomy
+// rename and still ships under the legacy slug names. Map the modern slug
+// to its closest legacy CDragon bucket for the proxy fallback; Specialist
+// is wiki-only because CDragon never had an equivalent.
+const MODERN_CLASS_TO_LEGACY_CDRAGON: Record<ChampionClassSlug, string | null> = {
+  fighter: "fighter",
+  mage: "mage",
+  marksman: "marksman",
+  tank: "tank",
+  slayer: "assassin",
+  controller: "support",
+  specialist: null,
+};
 
 export interface Resolved {
   // Upstream URLs to try in order; first 2xx wins. Single-element for sources
@@ -484,14 +499,17 @@ export class LolImageService {
     return { urls, params: { width: 64, quality: 85 } };
   }
 
-  // Champion-class icon (Fighter/Mage/Tank/etc.) — wiki primary with the
-  // legacy CDragon `npe-ft-role-icon-{slug}.png` as fallback. The slug uses
-  // DDragon's pre-rename names (assassin, support); `wikiClassIconUrl`
-  // translates internally to wiki's modern Slayer/Controller titles.
+  // Champion-class icon (Fighter/Mage/Slayer/Controller/etc.) — wiki
+  // primary with a legacy CDragon `npe-ft-role-icon-{slug}.png` fallback
+  // where one exists. Slayer → cdragon `assassin`, Controller → `support`;
+  // Specialist has no CDragon equivalent and is wiki-only.
   champClass(slug: ChampionClassSlug): Resolved {
     const wikiUrl = wikiClassIconUrl(slug);
-    const cdragonUrl = `${CDRAGON_STATIC_ASSETS}/npe-ft-role-icon-${slug}.png`;
-    const urls = wikiUrl ? [wikiUrl, cdragonUrl] : [cdragonUrl];
+    const cdragonSlug = MODERN_CLASS_TO_LEGACY_CDRAGON[slug];
+    const cdragonUrl = cdragonSlug
+      ? `${CDRAGON_STATIC_ASSETS}/npe-ft-role-icon-${cdragonSlug}.png`
+      : null;
+    const urls = [wikiUrl, cdragonUrl].filter((u): u is string => u !== null);
     return { urls, params: { width: 64, quality: 85 } };
   }
 }

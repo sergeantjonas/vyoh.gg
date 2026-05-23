@@ -150,26 +150,21 @@ export function wikiRoleIconUrl(positionSlug: string): string | null {
   return `${WIKI_IMAGES}/${title}_icon.png`;
 }
 
-// Champion-class icons (Riot's archetype taxonomy — Fighter/Mage/Tank/etc.)
-// indexed alongside the role icons in wiki's `Category:Role_icons`. Slugs are
-// the lowercase DDragon `tags` stored on `LolChampion.roles`. Riot's modern
-// taxonomy (wiki-canonical) reorganised two top-level slots that DDragon
-// still ships under the old names:
-//   - `assassin` is mapped to **Slayer** — the modern umbrella class that
-//     subsumes both the Assassin and Skirmisher subclasses. DDragon's tag is
-//     the closest legacy proxy.
-//   - `support` is mapped to **Controller** — the modern name for the
-//     defensive-caster class. "Support" is now used for the lane position,
-//     not the class.
-// `Specialist` is a modern wiki class without a DDragon tag equivalent, so
-// it has no slug here.
+// Champion-class icons (Riot's modern 7-class taxonomy — Fighter/Mage/
+// Marksman/Tank/Slayer/Controller/Specialist) indexed alongside the role
+// icons in wiki's `Category:Role_icons`. Slugs are the lowercase modern
+// class name fed from `LolChampion.modernClasses` (wiki category-page
+// inversion in `LolStaticSyncService.syncChampionClasses`). DDragon's
+// legacy `tags` (assassin/support) are intentionally not accepted here —
+// callers should source modern slugs from the bundle's `modernClasses`.
 const CLASS_WIKI_TITLE: Record<string, string> = {
   fighter: "Fighter",
   mage: "Mage",
   marksman: "Marksman",
   tank: "Tank",
-  assassin: "Slayer",
-  support: "Controller",
+  slayer: "Slayer",
+  controller: "Controller",
+  specialist: "Specialist",
 };
 
 export function wikiClassIconUrl(classSlug: string): string | null {

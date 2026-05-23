@@ -31,7 +31,16 @@ describe("useChampionSpells", () => {
 
   it("maps the bundle abilities to Q/W/E/R identity rows with wiki icon URLs", async () => {
     mockLolStaticFetch({
-      champions: [{ id: 103, alias: "Ahri", name: "Ahri", roles: ["mage"] }],
+      champions: [
+        {
+          id: 103,
+          alias: "Ahri",
+          name: "Ahri",
+          roles: ["mage"],
+          modernClasses: ["Mage"],
+          modernSubclasses: ["Burst"],
+        },
+      ],
       championAbilities: {
         103: [
           {
@@ -92,7 +101,16 @@ describe("useChampionSpells", () => {
 
   it("resolves the champion by Riot alias as well as display name", async () => {
     mockLolStaticFetch({
-      champions: [{ id: 62, alias: "MonkeyKing", name: "Wukong", roles: [] }],
+      champions: [
+        {
+          id: 62,
+          alias: "MonkeyKing",
+          name: "Wukong",
+          roles: [],
+          modernClasses: [],
+          modernSubclasses: [],
+        },
+      ],
       championAbilities: {
         62: [
           {
@@ -119,7 +137,16 @@ describe("useChampionSpells", () => {
 
   it("returns undefined for an unknown champion name", async () => {
     mockLolStaticFetch({
-      champions: [{ id: 1, alias: "Annie", name: "Annie", roles: [] }],
+      champions: [
+        {
+          id: 1,
+          alias: "Annie",
+          name: "Annie",
+          roles: [],
+          modernClasses: [],
+          modernSubclasses: [],
+        },
+      ],
       championAbilities: {},
     });
     const { result } = renderHook(() => useChampionSpells("DoesNotExist"), {

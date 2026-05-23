@@ -223,6 +223,7 @@ interface PrismaStubs {
   lolChampion: {
     upsert: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
   lolChampionAbility: {
     deleteMany: ReturnType<typeof vi.fn>;
@@ -257,6 +258,7 @@ function makePrisma(): PrismaStubs {
     lolChampion: {
       upsert: vi.fn().mockResolvedValue({}),
       findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     lolChampionAbility: {
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -301,6 +303,12 @@ function wikiModuleResponse(content: string): Response {
     query: {
       pages: [{ revisions: [{ slots: { main: { content } } }] }],
     },
+  });
+}
+
+function wikiCategoryResponse(titles: string[]): Response {
+  return jsonResponse({
+    query: { categorymembers: titles.map((title) => ({ title })) },
   });
 }
 
@@ -728,6 +736,156 @@ return {
     });
   });
 
+  it("syncChampionClasses: inverts wiki category pages to per-champion modernClasses + modernSubclasses, rolling subclasses up to the parent class", async () => {
+    const prisma = makePrisma();
+    // The sync issues 11 subclass fetches (Burst/Battlemage/Artillery →
+    // Mage; Juggernaut/Diver → Fighter; Vanguard/Warden → Tank;
+    // Assassin/Skirmisher → Slayer; Catcher/Enchanter → Controller) and
+    // 2 direct class fetches (Marksman, Specialist). Order matches the
+    // Object.entries iteration in the implementation, which is
+    // insertion-order on the SUBCLASS_TO_PARENT_CLASS literal. Each
+    // category is populated with a representative champion so we can
+    // assert the modern shape on the resulting updateMany call.
+    const categoriesInOrder = [
+      ["Ahri"], // Burst -> Mage
+      ["Cassiopeia"], // Battlemage -> Mage
+      ["Xerath"], // Artillery -> Mage
+      ["Darius"], // Juggernaut -> Fighter
+      ["Camille"], // Diver -> Fighter
+      ["Leona"], // Vanguard -> Tank
+      ["Braum"], // Warden -> Tank
+      ["Zed"], // Assassin -> Slayer
+      ["Wukong"], // Skirmisher -> Slayer
+      ["Thresh"], // Catcher -> Controller
+      ["Lulu"], // Enchanter -> Controller
+      ["Ashe"], // Marksman (direct)
+      ["Heimerdinger"], // Specialist (direct)
+    ];
+    for (const titles of categoriesInOrder) {
+      fetchSpy.mockResolvedValueOnce(wikiCategoryResponse(titles));
+    }
+
+    const written = await makeService(prisma).syncChampionClasses();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(13);
+    expect(written).toBe(13);
+    expect(prisma.lolChampion.updateMany).toHaveBeenCalledTimes(13);
+
+    const updates = prisma.lolChampion.updateMany.mock.calls.map(([c]) => ({
+      name: c.where.name,
+      classes: c.data.modernClasses,
+      subclasses: c.data.modernSubclasses,
+    }));
+
+    // Subclass champions get the rolled-up parent class plus the subclass slug.
+    expect(updates).toContainEqual({
+      name: "Ahri",
+      classes: ["Mage"],
+      subclasses: ["burst"],
+    });
+    expect(updates).toContainEqual({
+      name: "Wukong",
+      classes: ["Slayer"],
+      subclasses: ["skirmisher"],
+    });
+    expect(updates).toContainEqual({
+      name: "Leona",
+      classes: ["Tank"],
+      subclasses: ["vanguard"],
+    });
+    // Direct-class champions get the class with no subclass.
+    expect(updates).toContainEqual({
+      name: "Ashe",
+      classes: ["Marksman"],
+      subclasses: [],
+    });
+    expect(updates).toContainEqual({
+      name: "Heimerdinger",
+      classes: ["Specialist"],
+      subclasses: [],
+    });
+  });
+
+  it("syncChampionClasses: a champion appearing in multiple subclass categories ends up with one parent class + multiple subclasses", async () => {
+    const prisma = makePrisma();
+    // Drop Ahri into both Burst and Battlemage to exercise the set merge.
+    // Both subclasses roll up to the same parent (Mage), so the parent
+    // class set has size 1 while the subclass set has size 2.
+    const categoriesInOrder: string[][] = [
+      ["Ahri"], // Burst -> Mage
+      ["Ahri"], // Battlemage -> Mage
+      [], // Artillery
+      [], // Juggernaut
+      [], // Diver
+      [], // Vanguard
+      [], // Warden
+      [], // Assassin
+      [], // Skirmisher
+      [], // Catcher
+      [], // Enchanter
+      [], // Marksman
+      [], // Specialist
+    ];
+    for (const titles of categoriesInOrder) {
+      fetchSpy.mockResolvedValueOnce(wikiCategoryResponse(titles));
+    }
+
+    await makeService(prisma).syncChampionClasses();
+
+    expect(prisma.lolChampion.updateMany).toHaveBeenCalledTimes(1);
+    const [call] = prisma.lolChampion.updateMany.mock.calls[0] ?? [];
+    expect(call).toEqual({
+      where: { name: "Ahri" },
+      data: { modernClasses: ["Mage"], modernSubclasses: ["battlemage", "burst"] },
+    });
+  });
+
+  it("syncChampionClasses: one category fetch failure does not abort the batch", async () => {
+    const prisma = makePrisma();
+    // First call (Burst) rejects; the remaining 12 succeed. The Ahri
+    // update is dropped (Burst was its only category), but later
+    // champions still land their writes.
+    fetchSpy.mockRejectedValueOnce(new Error("wiki 503"));
+    const remaining: string[][] = [
+      [], // Battlemage
+      [], // Artillery
+      [], // Juggernaut
+      [], // Diver
+      [], // Vanguard
+      [], // Warden
+      [], // Assassin
+      ["Wukong"], // Skirmisher -> Slayer
+      [], // Catcher
+      [], // Enchanter
+      ["Ashe"], // Marksman
+      [], // Specialist
+    ];
+    for (const titles of remaining) {
+      fetchSpy.mockResolvedValueOnce(wikiCategoryResponse(titles));
+    }
+
+    const written = await makeService(prisma).syncChampionClasses();
+    expect(written).toBe(2);
+    expect(prisma.lolChampion.updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("syncChampionClasses: champion-name pages with no matching LolChampion row are skipped (updateMany.count=0)", async () => {
+    const prisma = makePrisma();
+    // updateMany returns { count: 0 } when no row matches — e.g. wiki has
+    // a category entry for a champion DDragon hasn't shipped yet. The
+    // `written` counter excludes these so we don't claim writes that
+    // never happened.
+    prisma.lolChampion.updateMany.mockResolvedValue({ count: 0 });
+    fetchSpy.mockResolvedValueOnce(wikiCategoryResponse(["UnknownChamp"]));
+    for (let i = 1; i < 13; i++) {
+      fetchSpy.mockResolvedValueOnce(wikiCategoryResponse([]));
+    }
+
+    const written = await makeService(prisma).syncChampionClasses();
+    expect(written).toBe(0);
+    expect(prisma.lolChampion.updateMany).toHaveBeenCalledTimes(1);
+  });
+
   it("syncChampionAbilityDescriptions: fetches Template:Data X/Y per ability, renders HTML, and updates the row", async () => {
     const prisma = makePrisma();
     prisma.lolChampionAbility.findMany.mockResolvedValueOnce([
@@ -1017,6 +1175,8 @@ return {
         alias: "MonkeyKing",
         name: "Wukong",
         roles: ["Fighter"],
+        modernClasses: ["Slayer"],
+        modernSubclasses: ["skirmisher"],
         ddragonSyncedAt: ddragonLate,
         wikiSyncedAt: wikiEarly,
         wikiSyncedPatchVersion: "26.10",
@@ -1112,7 +1272,14 @@ return {
     expect(bundle.patchVersion).toBe("26.10");
     expect(bundle.syncedAt).toBe(wikiLate.toISOString());
     expect(bundle.champions).toEqual([
-      { id: 62, alias: "MonkeyKing", name: "Wukong", roles: ["Fighter"] },
+      {
+        id: 62,
+        alias: "MonkeyKing",
+        name: "Wukong",
+        roles: ["Fighter"],
+        modernClasses: ["Slayer"],
+        modernSubclasses: ["skirmisher"],
+      },
     ]);
     // Abilities indexed by championId, in the order returned by prisma
     // (caller sorts by slot then abilityIndex via orderBy clause).

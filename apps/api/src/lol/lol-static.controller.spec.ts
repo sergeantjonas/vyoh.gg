@@ -12,7 +12,16 @@ describe("LolStaticController", () => {
     const bundle: LolStaticBundle = {
       patchVersion: "26.10",
       syncedAt: "2026-05-21T00:00:00.000Z",
-      champions: [{ id: 62, alias: "MonkeyKing", name: "Wukong", roles: ["Fighter"] }],
+      champions: [
+        {
+          id: 62,
+          alias: "MonkeyKing",
+          name: "Wukong",
+          roles: ["Fighter"],
+          modernClasses: ["Fighter"],
+          modernSubclasses: ["Skirmisher"],
+        },
+      ],
       championAbilities: { 62: [] },
       items: [],
       summonerSpells: [],

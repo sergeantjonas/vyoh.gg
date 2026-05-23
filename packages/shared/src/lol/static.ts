@@ -34,8 +34,19 @@ export interface LolChampionDto {
   // Wiki display name (e.g. "Wukong"). Use this when rendering user-facing
   // labels.
   name: string;
-  // DDragon `tags` (Fighter/Tank/Mage/Marksman/Assassin/Support).
+  // DDragon `tags` (Fighter/Tank/Mage/Marksman/Assassin/Support) — legacy
+  // 6-class taxonomy. Retained because Match-V5 + lane-assignment math
+  // still keys on these slugs.
   roles: string[];
+  // Riot's modern 7-class taxonomy inverted from wiki category pages
+  // (Slayer/Controller/Specialist + 4 unchanged). Surfaced for UI; the
+  // wiki rename means e.g. Ahri's modern parent is `Mage` (subclass
+  // `Burst`) where DDragon's `tags` still lists `Mage, Assassin`.
+  modernClasses: string[];
+  // Riot's modern subclass taxonomy (Burst, Skirmisher, Enchanter, etc.).
+  // Empty for champions whose modern class has no subclass tier
+  // (Marksman, Specialist). See SUBCLASS_TO_PARENT_CLASS in the api sync.
+  modernSubclasses: string[];
 }
 
 export interface LolChampionAbilityDto {

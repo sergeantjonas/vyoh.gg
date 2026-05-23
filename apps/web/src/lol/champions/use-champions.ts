@@ -8,6 +8,8 @@ export interface ChampionInfo {
   alias: string;
   name: string;
   roles: string[];
+  modernClasses: string[];
+  modernSubclasses: string[];
 }
 
 function buildChampionsMap(bundle: LolStaticBundle): Map<string, ChampionInfo> {
@@ -16,7 +18,14 @@ function buildChampionsMap(bundle: LolStaticBundle): Map<string, ChampionInfo> {
       .filter((c) => c.id !== -1)
       .map((c) => [
         c.alias.toLowerCase(),
-        { id: c.id, alias: c.alias, name: c.name, roles: c.roles },
+        {
+          id: c.id,
+          alias: c.alias,
+          name: c.name,
+          roles: c.roles,
+          modernClasses: c.modernClasses,
+          modernSubclasses: c.modernSubclasses,
+        },
       ])
   );
 }

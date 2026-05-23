@@ -59,6 +59,40 @@ interface WikiModuleResponse {
   };
 }
 
+interface WikiCategoryMembersResponse {
+  query?: {
+    categorymembers?: Array<{ title: string }>;
+  };
+}
+
+// Riot's modern champion taxonomy lives in wiki category pages, not in
+// DDragon (which still ships the legacy 6-tag set on `tags`). Subclasses
+// roll up to a single parent class; both Marksman and Specialist have no
+// subclass tier and are queried directly. Mapping is editorial — wiki
+// owns the source of truth for class boundaries, so this is the static
+// invariant we encode. See docs/working-notes/lol/lol-static-metadata.md.
+const SUBCLASS_TO_PARENT_CLASS: Record<string, string> = {
+  burst: "Mage",
+  battlemage: "Mage",
+  artillery: "Mage",
+  juggernaut: "Fighter",
+  diver: "Fighter",
+  vanguard: "Tank",
+  warden: "Tank",
+  assassin: "Slayer",
+  skirmisher: "Slayer",
+  catcher: "Controller",
+  enchanter: "Controller",
+};
+
+// Modern classes with no subclass tier — queried directly via their own
+// category page rather than rolled up from subclasses.
+const DIRECT_MODERN_CLASSES = ["Marksman", "Specialist"] as const;
+
+function titleCase(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
 @Injectable()
 export class LolStaticSyncService {
   private readonly logger = new Logger(LolStaticSyncService.name);
@@ -89,6 +123,7 @@ export class LolStaticSyncService {
     patchVersion: string;
     items: number;
     champions: number;
+    modernClasses: number;
     summonerSpells: number;
     perks: number;
     profileIcons: number;
@@ -105,19 +140,23 @@ export class LolStaticSyncService {
     // remains as a manual warmup entry point for offline backfill jobs.
     const items = await this.syncItems(patchVersion);
     const champions = await this.syncChampionsAndAbilities(ddragonVersion, patchVersion);
+    // Must run after champion rows exist — keyed on `name` (display name).
+    const modernClasses = await this.syncChampionClasses();
     const summonerSpells = await this.syncSummonerSpells(ddragonVersion);
     const perks = await this.syncPerks(ddragonVersion);
     const profileIcons = await this.syncProfileIcons();
 
     this.logger.log(
       `Static sync ${patchVersion}: items=${items}, champions=${champions}, ` +
-        `summonerSpells=${summonerSpells}, perks=${perks}, profileIcons=${profileIcons}`
+        `modernClasses=${modernClasses}, summonerSpells=${summonerSpells}, ` +
+        `perks=${perks}, profileIcons=${profileIcons}`
     );
 
     return {
       patchVersion,
       items,
       champions,
+      modernClasses,
       summonerSpells,
       perks,
       profileIcons,
@@ -317,6 +356,94 @@ export class LolStaticSyncService {
           ]
         : []),
     ]);
+  }
+
+  // Inverts wiki's per-class/per-subclass category pages into per-champion
+  // modern taxonomy rows. DDragon still ships the legacy 6-tag `tags` set
+  // on `champion.json`; the modern 7-class + 11-subclass taxonomy only
+  // exists as wiki category memberships. ~13 categorymembers calls per
+  // tick (11 subclasses + Marksman + Specialist) — each returns ~10-30
+  // pages, well under the default 500-item categorymembers limit. Must
+  // run after `syncChampionsAndAbilities` since `updateMany` keys on the
+  // champion's display name (= wiki page title).
+  async syncChampionClasses(): Promise<number> {
+    type CategoryResult = {
+      className: string;
+      subclass: string | null;
+      titles: string[];
+    };
+
+    const fetches: Promise<CategoryResult>[] = [];
+    for (const [subclass, parent] of Object.entries(SUBCLASS_TO_PARENT_CLASS)) {
+      const title = `Category:${titleCase(subclass)}_champion`;
+      fetches.push(
+        this.fetchWikiCategoryMembers(title).then((titles) => ({
+          className: parent,
+          subclass,
+          titles,
+        }))
+      );
+    }
+    for (const className of DIRECT_MODERN_CLASSES) {
+      const title = `Category:${className}_champion`;
+      fetches.push(
+        this.fetchWikiCategoryMembers(title).then((titles) => ({
+          className,
+          subclass: null,
+          titles,
+        }))
+      );
+    }
+
+    const results = await Promise.allSettled(fetches);
+
+    const byChampion = new Map<
+      string,
+      { classes: Set<string>; subclasses: Set<string> }
+    >();
+    for (const r of results) {
+      if (r.status !== "fulfilled") {
+        this.logger.warn(
+          "Champion-class category fetch failed",
+          r.reason instanceof Error ? r.reason.message : r.reason
+        );
+        continue;
+      }
+      const { className, subclass, titles } = r.value;
+      for (const title of titles) {
+        let entry = byChampion.get(title);
+        if (!entry) {
+          entry = { classes: new Set(), subclasses: new Set() };
+          byChampion.set(title, entry);
+        }
+        entry.classes.add(className);
+        if (subclass) entry.subclasses.add(subclass);
+      }
+    }
+
+    let written = 0;
+    for (const [name, entry] of byChampion) {
+      try {
+        const res = await this.prisma.lolChampion.updateMany({
+          where: { name },
+          data: {
+            modernClasses: [...entry.classes].sort(),
+            modernSubclasses: [...entry.subclasses].sort(),
+          },
+        });
+        // updateMany returns { count }; champion-name pages that don't
+        // resolve to a row (wiki has a champion page we don't ingest yet,
+        // or a category title that isn't a champion at all) are skipped
+        // silently.
+        if (res.count > 0) written++;
+      } catch (err) {
+        this.logger.warn(
+          `Champion-class update failed for ${name}`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
+    return written;
   }
 
   async syncSummonerSpells(ddragonVersion: string): Promise<number> {
@@ -569,6 +696,12 @@ export class LolStaticSyncService {
         alias: c.alias,
         name: c.name,
         roles: Array.isArray(c.roles) ? (c.roles as string[]) : [],
+        modernClasses: Array.isArray(c.modernClasses)
+          ? (c.modernClasses as string[])
+          : [],
+        modernSubclasses: Array.isArray(c.modernSubclasses)
+          ? (c.modernSubclasses as string[])
+          : [],
       })),
       championAbilities,
       items: items.map<LolItemDto>((i) => ({
@@ -853,6 +986,27 @@ export class LolStaticSyncService {
     const content = body.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
     if (!content) throw new Error(`wiki ${title} had no content`);
     return content;
+  }
+
+  // Returns the main-namespace page titles in a wiki category. Used by
+  // `syncChampionClasses` to invert the modern class/subclass taxonomy
+  // (cmnamespace=0 filters out file/template pages co-categorised with
+  // the champion pages). `cmlimit=500` is the API's max single-page
+  // return; champion-class categories carry at most ~30 entries so we
+  // never need to paginate.
+  private async fetchWikiCategoryMembers(categoryTitle: string): Promise<string[]> {
+    const url = new URL(WIKI_API);
+    url.searchParams.set("action", "query");
+    url.searchParams.set("list", "categorymembers");
+    url.searchParams.set("cmtitle", categoryTitle);
+    url.searchParams.set("cmnamespace", "0");
+    url.searchParams.set("cmlimit", "500");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("formatversion", "2");
+    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    if (!res.ok) throw new Error(`wiki ${categoryTitle} HTTP ${res.status}`);
+    const body = (await res.json()) as WikiCategoryMembersResponse;
+    return (body.query?.categorymembers ?? []).map((m) => m.title);
   }
 }
 
