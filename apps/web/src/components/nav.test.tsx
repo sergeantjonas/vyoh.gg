@@ -18,22 +18,30 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
     search,
+    params,
     children,
     className,
     ...rest
   }: {
     to?: string;
     search?: Record<string, string>;
+    params?: Record<string, string>;
     children: ReactNode;
     className?: string;
     [key: string]: unknown;
   }) => {
+    let href = to ?? "";
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        href = href.replace(`$${key}`, value);
+      }
+    }
     const qs =
       search && Object.keys(search).length > 0
         ? `?${new URLSearchParams(search).toString()}`
         : "";
     return (
-      <a href={`${to ?? ""}${qs}`} className={className} {...(rest as object)}>
+      <a href={`${href}${qs}`} className={className} {...(rest as object)}>
         {children}
       </a>
     );
@@ -71,13 +79,26 @@ function renderNav() {
   );
 }
 
+// NavigationMenu opens on the trigger's pointer-move sequence; click alone
+// is insufficient because Radix gates open on a hover heuristic. The same
+// pointerDown→pointerUp→click ordering worked for DropdownMenu/Popover, so
+// we keep it for compatibility with both menu kinds the suite exercises.
+function openLolMenu() {
+  const trigger = screen.getByRole("button", { name: /^LoL$/i });
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+  fireEvent.pointerUp(trigger);
+  fireEvent.click(trigger);
+  return trigger;
+}
+
 describe("Nav", () => {
   it("renders the brand and the four nav entries", () => {
     vi.mocked(useRouterState).mockReturnValue("/" as never);
     renderNav();
     expect(screen.getByText("vyoh")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Home/ })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /LoL/ })).toBeTruthy();
+    // LoL is a NavigationMenu trigger button now, not a top-level link.
+    expect(screen.getByRole("button", { name: /^LoL$/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Steam/ })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Status/ })).toBeTruthy();
   });
@@ -90,15 +111,11 @@ describe("Nav", () => {
     expect(homeLink.className).not.toContain("text-muted-foreground");
   });
 
-  it("marks the LoL pill active under a /lol/<account> subpath", () => {
+  it("marks the LoL trigger active under a /lol/<account> subpath", () => {
     vi.mocked(useRouterState).mockReturnValue("/lol/me-euw/matches" as never);
-    const { container } = renderNav();
-    // The compound pill (link + dropdown chevron) shares a wrapper div that
-    // carries the active styling so the highlight covers both. Find the
-    // wrapper by walking up from the LoL link.
-    const lolLink = container.querySelector('a[href="/lol"]') as HTMLElement;
-    const wrapper = lolLink.parentElement as HTMLElement;
-    expect(wrapper.className).toContain("text-foreground");
+    renderNav();
+    const trigger = screen.getByRole("button", { name: /^LoL$/i });
+    expect(trigger.className).toContain("text-foreground");
   });
 
   it("opens the command palette when the shortcut chip is clicked", () => {
@@ -129,21 +146,12 @@ describe("Nav", () => {
     expect(observed.current?.open).toBe(true);
   });
 
-  describe("LoL dropdown", () => {
-    it("renders the dropdown trigger with an accessible label", () => {
+  describe("LoL menu", () => {
+    it("reveals the Patches link when the trigger is activated", async () => {
       vi.mocked(useRouterState).mockReturnValue("/" as never);
       renderNav();
-      expect(screen.getByRole("button", { name: /Open LoL menu/i })).toBeTruthy();
-    });
-
-    it("reveals the Patches menu item when the chevron is clicked", async () => {
-      vi.mocked(useRouterState).mockReturnValue("/" as never);
-      renderNav();
-      const trigger = screen.getByRole("button", { name: /Open LoL menu/i });
-      fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-      fireEvent.pointerUp(trigger);
-      fireEvent.click(trigger);
-      await waitFor(() => screen.getByRole("menuitem", { name: /Patches/i }));
+      openLolMenu();
+      await waitFor(() => screen.getByRole("link", { name: /Patches/i }));
     });
 
     it("pre-fills ?as=<slug> on the Patches link when a default LoL account exists", async () => {
@@ -152,38 +160,41 @@ describe("Nav", () => {
         { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "europe" },
       ];
       renderNav();
-      const trigger = screen.getByRole("button", { name: /Open LoL menu/i });
-      fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-      fireEvent.pointerUp(trigger);
-      fireEvent.click(trigger);
-      // `DropdownMenuItem asChild` collapses the menuitem role onto the Link
-      // itself, so the role and the href are on the same element.
-      const item = await screen.findByRole("menuitem", { name: /Patches/i });
+      openLolMenu();
+      const item = await screen.findByRole("link", { name: /Patches/i });
       expect(item.getAttribute("href")).toBe("/lol/patches?as=jonas-euw");
     });
 
     it("falls back to the neutral /lol/patches link when no default account is available", async () => {
       vi.mocked(useRouterState).mockReturnValue("/" as never);
       renderNav();
-      const trigger = screen.getByRole("button", { name: /Open LoL menu/i });
-      fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-      fireEvent.pointerUp(trigger);
-      fireEvent.click(trigger);
-      const item = await screen.findByRole("menuitem", { name: /Patches/i });
+      openLolMenu();
+      const item = await screen.findByRole("link", { name: /Patches/i });
       expect(item.getAttribute("href")).toBe("/lol/patches");
     });
 
-    it("closes the dropdown when Escape is pressed", async () => {
+    it("renders an account row per LoL account linking to /lol/<slug>", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "europe" },
+        { slug: "alt-na", gameName: "Alt", tagLine: "NA1", region: "americas" },
+      ];
+      renderNav();
+      openLolMenu();
+      const jonas = await screen.findByRole("link", { name: /Jonas/i });
+      expect(jonas.getAttribute("href")).toBe("/lol/jonas-euw");
+      const alt = screen.getByRole("link", { name: /Alt/i });
+      expect(alt.getAttribute("href")).toBe("/lol/alt-na");
+    });
+
+    it("closes the menu when Escape is pressed", async () => {
       vi.mocked(useRouterState).mockReturnValue("/" as never);
       renderNav();
-      const trigger = screen.getByRole("button", { name: /Open LoL menu/i });
-      fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-      fireEvent.pointerUp(trigger);
-      fireEvent.click(trigger);
-      await screen.findByRole("menuitem", { name: /Patches/i });
+      openLolMenu();
+      await screen.findByRole("link", { name: /Patches/i });
       fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
       await waitFor(() => {
-        expect(screen.queryByRole("menuitem", { name: /Patches/i })).toBeNull();
+        expect(screen.queryByRole("link", { name: /Patches/i })).toBeNull();
       });
     });
   });

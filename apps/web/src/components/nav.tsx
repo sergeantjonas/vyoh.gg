@@ -2,46 +2,48 @@ import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { useCommandPalette } from "@/components/command-palette-context";
 import { OrbGlyph } from "@/components/orb-glyph";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import { useMe } from "@/identity/use-me";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ChevronDown, Home, ScrollText, Search } from "lucide-react";
+import { Activity, Home, ScrollText, Search } from "lucide-react";
 import { m } from "motion/react";
 import type { ComponentType, SVGProps } from "react";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Home", Icon: Home },
-  { to: "/steam", label: "Steam", Icon: SteamIcon },
-  { to: "/status", label: "Status", Icon: Activity },
-] as const;
-
 const isMac = /Mac/i.test(navigator.platform);
 const shortcutLabel = isMac ? "⌘K" : "Ctrl K";
-
-const LINK_BASE = "relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors";
-const LINK_ACTIVE = "text-foreground";
-const LINK_INACTIVE = "text-muted-foreground hover:bg-muted/30 hover:text-foreground";
 
 function isItemActive(pathname: string, to: string) {
   if (to === "/") return pathname === "/";
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
+type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
+type LolAccount = {
+  slug: string;
+  gameName: string;
+  tagLine: string;
+  region: string;
+};
+
 export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { setOpen } = useCommandPalette();
   const me = useMe();
-  // The dropdown pre-fills `?as=<slug>` from the viewer's default LoL
-  // account so "Patches" lands on the personalized lens by default. When
-  // no default account is available (logged out, no Riot accounts linked),
-  // the link falls through to the neutral global view.
-  const defaultLolSlug = me.data?.lol[0]?.slug;
+  const accounts: readonly LolAccount[] = me.data?.lol ?? [];
+  // Pre-fill `?as=<slug>` from the viewer's default LoL account so
+  // "Patches" lands on the personalized lens by default. Falls through to
+  // the neutral global view when no default account is available.
+  const defaultLolSlug = accounts[0]?.slug;
+  const lolActive = isItemActive(pathname, "/lol");
 
   return (
     <nav className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
@@ -63,19 +65,47 @@ export function Nav() {
             <span className="text-muted-foreground">.gg</span>
           </span>
         </Link>
-        <div className="flex gap-1">
-          <SimpleNavLink to="/" label="Home" Icon={Home} pathname={pathname} />
-          <LolPill pathname={pathname} defaultLolSlug={defaultLolSlug} />
-          {NAV_ITEMS.filter((i) => i.to !== "/").map(({ to, label, Icon }) => (
-            <SimpleNavLink
-              key={to}
-              to={to}
-              label={label}
-              Icon={Icon}
+        <NavigationMenu
+          viewport={false}
+          delayDuration={100}
+          className="max-w-none justify-start"
+        >
+          <NavigationMenuList className="gap-1">
+            <SimpleNavItem to="/" label="Home" Icon={Home} pathname={pathname} />
+            <NavigationMenuItem>
+              <NavigationMenuTrigger
+                className={cn(
+                  "relative h-auto cursor-pointer gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted/30 data-open:bg-muted/30",
+                  lolActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LeagueOfLegendsIcon
+                  className={cn("size-4 transition-transform", lolActive && "scale-110")}
+                  aria-hidden
+                />
+                <span className="relative z-10">LoL</span>
+                {lolActive && <NavPillHighlight />}
+              </NavigationMenuTrigger>
+              <NavigationMenuContent className="!w-72 p-1">
+                <LolMenuPanel accounts={accounts} defaultLolSlug={defaultLolSlug} />
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+            <SimpleNavItem
+              to="/steam"
+              label="Steam"
+              Icon={SteamIcon}
               pathname={pathname}
             />
-          ))}
-        </div>
+            <SimpleNavItem
+              to="/status"
+              label="Status"
+              Icon={Activity}
+              pathname={pathname}
+            />
+          </NavigationMenuList>
+        </NavigationMenu>
         <TooltipPrimitive.Root>
           <TooltipPrimitive.Trigger asChild>
             <button
@@ -103,9 +133,7 @@ export function Nav() {
   );
 }
 
-type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
-
-function SimpleNavLink({
+function SimpleNavItem({
   to,
   label,
   Icon,
@@ -118,61 +146,81 @@ function SimpleNavLink({
 }) {
   const active = isItemActive(pathname, to);
   return (
-    <Link to={to} className={cn(LINK_BASE, active ? LINK_ACTIVE : LINK_INACTIVE)}>
-      <span className="relative z-10 flex items-center gap-2">
-        <Icon className={cn("size-4 transition-transform", active && "scale-110")} />
-        {label}
-      </span>
-      {active && <NavPillHighlight />}
-    </Link>
+    <NavigationMenuItem>
+      <NavigationMenuLink asChild active={active}>
+        <Link
+          to={to}
+          className={cn(
+            "relative flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors data-active:bg-transparent data-active:focus:bg-transparent data-active:hover:bg-transparent",
+            active
+              ? "text-foreground"
+              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          )}
+        >
+          <Icon
+            className={cn("size-4 transition-transform", active && "scale-110")}
+            aria-hidden
+          />
+          <span className="relative z-10">{label}</span>
+          {active && <NavPillHighlight />}
+        </Link>
+      </NavigationMenuLink>
+    </NavigationMenuItem>
   );
 }
 
-function LolPill({
-  pathname,
+function LolMenuPanel({
+  accounts,
   defaultLolSlug,
 }: {
-  pathname: string;
+  accounts: readonly LolAccount[];
   defaultLolSlug: string | undefined;
 }) {
-  const active = isItemActive(pathname, "/lol");
   return (
-    <div
-      className={cn(
-        "relative flex items-center rounded-md",
-        active ? LINK_ACTIVE : LINK_INACTIVE
+    <div className="flex flex-col">
+      {accounts.length > 0 && (
+        <>
+          <div className="px-2 pt-1 pb-1 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
+            Accounts
+          </div>
+          <ul className="flex max-h-[300px] flex-col overflow-y-auto">
+            {accounts.map((account) => (
+              <li key={account.slug}>
+                <NavigationMenuLink asChild>
+                  <Link
+                    to="/lol/$accountSlug"
+                    params={{ accountSlug: account.slug }}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                  >
+                    <LeagueOfLegendsIcon
+                      className="size-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <span className="flex-1 truncate">
+                      <span>{account.gameName}</span>
+                      <span className="text-muted-foreground">#{account.tagLine}</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground uppercase">
+                      {account.region}
+                    </span>
+                  </Link>
+                </NavigationMenuLink>
+              </li>
+            ))}
+          </ul>
+          <div className="my-1 h-px bg-border" />
+        </>
       )}
-    >
-      <Link
-        to="/lol"
-        className="relative z-10 flex items-center gap-2 rounded-l-md px-3 py-1.5 text-sm font-medium"
-      >
-        <LeagueOfLegendsIcon
-          className={cn("size-4 transition-transform", active && "scale-110")}
-        />
-        LoL
-      </Link>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-label="Open LoL menu"
-          className="relative z-10 flex cursor-pointer items-center rounded-r-md py-1.5 pr-2 pl-0.5 text-sm transition-colors data-[state=open]:text-foreground"
+      <NavigationMenuLink asChild>
+        <Link
+          to="/lol/patches"
+          search={defaultLolSlug ? { as: defaultLolSlug } : {}}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
         >
-          <ChevronDown className="size-3.5" aria-hidden />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={6} className="min-w-40">
-          <DropdownMenuItem asChild>
-            <Link
-              to="/lol/patches"
-              search={defaultLolSlug ? { as: defaultLolSlug } : {}}
-              className="cursor-pointer"
-            >
-              <ScrollText className="size-4" aria-hidden />
-              Patches
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {active && <NavPillHighlight />}
+          <ScrollText className="size-4" aria-hidden />
+          Patches
+        </Link>
+      </NavigationMenuLink>
     </div>
   );
 }
