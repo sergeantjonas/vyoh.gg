@@ -205,7 +205,10 @@ function ChampionTableRow({
                   ))}
                   {subclasses.length > 0 && (
                     <span className="text-muted-foreground/50">
-                      · {subclasses.join(" · ")}
+                      ·{" "}
+                      {subclasses
+                        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                        .join(" · ")}
                     </span>
                   )}
                 </div>

@@ -26,7 +26,9 @@ vi.mock("./use-champions", () => ({
           name: "Ahri",
           roles: ["Mage"],
           modernClasses: ["Mage"],
-          modernSubclasses: ["Burst"],
+          // API stores subclasses lowercase ("burst", "enchanter"); the row
+          // capitalises at render so visual hierarchy reads "Mage · Burst".
+          modernSubclasses: ["burst"],
         },
       ],
     ]),
@@ -77,6 +79,11 @@ describe("ChampionTable", () => {
     expect(screen.getByText(/WR/)).toBeTruthy();
     expect(screen.getByText(/KDA/)).toBeTruthy();
     expect(screen.getByText(/10 games/)).toBeTruthy();
+  });
+
+  it("capitalises lowercase subclass labels (mirrors the detail-page hero)", () => {
+    renderTable(<ChampionTable stats={[stat()]} sort="games" accountSlug="ahri" />);
+    expect(screen.getByText(/Burst/)).toBeTruthy();
   });
 
   it("uses 'game' (singular) when games count is 1", () => {

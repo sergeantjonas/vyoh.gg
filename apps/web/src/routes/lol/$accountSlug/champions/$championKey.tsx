@@ -19,6 +19,7 @@ import {
   type ChampionOrigin,
   useActiveChampion,
 } from "@/lol/champions/active-champion-context";
+import { ChampionBreadcrumb } from "@/lol/champions/champion-breadcrumb";
 import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -271,11 +272,14 @@ function ChampionDetailPage() {
 
   if (!detail) {
     return (
-      <EmptyState
-        illustration={<EmptyChampionIllustration />}
-        title={`No matches on ${championName(championKey)} yet`}
-        hint="Play a game with this champion — stats, items, and matchups appear here once data starts flowing."
-      />
+      <div className="flex flex-col gap-6">
+        <ChampionBreadcrumb accountSlug={accountSlug} championAlias={championKey} />
+        <EmptyState
+          illustration={<EmptyChampionIllustration />}
+          title={`No matches on ${championName(championKey)} yet`}
+          hint="Play a game with this champion — stats, items, and matchups appear here once data starts flowing."
+        />
+      </div>
     );
   }
 
@@ -301,6 +305,7 @@ function ChampionDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <ChampionBreadcrumb accountSlug={accountSlug} championAlias={alias} />
       {/* Hero — fades out when scrolled past header; stays in DOM so no layout shift */}
       <div ref={heroRef}>
         <m.div
