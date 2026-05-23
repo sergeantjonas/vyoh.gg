@@ -142,10 +142,66 @@ Modified:
 
 ## Risks / open questions
 
-- **TanStack Router timing.** `startViewTransition(() => navigate(...))` expects the DOM mutation inside the callback. TanStack Router navigation is async (suspense for loaders). Verify the callback resolves *after* the new route's loader has settled, otherwise the snapshot will capture an empty/skeleton state. Probable fix: `await router.navigate(...)` inside the VT callback, or use the router's `subscribe('onResolved')` event.
+- **TanStack Router timing.** `startViewTransition(() => navigate(...))` expects the DOM mutation inside the callback. TanStack Router navigation is async (suspense for loaders). Verify the callback resolves *after* the new route's loader has settled, otherwise the snapshot will capture an empty/skeleton state. Probable fix: `await router.navigate(...)` inside the VT callback, or use the router's `subscribe('onResolved')` event. **Update 2026-05-23:** TanStack Router 1.169.2 ships first-class `viewTransition` prop on `<Link>` and `router.navigate({ viewTransition })`, and `defaultViewTransition` at router level. Internally it awaits loaders before `document.startViewTransition`, so the snapshot-of-skeleton risk is solved by the router — prefer the native prop over a custom `navigateWithViewTransition` wrapper for any flow driven by `<Link>`.
 - **Per-element naming collisions.** Two simultaneous morphs (e.g. champion icon + Win/Loss chip) need unique `view-transition-name`s. Document the naming scheme in `view-transition-nav.ts` so a future surface doesn't accidentally collide.
 - **Recharts inside the detail page.** Recharts mounts with its own animation. The VT snapshot will freeze the chart in its pre-mount state and animate to its post-mount state, which may look odd. Test; if it does, exclude the chart container from the transition with `view-transition-name: none`.
 - **Mobile Safari edge cases.** VT on iOS Safari has known quirks with overflow and `position: fixed` ancestors. The `<main>` scroll-container architecture (per repo CLAUDE.md) should be fine; verify on real device or sim.
+
+## Chunk 2 attempt 2026-05-23 — rolled back, then shipped 2026-05-24
+
+The first pass at Chunk 2 wired the morph end-to-end and was reverted in the same session. The fix landed the following day after the actual root cause was found via a VT lifecycle logger. Symptoms observed in all browsers (Chrome/Safari/Firefox, dev *and* prod):
+
+1. **Card "snapped into place" instead of morphing.**
+2. **Breadcrumb on the destination page became unclickable** after one or two failed transitions.
+3. **Regression on `/lol/$accountSlug/matches` ↔ detail back-scroll restore** when the match list had been scrolled. Reproducibly correlates with chunk 2 wiring being applied: gone after every rollback, present after every re-apply (including the final shipped version). The matches navigation itself never invokes VT — no `viewTransition` Link prop, no `view-transition-name` anywhere in matches code, no VT lifecycle entries in the console when navigating matches. The mechanism is currently unknown; analysis of the five changed files doesn't show an obvious path of influence on matches scroll-restore (which lives in [`active-match-context.tsx`](../../../apps/web/src/lol/matches/active-match-context.tsx) and the match-list's mount effect). Tracked as a separate follow-up — bisect the changed files (`view-transition-nav.ts` logger side-effect / `champion-table.tsx` `useNavigate` subscription / `$accountSlug.tsx` slideKey / `champion-hero.tsx`) by reverting one at a time and re-running the scroll-restore flow to isolate.
+
+### Root cause
+
+A dev-only VT lifecycle logger added to [view-transition-nav.ts](../../../apps/web/src/lib/view-transition-nav.ts) (wraps `document.startViewTransition` once at boot, logs `updateCallbackDone` / `ready` / `finished` resolutions, enumerates offending elements on `ready` rejection) showed:
+
+```
+[vt #1] ready rejected: InvalidStateError: Multiple elements found with view-transition-name: champion-Rell-UTILITY
+[vt #1] elements with view-transition-name (3):
+  root
+  champion-Rell-UTILITY <div data-champion-card="Rell" ...>
+  champion-Rell-UTILITY <div data-champion-card="Rell" ...>
+```
+
+**Two `ChampionHero` instances in the live DOM at NEW-snapshot capture time.** Not StrictMode (reproduces in prod build), not `defaultPreload: "intent"` (reproduces with it disabled), not the CardTilt AABB hypothesis from the first attempt write-up.
+
+The actual cause is structural: [SectionShell](../../../apps/web/src/_shared/section-layout/section-shell.tsx) wraps the route `<Outlet />` in `<AnimatePresence mode="popLayout">` keyed by `pathname`. During list→detail navigation, AnimatePresence keeps the exiting `<m.div key="/champions">` mounted for its exit animation while mounting the entering `<m.div key="/champions/Ahri">`. Each contains an `<Outlet />`. Crucially, **TanStack Router's `<Outlet />` always renders the current route — it exposes no per-instance location binding** (unlike React Router's `<Routes location={...}>`). So once router state advances during the VT callback, *both* m.divs' Outlets render `ChampionDetailPage`, both heroes apply the same `view-transition-name`, NEW-snapshot capture rejects.
+
+This is a known incompatibility between the AnimatePresence-around-Outlet pattern and per-element VT names. Per [03-motion.md §5.4 + decision tree §6.6](~/.claude/knowledge/frontend-2026/03-motion.md), the 2026 recommended pattern for route transitions is VT directly, not AnimatePresence — AnimatePresence remains correct for component-level mount/unmount. A future arc may migrate SectionShell's slide entirely to VT-driven CSS animations scoped by `viewTransition: { types: [...] }`.
+
+### Fix shipped
+
+Coarsen [`slideKey` in `$accountSlug.tsx`](../../../apps/web/src/routes/lol/$accountSlug.tsx) to the section root for champion-detail routes (mirroring the existing match-detail trick at lines 182–183). When the key doesn't change across list↔detail, AnimatePresence reuses the same `<m.div>` — `{children}` updates in place, only one `<Outlet />` in the DOM at any time, no name collision. Section-level navigations still differ on key, so the inter-section slide still fires.
+
+Other wiring shipped:
+- [`champion-table.tsx`](../../../apps/web/src/lol/champions/champion-table.tsx) — `onClick` handler that applies `view-transition-name` via ref, calls `document.startViewTransition` manually (not TanStack's `Link viewTransition` prop, because we need to clear the source name inside the callback before the await so it isn't double-counted at NEW snapshot if anything else goes wrong). Modifier-click + keyboard-Enter fall through to the regular Link path. Rect-morph fallback preserved for non-VT browsers via `supportsViewTransitions()` gate.
+- [`champion-hero.tsx`](../../../apps/web/src/lol/champions/champion-hero.tsx) — destination hero applies matching name from `activePosition` (set on the row's `onPointerDown` before navigation).
+- Breadcrumb (`champion-breadcrumb.tsx`) **stays on the existing rect-morph path** — forward-only VT for now. If a forward transition ever hangs, the breadcrumb is still a guaranteed escape hatch.
+- No global `::view-transition-group` defaults this round (deliberately omitted from the second attempt to eliminate that as a suspect; can add back later if visual polish demands it).
+- No body-hold skip — `MORPH_SETTLE_MS` still runs even on VT browsers. Minimises moving parts; revisit if it's visibly redundant.
+
+### Lessons (kept for any future per-element morph)
+
+- Add the lifecycle logger first; it cracked this case open in one click. The offender-enumeration on rejection is what made the structural cause visible.
+- Reproduce in a prod build *and* with feature flags toggled before naming a culprit. We chased StrictMode and preload first because they were the loudest dev-only suspects; both turned out to be wrong.
+- AnimatePresence around `<Outlet />` is a structural incompatibility with VT element pairing. Any new section that wants per-element morph either needs `slideKey` coarsening (the trick used here) or needs to live outside the AnimatePresence wrapper entirely.
+- The `view-transition-name` on the source should be applied via ref at click time and cleared inside the VT callback *before any await* — having it persistent on a list of cards multiplies the collision risk if the architecture issue ever resurfaces.
+
+### What's next (priority order)
+
+1. **Bisect the matches scroll-restore regression.** Reproducibly tied to chunk 2 wiring but mechanism unknown. Procedure: starting from the shipped chunk 2 state, revert one of the five changed files at a time and re-run "scroll match list → click match → click breadcrumb back" with the list scrolled. Files to bisect in order of suspicion: (a) `view-transition-nav.ts` lifecycle logger side-effect that patches `document.startViewTransition` at boot; (b) `champion-table.tsx` `useNavigate` hook subscription; (c) `$accountSlug.tsx` slideKey + isChampionDetail computation; (d) `champion-hero.tsx` context read of `activePosition`. The logger is the most plausible because it's the only change that touches global document state. Once isolated, the fix is probably one of: gate the patch behind an opt-in flag instead of auto-installing; install it only after the first navigation; or use a different mechanism (e.g. `MutationObserver` on `::view-transition`).
+
+2. **Pre-Chunk-3 prerequisite: SectionShell architecture decision.** Chunk 3 (match list ↔ detail morph) will hit the *same* AnimatePresence collision class — match-detail and match-list both render inside the same SectionShell. The slideKey for match-detail is already coarsened (predates this work), so list ↔ detail navigation reuses the same `<m.div>` and naively *should* work. But the moment we add per-element names that need to survive across more transitions (e.g. champion icon morphing from match row → match hero → champion detail hero via "deep nav"), we'll be one Outlet-render away from the same collision. Two paths to consider before starting Chunk 3:
+   - Option A: keep AnimatePresence, ensure every section with per-element morph maintains coarsened slideKey across its list ↔ detail pair. Cheap but accumulating debt — every new pairing needs a similar trick.
+   - Option B: **migrate SectionShell off AnimatePresence-around-Outlet** to VT-driven slide animations scoped by `viewTransition: { types: [...] }` on the section nav Links. This is the 2026-aligned pattern (per [03-motion.md §3 + §6.6](~/.claude/knowledge/frontend-2026/03-motion.md)) and structurally eliminates the collision class. Bigger arc — touches every section tab, the AccountSwitcher, the keyboard tab cycling — but ships a more robust foundation. Consider promoting to its own working note under `cross-cutting/section-shell-vt-migration.md` and adding to [elevation-arcs.md](elevation-arcs.md) as a Tier 1 entry alongside this rollout.
+
+3. **Chunk 3 (match list ↔ detail morph)** as previously scoped — proceed only after #2 is resolved, with the same shipped pattern: per-element name applied via ref at click time + cleared inside the VT callback before the navigation await. Naming convention `match-${id}-icon`, `match-${id}-kda`, `match-${id}-chip` already documented in [`view-transition-nav.ts`](../../../apps/web/src/lib/view-transition-nav.ts).
+
+4. **Visual polish on the shipped champion morph.** Now that the mechanism works, the actual transition timing is browser default (~250 ms ease). Two follow-ups deferred from this attempt: (a) add per-morph CSS defaults to `view-transitions.css` (320 ms / iOS-spring easing / `mix-blend-mode: normal` overrides) once we're confident nothing in matches re-regresses from global pseudo-element rules; (b) evaluate whether the 700 ms `MORPH_SETTLE_MS` body-hold is still needed on VT browsers (the rect-morph fallback still needs it; VT may not).
 
 ---
 

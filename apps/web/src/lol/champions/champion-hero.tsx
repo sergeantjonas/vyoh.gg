@@ -1,3 +1,4 @@
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import {
   type ChampionOrigin,
   useActiveChampion,
@@ -17,9 +18,16 @@ export function ChampionHero({
   alias: string;
   children: ReactNode;
 }) {
-  const { originRectRef, setOriginRect } = useActiveChampion();
+  const { originRectRef, setOriginRect, activePosition } = useActiveChampion();
   const reduced = useReducedMotion();
   const heroRef = useRef<HTMLDivElement>(null);
+  // Mirror the source card's view-transition-name when VT is supported and
+  // we arrived from the list (activePosition was set by the row click).
+  // Deep-link arrivals fall through to the browser's default crossfade.
+  const viewTransitionName =
+    supportsViewTransitions() && activePosition
+      ? `champion-${alias}-${activePosition}`
+      : undefined;
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef.
   const savedOrigin = useRef<ChampionOrigin | null>(null);
@@ -77,7 +85,7 @@ export function ChampionHero({
     <div
       ref={heroRef}
       data-champion-card={alias}
-      style={championCardStyle(alias)}
+      style={{ ...championCardStyle(alias), viewTransitionName }}
       className="relative isolate h-52 overflow-hidden rounded-lg border"
     >
       {children}

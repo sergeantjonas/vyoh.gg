@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
@@ -15,7 +16,7 @@ import {
   championCardStyle,
 } from "@/lol/champions/champion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -265,6 +266,7 @@ function ChampionTableRow({
     setOriginRect,
   } = useActiveChampion();
   const reduced = useReducedMotion();
+  const navigate = useNavigate();
   const cardRef = useRef<HTMLDivElement>(null);
   const alias = s.champion;
   const position = s.position;
@@ -332,9 +334,13 @@ function ChampionTableRow({
           params={{ accountSlug, championKey: alias.toLowerCase() }}
           onMouseEnter={() => onCardHover?.(alias)}
           onPointerDown={() => {
-            // One row per champion: capture origin rect + dominant role so
-            // the breadcrumb can mirror them back to this row on return.
             saveListScroll();
+            setActiveChampion(alias);
+            setActivePosition(position);
+            if (supportsViewTransitions()) return;
+            // Fallback path only: capture origin rect for the rect-morph.
+            // VT path handles its own snapshot via `view-transition-name`
+            // applied in onClick below.
             const rect = cardRef.current?.getBoundingClientRect() ?? null;
             if (rect)
               setOriginRect({
@@ -343,8 +349,36 @@ function ChampionTableRow({
                 rect,
                 direction: "forward",
               });
-            setActiveChampion(alias);
-            setActivePosition(position);
+          }}
+          onClick={(e) => {
+            // VT path: apply `view-transition-name` to the card via ref so
+            // it is present at OLD-snapshot capture (synchronous with the
+            // startViewTransition call), then clear it inside the callback
+            // BEFORE awaiting navigation. This prevents the source name
+            // from being present at NEW-snapshot capture, which would
+            // collide with the destination hero's matching name (the
+            // browser keeps the old route mounted alongside the new one
+            // during the transition, so both elements briefly coexist).
+            if (!supportsViewTransitions()) return;
+            if (e.button !== 0) return;
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+            const el = cardRef.current;
+            if (!el) return;
+            e.preventDefault();
+            const name = `champion-${alias}-${position}`;
+            el.style.viewTransitionName = name;
+            const doc = document as Document & {
+              startViewTransition?: (cb: () => Promise<void>) => unknown;
+            };
+            doc.startViewTransition?.(async () => {
+              // OLD snapshot captured by now (sync inside startViewTransition).
+              // Clear before any await so NEW snapshot doesn't see the source.
+              if (cardRef.current) cardRef.current.style.viewTransitionName = "";
+              await navigate({
+                to: "/lol/$accountSlug/champions/$championKey",
+                params: { accountSlug, championKey: alias.toLowerCase() },
+              });
+            });
           }}
         >
           {/* Plain div, not m.div — Motion's layoutId morph would compete
