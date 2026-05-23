@@ -21,7 +21,7 @@ import type { LolAccountWithSummary } from "@vyoh/shared";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
 import { Activity, Home, ScrollText, Search } from "lucide-react";
 import { m } from "motion/react";
-import type { ComponentType, SVGProps } from "react";
+import { type ComponentType, type SVGProps, useRef, useState } from "react";
 
 const isMac = /Mac/i.test(navigator.platform);
 const shortcutLabel = isMac ? "⌘K" : "Ctrl K";
@@ -37,6 +37,13 @@ type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 // shared is the `/me` wire shape the nav consumes.
 type NavLolAccount = LolAccountWithSummary;
 
+// Open-animation window. The shadcn NavigationMenu content's zoom-in /
+// fade-in lasts ~200ms; click events landing inside that window are
+// almost always the trailing edge of the hover-or-tap that opened the
+// menu in the first place, not a deliberate dismiss. Suppress those and
+// late deliberate clicks still toggle.
+const OPEN_SETTLE_MS = 250;
+
 export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { setOpen } = useCommandPalette();
@@ -47,6 +54,11 @@ export function Nav() {
   // the neutral global view when no default account is available.
   const defaultLolSlug = accounts[0]?.slug;
   const lolActive = isItemActive(pathname, "/lol");
+
+  // Controlled value so we can observe the closed→open transition and
+  // ignore the click that landed during the open animation.
+  const [menuValue, setMenuValue] = useState("");
+  const openedAtRef = useRef(0);
 
   return (
     <nav className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
@@ -71,12 +83,33 @@ export function Nav() {
         <NavigationMenu
           viewport={false}
           delayDuration={100}
+          value={menuValue}
+          onValueChange={(next) => {
+            if (next !== "" && menuValue === "") {
+              openedAtRef.current = performance.now();
+            }
+            setMenuValue(next);
+          }}
           className="max-w-none justify-start"
         >
           <NavigationMenuList className="gap-1">
             <SimpleNavItem to="/" label="Home" Icon={Home} pathname={pathname} />
             <NavigationMenuItem>
               <NavigationMenuTrigger
+                // Suppress the toggle-close only when the click lands
+                // inside the open animation window — almost always the
+                // trailing edge of the hover/tap that opened the menu in
+                // the first place, never a deliberate dismiss. Clicks
+                // after the menu has settled still toggle, so users who
+                // genuinely want to close via the trigger can.
+                onClick={(e) => {
+                  if (
+                    (e.currentTarget as HTMLElement).dataset.state === "open" &&
+                    performance.now() - openedAtRef.current < OPEN_SETTLE_MS
+                  ) {
+                    e.preventDefault();
+                  }
+                }}
                 className={cn(
                   "relative h-auto cursor-pointer gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted/30 data-open:bg-muted/30",
                   lolActive

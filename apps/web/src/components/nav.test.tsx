@@ -61,6 +61,7 @@ vi.mock("@tanstack/react-router", () => ({
     );
   },
   useRouterState: vi.fn(),
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock("@/identity/use-me", () => ({
