@@ -1,0 +1,19 @@
+/*
+ * View Transitions API styles.
+ *
+ * Chunk 1 (this file): reduced-motion guard only. The CSS-level guard kills
+ * the animation but keeps the snapshot/swap atomic — the navigation still
+ * feels intentional rather than abrupt. Per
+ * docs/working-notes/cross-cutting/view-transitions-rollout.md.
+ *
+ * Chunk 2 will add default ::view-transition-group durations / easings here
+ * once a call site exists to observe them.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

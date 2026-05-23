@@ -23,6 +23,7 @@ import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
+import "./styles/view-transitions.css";
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 
