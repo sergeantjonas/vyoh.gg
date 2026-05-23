@@ -1,6 +1,6 @@
 # Champion list ↔ detail navigation parity — roadmap
 
-**Status:** Active — chunk plan written 2026-05-23 after the modern-class-taxonomy arc closed. Pick this up in a future session.
+**Status:** Shipped 2026-05-23 (commits `fe3de30`, `452c837`, `ae484a8`, `90b39b0`). Keep this note as the reference for the shape of `active-champion-context.tsx` ↔ `active-match-context.tsx` parity if/when a third surface (e.g. live-game participant cards) wants the same scaffold.
 
 Read this when scoping the next champion-surface polish pass, or before touching `champion-table.tsx` / `routes/lol/$accountSlug/champions/$championKey.tsx`.
 
