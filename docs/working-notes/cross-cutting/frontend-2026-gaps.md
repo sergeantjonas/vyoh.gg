@@ -8,7 +8,9 @@ Sister file: [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md) — tr
 
 ---
 
-## Gap 1 — Static `<head>` baseline
+## Gap 1 — Static `<head>` baseline — SHIPPED 2026-05-23
+
+Shipped in `chore: add static head baseline, robots.txt, sitemap.xml` (c6c3720). Added description, OG title/description/url, theme-color, canonical, twitter:card to [index.html](../../../apps/web/index.html); created `apps/web/public/robots.txt` (with sitemap pointer) and `apps/web/public/sitemap.xml` (4 routes). OG image deferred until a marquee surface exists — placeholder would have been worse than absence.
 
 **Current state:** [apps/web/index.html](../../../apps/web/index.html) carries charset + viewport + favicon + `<title>vyoh.gg</title>`. Nothing else. No description, no OG tags, no theme-color, no canonical, no `robots.txt`, no `sitemap.xml`.
 
@@ -24,7 +26,9 @@ Sister file: [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md) — tr
 
 ---
 
-## Gap 2 — React Compiler on Vite
+## Gap 2 — React Compiler on Vite — SHIPPED 2026-05-23
+
+Shipped in `build: enable react compiler on the web build` (0e8800c). Note for future reference: `@vitejs/plugin-react` v6 dropped the inline `babel.plugins` option — wiring now uses `reactCompilerPreset()` from the plugin alongside `@rolldown/plugin-babel`. KB `04-react-internals.md` §10 still describes the v4/v5 API; flag this if the section is touched in the next sweep.
 
 **Current state:** [apps/web/vite.config.ts](../../../apps/web/vite.config.ts) configures `@vitejs/plugin-react` without `babel.plugins`. React 19.2.5 is installed, so the runtime supports Compiler memoization primitives.
 
@@ -37,6 +41,8 @@ Sister file: [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md) — tr
 **How to apply:** Add `babel-plugin-react-compiler` to `apps/web/package.json`, wire it into vite.config.ts, run `pnpm verify:cc`, spot-check one heavily-memoized surface (e.g. `MatchWindowProvider`) to confirm no regressions.
 
 **Effort:** ~30 min + verify pass. Sub-session.
+
+**Alternative considered and rejected (2026-05-23):** `@preact/signals-react` as a fine-grained re-render path. Rejected for the same reason `15-realtime-state-forms.md` §2.6 cites — the React adapter uses `useSyncExternalStore` + proxies and runs outside the React Compiler optimization path. Compiler is the project's bet; signals would compete with it, not complement it.
 
 ---
 
@@ -95,8 +101,8 @@ Route tier folds into [tanstack-start-migration.md](tanstack-start-migration.md)
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **A — head baseline + LCP fetchpriority** | #1, #5 | ~1h | Ship now, single commit |
-| **B — React Compiler** | #2 | ~30min + verify | Ship now, separate commit (isolate any Compiler-related regressions) |
+| **A — head baseline + LCP fetchpriority** | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 still pending LCP re-measure |
+| **B — React Compiler** | #2 | ~30min + verify | SHIPPED 2026-05-23 (0e8800c) |
 | **C — App-root + widget error boundaries** | #4 (partial) | ~1h | Ship now, separate commit |
 | **D — RUM backend** | #3 | ~2h | Post-launch trigger |
 | **E — Route-tier error boundaries** | #4 (remainder) | folds in | Bundled into [tanstack-start-migration.md](tanstack-start-migration.md) chunks 2–4 |
@@ -274,3 +280,40 @@ These aren't blocking gaps — they work today — but they read as odd to a 202
 | **J — Subgrid pilot on match-list** | #11 | ~1h | Ship now, separate commit |
 | **K — Head baseline extras** | #13 | folds into A | Ship with Bundle A |
 | **L — Weird-for-2026 cleanups** | (non-gap) | opportunistic | Fold into next edit touching index.css / package.json |
+
+---
+
+## Round 4 — realtime / state / forms pass (2026-05-23)
+
+Audit focus: `15-realtime-state-forms.md` against the project's current state-management, realtime, and forms usage. Surfaced from the KB refresh session tracked in [frontend-2026-kb-refresh-queue.md](frontend-2026-kb-refresh-queue.md). Most §15 slots map to "no change, document the rationale" — captured in [library-shortlist.md § State / realtime / forms](library-shortlist.md) — but one ship-now item:
+
+### Gap 14 — TanStack Query `staleTime` per-query overrides for static patch-keyed metadata — SHIPPED 2026-05-23
+
+Largely already in place from the LoL static-metadata arc (2026-05-21); the audit's "zero per-query overrides exist" assertion was wrong. Most patch-keyed hooks (`useLolStatic` bundle, `useRankedEmblemYear`, `useDDragonVersion`, `useAbilityDescription`, `useMatchDetail`, `useMatchTimeline`) were already at `staleTime: Number.POSITIVE_INFINITY`. The one remaining patch-keyed-immutable hook still at the global 60s default — [usePatchChanges](../../../apps/web/src/lol/patches/use-patch-changes.ts) (PN3 patch-notes tab) — was switched in `perf: pin per-version patch changes query to staleTime infinity` (c68026a). `usePatchList` and `useCurrentPatchChanges` are intentionally left at 60s because they shift when a cron detects a new patch — Infinity would mask that.
+
+**Current state:** [apps/web/src/main.tsx:43-55](../../../apps/web/src/main.tsx#L43-L55) sets a sensible global default (`staleTime: 60_000`, `refetchOnWindowFocus: false`, retry policy with 4xx short-circuit). However, zero per-query overrides exist anywhere in `apps/web/src` — every query inherits the 60s default, including static metadata families that change only with a patch bump.
+
+**KB floor:** `15-realtime-state-forms.md` §2.1 — "the project-wide `staleTime` (default `0` is wrong for almost every app — pick 30s–5min based on the data shape)". The follow-on guidance: per-query overrides for data classes that diverge from the global default.
+
+**Why it matters:** Static metadata families in this app — champion id↔name bundle, item descriptions, ability descriptions, rune/spell metadata, rank emblems — all carry the current patch version in their cache key (LoL static-metadata arc shipped 2026-05-21). The cache key changes if and only if the patch changes. With the global 60s default these queries silently re-fetch on every tab focus / route revisit after 60s, even though the data is provably unchanged until the next patch.
+
+For patch-stable data, `staleTime: Infinity` (or a multi-hour value paired with `gcTime`) is the honest setting — the cache key carries the freshness invariant; `staleTime` should match.
+
+**Tension with Start:** None. Per-query overrides survive the SSR loader migration unchanged; loaders prime the cache with the same query options.
+
+**How to apply:** One commit. Identify the static-metadata query hooks (likely in `apps/web/src/lol/champions/`, `apps/web/src/lol/items/`, `apps/web/src/lol/_shared/`) and add `staleTime: Infinity` to their `useQuery` configs. Spot-check one route's network panel before/after — the focus-refetch on these queries should disappear. Reference: KB §2.1 advice on per-query overrides for data with diverging staleness.
+
+**Effort:** ~30 min including audit + verify pass. Sub-session.
+
+### Round 4 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **M — Static metadata `staleTime: Infinity`** | #14 | ~30 min | SHIPPED 2026-05-23 (c68026a); most hooks were already pinned by the 2026-05-21 static-metadata arc |
+
+### Round 4 non-gaps (worth knowing, no action)
+
+- **No client-state library needed.** Zustand / Jotai / Valtio / Legend-State all parked with explicit triggers — see [library-shortlist.md § State / realtime / forms](library-shortlist.md). React state + Context (`SplashProvider`, `CommandPaletteProvider`) covers the app today; no surface has hit the "persisted + cross-component + selector-shaped state" threshold.
+- **No form library needed yet.** No client forms exist. Upcoming form-shaped surfaces (status-page admin POST buttons, owner-auth OAuth redirect) are single-button or redirect flows, not form-library territory. Pick is **react-hook-form + zod** when the first ≥3-field validated surface lands; TanStack Form deferred to "2+ surfaces would benefit."
+- **No sync engine needed.** Convex / Zero / Triplit / Jazz / InstantDB / ElectricSQL / TanStack DB all parked. Riot/Steam APIs are server-truth; the read-only-portfolio framing has no offline-first stakes. Triggers to reconsider: offline-first becomes a requirement, multi-user shared-state surface lands, or collaborative annotations.
+- **SSE for [live-presence-chip.md](live-presence-chip.md) is the right call.** Already cited in the plan; reaffirmed against KB §1.2. WebTransport (now Baseline as of April 2026) is overkill for one-way presence push — SSE wins on simplicity.

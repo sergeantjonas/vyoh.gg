@@ -8,10 +8,7 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 
 ## Fully atomic (pure CSS/HTML, no design call)
 
-- **`text-wrap: balance` on headings** — `apps/web/src/styles/globals.css` on `h1, h2, h3`. Removes orphan words in hero titles; one declaration, modern-browser only (graceful degrade).
-- **`text-wrap: pretty` on long-form paragraphs** — globals on `p`, item/ability tooltip body, description blocks. Avoids river-of-whitespace and lone-word last lines on prose. Pairs with `balance` (headings) but doesn't duplicate it — `pretty` is the body-copy variant. Safari 17.5+ / Chrome 117+.
 - **`accent-color: var(--accent)` on form controls** — globals. Native checkboxes, radios, range sliders pick up the route accent. Free polish once [accent-color-system.md](accent-color-system.md) Chunk 1 lands.
-- **`linear()` easing on existing keyframes** — `apps/web/src/index.css` has `@keyframes shimmer`, `heatmap-reveal`, `card-breathe` all using simple `ease`/`ease-in-out`. Swap to hand-tuned `linear(...)` curves for spring-like motion without Motion overhead. One-line change per animation; Safari 17.2+ / Chrome 113+.
 - **Audit other horizontal scrollers for `mask-image` fade edges** — [trophy-case-strip.tsx](../../../apps/web/src/lol/_shared/ui/trophy-case-strip.tsx) already uses one; grep other horizontal-overflow regions (match-pip rows, champion icon strips, item rows in match-detail) and add the same `linear-gradient` mask where the strip reads as a hard-cut today. `mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)`.
 - **`::selection` per route** — `::selection { background: color-mix(in oklch, var(--accent) 40%, transparent); }` in globals. Highlight color matches the route accent. Tiny touch, surprisingly noticeable on text-heavy pages.
 - **Per-tab favicon dot** — `<link rel="icon">` swap based on presence state (live game → green dot, just-finished → blue, idle → default). Drop-in hook; pairs with [live-presence-chip.md](live-presence-chip.md) but doesn't need it.
