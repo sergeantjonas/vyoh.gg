@@ -55,7 +55,7 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 | 02 | design-systems | ✅ refreshed | 2026-05-23 | Added animated-component registries subsection (Magic UI / Aceternity / react-bits / Cult UI / OriginUI) with calm-aesthetic test in §8. |
 | 03 | motion | ✅ refreshed | 2026-05-23 | Added §2.7 Lenis (smooth-scroll engine, when-right/when-wrong/hard-rules) and §2.8 timeline editors (GSAP / theatre.js / Motion+ deferred-by-default with explicit triggers). README Motion bullet updated. |
 | 04 | react-internals | ⏸️ deferred | — | React Compiler 1.0 is current; less library-churn than Tier 1 domains. Revisit if React 20 lands or RSC patterns shift materially. |
-| 05 | frameworks | 🟡 **Tier 1 — do next (after 15)** | — | Meta-framework choice is the highest-stakes single decision. Refresh: Next 16 PPR maturity, TanStack Start 1.x status, RedwoodSDK / Smith landing, Waku gaining ground, Million.js compiler status, "is Astro still right for content vs Next static rendering?". Pairs naturally with 15 because SSR boundary interacts with realtime architecture. |
+| 05 | frameworks | ✅ refreshed | 2026-05-23 | Project-first sweep + KB refresh. Project outputs: Round 5 in frontend-2026-gaps.md (Gap #15 zero route loaders, Gap #16 per-route head() only one site + localhost-bug in og:image URL), new Framework section in library-shortlist.md (TanStack Start parked-active, Next/RR7/Astro/Waku/Million.js/SvelteKit/Nuxt/SolidStart/Qwik rejected with rationale, RedwoodSDK parked for next refresh). KB outputs: §2 Migration considerations + loader-as-forward-compatible-migration-prep pattern + head()/loader pairing pattern, §9 RedwoodSDK / Smith candidate-for-next-refresh stub, §12 per-route metadata absolute-URL gotcha (covers head()/metadata/frontmatter/meta/useHead). |
 | 06 | performance | ⏸️ deferred | — | Speculation Rules, PPR, bfcache mostly spec-driven. Schedule citation refresh when Chrome stable bumps Speculation Rules support. |
 | 07 | build-tooling | 🟡 **Tier 1 — do third** | — | Refresh: Rolldown-in-Vite-8 status, Turbopack vs Rspack vs Webpack-legacy, **oxc / oxlint** challenging Biome on lint+format slot, Bun-as-runtime vs Bun-as-installer vs Node 22+ vs Deno 2 (give this the Motion+ deferred-by-default treatment), monorepo tools (Turborepo / Nx / Moon). |
 | 08 | typescript | ⏸️ skip (spec-driven) | — | TS 7 / Corsa status is the main update. Citation refresh when Corsa hits beta/GA. |
@@ -71,19 +71,16 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 
 ## Suggested order
 
-1. **05 — frameworks** *(Tier 1)*
-   Now top of queue after 15 landed 2026-05-23. The sync-engine ranking from 15 is fresh, so this is the right moment to refresh meta-framework picks (Next 16 PPR maturity, TanStack Start 1.x, RedwoodSDK / Smith, Waku, Million.js, Astro-for-content). "Which framework integrates cleanly with which sync engine" pairs naturally with 15's output.
+1. **07 — build-tooling** *(Tier 1)*
+   Now top of queue after 05 landed 2026-05-23. Independent of 05, lower stakes, easy win. Good "fresh-context" session — doesn't need 05 loaded.
 
-2. **07 — build-tooling** *(Tier 1)*
-   Independent of 05, lower stakes, easy win. Good "fresh-context" session — doesn't need 05 loaded.
-
-3. **17 — cross-platform-edge-auth** *(Tier 2)*
+2. **17 — cross-platform-edge-auth** *(Tier 2)*
    Pick up opportunistically when [owner-auth.md](owner-auth.md) gets reopened or the [hosting.md](hosting.md) decisions firm up. Don't do it speculatively.
 
-5. **10 — testing** *(Tier 2)*
+3. **10 — testing** *(Tier 2)*
    Lowest variance among the queue. Visual-regression ranking is the main payoff. Pick up when a project's testing strategy is being scoped.
 
-6. **13 — seo** *(light refresh)*
+4. **13 — seo** *(light refresh)*
    30-min sweep when convenient. AI crawler tokens are the moving piece.
 
 After Tier 1 is done (15 / 05 / 07), the bulk of the high-variance KB churn is captured. Tier 2 + skips can rotate on slower cadence.

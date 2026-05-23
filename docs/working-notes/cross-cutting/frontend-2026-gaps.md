@@ -319,3 +319,73 @@ For patch-stable data, `staleTime: Infinity` (or a multi-hour value paired with 
 - **No form library needed yet.** No client forms exist. Upcoming form-shaped surfaces (status-page admin POST buttons, owner-auth OAuth redirect) are single-button or redirect flows, not form-library territory. Pick is **react-hook-form + zod** when the first ≥3-field validated surface lands; TanStack Form deferred to "2+ surfaces would benefit."
 - **No sync engine needed.** Convex / Zero / Triplit / Jazz / InstantDB / ElectricSQL / TanStack DB all parked. Riot/Steam APIs are server-truth; the read-only-portfolio framing has no offline-first stakes. Triggers to reconsider: offline-first becomes a requirement, multi-user shared-state surface lands, or collaborative annotations.
 - **SSE for [live-presence-chip.md](live-presence-chip.md) is the right call.** Already cited in the plan; reaffirmed against KB §1.2. WebTransport (now Baseline as of April 2026) is overkill for one-way presence push — SSE wins on simplicity.
+
+---
+
+## Round 5 — frameworks pass (2026-05-23)
+
+Audit focus: `05-frameworks.md` against the project's TanStack Router / Vite SPA shape. The structural framework-choice question (SPA → SSR via TanStack Start) is already owned by [tanstack-start-migration.md](tanstack-start-migration.md) — Round 5 does **not** re-litigate it. Instead it audits the project's adoption of the TanStack Router idioms the KB rubric calls out as best-in-class: typed search params (strong adoption, no gap), route loaders (zero adoption, Gap 15), per-route `head()` for SEO (one site, Gap 16). Both ship-now gaps are migration-safe — they are exactly the surfaces the eventual Start migration will lift, so doing them now de-risks the migration rather than creating throwaway work.
+
+### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks
+
+**Current state:** `ugrep -F 'loader:' apps/web/src/routes/ -r` returns **zero hits** across all 20+ route files. Every route component mounts and then triggers its `useQuery` hooks on render, producing a render-then-suspend waterfall on cold navigation. [apps/web/src/main.tsx:30-34](../../../apps/web/src/main.tsx#L30-L34) sets `defaultPreload: "intent"` which prefetches the **route chunk** on link hover, but does not prime the **data** — the chunk arrives early, then the component still has to wait for its queries on click.
+
+**KB floor:** `05-frameworks.md` §1.2 (TanStack Router scoring) — loaders are the "best-in-class" framework idiom that pairs with TanStack Query: a route's loader calls `queryClient.ensureQueryData(...)` before the component renders, so the cache is primed at the moment of render and the first paint contains data instead of a skeleton. This is the single biggest perceived-perf win available in TanStack Router SPA mode.
+
+**Why it matters:** Cold navigation to `/lol/$accountSlug/matches/$matchId` mounts the layout, then the match-detail query fires, then the timeline query fires — three sequential round-trips before the first useful pixel. With `defaultPreload: "intent"` already on, adding a loader means the data round-trip overlaps the chunk load on hover, so by the time the user clicks the data is already in cache. The skeleton-loader convention (per `repo-conventions.md`) papers over this latency but doesn't remove it.
+
+**Tension with Start:** None — loaders are the **exact migration target** for chunk 4 of [tanstack-start-migration.md](tanstack-start-migration.md) ("loaders on /lol and /steam"). Shipping them now in SPA mode is forward-compatible: the same `Route.loader` signature works in Start, where it just runs server-side instead of client-side. This is one of the cheapest forms of migration de-risking available.
+
+**How to apply:** One pilot commit, not a full sweep. Pick the highest-traffic detail route ([apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx)) and add:
+
+```ts
+loader: async ({ params, context: { queryClient } }) =>
+  queryClient.ensureQueryData(matchDetailQueryOptions(params.accountSlug, params.matchId)),
+```
+
+This requires (a) wiring `queryClient` into router `context` in [main.tsx](../../../apps/web/src/main.tsx) (`createRouter({ ..., context: { queryClient } })`), and (b) refactoring the existing `useMatchDetail` hook to expose a `queryOptions`-style factory so the loader and the component share one definition. Verify with the Network panel: cold click from match-list should show the match-detail XHR firing on hover (preload) rather than after navigation.
+
+If the pilot lands cleanly, fan out in follow-up commits — one per route family (`matches`, `champions`, `patches`, `steam/game`). Do **not** add loaders to index/list routes that already render fast with cached parent data; the win is on detail routes with new queries.
+
+**Effort:** Pilot ~1h including the `queryOptions` refactor. Per-route fan-out ~20–30 min each. Total domain: ~3–4h split across 4–5 commits.
+
+### Gap 16 — Per-route `head()` exists at exactly one site, and it ships `http://localhost:2010` in production
+
+**Current state:** [apps/web/src/routes/__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders `<HeadContent />`, so per-route `head()` exports are already wired into the render pipeline — but only **one** route uses it: [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx:35-55](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L35-L55). And that one site has a production bug — line 31 hardcodes `const API_URL = "http://localhost:2010"`, so the `og:image` and `twitter:image` URLs shipped to social-preview crawlers in production are unreachable `localhost` URLs.
+
+Every other route (`/lol/$accountSlug`, `/lol/$accountSlug/champions/$championKey`, `/steam/game/$appid`, `/lol/patches/$version`, etc.) inherits only the static `<title>vyoh.gg</title>` and the generic site description from [apps/web/src/index.html](../../../apps/web/src/index.html). A link to a specific champion or game shared in Discord/Slack/Twitter shows the homepage preview, not the page's content.
+
+**KB floor:** `05-frameworks.md` §13 ("Per-route SEO floor") — every shareable route should override title, description, and (when an OG image pipeline exists) og:image. The static `index.html` head is the fallback for routes that genuinely don't have unique content; deep routes that **do** must override.
+
+**Why it matters:** The OG image pipeline ([docs/working-notes/cross-cutting/og-image-pipeline.md](og-image-pipeline.md)) shipped images for matches but the per-route `head()` adoption stopped at one route. Owner-shaped portfolio framing means social-preview cards are a primary discovery surface — a champion-detail link in a freelance pitch should show that champion's name + role + last-played, not "vyoh.gg / Personal cross-platform gaming dashboard".
+
+The `localhost` bug is the more urgent half: it's a one-line fix and any production share of a match URL right now ships a broken preview.
+
+**Tension with Start:** None — `head()` exports are identical between Router SPA and Start. In Start, the head also influences the SSR document; in SPA mode it mutates the client `<head>` after hydration (still picked up by crawlers that execute JS, and by some that don't with the right SSR posture later). Shipping `head()` per-route now is the structural prep for the Start migration's chunk 2 ("per-route metadata").
+
+**How to apply:** Two commits.
+
+1. **Fix the localhost bug.** Replace `const API_URL = "http://localhost:2010"` with a resolution that reads `import.meta.env.VITE_API_URL` (or `window.location.origin` if API is same-origin in production via reverse proxy). Confirm by running `pnpm build && pnpm preview` and inspecting the rendered `<head>` for the match route — `og:image` must be the production URL.
+2. **Fan out `head()` to the remaining deep routes.** Per route, derive title/description from the loader-primed data (matches Gap 15 nicely — loader primes the query, `head()` reads the cache). Champion-detail uses champion display name; game-detail uses game title from Steam; patch-detail uses patch version + headline change count. Use the existing OG image pipeline for og:image where one exists; fall back to the static favicon for routes without a per-page image.
+
+Order the work after Gap 15's pilot so the loader-primed cache is available to `head()` synchronously. Without a loader, `head()` runs before the query resolves and can't read the data — you'd have to derive titles from URL params only (still better than nothing for the localhost-bug commit).
+
+**Effort:** Bug fix ~15 min. Fan-out ~20 min per route family × 4–5 = ~2h. Total: ~2.5h.
+
+### Round 5 non-gaps (worth knowing, no action)
+
+These are strong-adoption signals confirming the framework pick is correctly used today:
+
+- **Typed search params are strongly adopted.** Six routes use `validateSearch` (`$accountSlug.tsx`, `champions/index.tsx`, `patches/index.tsx`, `patches/$version.tsx`, `steam/wishlist.tsx`, `steam/game.$appid.tsx`); nine files call `useSearch`. This is the single biggest reason to pick TanStack Router per KB §1.2, and the project genuinely uses it — not a gap.
+- **React Compiler 1.0 is wired.** [apps/web/vite.config.ts](../../../apps/web/vite.config.ts) loads `babel-plugin-react-compiler` via `reactCompilerPreset()`, satisfying KB §05 → §03 reference for React 19 + Compiler adoption.
+- **Route-chunk prefetch on intent is on.** [main.tsx:30-34](../../../apps/web/src/main.tsx#L30-L34) sets `defaultPreload: "intent"`. This is necessary but not sufficient (Gap 15 covers the data half).
+- **`<HeadContent />` is already mounted.** [__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders it, so Gap 16's fan-out has zero infra cost — just add `head:` exports.
+- **Structural framework-choice question is parked correctly.** TanStack Start migration sits in [tanstack-start-migration.md](tanstack-start-migration.md) gated on pre-launch; Next.js / React Router 7 / Astro / Waku are documented in [library-shortlist.md § Framework](library-shortlist.md) with their rejection rationale.
+
+### Round 5 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **N — Route loader pilot on match-detail** | #15 (pilot) | ~1h | Ship now, single commit |
+| **O — `head()` localhost bug fix** | #16 (part 1) | ~15 min | Ship now, single commit (independent of N) |
+| **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; order after N + O land |

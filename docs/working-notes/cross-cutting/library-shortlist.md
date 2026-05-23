@@ -616,6 +616,109 @@ Heavy (~150 KB), kitchen-sink API. Embla covers the slot at a fraction of the bu
 
 ---
 
+## Framework — evaluated alternatives, kept TanStack Router SPA (2026-05-23)
+
+Surfaced during the §05-frameworks sweep. The structural migration question (CSR → SSR) is owned by [tanstack-start-migration.md](tanstack-start-migration.md); this section catalogues the **alternative frameworks** that were considered and rejected during that sweep, so the decision doesn't get re-litigated next quarter.
+
+### TanStack Start 1.x
+
+Status: parked-active, decision pending (see [tanstack-start-migration.md](tanstack-start-migration.md))
+
+What it is: The SSR/full-stack layer over TanStack Router. Same router APIs as today's SPA setup, with server-rendered HTML, route loaders running on the server, streaming SSR, and direct server-function support.
+
+Why parked, not rejected: The migration is forward-compatible — typed search params, route definitions, head exports, and (after Round 5 Gap 15 lands) route loaders all work unchanged. The KB §05 rubric scores Start 5/5 for "type safety end-to-end" and "complex search-params state", both exact-fit. Gate: post-launch, after the first ~30 days of CSR analytics so the SEO/perf delta is measurable, not hypothetical.
+
+### Next.js 16
+
+Status: evaluated, **rejected** for this project
+
+What it is: The dominant React meta-framework in 2026. App Router, RSC, explicit caching (`unstable_cache` → `cacheLife`), PPR via Cache Components in 16.x.
+
+Why rejected:
+
+- Cuts against the freelance-positioning angle in [CLAUDE.md](../../../CLAUDE.md) — "Stack and architectural choices are often made deliberately to surface a freelance profile". A vyoh.gg-on-Next.js portfolio reads as another React dashboard; vyoh.gg-on-TanStack-Start tells a TanStack/perf/migration story.
+- Vendor lock-in to Vercel for the best DX (caching primitives, ISR, image optimization). The hosting plan in auto-memory targets a self-host or Cloudflare deploy.
+- The router idioms vyoh.gg leans on hardest (typed search params, `validateSearch`, search-params-as-state) are weaker in Next App Router than in TanStack Router — a regression on the project's strongest framework win.
+
+When to reconsider: Building a client project where the team knows Next and the freelance-portfolio angle isn't in play. Not for this codebase.
+
+### React Router 7 (Framework Mode, formerly Remix)
+
+Status: evaluated, **rejected** for this project
+
+What it is: The Remix lineage now merged into React Router 7's framework mode. Deploy-anywhere story (Workers, Node, Bun), nested routes + loaders + actions, no RSC.
+
+Why rejected:
+
+- Same architectural slot as TanStack Start (loaders, nested routing, deploy-anywhere) but without the TanStack Router type-safety story. Switching would lose the strongest framework win (typed search params) and gain little — the deploy-anywhere advantage applies equally to Start with the right adapter.
+- The migration cost is comparable to Start (both are full router-API rewrites for vyoh.gg) but the destination is strictly worse on the typed-search-params axis.
+
+When to reconsider: If TanStack Start's Cloudflare/edge adapter story regresses meaningfully relative to React Router 7's. As of 2026 there's no such signal.
+
+### Astro 5 (Server Islands)
+
+Status: evaluated, **rejected** for this project
+
+What it is: Content-first framework with Server Islands for partial dynamic content inside otherwise-static pages. Strong story for content sites with sparse interactivity.
+
+Why rejected:
+
+- vyoh.gg is not content-shaped. Every route has live interactivity (search, filters, command palette, route-keyed scroll, motion-driven transitions, splash provider) — there are no genuinely-static pages where Server Islands would shine.
+- Switching means rewriting the entire React component tree as Astro components or accepting a per-island React runtime cost on every route. Neither makes sense for a single-app codebase already deeply invested in React idioms.
+
+When to reconsider: A future content surface gets added (long-form case-study posts, devlog, public docs site) — that surface could be an Astro sibling, not a replacement.
+
+### Waku
+
+Status: evaluated, **rejected** for this project
+
+What it is: Minimal RSC-first framework by Daishi Kato (Jotai/Zustand author). Pure RSC posture, no App Router compatibility baggage.
+
+Why rejected:
+
+- Too early — RSC posture is still settling in 2026, and Waku is a 1-person research project with no production track record on portfolio-scale sites.
+- The freelance-positioning angle prefers TanStack/perf-specialist signals over RSC-research signals. Waku-on-portfolio reads as "I follow Twitter trends", not "I migrate Angular apps to React".
+
+When to reconsider: Waku hits 1.0 with a measurable production user base, and an RSC-first arc lands on [elevation-arcs.md](elevation-arcs.md).
+
+### SvelteKit 2 / Nuxt 4 / SolidStart / Qwik 2 / Fresh 2 / HonoX
+
+Status: evaluated, **rejected** for this project
+
+What they are: Non-React meta-frameworks (SvelteKit, Nuxt for Vue, SolidStart, Qwik 2, Fresh for Deno, HonoX for Hono). All scored in KB §05.
+
+Why rejected:
+
+- Switching off React forfeits every React-ecosystem investment in this codebase: Radix (103 import sites), Motion, Recharts, shadcn registry, React Compiler, every custom hook. The migration cost is "rewrite the app".
+- The freelance-positioning angle is React-competent + Angular-deep + perf/build/migration specialist — none of these frameworks reinforce that profile.
+
+When to reconsider: A future project where React isn't already chosen. Never for vyoh.gg.
+
+### Million.js
+
+Status: evaluated, **rejected**
+
+What it is: React-compatible virtual-DOM accelerator via compile-time block extraction. Promise: drop-in perf wins for React render hot paths.
+
+Why rejected:
+
+- React Compiler 1.0 (shipped, wired per Round 1 Gap 2) covers the same slot via the official path. Stacking Million.js on top is duplicative and adds a second compile-time layer with overlapping concerns.
+- vyoh.gg is not render-bound — there are no profiler-flagged render hot paths. Speculative perf libraries without a profiled bottleneck are anti-pattern per the project's "don't add abstractions beyond what the task requires" stance.
+
+When to reconsider: A profiler flags a specific render hot path that React Compiler's auto-memoization doesn't address, AND React's own renderer can't be re-architected to fix it. Both conditions must hold.
+
+### RedwoodSDK / Redwood Smith
+
+Status: parked, **not yet rated by KB §05**
+
+What it is: Cloudflare-first meta-framework spun out from RedwoodJS, targeting Workers + D1 + R2 as the primary deploy target. Surfaced in the §05-frameworks queue as something to evaluate, but the KB entry hasn't been updated yet.
+
+Why parked, not rejected: The Cloudflare-deploy story is genuinely interesting for the post-launch hosting question (see auto-memory `hosting.md`). But the framework-choice question is already gated on the Start migration, and adding a second framework-evaluation axis would deadlock the decision.
+
+When to reconsider: Phase 2 KB refresh for §05 lands and rates RedwoodSDK explicitly. Re-open the hosting question at that point.
+
+---
+
 ## How to use this section
 
 Future sessions should consult this file in two directions:
