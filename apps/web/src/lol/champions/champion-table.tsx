@@ -1,10 +1,14 @@
 import { CountUp } from "@/components/count-up";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon, type RolePosition } from "@/lol/_shared/assets/role-icon";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
-import { useActiveChampion } from "@/lol/champions/active-champion-context";
+import {
+  type ChampionOrigin,
+  useActiveChampion,
+} from "@/lol/champions/active-champion-context";
 import {
   ChampionCardChrome,
   championCardClassName,
@@ -13,14 +17,20 @@ import {
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
 import { formatPlaytimeFromSeconds } from "@vyoh/shared";
-import { type MotionStyle, type Variants, m } from "motion/react";
-import { useMemo, useRef } from "react";
+import { type MotionStyle, type Variants, m, useReducedMotion } from "motion/react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 import type { ChampionSortOption } from "./champion-sort-selector";
 import type { ChampionStats } from "./champion-stats";
 import { useChampionName, useChampions } from "./use-champions";
+
+// While the back-nav scroll-restore + hero→row morph play out, hold
+// non-active rows at a low opacity so the morphing card travels through a
+// quiet strip. Mirrors match-list's settle hold.
+const SETTLE_HOLD_MS = 800;
+const SETTLE_HOLD_OPACITY = 0.6;
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -66,6 +76,40 @@ export function ChampionTable({
   const championName = useChampionName();
   const champions = useChampions();
   const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
+  // Back-nav from the detail page: read the saved list scroll, restore it
+  // synchronously, then pin briefly while the hero→row morph plays out.
+  // restoredScrollY === 0 ⇒ fresh visit (Trends → Champions, first load),
+  // so settle defaults to true and rows render normally with the stagger.
+  const { readListScroll, activeChampion } = useActiveChampion();
+  const [restoredScrollY] = useState(() => readListScroll());
+  const [settled, setSettled] = useState(() => restoredScrollY <= 0);
+  const didInitialScrollRef = useRef(false);
+  if (!didInitialScrollRef.current && restoredScrollY > 0) {
+    didInitialScrollRef.current = true;
+    mainScrollRef.current?.scrollTo(0, restoredScrollY);
+  }
+  useEffect(() => {
+    if (settled) return;
+    const id = window.setTimeout(() => setSettled(true), SETTLE_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [settled]);
+  useLayoutEffect(() => {
+    const container = mainScrollRef.current;
+    if (restoredScrollY <= 0 || !container) return;
+    const target = restoredScrollY;
+    container.scrollTo(0, target);
+    let cancelled = false;
+    const pinUntil = performance.now() + 600;
+    const pin = () => {
+      if (cancelled || performance.now() > pinUntil) return;
+      if (Math.abs(container.scrollTop - target) > 1) container.scrollTo(0, target);
+      requestAnimationFrame(pin);
+    };
+    requestAnimationFrame(pin);
+    return () => {
+      cancelled = true;
+    };
+  }, [restoredScrollY]);
   // First occurrence per champion in `stats` (sorted by games desc) is the
   // primary role — that row keeps the shared `champ-card-{champion}` layoutId
   // for the detail-page morph; sibling rows get role-suffixed ids and just
@@ -77,13 +121,15 @@ export function ChampionTable({
     }
     return map;
   }, [stats]);
+  // Skip the entrance stagger on back-nav: the rows are already on screen,
+  // and the morphing card is doing the work — re-running stagger would be
+  // visual noise.
+  const isReturnNav = restoredScrollY > 0;
+  const listMotionProps = isReturnNav
+    ? { initial: false as const }
+    : { initial: "hidden" as const, animate: "show" as const, variants: container };
   return (
-    <m.ul
-      initial="hidden"
-      animate="show"
-      variants={container}
-      className="flex flex-col gap-3"
-    >
+    <m.ul {...listMotionProps} className="flex flex-col gap-3">
       {sorted.map((s) => {
         const isPrimary = primaryRoleByChampion.get(s.champion) === s.position;
         const layoutId = isPrimary
@@ -92,6 +138,8 @@ export function ChampionTable({
         const info = champions.data?.get(s.champion.toLowerCase());
         const parentClasses = info?.modernClasses ?? [];
         const subclasses = info?.modernSubclasses ?? [];
+        const isActiveRow = activeChampion === s.champion && isPrimary;
+        const heldDuringSettle = !settled && !isActiveRow;
         return (
           <ChampionTableRow
             key={`${s.champion}-${s.position}`}
@@ -103,6 +151,7 @@ export function ChampionTable({
             accountSlug={accountSlug}
             displayName={championName(s.champion)}
             onCardHover={onCardHover}
+            heldDuringSettle={heldDuringSettle}
           />
         );
       })}
@@ -119,6 +168,7 @@ function ChampionTableRow({
   accountSlug,
   displayName,
   onCardHover,
+  heldDuringSettle,
 }: {
   s: ChampionStats;
   isPrimary: boolean;
@@ -128,15 +178,72 @@ function ChampionTableRow({
   accountSlug: string;
   displayName: string;
   onCardHover?: ((champion: string) => void) | undefined;
+  heldDuringSettle: boolean;
 }) {
-  const { setActiveChampion, saveListScroll, setOriginRect } = useActiveChampion();
+  const { setActiveChampion, saveListScroll, originRectRef, setOriginRect } =
+    useActiveChampion();
+  const reduced = useReducedMotion();
   const cardRef = useRef<HTMLDivElement>(null);
   const alias = s.champion;
+  // Captured once on mount so StrictMode's double-invocation doesn't lose the
+  // origin after the first run clears originRectRef. Mirrors match-row.
+  const savedOrigin = useRef<ChampionOrigin | null>(null);
+
+  // Back-nav: when this row is the destination of a back-navigation, snap to
+  // the detail hero's last-known rect and CSS-transition back to the natural
+  // position. Only the primary row owns `champ-card-{alias}` and so matches
+  // the breadcrumb's queryselector — non-primary rows skip this entirely.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
+  useLayoutEffect(() => {
+    if (!isPrimary) return;
+    if (!savedOrigin.current) {
+      const o = originRectRef.current;
+      if (
+        o?.championAlias?.toLowerCase() !== alias.toLowerCase() ||
+        o.direction !== "backward"
+      )
+        return;
+      savedOrigin.current = o;
+    }
+    const origin = savedOrigin.current;
+    if (!origin || !cardRef.current) return;
+    if (reduced) return;
+    const el = cardRef.current;
+    el.style.visibility = "hidden";
+    let cancelled = false;
+    const rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+      setOriginRect(null);
+      el.style.visibility = "";
+      const listRect = el.getBoundingClientRect();
+      const dx = origin.rect.left - listRect.left;
+      const dy = origin.rect.top - listRect.top;
+      const sx = origin.rect.width / listRect.width;
+      const sy = origin.rect.height / listRect.height;
+      el.animate(
+        [
+          {
+            transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
+            transformOrigin: "0 0",
+          },
+          { transform: "none", transformOrigin: "0 0" },
+        ],
+        { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
+      );
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      el.style.visibility = "";
+    };
+  }, []);
+
   return (
     <m.li
       variants={item}
       layout
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
+      animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
     >
       <CardTilt>
         <Link

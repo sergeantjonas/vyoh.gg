@@ -212,6 +212,40 @@ describe("ChampionTable", () => {
       expect(probe.getAttribute("data-scroll")).toBe("321");
     });
 
+    it("restores the saved list scroll on mount when returning from the detail page", () => {
+      const scrollTo = vi.fn();
+      mainScrollRef.current = {
+        scrollTo,
+        get scrollTop() {
+          return 540;
+        },
+      } as unknown as HTMLElement;
+
+      function TableWithSavedScroll({ stats }: { stats: ChampionStats[] }) {
+        // Prime the saved scroll via context before the table mounts as a
+        // sibling — mirrors the production back-nav path where the row's
+        // pointerDown handler saved scroll on the previous visit.
+        const { saveListScroll } = useActiveChampion();
+        saveListScroll();
+        return <ChampionTable stats={stats} sort="games" accountSlug="ahri" />;
+      }
+
+      render(
+        <MotionConfig reducedMotion="always">
+          <TooltipPrimitive.Provider>
+            <ActiveChampionProvider>
+              <TableWithSavedScroll stats={[stat()]} />
+            </ActiveChampionProvider>
+          </TooltipPrimitive.Provider>
+        </MotionConfig>
+      );
+
+      // The didInitialScrollRef branch (sync scrollTo during render) plus the
+      // useLayoutEffect branch (async pin loop) each schedule a scrollTo —
+      // both target (0, 540), which is what matters for the parity check.
+      expect(scrollTo).toHaveBeenCalledWith(0, 540);
+    });
+
     it("seeds active champion + scroll for a non-primary row but skips the origin rect", () => {
       mainScrollRef.current = { scrollTop: 88 } as HTMLElement;
       // Two rows for the same champion: MIDDLE (primary, listed first) and TOP.
