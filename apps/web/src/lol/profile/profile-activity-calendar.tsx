@@ -37,7 +37,7 @@ function classForValue(value: Value | undefined): string {
   return COLOR_LEVEL_4;
 }
 
-function titleForValue(value: Value | undefined): string {
+function labelForValue(value: Value | undefined): string {
   const count = typeof value?.count === "number" ? value.count : 0;
   if (count === 0) return "";
   return count === 1 ? `1 game on ${value?.date}` : `${count} games on ${value?.date}`;
@@ -57,21 +57,19 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
 
   const values = buildValues(matches);
   const endDate = new Date();
-  const fullYearAgo = new Date(endDate.getTime() - DAYS_WINDOW * MS_PER_DAY);
+  const startDate = new Date(endDate.getTime() - DAYS_WINDOW * MS_PER_DAY);
 
-  // Newest-first ordering means matches[length - 1] is oldest. Clamp the
-  // calendar's startDate to the oldest data we actually have so heavy
-  // grinders don't see most of a year of misleading empty cells (Riot's
-  // Match-V5 API caps history at ~1000 matches per puuid, which can be ~3
-  // months for a heavy grinder). For light players the data fits inside
-  // the year and we keep the full 365-day frame.
+  // Newest-first ordering means matches[length - 1] is oldest. Riot's Match-V5
+  // API caps history at ~1000 matches per puuid, which for a heavy grinder
+  // can be only ~3 months of data. We still render the full 365-day frame so
+  // the cell size stays consistent across players; the caption surfaces how
+  // far back the actual data goes.
   const oldestMatch = matches[matches.length - 1];
-  const oldestDate = oldestMatch ? new Date(oldestMatch.playedAt) : fullYearAgo;
-  const startDate = oldestDate > fullYearAgo ? oldestDate : fullYearAgo;
-  const isCapped = startDate.getTime() > fullYearAgo.getTime();
+  const oldestDate = oldestMatch ? new Date(oldestMatch.playedAt) : startDate;
+  const isCapped = oldestDate.getTime() > startDate.getTime();
   const daysShown = Math.max(
     1,
-    Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY)
+    Math.round((endDate.getTime() - oldestDate.getTime()) / MS_PER_DAY)
   );
 
   return (
@@ -83,7 +81,7 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
             <TooltipPrimitive.Trigger asChild>
               <span className="cursor-help text-xs text-muted-foreground/70">
                 {daysShown} days · from{" "}
-                {startDate.toLocaleDateString(undefined, {
+                {oldestDate.toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
                 })}
@@ -108,17 +106,32 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
         endDate={endDate}
         values={values}
         classForValue={classForValue}
-        titleForValue={titleForValue}
         showMonthLabels
         showWeekdayLabels
-        transformDayElement={(element, _value, index) => {
+        transformDayElement={(element, value, index) => {
           const el = element as ReactElement<SVGProps<SVGRectElement>>;
           const col = Math.floor(index / 7);
           const row = index % 7;
-          return cloneElement(el, {
+          const rect = cloneElement(el, {
             className: `${el.props.className ?? ""} heatmap-cell`.trim(),
             style: { animationDelay: `${(col + row) * 10}ms` },
           });
+          const label = labelForValue(value as Value | undefined);
+          if (!label) return rect;
+          return (
+            <TooltipPrimitive.Root key={index} delayDuration={150}>
+              <TooltipPrimitive.Trigger asChild>{rect}</TooltipPrimitive.Trigger>
+              <TooltipPrimitive.Portal>
+                <TooltipPrimitive.Content
+                  side="top"
+                  sideOffset={6}
+                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                >
+                  {label}
+                </TooltipPrimitive.Content>
+              </TooltipPrimitive.Portal>
+            </TooltipPrimitive.Root>
+          );
         }}
       />
     </section>
