@@ -8,6 +8,16 @@ body {
   overflow: hidden;
 }
 
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme {
@@ -55,11 +65,13 @@ body {
 }
 
 .heatmap-cell {
-  animation: heatmap-reveal 280ms ease-out both;
+  animation: heatmap-reveal 280ms
+    linear(0, 0.218, 0.404, 0.554, 0.679, 0.781, 0.864, 0.929, 0.967, 0.992, 1) both;
 }
 
 .group:hover .card-splash-breathe {
-  animation: card-breathe 3s ease-in-out infinite;
+  animation: card-breathe 3s
+    linear(0, 0.024, 0.095, 0.206, 0.345, 0.5, 0.655, 0.794, 0.905, 0.976, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
