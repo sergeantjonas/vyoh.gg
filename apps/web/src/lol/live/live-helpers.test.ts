@@ -122,6 +122,19 @@ describe("computeTeamComp", () => {
     const out = computeTeamComp([1], { 1: ["fighter", "rune-hammer"] });
     expect(out.fighter).toBe(100);
   });
+
+  it("matches capitalised DDragon tags against the lowercase axes", () => {
+    // DDragon `tags` ship Title-Case strings ("Fighter", "Tank"); the
+    // radar axes are lowercase slugs. Without normalisation every axis
+    // would render 0.
+    const out = computeTeamComp([1, 2], {
+      1: ["Fighter", "Tank"],
+      2: ["Mage"],
+    });
+    expect(out.fighter).toBe(50);
+    expect(out.tank).toBe(50);
+    expect(out.mage).toBe(50);
+  });
 });
 
 describe("formatSeconds", () => {

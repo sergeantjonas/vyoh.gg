@@ -63,6 +63,8 @@ export type CompAxis = (typeof COMP_AXES)[number];
 // Per-team composition tally as percentages summing across each champion's
 // role tags. A 5-tank team scores 100 on the tank axis; a balanced team
 // scatters across multiple axes (each champion can contribute to several).
+// Roles arrive from DDragon `tags` as capitalised strings ("Fighter",
+// "Tank", ...) — lowercase before matching the axis slug.
 export function computeTeamComp(
   ids: number[],
   rolesByChampion: Record<number, string[]>
@@ -73,8 +75,9 @@ export function computeTeamComp(
   >;
   for (const id of ids) {
     for (const role of rolesByChampion[id] ?? []) {
-      if ((COMP_AXES as readonly string[]).includes(role)) {
-        counts[role as CompAxis]++;
+      const slug = role.toLowerCase();
+      if ((COMP_AXES as readonly string[]).includes(slug)) {
+        counts[slug as CompAxis]++;
       }
     }
   }
