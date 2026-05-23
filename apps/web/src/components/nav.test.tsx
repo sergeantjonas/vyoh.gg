@@ -8,7 +8,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPaletteProvider, useCommandPalette } from "./command-palette-context";
 import { Nav } from "./nav";
 
-type MockAccount = { slug: string; gameName: string; tagLine: string; region: string };
+// Matches the wire shape (LolAccountWithSummary) so the mock satisfies
+// the type at render time. Tests that want the simple-row fallback set
+// `summary: null`; tests for the rich row populate the nested fields.
+type MockSummary = {
+  rank: { tier: string; division: string; leaguePoints: number; queueId: string } | null;
+  lastPlayedChampionAlias: string | null;
+  updatedAt: string | null;
+};
+type MockAccount = {
+  slug: string;
+  gameName: string;
+  tagLine: string;
+  region: string;
+  summary: MockSummary | null;
+};
 
 const { accountsRef } = vi.hoisted(() => ({
   accountsRef: { current: [] as MockAccount[] },
@@ -157,7 +171,13 @@ describe("Nav", () => {
     it("pre-fills ?as=<slug> on the Patches link when a default LoL account exists", async () => {
       vi.mocked(useRouterState).mockReturnValue("/" as never);
       accountsRef.current = [
-        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "europe" },
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
       ];
       renderNav();
       openLolMenu();
@@ -176,8 +196,20 @@ describe("Nav", () => {
     it("renders an account row per LoL account linking to /lol/<slug>", async () => {
       vi.mocked(useRouterState).mockReturnValue("/" as never);
       accountsRef.current = [
-        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "europe" },
-        { slug: "alt-na", gameName: "Alt", tagLine: "NA1", region: "americas" },
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
+        {
+          slug: "alt-na",
+          gameName: "Alt",
+          tagLine: "NA1",
+          region: "americas",
+          summary: null,
+        },
       ];
       renderNav();
       openLolMenu();
@@ -185,6 +217,53 @@ describe("Nav", () => {
       expect(jonas.getAttribute("href")).toBe("/lol/jonas-euw");
       const alt = screen.getByRole("link", { name: /Alt/i });
       expect(alt.getAttribute("href")).toBe("/lol/alt-na");
+    });
+
+    it("renders a rich row with rank text when the account summary is hydrated", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: {
+            rank: {
+              tier: "GOLD",
+              division: "II",
+              leaguePoints: 50,
+              queueId: "RANKED_SOLO_5x5",
+            },
+            lastPlayedChampionAlias: "Ahri",
+            updatedAt: "2026-05-24T10:00:00Z",
+          },
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const link = await screen.findByRole("link", { name: /Jonas/i });
+      expect(link.textContent).toMatch(/Gold II 50LP/);
+    });
+
+    it("renders 'Unranked' on hydrated rows that carry a null rank", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: {
+            rank: null,
+            lastPlayedChampionAlias: null,
+            updatedAt: "2026-05-24T10:00:00Z",
+          },
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const link = await screen.findByRole("link", { name: /Jonas/i });
+      expect(link.textContent).toMatch(/Unranked/);
     });
 
     it("closes the menu when Escape is pressed", async () => {

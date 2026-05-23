@@ -11,8 +11,14 @@ import {
 } from "@/components/ui/navigation-menu";
 import { useMe } from "@/identity/use-me";
 import { cn } from "@/lib/utils";
+import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
+import { useChampionName } from "@/lol/champions/use-champions";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link, useRouterState } from "@tanstack/react-router";
+import type { LolAccountWithSummary } from "@vyoh/shared";
+import { formatRank } from "@vyoh/shared/lol/rank-history";
 import { Activity, Home, ScrollText, Search } from "lucide-react";
 import { m } from "motion/react";
 import type { ComponentType, SVGProps } from "react";
@@ -27,18 +33,15 @@ function isItemActive(pathname: string, to: string) {
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
-type LolAccount = {
-  slug: string;
-  gameName: string;
-  tagLine: string;
-  region: string;
-};
+// Local alias for readability at call sites. `LolAccountWithSummary` from
+// shared is the `/me` wire shape the nav consumes.
+type NavLolAccount = LolAccountWithSummary;
 
 export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { setOpen } = useCommandPalette();
   const me = useMe();
-  const accounts: readonly LolAccount[] = me.data?.lol ?? [];
+  const accounts: readonly NavLolAccount[] = me.data?.lol ?? [];
   // Pre-fill `?as=<slug>` from the viewer's default LoL account so
   // "Patches" lands on the personalized lens by default. Falls through to
   // the neutral global view when no default account is available.
@@ -173,7 +176,7 @@ function LolMenuPanel({
   accounts,
   defaultLolSlug,
 }: {
-  accounts: readonly LolAccount[];
+  accounts: readonly NavLolAccount[];
   defaultLolSlug: string | undefined;
 }) {
   return (
@@ -186,25 +189,7 @@ function LolMenuPanel({
           <ul className="flex max-h-[300px] flex-col overflow-y-auto">
             {accounts.map((account) => (
               <li key={account.slug}>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/lol/$accountSlug"
-                    params={{ accountSlug: account.slug }}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
-                  >
-                    <LeagueOfLegendsIcon
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <span className="flex-1 truncate">
-                      <span>{account.gameName}</span>
-                      <span className="text-muted-foreground">#{account.tagLine}</span>
-                    </span>
-                    <span className="text-[10px] text-muted-foreground uppercase">
-                      {account.region}
-                    </span>
-                  </Link>
-                </NavigationMenuLink>
+                <AccountRow account={account} />
               </li>
             ))}
           </ul>
@@ -222,6 +207,88 @@ function LolMenuPanel({
         </Link>
       </NavigationMenuLink>
     </div>
+  );
+}
+
+// Compact queue label for the dropdown's sub-line — the full names
+// ("Ranked Solo", "Ranked Flex") used on the profile rank tiles are too
+// wide for the 280px-ish menu width. Unknown queues fall through to the
+// raw id so a future ranked queue still reads in the UI.
+function queueShortLabel(queueId: string): string {
+  if (queueId === "RANKED_SOLO_5x5") return "Solo";
+  if (queueId === "RANKED_FLEX_SR") return "Flex";
+  return queueId;
+}
+
+// Account row in the LoL dropdown. Renders one of three layouts based
+// on what `summary` carries:
+//   - summary === null OR summary.updatedAt === null
+//       → simple row (account never resolved, or refresh never fired)
+//   - summary present, rank populated
+//       → rich row with last-played champion icon + rank emblem + LP
+//   - summary present, rank null
+//       → rich row with "Unranked" label
+// All three share the same row chrome so the layout doesn't jump as
+// data arrives across the menu's lifetime.
+function AccountRow({ account }: { account: NavLolAccount }) {
+  const championName = useChampionName();
+  const emblemYear = useRankedEmblemYear();
+  const summary = account.summary;
+  const isHydrated = summary !== null && summary.updatedAt !== null;
+  const rank = summary?.rank ?? null;
+  const lastChampion = summary?.lastPlayedChampionAlias ?? null;
+
+  return (
+    <NavigationMenuLink asChild>
+      <Link
+        to="/lol/$accountSlug"
+        params={{ accountSlug: account.slug }}
+        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+      >
+        {/* Fixed-size left icon slot so fallback rows align with hydrated
+        ones — the only difference is what goes inside the box. */}
+        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-sm">
+          {isHydrated && lastChampion ? (
+            <ChampionSquareIcon
+              championName={lastChampion}
+              alt={championName(lastChampion)}
+              className="size-7"
+            />
+          ) : (
+            <LeagueOfLegendsIcon className="size-4 text-muted-foreground" aria-hidden />
+          )}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate">
+            <span>{account.gameName}</span>
+            <span className="text-muted-foreground">#{account.tagLine}</span>
+          </span>
+          {/* Subline is rendered for every row so vertical rhythm stays
+          uniform whether the denorm has hydrated or not. Hydrated rows get
+          region · rank; fallback rows show region alone. */}
+          <span className="truncate text-[10px] text-muted-foreground">
+            {account.region.toUpperCase()}
+            {isHydrated &&
+              (rank
+                ? ` · ${queueShortLabel(rank.queueId)} · ${formatRank(rank.tier, rank.division, rank.leaguePoints)}`
+                : " · Unranked")}
+          </span>
+        </span>
+        {/* Fixed-size right slot so rank-emblem and no-rank rows take the
+        same width. Rendered as a placeholder span when there's no emblem
+        to display, keeping the row chrome stable. */}
+        <span className="flex size-7 shrink-0 items-center justify-center">
+          {isHydrated && rank && (
+            <img
+              src={rankEmblemUrl(rank.tier, emblemYear)}
+              alt={rank.tier}
+              loading="lazy"
+              className="size-7 object-contain opacity-90"
+            />
+          )}
+        </span>
+      </Link>
+    </NavigationMenuLink>
   );
 }
 

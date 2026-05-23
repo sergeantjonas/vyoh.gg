@@ -547,8 +547,10 @@ export class LolService {
   // of joining RankSnapshot + Match per account. Always reads canonical
   // tables, never trusts the caller's view of what just changed; that
   // keeps the function safe to call from any writer regardless of which
-  // path Riot data arrived through.
-  private async refreshAccountSummary(puuid: string): Promise<void> {
+  // path Riot data arrived through. Public so one-off backfill scripts
+  // can hydrate the denorm columns from existing snapshots without
+  // re-running Riot fetches.
+  async refreshAccountSummary(puuid: string): Promise<void> {
     const [soloLatest, flexLatest, lastMatch] = await Promise.all([
       this.prisma.rankSnapshot.findFirst({
         where: { puuid, queueId: "RANKED_SOLO_5x5" },
