@@ -127,6 +127,9 @@ importers:
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
+      '@radix-ui/react-accordion':
+        specifier: ^1.2.12
+        version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-checkbox':
         specifier: ^1.3.3
         version: 1.3.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -155,9 +158,6 @@ importers:
         specifier: ^3.12.0
         version: 3.12.0(react@19.2.6)
       '@visx/brush':
-        specifier: ^3.12.0
-        version: 3.12.0(react@19.2.6)
-      '@visx/chord':
         specifier: ^3.12.0
         version: 3.12.0(react@19.2.6)
       '@visx/group':
@@ -2810,9 +2810,6 @@ packages:
   '@types/d3-array@3.2.2':
     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
 
-  '@types/d3-chord@1.0.14':
-    resolution: {integrity: sha512-W9rCIbSAhwtmydW5iGg9dwTQIi3SGBOh68/T3ke3PyOgejuSLozmtAMaWNViGaGJCeuM4aFJHTUHQvMedl4ugA==}
-
   '@types/d3-color@3.1.0':
     resolution: {integrity: sha512-HKuicPHJuvPgCD+np6Se9MQvS6OCbJmOjGvylzMJRlDwUXjKTTXs6Pwgk79O09Vj/ho3u1ofXnhFOaEWWPrlwA==}
 
@@ -3026,11 +3023,6 @@ packages:
 
   '@visx/brush@3.12.0':
     resolution: {integrity: sha512-ceqQe/IlIi9X9FT/DuiO6b3l5YAGnux/aQMX8M1gvLdz4T8pXIW8nDv1OhqbZ7lmbQEUEEM9IexOkR9ix7pL+Q==}
-    peerDependencies:
-      react: ^16.0.0-0 || ^17.0.0-0 || ^18.0.0-0
-
-  '@visx/chord@3.12.0':
-    resolution: {integrity: sha512-hgSFCA/Zqp1tjzfG7GwFi4syvHsSDIVig7CF5T1GlKICLgeF+yfWEYK/OVDCYI7dIqtPZbp8xUFBI84KByCVwA==}
     peerDependencies:
       react: ^16.0.0-0 || ^17.0.0-0 || ^18.0.0-0
 
@@ -3802,9 +3794,6 @@ packages:
   cuint@0.2.2:
     resolution: {integrity: sha512-d4ZVpCW31eWwCMe1YT3ur7mUDnTXbgwyzaL320DrcRT45rfjYxkt5QWLrmOJ+/UEAI2+fQgKe/fCjR8l4TpRgw==}
 
-  d3-array@1.2.4:
-    resolution: {integrity: sha512-KHW6M86R+FUPYGb3R5XiYjXPq7VzwxZ22buHhAEVG5ztoEcZZMLov530mmccaqA1GghZArjQV46fuc8kUqhhHw==}
-
   d3-array@3.2.1:
     resolution: {integrity: sha512-gUY/qeHq/yNqqoCKNq4vtpFLdoCdvyNpWoC/KNjhGbhDuQpAM9sIQQKkXSNpXa9h5KySs/gzm7R88WkUutgwWQ==}
     engines: {node: '>=12'}
@@ -3812,9 +3801,6 @@ packages:
   d3-array@3.2.4:
     resolution: {integrity: sha512-tdQAmyA18i4J7wprpYq8ClcxZy3SC31QMeByyCFyRt7BVHdREQZ5lpzoe5mFEYZUWe+oq8HBvk9JjpibyEV4Jg==}
     engines: {node: '>=12'}
-
-  d3-chord@1.0.6:
-    resolution: {integrity: sha512-JXA2Dro1Fxw9rJe33Uv+Ckr5IrAa74TlfDEhE/jfLOaXegMQFQTAgAw9WnZL8+HxVBRXaRGCkrNU7pJeylRIuA==}
 
   d3-color@3.1.0:
     resolution: {integrity: sha512-zg/chbXyeBtMQ1LbD/WSoW2DpC3I0mpmPdW+ynRTj/x2DAWYrIY7qeZIHidozwV24m4iavr15lNwIwLxRmOxhA==}
@@ -8882,8 +8868,6 @@ snapshots:
 
   '@types/d3-array@3.2.2': {}
 
-  '@types/d3-chord@1.0.14': {}
-
   '@types/d3-color@3.1.0': {}
 
   '@types/d3-color@3.1.3': {}
@@ -9137,15 +9121,6 @@ snapshots:
       '@visx/scale': 3.12.0
       '@visx/shape': 3.12.0(react@19.2.6)
       classnames: 2.5.1
-      prop-types: 15.8.1
-      react: 19.2.6
-
-  '@visx/chord@3.12.0(react@19.2.6)':
-    dependencies:
-      '@types/d3-chord': 1.0.14
-      '@types/react': 19.2.14
-      classnames: 2.5.1
-      d3-chord: 1.0.6
       prop-types: 15.8.1
       react: 19.2.6
 
@@ -10036,8 +10011,6 @@ snapshots:
 
   cuint@0.2.2: {}
 
-  d3-array@1.2.4: {}
-
   d3-array@3.2.1:
     dependencies:
       internmap: 2.0.3
@@ -10045,11 +10018,6 @@ snapshots:
   d3-array@3.2.4:
     dependencies:
       internmap: 2.0.3
-
-  d3-chord@1.0.6:
-    dependencies:
-      d3-array: 1.2.4
-      d3-path: 1.0.9
 
   d3-color@3.1.0: {}
 

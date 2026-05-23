@@ -1,282 +1,222 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
-import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useChampionName } from "@/lol/champions/use-champions";
 import { useChampionPairs } from "@/lol/profile/use-champion-pairs";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
-import { Chord, Ribbon } from "@visx/chord";
-import { Group } from "@visx/group";
-import { ParentSize } from "@visx/responsive";
 import type { ChampionPair } from "@vyoh/shared";
-import { m } from "motion/react";
+import { ArrowRight } from "lucide-react";
+import { type Variants, m } from "motion/react";
 import { useMemo } from "react";
 
-const MIN_TOTAL_GAMES = 10;
-const MIN_RIBBON_GAMES = 2;
-const TOP_PER_SIDE = 6;
+const MIN_GAMES_PER_TEAMMATE = 2;
+const MIN_TOTAL_GAMES_PER_CHAMP = 6;
+const TOP_CHAMPIONS = 5;
+const TOP_TEAMMATES_PER_CHAMP = 4;
 
-const TOOLTIP_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-3 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+interface TeammateEntry {
+  champ: string;
+  games: number;
+  wins: number;
+  wr: number;
+}
 
-const YOUR_ARC_COLOR = "rgb(52, 211, 153)";
-const THEIRS_ARC_COLOR = "rgb(96, 165, 250)";
-const WIN_COLOR = "rgb(52, 211, 153)";
-const LOSS_COLOR = "rgb(244, 63, 94)";
-
-interface ChordData {
-  champions: string[];
-  yourCount: number;
-  matrix: number[][];
-  pairGames: Map<string, number>;
-  pairWins: Map<string, number>;
+interface ChampionSynergy {
+  yourChamp: string;
   totalGames: number;
+  totalWins: number;
+  teammates: TeammateEntry[];
 }
 
-function topN<T>(entries: T[], byKey: (x: T) => number, n: number): T[] {
-  return [...entries].sort((a, b) => byKey(b) - byKey(a)).slice(0, n);
-}
-
-function prepareChord(pairs: ChampionPair[]): ChordData | null {
-  if (pairs.length === 0) return null;
-
-  const youTotals = new Map<string, number>();
-  const themTotals = new Map<string, number>();
+function prepareSynergy(pairs: ChampionPair[]): ChampionSynergy[] {
+  const byChamp = new Map<string, ChampionPair[]>();
   for (const p of pairs) {
-    youTotals.set(p.yourChamp, (youTotals.get(p.yourChamp) ?? 0) + p.games);
-    themTotals.set(p.teammateChamp, (themTotals.get(p.teammateChamp) ?? 0) + p.games);
+    if (p.games < MIN_GAMES_PER_TEAMMATE) continue;
+    const list = byChamp.get(p.yourChamp);
+    if (list) list.push(p);
+    else byChamp.set(p.yourChamp, [p]);
   }
 
-  const yourChamps = topN([...youTotals.entries()], ([, n]) => n, TOP_PER_SIDE).map(
-    ([c]) => c
-  );
-  const teammateChamps = topN([...themTotals.entries()], ([, n]) => n, TOP_PER_SIDE).map(
-    ([c]) => c
-  );
-
-  // Champions can appear on both sides if you play a champion that teammates
-  // also play frequently — disambiguate so the matrix is square and unique.
-  // For now we keep them as separate logical nodes by prefixing "you:" /
-  // "them:" internally; the display strips the prefix.
-  const champions = [
-    ...yourChamps.map((c) => `you:${c}`),
-    ...teammateChamps.map((c) => `them:${c}`),
-  ];
-  const yourCount = yourChamps.length;
-  const champIdx = new Map(champions.map((c, i) => [c, i]));
-  const N = champions.length;
-  const matrix = Array.from({ length: N }, () => new Array<number>(N).fill(0));
-  const pairGames = new Map<string, number>();
-  const pairWins = new Map<string, number>();
-
-  let totalGames = 0;
-  for (const p of pairs) {
-    if (p.games < MIN_RIBBON_GAMES) continue;
-    const i = champIdx.get(`you:${p.yourChamp}`);
-    const j = champIdx.get(`them:${p.teammateChamp}`);
-    if (i === undefined || j === undefined) continue;
-    const rowI = matrix[i];
-    const rowJ = matrix[j];
-    if (!rowI || !rowJ) continue;
-    // Symmetric matrix so d3-chord sizes both endpoints by their total flow;
-    // an asymmetric matrix would make teammate-side rows sum to 0 and collapse
-    // their arcs to a sliver, stacking all icons at the 12 o'clock seam.
-    rowI[j] = p.games;
-    rowJ[i] = p.games;
-    pairGames.set(`${i},${j}`, p.games);
-    pairWins.set(`${i},${j}`, p.wins);
-    totalGames += p.games;
+  const entries: ChampionSynergy[] = [];
+  for (const [yourChamp, ps] of byChamp) {
+    const totalGames = ps.reduce((s, p) => s + p.games, 0);
+    if (totalGames < MIN_TOTAL_GAMES_PER_CHAMP) continue;
+    const totalWins = ps.reduce((s, p) => s + p.wins, 0);
+    const teammates: TeammateEntry[] = [...ps]
+      .sort((a, b) => b.games - a.games)
+      .slice(0, TOP_TEAMMATES_PER_CHAMP)
+      .map((p) => ({
+        champ: p.teammateChamp,
+        games: p.games,
+        wins: p.wins,
+        wr: p.wins / p.games,
+      }));
+    entries.push({ yourChamp, totalGames, totalWins, teammates });
   }
 
-  if (totalGames < MIN_TOTAL_GAMES) return null;
-  return { champions, yourCount, matrix, pairGames, pairWins, totalGames };
+  return entries.sort((a, b) => b.totalGames - a.totalGames).slice(0, TOP_CHAMPIONS);
 }
 
-function annularSegment(
-  innerR: number,
-  outerR: number,
-  startAngle: number,
-  endAngle: number
-): string {
-  const x1 = Math.sin(startAngle) * outerR;
-  const y1 = -Math.cos(startAngle) * outerR;
-  const x2 = Math.sin(endAngle) * outerR;
-  const y2 = -Math.cos(endAngle) * outerR;
-  const x3 = Math.sin(endAngle) * innerR;
-  const y3 = -Math.cos(endAngle) * innerR;
-  const x4 = Math.sin(startAngle) * innerR;
-  const y4 = -Math.cos(startAngle) * innerR;
-  const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
-  return `M ${x1} ${y1} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4} Z`;
+interface Accent {
+  text: string;
+  bar: string;
+  rail: string;
+  rowBorder: string;
 }
 
-function displayName(prefixed: string): string {
-  return prefixed.replace(/^(you|them):/, "");
+function wrAccent(wr: number): Accent {
+  if (wr >= 0.6) {
+    return {
+      text: "text-emerald-400",
+      bar: "bg-emerald-400/70",
+      rail: "bg-emerald-400/15",
+      rowBorder: "border-l-emerald-400/50",
+    };
+  }
+  if (wr >= 0.5) {
+    return {
+      text: "text-emerald-500/90",
+      bar: "bg-emerald-500/55",
+      rail: "bg-emerald-500/10",
+      rowBorder: "border-l-emerald-500/30",
+    };
+  }
+  if (wr >= 0.4) {
+    return {
+      text: "text-muted-foreground",
+      bar: "bg-muted-foreground/40",
+      rail: "bg-muted-foreground/10",
+      rowBorder: "border-l-muted-foreground/20",
+    };
+  }
+  return {
+    text: "text-rose-400",
+    bar: "bg-rose-500/60",
+    rail: "bg-rose-500/10",
+    rowBorder: "border-l-rose-400/50",
+  };
 }
 
-function ChordChart({ data, accountSlug }: { data: ChordData; accountSlug: string }) {
-  const patch = useDDragonVersion();
+function ChampionSynergyCard({
+  entry,
+  accountSlug,
+}: {
+  entry: ChampionSynergy;
+  accountSlug: string;
+}) {
+  const championName = useChampionName();
+  const overallWr = entry.totalWins / entry.totalGames;
+  const overallWrPct = Math.round(overallWr * 100);
+  const overallLosses = entry.totalGames - entry.totalWins;
+  const overallAccent = wrAccent(overallWr);
+  const maxGames = entry.teammates.reduce((acc, t) => Math.max(acc, t.games), 1);
+  const displayName = championName(entry.yourChamp);
+
   return (
-    <ParentSize>
-      {({ width }) => {
-        const size = Math.min(width, 420);
-        if (size < 120) return null;
-        const outerR = size / 2 - 32;
-        const innerR = outerR - 8;
-        const iconR = outerR + 16;
-        const iconSize = 22;
-
-        return (
-          <svg
-            width={size}
-            height={size}
-            role="img"
-            aria-label="Champion synergy chord"
-            className="mx-auto block"
+    <m.div variants={rowVariants}>
+      <AccordionItem value={entry.yourChamp}>
+        <AccordionTrigger aria-label={`${displayName} synergy details`}>
+          <ChampionSquareIcon
+            championName={entry.yourChamp}
+            alt=""
+            className="size-10 shrink-0 rounded-md"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium">{displayName}</div>
+            <div className="text-xs text-muted-foreground">
+              with {entry.teammates.length}{" "}
+              {entry.teammates.length === 1 ? "teammate" : "teammates"}
+            </div>
+          </div>
+          <div className="text-right tabular-nums">
+            <div className="text-sm">
+              <span className="text-emerald-500/80">{entry.totalWins}</span>
+              <span className="text-muted-foreground/40">–</span>
+              <span className="text-rose-500/80">{overallLosses}</span>
+            </div>
+            <div className={cn("text-xs", overallAccent.text)}>
+              {entry.totalGames}g · {overallWrPct}%
+            </div>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent>
+          <ul className="flex flex-col gap-1">
+            {entry.teammates.map((t) => {
+              const accent = wrAccent(t.wr);
+              const wrPct = Math.round(t.wr * 100);
+              const barWidth = `${Math.max(6, (t.games / maxGames) * 100)}%`;
+              return (
+                <li
+                  key={t.champ}
+                  className={cn(
+                    "flex items-center gap-2 rounded border border-l-2 bg-background/30 px-2 py-1.5",
+                    accent.rowBorder
+                  )}
+                >
+                  <ChampionSquareIcon
+                    championName={t.champ}
+                    alt=""
+                    className="size-6 rounded"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs">{championName(t.champ)}</span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground/70 tabular-nums">
+                        {t.games}g
+                      </span>
+                    </div>
+                    <div
+                      className={cn("relative mt-1 h-1 rounded-full", accent.rail)}
+                      role="presentation"
+                    >
+                      <div
+                        className={cn(
+                          "absolute inset-y-0 left-0 rounded-full",
+                          accent.bar
+                        )}
+                        style={{ width: barWidth }}
+                      />
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "w-9 shrink-0 text-right text-xs tabular-nums",
+                      accent.text
+                    )}
+                  >
+                    {wrPct}%
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <Link
+            to="/lol/$accountSlug/champions/$championKey"
+            params={{ accountSlug, championKey: entry.yourChamp.toLowerCase() }}
+            className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-card/60 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-foreground/30 hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <Group left={size / 2} top={size / 2}>
-              <Chord
-                matrix={data.matrix}
-                padAngle={0.08}
-                sortGroups={null}
-                sortSubgroups={(a, b) => b - a}
-              >
-                {({ chords }) => (
-                  <>
-                    {/* Arc rim segments per champion */}
-                    {chords.groups.map((group) => {
-                      const isYour = group.index < data.yourCount;
-                      const champ = displayName(data.champions[group.index] ?? "");
-                      return (
-                        <TooltipPrimitive.Root
-                          key={`arc-${group.index}`}
-                          delayDuration={80}
-                        >
-                          <TooltipPrimitive.Trigger asChild>
-                            <path
-                              d={annularSegment(
-                                innerR,
-                                outerR,
-                                group.startAngle,
-                                group.endAngle
-                              )}
-                              fill={isYour ? YOUR_ARC_COLOR : THEIRS_ARC_COLOR}
-                              fillOpacity={0.55}
-                              stroke="var(--background)"
-                              strokeWidth={0.5}
-                            />
-                          </TooltipPrimitive.Trigger>
-                          <TooltipPrimitive.Portal>
-                            <TooltipPrimitive.Content
-                              side="top"
-                              sideOffset={6}
-                              className={TOOLTIP_CLASS}
-                            >
-                              <span className="font-semibold">{champ}</span>
-                              <span className="text-muted-foreground">
-                                {" · "}
-                                {isYour ? "you" : "teammate"} · {Math.round(group.value)}{" "}
-                                games
-                              </span>
-                            </TooltipPrimitive.Content>
-                          </TooltipPrimitive.Portal>
-                        </TooltipPrimitive.Root>
-                      );
-                    })}
-
-                    {/* Ribbons between pairs */}
-                    {chords.map((chord) => {
-                      // Matrix is symmetric so chord source/target may come in
-                      // either order; pairGames is keyed by you-index < them-index.
-                      const lo = Math.min(chord.source.index, chord.target.index);
-                      const hi = Math.max(chord.source.index, chord.target.index);
-                      const key = `${lo},${hi}`;
-                      const games = data.pairGames.get(key) ?? 0;
-                      const wins = data.pairWins.get(key) ?? 0;
-                      if (games === 0) return null;
-                      const wr = wins / games;
-                      const color = wr >= 0.5 ? WIN_COLOR : LOSS_COLOR;
-                      const opacity =
-                        0.25 + Math.min(0.45, (games / data.totalGames) * 5);
-                      const youChamp = displayName(data.champions[lo] ?? "");
-                      const themChamp = displayName(data.champions[hi] ?? "");
-                      return (
-                        <TooltipPrimitive.Root
-                          key={`ribbon-${chord.source.index}-${chord.target.index}`}
-                          delayDuration={80}
-                        >
-                          <TooltipPrimitive.Trigger asChild>
-                            <Ribbon
-                              chord={chord}
-                              radius={innerR}
-                              fill={color}
-                              fillOpacity={opacity}
-                              stroke={color}
-                              strokeOpacity={Math.min(0.6, opacity + 0.2)}
-                              strokeWidth={0.5}
-                            />
-                          </TooltipPrimitive.Trigger>
-                          <TooltipPrimitive.Portal>
-                            <TooltipPrimitive.Content
-                              side="top"
-                              sideOffset={6}
-                              className={TOOLTIP_CLASS}
-                            >
-                              <span className="font-semibold">{youChamp}</span>
-                              <span className="text-muted-foreground"> + </span>
-                              <span className="font-semibold">{themChamp}</span>
-                              <div className="mt-0.5 text-muted-foreground">
-                                {games} {games === 1 ? "game" : "games"} ·{" "}
-                                {Math.round(wr * 100)}% WR
-                              </div>
-                            </TooltipPrimitive.Content>
-                          </TooltipPrimitive.Portal>
-                        </TooltipPrimitive.Root>
-                      );
-                    })}
-
-                    {/* Champion icons just outside the rim */}
-                    {chords.groups.map((group) => {
-                      const mid = (group.startAngle + group.endAngle) / 2;
-                      const x = Math.sin(mid) * iconR;
-                      const y = -Math.cos(mid) * iconR;
-                      const champ = displayName(data.champions[group.index] ?? "");
-                      return (
-                        <Link
-                          key={`icon-${group.index}`}
-                          to="/lol/$accountSlug/champions/$championKey"
-                          params={{ accountSlug, championKey: champ.toLowerCase() }}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <image
-                            href={championSquareIconUrl(champ, patch)}
-                            x={x - iconSize / 2}
-                            y={y - iconSize / 2}
-                            width={iconSize}
-                            height={iconSize}
-                            preserveAspectRatio="xMidYMid slice"
-                          />
-                        </Link>
-                      );
-                    })}
-                  </>
-                )}
-              </Chord>
-            </Group>
-          </svg>
-        );
-      }}
-    </ParentSize>
+            View {displayName} detail
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        </AccordionContent>
+      </AccordionItem>
+    </m.div>
   );
 }
 
 export function ProfileSynergy({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
   const { data, isPending } = useChampionPairs(account);
-
-  const chordData = useMemo(() => (data ? prepareChord(data) : null), [data]);
+  const entries = useMemo(() => (data ? prepareSynergy(data) : []), [data]);
 
   if (isPending || !data) return null;
-  if (!chordData) {
+  if (entries.length === 0) {
     return (
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium text-muted-foreground">Synergy</h3>
@@ -288,23 +228,38 @@ export function ProfileSynergy({ accountSlug }: { accountSlug: string }) {
   }
 
   return (
-    <m.section
-      className="flex flex-col gap-2"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-    >
+    <section className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Synergy</h3>
         <span className="text-[10px] text-muted-foreground/60">
-          <span className="text-emerald-400/80">●</span> your champs ·{" "}
-          <span className="text-blue-400/80">●</span> teammates' picks · ribbon color =
-          win rate
+          your top champs · best teammates
         </span>
       </div>
-      <div className="rounded-lg border bg-card/40 p-2">
-        <ChordChart data={chordData} accountSlug={accountSlug} />
-      </div>
-    </m.section>
+      <m.div initial="hidden" animate="show" variants={containerVariants}>
+        <Accordion type="single" collapsible className="flex flex-col gap-2">
+          {entries.map((entry) => (
+            <ChampionSynergyCard
+              key={entry.yourChamp}
+              entry={entry}
+              accountSlug={accountSlug}
+            />
+          ))}
+        </Accordion>
+      </m.div>
+    </section>
   );
 }
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+};
+
+const rowVariants: Variants = {
+  hidden: { opacity: 0, y: 4 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 320, damping: 30 },
+  },
+};
