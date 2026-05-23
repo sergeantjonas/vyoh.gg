@@ -48,17 +48,32 @@ vi.mock("@/lol/champions/champion-card", () => ({
 }));
 
 function stat(overrides: Partial<ChampionStats> = {}): ChampionStats {
+  const champion = overrides.champion ?? "Ahri";
+  const position = overrides.position ?? "MIDDLE";
+  const games = overrides.games ?? 10;
+  const wins = overrides.wins ?? 6;
   return {
-    champion: "Ahri",
-    position: "MIDDLE",
-    games: 10,
-    wins: 6,
-    losses: 4,
-    winRate: 0.6,
-    avgKda: 3.2,
-    totalDurationSec: 12_000,
-    ...overrides,
-  } as ChampionStats;
+    champion,
+    position,
+    games,
+    wins,
+    losses: overrides.losses ?? games - wins,
+    winRate: overrides.winRate ?? wins / games,
+    totalKills: overrides.totalKills ?? 0,
+    totalDeaths: overrides.totalDeaths ?? 0,
+    totalAssists: overrides.totalAssists ?? 0,
+    avgKda: overrides.avgKda ?? 3.2,
+    totalDurationSec: overrides.totalDurationSec ?? 12_000,
+    roles: overrides.roles ?? [
+      {
+        position,
+        games,
+        wins,
+        losses: overrides.losses ?? games - wins,
+        winRate: overrides.winRate ?? wins / games,
+      },
+    ],
+  };
 }
 
 function renderTable(ui: ReactNode) {
@@ -246,27 +261,24 @@ describe("ChampionTable", () => {
       expect(scrollTo).toHaveBeenCalledWith(0, 540);
     });
 
-    it("captures origin rect on every row — including non-primary — keyed by position", () => {
-      mainScrollRef.current = { scrollTop: 88 } as HTMLElement;
-      // Two rows for the same champion: MIDDLE (listed first, more games) and
-      // TOP. Clicking the TOP row should still capture an origin rect — the
-      // morph keys on (alias, position) so the right row participates on
-      // return-nav. (Previously only the "primary" row owned the rect, which
-      // broke the morph for a champion played in multiple roles when the user
-      // clicked the non-primary row.)
+    it("renders a single row per champion even when the champion is played in multiple roles", () => {
+      // A champion played in MIDDLE + TOP is consolidated into one stats row
+      // (with `roles` carrying the breakdown). The list should render exactly
+      // one row for that champion — the detail page is role-agnostic, so two
+      // rows would link to the same target.
       renderWithProbe([
-        stat({ position: "MIDDLE", games: 20 }),
-        stat({ position: "TOP", games: 5 }),
+        stat({
+          champion: "Ahri",
+          position: "MIDDLE",
+          games: 25,
+          roles: [
+            { position: "MIDDLE", games: 20, wins: 12, losses: 8, winRate: 0.6 },
+            { position: "TOP", games: 5, wins: 2, losses: 3, winRate: 0.4 },
+          ],
+        }),
       ]);
-      const links = screen.getAllByTestId("chrome").map((el) => el.closest("a"));
-      const secondaryLink = links[1];
-      if (!secondaryLink) throw new Error("expected a secondary row link");
-      fireEvent.pointerDown(secondaryLink);
-      const probe = screen.getByTestId("probe");
-      expect(probe.getAttribute("data-active")).toBe("Ahri");
-      expect(probe.getAttribute("data-scroll")).toBe("88");
-      expect(probe.getAttribute("data-origin-alias")).toBe("Ahri");
-      expect(probe.getAttribute("data-origin-direction")).toBe("forward");
+      const chromes = screen.getAllByTestId("chrome");
+      expect(chromes).toHaveLength(1);
     });
   });
 });

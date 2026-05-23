@@ -102,15 +102,36 @@ describe("aggregateChampionStats", () => {
     expect(aggregateChampionStats([])).toEqual([]);
   });
 
-  it("splits one champion across roles into separate rows", () => {
+  it("consolidates one champion across roles into a single row with a roles breakdown", () => {
     const stats = aggregateChampionStats([
-      buildMatch({ matchId: "1", champion: "Lux", teamPosition: "MIDDLE" }),
-      buildMatch({ matchId: "2", champion: "Lux", teamPosition: "MIDDLE" }),
-      buildMatch({ matchId: "3", champion: "Lux", teamPosition: "UTILITY" }),
+      buildMatch({ matchId: "1", champion: "Lux", teamPosition: "MIDDLE", win: true }),
+      buildMatch({ matchId: "2", champion: "Lux", teamPosition: "MIDDLE", win: false }),
+      buildMatch({ matchId: "3", champion: "Lux", teamPosition: "UTILITY", win: true }),
     ]);
-    expect(stats).toHaveLength(2);
-    expect(stats[0]).toMatchObject({ champion: "Lux", position: "MIDDLE", games: 2 });
-    expect(stats[1]).toMatchObject({ champion: "Lux", position: "UTILITY", games: 1 });
+    expect(stats).toHaveLength(1);
+    // Dominant role is the one with the most games — surfaces on `position`.
+    expect(stats[0]).toMatchObject({
+      champion: "Lux",
+      position: "MIDDLE",
+      games: 3,
+      wins: 2,
+      losses: 1,
+    });
+    expect(stats[0]?.roles).toEqual([
+      { position: "MIDDLE", games: 2, wins: 1, losses: 1, winRate: 0.5 },
+      { position: "UTILITY", games: 1, wins: 1, losses: 0, winRate: 1 },
+    ]);
+  });
+
+  it("orders roles by games desc so the dominant lane is first", () => {
+    const stats = aggregateChampionStats([
+      buildMatch({ matchId: "1", champion: "Ahri", teamPosition: "TOP" }),
+      buildMatch({ matchId: "2", champion: "Ahri", teamPosition: "MIDDLE" }),
+      buildMatch({ matchId: "3", champion: "Ahri", teamPosition: "MIDDLE" }),
+      buildMatch({ matchId: "4", champion: "Ahri", teamPosition: "MIDDLE" }),
+    ]);
+    expect(stats[0]?.position).toBe("MIDDLE");
+    expect(stats[0]?.roles.map((r) => r.position)).toEqual(["MIDDLE", "TOP"]);
   });
 
   it("drops matches with no teamPosition (ARAM / Arena)", () => {

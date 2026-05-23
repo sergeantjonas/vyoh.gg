@@ -23,7 +23,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 import type { ChampionSortOption } from "./champion-sort-selector";
-import type { ChampionStats } from "./champion-stats";
+import type { ChampionRoleSplit, ChampionStats } from "./champion-stats";
 import { useChampionName, useChampions } from "./use-champions";
 
 // While the back-nav scroll-restore + hero→row morph play out, hold
@@ -45,6 +45,92 @@ const item: Variants = {
     transition: { type: "spring", stiffness: 380, damping: 28 },
   },
 };
+
+// Stacked role icons (sized by share of games) with a rich tooltip showing
+// per-lane games + win rate. Single-role pools render as a plain role icon
+// with the label-only tooltip we used to render directly on the row.
+function RoleBreakdown({ roles }: { roles: ChampionRoleSplit[] }) {
+  const dominant = roles[0];
+  if (!dominant) return null;
+  if (roles.length === 1) {
+    return (
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>
+          <span className="inline-flex">
+            <RoleIcon
+              position={dominant.position}
+              title={ROLE_LABEL[dominant.position]}
+              className="size-3.5 opacity-70"
+            />
+          </span>
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content
+            side="top"
+            sideOffset={4}
+            className={TOOLTIP_CONTENT_CLASS}
+          >
+            {ROLE_LABEL[dominant.position]}
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    );
+  }
+  const totalGames = roles.reduce((s, r) => s + r.games, 0);
+  return (
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <span
+          className="inline-flex items-center gap-0.5"
+          aria-label={`Played in ${roles.length} roles`}
+        >
+          {roles.map((r) => (
+            // Dominant role lands closest to full opacity; supporting roles
+            // fade with their share of games so visual hierarchy matches data.
+            <span
+              key={r.position}
+              className="inline-flex"
+              style={{ opacity: 0.4 + 0.6 * (r.games / totalGames) }}
+            >
+              <RoleIcon
+                position={r.position}
+                title={ROLE_LABEL[r.position]}
+                className="size-3.5"
+              />
+            </span>
+          ))}
+        </span>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="top"
+          sideOffset={4}
+          className={cn(TOOLTIP_CONTENT_CLASS, "px-2.5 py-1.5")}
+        >
+          <ul className="flex flex-col gap-0.5 text-xs">
+            {roles.map((r) => (
+              <li key={r.position} className="flex items-center gap-2">
+                <RoleIcon position={r.position} className="size-3.5 shrink-0" />
+                <span className="w-16">{ROLE_LABEL[r.position]}</span>
+                <span className="font-mono tabular-nums text-muted-foreground">
+                  {r.games} {r.games === 1 ? "game" : "games"}
+                </span>
+                <span
+                  className={cn(
+                    "font-mono tabular-nums",
+                    r.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
+                  )}
+                >
+                  {Math.round(r.winRate * 100)}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
+  );
+}
 
 function sortStats(stats: ChampionStats[], sort: ChampionSortOption): ChampionStats[] {
   const compare = (a: ChampionStats, b: ChampionStats): number => {
@@ -80,7 +166,7 @@ export function ChampionTable({
   // synchronously, then pin briefly while the hero→row morph plays out.
   // restoredScrollY === 0 ⇒ fresh visit (Trends → Champions, first load),
   // so settle defaults to true and rows render normally with the stagger.
-  const { readListScroll, activeChampion, activePosition } = useActiveChampion();
+  const { readListScroll, activeChampion } = useActiveChampion();
   const [restoredScrollY] = useState(() => readListScroll());
   const [settled, setSettled] = useState(() => restoredScrollY <= 0);
   const didInitialScrollRef = useRef(false);
@@ -129,20 +215,17 @@ export function ChampionTable({
   return (
     <m.ul {...listMotionProps} className="flex flex-col gap-3">
       {sorted.map((s) => {
-        // Every row owns its own morph against the detail hero, keyed by
-        // alias + position. A champion played in multiple roles produces
-        // multiple rows; whichever one the user clicked is the one that
-        // captured the origin rect (forward) and consumes the hero rect on
-        // return (backward).
+        // One row per champion; multi-role pools surface their breakdown
+        // inline (see ChampionTableRow). The detail page is role-agnostic, so
+        // duplicating rows per role would link to the same target.
         const info = champions.data?.get(s.champion.toLowerCase());
         const parentClasses = info?.modernClasses ?? [];
         const subclasses = info?.modernSubclasses ?? [];
-        const isActiveRow =
-          activeChampion === s.champion && activePosition === s.position;
+        const isActiveRow = activeChampion === s.champion;
         const heldDuringSettle = !settled && !isActiveRow;
         return (
           <ChampionTableRow
-            key={`${s.champion}-${s.position}`}
+            key={s.champion}
             s={s}
             parentClasses={parentClasses}
             subclasses={subclasses}
@@ -189,17 +272,16 @@ function ChampionTableRow({
   // origin after the first run clears originRectRef. Mirrors match-row.
   const savedOrigin = useRef<ChampionOrigin | null>(null);
 
-  // Back-nav: only the row matching the user's last clicked (alias, position)
-  // pair consumes the hero's backward rect — other rows for the same champion
-  // (different role) ignore it so two rows don't try to morph from the same
-  // hero simultaneously.
+  // Back-nav: only the row matching the user's last clicked alias consumes
+  // the hero's backward rect. Position isn't part of the match because rows
+  // are consolidated per champion — the breadcrumb's backward rect is also
+  // keyed on the dominant role recorded on click, so list and hero agree.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
     if (!savedOrigin.current) {
       const o = originRectRef.current;
       if (
         o?.championAlias?.toLowerCase() !== alias.toLowerCase() ||
-        o.position !== position ||
         o.direction !== "backward"
       )
         return;
@@ -250,10 +332,8 @@ function ChampionTableRow({
           params={{ accountSlug, championKey: alias.toLowerCase() }}
           onMouseEnter={() => onCardHover?.(alias)}
           onPointerDown={() => {
-            // Every row captures its own origin rect — a champion played in
-            // multiple roles produces multiple rows, and the row the user
-            // actually clicks is the one that should morph into the detail
-            // hero (and back out on return).
+            // One row per champion: capture origin rect + dominant role so
+            // the breadcrumb can mirror them back to this row on return.
             saveListScroll();
             const rect = cardRef.current?.getBoundingClientRect() ?? null;
             if (rect)
@@ -280,26 +360,7 @@ function ChampionTableRow({
             <div className="relative ml-auto flex flex-col items-end gap-1">
               <div className="flex items-center gap-1.5 font-medium">
                 <span>{displayName}</span>
-                <TooltipPrimitive.Root>
-                  <TooltipPrimitive.Trigger asChild>
-                    <span className="inline-flex">
-                      <RoleIcon
-                        position={s.position}
-                        title={ROLE_LABEL[s.position]}
-                        className="size-3.5 opacity-70"
-                      />
-                    </span>
-                  </TooltipPrimitive.Trigger>
-                  <TooltipPrimitive.Portal>
-                    <TooltipPrimitive.Content
-                      side="top"
-                      sideOffset={4}
-                      className={TOOLTIP_CONTENT_CLASS}
-                    >
-                      {ROLE_LABEL[s.position]}
-                    </TooltipPrimitive.Content>
-                  </TooltipPrimitive.Portal>
-                </TooltipPrimitive.Root>
+                <RoleBreakdown roles={s.roles} />
               </div>
               {parentClasses.length > 0 && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">

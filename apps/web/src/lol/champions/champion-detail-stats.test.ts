@@ -102,6 +102,18 @@ describe("computeChampionDetail", () => {
     expect(stats?.position).toBe("MIDDLE");
   });
 
+  it("exposes a per-lane roles breakdown sorted by games desc", () => {
+    const stats = computeChampionDetail("Ahri", [
+      buildMatch({ champion: "Ahri", teamPosition: "MIDDLE", win: true }),
+      buildMatch({ champion: "Ahri", teamPosition: "MIDDLE", win: false }),
+      buildMatch({ champion: "Ahri", teamPosition: "TOP", win: true }),
+    ]);
+    expect(stats?.roles).toEqual([
+      { position: "MIDDLE", games: 2, wins: 1, losses: 1, winRate: 0.5 },
+      { position: "TOP", games: 1, wins: 1, losses: 0, winRate: 1 },
+    ]);
+  });
+
   it("falls back to MIDDLE when no match has a valid teamPosition", () => {
     const stats = computeChampionDetail("Ahri", [
       buildMatch({ champion: "Ahri", teamPosition: "" }),

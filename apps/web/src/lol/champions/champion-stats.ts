@@ -1,8 +1,22 @@
 import { type RolePosition, isRolePosition } from "@/lol/_shared/assets/role-icon";
 import type { MatchSummary } from "@vyoh/shared";
 
+// Per-role slice surfaced inline on the consolidated row — lets a champion
+// played in multiple lanes (e.g. Ahri mid + top) show one card with a
+// breakdown popover instead of duplicating into two cards that both link to
+// the same role-agnostic detail page.
+export interface ChampionRoleSplit {
+  position: RolePosition;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
 export interface ChampionStats {
   champion: string;
+  // Dominant role (most games). Mirrors ChampionDetailStats so the list row
+  // and detail hero report the same lane.
   position: RolePosition;
   games: number;
   wins: number;
@@ -13,50 +27,88 @@ export interface ChampionStats {
   totalAssists: number;
   avgKda: number;
   totalDurationSec: number;
+  // Sorted by games desc; length 1 for single-role pools.
+  roles: ChampionRoleSplit[];
 }
 
 export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[] {
-  const byKey = new Map<string, ChampionStats>();
+  type RoleAccum = { games: number; wins: number };
+  type ChampAccum = {
+    champion: string;
+    totalKills: number;
+    totalDeaths: number;
+    totalAssists: number;
+    totalDurationSec: number;
+    roleAccums: Map<RolePosition, RoleAccum>;
+  };
+  const byChamp = new Map<string, ChampAccum>();
 
   for (const match of matches) {
     if (match.remake) continue;
-    // Drop ARAM/Arena rows — they have no teamPosition and would collapse
-    // distinct role identities into a single muddled "champion" row.
+    // Drop ARAM/Arena rows — they have no teamPosition and would muddle the
+    // role breakdown.
     if (!isRolePosition(match.teamPosition)) continue;
-    const key = `${match.champion}|${match.teamPosition}`;
-    let stats = byKey.get(key);
-    if (!stats) {
-      stats = {
+    let champ = byChamp.get(match.champion);
+    if (!champ) {
+      champ = {
         champion: match.champion,
-        position: match.teamPosition,
-        games: 0,
-        wins: 0,
-        losses: 0,
-        winRate: 0,
         totalKills: 0,
         totalDeaths: 0,
         totalAssists: 0,
-        avgKda: 0,
         totalDurationSec: 0,
+        roleAccums: new Map(),
       };
-      byKey.set(key, stats);
+      byChamp.set(match.champion, champ);
     }
-    stats.games++;
-    if (match.win) stats.wins++;
-    else stats.losses++;
-    stats.totalKills += match.kills;
-    stats.totalDeaths += match.deaths;
-    stats.totalAssists += match.assists;
-    stats.totalDurationSec += match.durationSec;
+    champ.totalKills += match.kills;
+    champ.totalDeaths += match.deaths;
+    champ.totalAssists += match.assists;
+    champ.totalDurationSec += match.durationSec;
+    let role = champ.roleAccums.get(match.teamPosition);
+    if (!role) {
+      role = { games: 0, wins: 0 };
+      champ.roleAccums.set(match.teamPosition, role);
+    }
+    role.games++;
+    if (match.win) role.wins++;
   }
 
-  for (const stats of byKey.values()) {
-    stats.winRate = stats.wins / stats.games;
-    stats.avgKda =
-      stats.totalDeaths === 0
-        ? stats.totalKills + stats.totalAssists
-        : (stats.totalKills + stats.totalAssists) / stats.totalDeaths;
+  const result: ChampionStats[] = [];
+  for (const champ of byChamp.values()) {
+    const roles: ChampionRoleSplit[] = [...champ.roleAccums.entries()]
+      .map(([position, r]) => ({
+        position,
+        games: r.games,
+        wins: r.wins,
+        losses: r.games - r.wins,
+        winRate: r.wins / r.games,
+      }))
+      .sort((a, b) => b.games - a.games);
+    const games = roles.reduce((s, r) => s + r.games, 0);
+    const wins = roles.reduce((s, r) => s + r.wins, 0);
+    const losses = games - wins;
+    // `roles` is non-empty here: champ is only created when a match with a
+    // valid teamPosition lands, which seeds at least one role accum.
+    const dominantRole = roles[0]?.position ?? "MIDDLE";
+    const avgKda =
+      champ.totalDeaths === 0
+        ? champ.totalKills + champ.totalAssists
+        : (champ.totalKills + champ.totalAssists) / champ.totalDeaths;
+    result.push({
+      champion: champ.champion,
+      position: dominantRole,
+      games,
+      wins,
+      losses,
+      winRate: wins / games,
+      totalKills: champ.totalKills,
+      totalDeaths: champ.totalDeaths,
+      totalAssists: champ.totalAssists,
+      avgKda,
+      totalDurationSec: champ.totalDurationSec,
+      roles,
+    });
   }
 
-  return [...byKey.values()].sort((a, b) => b.games - a.games);
+  return result.sort((a, b) => b.games - a.games);
 }

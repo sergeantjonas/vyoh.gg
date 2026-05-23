@@ -3,7 +3,7 @@
 // personal baseline both directions.
 import { type RolePosition, isRolePosition } from "@/lol/_shared/assets/role-icon";
 import type { MatchSummary } from "@vyoh/shared";
-import type { ChampionStats } from "./champion-stats";
+import type { ChampionRoleSplit, ChampionStats } from "./champion-stats";
 
 export interface ChampionDetailStats extends ChampionStats {
   avgKills: number;
@@ -41,23 +41,33 @@ export function computeChampionDetail(
       ? totalKills + totalAssists
       : (totalKills + totalAssists) / totalDeaths;
 
-  // Detail aggregates across roles, so `position` reports the dominant lane.
-  // Falls back to MIDDLE only when no match has a valid teamPosition (pure
-  // ARAM history) — the detail page already filters on serious queues, so
-  // this branch is mostly defensive.
-  const roleCounts = new Map<RolePosition, number>();
+  // Detail aggregates across roles, so `position` reports the dominant lane
+  // and `roles` carries the per-lane breakdown (mirrors the consolidated list
+  // row so detail/list always agree on the dominant lane). Falls back to
+  // MIDDLE only when no match has a valid teamPosition (pure ARAM history) —
+  // the detail page already filters on serious queues, so the fallback is
+  // mostly defensive.
+  const roleAccums = new Map<RolePosition, { games: number; wins: number }>();
   for (const m of champMatches) {
     if (!isRolePosition(m.teamPosition)) continue;
-    roleCounts.set(m.teamPosition, (roleCounts.get(m.teamPosition) ?? 0) + 1);
-  }
-  let position: RolePosition = "MIDDLE";
-  let best = 0;
-  for (const [role, count] of roleCounts) {
-    if (count > best) {
-      best = count;
-      position = role;
+    let r = roleAccums.get(m.teamPosition);
+    if (!r) {
+      r = { games: 0, wins: 0 };
+      roleAccums.set(m.teamPosition, r);
     }
+    r.games++;
+    if (m.win) r.wins++;
   }
+  const roles: ChampionRoleSplit[] = [...roleAccums.entries()]
+    .map(([pos, r]) => ({
+      position: pos,
+      games: r.games,
+      wins: r.wins,
+      losses: r.games - r.wins,
+      winRate: r.wins / r.games,
+    }))
+    .sort((a, b) => b.games - a.games);
+  const position: RolePosition = roles[0]?.position ?? "MIDDLE";
 
   return {
     champion: originalAlias,
@@ -71,6 +81,7 @@ export function computeChampionDetail(
     totalAssists,
     avgKda,
     totalDurationSec,
+    roles,
     avgKills: totalKills / games,
     avgDeaths: totalDeaths / games,
     avgAssists: totalAssists / games,
