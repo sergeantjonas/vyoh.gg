@@ -6,6 +6,6 @@ export const Route = createFileRoute("/lol/$accountSlug/patches/$version")({
 });
 
 function PatchesVersionRoute() {
-  const { version } = Route.useParams();
-  return <PatchesPage versionParam={version} />;
+  const { accountSlug, version } = Route.useParams();
+  return <PatchesPage versionParam={version} asSlug={accountSlug} />;
 }

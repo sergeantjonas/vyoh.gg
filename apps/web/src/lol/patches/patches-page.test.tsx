@@ -1,23 +1,34 @@
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import {
   useChampionAliasFromName,
   useChampionName,
   useChampions,
 } from "@/lol/champions/use-champions";
-import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { PatchChangesResponse, PatchListEntry } from "@vyoh/shared";
+import type {
+  LolAccount,
+  MatchSummary,
+  PatchChangesResponse,
+  PatchListEntry,
+} from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PatchesPage } from "./patches-page";
 
+const navigateMock = vi.fn();
+
 vi.mock("@tanstack/react-router", () => ({
-  useNavigate: () => vi.fn(),
-  useParams: () => ({ accountSlug: "jonas-euw" }),
+  useNavigate: () => navigateMock,
 }));
 
-vi.mock("@/lol/matches/match-window-context", () => ({
-  useMatchWindow: vi.fn(),
+vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
+  useAccountFromSlug: vi.fn(),
+}));
+
+vi.mock("@/lol/matches/use-matches", () => ({
+  useCachedMatchesWindow: vi.fn(),
 }));
 
 vi.mock("@/lol/champions/use-champions", () => ({
@@ -66,19 +77,24 @@ function mockPatchChanges(value: {
   } as unknown as ReturnType<typeof usePatchChanges>);
 }
 
+function mockMatches(matches: MatchSummary[] | undefined) {
+  vi.mocked(useCachedMatchesWindow).mockReturnValue({
+    data: matches ? { matches, total: matches.length } : undefined,
+  } as unknown as ReturnType<typeof useCachedMatchesWindow>);
+}
+
 beforeEach(() => {
   setupChampions();
-  vi.mocked(useMatchWindow).mockReturnValue({
-    matches: [],
-    isPending: false,
-    total: 0,
-    count: 20,
-    setCount: () => {},
-  } as unknown as ReturnType<typeof useMatchWindow>);
+  vi.mocked(useAccountFromSlug).mockReturnValue({
+    slug: "jonas-euw",
+  } as unknown as LolAccount);
+  mockMatches([]);
 });
 
 afterEach(() => {
-  vi.mocked(useMatchWindow).mockReset();
+  navigateMock.mockReset();
+  vi.mocked(useAccountFromSlug).mockReset();
+  vi.mocked(useCachedMatchesWindow).mockReset();
   vi.mocked(useChampions).mockReset();
   vi.mocked(useChampionName).mockReset();
   vi.mocked(useChampionAliasFromName).mockReset();
@@ -90,14 +106,16 @@ describe("PatchesPage", () => {
   it("renders the loading skeleton while the patch list is undefined", () => {
     mockPatchList(undefined);
     mockPatchChanges({ data: undefined, isPending: true });
-    const { container } = render(<PatchesPage versionParam={undefined} />);
+    const { container } = render(
+      <PatchesPage versionParam={undefined} asSlug="jonas-euw" />
+    );
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 
   it("renders the empty placeholder when no patches are synced yet", () => {
     mockPatchList([]);
     mockPatchChanges({ data: undefined });
-    render(<PatchesPage versionParam={undefined} />);
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
     expect(screen.getByText(/No patches synced yet/)).toBeTruthy();
   });
 
@@ -126,7 +144,7 @@ describe("PatchesPage", () => {
         runes: [],
       } as unknown as PatchChangesResponse,
     });
-    render(<PatchesPage versionParam={undefined} />);
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
     expect(screen.getByText(/Patch 16\.10\.1/)).toBeTruthy();
     expect(screen.getByText(/Champion changes/)).toBeTruthy();
     expect(screen.getByText("Ahri")).toBeTruthy();
@@ -158,7 +176,7 @@ describe("PatchesPage", () => {
         runes: [],
       } as unknown as PatchChangesResponse,
     });
-    render(<PatchesPage versionParam={undefined} />);
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
     expect(screen.getByText("Ahri")).toBeTruthy();
     fireEvent.click(screen.getByText("My champions only"));
     expect(
@@ -178,7 +196,7 @@ describe("PatchesPage", () => {
         runes: [],
       } as unknown as PatchChangesResponse,
     });
-    render(<PatchesPage versionParam={undefined} />);
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
     expect(screen.getByText(/No champion changes for this patch/)).toBeTruthy();
     expect(screen.getByText(/0 champions changed/)).toBeTruthy();
   });
@@ -201,10 +219,9 @@ describe("PatchesPage", () => {
         runes: [],
       } as unknown as PatchChangesResponse,
     });
-    render(<PatchesPage versionParam={undefined} />);
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
     const trigger = screen.getByRole("button", { name: /Item changes/ });
     expect(trigger).toBeTruthy();
-    // Closed by default — the item row isn't rendered.
     expect(screen.queryByAltText("Trinity Force")).toBeNull();
     fireEvent.click(trigger);
     expect(screen.getByAltText("Trinity Force")).toBeTruthy();
@@ -228,22 +245,16 @@ describe("PatchesPage", () => {
         ],
       } as unknown as PatchChangesResponse,
     });
-    render(<PatchesPage versionParam={undefined} />);
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
     expect(screen.getByRole("button", { name: /Rune changes/ })).toBeTruthy();
   });
 
   it("sorts the user's most-played champion to the top of the list", () => {
-    vi.mocked(useMatchWindow).mockReturnValue({
-      matches: [
-        { remake: false, champion: "Ahri" },
-        { remake: false, champion: "Ahri" },
-        { remake: false, champion: "Lux" },
-      ],
-      isPending: false,
-      total: 3,
-      count: 20,
-      setCount: () => {},
-    } as unknown as ReturnType<typeof useMatchWindow>);
+    mockMatches([
+      { remake: false, champion: "Ahri" },
+      { remake: false, champion: "Ahri" },
+      { remake: false, champion: "Lux" },
+    ] as unknown as MatchSummary[]);
     mockPatchList([
       { version: "16.10.1", patchDate: null },
     ] as unknown as PatchListEntry[]);
@@ -259,15 +270,95 @@ describe("PatchesPage", () => {
         runes: [],
       } as unknown as PatchChangesResponse,
     });
-    const { container } = render(<PatchesPage versionParam={undefined} />);
-    const championHeadings = Array.from(
-      container.querySelectorAll("li h3, li [data-champion-name]")
-    ).map((el) => el.textContent?.trim());
-    // The first champion should be the most-played (Ahri).
+    const { container } = render(
+      <PatchesPage versionParam={undefined} asSlug="jonas-euw" />
+    );
     const firstName = container.querySelector("ul li");
     expect(firstName?.textContent).toContain("Ahri");
-    // Brand should appear after both Ahri and Lux (alphabetical fallback for
-    // non-played champs).
-    void championHeadings;
+  });
+
+  describe("neutral mode (no asSlug)", () => {
+    it("hides the 'My champions only' toggle", () => {
+      mockPatchList([
+        { version: "16.10.1", patchDate: null },
+      ] as unknown as PatchListEntry[]);
+      mockPatchChanges({
+        data: {
+          patchVersion: "16.10.1",
+          champions: [
+            { champion: "Ahri", changes: [{ changeType: "buff", changeText: "x" }] },
+          ],
+          items: [],
+          runes: [],
+        } as unknown as PatchChangesResponse,
+      });
+      render(<PatchesPage versionParam={undefined} asSlug={undefined} />);
+      expect(screen.queryByText("My champions only")).toBeNull();
+    });
+
+    it("does not fetch matches and renders champions in alpha order", () => {
+      mockMatches([
+        { remake: false, champion: "Ahri" },
+        { remake: false, champion: "Ahri" },
+      ] as unknown as MatchSummary[]);
+      mockPatchList([
+        { version: "16.10.1", patchDate: null },
+      ] as unknown as PatchListEntry[]);
+      mockPatchChanges({
+        data: {
+          patchVersion: "16.10.1",
+          champions: [
+            { champion: "Brand", changes: [{ changeType: "buff", changeText: "x" }] },
+            { champion: "Ahri", changes: [{ changeType: "buff", changeText: "x" }] },
+          ],
+          items: [],
+          runes: [],
+        } as unknown as PatchChangesResponse,
+      });
+      const { container } = render(
+        <PatchesPage versionParam={undefined} asSlug={undefined} />
+      );
+      const firstName = container.querySelector("ul li");
+      // Alpha order: Ahri before Brand. Matches mock was wired but the page
+      // ignores match data when asSlug is absent, so play-counts don't apply.
+      expect(firstName?.textContent).toContain("Ahri");
+      expect(screen.queryByText(/Yours are ringed/)).toBeNull();
+    });
+  });
+
+  describe("version selection UI", () => {
+    it("renders 'current' marker on the newest patch in neutral mode", () => {
+      mockPatchList([
+        { version: "16.10.1", patchDate: null },
+        { version: "16.9.1", patchDate: null },
+      ] as unknown as PatchListEntry[]);
+      mockPatchChanges({
+        data: {
+          patchVersion: "16.10.1",
+          champions: [],
+          items: [],
+          runes: [],
+        } as unknown as PatchChangesResponse,
+      });
+      render(<PatchesPage versionParam={undefined} asSlug={undefined} />);
+      expect(screen.getByText("current")).toBeTruthy();
+    });
+
+    it("omits the 'current' marker when viewing a non-newest patch", () => {
+      mockPatchList([
+        { version: "16.10.1", patchDate: null },
+        { version: "16.9.1", patchDate: null },
+      ] as unknown as PatchListEntry[]);
+      mockPatchChanges({
+        data: {
+          patchVersion: "16.9.1",
+          champions: [],
+          items: [],
+          runes: [],
+        } as unknown as PatchChangesResponse,
+      });
+      render(<PatchesPage versionParam="16.9.1" asSlug={undefined} />);
+      expect(screen.queryByText("current")).toBeNull();
+    });
   });
 });

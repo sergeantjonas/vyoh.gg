@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import {
@@ -13,12 +14,12 @@ import {
   useChampionName,
   useChampions,
 } from "@/lol/champions/use-champions";
-import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import { AbilityChangeList } from "@/lol/patches/ability-change-list";
 import { ChangeKindGlyph } from "@/lol/patches/change-kind-glyph";
 import { usePatchChanges } from "@/lol/patches/use-patch-changes";
 import { usePatchList } from "@/lol/patches/use-patch-list";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import type {
   ChampionPatchChangeGroup,
   MatchSummary,
@@ -26,9 +27,28 @@ import type {
 } from "@vyoh/shared";
 import { useMemo, useState } from "react";
 
-export function PatchesPage({ versionParam }: { versionParam: string | undefined }) {
-  const { accountSlug } = useParams({ from: "/lol/$accountSlug" });
-  const { matches } = useMatchWindow();
+// Default count for the personalized play-count window. Mirrors the account
+// layout's DEFAULT_COUNT — we just need a stable recent window to derive
+// "your most-played champions" for the play-count sort, not the full history.
+const PERSONALIZED_MATCH_COUNT = 20;
+
+export function PatchesPage({
+  versionParam,
+  asSlug,
+}: {
+  versionParam: string | undefined;
+  asSlug: string | undefined;
+}) {
+  // Personalized mode is gated on `asSlug` being present. When absent, the
+  // page renders neutrally: no match fetch, no play-count sort, no toggle.
+  const account = useAccountFromSlug(asSlug ?? "");
+  const matchesQuery = useCachedMatchesWindow(
+    asSlug ? account : undefined,
+    PERSONALIZED_MATCH_COUNT
+  );
+  const matches: MatchSummary[] | undefined = asSlug
+    ? matchesQuery.data?.matches
+    : undefined;
   const championName = useChampionName();
   const championAliasFromName = useChampionAliasFromName();
   // Gate derivation on the CDragon champion map being loaded; pre-load,
@@ -102,12 +122,17 @@ export function PatchesPage({ versionParam }: { versionParam: string | undefined
   }
 
   const onSelectVersion = (next: string) => {
+    // Preserve `?as=` across version navigation so the personalized lens
+    // survives picking a different patch. Newest patch routes to the bare
+    // index for shareable URLs ("the current patch").
+    const search = asSlug ? { as: asSlug } : {};
     if (next === newestVersion) {
-      navigate({ to: "/lol/$accountSlug/patches", params: { accountSlug } });
+      navigate({ to: "/lol/patches", search });
     } else {
       navigate({
-        to: "/lol/$accountSlug/patches/$version",
-        params: { accountSlug, version: next },
+        to: "/lol/patches/$version",
+        params: { version: next },
+        search,
       });
     }
   };
@@ -143,7 +168,8 @@ export function PatchesPage({ versionParam }: { versionParam: string | undefined
         <h1 className="text-2xl font-semibold leading-tight">Champion changes</h1>
         <p className="text-sm text-muted-foreground/80">
           {sortedChampions.length} champion{sortedChampions.length === 1 ? "" : "s"}{" "}
-          changed this patch. Yours are ringed and sorted to the top.
+          changed this patch
+          {asSlug ? ". Yours are ringed and sorted to the top." : "."}
         </p>
       </header>
 
@@ -151,19 +177,21 @@ export function PatchesPage({ versionParam }: { versionParam: string | undefined
         <span className="text-xs uppercase tracking-wide text-muted-foreground">
           {visibleChampions.length} shown
         </span>
-        <button
-          type="button"
-          onClick={() => setMyOnly((p) => !p)}
-          aria-pressed={myOnly}
-          className={cn(
-            "cursor-pointer rounded-md px-3 py-1 text-xs transition-colors",
-            myOnly
-              ? "bg-muted text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          My champions only
-        </button>
+        {asSlug ? (
+          <button
+            type="button"
+            onClick={() => setMyOnly((p) => !p)}
+            aria-pressed={myOnly}
+            className={cn(
+              "cursor-pointer rounded-md px-3 py-1 text-xs transition-colors",
+              myOnly
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            My champions only
+          </button>
+        ) : null}
       </div>
 
       {visibleChampions.length === 0 ? (
