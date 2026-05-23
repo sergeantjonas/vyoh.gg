@@ -204,36 +204,21 @@ function ChampionDetailPage() {
   const kdaDelta = overall ? detail.avgKda - overall.avgKda : null;
   const wrDelta = overall ? detail.winRate - overall.winRate : null;
   // Riot's modern 7-class taxonomy + subclass tier, sourced from the wiki
-  // category-page inversion (see api/syncChampionClasses). The parent
-  // class drives the icon and is rendered first; subclasses follow as
-  // text-only chips because wiki has no per-subclass icon set. Falls back
-  // to the legacy DDragon `roles` if the wiki sync hasn't populated
-  // modernClasses yet — relevant only on cold-start, since every later
-  // bundle ships modern data.
-  const modernClassSlugs = (info?.modernClasses ?? []).map((c) => c.toLowerCase());
-  const subclassLabels = info?.modernSubclasses ?? [];
-  const classFlavor: Array<{ key: string; slug: string | null; label: string }> =
-    modernClassSlugs.length > 0
-      ? [
-          ...modernClassSlugs.map((slug) => ({
-            key: `class:${slug}`,
-            slug,
-            label: slug.charAt(0).toUpperCase() + slug.slice(1),
-          })),
-          ...subclassLabels.map((s) => ({
-            key: `subclass:${s}`,
-            slug: null,
-            label: s.charAt(0).toUpperCase() + s.slice(1),
-          })),
-        ]
-      : (info?.roles ?? []).map((r) => {
-          const slug = r.toLowerCase();
-          return {
-            key: `legacy:${slug}`,
-            slug,
-            label: r.charAt(0).toUpperCase() + r.slice(1),
-          };
-        });
+  // category-page inversion (see api/syncChampionClasses). Parent classes
+  // carry the icon + primary weight; subclasses follow in a dimmer chip
+  // because wiki has no per-subclass icon set and the visual hierarchy
+  // should read "Mage > Burst", not two coequal chips. Falls back to
+  // legacy DDragon `roles` only on cold-start before the wiki sync runs.
+  const parentClassChips =
+    (info?.modernClasses ?? []).length > 0
+      ? (info?.modernClasses ?? []).map((c) => ({ slug: c.toLowerCase(), label: c }))
+      : (info?.roles ?? []).map((r) => ({
+          slug: r.toLowerCase(),
+          label: r.charAt(0).toUpperCase() + r.slice(1),
+        }));
+  const subclassLabels = (info?.modernSubclasses ?? []).map(
+    (s) => s.charAt(0).toUpperCase() + s.slice(1)
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -261,22 +246,25 @@ function ChampionDetailPage() {
                   />
                 )}
               </div>
-              {classFlavor.length > 0 && (
+              {parentClassChips.length > 0 && (
                 <div className="relative mt-0.5 flex items-center gap-2 text-xs text-muted-foreground/70">
-                  {classFlavor.map(({ key, slug, label }) => (
-                    <span key={key} className="inline-flex items-center gap-1">
-                      {slug && (
-                        <img
-                          src={championClassIconUrl(slug)}
-                          alt=""
-                          aria-hidden={true}
-                          className="size-4 shrink-0"
-                          draggable={false}
-                        />
-                      )}
+                  {parentClassChips.map(({ slug, label }) => (
+                    <span key={`class:${slug}`} className="inline-flex items-center gap-1">
+                      <img
+                        src={championClassIconUrl(slug)}
+                        alt=""
+                        aria-hidden={true}
+                        className="size-4 shrink-0"
+                        draggable={false}
+                      />
                       {label}
                     </span>
                   ))}
+                  {subclassLabels.length > 0 && (
+                    <span className="text-muted-foreground/50">
+                      · {subclassLabels.join(" · ")}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="relative mt-0.5 flex gap-3 text-sm text-muted-foreground">
