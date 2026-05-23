@@ -26,10 +26,8 @@ import { Route as LolPatchesVersionRouteImport } from './routes/lol/patches/$ver
 import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountSlug/trends'
 import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
 import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
-import { Route as LolAccountSlugPatchesIndexRouteImport } from './routes/lol/$accountSlug/patches/index'
 import { Route as LolAccountSlugMatchesIndexRouteImport } from './routes/lol/$accountSlug/matches/index'
 import { Route as LolAccountSlugChampionsIndexRouteImport } from './routes/lol/$accountSlug/champions/index'
-import { Route as LolAccountSlugPatchesVersionRouteImport } from './routes/lol/$accountSlug/patches/$version'
 import { Route as LolAccountSlugMatchesMatchIdRouteImport } from './routes/lol/$accountSlug/matches/$matchId'
 import { Route as LolAccountSlugChampionsChampionKeyRouteImport } from './routes/lol/$accountSlug/champions/$championKey'
 import { Route as LolAccountSlugMatchesMatchIdIndexRouteImport } from './routes/lol/$accountSlug/matches/$matchId/index'
@@ -124,12 +122,6 @@ const LolAccountSlugLiveRoute = LolAccountSlugLiveRouteImport.update({
   path: '/live',
   getParentRoute: () => LolAccountSlugRoute,
 } as any)
-const LolAccountSlugPatchesIndexRoute =
-  LolAccountSlugPatchesIndexRouteImport.update({
-    id: '/patches/',
-    path: '/patches/',
-    getParentRoute: () => LolAccountSlugRoute,
-  } as any)
 const LolAccountSlugMatchesIndexRoute =
   LolAccountSlugMatchesIndexRouteImport.update({
     id: '/matches/',
@@ -140,12 +132,6 @@ const LolAccountSlugChampionsIndexRoute =
   LolAccountSlugChampionsIndexRouteImport.update({
     id: '/champions/',
     path: '/champions/',
-    getParentRoute: () => LolAccountSlugRoute,
-  } as any)
-const LolAccountSlugPatchesVersionRoute =
-  LolAccountSlugPatchesVersionRouteImport.update({
-    id: '/patches/$version',
-    path: '/patches/$version',
     getParentRoute: () => LolAccountSlugRoute,
   } as any)
 const LolAccountSlugMatchesMatchIdRoute =
@@ -211,10 +197,8 @@ export interface FileRoutesByFullPath {
   '/lol/patches/': typeof LolPatchesIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
   '/lol/$accountSlug/matches/$matchId': typeof LolAccountSlugMatchesMatchIdRouteWithChildren
-  '/lol/$accountSlug/patches/$version': typeof LolAccountSlugPatchesVersionRoute
   '/lol/$accountSlug/champions/': typeof LolAccountSlugChampionsIndexRoute
   '/lol/$accountSlug/matches/': typeof LolAccountSlugMatchesIndexRoute
-  '/lol/$accountSlug/patches/': typeof LolAccountSlugPatchesIndexRoute
   '/lol/$accountSlug/matches/$matchId/recap': typeof LolAccountSlugMatchesMatchIdRecapRoute
   '/lol/$accountSlug/matches/$matchId/review': typeof LolAccountSlugMatchesMatchIdReviewRoute
   '/lol/$accountSlug/matches/$matchId/timeline': typeof LolAccountSlugMatchesMatchIdTimelineRoute
@@ -238,10 +222,8 @@ export interface FileRoutesByTo {
   '/lol/$accountSlug': typeof LolAccountSlugIndexRoute
   '/lol/patches': typeof LolPatchesIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
-  '/lol/$accountSlug/patches/$version': typeof LolAccountSlugPatchesVersionRoute
   '/lol/$accountSlug/champions': typeof LolAccountSlugChampionsIndexRoute
   '/lol/$accountSlug/matches': typeof LolAccountSlugMatchesIndexRoute
-  '/lol/$accountSlug/patches': typeof LolAccountSlugPatchesIndexRoute
   '/lol/$accountSlug/matches/$matchId/recap': typeof LolAccountSlugMatchesMatchIdRecapRoute
   '/lol/$accountSlug/matches/$matchId/review': typeof LolAccountSlugMatchesMatchIdReviewRoute
   '/lol/$accountSlug/matches/$matchId/timeline': typeof LolAccountSlugMatchesMatchIdTimelineRoute
@@ -269,10 +251,8 @@ export interface FileRoutesById {
   '/lol/patches/': typeof LolPatchesIndexRoute
   '/lol/$accountSlug/champions/$championKey': typeof LolAccountSlugChampionsChampionKeyRoute
   '/lol/$accountSlug/matches/$matchId': typeof LolAccountSlugMatchesMatchIdRouteWithChildren
-  '/lol/$accountSlug/patches/$version': typeof LolAccountSlugPatchesVersionRoute
   '/lol/$accountSlug/champions/': typeof LolAccountSlugChampionsIndexRoute
   '/lol/$accountSlug/matches/': typeof LolAccountSlugMatchesIndexRoute
-  '/lol/$accountSlug/patches/': typeof LolAccountSlugPatchesIndexRoute
   '/lol/$accountSlug/matches/$matchId/recap': typeof LolAccountSlugMatchesMatchIdRecapRoute
   '/lol/$accountSlug/matches/$matchId/review': typeof LolAccountSlugMatchesMatchIdReviewRoute
   '/lol/$accountSlug/matches/$matchId/timeline': typeof LolAccountSlugMatchesMatchIdTimelineRoute
@@ -301,10 +281,8 @@ export interface FileRouteTypes {
     | '/lol/patches/'
     | '/lol/$accountSlug/champions/$championKey'
     | '/lol/$accountSlug/matches/$matchId'
-    | '/lol/$accountSlug/patches/$version'
     | '/lol/$accountSlug/champions/'
     | '/lol/$accountSlug/matches/'
-    | '/lol/$accountSlug/patches/'
     | '/lol/$accountSlug/matches/$matchId/recap'
     | '/lol/$accountSlug/matches/$matchId/review'
     | '/lol/$accountSlug/matches/$matchId/timeline'
@@ -328,10 +306,8 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug'
     | '/lol/patches'
     | '/lol/$accountSlug/champions/$championKey'
-    | '/lol/$accountSlug/patches/$version'
     | '/lol/$accountSlug/champions'
     | '/lol/$accountSlug/matches'
-    | '/lol/$accountSlug/patches'
     | '/lol/$accountSlug/matches/$matchId/recap'
     | '/lol/$accountSlug/matches/$matchId/review'
     | '/lol/$accountSlug/matches/$matchId/timeline'
@@ -358,10 +334,8 @@ export interface FileRouteTypes {
     | '/lol/patches/'
     | '/lol/$accountSlug/champions/$championKey'
     | '/lol/$accountSlug/matches/$matchId'
-    | '/lol/$accountSlug/patches/$version'
     | '/lol/$accountSlug/champions/'
     | '/lol/$accountSlug/matches/'
-    | '/lol/$accountSlug/patches/'
     | '/lol/$accountSlug/matches/$matchId/recap'
     | '/lol/$accountSlug/matches/$matchId/review'
     | '/lol/$accountSlug/matches/$matchId/timeline'
@@ -500,13 +474,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugLiveRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
-    '/lol/$accountSlug/patches/': {
-      id: '/lol/$accountSlug/patches/'
-      path: '/patches'
-      fullPath: '/lol/$accountSlug/patches/'
-      preLoaderRoute: typeof LolAccountSlugPatchesIndexRouteImport
-      parentRoute: typeof LolAccountSlugRoute
-    }
     '/lol/$accountSlug/matches/': {
       id: '/lol/$accountSlug/matches/'
       path: '/matches'
@@ -519,13 +486,6 @@ declare module '@tanstack/react-router' {
       path: '/champions'
       fullPath: '/lol/$accountSlug/champions/'
       preLoaderRoute: typeof LolAccountSlugChampionsIndexRouteImport
-      parentRoute: typeof LolAccountSlugRoute
-    }
-    '/lol/$accountSlug/patches/$version': {
-      id: '/lol/$accountSlug/patches/$version'
-      path: '/patches/$version'
-      fullPath: '/lol/$accountSlug/patches/$version'
-      preLoaderRoute: typeof LolAccountSlugPatchesVersionRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
     '/lol/$accountSlug/matches/$matchId': {
@@ -634,10 +594,8 @@ interface LolAccountSlugRouteChildren {
   LolAccountSlugIndexRoute: typeof LolAccountSlugIndexRoute
   LolAccountSlugChampionsChampionKeyRoute: typeof LolAccountSlugChampionsChampionKeyRoute
   LolAccountSlugMatchesMatchIdRoute: typeof LolAccountSlugMatchesMatchIdRouteWithChildren
-  LolAccountSlugPatchesVersionRoute: typeof LolAccountSlugPatchesVersionRoute
   LolAccountSlugChampionsIndexRoute: typeof LolAccountSlugChampionsIndexRoute
   LolAccountSlugMatchesIndexRoute: typeof LolAccountSlugMatchesIndexRoute
-  LolAccountSlugPatchesIndexRoute: typeof LolAccountSlugPatchesIndexRoute
 }
 
 const LolAccountSlugRouteChildren: LolAccountSlugRouteChildren = {
@@ -649,10 +607,8 @@ const LolAccountSlugRouteChildren: LolAccountSlugRouteChildren = {
     LolAccountSlugChampionsChampionKeyRoute,
   LolAccountSlugMatchesMatchIdRoute:
     LolAccountSlugMatchesMatchIdRouteWithChildren,
-  LolAccountSlugPatchesVersionRoute: LolAccountSlugPatchesVersionRoute,
   LolAccountSlugChampionsIndexRoute: LolAccountSlugChampionsIndexRoute,
   LolAccountSlugMatchesIndexRoute: LolAccountSlugMatchesIndexRoute,
-  LolAccountSlugPatchesIndexRoute: LolAccountSlugPatchesIndexRoute,
 }
 
 const LolAccountSlugRouteWithChildren = LolAccountSlugRoute._addFileChildren(

@@ -16,7 +16,6 @@ const TABS: LolTabDescriptor[] = [
   { to: "/lol/$accountSlug/matches", exact: false },
   { to: "/lol/$accountSlug/trends", exact: false },
   { to: "/lol/$accountSlug/champions", exact: false },
-  { to: "/lol/$accountSlug/patches", exact: false },
 ];
 
 describe("normalizePath", () => {
@@ -74,7 +73,6 @@ describe("tabIndexFromPath", () => {
     expect(tabIndexFromPath(TABS, "/lol/jonas-euw/matches", SLUG)).toBe(1);
     expect(tabIndexFromPath(TABS, "/lol/jonas-euw/trends", SLUG)).toBe(2);
     expect(tabIndexFromPath(TABS, "/lol/jonas-euw/champions", SLUG)).toBe(3);
-    expect(tabIndexFromPath(TABS, "/lol/jonas-euw/patches", SLUG)).toBe(4);
   });
 
   it("normalizes the trailing slash before comparing", () => {

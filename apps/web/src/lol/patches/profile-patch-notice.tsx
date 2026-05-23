@@ -105,8 +105,8 @@ export function ProfilePatchNotice({ accountSlug }: { accountSlug: string }) {
     <div className="flex flex-col gap-2 rounded-lg border bg-card/50 px-4 py-3">
       <div className="flex items-center justify-between">
         <Link
-          to="/lol/$accountSlug/patches"
-          params={{ accountSlug }}
+          to="/lol/patches"
+          search={{ as: accountSlug }}
           className="text-xs uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
         >
           Patch {patchVersion} · changes for your champions →
