@@ -20,16 +20,18 @@ async function fetchPatchChanges(version: string): Promise<PatchChangesResponse>
   return res.json() as Promise<PatchChangesResponse>;
 }
 
-const STALE_TIME_MS = 60_000;
-
 // Backs the PN3 patch-notes tab. Pass `null` while the parent is still
 // resolving which version to show (e.g. patch list is loading) — the
 // query stays disabled instead of firing a doomed request.
+//
+// Cache key carries the patch version, so once fetched the payload is
+// effectively immutable for that key — Riot only edits historical notes
+// in extremely rare cases.
 export function usePatchChanges(version: string | null) {
   return useQuery({
     queryKey: ["lol", "patches", "changes", version],
     queryFn: () => fetchPatchChanges(version as string),
     enabled: version !== null && version.length > 0,
-    staleTime: STALE_TIME_MS,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
