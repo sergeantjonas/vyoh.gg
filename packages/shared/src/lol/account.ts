@@ -30,6 +30,10 @@ export interface LolAccountSummary {
 
 // `/me` payload variant — bare `LolAccount` is kept for sync whitelist
 // checks inside the API; this extended shape is what crosses the wire.
+// `profileIconId` is identity, not "summary state" — it lives at the
+// top level so consumers don't have to traverse the nullable summary
+// just to render the per-account avatar.
 export interface LolAccountWithSummary extends LolAccount {
+  profileIconId: number | null;
   summary: LolAccountSummary | null;
 }

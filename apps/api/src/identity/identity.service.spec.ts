@@ -69,15 +69,23 @@ describe("IdentityService", () => {
   });
 
   describe("getLolAccountsWithSummary", () => {
-    it("returns summary: null for accounts without a Summoner row", async () => {
+    it("returns summary: null and profileIconId: null for accounts without a Summoner row", async () => {
       const prisma = {
         summoner: { findMany: vi.fn().mockResolvedValue([]) },
       } as unknown as PrismaService;
       const service = new IdentityService(config, prisma);
       const result = await service.getLolAccountsWithSummary();
       expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({ slug: "ahri", summary: null });
-      expect(result[1]).toMatchObject({ slug: "tifa", summary: null });
+      expect(result[0]).toMatchObject({
+        slug: "ahri",
+        profileIconId: null,
+        summary: null,
+      });
+      expect(result[1]).toMatchObject({
+        slug: "tifa",
+        profileIconId: null,
+        summary: null,
+      });
     });
 
     it("hydrates the denorm fields when the Summoner row carries them", async () => {
@@ -88,6 +96,7 @@ describe("IdentityService", () => {
               gameName: "Vyoh",
               tagLine: "Ahri",
               region: "euw1",
+              profileIconId: 4567,
               currentRankTier: "GOLD",
               currentRankDivision: "II",
               currentRankLp: 50,
@@ -100,6 +109,7 @@ describe("IdentityService", () => {
       } as unknown as PrismaService;
       const service = new IdentityService(config, prisma);
       const result = await service.getLolAccountsWithSummary();
+      expect(result[0]?.profileIconId).toBe(4567);
       expect(result[0]?.summary).toEqual({
         rank: {
           tier: "GOLD",
@@ -111,6 +121,7 @@ describe("IdentityService", () => {
         updatedAt: "2026-05-24T10:00:00.000Z",
       });
       // Second account has no matching Summoner row → still null
+      expect(result[1]?.profileIconId).toBeNull();
       expect(result[1]?.summary).toBeNull();
     });
 

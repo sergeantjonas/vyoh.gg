@@ -166,7 +166,7 @@ beforeEach(() => {
   vi.mocked(useStatusStream).mockReturnValue(undefined);
   // /me returns LolAccountWithSummary[]; status-page doesn't read the
   // denorm fields, so a null summary stub is enough to satisfy the type.
-  mockMe({ lol: [{ ...account, summary: null }], steam: [] });
+  mockMe({ lol: [{ ...account, profileIconId: null, summary: null }], steam: [] });
   mockMutations();
 });
 

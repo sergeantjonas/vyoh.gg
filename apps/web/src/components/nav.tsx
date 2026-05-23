@@ -12,9 +12,9 @@ import {
 import { useMe } from "@/identity/use-me";
 import { cn } from "@/lib/utils";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
-import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
-import { useChampionName } from "@/lol/champions/use-champions";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { LolAccountWithSummary } from "@vyoh/shared";
@@ -278,16 +278,12 @@ function queueShortLabel(queueId: string): string {
   return queueId;
 }
 
-// Account row in the LoL dropdown. Renders one of three layouts based
-// on what `summary` carries:
-//   - summary === null OR summary.updatedAt === null
-//       → simple row (account never resolved, or refresh never fired)
-//   - summary present, rank populated
-//       → rich row with last-played champion icon + rank emblem + LP
-//   - summary present, rank null
-//       → rich row with "Unranked" label
-// All three share the same row chrome so the layout doesn't jump as
-// data arrives across the menu's lifetime.
+// Account row in the LoL dropdown. The left icon is the per-account
+// profile icon (stable identity, like a Discord avatar). Right side
+// shows the highest-of solo/flex rank emblem when available; sub-line
+// carries region + queue + rank text. Sub-line and right-slot stay
+// rendered (region-only / empty) for un-hydrated rows so vertical
+// rhythm doesn't jump as data arrives.
 function AccountRow({
   account,
   active,
@@ -295,12 +291,12 @@ function AccountRow({
   account: NavLolAccount;
   active: boolean;
 }) {
-  const championName = useChampionName();
+  const ddVersion = useDDragonVersion();
   const emblemYear = useRankedEmblemYear();
   const summary = account.summary;
   const isHydrated = summary !== null && summary.updatedAt !== null;
   const rank = summary?.rank ?? null;
-  const lastChampion = summary?.lastPlayedChampionAlias ?? null;
+  const profileIconId = account.profileIconId;
 
   return (
     <NavigationMenuLink asChild active={active}>
@@ -315,12 +311,13 @@ function AccountRow({
       >
         {/* Fixed-size left icon slot so fallback rows align with hydrated
         ones — the only difference is what goes inside the box. */}
-        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-sm">
-          {isHydrated && lastChampion ? (
-            <ChampionSquareIcon
-              championName={lastChampion}
-              alt={championName(lastChampion)}
-              className="size-7"
+        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full">
+          {profileIconId != null ? (
+            <img
+              src={profileIconUrl(profileIconId, ddVersion)}
+              alt=""
+              loading="lazy"
+              className="size-7 object-cover"
             />
           ) : (
             <LeagueOfLegendsIcon className="size-4 text-muted-foreground" aria-hidden />

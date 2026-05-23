@@ -82,6 +82,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
         gameName: true,
         tagLine: true,
         region: true,
+        profileIconId: true,
         currentRankTier: true,
         currentRankDivision: true,
         currentRankLp: true,
@@ -98,7 +99,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
       const s = summoners_by_id.get(
         `${account.gameName}|${account.tagLine}|${account.region}`
       );
-      if (!s) return { ...account, summary: null };
+      if (!s) return { ...account, profileIconId: null, summary: null };
       const rank =
         s.currentRankTier && s.currentRankDivision && s.currentRankQueue
           ? {
@@ -110,6 +111,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
           : null;
       return {
         ...account,
+        profileIconId: s.profileIconId,
         summary: {
           rank,
           lastPlayedChampionAlias: s.lastPlayedChampionAlias,
