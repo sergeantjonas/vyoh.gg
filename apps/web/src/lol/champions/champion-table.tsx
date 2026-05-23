@@ -2,7 +2,7 @@ import { CountUp } from "@/components/count-up";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
-import { ROLE_LABEL, RoleIcon, type RolePosition } from "@/lol/_shared/assets/role-icon";
+import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import {
@@ -80,10 +80,11 @@ export function ChampionTable({
   // synchronously, then pin briefly while the hero→row morph plays out.
   // restoredScrollY === 0 ⇒ fresh visit (Trends → Champions, first load),
   // so settle defaults to true and rows render normally with the stagger.
-  const { readListScroll, activeChampion } = useActiveChampion();
+  const { readListScroll, activeChampion, activePosition } = useActiveChampion();
   const [restoredScrollY] = useState(() => readListScroll());
   const [settled, setSettled] = useState(() => restoredScrollY <= 0);
   const didInitialScrollRef = useRef(false);
+  const didPinRef = useRef(false);
   if (!didInitialScrollRef.current && restoredScrollY > 0) {
     didInitialScrollRef.current = true;
     mainScrollRef.current?.scrollTo(0, restoredScrollY);
@@ -94,8 +95,16 @@ export function ChampionTable({
     return () => window.clearTimeout(id);
   }, [settled]);
   useLayoutEffect(() => {
+    // Guard against React 19 `reappearLayoutEffects` re-firing this hook on
+    // Activity/Suspense reveal (TanStack Router + AnimatePresence keep the
+    // exiting list alive briefly during forward nav, and the replay would
+    // re-assert the saved scrollTop *after* useScrollResetOnNav reset it).
+    // We only ever want to pin once per component instance, on the back-nav
+    // mount that captured restoredScrollY > 0.
+    if (didPinRef.current) return;
     const container = mainScrollRef.current;
     if (restoredScrollY <= 0 || !container) return;
+    didPinRef.current = true;
     const target = restoredScrollY;
     container.scrollTo(0, target);
     let cancelled = false;
@@ -110,16 +119,6 @@ export function ChampionTable({
       cancelled = true;
     };
   }, [restoredScrollY]);
-  // First occurrence per champion in `stats` (sorted by games desc) is the
-  // primary role — that row owns the rect-morph source/destination for the
-  // detail-page hero; sibling rows just render normally.
-  const primaryRoleByChampion = useMemo(() => {
-    const map = new Map<string, RolePosition>();
-    for (const s of stats) {
-      if (!map.has(s.champion)) map.set(s.champion, s.position);
-    }
-    return map;
-  }, [stats]);
   // Skip the entrance stagger on back-nav: the rows are already on screen,
   // and the morphing card is doing the work — re-running stagger would be
   // visual noise.
@@ -130,20 +129,21 @@ export function ChampionTable({
   return (
     <m.ul {...listMotionProps} className="flex flex-col gap-3">
       {sorted.map((s) => {
-        // Primary row = first occurrence of this champion across sorted-by-games
-        // rows. Only the primary row sources/consumes the rect-morph against
-        // the detail hero; sibling rows just render normally.
-        const isPrimary = primaryRoleByChampion.get(s.champion) === s.position;
+        // Every row owns its own morph against the detail hero, keyed by
+        // alias + position. A champion played in multiple roles produces
+        // multiple rows; whichever one the user clicked is the one that
+        // captured the origin rect (forward) and consumes the hero rect on
+        // return (backward).
         const info = champions.data?.get(s.champion.toLowerCase());
         const parentClasses = info?.modernClasses ?? [];
         const subclasses = info?.modernSubclasses ?? [];
-        const isActiveRow = activeChampion === s.champion && isPrimary;
+        const isActiveRow =
+          activeChampion === s.champion && activePosition === s.position;
         const heldDuringSettle = !settled && !isActiveRow;
         return (
           <ChampionTableRow
             key={`${s.champion}-${s.position}`}
             s={s}
-            isPrimary={isPrimary}
             parentClasses={parentClasses}
             subclasses={subclasses}
             accountSlug={accountSlug}
@@ -159,7 +159,6 @@ export function ChampionTable({
 
 function ChampionTableRow({
   s,
-  isPrimary,
   parentClasses,
   subclasses,
   accountSlug,
@@ -168,7 +167,6 @@ function ChampionTableRow({
   heldDuringSettle,
 }: {
   s: ChampionStats;
-  isPrimary: boolean;
   parentClasses: string[];
   subclasses: string[];
   accountSlug: string;
@@ -176,26 +174,32 @@ function ChampionTableRow({
   onCardHover?: ((champion: string) => void) | undefined;
   heldDuringSettle: boolean;
 }) {
-  const { setActiveChampion, saveListScroll, originRectRef, setOriginRect } =
-    useActiveChampion();
+  const {
+    setActiveChampion,
+    setActivePosition,
+    saveListScroll,
+    originRectRef,
+    setOriginRect,
+  } = useActiveChampion();
   const reduced = useReducedMotion();
   const cardRef = useRef<HTMLDivElement>(null);
   const alias = s.champion;
+  const position = s.position;
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef. Mirrors match-row.
   const savedOrigin = useRef<ChampionOrigin | null>(null);
 
-  // Back-nav: when this row is the destination of a back-navigation, snap to
-  // the detail hero's last-known rect and CSS-transition back to the natural
-  // position. Only the primary row is the morph counterpart of the detail
-  // hero — non-primary rows skip this entirely.
+  // Back-nav: only the row matching the user's last clicked (alias, position)
+  // pair consumes the hero's backward rect — other rows for the same champion
+  // (different role) ignore it so two rows don't try to morph from the same
+  // hero simultaneously.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
-    if (!isPrimary) return;
     if (!savedOrigin.current) {
       const o = originRectRef.current;
       if (
         o?.championAlias?.toLowerCase() !== alias.toLowerCase() ||
+        o.position !== position ||
         o.direction !== "backward"
       )
         return;
@@ -246,17 +250,21 @@ function ChampionTableRow({
           params={{ accountSlug, championKey: alias.toLowerCase() }}
           onMouseEnter={() => onCardHover?.(alias)}
           onPointerDown={() => {
-            // Origin rect only fires from the primary row — it's the morph
-            // counterpart of the detail hero. Non-primary rows still seed
-            // activeChampion + scroll memory so the return trip lands on
-            // the right row.
+            // Every row captures its own origin rect — a champion played in
+            // multiple roles produces multiple rows, and the row the user
+            // actually clicks is the one that should morph into the detail
+            // hero (and back out on return).
             saveListScroll();
-            if (isPrimary) {
-              const rect = cardRef.current?.getBoundingClientRect() ?? null;
-              if (rect)
-                setOriginRect({ championAlias: alias, rect, direction: "forward" });
-            }
+            const rect = cardRef.current?.getBoundingClientRect() ?? null;
+            if (rect)
+              setOriginRect({
+                championAlias: alias,
+                position,
+                rect,
+                direction: "forward",
+              });
             setActiveChampion(alias);
+            setActivePosition(position);
           }}
         >
           {/* Plain div, not m.div — Motion's layoutId morph would compete

@@ -6,7 +6,12 @@ import { useScrollResetOnNav } from "./use-scroll-reset-on-nav";
 const scrollToMock = vi.fn();
 
 beforeEach(() => {
-  mainScrollRef.current = { scrollTo: scrollToMock } as unknown as HTMLElement;
+  mainScrollRef.current = {
+    scrollTo: scrollToMock,
+    scrollTop: 0,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as HTMLElement;
 });
 
 afterEach(() => {

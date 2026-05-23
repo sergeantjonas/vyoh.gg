@@ -20,24 +20,10 @@ export function useScrollResetOnNav(
   useLayoutEffect(() => {
     const prev = prevRef.current;
     prevRef.current = pathname;
-    console.log("[scroll-reset]", { prev, pathname, skips: skipsRef.current });
-    if (prev === null || prev === pathname) {
-      console.log("[scroll-reset] skipped: null prev or same pathname");
-      return;
-    }
+    if (prev === null || prev === pathname) return;
     for (const skip of skipsRef.current) {
-      if (prev.startsWith(skip.fromPrefix) && pathname === skip.toExact) {
-        console.log("[scroll-reset] skipped: matched skip", skip);
-        return;
-      }
+      if (prev.startsWith(skip.fromPrefix) && pathname === skip.toExact) return;
     }
-    const main = mainScrollRef.current;
-    console.log(
-      "[scroll-reset] scrolling to top. main=",
-      main,
-      "scrollTop before=",
-      main?.scrollTop
-    );
-    main?.scrollTo(0, 0);
+    mainScrollRef.current?.scrollTo(0, 0);
   }, [pathname]);
 }

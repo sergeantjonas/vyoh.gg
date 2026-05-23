@@ -54,12 +54,14 @@ describe("useActiveChampion", () => {
     act(() =>
       result.current.setOriginRect({
         championAlias: "Ahri",
+        position: "MIDDLE",
         rect,
         direction: "forward",
       })
     );
     expect(result.current.originRectRef.current).toEqual({
       championAlias: "Ahri",
+      position: "MIDDLE",
       rect,
       direction: "forward",
     });

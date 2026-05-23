@@ -246,12 +246,14 @@ describe("ChampionTable", () => {
       expect(scrollTo).toHaveBeenCalledWith(0, 540);
     });
 
-    it("seeds active champion + scroll for a non-primary row but skips the origin rect", () => {
+    it("captures origin rect on every row — including non-primary — keyed by position", () => {
       mainScrollRef.current = { scrollTop: 88 } as HTMLElement;
-      // Two rows for the same champion: MIDDLE (primary, listed first) and TOP.
-      // Click the TOP row's link; it should set activeChampion + save scroll
-      // but skip the origin rect (only the primary row owns the layoutId
-      // morph against the detail hero).
+      // Two rows for the same champion: MIDDLE (listed first, more games) and
+      // TOP. Clicking the TOP row should still capture an origin rect — the
+      // morph keys on (alias, position) so the right row participates on
+      // return-nav. (Previously only the "primary" row owned the rect, which
+      // broke the morph for a champion played in multiple roles when the user
+      // clicked the non-primary row.)
       renderWithProbe([
         stat({ position: "MIDDLE", games: 20 }),
         stat({ position: "TOP", games: 5 }),
@@ -263,8 +265,8 @@ describe("ChampionTable", () => {
       const probe = screen.getByTestId("probe");
       expect(probe.getAttribute("data-active")).toBe("Ahri");
       expect(probe.getAttribute("data-scroll")).toBe("88");
-      expect(probe.getAttribute("data-origin-alias")).toBe("");
-      expect(probe.getAttribute("data-origin-direction")).toBe("");
+      expect(probe.getAttribute("data-origin-alias")).toBe("Ahri");
+      expect(probe.getAttribute("data-origin-direction")).toBe("forward");
     });
   });
 });

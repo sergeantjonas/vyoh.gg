@@ -86,12 +86,13 @@ function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
 }
 
 function ChampionListReturnReset({ inSubtree }: { inSubtree: boolean }) {
-  const { clearListScroll, setActiveChampion } = useActiveChampion();
+  const { clearListScroll, setActiveChampion, setActivePosition } = useActiveChampion();
   useEffect(() => {
     if (inSubtree) return;
     clearListScroll();
     setActiveChampion(null);
-  }, [inSubtree, clearListScroll, setActiveChampion]);
+    setActivePosition(null);
+  }, [inSubtree, clearListScroll, setActiveChampion, setActivePosition]);
   return null;
 }
 

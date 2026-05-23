@@ -72,6 +72,7 @@ export function MatchList({
   });
   const seenCountRef = useRef(restoredScrollY > 0 ? visibleCount : 0);
   const didInitialScrollRef = useRef(false);
+  const didPinRef = useRef(false);
   if (!didInitialScrollRef.current && restoredScrollY > 0) {
     didInitialScrollRef.current = true;
     mainScrollRef.current?.scrollTo(0, restoredScrollY);
@@ -84,7 +85,13 @@ export function MatchList({
       const containerRect = container.getBoundingClientRect();
       setScrollMargin(parentRect.top - containerRect.top + container.scrollTop);
     }
+    // Guard against React 19 `reappearLayoutEffects` re-firing this hook on
+    // Activity/Suspense reveal (the replay would re-assert the saved
+    // scrollTop *after* useScrollResetOnNav reset it on forward nav). Match
+    // and champion lists share the same guard for parity.
+    if (didPinRef.current) return;
     if (restoredScrollY <= 0 || !container) return;
+    didPinRef.current = true;
     const target = restoredScrollY;
     container.scrollTo(0, target);
     let cancelled = false;
