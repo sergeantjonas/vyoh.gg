@@ -14,6 +14,21 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("./use-champions", () => ({
   useChampionName: () => (alias: string) => alias,
+  useChampions: () => ({
+    data: new Map([
+      [
+        "ahri",
+        {
+          id: 103,
+          alias: "Ahri",
+          name: "Ahri",
+          roles: ["Mage"],
+          modernClasses: ["Mage"],
+          modernSubclasses: ["Burst"],
+        },
+      ],
+    ]),
+  }),
 }));
 
 vi.mock("@/lol/_shared/ui/card-tilt", () => ({

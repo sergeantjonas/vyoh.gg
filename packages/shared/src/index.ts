@@ -3,6 +3,7 @@ export {
   formatGameTime,
   formatGold,
   formatPlaytime,
+  formatPlaytimeFromSeconds,
   formatHoursMinutes,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";

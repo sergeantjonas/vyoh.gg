@@ -18,11 +18,21 @@ export function formatGold(g: number): string {
 }
 
 // Compact playtime for Steam surfaces (minutes input). library-tile-hovercard
-// uses a verbose "min"/"hrs" variant and champion-table takes seconds — both stay inline.
+// uses a verbose "min"/"hrs" variant and stays inline.
 export function formatPlaytime(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.round(minutes / 60);
   return `${hours.toLocaleString("en-US")}h`;
+}
+
+// Compact playtime for LoL surfaces (seconds input) — one-decimal hours
+// because a champion's accumulated playtime is fine-grained (72.6h reads
+// as a meaningful 36-minute step where Steam's 73h vs 74h doesn't).
+// Sub-hour totals fall back to whole minutes.
+export function formatPlaytimeFromSeconds(sec: number): string {
+  const hours = sec / 3600;
+  if (hours < 1) return `${Math.round(sec / 60)}m`;
+  return `${hours.toFixed(1)}h`;
 }
 
 export function formatHoursMinutes(minutes: number): string {

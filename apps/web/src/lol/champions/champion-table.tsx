@@ -1,7 +1,9 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
+import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon, type RolePosition } from "@/lol/_shared/assets/role-icon";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
+import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import {
   ChampionCardChrome,
   championCardClassName,
@@ -9,14 +11,15 @@ import {
 } from "@/lol/champions/champion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
-import { type MotionStyle, type Variants, m, useReducedMotion } from "motion/react";
+import { formatPlaytimeFromSeconds } from "@vyoh/shared";
+import { type MotionStyle, type Variants, m } from "motion/react";
 import { useMemo } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 import type { ChampionSortOption } from "./champion-sort-selector";
 import type { ChampionStats } from "./champion-stats";
-import { useChampionName } from "./use-champions";
+import { useChampionName, useChampions } from "./use-champions";
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -31,12 +34,6 @@ const item: Variants = {
     transition: { type: "spring", stiffness: 380, damping: 28 },
   },
 };
-
-function formatPlaytime(sec: number): string {
-  const hours = sec / 3600;
-  if (hours < 1) return `${Math.round(sec / 60)}m`;
-  return `${hours.toFixed(1)}h`;
-}
 
 function sortStats(stats: ChampionStats[], sort: ChampionSortOption): ChampionStats[] {
   const compare = (a: ChampionStats, b: ChampionStats): number => {
@@ -66,6 +63,7 @@ export function ChampionTable({
   onCardHover?: ((champion: string) => void) | undefined;
 }) {
   const championName = useChampionName();
+  const champions = useChampions();
   const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
   // First occurrence per champion in `stats` (sorted by games desc) is the
   // primary role — that row keeps the shared `champ-card-{champion}` layoutId
@@ -78,7 +76,6 @@ export function ChampionTable({
     }
     return map;
   }, [stats]);
-  const reduced = useReducedMotion();
   return (
     <m.ul
       initial="hidden"
@@ -91,6 +88,9 @@ export function ChampionTable({
         const layoutId = isPrimary
           ? `champ-card-${s.champion.toLowerCase()}`
           : `champ-card-${s.champion.toLowerCase()}-${s.position.toLowerCase()}`;
+        const info = champions.data?.get(s.champion.toLowerCase());
+        const parentClasses = info?.modernClasses ?? [];
+        const subclasses = info?.modernSubclasses ?? [];
         return (
           <m.li
             key={`${s.champion}-${s.position}`}
@@ -134,6 +134,27 @@ export function ChampionTable({
                         </TooltipPrimitive.Portal>
                       </TooltipPrimitive.Root>
                     </div>
+                    {parentClasses.length > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                        {parentClasses.map((c) => (
+                          <span key={c} className="inline-flex items-center gap-1">
+                            <img
+                              src={championClassIconUrl(c.toLowerCase())}
+                              alt=""
+                              aria-hidden={true}
+                              className="size-3.5 shrink-0"
+                              draggable={false}
+                            />
+                            {c}
+                          </span>
+                        ))}
+                        {subclasses.length > 0 && (
+                          <span className="text-muted-foreground/50">
+                            · {subclasses.join(" · ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="font-mono text-sm tabular-nums">
                       <span
                         className={cn(
@@ -150,27 +171,9 @@ export function ChampionTable({
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
-                      {formatPlaytime(s.totalDurationSec)}
+                      {formatPlaytimeFromSeconds(s.totalDurationSec)}
                     </div>
-                    <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-muted/30">
-                      <m.div
-                        className={cn(
-                          "absolute inset-y-0 left-0 h-full w-full rounded-full",
-                          s.winRate >= 0.5
-                            ? "bg-gradient-to-r from-emerald-500/70 to-emerald-400/90"
-                            : "bg-gradient-to-r from-red-500/70 to-red-400/90"
-                        )}
-                        style={{ transformOrigin: "left" }}
-                        initial={{ scaleX: reduced ? s.winRate : 0 }}
-                        animate={{ scaleX: s.winRate }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 220,
-                          damping: 28,
-                          delay: 0.1,
-                        }}
-                      />
-                    </div>
+                    <WinRateBar winRate={s.winRate} />
                   </div>
                 </m.div>
               </Link>

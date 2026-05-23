@@ -6,6 +6,7 @@ import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-p
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
+import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import {
@@ -13,6 +14,7 @@ import {
   useSeriousQueues,
 } from "@/lol/_shared/serious-queues/serious-queues";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
+import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
 import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
 import {
@@ -33,6 +35,7 @@ import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
+import { formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { type MotionStyle, m } from "motion/react";
 import { useMemo, useState } from "react";
 import {
@@ -238,6 +241,26 @@ function ChampionDetailPage() {
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <div className="relative flex items-center gap-2">
                 <span className="text-2xl font-bold">{championName(alias)}</span>
+                <TooltipPrimitive.Root>
+                  <TooltipPrimitive.Trigger asChild>
+                    <span className="inline-flex">
+                      <RoleIcon
+                        position={detail.position}
+                        title={ROLE_LABEL[detail.position]}
+                        className="size-4 opacity-70"
+                      />
+                    </span>
+                  </TooltipPrimitive.Trigger>
+                  <TooltipPrimitive.Portal>
+                    <TooltipPrimitive.Content
+                      side="bottom"
+                      sideOffset={6}
+                      className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                    >
+                      Primary lane: {ROLE_LABEL[detail.position]}
+                    </TooltipPrimitive.Content>
+                  </TooltipPrimitive.Portal>
+                </TooltipPrimitive.Root>
                 {champMatches.length > 0 && (
                   <ThisPatchBadge
                     matches={champMatches}
@@ -249,7 +272,10 @@ function ChampionDetailPage() {
               {parentClassChips.length > 0 && (
                 <div className="relative mt-0.5 flex items-center gap-2 text-xs text-muted-foreground/70">
                   {parentClassChips.map(({ slug, label }) => (
-                    <span key={`class:${slug}`} className="inline-flex items-center gap-1">
+                    <span
+                      key={`class:${slug}`}
+                      className="inline-flex items-center gap-1"
+                    >
                       <img
                         src={championClassIconUrl(slug)}
                         alt=""
@@ -272,6 +298,8 @@ function ChampionDetailPage() {
                   <CountUp to={detail.games} /> {detail.games === 1 ? "game" : "games"}
                 </span>
                 <span>·</span>
+                <span>{formatPlaytimeFromSeconds(detail.totalDurationSec)}</span>
+                <span>·</span>
                 <span
                   className={detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"}
                 >
@@ -282,6 +310,7 @@ function ChampionDetailPage() {
                   <CountUp to={detail.avgKda} decimals={2} /> KDA
                 </span>
               </div>
+              <WinRateBar winRate={detail.winRate} className="mt-2" />
             </div>
           </m.div>
         </m.div>
