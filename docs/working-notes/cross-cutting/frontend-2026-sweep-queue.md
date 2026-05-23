@@ -57,7 +57,7 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 | 04 | react-internals | ⏸️ deferred | — | React Compiler 1.0 is current; less library-churn than Tier 1 domains. Revisit if React 20 lands or RSC patterns shift materially. |
 | 05 | frameworks | ✅ refreshed | 2026-05-23 | Project-first sweep + KB refresh. Project outputs: Round 5 in frontend-2026-gaps.md (Gap #15 zero route loaders, Gap #16 per-route head() only one site + localhost-bug in og:image URL), new Framework section in library-shortlist.md (TanStack Start parked-active, Next/RR7/Astro/Waku/Million.js/SvelteKit/Nuxt/SolidStart/Qwik rejected with rationale, RedwoodSDK parked for next refresh). KB outputs: §2 Migration considerations + loader-as-forward-compatible-migration-prep pattern + head()/loader pairing pattern, §9 RedwoodSDK / Smith candidate-for-next-refresh stub, §12 per-route metadata absolute-URL gotcha (covers head()/metadata/frontmatter/meta/useHead). |
 | 06 | performance | ⏸️ deferred | — | Speculation Rules, PPR, bfcache mostly spec-driven. Schedule citation refresh when Chrome stable bumps Speculation Rules support. |
-| 07 | build-tooling | 🟡 **Tier 1 — do third** | — | Refresh: Rolldown-in-Vite-8 status, Turbopack vs Rspack vs Webpack-legacy, **oxc / oxlint** challenging Biome on lint+format slot, Bun-as-runtime vs Bun-as-installer vs Node 22+ vs Deno 2 (give this the Motion+ deferred-by-default treatment), monorepo tools (Turborepo / Nx / Moon). |
+| 07 | build-tooling | ✅ refreshed | 2026-05-23 | Project-first sweep + KB refresh. Project outputs: Round 6 in frontend-2026-gaps.md (Gap 17 Biome 1.9→2.x, Gap 18 no pnpm catalogs despite 3-site duplicate pins, Gap 19 missing `sideEffects: false` on `@vyoh/shared` barrel), 2 quick-wins (explicit `build.target`, `sideEffects: false` one-liner), new "Build tooling — evaluated alternatives" section in library-shortlist.md (Rolldown standalone, Rspack/Rsbuild, Turbopack, Bun runtime/installer, Deno 2, Turborepo/Nx/Moon, Oxlint, Changesets, tsup). KB outputs: §1.2 Rolldown-native `@rolldown/plugin-babel` for React Compiler, §1.6 Bun deferred-by-default with three triggers + Anthropic caveat + Deno 2 treatment, §3.3 sideEffects on workspace-internal packages, §5.1 catalogs trigger (2+ workspace pins), §5.2 task-runner threshold table + positioning-vs-engineering callout, new §11 Lint and format (Biome 2 / Oxlint / ESLint slot-split with picker), README defaults updated for Build / Lint+format / Package manager / Monorepo / always-skip lists. |
 | 08 | typescript | ⏸️ skip (spec-driven) | — | TS 7 / Corsa status is the main update. Citation refresh when Corsa hits beta/GA. |
 | 09 | accessibility | ⏸️ skip (spec-driven) | — | WCAG 3 status, EAA compliance dates, screen-reader matrix. Citation refresh annually or when WCAG 3 candidate-recommendation lands. |
 | 10 | testing | 🔵 **Tier 2** | — | Vitest 4 / Playwright are stable. Visual regression has new entrants worth ranking: Chromatic vs Percy vs Argos vs Lost Pixel. Storybook 9 + test-runner integration shifting. Lower variance than Tier 1. |
@@ -71,19 +71,16 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 
 ## Suggested order
 
-1. **07 — build-tooling** *(Tier 1)*
-   Now top of queue after 05 landed 2026-05-23. Independent of 05, lower stakes, easy win. Good "fresh-context" session — doesn't need 05 loaded.
-
-2. **17 — cross-platform-edge-auth** *(Tier 2)*
+1. **17 — cross-platform-edge-auth** *(Tier 2)*
    Pick up opportunistically when [owner-auth.md](owner-auth.md) gets reopened or the [hosting.md](hosting.md) decisions firm up. Don't do it speculatively.
 
-3. **10 — testing** *(Tier 2)*
+2. **10 — testing** *(Tier 2)*
    Lowest variance among the queue. Visual-regression ranking is the main payoff. Pick up when a project's testing strategy is being scoped.
 
-4. **13 — seo** *(light refresh)*
+3. **13 — seo** *(light refresh)*
    30-min sweep when convenient. AI crawler tokens are the moving piece.
 
-After Tier 1 is done (15 / 05 / 07), the bulk of the high-variance KB churn is captured. Tier 2 + skips can rotate on slower cadence.
+Tier 1 is now complete (15 / 05 / 07 all ✅ refreshed 2026-05-23). The bulk of the high-variance KB churn is captured. Tier 2 + skips can rotate on slower cadence.
 
 ## How to start a sweep session
 

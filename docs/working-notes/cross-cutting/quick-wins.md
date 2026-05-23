@@ -14,6 +14,11 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 - **Per-tab favicon dot** — `<link rel="icon">` swap based on presence state (live game → green dot, just-finished → blue, idle → default). Drop-in hook; pairs with [live-presence-chip.md](live-presence-chip.md) but doesn't need it.
 - **iOS PWA polish** — `apple-touch-icon`, `apple-mobile-web-app-status-bar-style`, `theme-color` per route accent, `manifest.json` review. Owner uses iOS; the app currently looks like a generic web bookmark on the home screen.
 
+## Build / tooling (one-line config wins)
+
+- **`build.target: 'baseline-widely-available'` in vite.config** — [apps/web/vite.config.ts](../../../apps/web/vite.config.ts). Today the project relies on Vite 8's default target without naming it. Setting it explicitly to `'baseline-widely-available'` (Vite 8's name for Baseline 2023 = Widely available in 2026) documents intent, produces measurably smaller output by skipping down-leveling of async/await/classes (5-15% bundle reduction on a typical React app per KB §9.3), and gives the next maintainer a one-line answer to "what browsers do we target?". Full context in [frontend-2026-gaps.md § Round 6 non-gaps](frontend-2026-gaps.md). ~5 min, atomic.
+- **`"sideEffects": false` on `packages/shared/package.json`** — pure re-export barrel today; absence of the annotation forces Rolldown to conservatively walk every leaf module on every import from `@vyoh/shared`. One-line fix. Full context in [frontend-2026-gaps.md § Gap 19](frontend-2026-gaps.md). ~5 min, atomic.
+
 ## Small feature (~30–60 min, no notes needed)
 
 - **`head()` localhost-bug fix on match-detail** — [matches/$matchId.tsx:31](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L31) hardcodes `const API_URL = "http://localhost:2010"` and ships it as `og:image` / `twitter:image` URLs to social-preview crawlers in production. Replace with `import.meta.env.VITE_API_URL` (or same-origin via `window.location.origin`). Verify with `pnpm build && pnpm preview` and inspect the rendered `<head>`. ~15 min, atomic, urgent (broken previews on every shared match URL). Full context in [frontend-2026-gaps.md § Gap 16](frontend-2026-gaps.md).

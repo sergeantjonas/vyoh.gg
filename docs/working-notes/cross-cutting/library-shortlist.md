@@ -719,6 +719,144 @@ When to reconsider: Phase 2 KB refresh for §05 lands and rates RedwoodSDK expli
 
 ---
 
+## Build tooling — evaluated alternatives, kept Vite 8 + pnpm + Biome + SWC (2026-05-23)
+
+Surfaced during the §07-build-tooling sweep. The current bundler choice (Vite 8 + Rolldown, with `@rolldown/plugin-babel` for the React Compiler) is best-in-class for 2026 and not in question — this section catalogues the **alternative tools** that were considered and rejected or parked across the bundler / lint / runtime / installer / task-runner / versioning axes, so the decisions don't get re-litigated next quarter.
+
+### Rolldown standalone
+
+Status: not needed (already using Rolldown via Vite 8)
+
+What it is: Rolldown's standalone CLI (separate from Vite). 1.0.2 is on npm as of this audit. Rust replacement for Rollup with Rollup plugin API compatibility.
+
+Why not needed today: vyoh.gg consumes Rolldown **through Vite 8** ([apps/web/vite.config.ts](../../../apps/web/vite.config.ts)) — the integration is already shipped. The standalone CLI is for library publishing, and `packages/shared` is a workspace-private package consumed as source `.ts` files (no build step). No library shape in the repo benefits from standalone Rolldown.
+
+When to reconsider: A package gets extracted to public npm and needs a real build step. Until then, the Vite-embedded path is what's load-bearing.
+
+### Rspack / Rsbuild 2.0
+
+Status: evaluated, **rejected** for this project
+
+What it is: ByteDance's Rust bundler with webpack loader/plugin compat as its defining feature. Rsbuild 2.0 is the opinionated app preset on top.
+
+Why rejected:
+
+- The KB §1.5 trigger ("you have a large existing webpack config / many custom webpack plugins, and migrating to Vite would mean rewriting half of them") doesn't fire here — there is no webpack legacy in this repo, and Vite has been the bundler since project init.
+- Vite 8's plugin ecosystem is genuinely wider in practice for the libraries vyoh leans on (TanStack Router plugin, Tailwind 4 Vite plugin, React Compiler via `@rolldown/plugin-babel`). Migration would lose plugin polish, not gain it.
+
+When to reconsider: A future project arrives with a webpack 5 config too large to rewrite. Never for vyoh.gg.
+
+### Turbopack
+
+Status: evaluated, **rejected** for this project
+
+What it is: Vercel's Rust bundler. Stable and default in Next.js 16 for both `next dev` and `next build`.
+
+Why rejected:
+
+- KB §1.4: "It is effectively Next-exclusive. There is no general-purpose `turbopack build` CLI; if your app isn't a Next app, this isn't a choice." vyoh runs on TanStack Router / Vite, not Next.
+- The framework-choice question (Next vs TanStack Start vs status quo) is already owned by [tanstack-start-migration.md](tanstack-start-migration.md) and the Next rejection rationale above. Turbopack inherits that rejection by transitivity.
+
+When to reconsider: Never for this codebase. Re-evaluated only if a hypothetical Next migration becomes the choice, which is itself rejected above.
+
+### Bun runtime
+
+Status: parked — deferred-by-default with explicit triggers
+
+What it is: All-in-one JS runtime + package manager + bundler + test runner. Bun 1.2.x bundler is production-usable; runtime has ~92% npm-API compat. KB §1.6.
+
+Why parked: The integration story (one binary for runtime + installer + bundler + tests) is genuinely compelling for greenfield apps, but vyoh is already wired to Node 22 + pnpm + Vite + Vitest with no friction in that chain. Swapping in Bun would mean re-validating Nest 11's compatibility (decorator metadata, SWC integration), Prisma 7's compatibility (its postinstall script + `@prisma/adapter-pg` + native bindings), and `sharp`'s native binary path. The cost is large; the marginal speed win over Node 22 + pnpm doesn't justify it for a personal portfolio site.
+
+Triggers to reconsider:
+
+1. **Edge runtime requirement.** A route (most likely `/og/*` for OG image generation, currently Satori + resvg in-process) needs to move to a Cloudflare Workers / Bun-on-edge deploy target where Bun's runtime is materially faster and the npm-API edge cases don't matter because the surface is small.
+2. **Cold-start regression in CI.** Node 22's CI startup cost becomes a measurable bottleneck on `pnpm verify:cc` wall time (currently a non-issue; flag if `setup-node` + `pnpm install` ever crosses 30s consistently).
+3. **First-party Bun-only library lands.** A library vyoh needs ships Bun-first or Bun-only (e.g. a Riot/Steam SDK rewrite that uses `Bun.serve` primitives). Today there are no such libraries in any of the project's dep trees.
+
+Aesthetic + commercial caveat: KB §13 notes Bun's 2026 Anthropic acquisition — "long-term commercial direction is unclear." Don't bet a multi-year strategy on Bun-only tooling without contingency. For a personal-portfolio project, this matters less than for a client project, but it argues against speculative adoption.
+
+### Bun installer (just for `bun install`, not the runtime)
+
+Status: parked
+
+Why parked: Faster installs than pnpm in benchmarks, but pnpm catalogs (once adopted per Gap 18) close most of the actual install-time pain points (lockfile size, version-drift conflicts). Pure install-speed isn't a bottleneck on a 3-package repo. If Bun runtime ever lands per the triggers above, Bun installer comes with it; until then, pnpm 11 + catalogs is the right slot.
+
+When to reconsider: Same triggers as Bun runtime above.
+
+### Deno 2
+
+Status: evaluated, **rejected** for app code
+
+What it is: Deno 2 (Oct 2024) added Node-compat (`node:` specifier import, npm package support via `npm:` specifier), workspaces, JSR registry support. Aims at the "secure-by-default + TS-native + Node-compatible" niche.
+
+Why rejected for app code:
+
+- Same migration cost as Bun (Nest, Prisma, sharp all need re-validation), worse ecosystem alignment than Bun (Deno's npm-compat is permission-prompt-heavy and breaks postinstall scripts more often than Bun's).
+- The freelance-positioning angle in [CLAUDE.md](../../../CLAUDE.md) is React-competent + Angular-deep + perf/build/migration specialist — Deno doesn't reinforce that profile the way TanStack/Vite/Rolldown does. Deno-on-portfolio reads as "I follow Twitter trends" rather than "I migrate large apps."
+
+When narrowly reusable: A one-off script (e.g. a static-asset transform, a docs generator) where Deno's no-install / permission-scoped invocation beats writing a `tools/` package. No current pull.
+
+### Turborepo / Nx / Moon (task runners)
+
+Status: evaluated, **rejected** for this project
+
+What they are:
+
+- **Turborepo 2.7** — Vercel's Rust task runner with local + remote cache, no first-party distribution.
+- **Nx 21** — TS+Rust runner with sophisticated project graph + Nx Cloud distributed task execution (DTE).
+- **Moon** — Rust polyglot-first runner.
+
+Why all three rejected:
+
+- 3-package monorepo with a single owner — the bottleneck for `pnpm verify:cc` is the tests themselves, not orchestration. KB §5.2 frames Turborepo's strength as "warm-cache 5-10× speedups on CI" — at this scale, the cold-cache CI run **is** the run, and a 90-second CI is already cheap. Adding a task runner introduces config burden, vendor-lock-in risk (Turborepo's remote cache is the load-bearing feature and lives on Vercel by default), and a new failure surface for marginal wall-time win.
+- KB §10 "Recommendation grid" only puts Turborepo in the picker for **monorepos**; the row that fits vyoh is "Greenfield SPA → Vite 8, Turborepo if monorepo, **none if single**." The "if monorepo" branch is the live one here, but the cost-benefit at 3 packages is below threshold.
+
+Trigger to reconsider: **CI typecheck+test wall time crosses 5 minutes consistently** AND a fourth/fifth workspace package lands (TFT integration, owner-auth, a separate worker). Both conditions must hold. Either one alone doesn't justify the wire-up.
+
+Pick when triggered: **Turborepo** for the simplicity-first profile vyoh has (no module-boundary enforcement need, no DTE need, no polyglot need). Nx is over-engineered for this shape; Moon's polyglot story doesn't apply.
+
+### Oxlint
+
+Status: parked — evaluate after Biome 2.x migration lands
+
+What it is: Oxc-based JS/TS linter, ~50-100× faster than ESLint per Oxc benchmarks. Stable at 1.66.0. Targets the "linter" slot specifically — not a formatter, not a bundler. Can coexist with Biome (formatter) or Prettier (formatter).
+
+Why parked, not picked up today: vyoh uses Biome for **both** lint and format. Migrating to oxlint-for-lint + Biome-for-format (or oxlint + Prettier) is a slot split, not a swap. The KB §1.2 note that Vite 8 is built on Oxc means the project is already-Oxc-based under the bundler, so the toolchain alignment story is real, but Biome 2.x closes most of the historical "oxlint is faster" gap with its own multi-file analysis + parallelism overhaul (per Gap 17).
+
+Triggers to reconsider:
+
+1. **Biome 2 migration (Gap 17) introduces friction** — specifically, if Biome 2's domains/multi-file analysis produces enough false positives to warrant suppressions across the repo, oxlint's narrower-but-faster rule set may be the cleaner cut.
+2. **`pnpm check:cc` wall time crosses 8 seconds consistently.** Today it's sub-2s on this repo; oxlint's speedup is invisible until lint is on the critical path.
+3. **A specific Oxc-exclusive lint becomes desirable** — e.g. an oxlint plugin lands that catches a vyoh-specific anti-pattern (clickable-without-`cursor-pointer`, tooltip-without-`TooltipPrimitive`) better than Biome's GritQL plugin API can.
+
+### Changesets
+
+Status: parked — not needed today
+
+What it is: Per-PR markdown changesets, semver-resolved on release. KB §5.3 calls this the 2026 default for OSS libraries and most monorepos.
+
+Why parked: vyoh.gg has no published packages. The repo is private; `packages/shared` is workspace-only (`"private": true`); apps deploy via build artifacts, not npm publish. Versioning hygiene is irrelevant until something gets published.
+
+When to reconsider: Any package gets extracted to public npm — most plausibly a `@vyoh/lol-match-mapper` or `@vyoh/riot-rate-limiter` extraction as a freelance-signal moment (per [case-study-topics.md](case-study-topics.md)). At that point Changesets is the default pick.
+
+### `tsup` (library-publishing bundler)
+
+Status: not needed today
+
+What it is: esbuild-powered library bundler with dual CJS/ESM + .d.ts output in one command. KB §10 puts it in the "OSS library" row.
+
+Why not needed: Same reason as Changesets — no library publishing today. The "source-as-published" pattern for `packages/shared` (consumed as `.ts` files via the `exports` field) is the correct workspace-internal approach; tsup would be needed only on a public-publish path.
+
+When to reconsider: Same trigger as Changesets — any package extracted to public npm. Pair-pick with Changesets at that point. **Or Rolldown standalone** if Rolldown 1.0.x stabilizes its standalone CLI to a point where it beats tsup on dual-format output (KB §12 flags this as a 2026 transition to watch).
+
+### Webpack 5 / Rollup / Parcel / esbuild as primary
+
+Status: rejected (covered for completeness)
+
+Not picked because Vite 8 + Rolldown is the correct slot per KB §10 for "greenfield SPA (React/Vue/Svelte)". esbuild lives inside Vitest and other tools transitively; not a primary choice for this app shape.
+
+---
+
 ## How to use this section
 
 Future sessions should consult this file in two directions:

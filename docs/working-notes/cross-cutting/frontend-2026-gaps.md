@@ -389,3 +389,99 @@ These are strong-adoption signals confirming the framework pick is correctly use
 | **N — Route loader pilot on match-detail** | #15 (pilot) | ~1h | Ship now, single commit |
 | **O — `head()` localhost bug fix** | #16 (part 1) | ~15 min | Ship now, single commit (independent of N) |
 | **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; order after N + O land |
+
+---
+
+## Round 6 — build-tooling pass (2026-05-23)
+
+Audit focus: `07-build-tooling.md` against the project's Vite 8 / pnpm 11 / Biome 1.9 / SWC stack. Headline finding: the bundler stack is already best-in-class for 2026 (Vite 8 + Rolldown + `@rolldown/plugin-babel` for the React Compiler — the **Rolldown-native** plugin, not the Rollup one). The gaps are all on the **periphery** of the build: lint/format is one major behind, the monorepo's duplicate version pins have no catalog, and tree-shaking annotations are absent on the workspace package that every web import chain passes through.
+
+### Gap 17 — Biome on 1.9.4; Biome 2.x has been the stable line for ~11 months
+
+**Current state:** [package.json:26](../../../package.json#L26) pins `@biomejs/biome ^1.9.4`. Latest on npm is **2.4.15** (Biome 2.x line, first released mid-2025; 2026 has been a year of 2.x point releases). The repo is two majors behind on its lint+format slot.
+
+**KB floor:** `07-build-tooling.md` calls out **oxc / oxlint challenging Biome on the lint+format slot** as a refresh axis. The reason that comparison is fresh in 2026 is that Biome 2.x closed the gap that made oxlint look attractive (multi-file analysis, type-aware lints via the new domain system, plugin API via GritQL). Staying on 1.x forfeits all of those — and produces the wrong baseline for the "should we add oxlint?" comparison, because the project would be comparing oxlint against a Biome line that is no longer the state of the art.
+
+**Why it matters:** Biome 2.x's most load-bearing 2026 additions for this codebase shape:
+
+- **Domains** — let you scope rule strictness per package without per-directory `overrides` arrays. Useful here because [biome.json:31-46](../../../biome.json#L31-L46) already has an `apps/api/**` override block that exists only to disable `useImportType` for Nest decorator metadata. Domains express that intent natively.
+- **Multi-file analysis** — catches dead exports across barrel files. Directly relevant: `packages/shared/src/index.ts` (163 lines, pure re-exports). A 1.x lint cannot tell you which of those 60+ re-exports are unused; 2.x can.
+- **GritQL plugin API** — lets you write project-specific lints in declarative form. Not load-bearing today, but it's the path forward for codifying the conventions in [`docs/repo-conventions.md`](../repo-conventions.md) as lints (e.g. "clickable element without `cursor-pointer`", "tooltip without `TooltipPrimitive`").
+
+**Tension with Start:** None — Biome is unrelated to the TanStack Start migration.
+
+**How to apply:** One commit. `pnpm add -DEw @biomejs/biome@^2` at the workspace root, then `pnpm biome migrate --write` to auto-translate `biome.json` to the 2.x schema. Update the `$schema` URL in [biome.json:2](../../../biome.json#L2). Re-run `pnpm check:cc`; address any new findings (expected: a handful of import-sort changes from the overhauled organizer, plus possibly some multi-file dead-export findings on `packages/shared/src/index.ts` worth keeping or annotating). Bump the `--max-diagnostics` flag in `check:cc` if the first run floods.
+
+**Effort:** ~45 min including migrate + verify pass + handling whatever new findings 2.x surfaces.
+
+### Gap 18 — No pnpm catalogs despite duplicate version pins across all three workspaces
+
+**Current state:** [pnpm-workspace.yaml](../../../pnpm-workspace.yaml) has `packages:`, `overrides:`, `allowBuilds:` blocks but **no `catalogs:` block**. The repo runs pnpm 11.1.1 (latest 11.2.2 — catalogs supported since pnpm 10). Duplicate version pins in `package.json` files today:
+
+- `vitest ^4.1.5` in [apps/web](../../../apps/web/package.json#L77), [apps/api](../../../apps/api/package.json#L52), [packages/shared](../../../packages/shared/package.json#L17)
+- `@vitest/coverage-v8 ^4.1.6` in the same three sites
+- `@types/node ^24.12.2` in [apps/web](../../../apps/web/package.json#L64) and [apps/api](../../../apps/api/package.json#L46)
+- `prisma` + `@prisma/client` + `@prisma/adapter-pg` all `^7.8.0` — split across api dev/runtime, will drift if bumped separately
+- `react` + `react-dom` `^19.2.5` and `@types/react` + `@types/react-dom` `^19.2.x` — currently single-site (web only) so not a catalog candidate today, but becomes one the moment a second package needs React
+
+**KB floor:** `07-build-tooling.md §5.1` describes `pnpm-workspace.yaml` catalogs as "the 2026 default for serious monorepos" — quote: *"Bumping the version touches one file, not N. Eliminates the merge conflict noise on dep bumps that dominates large monorepos."*
+
+**Why it matters:** A vitest 4.1.5 → 4.2 bump touches three `package.json` files today. The next session is one forgotten file away from a partial bump (web on 4.2, api on 4.1) that ships green tests in CI on the upgraded site and silently leaves the other on a stale runtime. The cost of this happening once is more than the 30 minutes catalogs takes to wire.
+
+The freelance-positioning angle in [CLAUDE.md](../../../CLAUDE.md) calls out "perf/build/migration specialist" — pnpm catalogs are the cheapest concrete signal of "this engineer knows monorepo hygiene" available, and they are completely invisible from the rendered app.
+
+**Tension with Start:** None.
+
+**How to apply:** One commit. Add to [pnpm-workspace.yaml](../../../pnpm-workspace.yaml):
+
+```yaml
+catalogs:
+  vitest4:
+    vitest: ^4.1.6
+    "@vitest/coverage-v8": ^4.1.6
+  tooling:
+    "@types/node": ^24.12.2
+```
+
+Then in each `package.json` replace the pin with `"vitest": "catalog:vitest4"`. Run `pnpm install --no-frozen-lockfile` to refresh the lockfile. Verify `pnpm verify:cc` still passes. Defer the React catalog and the Prisma catalog until a second package needs them — premature catalogs are noise.
+
+**Effort:** ~30 min including verify.
+
+### Gap 19 — `@vyoh/shared` is a pure re-export barrel with no `sideEffects: false` declaration
+
+**Current state:** [packages/shared/package.json](../../../packages/shared/package.json) is `"type": "module"` with `exports` pointing at source `.ts` files (the modern "source-as-published" workspace pattern, fine for private consumption) — but **no `sideEffects` field**. The barrel file [packages/shared/src/index.ts](../../../packages/shared/src/index.ts) is 163 lines of pure re-exports across 25+ leaf modules: every formatter, every type, every LoL/Steam/home stat helper.
+
+**KB floor:** `07-build-tooling.md §3.2` ("What kills tree shaking") explicitly calls out **re-export chains through barrel files without `sideEffects: false`** as one of the four primary tree-shake killers. Quote: *"The bundler must execute the barrel to know what it does, which usually pulls every sub-module."* Same section §3.3: *"Use an array (`"sideEffects": ["*.css", "./src/polyfills.ts"]`) when only specific files have side effects."* — `@vyoh/shared` has zero side-effect modules, so a flat `false` is the right call.
+
+**Why it matters:** Today every import like `import { formatGold } from "@vyoh/shared"` forces Rolldown to conservatively pull every other re-exported leaf (`computeTiltStats`, `parseMatchQuery`, every Steam type module, etc.) into the dependency graph until proven unused. Rolldown's static analysis is good enough that most of this gets eliminated in the final bundle, but the work happens at build time and the "what's actually being kept" reason chain is harder to reason about with `vite-bundle-visualizer`. The fix is one line; the win is structural correctness of the tree-shake graph.
+
+This is also a setup gap for a future change: if `@vyoh/shared` ever grows a true side-effectful module (a polyfill, a `globalThis` mutation, an `import './styles.css'`), the safe path is `"sideEffects": ["./src/the-one-with-side-effects.ts"]` — but only if the package starts from `false` as the baseline. Adding `false` now is the cheapest possible insurance.
+
+**Tension with Start:** None — `sideEffects` is a build-graph concern, not a runtime one. The Start migration doesn't change how the shared package is consumed.
+
+**How to apply:** One line. Add `"sideEffects": false` to [packages/shared/package.json](../../../packages/shared/package.json) immediately after `"type": "module"`. Re-run `pnpm --filter @vyoh/web build` and confirm bundle size doesn't regress (it should drop slightly or stay flat — never increase, because the annotation only ever relaxes inclusion). Optional: also add `"sideEffects": false` to [apps/web/package.json](../../../apps/web/package.json) — it's an app not a library, but the annotation costs nothing and removes ambiguity if any internal helper file ever gets re-imported by another package down the road.
+
+**Effort:** ~5 min including verify. This is a quick-win candidate (added to [quick-wins.md](quick-wins.md) in the same sweep).
+
+### Round 6 non-gaps (worth knowing, no action)
+
+These are strong-adoption signals confirming the build stack is correctly modern:
+
+- **Vite 8.0.10 with Rolldown is fully adopted.** [apps/web/package.json:76](../../../apps/web/package.json#L76) is pinned `^8.0.10`. The `@rolldown/plugin-babel` package ([line 57](../../../apps/web/package.json#L57)) for the React Compiler is the **Rolldown-native** plugin, not the Rollup version — this is the correct choice for Vite 8 and the project picked it without an explicit nudge. KB §1.2 calls Vite 8 + Rolldown the defining 2026 release; vyoh is on it.
+- **TanStack Router auto code splitting is on.** [apps/web/vite.config.ts:29](../../../apps/web/vite.config.ts#L29) sets `autoCodeSplitting: true`. KB §8.1 puts route-level splitting as the top default for any SPA.
+- **Manual code-split annotations exist where they matter.** [apps/web/src/main.tsx:28](../../../apps/web/src/main.tsx#L28) lazy-loads `sonner` (toaster used post-mount). [apps/web/src/components/command-palette.tsx:4](../../../apps/web/src/components/command-palette.tsx#L4) lazy-loads the dialog body so `cmdk` doesn't ship in the initial chunk. [apps/web/src/lol/matches/match-event-timelines.tsx:31](../../../apps/web/src/lol/matches/match-event-timelines.tsx#L31) lazy-loads the map overlay. KB §8.3 rule of thumb (>50KB or behind interaction) is being followed.
+- **Bundle-size budget is enforced in CI.** [.github/workflows/ci.yml:70-87](../../../.github/workflows/ci.yml#L70-L87) runs `size-limit` on every PR with budgets for the main chunk (200 kB gzip) and the recharts chunk (85 kB gzip). This is the single highest-value CI guardrail for a portfolio site and most projects don't have it.
+- **Production audit is gated on `--audit-level=high`** in CI ([.github/workflows/ci.yml:55-68](../../../.github/workflows/ci.yml#L55-L68)). KB doesn't call this out explicitly but it's part of the "honest build" posture.
+- **The API uses SWC via `nest build --builder swc`** ([apps/api/nest-cli.json:6](../../../apps/api/nest-cli.json#L6)) and `unplugin-swc` for vitest ([apps/api/vitest.config.ts:5-8](../../../apps/api/vitest.config.ts#L5-L8)) — correct choice for Nest decorator metadata. The `oxc: false` line in vitest.config explicitly opts out of vitest 4's default oxc transformer, which is necessary because oxc doesn't yet emit decorator metadata. This is a deliberate, correct choice; do not "fix" it.
+- **Node 22 baseline is set in three places consistently:** [package.json:5-7](../../../package.json#L5-L7) `engines`, [.nvmrc](../../../.nvmrc), and CI's `node-version-file: .nvmrc`. KB §2.3 notes Node 22+'s `require(esm)` unflag is the inflection point for ESM-only adoption — vyoh is on the right side of that line.
+- **No browserslist file, and that's fine.** Vite 8 defaults to a baseline-aware target derived from `build.target` (default: `'modules'` = native ESM). For a private app served behind owner-controlled clients, the default is correct and a browserslist file would only add maintenance burden. Setting `build.target: 'baseline-widely-available'` explicitly is a one-line quick-win (added to [quick-wins.md](quick-wins.md)) but not a gap.
+- **No Sentry or sourcemap upload pipeline.** Sourcemaps default off in Vite production. Project has no error tracker wired. KB §7 only applies once an error tracker exists; not a gap.
+- **`rollup-plugin-visualizer` still works in Vite 8** via Rolldown's Rollup-plugin compat shim ([apps/web/vite.config.ts:7](../../../apps/web/vite.config.ts#L7)). A Rolldown-native bundle visualizer doesn't exist on npm as of this audit (`rolldown-plugin-visualizer` 404, `@rolldown/plugin-bundle-visualizer` 404). Not a gap — keep the Rollup one until a native equivalent ships.
+
+### Round 6 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **Q — `sideEffects: false` on `@vyoh/shared`** | #19 | ~5 min | Ship now, atomic; pairs with Vite `build.target` quick-win |
+| **R — pnpm catalogs for vitest + types/node** | #18 | ~30 min | Ship now, single commit |
+| **S — Biome 1.9 → 2.x migration** | #17 | ~45 min | Ship now, single commit; may surface multi-file analysis findings worth a follow-up |
