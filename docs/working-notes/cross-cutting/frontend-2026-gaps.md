@@ -4,7 +4,7 @@
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
-Sister file: [frontend-2026-kb-refresh-queue.md](frontend-2026-kb-refresh-queue.md) — tracks gaps in the KB *itself* (which domain files in `~/.claude/knowledge/frontend-2026/` still need a "newer alternatives + deferred-by-default" refresh). When this project's adoption of a KB recommendation reveals the KB recommendation is stale, that goes in the refresh queue, not here.
+Sister file: [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md) — tracks the **two-phase domain sweeps** across frontend-2026. This file ([frontend-2026-gaps.md](frontend-2026-gaps.md)) is one of the **Phase 1 outputs**: project-side adoption gaps surfaced by auditing this project against the KB. When a sweep also reveals that the KB recommendation itself is stale or missing newer alternatives, that goes into Phase 2 of the sweep (KB refresh), tracked in the sweep queue, not here.
 
 ---
 
