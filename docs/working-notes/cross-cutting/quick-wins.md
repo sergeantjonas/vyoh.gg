@@ -16,6 +16,7 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 
 ## Small feature (~30–60 min, no notes needed)
 
+- **`head()` localhost-bug fix on match-detail** — [matches/$matchId.tsx:31](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L31) hardcodes `const API_URL = "http://localhost:2010"` and ships it as `og:image` / `twitter:image` URLs to social-preview crawlers in production. Replace with `import.meta.env.VITE_API_URL` (or same-origin via `window.location.origin`). Verify with `pnpm build && pnpm preview` and inspect the rendered `<head>`. ~15 min, atomic, urgent (broken previews on every shared match URL). Full context in [frontend-2026-gaps.md § Gap 16](frontend-2026-gaps.md).
 - **`interpolate-size: allow-keywords`** — globals. Enables `height: auto` ⇄ `height: 0` transitions (currently impossible). Replaces 5+ Motion AnimatePresence height animations with pure CSS. Safari 26+ / Chrome 129+.
 - **`field-sizing: content` on inputs that need it** — command palette input, any single-line filter input. Input grows with content; no JS measurement. Chrome 123+.
 - **HTML `popover` attribute where it fits** — light tooltips, simple disclosure menus that aren't already Radix. Native top-layer, ESC-to-dismiss, light-dismiss for free. Don't replace existing Radix overlays — those have richer behavior.
