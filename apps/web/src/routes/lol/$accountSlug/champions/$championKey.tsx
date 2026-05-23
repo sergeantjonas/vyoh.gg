@@ -195,6 +195,13 @@ function ChampionDetailPage() {
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef. Mirrors match-hero.
   const savedOrigin = useRef<ChampionOrigin | null>(null);
+  // Match-hero is a separate component that only mounts when `heroSummary` is
+  // available, so its useLayoutEffect[] fires with the ref already set. The
+  // champion-detail hero is inline JSX gated by an early-return on `!detail`,
+  // so a [] effect on the parent would fire before the hero is in the DOM
+  // (refs still null) — this ref keeps the effect mount-only while gating on
+  // detail readiness instead.
+  const morphFiredRef = useRef(false);
 
   // Body-settle gate — render the rest of the page at low opacity while the
   // hero morph runs so swapping in cached content mid-flight doesn't visually
@@ -209,10 +216,13 @@ function ChampionDetailPage() {
   // click, snap the card to the row's last-known rect and animate to its
   // natural hero position. Mirrors match-hero — the same RAF-delayed
   // setOriginRect(null) keeps StrictMode's surviving instance the one that
-  // consumes the origin.
+  // consumes the origin. Gated on `detail` so the effect doesn't run before
+  // the hero JSX is in the DOM; `morphFiredRef` keeps it mount-only.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
-    const aliasForOrigin = detail?.champion ?? championKey;
+    if (morphFiredRef.current) return;
+    if (!detail) return;
+    const aliasForOrigin = detail.champion;
     if (!savedOrigin.current) {
       const o = originRectRef.current;
       if (
@@ -225,6 +235,7 @@ function ChampionDetailPage() {
     }
     const origin = savedOrigin.current;
     if (!origin || !cardMorphRef.current) return;
+    morphFiredRef.current = true;
     if (reduced) return;
     const el = cardMorphRef.current;
     el.style.visibility = "hidden";
@@ -254,7 +265,7 @@ function ChampionDetailPage() {
       cancelAnimationFrame(rafId);
       el.style.visibility = "";
     };
-  }, []);
+  }, [detail]);
 
   // Champion-scoped matches must be derived BEFORE the early return — moving
   // it below caused a hooks-count mismatch on first render once the page
