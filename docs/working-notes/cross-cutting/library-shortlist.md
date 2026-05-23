@@ -1055,6 +1055,84 @@ Trigger to reconsider: after MSW lands, audit how much duplication remains in th
 
 ---
 
+## SEO — evaluated alternatives, kept hand-rolled head + static sitemap (2026-05-24)
+
+Phase 1 of the SEO sweep (Round 8 in [frontend-2026-gaps.md](frontend-2026-gaps.md)) confirmed that the SEO surface here is small enough that no library is warranted at this size. The shape of "things that need libraries" looks different in 2026 from what it did in 2020 — most of the SEO work is config + JSON-LD authoring, not framework adoption.
+
+### `react-helmet-async`
+
+Status: rejected — TanStack Router's first-party `head()` covers the same surface
+
+What it is: the legacy React metadata library; was the standard for SPA `<head>` management before framework metadata APIs (Next `generateMetadata`, React Router 7 `meta`, TanStack Router `head()`) shipped.
+
+Why not: TanStack Router 1.x exports a `head:` field on `createFileRoute` that runs the same merge-into-`<head>` pattern. Match-detail already uses it. Adding `react-helmet-async` would fork the per-route metadata story and confuse the next maintainer. The trigger to reconsider would be migrating away from TanStack Router entirely (not on the roadmap).
+
+### `next-seo`
+
+Status: not applicable — Next-coupled
+
+What it is: prebuilt `<NextSeo>` and `<ArticleJsonLd>` / `<BreadcrumbJsonLd>` components for Next App Router metadata + JSON-LD.
+
+Why not: project is on Vite + TanStack Router, not Next. The mental model is portable (typed helpers for each schema type) and worth borrowing as a pattern when implementing Gap 29 — see the absolute-URL helper note below.
+
+### `schema-dts`
+
+Status: parked — useful only if Gap 29's JSON-LD scales beyond ~3 schema types
+
+What it is: TypeScript types for `schema.org` generated from the JSON-LD vocabulary. Gives autocomplete on `@type`, `sameAs`, `BreadcrumbList.itemListElement[*].position`, etc.
+
+Why parked: Gap 29 ships `Person` + `BreadcrumbList` + (optionally) `WebSite` — three schema types max. Hand-typed objects are still legible. Reconsider when the project ships a fourth schema type (`SoftwareApplication` if a public SDK lands, `Article` if a blog ever ships) — at that point the autocomplete pays off and the bundle cost is irrelevant (types only).
+
+Trigger to reconsider: shipping a fourth distinct JSON-LD `@type` in production HTML.
+
+### `next-sitemap`, `astro-sitemap`, framework-coupled generators
+
+Status: rejected — framework-coupled, doesn't fit Vite+TanStack Router
+
+What they are: build-time sitemap generators that crawl the framework's route manifest.
+
+Why not: TanStack Router's file-based route manifest at [apps/web/src/routeTree.gen.ts](../../../apps/web/src/routeTree.gen.ts) is already structured data; a 50-line Vite postbuild script can walk it without adding a dep. Gap 30's dynamic-sitemap arc would be a custom postbuild generator. Adding a third-party tool would mean teaching it to enumerate dynamic routes (`accountSlug`, `matchId`, `championAlias`, `appid`) — which is exactly the code we'd write ourselves anyway.
+
+Trigger to reconsider: never as currently scoped; would only matter on a framework switch.
+
+### `@vercel/og` revisited for default OG
+
+Status: shipped as Satori + Resvg already (see "Performance / observability" section above)
+
+Why mentioned here too: the deferred Gap 1 follow-up (site-wide default OG image) and per-route OG (Gap 31) both consume this pipeline. The existing `apps/api/src/og` module already serves `/og/match/$accountSlug/$matchId.png`; extending it to `/og/champion/$alias.png` and `/og/steam/$appid.png` is the natural shape — no second library needed.
+
+### `gray-matter` / `front-matter` for blog post frontmatter
+
+Status: not applicable today — no blog
+
+What they are: YAML frontmatter parsers, used by every "blog from markdown" pipeline.
+
+Why noted: if a case-study write-up ever lands as an MDX-driven blog (per [case-study-topics.md](case-study-topics.md)), frontmatter is the canonical place to author per-post title/description/og-image/datePublished/dateModified for SEO. Mentioning here so a future blog-arc planning session doesn't reinvent the convention.
+
+Trigger to reconsider: when a blog/case-study route ships.
+
+### llms.txt tooling (`llms-txt`, `llmstxt` generators)
+
+Status: rejected — KB §10 explicit "no major AI vendor commits to consuming llms.txt as of May 2026"
+
+What they are: build-time generators that produce `/llms.txt` (curated index) and `/llms-full.txt` (full content) from the site's content tree.
+
+Why not: per the frontend-2026 KB, adoption sits at ~10% of measured domains by mid-2026; GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot, and Google-Extended overwhelmingly skip the file. KB calls it "high-ROI for developer-tool docs, optional for marketing sites." This project is portfolio-shaped, not docs-shaped.
+
+Trigger to reconsider: shipping a public API surface or SDK that would have its own docs site; or a major AI vendor announcing first-class llms.txt support.
+
+### Absolute-URL helper (build-our-own, not a library)
+
+Status: planned for Gap 31 (Bundle AC)
+
+What this is: a `packages/shared/src/seo/` module exporting `absoluteUrl(path)`, `canonicalFor(routeParams)`, `ogImageFor(routeKind, params)`. The match-detail localhost bug (Round 5 Gap 16) is the load-bearing reason — every per-route `head()` will need to build absolute URLs the same way, and inlining `import.meta.env.VITE_API_URL` at each site reinvents the problem.
+
+Why not a library: this is 20 lines of code; the project shape (single canonical host, single API origin, predictable route grammar) is too small to justify a dep, and the helper is the kind of thing every SEO library bakes in opinionated form anyway. Build, don't pull.
+
+Cross-reference: `packages/shared/src/<domain>/` convention in [docs/repo-conventions.md § "Cross-package utilities belong in `packages/shared/src/`"](../repo-conventions.md).
+
+---
+
 ## How to use this section
 
 Future sessions should consult this file in two directions:

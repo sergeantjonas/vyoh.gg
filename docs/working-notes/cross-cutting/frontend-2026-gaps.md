@@ -731,3 +731,151 @@ These are strong-adoption signals confirming the testing stack is correctly mode
 | **Z — Root `vitest.config.ts` with `test.projects`** | #25 | ~45 min | Defer until Bundle X or Y creates a concrete need (browser-mode project) |
 
 Bundle ordering rationale: T is pure hygiene and atomic. U is the load-bearing infra change that unblocks both Storybook and Playwright reuse later. W can land before or after U but reading MSW handlers from the same source as web tests is the cleaner shape. X depends on W. Y is the largest single commitment and should not be standalone — pair with a UI-arc. Z is preparation for browser-mode and is dead weight until something needs it.
+
+---
+
+## Round 8 — SEO audit (2026-05-24)
+
+Audited `apps/web` against `~/.claude/knowledge/frontend-2026/13-seo.md`. Surfaced six new gaps (28–33). The structural CSR-vs-SSR gap (KB §8: AI crawlers lag JS rendering by 3–5 years) is already tracked in [tanstack-start-migration.md](tanstack-start-migration.md) and not re-raised here. Gap 1 follow-up (site-wide OG image) and Gap 16 (match-detail localhost `og:image` URL) remain open and are referenced rather than duplicated.
+
+### Gap 28 — `robots.txt` is silent on every AI crawler token
+
+**Current state:** [apps/web/public/robots.txt](../../../apps/web/public/robots.txt) is three lines: `User-agent: *`, `Allow: /`, `Sitemap: …`. No mention of `Google-Extended`, `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `ClaudeBot`, `Claude-User`, `PerplexityBot`, `Perplexity-User`, `CCBot`, `Applebot-Extended`, `Meta-ExternalAgent`, `Bytespider`. The `Allow: /` is also redundant (default behavior) and serves only as documentation.
+
+**KB floor:** `13-seo.md` §5 — "AI vendors now publish dedicated user-agents. Treating them as a distinct policy layer from search-index crawlers is the standard pattern in 2026." Sites are expected to make explicit decisions for each token, not rely on `User-agent: *` defaults.
+
+**Why it matters for this project specifically:** vyoh.gg is a freelance-positioning portfolio (per [self-portrait-surfaces.md](self-portrait-surfaces.md)). The decision matrix is unusual for the project shape:
+
+- **Training crawlers** (`GPTBot`, `ClaudeBot`, `CCBot`, `anthropic-ai`, `Meta-ExternalAgent`, `Bytespider`) — owner is the *target* of LLM-driven freelancer search. Letting them ingest the site is the desired outcome, not a leak. **Decision: Allow.**
+- **Retrieval/search crawlers** (`OAI-SearchBot`, `Perplexity-User`, `ChatGPT-User`, `Claude-User`, `PerplexityBot`) — these are how "Anthropic-deep React engineer with TanStack experience" queries reach the site. **Decision: Allow.**
+- **Google-Extended** — opt-out of Gemini training without affecting search index. The same allow-training rationale applies: no reason to opt out. **Decision: Allow (omit or set Allow:/).**
+- **Applebot-Extended** — Apple Intelligence training opt-out. Same reasoning. **Decision: Allow.**
+
+The portfolio's positioning logic flips the usual default. Most production sites in 2026 either block training tokens (Reddit/NYT model — protect content) or block all AI (Cloudflare default — pure caution). vyoh.gg has the opposite incentive and that decision deserves to be in the file rather than implicit.
+
+**Tension with Start:** None. `robots.txt` is served from `public/`.
+
+**How to apply:** One commit. Rewrite [robots.txt](../../../apps/web/public/robots.txt) with explicit `User-agent:` groups for each named token + a brief comment recording the "allow training because portfolio" decision so the next reviewer understands the intent. Reference: KB §5 token table.
+
+**Effort:** ~10 min.
+
+### Gap 29 — Zero JSON-LD anywhere; no `Organization`, `Person`, `BreadcrumbList`
+
+**Current state:** `ugrep -r 'ld\+json' apps/web/src apps/web/index.html` returns nothing. The site is a self-portrait portfolio of a named person yet ships zero entity-reconciliation signal.
+
+**KB floor:** `13-seo.md` §3 — `Organization` JSON-LD on the homepage is the standard root-only schema; `Person` is the E-E-A-T-aligned entity for author/owner pages; `BreadcrumbList` belongs on every section page deeper than one click from the root.
+
+**Why it matters for this project specifically:** Three different surfaces have unrendered schema right now:
+
+1. **Homepage** — should ship `Organization` (or, since this is a personal project, `Person` is more accurate). `sameAs` array drives Knowledge Graph reconciliation against GitHub, LinkedIn, the owner's other profiles. Without it, AI Overviews and Perplexity answers about "Jonas freelance React Angular" can't link the site to the owner's other web presence — the citation breaks.
+2. **Match-detail** — has a visible breadcrumb component ([routes/lol/$accountSlug/matches/$matchId.tsx:58-83](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L58-L83)) but no `BreadcrumbList` markup. KB §3 explicitly warns against invisible breadcrumbs (cloaking-adjacent); the opposite — visible breadcrumb without schema — is the normal "we forgot" pattern.
+3. **Champion-detail** — has its own breadcrumb-style nav. Same gap.
+
+**KB-deprecated types to NOT add:** `FAQPage` (deprecated 2026-05-07), `HowTo` (removed 2024), `Course`/`Book`/`ClaimReview`/`SpecialAnnouncement` (retired June 2025). None of these are relevant to this project, but worth recording in the gap so a future "add JSON-LD" pass doesn't reach for them.
+
+**Tension with Start:** None. JSON-LD blocks are inert `<script>` tags that work identically in CSR or SSR. Adding them to `index.html` (for `Organization`) and to per-route `head()` (for `BreadcrumbList`) is the standard pattern.
+
+**How to apply:** Three sub-commits, atomic each:
+
+- `Organization`/`Person` block in [index.html](../../../apps/web/index.html) with `name`, `url`, `image`, `sameAs` array of social profiles.
+- `BreadcrumbList` in match-detail's `head()` (after Gap 31 lands, which expands `head()` coverage). Each item: position, name, item URL — final item omits `item`.
+- `BreadcrumbList` in champion-detail's `head()` once that route gains one.
+
+**Effort:** ~30 min for the `Organization` block (including assembling the `sameAs` URL list); ~5 min each for the breadcrumb additions once `head()` exists on those routes.
+
+### Gap 30 — Sitemap ships `changefreq` and `priority` (ignored), no `lastmod` (the only field Google honors)
+
+**Current state:** [apps/web/public/sitemap.xml](../../../apps/web/public/sitemap.xml) has 4 entries, each with `<changefreq>` and `<priority>`. None have `<lastmod>`. The file is hand-maintained.
+
+**KB floor:** `13-seo.md` §4 — "Google ignores `changefreq` and `priority` entirely (confirmed by Gary Illyes 2017). `lastmod` is the only optional element Google honors, and only when it's truthful — populating `lastmod` with the current date on unchanged URLs trains Google to ignore your `lastmod` permanently."
+
+**Why it matters:** Two costs from the current shape — (a) the unused fields bloat the file and lie about the project's freshness signal accuracy; (b) the absence of `lastmod` means Google has no per-URL crawl-budget hint, so every crawl re-fetches every URL.
+
+**Tension with Start:** None for the static routes. Dynamic routes (matches, champions, accounts) become a different question — they need either a build-time sitemap-index generator or a runtime route serving `sitemap.xml` (KB §4 Static SPA row: "Generate at build time via a Vite plugin or a postbuild script; commit `public/sitemap.xml` or write it during `vite build`. Never try to generate at runtime from a static host.").
+
+**How to apply:**
+
+- Atomic now: drop `changefreq`/`priority` from the 4 static entries; add `<lastmod>` derived from a meaningful date (git mtime of the corresponding route file, or simply the last meaningful redesign date for top-level routes). Format: `YYYY-MM-DD`.
+- Deferred: Vite-postbuild generator that walks the route tree + queries the DB for `accountSlug`, `matchId`, `championAlias`, `appid` slugs. Belongs in a sitemap-arc note (not created yet) since it intersects with the api boundary and would benefit from being a worked example for a future case-study topic.
+
+**Effort:** ~10 min for the static cleanup; ~2h for the dynamic generator (separate arc).
+
+### Gap 31 — Per-route `head()` only on match-detail; every other route inherits the same `<title>vyoh.gg</title>` and root canonical
+
+**Current state:** `head:` exports exist on exactly one route — [routes/lol/$accountSlug/matches/$matchId.tsx:35-55](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L35-L55). Every other route renders the static `<title>vyoh.gg</title>` from [index.html:22](../../../apps/web/index.html#L22) and inherits `<link rel="canonical" href="https://vyoh.gg/">` regardless of the actual URL.
+
+The practical impact:
+
+- **Browser tab** for `/lol/SeargentJonas-EUW/matches`, `/steam/game/440`, `/lol/SeargentJonas-EUW/champions/Yasuo` — all read `vyoh.gg`. Indistinguishable from each other when several tabs are open.
+- **SERP titles** — Google sees `vyoh.gg` for every indexed URL. Duplicate-title is the most common "low-quality" signal per KB §1.
+- **Canonical** — every page declares itself a duplicate of `/`. Per KB §6, "Canonical to a URL that itself canonicals elsewhere" is on the common-mistakes list; the variant here is worse (all pages canonicalize to root). Google will likely override based on URL signals, but the markup is actively misleading.
+
+**Overlap with Round 5 Gap 15:** Round 5 noted "zero route loaders" + match-detail being the only `head()` site. This gap extends that finding from "we need loaders" to "the metadata side alone is shippable today without SSR" — `head()` runs client-side in TanStack Router 1.x and the `<head>` tags are still parsed by every social/AI crawler that does render the page (Googlebot per KB §8 runs current stable Chromium; AI crawlers don't, which is why the canonical static fallback in [index.html](../../../apps/web/index.html) still has to be accurate).
+
+**KB floor:** `13-seo.md` §1 + §6 + §15 — every public page ships a unique `<title>` (≤60 chars), self-referential canonical, unique description.
+
+**Tension with Start:** None for landing per-route `head()` now. When Start ships, `head()` runs server-side instead of client-side — the API surface is the same per [05-frameworks.md §2 head()/loader pairing pattern]. Investing in per-route `head()` today is forward-compatible.
+
+**How to apply:** Add `head()` to the high-traffic public routes in this order:
+
+1. `/lol/$accountSlug` — title `{accountSlug} · LoL · vyoh.gg`, description from real data (rank + main role if available, static fallback if not), canonical = absolute URL.
+2. `/lol/$accountSlug/champions/$championAlias` — title `{championName} · {accountSlug} · vyoh.gg`, canonical, og:image (champion splash, already available via image proxy).
+3. `/steam/game/$appid` — title `{gameName} · Steam · vyoh.gg`, canonical, og:image (game header from Steam API).
+4. `/` — explicit `head()` even though it duplicates index.html, so the canonical pattern is uniform across all routes.
+5. `/status` — title `Status · vyoh.gg`, `<meta name="robots" content="noindex">` (operational dashboard, not portfolio content).
+
+`og:image` per-route is the natural upgrade path — see Gap 1 follow-up; the og-card pipeline at [apps/api/src/og](../../../apps/api/src/og) already serves match cards and can be extended.
+
+**Effort:** ~2h end-to-end for the five routes; can ship route-by-route. The single load-bearing decision is the absolute-URL builder helper — needs to be a shared utility so canonical/og:url strings stay consistent (see Round 5 Gap 16 localhost-bug for what happens when each call site reinvents the URL).
+
+### Gap 32 — Twitter card is `summary` (small thumbnail); should be `summary_large_image` once OG image lands
+
+**Current state:** [apps/web/index.html:21](../../../apps/web/index.html#L21) declares `<meta name="twitter:card" content="summary" />`. The `summary` card type renders a small square thumbnail (1:1, min 144px); `summary_large_image` renders the 1200×630 full-bleed card.
+
+**KB floor:** `13-seo.md` §2 — "summary_large_image (1200×628, ratio 1.91:1) for articles." The 1:1 `summary` card is for compact listings, not main-content pages.
+
+**Why it matters:** The card type is a 30-second swap that's load-bearing for what a shared link looks like in any X/Twitter unfurl, Discord embed (which respects `twitter:card`), and several smaller previewers. Sitting on `summary` while the project doesn't ship an OG image at all is consistent; once Gap 1 follow-up lands (the deferred 1200×630 OG image), the card type must flip in the same commit or the new OG image renders as a 144px thumbnail in X.
+
+**How to apply:** Pair with Gap 1 follow-up: when the static OG image PNG lands, change [index.html:21](../../../apps/web/index.html#L21) to `summary_large_image` in the same commit. Add `<meta property="og:image:alt" content="…" />` (KB §2: "read aloud by some assistants when the link is shared in conversational AI"). Don't flip in isolation — `summary_large_image` without an image is wasted markup.
+
+**Effort:** ~5 min, but coupled to Gap 1 follow-up.
+
+### Gap 33 — No `max-image-preview:large` directive; Google Discover ineligible
+
+**Current state:** [apps/web/index.html](../../../apps/web/index.html) has no `<meta name="robots">` tag (defaults to `index, follow`). Per KB §1 the robots directive `max-image-preview:large` is "required for Discover eligibility."
+
+**KB floor:** `13-seo.md` §1 — list of useful robots directives, with `max-image-preview:large` flagged as Discover-required.
+
+**Why it matters (and why it's a soft gap for this project):** Google Discover is the mobile content feed — eligibility requires high-quality images, recency signals, and `max-image-preview:large`. The site is unlikely to chase Discover traffic actively, but the directive is free, has zero risk, and signals "site is set up correctly" to any SEO audit. The same line slot also takes `max-snippet:-1` (allow any snippet length) — also free, also no risk.
+
+**Tension with Start:** None.
+
+**How to apply:** One line in [index.html](../../../apps/web/index.html), or roll into the per-route `head()` work (Gap 31) so the directive applies via the route layer rather than the static template. Site-wide-in-index.html is the simpler shape; per-route only matters when individual routes need different snippet rules (e.g. `/status` getting `noindex`).
+
+```html
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+```
+
+**Effort:** ~2 min.
+
+### Round 8 non-gaps (worth knowing, no action)
+
+- **No llms.txt** — KB §10 explicitly: "No major AI vendor has committed to consuming llms.txt as of May 2026." Adoption ~10% of measured domains. KB calls it "high-ROI for developer-tool docs, optional for marketing sites." This project is portfolio-shaped, not docs-shaped, so no action. Re-evaluate if the project ever publishes a public API spec or SDK.
+- **theme-color is single-value (not `prefers-color-scheme` paired)** — site is dark-only with `<html class="dark">` and ships a single `#0a0a0a` value. KB §1 shows the `media`-attribute variant for dark+light; not applicable here. Non-issue.
+- **No hreflang** — site is English-only. Non-issue unless a Dutch/French variant ever ships.
+- **URL trailing-slash inconsistency is minor** — canonical declares `https://vyoh.gg/` (with slash) while internal links to `/lol`, `/steam`, `/status` are slash-less. Not flagged as a gap because TanStack Router renders consistently and no duplicate-content signal has appeared in practice. Watch if Search Console ever lights up.
+- **The CSR-vs-SSR structural blocker is not re-raised** — [tanstack-start-migration.md](tanstack-start-migration.md) already owns it. AI crawlers (ChatGPT-Search, Perplexity, ClaudeBot per KB §8) need static HTML; the head-tag work in Round 8 is the half of the SEO floor that's shippable *without* SSR. The other half is the migration.
+- **Match-detail localhost `og:image` URL is already in quick-wins** — Round 5 Gap 16; not duplicated. SEO audit confirms it's the only `head()` site in the codebase, which makes the localhost bug both narrower (one file) and more impactful (the only route currently shipping per-route OG).
+- **Image SEO is adequate where it matters** — KB §13 requires `fetchpriority="high"` on LCP image. Splash backdrops have been audited under [unified-image-fallback](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/project_unified_image_fallback.md); the splash component uses native lazy/eager loading appropriately. No new gap.
+- **`Person` vs `Organization` choice for the homepage JSON-LD** — KB doesn't prescribe a winner. For a personal portfolio Person is more accurate (owner is the entity, not a company); for credibility-projection Organization can imply scale. Recording the call here so Gap 29's implementation doesn't churn on the choice: ship `Person` (with `worksFor` only if a freelance entity name exists), and revisit if positioning ever pivots toward agency framing.
+
+### Round 8 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **AA — robots.txt AI crawler tokens + sitemap `lastmod` cleanup + `max-image-preview:large`** | #28, #30 (static part), #33 | ~25 min | Ship now, atomic, one commit |
+| **AB — `Organization`/`Person` JSON-LD in index.html + OG image baseline + twitter card flip** | #29 (homepage), Gap 1 follow-up, #32 | ~1h once OG image PNG is captured | Ship after a marquee surface to screenshot exists |
+| **AC — Per-route `head()` rollout across 5 high-value routes + absolute-URL helper** | #31, #29 (breadcrumb part) | ~2h | Ship route-by-route; helper goes in `packages/shared/src/seo/` |
+| **AD — Vite-postbuild dynamic sitemap generator** | #30 (dynamic part) | ~2h | Separate arc; defer until Start migration or post-launch traffic data |
+
+Bundle ordering rationale: AA is pure config and ships today with zero risk — the AI crawler decision is documented in Gap 28 so the file doesn't need to be re-derived. AB is gated on the deferred OG image; until that lands, the JSON-LD + twitter-card work is best paired with the image so a single commit moves the social-preview story end-to-end. AC is the largest mechanical change and benefits from a shared absolute-URL helper to prevent another Gap 16 (localhost in og:image) recurrence. AD is the only piece that wants a working note before pickup.
