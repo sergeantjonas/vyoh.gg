@@ -4,6 +4,8 @@
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
+Sister file: [frontend-2026-kb-refresh-queue.md](frontend-2026-kb-refresh-queue.md) — tracks gaps in the KB *itself* (which domain files in `~/.claude/knowledge/frontend-2026/` still need a "newer alternatives + deferred-by-default" refresh). When this project's adoption of a KB recommendation reveals the KB recommendation is stale, that goes in the refresh queue, not here.
+
 ---
 
 ## Gap 1 — Static `<head>` baseline
@@ -188,3 +190,87 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 - **Test coverage** — 220 test files across 509 source files (~43%) with vitest threshold at 93% in [vite.config.ts:72](../../../apps/web/vite.config.ts#L72). KB §10 floor is met or exceeded.
 - **`light-dark()` adoption** — current class-based dark mode works; switching would collapse the two `:root` blocks but loses nothing functional. Defer unless [color-scheme] gets revisited.
 - **`tw-animate-css` + Motion coexistence** — 36 files use `animate-in`/`fade-in`/etc. classes from `tw-animate-css`; 159 use Motion. Clean split: tw-animate-css for dialog/popover enter-exit conventions shipped by shadcn; Motion for richer choreography. Worth a one-liner in [motion-backlog.md](motion-backlog.md) so contributors don't reach for the wrong one.
+
+---
+
+## Round 3 — CSS architecture + head/meta deep sweep (2026-05-23)
+
+Audit focus: stylesheet structure ([apps/web/src/index.css](../../../apps/web/src/index.css)) and [apps/web/index.html](../../../apps/web/index.html) against `01-css-and-styling.md` §2 (cascade layers, subgrid, scope) and `13-seo.md` §2-3 (head baseline beyond OG). All five gaps below were missed by Rounds 1–2.
+
+### Gap 10 — No `@layer` cascade layers; custom styles override Tailwind silently
+
+**Current state:** `index.css` imports Tailwind, tw-animate-css, and shadcn at the top, then declares custom CSS (keyframes, `.item-tooltip-body` rules, scrollbar styling, root tokens) outside any `@layer`. Unlayered styles win over anything in a named layer, so handwritten CSS quietly beats Tailwind utilities at equal specificity.
+
+**KB floor:** `01-css-and-styling.md` §2.1 — `@layer reset, base, components, utilities` is the 2026 default. Tailwind v4 already ships its styles inside named layers; user styles outside `@layer` are an implicit override the next contributor won't expect.
+
+**Why it matters:** When `text-wrap: pretty` lands on `p` in globals (per [quick-wins.md](quick-wins.md)) and a Tailwind utility on a specific `<p>` should override it, the unlayered global wins. Same for `@keyframes` name collisions and any future component-scoped style.
+
+**Tension with Start:** None.
+
+**How to apply:** Wrap the existing custom declarations in `@layer base { ... }` (root tokens, keyframes, scrollbar styles) and `@layer components { ... }` (item-tooltip-body donut). One edit, mechanical.
+
+**Effort:** ~20 min. Sub-session.
+
+### Gap 11 — Subgrid unused (0 hits across the app)
+
+**Current state:** `ugrep -r "subgrid"` returns zero hits. Card grids and stat rows use independent grids per row, which forces width gymnastics to align columns across cards.
+
+**KB floor:** `01-css-and-styling.md` §2.3 — subgrid is Baseline 2023 (Safari 16, Chrome 117, Firefox 71). Inherits parent track sizing into a nested grid; lets a row of cards share column gutters with the page grid without duplicating the column definitions.
+
+**Why it matters:** The match-card grid is the obvious case — the timestamp/champion/score/KDA columns currently rely on hard min-widths. With `grid-template-columns: subgrid` on the card, every card aligns to the outer page grid for free, and the columns collapse in lockstep on narrow viewports.
+
+**Tension with Start:** None.
+
+**How to apply:** Pilot on match-list card rows. Define the outer grid columns on the list container, set `grid-template-columns: subgrid` on each card's grid. Don't bulk-convert; demonstrate the pattern once and reference it from [repo-conventions.md](../../repo-conventions.md).
+
+**Effort:** ~1h for the pilot + working-note entry. Sub-session.
+
+### Gap 12 — `@scope` donut for `.item-tooltip-body` descendant rules
+
+**Current state:** [index.css:78-118](../../../apps/web/src/index.css#L78) carries descendant rules (`.item-tooltip-body img`, `.item-tooltip-body strong`, `.item-tooltip-body em`, `.item-tooltip-body keyword`) — textbook descendant selector tooltip styling.
+
+**KB floor:** `01-css-and-styling.md` §2.5 — `@scope (.item-tooltip-body)` scopes following rules to descendants of the root and clips the cascade. Same semantics as descendant selectors but lower specificity and explicit boundary; pair with `@scope (.x) to (.y)` for donut shapes.
+
+**Why it matters:** The current descendant rules style any `<strong>` anywhere inside an item-tooltip-body, including nested tooltips or future rich-description embeds. `@scope` with a `to` boundary stops bleed at e.g. a nested `.tooltip-quote` block.
+
+**Tension with Start:** None.
+
+**How to apply:** Convert the four `.item-tooltip-body X` rules to one `@scope (.item-tooltip-body) { ... }` block. Add a `to (.tooltip-quote)` boundary if/when richer tooltips land.
+
+**Effort:** ~15 min. Sub-session. Pair with Gap 10.
+
+### Gap 13 — Head baseline extras beyond OG (preconnect, preload, font-size-adjust, JSON-LD)
+
+**Current state:** Gap #1 covers description / OG / theme-color / robots / sitemap. Three further baseline items missed:
+
+1. **`<link rel="preconnect">` for the API origin** — every page makes API calls; the TCP+TLS handshake fires on first request rather than at HTML parse time.
+2. **`<link rel="preload" as="font">` for the Geist variable font** — `@fontsource-variable/geist` is loaded via CSS `@font-face` from `_imports`, so the browser discovers it after first paint. Preload moves it to the document head.
+3. **JSON-LD `Person` schema in `index.html`** — `13-seo.md` §3 — recruiters' AI tooling reads structured data; for a personal portfolio, a single `<script type="application/ld+json">` with `Person`, `jobTitle`, `url`, `sameAs` is the highest-leverage SEO addition for a one-owner site.
+
+`font-size-adjust: 0.5` on `html` is a fourth small win — prevents fallback-font-swap layout shift if the variable font load is slow.
+
+**KB floor:** `13-seo.md` §2-3 and `06-performance.md` §1.3.
+
+**Tension with Start:** None — all four ride in static `index.html`.
+
+**How to apply:** Add to [index.html](../../../apps/web/index.html) at the same time as Gap #1's bundle.
+
+**Effort:** ~20 min on top of Bundle A. Sub-session.
+
+### Round 3 non-gap: weird-for-2026 patterns to clean opportunistically
+
+These aren't blocking gaps — they work today — but they read as odd to a 2026 reviewer and are cheap to fix when the file is open for other reasons. Not worth a dedicated commit each; fold into the next edit touching the same file.
+
+- **`@theme` declared twice** — [index.css:13](../../../apps/web/src/index.css#L13) and [index.css:137](../../../apps/web/src/index.css#L137). Consolidate to one block.
+- **Doubled scrollbar styling** — both `scrollbar-color` / `scrollbar-width` (standard) and a full `*::-webkit-scrollbar` block ([index.css:255](../../../apps/web/src/index.css#L255)). All supported engines ship the standard properties in 2026; the webkit pseudo-elements are redundant. Drop the webkit block.
+- **`shadcn` CLI in `dependencies`** — [package.json:50](../../../apps/web/package.json#L50). It's a CLI tool used at install/scaffold time only; belongs in `devDependencies`. Ships in the runtime bundle resolution graph as-is.
+- **`@import "shadcn/tailwind.css"`** — non-standard import path. Confirm whether this resolves to anything used (shadcn CLI doesn't publish a `tailwind.css` export); if not, drop the import.
+
+### Round 3 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **I — `@layer` + `@scope` cleanup** | #10, #12 | ~35 min | Ship now, single commit |
+| **J — Subgrid pilot on match-list** | #11 | ~1h | Ship now, separate commit |
+| **K — Head baseline extras** | #13 | folds into A | Ship with Bundle A |
+| **L — Weird-for-2026 cleanups** | (non-gap) | opportunistic | Fold into next edit touching index.css / package.json |
