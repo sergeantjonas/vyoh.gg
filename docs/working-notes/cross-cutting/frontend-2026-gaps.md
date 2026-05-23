@@ -12,6 +12,8 @@ Sister file: [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md) — tr
 
 Shipped in `chore: add static head baseline, robots.txt, sitemap.xml` (c6c3720). Added description, OG title/description/url, theme-color, canonical, twitter:card to [index.html](../../../apps/web/index.html); created `apps/web/public/robots.txt` (with sitemap pointer) and `apps/web/public/sitemap.xml` (4 routes). OG image deferred until a marquee surface exists — placeholder would have been worse than absence.
 
+**Follow-up — OG image (~10 min):** When a marquee surface is ready to screenshot (e.g. a polished `/` synthesis card, or a finished match-detail recap), capture a 1200×630 PNG to `apps/web/public/og.png` and add `<meta property="og:image" content="https://vyoh.gg/og.png" />` (plus `og:image:width`, `og:image:height`) to [index.html](../../../apps/web/index.html). Tracked in [open-work.md](../open-work.md) under Cross-cutting.
+
 **Current state:** [apps/web/index.html](../../../apps/web/index.html) carries charset + viewport + favicon + `<title>vyoh.gg</title>`. Nothing else. No description, no OG tags, no theme-color, no canonical, no `robots.txt`, no `sitemap.xml`.
 
 **KB floor:** `13-seo.md` §1 — every public page ships with description, OG title/description/image, theme-color, canonical. `robots.txt` + `sitemap.xml` for indexable sites.

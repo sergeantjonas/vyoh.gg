@@ -97,7 +97,7 @@ Status: shipped
 Implemented as:
 
 - `transformDayElement` in `trend-activity.tsx` uses `cloneElement` to append `heatmap-cell` class and `animationDelay: (col + row) * 10ms` per SVG rect — diagonal wave left→bottom-right
-- `@keyframes heatmap-reveal` (opacity 0→1, 280ms ease-out) + `.heatmap-cell` class in `index.css`
+- `@keyframes heatmap-reveal` (opacity 0→1, 280ms with hand-tuned `linear()` quart-out approximation) + `.heatmap-cell` class in `index.css` (easing swapped from `ease-out` 2026-05-23)
 - `@media (prefers-reduced-motion: reduce)` suppresses the animation entirely
 - hover/tooltips unaffected (CSS animation-delay only applies to the reveal, not pointer events)
 
@@ -141,7 +141,7 @@ Status: shipped
 
 Implemented as:
 
-- `@keyframes card-breathe` (scale 1→1.03→1, 3s ease-in-out infinite) in `index.css`
+- `@keyframes card-breathe` (scale 1→1.03→1, 3s with hand-tuned `linear()` sine-in-out approximation, infinite) in `index.css` (easing swapped from `ease-in-out` 2026-05-23)
 - `.group:hover .card-splash-breathe` activates the animation only when the parent group is hovered — animation stops and element returns to scale(1) on unhover
 - `champion-card.tsx` inner splash div uses `.card-splash-breathe` class (replaced `group-hover:scale-105` CSS transition)
 - `@media (prefers-reduced-motion: reduce)` suppresses animation
