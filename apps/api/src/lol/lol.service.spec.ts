@@ -139,8 +139,23 @@ async function makeService({
   const matchUpsert = vi.fn().mockResolvedValue(undefined);
 
   const prisma = {
-    summoner: { findUnique: summonerFindUnique, upsert: summonerUpsert },
-    match: { findMany: matchFindMany, count: matchCount, upsert: matchUpsert },
+    summoner: {
+      findUnique: summonerFindUnique,
+      upsert: summonerUpsert,
+      // refreshAccountSummary writes the denorm columns at every match-
+      // persistence chokepoint; the helper covers both writers so all
+      // suites can keep using the shared makeService.
+      update: vi.fn().mockResolvedValue(undefined),
+    },
+    match: {
+      findMany: matchFindMany,
+      count: matchCount,
+      upsert: matchUpsert,
+      // refreshAccountSummary reads "most recent non-remake match" to
+      // pick the last-played champion. Default to null so accounts with
+      // no matches don't blow up the refresh path.
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
     matchDetailCache: { upsert: vi.fn().mockResolvedValue(undefined) },
     rankSnapshot: { findFirst: vi.fn().mockResolvedValue(null) },
   };
@@ -1032,7 +1047,13 @@ describe("LolService.syncAccountHistorical", () => {
     const result = await service.syncAccountHistorical(account);
 
     expect(result.done).toBe(false);
-    expect(prisma.summoner.update).not.toHaveBeenCalled();
+    // The historical writer only touches `historicalDoneAt`; the denorm
+    // refresh also writes the Summoner row, so we check the *historical*
+    // intent instead of the global update count.
+    const historicalUpdate = prisma.summoner.update.mock.calls.find(
+      ([arg]) => (arg as { data?: { historicalDoneAt?: unknown } }).data?.historicalDoneAt
+    );
+    expect(historicalUpdate).toBeUndefined();
   });
 
   it("attaches snapshot to the newest ranked match when no newer game is in DB", async () => {
@@ -1085,7 +1106,14 @@ describe("LolService.syncAccountHistorical", () => {
 
     // BEFORE snapshot is independent of the attach-this-batch gate, so the
     // historical lookup still runs and the *Before fields get populated.
-    expect(prisma.rankSnapshot.findFirst).toHaveBeenCalledTimes(1);
+    // refreshAccountSummary also reads rankSnapshot (solo + flex), so we
+    // assert on the specific BEFORE-snapshot call rather than the global
+    // count.
+    const beforeCall = prisma.rankSnapshot.findFirst.mock.calls.find(
+      ([arg]) =>
+        (arg as { where?: { capturedAt?: { lt?: unknown } } }).where?.capturedAt?.lt
+    );
+    expect(beforeCall).toBeDefined();
     expect(prisma.match.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({

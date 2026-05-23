@@ -17,6 +17,7 @@ import type {
   RankHistoryResponse,
   SummonerProfile,
 } from "@vyoh/shared";
+import { pickHigherRank } from "@vyoh/shared/lol/rank-history";
 import { type Observable, interval, map, merge } from "rxjs";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -497,6 +498,7 @@ export class LolService {
     const platform = account.region.toLowerCase() as Platform;
     const entries = await this.riot.getLeagueEntriesByPuuid(summoner.puuid, platform);
 
+    let wroteSnapshot = false;
     for (const entry of entries) {
       if (entry.queueType !== "RANKED_SOLO_5x5" && entry.queueType !== "RANKED_FLEX_SR") {
         continue;
@@ -529,8 +531,60 @@ export class LolService {
         this.logger.log(
           `rank snapshot: ${account.gameName}#${account.tagLine} ${entry.queueType} → ${entry.tier} ${entry.rank} ${entry.leaguePoints}LP`
         );
+        wroteSnapshot = true;
       }
     }
+
+    if (wroteSnapshot) {
+      await this.refreshAccountSummary(summoner.puuid);
+    }
+  }
+
+  // Idempotent "current state" recompute for the Summoner denorm columns
+  // (highest of solo/flex rank + last-played champion). Called from every
+  // persistence chokepoint — rank-snapshot writes, match writes — so the
+  // nav-bootstrap query reads coherent values in one Summoner read instead
+  // of joining RankSnapshot + Match per account. Always reads canonical
+  // tables, never trusts the caller's view of what just changed; that
+  // keeps the function safe to call from any writer regardless of which
+  // path Riot data arrived through.
+  private async refreshAccountSummary(puuid: string): Promise<void> {
+    const [soloLatest, flexLatest, lastMatch] = await Promise.all([
+      this.prisma.rankSnapshot.findFirst({
+        where: { puuid, queueId: "RANKED_SOLO_5x5" },
+        orderBy: { capturedAt: "desc" },
+        select: { tier: true, rank: true, leaguePoints: true },
+      }),
+      this.prisma.rankSnapshot.findFirst({
+        where: { puuid, queueId: "RANKED_FLEX_SR" },
+        orderBy: { capturedAt: "desc" },
+        select: { tier: true, rank: true, leaguePoints: true },
+      }),
+      this.prisma.match.findFirst({
+        where: { puuid, remake: false },
+        orderBy: { playedAt: "desc" },
+        select: { champion: true },
+      }),
+    ]);
+
+    // Solo first so its queue label wins on identical-LP ties — matches
+    // the UI's solo-over-flex display preference.
+    const higher = pickHigherRank(
+      soloLatest && { ...soloLatest, queueId: "RANKED_SOLO_5x5" },
+      flexLatest && { ...flexLatest, queueId: "RANKED_FLEX_SR" }
+    );
+
+    await this.prisma.summoner.update({
+      where: { puuid },
+      data: {
+        currentRankTier: higher?.tier ?? null,
+        currentRankDivision: higher?.rank ?? null,
+        currentRankLp: higher?.leaguePoints ?? null,
+        currentRankQueue: higher?.queueId ?? null,
+        lastPlayedChampionAlias: lastMatch?.champion ?? null,
+        summaryUpdatedAt: new Date(),
+      },
+    });
   }
 
   async syncSummonerProfile(account: LolAccount): Promise<void> {
@@ -937,6 +991,16 @@ export class LolService {
       this.logger.warn(
         `backfill: ${failed.length}/${missing.length} matches failed for ${puuid} — partial results returned`
       );
+    }
+
+    // Refresh the denorm summary whenever this path actually upserted match
+    // rows. `missing.length > 0` is the right signal: a cache-hit-only call
+    // already exited early at the `missing.length === 0` short-circuit
+    // above, so reaching this point means at least one match was attempted.
+    // Even a partial failure path still updates because the surviving
+    // upserts may have changed the last-played champion.
+    if (results.some((r) => r.status === "fulfilled")) {
+      await this.refreshAccountSummary(puuid);
     }
   }
 

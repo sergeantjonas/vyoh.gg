@@ -42,6 +42,36 @@ export function normalizeLp(tier: string, rank: string, leaguePoints: number): n
   return tierBase + (RANK_OFFSET[rank.toUpperCase()] ?? 0) + leaguePoints;
 }
 
+// Shared comparator shape — any record that carries the four ranked-queue
+// identifiers can be compared. Used by `pickHigherRank` to fold solo +
+// flex into a single "current rank" badge without forcing callers to
+// rebuild a `RankSnapshot`-shaped object.
+export interface ComparableRank {
+  queueId: string;
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+}
+
+// Returns the higher of two ranks by normalized LP, preserving the
+// queue identity so the UI can label which queue contributed. Ties
+// favour `a` so the caller can encode a preferred queue by ordering
+// (solo first conventionally beats flex on display when LP is identical).
+// Null/undefined inputs short-circuit to the other side so the function
+// composes cleanly with optional Prisma reads (`findFirst` returning
+// `null` when an account has never played a given queue).
+export function pickHigherRank<T extends ComparableRank>(
+  a: T | null | undefined,
+  b: T | null | undefined
+): T | null {
+  if (!a && !b) return null;
+  if (!a) return b ?? null;
+  if (!b) return a;
+  const aLp = normalizeLp(a.tier, a.rank, a.leaguePoints);
+  const bLp = normalizeLp(b.tier, b.rank, b.leaguePoints);
+  return aLp >= bLp ? a : b;
+}
+
 export function formatRank(tier: string, rank: string, leaguePoints: number): string {
   const display = TIER_DISPLAY[tier.toUpperCase()] ?? tier;
   const tierIndex = TIER_INDEX[tier.toUpperCase()] ?? 0;

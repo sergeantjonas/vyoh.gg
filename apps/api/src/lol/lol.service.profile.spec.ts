@@ -14,7 +14,13 @@ function makeService(opts: {
   rankEntries?: unknown[];
 }) {
   const prisma = {
-    summoner: { findUnique: vi.fn().mockResolvedValue(opts.summoner ?? null) },
+    summoner: {
+      findUnique: vi.fn().mockResolvedValue(opts.summoner ?? null),
+      // refreshAccountSummary writes the denorm columns whenever a rank
+      // snapshot was persisted. The default mock is a no-op so existing
+      // tests that don't care about the denorm path stay green.
+      update: vi.fn().mockResolvedValue(undefined),
+    },
     rankSnapshot: {
       findFirst: vi
         .fn()
@@ -22,6 +28,12 @@ function makeService(opts: {
         .mockImplementationOnce(async () => opts.snapshots?.[1] ?? null),
       findMany: vi.fn().mockResolvedValue(opts.snapshots ?? []),
       create: vi.fn().mockResolvedValue(undefined),
+    },
+    match: {
+      // refreshAccountSummary reads the latest non-remake match for the
+      // last-played champion alias. Default to null for tests that don't
+      // exercise the denorm path.
+      findFirst: vi.fn().mockResolvedValue(null),
     },
   };
   const riot = {
@@ -227,5 +239,66 @@ describe("LolService.captureRankSnapshot", () => {
       tagLine: "EUW",
     });
     expect(prisma.rankSnapshot.create).not.toHaveBeenCalled();
+    // No ranked snapshot was created → denorm refresh shouldn't fire.
+    expect(prisma.summoner.update).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the denorm summary after a new snapshot is written", async () => {
+    const { service, prisma } = makeService({
+      summoner: { puuid: "p1" },
+      rankEntries: [
+        {
+          queueType: "RANKED_SOLO_5x5",
+          tier: "GOLD",
+          rank: "II",
+          leaguePoints: 50,
+          wins: 10,
+          losses: 8,
+          hotStreak: false,
+        },
+      ],
+    });
+    await service.captureRankSnapshot({
+      slug: "ahri",
+      region: "euw1",
+      gameName: "Vyoh",
+      tagLine: "EUW",
+    });
+    expect(prisma.rankSnapshot.create).toHaveBeenCalledTimes(1);
+    expect(prisma.summoner.update).toHaveBeenCalledTimes(1);
+    const call = prisma.summoner.update.mock.calls[0]?.[0] as {
+      where: { puuid: string };
+      data: { summaryUpdatedAt?: Date };
+    };
+    expect(call.where).toEqual({ puuid: "p1" });
+    expect(call.data.summaryUpdatedAt).toBeInstanceOf(Date);
+  });
+
+  it("does not refresh when the latest snapshot is unchanged (no create)", async () => {
+    const { service, prisma } = makeService({
+      summoner: { puuid: "p1" },
+      // Existing latest snapshot matches the Riot entry → captureRankSnapshot
+      // sees `changed === false` and skips the create. No write, no refresh.
+      snapshots: [{ tier: "GOLD", rank: "II", leaguePoints: 50 }, null],
+      rankEntries: [
+        {
+          queueType: "RANKED_SOLO_5x5",
+          tier: "GOLD",
+          rank: "II",
+          leaguePoints: 50,
+          wins: 10,
+          losses: 8,
+          hotStreak: false,
+        },
+      ],
+    });
+    await service.captureRankSnapshot({
+      slug: "ahri",
+      region: "euw1",
+      gameName: "Vyoh",
+      tagLine: "EUW",
+    });
+    expect(prisma.rankSnapshot.create).not.toHaveBeenCalled();
+    expect(prisma.summoner.update).not.toHaveBeenCalled();
   });
 });

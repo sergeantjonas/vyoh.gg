@@ -16,6 +16,20 @@ model Summoner {
   fetchedAt        DateTime  @default(now())
   historicalDoneAt DateTime?
 
+  // Denormalised "current state" snapshot recomputed at every persistence
+  // chokepoint (rank-snapshot write, match write) so the nav-bootstrap
+  // query reads coherent values in a single Summoner read instead of
+  // joining RankSnapshot + Match per account. Nullable: pre-sync state +
+  // accounts that have no ranked games + first-tick before any refresh.
+  // `currentRankQueue` records which queue won the higher-of-comparison
+  // (RANKED_SOLO_5x5 / RANKED_FLEX_SR) so the UI can label the badge.
+  currentRankTier         String?
+  currentRankDivision     String?
+  currentRankLp           Int?
+  currentRankQueue        String?
+  lastPlayedChampionAlias String?
+  summaryUpdatedAt        DateTime?
+
   matches       Match[]
   rankSnapshots RankSnapshot[]
 

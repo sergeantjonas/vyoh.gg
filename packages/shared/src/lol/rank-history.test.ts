@@ -4,6 +4,7 @@ import {
   detectSeasons,
   formatRank,
   normalizeLp,
+  pickHigherRank,
 } from "./rank-history.ts";
 
 describe("normalizeLp", () => {
@@ -148,5 +149,68 @@ describe("detectSeasons", () => {
     const seasons = detectSeasons(points);
     expect(seasons).toHaveLength(3);
     expect(seasons.map((s) => s.ongoing)).toEqual([false, false, true]);
+  });
+});
+
+describe("pickHigherRank", () => {
+  const solo = (tier: string, rank: string, leaguePoints: number) => ({
+    queueId: "RANKED_SOLO_5x5",
+    tier,
+    rank,
+    leaguePoints,
+  });
+  const flex = (tier: string, rank: string, leaguePoints: number) => ({
+    queueId: "RANKED_FLEX_SR",
+    tier,
+    rank,
+    leaguePoints,
+  });
+
+  it("returns null when both sides are null/undefined", () => {
+    expect(pickHigherRank(null, null)).toBeNull();
+    expect(pickHigherRank(undefined, undefined)).toBeNull();
+    expect(pickHigherRank(null, undefined)).toBeNull();
+  });
+
+  it("returns the populated side when the other is null/undefined", () => {
+    const r = solo("GOLD", "II", 50);
+    expect(pickHigherRank(r, null)).toBe(r);
+    expect(pickHigherRank(null, r)).toBe(r);
+    expect(pickHigherRank(r, undefined)).toBe(r);
+  });
+
+  it("picks the higher tier across tier boundaries", () => {
+    expect(pickHigherRank(solo("SILVER", "I", 80), flex("GOLD", "IV", 0))).toEqual(
+      flex("GOLD", "IV", 0)
+    );
+  });
+
+  it("picks the higher division within the same tier", () => {
+    expect(pickHigherRank(solo("GOLD", "IV", 90), flex("GOLD", "II", 10))).toEqual(
+      flex("GOLD", "II", 10)
+    );
+  });
+
+  it("picks the higher LP within the same tier + division", () => {
+    expect(pickHigherRank(solo("GOLD", "II", 10), flex("GOLD", "II", 80))).toEqual(
+      flex("GOLD", "II", 80)
+    );
+  });
+
+  it("compares MASTER+ tiers by raw LP, since the tiers share a normalized base", () => {
+    // Master/Grandmaster/Challenger all anchor at the same normalized base
+    // (rank index 7), so a higher-LP MASTER outranks a lower-LP GRANDMASTER.
+    expect(
+      pickHigherRank(solo("MASTER", "I", 200), flex("GRANDMASTER", "I", 50))
+    ).toEqual(solo("MASTER", "I", 200));
+    expect(pickHigherRank(solo("CHALLENGER", "I", 800), flex("MASTER", "I", 0))).toEqual(
+      solo("CHALLENGER", "I", 800)
+    );
+  });
+
+  it("favours the left side on ties so callers can encode queue preference by order", () => {
+    const a = solo("GOLD", "II", 50);
+    const b = flex("GOLD", "II", 50);
+    expect(pickHigherRank(a, b)).toBe(a);
   });
 });
