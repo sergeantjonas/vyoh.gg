@@ -1,6 +1,5 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
-import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
@@ -16,17 +15,14 @@ import {
 } from "@/lol/_shared/serious-queues/serious-queues";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
-import {
-  type ChampionOrigin,
-  useActiveChampion,
-} from "@/lol/champions/active-champion-context";
 import { ChampionBreadcrumb } from "@/lol/champions/champion-breadcrumb";
 import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
-import { ChampionCardChrome, championCardStyle } from "@/lol/champions/champion-card";
+import { ChampionCardChrome } from "@/lol/champions/champion-card";
 import {
   buildWinRateSeries,
   computeChampionDetail,
 } from "@/lol/champions/champion-detail-stats";
+import { ChampionHero } from "@/lol/champions/champion-hero";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
 import { buildPatchDrift } from "@/lol/champions/patch-drift";
@@ -42,8 +38,8 @@ import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
 import { formatPlaytimeFromSeconds } from "@vyoh/shared";
-import { m, useReducedMotion } from "motion/react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { m } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Line,
   LineChart,
@@ -190,38 +186,6 @@ function ChampionDetailPage() {
   );
 
   const [stripVisible, heroRef] = useHeroScrolledPast();
-  const { originRectRef, setOriginRect } = useActiveChampion();
-  const reduced = useReducedMotion();
-  const cardMorphRef = useRef<HTMLDivElement | null>(null);
-
-  // Defensive: belt-and-braces scroll-to-top on detail mount. The section-
-  // level useScrollResetOnNav SHOULD already do this, but something in the
-  // AnimatePresence popLayout + slide-cut interaction is preventing it from
-  // taking effect for this specific route. Logging via console so we can
-  // see in DevTools whether it fired and what scrollTop was.
-  useLayoutEffect(() => {
-    const main = mainScrollRef.current;
-    if (main) {
-      console.log(
-        "[champion-detail] mount: scrollTop=",
-        main.scrollTop,
-        "→ scrolling to 0"
-      );
-      main.scrollTo(0, 0);
-    } else {
-      console.log("[champion-detail] mount: mainScrollRef.current is null");
-    }
-  }, []);
-  // Captured once on mount so StrictMode's double-invocation doesn't lose the
-  // origin after the first run clears originRectRef. Mirrors match-hero.
-  const savedOrigin = useRef<ChampionOrigin | null>(null);
-  // Match-hero is a separate component that only mounts when `heroSummary` is
-  // available, so its useLayoutEffect[] fires with the ref already set. The
-  // champion-detail hero is inline JSX gated by an early-return on `!detail`,
-  // so a [] effect on the parent would fire before the hero is in the DOM
-  // (refs still null) — this ref keeps the effect mount-only while gating on
-  // detail readiness instead.
-  const morphFiredRef = useRef(false);
 
   // Body-settle gate — render the rest of the page at low opacity while the
   // hero morph runs so swapping in cached content mid-flight doesn't visually
@@ -231,61 +195,6 @@ function ChampionDetailPage() {
     const id = window.setTimeout(() => setBodyReady(true), MORPH_SETTLE_MS);
     return () => window.clearTimeout(id);
   }, []);
-
-  // Forward-direction morph: when this page is the destination of a list
-  // click, snap the card to the row's last-known rect and animate to its
-  // natural hero position. Mirrors match-hero — the same RAF-delayed
-  // setOriginRect(null) keeps StrictMode's surviving instance the one that
-  // consumes the origin. Gated on `detail` so the effect doesn't run before
-  // the hero JSX is in the DOM; `morphFiredRef` keeps it mount-only.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
-  useLayoutEffect(() => {
-    if (morphFiredRef.current) return;
-    if (!detail) return;
-    const aliasForOrigin = detail.champion;
-    if (!savedOrigin.current) {
-      const o = originRectRef.current;
-      if (
-        !o ||
-        o.championAlias.toLowerCase() !== aliasForOrigin.toLowerCase() ||
-        o.direction !== "forward"
-      )
-        return;
-      savedOrigin.current = o;
-    }
-    const origin = savedOrigin.current;
-    if (!origin || !cardMorphRef.current) return;
-    morphFiredRef.current = true;
-    if (reduced) return;
-    const el = cardMorphRef.current;
-    el.style.visibility = "hidden";
-    let cancelled = false;
-    const rafId = requestAnimationFrame(() => {
-      if (cancelled) return;
-      setOriginRect(null);
-      el.style.visibility = "";
-      const dr = el.getBoundingClientRect();
-      const dx = origin.rect.left - dr.left;
-      const dy = origin.rect.top - dr.top;
-      const sx = origin.rect.width / dr.width;
-      const sy = origin.rect.height / dr.height;
-      el.animate(
-        [
-          {
-            transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
-            transformOrigin: "0 0",
-          },
-          { transform: "none", transformOrigin: "0 0" },
-        ],
-        { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
-      );
-    });
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(rafId);
-      el.style.visibility = "";
-    };
-  }, [detail]);
 
   // Champion-scoped matches must be derived BEFORE the early return — moving
   // it below caused a hooks-count mismatch on first render once the page
@@ -343,16 +252,7 @@ function ChampionDetailPage() {
           animate={{ opacity: stripVisible ? 0 : 1, y: stripVisible ? -8 : 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
-          {/* Plain div, not m.div with layoutId — Motion's layoutId morph
-              would compete with the rect-based el.animate() forward consume
-              above and produce the "fast / broken" feel. Match-hero uses the
-              same plain wrapper for the same reason. */}
-          <div
-            ref={cardMorphRef}
-            data-champion-card={alias}
-            style={championCardStyle(alias)}
-            className="relative isolate h-52 overflow-hidden rounded-lg border"
-          >
+          <ChampionHero alias={alias}>
             <ChampionCardChrome champion={alias} />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-5">
@@ -429,7 +329,7 @@ function ChampionDetailPage() {
               </div>
               <WinRateBar winRate={detail.winRate} className="mt-2" />
             </div>
-          </div>
+          </ChampionHero>
         </m.div>
       </div>
 

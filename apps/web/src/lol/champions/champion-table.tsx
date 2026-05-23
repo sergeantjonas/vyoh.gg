@@ -237,9 +237,8 @@ function ChampionTableRow({
   return (
     <m.li
       variants={item}
-      layout
-      transition={{ type: "spring", stiffness: 380, damping: 30 }}
       animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
     >
       <CardTilt>
         <Link
