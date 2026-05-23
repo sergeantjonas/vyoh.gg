@@ -66,7 +66,6 @@ function RoleIconFallback({ position, className, title }: RoleIconProps) {
       role="img"
       aria-label={title ?? ROLE_LABEL[position]}
     >
-      <title>{title ?? ROLE_LABEL[position]}</title>
       {position === "TOP" && (
         <>
           <path d="M2.5 2.5h6" />
