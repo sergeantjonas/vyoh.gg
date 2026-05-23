@@ -42,7 +42,11 @@ export type {
   PalettePatchesVerb,
 } from "./command-palette/parse-palette-verb.ts";
 export type { Me } from "./identity.ts";
-export type { LolAccount } from "./lol/account.ts";
+export type {
+  LolAccount,
+  LolAccountSummary,
+  LolAccountWithSummary,
+} from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";
 export type { ChampionBuildFlowEntry } from "./lol/champion-build-flow.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";

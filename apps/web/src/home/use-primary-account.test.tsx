@@ -20,12 +20,16 @@ const account: LolAccount = {
   gameName: "Vyoh",
   tagLine: "Ahri",
 };
+// /me returns LolAccountWithSummary[]; for unit tests we attach a null
+// summary so the test rows satisfy the wider type without exercising
+// the denorm path itself.
+const accountRow = { ...account, summary: null };
 
 describe("usePrimaryAccount", () => {
   it("returns the first lol account when /me has resolved", () => {
-    mockMe({ data: { lol: [account], steam: [] }, isPending: false });
+    mockMe({ data: { lol: [accountRow], steam: [] }, isPending: false });
     const { result } = renderHook(() => usePrimaryAccount());
-    expect(result.current.account).toEqual(account);
+    expect(result.current.account).toEqual(accountRow);
     expect(result.current.isPending).toBe(false);
   });
 

@@ -7,9 +7,9 @@ export class IdentityController {
   constructor(private readonly identity: IdentityService) {}
 
   @Get("me")
-  getMe(): Me {
+  async getMe(): Promise<Me> {
     return {
-      lol: this.identity.getLolAccounts(),
+      lol: await this.identity.getLolAccountsWithSummary(),
       steam: this.identity.getSteamIds(),
     };
   }

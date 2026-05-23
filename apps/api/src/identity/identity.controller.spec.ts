@@ -4,15 +4,23 @@ import { IdentityController } from "./identity.controller";
 import { IdentityService } from "./identity.service";
 
 describe("IdentityController", () => {
-  it("returns the lol and steam lists from IdentityService", async () => {
-    const lol = [{ gameName: "Vyoh", tagLine: "Ahri", region: "euw1" }];
+  it("returns the lol-with-summary and steam lists from IdentityService", async () => {
+    const lol = [
+      {
+        slug: "ahri",
+        gameName: "Vyoh",
+        tagLine: "Ahri",
+        region: "euw1",
+        summary: null,
+      },
+    ];
     const moduleRef = await Test.createTestingModule({
       controllers: [IdentityController],
       providers: [
         {
           provide: IdentityService,
           useValue: {
-            getLolAccounts: () => lol,
+            getLolAccountsWithSummary: async () => lol,
             getSteamIds: () => [],
           },
         },
@@ -20,6 +28,6 @@ describe("IdentityController", () => {
     }).compile();
 
     const controller = moduleRef.get(IdentityController);
-    expect(controller.getMe()).toEqual({ lol, steam: [] });
+    expect(await controller.getMe()).toEqual({ lol, steam: [] });
   });
 });

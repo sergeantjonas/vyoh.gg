@@ -7,7 +7,8 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
-import type { LolAccount } from "@vyoh/shared";
+import type { LolAccount, LolAccountWithSummary } from "@vyoh/shared";
+import { PrismaService } from "../prisma/prisma.service";
 
 export const ACCOUNTS_CONFIG = Symbol("ACCOUNTS_CONFIG");
 
@@ -22,7 +23,10 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
   private watcher: ReturnType<typeof watch> | null = null;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(@Inject(ACCOUNTS_CONFIG) private config: AccountsConfig) {
+  constructor(
+    @Inject(ACCOUNTS_CONFIG) private config: AccountsConfig,
+    private readonly prisma: PrismaService
+  ) {
     this.assertUniqueSlugs(this.config);
   }
 
@@ -52,6 +56,67 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
 
   getLolAccounts(): LolAccount[] {
     return this.config.lol;
+  }
+
+  // Hydrate the whitelist with the Summoner denorm snapshot in a single
+  // query. The `puuid` join key is unstable across regions (Riot puuids
+  // are globally unique but the API stores Summoner rows keyed on the
+  // composite `gameName + tagLine + region`), so we look up by that
+  // tuple. Accounts with no Summoner row yet (never resolved → no rank
+  // history, no matches) get `summary: null`. Accounts with a row but no
+  // refresh tick yet get `summary.updatedAt: null` — the UI uses that
+  // signal to render the simple Riot-ID row instead of an empty rich
+  // row.
+  async getLolAccountsWithSummary(): Promise<LolAccountWithSummary[]> {
+    const accounts = this.config.lol;
+    if (accounts.length === 0) return [];
+    const summoners = await this.prisma.summoner.findMany({
+      where: {
+        OR: accounts.map((a) => ({
+          gameName: a.gameName,
+          tagLine: a.tagLine,
+          region: a.region,
+        })),
+      },
+      select: {
+        gameName: true,
+        tagLine: true,
+        region: true,
+        currentRankTier: true,
+        currentRankDivision: true,
+        currentRankLp: true,
+        currentRankQueue: true,
+        lastPlayedChampionAlias: true,
+        summaryUpdatedAt: true,
+      },
+    });
+    const summoners_by_id = new Map<string, (typeof summoners)[number]>();
+    for (const s of summoners) {
+      summoners_by_id.set(`${s.gameName}|${s.tagLine}|${s.region}`, s);
+    }
+    return accounts.map((account) => {
+      const s = summoners_by_id.get(
+        `${account.gameName}|${account.tagLine}|${account.region}`
+      );
+      if (!s) return { ...account, summary: null };
+      const rank =
+        s.currentRankTier && s.currentRankDivision && s.currentRankQueue
+          ? {
+              tier: s.currentRankTier,
+              division: s.currentRankDivision,
+              leaguePoints: s.currentRankLp ?? 0,
+              queueId: s.currentRankQueue,
+            }
+          : null;
+      return {
+        ...account,
+        summary: {
+          rank,
+          lastPlayedChampionAlias: s.lastPlayedChampionAlias,
+          updatedAt: s.summaryUpdatedAt?.toISOString() ?? null,
+        },
+      };
+    });
   }
 
   getSteamIds(): string[] {

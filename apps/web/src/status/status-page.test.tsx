@@ -164,7 +164,9 @@ function mockMutations(
 
 beforeEach(() => {
   vi.mocked(useStatusStream).mockReturnValue(undefined);
-  mockMe({ lol: [account], steam: [] });
+  // /me returns LolAccountWithSummary[]; status-page doesn't read the
+  // denorm fields, so a null summary stub is enough to satisfy the type.
+  mockMe({ lol: [{ ...account, summary: null }], steam: [] });
   mockMutations();
 });
 
@@ -329,7 +331,13 @@ describe("StatusPage", () => {
     mockStatus({ data: makeSnapshot() });
     renderWithTooltip(<StatusPage />);
     fireEvent.click(screen.getByRole("button", { name: "Sync Ahri" }));
-    expect(muts.syncAccount.mutate).toHaveBeenCalledWith(account, expect.any(Object));
+    // useMe now resolves to LolAccountWithSummary, so the mutate input
+    // carries an extra `summary` field. Match on the bare LolAccount shape
+    // via objectContaining to stay agnostic of the denorm payload.
+    expect(muts.syncAccount.mutate).toHaveBeenCalledWith(
+      expect.objectContaining(account),
+      expect.any(Object)
+    );
   });
 
   it("disables the per-account sync button when account is not resolvable", () => {

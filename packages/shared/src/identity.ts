@@ -1,6 +1,6 @@
-import type { LolAccount } from "./lol/account.ts";
+import type { LolAccountWithSummary } from "./lol/account.ts";
 
 export interface Me {
-  lol: LolAccount[];
+  lol: LolAccountWithSummary[];
   steam: string[];
 }
