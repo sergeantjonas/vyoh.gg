@@ -26,7 +26,11 @@ import "./index.css";
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 
-const router = createRouter({ routeTree });
+const router = createRouter({
+  routeTree,
+  defaultPreload: "intent",
+  defaultPreloadStaleTime: 0,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {
