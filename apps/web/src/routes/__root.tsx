@@ -19,6 +19,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { m } from "motion/react";
+import { useLayoutEffect, useRef } from "react";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -29,6 +30,18 @@ function RootLayout() {
   const scope = useRouterState({
     select: (s) => topLevelScope(s.location.pathname),
   });
+  // Reset <main> scroll when crossing a top-level scope boundary. Section
+  // roots stay mounted across child routes and own intra-section reset
+  // (with their own skip lists for list↔detail back-restore); cross-scope
+  // navigation unmounts the previous section, so a freshly-mounted section
+  // or sectionless route would otherwise inherit the previous scrollTop.
+  const prevScopeRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const prev = prevScopeRef.current;
+    prevScopeRef.current = scope;
+    if (prev === null || prev === scope) return;
+    mainScrollRef.current?.scrollTo(0, 0);
+  }, [scope]);
   return (
     <TooltipPrimitive.Provider delayDuration={150}>
       <CommandPaletteProvider>
