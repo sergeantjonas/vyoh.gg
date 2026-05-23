@@ -16,7 +16,7 @@ import {
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import { ChampionBreadcrumb } from "@/lol/champions/champion-breadcrumb";
-import { ChampionBuildSankey } from "@/lol/champions/champion-build-sankey";
+import { ChampionBuildPath } from "@/lol/champions/champion-build-path";
 import { ChampionCardChrome } from "@/lol/champions/champion-card";
 import {
   buildWinRateSeries,
@@ -670,7 +670,7 @@ function ChampionDetailPage() {
           </m.div>
         )}
 
-        <ChampionBuildSankey accountSlug={accountSlug} championKey={championKey} />
+        <ChampionBuildPath accountSlug={accountSlug} championKey={championKey} />
         <ChampionPositionHeatmap matches={champMatches} />
         <TrendDeathMatchupHeatmap current={champMatches} />
         <TrendTimeHeatmap current={champMatches} />
