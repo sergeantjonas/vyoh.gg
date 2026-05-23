@@ -485,3 +485,249 @@ These are strong-adoption signals confirming the build stack is correctly modern
 | **Q — `sideEffects: false` on `@vyoh/shared`** | #19 | ~5 min | Ship now, atomic; pairs with Vite `build.target` quick-win |
 | **R — pnpm catalogs for vitest + types/node** | #18 | ~30 min | Ship now, single commit |
 | **S — Biome 1.9 → 2.x migration** | #17 | ~45 min | Ship now, single commit; may surface multi-file analysis findings worth a follow-up |
+
+---
+
+## Round 7 — testing pass (2026-05-24)
+
+Audit focus: `10-testing.md` against the project's Vitest 4.1 / happy-dom / jest-axe stack across the three workspaces. Headline finding: the **unit + component tiers are healthy** (309 test files, jest-axe scans, restrained snapshot use, same-commit test hygiene already a stated convention) but the **integration and E2E tiers are missing or shaped wrong**. Network mocking is a hand-rolled `vi.stubGlobal('fetch', …)` pattern reinvented across 20+ files; there is no Playwright surface; there is no visual regression despite a hard project rule that splash-art swaps require side-by-side visual proof ([feedback_splash_visual_parity](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_splash_visual_parity.md)); coverage thresholds gate only `lines`; and the three workspaces' Vitest configs diverge in include patterns in ways that already create silent-skip risk.
+
+### Gap 20 — `vi.stubGlobal('fetch', vi.fn())` pattern reinvented across 20+ test files instead of MSW
+
+**Current state:** 22 test files in [apps/web/src](../../../apps/web/src/) use the same ad-hoc pattern:
+
+```ts
+beforeEach(() => { vi.stubGlobal("fetch", vi.fn()); });
+afterEach(() => { vi.unstubAllGlobals(); });
+// inside test:
+vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(sample), { status: 200 }));
+```
+
+Reference: [apps/web/src/home/use-home-weekly-totals.test.ts:24-30](../../../apps/web/src/home/use-home-weekly-totals.test.ts#L24-L30) is the canonical shape; the same boilerplate is duplicated across `home/use-home-*`, `lol/matches/use-*`, `lol/profile/use-*`, `lol/champions/use-*`, `lol/patches/use-patch-hooks`, `steam/use-steam-hooks`, `steam/game/use-steam-game-hooks`, `identity/use-me`, `status/use-status` and others. Each file independently constructs `new Response(...)` literals; there is no shared handler set, no `onUnhandledRequest` policy, no contract validation against the real `@vyoh/api` response shape.
+
+**KB floor:** `10-testing.md` §6 — MSW is the 2026 default for both test and dev mocking. **Same handler set runs in jsdom/happy-dom (Vitest), in browser (Service Worker), and in Node (via `@mswjs/interceptors`).** Quote: *"`onUnhandledRequest: 'error'` is the right default — a test that calls an un-mocked endpoint should fail fast, not silently hit prod."* Today every test silently allows arbitrary `fetch` calls because `vi.fn()` returns `undefined` by default — an un-stubbed endpoint just produces a "Cannot read properties of undefined" downstream rather than failing loudly at the network boundary.
+
+**Why it matters:** Three concrete pain points the audit surfaced:
+
+1. **Contract drift is invisible.** Each test hand-writes a `MatchSummary`/`SteamGame`/`PatchHeadline` literal that the test author thought matched the api response. Nothing checks it against the real `@vyoh/shared` schema or the api's NestJS DTO. A future api response-shape change will compile-pass (the response is opaque to the typed client) and unit-test-pass (the literal is what the test wrote), then fail in production. MSW handlers parameterised by Zod schemas (or the existing `@vyoh/shared` types) catch this in the test step.
+2. **Re-stubbing across 20+ files is a refactor tax.** When the api's URL base moves from `http://localhost:2010` to a same-origin reverse-proxy path (planned in [hosting.md](hosting.md)), every test that hand-writes `expect(fetch).toHaveBeenCalledWith("http://localhost:2010/home/weekly-totals")` breaks. With MSW, the handler matches `'/home/weekly-totals'` regardless of base URL.
+3. **Storybook 9 and Playwright reuse blocked.** When/if Gaps 22 (Playwright) and 23 (Storybook) land, the handler set is the load-bearing reusable artefact. Hand-rolled `vi.stubGlobal` patterns can't be reused; MSW handlers can.
+
+**Tension with Start:** None. MSW is purely a test-time concern; Start migration changes the *server* side, not the test mock surface.
+
+**How to apply:** Two commits.
+
+1. **Adopt MSW with a shared handler set.** Add `msw ^2.14` to [apps/web/package.json](../../../apps/web/package.json) devDeps. Create `apps/web/src/test-mocks/handlers.ts` with default handlers for every api endpoint the web hits — derive response bodies from `@vyoh/shared` types (or Zod-mock if Zod schemas exist; see Gap 30 below). Create `apps/web/src/test-mocks/server.ts` that calls `setupServer(...handlers)`. Wire into [apps/web/src/test-setup.ts](../../../apps/web/src/test-setup.ts) with `server.listen({ onUnhandledRequest: 'error' })` in `beforeAll`, `server.resetHandlers()` in `afterEach`, `server.close()` in `afterAll`.
+2. **Migrate the 22 sites file-by-file.** Each migration replaces `beforeEach/vi.stubGlobal` + `vi.mocked(fetch).mockResolvedValue(...)` with `server.use(http.get('/home/weekly-totals', () => HttpResponse.json(sample)))` for the per-test override case. The 200/500/404 path matrix collapses to per-status overrides.
+
+**Effort:** Step 1 ~1h (handler set is mostly derivable from existing test literals — collect them into one file). Step 2 ~2-3h (mechanical migration, ~5-10 min per file × 22 files, often a no-op compared to the existing shape). Total: ~3-4h split across one infra commit + N migration commits, can be done incrementally without churn.
+
+### Gap 21 — No visual regression despite a hard project rule requiring side-by-side visual proof on splash-art swaps
+
+**Current state:** Zero visual-regression coverage anywhere in the repo. No Playwright `toHaveScreenshot()`, no Vitest browser-mode `toMatchScreenshot()`, no Chromatic/Argos/Percy/Lost Pixel integration. The only image-baseline-style test is [apps/web/src/lol/_shared/static/rich-description.snapshots.test.ts](../../../apps/web/src/lol/_shared/static/rich-description.snapshots.test.ts) which does *text* snapshots of sanitiser output — not visual.
+
+The project has an explicit, documented rule that *images* must be visually verified: [feedback_splash_visual_parity](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_splash_visual_parity.md) — *"champion card/backdrop look-and-feel is a hard constraint; any wiki-primary swap on splash art needs side-by-side visual proof before merge."* This is currently enforced by the owner eyeballing the dev server. It is the textbook use case for visual regression.
+
+The surface area that needs this protection is large: [project_unified_image_fallback](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/project_unified_image_fallback.md) lists **12 image families** with two upstreams each (wiki-primary + 2-stage fallback). Every one of those is a place a future swap could silently degrade.
+
+**KB floor:** `10-testing.md` §7 ranks five options for visual regression. For a personal portfolio with high visual stakes, no designer-in-loop, willing to git-track PNGs, the right entrant is **Playwright `toHaveScreenshot()`** for full-route diffs and/or **Vitest 4.0 `toMatchScreenshot()`** (browser mode) for component-level. Both are free; baselines live in `__screenshots__/` in git; PR review shows the PNG diff inline. See `10-testing.md` §7 quote: *"For a personal-portfolio repo, Vitest 4's `toMatchScreenshot()` in browser mode or Playwright snapshot tests are sufficient and free."* The new "Testing — evaluated alternatives" section in [library-shortlist.md](library-shortlist.md) carries the full ranking (Chromatic / Argos / Percy / Lost Pixel rejected with rationale).
+
+**Why it matters:** The splash-parity rule is a *hard* rule, not a soft one — owner has called it out as a merge blocker. Today the rule depends on the owner remembering to do the visual comparison; visual regression makes it impossible to merge a regressing change without the diff appearing in PR review. Same logic applies to the 11 other image families — every wiki-primary swap is currently a category of merge-time risk that has no automated check.
+
+**Tension with Start:** None. Visual regression runs against built artifacts or browser-mode component trees; both survive the Start migration.
+
+**Why not Chromatic/Argos/Percy:** All three are SaaS with per-snapshot cost. Their differentiator is the *PR-bound design-review UI* (accept/reject per snapshot, change history, branch-aware approval). vyoh has no designer in the loop and no team — the differentiator is wasted. The free git-tracked PNG path is the right tradeoff for project shape. Full rationale in [library-shortlist.md § Testing — evaluated alternatives](library-shortlist.md).
+
+**Why not Lost Pixel self-hosted:** Self-hosted infra burden is non-zero. The "OSS, repo owns baselines in-tree" angle is met more simply by Playwright/Vitest's in-repo PNG baselines without a separate service.
+
+**How to apply:** Pair with Gap 22 (Playwright adoption). Two commits in sequence:
+
+1. **Land Playwright (Gap 22) first.** That gives the toHaveScreenshot() primitive for free.
+2. **Add visual regression on the high-stakes surfaces.** One test per surface: champion-detail header + splash backdrop, profile header backdrop, match-card asset row (items + spells + runes), wishlist tile (Steam capsule art), home synthesis tile. ~6-8 baselines total. The first run writes baselines; subsequent runs diff. Baselines live in `apps/web/tests/__screenshots__/` and are reviewed in PR.
+
+The orthogonal lighter path: **Vitest 4.0 `toMatchScreenshot()` in browser mode** for component-level (no Playwright dependency). Useful if Gap 22 is deferred — same baseline model, scoped to component fixtures rather than real routes. Either path resolves the splash-parity rule; pick based on whether Playwright lands.
+
+**Effort:** ~2-3h after Gap 22 lands (writing the test surfaces + first baselines + PR-review workflow doc). Pure visual-regression with Vitest browser mode (no Playwright) is ~3-4h because the project needs a separate browser-mode project added to vitest config.
+
+### Gap 22 — No E2E tier (Playwright). jsdom/happy-dom cannot test scroll restoration, view transitions, route prefetch, or real focus/layout
+
+**Current state:** Zero Playwright presence. No `@playwright/test`, no `playwright.config.ts`, no `tests/` or `e2e/` directory, no E2E job in [.github/workflows/ci.yml](../../../.github/workflows/ci.yml). All tests run in happy-dom or node.
+
+The architectural patterns in [CLAUDE.md](../../../CLAUDE.md) and [docs/repo-conventions.md](../repo-conventions.md) are explicitly *cross-route* and *real-layout-dependent*:
+
+- **Scroll-to-top layering** (root + section roots, with skip-aware back-restore for list↔detail) — there are unit tests for the `useScrollResetOnNav` hook itself ([apps/web/src/lib/use-scroll-reset-on-nav.test.ts](../../../apps/web/src/lib/use-scroll-reset-on-nav.test.ts)) but no test that the actual cross-section navigation `/lol/x` → `/steam` resets, and no test that the list→detail→back skip works on the match list. These are pure layout behaviour; happy-dom has no scroll engine.
+- **View Transitions** ([apps/web/src/lib/view-transition-nav.ts](../../../apps/web/src/lib/view-transition-nav.ts), shipped in commit b94fbec) — happy-dom has no `document.startViewTransition`. The unit test mocks it. The actual transition behaviour cannot be tested without a real browser.
+- **Route prefetch on intent** ([apps/web/src/main.tsx:30-34](../../../apps/web/src/main.tsx#L30-L34) — `defaultPreload: 'intent'`) — happy-dom has no hover intent timing or chunk-load behaviour. The feature exists; nothing tests that the prefetch actually fires.
+- **SplashProvider + champion backdrop sync** — happy-dom can't render the backdrop image at all (no real image decode).
+- **Command palette ⌘K + verb grammar** — there are extensive component tests but no test that the global keyboard shortcut works when focus is inside a Radix Dialog, a Tooltip portal, or another contenteditable region. These differ between happy-dom and Chrome.
+
+**KB floor:** `10-testing.md` §4 — Playwright 1.59 is stable, fixture-based auth-state reuse cuts per-test login to ~zero, `--shard=1/4 --workers=4` gives 16-way parallel in CI. Quote (from §1 trophy decision): *"For a frontend monorepo the honeycomb maps cleanly onto package-boundary tests… and a thin Playwright tier at the other cap."* The thin cap is what's missing.
+
+**Why it matters:** The patterns above are explicitly load-bearing project polish — they are part of the freelance-positioning signal per [CLAUDE.md](../../../CLAUDE.md). A scroll-restore regression or a view-transition stutter is exactly the class of bug that:
+
+1. Lands silently because nothing in jsdom catches it.
+2. Reads as broken to a reviewer/visitor without an obvious cause.
+3. Erodes the "polished portfolio" signal the project is explicitly targeting.
+
+A 5-test Playwright surface (one per top-level route + one cross-route navigation flow + one command-palette keyboard flow) catches all of these for ~30min CI/run and ~1-2h setup.
+
+**Tension with Start:** Mild. Playwright tests should run against `pnpm preview` (built SPA), which works identically pre- and post-Start. Post-Start, the same suite runs against an SSR'd dev server with no test changes — Playwright doesn't care about the server posture.
+
+**How to apply:** Three commits.
+
+1. **Land minimal Playwright config.** `pnpm add -DEw @playwright/test`, create `playwright.config.ts` at workspace root (or apps/web), pin chromium-only initially, set `webServer: { command: 'pnpm --filter @vyoh/web preview', url: 'http://localhost:4173', reuseExistingServer: !process.env.CI }`. Add `e2e:cc` script that runs `playwright test --reporter=line` with output capped.
+2. **Write ~5-7 axe-clean smoke tests.** One per surface (`/`, `/status`, `/lol/$accountSlug`, `/lol/$accountSlug/matches`, `/lol/$accountSlug/matches/$matchId`, `/steam`, `/steam/game/$appid`). Each test: navigate, wait for content, axe scan, screenshot. Reference: `10-testing.md` §8 "@axe-core/playwright per-route" pattern.
+3. **Add E2E job to CI** as a separate `e2e` job parallel to `check`. Use Playwright's `actions/cache` for browser binaries. Trace on first retry. Upload trace.zip as workflow artifact on failure.
+
+The auth/storage-state fixture pattern from `10-testing.md` §4 is **deferred** until owner-auth lands ([owner-auth.md](owner-auth.md)) — pre-launch all routes are public, so storage state isn't needed yet.
+
+**Effort:** Step 1 ~30 min. Step 2 ~2h (5-7 tests, each a happy-path smoke + axe scan, ~15-20 min each). Step 3 ~30 min. Total: ~3-4h end-to-end. Catches a class of bugs no other tier can.
+
+### Gap 23 — No Storybook 9 component catalogue. The freelance-portfolio surface and the integration-tier consolidation are both blocked
+
+**Current state:** No Storybook. No `.storybook/` directory, no `*.stories.*` files, no story-driven component dev. The project ships ~80 reusable components across `apps/web/src/components/`, `apps/web/src/lol/_shared/`, `apps/web/src/steam/`, and has no public catalogue surface.
+
+**KB floor:** `10-testing.md` §5 — Storybook 9 GA (July 2025) reframes Storybook from a component explorer to a **component test platform**. The Vitest addon makes every `.stories.tsx` file also a Vitest test file: Vitest discovers stories, renders them in headless browser mode (Playwright provider), runs the `play` function as an interaction test, and reports results in the same `pnpm test` run. Quote: *"This is the killer feature: one artefact (the story) drives the docs UI, the dev component explorer, the interaction test, the accessibility scan, and the visual regression check."*
+
+**Why it matters:** Two distinct payoffs:
+
+1. **Portfolio surface.** Per [CLAUDE.md](../../../CLAUDE.md), vyoh is explicitly freelance-positioning ("Senior frontend engineer ... freelance profile ... Angular-deep + React-competent + perf/build/migration specialist"). A `/storybook` deploy target on the same domain reads as "I think about components as a system, with documented variants, a11y states, and interactive demos" — a strong signal that's invisible from the app surface today. The audience for this is the person clicking through from a freelance proposal.
+2. **Test-tier consolidation.** The audit found ~80 components with React Testing Library tests that render the component in a wrapper with mocked providers (Tooltip, MotionConfig reducedMotion="always", QueryClient with retry: false). The "Story as test" model collapses three artefacts (the story, the test file, the mock fixture) into one. The wrapper boilerplate moves to a Storybook decorator stack and is written once.
+
+Combined with Gap 21 (visual regression) and Gap 22 (Playwright), Storybook 9 + Vitest addon + a11y addon is the single artefact that drives docs + interaction tests + axe scans + screenshot baselines — replacing four separate test patterns that are currently duplicated across files.
+
+**Tension with Start:** None on the component-test side. The portfolio-surface deploy is a separate concern but small: Storybook 9's static build (`storybook build`) is a flat dir that any static host serves; can deploy alongside the main app on the same domain at `/storybook/*`.
+
+**Caveat:** This is a significant addition (Storybook adds ~100MB to `node_modules` and a real config surface). Worth pairing with the *next* round of UI-arc pickup (e.g. accent system, editorial type, ambient hero in [elevation-arcs.md](elevation-arcs.md)) so stories get written for the components being built anyway, rather than as a retrofit pass on the existing component tree.
+
+**How to apply:** Two phases.
+
+1. **Pilot.** `npx storybook@latest init` in apps/web. Configure the Vitest addon per `10-testing.md` §5 (storybookTest plugin + browser-mode project). Write stories for 3-5 components from an upcoming arc — not a retrofit. Verify `pnpm test` discovers them and runs interaction + a11y assertions.
+2. **Gradual fan-out.** Each new component shipped after the pilot gets a story-in-same-commit (extends the existing test-in-same-commit rule per [feedback_test_alongside_code](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_test_alongside_code.md)). Retrofit existing components opportunistically when their tests are touched.
+
+**Effort:** Pilot ~3-4h including the addon plumbing + 3-5 story files + verifying the Vitest addon works against the existing happy-dom suite (some friction expected on the browser-mode project boundary). Fan-out is per-component and amortised into the work that touches each component.
+
+**Decision posture:** Defer pickup until the next UI-arc starts — don't do a standalone retrofit pass.
+
+### Gap 24 — Coverage thresholds gate only `lines`. Branch / function / statement coverage are uncovered
+
+**Current state:** All three vitest configs gate coverage on `lines` only:
+
+- [apps/web/vite.config.ts:77](../../../apps/web/vite.config.ts#L77) — `thresholds: { lines: 93 }`
+- [apps/api/vitest.config.ts:19](../../../apps/api/vitest.config.ts#L19) — `thresholds: { lines: 94 }`
+- [packages/shared/vitest.config.ts:14](../../../packages/shared/vitest.config.ts#L14) — `thresholds: { lines: 90 }`
+
+**KB floor:** `10-testing.md` §3 — v8 coverage tracks lines, branches, functions, statements. *"v8 (default) ... less accurate for branch coverage; counts un-executed source-map regions imprecisely."* The 2026 best-practice is to gate on **all four** with branches as the load-bearing metric, because branch coverage is what catches an under-asserted conditional — a test that runs the branch but doesn't assert the per-branch outcome.
+
+**Why it matters:** Today's coverage is already high (the owner ran a multi-day sweep per [feedback_test_alongside_code](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_test_alongside_code.md)). The actual branch coverage number is unknown — could be 70%, could be 95%. A reducer with 100% line coverage but 60% branch coverage means tests exercise the function call but skip the conditional cases. Gating only on `lines` lets that erode silently as new branches land.
+
+The shape of the fix is **floor-set thresholds at current actual** — find the current branches/functions/statements numbers from a coverage run, set thresholds at floor-minus-1 to give a small buffer, and treat any drop as a PR-blocking finding.
+
+**Tension with Start:** None.
+
+**How to apply:** One commit. Run `pnpm coverage:cc` to read current branches/functions/statements per workspace. Update each vitest config:
+
+```ts
+thresholds: {
+  lines: 93,        // existing
+  branches: 85,     // example — set at floor of current actual
+  functions: 90,    // example
+  statements: 93,   // typically tracks lines
+  perFile: false,   // keep package-level for now; flip to true if a hotspot needs file-level enforcement
+}
+```
+
+Pair with: a one-line note in the coverage step of [.github/workflows/ci.yml](../../../.github/workflows/ci.yml) calling out that the CI summary now also surfaces branch coverage (it already does — just label it).
+
+**Effort:** ~20 min including the coverage read + threshold tuning + CI verify.
+
+### Gap 25 — Three separate Vitest configs; `test.projects` would unify them and prepare for browser-mode pilot
+
+**Current state:** Each workspace has its own vitest config (apps/web embedded in [vite.config.ts](../../../apps/web/vite.config.ts), apps/api in [vitest.config.ts](../../../apps/api/vitest.config.ts), packages/shared in [vitest.config.ts](../../../packages/shared/vitest.config.ts)). `pnpm -r test` runs three Vitest processes sequentially. Coverage produces three separate lcov files that Codecov merges externally.
+
+**KB floor:** `10-testing.md` §3 "Config and projects" — Vitest 4.x's `test.projects` array (renamed from `workspace` in 3.x, fully replaced 4.0) lets one root `vitest.config.ts` orchestrate multiple test environments. Each project gets its own `environment`, `setupFiles`, `include`, `exclude`. Standard 2026 shape: a `node` project for backend/shared, a `jsdom`/`happy-dom` project for component tests, and a `browser` project for visual/interaction tests.
+
+**Why it matters:** Two payoffs:
+
+1. **Coverage rollup.** `vitest --coverage` against the root config produces a single coverage report covering all projects. The current 3-lcov + Codecov merge works but a single rollup catches cross-package un-covered branches (a `@vyoh/shared` helper that's only used from `@vyoh/web` tests has its coverage credited to shared; a single project view sees the actual aggregate).
+2. **Future browser-mode project is a one-line addition.** When Gap 21 (visual regression via Vitest browser mode) or Gap 23 (Storybook Vitest addon) lands, the right shape is a separate `browser` project in the same root config. With separate configs today, each addition requires touching apps/web's `vite.config.ts` and reasoning about Vite+Vitest plugin co-existence. With a root projects config, browser mode is its own slot.
+
+**Tension with Start:** None.
+
+**Why it's a "wrong shape for 2026" gap not a "broken" gap:** Nothing is broken today. The motivation is **preparing for browser-mode / Storybook adoption** — both of which want the projects shape. If the project never adopts those, this gap can stay open indefinitely.
+
+**How to apply:** One commit (sequence after Gap 23's pilot if it lands; otherwise opportunistic).
+
+1. Create `vitest.config.ts` at the workspace root with `test.projects` referencing each workspace's existing config (or inlining the per-workspace `test` blocks).
+2. Update each workspace's `test` script to either remove (use root invocation) or alias to `--project=<name>`.
+3. Update [.github/workflows/ci.yml](../../../.github/workflows/ci.yml) to call `pnpm vitest --coverage` from root instead of `pnpm -r test --coverage`.
+
+**Effort:** ~45 min including verify pass. Defer if no concrete browser-mode/Storybook pickup is planned.
+
+### Gap 26 — No `@testing-library/user-event` explicit dep; tests use lower-level `fireEvent`
+
+**Current state:** [apps/web/package.json](../../../apps/web/package.json) has `@testing-library/react ^16.3.2` but no `@testing-library/user-event` (`ugrep` for the import string returns zero hits). The 225 component/hook tests use `fireEvent` or invoke handlers directly.
+
+**KB floor:** `10-testing.md` §1 quotes Testing Library's mantra: *"the more your tests resemble the way your software is used, the more confidence they can give you."* `user-event` is the realistic-interaction primitive: it dispatches the full sequence of events a real user produces (`keydown` → `beforeinput` → `input` → `keyup` for a typed character, focus/blur for tab, paste-with-clipboard for paste). `fireEvent` dispatches a single event and skips the intermediate steps — which means tests can pass while real user interaction breaks.
+
+**Why it matters:** The command palette is the canonical example. [apps/web/src/components/command-palette-dialog.test.tsx](../../../apps/web/src/components/command-palette-dialog.test.tsx) tests the keyboard shortcut and filter behaviour. `fireEvent.keyDown(document, { key: 'k', metaKey: true })` opens the dialog correctly in tests; a real `cmd+k` in Chrome triggers focus + IME / shortcut handling that `fireEvent` skips. user-event's `userEvent.keyboard('{Meta>}k{/Meta}')` matches real browser behaviour.
+
+The grammar parser in `parse-palette-verb` is also a typing flow; tests that exercise it via `fireEvent.change(input, { target: { value: 'foo' } })` don't fire the per-character handlers a real typist would, masking debouncing or focus-shift bugs.
+
+**Tension with Start:** None.
+
+**How to apply:** One commit. `pnpm --filter @vyoh/web add -D @testing-library/user-event`. The migration is opportunistic — new tests get `userEvent.setup()` + `await user.click(...)` / `await user.keyboard(...)` from the start; existing tests get migrated when they're touched for other reasons. No big-bang rewrite needed.
+
+**Effort:** ~5 min to add the dep. Per-test migration is per-test.
+
+### Gap 27 — `apps/api` vitest only includes `*.spec.ts`; web includes both `.test.` and `.spec.`. Silent-skip risk on an api test accidentally named `.test.ts`
+
+**Current state:**
+
+- [apps/api/vitest.config.ts:12](../../../apps/api/vitest.config.ts#L12) — `include: ["src/**/*.spec.ts"]`
+- [apps/web/vite.config.ts:65](../../../apps/web/vite.config.ts#L65) — `include: ["src/**/*.{test,spec}.{ts,tsx}"]`
+- [packages/shared/vitest.config.ts:6](../../../packages/shared/vitest.config.ts#L6) — `include: ["src/**/*.{test,spec}.ts"]`
+
+api uses Nest's `.spec.ts` convention, web/shared use Vitest's `.test.ts` convention. The configs encode that — *but the api include is `.spec.ts` ONLY*, so an api file accidentally named `foo.test.ts` is silently un-run. Today 0 api files match `.test.ts` so this is latent rather than active, but the next session that copies a test pattern from web into api could trip it without any failure signal.
+
+**KB floor:** `10-testing.md` §2 — "Pick one definition per repo and document it." The same logic applies to file naming; consistency across the monorepo prevents the silent-skip class of bug.
+
+**Why it matters:** This is a hygiene gap, not a correctness gap today. The right fix is to broaden the include to `.{test,spec}.ts` everywhere, accepting both conventions. The cost is zero (no existing tests are renamed; future tests can use either suffix).
+
+**Tension with Start:** None.
+
+**How to apply:** One commit. Change [apps/api/vitest.config.ts:12](../../../apps/api/vitest.config.ts#L12) include to `["src/**/*.{test,spec}.ts"]`. Run `pnpm --filter @vyoh/api test` — expected: identical test count (no `.test.ts` files exist today). The change is purely a future-proofing one.
+
+**Effort:** ~5 min.
+
+### Round 7 non-gaps (worth knowing, no action)
+
+These are strong-adoption signals confirming the testing stack is correctly modern:
+
+- **Vitest 4.1 is fully adopted.** All three workspaces on `vitest ^4.1.5` + `@vitest/coverage-v8 ^4.1.6`. Matches KB §3 baseline (4.0 Dec 2025, 4.1 line is current as of April 2026).
+- **happy-dom is the correct env choice.** Lighter than jsdom, well-supported in vitest 4. KB §3 doesn't prescribe one over the other; both are fine.
+- **jest-axe usage is exactly the documented pattern.** [apps/web/src/components/accessibility.test.tsx](../../../apps/web/src/components/accessibility.test.tsx) uses `configureAxe` with the `color-contrast` + `aria-hidden-focus` carve-outs that KB §8 explicitly calls out as the happy-dom standard. The convention is also enshrined in [docs/repo-conventions.md § "Axe-scan new interactive components"](../repo-conventions.md).
+- **Snapshot use is restrained and correct.** Exactly 1 file uses snapshots: [apps/web/src/lol/_shared/static/rich-description.snapshots.test.ts](../../../apps/web/src/lol/_shared/static/rich-description.snapshots.test.ts). Inline snapshots, drift-detection use case (wiki HTML through sanitiser), explanatory comments on every fixture's source. Matches KB §13 "useful when" pattern exactly — not debt.
+- **Same-commit test enforcement is already a convention.** [docs/repo-conventions.md § "New interactive surfaces get a test in the same commit"](../repo-conventions.md) + [feedback_test_alongside_code](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_test_alongside_code.md). KB §1's trophy-shape recommendation depends on this; the project enforces it.
+- **API's `oxc: false` in [apps/api/vitest.config.ts:10](../../../apps/api/vitest.config.ts#L10) is deliberate and correct.** Already noted in Round 6 non-gaps — Nest decorator metadata needs SWC, oxc doesn't yet emit it. Carries over to the testing audit as a non-issue.
+- **API's `Logger.overrideLogger(false)` in [apps/api/test/setup.ts:4](../../../apps/api/test/setup.ts#L4)** is the canonical fix for the "NestJS Logger floods test output" gotcha noted in [CLAUDE.md "tokf test filters suite-level results but not per-test framework-logger output"](../../../CLAUDE.md). Already handled.
+- **Codecov integration is present.** [.github/workflows/ci.yml:46-53](../../../.github/workflows/ci.yml#L46-L53) uploads three lcov files with workspace flags. Coverage trend is observable per-PR.
+- **No `vi.fn()`-as-component-mock patterns.** The mock surface is restrained to module-level `vi.mock('@tanstack/react-router', ...)` and `vi.mock('@/identity/use-me', ...)` — exactly the boundary the KB §3 mocking section recommends ("mock at the module boundary, not the component boundary").
+- **`vi.useFakeTimers` usage is bounded.** 15 sites total; not a "every test uses fake timers" smell. The KB §3 fake-timers gotcha (async + fake-timers deadlock) is the kind of thing to watch but no specific finding today.
+- **No mutation testing today is the right default for this project shape.** Stryker pays off on pure-logic packages with rich branching (parsers, formatters, financial calcs) — `@vyoh/shared` has some of this profile (sanitize-rich-html, parse-palette-verb, rank-history) but the cost-vs-signal at this codebase size doesn't justify it yet. Re-evaluate when one of those modules gets a public-npm extraction (per [case-study-topics.md](case-study-topics.md)).
+- **No property-based testing today is a soft gap.** `parse-palette-verb` (encode/decode round-trip), `sanitize-rich-html` (idempotency), and `strip-wikitext` (idempotency, no-HTML-survives) are all classic fast-check candidates. Not promoted to a numbered gap because the existing unit tests are strong and the marginal catch rate is unknown for these specific functions. Treat as a "consider when next touching that module" nudge rather than a do-now item.
+- **No OpenAPI contract testing today.** The api is a Nest 11 service that doesn't expose an OpenAPI spec; the web hits it with hand-typed wrappers around `@vyoh/shared` types. Could become a gap if a third consumer joins (e.g. a future React Native app, or a public api for portfolio purposes). Defer until then.
+
+### Round 7 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **T — Coverage thresholds + include-pattern unification + user-event dep** | #24, #26, #27 | ~30 min | Ship now, atomic |
+| **U — MSW handler set + first 5-10 file migrations** | #20 (infra) | ~2h | Ship now, infra commit; mechanical fan-out follows |
+| **V — MSW fan-out across remaining 15 files** | #20 (rest) | ~2-3h | Multi-commit, incremental; can interleave with feature work |
+| **W — Playwright minimal config + 5-7 axe-clean smoke tests + CI E2E job** | #22 | ~3-4h | Ship after Bundle U (MSW handlers reusable in Playwright via service-worker mode if desired later) |
+| **X — Visual regression on splash + 6-8 high-stakes surfaces** | #21 | ~2-3h | Ship after Bundle W (uses Playwright's `toHaveScreenshot()`) |
+| **Y — Storybook 9 pilot during next UI-arc pickup** | #23 | ~3-4h pilot | Defer until next UI-arc starts; pair with that arc's components |
+| **Z — Root `vitest.config.ts` with `test.projects`** | #25 | ~45 min | Defer until Bundle X or Y creates a concrete need (browser-mode project) |
+
+Bundle ordering rationale: T is pure hygiene and atomic. U is the load-bearing infra change that unblocks both Storybook and Playwright reuse later. W can land before or after U but reading MSW handlers from the same source as web tests is the cleaner shape. X depends on W. Y is the largest single commitment and should not be standalone — pair with a UI-arc. Z is preparation for browser-mode and is dead weight until something needs it.

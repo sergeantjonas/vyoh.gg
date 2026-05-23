@@ -857,6 +857,204 @@ Not picked because Vite 8 + Rolldown is the correct slot per KB §10 for "greenf
 
 ---
 
+## Testing — evaluated alternatives, kept Vitest 4 + jest-axe; visual-regression slot opened (2026-05-24)
+
+Surfaced during the §10-testing sweep. The unit + component tiers (Vitest 4.1 + happy-dom + @testing-library/react + jest-axe) are correctly modern and not in question. This section catalogues the **visual-regression entrants** the audit ranked, plus the related test-tier entrants (MSW, Playwright, Storybook 9, user-event, fast-check, Stryker) so future sessions inherit the project-shape reasoning.
+
+The headline visual-regression decision: vyoh has a **hard-rule project requirement** that splash-art swaps need side-by-side visual proof ([feedback_splash_visual_parity](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/feedback_splash_visual_parity.md)), and 12 image families with the same wiki-primary-plus-fallback shape ([project_unified_image_fallback](../../../home/node/.claude/projects/-workspaces-vyoh-gg/memory/project_unified_image_fallback.md)). For a single-owner personal-portfolio repo with high visual stakes but no designer-in-loop, the SaaS-with-PR-UI tools (Chromatic, Argos, Percy) over-pay for their differentiator. Picked: **Playwright `toHaveScreenshot()`** for full-route + **Vitest 4 `toMatchScreenshot()`** for component-level; baselines in git.
+
+### Playwright `toHaveScreenshot()` (full-route snapshots)
+
+Status: **picked** — primary visual-regression path (gated on Gap 22 Playwright adoption)
+
+What it is: Playwright 1.59's built-in screenshot matcher. PNG baselines live alongside the test (in `__screenshots__/` by default; configurable). Diff via pixelmatch; threshold per-test via `maxDiffPixels` or `maxDiffPixelRatio`. `--update-snapshots` regenerates; git tracks the PNGs as part of the change.
+
+Why it fits vyoh:
+
+- **Free.** No SaaS subscription. The portfolio project doesn't want recurring cost for a feature the owner can review themselves.
+- **Baselines in git ARE the audit trail.** For a freelance-positioning portfolio, the PR diff showing the PNG change is exactly the visible artefact the owner wants — a future reviewer clicking through PR history sees the visual evolution of the splash backdrop as commits, which is a clearer story than a SaaS dashboard hidden behind login.
+- **Already pairs with the Playwright adoption** in Gap 22. Adopting both at once is one toolchain, not two.
+- **Self-contained per-test.** No service to authenticate against, no API token to manage, no CI secret. The infra surface is one screenshot per test, one PNG per surface in git.
+
+When right (per KB `10-testing.md` §7): personal projects, small visual surfaces (~under 50 baselines), willing to git-track PNGs, no designer-in-loop for accept/reject UI.
+
+When wrong: team scales past one engineer + one designer; baseline count crosses ~100 (git diffs of PNGs become unreadable in PR review); cross-browser matrix needed (chromium + firefox + webkit triples the baseline count).
+
+Hard rule: gate it on Gap 22 landing first. Standalone Playwright-just-for-screenshots is the wrong sequence — set up Playwright for E2E once, then add screenshots on top.
+
+### Vitest 4 `toMatchScreenshot()` (component-level snapshots)
+
+Status: **picked** — secondary visual-regression path, component-level (paired with Playwright)
+
+What it is: Vitest 4.0's browser-mode snapshot matcher. Runs in a real browser via the Playwright provider; baselines live next to the component test. Same baseline-in-git model as Playwright's matcher.
+
+Why it fits vyoh: complements the Playwright route-level coverage with **component-fixture-level** screenshots. The splash backdrop, the champion card, the match-card asset row are exactly the kind of design-system primitives that change in ways a route-level screenshot wouldn't isolate (the splash might look fine on `/lol/$accountSlug` because the surrounding content masks a backdrop regression). Component-level baselines isolate the primitive.
+
+When right: design-system primitives with variant matrices; components where the wrapper context matters less than the component itself (a card with 5 visual states is 5 baselines, not 5 page navigations).
+
+When wrong: components whose visual behaviour depends on layout the parent provides (sticky positioning, container queries, scroll-driven). Route-level is the right tier for those.
+
+Hard rule: needs the browser-mode project in vitest config (per Gap 25). Don't try to make this work in happy-dom — it requires real layout.
+
+### Chromatic
+
+Status: **rejected** for vyoh; reconsider only if a designer joins or Storybook (Gap 23) lands and the team grows
+
+What it is: SaaS visual regression by Chromatic Inc. (now part of Storybook Inc.), per-snapshot cost with a free tier. Best-in-class Storybook integration: every story becomes a snapshot automatically; branch-aware UI lets reviewers accept/reject diffs per snapshot with audit history. PR comments link directly to the diff viewer.
+
+Why rejected:
+
+- **Differentiator is the design-review PR UI.** That UI matters when a designer reviews diffs separately from engineering — they need to click through "approve this 1px shift, reject this color drift" per snapshot without engineering involvement. vyoh has no designer in the loop. The differentiator pays for nothing.
+- **Per-snapshot pricing** at the splash-art surface scale (12 image families × multiple champions × multiple variants per family) becomes meaningful fast. For a personal portfolio the cost is hard to justify.
+- **No Storybook today** (Gap 23). Chromatic's Storybook integration depth would matter only after Storybook lands; pre-Storybook, the integration story is identical to any other tool.
+
+Triggers to reconsider:
+
+1. **Designer joins the project** (most plausibly a freelance collaborator) and explicitly needs the per-snapshot accept/reject UI without writing PR comments.
+2. **Storybook 9 (Gap 23) lands** AND the story count crosses ~30 such that Chromatic's "every story is a snapshot" automation becomes a meaningful labour-saver over Playwright/Vitest screenshot tests.
+3. **vyoh.gg becomes a team product** with regular non-engineering review of visual changes.
+
+Aesthetic + commercial note: Chromatic's Storybook acquisition means betting on it ties the visual-regression story to Storybook's continued direction. That's mild — Storybook is itself well-funded — but worth flagging.
+
+### Argos
+
+Status: **rejected** for vyoh; the closest "if not Chromatic, then" alternative — reconsider for the same triggers as Chromatic
+
+What it is: SaaS visual regression with a generous free tier for OSS, focused on monorepos. PR UI for accept/reject per snapshot, branch-aware approval. Modern alternative to Chromatic; teams sometimes prefer its PR-comment UX.
+
+Why rejected for vyoh: same logic as Chromatic — the differentiator is the PR-bound accept/reject UI, which presupposes a non-engineering reviewer. No designer in the loop means the differentiator is wasted. The free OSS tier softens the cost angle vs Chromatic but doesn't change the fit.
+
+When right (per `10-testing.md` §7): OSS Storybook users, modern Chromatic alternative for teams that prefer Argos's PR UX.
+
+Triggers to reconsider: same as Chromatic (designer joins, Storybook + ~30 stories, team product). If those triggers fire, prefer Argos over Chromatic when:
+
+- Repo is OSS (Argos's free OSS tier is more generous).
+- Team prefers the PR-comment-style UX over Chromatic's dashboard-first UX.
+- Storybook is *not* the primary surface (Argos is more bundler-agnostic; Chromatic shines hardest on pure-Storybook flows).
+
+### Percy (BrowserStack)
+
+Status: **rejected** for vyoh
+
+What it is: SaaS visual regression, owned by BrowserStack. Generic — works with Cypress, Playwright, Storybook, Selenium. Per-snapshot cost.
+
+Why rejected:
+
+- All of Chromatic's rejection reasons apply (PR UI is the differentiator, no designer-in-loop, per-snapshot cost).
+- Percy's specific edge is **cross-tool** support — useful when a team has a Cypress E2E suite, a Playwright suite, and a Storybook all needing visual diffs in one dashboard. vyoh has none of that ecosystem split; it would adopt one of Playwright or Vitest browser-mode and stick with it.
+- BrowserStack ownership adds a vendor-stack dependency that doesn't pay off for a single-tool project.
+
+When right: a team with multiple test runners that needs one visual-regression dashboard across all of them.
+
+Trigger to reconsider: never plausibly fires for vyoh's shape. If the project ever grew into a Cypress + Playwright + Storybook stack (unlikely), Percy is the unification path — but at that point Chromatic or Argos with their better-PR-UX would still be preferred for the specifically-visual-regression slot.
+
+### Lost Pixel
+
+Status: **rejected** for vyoh
+
+What it is: OSS-core visual regression with self-hosted and SaaS options. The "own your baselines in-tree" pitch is its differentiator from Chromatic/Argos.
+
+Why rejected:
+
+- **vyoh already owns its baselines in-tree** via the Playwright/Vitest screenshot path. Lost Pixel's pitch IS the path vyoh picked — but Lost Pixel adds an extra service to install/run, while Playwright `toHaveScreenshot()` is built-in and same-baseline-shape.
+- Self-hosted infra is a non-zero burden. For a 3-package personal project the engineering cost is unjustifiable when the equivalent capability ships in Playwright.
+- The SaaS tier exists but offers no clear win over Chromatic/Argos at that point — once it's SaaS, the in-tree-baselines pitch is moot.
+
+When right: OSS project that wants in-tree baselines but doesn't already use Playwright or Vitest browser mode (e.g. a Cypress-only stack). vyoh isn't that.
+
+Trigger to reconsider: never plausibly fires.
+
+### Storybook 9 + Vitest addon
+
+Status: parked — defer until next UI-arc pickup; cross-reference Gap 23
+
+What it is: Storybook 9 (July 2025 GA) + `@storybook/addon-vitest`. Each `.stories.tsx` file becomes a Vitest test file run in headless browser mode (Playwright provider). The `play` function runs as an interaction test. Combined with `@storybook/addon-a11y` and `msw-storybook-addon`, one story drives docs + interaction tests + axe scans + (optionally) visual regression baselines.
+
+Why parked, not picked up today: gated on a UI-arc that creates new components to write stories for. A retrofit pass on the existing ~80-component tree without a current build context would be expensive and produce stories nobody reads. The right pickup point is the **next** elevation-arc that creates new design-system components — write stories alongside, and let Storybook earn its keep on real new work.
+
+Triggers to reconsider:
+
+1. **Next UI-arc starts** ([elevation-arcs.md](elevation-arcs.md) — accent system, editorial type, data viz densification, ambient home hero are all candidates). When arc work begins, the Storybook pilot pairs with it naturally; new components get stories in the same commit as the component.
+2. **A `/storybook` deploy becomes a freelance-pitch surface.** Per [CLAUDE.md](../../../CLAUDE.md) the project is explicitly freelance-positioning; a component catalogue at `/storybook` reads as "I think about components as a system" — a portfolio signal currently unavailable from the app surface. If a specific freelance opportunity surfaces where a component catalogue would help, this trigger fires early.
+3. **Visual regression scales past ~30 component baselines** AND the per-baseline accept/reject burden becomes painful. At that point Chromatic or Argos's PR UI becomes the right swap, and Storybook is the necessary precondition.
+
+### MSW (Mock Service Worker)
+
+Status: **picked** — primary network-mocking path (cross-reference Gap 20)
+
+What it is: MSW 2.14.x. One handler set runs in jsdom/happy-dom (via `@mswjs/interceptors`), in browser (via Service Worker), and in Node. Replaces the `vi.stubGlobal('fetch', ...)` ad-hoc pattern that's currently reinvented across 22 test files in [apps/web/src](../../../apps/web/src/).
+
+Why picked: handler reuse across test tiers (Vitest, Playwright, Storybook), contract-validation hook point, single source of truth for "what the api returns" in test mode. KB `10-testing.md` §6 covers it in depth.
+
+When right: any project with >5 test files that hand-stub `fetch`. vyoh has 22+ such files.
+
+Hard rule: `onUnhandledRequest: 'error'` in test setup. A test calling an un-mocked endpoint should fail loudly at the network boundary, not silently downstream.
+
+### Playwright 1.59
+
+Status: **picked** — primary E2E + visual-regression runtime (cross-reference Gap 22 + Gap 21)
+
+What it is: Playwright 1.59 (April 2026). Fixture system, locator priority (`getByRole` > `getByLabel` > `getByPlaceholder` > `getByText` > `getByTestId`), storage-state reuse, parallel/shard model. KB `10-testing.md` §4.
+
+Why picked: scroll restoration, view transitions, prefetch-on-intent, and real-browser-keyboard flows can't be tested in happy-dom. Playwright closes that tier with the canonical 2026 tool.
+
+When wrong: Component-only test coverage — Playwright Component Testing is awkward (per `10-testing.md` §4); use Vitest browser mode or Storybook 9's Vitest addon instead.
+
+Hard rules: chromium-only at the start (don't fan out to firefox/webkit until a real cross-browser bug demands it); `--retries=2` for genuine flake only — retried-but-passed is a code-review failure; trace on first retry, not always (keeps CI artifacts small).
+
+### @testing-library/user-event
+
+Status: **picked** — to add to apps/web devDeps (cross-reference Gap 26)
+
+What it is: Realistic-interaction primitive paired with @testing-library/react. Dispatches the full event sequence (keydown → beforeinput → input → keyup for a typed character) that `fireEvent` skips.
+
+Why picked: tests should resemble real user interaction; `fireEvent` skips intermediate events that real browsers fire. The command palette keyboard flow is the canonical case — `fireEvent.keyDown(document, { key: 'k', metaKey: true })` passes today, while real `cmd+k` exercises focus + IME paths that diverge.
+
+When right: any project with interactive components (vyoh has many).
+
+Hard rule: use `userEvent.setup()` per test (creates a fresh instance with its own clock/clipboard state) — the older `userEvent.click(...)` static API is deprecated.
+
+### fast-check
+
+Status: parked — soft recommendation, not numbered as a gap
+
+What it is: Property-based testing library, integrates with Vitest. Generates random inputs against an invariant; shrinks failing cases to minimal reproducers. KB `10-testing.md` §11.
+
+Why parked: vyoh has classic property-test candidates (`parse-palette-verb` for parser round-trip, `sanitize-rich-html` for idempotency, `strip-wikitext` for "no HTML survives"), but the existing unit tests on those modules are strong. The marginal catch rate of adding properties is unknown without running it, and the existing test surface is already an audit-finding for "owner ran a multi-day sweep."
+
+Triggers to reconsider:
+
+1. **A bug ships in `parse-palette-verb` / `sanitize-rich-html` / `strip-wikitext` that an example test missed but a property test would have caught.** Use that bug as the seed property; add fast-check at that point.
+2. **One of those modules gets extracted to public npm** (per [case-study-topics.md](case-study-topics.md)). Public-consumption code warrants property coverage on round-trip invariants.
+
+Hard rule: don't use fast-check for rendering — a "render `<Foo prop=X />` property test" is just a slow component test (per `10-testing.md` §11 "where it doesn't").
+
+### Stryker (mutation testing)
+
+Status: parked — wrong scale for vyoh today
+
+What it is: Mutation testing for JS — mutates source, runs the suite, reports the percentage of mutants killed. KB `10-testing.md` §9.
+
+Why parked:
+
+- Mutation testing pays off on pure-logic packages with rich branching. `@vyoh/shared` has some of this profile but is small (8 test files); the cost-vs-signal is below threshold.
+- Component tests don't benefit (mutations land in JSX/event-handler glue where killing requires a full integration test).
+- The owner-ran multi-day coverage sweep means tests are already well-asserted; mutation testing's value is highest when coverage is high but assertion quality is suspect, which is not vyoh's state.
+
+Triggers to reconsider: same as fast-check's #2 — a `@vyoh/shared` module gets extracted to public npm. At that point the consumer surface warrants the assertion-quality ratchet.
+
+### Fishery / @anatine/zod-mock (test data factories)
+
+Status: not needed today — handwritten fixtures are still small enough
+
+What they are: typed factory libraries for test data. Fishery is FactoryBot-inspired (define factories with overrides). zod-mock generates data from Zod schemas.
+
+Why not needed: current test fixtures are mostly inline literals (10-30 line `MatchSummary` / `SteamGame` objects) duplicated across files. Painful at scale, fine at 22 files. The MSW handler set (Gap 20) is the right place to consolidate, and once that lands, factories become an obvious follow-up if duplication persists.
+
+Trigger to reconsider: after MSW lands, audit how much duplication remains in the handler set. If the handler set carries >5 hand-rolled `MatchSummary` variants, adopt Fishery (project has no Zod schemas in `@vyoh/shared` today — uses raw TypeScript types — so Fishery is the better-fit option than zod-mock).
+
+---
+
 ## How to use this section
 
 Future sessions should consult this file in two directions:

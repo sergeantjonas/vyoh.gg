@@ -60,7 +60,7 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 | 07 | build-tooling | ✅ refreshed | 2026-05-23 | Project-first sweep + KB refresh. Project outputs: Round 6 in frontend-2026-gaps.md (Gap 17 Biome 1.9→2.x, Gap 18 no pnpm catalogs despite 3-site duplicate pins, Gap 19 missing `sideEffects: false` on `@vyoh/shared` barrel), 2 quick-wins (explicit `build.target`, `sideEffects: false` one-liner), new "Build tooling — evaluated alternatives" section in library-shortlist.md (Rolldown standalone, Rspack/Rsbuild, Turbopack, Bun runtime/installer, Deno 2, Turborepo/Nx/Moon, Oxlint, Changesets, tsup). KB outputs: §1.2 Rolldown-native `@rolldown/plugin-babel` for React Compiler, §1.6 Bun deferred-by-default with three triggers + Anthropic caveat + Deno 2 treatment, §3.3 sideEffects on workspace-internal packages, §5.1 catalogs trigger (2+ workspace pins), §5.2 task-runner threshold table + positioning-vs-engineering callout, new §11 Lint and format (Biome 2 / Oxlint / ESLint slot-split with picker), README defaults updated for Build / Lint+format / Package manager / Monorepo / always-skip lists. |
 | 08 | typescript | ⏸️ skip (spec-driven) | — | TS 7 / Corsa status is the main update. Citation refresh when Corsa hits beta/GA. |
 | 09 | accessibility | ⏸️ skip (spec-driven) | — | WCAG 3 status, EAA compliance dates, screen-reader matrix. Citation refresh annually or when WCAG 3 candidate-recommendation lands. |
-| 10 | testing | 🔵 **Tier 2** | — | Vitest 4 / Playwright are stable. Visual regression has new entrants worth ranking: Chromatic vs Percy vs Argos vs Lost Pixel. Storybook 9 + test-runner integration shifting. Lower variance than Tier 1. |
+| 10 | testing | ✅ refreshed | 2026-05-24 | Project-first sweep + KB refresh. Project outputs: Round 7 in frontend-2026-gaps.md (Gaps 20–27: MSW gap with 22 hand-rolled fetch-stub sites, no visual regression despite splash-parity hard rule, no E2E tier, Storybook deferred, coverage thresholds gate `lines` only, no `test.projects`, no user-event, api include-pattern inconsistency), 3 testing-hygiene quick-wins, new "Testing — evaluated alternatives" section in library-shortlist.md with full visual-regression ranking (Playwright/Vitest in-tree picked; Chromatic/Argos/Percy/Lost Pixel rejected with project-shape rationale; Storybook 9/fast-check/Stryker/Fishery parked with triggers). KB outputs: §7 visual regression rewritten with per-entrant when-right/when-wrong/hard-rules + two-question decision tree (reviewer presence → tool family; Storybook presence → which SaaS), §6 MSW adoption-trigger (5+ files threshold for `vi.stubGlobal("fetch", ...)` reinvention), §5 Storybook deferred-by-default "don't retrofit, pair with next UI-arc" trigger, §14 recommended-stack visual row rewritten reviewer-driven, README decision table gains "Visual regression — which tool?" row + sharpened MSW + Storybook rows, Portfolio shape Tests cell expanded with MSW trigger + in-tree visual regression. |
 | 11 | i18n | ⏸️ skip (mostly spec-driven) | — | ICU MessageFormat 2, Intl APIs. Citation refresh when MF2 GA lands. |
 | 12 | security | ⏸️ skip (spec-driven) | — | CSP, Trusted Types, SBOM, provenance. Citation refresh when OWASP top 10 updates. |
 | 13 | seo | ⏸️ light refresh worth doing | — | AI crawler landscape (ChatGPT-Search, Perplexity, ClaudeBot tokens) shifts faster than W3C specs. Not Tier 1 because the moves are small and additive, but worth a 30-min sweep when convenient. |
@@ -74,13 +74,10 @@ A complete sweep touches **both layers**. A sweep that produces only KB-side out
 1. **17 — cross-platform-edge-auth** *(Tier 2)*
    Pick up opportunistically when [owner-auth.md](owner-auth.md) gets reopened or the [hosting.md](hosting.md) decisions firm up. Don't do it speculatively.
 
-2. **10 — testing** *(Tier 2)*
-   Lowest variance among the queue. Visual-regression ranking is the main payoff. Pick up when a project's testing strategy is being scoped.
-
-3. **13 — seo** *(light refresh)*
+2. **13 — seo** *(light refresh)*
    30-min sweep when convenient. AI crawler tokens are the moving piece.
 
-Tier 1 is now complete (15 / 05 / 07 all ✅ refreshed 2026-05-23). The bulk of the high-variance KB churn is captured. Tier 2 + skips can rotate on slower cadence.
+Tier 1 is complete (15 / 05 / 07 all ✅ refreshed 2026-05-23). Tier 2 testing (10) is now ✅ refreshed 2026-05-24. Only Tier 2 cross-platform-edge-auth and the light SEO refresh remain in the active queue; everything else is deferred or spec-driven.
 
 ## How to start a sweep session
 
