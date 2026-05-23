@@ -54,6 +54,9 @@ export default defineConfig({
     port: 2009,
     strictPort: true,
   },
+  optimizeDeps: {
+    include: ["cmdk"],
+  },
   test: {
     environment: "happy-dom",
     setupFiles: ["./src/test-setup.ts"],
