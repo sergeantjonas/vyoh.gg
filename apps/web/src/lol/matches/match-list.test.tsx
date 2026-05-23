@@ -12,6 +12,7 @@ import { MatchList } from "./match-list";
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,
   useRouterState: () => false,
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock("@tanstack/react-virtual", () => ({

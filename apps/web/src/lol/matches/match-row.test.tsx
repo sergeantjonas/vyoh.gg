@@ -10,6 +10,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => (
     <a {...(props as Record<string, string>)}>{children}</a>
   ),
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock("@/lol/champions/use-champions", () => ({

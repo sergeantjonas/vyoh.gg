@@ -36,6 +36,16 @@ export function supportsViewTransitions(): boolean {
  * unaffected because it never invokes this API.
  *
  * Removed in production builds via the `import.meta.env.DEV` guard.
+ *
+ * Opt-in via `localStorage.setItem('vt-debug', '1')`. NOT auto-installed
+ * because globally patching `document.startViewTransition` shifts module-
+ * load and effect-timing in dev enough to disrupt downstream code that
+ * depends on stable frame ordering — the match-list scroll-restore pin
+ * loop is one such consumer (its 600 ms RAF window lined up cleanly
+ * before the logger was auto-installed, regressed once we patched).
+ * Prod builds were unaffected (the whole branch was stripped) but the
+ * dev regression was real and confusing. Keep this off by default; enable
+ * it deliberately when diagnosing a VT issue, then disable it again.
  */
 function installViewTransitionLifecycleLogger(): void {
   if (typeof document === "undefined") return;
@@ -95,7 +105,16 @@ function installViewTransitionLifecycleLogger(): void {
 }
 
 if (import.meta.env.DEV) {
-  installViewTransitionLifecycleLogger();
+  try {
+    if (
+      typeof window !== "undefined" &&
+      window.localStorage?.getItem("vt-debug") === "1"
+    ) {
+      installViewTransitionLifecycleLogger();
+    }
+  } catch {
+    // Privacy-mode browsers throw on localStorage access — silently skip.
+  }
 }
 
 /**

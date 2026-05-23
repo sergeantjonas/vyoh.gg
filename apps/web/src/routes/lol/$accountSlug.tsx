@@ -167,7 +167,6 @@ function AccountLayout() {
   const matchesPathPrefix = `${matchesPath}/`;
   const championsPathForKey = `/lol/${accountSlug}/champions`;
   const isMatchDetail = isMatchDetailFn(pathname, accountSlug);
-  const isChampionDetail = isChampionDetailFn(pathname, accountSlug);
   // Saved-scroll/active-match state is only meaningful while we're inside
   // the matches subtree (list ↔ detail). Once the user navigates to Trends
   // or Champions, that state is stale — dropping it stops the back-nav
@@ -175,12 +174,12 @@ function AccountLayout() {
   const isInMatchesSubtree = isInMatchesSubtreeFn(pathname, accountSlug);
   const isInChampionsSubtree = isInChampionsSubtreeFn(pathname, accountSlug);
 
-  // Coarsen the AnimatePresence key so list ↔ detail navigations reuse the
-  // same wrapping <m.div> instead of triggering an enter/exit pair. Two
-  // reasons:
+  // Coarsen the AnimatePresence key so list ↔ detail navigations within a
+  // section reuse the same wrapping <m.div> instead of triggering an
+  // enter/exit pair. Three reasons:
   // 1. Match-detail tabs (/recap, /your-game, /timeline) shouldn't remount
   //    the shell on every tab click — that would reset bodyReady, show the
-  //    skeleton, and re-run entry animations. Strip the trailing tab.
+  //    skeleton, and re-run entry animations.
   // 2. View Transitions need `view-transition-name` to be unique per
   //    snapshot. When the key changes, AnimatePresence keeps both the
   //    exiting and entering m.div mounted briefly. Each contains an
@@ -188,13 +187,16 @@ function AccountLayout() {
   //    (TanStack's API exposes no per-instance location binding), both
   //    render the destination component at NEW-snapshot capture — two
   //    heroes with the same view-transition-name → VT collision.
-  //    Coarsening to the section root keeps the m.div stable across list ↔
-  //    detail and detail ↔ detail navs, so Outlet just re-renders in place.
+  // 3. Same applies to back-nav from detail to list: list page would
+  //    enter while detail exits, with both Outlets resolving to the same
+  //    route during reconciliation.
+  // Coarsening to the section root keeps the m.div stable across list ↔
+  // detail and detail-tab navs, so Outlet just re-renders in place.
   // Section-level navigations (between matches/champions/trends/etc) still
   // change the key, so the slide transition still fires correctly.
-  const slideKey = isMatchDetail
-    ? matchesPathPrefix + (pathname.slice(matchesPathPrefix.length).split("/")[0] ?? "")
-    : isChampionDetail
+  const slideKey = isInMatchesSubtree
+    ? matchesPath
+    : isInChampionsSubtree
       ? championsPathForKey
       : pathname;
 

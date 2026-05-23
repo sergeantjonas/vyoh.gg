@@ -72,7 +72,18 @@ export function MatchList({
   });
   const seenCountRef = useRef(restoredScrollY > 0 ? visibleCount : 0);
   const didInitialScrollRef = useRef(false);
-  const didPinRef = useRef(false);
+  // Guard pattern: marks complete ONLY after the pin loop has actually run
+  // (any RAF tick fired, or the 600 ms window naturally expired). Critically,
+  // we do NOT mark complete inside the effect body just because we set up the
+  // loop — in React StrictMode (dev), the mount-cleanup-remount cycle can run
+  // before the first RAF fires, which means the loop's `cancelled` flag is
+  // tripped before any work happens. If we'd marked complete in the body
+  // (the old `didPinRef.current = true` pattern), the StrictMode remount
+  // would see the guard set and skip restarting the loop — leaving scroll
+  // wherever it landed in the body's initial scrollTo call (often clamped
+  // to 0 when the virtualizer's total-size container shrinks momentarily
+  // during the setScrollMargin-triggered re-render).
+  const pinCompletedRef = useRef(false);
   if (!didInitialScrollRef.current && restoredScrollY > 0) {
     didInitialScrollRef.current = true;
     mainScrollRef.current?.scrollTo(0, restoredScrollY);
@@ -87,23 +98,38 @@ export function MatchList({
     }
     // Guard against React 19 `reappearLayoutEffects` re-firing this hook on
     // Activity/Suspense reveal (the replay would re-assert the saved
-    // scrollTop *after* useScrollResetOnNav reset it on forward nav). Match
-    // and champion lists share the same guard for parity.
-    if (didPinRef.current) return;
+    // scrollTop *after* useScrollResetOnNav reset it on forward nav).
+    if (pinCompletedRef.current) return;
     if (restoredScrollY <= 0 || !container) return;
-    didPinRef.current = true;
     const target = restoredScrollY;
     container.scrollTo(0, target);
     let cancelled = false;
+    let pinTicks = 0;
     const pinUntil = performance.now() + 600;
     const pin = () => {
-      if (cancelled || performance.now() > pinUntil) return;
+      if (cancelled) return;
+      if (performance.now() > pinUntil) {
+        // Natural expiration → pin loop succeeded (or gave up after 600ms).
+        // Mark complete so re-fires from Activity/Suspense don't re-assert
+        // the saved scroll on top of a newer user scroll.
+        pinCompletedRef.current = true;
+        return;
+      }
+      pinTicks++;
       if (Math.abs(container.scrollTop - target) > 1) container.scrollTo(0, target);
       requestAnimationFrame(pin);
     };
     requestAnimationFrame(pin);
     return () => {
       cancelled = true;
+      // If the loop got at least one RAF tick before being cancelled, count
+      // that as "ran" and mark complete. This handles the case where the user
+      // navigates away mid-pin (real cleanup). StrictMode's pre-RAF cleanup
+      // leaves pinTicks at 0, which intentionally does NOT mark complete —
+      // remount restarts the loop.
+      if (pinTicks > 0) {
+        pinCompletedRef.current = true;
+      }
     };
   }, [restoredScrollY]);
 

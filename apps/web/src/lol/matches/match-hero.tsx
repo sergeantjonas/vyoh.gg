@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
 import {
   ChampionCardChrome,
@@ -95,11 +96,21 @@ export function MatchHero({
     };
   }, []);
 
+  // Destination of the whole-card morph kicked off in match-row's onClick.
+  // Stable per matchId. Slidekey coarsening in $accountSlug.tsx guarantees
+  // the source row has unmounted before NEW-snapshot capture, so the name
+  // is unique per snapshot. Deep-link arrivals still apply the name but
+  // get the default crossfade since no source was named on the previous
+  // page.
+  const viewTransitionName = supportsViewTransitions()
+    ? `match-${summary.matchId}`
+    : undefined;
+
   return (
     <div
       ref={heroRef}
       data-match-card={summary.matchId}
-      style={championCardStyle(summary.champion)}
+      style={{ ...championCardStyle(summary.champion), viewTransitionName }}
       className={cn(championCardBaseClassName, "z-30 shadow-2xl shadow-black/50")}
     >
       <ChampionCardChrome champion={summary.champion} win={summary.win} />

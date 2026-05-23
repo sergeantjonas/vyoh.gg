@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import {
@@ -11,7 +12,7 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { formatDuration } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
@@ -51,6 +52,7 @@ export function MatchRow({
     useActiveMatch();
   const championName = useChampionName();
   const reduced = useReducedMotion();
+  const navigate = useNavigate();
   const cardRef = useRef<HTMLDivElement>(null);
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef.
@@ -119,10 +121,42 @@ export function MatchRow({
             onMouseEnter={() => onCardHover?.(match.champion)}
             onPointerDown={() => {
               saveListScroll();
+              setActiveMatch(match.matchId);
+              if (supportsViewTransitions()) return;
+              // Fallback path: capture origin rect for the manual rect-morph.
+              // VT path handles its own snapshot via the card's view-
+              // transition-name applied in onClick below.
               const rect = cardRef.current?.getBoundingClientRect() ?? null;
               if (rect)
                 setOriginRect({ matchId: match.matchId, rect, direction: "forward" });
-              setActiveMatch(match.matchId);
+            }}
+            onClick={(e) => {
+              // VT path: apply `view-transition-name` to the card via ref so
+              // it is present at OLD-snapshot capture (synchronous with
+              // startViewTransition), then clear it inside the callback
+              // BEFORE awaiting navigation so NEW-snapshot capture doesn't
+              // see the source. Mirrors champion-table's pattern. The
+              // matches slideKey is coarsened in $accountSlug.tsx so the
+              // destination hero is the only element with the name at
+              // NEW-snapshot time.
+              if (!supportsViewTransitions()) return;
+              if (e.button !== 0) return;
+              if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+              const el = cardRef.current;
+              if (!el) return;
+              e.preventDefault();
+              const name = `match-${match.matchId}`;
+              el.style.viewTransitionName = name;
+              const doc = document as Document & {
+                startViewTransition?: (cb: () => Promise<void>) => unknown;
+              };
+              doc.startViewTransition?.(async () => {
+                if (cardRef.current) cardRef.current.style.viewTransitionName = "";
+                await navigate({
+                  to: "/lol/$accountSlug/matches/$matchId",
+                  params: { accountSlug, matchId: match.matchId },
+                });
+              });
             }}
             className="block"
           >
