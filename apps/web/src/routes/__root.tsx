@@ -46,7 +46,7 @@ function RootLayout() {
               ref={(el) => {
                 mainScrollRef.current = el;
               }}
-              className="flex-1 overflow-y-auto [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
+              className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary
