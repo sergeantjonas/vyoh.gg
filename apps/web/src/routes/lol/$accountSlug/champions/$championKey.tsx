@@ -41,7 +41,7 @@ import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
 import { formatPlaytimeFromSeconds } from "@vyoh/shared";
-import { type MotionStyle, m, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Line,
@@ -312,11 +312,14 @@ function ChampionDetailPage() {
           animate={{ opacity: stripVisible ? 0 : 1, y: stripVisible ? -8 : 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
-          <m.div
+          {/* Plain div, not m.div with layoutId — Motion's layoutId morph
+              would compete with the rect-based el.animate() forward consume
+              above and produce the "fast / broken" feel. Match-hero uses the
+              same plain wrapper for the same reason. */}
+          <div
             ref={cardMorphRef}
             data-champion-card={alias}
-            layoutId={`champ-card-${championKey}`}
-            style={championCardStyle(alias) as unknown as MotionStyle}
+            style={championCardStyle(alias)}
             className="relative isolate h-52 overflow-hidden rounded-lg border"
           >
             <ChampionCardChrome champion={alias} />
@@ -395,7 +398,7 @@ function ChampionDetailPage() {
               </div>
               <WinRateBar winRate={detail.winRate} className="mt-2" />
             </div>
-          </m.div>
+          </div>
         </m.div>
       </div>
 

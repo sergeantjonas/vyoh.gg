@@ -17,7 +17,7 @@ import {
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
 import { formatPlaytimeFromSeconds } from "@vyoh/shared";
-import { type MotionStyle, type Variants, m, useReducedMotion } from "motion/react";
+import { type Variants, m, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
@@ -111,9 +111,8 @@ export function ChampionTable({
     };
   }, [restoredScrollY]);
   // First occurrence per champion in `stats` (sorted by games desc) is the
-  // primary role — that row keeps the shared `champ-card-{champion}` layoutId
-  // for the detail-page morph; sibling rows get role-suffixed ids and just
-  // fade in via the existing variant.
+  // primary role — that row owns the rect-morph source/destination for the
+  // detail-page hero; sibling rows just render normally.
   const primaryRoleByChampion = useMemo(() => {
     const map = new Map<string, RolePosition>();
     for (const s of stats) {
@@ -131,10 +130,10 @@ export function ChampionTable({
   return (
     <m.ul {...listMotionProps} className="flex flex-col gap-3">
       {sorted.map((s) => {
+        // Primary row = first occurrence of this champion across sorted-by-games
+        // rows. Only the primary row sources/consumes the rect-morph against
+        // the detail hero; sibling rows just render normally.
         const isPrimary = primaryRoleByChampion.get(s.champion) === s.position;
-        const layoutId = isPrimary
-          ? `champ-card-${s.champion.toLowerCase()}`
-          : `champ-card-${s.champion.toLowerCase()}-${s.position.toLowerCase()}`;
         const info = champions.data?.get(s.champion.toLowerCase());
         const parentClasses = info?.modernClasses ?? [];
         const subclasses = info?.modernSubclasses ?? [];
@@ -145,7 +144,6 @@ export function ChampionTable({
             key={`${s.champion}-${s.position}`}
             s={s}
             isPrimary={isPrimary}
-            layoutId={layoutId}
             parentClasses={parentClasses}
             subclasses={subclasses}
             accountSlug={accountSlug}
@@ -162,7 +160,6 @@ export function ChampionTable({
 function ChampionTableRow({
   s,
   isPrimary,
-  layoutId,
   parentClasses,
   subclasses,
   accountSlug,
@@ -172,7 +169,6 @@ function ChampionTableRow({
 }: {
   s: ChampionStats;
   isPrimary: boolean;
-  layoutId: string;
   parentClasses: string[];
   subclasses: string[];
   accountSlug: string;
@@ -191,8 +187,8 @@ function ChampionTableRow({
 
   // Back-nav: when this row is the destination of a back-navigation, snap to
   // the detail hero's last-known rect and CSS-transition back to the natural
-  // position. Only the primary row owns `champ-card-{alias}` and so matches
-  // the breadcrumb's queryselector — non-primary rows skip this entirely.
+  // position. Only the primary row is the morph counterpart of the detail
+  // hero — non-primary rows skip this entirely.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
   useLayoutEffect(() => {
     if (!isPrimary) return;
@@ -251,11 +247,10 @@ function ChampionTableRow({
           params={{ accountSlug, championKey: alias.toLowerCase() }}
           onMouseEnter={() => onCardHover?.(alias)}
           onPointerDown={() => {
-            // Origin rect only fires from the primary row — its layoutId
-            // (`champ-card-{alias}`) matches the detail-hero, so the
-            // explicit rect animation is consistent with Motion's morph.
-            // Non-primary rows still seed activeChampion + scroll memory so
-            // the return trip lands on the right row.
+            // Origin rect only fires from the primary row — it's the morph
+            // counterpart of the detail hero. Non-primary rows still seed
+            // activeChampion + scroll memory so the return trip lands on
+            // the right row.
             saveListScroll();
             if (isPrimary) {
               const rect = cardRef.current?.getBoundingClientRect() ?? null;
@@ -265,10 +260,13 @@ function ChampionTableRow({
             setActiveChampion(alias);
           }}
         >
-          <m.div
+          {/* Plain div, not m.div — Motion's layoutId morph would compete
+              with the rect-based el.animate() in useLayoutEffect above and
+              produce the "fast / broken" feel. Match-row uses the same plain
+              wrapper for the same reason. */}
+          <div
             ref={cardRef}
-            layoutId={layoutId}
-            style={championCardStyle(alias) as unknown as MotionStyle}
+            style={championCardStyle(alias)}
             className={championCardClassName}
           >
             <ChampionCardChrome champion={alias} />
@@ -338,7 +336,7 @@ function ChampionTableRow({
               </div>
               <WinRateBar winRate={s.winRate} />
             </div>
-          </m.div>
+          </div>
         </Link>
       </CardTilt>
     </m.li>

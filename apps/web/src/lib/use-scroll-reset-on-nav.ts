@@ -1,29 +1,29 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { useLayoutEffect, useRef } from "react";
 
+export type ScrollResetSkip = { fromPrefix: string; toExact: string };
+
 /**
  * Resets <main> scroll to top on every pathname change.
- * skipFromPrefix / skipToExact: skip the reset when navigating from a URL
- * that starts with `skipFromPrefix` to the exact URL `skipToExact` — used by
- * the LoL match list to let MatchList drive its own scroll restore on back-nav.
+ *
+ * `skips` is the set of prev→curr pairs that suppress the reset, so a list
+ * view can drive its own scroll restore on back-nav (match list + champion
+ * list both use this).
  */
 export function useScrollResetOnNav(
   pathname: string,
-  skipFromPrefix?: string,
-  skipToExact?: string
+  skips: readonly ScrollResetSkip[] = []
 ): void {
   const prevRef = useRef<string | null>(null);
+  const skipsRef = useRef(skips);
+  skipsRef.current = skips;
   useLayoutEffect(() => {
     const prev = prevRef.current;
     prevRef.current = pathname;
     if (prev === null || prev === pathname) return;
-    if (
-      skipFromPrefix &&
-      skipToExact &&
-      prev.startsWith(skipFromPrefix) &&
-      pathname === skipToExact
-    )
-      return;
+    for (const skip of skipsRef.current) {
+      if (prev.startsWith(skip.fromPrefix) && pathname === skip.toExact) return;
+    }
     mainScrollRef.current?.scrollTo(0, 0);
-  }, [pathname, skipFromPrefix, skipToExact]);
+  }, [pathname]);
 }

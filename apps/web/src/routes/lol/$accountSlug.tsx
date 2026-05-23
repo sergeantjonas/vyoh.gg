@@ -19,6 +19,7 @@ import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
 import { type AccountSearch, validateAccountSearch } from "@/lol/account/account-search";
 import {
   iconPop,
+  isChampionDetail as isChampionDetailFn,
   isInChampionsSubtree as isInChampionsSubtreeFn,
   isInMatchesSubtree as isInMatchesSubtreeFn,
   isMatchDetail as isMatchDetailFn,
@@ -195,7 +196,12 @@ function AccountLayout() {
   // we left behind — so clicking Trends from a deep position in /matches
   // dumps you partway down the (much shorter) Trends page. Scroll to top
   // on every transition except the one MatchList still owns.
-  useScrollResetOnNav(pathname, matchesPathPrefix, matchesPath);
+  const championsPath = `/lol/${accountSlug}/champions`;
+  const championsPathPrefix = `${championsPath}/`;
+  useScrollResetOnNav(pathname, [
+    { fromPrefix: matchesPathPrefix, toExact: matchesPath },
+    { fromPrefix: championsPathPrefix, toExact: championsPath },
+  ]);
 
   const prefersReducedMotion = useReducedMotion();
 
@@ -211,20 +217,22 @@ function AccountLayout() {
   const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
   const slideDirection = prefersReducedMotion ? 0 : rawDirection;
 
-  // Match-detail transitions cut to 0 duration so the card-morph animation
-  // runs without competing with a page fade. Tracked synchronously during
-  // render so the same frame the new pathname mounts uses the correct
-  // initial state.
-  const isMatchDetailTransitionRef = useRef(false);
+  // Match-detail and champion-detail transitions cut to 0 duration so the
+  // card-morph animation runs without competing with a page slide. Tracked
+  // synchronously during render so the same frame the new pathname mounts
+  // uses the correct initial state.
+  const isCardMorphTransitionRef = useRef(false);
   const prevPathnameForCutRef = useRef(pathname);
   if (prevPathnameForCutRef.current !== pathname) {
     const prev = prevPathnameForCutRef.current;
-    const prevIsDetail = isMatchDetailFn(prev, accountSlug);
-    const currIsDetail = isMatchDetailFn(pathname, accountSlug);
-    isMatchDetailTransitionRef.current = prevIsDetail || currIsDetail;
+    const prevIsMorph =
+      isMatchDetailFn(prev, accountSlug) || isChampionDetailFn(prev, accountSlug);
+    const currIsMorph =
+      isMatchDetailFn(pathname, accountSlug) || isChampionDetailFn(pathname, accountSlug);
+    isCardMorphTransitionRef.current = prevIsMorph || currIsMorph;
     prevPathnameForCutRef.current = pathname;
   }
-  const slideTransitionOverride = isMatchDetailTransitionRef.current
+  const slideTransitionOverride = isCardMorphTransitionRef.current
     ? { initial: "center" as const, transition: { duration: 0 } }
     : undefined;
 

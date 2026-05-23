@@ -64,6 +64,15 @@ export function isInChampionsSubtree(pathname: string, accountSlug: string): boo
   return pathname === championsPath || pathname.startsWith(`${championsPath}/`);
 }
 
+// Mirror of isMatchDetail for the champion list/detail flow. Strictly deeper
+// than /champions: /champions itself returns false; /champions/ahri returns
+// true. Drives the slide-transition cut so the card-morph runs without
+// competing with a page slide.
+export function isChampionDetail(pathname: string, accountSlug: string): boolean {
+  const prefix = `/lol/${accountSlug}/champions/`;
+  return pathname.startsWith(prefix) && pathname.length > prefix.length;
+}
+
 // Per-tab icon entrance variants. The shape isn't important — what matters is
 // that each label gets a distinct pop so swapping tabs reads as intentional
 // rather than a generic shimmer.
