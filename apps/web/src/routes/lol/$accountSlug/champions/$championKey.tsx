@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
@@ -192,6 +193,25 @@ function ChampionDetailPage() {
   const { originRectRef, setOriginRect } = useActiveChampion();
   const reduced = useReducedMotion();
   const cardMorphRef = useRef<HTMLDivElement | null>(null);
+
+  // Defensive: belt-and-braces scroll-to-top on detail mount. The section-
+  // level useScrollResetOnNav SHOULD already do this, but something in the
+  // AnimatePresence popLayout + slide-cut interaction is preventing it from
+  // taking effect for this specific route. Logging via console so we can
+  // see in DevTools whether it fired and what scrollTop was.
+  useLayoutEffect(() => {
+    const main = mainScrollRef.current;
+    if (main) {
+      console.log(
+        "[champion-detail] mount: scrollTop=",
+        main.scrollTop,
+        "→ scrolling to 0"
+      );
+      main.scrollTo(0, 0);
+    } else {
+      console.log("[champion-detail] mount: mainScrollRef.current is null");
+    }
+  }, []);
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef. Mirrors match-hero.
   const savedOrigin = useRef<ChampionOrigin | null>(null);
