@@ -31,8 +31,19 @@ import {
   type MatchSummary,
   excludeRemakes,
   parseMatchQuery,
+  parsePaletteVerb,
 } from "@vyoh/shared";
-import { Crown, History, Home, Loader2, Swords, TrendingUp, User, X } from "lucide-react";
+import {
+  Crown,
+  History,
+  Home,
+  Loader2,
+  ScrollText,
+  Swords,
+  TrendingUp,
+  User,
+  X,
+} from "lucide-react";
 import { useLayoutEffect, useMemo, useState } from "react";
 
 type Props = {
@@ -92,6 +103,11 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   const parsed = useMemo(() => parseMatchQuery(input), [input]);
   const chips = useMemo(() => buildChips(input, parsed), [input, parsed]);
+  // Navigation verbs (`/patches …`) are a separate grammar from the
+  // match-filter verbs above — they drive cross-page routing, not match
+  // filtering, so they don't feed chips and they short-circuit the
+  // result-list display below.
+  const paletteVerb = useMemo(() => parsePaletteVerb(input), [input]);
 
   const filteredMatches = useMemo(
     () => (allMatches ? allMatches.filter((m) => matchesQuery(m, parsed)) : null),
@@ -171,9 +187,35 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     navigate({ to: item.path as any });
   }
 
+  // When a navigation verb (`/patches …`) is parsed, all other groups —
+  // including the Matches list — collapse so the palette reads as a single
+  // routed destination. The chip / match-filter groups would be visual
+  // noise relative to that intent.
+  const showVerbDestinationsOnly = paletteVerb !== null;
+
   // Non-Matches groups are hidden once any structured verb is in play —
-  // `with:nidalee` should not surface Pages/Accounts, only Matches.
-  const showNonMatchGroups = !hasStructuredVerbs;
+  // `with:nidalee` should not surface Pages/Accounts, only Matches — and
+  // also when a navigation verb is in play.
+  const showNonMatchGroups = !hasStructuredVerbs && !showVerbDestinationsOnly;
+
+  // Default slug for verbs that omit `@<slug>`: the first known LoL
+  // account on `useMe()`. Mirrors the nav-dropdown fallback in Chunk 2 so
+  // the palette and the dropdown agree on "my default account."
+  const defaultAccountSlug = me.data?.lol?.[0]?.slug ?? null;
+  const patchesAsSlug =
+    (paletteVerb?.kind === "patches" ? paletteVerb.asSlug : null) ?? defaultAccountSlug;
+  const patchesBase =
+    paletteVerb?.kind === "patches" && paletteVerb.version
+      ? `/lol/patches/${paletteVerb.version}`
+      : "/lol/patches";
+  const patchesPath = patchesAsSlug ? `${patchesBase}?as=${patchesAsSlug}` : patchesBase;
+  const patchesLabel =
+    paletteVerb?.kind === "patches" && paletteVerb.version
+      ? `Patches · ${paletteVerb.version}`
+      : "Patches";
+  const showGlobalLol =
+    showVerbDestinationsOnly ||
+    (showNonMatchGroups && passesFreeText("patches global lol"));
 
   const pages = [
     { value: "home", icon: <Home />, label: "Home", path: "/" },
@@ -384,7 +426,21 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             </CommandGroup>
           )}
 
-        {currentAccount && (
+        {showGlobalLol && (
+          <CommandGroup heading="Global LoL">
+            <CommandItem
+              value={`patches global lol ${patchesLabel.toLowerCase()}`}
+              onSelect={() =>
+                go({ path: patchesPath, label: patchesLabel, kind: "page" })
+              }
+            >
+              <ScrollText className="size-4" />
+              <span>{patchesLabel}</span>
+            </CommandItem>
+          </CommandGroup>
+        )}
+
+        {currentAccount && !showVerbDestinationsOnly && (
           <CommandGroup heading="Matches">
             {filteredMatches === null ? (
               <>

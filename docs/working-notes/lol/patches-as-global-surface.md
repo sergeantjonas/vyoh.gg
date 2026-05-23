@@ -113,13 +113,13 @@ After this chunk, the only ways to reach Patches are the top-nav dropdown, `Prof
 
 ### Chunk 4 — Command palette grammar for `/patches`
 
-**Files**
-- `packages/shared/src/command-palette/` — extend the verb grammar to parse `/patches`, `/patches <version>`, and the `@<slug>` modifier.
-- `apps/web/src/components/command-palette-dialog.tsx` — register a "Global LoL" group; "Patches" entry routes to `/lol/patches`; `@<slug>` modifier appends `?as=<slug>`.
-- Tests for both.
-- Update [docs/working-notes/cross-cutting/command-palette.md](../cross-cutting/command-palette.md) chunk list.
+**Shipped 2026-05-23.** Navigation-verb grammar lives in `@vyoh/shared` as a discriminated union so future global LoL surfaces (champion DB, item meta) plug in by adding a `kind` rather than re-inventing the parser.
 
-Per the "extend the palette when adding filterable surfaces" rule, this is on-pattern and should land. Can slip if Chunks 1–3 ship cleanly and there's a reason to defer.
+**Files**
+- `packages/shared/src/command-palette/parse-palette-verb.ts` (new) + colocated `.test.ts` — `parsePaletteVerb(input)` returns `{ kind: "patches", version, asSlug } | null`. Recognises `/patches`, `/patches <version>` (MAJOR.MINOR or MAJOR.MINOR.PATCH), and `@<slug>`; version and slug accept either order; unknown trailing tokens are ignored so a mid-keystroke fragment still surfaces the entry. Exported from `packages/shared/src/index.ts`.
+- `apps/web/src/components/command-palette-dialog.tsx` — "Global LoL" `CommandGroup` with a Patches `CommandItem`. Without a verb, the item routes to `/lol/patches` with `?as=<default-slug>` from `useMe()` (mirrors the nav-dropdown fallback from Chunk 2). With `/patches …`, the parsed version drives the path and the parsed `@<slug>` (or default slug as fallback) drives `?as=`. Verb destinations collapse Pages / Accounts / Current account / Champions / Matches so the palette reads as a single routed result.
+- `apps/web/src/components/command-palette-dialog.test.tsx` — 9 new tests cover default render, freeText hiding, default-slug fallback, neutral fallback, verb collapsing, version routing, `@<slug>` routing, combined version+slug, explicit-slug override, and Matches-group collapse on `/patches`.
+- `docs/working-notes/cross-cutting/command-palette.md` — Phase F added to the chunk list.
 
 ---
 

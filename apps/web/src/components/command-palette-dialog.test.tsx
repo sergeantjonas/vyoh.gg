@@ -450,4 +450,108 @@ describe("CommandPaletteDialog", () => {
     expect(screen.getByText(/3h ago/)).toBeTruthy();
     expect(screen.getByText(/2d ago/)).toBeTruthy();
   });
+
+  describe("Global LoL group", () => {
+    it("renders a Patches entry by default", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      expect(screen.getByRole("option", { name: /^Patches$/ })).toBeTruthy();
+    });
+
+    it("hides the Patches entry when freeText doesn't match", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "nidalee" },
+      });
+      expect(screen.queryByRole("option", { name: /^Patches$/ })).toBeNull();
+    });
+
+    it("Patches entry navigates to /lol/patches with ?as=<default-slug> when an account exists", () => {
+      accountsRef.current = [
+        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+      ];
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.click(screen.getByRole("option", { name: /^Patches$/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/lol/patches?as=jonas-euw",
+      });
+    });
+
+    it("Patches entry navigates to the neutral /lol/patches when no account is available", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.click(screen.getByRole("option", { name: /^Patches$/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/patches" });
+    });
+
+    it("typing /patches collapses other groups and routes to /lol/patches", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/patches" },
+      });
+      // Pages group is hidden under a verb destination.
+      expect(screen.queryByRole("option", { name: /^Home$/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /^Steam$/ })).toBeNull();
+      // Patches entry remains.
+      fireEvent.click(screen.getByRole("option", { name: /Patches/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/patches" });
+    });
+
+    it("typing /patches <version> routes to /lol/patches/<version>", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/patches 25.10" },
+      });
+      const option = screen.getByRole("option", { name: /Patches.*25\.10/ });
+      fireEvent.click(option);
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/patches/25.10" });
+    });
+
+    it("typing /patches @<slug> appends ?as=<slug>", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/patches @jonas-eune" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Patches/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/lol/patches?as=jonas-eune",
+      });
+    });
+
+    it("typing /patches <version> @<slug> routes to the versioned path with ?as=", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/patches 25.10 @jonas-eune" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Patches.*25\.10/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/lol/patches/25.10?as=jonas-eune",
+      });
+    });
+
+    it("explicit @<slug> overrides the default account slug", () => {
+      accountsRef.current = [
+        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+      ];
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/patches @other-slug" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Patches/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/lol/patches?as=other-slug",
+      });
+    });
+
+    it("verb destination hides the Matches group on an active account", () => {
+      accountsRef.current = [
+        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+      ];
+      pathnameRef.current = "/lol/jonas-euw";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/patches" },
+      });
+      expect(screen.queryByText(/Match history not loaded yet/)).toBeNull();
+      expect(screen.queryByRole("option", { name: /Load matches/ })).toBeNull();
+    });
+  });
 });
