@@ -31,6 +31,16 @@ function isItemActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
+// Returns the account slug segment from a `/lol/<slug>/...` pathname,
+// or null for non-account-scoped LoL routes (e.g. `/lol/patches`).
+function activeAccountSlug(pathname: string): string | null {
+  if (!pathname.startsWith("/lol/")) return null;
+  const segment = pathname.slice("/lol/".length).split("/")[0] ?? "";
+  // `patches` is a reserved global subpath, not an account.
+  if (segment === "" || segment === "patches") return null;
+  return segment;
+}
+
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
 // Local alias for readability at call sites. `LolAccountWithSummary` from
@@ -54,6 +64,7 @@ export function Nav() {
   // the neutral global view when no default account is available.
   const defaultLolSlug = accounts[0]?.slug;
   const lolActive = isItemActive(pathname, "/lol");
+  const activeSlug = activeAccountSlug(pathname);
 
   // Controlled value so we can observe the closed→open transition and
   // ignore the click that landed during the open animation.
@@ -125,7 +136,12 @@ export function Nav() {
                 {lolActive && <NavPillHighlight />}
               </NavigationMenuTrigger>
               <NavigationMenuContent className="!w-72 p-1">
-                <LolMenuPanel accounts={accounts} defaultLolSlug={defaultLolSlug} />
+                <LolMenuPanel
+                  accounts={accounts}
+                  defaultLolSlug={defaultLolSlug}
+                  activeSlug={activeSlug}
+                  pathname={pathname}
+                />
               </NavigationMenuContent>
             </NavigationMenuItem>
             <SimpleNavItem
@@ -208,10 +224,15 @@ function SimpleNavItem({
 function LolMenuPanel({
   accounts,
   defaultLolSlug,
+  activeSlug,
+  pathname,
 }: {
   accounts: readonly NavLolAccount[];
   defaultLolSlug: string | undefined;
+  activeSlug: string | null;
+  pathname: string;
 }) {
+  const patchesActive = isItemActive(pathname, "/lol/patches");
   return (
     <div className="flex flex-col">
       {accounts.length > 0 && (
@@ -222,18 +243,22 @@ function LolMenuPanel({
           <ul className="flex max-h-[300px] flex-col overflow-y-auto">
             {accounts.map((account) => (
               <li key={account.slug}>
-                <AccountRow account={account} />
+                <AccountRow account={account} active={account.slug === activeSlug} />
               </li>
             ))}
           </ul>
           <div className="my-1 h-px bg-border" />
         </>
       )}
-      <NavigationMenuLink asChild>
+      <NavigationMenuLink asChild active={patchesActive}>
         <Link
           to="/lol/patches"
           search={defaultLolSlug ? { as: defaultLolSlug } : {}}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+          aria-current={patchesActive ? "page" : undefined}
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+            patchesActive && "bg-foreground/10 text-foreground"
+          )}
         >
           <ScrollText className="size-4" aria-hidden />
           Patches
@@ -263,7 +288,13 @@ function queueShortLabel(queueId: string): string {
 //       → rich row with "Unranked" label
 // All three share the same row chrome so the layout doesn't jump as
 // data arrives across the menu's lifetime.
-function AccountRow({ account }: { account: NavLolAccount }) {
+function AccountRow({
+  account,
+  active,
+}: {
+  account: NavLolAccount;
+  active: boolean;
+}) {
   const championName = useChampionName();
   const emblemYear = useRankedEmblemYear();
   const summary = account.summary;
@@ -272,11 +303,15 @@ function AccountRow({ account }: { account: NavLolAccount }) {
   const lastChampion = summary?.lastPlayedChampionAlias ?? null;
 
   return (
-    <NavigationMenuLink asChild>
+    <NavigationMenuLink asChild active={active}>
       <Link
         to="/lol/$accountSlug"
         params={{ accountSlug: account.slug }}
-        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+          active && "bg-foreground/10 text-foreground"
+        )}
       >
         {/* Fixed-size left icon slot so fallback rows align with hydrated
         ones — the only difference is what goes inside the box. */}

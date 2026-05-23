@@ -267,6 +267,43 @@ describe("Nav", () => {
       expect(link.textContent).toMatch(/Unranked/);
     });
 
+    it("marks the active account row with aria-current and an emphasis style", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/lol/jonas-euw/matches" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
+        {
+          slug: "alt-na",
+          gameName: "Alt",
+          tagLine: "NA1",
+          region: "americas",
+          summary: null,
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const jonas = await screen.findByRole("link", { name: /Jonas/i });
+      const alt = screen.getByRole("link", { name: /Alt/i });
+      expect(jonas.getAttribute("aria-current")).toBe("page");
+      expect(alt.getAttribute("aria-current")).toBeNull();
+      expect(jonas.className).toContain("bg-foreground/10");
+      expect(alt.className).not.toContain("bg-foreground/10");
+    });
+
+    it("marks the Patches item with aria-current when on a /lol/patches route", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/lol/patches/25.10" as never);
+      renderNav();
+      openLolMenu();
+      const patches = await screen.findByRole("link", { name: /Patches/i });
+      expect(patches.getAttribute("aria-current")).toBe("page");
+      expect(patches.className).toContain("bg-foreground/10");
+    });
+
     it("closes the menu when Escape is pressed", async () => {
       vi.mocked(useRouterState).mockReturnValue("/" as never);
       renderNav();
