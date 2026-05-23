@@ -1,8 +1,10 @@
+import { mainScrollRef } from "@/lib/scroll-container";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ActiveChampionProvider, useActiveChampion } from "./active-champion-context";
 import type { ChampionStats } from "./champion-stats";
 import { ChampionTable } from "./champion-table";
 
@@ -60,7 +62,9 @@ function stat(overrides: Partial<ChampionStats> = {}): ChampionStats {
 function renderTable(ui: ReactNode) {
   return render(
     <MotionConfig reducedMotion="always">
-      <TooltipPrimitive.Provider>{ui}</TooltipPrimitive.Provider>
+      <TooltipPrimitive.Provider>
+        <ActiveChampionProvider>{ui}</ActiveChampionProvider>
+      </TooltipPrimitive.Provider>
     </MotionConfig>
   );
 }
@@ -152,5 +156,74 @@ describe("ChampionTable", () => {
       />
     );
     expect(screen.getByText(/· 2\.0h$/)).toBeTruthy();
+  });
+
+  describe("forward-nav capture (pointerDown on card)", () => {
+    beforeEach(() => {
+      mainScrollRef.current = null;
+    });
+    afterEach(() => {
+      mainScrollRef.current = null;
+    });
+
+    function ProbeConsumer() {
+      const { activeChampion, originRectRef, readListScroll } = useActiveChampion();
+      return (
+        <div
+          data-testid="probe"
+          data-active={activeChampion ?? ""}
+          data-origin-alias={originRectRef.current?.championAlias ?? ""}
+          data-origin-direction={originRectRef.current?.direction ?? ""}
+          data-scroll={readListScroll()}
+        />
+      );
+    }
+
+    function renderWithProbe(stats: ChampionStats[]) {
+      return render(
+        <MotionConfig reducedMotion="always">
+          <TooltipPrimitive.Provider>
+            <ActiveChampionProvider>
+              <ChampionTable stats={stats} sort="games" accountSlug="ahri" />
+              <ProbeConsumer />
+            </ActiveChampionProvider>
+          </TooltipPrimitive.Provider>
+        </MotionConfig>
+      );
+    }
+
+    it("captures scroll + origin rect + active champion on the primary row", () => {
+      mainScrollRef.current = { scrollTop: 321 } as HTMLElement;
+      renderWithProbe([stat()]);
+      const link = screen.getByTestId("chrome").closest("a");
+      if (!link) throw new Error("expected a link wrapping the chrome");
+      fireEvent.pointerDown(link);
+      const probe = screen.getByTestId("probe");
+      expect(probe.getAttribute("data-active")).toBe("Ahri");
+      expect(probe.getAttribute("data-origin-alias")).toBe("Ahri");
+      expect(probe.getAttribute("data-origin-direction")).toBe("forward");
+      expect(probe.getAttribute("data-scroll")).toBe("321");
+    });
+
+    it("seeds active champion + scroll for a non-primary row but skips the origin rect", () => {
+      mainScrollRef.current = { scrollTop: 88 } as HTMLElement;
+      // Two rows for the same champion: MIDDLE (primary, listed first) and TOP.
+      // Click the TOP row's link; it should set activeChampion + save scroll
+      // but skip the origin rect (only the primary row owns the layoutId
+      // morph against the detail hero).
+      renderWithProbe([
+        stat({ position: "MIDDLE", games: 20 }),
+        stat({ position: "TOP", games: 5 }),
+      ]);
+      const links = screen.getAllByTestId("chrome").map((el) => el.closest("a"));
+      const secondaryLink = links[1];
+      if (!secondaryLink) throw new Error("expected a secondary row link");
+      fireEvent.pointerDown(secondaryLink);
+      const probe = screen.getByTestId("probe");
+      expect(probe.getAttribute("data-active")).toBe("Ahri");
+      expect(probe.getAttribute("data-scroll")).toBe("88");
+      expect(probe.getAttribute("data-origin-alias")).toBe("");
+      expect(probe.getAttribute("data-origin-direction")).toBe("");
+    });
   });
 });

@@ -56,6 +56,14 @@ export function isMatchDetail(pathname: string, accountSlug: string): boolean {
   return pathname.startsWith(prefix) && pathname.length > prefix.length;
 }
 
+// Mirror of isInMatchesSubtree for the champion list/detail flow. The
+// saved-scroll/active-champion state is only meaningful while inside this
+// subtree; navigating to Matches/Trends invalidates it.
+export function isInChampionsSubtree(pathname: string, accountSlug: string): boolean {
+  const championsPath = `/lol/${accountSlug}/champions`;
+  return pathname === championsPath || pathname.startsWith(`${championsPath}/`);
+}
+
 // Per-tab icon entrance variants. The shape isn't important — what matters is
 // that each label gets a distinct pop so swapping tabs reads as intentional
 // rather than a generic shimmer.

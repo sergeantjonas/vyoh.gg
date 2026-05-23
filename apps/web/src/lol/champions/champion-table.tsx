@@ -4,6 +4,7 @@ import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon, type RolePosition } from "@/lol/_shared/assets/role-icon";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
+import { useActiveChampion } from "@/lol/champions/active-champion-context";
 import {
   ChampionCardChrome,
   championCardClassName,
@@ -13,7 +14,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
 import { formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { type MotionStyle, type Variants, m } from "motion/react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
@@ -92,95 +93,144 @@ export function ChampionTable({
         const parentClasses = info?.modernClasses ?? [];
         const subclasses = info?.modernSubclasses ?? [];
         return (
-          <m.li
+          <ChampionTableRow
             key={`${s.champion}-${s.position}`}
-            variants={item}
-            layout
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          >
-            <CardTilt>
-              <Link
-                to="/lol/$accountSlug/champions/$championKey"
-                params={{ accountSlug, championKey: s.champion.toLowerCase() }}
-                onMouseEnter={() => onCardHover?.(s.champion)}
-              >
-                <m.div
-                  layoutId={layoutId}
-                  style={championCardStyle(s.champion) as unknown as MotionStyle}
-                  className={championCardClassName}
-                >
-                  <ChampionCardChrome champion={s.champion} />
-                  <div className="relative ml-auto flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <span>{championName(s.champion)}</span>
-                      <TooltipPrimitive.Root>
-                        <TooltipPrimitive.Trigger asChild>
-                          <span className="inline-flex">
-                            <RoleIcon
-                              position={s.position}
-                              title={ROLE_LABEL[s.position]}
-                              className="size-3.5 opacity-70"
-                            />
-                          </span>
-                        </TooltipPrimitive.Trigger>
-                        <TooltipPrimitive.Portal>
-                          <TooltipPrimitive.Content
-                            side="top"
-                            sideOffset={4}
-                            className={TOOLTIP_CONTENT_CLASS}
-                          >
-                            {ROLE_LABEL[s.position]}
-                          </TooltipPrimitive.Content>
-                        </TooltipPrimitive.Portal>
-                      </TooltipPrimitive.Root>
-                    </div>
-                    {parentClasses.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                        {parentClasses.map((c) => (
-                          <span key={c} className="inline-flex items-center gap-1">
-                            <img
-                              src={championClassIconUrl(c.toLowerCase())}
-                              alt=""
-                              aria-hidden={true}
-                              className="size-3.5 shrink-0"
-                              draggable={false}
-                            />
-                            {c}
-                          </span>
-                        ))}
-                        {subclasses.length > 0 && (
-                          <span className="text-muted-foreground/50">
-                            · {subclasses.join(" · ")}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div className="font-mono text-sm tabular-nums">
-                      <span
-                        className={cn(
-                          s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
-                        )}
-                      >
-                        <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
-                      </span>
-                      <span className="text-muted-foreground"> WR · </span>
-                      <span className="text-amber-400">
-                        <CountUp to={s.avgKda} decimals={2} duration={0.7} />
-                      </span>
-                      <span className="text-muted-foreground"> KDA</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
-                      {formatPlaytimeFromSeconds(s.totalDurationSec)}
-                    </div>
-                    <WinRateBar winRate={s.winRate} />
-                  </div>
-                </m.div>
-              </Link>
-            </CardTilt>
-          </m.li>
+            s={s}
+            isPrimary={isPrimary}
+            layoutId={layoutId}
+            parentClasses={parentClasses}
+            subclasses={subclasses}
+            accountSlug={accountSlug}
+            displayName={championName(s.champion)}
+            onCardHover={onCardHover}
+          />
         );
       })}
     </m.ul>
+  );
+}
+
+function ChampionTableRow({
+  s,
+  isPrimary,
+  layoutId,
+  parentClasses,
+  subclasses,
+  accountSlug,
+  displayName,
+  onCardHover,
+}: {
+  s: ChampionStats;
+  isPrimary: boolean;
+  layoutId: string;
+  parentClasses: string[];
+  subclasses: string[];
+  accountSlug: string;
+  displayName: string;
+  onCardHover?: ((champion: string) => void) | undefined;
+}) {
+  const { setActiveChampion, saveListScroll, setOriginRect } = useActiveChampion();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const alias = s.champion;
+  return (
+    <m.li
+      variants={item}
+      layout
+      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+    >
+      <CardTilt>
+        <Link
+          to="/lol/$accountSlug/champions/$championKey"
+          params={{ accountSlug, championKey: alias.toLowerCase() }}
+          onMouseEnter={() => onCardHover?.(alias)}
+          onPointerDown={() => {
+            // Origin rect only fires from the primary row — its layoutId
+            // (`champ-card-{alias}`) matches the detail-hero, so the
+            // explicit rect animation is consistent with Motion's morph.
+            // Non-primary rows still seed activeChampion + scroll memory so
+            // the return trip lands on the right row.
+            saveListScroll();
+            if (isPrimary) {
+              const rect = cardRef.current?.getBoundingClientRect() ?? null;
+              if (rect)
+                setOriginRect({ championAlias: alias, rect, direction: "forward" });
+            }
+            setActiveChampion(alias);
+          }}
+        >
+          <m.div
+            ref={cardRef}
+            layoutId={layoutId}
+            style={championCardStyle(alias) as unknown as MotionStyle}
+            className={championCardClassName}
+          >
+            <ChampionCardChrome champion={alias} />
+            <div className="relative ml-auto flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5 font-medium">
+                <span>{displayName}</span>
+                <TooltipPrimitive.Root>
+                  <TooltipPrimitive.Trigger asChild>
+                    <span className="inline-flex">
+                      <RoleIcon
+                        position={s.position}
+                        title={ROLE_LABEL[s.position]}
+                        className="size-3.5 opacity-70"
+                      />
+                    </span>
+                  </TooltipPrimitive.Trigger>
+                  <TooltipPrimitive.Portal>
+                    <TooltipPrimitive.Content
+                      side="top"
+                      sideOffset={4}
+                      className={TOOLTIP_CONTENT_CLASS}
+                    >
+                      {ROLE_LABEL[s.position]}
+                    </TooltipPrimitive.Content>
+                  </TooltipPrimitive.Portal>
+                </TooltipPrimitive.Root>
+              </div>
+              {parentClasses.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                  {parentClasses.map((c) => (
+                    <span key={c} className="inline-flex items-center gap-1">
+                      <img
+                        src={championClassIconUrl(c.toLowerCase())}
+                        alt=""
+                        aria-hidden={true}
+                        className="size-3.5 shrink-0"
+                        draggable={false}
+                      />
+                      {c}
+                    </span>
+                  ))}
+                  {subclasses.length > 0 && (
+                    <span className="text-muted-foreground/50">
+                      · {subclasses.join(" · ")}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="font-mono text-sm tabular-nums">
+                <span
+                  className={cn(s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400")}
+                >
+                  <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
+                </span>
+                <span className="text-muted-foreground"> WR · </span>
+                <span className="text-amber-400">
+                  <CountUp to={s.avgKda} decimals={2} duration={0.7} />
+                </span>
+                <span className="text-muted-foreground"> KDA</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
+                {formatPlaytimeFromSeconds(s.totalDurationSec)}
+              </div>
+              <WinRateBar winRate={s.winRate} />
+            </div>
+          </m.div>
+        </Link>
+      </CardTilt>
+    </m.li>
   );
 }

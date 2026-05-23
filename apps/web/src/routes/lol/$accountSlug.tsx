@@ -19,11 +19,16 @@ import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
 import { type AccountSearch, validateAccountSearch } from "@/lol/account/account-search";
 import {
   iconPop,
+  isInChampionsSubtree as isInChampionsSubtreeFn,
   isInMatchesSubtree as isInMatchesSubtreeFn,
   isMatchDetail as isMatchDetailFn,
   isTabActive,
   tabIndexFromPath,
 } from "@/lol/account/account-tab-helpers";
+import {
+  ActiveChampionProvider,
+  useActiveChampion,
+} from "@/lol/champions/active-champion-context";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
 import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
@@ -76,6 +81,16 @@ function MatchListReturnReset({ inSubtree }: { inSubtree: boolean }) {
     clearListScroll();
     setActiveMatch(null);
   }, [inSubtree, clearListScroll, setActiveMatch]);
+  return null;
+}
+
+function ChampionListReturnReset({ inSubtree }: { inSubtree: boolean }) {
+  const { clearListScroll, setActiveChampion } = useActiveChampion();
+  useEffect(() => {
+    if (inSubtree) return;
+    clearListScroll();
+    setActiveChampion(null);
+  }, [inSubtree, clearListScroll, setActiveChampion]);
   return null;
 }
 
@@ -162,6 +177,7 @@ function AccountLayout() {
   // or Champions, that state is stale — dropping it stops the back-nav
   // restore from firing on routine tab returns.
   const isInMatchesSubtree = isInMatchesSubtreeFn(pathname, accountSlug);
+  const isInChampionsSubtree = isInChampionsSubtreeFn(pathname, accountSlug);
 
   // Coarsen the AnimatePresence key for match-detail routes so switching
   // between /recap, /your-game, /timeline does not remount the shell (which
@@ -271,52 +287,55 @@ function AccountLayout() {
 
   return (
     <ActiveMatchProvider>
-      <MatchListReturnReset inSubtree={isInMatchesSubtree} />
-      <HoverChampionProvider setHovered={setHoveredChampion}>
-        <SeriousQueuesProvider>
-          <MatchWindowProvider value={matchWindowValue}>
-            <SectionShell
-              pathname={slideKey}
-              slideDirection={slideDirection}
-              slideTransitionOverride={slideTransitionOverride}
-              headerRef={setHeaderEl}
-              onHeaderRect={onHeaderRect}
-              identity={
-                <LolIdentity
-                  account={account}
-                  iconId={iconId}
-                  level={level}
-                  ddVersion={ddVersion}
-                  prefersReducedMotion={prefersReducedMotion}
-                />
-              }
-              actions={
-                isMatchDetail ? undefined : (
-                  <div className="flex items-center gap-2">
-                    {/* The Matches subtree shows every queue (it's a browse
+      <ActiveChampionProvider>
+        <MatchListReturnReset inSubtree={isInMatchesSubtree} />
+        <ChampionListReturnReset inSubtree={isInChampionsSubtree} />
+        <HoverChampionProvider setHovered={setHoveredChampion}>
+          <SeriousQueuesProvider>
+            <MatchWindowProvider value={matchWindowValue}>
+              <SectionShell
+                pathname={slideKey}
+                slideDirection={slideDirection}
+                slideTransitionOverride={slideTransitionOverride}
+                headerRef={setHeaderEl}
+                onHeaderRect={onHeaderRect}
+                identity={
+                  <LolIdentity
+                    account={account}
+                    iconId={iconId}
+                    level={level}
+                    ddVersion={ddVersion}
+                    prefersReducedMotion={prefersReducedMotion}
+                  />
+                }
+                actions={
+                  isMatchDetail ? undefined : (
+                    <div className="flex items-center gap-2">
+                      {/* The Matches subtree shows every queue (it's a browse
                         surface), so the serious-queues preference has no
                         effect there — hide the icon to avoid implying it does. */}
-                    {!isInMatchesSubtree && <SeriousQueuesSettings />}
-                    <AccountSwitcher currentSlug={accountSlug} />
-                    <RefreshAccountButton account={account} />
-                  </div>
-                )
-              }
-              nav={
-                <LolNav
-                  isMatchDetail={isMatchDetail}
-                  accountSlug={accountSlug}
-                  pathname={pathname}
-                  liveData={liveData}
-                  prefersReducedMotion={prefersReducedMotion}
-                />
-              }
-            >
-              <Outlet />
-            </SectionShell>
-          </MatchWindowProvider>
-        </SeriousQueuesProvider>
-      </HoverChampionProvider>
+                      {!isInMatchesSubtree && <SeriousQueuesSettings />}
+                      <AccountSwitcher currentSlug={accountSlug} />
+                      <RefreshAccountButton account={account} />
+                    </div>
+                  )
+                }
+                nav={
+                  <LolNav
+                    isMatchDetail={isMatchDetail}
+                    accountSlug={accountSlug}
+                    pathname={pathname}
+                    liveData={liveData}
+                    prefersReducedMotion={prefersReducedMotion}
+                  />
+                }
+              >
+                <Outlet />
+              </SectionShell>
+            </MatchWindowProvider>
+          </SeriousQueuesProvider>
+        </HoverChampionProvider>
+      </ActiveChampionProvider>
     </ActiveMatchProvider>
   );
 }
