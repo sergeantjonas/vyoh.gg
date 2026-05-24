@@ -104,9 +104,9 @@ The visual layer differs in every meaningful dimension (blurhash vs video, singl
 
 #### Chunk plan
 
-1. **Chunk 1 — Extract primitives + tests.** Create `_shared/backdrop/use-ref-counted-claim.ts` + `backdrop-portal.tsx` with unit tests. Neither provider consumes them yet. Verifies the primitives in isolation — lease semantics under StrictMode, portal SSR guard, transient-unmount safety. Single commit. ~150 LoC + tests.
-2. **Chunk 2 — Migrate Steam to the primitives.** Replace `liveCountRef` + `acquire/release` in `SteamProfileBackdrop` with the new hook; replace the inline `createPortal` + shell with `<BackdropPortal>`. Visual layer untouched. Existing `profile-backdrop.test.tsx` stays green unchanged. Single commit.
-3. **Chunk 3 — Migrate LoL to `<BackdropPortal>`.** Swap inline `createPortal` + shell for `<BackdropPortal>` only. Owner-keyed Map and selection logic stay intact (see pre-work above). Existing `splash-backdrop.test.tsx` stays green unchanged. Single commit.
+1. **Chunk 1 — Extract primitives + tests.** Create `_shared/backdrop/use-ref-counted-claim.ts` + `backdrop-portal.tsx` with unit tests. Neither provider consumes them yet. Verifies the primitives in isolation — lease semantics under StrictMode, portal SSR guard, transient-unmount safety. Single commit. ~150 LoC + tests. *Shipped 2026-05-24, [`dc471e5`](../../../).*
+2. **Chunk 2 — Migrate Steam to the primitives.** Replace `liveCountRef` + `acquire/release` in `SteamProfileBackdrop` with the new hook; replace the inline `createPortal` + shell with `<BackdropPortal>`. Visual layer untouched. Existing `profile-backdrop.test.tsx` stays green unchanged. Single commit. *Shipped 2026-05-24, [`9151ddf`](../../../).*
+3. **Chunk 3 — Migrate LoL to `<BackdropPortal>`.** Swap inline `createPortal` + shell for `<BackdropPortal>` only. Owner-keyed Map and selection logic stay intact (see pre-work above). Existing `splash-backdrop.test.tsx` stays green unchanged. Single commit. *Shipped 2026-05-24, [`c69c7ac`](../../../).*
 
 **Out of scope (explicit punts):** central `<BackdropOutlet />` in `__root.tsx`; any change to the visual layers (blurhash, Ken Burns, video pause); cross-section crossfade.
 
@@ -117,7 +117,7 @@ The visual layer differs in every meaningful dimension (blurhash vs video, singl
 1. **Item 1** (scroll-reset skip-pairs) — *shipped 2026-05-24, [`23bc24e`](../../../).*
 2. **Item 2** (Steam skeletons) — *shipped 2026-05-24, [`8dfc523`](../../../).*
 3. **Item 3** (EmptyState port) — *shipped 2026-05-24, [`16d56e0`](../../../).*
-4. **Item 4** (backdrop primitive extraction, Option B) — pending. Pre-work + 3-chunk plan documented above.
+4. **Item 4** (backdrop primitive extraction, Option B) — *shipped 2026-05-24 across [`dc471e5`](../../../), [`9151ddf`](../../../), [`c69c7ac`](../../../)*.
 
 The Steam VT morph from [view-transitions-rollout.md](view-transitions-rollout.md) is independent of all four and can interleave in any order.
 
