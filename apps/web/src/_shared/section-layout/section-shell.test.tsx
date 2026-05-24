@@ -20,11 +20,19 @@ class FakeResizeObserver {
 
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+  // SectionShell portals its header into #section-header-slot (declared in
+  // __root.tsx). Mount a stand-in slot before each render so the portal has
+  // a target — without it the header never renders and all header-related
+  // assertions fail.
+  const slot = document.createElement("div");
+  slot.id = "section-header-slot";
+  document.body.appendChild(slot);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   mainScrollRef.current = null;
+  document.getElementById("section-header-slot")?.remove();
 });
 
 function renderShell(props: Partial<Parameters<typeof SectionShell>[0]> = {}) {
@@ -82,9 +90,13 @@ describe("SectionShell", () => {
     Object.defineProperty(scrollEl, "scrollTop", { value: 32, writable: true });
     mainScrollRef.current = scrollEl;
 
-    const { container } = renderShell();
+    renderShell();
     fireEvent.scroll(scrollEl);
-    const overlay = container.querySelector('[aria-hidden="true"]');
+    // Header is portaled to #section-header-slot in document.body, not the
+    // RTL container — query the slot directly.
+    const overlay = document
+      .getElementById("section-header-slot")
+      ?.querySelector('[aria-hidden="true"]');
     expect(overlay).not.toBeNull();
     expect((overlay as HTMLElement).style.opacity).toBe("1");
   });
@@ -94,14 +106,16 @@ describe("SectionShell", () => {
     Object.defineProperty(scrollEl, "scrollTop", { value: 4, writable: true });
     mainScrollRef.current = scrollEl;
 
-    const { container } = renderShell();
+    renderShell();
     fireEvent.scroll(scrollEl);
-    const overlay = container.querySelector('[aria-hidden="true"]');
+    const overlay = document
+      .getElementById("section-header-slot")
+      ?.querySelector('[aria-hidden="true"]');
     expect((overlay as HTMLElement).style.opacity).toBe("0");
   });
 
   it("only renders the actions container element when actions are provided", () => {
-    const { container, rerender } = renderShell({ actions: undefined });
+    const { rerender } = renderShell({ actions: undefined });
     expect(screen.queryByRole("button", { name: "act" })).toBeNull();
     rerender(
       <MotionConfig reducedMotion="always">
@@ -115,6 +129,8 @@ describe("SectionShell", () => {
         </SectionShell>
       </MotionConfig>
     );
-    expect(container.textContent).toContain("identity");
+    // Identity is in the portaled header (in document.body), not in the
+    // RTL container — query via screen so the body subtree is searched.
+    expect(screen.getByText("identity")).toBeTruthy();
   });
 });

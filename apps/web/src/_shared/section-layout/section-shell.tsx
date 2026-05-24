@@ -2,10 +2,11 @@ import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { type Transition, m, useReducedMotion } from "motion/react";
 import { type ReactNode, type Ref, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SectionShellProvider } from "./section-shell-context";
 
 // Kept exported-shape only while consumers still pass it; the VT spike no
-// longer reads any field. Drop in Chunk 3 of the migration plan.
+// longer reads any field. Drop in Chunk 6 of the migration plan.
 type SlideTransitionOverride = {
   initial?: false | "enter" | "center";
   transition?: Transition;
@@ -19,7 +20,7 @@ type SectionShellProps = {
   pathname: string;
   slideDirection: number;
   slideTransitionOverride?: SlideTransitionOverride | undefined;
-  // External ref to the sticky <header>; merged with the shell's internal ref.
+  // External ref to the <header>; merged with the shell's internal ref.
   // Consumers who need DOM access (e.g. LoL writing `--account-header-h`) pass
   // a ref here OR use `onHeaderRect` for the callback flavour.
   headerRef?: Ref<HTMLElement>;
@@ -35,7 +36,7 @@ export function SectionShell({
   children,
   // Spike: pathname / slideDirection / slideTransitionOverride are still in
   // the prop surface but unused now that the router-level VT call drives
-  // section transitions. Drop in Chunk 3 once consumers are updated.
+  // section transitions. Drop in Chunk 6 once consumers are updated.
   pathname: _pathname,
   slideDirection: _slideDirection,
   slideTransitionOverride: _slideTransitionOverride,
@@ -45,8 +46,9 @@ export function SectionShell({
   const prefersReducedMotion = useReducedMotion();
 
   // The fixed-position band below needs to match the in-flow header's height
-  // *and* sit at the same viewport y — the header is sticky inside <main> so
-  // its viewport top is at main's top edge (≈ global nav height), not viewport 0.
+  // *and* sit at the same viewport y — the header lives in the portal slot
+  // between <Nav> and <main>, so its viewport top is at <Nav>.bottom (read
+  // via getBoundingClientRect, not assumed).
   const internalHeaderRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [headerTop, setHeaderTop] = useState(0);
@@ -63,7 +65,24 @@ export function SectionShell({
     }
   };
 
+  // Section header is portaled into #section-header-slot (declared in
+  // routes/__root.tsx) so it lives OUTSIDE <main>. <main> carries the
+  // vt-main view-transition-name; portaling the header out means only the
+  // content slides during a route VT — the header holds still. The slot is
+  // a DOM-id portal target rather than a context ref so SectionShell stays
+  // decoupled from root layout; the trade-off is the one-frame mount delay
+  // covered by the effect below.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
+    setSlot(document.getElementById("section-header-slot"));
+  }, []);
+
+  // Re-runs when `slot` flips from null to the slot element — that's the
+  // render where the portaled <header> first commits and the ref is set.
+  // Without the `slot` dep this effect fires once before the portal exists
+  // and exits via `if (!el) return`, leaving the rect callback un-invoked.
+  useEffect(() => {
+    if (!slot) return;
     const el = internalHeaderRef.current;
     if (!el) return;
     const update = () => {
@@ -82,7 +101,7 @@ export function SectionShell({
       ro.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, []);
+  }, [slot]);
 
   // Two scroll-driven states with different thresholds. `compact` drives the
   // header padding spring with wide hysteresis (>96 enter, <8 exit) and a
@@ -116,99 +135,60 @@ export function SectionShell({
     return () => scrollEl.removeEventListener("scroll", onScroll);
   }, []);
 
+  const header = (
+    <header ref={setHeaderRef} className="relative">
+      {/* Header band — `position: fixed` so it spans the true viewport width
+          (including the scrollbar-gutter reserve on either side of <main>)
+          instead of being clipped by <main>'s `overflow-x: clip`. Height +
+          top sync to the in-flow header via ResizeObserver so the band's
+          bottom matches the gradient hairline during the compact/expanded
+          spring. Opacity fades on first-scroll so the section's backdrop
+          (LoL splash / Steam profile bg) reads cleanly at the top. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 bg-background/50 backdrop-blur-md transition-opacity duration-200"
+        style={{
+          top: `${headerTop}px`,
+          height: `${headerHeight}px`,
+          opacity: bandOpaque ? 1 : 0,
+        }}
+      />
+      <m.div
+        className="relative mx-auto max-w-4xl px-6"
+        animate={{
+          paddingTop: compact ? 8 : 24,
+          paddingBottom: compact ? 8 : 12,
+        }}
+        transition={
+          prefersReducedMotion
+            ? { duration: 0 }
+            : { type: "spring", stiffness: 380, damping: 32 }
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-3",
+              actions ? "justify-between" : undefined
+            )}
+          >
+            {identity}
+            {actions}
+          </div>
+          {nav}
+        </div>
+      </m.div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-foreground/15 to-transparent"
+      />
+    </header>
+  );
+
   return (
     <SectionShellProvider value={{ compact }}>
-      <div className="flex flex-col gap-6">
-        <header
-          ref={setHeaderRef}
-          className="sticky top-0 z-40 ml-[calc(50%-50vw)] -mt-6 w-screen"
-        >
-          {/* Header band — `position: fixed` so it spans the true viewport width
-            (including the scrollbar-gutter reserve on either side of <main>)
-            instead of being clipped by <main>'s `overflow-x: clip`. Lives
-            inside the header so it inherits the z-40 stacking context. Height
-            + top sync to the in-flow header via ResizeObserver so the band's
-            bottom matches the gradient hairline during the compact/expanded
-            spring. Opacity fades on first-scroll so the section's backdrop
-            (LoL splash / Steam profile bg) reads cleanly at the top. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none fixed inset-x-0 bg-background/50 backdrop-blur-md transition-opacity duration-200"
-            style={{
-              top: `${headerTop}px`,
-              height: `${headerHeight}px`,
-              opacity: bandOpaque ? 1 : 0,
-            }}
-          />
-          <m.div
-            className="relative mx-auto max-w-4xl px-6"
-            animate={{
-              paddingTop: compact ? 8 : 24,
-              paddingBottom: compact ? 8 : 12,
-            }}
-            transition={
-              prefersReducedMotion
-                ? { duration: 0 }
-                : { type: "spring", stiffness: 380, damping: 32 }
-            }
-          >
-            <div className="flex flex-col gap-3">
-              <div
-                className={cn(
-                  "flex flex-wrap items-center gap-3",
-                  actions ? "justify-between" : undefined
-                )}
-              >
-                {identity}
-                {actions}
-              </div>
-              {nav}
-            </div>
-          </m.div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-foreground/15 to-transparent"
-          />
-        </header>
-        {/*
-          AnimatePresence-around-Outlet wrap removed during the SectionShell → VT
-          migration spike. The router-level View Transitions API call (configured
-          in apps/web/src/main.tsx via defaultViewTransition + getNavigationType)
-          now drives section slides, list↔detail no-anim, cross-section + account
-          swap crossfades. Per-element morphs (champion/match/steam-game) no
-          longer compete with an AnimatePresence enter/exit pair, so the
-          `slideKey` coarsening hacks in $accountSlug.tsx / steam.tsx become
-          unnecessary (cleanup deferred to Chunk 3 of the migration plan).
-
-          `pathname`, `slideDirection`, and `slideTransitionOverride` props are
-          kept on the surface so consumers don't need to change in this spike;
-          a follow-up chunk drops them. See
-          docs/working-notes/cross-cutting/section-shell-vt-migration.md.
-
-          Pre-VT version preserved for revert:
-            <AnimatePresence mode="popLayout" initial={false} custom={slideDirection}>
-              <m.div key={pathname} custom={slideDirection} variants={pageSlideVariants}
-                initial={slideTransitionOverride?.initial ?? "enter"}
-                animate="center" exit="exit"
-                transition={slideTransitionOverride?.transition ?? {
-                  type: "spring", stiffness: 300, damping: 30,
-                }}>
-                {children}
-              </m.div>
-            </AnimatePresence>
-        */}
-        {/* `view-transition-name: section-content` is applied conditionally
-            via CSS (gated by `body[data-vt-shell="on"]`), so it only takes
-            effect on shell-level animations (slide / cross-section / account-
-            swap). On intra-section navigations the name is absent — the
-            wrapper stays inside the `root` snapshot and per-element morphs
-            (champion / match / steam-game) run alone without the parent's
-            default group size-morph competing for the eye. The body attribute
-            is set in the `defaultViewTransition.types` callback in main.tsx
-            *before* `startViewTransition` runs, so the OLD snapshot already
-            reflects it. */}
-        <div data-section-content="">{children}</div>
-      </div>
+      {slot ? createPortal(header, slot) : null}
+      <div className="flex flex-col gap-6">{children}</div>
     </SectionShellProvider>
   );
 }

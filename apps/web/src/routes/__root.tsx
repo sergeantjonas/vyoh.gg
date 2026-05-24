@@ -55,6 +55,14 @@ function RootLayout() {
           </ErrorBoundary>
           <div className="flex h-dvh flex-col overflow-hidden text-foreground">
             <Nav />
+            {/* Section header portal target. SectionShell renders its sticky
+                header into this slot via createPortal so the header lives
+                OUTSIDE <main> — only <main>'s content (named vt-main) slides
+                during a view transition; the header holds still. The slot has
+                no intrinsic height; it grows to fit the portaled header and
+                its compact-spring padding animation, and <main flex-1> absorbs
+                the delta. */}
+            <div id="section-header-slot" className="relative z-40" />
             <main
               ref={(el) => {
                 mainScrollRef.current = el;
