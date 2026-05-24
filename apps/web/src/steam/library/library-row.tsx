@@ -1,6 +1,5 @@
 import { useMediaQuery } from "@/lib/use-media-query";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
-import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
@@ -129,7 +128,6 @@ export function LibraryRow({
         }
         heroRef={heroRef}
         logoRef={logoRef}
-        trailing={<DeckCompatChip tier={game.steamDeckCompat} />}
       />
     </Link>
   );

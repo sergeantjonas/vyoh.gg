@@ -217,6 +217,15 @@ describe("projectEnrichment", () => {
     expect(row?.gameRating).toBeNull();
   });
 
+  it("nulls gameRating when type or rating is an empty string", () => {
+    expect(
+      projectEnrichment(raw({ game_rating: { type: "ESRB", rating: "" } }))?.gameRating
+    ).toBeNull();
+    expect(
+      projectEnrichment(raw({ game_rating: { type: "", rating: "M" } }))?.gameRating
+    ).toBeNull();
+  });
+
   it("defaults descriptors to [] when game_rating omits the list", () => {
     const row = projectEnrichment(raw({ game_rating: { type: "PEGI", rating: "16" } }));
     expect(row?.gameRating?.descriptors).toEqual([]);

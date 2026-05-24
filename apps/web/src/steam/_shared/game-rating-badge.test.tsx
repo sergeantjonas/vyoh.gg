@@ -44,4 +44,13 @@ describe("GameRatingBadge", () => {
     const { container } = renderWithTooltip(<GameRatingBadge rating={null} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("returns null when type or rating is an empty string (defensive)", () => {
+    const empty = renderWithTooltip(<GameRatingBadge rating={rating({ rating: "" })} />);
+    expect(empty.container.firstChild).toBeNull();
+    const emptyType = renderWithTooltip(
+      <GameRatingBadge rating={rating({ type: "" })} />
+    );
+    expect(emptyType.container.firstChild).toBeNull();
+  });
 });

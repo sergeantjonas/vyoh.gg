@@ -162,7 +162,7 @@ export function LibraryTileHovercardContent({
         <div className="flex flex-col gap-2 p-3">
           <span className="line-clamp-2 text-sm font-semibold">{game.name}</span>
           {game.shortDescription !== null && (
-            <p className="line-clamp-3 text-xs text-muted-foreground italic">
+            <p className="text-xs text-muted-foreground italic">
               {game.shortDescription}
             </p>
           )}

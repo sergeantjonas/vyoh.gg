@@ -8,10 +8,10 @@ import type { SteamGameRating } from "@vyoh/shared";
 // docs/working-notes/steam/library-card-enrichment.md for the explicit
 // no-NSFW-gating decision.
 //
-// Body name + rating sit in the main chip ("ESRB M", "PEGI 18"). When
-// descriptors are present, an extra "+N" pill appears with a Radix tooltip
-// listing the full set — matches the storefront's own descriptor-list
-// affordance without needing a click-through.
+// One trigger / one tooltip: the whole chip is the hover surface, and the
+// tooltip body covers body+rating, required age, and the full descriptor
+// list. A separate "+N" descriptor pill (the earlier shape) created two
+// adjacent hover surfaces and read as visual noise.
 export function GameRatingBadge({
   rating,
   className,
@@ -20,39 +20,55 @@ export function GameRatingBadge({
   className?: string;
 }) {
   if (rating === null) return null;
+  // Defence-in-depth: rows persisted before the projector's empty-string
+  // guard could carry `type` set with `rating` empty (or vice versa), which
+  // renders as a body name with no value next to it. Drop the chip rather
+  // than render a half-filled badge.
+  if (!rating.type || !rating.rating) return null;
+  const ageSuffix = rating.requiredAge > 0 ? ` · Ages ${rating.requiredAge}+` : "";
   const descriptors = rating.descriptors;
+  const hasDescriptors = descriptors.length > 0;
   return (
-    <span className={cn("inline-flex items-center gap-1.5", className)}>
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-foreground/15 bg-foreground/5 px-2 py-1 text-xs font-semibold tracking-wide text-foreground/85">
-        <span className="opacity-70">{rating.type}</span>
-        <span>{rating.rating}</span>
-      </span>
-      {descriptors.length > 0 && (
-        <TooltipPrimitive.Root>
-          <TooltipPrimitive.Trigger asChild>
-            <button
-              type="button"
-              aria-label={`Content descriptors: ${descriptors.join(", ")}`}
-              className="inline-flex cursor-help items-center rounded-md border border-foreground/15 bg-foreground/5 px-1.5 py-1 text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <button
+          type="button"
+          aria-label={`${rating.type} ${rating.rating} rating${ageSuffix}${
+            hasDescriptors ? `, descriptors: ${descriptors.join(", ")}` : ""
+          }`}
+          className={cn(
+            "inline-flex cursor-help items-center gap-1.5 rounded-md border border-foreground/15 bg-foreground/5 px-2 py-1 text-xs font-semibold tracking-wide text-foreground/85 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+            className
+          )}
+        >
+          <span className="uppercase opacity-70">{rating.type}</span>
+          <span className="uppercase">{rating.rating}</span>
+          {hasDescriptors && (
+            <span aria-hidden className="opacity-50">
               +{descriptors.length}
-            </button>
-          </TooltipPrimitive.Trigger>
-          <TooltipPrimitive.Portal>
-            <TooltipPrimitive.Content
-              side="bottom"
-              sideOffset={6}
-              className="pointer-events-none z-50 max-w-xs rounded-md border bg-popover/90 px-2 py-1.5 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
-            >
-              <ul className="flex flex-col gap-0.5">
-                {descriptors.map((d) => (
-                  <li key={d}>{d}</li>
-                ))}
-              </ul>
-            </TooltipPrimitive.Content>
-          </TooltipPrimitive.Portal>
-        </TooltipPrimitive.Root>
-      )}
-    </span>
+            </span>
+          )}
+        </button>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="bottom"
+          sideOffset={6}
+          className="pointer-events-none z-50 max-w-xs rounded-md border bg-popover/90 px-2.5 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+        >
+          <p className="font-semibold">
+            {rating.type} {rating.rating}
+            {ageSuffix}
+          </p>
+          {hasDescriptors && (
+            <ul className="mt-1 flex flex-col gap-0.5 text-muted-foreground">
+              {descriptors.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          )}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }

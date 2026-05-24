@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { SteamReviewSummary } from "@vyoh/shared";
 
 // Maps Steam's editorial review labels to a colour family. Mirrors the
@@ -30,20 +31,35 @@ export function ReviewSummaryChip({
 }) {
   if (summary === null) return null;
   const colour = LABEL_COLOR[summary.reviewScoreLabel] ?? NEUTRAL;
+  const tooltipBody = `${summary.percentPositive}% of ${COUNT_FORMAT.format(summary.reviewCount)} user reviews are positive`;
   return (
-    <span
-      title={`${summary.percentPositive}% of ${COUNT_FORMAT.format(summary.reviewCount)} user reviews are positive`}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-        colour,
-        className
-      )}
-    >
-      <span>{summary.reviewScoreLabel}</span>
-      <span aria-hidden className="opacity-60">
-        ·
-      </span>
-      <span className="tabular-nums">{COUNT_FORMAT.format(summary.reviewCount)}</span>
-    </span>
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <button
+          type="button"
+          aria-label={tooltipBody}
+          className={cn(
+            "inline-flex cursor-help items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+            colour,
+            className
+          )}
+        >
+          <span>{summary.reviewScoreLabel}</span>
+          <span aria-hidden className="opacity-60">
+            ·
+          </span>
+          <span className="tabular-nums">{COUNT_FORMAT.format(summary.reviewCount)}</span>
+        </button>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="bottom"
+          sideOffset={6}
+          className="pointer-events-none z-50 rounded-md border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+        >
+          {tooltipBody}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }

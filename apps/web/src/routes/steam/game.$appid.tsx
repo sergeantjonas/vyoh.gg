@@ -162,22 +162,22 @@ function SteamGamePage() {
         <GameDetailSkeleton />
       ) : (
         <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {game?.name ?? `App ${appidParam}`}
-            </h1>
-            {game && <DeckCompatChip tier={game.steamDeckCompat} size="md" />}
-            {game && <ReviewSummaryChip summary={game.reviewSummary} />}
-            {game && <GameRatingBadge rating={game.gameRating} />}
-            {game && (
+          <h1 className="text-2xl font-bold tracking-tight">
+            {game?.name ?? `App ${appidParam}`}
+          </h1>
+          {game && (
+            <div className="flex flex-wrap items-center gap-2">
+              <DeckCompatChip tier={game.steamDeckCompat} size="md" />
+              <ReviewSummaryChip summary={game.reviewSummary} />
+              <GameRatingBadge rating={game.gameRating} />
               <PlatformIconRow
                 windows={game.platformWindows}
                 mac={game.platformMac}
                 linux={game.platformLinux}
                 vr={game.platformVr}
               />
-            )}
-          </div>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">
             {game?.shortDescription ??
               "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}

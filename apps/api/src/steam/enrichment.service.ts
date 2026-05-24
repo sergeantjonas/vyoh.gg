@@ -123,8 +123,13 @@ function mapGameRating(
   // Upstream returns explicit `null` for AO-rated games that skip ESRB
   // submission, or `undefined` when the include flag wasn't honoured. Both
   // map to "no badge" — null is editorial, not a maturity signal.
+  //
+  // Empty-string `type` / `rating` also count as missing: some titles come
+  // back with the body name set but no actual rating value (or vice versa),
+  // which would render as just "ESRB" with nothing next to it. Treat the
+  // whole block as missing rather than persisting a half-filled badge.
   if (!raw) return null;
-  if (raw.type === undefined || raw.rating === undefined) return null;
+  if (!raw.type || !raw.rating) return null;
   return {
     type: raw.type,
     rating: raw.rating,

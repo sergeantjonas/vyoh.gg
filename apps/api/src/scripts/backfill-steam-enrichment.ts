@@ -37,13 +37,9 @@ async function main() {
       const w = await steam.getOwnerWishlist();
       wishlist = w.items.map((i) => i.appid);
     } catch (err) {
-      logger.warn(
-        `wishlist fetch failed (${String(err)}); proceeding with owned only`
-      );
+      logger.warn(`wishlist fetch failed (${String(err)}); proceeding with owned only`);
     }
-    const appids = Array.from(
-      new Set([...owned.map((g) => g.appid), ...wishlist])
-    );
+    const appids = Array.from(new Set([...owned.map((g) => g.appid), ...wishlist]));
 
     logger.log(`Re-enriching ${appids.length} appids (owned + wishlist).`);
     const written = await enrichment.enrichApps(appids);
