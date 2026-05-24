@@ -39,7 +39,9 @@ function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const prefersReducedMotion = useReducedMotion();
 
-  useScrollResetOnNav(pathname);
+  useScrollResetOnNav(pathname, [
+    { fromPrefix: "/steam/game/", toExact: "/steam/library" },
+  ]);
 
   const rawDirection = useTabSlideDirection(pathname, (p) => steamTabIndexOf(TABS, p));
   const slideDirection = prefersReducedMotion ? 0 : rawDirection;
