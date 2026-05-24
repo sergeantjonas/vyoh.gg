@@ -1,3 +1,4 @@
+import { isWebKit } from "@/lib/is-webkit";
 import { topLevelScope } from "@/lib/top-level-scope";
 
 // Tab order mirrors the TABS arrays in
@@ -109,6 +110,16 @@ export function getNavigationType(
     // See comment on the matching LoL branch — list ↔ game pairs are owned
     // end-to-end by per-element handlers; router VT here only adds freeze.
     if (isSteamLibraryPair(from.pathname, to.pathname)) return false;
+    // WebKit snapshot capture of the outgoing Steam page is expensive: every
+    // Library tile is an `isolate` stacking context with a rest-state shadow,
+    // Profile mounts chips with `blur-sm` + `backdrop-blur-sm`, Achievements
+    // has a virtualized feed with shadowed cards. Flattening that into a VT
+    // bitmap is what causes the section-wide nav chop on Safari/iOS. Bypass
+    // router VT for sibling tab nav on WebKit only; Chromium/Firefox keep
+    // the slide. Wishlist as outgoing page is exempt-by-symptom — its DOM
+    // is flat enough that the snapshot is free — but the gate is by engine,
+    // not by page, so the same rule applies uniformly.
+    if (isWebKit()) return false;
     const fromIdx = steamTabIndex(from.pathname);
     const toIdx = steamTabIndex(to.pathname);
     if (fromIdx < 0 || toIdx < 0) return ["intra-section"];
