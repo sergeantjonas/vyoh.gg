@@ -21,7 +21,7 @@ Planning surface for vyoh.gg. Each file is one arc, one bug, one idea, or one re
 | [tft/](tft/) | TFT integration notes. |
 | [cross-cutting/](cross-cutting/) | Notes that span multiple streams or the app at large (vnext-ideas, self-portrait surfaces, command palette, motion backlog, library shortlist, perf baseline, case-study topics). |
 | [ops/](ops/) | Pre-deploy, auth, security, and structural concerns (hosting, owner-auth, security, folder-structure-cleanup). |
-| [archive/](archive/) | Fully-shipped notes whose planning detail is no longer load-bearing. |
+| [archive/](archive/) | Fully-shipped notes whose planning detail no longer carries weight. |
 
 Stream singletons (currently `steam/` and `tft/` carry one note each) sit in their own folder so new notes land in the right place by default as the integration grows. The indexes ([open-work.md](open-work.md), [parked.md](parked.md)), this README, and [project-history.md](project-history.md) stay at the root.
 
@@ -32,7 +32,7 @@ Every note carries a `**Status:** <state> — <one-line>` header right under its
 | State | Meaning |
 |---|---|
 | **Active** | Has unshipped work. Appears as a tracked arc in [open-work.md](open-work.md). |
-| **Shipped** | All planned work landed. Kept for reference until its decision log stops being load-bearing, at which point it migrates to [archive/](archive/). |
+| **Shipped** | All planned work landed. Kept for reference until its decision log stops carrying weight, at which point it migrates to [archive/](archive/). |
 | **Parked** | Deliberately deferred for a stated reason (cost, sequencing, dependency, marginal payoff). Appears in [parked.md](parked.md) with a trigger condition. |
 | **Reference** | Living catalog, idea backlog, or append-only log. Never "completes" — consult when scoping new work, don't try to drain. |
 | **Index** | Reserved for the two index files ([open-work.md](open-work.md), [parked.md](parked.md)), [archive/README.md](archive/README.md), and this file. |
@@ -54,7 +54,7 @@ Both indexes are maintained in the **same commit** that ships, parks, promotes, 
 
 ## Archive
 
-[archive/](archive/) holds fully-shipped notes whose planning detail is no longer load-bearing. See [archive/README.md](archive/README.md) for the inventory and move criteria. After an archive move, repair inbound links in the same commit:
+[archive/](archive/) holds fully-shipped notes whose planning detail no longer carries weight. See [archive/README.md](archive/README.md) for the inventory and move criteria. After an archive move, repair inbound links in the same commit:
 
 ```sh
 ugrep -rEn '\]\([^/)]*FILENAME\.md' docs apps packages

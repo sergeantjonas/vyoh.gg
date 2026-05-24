@@ -31,7 +31,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 ## Authoring conventions
 
 - One arc, one story. Don't bundle two separate shipped efforts in one case study.
-- Start with the problem framed in the owner's voice; end with the outcome and what you'd do differently.
+- Start with the problem framed in first person (my voice); end with the outcome and what I'd do differently.
 - Link to working-note decision logs for "how it was actually decided" — case studies are the polished version, not the planning archive.
 - Cross-reference the code via `[path](../../path)` so readers can jump to the implementation.
 - Add new write-ups to the inventory table above in the same commit that lands the file.

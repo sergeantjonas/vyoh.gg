@@ -37,7 +37,7 @@ async getSnapshot(): Promise<RateLimiterSnapshot> {
 
 `dumpCounters()` now calls `getSnapshot()` and formats it. Same data, two consumers — incident archaeology and live operation share the source of truth. If the screen ever shows numbers the log doesn't, that's a bug in one of the two formatters, not a bug in the data path.
 
-This is small but load-bearing for the trustworthiness of the surface. A dashboard whose numbers drift from the logs is worse than no dashboard.
+This is small but it's what makes the surface trustworthy. A dashboard whose numbers drift from the logs is worse than no dashboard.
 
 ## SSE the second time — generalizing the primitive
 
@@ -116,7 +116,7 @@ if (this.history.length > HISTORY_LIMIT) this.history.length = HISTORY_LIMIT;
 
 That's it. No `SyncTick` table, no migration, no retention policy, no query path. A fresh boot starts with an empty history — which is *correct*. The limiter snapshots are already derived from live process state (Bottleneck instances reset on boot); persisting tick history while limiter state is ephemeral would be a tonal mismatch. Either the surface is "what is happening right now," or it's "audit log of all ticks across redeploys" — not both half-heartedly.
 
-Ten ticks at five minutes apart covers the last fifty minutes of cron activity. That's the window an operator actually cares about — long enough to spot a regression in the latest deploy, short enough to fit on screen without scrolling. A historical table would be a different feature, and that feature isn't load-bearing yet.
+Ten ticks at five minutes apart covers the last fifty minutes of cron activity. That's the window an operator actually cares about — long enough to spot a regression in the latest deploy, short enough to fit on screen without scrolling. A historical table would be a different feature, and that feature doesn't pull its weight yet.
 
 Worth a line on the meta-pattern: most "operator surfaces" reach for the database reflexively because that's what "real" services do. Ephemeral data + ephemeral storage is the honest contract for live-state views. Skipping the table also skipped a migration, an indexing decision, a retention cron, and a query path the operator would never query.
 

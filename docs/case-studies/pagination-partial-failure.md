@@ -141,4 +141,4 @@ The protocol seam is intentionally narrow — status code plus message. We don't
 
 ## Looking back
 
-The shape that made this work is "use the read query to define what's missing." Every other resilience pattern — retry queues, backoff jitter, dead-letter tables — adds machinery that only earns its keep if the system writes a lot of partial state. A read-heavy cache that materializes from an upstream API can replace all of it with a `WHERE` clause that filters on "did this row complete," and let user-driven refreshes drive convergence. The interesting engineering is recognizing that you don't need the machinery.
+The shape that made this work is "use the read query to define what's missing." Every other resilience pattern — retry queues, backoff jitter, dead-letter tables — adds machinery that only pays off if the system writes a lot of partial state. A read-heavy cache that materializes from an upstream API can replace all of it with a `WHERE` clause that filters on "did this row complete," and let user-driven refreshes drive convergence. The interesting engineering is recognizing that you don't need the machinery.

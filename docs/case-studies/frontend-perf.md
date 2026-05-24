@@ -6,9 +6,9 @@ Most frontend perf case studies celebrate cuts. This one's central decision is w
 
 ## Setup
 
-The portfolio framing is that vyoh.gg is a *visual* showpiece — a stats dashboard that earns its place by feeling crafted. The motion budget is a feature, not a leak. The visual layer has six `layoutId` sites (nav pill, sub-tab underline, card morph, match-count selector, champion-sort selector, champion table), scope-keyed `AnimatePresence` around the top-level route segment, scroll-driven reveals on Trends, and a `SplashProvider` that crossfades champion backdrops behind every account view. Most of that requires `LazyMotion` with the `domMax` feature pack — `domAnimation` silently breaks every `layoutId`-driven transition.
+The portfolio framing is that vyoh.gg is a *visual* showpiece — a stats dashboard that justifies itself by feeling crafted. The motion budget is a feature, not a leak. The visual layer has six `layoutId` sites (nav pill, sub-tab underline, card morph, match-count selector, champion-sort selector, champion table), scope-keyed `AnimatePresence` around the top-level route segment, scroll-driven reveals on Trends, and a `SplashProvider` that crossfades champion backdrops behind every account view. Most of that requires `LazyMotion` with the `domMax` feature pack — `domAnimation` silently breaks every `layoutId`-driven transition.
 
-A perf write-up on this kind of app looks different from one on an admin panel. The question isn't "what can we cut?" — it's "what here is bloat, and what here is brand?" That distinction is the load-bearing decision.
+A perf write-up on this kind of app looks different from one on an admin panel. The question isn't "what can we cut?" — it's "what here is bloat, and what here is brand?" That distinction is the central decision.
 
 ## The audit
 
@@ -214,7 +214,7 @@ The job is parallel to the `check` job so a budget breach is attributed clearly 
 
 Bundle and Web Vitals were instrumented; renders weren't. The 168 ms INP under abusive tab cycling within `/lol/$slug` was unexplained, structural enough to be worth a look. Trends, Match Detail, and Champions are the heaviest screens and the obvious starting points.
 
-The intended workflow was React DevTools Profiler against `vite preview` — the devcontainer has no Chrome, so this pass is a static read of the layout/route/context graph plus targeted fixes for what's structurally indefensible without measurement. Owner re-profiles on the host machine and reverts anything that doesn't pull its weight; that's the explicit deal of a static pass.
+The intended workflow was React DevTools Profiler against `vite preview` — the devcontainer has no Chrome, so this pass is a static read of the layout/route/context graph plus targeted fixes for what's structurally indefensible without measurement. I re-profile on the host machine and revert anything that doesn't pull its weight; that's the explicit deal of a static pass.
 
 The find: two defects with the same shape — *a value that should be stable was being rebuilt every render because it was created inline in JSX or in the provider element*. Both are textbook context-fan-out / wasted-work patterns. Neither is a `React.memo` addition; both are `useMemo` on a value whose dependencies are obvious.
 
@@ -273,7 +273,7 @@ Now the sort memo inside `ChampionTable` can keep its sorted output stable acros
 
 **Considered, not fixed.** `MatchDetailPage.heroSummary` is also built inline as a fresh `MatchSummary` literal when `cachedSummary` is absent. Its consumers don't `React.memo`, so identity churn there is cheap — fixing it would be speculative without a measurement that says the children actually pay for the new identity. `AccountLayout`'s `compact` scroll-toggle can fire one extra commit per transition when leaving a scrolled state, but the cooldown + hysteresis cap it at one and the cost is minimal.
 
-**No measured before/after numbers — that's the deal of a static pass.** The two fixes above are structurally correct (they bring `MatchWindowProvider` in line with the other providers and stop a 2000-element aggregation from running on every commit), and the owner will validate or revert from the host Chrome's Profiler. The two fixes don't add a single `React.memo` wrapper. They remove inline construction that was the obvious cause of the wasted work; that distinction is the load-bearing part of the rule "fix the specific hotspot."
+**No measured before/after numbers — a static pass doesn't give you those.** The two fixes above are structurally correct (they bring `MatchWindowProvider` in line with the other providers and stop a 2000-element aggregation from running on every commit), and I'll validate or revert from the host Chrome's Profiler. The two fixes don't add a single `React.memo` wrapper. They remove inline construction that was the obvious cause of the wasted work; that distinction is the point of the rule "fix the specific hotspot."
 
 ## Lessons
 

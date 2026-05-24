@@ -1,12 +1,12 @@
 # Tabs as routes — moving match-detail navigation from a query param to nested path segments
 
-> The match-detail page in vyoh.gg is the densest single surface in the app: hero, team blocks, builds, timelines, skill order, lane phase, and a queue of owner-only panels coming. The MDN1–MDN4 arc broke it into three tabs (Recap / Your game / Timeline) and then moved tab state from `?tab=recap` to `/recap` — a small URL change with a surprisingly wide blast radius across motion, scroll, and skeleton.
+> The match-detail page in vyoh.gg is the densest single surface in the app: hero, team blocks, builds, timelines, skill order, lane phase, and a queue of personal-data panels coming. The MDN1–MDN4 arc broke it into three tabs (Recap / Your game / Timeline) and then moved tab state from `?tab=recap` to `/recap` — a small URL change with a surprisingly wide blast radius across motion, scroll, and skeleton.
 
 ## TL;DR
 
 - **The match-detail page outgrew a single scroll.** Eight sections were already there with six more queued. The fix was three tabs, but the interesting decisions were where tab state lives and how the page-chrome around it behaves.
 - **Tabs as routes, not as state.** Initial MDN2 shipped `?tab=recap` via TanStack Router `validateSearch`. The next day it migrated to nested path segments `/lol/$accountSlug/matches/$matchId/{recap,your-game,timeline}`. The trigger: the `?tab=` query persisted on the URL after navigating *away* from match detail — UI state leaking into the section-level URL surface. Path segments scope cleanly to the route.
-- **One `layoutId`, two physical instances.** The same `<MatchDetailTabs>` renders twice — once below the hero, once inside the sticky champion strip past the hero. Sharing a single `layoutId` caused Motion to animate the underline across both instances and through whatever sat between them. Two distinct `layoutId`s (`...-tab-indicator` and `...-tab-indicator-sticky`) was the right call — visually identical, no cross-instance morph.
+- **One `layoutId`, two physical instances.** The same `<MatchDetailTabs>` renders twice — once below the hero, once inside the sticky champion strip past the hero. Sharing a single `layoutId` caused Motion to animate the underline across both instances and through whatever sat between them. Two distinct `layoutId`s (`...-tab-indicator` and `...-tab-indicator-sticky`) fixed it — visually identical, no cross-instance morph.
 - **Scroll restoration is a section-shell problem, not a route problem.** TanStack Router's `scrollRestoration` is off in this app because the scroll container is `<main>`, not `window`. Every section root resets `mainScrollRef.current?.scrollTo(0, 0)` on `pathname` change. Tabs-as-routes makes every tab click a pathname change — without the existing reset, every tab swap would have scrolled to the top mid-read. The discipline pre-dated the migration; it carried the migration for free.
 - **The skeleton has to branch on the active tab.** A generic shimmer would have been wrong the moment the swap to real content reflowed. `MatchDetailSkeleton` accepts a `tab` prop and renders the matching layout (Recap = team blocks, Your game = side panels, Timeline = chart + event feed). One change locked in by repo convention afterward.
 
@@ -19,7 +19,7 @@ Two constraints framed the redesign:
 1. **No new sticky chrome tier.** The app already has three: global nav, account header, and (past the hero) the champion sticky strip. A 2026-05-10 experiment with a fourth sticky controls bar was reverted as structurally too heavy on a 1080p viewport. The match-detail tab bar must live *inside* the existing sticky envelope, not above it.
 2. **PG4 is a separate surface.** A peer route at `/lol/$accountSlug/post-game/$matchId` (the share-friendly per-game verdict + baseline deltas) is its own thing. The match-detail tabs cover the structural breakdown of the game; PG4 is the personal verdict layered on top. Don't duplicate either as a tab of the other.
 
-The grouping landed as Recap (all-ten, glance-readable), Your game (owner-deep panels — biggest tab, the one that gets scrollspy), Timeline (chronological — gold-lead chart + event timelines).
+The grouping landed as Recap (all-ten, glance-readable), Your game (deep personal panels — biggest tab, the one that gets scrollspy), Timeline (chronological — gold-lead chart + event timelines).
 
 ## Shape
 
@@ -31,7 +31,7 @@ The grouping landed as Recap (all-ten, glance-readable), Your game (owner-deep p
   └── /timeline                            ← Timeline tab
 ```
 
-Each tab route is a thin shell — it calls `useMatchTabProps()` (which reads the cached `useMatchDetail` query plus the owner participant) and renders one of the three tab-body components. The shared data lives at the layout route; the tab routes only own their slice of the UI.
+Each tab route is a thin shell — it calls `useMatchTabProps()` (which reads the cached `useMatchDetail` query plus my participant) and renders one of the three tab-body components. The shared data lives at the layout route; the tab routes only own their slice of the UI.
 
 [apps/web/src/routes/lol/$accountSlug/matches/$matchId/recap.tsx](../../apps/web/src/routes/lol/$accountSlug/matches/$matchId/recap.tsx) in full:
 
@@ -99,7 +99,7 @@ useEffect(() => {
 
 The match-detail layout route renders inside that section root, so the reset already handles tab navigation. Without it, clicking a tab three sections deep would have kept the previous scroll position — landing the user at row 4 of a tab whose row 1 they had never seen. The reset turns every path-change into a "fresh tab" experience.
 
-The migration from `?tab=` to `/recap` made this load-bearing in a way it hadn't been before. With the query param, swapping tabs was *not* a pathname change — the reset didn't fire, and arguably you wanted that (stay at the same vertical position when re-reading the same match). With path segments, every tab swap is a path change, and the reset fires every time. After watching it for a minute, the path-segment behaviour reads correctly: each tab is a different *view*, not a different *slice* of the same scroll. Reset-to-top matches the framing.
+The migration from `?tab=` to `/recap` made this matter in a way it hadn't before. With the query param, swapping tabs was *not* a pathname change — the reset didn't fire, and arguably you wanted that (stay at the same vertical position when re-reading the same match). With path segments, every tab swap is a path change, and the reset fires every time. After watching it for a minute, the path-segment behaviour reads correctly: each tab is a different *view*, not a different *slice* of the same scroll. Reset-to-top matches the framing.
 
 ## Skeleton-must-branch-on-active-tab
 
@@ -158,7 +158,7 @@ The arc is small in code (four route files, one hook, one tab-bar primitive) but
 - *Skeleton as part of the layout.* When the layout branches, the skeleton has to branch with it. Generic shimmers lie about what's loading.
 - *Scroll restoration is one of those repo-wide disciplines that pays for itself the moment routing assumptions change.* The pattern (every section root resets its scroll on pathname change) pre-dated the tab routing migration; the migration didn't notice because the pattern handled it.
 
-The honest pre-existing-convention version of this story: an `?tab=` would have worked. Path segments are the right call because they don't leak — but a project that didn't navigate between sections often, or where match-detail was the terminal surface, could have stayed on query params indefinitely. The migration is a 24-hour course-correct, not a heroic refactor.
+The honest pre-existing-convention version of this story: an `?tab=` would have worked. Path segments are what I went with because they don't leak — but a project that didn't navigate between sections often, or where match-detail was the terminal surface, could have stayed on query params indefinitely. The migration is a 24-hour course-correct, not a heroic refactor.
 
 ## Connections
 

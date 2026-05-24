@@ -70,7 +70,7 @@ const [matchRows, unlockRows] = await Promise.all([
 ]);
 ```
 
-The per-stream toggle is the part that earns its place — `Both` is the synthesis verdict, `LoL`/`Steam` are diagnostic ("is the late-night peak driven by ranked queue or by Hades runs?"). The DTO carries `{ hour, total, lol, steam }` so the toggle is a render decision, not a refetch.
+The per-stream toggle is the part worth keeping — `Both` is the synthesis verdict, `LoL`/`Steam` are diagnostic ("is the late-night peak driven by ranked queue or by Hades runs?"). The DTO carries `{ hour, total, lol, steam }` so the toggle is a render decision, not a refetch.
 
 Empty-Steam falls out naturally: `steamDates.length === 0` → all zero counts on the Steam half → tile renders as LoL-only without any UI branching.
 
@@ -123,7 +123,7 @@ for (let i = 0; i < totalMinutes; i++) {
 }
 ```
 
-A per-minute walk through each interval, formatting the wall-clock hour via the same `Intl.DateTimeFormat` instance used by every other tile. DST transitions handle themselves: a session running through the spring-forward jump skips the vanished hour because no sample minute maps to it; a session through fall-back logs the doubled hour twice because two real wall-clock hours have the same local label. Both behaviours are *correct* — the owner did experience the time that way.
+A per-minute walk through each interval, formatting the wall-clock hour via the same `Intl.DateTimeFormat` instance used by every other tile. DST transitions handle themselves: a session running through the spring-forward jump skips the vanished hour because no sample minute maps to it; a session through fall-back logs the doubled hour twice because two real wall-clock hours have the same local label. Both behaviours are *correct* — I did experience the time that way.
 
 The hand-rolled alternative would be per-month DST offset tables. The `Intl` walk is more expensive per interval (one format call per minute) but the cost is bounded — sessions are at most a few hours — and the correctness is free.
 
@@ -147,7 +147,7 @@ for (const m of rest) {
 }
 ```
 
-Steam sessions are already first-class rows from the [presence-as-signal](./steam-presence-as-signal.md) poller — `endedAt - startedAt`. The two pre-processed lengths flow into one histogram via `histogramSessionLengths(lolMinutes, steamMinutes)`.
+Steam sessions are already real rows from the [presence-as-signal](./steam-presence-as-signal.md) poller — `endedAt - startedAt`. The two pre-processed lengths flow into one histogram via `histogramSessionLengths(lolMinutes, steamMinutes)`.
 
 Length is sum of `durationSec`, not wall-clock span — queue time / champ select / client transitions between matches aren't "playing." The 30-min gap is the only configurable; it survived a quick sensitivity check (15 min was too aggressive, 60 min stitched obvious breaks into one block).
 
@@ -157,7 +157,7 @@ Length is sum of `durationSec`, not wall-clock span — queue time / champ selec
 
 Every temporal tile uses the same `Intl.DateTimeFormat(..., { hour: "2-digit", hourCycle: "h23", timeZone })` instance. Chronotype buckets by hour, day-split walks per-minute through intervals, session-lengths doesn't bucket by time at all. But none of them touch `Date.getHours()` (which returns server-local hours — wrong on any host that isn't Brussels), and none compute UTC offsets by hand.
 
-The owner's timezone is stamped in [`docs/repo-conventions.md`](../repo-conventions.md#owner-timezone-brussels) — `Europe/Brussels`, not Berlin or UTC. Code references the constant; the format object handles DST. Adding a new temporal tile is one import + one format call; getting it right is the default path.
+My timezone is stamped in [`docs/repo-conventions.md`](../repo-conventions.md#owner-timezone-brussels) — `Europe/Brussels`, not Berlin or UTC. Code references the constant; the format object handles DST. Adding a new temporal tile is one import + one format call; getting it right is the default path.
 
 ### Pure carve-outs for everything non-trivial
 
@@ -189,7 +189,7 @@ hours: [{ hour, total, lol, steam, github }]  // future shape
 
 The render layer adds a segment to the toggle; the bucketing primitive doesn't change. The architectural test for "is this tile cross-stream-ready" is: *does adding a new stream require touching anything other than (a) the query, (b) the DTO, (c) the toggle?* For all five tiles, the answer is no.
 
-This is the load-bearing claim of the synthesis-rule reframe. If the abstraction lets every new stream join in O(1) tile change, the rule pays for itself. If it didn't — if adding GitHub required rewriting chronotype's internals — the per-stream-feed-on-`/` approach would be cheaper.
+This is the central claim of the synthesis-rule reframe. If the abstraction lets every new stream join in O(1) tile change, the rule pays for itself. If it didn't — if adding GitHub required rewriting chronotype's internals — the per-stream-feed-on-`/` approach would be cheaper.
 
 ## What didn't (surprises worth keeping)
 
@@ -201,15 +201,15 @@ This is acceptable, not a defect: each tile is correct in the degraded state, an
 
 ### `endedAt: { not: null }` filters out open sessions, which is the right behaviour but counter-intuitive
 
-Day-split and session-lengths both filter `SteamPlaySession` by `endedAt: { not: null }` ([day-split.service.ts:71](../../apps/api/src/home/home-day-split.service.ts#L71)). The currently-open session — the owner is mid-game right now — is excluded from the histogram. The right call: a session with `endedAt: null` has no duration yet, and counting it would either require a `endedAt ?? now()` fallback (inconsistent with how closed sessions were anchored) or a special bucket.
+Day-split and session-lengths both filter `SteamPlaySession` by `endedAt: { not: null }` ([day-split.service.ts:71](../../apps/api/src/home/home-day-split.service.ts#L71)). The currently-open session — I'm mid-game right now — is excluded from the histogram. This is intentional: a session with `endedAt: null` has no duration yet, and counting it would either require a `endedAt ?? now()` fallback (inconsistent with how closed sessions were anchored) or a special bucket.
 
-Worth noting because the tile reads "current as of now" but is actually "current as of the most recent session-close transition." A 3-hour Helldivers run in progress shows up as nothing until the owner closes the game. Trade-off accepted; the [presence-as-signal](./steam-presence-as-signal.md) poller's 2-minute tick keeps the gap short.
+Worth noting because the tile reads "current as of now" but is actually "current as of the most recent session-close transition." A 3-hour Helldivers run in progress shows up as nothing until I close the game. Trade-off accepted; the [presence-as-signal](./steam-presence-as-signal.md) poller's 2-minute tick keeps the gap short.
 
 ### Tile composition is by render hook, not by data join
 
 No tile fetches a joined-across-streams DTO from the server. Each tile owns its own endpoint, fetches its own DTO, and the synthesis happens *inside* the tile's service (LoL + Steam queries fired in parallel via `Promise.all`, merged in JS).
 
-This is the right call given two-stream cardinality, but it scales O(streams) at the service level. If a third stream lands and a fourth, the pattern is still fine — the queries parallelise and the merge is per-tile-bounded — but it would not survive ten streams. The alternative (a generic "events with timestamp + kind + amount" union table) was considered and rejected: the streams' data shapes diverge enough (matches have winners, snapshots have cumulative playtime, unlocks have rarity) that the union would lose information for any per-stream drill-down.
+This works given two-stream cardinality, but it scales O(streams) at the service level. If a third stream lands and a fourth, the pattern is still fine — the queries parallelise and the merge is per-tile-bounded — but it would not survive ten streams. The alternative (a generic "events with timestamp + kind + amount" union table) was considered and rejected: the streams' data shapes diverge enough (matches have winners, snapshots have cumulative playtime, unlocks have rarity) that the union would lose information for any per-stream drill-down.
 
 ### `Match.remake` filtering shows up in every LoL-side query
 
@@ -219,16 +219,16 @@ Every cross-stream tile that touches LoL filters `remake: false`. The constraint
 
 **When does `/` get an opinion?** All five tiles read as facts ("you played Xh," "your peak hour is 8pm"). Verdicts — "you grind in bursts, not marathons" — are reserved for `ConclusionCard` surfaces deeper inside each route. The home page could plausibly get *one* verdict-style synthesis card ("this week was a Steam-heavy week") but it hasn't, deliberately. The risk is the page turning into a daily horoscope; the upside is the rule "if you can't say it in numbers, it doesn't belong on `/`" stays sharp.
 
-**Multi-account.** All five tiles read the *single* owner's LoL accounts (multi-account routing is per-`/lol/$accountSlug`; the home tiles aggregate across accounts). For the portfolio framing this is correct — the page is "me," not "an account" — but the math (first-played champion's `puuid` → which account slug to link) gets non-trivial if the synthesis surfaces ever expand into per-account splits.
+**Multi-account.** All five tiles read my *single* set of LoL accounts (multi-account routing is per-`/lol/$accountSlug`; the home tiles aggregate across accounts). For the portfolio framing this is correct — the page is "me," not "an account" — but the math (first-played champion's `puuid` → which account slug to link) gets non-trivial if the synthesis surfaces ever expand into per-account splits.
 
 **Cold-start framing.** A brand-new instance of the project has no LoL matches and no Steam unlocks. Every tile renders an empty/loading state. The home page reads as "this thing has nothing to say yet" rather than as a portrait. Not solved; not really a problem either — the portfolio framing is "the project exists because there's data to portray." A demo deployment would either seed data or accept the empty-state framing.
 
-## Why this earns its place in the portfolio
+## What I took from it
 
-- **The architectural decision *is* the case study.** The interesting work isn't any one tile's implementation — it's the rule that put them all on the same page. "What goes on `/`" is one of the questions every multi-integration product eventually has to answer; this is one answer with the receipts to back it up.
-- **Symmetry without inheritance.** Five tiles share the same shape (hook → endpoint → service → carve-out → DTO) without a shared base class, mixin, or framework. The symmetry comes from the rule + the pure-function pattern. Easier to extend, easier to delete one of without touching the others.
-- **DST and timezone correctness fall out of the substrate.** Every temporal tile uses `Intl.DateTimeFormat` + `Europe/Brussels`. No per-tile DST handling, no UTC-offset arithmetic. A new tile gets DST correctness as a side effect of the pattern.
-- **The rule is committed, not memorised.** [`docs/repo-conventions.md`](../repo-conventions.md#per-stream-routes-is-synthesis-only) carries the synthesis rule as a portable convention. Future scoping decisions ("should the Spotify integration's now-playing tile go on `/`?") start by reading the rule, not by guessing.
+- The architectural decision *is* the case study. The interesting work isn't any one tile's implementation — it's the rule that put them all on the same page. "What goes on `/`" is one of the questions every multi-integration product eventually has to answer; this is one answer with the receipts to back it up.
+- Five tiles share the same shape (hook → endpoint → service → carve-out → DTO) without a shared base class, mixin, or framework. The symmetry comes from the rule plus the pure-function pattern. Easier to extend, easier to delete one without touching the others.
+- DST and timezone correctness fall out of the substrate. Every temporal tile uses `Intl.DateTimeFormat` + `Europe/Brussels`. No per-tile DST handling, no UTC-offset arithmetic. A new tile gets DST correctness as a side effect of the pattern.
+- The rule is committed, not memorised. [`docs/repo-conventions.md`](../repo-conventions.md#per-stream-routes-is-synthesis-only) carries the synthesis rule as a portable convention. Future scoping decisions ("should the Spotify integration's now-playing tile go on `/`?") start by reading the rule, not by guessing.
 
 ## Connections
 

@@ -48,7 +48,7 @@ The outer `Promise.race` against the deadline still surfaces the timeout to the 
 
 ### Bug 2 — `updateSettings({ reservoir })` perturbs the increase ticker
 
-The slow regional limiter is configured with `reservoirIncreaseAmount: 1, reservoirIncreaseInterval: 1200`. A separate ticker calls `incrementReservoir(1)` every 1.2 s, approximating Riot's rolling-window release rate — [the load-bearing fix from the previous case study](./riot-rate-limits.md). `syncFromHeaders` reads the saturated counts off every successful response and shrinks the reservoir via `updateSettings({ reservoir: target })`. Both touch the same value; in steady state, on every Riot response, they're racing.
+The slow regional limiter is configured with `reservoirIncreaseAmount: 1, reservoirIncreaseInterval: 1200`. A separate ticker calls `incrementReservoir(1)` every 1.2 s, approximating Riot's rolling-window release rate — [the central fix from the previous case study](./riot-rate-limits.md). `syncFromHeaders` reads the saturated counts off every successful response and shrinks the reservoir via `updateSettings({ reservoir: target })`. Both touch the same value; in steady state, on every Riot response, they're racing.
 
 `updateSettings` is the catch-all settings-update API — it accepts a partial object and merges. It also schedules an internal recalculation of timers, including the increase ticker. If `syncFromHeaders` runs frequently enough to repeatedly call `updateSettings` between ticker fires, the ticker keeps getting nudged and the slow reservoir refills slower than 1.2 s/slot. Over a couple of hours of normal cron traffic, the reservoir settles at zero and stays there.
 

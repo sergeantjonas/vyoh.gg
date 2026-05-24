@@ -212,4 +212,4 @@ What it doesn't earn: a real time-series query language, multi-account aggregate
 
 ## Looking back
 
-The instinct on first encountering "rank over time" was to reach for a time-series database. What the problem actually needed was two boundary decisions inside the existing tools: write only on change, and let the X axis carry two parallel timestamps. The unit of skill here isn't picking the right tool — it's noticing when the textbook tool would be load-bearing for a problem you don't have.
+The instinct on first encountering "rank over time" was to reach for a time-series database. What the problem actually needed was two boundary decisions inside the existing tools: write only on change, and let the X axis carry two parallel timestamps. The unit of skill here isn't picking the right tool — it's noticing when the textbook tool would be the spine of a problem you don't have.

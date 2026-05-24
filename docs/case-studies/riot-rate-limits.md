@@ -37,7 +37,7 @@ The api boots, a `MatchSyncService` `@Cron('*/5 * * * *')` job kicks off the ini
 
 The web app's matches page sits indefinitely. The refresh button does nothing — same 30-second deadline, same silence after. The UI looks frozen.
 
-`executing: 1` is the load-bearing detail. Bottleneck has handed off a slot to fetch, and the fetch hasn't returned. So this is a hung fetch, right?
+`executing: 1` is the key detail. Bottleneck has handed off a slot to fetch, and the fetch hasn't returned. So this is a hung fetch, right?
 
 ## Hypothesis 1 — `AbortSignal` should have caught this
 

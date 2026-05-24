@@ -6,7 +6,7 @@ A few weeks after [bundling the bounded CDN](bundling-the-bounded-cdn.md) shippe
 
 ## Setup — what changed since the bundled write-up
 
-The [bundled approach](bundling-the-bounded-cdn.md) shipped on 2026-05-13 and solved its stated problem: a free runtime proxy was no longer in our render path, the cold-load waterfall hit zero external image requests on the LoL set, and the worst-case hung-probe time stayed bounded by the Phase 0 timeout. Phases 0–2 were the right shape for *that* problem.
+The [bundled approach](bundling-the-bounded-cdn.md) shipped on 2026-05-13 and solved its stated problem: a free runtime proxy was no longer in our render path, the cold-load waterfall hit zero external image requests on the LoL set, and the worst-case hung-probe time stayed bounded by the Phase 0 timeout. Phases 0–2 fit *that* problem.
 
 Three things changed in the following two weeks that didn't fit the bundled shape:
 
@@ -48,7 +48,7 @@ Move both streams onto a server-side proxy. Same shape for both.
 /img/steam/achievement-gray/:appid/:apiName/:schemaVersion.webp
 ```
 
-Five properties are load-bearing:
+Five properties matter:
 
 - **Fixed variants in path segments, not query params.** `?w=72` is CDN-poison: cache-key cardinality explodes, some CDNs strip query params from cache keys, the URL doesn't change when content does. Path segments keep the cache key bounded and stable.
 - **Version segments bake the upstream version into the URL** (`:patch`, `:assetTimestamp`, `:schemaVersion`). Riot ships a new patch → the URL changes → the cache key rotates → no purge needed. Steam updates a capsule hash → the URL changes. The browser HTTP cache treats every URL as immutable forever; the URL itself is the freshness signal.
@@ -96,13 +96,13 @@ What this collapses, by deletion:
 
 ## Open questions and deferrals
 
-**Nginx `proxy_cache`, stale-while-revalidate, and the LRU ceiling** are all deferred to the [pre-launch hosting sweep](../working-notes/ops/hosting.md). The proxy ships fine without them; browser HTTP cache covers repeat views by the same user, and the working set is small (~200 MB across both streams at full coverage). `proxy_cache_use_stale error timeout updating` is the right shape — serve stale bytes when upstream is flaky, refresh in the background. The 2 GB ceiling is 10× headroom over working set, low monitoring burden. Adding these is pure deployment config, not a code change.
+**Nginx `proxy_cache`, stale-while-revalidate, and the LRU ceiling** are all deferred to the [pre-launch hosting sweep](../working-notes/ops/hosting.md). The proxy ships fine without them; browser HTTP cache covers repeat views by the same user, and the working set is small (~200 MB across both streams at full coverage). `proxy_cache_use_stale error timeout updating` is what I want — serve stale bytes when upstream is flaky, refresh in the background. The 2 GB ceiling is 10× headroom over working set, low monitoring burden. Adding these is pure deployment config, not a code change.
 
 **CDN fronting (Cloudflare or similar).** Decide alongside the hosting commitment. If the topology supports it, an edge cache in front of the proxy moves the cache-hit boundary global. Today's leaning is single-host Hetzner with Nginx in front; whether to add a CDN layer depends on whether portfolio traffic ever shows up.
 
 **Achievement icons use a static `:schemaVersion=1`** as the cache-buster segment. Achievement icons are essentially content-addressed by `apiName`, so a cache-buster is rarely needed. Keeping the segment leaves a knob to bump globally without redeploying the proxy — costs nothing to retain, would cost a route signature change to add later.
 
-**`tools/champion-assets/` (theme/blurhash extraction) stays.** It's owner-rendered theming, not user-fetchable content, and it's not on the deploy-cadence smell path the pivot fixes. Build-time-derivable from splash bytes is still correct for that surface. Confirm at hosting sweep.
+**`tools/champion-assets/` (theme/blurhash extraction) stays.** It's theming I render once at build time, not user-fetchable content, and it's not on the deploy-cadence smell path the pivot fixes. Build-time-derivable from splash bytes is still correct for that surface. Confirm at hosting sweep.
 
 ## Cost / benefit vs the bundled approach
 
@@ -126,10 +126,10 @@ Two trades worth naming directly:
 
 ## Why this is a portfolio-relevant story, not just an architecture story
 
-The bundled write-up was the right shape for "here's the fix we shipped." This write-up is the shape for "here's why we replaced a fix that was working." Three things make the second story freelance-relevant in ways the first doesn't:
+The bundled write-up covered "here's the fix we shipped." This one covers "here's why I replaced a fix that was working." Three things make the second story freelance-relevant in ways the first doesn't:
 
 1. **Recognizing when an architecture outgrows its problem is harder than picking the right architecture once.** The bundle was technically correct for LoL throughout its lifetime. It became wrong for the *system* the moment a second stream entered with a different cadence. Naming the trigger event (Steam S3 chunk 3) makes the recognition reproducible, not vibes.
-2. **The pivot was lossy on purpose.** Deleting working code is harder than writing it. The bundle had nine months of detail (manifest schema, hash-keyed diffing, additive-vs-rework labels, auto-merge guardrails, missing-aware fallback) — every line of it was earned. Choosing to walk away from earned detail because it's no longer load-bearing is a senior call, and showing it in writing is the senior signal.
+2. **The pivot was lossy on purpose.** Deleting working code is harder than writing it. The bundle had nine months of detail (manifest schema, hash-keyed diffing, additive-vs-rework labels, auto-merge guardrails, missing-aware fallback) — every line of it was earned. Choosing to walk away from earned detail because it no longer carries weight is a senior call, and showing it in writing is the senior signal.
 3. **Same shape for both streams.** A common failure mode of solo-built portfolio projects is N-architectures-for-N-features. The proxy normalizes Steam and LoL onto one route family, one resolver pattern, one prewarm loop. The architectural payoff isn't the proxy itself — it's the *shared* proxy.
 
 ## Connections

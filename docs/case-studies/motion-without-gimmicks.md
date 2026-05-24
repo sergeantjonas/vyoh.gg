@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-The dashboard moves — match cards have ambient tilt, KDA numbers count up on first paint, freshly-arrived matches pulse green or red for a beat, and clicking a card transitions its rectangle into the detail-page hero rather than cutting. None of it is decorative. Each animation answers a *question the user would otherwise have to construct in their head*: where did this thing come from, what just changed, did the system register what I did. The discipline is mostly about what was *not* shipped — no parallax, no auto-rotating carousels, no entrance animations on cached data, no per-list-row stagger, no looping idle ambience outside the splash backdrop. Two structural decisions carry the rest: `LazyMotion + domMax` at the root so motion ships as a code-split chunk rather than baseline bundle weight, and `useReducedMotion` as a first-class branch in every animated component instead of a CSS afterthought.
+The dashboard moves — match cards have ambient tilt, KDA numbers count up on first paint, freshly-arrived matches pulse green or red for a beat, and clicking a card transitions its rectangle into the detail-page hero rather than cutting. None of it is decorative. Each animation answers a *question the user would otherwise have to construct in their head*: where did this thing come from, what just changed, did the system register what I did. The discipline is mostly about what was *not* shipped — no parallax, no auto-rotating carousels, no entrance animations on cached data, no per-list-row stagger, no looping idle ambience outside the splash backdrop. Two structural decisions carry the rest: `LazyMotion + domMax` at the root so motion ships as a code-split chunk rather than baseline bundle weight, and `useReducedMotion` as a real branch in every animated component instead of a CSS afterthought.
 
 ## The thesis
 
@@ -39,7 +39,7 @@ Two consequences worth naming:
 - Every animated component imports from `motion/react` as `m.div` / `m.section` rather than `motion.div`. The lowercase form is the context-aware variant. A grep for `motion\.` in the codebase returns zero hits in component code; it shows up only in the type import.
 - The features bundle still has to *land* before the first animation fires. For below-the-fold animation this is invisible. For above-the-fold animation (the entrance of the Profile page itself) it means the first paint is the static layout, and the entrance plays on hydration tick. This trade is intentional — instant text beats animated text by a wide margin on perceived speed.
 
-## Reduced motion as a first-class branch
+## Reduced motion as a real branch
 
 Reduced motion is not a CSS variable that quietly disables animations. It's a *contract about what kind of UI the user can tolerate*. A user who set it might have vestibular sensitivity, might be on a slow device, might just find motion distracting. The right response is to give them the *same information*, with motion as a separate layer that can be turned off without losing information.
 

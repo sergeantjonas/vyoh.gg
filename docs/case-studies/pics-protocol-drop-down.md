@@ -158,7 +158,7 @@ After the fix: 159/173 owned titles resolved a hash. The remaining 14 are older 
 
 The cost: one deploy + one DB check to discover. A smoke test against a single live appid before shipping S5.5.C would have caught it in seconds. Worth doing for the next PICS expansion — this protocol's documentation lags reality often enough that "log the first response, eyeball it, then ship" is cheap insurance.
 
-## What's load-bearing about the design
+## What carries the weight of the design
 
 ### PICS failure is strictly additive
 
@@ -193,16 +193,16 @@ The framing question is "what's the smallest layer I can drop to, and how do I k
 
 **Multi-source assets.** Hero + capsule + header come from GetItems. Logo comes from PICS. If a future asset arrives via a third source (e.g. logo position metadata that the wiki carries but neither GetItems nor PICS does), the merge pattern (`projectEnrichment(raw, logoPath)`) grows another optional argument. At three sources the optional-args pattern is uncomfortable; at four it should refactor to a named struct. Not a problem today.
 
-## Why this earns its place in the portfolio
+## What I took from it
 
-- **Drop-a-layer is a transferable instinct.** Most freelance integration work runs into "the public API doesn't carry X." Knowing how to identify the right next layer (and how to keep that drop-down strictly additive to the rest of the system) is the load-bearing skill.
-- **The protocol switch is wrapped in one service.** 162 lines. Two timeouts. One test seam. A failure path that doesn't touch the rest of the pipeline. No "PICS-aware" code anywhere outside the service file.
-- **A real surprise, fixed quickly.** The 0/173 boot backfill was a real bug, with a real diagnostic (log line + JSON dump of one live response), with a real fix (`image.english` instead of `image`). The post-mortem fits in two paragraphs; the lesson ("smoke-test the response shape before shipping the migration") fits in one sentence.
-- **The hosting implication is captured upstream.** First outbound non-HTTPS dep on the project; documented in `hosting.md` so the deploy plan never has to discover the firewall rule the hard way.
+- Drop-a-layer is a transferable instinct. Most freelance integration work runs into "the public API doesn't carry X." Knowing how to identify the right next layer (and how to keep that drop-down strictly additive to the rest of the system) is the skill that actually matters here.
+- The protocol switch is wrapped in one service. 162 lines. Two timeouts. One test seam. A failure path that doesn't touch the rest of the pipeline. No "PICS-aware" code anywhere outside the service file.
+- A real surprise, fixed quickly. The 0/173 boot backfill was a real bug, with a real diagnostic (log line + JSON dump of one live response), with a real fix (`image.english` instead of `image`). The post-mortem fits in two paragraphs; the lesson ("smoke-test the response shape before shipping the migration") fits in one sentence.
+- The hosting implication is captured upstream. First outbound non-HTTPS dep on the project; documented in `hosting.md` so the deploy plan never has to discover the firewall rule the hard way.
 
 ## Connections
 
-- [Steam presence as signal](./steam-presence-as-signal.md) — the other Steam-internals case study. Both lean on `GetPlayerSummaries` + `getProductInfo` as the cheap-but-load-bearing endpoints; both keep the integration's failure path strictly additive.
+- [Steam presence as signal](./steam-presence-as-signal.md) — the other Steam-internals case study. Both lean on `GetPlayerSummaries` + `getProductInfo` as cheap endpoints doing real work; both keep the integration's failure path strictly additive.
 - [Patch-notes pipeline](./patch-notes-pipeline.md) — the LoL parallel for "the vendor doesn't carry what we need, find a structured source that does." There it's the wiki's wikitext; here it's PICS over the Steam network protocol.
 - [Bundling the bounded CDN](./bundling-the-bounded-cdn.md) — the asset-side companion. Once PICS hands over the hash, the resulting URL is a hashed-CDN path that survives publisher refreshes — same "stable URL is a design choice" thread that the bundled-CDN piece runs on.
 - [Cross-stream synthesis](./cross-stream-synthesis.md) — same merge pattern (`Promise.all` two upstream sources, join in memory, persist once), applied to a different problem shape.

@@ -148,7 +148,7 @@ Both are deployment-shape decisions that don't get made until there's a target d
 ## What this earns
 
 - **An OG card pipeline that runs in the API process, with no browser.** ~100 ms per generation, deterministic output, ~30-day shared cache so the work happens once per match.
-- **A pattern for "do this in a narrow tool, not a general one."** The satori/resvg chain is two libraries doing one thing each — layout SVG, rasterize SVG. Composing narrow tools instead of reaching for the general-purpose browser is the load-bearing decision.
+- **A pattern for "do this in a narrow tool, not a general one."** The satori/resvg chain is two libraries doing one thing each — layout SVG, rasterize SVG. Composing narrow tools instead of reaching for the general-purpose browser is the central decision.
 - **A working asset-copy template for SWC-built NestJS.** The `dist/src/og/fonts/` path is documented for the next time `__dirname`-relative file loads need to ship.
 
 ## Looking back

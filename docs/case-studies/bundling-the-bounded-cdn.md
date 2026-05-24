@@ -66,7 +66,7 @@ scripts/refresh-lol-assets.mts          # the pipeline (~700 LOC)
 
 The script is [scripts/refresh-lol-assets.mts](../../scripts/refresh-lol-assets.mts). It fetches the current patch from `versions.json`, walks the champion summary, downloads each variant from CDragon (cached by source-URL hash so re-runs are cheap), pipes through Sharp for resize + WebP encode, writes the file, and records `{path, hash, bytes}` in the manifest. Items, runes, summoner spells, and role icons go through a shared `processSimpleAsset` driver — same shape, same retry, same `manifest.missing[]` bucket on failure. The whole pipeline is one `pnpm refresh:lol-assets` run.
 
-Three properties of the manifest are load-bearing:
+Three properties of the manifest matter:
 
 - **Hash-keyed.** Every asset entry has a SHA-256 of the encoded WebP. Phase 2 reads these to diff PR-to-PR and decide if a refresh is purely additive.
 - **Inlined into the bundle.** The manifest is `import`ed at module init, not fetched. It can't lag the assets it references because they ship together. No "manifest stale relative to disk" race.
@@ -146,8 +146,8 @@ Four things bit during Phase 1 that the design didn't predict. Each is one of th
 
 Things deliberately deferred but worth watching:
 
-- **Playwright visual smoke test.** Currently `verify:cc` (typecheck + lint + unit tests) is the only PR gate. It catches schema/import-shape breakages but not, say, a champion icon rendering as 1×1 pixels because the manifest entry points at a corrupted WebP. The hash check on download partly mitigates this — a corrupted source would change the hash and trigger an `updated` diff — but it wouldn't catch encoder pathologies. If we see a regression, a 30-line Playwright test that loads `/profile/foo` and asserts every visible `<img>` has `naturalWidth > 0` is the right shape. Until we see one, it's deferred — adding a Playwright dep + browser in CI to guard against a hypothetical isn't worth it on a solo project.
-- **Profile icons.** ~6000 in-game icons with sparse usage. Bundling is unbounded vs. usage, so the runtime fallback (wsrv.nl + Phase 0 timeout) is the right tool for that long tail. Worth revisiting if profile-icon usage concentrates somewhere — caching the top N seen in DB could give 99% bundle-hit at a fraction of the bytes.
+- **Playwright visual smoke test.** Currently `verify:cc` (typecheck + lint + unit tests) is the only PR gate. It catches schema/import-shape breakages but not, say, a champion icon rendering as 1×1 pixels because the manifest entry points at a corrupted WebP. The hash check on download partly mitigates this — a corrupted source would change the hash and trigger an `updated` diff — but it wouldn't catch encoder pathologies. If we see a regression, a 30-line Playwright test that loads `/profile/foo` and asserts every visible `<img>` has `naturalWidth > 0` would fit. Until we see one, it's deferred — adding a Playwright dep + browser in CI to guard against a hypothetical isn't worth it on a solo project.
+- **Profile icons.** ~6000 in-game icons with sparse usage. Bundling is unbounded vs. usage, so the runtime fallback (wsrv.nl + Phase 0 timeout) fits that long tail. Worth revisiting if profile-icon usage concentrates somewhere — caching the top N seen in DB could give 99% bundle-hit at a fraction of the bytes.
 - **Per-locale variants.** Out of scope — we render en_US only. The manifest schema is keyed in a way that supports `locale` extension; if localization happens, the script grows but the URL helpers don't.
 - **PBE patch tracking.** Out of scope — too noisy. Patch detection deliberately uses the live `versions.json`, not the PBE endpoint.
 

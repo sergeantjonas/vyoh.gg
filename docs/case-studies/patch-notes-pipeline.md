@@ -15,7 +15,7 @@
 The product needs patch context for two reasons:
 
 1. **Freshness signal on the profile page** — "These three champions you play got changed on V26.10. Here's what." A small persistent banner that sells the project as "actually current," not a frozen demo.
-2. **Patch-drift verdicts on the champion-pool page** — a per-champion verdict that explains *why* a stat moved. "Win rate down 4pp on Lillia, V26.09 nerfed her Q damage by 12%." That's the load-bearing use case; freshness is the cosmetic one.
+2. **Patch-drift verdicts on the champion-pool page** — a per-champion verdict that explains *why* a stat moved. "Win rate down 4pp on Lillia, V26.09 nerfed her Q damage by 12%." That's the use case the pipeline exists for; freshness is the cosmetic one.
 
 Both need structured patch data: subject (champion / item / rune), ability slot (Q/W/E/R/Passive), change text, and ideally a directional classification (buff / nerf / adjustment / new effect / removed).
 
@@ -164,7 +164,7 @@ ddragon champion.json     →  MonkeyKing ↔ Wukong (string id ↔ display name
 wiki Module:ChampionData  →  Crushing Blow → Q  (display name → slot)
 ```
 
-CDragon ability icons are keyed by string ID + slot letter (`/champion/MonkeyKing/ability-icon/q`), so both sources are load-bearing. The wiki module also lists every named variant of every ability — Karma's "Renewal" under `skill_w`, Lee Sin's "Iron Will" under `skill_w` — which means empowered/transformed forms slot correctly without per-champion heuristics.
+CDragon ability icons are keyed by string ID + slot letter (`/champion/MonkeyKing/ability-icon/q`), so both sources are needed. The wiki module also lists every named variant of every ability — Karma's "Renewal" under `skill_w`, Lee Sin's "Iron Will" under `skill_w` — which means empowered/transformed forms slot correctly without per-champion heuristics.
 
 ### File embeds aren't change lines
 
@@ -192,12 +192,12 @@ This is acceptable, not a bug. The UI renders unclassified lines neutrally (no a
 
 **Wiki rate limits.** Two requests per patch (one wikitext fetch, one module fetch) every 6h is well below any conceivable threshold. The cron tick logs the version, so spike detection is trivial if the wiki ever pushes back. No retry/backoff logic shipped; not needed yet.
 
-## Why this earns its place in the portfolio
+## What I took from it
 
-- **Integration story without an API.** The interesting work in any LoL aggregator isn't calling Riot — it's the gaps Riot leaves. Patch notes is the cleanest example: no official feed, brittle HTML scrape if you go to Riot's site, structured-enough wikitext if you know where to look. The case for choosing the wiki is the case for any pipeline that picks structure-by-convention over structure-by-contract.
-- **Parser discipline.** The whole pipeline is fewer than 500 LOC across `patch-parser.ts` + `patch.service.ts`. No parser library, no DOM toolkit, no LLM call. Just regex anchors against a known template, with the unknown-template fallback documented in code. It reads as boring on purpose.
-- **Two surfaces, one parser.** A common shape in product engineering: the "tile" version (top-5 filter) and the "full slate" version (no filter, partitioned client-side) of the same data. One write path, one schema, two read endpoints, no view materialization. Worth pointing at when a frontend engineer asks why a project this size doesn't have a GraphQL layer.
-- **Resilient by data choice, not by retry logic.** The strongest argument for the wiki isn't "it's free" — it's that wiki image URLs survive entity removal, the wikitext template convention has been stable for years, and re-syncing is one transaction. Resilience came from picking a source that's stable, not from wrapping a fragile source in retries.
+- Integration story without an API. The interesting work in any LoL aggregator isn't calling Riot — it's the gaps Riot leaves. Patch notes is the cleanest example: no official feed, brittle HTML scrape if you go to Riot's site, structured-enough wikitext if you know where to look. The case for choosing the wiki is the case for any pipeline that picks structure-by-convention over structure-by-contract.
+- Parser discipline. The whole pipeline is fewer than 500 LOC across `patch-parser.ts` + `patch.service.ts`. No parser library, no DOM toolkit, no LLM call. Just regex anchors against a known template, with the unknown-template fallback documented in code. It reads as boring on purpose.
+- Two surfaces, one parser. A common shape: the "tile" version (top-5 filter) and the "full slate" version (no filter, partitioned client-side) of the same data. One write path, one schema, two read endpoints, no view materialization. Worth pointing at when someone asks why a project this size doesn't have a GraphQL layer.
+- Resilient by data choice, not by retry logic. The strongest argument for the wiki isn't "it's free" — it's that wiki image URLs survive entity removal, the wikitext template convention has been stable for years, and re-syncing is one transaction. Resilience came from picking a source that's stable, not from wrapping a fragile source in retries.
 
 ## Connections
 
