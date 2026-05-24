@@ -190,7 +190,7 @@ describe("LibraryTile view-transition wiring", () => {
     await Promise.resolve();
 
     expect(startVT).toHaveBeenCalledTimes(1);
-    expect(nameAtCaptureTime).toBe("steam-game-730");
+    expect(nameAtCaptureTime).toBe("steam-game-730-hero");
     // Inside the callback the name is cleared before the navigation await,
     // so by the time we observe it after the event the style is empty.
     expect(morph.style.viewTransitionName).toBe("");

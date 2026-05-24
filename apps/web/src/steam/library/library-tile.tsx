@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import {
+  makeHeroFallbackHandlers,
   steamCapsuleUrl,
   steamLibraryCapsuleUrl,
   steamLibraryHeroUrl,
@@ -26,10 +27,10 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
   const [capsuleFailed, setCapsuleFailed] = useState(false);
   const [capsuleLoaded, setCapsuleLoaded] = useState(false);
   const navigate = useNavigate();
-  // Blurred-capsule backdrop layer is the morph anchor: the game-detail hero
-  // renders the same `steamCapsuleUrl()` image as its backdrop, so naming
-  // *just* this layer on both sides carries the visual continuity across a
-  // 2:3 → 3:1 aspect change without forcing the visible primary art to warp.
+  // Hidden hero-img layer is the morph anchor: the destination renders the
+  // same hero asset as its foreground banner, so naming *just* this hidden
+  // layer carries the visual continuity across a 2:3 → 3:1 aspect change
+  // without forcing the visible primary art (the portrait capsule) to warp.
   // See docs/working-notes/cross-cutting/view-transitions-rollout.md.
   const morphLayerRef = useRef<HTMLImageElement>(null);
 
@@ -60,7 +61,7 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
               const el = morphLayerRef.current;
               if (!el) return;
               e.preventDefault();
-              const name = `steam-game-${game.appid}`;
+              const name = `steam-game-${game.appid}-hero`;
               el.style.viewTransitionName = name;
               const doc = document as Document & {
                 startViewTransition?: (cb: () => Promise<void>) => unknown;
@@ -77,16 +78,29 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
             className="flex flex-col gap-5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[filter,box-shadow,transform] duration-500 ease-out transform-[perspective(700px)_rotateX(0deg)_rotateY(0deg)_scale(1)] group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
-              {/* Lowest layer: blurred header.jpg sits behind the primary
-                  art, invisible at rest because covered. It exists so the
-                  view-transition morph has a named element that shows the
-                  same image as the destination's hero backdrop. */}
+              {/* Lowest layer: hidden hero img sits behind the primary
+                  portrait capsule, invisible at rest because covered. It
+                  exists so the view-transition morph has a named element
+                  that shares its asset with the destination's foreground
+                  hero — capsule-to-hero would warp the primary art, but
+                  this hidden-mirror trick lets the portrait art crossfade
+                  via the root transition while the named layer
+                  interpolates rect from portrait-bbox to landscape-banner.
+                  Chains hero → page-background on missing-hero titles so
+                  the morph snapshot has real content to interpolate
+                  (rather than an empty rect) on pre-2019 titles. */}
               <img
                 ref={morphLayerRef}
-                src={steamCapsuleUrl(game.appid, game.assetTimestamp)}
+                src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
                 alt=""
                 aria-hidden
                 loading="lazy"
+                {...makeHeroFallbackHandlers({
+                  appid: game.appid,
+                  assetTimestamp: game.assetTimestamp,
+                  onSuccess: () => {},
+                  onMissing: () => {},
+                })}
                 className="absolute inset-0 size-full object-cover blur-sm"
               />
               {capsuleFailed ? (

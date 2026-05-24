@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
 import {
-  steamCapsuleUrl,
+  makeHeroFallbackHandlers,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
@@ -66,13 +66,22 @@ function SteamGamePage() {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
-  // wsrv.nl forwards upstream 404s as `200 OK` with empty bytes, so a missing
-  // asset fires `onLoad` instead of `onError`. Promote zero-width loads to
-  // the failed branch so the text fallback actually renders.
-  const handleHeroLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (e.currentTarget.naturalWidth === 0) setHeroFailed(true);
-    else setHeroLoaded(true);
-  };
+  // Hero img uses the shared hero → page-background fallback chain
+  // (`steamLibraryHeroUrl` → `steamPageBackgroundUrl` → setHeroFailed).
+  // About 9% of a typical library lacks `library_hero.jpg` (pre-2019
+  // titles); the page-background fallback recovers most of those with
+  // logo-free scenic art.
+  const heroHandlers = makeHeroFallbackHandlers({
+    appid,
+    assetTimestamp: game?.assetTimestamp ?? null,
+    onSuccess: () => setHeroLoaded(true),
+    onMissing: () => setHeroFailed(true),
+  });
+  // wsrv.nl forwards upstream 404s as `200 OK` with empty bytes, so a
+  // missing logo fires `onLoad` instead of `onError`. Promote zero-width
+  // loads to the failed branch so the text fallback actually renders.
+  // (Logo has no page-bg fallback — older titles never had a wordmark
+  // image at all, so we go straight to the text branch.)
   const handleLogoLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
     else setLogoLoaded(true);
@@ -97,30 +106,27 @@ function SteamGamePage() {
       {/* Hero banner — Steam's library_hero.jpg (1920×620) with logo.png
           overlay positioned bottom-left, mirroring Steam's own library page
           aesthetic. Aspect ratio is locked so the layout is stable before
-          the image loads. A blurred + scaled header.jpg sits underneath as
-          both the loading placeholder (no jarring dark block while the hero
-          streams in) and the permanent fallback for older titles that never
-          shipped a library_hero asset. */}
-      <div className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-muted">
-        {/* Blurred capsule backdrop also carries the view-transition morph
-            from the library tile — the source tile renders the same image
-            as its lowest layer and names it identically on click, so the
-            named element interpolates capsule-to-capsule across a portrait
-            → landscape rect change. See
+          the image loads. For the rare older titles that never shipped a
+          library_hero asset, the `heroFailed` branch leaves the
+          gradient-on-bg-muted backdrop visible (no jarring black box). */}
+      <div className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-linear-to-br from-muted via-card to-muted">
+        {/* Two view-transition morph anchors. From the library TILE: only
+            the hero name pairs (tile renders a hidden hero img as its
+            anchor); the logo name has no source pair and crossfades.
+            From the library ROW: both hero and logo pair, producing a
+            coordinated two-element morph — hero rect tweens from the row's
+            right-pane into the full-width banner (the row's mask-image
+            fade dissolves as it expands), and the logo wordmark locks as
+            a landmark across the route swap. See
             docs/working-notes/cross-cutting/view-transitions-rollout.md. */}
-        <img
-          src={steamCapsuleUrl(appid, game?.assetTimestamp)}
-          alt=""
-          style={{ viewTransitionName: `steam-game-${appid}` }}
-          className="absolute inset-0 size-full object-cover blur-sm"
-        />
         {!heroFailed && (
           <img
             src={steamLibraryHeroUrl(appid, game?.assetTimestamp)}
             alt=""
             loading="eager"
-            onLoad={handleHeroLoad}
-            onError={() => setHeroFailed(true)}
+            onLoad={heroHandlers.onLoad}
+            onError={heroHandlers.onError}
+            style={{ viewTransitionName: `steam-game-${appid}-hero` }}
             className={cn(
               "absolute inset-0 size-full object-cover transition-opacity duration-500 ease-out",
               heroLoaded ? "opacity-100" : "opacity-0"
@@ -139,6 +145,7 @@ function SteamGamePage() {
             loading="eager"
             onLoad={handleLogoLoad}
             onError={() => setLogoFailed(true)}
+            style={{ viewTransitionName: `steam-game-${appid}-logo` }}
             className={cn(
               "absolute bottom-4 left-4 h-1/3 max-w-[55%] object-contain object-bottom-left drop-shadow-lg transition-opacity duration-500 ease-out sm:bottom-6 sm:left-6",
               logoLoaded ? "opacity-100" : "opacity-0"

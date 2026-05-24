@@ -98,7 +98,7 @@ function LibraryPage() {
               ))}
             </ul>
           ) : (
-            <ul className="flex flex-col divide-y divide-border/40 rounded-lg border bg-card/50">
+            <ul className="flex flex-col gap-2">
               {visible.map((game) => (
                 <LibraryRow key={game.appid} game={game} />
               ))}

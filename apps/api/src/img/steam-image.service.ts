@@ -87,18 +87,40 @@ export class SteamImageService {
     };
   }
 
-  // Profile page backdrop. `page_bg_generated_v6b.jpg` is the high-quality
-  // (less aggressively compressed) variant under `store_item_assets`; not
-  // universally present, so we fall back to `storepagebackground/app/{appid}`
-  // on a different host — universally available across the titles sampled.
+  // Profile page backdrop. Chain in preference order:
+  //   1. `library_hero.jpg` (+ hashed variant when enrichment knows the
+  //      content hash) — modern titles' wide hero art (1920×620). It IS
+  //      the same asset the destination renders in the hero banner; the
+  //      page-wide layer applies heavy blur (~20px) + scale + dim wash
+  //      so it reads as ambient palette wash rather than a visible echo.
+  //      Steam's own client does the same thing on the library home.
+  //   2. `page_bg_generated.jpg` — older titles (pre-2019 library asset
+  //      spec), warmer/saturated; preferred over v6b because v6b is
+  //      tinted blue + low-saturation enough to read as "washed out".
+  //   3. `page_bg_generated_v6b.jpg` — modern titles without library_hero
+  //      (rare), blue last-resort.
+  //   4. `storepagebackground/app/{appid}` — universal mirror.
+  // Also used as the fallback when a title is missing `library_hero.jpg`
+  // entirely (frontend chains hero → backdrop via onError on the
+  // destination, row shell, and tile's hidden morph anchor). In that
+  // case the chain effectively starts at entry 2 since entry 1 just 404s
+  // for that subset.
   async backdrop(appid: number): Promise<Resolved> {
     const row = await this.prisma.steamGameEnrichment.findUnique({
       where: { appid },
-      select: { assetTimestamp: true },
+      select: { libraryHeroPath: true, assetTimestamp: true },
     });
     const t = row?.assetTimestamp != null ? `?t=${row.assetTimestamp.toString()}` : "";
+    const heroUrls = composeAssetUrls(
+      appid,
+      row?.libraryHeroPath,
+      row?.assetTimestamp,
+      "library_hero.jpg"
+    );
     return {
       urls: [
+        ...heroUrls,
+        `${STEAM_CDN_HOST}/${STEAM_STORE_ASSETS_PATH}/steam/apps/${appid}/page_bg_generated.jpg${t}`,
         `${STEAM_CDN_HOST}/${STEAM_STORE_ASSETS_PATH}/steam/apps/${appid}/page_bg_generated_v6b.jpg${t}`,
         `${STEAM_STORE_BG_HOST}/images/storepagebackground/app/${appid}${t}`,
       ],

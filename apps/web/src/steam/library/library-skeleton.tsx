@@ -28,13 +28,13 @@ function LibraryTileSkeleton() {
 
 function LibraryRowSkeleton() {
   return (
-    <div className="flex items-center gap-4 p-3">
-      <ShimmerBlock className="h-11.25 w-30 flex-none rounded-sm" />
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <ShimmerBlock className="h-4 w-2/3 rounded" />
-        <ShimmerBlock className="h-3 w-1/3 rounded" />
+    <div className="relative h-32 overflow-hidden rounded-lg border border-border/40 bg-card/50 sm:h-36">
+      <ShimmerBlock className="absolute inset-0 size-full rounded-none" />
+      <div className="absolute inset-0 bg-linear-to-r from-black/40 via-black/20 to-transparent" />
+      <div className="absolute inset-0 flex flex-col justify-center gap-2 px-4 sm:px-5">
+        <ShimmerBlock className="h-7 w-40 rounded sm:h-8 sm:w-52" />
+        <ShimmerBlock className="h-3 w-32 rounded" />
       </div>
-      <ShimmerBlock className="h-4 w-16 flex-none rounded" />
     </div>
   );
 }
@@ -62,7 +62,7 @@ export function LibrarySkeleton({ layout }: { layout: LibraryLayout }) {
       initial="hidden"
       animate="show"
       variants={container}
-      className="flex flex-col divide-y divide-border/40 rounded-lg border bg-card/50"
+      className="flex flex-col gap-2"
     >
       {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
         <m.li key={i} variants={item}>

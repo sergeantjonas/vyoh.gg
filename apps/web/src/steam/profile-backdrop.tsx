@@ -124,13 +124,28 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
       }
     >
       {!failed && (
-        <img
-          src={src}
-          alt=""
-          onLoad={() => setReady(true)}
-          onError={() => setFailed(true)}
-          className="size-full scale-105 object-cover blur-[5px]"
-        />
+        <>
+          <img
+            src={src}
+            alt=""
+            onLoad={() => setReady(true)}
+            onError={() => setFailed(true)}
+            // Moderate blur (8px, up from the prior 5px) softens the echo
+            // between this layer and the destination hero banner —
+            // modern titles use `library_hero.jpg` for both, so without
+            // some extra blur the page-wide backdrop reads as a redundant
+            // copy. `brightness-50` darkens the source so bright source
+            // art (Hollow Knight's cyan, etc.) doesn't blow out the
+            // overlaid header text + tab labels.
+            className="size-full scale-105 object-cover blur-[8px] brightness-75"
+          />
+          {/* Top-to-bottom dim wash — mirrors the SteamProfileBackdrop
+              overlay so nav/breadcrumb/tabs read against a consistently
+              darkened backdrop regardless of source-art luminance.
+              GameBackdropLayer sits on top of the profile layer's
+              equivalent wash so we need our own here. */}
+          <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background/95" />
+        </>
       )}
     </m.div>
   );

@@ -17,6 +17,6 @@ describe("LibrarySkeleton", () => {
   it("renders a list of row placeholders when layout is rows", () => {
     const { container } = renderWithMotion(<LibrarySkeleton layout="rows" />);
     expect(container.querySelectorAll("li").length).toBe(8);
-    expect(container.querySelector("ul")?.className).toContain("divide-y");
+    expect(container.querySelector("ul")?.className).toContain("flex-col");
   });
 });

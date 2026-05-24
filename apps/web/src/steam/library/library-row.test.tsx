@@ -1,11 +1,25 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { LibraryRow } from "./library-row";
 
+const navigateMock = vi.fn();
+
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,
+  Link: ({ children, ...props }: { children: ReactNode }) => (
+    <a {...(props as Record<string, string>)}>{children}</a>
+  ),
+  useNavigate: () => navigateMock,
 }));
 
 // profile-backdrop's prefetch import has side-effects; mock to keep tests pure.
@@ -47,9 +61,10 @@ afterAll(() => {
 });
 
 describe("LibraryRow", () => {
-  it("renders the game name and 'Never launched' when no playtime is recorded", () => {
+  it("renders the game name (as logo alt) and 'Never launched' when no playtime is recorded", () => {
     render(<LibraryRow game={makeGame({ name: "Half-Life 2" })} />);
-    expect(screen.getByText("Half-Life 2")).toBeTruthy();
+    // Name lives on the logo wordmark img's alt (see SteamGameRowShell).
+    expect(screen.getByAltText("Half-Life 2")).toBeTruthy();
     expect(screen.getByText("Never launched")).toBeTruthy();
   });
 
@@ -99,5 +114,81 @@ describe("LibraryRow", () => {
       />
     );
     expect(container.textContent).toMatch(/last played .*months ago/);
+  });
+});
+
+describe("LibraryRow view-transition wiring", () => {
+  beforeEach(() => {
+    navigateMock.mockReset();
+  });
+
+  afterEach(() => {
+    const doc = document as unknown as { startViewTransition?: unknown };
+    doc.startViewTransition = undefined;
+  });
+
+  it("applies hero + logo view-transition-names on a plain left-click and clears them inside the callback", async () => {
+    const startVT = vi.fn();
+    (document as unknown as { startViewTransition?: unknown }).startViewTransition =
+      startVT;
+
+    const { container } = render(<LibraryRow game={makeGame({ appid: 730 })} />);
+    const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
+    // SteamGameRowShell renders imgs in order: [blurred backdrop hero,
+    // foreground sharp hero (heroRef), logo (logoRef)]. The backdrop is
+    // NOT a morph anchor; only the foreground hero + logo are named.
+    const [, hero, logo] = imgs;
+    const link = container.querySelector("a");
+    if (!hero || !logo || !link) throw new Error("expected hero + logo imgs and a link");
+
+    const namesAtCaptureTime: Record<string, string> = {};
+    startVT.mockImplementation((cb: () => Promise<void> | void) => {
+      // OLD-snapshot capture is synchronous with the startViewTransition call,
+      // so each morph anchor must already carry its name at this point.
+      namesAtCaptureTime.hero = hero.style.viewTransitionName;
+      namesAtCaptureTime.logo = logo.style.viewTransitionName;
+      return Promise.resolve(cb());
+    });
+
+    fireEvent.click(link, { button: 0 });
+    await Promise.resolve();
+
+    expect(startVT).toHaveBeenCalledTimes(1);
+    expect(namesAtCaptureTime).toEqual({
+      hero: "steam-game-730-hero",
+      logo: "steam-game-730-logo",
+    });
+    // Both cleared inside the callback before the navigate await so
+    // neither collides with the destination's matching names at
+    // NEW-snapshot capture (would silently drop one of the morph pairs).
+    expect(hero.style.viewTransitionName).toBe("");
+    expect(logo.style.viewTransitionName).toBe("");
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: "/steam/game/$appid",
+      params: { appid: "730" },
+    });
+  });
+
+  it("does not invoke startViewTransition on a modifier-click", () => {
+    const startVT = vi.fn();
+    (document as unknown as { startViewTransition?: unknown }).startViewTransition =
+      startVT;
+
+    const { container } = render(<LibraryRow game={makeGame({ appid: 440 })} />);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+
+    fireEvent.click(link, { button: 0, metaKey: true });
+    expect(startVT).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("falls through when the browser lacks startViewTransition", () => {
+    const { container } = render(<LibraryRow game={makeGame({ appid: 570 })} />);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+
+    fireEvent.click(link, { button: 0 });
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

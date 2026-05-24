@@ -120,31 +120,45 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
 });
 
 describe("SteamImageService.backdrop", () => {
-  it("returns a cross-host fallback chain (store_item_assets → storepagebackground)", async () => {
+  it("returns the full fallback chain (library_hero → page_bg → v6b → mirror) with no enrichment", async () => {
     const prisma = makePrisma();
     prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryHeroPath: null,
       assetTimestamp: null,
     });
     const service = makeService(prisma);
 
     const resolved = await service.backdrop(440);
+    // With no enriched hero path, only the legacy library_hero.jpg URL
+    // sits at the front of the chain. page_bg variants follow for the
+    // pre-2019 titles that lack library_hero.
     expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/page_bg_generated.jpg",
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/page_bg_generated_v6b.jpg",
       "https://store.akamai.steamstatic.com/images/storepagebackground/app/440",
     ]);
     expect(resolved.params).toEqual({ quality: 95 });
   });
 
-  it("appends ?t= to both URLs when a timestamp is enriched", async () => {
+  it("inserts the hashed library_hero URL ahead of the legacy when enrichment knows the content hash", async () => {
     const prisma = makePrisma();
     prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryHeroPath: "abc123/library_hero.jpg",
       assetTimestamp: 1_715_000_000n,
     });
     const service = makeService(prisma);
 
     const resolved = await service.backdrop(440);
-    expect(resolved.urls[0]).toContain("?t=1715000000");
-    expect(resolved.urls[1]).toContain("?t=1715000000");
+    // Hashed library_hero first (immutable, CDN-cacheable), legacy second,
+    // then the page_bg fallbacks for the heroless-title case.
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/abc123/library_hero.jpg?t=1715000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/page_bg_generated.jpg?t=1715000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/page_bg_generated_v6b.jpg?t=1715000000",
+      "https://store.akamai.steamstatic.com/images/storepagebackground/app/440?t=1715000000",
+    ]);
   });
 });
 

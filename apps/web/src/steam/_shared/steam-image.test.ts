@@ -23,7 +23,10 @@ describe("steam image url helpers", () => {
       "http://localhost:2010/img/steam/logo/440/0.webp"
     );
     expect(steamPageBackgroundUrl(440)).toBe(
-      "http://localhost:2010/img/steam/backdrop/440/0.webp"
+      // v3 cache-bust segment — flips browsers off the year-cached prior
+      // bytes onto the latest preference order (library_hero first, then
+      // page_bg variants, then mirror). See BACKDROP_SCHEMA_VERSION.
+      "http://localhost:2010/img/steam/backdrop/3/440/0.webp"
     );
   });
 

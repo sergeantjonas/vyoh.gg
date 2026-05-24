@@ -302,7 +302,13 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
-  @Get("steam/backdrop/:appid/:assetTimestamp.webp")
+  // `:schemaVersion` is a static cache-bust segment — bump it client-side
+  // (via `BACKDROP_SCHEMA_VERSION` in steam-image.ts) when the proxy's
+  // upstream chain changes preference (e.g. v1 → v2 was the swap from the
+  // dim/blue v6b variant to the warmer `page_bg_generated.jpg`). Without
+  // this, existing browsers keep serving year-cached v1 bytes from the
+  // immutable Cache-Control header.
+  @Get("steam/backdrop/:schemaVersion/:appid/:assetTimestamp.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)
   async steamBackdrop(

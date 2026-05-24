@@ -1,6 +1,6 @@
 import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
-import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
+import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
 import { useSteamWishlist } from "@/steam/use-wishlist";
 import {
   formatWishlistDateAdded,
@@ -114,49 +114,40 @@ interface WishlistRowProps {
 }
 
 function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
+  const release = formatWishlistReleaseLabel(item);
   return (
-    <li
-      data-appid={item.appid}
-      className={cn(
-        "flex items-center gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition",
-        isHighlighted && "ring-2 ring-amber-300 ring-offset-2 ring-offset-background"
-      )}
-    >
-      <img
-        src={steamCapsuleUrl(item.appid)}
-        alt=""
-        width={120}
-        height={45}
-        loading="lazy"
-        className="h-11.25 w-30 flex-none rounded-sm bg-muted object-cover"
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-base font-medium text-foreground/90">
-          {item.name ?? `Unknown title (app ${item.appid})`}
-        </p>
-        <span className="text-sm text-muted-foreground">
-          Added {formatWishlistDateAdded(item.dateAdded)}
-          {(() => {
-            const release = formatWishlistReleaseLabel(item);
-            return release ? (
-              <>
-                {" · "}
-                <span className={item.comingSoon ? "text-amber-200/80" : undefined}>
-                  {release}
-                </span>
-              </>
-            ) : null;
-          })()}
-        </span>
-      </div>
+    <li data-appid={item.appid}>
       <a
         href={item.storeUrl}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border/40 bg-background/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:bg-background/70 hover:text-foreground"
+        // External nav: no view-transition morph (the destination is the
+        // Steam store, not a /steam/game route). The whole row is the click
+        // target; the trailing icon is a visual external-link affordance.
+        className={cn(
+          "block rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
+          isHighlighted && "ring-2 ring-amber-300 ring-offset-2 ring-offset-background"
+        )}
+        aria-label={`${item.name ?? `App ${item.appid}`} on Steam`}
       >
-        View on Steam
-        <ExternalLink className="size-3.5" aria-hidden />
+        <SteamGameRowShell
+          appid={item.appid}
+          name={item.name ?? `Unknown title (app ${item.appid})`}
+          meta={
+            <>
+              Added {formatWishlistDateAdded(item.dateAdded)}
+              {release ? (
+                <>
+                  {" · "}
+                  <span className={item.comingSoon ? "text-amber-200/80" : undefined}>
+                    {release}
+                  </span>
+                </>
+              ) : null}
+            </>
+          }
+          trailing={<ExternalLink className="size-4" aria-hidden />}
+        />
       </a>
     </li>
   );

@@ -19,6 +19,15 @@
 const API_URL = "http://localhost:2010";
 
 const ACHIEVEMENT_SCHEMA_VERSION = 1;
+// Bump when the backdrop proxy chain changes preference order.
+//   v1: `page_bg_generated_v6b.jpg` (dim/blue, original behavior).
+//   v2: prefer `page_bg_generated.jpg` (warmer) over v6b.
+//   v3: prepend `library_hero.jpg` so modern titles (Nightreign etc.) use
+//       their actual hero art as the page-wide backdrop, blurred + scaled
+//       to ambient. Older titles still fall through to page_bg_generated.
+// Without this segment, browsers with `Cache-Control: immutable` would
+// keep serving year-old cached bytes against the same URL.
+const BACKDROP_SCHEMA_VERSION = 3;
 
 function cacheKey(assetTimestamp?: number | bigint | null): string {
   return assetTimestamp != null ? assetTimestamp.toString() : "0";
@@ -60,7 +69,54 @@ export function steamPageBackgroundUrl(
   appid: number,
   assetTimestamp?: number | bigint | null
 ): string {
-  return `${API_URL}/img/steam/backdrop/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_URL}/img/steam/backdrop/${BACKDROP_SCHEMA_VERSION}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+}
+
+// Hero img → page-background fallback chain shared by the destination
+// game page, row shell (backdrop + foreground hero), and tile (hidden
+// morph anchor). About 9% of a typical library lacks `library_hero.jpg`
+// (mostly pre-2019 titles that predate the asset spec); for those, the
+// page-background asset is logo-free scenic art that reads as a hero
+// stand-in. The remaining ~2% (stripped-down standalone variants like
+// CoD MW2 MP-only) lack both — `onMissing` is called so the caller can
+// show a CSS gradient fallback.
+//
+// Returns paired onLoad + onError handlers because the proxy quirk
+// requires both paths: wsrv-style proxies forward upstream 404s as
+// `200 OK` with an empty body, so `naturalWidth === 0` in onLoad is the
+// real failure signal (onError only catches proxy 5xx). The one-shot
+// `data-fell-back` guard prevents the chain from looping.
+export interface HeroFallbackHandlers {
+  onLoad: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+  onError: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+}
+
+export function makeHeroFallbackHandlers({
+  appid,
+  assetTimestamp,
+  onSuccess,
+  onMissing,
+}: {
+  appid: number;
+  assetTimestamp: number | bigint | null | undefined;
+  onSuccess: () => void;
+  onMissing: () => void;
+}): HeroFallbackHandlers {
+  const fallback = (target: HTMLImageElement) => {
+    if (target.dataset.fellBack) {
+      onMissing();
+      return;
+    }
+    target.dataset.fellBack = "1";
+    target.src = steamPageBackgroundUrl(appid, assetTimestamp);
+  };
+  return {
+    onLoad: (e) => {
+      if (e.currentTarget.naturalWidth === 0) fallback(e.currentTarget);
+      else onSuccess();
+    },
+    onError: (e) => fallback(e.currentTarget),
+  };
 }
 
 export function steamAchievementIconUrl(
