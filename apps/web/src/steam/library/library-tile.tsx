@@ -51,8 +51,17 @@ export function LibraryTile({
   const lifetime =
     game.playtimeForeverMinutes > 0 ? formatPlaytime(game.playtimeForeverMinutes) : null;
 
+  // `view-transition-name` on the li lets sort/filter reorders inside
+  // `withReorderViewTransition` pair OLD↔NEW positions per game. See
+  // library-row.tsx for the full rationale; the `library-tile-` prefix
+  // keeps the namespace disjoint from rows during a layout switch.
+  const liStyle: CSSProperties = {
+    ...style,
+    viewTransitionName: `library-tile-${game.appid}`,
+  };
+
   return (
-    <li ref={liRef} style={style} data-index={dataIndex} className="group/tile">
+    <li ref={liRef} style={liStyle} data-index={dataIndex} className="group/tile">
       <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
         <HoverCardPrimitive.Trigger asChild>
           <Link

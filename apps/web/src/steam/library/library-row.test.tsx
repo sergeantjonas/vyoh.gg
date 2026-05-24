@@ -115,6 +115,13 @@ describe("LibraryRow", () => {
     );
     expect(container.textContent).toMatch(/last played .*months ago/);
   });
+
+  it("stamps `library-row-${appid}` as view-transition-name on the li so sort/filter reorders pair OLD↔NEW", () => {
+    const { container } = render(<LibraryRow game={makeGame({ appid: 12345 })} />);
+    const li = container.querySelector("li");
+    if (!li) throw new Error("li missing");
+    expect(li.style.viewTransitionName).toBe("library-row-12345");
+  });
 });
 
 describe("LibraryRow view-transition wiring", () => {

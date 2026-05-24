@@ -75,17 +75,46 @@ export function TagFilterPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" className="gap-2">
           <Tag className="size-3.5" />
           Tags
-          {selectedTagIds.length > 0 && (
-            <span className="rounded-sm bg-primary px-1.5 text-xs font-medium text-primary-foreground tabular-nums">
-              {selectedTagIds.length}
-            </span>
-          )}
+          {/*
+           * Chip is always rendered (invisible at count=0) with a fixed
+           * min-width so the trigger button width is constant across
+           * 0/1/2-digit counts. Without this, every toggle resizes the
+           * trigger and Radix re-anchors the open popover, producing
+           * visible jitter as the user clicks tags.
+           */}
+          <span
+            aria-hidden={selectedTagIds.length === 0 || undefined}
+            className={cn(
+              "min-w-5 rounded-sm bg-primary px-1.5 text-center text-xs font-medium text-primary-foreground tabular-nums",
+              selectedTagIds.length === 0 && "invisible"
+            )}
+          >
+            {selectedTagIds.length}
+          </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0">
+      {/*
+       * `view-transition-name` carves the popover out of the root snapshot
+       * during a `withReorderViewTransition` reflow (tag toggles while the
+       * popover stays open). Without a name, the popover sits in
+       * `::view-transition-group(root)`, which is painted *under* the named
+       * `library-tile-${appid}` / `library-row-${appid}` groups in the
+       * pseudo tree — making the morphing cards visibly cover the open
+       * popover. The morph overlay is in the browser top-layer so no live-
+       * DOM `z-index` can climb above it; only a named group at a later
+       * capture position can paint on top, and the popover portal mounts
+       * as a body sibling after the library list so its group lands later
+       * in capture order. The name only attaches when the popover is open
+       * (PopoverContent only renders then), so closed-popover sort/filter
+       * morphs are unaffected.
+       */}
+      <PopoverContent
+        className="w-80 p-0"
+        style={{ viewTransitionName: "tag-filter-popover" }}
+      >
         <div className="flex items-center gap-2 border-b p-2">
           <Input
             type="search"

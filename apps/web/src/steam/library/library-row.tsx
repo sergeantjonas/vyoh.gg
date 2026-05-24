@@ -132,15 +132,28 @@ export function LibraryRow({
     </Link>
   );
 
+  // `view-transition-name` on the li lets sort/filter reorders inside
+  // `withReorderViewTransition` pair OLD↔NEW positions per game. Always-on
+  // is intentional: at click-time the per-element hero/logo names (set on
+  // the imgs inside) get carved out into their own VT groups, while this
+  // outer name has no pair on the destination and falls back to the UA's
+  // default exit fade — visually equivalent to today, since the surrounding
+  // root group is also fading. `library-row-` prefix keeps the namespace
+  // disjoint from `library-tile-` when the layout toggle switches in place.
+  const liStyle: CSSProperties = {
+    ...style,
+    viewTransitionName: `library-row-${game.appid}`,
+  };
+
   if (!showHovercard)
     return (
-      <li ref={liRef} style={style} data-index={dataIndex}>
+      <li ref={liRef} style={liStyle} data-index={dataIndex}>
         {link}
       </li>
     );
 
   return (
-    <li ref={liRef} style={style} data-index={dataIndex}>
+    <li ref={liRef} style={liStyle} data-index={dataIndex}>
       <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
         <HoverCardPrimitive.Trigger asChild>{link}</HoverCardPrimitive.Trigger>
         <HoverCardPrimitive.Portal>

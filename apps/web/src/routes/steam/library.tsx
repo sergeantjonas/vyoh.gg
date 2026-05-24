@@ -1,4 +1,5 @@
 import { EmptyLibraryIllustration, EmptyState } from "@/components/empty-state";
+import { withReorderViewTransition } from "@/lib/view-transition-nav";
 import { applyLibraryFilters } from "@/steam/library/apply-filters";
 import { LibraryControls } from "@/steam/library/library-controls";
 import { LibraryGridVirtual } from "@/steam/library/library-grid-virtual";
@@ -72,13 +73,19 @@ function LibraryPage() {
             query={query}
             onQueryChange={setQuery}
             sort={sort}
-            onSortChange={(v) => updatePref("sort", v)}
+            onSortChange={(v) => withReorderViewTransition(() => updatePref("sort", v))}
             playedFilter={playedFilter}
-            onPlayedFilterChange={(v) => updatePref("playedFilter", v)}
+            onPlayedFilterChange={(v) =>
+              withReorderViewTransition(() => updatePref("playedFilter", v))
+            }
             appTypeFilter={appTypeFilter}
-            onAppTypeFilterChange={(v) => updatePref("appTypeFilter", v)}
+            onAppTypeFilterChange={(v) =>
+              withReorderViewTransition(() => updatePref("appTypeFilter", v))
+            }
             selectedTagIds={selectedTagIds}
-            onSelectedTagIdsChange={(v) => updatePref("selectedTagIds", v)}
+            onSelectedTagIdsChange={(v) =>
+              withReorderViewTransition(() => updatePref("selectedTagIds", v))
+            }
             layout={layout}
             onLayoutChange={(v) => updatePref("layout", v)}
             totalCount={typedTotal}

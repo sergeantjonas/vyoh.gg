@@ -118,7 +118,7 @@ export function LibraryControls({
         <div className="ml-auto inline-flex rounded-lg border border-border">
           <Button
             type="button"
-            size="icon-sm"
+            size="icon"
             variant="ghost"
             aria-pressed={layout === "rows"}
             aria-label="Row layout"
@@ -129,7 +129,7 @@ export function LibraryControls({
           </Button>
           <Button
             type="button"
-            size="icon-sm"
+            size="icon"
             variant="ghost"
             aria-pressed={layout === "tiles"}
             aria-label="Tile layout"

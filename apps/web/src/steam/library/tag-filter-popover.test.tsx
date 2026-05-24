@@ -39,11 +39,16 @@ afterEach(() => {
 });
 
 describe("TagFilterPopover", () => {
-  it("renders the trigger with no badge when no tags are selected", () => {
+  it("renders the trigger with a hidden badge slot when no tags are selected", () => {
     mockTags({ data: { tags: [{ id: 1, name: "Action" }] } });
     render(<TagFilterPopover games={[]} selectedTagIds={[]} onChange={() => {}} />);
     expect(screen.getByText("Tags")).toBeTruthy();
-    expect(screen.queryByText(/^\d+$/)).toBeNull();
+    // The chip is always rendered (with `invisible` + `aria-hidden`) to
+    // reserve constant width so the trigger doesn't reflow when tags are
+    // added — preventing Radix popover jitter mid-selection.
+    const chip = screen.getByText("0");
+    expect(chip.className).toMatch(/invisible/);
+    expect(chip.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("renders the selected count badge when tags are selected", () => {

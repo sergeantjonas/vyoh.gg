@@ -120,6 +120,22 @@ body[data-vt-shell="on"] [data-vt-main] {
   mix-blend-mode: normal;
 }
 
+/* The tag-filter popover stays open while the user toggles tags, so the
+   library list reorders/filters underneath it inside the same view
+   transition. Without an explicit z-index, the popover's pseudo group is
+   ordered relative to per-tile groups purely by capture order — and that
+   order isn't symmetric across add/remove: an only-NEW tile group (newly
+   visible after un-checking a tag) lands AFTER the popover in the pseudo
+   tree and paints on top of it, while an only-OLD tile group (filtered
+   out by adding a tag) lands BEFORE and paints behind correctly. Pinning
+   the popover group to a high z-index forces it above every tile/row
+   group regardless of capture order. The spec allows z-index on
+   `::view-transition-group` and it's the canonical way to control
+   pseudo-tree paint order. */
+::view-transition-group(tag-filter-popover) {
+  z-index: 9999;
+}
+
 /* ── Cross-section + account-swap ─────────────────────────────────────────
    Full crossfade. Same viewport-stable rect as slide types means no
    squish artifact even though both pseudos overlap during the fade. */

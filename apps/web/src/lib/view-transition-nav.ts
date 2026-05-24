@@ -1,5 +1,7 @@
+import { isWebKit } from "@/lib/is-webkit";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { flushSync } from "react-dom";
 
 /**
  * View Transitions API integration for TanStack Router navigations.
@@ -133,13 +135,70 @@ export async function navigateWithViewTransition(
     return;
   }
   const doc = document as DocumentWithVT;
-  const startVT = doc.startViewTransition;
-  if (!startVT) {
+  if (!doc.startViewTransition) {
     await navigateFn();
     return;
   }
-  startVT(async () => {
+  // Call via `doc.startViewTransition(...)` — Firefox enforces strict
+  // receiver binding on DOM methods and throws TypeError on a destructured
+  // reference. Chrome is lenient and masks the bug.
+  doc.startViewTransition(async () => {
     await navigateFn();
+  });
+}
+
+/**
+ * Wrap a same-route state mutation (sort / filter change) in a View
+ * Transition so items reorder via OLD→NEW position morphs instead of
+ * snapping. The list rows/tiles carry `view-transition-name: <surface>-${id}`
+ * on a stable wrapper so the browser pairs them automatically.
+ *
+ * Tagged with `intra-section` so per-element groups inherit the 320 ms iOS-
+ * spring curve + `mix-blend-mode: normal` from view-transitions.css (the
+ * latter matters here: many morphs overlap in z as rows fly past one
+ * another, and the UA default blend reads as haze on overlap).
+ *
+ * Gated on WebKit. The Steam page's snapshot cost is what already drove the
+ * Steam tab-nav VT bypass on Safari (every tile is an isolate stacking
+ * context, achievements is a virtualised feed with shadowed cards, etc. —
+ * see safari-vt-snapshot-cost.md). A whole-document snapshot pair on
+ * sort/filter pays the same cost, so we snap on WebKit and morph elsewhere.
+ */
+export function withReorderViewTransition(update: () => void): void {
+  if (!supportsViewTransitions() || isWebKit()) {
+    update();
+    return;
+  }
+  const doc = document as DocumentWithVT;
+  if (!doc.startViewTransition) {
+    update();
+    return;
+  }
+  // Defer to the next microtask. When this helper wraps a Radix
+  // Select/Popover `onValueChange`, we enter while the originating click is
+  // still dispatching events from the portaled item — synchronously
+  // committing parent state via flushSync at that point leaves Radix's
+  // dismissable-layer half-finalised and the dropdown becomes unresponsive
+  // on subsequent opens. One microtask lets Radix finish closing first;
+  // the snapshot then captures a clean DOM with no open portal contents.
+  queueMicrotask(() => {
+    // Call via `doc.startViewTransition(...)` — Firefox enforces strict
+    // receiver binding on DOM methods and throws TypeError on a destructured
+    // reference (`const fn = doc.startViewTransition; fn(...)`). Chrome is
+    // lenient and lets the bare call through, masking the bug.
+    const transition = doc.startViewTransition?.(() => {
+      // flushSync forces React to commit the state change synchronously
+      // inside the VT callback so the NEW snapshot capture (right after
+      // the callback returns) sees the post-sort DOM. Without it, React's
+      // scheduler can commit after the snapshot and the morph captures
+      // the OLD layout twice — visually a no-op.
+      flushSync(update);
+    }) as { types?: Set<string> } | undefined;
+    // Post-creation mutation of `types` is supported wherever the
+    // object-form of startViewTransition is (Chrome 125+, Safari 18.2+);
+    // on older engines the Set is absent and we fall through to UA
+    // defaults, which is acceptable.
+    transition?.types?.add("intra-section");
   });
 }
 

@@ -93,6 +93,13 @@ describe("LibraryTile", () => {
     fireEvent.load(capsule);
     expect(capsule.style.opacity).toBe("1");
   });
+
+  it("stamps `library-tile-${appid}` as view-transition-name on the li so sort/filter reorders pair OLD↔NEW", () => {
+    const { container } = renderTile(game({ appid: 98765 }));
+    const li = container.querySelector("li");
+    if (!li) throw new Error("li missing");
+    expect(li.style.viewTransitionName).toBe("library-tile-98765");
+  });
 });
 
 describe("LibraryTile HeroFallback branches", () => {
