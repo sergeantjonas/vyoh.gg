@@ -51,7 +51,15 @@ The VT debugging surfaced compounding paint cost on the most navigation-heavy su
 - `slideKey` coarsening dropped from both `$accountSlug.tsx` and `steam.tsx` — needed only while AnimatePresence kept old/new Outlets briefly co-mounted; with VT, only one Outlet is mounted at a time.
 - Stale "spike-private" framing on the LOL_TAB_ORDER / STEAM_TAB_ORDER constants in `navigation-type.ts` downgraded — the duplication is now documented as deliberate (cheaper than the cross-file indirection until a third surface needs the same lookup).
 
----
+### Follow-up: Safari snapshot-cost bypass (2026-05-24, same day)
+
+Within hours of the migration shipping, Safari/iOS surfaced visible chop on intra-Steam tab navigation. Chrome and Firefox were fine. The bypass-and-substitute fix that landed is documented end-to-end in [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md). Short version:
+
+- `getNavigationType()` returns `false` for intra-Steam navs on WebKit (`isWebKit()` gate), skipping `document.startViewTransition` entirely for the engine that handles the snapshot capture badly.
+- A compositor-only CSS slide (`safari-slide-in-from-{left,right}` keyframes + [`useSafariSlideDirection`](../../../apps/web/src/steam/use-safari-slide-direction.ts) hook) substitutes for the visual continuity Safari users would otherwise lose.
+- LoL section navs are unaffected — Safari handles their (lighter) snapshot capture fine.
+
+The Steam Profile page also surfaced as a structural outlier during the same arc (~77 composite layers vs ~17 on the other Steam pages). Investigation queued in [steam-profile-layer-density.md](steam-profile-layer-density.md).
 
 ---
 
@@ -216,6 +224,8 @@ Possibly new:
 
 ## Related notes
 
+- [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — Safari-specific follow-up arc that landed the WebKit bypass + CSS-slide substitute for intra-Steam navs.
+- [steam-profile-layer-density.md](steam-profile-layer-density.md) — investigation queued for the ~77 composite layers on the Steam Profile page (surfaced during the Safari arc).
 - [view-transitions-rollout.md](view-transitions-rollout.md) — the parent arc. This migration is the prerequisite for its multi-element refinement and any future per-element morph work.
 - [elevation-arcs.md](elevation-arcs.md) — index of "elevate past boring app" arcs.
 - KB: [03-motion.md](~/.claude/knowledge/frontend-2026/03-motion.md) §3 (View Transitions API), §5.4 (List entry/exit with AnimatePresence and ViewTransition), §6.6 (View Transitions and reduced motion).
