@@ -14,6 +14,7 @@ import {
 } from "@/steam/_shared/steam-image";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
+import { GameDetailSkeleton } from "@/steam/game/game-detail-skeleton";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
 import { LastProgressedCard } from "@/steam/game/last-progressed-card";
@@ -140,10 +141,7 @@ function SteamGamePage() {
       </div>
 
       {isPending ? (
-        <div className="flex flex-col gap-2">
-          <div className="h-7 w-56 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-full max-w-lg animate-pulse rounded bg-muted" />
-        </div>
+        <GameDetailSkeleton />
       ) : (
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -165,19 +163,6 @@ function SteamGamePage() {
           App {appidParam} isn't in the current library snapshot. It may be unowned,
           refunded, or hidden from the public profile.
         </p>
-      )}
-
-      {isPending && (
-        <div className="flex flex-col gap-2 rounded-lg border bg-card/50 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="h-4 w-20 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-14 animate-pulse rounded bg-muted" />
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-10 animate-pulse rounded bg-muted" />
-          </div>
-        </div>
       )}
 
       {game && (

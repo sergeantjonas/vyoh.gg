@@ -5,6 +5,7 @@ import {
   formatWishlistDateAdded,
   formatWishlistReleaseLabel,
 } from "@/steam/wishlist/format";
+import { WishlistSkeleton } from "@/steam/wishlist/wishlist-skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import type { SteamWishlistItem } from "@vyoh/shared";
 import { ExternalLink } from "lucide-react";
@@ -77,7 +78,7 @@ function WishlistPage() {
         </p>
       </div>
 
-      {isPending && <p className="text-sm text-muted-foreground">Loading wishlist…</p>}
+      {isPending && <WishlistSkeleton />}
 
       {isError && (
         <p className="text-sm text-destructive">Wishlist is unavailable right now.</p>

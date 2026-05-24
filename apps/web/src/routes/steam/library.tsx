@@ -1,6 +1,7 @@
 import { applyLibraryFilters } from "@/steam/library/apply-filters";
 import { LibraryControls } from "@/steam/library/library-controls";
 import { LibraryRow } from "@/steam/library/library-row";
+import { LibrarySkeleton } from "@/steam/library/library-skeleton";
 import { LibraryTile } from "@/steam/library/library-tile";
 import { useLibraryPrefs } from "@/steam/library/use-library-prefs";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
@@ -49,7 +50,7 @@ function LibraryPage() {
         </p>
       </div>
 
-      {isPending && <p className="text-sm text-muted-foreground">Loading library…</p>}
+      {isPending && <LibrarySkeleton layout={layout} />}
 
       {isError && (
         <p className="text-sm text-destructive">Library is unavailable right now.</p>
