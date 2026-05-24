@@ -1,17 +1,17 @@
+import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
+import { useRefCountedClaim } from "@/_shared/backdrop/use-ref-counted-claim";
 import { steamPageBackgroundUrl } from "@/steam/_shared/steam-image";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { m, useReducedMotion } from "motion/react";
 import {
   type ReactNode,
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 
 export type SteamGameBackdropClaim = {
   appid: number;
@@ -22,103 +22,57 @@ export type SteamGameBackdropClaim = {
 };
 
 type SteamBackdropContextValue = {
-  // Reference-counted lease. The hook calls `acquire()` on mount and the
-  // returned `release()` on unmount; the provider only nulls the claim when
-  // the live-consumer count hits zero. This is essential because the page-
-  // transition `<AnimatePresence>` in `<SectionShell>` keeps the previous
-  // route's `<m.div>` mounted during the slide — both the exiting and
-  // entering `<m.div>` render `{children} = <Outlet />`, and both Outlets
-  // resolve to the current matched route, so the game page mounts twice
-  // during the navigation. When the exiting instance later unmounts, an
-  // un-counted `setClaim(null)` would null the backdrop even though the
-  // surviving instance is still alive — surfacing as the backdrop fading
-  // back to the profile right after it appeared. Ref-counting makes the
-  // unmount-from-stale-instance a no-op.
   setClaim: (claim: SteamGameBackdropClaim) => void;
   acquire: () => () => void;
 };
 
 const SteamBackdropContext = createContext<SteamBackdropContextValue | null>(null);
 
+const isSameClaim = (a: SteamGameBackdropClaim, b: SteamGameBackdropClaim) =>
+  a.appid === b.appid && a.assetTimestamp === b.assetTimestamp;
+
 export function SteamProfileBackdrop({ children }: { children: ReactNode }) {
   const { data: summary } = useSteamSummary();
   const prefersReducedMotion = useReducedMotion();
-  const [game, setGameState] = useState<SteamGameBackdropClaim | null>(null);
-
-  const liveCountRef = useRef(0);
-
-  const setClaim = useCallback((claim: SteamGameBackdropClaim) => {
-    setGameState((prev) => {
-      if (
-        prev &&
-        prev.appid === claim.appid &&
-        prev.assetTimestamp === claim.assetTimestamp
-      ) {
-        return prev;
-      }
-      return claim;
-    });
-  }, []);
-
-  const acquire = useCallback(() => {
-    liveCountRef.current += 1;
-    return () => {
-      liveCountRef.current -= 1;
-      if (liveCountRef.current === 0) setGameState(null);
-    };
-  }, []);
+  const { claim: game, setClaim, acquire } = useRefCountedClaim(isSameClaim);
 
   const ctxValue = useMemo(() => ({ setClaim, acquire }), [setClaim, acquire]);
-
-  if (typeof document === "undefined") {
-    return (
-      <SteamBackdropContext.Provider value={ctxValue}>
-        {children}
-      </SteamBackdropContext.Provider>
-    );
-  }
 
   return (
     <SteamBackdropContext.Provider value={ctxValue}>
       {children}
-      {createPortal(
-        <>
-          {summary?.profileBackgroundUrl ? (
-            <m.div
-              aria-hidden="true"
-              className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-              initial={prefersReducedMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={
-                prefersReducedMotion
-                  ? { duration: 0 }
-                  : { duration: 0.6, ease: "easeOut" }
-              }
-            >
-              {summary.profileBackgroundVideoUrl && !prefersReducedMotion ? (
-                <BackdropVideo
-                  src={summary.profileBackgroundVideoUrl}
-                  poster={summary.profileBackgroundUrl}
-                />
-              ) : (
-                <img
-                  src={summary.profileBackgroundUrl}
-                  alt=""
-                  className="size-full scale-105 object-cover blur-[2px]"
-                />
-              )}
-              <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background/95" />
-            </m.div>
-          ) : null}
-          {/* Always mounted; opacity is driven by the live claim. Ref-counted
-              acquire/release in the provider keeps `game` non-null whenever
-              any consumer is alive, so transient mount churn from StrictMode
-              or the page-transition AnimatePresence doesn't cause a visible
-              fade-out. */}
-          <GameBackdropLayer claim={game} />
-        </>,
-        document.body
-      )}
+      <BackdropPortal>
+        {summary?.profileBackgroundUrl ? (
+          <m.div
+            aria-hidden="true"
+            className={BACKDROP_SHELL_CLASS}
+            initial={prefersReducedMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={
+              prefersReducedMotion ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }
+            }
+          >
+            {summary.profileBackgroundVideoUrl && !prefersReducedMotion ? (
+              <BackdropVideo
+                src={summary.profileBackgroundVideoUrl}
+                poster={summary.profileBackgroundUrl}
+              />
+            ) : (
+              <img
+                src={summary.profileBackgroundUrl}
+                alt=""
+                className="size-full scale-105 object-cover blur-[2px]"
+              />
+            )}
+            <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background/95" />
+          </m.div>
+        ) : null}
+        {/* Always mounted; opacity is driven by the live claim. The provider's
+            ref-counted lease keeps `game` non-null whenever any consumer is
+            alive, so transient mount churn from StrictMode or the page-
+            transition AnimatePresence doesn't cause a visible fade-out. */}
+        <GameBackdropLayer claim={game} />
+      </BackdropPortal>
     </SteamBackdropContext.Provider>
   );
 }
@@ -162,7 +116,7 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
   return (
     <m.div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+      className={BACKDROP_SHELL_CLASS}
       initial={prefersReducedMotion ? false : { opacity: 0 }}
       animate={{ opacity: visible ? 1 : 0 }}
       transition={
