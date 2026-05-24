@@ -96,7 +96,19 @@ export function LibraryTile({
             }}
             className="flex flex-col gap-5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[filter,box-shadow,transform] duration-500 ease-out transform-[perspective(700px)_rotateX(0deg)_rotateY(0deg)_scale(1)] group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
+            {/* `perspective(...)` is applied ONLY in :hover — at rest the
+                tile is a flat, single-layer element. The Safari composite
+                pass on /steam/library previously merged ~20 permanently-
+                promoted tile layers per frame (21-35ms Composite on
+                profile→library nav); hover-gated promotion cuts that to
+                whichever single tile the user is interacting with. The
+                first-hover frame pays a one-shot layer promotion (~5-10ms
+                on Safari) which is invisible against the gesture itself.
+                `filter` dropped from the transition list so the brightness
+                /saturate change snaps instead of interpolating — kept the
+                cost of 20 tiles' transitionstart/transitionend storm out
+                of the post-mount frame budget without changing the look. */}
+            <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[box-shadow,transform] duration-500 ease-out group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
               {/* Lowest layer: hidden hero img sits behind the primary
                   portrait capsule, invisible at rest because covered. It
                   exists so the view-transition morph has a named element

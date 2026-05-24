@@ -87,7 +87,10 @@ export function SteamGameRowShell({
         // warps wide rects more than square tiles), barely-perceptible
         // scale. The consumer wraps this in a Link/<a> that carries the
         // `group/row` token, so all hover utilities fire from that token.
-        "relative isolate h-32 overflow-hidden rounded-lg border border-border/40 bg-card/50 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[colors,box-shadow,transform] duration-500 ease-out transform-[perspective(900px)_rotateX(0deg)_rotateY(0deg)_scale(1)] sm:h-36",
+        // `perspective(...)` lives on :hover only — see comment on the
+        // matching tile chrome in library-tile.tsx for the Safari
+        // composite-layer rationale.
+        "relative isolate h-32 overflow-hidden rounded-lg border border-border/40 bg-card/50 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[colors,box-shadow,transform] duration-500 ease-out sm:h-36",
         "group-hover/row:border-border group-hover/row:shadow-[0_18px_28px_-10px_rgba(0,0,0,0.7),0_10px_20px_-8px_rgba(255,255,255,0.1)] group-hover/row:transform-[perspective(900px)_rotateX(2deg)_rotateY(-1.5deg)_scale(1.005)]",
         className
       )}
