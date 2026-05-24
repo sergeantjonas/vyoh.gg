@@ -1,3 +1,4 @@
+import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { LibraryTile } from "@/steam/library/library-tile";
@@ -68,6 +69,7 @@ export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
       className="relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
+      <VirtualizerStats rendered={items.length} total={games.length} lanes={lanes} />
       {items.map((virtualItem) => {
         const game = games[virtualItem.index];
         if (!game) return null;

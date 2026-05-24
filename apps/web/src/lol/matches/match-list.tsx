@@ -1,5 +1,5 @@
+import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
-import { usePerfFlag } from "@/lib/use-perf-flag";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchCardSkeleton } from "@/lol/matches/match-list-skeleton";
@@ -44,7 +44,6 @@ export function MatchList({
   isFetchingNextPage?: boolean | undefined;
 }) {
   const championName = useChampionName();
-  const showPerf = usePerfFlag();
   const parentRef = useRef<HTMLDivElement>(null);
   const prevMatchesLengthRef = useRef<number | null>(null);
   const prevMatchIdsRef = useRef<Set<string>>(new Set());
@@ -211,31 +210,7 @@ export function MatchList({
       className="relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
-      {showPerf && (
-        <div className="fixed bottom-4 left-44 z-50 rounded-lg border border-border bg-background/85 px-3 py-2 font-mono text-xs shadow-lg backdrop-blur">
-          <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            virtualizer
-          </div>
-          <ul className="space-y-0.5">
-            <li className="flex justify-between gap-3">
-              <span className="text-muted-foreground">rendered</span>
-              <span className="text-emerald-400">{items.length}</span>
-            </li>
-            <li className="flex justify-between gap-3">
-              <span className="text-muted-foreground">total</span>
-              <span>{matches.length}</span>
-            </li>
-            <li className="flex justify-between gap-3">
-              <span className="text-muted-foreground">saved</span>
-              <span className="text-amber-400">
-                {matches.length === 0
-                  ? "—"
-                  : `${Math.round(((matches.length - items.length) / matches.length) * 100)}%`}
-              </span>
-            </li>
-          </ul>
-        </div>
-      )}
+      <VirtualizerStats rendered={items.length} total={matches.length} />
       {items.map((virtualRow) => {
         const match = matches[virtualRow.index];
         const isNew = virtualRow.index >= seenCount;

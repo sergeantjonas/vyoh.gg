@@ -1,3 +1,4 @@
+import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { LibraryRow } from "@/steam/library/library-row";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -46,6 +47,7 @@ export function LibraryListVirtual({ games }: { games: SteamOwnedGame[] }) {
       className="relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
+      <VirtualizerStats rendered={items.length} total={games.length} />
       {items.map((virtualRow) => {
         const game = games[virtualRow.index];
         if (!game) return null;
