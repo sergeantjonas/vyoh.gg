@@ -36,6 +36,10 @@ export interface EnrichmentUpsert {
   featureCategoryIds: number[];
   shortDescription: string | null;
   steamDeckCompat: number | null;
+  platformWindows: boolean | null;
+  platformMac: boolean | null;
+  platformLinux: boolean | null;
+  platformVr: boolean | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -90,6 +94,16 @@ export function projectEnrichment(
     featureCategoryIds: categories?.feature_categoryids ?? [],
     shortDescription: raw.basic_info?.short_description ?? null,
     steamDeckCompat: raw.platforms?.steam_deck_compat_category ?? null,
+    platformWindows: raw.platforms?.windows ?? null,
+    platformMac: raw.platforms?.mac ?? null,
+    platformLinux: raw.platforms?.linux ?? null,
+    // `vr_support` is an object whose keys are mode flags (vr_native,
+    // controller_grip_motion, etc.). Any key = some VR support; an empty
+    // object = explicitly no VR; missing = unknown (null).
+    platformVr:
+      raw.platforms?.vr_support !== undefined
+        ? Object.keys(raw.platforms.vr_support).length > 0
+        : null,
   };
 }
 

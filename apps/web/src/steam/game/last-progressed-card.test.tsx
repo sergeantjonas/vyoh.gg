@@ -48,6 +48,10 @@ function makeGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     rtimeLastPlayedAt: null,
     shortDescription: null,
     steamDeckCompat: null,
+    platformWindows: null,
+    platformMac: null,
+    platformLinux: null,
+    platformVr: null,
     ...overrides,
   };
 }

@@ -53,6 +53,16 @@ export interface SteamOwnedGame {
   // and 0 identically (no chip shown) so a missing enrichment row stays
   // silent rather than asserting "unsupported".
   steamDeckCompat: number | null;
+  // OS support flags from `platforms.{windows,mac,linux}` — true means the
+  // game supports the platform, false means it doesn't, null means we have
+  // no enrichment data yet. Distinct from playtime-per-OS fields, which
+  // record what the *owner* launched on each platform.
+  platformWindows: boolean | null;
+  platformMac: boolean | null;
+  platformLinux: boolean | null;
+  // True when `platforms.vr_support` exposes any VR mode flag, false when
+  // it's an explicit empty object, null when the upstream block is missing.
+  platformVr: boolean | null;
 }
 
 export interface SteamOwnedGames {

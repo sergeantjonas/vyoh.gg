@@ -116,4 +116,30 @@ describe("projectEnrichment", () => {
   it("defaults steamDeckCompat to null when the platforms block is absent", () => {
     expect(projectEnrichment(raw({}))?.steamDeckCompat).toBeNull();
   });
+
+  it("projects platforms.windows/mac/linux into the boolean OS columns", () => {
+    const row = projectEnrichment(
+      raw({ platforms: { windows: true, mac: false, linux: true } })
+    );
+    expect(row?.platformWindows).toBe(true);
+    expect(row?.platformMac).toBe(false);
+    expect(row?.platformLinux).toBe(true);
+  });
+
+  it("marks platformVr=true when vr_support has any key", () => {
+    const row = projectEnrichment(
+      raw({ platforms: { vr_support: { vr_native: true } } })
+    );
+    expect(row?.platformVr).toBe(true);
+  });
+
+  it("marks platformVr=false when vr_support is an explicit empty object", () => {
+    const row = projectEnrichment(raw({ platforms: { vr_support: {} } }));
+    expect(row?.platformVr).toBe(false);
+  });
+
+  it("leaves platformVr=null when vr_support is missing", () => {
+    const row = projectEnrichment(raw({ platforms: { windows: true } }));
+    expect(row?.platformVr).toBeNull();
+  });
 });

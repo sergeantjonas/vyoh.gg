@@ -364,6 +364,10 @@ export class SteamOwnedGamesService {
         tagIds: true,
         shortDescription: true,
         steamDeckCompat: true,
+        platformWindows: true,
+        platformMac: true,
+        platformLinux: true,
+        platformVr: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -393,6 +397,10 @@ export class SteamOwnedGamesService {
           rtimeLastPlayedAt: r.game.rtimeLastPlayed?.toISOString() ?? null,
           shortDescription: e?.shortDescription ?? null,
           steamDeckCompat: e?.steamDeckCompat ?? null,
+          platformWindows: e?.platformWindows ?? null,
+          platformMac: e?.platformMac ?? null,
+          platformLinux: e?.platformLinux ?? null,
+          platformVr: e?.platformVr ?? null,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

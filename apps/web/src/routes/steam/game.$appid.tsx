@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
+import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
 import {
   makeHeroFallbackHandlers,
   steamLibraryHeroUrl,
@@ -164,6 +165,14 @@ function SteamGamePage() {
               {game?.name ?? `App ${appidParam}`}
             </h1>
             {game && <DeckCompatChip tier={game.steamDeckCompat} size="md" />}
+            {game && (
+              <PlatformIconRow
+                windows={game.platformWindows}
+                mac={game.platformMac}
+                linux={game.platformLinux}
+                vr={game.platformVr}
+              />
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             {game?.shortDescription ??

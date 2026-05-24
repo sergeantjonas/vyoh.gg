@@ -130,6 +130,16 @@ model SteamGameEnrichment {
   // when upstream omits the platforms block; renderer treats null and 0
   // identically (no chip shown).
   steamDeckCompat      Int?
+  // OS support flags from `platforms.{windows,mac,linux}` — whether the game
+  // *runs* on the platform. Distinct from SteamPlaytimeSnapshot's per-OS
+  // playtime, which records the owner's launches; "Mac=true with 0h Mac
+  // playtime" ≠ "Mac=false with 0h Mac playtime". `platformVr` is true when
+  // `platforms.vr_support` contains any key (any VR mode flag → some VR
+  // support); null when the platforms block is missing.
+  platformWindows      Boolean?
+  platformMac          Boolean?
+  platformLinux        Boolean?
+  platformVr           Boolean?
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps
