@@ -142,4 +142,45 @@ describe("projectEnrichment", () => {
     const row = projectEnrichment(raw({ platforms: { windows: true } }));
     expect(row?.platformVr).toBeNull();
   });
+
+  it("projects reviews.summary_filtered into the reviewSummary blob", () => {
+    const row = projectEnrichment(
+      raw({
+        reviews: {
+          summary_filtered: {
+            review_count: 56_501,
+            percent_positive: 94,
+            review_score: 8,
+            review_score_label: "Very Positive",
+          },
+        },
+      })
+    );
+    expect(row?.reviewSummary).toEqual({
+      reviewCount: 56_501,
+      percentPositive: 94,
+      reviewScore: 8,
+      reviewScoreLabel: "Very Positive",
+    });
+  });
+
+  it("nulls reviewSummary when any sub-field is missing (partial blocks)", () => {
+    const row = projectEnrichment(
+      raw({
+        reviews: {
+          summary_filtered: {
+            // Missing review_score / review_score_label — Steam returns this
+            // shape for games below the review-count threshold.
+            review_count: 3,
+            percent_positive: 100,
+          },
+        },
+      })
+    );
+    expect(row?.reviewSummary).toBeNull();
+  });
+
+  it("nulls reviewSummary when no reviews block is present", () => {
+    expect(projectEnrichment(raw({}))?.reviewSummary).toBeNull();
+  });
 });

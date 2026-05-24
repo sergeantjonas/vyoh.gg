@@ -4,6 +4,7 @@ import type {
   SteamOwnedGames,
   SteamPlatform,
   SteamPlatformMix,
+  SteamReviewSummary,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
@@ -368,6 +369,7 @@ export class SteamOwnedGamesService {
         platformMac: true,
         platformLinux: true,
         platformVr: true,
+        reviewSummary: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -401,6 +403,13 @@ export class SteamOwnedGamesService {
           platformMac: e?.platformMac ?? null,
           platformLinux: e?.platformLinux ?? null,
           platformVr: e?.platformVr ?? null,
+          // Json column comes back as Prisma.JsonValue. The poller only ever
+          // writes the SteamReviewSummary shape (or JsonNull), so cast at the
+          // boundary rather than runtime-validating every row.
+          reviewSummary:
+            e?.reviewSummary != null
+              ? (e.reviewSummary as unknown as SteamReviewSummary)
+              : null,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

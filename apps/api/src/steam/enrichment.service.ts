@@ -1,8 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import type { SteamReviewSummary } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamPicsService } from "./pics.service";
 import { SteamClientService } from "./steam-client.service";
-import type { SteamStoreItemFullRaw } from "./types";
+import type { SteamStoreItemFullRaw, SteamStoreItemReviewSummaryRaw } from "./types";
 
 // Steam's IStoreBrowseService accepts many ids per call. Empirical batch size
 // of 50 keeps the input_json payload well under any documented URL ceiling
@@ -40,6 +42,7 @@ export interface EnrichmentUpsert {
   platformMac: boolean | null;
   platformLinux: boolean | null;
   platformVr: boolean | null;
+  reviewSummary: SteamReviewSummary | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -104,6 +107,30 @@ export function projectEnrichment(
       raw.platforms?.vr_support !== undefined
         ? Object.keys(raw.platforms.vr_support).length > 0
         : null,
+    reviewSummary: mapReviewSummary(raw.reviews?.summary_filtered),
+  };
+}
+
+function mapReviewSummary(
+  raw: SteamStoreItemReviewSummaryRaw | undefined
+): SteamReviewSummary | null {
+  if (
+    !raw ||
+    raw.review_count === undefined ||
+    raw.percent_positive === undefined ||
+    raw.review_score === undefined ||
+    raw.review_score_label === undefined
+  ) {
+    // Steam returns a partial block for titles with too few reviews to score
+    // (new releases below the threshold). Skip the row rather than persisting
+    // a half-filled summary that the chip would have to special-case.
+    return null;
+  }
+  return {
+    reviewCount: raw.review_count,
+    percentPositive: raw.percent_positive,
+    reviewScore: raw.review_score,
+    reviewScoreLabel: raw.review_score_label,
   };
 }
 
@@ -144,10 +171,23 @@ export class SteamEnrichmentService {
           skipped += 1;
           continue;
         }
+        // Prisma's Json column input rejects bare `null` — it needs the
+        // sentinel `Prisma.JsonNull` to disambiguate "DB NULL" from
+        // "JSON literal null" on the wire. The typed `SteamReviewSummary`
+        // shape has to be widened to `InputJsonValue` for the same reason
+        // (Prisma's InputJsonObject requires an index signature; lifting
+        // that contract upstream would let any string flow into a typed field).
+        const data = {
+          ...row,
+          enrichedAt: new Date(),
+          reviewSummary: (row.reviewSummary ?? Prisma.JsonNull) as unknown as
+            | Prisma.InputJsonValue
+            | typeof Prisma.JsonNull,
+        };
         await this.prisma.steamGameEnrichment.upsert({
           where: { appid: row.appid },
-          create: { ...row, enrichedAt: new Date() },
-          update: { ...row, enrichedAt: new Date() },
+          create: data,
+          update: data,
         });
         written += 1;
       }

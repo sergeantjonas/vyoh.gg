@@ -63,6 +63,21 @@ export interface SteamOwnedGame {
   // True when `platforms.vr_support` exposes any VR mode flag, false when
   // it's an explicit empty object, null when the upstream block is missing.
   platformVr: boolean | null;
+  // Latest filtered storefront review summary. Source of truth for the
+  // "Very Positive · 56,501" chip on game-detail. Null when no enrichment
+  // row exists OR when the upstream returned no reviews block (typically
+  // brand-new releases with too few reviews to score).
+  reviewSummary: SteamReviewSummary | null;
+}
+
+export interface SteamReviewSummary {
+  reviewCount: number;
+  percentPositive: number;
+  // Steam's internal 1-9 score. Editorial label is derived from it but we
+  // store the label too so we don't have to maintain the mapping client-side
+  // (Valve changes the thresholds occasionally).
+  reviewScore: number;
+  reviewScoreLabel: string;
 }
 
 export interface SteamOwnedGames {

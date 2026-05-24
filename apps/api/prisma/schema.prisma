@@ -140,6 +140,13 @@ model SteamGameEnrichment {
   platformMac          Boolean?
   platformLinux        Boolean?
   platformVr           Boolean?
+  // `reviews.summary_filtered` snapshot — Steam's storefront review chip
+  // shape ("Very Positive · 56,501"). JSONB rather than four columns: the
+  // four fields move together (a refresh updates them all) and only the
+  // game-detail chip reads them at present, so per-field columns would
+  // burn schema width without unlocking queries. JSON shape:
+  // `{ reviewCount, percentPositive, reviewScore, reviewScoreLabel }`.
+  reviewSummary        Json?
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps

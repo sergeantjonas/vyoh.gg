@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
+import { ReviewSummaryChip } from "@/steam/_shared/review-summary-chip";
 import {
   makeHeroFallbackHandlers,
   steamLibraryHeroUrl,
@@ -165,6 +166,7 @@ function SteamGamePage() {
               {game?.name ?? `App ${appidParam}`}
             </h1>
             {game && <DeckCompatChip tier={game.steamDeckCompat} size="md" />}
+            {game && <ReviewSummaryChip summary={game.reviewSummary} />}
             {game && (
               <PlatformIconRow
                 windows={game.platformWindows}

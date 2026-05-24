@@ -20,7 +20,7 @@ Sized so each row is independently committable. Some chunks land changes in this
 | 1 | `basic_info.short_description` → library card tooltip | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
 | 2 | `platforms.steam_deck_compat_category` chip | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
 | 3 | `platforms.windows / mac / linux / vr_support` pills | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
-| 4 | `reviews.summary_filtered` "Very Positive (56k)" chip | [quick-wins.md](../cross-cutting/quick-wins.md) | Planned |
+| 4 | `reviews.summary_filtered` "Very Positive (56k)" chip | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
 | 5 | `game_rating` ESRB/PEGI chip + descriptors | [quick-wins.md](../cross-cutting/quick-wins.md) | Planned |
 | 6 | `basic_info.publishers / developers / franchises` filtering | [command-palette.md](../cross-cutting/command-palette.md) Phase G | Planned |
 | 7 | `trailers.highlights[].microtrailer` hover preview | [microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md) | Planned (arc) |
