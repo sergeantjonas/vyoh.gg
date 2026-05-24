@@ -285,13 +285,32 @@ The lesson stands: per-element morph is tractable when each named element is an 
 
 ---
 
+## Patches cross-version reflow 2026-05-24 — shipped
+
+Reframed from the catalog's "list↔detail" entry after discovering the assumption didn't survive code inspection — there is no patches list page that you click into. `/lol/patches/` and `/lol/patches/$version` render the same `PatchesPage`; the version picker is a `<Select>`. The router's `getNavigationType` already returns `["intra-section"]` for these navigations (LoL slug = `"patches"` on both sides, neither path lands in the `lolTabIndex` table), so the router-level VT was firing without any per-element morphs to drive it.
+
+Wiring added:
+
+- `view-transition-name: patches-header` on the "Patch X.Y · date" header `<p>` so the text cross-fades when the patch changes.
+- `view-transition-name: patches-champion-${alias}` on each champion `<li>` (alias via `championAliasFromName(group.champion)`). Champions that survive both patches rect-morph in place; new champions fade in; gone champions fade out, all on the shared `intra-section` 320 ms / iOS-spring curve.
+
+Untagged content (Select chrome, item/rune sections, structural wrappers) falls into the `root` group, which intra-section CSS pins to `animation: none` — it just snaps to the new DOM. No new CSS was needed.
+
+### Lessons (kept for any future same-component VT wiring)
+
+- "List↔detail" in a catalog entry is a *claim about the navigation shape*, not a fact — verify the actual route structure before scoping. The patches surface is `Select`-driven cross-version reflow, not list↔detail navigation. The fix shipped is what the surface actually wants; the original framing would have led to a non-existent morph pair.
+- When the router already classifies a navigation as `intra-section` and the section's CSS pins `root`/`vt-main` to `animation: none`, you don't need to wrap `navigate()` in `startViewTransition` manually — just declare `view-transition-name` on the elements to anchor and the router-level VT pairs them.
+- Pre-load identity fallback on `championAliasFromName` returns wiki names with spaces (e.g. `"Lee Sin"`), which produce invalid CSS custom-idents and silently no-op the morph. Acceptable: the user only feels this on the very first patch swap before the CDragon map caches; subsequent swaps morph normally. If this turns out to bite (uncached every-session due to query staleness), sanitize at the call site.
+
+---
+
 ## Catalogued candidate surfaces (post-Steam survey 2026-05-24)
 
 Surveyed after Steam library shipped to inventory remaining VT-worthy surfaces. The "What's next" list above is the strategic next-step view; this section is the exhaustive catalog so a future session doesn't have to re-survey. Group by category, not by priority — pick based on appetite when picking up.
 
 ### List-↔-detail morphs (route navigation)
 
-- **Patches list → patch detail.** [`patches-page.tsx`](../../../apps/web/src/lol/patches/patches-page.tsx) → `/lol/patches/$version`. New surface — currently no morph wiring at all in this section. Single hero element (the patch version badge / header). Straightforward port of the shipped pattern; no aspect-mismatch quirks.
+- ~~**Patches list → patch detail.**~~ — **shipped 2026-05-24 as same-component cross-version reflow** (see "Patches cross-version reflow" section below). The original framing was wrong: `/lol/patches/` and `/lol/patches/$version` render the *same* `PatchesPage`; the version picker is a `<Select>`, not a clickable list. The router already classifies the navigation as `intra-section` so only `view-transition-name` declarations on the header + per-champion rows were needed.
 - **Wishlist → game detail.** [`/steam/wishlist`](../../../apps/web/src/routes/steam/wishlist.tsx) currently uses a `?appid=` query-param focus pane rather than a real route. Not a VT problem — a product/architectural decision about whether wishlist becomes a list↔detail pair. If/when it does, VT applies trivially.
 
 ### Sort / filter reorder (same-route, list reflow)

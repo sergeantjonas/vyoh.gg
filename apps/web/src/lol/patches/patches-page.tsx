@@ -141,7 +141,10 @@ export function PatchesPage({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-12">
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
+          <p
+            className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60"
+            style={{ viewTransitionName: "patches-header" }}
+          >
             Patch {patchChanges.patchVersion}
             {patchDateLabel ? ` · ${patchDateLabel}` : ""}
           </p>
@@ -202,15 +205,21 @@ export function PatchesPage({
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {visibleChampions.map((group) => (
-            <li key={group.champion}>
-              <ChampionRow
-                group={group}
-                aliasFromName={championAliasFromName}
-                isMyChampion={myChampions.has(group.champion)}
-              />
-            </li>
-          ))}
+          {visibleChampions.map((group) => {
+            const alias = championAliasFromName(group.champion);
+            return (
+              <li
+                key={group.champion}
+                style={{ viewTransitionName: `patches-champion-${alias}` }}
+              >
+                <ChampionRow
+                  group={group}
+                  aliasFromName={championAliasFromName}
+                  isMyChampion={myChampions.has(group.champion)}
+                />
+              </li>
+            );
+          })}
         </ul>
       )}
 

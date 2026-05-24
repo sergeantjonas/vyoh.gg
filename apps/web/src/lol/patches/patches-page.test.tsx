@@ -151,6 +151,41 @@ describe("PatchesPage", () => {
     expect(screen.getByText(/1 champion changed/)).toBeTruthy();
   });
 
+  it("anchors view-transition-name on the patch header and per-champion rows so cross-version morphs pair", () => {
+    mockPatchList([
+      { version: "16.10.1", patchDate: "2026-05-08T00:00:00Z" },
+    ] as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [
+          {
+            champion: "Ahri",
+            changes: [{ changeType: "buff", changeText: "Damage up" }],
+          },
+          {
+            champion: "Lee Sin",
+            changes: [{ changeType: "nerf", changeText: "Mana cost up" }],
+          },
+        ],
+        items: [],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    const { container } = render(
+      <PatchesPage versionParam={undefined} asSlug="jonas-euw" />
+    );
+    const header = screen.getByText(/Patch 16\.10\.1/) as HTMLElement;
+    expect(header.style.viewTransitionName).toBe("patches-header");
+    const championLis = Array.from(
+      container.querySelectorAll<HTMLLIElement>("li")
+    ).filter((li) => (li.style.viewTransitionName ?? "").startsWith("patches-champion-"));
+    expect(championLis.map((li) => li.style.viewTransitionName)).toEqual([
+      "patches-champion-Ahri",
+      "patches-champion-Lee Sin",
+    ]);
+  });
+
   it("filters to 'my champions' when the toggle is pressed and shows the empty message when none match", () => {
     mockPatchList([
       { version: "16.10.1", patchDate: null },
