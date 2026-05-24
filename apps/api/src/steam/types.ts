@@ -108,6 +108,124 @@ export interface SteamStoreItemTagRaw {
   weight: number;
 }
 
+// Each publisher/developer/franchise object on basic_info carries a `name`
+// and, for entities Steam can resolve to a community page, a
+// `creator_clan_account_id` (Steam Group account id — the same id space the
+// frontend can deep-link to /groups/{id}).
+export interface SteamStoreItemBasicInfoEntityRaw {
+  name?: string;
+  creator_clan_account_id?: number;
+}
+
+export interface SteamStoreItemBasicInfoRaw {
+  short_description?: string;
+  publishers?: SteamStoreItemBasicInfoEntityRaw[];
+  developers?: SteamStoreItemBasicInfoEntityRaw[];
+  franchises?: SteamStoreItemBasicInfoEntityRaw[];
+}
+
+// `steam_deck_compat_category`: 0 Unknown / 1 Unsupported / 2 Playable /
+// 3 Verified — matches Steam's public Deck-compat enum.
+// `vr_support` is an object whose keys enumerate supported VR modes
+// (`vr_supported`, `vr_only`, etc.). Empty object `{}` means non-VR.
+export interface SteamStoreItemPlatformsRaw {
+  windows?: boolean;
+  mac?: boolean;
+  linux?: boolean;
+  steam_deck_compat_category?: number;
+  vr_support?: Record<string, unknown>;
+}
+
+// `review_score` is Steam's 1-9 internal scale; `review_score_label` is the
+// human label ("Very Positive", "Mostly Positive", …) that the storefront
+// surfaces. `summary_filtered` excludes off-topic review bombs and is what
+// the storefront chip reads; `summary_language_specific` is the same shape
+// restricted to the requested `language`.
+export interface SteamStoreItemReviewSummaryRaw {
+  review_count?: number;
+  percent_positive?: number;
+  review_score?: number;
+  review_score_label?: string;
+}
+
+export interface SteamStoreItemReviewsRaw {
+  summary_filtered?: SteamStoreItemReviewSummaryRaw;
+  summary_language_specific?: SteamStoreItemReviewSummaryRaw;
+}
+
+// `game_rating` is `null` (or omitted) for titles whose publisher skipped
+// ESRB submission — typically AO-rated games (e.g. Subverse). Must NOT be
+// used as a maturity signal; it's editorial-only.
+// `type` is the rating authority ("esrb", "pegi", …); `rating` is its label
+// ("M", "18", …); `descriptors` is the free-text descriptor list; `image_url`
+// is a CDN path under `https://store.cloudflare.steamstatic.com/`.
+export interface SteamStoreItemGameRatingRaw {
+  type?: string;
+  rating?: string;
+  descriptors?: string[];
+  required_age?: number;
+  use_age_gate?: boolean;
+  image_url?: string;
+}
+
+// Each `microtrailer` entry is a 6-second silent loop the storefront plays
+// on hover. `filename` is a CDN-resolvable path
+// `{appid}/{movieid}/.../microtrailer.{webm|mp4}` under
+// `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/`.
+// Trailers also carry full-length variants Steam plays on click; those
+// fields are present in the response but typed lazily — add when a chunk
+// actually consumes them.
+export interface SteamStoreItemTrailerSourceRaw {
+  filename?: string;
+  type?: string;
+}
+
+export interface SteamStoreItemTrailerHighlightRaw {
+  microtrailer?: SteamStoreItemTrailerSourceRaw[];
+}
+
+export interface SteamStoreItemTrailersRaw {
+  highlights?: SteamStoreItemTrailerHighlightRaw[];
+}
+
+// Two server-side buckets. `all_ages_screenshots` is the storefront default;
+// `mature_content_screenshots` is gated behind Steam's own maturity toggle.
+// `filename` resolves under
+// `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}/`.
+// `ordinal` pairs filenames to preserve publisher-chosen order.
+export interface SteamStoreItemScreenshotRaw {
+  filename?: string;
+  ordinal?: number;
+}
+
+export interface SteamStoreItemScreenshotsRaw {
+  all_ages_screenshots?: SteamStoreItemScreenshotRaw[];
+  mature_content_screenshots?: SteamStoreItemScreenshotRaw[];
+}
+
+// `elanguage` is Steam's internal language id. `supported` is non-zero when
+// the language is supported at all; `full_audio` and `subtitles` flag the
+// per-language audio/subtitle availability. Backlogged consumer (Chunk 10);
+// shape is typed conservatively against the documented field set.
+export interface SteamStoreItemSupportedLanguageRaw {
+  elanguage?: number;
+  eadditionallanguage?: number;
+  supported?: number;
+  full_audio?: number;
+  subtitles?: number;
+}
+
+// `included_apps` is the list of appids bundled into the parent (collection,
+// franchise pack). Backlogged consumer (Chunk 12); only `appid` is typed for
+// now — extend when a chunk lands that reads richer fields.
+export interface SteamStoreItemIncludedAppRaw {
+  appid?: number;
+}
+
+export interface SteamStoreItemIncludedItemsRaw {
+  included_apps?: SteamStoreItemIncludedAppRaw[];
+}
+
 export interface SteamStoreItemFullRaw extends SteamStoreItemRaw {
   // StoreItemType enum int. 0 = Game, 6 = Application (Wallpaper Engine,
   // 3DMark, OBS-class tools). Other values for DLC / bundles / demos.
@@ -118,6 +236,23 @@ export interface SteamStoreItemFullRaw extends SteamStoreItemRaw {
   assets?: SteamStoreItemAssetsRaw;
   categories?: SteamStoreItemCategoriesRaw;
   release?: SteamStoreItemReleaseRaw;
+  // Umbrella additions (Chunk 0 in library-card-enrichment.md). Each block
+  // is gated by its `include_*` flag in getStoreItemsFull's data_request and
+  // is upstream-optional per item. projectEnrichment doesn't read these yet
+  // — per-field projection lands per-chunk.
+  basic_info?: SteamStoreItemBasicInfoRaw;
+  platforms?: SteamStoreItemPlatformsRaw;
+  reviews?: SteamStoreItemReviewsRaw;
+  // Null (not just absent) is a real upstream value — see comment on the
+  // interface. Don't infer maturity from absence.
+  game_rating?: SteamStoreItemGameRatingRaw | null;
+  trailers?: SteamStoreItemTrailersRaw;
+  screenshots?: SteamStoreItemScreenshotsRaw;
+  // BBCode markup, ~2-8KB typical. Sanitised at render time via the LoL
+  // wiki-HTML pipeline (see rich-descriptions arc).
+  full_description_bbcode?: string;
+  supported_languages?: SteamStoreItemSupportedLanguageRaw[];
+  included_items?: SteamStoreItemIncludedItemsRaw;
 }
 
 export interface SteamGetStoreItemsFullResponse {

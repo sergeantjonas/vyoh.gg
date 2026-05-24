@@ -135,7 +135,21 @@ export class SteamClientService {
           include_assets: true,
           include_release: true,
           include_categories: true,
-          include_basic_info: false,
+          // Umbrella set (Chunk 0 in library-card-enrichment.md): all flags
+          // future enrichment chunks (short description, platforms, Deck
+          // compat, reviews, ESRB, publishers/developers/franchises,
+          // trailers, screenshots, full description, languages, included
+          // items) need. Same endpoint, same Bottleneck reservoir — flipping
+          // these adds payload bytes but no extra rate-limit budget.
+          include_basic_info: true,
+          include_platforms: true,
+          include_screenshots: true,
+          include_trailers: true,
+          include_ratings: true,
+          include_reviews: true,
+          include_supported_languages: true,
+          include_full_description: true,
+          include_included_items: true,
           // tagids isn't returned unless include_tag_count > 0. We persist
           // the top 20 in SteamGameEnrichment.tagIds; asking for more here
           // would just be discarded by projectEnrichment's MAX_TAG_IDS cap.
