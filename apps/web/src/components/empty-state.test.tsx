@@ -2,10 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import { describe, expect, it } from "vitest";
 import {
+  EmptyAchievementsIllustration,
   EmptyChampionIllustration,
+  EmptyLibraryIllustration,
   EmptyLpHistoryIllustration,
   EmptyMatchesIllustration,
   EmptyState,
+  EmptyWishlistIllustration,
 } from "./empty-state";
 
 describe("EmptyState", () => {
@@ -40,6 +43,9 @@ describe("EmptyState", () => {
     ["EmptyMatchesIllustration", EmptyMatchesIllustration],
     ["EmptyLpHistoryIllustration", EmptyLpHistoryIllustration],
     ["EmptyChampionIllustration", EmptyChampionIllustration],
+    ["EmptyLibraryIllustration", EmptyLibraryIllustration],
+    ["EmptyWishlistIllustration", EmptyWishlistIllustration],
+    ["EmptyAchievementsIllustration", EmptyAchievementsIllustration],
   ])("%s renders an aria-hidden svg", (_name, Component) => {
     const { container } = render(<Component className="text-foo" />);
     const svg = container.querySelector("svg");

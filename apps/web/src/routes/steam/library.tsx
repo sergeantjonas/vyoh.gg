@@ -1,3 +1,4 @@
+import { EmptyLibraryIllustration, EmptyState } from "@/components/empty-state";
 import { applyLibraryFilters } from "@/steam/library/apply-filters";
 import { LibraryControls } from "@/steam/library/library-controls";
 import { LibraryRow } from "@/steam/library/library-row";
@@ -57,9 +58,11 @@ function LibraryPage() {
       )}
 
       {data && data.games.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Library hasn't synced yet — first poll lands at 04:00 Brussels time.
-        </p>
+        <EmptyState
+          illustration={<EmptyLibraryIllustration />}
+          title="Library hasn't synced yet"
+          hint="First poll lands at 04:00 Brussels time."
+        />
       )}
 
       {data && data.games.length > 0 && (
@@ -83,9 +86,11 @@ function LibraryPage() {
           />
 
           {visible.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No games match the current filters.
-            </p>
+            <EmptyState
+              illustration={<EmptyLibraryIllustration />}
+              title="No games match the current filters"
+              hint="Try clearing a tag or switching the played filter."
+            />
           ) : layout === "tiles" ? (
             <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {visible.map((game) => (

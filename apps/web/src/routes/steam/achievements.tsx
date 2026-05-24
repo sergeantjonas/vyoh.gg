@@ -1,3 +1,4 @@
+import { EmptyAchievementsIllustration, EmptyState } from "@/components/empty-state";
 import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { formatRowDate, groupByMonth } from "@/steam/achievements/group-by-month";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
@@ -63,9 +64,11 @@ function RecentSection({ unlocks, isPending, isError }: SectionProps) {
 
   if (unlocks.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed bg-card/30 px-6 py-12 text-center text-sm text-muted-foreground">
-        No achievements unlocked yet.
-      </p>
+      <EmptyState
+        illustration={<EmptyAchievementsIllustration />}
+        title="No achievements unlocked yet"
+        hint="Recent unlocks will appear here as the daily poller pulls them in."
+      />
     );
   }
 

@@ -140,6 +140,85 @@ export function EmptyDuosIllustration({ className }: { className?: string }) {
   );
 }
 
+export function EmptyLibraryIllustration({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 160 110"
+      width="140"
+      className={className}
+      aria-hidden="true"
+      {...SVG_PROPS}
+    >
+      <rect x="14" y="14" width="62" height="38" rx="4" strokeDasharray="3 3" />
+      <rect
+        x="84"
+        y="14"
+        width="62"
+        height="38"
+        rx="4"
+        strokeDasharray="3 3"
+        opacity="0.7"
+      />
+      <rect
+        x="14"
+        y="62"
+        width="62"
+        height="38"
+        rx="4"
+        strokeDasharray="3 3"
+        opacity="0.4"
+      />
+      <rect
+        x="84"
+        y="62"
+        width="62"
+        height="38"
+        rx="4"
+        strokeDasharray="3 3"
+        opacity="0.25"
+      />
+    </svg>
+  );
+}
+
+export function EmptyWishlistIllustration({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 160 110"
+      width="140"
+      className={className}
+      aria-hidden="true"
+      {...SVG_PROPS}
+    >
+      <path d="M 56 14 L 56 96 L 80 78 L 104 96 L 104 14 Z" strokeDasharray="3 3" />
+      <line x1="66" y1="42" x2="94" y2="42" opacity="0.5" />
+      <line x1="66" y1="54" x2="86" y2="54" opacity="0.35" />
+    </svg>
+  );
+}
+
+export function EmptyAchievementsIllustration({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 160 110"
+      width="140"
+      className={className}
+      aria-hidden="true"
+      {...SVG_PROPS}
+    >
+      <path
+        d="M 56 18 L 104 18 L 104 50 Q 104 72 80 72 Q 56 72 56 50 Z"
+        strokeDasharray="3 3"
+      />
+      <path d="M 56 26 L 42 26 L 42 38 Q 42 54 56 56" opacity="0.55" />
+      <path d="M 104 26 L 118 26 L 118 38 Q 118 54 104 56" opacity="0.55" />
+      <line x1="68" y1="78" x2="92" y2="78" />
+      <line x1="60" y1="88" x2="100" y2="88" opacity="0.7" />
+      <circle cx="80" cy="44" r="6" opacity="0.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function EmptyLiveGameIllustration({ className }: { className?: string }) {
   const rows = [10, 26, 42, 58, 74];
   return (

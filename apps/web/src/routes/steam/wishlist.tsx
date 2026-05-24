@@ -1,3 +1,4 @@
+import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useSteamWishlist } from "@/steam/use-wishlist";
@@ -85,9 +86,11 @@ function WishlistPage() {
       )}
 
       {data && items.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Nothing on the wishlist right now.
-        </p>
+        <EmptyState
+          illustration={<EmptyWishlistIllustration />}
+          title="Nothing on the wishlist right now"
+          hint="Public Steam wishlist additions show up here after the next sync."
+        />
       )}
 
       {items.length > 0 && (
