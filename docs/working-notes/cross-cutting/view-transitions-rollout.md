@@ -335,6 +335,20 @@ For each: drop in `view-transition-name: <surface>-${id}` per row before the sor
 
 ---
 
+## Cross-cutting lessons
+
+### Motion entrance animations stomp the NEW snapshot
+
+**The lesson.** If a list runs per-row Motion entrance animations (`initial={{ opacity: 0 }}` + `animate={{ opacity: 1 }}` / staggers / mount-time settle gates), wrapping a state change that re-renders those rows in `withReorderViewTransition` (or any `startViewTransition`) captures a NEW snapshot of *invisible content*. Motion's entrance then runs again in the live DOM after the VT ends, so the user sees: OLD bitmap → cross-fade to empty container → Motion fade-in. The VT contributes nothing and the perceived motion is just Motion's fade-in, slightly delayed.
+
+**How to spot before wiring.** Before adding VT to a sort/filter/reorder surface, grep the row component for `initial={{`, `<AnimatePresence`, or `useState`-gated opacity. If any row carries a mount-time animation that depends on the *re-render the VT will trigger*, the snapshots won't align. The reverse-direction symptom is also a tell: if the post-revert behaviour (no VT) is visually indistinguishable from the with-VT behaviour, Motion was doing all the visible work.
+
+**How to apply.** Either (a) accept the limitation and skip VT on that surface — usually the right call when the existing Motion animations already feel good (the LoL match-list outcome, 2026-05-25), or (b) migrate the row component fully off Motion's mount animations onto VT — only worth it if the surface is a flagship interaction and the Motion behaviour was lukewarm to begin with. Don't try to suppress Motion conditionally during VT (`disabled` props, `mountedRef` gates etc.); the matrix of "is this mount from a fresh fetch / a sort / a filter / a settle re-show" gets unworkable fast and breaks the paged-fetch flash that the Motion animations were originally added for.
+
+**Where this came up.** LoL match-list queue filter, 2026-05-25 ([abandoned entry above](#sort--filter-reorder-same-route-list-reflow)). Steam library was fine because its tile/row components use plain `<li>` with no Motion mount animations.
+
+---
+
 ## Reduced motion
 
 Already handled — see Chunk 1. The standard pattern (per [03-motion.md §6.6](~/.claude/knowledge/frontend-2026/03-motion.md)):
