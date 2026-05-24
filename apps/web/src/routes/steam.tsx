@@ -46,10 +46,22 @@ function SteamLayout() {
   const rawDirection = useTabSlideDirection(pathname, (p) => steamTabIndexOf(TABS, p));
   const slideDirection = prefersReducedMotion ? 0 : rawDirection;
 
+  // Coarsen the AnimatePresence key so /steam/library ↔ /steam/game/$appid
+  // reuse the same <m.div>. Mirrors the LoL trick in $accountSlug.tsx — see
+  // its comment block. Required for the view-transition morph: when the key
+  // changes, both old and new m.divs are briefly mounted, each rendering the
+  // current route via <Outlet />, producing two elements with the same
+  // view-transition-name and a NEW-snapshot collision.
+  const isInLibrarySubtree =
+    pathname === "/steam/library" ||
+    pathname.startsWith("/steam/library/") ||
+    pathname.startsWith("/steam/game/");
+  const slideKey = isInLibrarySubtree ? "/steam/library" : pathname;
+
   return (
     <SteamProfileBackdrop>
       <SectionShell
-        pathname={pathname}
+        pathname={slideKey}
         slideDirection={slideDirection}
         identity={<SteamIdentity />}
         nav={<SteamTabs pathname={pathname} />}

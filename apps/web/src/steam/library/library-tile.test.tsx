@@ -2,13 +2,16 @@ import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryTile } from "./library-tile";
+
+const navigateMock = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => (
     <a {...(props as Record<string, string>)}>{children}</a>
   ),
+  useNavigate: () => navigateMock,
 }));
 
 vi.mock("@/steam/profile-backdrop", () => ({
@@ -71,7 +74,7 @@ describe("LibraryTile", () => {
 
   it("falls back to the synthetic hero when the capsule image errors", () => {
     const { container } = renderTile(game({ name: "Old Game" }));
-    const capsule = container.querySelector("img") as HTMLImageElement;
+    const capsule = container.querySelector("img:not([aria-hidden])") as HTMLImageElement;
     expect(capsule).toBeTruthy();
     // onError swaps in HeroFallback (which renders a different <img>).
     fireEvent.error(capsule);
@@ -83,7 +86,7 @@ describe("LibraryTile", () => {
 
   it("makes the capsule visible after onLoad fires", () => {
     const { container } = renderTile(game({ name: "Loaded Game" }));
-    const capsule = container.querySelector("img") as HTMLImageElement;
+    const capsule = container.querySelector("img:not([aria-hidden])") as HTMLImageElement;
     // Before load: opacity 0 inline style.
     expect(capsule.style.opacity).toBe("0");
     fireEvent.load(capsule);
@@ -98,7 +101,9 @@ describe("LibraryTile HeroFallback branches", () => {
         <LibraryTile game={game({ name })} />
       </ul>
     );
-    const capsule = result.container.querySelector("img") as HTMLImageElement;
+    const capsule = result.container.querySelector(
+      "img:not([aria-hidden])"
+    ) as HTMLImageElement;
     fireEvent.error(capsule);
     return result;
   }
@@ -128,15 +133,15 @@ describe("LibraryTile HeroFallback branches", () => {
 
   it("falls back to the blurred header when the hero itself errors", () => {
     const { container } = renderWithCapsuleError("Artless Game");
-    const heroes = container.querySelectorAll("img");
-    // First img post-capsule-error is the synthetic hero — error it.
+    const heroes = container.querySelectorAll("img:not([aria-hidden])");
+    // First non-morph img post-capsule-error is the synthetic hero — error it.
     if (heroes.length > 0 && heroes[0]) fireEvent.error(heroes[0]);
     expect(container.textContent).toContain("Artless Game");
   });
 
   it("flags the hero loaded path when the load event reports natural width", () => {
     const { container } = renderWithCapsuleError("Loaded Hero");
-    const heroes = container.querySelectorAll("img");
+    const heroes = container.querySelectorAll("img:not([aria-hidden])");
     if (heroes.length > 0 && heroes[0]) {
       Object.defineProperty(heroes[0], "naturalWidth", {
         value: 1920,
@@ -144,5 +149,78 @@ describe("LibraryTile HeroFallback branches", () => {
       });
       fireEvent.load(heroes[0]);
     }
+  });
+});
+
+describe("LibraryTile view-transition wiring", () => {
+  beforeEach(() => {
+    navigateMock.mockReset();
+  });
+
+  afterEach(() => {
+    // The startViewTransition stub is set per-test; clean up so other tests
+    // don't see a stale reference.
+    const doc = document as unknown as { startViewTransition?: unknown };
+    doc.startViewTransition = undefined;
+  });
+
+  it("applies view-transition-name to the morph layer and navigates inside startViewTransition on a plain left-click", async () => {
+    const startVT = vi.fn((cb: () => Promise<void> | void) => {
+      // Run the callback synchronously inside the test like the browser does.
+      return Promise.resolve(cb());
+    });
+    (document as unknown as { startViewTransition?: unknown }).startViewTransition =
+      startVT;
+
+    const { container } = renderTile(game({ appid: 730 }));
+    const morph = container.querySelector("img[aria-hidden]") as HTMLImageElement | null;
+    const link = container.querySelector("a");
+    if (!morph || !link) throw new Error("morph layer or link missing");
+
+    let nameAtCaptureTime: string | undefined;
+    startVT.mockImplementation((cb) => {
+      // At the moment startViewTransition is called, the source name must
+      // already be present (OLD snapshot is captured synchronously).
+      nameAtCaptureTime = morph.style.viewTransitionName;
+      return Promise.resolve(cb());
+    });
+
+    fireEvent.click(link, { button: 0 });
+    // Flush the awaited microtask inside the callback.
+    await Promise.resolve();
+
+    expect(startVT).toHaveBeenCalledTimes(1);
+    expect(nameAtCaptureTime).toBe("steam-game-730");
+    // Inside the callback the name is cleared before the navigation await,
+    // so by the time we observe it after the event the style is empty.
+    expect(morph.style.viewTransitionName).toBe("");
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: "/steam/game/$appid",
+      params: { appid: "730" },
+    });
+  });
+
+  it("does not invoke startViewTransition on a modifier-click", () => {
+    const startVT = vi.fn();
+    (document as unknown as { startViewTransition?: unknown }).startViewTransition =
+      startVT;
+
+    const { container } = renderTile(game({ appid: 440 }));
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+
+    fireEvent.click(link, { button: 0, metaKey: true });
+    expect(startVT).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("falls through when the browser lacks startViewTransition", () => {
+    // No stub installed — supportsViewTransitions() returns false.
+    const { container } = renderTile(game({ appid: 570 }));
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+
+    fireEvent.click(link, { button: 0 });
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

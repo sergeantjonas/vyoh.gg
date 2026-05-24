@@ -102,10 +102,17 @@ function SteamGamePage() {
           streams in) and the permanent fallback for older titles that never
           shipped a library_hero asset. */}
       <div className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-muted">
+        {/* Blurred capsule backdrop also carries the view-transition morph
+            from the library tile — the source tile renders the same image
+            as its lowest layer and names it identically on click, so the
+            named element interpolates capsule-to-capsule across a portrait
+            → landscape rect change. See
+            docs/working-notes/cross-cutting/view-transitions-rollout.md. */}
         <img
           src={steamCapsuleUrl(appid, game?.assetTimestamp)}
           alt=""
-          className="absolute inset-0 size-full scale-110 object-cover blur-sm"
+          style={{ viewTransitionName: `steam-game-${appid}` }}
+          className="absolute inset-0 size-full object-cover blur-sm"
         />
         {!heroFailed && (
           <img

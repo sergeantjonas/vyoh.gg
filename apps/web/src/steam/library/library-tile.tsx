@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import {
   steamCapsuleUrl,
   steamLibraryCapsuleUrl,
@@ -7,10 +8,10 @@ import {
 } from "@/steam/_shared/steam-image";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LibraryTileHovercardContent } from "./library-tile-hovercard";
 
 const HOVERCARD_CONTENT_CLASS =
@@ -24,6 +25,13 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
   // yet — Steam composes this at render time too).
   const [capsuleFailed, setCapsuleFailed] = useState(false);
   const [capsuleLoaded, setCapsuleLoaded] = useState(false);
+  const navigate = useNavigate();
+  // Blurred-capsule backdrop layer is the morph anchor: the game-detail hero
+  // renders the same `steamCapsuleUrl()` image as its backdrop, so naming
+  // *just* this layer on both sides carries the visual continuity across a
+  // 2:3 → 3:1 aspect change without forcing the visible primary art to warp.
+  // See docs/working-notes/cross-cutting/view-transitions-rollout.md.
+  const morphLayerRef = useRef<HTMLImageElement>(null);
 
   const lifetime =
     game.playtimeForeverMinutes > 0 ? formatPlaytime(game.playtimeForeverMinutes) : null;
@@ -39,9 +47,48 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
               prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)
             }
             onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
+            onClick={(e) => {
+              // VT path: apply `view-transition-name` to the backdrop layer
+              // via ref so it is present at OLD-snapshot capture (synchronous
+              // with the startViewTransition call), then clear it inside the
+              // callback BEFORE awaiting navigation so it isn't present at
+              // NEW-snapshot capture (would collide with the destination
+              // hero's matching name). Mirrors champion-table.tsx + match-row.
+              if (!supportsViewTransitions()) return;
+              if (e.button !== 0) return;
+              if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+              const el = morphLayerRef.current;
+              if (!el) return;
+              e.preventDefault();
+              const name = `steam-game-${game.appid}`;
+              el.style.viewTransitionName = name;
+              const doc = document as Document & {
+                startViewTransition?: (cb: () => Promise<void>) => unknown;
+              };
+              doc.startViewTransition?.(async () => {
+                if (morphLayerRef.current)
+                  morphLayerRef.current.style.viewTransitionName = "";
+                await navigate({
+                  to: "/steam/game/$appid",
+                  params: { appid: String(game.appid) },
+                });
+              });
+            }}
             className="flex flex-col gap-5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <div className="relative isolate aspect-2/3 origin-top overflow-hidden rounded-lg bg-muted shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[filter,box-shadow,transform] duration-500 ease-out transform-[perspective(700px)_rotateX(0deg)_rotateY(0deg)_scale(1)] group-hover/tile:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1] group-hover/tile:transform-[perspective(700px)_rotateX(7deg)_rotateY(-9deg)_scale(1.02)]">
+              {/* Lowest layer: blurred header.jpg sits behind the primary
+                  art, invisible at rest because covered. It exists so the
+                  view-transition morph has a named element that shows the
+                  same image as the destination's hero backdrop. */}
+              <img
+                ref={morphLayerRef}
+                src={steamCapsuleUrl(game.appid, game.assetTimestamp)}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                className="absolute inset-0 size-full object-cover blur-sm"
+              />
               {capsuleFailed ? (
                 <HeroFallback game={game} />
               ) : (
@@ -52,7 +99,7 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
                   onLoad={() => setCapsuleLoaded(true)}
                   onError={() => setCapsuleFailed(true)}
                   style={{ opacity: capsuleLoaded ? 1 : 0 }}
-                  className="h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
+                  className="absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
                 />
               )}
               {/* Steam-style anchored sheen — gradient stays pinned at the
