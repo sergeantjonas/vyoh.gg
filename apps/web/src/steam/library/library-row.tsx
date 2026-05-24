@@ -1,3 +1,4 @@
+import { useMediaQuery } from "@/lib/use-media-query";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
@@ -23,8 +24,18 @@ function relativeTimeAgo(iso: string): string {
   return relativeTime.format(years, "year");
 }
 
+// Hovercard only renders when there's room outside the max-w-4xl container
+// for the popout to land in the side gutter without overflow. Below this
+// threshold the row is the full visible width and side-placed popovers
+// can't fit; rather than fall back to top/bottom (the row's wide footprint
+// makes vertical placement read as a disconnected island), suppress the
+// hovercard entirely — the row already exposes hero, logo, lifetime, and
+// last-played inline; only the screenshot rotation is lost.
+const HOVERCARD_VIEWPORT_QUERY = "(min-width: 1536px)";
+
 export function LibraryRow({ game }: { game: SteamOwnedGame }) {
   const navigate = useNavigate();
+  const showHovercard = useMediaQuery(HOVERCARD_VIEWPORT_QUERY);
   // Two-element morph: hero img + logo img each carry a unique
   // view-transition-name on click, pairing with matching names on the
   // destination game page. Both refs can be null when their img has
@@ -47,65 +58,65 @@ export function LibraryRow({ game }: { game: SteamOwnedGame }) {
       ? relativeTimeAgo(game.rtimeLastPlayedAt)
       : null;
 
+  const link = (
+    <Link
+      to="/steam/game/$appid"
+      params={{ appid: String(game.appid) }}
+      onMouseEnter={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
+      onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
+      onClick={(e) => {
+        // Apply `view-transition-name` to each available morph anchor
+        // (hero + logo) so both are present at OLD-snapshot capture,
+        // then clear them inside the callback BEFORE awaiting navigation
+        // so neither collides with the destination's matching names at
+        // NEW-snapshot capture. A null ref means that layer fell back to
+        // a text/error branch; we skip it and the destination's matching
+        // named element crossfades via the root transition.
+        if (!supportsViewTransitions()) return;
+        if (e.button !== 0) return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+        if (!heroRef.current && !logoRef.current) return;
+        e.preventDefault();
+        const base = `steam-game-${game.appid}`;
+        if (heroRef.current) heroRef.current.style.viewTransitionName = `${base}-hero`;
+        if (logoRef.current) logoRef.current.style.viewTransitionName = `${base}-logo`;
+        const doc = document as Document & {
+          startViewTransition?: (cb: () => Promise<void>) => unknown;
+        };
+        doc.startViewTransition?.(async () => {
+          if (heroRef.current) heroRef.current.style.viewTransitionName = "";
+          if (logoRef.current) logoRef.current.style.viewTransitionName = "";
+          await navigate({
+            to: "/steam/game/$appid",
+            params: { appid: String(game.appid) },
+          });
+        });
+      }}
+      className="group/row block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      <SteamGameRowShell
+        appid={game.appid}
+        assetTimestamp={game.assetTimestamp}
+        name={game.name}
+        meta={
+          <>
+            {lifetime ? `${lifetime} lifetime` : "Never launched"}
+            {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
+            {lastPlayed ? ` · last played ${lastPlayed}` : ""}
+          </>
+        }
+        heroRef={heroRef}
+        logoRef={logoRef}
+      />
+    </Link>
+  );
+
+  if (!showHovercard) return <li>{link}</li>;
+
   return (
     <li>
       <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
-        <HoverCardPrimitive.Trigger asChild>
-          <Link
-            to="/steam/game/$appid"
-            params={{ appid: String(game.appid) }}
-            onMouseEnter={() =>
-              prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)
-            }
-            onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
-            onClick={(e) => {
-              // Apply `view-transition-name` to each available morph anchor
-              // (hero + logo) so both are present at OLD-snapshot capture,
-              // then clear them inside the callback BEFORE awaiting navigation
-              // so neither collides with the destination's matching names at
-              // NEW-snapshot capture. A null ref means that layer fell back to
-              // a text/error branch; we skip it and the destination's matching
-              // named element crossfades via the root transition.
-              if (!supportsViewTransitions()) return;
-              if (e.button !== 0) return;
-              if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-              if (!heroRef.current && !logoRef.current) return;
-              e.preventDefault();
-              const base = `steam-game-${game.appid}`;
-              if (heroRef.current)
-                heroRef.current.style.viewTransitionName = `${base}-hero`;
-              if (logoRef.current)
-                logoRef.current.style.viewTransitionName = `${base}-logo`;
-              const doc = document as Document & {
-                startViewTransition?: (cb: () => Promise<void>) => unknown;
-              };
-              doc.startViewTransition?.(async () => {
-                if (heroRef.current) heroRef.current.style.viewTransitionName = "";
-                if (logoRef.current) logoRef.current.style.viewTransitionName = "";
-                await navigate({
-                  to: "/steam/game/$appid",
-                  params: { appid: String(game.appid) },
-                });
-              });
-            }}
-            className="group/row block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <SteamGameRowShell
-              appid={game.appid}
-              assetTimestamp={game.assetTimestamp}
-              name={game.name}
-              meta={
-                <>
-                  {lifetime ? `${lifetime} lifetime` : "Never launched"}
-                  {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
-                  {lastPlayed ? ` · last played ${lastPlayed}` : ""}
-                </>
-              }
-              heroRef={heroRef}
-              logoRef={logoRef}
-            />
-          </Link>
-        </HoverCardPrimitive.Trigger>
+        <HoverCardPrimitive.Trigger asChild>{link}</HoverCardPrimitive.Trigger>
         <HoverCardPrimitive.Portal>
           <HoverCardPrimitive.Content
             side="right"
@@ -114,7 +125,7 @@ export function LibraryRow({ game }: { game: SteamOwnedGame }) {
             collisionPadding={16}
             className={LIBRARY_HOVERCARD_CONTENT_CLASS}
           >
-            <LibraryTileHovercardContent game={game} />
+            <LibraryTileHovercardContent game={game} variant="row" />
           </HoverCardPrimitive.Content>
         </HoverCardPrimitive.Portal>
       </HoverCardPrimitive.Root>

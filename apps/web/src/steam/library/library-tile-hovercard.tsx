@@ -34,7 +34,20 @@ function relativeTimeAgo(iso: string): string {
   return relativeTime.format(years, "year");
 }
 
-export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) {
+export function LibraryTileHovercardContent({
+  game,
+  variant = "tile",
+}: {
+  game: SteamOwnedGame;
+  // "tile" matches the square tile's hover popout: 2:1 hero strip + title +
+  // playtime block. "row" is screenshot-only (no title/playtime, redundant
+  // with what the wide row already shows) and the hero area is fixed at the
+  // row's own height (h-36 = 144px) so the popout reads as a continuation
+  // of the row rather than a free-floating card with mismatched proportions.
+  variant?: "tile" | "row";
+}) {
+  const showMeta = variant === "tile";
+  const heroSizeClass = variant === "tile" ? "aspect-[2/1]" : "h-36";
   const [heroFailed, setHeroFailed] = useState(false);
   const [heroLoaded, setHeroLoaded] = useState(false);
 
@@ -82,7 +95,7 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
 
   return (
     <div className="flex flex-col">
-      <div className="relative aspect-[2/1] overflow-hidden bg-muted">
+      <div className={cn("relative overflow-hidden bg-muted", heroSizeClass)}>
         {!heroFailed ? (
           <img
             src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
@@ -145,28 +158,30 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
           </>
         )}
       </div>
-      <div className="flex flex-col gap-2 p-3">
-        <span className="line-clamp-2 text-sm font-semibold">{game.name}</span>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
-            Time played
-          </span>
-          <div className="flex justify-between text-xs tabular-nums">
-            <span className="text-muted-foreground">Last two weeks</span>
-            <span>{formatPlaytime(twoWeeks)}</span>
-          </div>
-          <div className="flex justify-between text-xs tabular-nums">
-            <span className="text-muted-foreground">Total</span>
-            <span>{formatPlaytime(total)}</span>
-          </div>
-          {game.rtimeLastPlayedAt !== null && (
+      {showMeta && (
+        <div className="flex flex-col gap-2 p-3">
+          <span className="line-clamp-2 text-sm font-semibold">{game.name}</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+              Time played
+            </span>
             <div className="flex justify-between text-xs tabular-nums">
-              <span className="text-muted-foreground">Last played</span>
-              <span>{relativeTimeAgo(game.rtimeLastPlayedAt)}</span>
+              <span className="text-muted-foreground">Last two weeks</span>
+              <span>{formatPlaytime(twoWeeks)}</span>
             </div>
-          )}
+            <div className="flex justify-between text-xs tabular-nums">
+              <span className="text-muted-foreground">Total</span>
+              <span>{formatPlaytime(total)}</span>
+            </div>
+            {game.rtimeLastPlayedAt !== null && (
+              <div className="flex justify-between text-xs tabular-nums">
+                <span className="text-muted-foreground">Last played</span>
+                <span>{relativeTimeAgo(game.rtimeLastPlayedAt)}</span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
