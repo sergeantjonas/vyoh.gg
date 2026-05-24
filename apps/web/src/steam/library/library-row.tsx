@@ -1,10 +1,15 @@
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
+import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { useRef } from "react";
+import {
+  LIBRARY_HOVERCARD_CONTENT_CLASS,
+  LibraryTileHovercardContent,
+} from "./library-tile-hovercard";
 
 const DAY_MS = 86_400_000;
 const relativeTime = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
@@ -44,56 +49,75 @@ export function LibraryRow({ game }: { game: SteamOwnedGame }) {
 
   return (
     <li>
-      <Link
-        to="/steam/game/$appid"
-        params={{ appid: String(game.appid) }}
-        onMouseEnter={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
-        onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
-        onClick={(e) => {
-          // Apply `view-transition-name` to each available morph anchor
-          // (hero + logo) so both are present at OLD-snapshot capture,
-          // then clear them inside the callback BEFORE awaiting navigation
-          // so neither collides with the destination's matching names at
-          // NEW-snapshot capture. A null ref means that layer fell back to
-          // a text/error branch; we skip it and the destination's matching
-          // named element crossfades via the root transition.
-          if (!supportsViewTransitions()) return;
-          if (e.button !== 0) return;
-          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-          if (!heroRef.current && !logoRef.current) return;
-          e.preventDefault();
-          const base = `steam-game-${game.appid}`;
-          if (heroRef.current) heroRef.current.style.viewTransitionName = `${base}-hero`;
-          if (logoRef.current) logoRef.current.style.viewTransitionName = `${base}-logo`;
-          const doc = document as Document & {
-            startViewTransition?: (cb: () => Promise<void>) => unknown;
-          };
-          doc.startViewTransition?.(async () => {
-            if (heroRef.current) heroRef.current.style.viewTransitionName = "";
-            if (logoRef.current) logoRef.current.style.viewTransitionName = "";
-            await navigate({
-              to: "/steam/game/$appid",
-              params: { appid: String(game.appid) },
-            });
-          });
-        }}
-        className="block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <SteamGameRowShell
-          appid={game.appid}
-          assetTimestamp={game.assetTimestamp}
-          name={game.name}
-          meta={
-            <>
-              {lifetime ? `${lifetime} lifetime` : "Never launched"}
-              {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
-              {lastPlayed ? ` · last played ${lastPlayed}` : ""}
-            </>
-          }
-          heroRef={heroRef}
-          logoRef={logoRef}
-        />
-      </Link>
+      <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
+        <HoverCardPrimitive.Trigger asChild>
+          <Link
+            to="/steam/game/$appid"
+            params={{ appid: String(game.appid) }}
+            onMouseEnter={() =>
+              prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)
+            }
+            onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
+            onClick={(e) => {
+              // Apply `view-transition-name` to each available morph anchor
+              // (hero + logo) so both are present at OLD-snapshot capture,
+              // then clear them inside the callback BEFORE awaiting navigation
+              // so neither collides with the destination's matching names at
+              // NEW-snapshot capture. A null ref means that layer fell back to
+              // a text/error branch; we skip it and the destination's matching
+              // named element crossfades via the root transition.
+              if (!supportsViewTransitions()) return;
+              if (e.button !== 0) return;
+              if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+              if (!heroRef.current && !logoRef.current) return;
+              e.preventDefault();
+              const base = `steam-game-${game.appid}`;
+              if (heroRef.current)
+                heroRef.current.style.viewTransitionName = `${base}-hero`;
+              if (logoRef.current)
+                logoRef.current.style.viewTransitionName = `${base}-logo`;
+              const doc = document as Document & {
+                startViewTransition?: (cb: () => Promise<void>) => unknown;
+              };
+              doc.startViewTransition?.(async () => {
+                if (heroRef.current) heroRef.current.style.viewTransitionName = "";
+                if (logoRef.current) logoRef.current.style.viewTransitionName = "";
+                await navigate({
+                  to: "/steam/game/$appid",
+                  params: { appid: String(game.appid) },
+                });
+              });
+            }}
+            className="group/row block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <SteamGameRowShell
+              appid={game.appid}
+              assetTimestamp={game.assetTimestamp}
+              name={game.name}
+              meta={
+                <>
+                  {lifetime ? `${lifetime} lifetime` : "Never launched"}
+                  {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
+                  {lastPlayed ? ` · last played ${lastPlayed}` : ""}
+                </>
+              }
+              heroRef={heroRef}
+              logoRef={logoRef}
+            />
+          </Link>
+        </HoverCardPrimitive.Trigger>
+        <HoverCardPrimitive.Portal>
+          <HoverCardPrimitive.Content
+            side="right"
+            align="start"
+            sideOffset={16}
+            collisionPadding={16}
+            className={LIBRARY_HOVERCARD_CONTENT_CLASS}
+          >
+            <LibraryTileHovercardContent game={game} />
+          </HoverCardPrimitive.Content>
+        </HoverCardPrimitive.Portal>
+      </HoverCardPrimitive.Root>
     </li>
   );
 }

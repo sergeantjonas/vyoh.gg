@@ -20,6 +20,7 @@ vi.mock("@/steam/profile-backdrop", () => ({
 
 vi.mock("./library-tile-hovercard", () => ({
   LibraryTileHovercardContent: () => null,
+  LIBRARY_HOVERCARD_CONTENT_CLASS: "",
 }));
 
 function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {

@@ -13,10 +13,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { useRef, useState } from "react";
-import { LibraryTileHovercardContent } from "./library-tile-hovercard";
-
-const HOVERCARD_CONTENT_CLASS =
-  "z-50 w-64 overflow-hidden rounded-md border bg-popover/90 text-popover-foreground shadow-xl backdrop-blur-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+import {
+  LIBRARY_HOVERCARD_CONTENT_CLASS,
+  LibraryTileHovercardContent,
+} from "./library-tile-hovercard";
 
 export function LibraryTile({ game }: { game: SteamOwnedGame }) {
   // Library art priority mirrors Steam's own client: prefer the dedicated
@@ -145,7 +145,7 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
             align="start"
             sideOffset={16}
             collisionPadding={16}
-            className={HOVERCARD_CONTENT_CLASS}
+            className={LIBRARY_HOVERCARD_CONTENT_CLASS}
           >
             <LibraryTileHovercardContent game={game} />
           </HoverCardPrimitive.Content>

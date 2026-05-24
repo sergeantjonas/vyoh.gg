@@ -112,12 +112,28 @@ The visual layer differs in every meaningful dimension (blurhash vs video, singl
 
 ---
 
+### Item 5 — Tile-parity hover chrome on the library row (tilt + sheen + hovercard popout)
+
+The library tile has three hover behaviors the row was missing: (a) a CSS-only perspective tilt + shadow lift, (b) the Steam-style anchored sheen sweep via the registered `--sheen-extent` variable, and (c) the radix-hovercard popout showing recent screenshots + extended playtime stats. After the row redesign landed (the "Steam-native row" arc in [view-transitions-rollout.md](view-transitions-rollout.md)), the row has the visual weight + bounded card shape to host these — without it, a tilt on the original thin capsule-strip row would have looked silly.
+
+**Shipped 2026-05-24.**
+
+- Tilt + sheen on the shell ([`steam-game-row.tsx`](../../../apps/web/src/steam/_shared/steam-game-row.tsx)) so both library row + wishlist row get the same hover treatment via a shared `group/row` token on the wrapper. Tilt values dialed down vs the tile (`rotateX(2deg) rotateY(-1.5deg) scale(1.005)` vs the tile's `rotateX(7deg) rotateY(-9deg) scale(1.02)`) because heavy side-rotation warps wide rects more than square ones.
+- Brightness + saturate scoped to the foreground hero img only (not the whole card) so overlaid logo + meta text don't shift or brighten.
+- Hovercard popout on the library row ([`library-row.tsx`](../../../apps/web/src/steam/library/library-row.tsx)) reuses `LibraryTileHovercardContent` directly. Wishlist row skips the popout (external nav to Steam store; full game-detail context not relevant on click).
+- Extracted `LIBRARY_HOVERCARD_CONTENT_CLASS` to [`library-tile-hovercard.tsx`](../../../apps/web/src/steam/library/library-tile-hovercard.tsx) so both consumers import from one place.
+
+**Lesson:** when porting hover chrome between surfaces with different aspect ratios, the tilt math doesn't transfer 1:1 — wide rects need much shallower angles to avoid corner distortion. Same with image-layer effects vs whole-card effects: scoping brightness/saturate to the hero img (the visual focal point) rather than the outer card keeps overlaid text from being affected.
+
+---
+
 ## Suggested order
 
 1. **Item 1** (scroll-reset skip-pairs) — *shipped 2026-05-24, [`23bc24e`](../../../).*
 2. **Item 2** (Steam skeletons) — *shipped 2026-05-24, [`8dfc523`](../../../).*
 3. **Item 3** (EmptyState port) — *shipped 2026-05-24, [`16d56e0`](../../../).*
 4. **Item 4** (backdrop primitive extraction, Option B) — *shipped 2026-05-24 across [`dc471e5`](../../../), [`9151ddf`](../../../), [`c69c7ac`](../../../)*.
+5. **Item 5** (tile-parity hover chrome) — *shipped 2026-05-24 (this commit), follows the row redesign.*
 
 The Steam VT morph from [view-transitions-rollout.md](view-transitions-rollout.md) is independent of all four and can interleave in any order.
 

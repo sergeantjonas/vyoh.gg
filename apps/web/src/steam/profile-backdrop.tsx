@@ -42,7 +42,13 @@ export function SteamProfileBackdrop({ children }: { children: ReactNode }) {
     <SteamBackdropContext.Provider value={ctxValue}>
       {children}
       <BackdropPortal>
-        {summary?.profileBackgroundUrl ? (
+        {/* Profile backdrop unmounts when a game claim is active —
+            GameBackdropLayer fully covers it anyway, and keeping the
+            profile video decoding behind an opaque cover wastes GPU
+            (Safari's compositor flickers during the route transition
+            because the video layer is repainted while the game img
+            cross-fades in on top). */}
+        {summary?.profileBackgroundUrl && !game ? (
           <m.div
             aria-hidden="true"
             className={BACKDROP_SHELL_CLASS}
@@ -117,11 +123,19 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
     <m.div
       aria-hidden="true"
       className={BACKDROP_SHELL_CLASS}
+      // Instant appearance, no fade. The previous 0.3s opacity ramp
+      // raced the view-transition capture window on the library →
+      // game-detail route nav: claim activates mid-VT, the fade-in
+      // starts, the NEW-snapshot was captured at partial opacity, and
+      // the morph interpolated through a flickering half-state. Showing
+      // the backdrop instantly lets the VT cross-fade between OLD/NEW
+      // pages handle the visual transition cleanly. The fade-out path
+      // (game claim deactivating) similarly snaps off — the profile
+      // backdrop's own enter animation in SteamProfileBackdrop covers
+      // the gap on the way back to a non-game route.
       initial={prefersReducedMotion ? false : { opacity: 0 }}
       animate={{ opacity: visible ? 1 : 0 }}
-      transition={
-        prefersReducedMotion ? { duration: 0 } : { duration: 0.3, ease: "easeOut" }
-      }
+      transition={{ duration: 0 }}
     >
       {!failed && (
         <>
@@ -130,20 +144,25 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
             alt=""
             onLoad={() => setReady(true)}
             onError={() => setFailed(true)}
-            // Moderate blur (8px, up from the prior 5px) softens the echo
-            // between this layer and the destination hero banner —
-            // modern titles use `library_hero.jpg` for both, so without
-            // some extra blur the page-wide backdrop reads as a redundant
-            // copy. `brightness-50` darkens the source so bright source
-            // art (Hollow Knight's cyan, etc.) doesn't blow out the
-            // overlaid header text + tab labels.
-            className="size-full scale-105 object-cover blur-[8px] brightness-75"
+            // Moderate blur (8px) softens the echo between this layer
+            // and the destination hero banner — modern titles use
+            // `library_hero.jpg` for both, so without some extra blur
+            // the page-wide backdrop reads as a redundant copy.
+            // Darkening is handled by the wash layers below rather than
+            // a `brightness()` filter on the img — Safari treats CSS
+            // `filter` as a forced compositing layer, which flickered
+            // visibly during the route-transition opacity cross-fade.
+            // `blur()` is the same compositing path but it's structurally
+            // required for the visual treatment.
+            className="size-full scale-105 object-cover blur-[8px]"
           />
-          {/* Top-to-bottom dim wash — mirrors the SteamProfileBackdrop
-              overlay so nav/breadcrumb/tabs read against a consistently
-              darkened backdrop regardless of source-art luminance.
-              GameBackdropLayer sits on top of the profile layer's
-              equivalent wash so we need our own here. */}
+          {/* Layered dim wash: flat base (replaces the previous
+              `brightness-75` filter, see comment on the img) + a
+              top-to-bottom gradient mirroring SteamProfileBackdrop so
+              the bottom of the viewport — where page content sits — is
+              darkest. GameBackdropLayer sits on top of the profile
+              layer's equivalent wash, so we need our own here. */}
+          <div className="absolute inset-0 bg-background/30" />
           <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background/95" />
         </>
       )}

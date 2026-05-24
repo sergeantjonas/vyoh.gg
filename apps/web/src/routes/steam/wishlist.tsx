@@ -125,7 +125,7 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
         // Steam store, not a /steam/game route). The whole row is the click
         // target; the trailing icon is a visual external-link affordance.
         className={cn(
-          "block rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
+          "group/row block rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
           isHighlighted && "ring-2 ring-amber-300 ring-offset-2 ring-offset-background"
         )}
         aria-label={`${item.name ?? `App ${item.appid}`} on Steam`}
