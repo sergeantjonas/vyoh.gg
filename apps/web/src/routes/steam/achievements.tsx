@@ -1,6 +1,5 @@
 import { EmptyAchievementsIllustration, EmptyState } from "@/components/empty-state";
-import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
-import { formatRowDate, groupByMonth } from "@/steam/achievements/group-by-month";
+import { RecentUnlocksVirtual } from "@/steam/achievements/recent-unlocks-virtual";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
@@ -73,7 +72,6 @@ function RecentSection({ unlocks, isPending, isError }: SectionProps) {
   }
 
   const uniqueGames = new Set(unlocks.map((u) => u.appid)).size;
-  const groups = groupByMonth(unlocks);
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,48 +81,7 @@ function RecentSection({ unlocks, isPending, isError }: SectionProps) {
         <span className="font-medium text-foreground/90">{uniqueGames}</span> game
         {uniqueGames === 1 ? "" : "s"}.
       </p>
-      <div className="flex flex-col gap-8">
-        {groups.map(({ label, rows }) => (
-          <section key={label} className="flex flex-col gap-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {label}
-              <span className="ml-2 font-normal tabular-nums text-muted-foreground/60">
-                {rows.length}
-              </span>
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {rows.map((u) => (
-                <li key={`${u.appid}-${u.apiName}`}>
-                  <Link
-                    to="/steam/game/$appid"
-                    params={{ appid: String(u.appid) }}
-                    search={{ ach: u.apiName }}
-                    className="flex items-center gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
-                  >
-                    <img
-                      src={steamAchievementIconUrl(u.appid, u.apiName)}
-                      alt=""
-                      loading="lazy"
-                      className="size-16 shrink-0 rounded-md"
-                    />
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <p className="truncate text-base font-medium text-foreground/90">
-                        {u.displayName}
-                      </p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {u.gameName}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground/70">
-                      {formatRowDate(u.unlockedAt)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+      <RecentUnlocksVirtual unlocks={unlocks} />
     </div>
   );
 }
