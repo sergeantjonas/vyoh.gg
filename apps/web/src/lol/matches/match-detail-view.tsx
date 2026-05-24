@@ -24,8 +24,6 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { MatchDamageProfile } from "@/lol/matches/match-damage-profile";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
-import { MatchGoldLead } from "@/lol/matches/match-gold-lead";
-import { MatchLanePhase } from "@/lol/matches/match-lane-phase";
 import { MatchOwnerStats } from "@/lol/matches/match-owner-stats";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { MatchSpellCasts } from "@/lol/matches/match-spell-casts";
@@ -41,7 +39,33 @@ import type {
   TeamSummary,
 } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
-import { type ComponentType, useEffect, useState } from "react";
+import { type ComponentType, Suspense, lazy, useEffect, useState } from "react";
+
+// Recharts-backed chart components live behind a lazy boundary so the
+// Recap tab (the default landing) doesn't pay the Recharts download +
+// parse cost. Each chart only loads when its parent tab (Your game,
+// Timeline) is the active route. Named-export wrapper because
+// React.lazy expects a default export and we don't want to flip the
+// public shape of the chart modules just for this.
+const MatchLanePhase = lazy(() =>
+  import("@/lol/matches/match-lane-phase").then((m) => ({
+    default: m.MatchLanePhase,
+  }))
+);
+const MatchGoldLead = lazy(() =>
+  import("@/lol/matches/match-gold-lead").then((m) => ({
+    default: m.MatchGoldLead,
+  }))
+);
+
+// Sized placeholder matching the typical chart height so the Suspense
+// boundary's flip from fallback → mounted chart doesn't shove sibling
+// content during the dynamic import's network round-trip.
+function ChartFallback() {
+  return (
+    <div className="h-64 animate-pulse rounded-lg border border-border/40 bg-muted/30" />
+  );
+}
 
 // Tracks which matchId recap tabs have already played their entry animations.
 // Cleared only on full page reload — tab switches within a session skip re-animating.
@@ -926,7 +950,9 @@ export function MatchYourGameTab({
           <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
         </div>
         <div ref={refFor("lane-phase")}>
-          <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+          <Suspense fallback={<ChartFallback />}>
+            <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+          </Suspense>
         </div>
       </div>
       {showScrollspy && (
@@ -969,7 +995,9 @@ export function MatchTimelineTab({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+      <Suspense fallback={<ChartFallback />}>
+        <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+      </Suspense>
       <MatchEventTimelines detail={detail} myPuuid={myPuuid} />
     </div>
   );

@@ -163,7 +163,7 @@ describe("MatchRecapTab", () => {
 });
 
 describe("MatchYourGameTab", () => {
-  it("renders the six section blocks", () => {
+  it("renders the six section blocks", async () => {
     const detail = buildDetail();
     renderShell(<MatchYourGameTab detail={detail} myPuuid="PA" />);
     expect(screen.getByTestId("build-order")).toBeTruthy();
@@ -171,16 +171,21 @@ describe("MatchYourGameTab", () => {
     expect(screen.getByTestId("damage-profile")).toBeTruthy();
     expect(screen.getByTestId("owner-stats")).toBeTruthy();
     expect(screen.getByTestId("skill-order")).toBeTruthy();
-    expect(screen.getByTestId("lane-phase")).toBeTruthy();
+    // MatchLanePhase is React.lazy in match-detail-view so the Suspense
+    // boundary renders the fallback synchronously; the mocked module
+    // resolves on a microtask, so the lane-phase node only appears
+    // after a `findBy` await.
+    expect(await screen.findByTestId("lane-phase")).toBeTruthy();
   });
 });
 
 describe("MatchTimelineTab", () => {
-  it("renders gold-lead and event-timelines blocks", () => {
+  it("renders gold-lead and event-timelines blocks", async () => {
     const detail = buildDetail();
     renderShell(<MatchTimelineTab detail={detail} myPuuid="PA" />);
-    expect(screen.getByTestId("gold-lead")).toBeTruthy();
     expect(screen.getByTestId("event-timelines")).toBeTruthy();
+    // Same lazy-resolve dance as the lane-phase assertion above.
+    expect(await screen.findByTestId("gold-lead")).toBeTruthy();
   });
 });
 
