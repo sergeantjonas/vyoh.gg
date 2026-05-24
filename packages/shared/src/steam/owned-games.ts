@@ -48,6 +48,11 @@ export interface SteamOwnedGame {
   // detail header. Null when the enrichment row is missing or the upstream
   // omitted basic_info.
   shortDescription: string | null;
+  // Steam Deck compatibility tier from `platforms.steam_deck_compat_category`:
+  // 0 Unknown / 1 Unsupported / 2 Playable / 3 Verified. Renderer treats null
+  // and 0 identically (no chip shown) so a missing enrichment row stays
+  // silent rather than asserting "unsupported".
+  steamDeckCompat: number | null;
 }
 
 export interface SteamOwnedGames {

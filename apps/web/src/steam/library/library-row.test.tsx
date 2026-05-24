@@ -46,6 +46,7 @@ function makeGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     tagIds: [],
     rtimeLastPlayedAt: null,
     shortDescription: null,
+    steamDeckCompat: null,
     ...overrides,
   };
 }

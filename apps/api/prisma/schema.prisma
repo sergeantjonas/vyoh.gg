@@ -125,6 +125,11 @@ model SteamGameEnrichment {
   // marketing blurb shown on the Steam store card. Typically 150–300 chars.
   // Null when upstream returns no basic_info block (delisted/private apps).
   shortDescription     String?
+  // `platforms.steam_deck_compat_category`: 0 Unknown / 1 Unsupported /
+  // 2 Playable / 3 Verified. Mirrors Valve's compatibility taxonomy. Null
+  // when upstream omits the platforms block; renderer treats null and 0
+  // identically (no chip shown).
+  steamDeckCompat      Int?
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps

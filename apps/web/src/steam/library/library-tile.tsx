@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
 import {
   makeHeroFallbackHandlers,
   steamCapsuleUrl,
@@ -177,13 +178,16 @@ export function LibraryTile({
                 className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
               />
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               <span className="truncate text-sm font-medium underline-offset-2 group-hover/tile:underline">
                 {game.name}
               </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {lifetime ? `${lifetime} lifetime` : "Never launched"}
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs text-muted-foreground">
+                  {lifetime ? `${lifetime} lifetime` : "Never launched"}
+                </span>
+                <DeckCompatChip tier={game.steamDeckCompat} />
+              </div>
             </div>
           </Link>
         </HoverCardPrimitive.Trigger>

@@ -35,6 +35,7 @@ export interface EnrichmentUpsert {
   tagIds: number[];
   featureCategoryIds: number[];
   shortDescription: string | null;
+  steamDeckCompat: number | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -88,6 +89,7 @@ export function projectEnrichment(
     tagIds: (raw.tagids ?? []).slice(0, MAX_TAG_IDS),
     featureCategoryIds: categories?.feature_categoryids ?? [],
     shortDescription: raw.basic_info?.short_description ?? null,
+    steamDeckCompat: raw.platforms?.steam_deck_compat_category ?? null,
   };
 }
 

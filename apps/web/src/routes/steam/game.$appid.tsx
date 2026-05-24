@@ -7,6 +7,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
 import {
   makeHeroFallbackHandlers,
   steamLibraryHeroUrl,
@@ -158,9 +159,12 @@ function SteamGamePage() {
         <GameDetailSkeleton />
       ) : (
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {game?.name ?? `App ${appidParam}`}
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {game?.name ?? `App ${appidParam}`}
+            </h1>
+            {game && <DeckCompatChip tier={game.steamDeckCompat} size="md" />}
+          </div>
           <p className="text-sm text-muted-foreground">
             {game?.shortDescription ??
               "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}

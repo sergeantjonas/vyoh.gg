@@ -363,6 +363,7 @@ export class SteamOwnedGamesService {
         appType: true,
         tagIds: true,
         shortDescription: true,
+        steamDeckCompat: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -391,6 +392,7 @@ export class SteamOwnedGamesService {
           tagIds: e?.tagIds ?? [],
           rtimeLastPlayedAt: r.game.rtimeLastPlayed?.toISOString() ?? null,
           shortDescription: e?.shortDescription ?? null,
+          steamDeckCompat: e?.steamDeckCompat ?? null,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

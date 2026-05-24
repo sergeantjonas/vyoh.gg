@@ -107,4 +107,13 @@ describe("projectEnrichment", () => {
   it("defaults shortDescription to null when basic_info is absent", () => {
     expect(projectEnrichment(raw({}))?.shortDescription).toBeNull();
   });
+
+  it("projects platforms.steam_deck_compat_category into steamDeckCompat", () => {
+    const row = projectEnrichment(raw({ platforms: { steam_deck_compat_category: 3 } }));
+    expect(row?.steamDeckCompat).toBe(3);
+  });
+
+  it("defaults steamDeckCompat to null when the platforms block is absent", () => {
+    expect(projectEnrichment(raw({}))?.steamDeckCompat).toBeNull();
+  });
 });
