@@ -59,7 +59,7 @@ Within hours of the migration shipping, Safari/iOS surfaced visible chop on intr
 - A compositor-only CSS slide (`safari-slide-in-from-{left,right}` keyframes + [`useSafariSlideDirection`](../../../apps/web/src/steam/use-safari-slide-direction.ts) hook) substitutes for the visual continuity Safari users would otherwise lose.
 - LoL section navs are unaffected — Safari handles their (lighter) snapshot capture fine.
 
-The Steam Profile page also surfaced as a structural outlier during the same arc (~77 composite layers vs ~17 on the other Steam pages). Investigation queued in [steam-profile-layer-density.md](steam-profile-layer-density.md).
+The Steam Profile page also surfaced as a structural outlier during the same arc (~77 composite layers vs ~17 on the other Steam pages). Resolved 2026-05-25 by dropping `backdrop-blur-sm` on `TrophyCaseStrip` rarity badges — Embla mounts all 44 carousel slides, one promoted layer per badge. Solid `bg-background/95` substitute brought the page to 27 layers, within ~10 of sibling-tab parity.
 
 ---
 
@@ -225,7 +225,6 @@ Possibly new:
 ## Related notes
 
 - [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — Safari-specific follow-up arc that landed the WebKit bypass + CSS-slide substitute for intra-Steam navs.
-- [steam-profile-layer-density.md](steam-profile-layer-density.md) — investigation queued for the ~77 composite layers on the Steam Profile page (surfaced during the Safari arc).
 - [view-transitions-rollout.md](view-transitions-rollout.md) — the parent arc. This migration unblocked any future per-element morph work; the LoL multi-element refinement that motivated it was closed as abandoned the same day.
 - [elevation-arcs.md](elevation-arcs.md) — index of "elevate past boring app" arcs.
 - KB: [03-motion.md](~/.claude/knowledge/frontend-2026/03-motion.md) §3 (View Transitions API), §5.4 (List entry/exit with AnimatePresence and ViewTransition), §6.6 (View Transitions and reduced motion).
