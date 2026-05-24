@@ -32,6 +32,7 @@ function makeUnlock(overrides: Partial<SteamRecentUnlock> = {}): SteamRecentUnlo
     gameName: "Team Fortress 2",
     apiName: "ACH_DEFAULT",
     displayName: "Default Achievement",
+    description: "",
     hidden: false,
     unlockedAt: "2026-05-19T11:00:00Z",
     globalPercent: 25,

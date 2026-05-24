@@ -8,6 +8,7 @@ function unlock(iso: string, displayName = "Achievement"): SteamRecentUnlock {
     gameName: "Game",
     apiName: "API_NAME",
     displayName,
+    description: "",
     hidden: false,
     unlockedAt: iso,
     globalPercent: null,
