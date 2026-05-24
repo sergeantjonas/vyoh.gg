@@ -74,7 +74,7 @@ describe("RarestSection", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders each unlock with its display name, game name, and rarity qualifier", () => {
+  it("renders each unlock with its display name, game name, and a rarity badge", () => {
     mockData({
       data: {
         unlocks: [
@@ -91,10 +91,14 @@ describe("RarestSection", () => {
     });
     renderSection();
     expect(screen.getByText("Sub-1% Achievement")).toBeTruthy();
-    expect(screen.getByText("Very rare")).toBeTruthy();
-    expect(screen.getByText("Rare")).toBeTruthy();
-    expect(screen.getByText("Uncommon")).toBeTruthy();
-    expect(screen.getByText("Common")).toBeTruthy();
+    expect(screen.getByText("Rare Unlock")).toBeTruthy();
+    // Sub-5% rows get the "Very rare · " / "Rare · " prefix inside the badge.
+    // 5%+ rows render the bare percentage (no qualifier prefix) — aligned with
+    // the per-game AchievementPanel cards.
+    expect(screen.getByText("Very rare · 0.5%")).toBeTruthy();
+    expect(screen.getByText("Rare · 3.0%")).toBeTruthy();
+    expect(screen.getByText("15.0%")).toBeTruthy();
+    expect(screen.getByText("50.0%")).toBeTruthy();
   });
 
   it("applies amber styling to rows with global percent under 5", () => {

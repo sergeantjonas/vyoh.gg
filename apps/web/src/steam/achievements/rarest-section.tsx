@@ -1,19 +1,9 @@
-import { RarityPercent } from "@/steam/_shared/rarity-percent";
-import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
+import { AchievementCardInner } from "@/steam/_shared/achievement-card";
 import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
 import { Link } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
 
 const RAREST_LIMIT = 50;
-
-// Matches the per-game RarestUnlockCard vocabulary so the cross-game and
-// per-game surfaces read in the same register.
-function rarityQualifier(pct: number): string {
-  if (pct < 1) return "Very rare";
-  if (pct < 5) return "Rare";
-  if (pct < 25) return "Uncommon";
-  return "Common";
-}
 
 export function RarestSection() {
   const { data, isPending, isError } = useCrossGameRarest(RAREST_LIMIT);
@@ -58,9 +48,9 @@ function RarestRow({ unlock }: { unlock: SteamRecentUnlock }) {
   // without rarity before returning — but the DTO field type stays nullable
   // since it's shared with the recent feed.
   const pct = unlock.globalPercent ?? 0;
-  const qualifier = rarityQualifier(pct);
-  // Mirror the per-game RarestUnlockCard's amber treatment for sub-5%, plain
-  // for the rest — the visual cue does the work, no need to color every row.
+  // Sub-5% rows get the amber container chrome to keep the section's "rarest
+  // flex" identity. The amber name + rarity badge styling itself lives in
+  // <AchievementCardInner> (driven by rareTier), so we only own the wrapper.
   const isAmber = pct < 5;
 
   return (
@@ -71,41 +61,19 @@ function RarestRow({ unlock }: { unlock: SteamRecentUnlock }) {
         search={{ ach: unlock.apiName }}
         className={
           isAmber
-            ? "flex items-center gap-4 rounded-lg border border-amber-400/30 bg-amber-500/[0.04] p-4 ring-1 ring-amber-400/10 transition-colors hover:border-amber-400/50 hover:bg-amber-500/[0.07]"
-            : "flex items-center gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
+            ? "flex items-start gap-4 rounded-lg border border-amber-400/30 bg-amber-500/[0.04] p-4 ring-1 ring-amber-400/10 transition-colors hover:border-amber-400/50 hover:bg-amber-500/[0.07]"
+            : "flex items-start gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
         }
       >
-        <img
-          src={steamAchievementIconUrl(unlock.appid, unlock.apiName)}
-          alt=""
-          loading="lazy"
-          className="size-16 shrink-0 rounded-md"
+        <AchievementCardInner
+          appid={unlock.appid}
+          apiName={unlock.apiName}
+          displayName={unlock.displayName}
+          description={unlock.description}
+          globalPercent={unlock.globalPercent}
+          unlocked
+          metaLine={unlock.gameName}
         />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="truncate text-base font-medium text-foreground/90">
-            {unlock.displayName}
-          </p>
-          <p className="truncate text-sm text-muted-foreground">{unlock.gameName}</p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <RarityPercent
-            percent={pct}
-            className={
-              isAmber
-                ? "text-sm font-medium text-amber-300 decoration-amber-300/40"
-                : "text-sm font-medium text-foreground/80"
-            }
-          />
-          <span
-            className={
-              isAmber
-                ? "text-[10px] font-medium uppercase tracking-wide text-amber-400/80"
-                : "text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70"
-            }
-          >
-            {qualifier}
-          </span>
-        </div>
       </Link>
     </li>
   );

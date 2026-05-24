@@ -44,10 +44,13 @@ function unlock(overrides: Partial<SteamRecentUnlock> = {}): SteamRecentUnlock {
     appid: 440,
     apiName: "FIRST_BLOOD",
     displayName: "First Blood",
+    description: "",
     gameName: "Team Fortress 2",
+    hidden: false,
     unlockedAt: "2026-05-01T12:00:00Z",
+    globalPercent: null,
     ...overrides,
-  } as unknown as SteamRecentUnlock;
+  };
 }
 
 describe("RecentUnlocksVirtual", () => {

@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-import { RarityPercent } from "@/steam/_shared/rarity-percent";
-import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
+import { AchievementCardInner, rareTier } from "@/steam/_shared/achievement-card";
 import type { SteamAchievement } from "@vyoh/shared";
 import { useEffect, useRef, useState } from "react";
 import { useGameAchievements } from "./use-game-achievements";
@@ -245,71 +244,26 @@ function AchievementRow({
   const canReveal = a.hidden && !unlocked;
   const masked = canReveal && !isRevealed;
 
-  // Rare-treatment tiers. Steam's own client highlights very-rare achievements
-  // distinctly; on a dense grid this is the readability difference between
-  // "row 23 of 87" and "wait, that's a 0.4% unlock". Only applied to *unlocked*
-  // rows — locked-rare is a goal, not a flex, and shouldn't compete visually.
-  const isVeryRare = unlocked && a.globalPercent !== null && a.globalPercent < 1;
-  const isRare =
-    unlocked && a.globalPercent !== null && a.globalPercent < 5 && !isVeryRare;
+  // Rare-treatment tiers — drive the row's left-border accent and shadow ring.
+  // The same tier values drive the inner name/badge styling, but that lives in
+  // <AchievementCardInner> so we don't recompute it twice.
+  const { isVeryRare, isRare } = rareTier(a.globalPercent, unlocked);
 
   const inner = (
-    <>
-      <img
-        src={steamAchievementIconUrl(appid, a.apiName, !unlocked)}
-        alt=""
-        loading="lazy"
-        className={cn("size-16 shrink-0 rounded-md", !unlocked && "opacity-70")}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <p
-            className={cn(
-              "truncate text-base font-medium",
-              unlocked ? "text-foreground" : "text-muted-foreground",
-              isVeryRare && "text-amber-300",
-              isRare && "text-amber-200"
-            )}
-          >
-            {isVeryRare && (
-              <span aria-hidden className="mr-1 text-amber-300">
-                ★
-              </span>
-            )}
-            {masked ? "???" : a.displayName}
-          </p>
-          {a.globalPercent !== null && (
-            <RarityPercent
-              percent={a.globalPercent}
-              prefix={isVeryRare ? "Very rare · " : isRare ? "Rare · " : undefined}
-              className={cn(
-                "shrink-0 text-xs",
-                isVeryRare
-                  ? "font-semibold text-amber-300 decoration-amber-300/40"
-                  : isRare
-                    ? "font-semibold text-amber-200 decoration-amber-200/40"
-                    : "text-muted-foreground/70"
-              )}
-            />
-          )}
-        </div>
-        {(masked || a.description !== "") && (
-          <p
-            className={cn(
-              "line-clamp-2 text-sm leading-snug",
-              unlocked ? "text-muted-foreground" : "text-muted-foreground/60"
-            )}
-          >
-            {masked ? "Hidden — click to reveal name" : a.description}
-          </p>
-        )}
-        {unlocked && a.unlockedAt !== null && (
-          <p className="text-xs tabular-nums text-muted-foreground/60">
-            Unlocked {formatUnlockedDate(a.unlockedAt)}
-          </p>
-        )}
-      </div>
-    </>
+    <AchievementCardInner
+      appid={appid}
+      apiName={a.apiName}
+      displayName={a.displayName}
+      description={a.description}
+      globalPercent={a.globalPercent}
+      unlocked={unlocked}
+      masked={masked}
+      metaLine={
+        unlocked && a.unlockedAt !== null
+          ? `Unlocked ${formatUnlockedDate(a.unlockedAt)}`
+          : undefined
+      }
+    />
   );
 
   // Strong unlocked/locked differentiation + rare-tier highlight. Unlocked

@@ -174,6 +174,7 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
         unlockedAt: new Date("2026-05-15T12:00:00.000Z"),
         achievement: {
           displayName: "Mantis Mauler",
+          description: "Defeat the Mantis Lords.",
           iconUrl: "ach.png",
           hidden: true,
           game: { name: "Hollow Knight" },
@@ -186,6 +187,7 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
         unlockedAt: new Date("2026-05-10T12:00:00.000Z"),
         achievement: {
           displayName: "Damage Dealer",
+          description: "",
           iconUrl: "cs.png",
           hidden: false,
           game: { name: "Counter-Strike 2" },
@@ -201,6 +203,7 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
         gameName: "Hollow Knight",
         apiName: "ACH_UNLOCK",
         displayName: "Mantis Mauler",
+        description: "Defeat the Mantis Lords.",
         hidden: true,
         unlockedAt: "2026-05-15T12:00:00.000Z",
         globalPercent: 22.4,
@@ -210,6 +213,7 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
         gameName: "Counter-Strike 2",
         apiName: "WIN_ROUNDS_LOW_DAMAGE",
         displayName: "Damage Dealer",
+        description: "",
         hidden: false,
         unlockedAt: "2026-05-10T12:00:00.000Z",
         globalPercent: null,

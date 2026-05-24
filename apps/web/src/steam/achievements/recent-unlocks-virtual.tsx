@@ -1,6 +1,6 @@
 import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
-import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
+import { AchievementCardInner } from "@/steam/_shared/achievement-card";
 import { formatRowDate, groupByMonth } from "@/steam/achievements/group-by-month";
 import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -11,9 +11,10 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 // the icon-plus-meta card. Real sizes flow back through
 // `virtualizer.measureElement` per item; the estimates just need to keep
 // the initial scroll-height reservation in the right ballpark across
-// breakpoints.
+// breakpoints. Row height tracks the full game-panel card layout (name +
+// description + meta line), not the older single-line variant.
 const ESTIMATED_HEADER_HEIGHT = 40;
-const ESTIMATED_ROW_HEIGHT = 96;
+const ESTIMATED_ROW_HEIGHT = 124;
 
 // Flattened item stream: every group emits one header entry followed by
 // its rows in feed order. The virtualizer keys on a single linear index,
@@ -116,23 +117,25 @@ export function RecentUnlocksVirtual({ unlocks }: { unlocks: SteamRecentUnlock[]
               to="/steam/game/$appid"
               params={{ appid: String(u.appid) }}
               search={{ ach: u.apiName }}
-              className="mb-2 flex items-center gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
+              className="mb-2 flex items-start gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
             >
-              <img
-                src={steamAchievementIconUrl(u.appid, u.apiName)}
-                alt=""
-                loading="lazy"
-                className="size-16 shrink-0 rounded-md"
+              <AchievementCardInner
+                appid={u.appid}
+                apiName={u.apiName}
+                displayName={u.displayName}
+                description={u.description}
+                globalPercent={u.globalPercent}
+                unlocked
+                metaLine={
+                  <>
+                    <span className="text-muted-foreground/80">{u.gameName}</span>
+                    <span aria-hidden className="mx-1.5 text-muted-foreground/30">
+                      ·
+                    </span>
+                    {formatRowDate(u.unlockedAt)}
+                  </>
+                }
               />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="truncate text-base font-medium text-foreground/90">
-                  {u.displayName}
-                </p>
-                <p className="truncate text-sm text-muted-foreground">{u.gameName}</p>
-              </div>
-              <span className="shrink-0 text-xs tabular-nums text-muted-foreground/70">
-                {formatRowDate(u.unlockedAt)}
-              </span>
             </Link>
           </div>
         );

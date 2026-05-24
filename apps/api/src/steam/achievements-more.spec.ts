@@ -51,6 +51,7 @@ describe("SteamAchievementsService.getCrossGameRarest", () => {
           unlockedAt: new Date("2026-05-01T00:00:00Z"),
           achievement: {
             displayName: "First Kill",
+            description: "First kill made.",
             hidden: false,
             game: { name: "Half-Life" },
             rarity: { percent: 0.4 },
@@ -73,6 +74,7 @@ describe("SteamAchievementsService.getCrossGameRarest", () => {
           unlockedAt: new Date("2026-05-01T00:00:00Z"),
           achievement: {
             displayName: "First Kill",
+            description: "First kill made.",
             hidden: false,
             game: { name: "Half-Life" },
             rarity: null,

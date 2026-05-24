@@ -48,6 +48,7 @@ export interface SteamRecentUnlock {
   gameName: string;
   apiName: string;
   displayName: string;
+  description: string;
   hidden: boolean;
   unlockedAt: string;
   globalPercent: number | null;
