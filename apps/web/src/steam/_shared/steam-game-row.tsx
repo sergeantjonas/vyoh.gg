@@ -95,18 +95,24 @@ export function SteamGameRowShell({
         className
       )}
     >
-      {/* Bottom layer: blurred copy of the same hero asset fills the
-          entire row, giving the left content column visual texture
-          instead of a dead dark rectangle. Shares its src with the
-          foreground hero below, so the browser fetches the asset once.
-          Not a morph anchor — the foreground hero handles that. */}
+      {/* Bottom layer: same hero asset fills the entire row, giving the
+          left content column visual texture instead of a dead dark
+          rectangle. Shares its src with the foreground hero below, so
+          the browser fetches the asset once. Not a morph anchor — the
+          foreground hero handles that.
+          No `filter:` here (was `blur-md saturate-150`) — any CSS
+          filter forces this layer onto its own composite layer, and
+          Safari's compositor merged 20 of them per library-row paint.
+          The dark wash + gradient above already mute the image to
+          background-texture levels without runtime filter cost. */}
       {!heroFailed && (
         <img
           src={steamLibraryHeroUrl(appid, assetTimestamp)}
           alt=""
           aria-hidden
           loading="lazy"
-          className="absolute inset-0 size-full object-cover blur-md saturate-150"
+          decoding="async"
+          className="absolute inset-0 size-full object-cover"
         />
       )}
       {/* Dark wash over the whole row, plus a left-anchored gradient that
@@ -134,10 +140,15 @@ export function SteamGameRowShell({
           alt=""
           aria-hidden
           loading="lazy"
+          decoding="async"
           onLoad={heroHandlers.onLoad}
           onError={heroHandlers.onError}
           className={cn(
-            "absolute inset-y-0 right-0 h-full w-3/5 object-cover transition-[opacity,transform,filter] duration-600 ease-out",
+            // `filter` dropped from the transition list so the
+            // brightness/saturate hover change snaps rather than
+            // interpolating — same Safari composite-layer reasoning as
+            // the tile's transition list (see library-tile.tsx).
+            "absolute inset-y-0 right-0 h-full w-3/5 object-cover transition-[opacity,transform] duration-600 ease-out",
             "[mask-image:linear-gradient(to_right,transparent_0%,black_45%)] [mask-repeat:no-repeat] [mask-size:100%_100%]",
             "group-hover/row:scale-105 group-hover/row:brightness-110 group-hover/row:saturate-110",
             heroLoaded ? "opacity-100" : "opacity-0"
@@ -171,6 +182,7 @@ export function SteamGameRowShell({
               src={steamLibraryLogoUrl(appid, assetTimestamp)}
               alt={name}
               loading="lazy"
+              decoding="async"
               onLoad={handleLogoLoad}
               onError={() => setLogoFailed(true)}
               className={cn(

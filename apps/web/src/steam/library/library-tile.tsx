@@ -119,20 +119,27 @@ export function LibraryTile({
                   interpolates rect from portrait-bbox to landscape-banner.
                   Chains hero → page-background on missing-hero titles so
                   the morph snapshot has real content to interpolate
-                  (rather than an empty rect) on pre-2019 titles. */}
+                  (rather than an empty rect) on pre-2019 titles.
+                  No `filter:` here — any blur/saturate forces this hidden
+                  img onto its own composite layer permanently, and Safari
+                  paid ~100ms compositing 20 such layers per library-mount
+                  frame. The element gets its VT name applied in the click
+                  handler, which promotes-on-demand for the morph snapshot
+                  without paying the rest-state layer cost. */}
               <img
                 ref={morphLayerRef}
                 src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
                 alt=""
                 aria-hidden
                 loading="lazy"
+                decoding="async"
                 {...makeHeroFallbackHandlers({
                   appid: game.appid,
                   assetTimestamp: game.assetTimestamp,
                   onSuccess: () => {},
                   onMissing: () => {},
                 })}
-                className="absolute inset-0 size-full object-cover blur-sm"
+                className="absolute inset-0 size-full object-cover"
               />
               {capsuleFailed ? (
                 <HeroFallback game={game} />
@@ -141,6 +148,7 @@ export function LibraryTile({
                   src={steamLibraryCapsuleUrl(game.appid, game.assetTimestamp)}
                   alt=""
                   loading="lazy"
+                  decoding="async"
                   onLoad={() => setCapsuleLoaded(true)}
                   onError={() => setCapsuleFailed(true)}
                   style={{ opacity: capsuleLoaded ? 1 : 0 }}
