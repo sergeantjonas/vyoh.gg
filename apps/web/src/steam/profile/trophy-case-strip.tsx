@@ -162,11 +162,15 @@ function TrophyTile({ entry }: { entry: TrophyEntry }) {
             loading="lazy"
             className="absolute bottom-1.5 left-1.5 size-10 rounded shadow-lg ring-1 ring-black/40"
           />
+          {/* Solid bg-background/95 instead of bg-background/80 + backdrop-blur-sm:
+              with FETCH_LIMIT=50 every Embla slide mounts a badge, so the blur
+              promoted ~44 composite layers on this surface alone. Solid bg is
+              visually indistinguishable at 10px in the capsule corner. */}
           <span
             className={
               isAmber
-                ? "absolute right-1.5 top-1.5 rounded-full bg-background/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-amber-300 backdrop-blur-sm"
-                : "absolute right-1.5 top-1.5 rounded-full bg-background/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground/80 backdrop-blur-sm"
+                ? "absolute right-1.5 top-1.5 rounded-full bg-background/95 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-amber-300"
+                : "absolute right-1.5 top-1.5 rounded-full bg-background/95 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground/80"
             }
           >
             {pct.toFixed(1)}%

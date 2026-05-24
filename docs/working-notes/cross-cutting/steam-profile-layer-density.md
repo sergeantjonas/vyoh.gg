@@ -1,6 +1,6 @@
 # Steam Profile composite-layer density
 
-**Status:** Investigation queued. Discovered during the [Safari VT debugging arc](safari-vt-snapshot-cost.md). The Steam Profile page (`/steam`) carries roughly **77 composite layers at rest** in Safari Web Inspector → Layers — about 4-5× the other Steam pages (Library/Wishlist/Achievements each show ~16-17 layers). The arc's WebKit bypass + CSS-slide substitute masks the symptom on tab nav, but the absolute layer count remains a structural cost on Profile specifically and would block re-enabling router VT on Steam in the future.
+**Status:** Tier 1 fix landed and verified 2026-05-25 — `backdrop-blur-sm` removed from trophy rarity badges, **77 → 27 layers** in Safari Web Inspector (50-layer drop, beat the ~44 prediction by ~6). Profile is now within ~10 layers of sibling Steam pages (17). Further work parked unless a downstream need surfaces. Discovered during the [Safari VT debugging arc](safari-vt-snapshot-cost.md). The Steam Profile page (`/steam`) was carrying roughly **77 composite layers at rest** in Safari Web Inspector → Layers — about 4-5× the other Steam pages (Library/Wishlist/Achievements each show ~16-17 layers). The arc's WebKit bypass + CSS-slide substitute masks the symptom on tab nav, but the absolute layer count remains a structural cost on Profile specifically and would block re-enabling router VT on Steam in the future.
 
 Read this when: scoping a polish pass on Profile, considering re-enabling router VT for Steam on WebKit, or onboarding to why Profile feels heavier than its sibling tabs.
 
@@ -25,40 +25,36 @@ Profile renders, in order:
 
 Other Steam pages render either a virtualised list (Library / Achievements) or a flat list (Wishlist). The structural difference is Profile's component density: 7 composite chip-shaped widgets vs the other pages' single primary list.
 
-## Hypotheses for the 77
+## Attribution (measured 2026-05-25)
 
-Ordered by likelihood, not yet empirically attributed (would need to expand individual layers in the Layers panel and read the promotion reason for each):
+Full Layers panel dumped to a table, sources cross-referenced against the route. Breakdown of the original 77:
 
-### 1. Trophy badges — `backdrop-blur-sm` on every rarity-percent chip
+| Source | Count | Notes |
+|---|---|---|
+| Trophy rarity badges (`backdrop-blur-sm` on every `TrophyTile` percent chip) | **~44** | 12 amber + 32 plain. One per Embla slide. |
+| Carousel chrome + visible-tile transforms (mask, hairline, radial glow with `blur-md mix-blend-screen`, capsule img) | ~8 | The 5 `div.min-w-0.shrink-0.grow-0.basis-auto.pl-3` rows in the panel are CarouselItems with non-zero memory — the rest sit off-viewport at 0 B but are still mounted. |
+| Profile backdrop stack (video `blur-[2px]`, gradient mask, body::before, portal container) | ~5 | Intentional design. ~80 MB of the 128 MB memory total. |
+| Sticky nav `backdrop-blur-md` | 1 | Shared with all Steam pages. |
+| `<main>` overflow + html/document/body | ~4 | Always promoted. |
+| Section header slot + container layers | ~3 | Shared. |
+| Page-transition overlay (`fixed.bg-background/50.backdrop-blur-md`) | 1 | Route-transition backdrop. |
+| Devtools widget (`fixed.bottom-4.left-4.backdrop-blur`) | 1 | Dev-only. |
+| Long tail (small radial glows, single-icon spans) | ~10 | Mostly low-impact. |
 
-[`trophy-case-strip.tsx`](../../../apps/web/src/steam/profile/trophy-case-strip.tsx#L168-L169) renders a percent badge per trophy with `bg-background/80 backdrop-blur-sm`. **`backdrop-filter` always promotes its element to its own composite layer** (it has to, because the filter samples and re-renders pixels behind the element on a separate surface).
+**The trophy badges alone account for ~57% of the layer count** on this page. The note's original "~10 trophies × 1 layer = ~10 layers" estimate was 4× too low because [`trophy-case-strip.tsx`](../../../apps/web/src/steam/profile/trophy-case-strip.tsx) has evolved since the original measurement:
 
-- ~10 trophies in the strip × 1 layer per badge = ~10 layers from badges alone.
-- This is the single most addressable source.
+- `FETCH_LIMIT = 50` (was 10 when the original measurement was taken).
+- The strip is now an Embla **Carousel** with autoplay, not a static row. Embla mounts every slide; only visible ones have layout, but every badge still composites.
+- ~44 entries pass `RARITY_GATE` for the owner's data → 44 mounted `TrophyTile`s → 44 promoted badge layers.
 
-### 2. Drop-shadow filters on text in chips
+The 26-paint anomaly on `div.relative.mx-auto.max-w-4xl.px-6` was almost certainly the autoplay rotation triggering paint cycles in the carousel scope every 6s — same root cause.
 
-Several chips (NowPlayingChip is the documented example; others may follow the same pattern) use `[filter:drop-shadow(...)]` on text for legibility over hero imagery. `filter:` promotes the element to a composite layer.
+### Other hypotheses, now refuted or de-prioritised
 
-- 2-3 drop-shadowed text elements per chip × 5 chips = 10-15 layers.
-
-### 3. Hover-only `transform` promotion that never demotes
-
-Several chips use `group-hover:scale-105` or similar on bg imgs. Once an element is promoted to a composite layer (e.g., during a hover), WebKit may keep it promoted even after the hover ends rather than incurring the layer-demote cost. Stale promotion accumulates over time as the user hovers different chips.
-
-- Would not show on a fresh page load but could explain layer-count inflation observed after interaction.
-
-### 4. `ring-1` + `shadow-lg` interactions on stacked imgs
-
-The TrophyCaseStrip has an achievement icon with `shadow-lg ring-1 ring-black/40` overlaid on a backgrounded image. Box-shadow alone doesn't promote, but `shadow-lg` + `ring-*` (which is also box-shadow) + overlapping `absolute` positioning + an opacity transition on the parent may cumulatively trigger promotion. Per-trophy.
-
-- ~10 trophies × 1 layer (if it promotes) = up to 10 layers.
-
-### 5. Section-wide structural layers
-
-`<main data-vt-main>` gets `view-transition-name: vt-main` when shell anim is on, which inherently makes it its own layer. The portaled section header in `<#section-header-slot>` is its own positioned context (`relative z-40`). The SteamProfileBackdrop in BackdropPortal is a fixed full-viewport layer with its own backdrop content. These are shared with the other Steam pages so they don't explain the Profile differential, but they contribute to the absolute count.
-
-- ~5-10 layers, shared across all Steam pages.
+- **Drop-shadow text filters** — no `filter: drop-shadow` layers appeared in the dump. NowPlayingChip and the other chips don't promote on text. The original hypothesis was wrong.
+- **Stale hover-driven `transform` promotion** — not observed at rest. May still apply after sustained interaction, but it's not what created the differential.
+- **`ring-1` + `shadow-lg` on stacked imgs** — the trophy capsule `img.relative.size-full` does appear in the dump (~12 KB, 1 layer per visible tile), so the ring + shadow stack does promote, but it contributes ~5 layers from the visible slides, not ~10.
+- **Section-wide structural layers** — confirmed present but they're shared across all Steam pages, so they explain part of the absolute floor (~10-15 layers across html/document/body/main/nav/section-header) without explaining the Profile differential.
 
 ## Recommended investigation approach
 
@@ -71,44 +67,40 @@ Before any code change, **attribute the 77 layers concretely**:
 
 ## Action ladder
 
-Rank-ordered by expected impact × low blast-radius:
+### Tier 1 — landed and verified 2026-05-25
 
-### Tier 1 — likely big wins, low risk
+- **Dropped `backdrop-blur-sm` from trophy rarity badges.** [`trophy-case-strip.tsx`](../../../apps/web/src/steam/profile/trophy-case-strip.tsx) — `bg-background/80 backdrop-blur-sm` → solid `bg-background/95`. Measured reduction: **77 → 27 layers** (50-layer drop, 6 better than the ~44 predicted — likely because some parent elements also demoted once their children stopped requiring composite parents). Profile is now within ~10 layers of sibling Steam pages (17), comfortably within the structural-floor envelope.
 
-- **Drop `backdrop-blur-sm` from trophy rarity badges.** Replace with a solid `bg-background/95` or `bg-background/90` — visually identical at small chip sizes, eliminates the per-badge composite layer. Estimated 10 layer reduction.
-- **Replace `[filter:drop-shadow(...)]` on text with `text-shadow:` where possible.** `text-shadow` doesn't promote a composite layer; `filter: drop-shadow` does. Visual fidelity is similar at small sizes (text shadows render slightly differently but read close at body sizes). Estimated 5-15 layer reduction across the chips.
+### Tier 2 — parked, only reach for if Tier 1 doesn't close enough
 
-### Tier 2 — if Tier 1 isn't enough
+- **Reduce the carousel's mounted-slide pool.** Currently every entry passing `RARITY_GATE` mounts a full `TrophyTile` (~44 with current data). Two options:
+  - Cap `FETCH_LIMIT` (e.g. 15-20) — owner has explicitly declined this; trophy variety is the point of the carousel.
+  - Virtualise Embla slides via `EmblaCarouselClassNames` + manual mount gating, or swap to a windowed-render approach. Adds real complexity; only worth doing if a future use case (re-enabling Safari router VT, mobile Safari measurement) needs the further reduction.
+- **Audit `ring-*` + `shadow-*` combinations on stacked absolute elements.** Confirmed minor source (~5 layers from visible capsule imgs). Marginal win.
 
-- **Audit `ring-*` + `shadow-*` combinations on stacked absolute elements.** Where possible, replace with a single `box-shadow` that combines the ring + shadow into one declaration to reduce stacking complexity.
-- **Add explicit `will-change: auto` on hover-state elements** so they demote cleanly after hover ends. (`will-change: transform` would pre-promote — the opposite of what we want.)
+### Tier 3 — structural, if even Tier 2 isn't enough
 
-### Tier 3 — structural, only if Tier 1-2 don't close enough
-
-- **Simplify TrophyCaseStrip chrome.** The card is currently background-image + overlay gradient + achievement icon (shadowed, ringed) + percent badge (blurred bg). Could collapse to background-image + overlay + icon + plain badge.
-- **Lazy-mount below-fold chips with `DeferredMount`** (the trends-page pattern in [`apps/web/src/_shared/deferred-mount.tsx`](../../../apps/web/src/_shared/deferred-mount.tsx)). The grid of 5 chips below TrophyCaseStrip may be below the fold on small viewports.
+- **Simplify TrophyCaseStrip chrome.** Could collapse capsule-img + radial glow + bottom hairline + icon-with-ring to fewer layers, at a real visual cost.
+- **Lazy-mount below-fold chips with `DeferredMount`.** The grid of 5 chips below the strip may be below the fold on small viewports.
 
 ## Why this matters
 
-The current state is **shippable** — Safari users navigate Steam smoothly thanks to the [VT bypass](safari-vt-snapshot-cost.md), and Profile is no slower than the other pages on Chrome/Firefox (where Recharts-free chip cards render fast). The 77-layer count is a latent cost source: it would resurface if we ever:
+The current state was **shippable** before Tier 1 — Safari users navigate Steam smoothly thanks to the [VT bypass](safari-vt-snapshot-cost.md), and Profile was no slower than the other pages on Chrome/Firefox. The 77-layer count was a latent cost source: it would resurface if we ever:
 
 - Re-enabled router VT on Steam for WebKit (the bypass is engine-gated; if WebKit ships a snapshot capture improvement, we'd reconsider).
 - Added VT-driven per-element morphs that capture this surface as part of a transition.
 - Saw mobile Safari with a tighter GPU budget on real iPhone hardware (untested as of this writing — the desktop Safari measurements may understate the cost on lower-tier mobile devices).
 
-Tier 1 fixes alone (drop `backdrop-blur-sm` + `filter: drop-shadow` → `text-shadow`) would likely halve the layer count with minimal visual impact. Even without the long-tail considerations above, it's a clean polish pass that reduces the structural cost of the most-visited Steam page.
+With Tier 1 landed, the page should be near layer-parity with sibling tabs; the remaining structural cost is the profile-backdrop stack (intentional design) and shared section chrome.
 
 ## Open questions
 
-- **Is the 77-layer count stable across page loads, or does it grow with interaction (hover-driven promotion that doesn't demote)?** Recheck after some hovering to verify.
-- **What does the chronotype tile contribute?** [`steam-chronotype-tile.tsx`](../../../apps/web/src/steam/achievements/steam-chronotype-tile.tsx) wasn't audited in this note — it's on the achievements signature page, not Profile. If similar charts appear on Profile in future, factor in their promotion cost.
-- **On mobile Safari (real iPhone hardware), how does the count change?** Smaller viewport may render fewer trophies / chips, reducing total count. Worth measuring on a real device before any polish work.
+- **Does the 26-paint count on `div.relative.mx-auto.max-w-4xl.px-6` drop now that badges no longer composite?** If badges were the dominant repaint trigger from carousel rotation, paint count should fall too. If it stays ~26, the autoplay itself is the repaint source and we'd reconsider whether 6s autoplay is worth the paint cost. Worth a glance next time you have the Layers panel open.
+- **On mobile Safari (real iPhone hardware), how does the post-fix count change?** Smaller viewport renders fewer carousel tiles in view, but all 44 are still mounted. Worth measuring on a real device before any further work.
 
-## Files in scope (if Tier 1 lands)
+## Files in scope
 
-- `apps/web/src/steam/profile/trophy-case-strip.tsx` (drop `backdrop-blur-sm` on badges)
-- `apps/web/src/steam/now-playing-chip.tsx` (likely + others — audit `filter:` usage)
-- Potentially other chips with `drop-shadow` text
+- [`apps/web/src/steam/profile/trophy-case-strip.tsx`](../../../apps/web/src/steam/profile/trophy-case-strip.tsx) — Tier 1 lives at the two badge classNames in `TrophyTile`.
 
 ## Related notes
 
