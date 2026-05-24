@@ -12,13 +12,27 @@ import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
+import type { CSSProperties, Ref } from "react";
 import { useRef, useState } from "react";
 import {
   LIBRARY_HOVERCARD_CONTENT_CLASS,
   LibraryTileHovercardContent,
 } from "./library-tile-hovercard";
 
-export function LibraryTile({ game }: { game: SteamOwnedGame }) {
+export function LibraryTile({
+  game,
+  liRef,
+  style,
+  dataIndex,
+}: {
+  game: SteamOwnedGame;
+  // Virtualizer-controlled `<li>` positioning — see LibraryRow for the
+  // same prop contract. Plain callers leave these undefined; the tile
+  // then lays out in the parent CSS grid.
+  liRef?: Ref<HTMLLIElement>;
+  style?: CSSProperties;
+  dataIndex?: number;
+}) {
   // Library art priority mirrors Steam's own client: prefer the dedicated
   // 600×900 portrait capsule, fall back to a synthetic composition of the
   // wide hero + logo overlay when the capsule is missing (common for
@@ -38,7 +52,7 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
     game.playtimeForeverMinutes > 0 ? formatPlaytime(game.playtimeForeverMinutes) : null;
 
   return (
-    <li className="group/tile">
+    <li ref={liRef} style={style} data-index={dataIndex} className="group/tile">
       <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
         <HoverCardPrimitive.Trigger asChild>
           <Link

@@ -1,9 +1,9 @@
 import { EmptyLibraryIllustration, EmptyState } from "@/components/empty-state";
 import { applyLibraryFilters } from "@/steam/library/apply-filters";
 import { LibraryControls } from "@/steam/library/library-controls";
-import { LibraryRow } from "@/steam/library/library-row";
+import { LibraryGridVirtual } from "@/steam/library/library-grid-virtual";
+import { LibraryListVirtual } from "@/steam/library/library-list-virtual";
 import { LibrarySkeleton } from "@/steam/library/library-skeleton";
-import { LibraryTile } from "@/steam/library/library-tile";
 import { useLibraryPrefs } from "@/steam/library/use-library-prefs";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { createFileRoute } from "@tanstack/react-router";
@@ -92,17 +92,9 @@ function LibraryPage() {
               hint="Try clearing a tag or switching the played filter."
             />
           ) : layout === "tiles" ? (
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {visible.map((game) => (
-                <LibraryTile key={game.appid} game={game} />
-              ))}
-            </ul>
+            <LibraryGridVirtual games={visible} />
           ) : (
-            <ul className="flex flex-col gap-2">
-              {visible.map((game) => (
-                <LibraryRow key={game.appid} game={game} />
-              ))}
-            </ul>
+            <LibraryListVirtual games={visible} />
           )}
         </>
       )}

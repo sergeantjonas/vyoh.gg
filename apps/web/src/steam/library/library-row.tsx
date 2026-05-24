@@ -6,6 +6,7 @@ import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
+import type { CSSProperties, Ref } from "react";
 import { useRef } from "react";
 import {
   LIBRARY_HOVERCARD_CONTENT_CLASS,
@@ -33,7 +34,22 @@ function relativeTimeAgo(iso: string): string {
 // last-played inline; only the screenshot rotation is lost.
 const HOVERCARD_VIEWPORT_QUERY = "(min-width: 1536px)";
 
-export function LibraryRow({ game }: { game: SteamOwnedGame }) {
+export function LibraryRow({
+  game,
+  liRef,
+  style,
+  dataIndex,
+}: {
+  game: SteamOwnedGame;
+  // Virtualizer-controlled `<li>` positioning. When the row is rendered
+  // inside a virtualized list, the parent assigns ref + absolute style +
+  // data-index so TanStack can measure the row and place it at the right
+  // y offset. Plain (non-virtualized) callers leave these undefined and
+  // the row lays out in normal flow.
+  liRef?: Ref<HTMLLIElement>;
+  style?: CSSProperties;
+  dataIndex?: number;
+}) {
   const navigate = useNavigate();
   const showHovercard = useMediaQuery(HOVERCARD_VIEWPORT_QUERY);
   // Two-element morph: hero img + logo img each carry a unique
@@ -116,10 +132,15 @@ export function LibraryRow({ game }: { game: SteamOwnedGame }) {
     </Link>
   );
 
-  if (!showHovercard) return <li>{link}</li>;
+  if (!showHovercard)
+    return (
+      <li ref={liRef} style={style} data-index={dataIndex}>
+        {link}
+      </li>
+    );
 
   return (
-    <li>
+    <li ref={liRef} style={style} data-index={dataIndex}>
       <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
         <HoverCardPrimitive.Trigger asChild>{link}</HoverCardPrimitive.Trigger>
         <HoverCardPrimitive.Portal>
