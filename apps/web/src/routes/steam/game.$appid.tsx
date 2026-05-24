@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
+import { GameRatingBadge } from "@/steam/_shared/game-rating-badge";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
 import { ReviewSummaryChip } from "@/steam/_shared/review-summary-chip";
 import {
@@ -167,6 +168,7 @@ function SteamGamePage() {
             </h1>
             {game && <DeckCompatChip tier={game.steamDeckCompat} size="md" />}
             {game && <ReviewSummaryChip summary={game.reviewSummary} />}
+            {game && <GameRatingBadge rating={game.gameRating} />}
             {game && (
               <PlatformIconRow
                 windows={game.platformWindows}

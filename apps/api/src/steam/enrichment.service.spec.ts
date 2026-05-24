@@ -183,4 +183,42 @@ describe("projectEnrichment", () => {
   it("nulls reviewSummary when no reviews block is present", () => {
     expect(projectEnrichment(raw({}))?.reviewSummary).toBeNull();
   });
+
+  it("projects game_rating into the gameRating blob with defaulted fields", () => {
+    const row = projectEnrichment(
+      raw({
+        game_rating: {
+          type: "ESRB",
+          rating: "M",
+          descriptors: ["Violence", "Language"],
+          required_age: 17,
+          use_age_gate: true,
+          image_url: "shared/images/ratings/ESRB/m.png",
+        },
+      })
+    );
+    expect(row?.gameRating).toEqual({
+      type: "ESRB",
+      rating: "M",
+      descriptors: ["Violence", "Language"],
+      requiredAge: 17,
+      useAgeGate: true,
+      imageUrl: "shared/images/ratings/ESRB/m.png",
+    });
+  });
+
+  it("nulls gameRating when upstream returned the explicit null (AO-rated)", () => {
+    const row = projectEnrichment(raw({ game_rating: null }));
+    expect(row?.gameRating).toBeNull();
+  });
+
+  it("nulls gameRating when type or rating is missing", () => {
+    const row = projectEnrichment(raw({ game_rating: { descriptors: ["Violence"] } }));
+    expect(row?.gameRating).toBeNull();
+  });
+
+  it("defaults descriptors to [] when game_rating omits the list", () => {
+    const row = projectEnrichment(raw({ game_rating: { type: "PEGI", rating: "16" } }));
+    expect(row?.gameRating?.descriptors).toEqual([]);
+  });
 });

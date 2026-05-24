@@ -68,6 +68,27 @@ export interface SteamOwnedGame {
   // row exists OR when the upstream returned no reviews block (typically
   // brand-new releases with too few reviews to score).
   reviewSummary: SteamReviewSummary | null;
+  // Editorial-only rating block (ESRB / PEGI / USK / …). Null is meaningful:
+  // AO-rated titles typically skip ESRB submission, and the renderer treats
+  // null as "no badge" — never as a maturity signal.
+  gameRating: SteamGameRating | null;
+}
+
+export interface SteamGameRating {
+  // Rating body name as Steam reports it ("ESRB", "PEGI", "USK", …).
+  type: string;
+  // The label within that body ("M", "T", "18", …).
+  rating: string;
+  // Free-form descriptor strings ("Violence", "Suggestive Themes", …).
+  descriptors: string[];
+  // Body-specific minimum age; 0 when not applicable.
+  requiredAge: number;
+  // Whether Steam itself gates the storefront page behind an age check.
+  // Editorial only — we don't propagate to library filters.
+  useAgeGate: boolean;
+  // Relative path to the official badge image at
+  // store.cloudflare.steamstatic.com.
+  imageUrl: string | null;
 }
 
 export interface SteamReviewSummary {

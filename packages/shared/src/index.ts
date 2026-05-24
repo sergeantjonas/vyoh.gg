@@ -120,6 +120,7 @@ export type { SteamWishlist, SteamWishlistItem } from "./steam/wishlist.ts";
 export type { SteamLibrarySummary } from "./steam/library-summary.ts";
 export type { SteamPlatform, SteamPlatformMix } from "./steam/platform-mix.ts";
 export type {
+  SteamGameRating,
   SteamOwnedGame,
   SteamOwnedGames,
   SteamReviewSummary,

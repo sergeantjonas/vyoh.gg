@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type {
+  SteamGameRating,
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatform,
@@ -370,6 +371,7 @@ export class SteamOwnedGamesService {
         platformLinux: true,
         platformVr: true,
         reviewSummary: true,
+        gameRating: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -410,6 +412,8 @@ export class SteamOwnedGamesService {
             e?.reviewSummary != null
               ? (e.reviewSummary as unknown as SteamReviewSummary)
               : null,
+          gameRating:
+            e?.gameRating != null ? (e.gameRating as unknown as SteamGameRating) : null,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

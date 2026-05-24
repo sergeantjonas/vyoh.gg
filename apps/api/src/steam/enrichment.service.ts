@@ -1,10 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import type { SteamReviewSummary } from "@vyoh/shared";
+import type { SteamGameRating, SteamReviewSummary } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamPicsService } from "./pics.service";
 import { SteamClientService } from "./steam-client.service";
-import type { SteamStoreItemFullRaw, SteamStoreItemReviewSummaryRaw } from "./types";
+import type {
+  SteamStoreItemFullRaw,
+  SteamStoreItemGameRatingRaw,
+  SteamStoreItemReviewSummaryRaw,
+} from "./types";
 
 // Steam's IStoreBrowseService accepts many ids per call. Empirical batch size
 // of 50 keeps the input_json payload well under any documented URL ceiling
@@ -43,6 +47,7 @@ export interface EnrichmentUpsert {
   platformLinux: boolean | null;
   platformVr: boolean | null;
   reviewSummary: SteamReviewSummary | null;
+  gameRating: SteamGameRating | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -108,6 +113,25 @@ export function projectEnrichment(
         ? Object.keys(raw.platforms.vr_support).length > 0
         : null,
     reviewSummary: mapReviewSummary(raw.reviews?.summary_filtered),
+    gameRating: mapGameRating(raw.game_rating),
+  };
+}
+
+function mapGameRating(
+  raw: SteamStoreItemGameRatingRaw | null | undefined
+): SteamGameRating | null {
+  // Upstream returns explicit `null` for AO-rated games that skip ESRB
+  // submission, or `undefined` when the include flag wasn't honoured. Both
+  // map to "no badge" — null is editorial, not a maturity signal.
+  if (!raw) return null;
+  if (raw.type === undefined || raw.rating === undefined) return null;
+  return {
+    type: raw.type,
+    rating: raw.rating,
+    descriptors: raw.descriptors ?? [],
+    requiredAge: raw.required_age ?? 0,
+    useAgeGate: raw.use_age_gate ?? false,
+    imageUrl: raw.image_url ?? null,
   };
 }
 
@@ -181,6 +205,9 @@ export class SteamEnrichmentService {
           ...row,
           enrichedAt: new Date(),
           reviewSummary: (row.reviewSummary ?? Prisma.JsonNull) as unknown as
+            | Prisma.InputJsonValue
+            | typeof Prisma.JsonNull,
+          gameRating: (row.gameRating ?? Prisma.JsonNull) as unknown as
             | Prisma.InputJsonValue
             | typeof Prisma.JsonNull,
         };

@@ -51,6 +51,7 @@ function makeGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     platformLinux: null,
     platformVr: null,
     reviewSummary: null,
+    gameRating: null,
     ...overrides,
   };
 }

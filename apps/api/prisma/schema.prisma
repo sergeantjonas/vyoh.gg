@@ -147,6 +147,13 @@ model SteamGameEnrichment {
   // burn schema width without unlocking queries. JSON shape:
   // `{ reviewCount, percentPositive, reviewScore, reviewScoreLabel }`.
   reviewSummary        Json?
+  // `game_rating` block (ESRB / PEGI / USK / …) — editorial only, surfaced
+  // as a small badge on the game-detail header. JSON shape:
+  // `{ type, rating, descriptors, requiredAge, useAgeGate, imageUrl }`.
+  // Null is meaningful (AO-rated titles skip ESRB submission); the renderer
+  // treats null as "no badge" rather than as a maturity signal — see the
+  // working note for the explicit no-NSFW-gating decision.
+  gameRating           Json?
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps
