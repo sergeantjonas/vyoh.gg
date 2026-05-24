@@ -65,6 +65,53 @@ Before any code, inventory every place that depends on SectionShell's AnimatePre
 
 Out of this chunk: a concrete plan document (probably extending this note) for how the migration lands; no production code changes.
 
+#### Chunk 1 findings (2026-05-24)
+
+Audit results — every place that touches SectionShell's AnimatePresence behaviour:
+
+- **SectionShell consumers (only two):** [`$accountSlug.tsx`](../../../apps/web/src/routes/lol/$accountSlug.tsx) and [`steam.tsx`](../../../apps/web/src/routes/steam.tsx). Both compute `slideDirection` via `useTabSlideDirection(pathname, tabIndexOf)` and pass a coarsened `slideKey` as `pathname`. The `SectionShell` API accepts `pathname` + `slideDirection` and uses both *only* to feed the AnimatePresence wrap; nothing else in the shell reads them.
+- **`slideTransitionOverride` (LoL only):** `$accountSlug.tsx:245-247` zeroes the transition duration when entering/leaving a card-morph route (champion-detail or match-detail). This exists *because* the AnimatePresence slide otherwise competes with the rect-morph card animation. With AnimatePresence gone, the override has nothing to suppress — drop the param entirely in Chunk 3.
+- **Direction computation flow:** `useTabSlideDirection` is a pure render-time hook that diffs `pathname` against the prior render's pathname and returns -1 | 0 | 1 by comparing tab indices. It does NOT depend on AnimatePresence — it composes equally well with a `defaultViewTransition.types` callback. Reuse as-is.
+- **Reduced-motion handling:** both sections zero `slideDirection` when `useReducedMotion()` is true. After migration, reduced motion is handled at CSS level (existing block in `view-transitions.css`), so the `slideDirection` zeroing becomes redundant — but harmless. Leave in place for the migration; remove in Chunk 4 cleanup if desired.
+- **Tests:** [`section-shell.test.tsx`](../../../apps/web/src/_shared/section-layout/section-shell.test.tsx) (120 lines) covers identity/actions/nav rendering, header ref forwarding, `onHeaderRect`, scroll-driven band opacity. **Nothing tests the AnimatePresence wrap directly** — these tests survive the removal unchanged. [`section-shell-context.test.tsx`](../../../apps/web/src/_shared/section-layout/section-shell-context.test.tsx) (31 lines) covers the `compact` context only.
+- **TanStack Router support confirmed.** `defaultViewTransition: boolean | ViewTransitionOptions` is in `@tanstack/router-core@1.169.2` ([router.d.ts:534-542](file:///workspaces/vyoh.gg/node_modules/.pnpm/@tanstack+router-core@1.169.2/node_modules/@tanstack/router-core/dist/esm/router.d.ts#L534)). `types` accepts either a static array or a callback `(locationChangeInfo) => Array<string> | false`. The callback receives `fromLocation`, `toLocation`, `pathChanged`, `hrefChanged`, `hashChanged` — enough to derive section indices and slide direction at the router level without any per-Link wiring. Returning `false` from the callback skips the VT for that navigation (useful for AccountSwitcher cross-slug nav).
+- **AccountSwitcher path:** uses `navigate({ to: tabRoute, params, search })` ([account-switcher.tsx:35](../../../apps/web/src/lol/_shared/account/account-switcher.tsx#L35)). With `defaultViewTransition` at the router level, this navigation would by default trigger a VT. The `types` callback should detect same-section-different-slug and return either `['account-swap']` (for a crossfade) or `false` (to bypass VT entirely). Pick crossfade — it reads as intentional, and bypassing means an unstyled cut.
+- **`SectionShell.pathname` after migration.** Once the AnimatePresence wrap is gone, `pathname` and `slideDirection` are unused props. Remove from the API in Chunk 3; both call sites simplify.
+
+#### Spike approach (do this on a throwaway branch, no commits)
+
+1. Add `defaultViewTransition` to `createRouter` in `main.tsx` with a `types` callback that returns `['slide-left']`, `['slide-right']`, or `false`. Compute by:
+   - Match `fromLocation.pathname` and `toLocation.pathname` against `TABS` from both `$accountSlug.tsx` and `steam.tsx`. If both resolve to indices in the same section's TABS, return `slide-left`/`slide-right` based on sign of `(toIdx - fromIdx)`. If indices are equal (intra-tab navigation, e.g. list↔detail), return `['intra-section']` (so CSS can crossfade or do nothing). If sections differ (`/lol/...` → `/steam/...`), return `['cross-section']` (a different easing/duration). If same-section + same-tab + slug change → `['account-swap']`.
+   - Where do TABS live? Currently inlined per-route. The spike can colocate a temporary `getNavigationType(from, to)` in `apps/web/src/lib/` that imports both TABS arrays. If the spike works, productionise by moving the helper to a shared file and adding tests.
+2. Add CSS to `view-transitions.css`:
+   ```css
+   ::view-transition-old(root) { animation: 220ms cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-out; }
+   ::view-transition-new(root) { animation: 220ms cubic-bezier(0.32, 0.72, 0, 1) both vt-fade-in; }
+   :active-view-transition-type(slide-left) {
+     ::view-transition-old(root) { animation-name: slide-out-left; }
+     ::view-transition-new(root) { animation-name: slide-in-right; }
+   }
+   :active-view-transition-type(slide-right) { /* mirror */ }
+   @keyframes slide-out-left { to { transform: translateX(-32px); opacity: 0; } }
+   @keyframes slide-in-right { from { transform: translateX(32px); opacity: 0; } }
+   ```
+3. Comment out (do not delete) the `<AnimatePresence>` wrap in `section-shell.tsx` and render `{children}` directly. Keep the existing `slideKey`/`slideDirection` props as no-ops for the spike.
+4. Manual verification matrix (all in dev, then prod build):
+   - **Section slides:** matches → trends → champions → live → recap; /steam → library → wishlist → achievements; back and forth in both. Verify direction is correct.
+   - **List ↔ detail (rect-morph fallback):** champion list → champion detail → back; match list → match detail → back; steam library → game detail → back. VT-supporting browsers should fire per-element morph; Firefox should fall back without regression.
+   - **Cross-section nav:** /lol/...matches → /steam/library. Verify the `cross-section` type fires (separate keyframe, not slide).
+   - **AccountSwitcher:** swap accounts on /lol/.../matches — verify the `account-swap` type fires a crossfade, not a slide.
+   - **Reduced motion:** OS setting on → every navigation is an instant cut (existing CSS guard).
+   - **Match list scroll-restore:** scroll deep into /matches, click into a match, back. Verify pin loop restores scroll (the chunk 3 fix in `pinCompletedRef` should still cover this; VT should not regress it because the timing shift was caused by AnimatePresence cleanup, not by VT).
+5. If all green, the spike confirms the approach. Productionise the helper, remove the comment-out, and proceed to Chunk 2.
+
+**Spike risks to specifically watch for:**
+- `:active-view-transition-type(...)` browser support — caniuse before relying on it. Fallback: emit a `data-vt-type` attribute on `<html>` from a router subscription, and key CSS off that instead.
+- `<Link>`-vs-`navigate()` parity: TanStack Router routes both through `defaultViewTransition`, but verify by spying on `document.startViewTransition` calls in a quick test (`vi.spyOn(document, 'startViewTransition')`).
+- The existing per-Link `viewTransition: false` opt-outs we don't have any of yet — but the moment we add `defaultViewTransition`, every navigation tries to VT, including ones that don't have a matching `view-transition-name` pair. That's fine (root crossfade), but verify the rect-morph routes in champion-table/match-row/library-tile still take precedence (they call `document.startViewTransition` manually before navigating, which should preempt the router's automatic call — but verify in the lifecycle logger output).
+
+The lifecycle logger (`localStorage.setItem('vt-debug', '1')`) is the primary instrument for this spike — turn it on for every manual check and watch for unexpected double-VT calls or stale snapshots.
+
 ### Chunk 2 — Direction-aware VT slide
 
 - Add CSS to [`view-transitions.css`](../../../apps/web/src/styles/view-transitions.css) defining `slide-left` and `slide-right` keyframes on `::view-transition-old(root)` and `::view-transition-new(root)`, scoped by `:active-view-transition-type(...)`.

@@ -21,6 +21,8 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { LazyMotion, domMax } from "motion/react";
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
+import { getNavigationType } from "./lib/navigation-type";
+import { mainScrollRef } from "./lib/scroll-container";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 import "./styles/view-transitions.css";
@@ -31,6 +33,35 @@ const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   defaultPreloadStaleTime: 0,
+  defaultViewTransition: {
+    types: ({ fromLocation, toLocation }) => {
+      const types = getNavigationType(fromLocation, toLocation);
+      // Gate `view-transition-name: section-content` on whether the shell
+      // itself needs to animate. The body attribute is read by a CSS rule in
+      // styles/view-transitions.css; mutating it here happens before the
+      // browser captures the OLD snapshot, so naming is in effect for both
+      // halves of the morph pair (slide / fade) or absent entirely for
+      // intra-section (per-element morphs run alone — no parent group
+      // size-morph competing for the eye).
+      const isSlide =
+        Array.isArray(types) &&
+        (types.includes("slide-left") || types.includes("slide-right"));
+      const needsShellAnim =
+        isSlide ||
+        (Array.isArray(types) &&
+          (types.includes("cross-section") || types.includes("account-swap")));
+      document.body.dataset.vtShell = needsShellAnim ? "on" : "off";
+      // For slide types, reset `<main>` scrollTop BEFORE the OLD snapshot is
+      // captured. If we don't, the new route's useScrollResetOnNav effect
+      // fires AFTER OLD but BEFORE NEW snapshot — flipping the
+      // section-shell's compact header off in between — and the section-
+      // content's viewport-top differs across the two snapshots. The
+      // default group rect-morph then interpolates that delta, sliding the
+      // content diagonally instead of purely horizontally.
+      if (isSlide && mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+      return types;
+    },
+  },
 });
 
 declare module "@tanstack/react-router" {

@@ -1,14 +1,122 @@
 /*
  * View Transitions API styles.
  *
- * Chunk 1 (this file): reduced-motion guard only. The CSS-level guard kills
- * the animation but keeps the snapshot/swap atomic — the navigation still
- * feels intentional rather than abrupt. Per
- * docs/working-notes/cross-cutting/view-transitions-rollout.md.
+ * The reduced-motion guard kills animation but keeps the snapshot/swap atomic
+ * — navigation still feels intentional rather than abrupt.
  *
- * Chunk 2 will add default ::view-transition-group durations / easings here
- * once a call site exists to observe them.
+ * Section-shell slide types are driven by TanStack Router's
+ * `defaultViewTransition.types` callback in apps/web/src/main.tsx via
+ * apps/web/src/lib/navigation-type.ts. The classifier emits one of:
+ *   slide-left, slide-right, intra-section, cross-section, account-swap
+ * Per docs/working-notes/cross-cutting/section-shell-vt-migration.md.
+ *
+ * The animated element is `<main>` (the scroll container, marked with
+ * `data-vt-main` in apps/web/src/routes/__root.tsx) — NOT the inner
+ * `[data-section-content]` wrapper. Rationale: `<main>` has a stable height
+ * (`flex-1` inside an `h-dvh` shell), so the captured snapshot is viewport-
+ * sized and identical across OLD and NEW. Naming the inner content instead
+ * captures a document-height bitmap whose size varies per-page (Trends short
+ * → Library tall), which (a) makes the group rect-morph squish/stretch
+ * snapshots vertically, and (b) on tall pages with many lazy images
+ * (Library, Achievements) allocates multi-MB textures that stall the GPU
+ * and spike INP to multi-second on rapid tab nav.
+ *
+ * The name only attaches when `body[data-vt-shell="on"]`, set by the
+ * router-level types callback BEFORE `startViewTransition` runs — so the
+ * OLD snapshot already sees it. The gate is on for shell-level animations
+ * (slide / cross-section / account-swap) and off for intra-section, so
+ * per-element morphs (champion / match / steam-game) run without a
+ * competing parent group animation.
  */
+
+body[data-vt-shell="on"] [data-vt-main] {
+  view-transition-name: vt-main;
+}
+
+@keyframes vt-slide-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-32px); }
+}
+@keyframes vt-slide-in-right {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes vt-slide-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(32px); }
+}
+@keyframes vt-slide-in-left {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Slide types ──────────────────────────────────────────────────────────
+   Only `vt-main` moves. Root (header + backdrop + scrollbar) holds.
+   `main.tsx`'s types callback resets `<main>` scrollTop BEFORE
+   startViewTransition so both OLD and NEW capture with the same scroll
+   position — without that, useScrollResetOnNav fires between snapshots
+   and shifts the visible area, sliding diagonally. Because `<main>` has
+   a stable viewport-sized height, the group rect is identical across
+   OLD and NEW (no rect-morph, no squish/stretch), and we don't need to
+   override the UA pseudo positioning. */
+
+:root:active-view-transition-type(slide-left)::view-transition-old(vt-main) {
+  animation: vt-slide-out-left 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+:root:active-view-transition-type(slide-left)::view-transition-new(vt-main) {
+  animation: vt-slide-in-right 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+:root:active-view-transition-type(slide-left)::view-transition-old(root),
+:root:active-view-transition-type(slide-left)::view-transition-new(root) {
+  animation: none;
+}
+
+:root:active-view-transition-type(slide-right)::view-transition-old(vt-main) {
+  animation: vt-slide-out-right 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+:root:active-view-transition-type(slide-right)::view-transition-new(vt-main) {
+  animation: vt-slide-in-left 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+:root:active-view-transition-type(slide-right)::view-transition-old(root),
+:root:active-view-transition-type(slide-right)::view-transition-new(root) {
+  animation: none;
+}
+
+/* ── Intra-section list ↔ detail ──────────────────────────────────────────
+   Per-element morphs (champion-${alias}, match-${id}-*, steam-game-${appId}-*)
+   are the only motion. vt-main and root both hold. */
+
+:root:active-view-transition-type(intra-section)::view-transition-old(vt-main),
+:root:active-view-transition-type(intra-section)::view-transition-new(vt-main),
+:root:active-view-transition-type(intra-section)::view-transition-old(root),
+:root:active-view-transition-type(intra-section)::view-transition-new(root) {
+  animation: none;
+}
+
+/* ── Cross-section + account-swap ─────────────────────────────────────────
+   Full crossfade. Same viewport-stable rect as slide types means no
+   squish artifact even though both pseudos overlap during the fade. */
+
+:root:active-view-transition-type(cross-section)::view-transition-old(vt-main),
+:root:active-view-transition-type(cross-section)::view-transition-old(root),
+:root:active-view-transition-type(account-swap)::view-transition-old(vt-main),
+:root:active-view-transition-type(account-swap)::view-transition-old(root) {
+  animation: vt-fade-out 200ms ease-out both;
+}
+:root:active-view-transition-type(cross-section)::view-transition-new(vt-main),
+:root:active-view-transition-type(cross-section)::view-transition-new(root),
+:root:active-view-transition-type(account-swap)::view-transition-new(vt-main),
+:root:active-view-transition-type(account-swap)::view-transition-new(root) {
+  animation: vt-fade-in 200ms ease-out both;
+}
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),

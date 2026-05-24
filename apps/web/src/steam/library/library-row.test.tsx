@@ -166,6 +166,7 @@ describe("LibraryRow view-transition wiring", () => {
     expect(navigateMock).toHaveBeenCalledWith({
       to: "/steam/game/$appid",
       params: { appid: "730" },
+      viewTransition: false,
     });
   });
 

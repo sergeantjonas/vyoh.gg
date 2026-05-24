@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "ignore": ["**/*.gen.ts"]
+    "ignore": ["**/*.gen.ts", "apps/web/src/styles/view-transitions.css"]
   },
   "formatter": {
     "enabled": true,

@@ -1,21 +1,11 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
-import {
-  AnimatePresence,
-  type Transition,
-  type Variants,
-  m,
-  useReducedMotion,
-} from "motion/react";
+import { type Transition, m, useReducedMotion } from "motion/react";
 import { type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 import { SectionShellProvider } from "./section-shell-context";
 
-const pageSlideVariants: Variants = {
-  enter: (d: number) => ({ opacity: 0, x: d * 32 }),
-  center: { opacity: 1, x: 0 },
-  exit: (d: number) => ({ opacity: 0, x: d * -32 }),
-};
-
+// Kept exported-shape only while consumers still pass it; the VT spike no
+// longer reads any field. Drop in Chunk 3 of the migration plan.
 type SlideTransitionOverride = {
   initial?: false | "enter" | "center";
   transition?: Transition;
@@ -43,9 +33,12 @@ export function SectionShell({
   actions,
   nav,
   children,
-  pathname,
-  slideDirection,
-  slideTransitionOverride,
+  // Spike: pathname / slideDirection / slideTransitionOverride are still in
+  // the prop surface but unused now that the router-level VT call drives
+  // section transitions. Drop in Chunk 3 once consumers are updated.
+  pathname: _pathname,
+  slideDirection: _slideDirection,
+  slideTransitionOverride: _slideTransitionOverride,
   headerRef: externalHeaderRef,
   onHeaderRect,
 }: SectionShellProps) {
@@ -177,25 +170,44 @@ export function SectionShell({
             className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-foreground/15 to-transparent"
           />
         </header>
-        <AnimatePresence mode="popLayout" initial={false} custom={slideDirection}>
-          <m.div
-            key={pathname}
-            custom={slideDirection}
-            variants={pageSlideVariants}
-            initial={slideTransitionOverride?.initial ?? "enter"}
-            animate="center"
-            exit="exit"
-            transition={
-              slideTransitionOverride?.transition ?? {
-                type: "spring",
-                stiffness: 300,
-                damping: 30,
-              }
-            }
-          >
-            {children}
-          </m.div>
-        </AnimatePresence>
+        {/*
+          AnimatePresence-around-Outlet wrap removed during the SectionShell → VT
+          migration spike. The router-level View Transitions API call (configured
+          in apps/web/src/main.tsx via defaultViewTransition + getNavigationType)
+          now drives section slides, list↔detail no-anim, cross-section + account
+          swap crossfades. Per-element morphs (champion/match/steam-game) no
+          longer compete with an AnimatePresence enter/exit pair, so the
+          `slideKey` coarsening hacks in $accountSlug.tsx / steam.tsx become
+          unnecessary (cleanup deferred to Chunk 3 of the migration plan).
+
+          `pathname`, `slideDirection`, and `slideTransitionOverride` props are
+          kept on the surface so consumers don't need to change in this spike;
+          a follow-up chunk drops them. See
+          docs/working-notes/cross-cutting/section-shell-vt-migration.md.
+
+          Pre-VT version preserved for revert:
+            <AnimatePresence mode="popLayout" initial={false} custom={slideDirection}>
+              <m.div key={pathname} custom={slideDirection} variants={pageSlideVariants}
+                initial={slideTransitionOverride?.initial ?? "enter"}
+                animate="center" exit="exit"
+                transition={slideTransitionOverride?.transition ?? {
+                  type: "spring", stiffness: 300, damping: 30,
+                }}>
+                {children}
+              </m.div>
+            </AnimatePresence>
+        */}
+        {/* `view-transition-name: section-content` is applied conditionally
+            via CSS (gated by `body[data-vt-shell="on"]`), so it only takes
+            effect on shell-level animations (slide / cross-section / account-
+            swap). On intra-section navigations the name is absent — the
+            wrapper stays inside the `root` snapshot and per-element morphs
+            (champion / match / steam-game) run alone without the parent's
+            default group size-morph competing for the eye. The body attribute
+            is set in the `defaultViewTransition.types` callback in main.tsx
+            *before* `startViewTransition` runs, so the OLD snapshot already
+            reflects it. */}
+        <div data-section-content="">{children}</div>
       </div>
     </SectionShellProvider>
   );

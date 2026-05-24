@@ -59,6 +59,7 @@ function RootLayout() {
               ref={(el) => {
                 mainScrollRef.current = el;
               }}
+              data-vt-main=""
               className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">

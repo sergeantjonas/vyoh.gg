@@ -69,9 +69,14 @@ export function LibraryTile({ game }: { game: SteamOwnedGame }) {
               doc.startViewTransition?.(async () => {
                 if (morphLayerRef.current)
                   morphLayerRef.current.style.viewTransitionName = "";
+                // Opt out of router-level `defaultViewTransition` (main.tsx) —
+                // this click already drives its own startViewTransition for the
+                // per-element morph. Nesting the two collides the snapshot
+                // pairs and breaks the forward morph.
                 await navigate({
                   to: "/steam/game/$appid",
                   params: { appid: String(game.appid) },
+                  viewTransition: false,
                 });
               });
             }}

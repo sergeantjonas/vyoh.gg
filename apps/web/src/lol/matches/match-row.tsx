@@ -152,9 +152,14 @@ export function MatchRow({
               };
               doc.startViewTransition?.(async () => {
                 if (cardRef.current) cardRef.current.style.viewTransitionName = "";
+                // Opt out of router-level `defaultViewTransition` (main.tsx) —
+                // this click already drives its own startViewTransition for the
+                // per-element morph. Nesting the two collides the snapshot
+                // pairs and breaks the forward morph.
                 await navigate({
                   to: "/lol/$accountSlug/matches/$matchId",
                   params: { accountSlug, matchId: match.matchId },
+                  viewTransition: false,
                 });
               });
             }}

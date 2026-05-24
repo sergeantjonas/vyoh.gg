@@ -374,9 +374,14 @@ function ChampionTableRow({
               // OLD snapshot captured by now (sync inside startViewTransition).
               // Clear before any await so NEW snapshot doesn't see the source.
               if (cardRef.current) cardRef.current.style.viewTransitionName = "";
+              // Opt out of router-level `defaultViewTransition` (main.tsx) —
+              // this click already drives its own startViewTransition for the
+              // per-element morph. Nesting the two collides the snapshot
+              // pairs and breaks the forward morph.
               await navigate({
                 to: "/lol/$accountSlug/champions/$championKey",
                 params: { accountSlug, championKey: alias.toLowerCase() },
+                viewTransition: false,
               });
             });
           }}
