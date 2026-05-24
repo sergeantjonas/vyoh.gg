@@ -101,6 +101,25 @@ body[data-vt-shell="on"] [data-vt-main] {
   animation: none;
 }
 
+/* Named per-element morphs (champion-${alias}, match-${id}, steam-game-${appId}-{hero,logo})
+   inherit UA defaults of ~250 ms / cubic-bezier(0.4, 0, 0.2, 1) and a
+   mix-blend-mode that can read as a haze on overlapping pseudos. Override
+   to 320 ms iOS-spring easing + `mix-blend-mode: normal`. Scoped to
+   `intra-section` so shell-level slides keep their own snappier 240 ms
+   timing — morphs benefit from a slightly longer, more characteristic
+   curve because the eye is tracking a single moving element rather than
+   a sliding viewport. The wildcard targets every group, but `vt-main` /
+   `root` are killed by `animation: none` above so the override has no
+   effect there. */
+:root:active-view-transition-type(intra-section)::view-transition-group(*) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+:root:active-view-transition-type(intra-section)::view-transition-old(*),
+:root:active-view-transition-type(intra-section)::view-transition-new(*) {
+  mix-blend-mode: normal;
+}
+
 /* ── Cross-section + account-swap ─────────────────────────────────────────
    Full crossfade. Same viewport-stable rect as slide types means no
    squish artifact even though both pseudos overlap during the fade. */

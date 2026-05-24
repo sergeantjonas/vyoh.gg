@@ -78,7 +78,7 @@ Two forces push this now:
 - **Not a removal of Motion.** Motion stays primary for everything component-level: tilt, sheen, hover springs, list-item add/remove (e.g. `AnimatePresence` on match-list rows for SSE inserts), modal mount/unmount, the existing `MORPH_SETTLE_MS` body-hold gate, `useReducedMotion` plumbing, and so on. The migration replaces *one* AnimatePresence (the SectionShell route-slide wrap), not all of them.
 - **Not a removal of the section slide effect.** The visual outcome should be the same: left/right slide between sections (Matches → Trends → Champions etc.) driven by direction. The implementation moves from Motion variants to CSS keyframes on `::view-transition-old/new`, scoped by transition `types`.
 - **Not a removal of the existing `slideKey` coarsening.** Those coarsenings can stay or be removed in a follow-up cleanup, depending on how the new transition mechanism handles list↔detail navigations. Default position: leave them in place during the migration and revisit at the end.
-- **Not a re-attempt at multi-element morph.** The multi-element refinement deferred from Chunk 3 of the VT rollout is gated on this migration (so it has a stable architectural foundation), but it's a *separate* chunk and not in scope here.
+- **Not a re-attempt at multi-element morph.** The Stage 2 multi-element refinement from VT rollout Chunk 3 is closed as abandoned (2026-05-24). Out of scope here; see [view-transitions-rollout.md § Closed: LoL multi-element morph refinement](view-transitions-rollout.md#closed-lol-multi-element-morph-refinement-2026-05-24).
 
 ---
 
@@ -189,11 +189,11 @@ But: TanStack Router's own transition behaviour during a VT might still keep com
 
 If they need to stay, document why in `$accountSlug.tsx` (replacing the current comment that references AnimatePresence).
 
-### Chunk 5 — Unblock multi-element morph refinement
+### Chunk 5 — ~~Unblock multi-element morph refinement~~ (closed as abandoned)
 
-With the structural foundation in place, retry the multi-element morph deferred from VT rollout Chunk 3 (per-slot naming on match-row + match-hero: `match-${id}-icon`, `-kda`, `-chip`). This includes the `ChampionCardChrome` restructure work documented in the VT rollout's Stage 2 attempt write-up.
+The intent was to retry per-slot naming on match-row + match-hero (`match-${id}-icon`, `-kda`, `-chip`) once the AnimatePresence collision was gone, paired with a `ChampionCardChrome` restructure to fix the gradient-cutoff problem from the original Stage 2 attempt.
 
-This chunk lives here (not in the VT rollout) because the restructure work is what the migration unblocks — multi-element morph wasn't blocked by VT itself, it was blocked by the AnimatePresence collision class compounding with the gradient-cutoff problem. Solving the architectural issue first means the visual polish work can focus on the visual question.
+Closed without shipping (2026-05-24). The architectural blocker is gone, but the restructure cost (four ChampionCardChrome consumers to re-validate against any change) plus the visual cascade from constraining the wrapper (right-third "naked", gradient straddling bounds) was judged not worth the visual delta. Single-element whole-card morphs read clean today; a future surface that already meets the "independently-positioned bounded layer" bar (per the Steam chunk-5-extension lesson) can do multi-element without the restructure, and that's where to spend the budget. See [view-transitions-rollout.md § Closed: LoL multi-element morph refinement](view-transitions-rollout.md#closed-lol-multi-element-morph-refinement-2026-05-24).
 
 ---
 
@@ -226,6 +226,6 @@ Possibly new:
 
 - [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — Safari-specific follow-up arc that landed the WebKit bypass + CSS-slide substitute for intra-Steam navs.
 - [steam-profile-layer-density.md](steam-profile-layer-density.md) — investigation queued for the ~77 composite layers on the Steam Profile page (surfaced during the Safari arc).
-- [view-transitions-rollout.md](view-transitions-rollout.md) — the parent arc. This migration is the prerequisite for its multi-element refinement and any future per-element morph work.
+- [view-transitions-rollout.md](view-transitions-rollout.md) — the parent arc. This migration unblocked any future per-element morph work; the LoL multi-element refinement that motivated it was closed as abandoned the same day.
 - [elevation-arcs.md](elevation-arcs.md) — index of "elevate past boring app" arcs.
 - KB: [03-motion.md](~/.claude/knowledge/frontend-2026/03-motion.md) §3 (View Transitions API), §5.4 (List entry/exit with AnimatePresence and ViewTransition), §6.6 (View Transitions and reduced motion).

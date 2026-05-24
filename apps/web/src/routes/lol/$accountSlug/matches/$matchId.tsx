@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -24,7 +25,9 @@ import { useEffect, useState } from "react";
 // immediately at a low opacity so the page never looks empty, then
 // blooms to full once the morph is in place — prevents the mid-flight
 // pop when cached data is available immediately while still hinting at
-// what's coming.
+// what's coming. VT browsers skip the gate (OLD snapshot freezes the
+// previous DOM until NEW is captured, so there's nothing to pop into);
+// the rect-morph fallback still needs it.
 const MORPH_SETTLE_MS = 700;
 const BODY_HOLD_OPACITY = 0.6;
 
@@ -107,8 +110,9 @@ function MatchDetailLayout() {
   const lpDeltaMap = useLpDeltaMap();
   const lpDelta = lpDeltaMap.get(matchId);
 
-  const [bodyReady, setBodyReady] = useState(false);
+  const [bodyReady, setBodyReady] = useState(() => supportsViewTransitions());
   useEffect(() => {
+    if (supportsViewTransitions()) return;
     const id = window.setTimeout(() => setBodyReady(true), MORPH_SETTLE_MS);
     return () => window.clearTimeout(id);
   }, []);

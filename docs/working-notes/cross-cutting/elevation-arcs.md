@@ -20,8 +20,8 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 
 | Arc | What | Status |
 |---|---|---|
-| [view-transitions-rollout](view-transitions-rollout.md) | Replace manual rect-morph (`ActiveMatchProvider`, `ActiveChampionProvider`) with native View Transitions API; cover champion + match + Steam library flows | Champion + match shipped (single-element); Steam + multi-element refinement pending |
-| [section-shell-vt-migration](section-shell-vt-migration.md) | Remove SectionShell's `<AnimatePresence>` route-slide wrap in favour of VT-driven slides with CSS keyframes scoped by transition `types`; structurally fixes the duplicate-Outlet collision we've worked around twice with `slideKey` coarsening, and unblocks multi-element morph refinement | Planned |
+| [view-transitions-rollout](view-transitions-rollout.md) | Replace manual rect-morph (`ActiveMatchProvider`, `ActiveChampionProvider`) with native View Transitions API; cover champion + match + Steam library flows | ✅ Shipped 2026-05-24 (single-element morphs on champion + match + Steam library + Steam row hero/logo). LoL multi-element refinement closed as abandoned. Polish + telemetry remaining. |
+| [section-shell-vt-migration](section-shell-vt-migration.md) | Remove SectionShell's `<AnimatePresence>` route-slide wrap in favour of VT-driven slides with CSS keyframes scoped by transition `types` | ✅ Shipped 2026-05-24 |
 | [scroll-driven-shell](scroll-driven-shell.md) | Native CSS `animation-timeline: scroll()/view()` on nav, splash backdrop opacity, section progress bar — zero JS | Planned |
 | [mount-and-overlay-motion](mount-and-overlay-motion.md) | Tile/list mount stagger + `@starting-style` + `transition-behavior: allow-discrete` for overlays (Select/Popover/Dropdown shadcn defaults) | Planned |
 | [accent-color-system](accent-color-system.md) | Per-route `--accent` token derived from splash/game dominant; propagate to focus rings, scrollbar, sparklines, `<meta name="theme-color">` | Planned |

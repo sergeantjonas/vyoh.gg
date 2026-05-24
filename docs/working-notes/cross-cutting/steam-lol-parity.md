@@ -142,6 +142,6 @@ The Steam VT morph from [view-transitions-rollout.md](view-transitions-rollout.m
 ## Related notes
 
 - [view-transitions-rollout.md](view-transitions-rollout.md) — Steam library → game-detail morph (own arc, not covered here).
-- [section-shell-vt-migration.md](section-shell-vt-migration.md) — structural arc that unblocks multi-element morph; orthogonal to these items.
+- [section-shell-vt-migration.md](section-shell-vt-migration.md) — shipped 2026-05-24; orthogonal to these items.
 - [elevation-arcs.md](elevation-arcs.md) — parent index.
 - [quick-wins.md](quick-wins.md) — Items 1 and 3 are quick-win-shaped; if not picked up as part of this note, surface them there.

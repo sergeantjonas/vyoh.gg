@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
@@ -51,7 +52,11 @@ import {
 
 // Mirror of MORPH_SETTLE_MS in the match-detail layout — gates body content
 // behind the hero's layout-spring (stiffness 170, damping 30) settle time so
-// the morph finishes before the rest of the page fades in.
+// the rect-morph fallback finishes before the rest of the page fades in.
+// On VT-supporting browsers the gate is skipped entirely: the OLD snapshot
+// freezes the previous DOM until the NEW snapshot is ready, so the body
+// content has already painted by the time the user sees real DOM — keeping
+// the gate would just dim the page for ~380 ms after the morph finishes.
 const MORPH_SETTLE_MS = 700;
 const BODY_HOLD_OPACITY = 0.6;
 
@@ -189,9 +194,12 @@ function ChampionDetailPage() {
 
   // Body-settle gate — render the rest of the page at low opacity while the
   // hero morph runs so swapping in cached content mid-flight doesn't visually
-  // pop. Mirrors match-detail layout.
-  const [bodyReady, setBodyReady] = useState(false);
+  // pop. Mirrors match-detail layout. VT browsers paint the body behind the
+  // frozen OLD snapshot and skip the gate; the rect-morph fallback still
+  // needs it.
+  const [bodyReady, setBodyReady] = useState(() => supportsViewTransitions());
   useEffect(() => {
+    if (supportsViewTransitions()) return;
     const id = window.setTimeout(() => setBodyReady(true), MORPH_SETTLE_MS);
     return () => window.clearTimeout(id);
   }, []);
