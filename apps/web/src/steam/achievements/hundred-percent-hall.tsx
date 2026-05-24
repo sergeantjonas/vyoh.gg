@@ -76,18 +76,23 @@ export function HundredPercentHall() {
             <Link
               to="/steam/game/$appid"
               params={{ appid: String(e.appid) }}
-              className="group block overflow-hidden rounded-lg border border-border/40 bg-card/50 transition-colors hover:border-border hover:bg-card/80"
+              className="group/tile block origin-top rounded-lg border border-border/40 bg-card/50 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[box-shadow,transform,border-color,background-color] duration-500 ease-out hover:border-border hover:bg-card/80 hover:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] hover:transform-[perspective(700px)_rotateX(2deg)_rotateY(-3deg)_scale(1.02)]"
             >
-              <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted/30">
+              <div className="relative aspect-[2/3] w-full overflow-hidden rounded-t-lg bg-muted/30 group-hover/tile:brightness-[1.1] group-hover/tile:saturate-[1.1]">
                 <img
                   src={e.capsuleUrl}
                   alt=""
                   loading="lazy"
-                  className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  decoding="async"
+                  className="size-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
                 />
               </div>
               <div className="flex flex-col gap-0.5 px-2.5 py-2">
-                <p className="truncate text-sm font-medium text-foreground/90">
+                <p className="truncate text-sm font-medium text-foreground/90 underline-offset-2 group-hover/tile:underline">
                   {e.name}
                 </p>
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
