@@ -249,6 +249,24 @@ Started as "add VT morph to the library row" and grew into a four-part arc once 
 
 ---
 
+## Screenshot lightbox attempt 2026-05-24 — game-screenshot-strip → lightbox (shipped)
+
+First same-route VT in the codebase — every prior morph hung off route navigation, where the destination element is rendered fresh by the next route. Here both source (active Embla slide) and destination (Radix Dialog lightbox img) live in the same component, the destination is portal-mounted by Radix on state flip, and the source is one slide in a fade-stacked carousel. The handler intercepts `DialogPrimitive.Root.onOpenChange` (both directions), applies `viewTransitionName: screenshot-${appid}` to the source synchronously, calls `document.startViewTransition(...)`, then inside the callback runs `flushSync(() => setModalOpen(next))` to force the React commit before NEW-snapshot capture, then assigns the name to the destination and clears on `transition.finished.finally`. Slide refs are keyed by index in a `Map` so only `slideRefs.current.get(currentIndex)` carries the name — Embla fade-stacks all slides, but only the active one should be paired.
+
+### Lessons (kept for any future same-route modal/lightbox morph)
+
+- **Radix Dialog Content's `data-[state=open]:zoom-in-95` fights VT.** The named destination element is a child of `DialogPrimitive.Content`. When the dialog opens, Radix applies `animate-in zoom-in-95 fade-in-0` on Content, which puts the ancestor at `scale(0.95)` at NEW-snapshot capture time. The destination rect is then 5% smaller than its final size, and the morph subtly pops at the end. Fix: suppress the open-side animation classes (`data-[state=open]:*`) when `supportsViewTransitions()` is true — VT owns the open motion. Keep the close-side classes (`data-[state=closed]:*`) since the OLD snapshot is captured before any close animation starts. Apply the same pattern to any future modal where a child element is VT-paired.
+
+- **Unloaded `<img>` reports natural 0×0 — VT captures destination as 0×0 at the page origin.** First open per game fetches `fullUrl` cold; without explicit `width`/`height` attributes, the img has no intrinsic dimensions until pixels arrive, so its rendered rect is 0×0. The morph then plays back as "shrink and fly to the top-left corner." Fix: set `width={1920} height={1080}` on the img (Steam screenshot aspect) to reserve a 16:9 layout box before pixels load. The reserved rect respects `max-h-[95vh] max-w-[95vw]` and `object-contain` still centres the actual pixels inside the box, so smaller-than-Full-HD screenshots aren't stretched.
+
+- **JPEGs stream top-down — a snapshot mid-load captures top-loaded-bottom-white.** Even with a reserved layout rect, on first open per game the JPEG is fetched cold and decodes top-down. If the NEW snapshot fires before pixels reach the bottom, the morph briefly shows the bottom half as a white flash. Fix: eagerly preload the active `fullUrl` via `new Image()` in a `useEffect` keyed on `[currentIndex, screenshots]` — fires on mount and on every autoplay rotation, so by click time the bitmap is in cache and decoded. Bandwidth cost is one full-res per ~3.5s rotation tick (typical ~200KB Steam screenshot); bounded and reasonable for a game-details page.
+
+- **`flushSync` is non-negotiable for same-route VT.** React state updates are batched/async; without `flushSync(() => setModalOpen(next))` inside the `startViewTransition` callback, the destination element isn't in the DOM at NEW-snapshot capture time and the morph snaps instead of interpolating.
+
+- **Test the VT path via a stubbed `document.startViewTransition`.** happy-dom doesn't ship the API, so the production fallback (`setModalOpen` direct) is exercised automatically by any test that doesn't install the stub. For VT-path coverage, install a fake `startViewTransition` that captures the source's `viewTransitionName` at call time, then asserts source clears + destination receives the name after the callback. See `game-screenshot-strip.test.tsx` for the canonical pattern.
+
+---
+
 ## What's next (priority order)
 
 1. ~~**AnimatePresence → VT-driven section slides**~~ — **shipped 2026-05-24** ([section-shell-vt-migration.md](section-shell-vt-migration.md)). SectionShell's `<AnimatePresence>` wrap is gone; route-level transitions go through `defaultViewTransition.types` with per-type keyframes on `::view-transition-old/new`. Safari follow-up shipped same day ([safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md)).
@@ -286,7 +304,7 @@ For each: drop in `view-transition-name: <surface>-${id}` per row before the sor
 
 ### Modal / lightbox open-close (same-route, element ↔ overlay)
 
-- **Game screenshot strip → lightbox.** [`game-screenshot-strip.tsx`](../../../apps/web/src/steam/game/game-screenshot-strip.tsx) opens a modal with a fade. A VT-driven morph (carousel item → expanded lightbox) is exactly the "open Lightroom-style" UX VT was designed for, and it's the one category where Motion has no clean answer (rect-capture across modal mount is what VT solves natively). Highest "feels native" payoff of anything in this catalog. Caveat: Embla makes rect-capture annoying; the named element must be the currently-visible carousel item, not the whole strip.
+- ✅ **Game screenshot strip → lightbox** — shipped 2026-05-24. See "Screenshot lightbox attempt" section below.
 
 ### Deferred (bundled into bigger arcs)
 

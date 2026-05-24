@@ -246,6 +246,132 @@ describe("GameScreenshotStrip", () => {
     }
   });
 
+  describe("view transition morph", () => {
+    type VTCallback = () => void | Promise<void>;
+    type FakeTransition = {
+      finished: Promise<void>;
+      ready: Promise<void>;
+      updateCallbackDone: Promise<void>;
+      skipTransition: () => void;
+    };
+    let originalStartVT: unknown;
+    let capturedSourceName: string | null;
+    let startVT: ReturnType<typeof vi.fn>;
+
+    function installFakeVT() {
+      capturedSourceName = null;
+      startVT = vi.fn((cb: VTCallback): FakeTransition => {
+        // OLD-snapshot capture happens synchronously at this point in real
+        // browsers — record what the active source img is carrying right now
+        // so the test can assert it was applied before the call.
+        const activeSlide = document.querySelector(
+          'img[src="/t1.jpg"]'
+        ) as HTMLImageElement | null;
+        const lightboxImg = document.querySelector(
+          'img[src="/f1.jpg"]'
+        ) as HTMLImageElement | null;
+        capturedSourceName =
+          activeSlide?.style.viewTransitionName ||
+          lightboxImg?.style.viewTransitionName ||
+          null;
+        cb();
+        const finished = Promise.resolve();
+        return {
+          finished,
+          ready: Promise.resolve(),
+          updateCallbackDone: Promise.resolve(),
+          skipTransition: () => {},
+        };
+      });
+      originalStartVT = (document as { startViewTransition?: unknown })
+        .startViewTransition;
+      Object.defineProperty(document, "startViewTransition", {
+        value: startVT,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    function restoreVT() {
+      if (originalStartVT === undefined) {
+        (document as { startViewTransition?: unknown }).startViewTransition = undefined;
+      } else {
+        Object.defineProperty(document, "startViewTransition", {
+          value: originalStartVT,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+
+    afterEach(() => {
+      restoreVT();
+    });
+
+    it("applies view-transition-name to the active slide before startViewTransition, then clears it", () => {
+      installFakeVT();
+      setMedia([
+        { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
+        { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+      ]);
+      render(<GameScreenshotStrip appid={42} />);
+      fireEvent.click(
+        screen.getByRole("button", { name: /View screenshot 1 of 2 fullscreen/ })
+      );
+      expect(startVT).toHaveBeenCalledTimes(1);
+      // At the moment startViewTransition was invoked, the source img must
+      // already carry the morph name so the OLD snapshot pairs to it.
+      expect(capturedSourceName).toBe("screenshot-42");
+      // After the callback ran, the source name is cleared (so a future VT
+      // doesn't double-bind it) and the destination lightbox img carries
+      // the matching name for the NEW snapshot.
+      const activeSlide = document.querySelector(
+        'img[src="/t1.jpg"]'
+      ) as HTMLImageElement | null;
+      expect(activeSlide?.style.viewTransitionName).toBe("");
+      const lightboxImg = document.querySelector(
+        'img[src="/f1.jpg"]'
+      ) as HTMLImageElement | null;
+      expect(lightboxImg?.style.viewTransitionName).toBe("screenshot-42");
+    });
+
+    it("falls back to setModalOpen directly when startViewTransition is unavailable", () => {
+      // No installFakeVT — happy-dom ships without the API, so the
+      // supportsViewTransitions guard returns false and the modal opens
+      // straight through Radix.
+      setMedia([
+        { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
+        { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+      ]);
+      render(<GameScreenshotStrip appid={42} />);
+      fireEvent.click(
+        screen.getByRole("button", { name: /View screenshot 1 of 2 fullscreen/ })
+      );
+      // Modal opened => the fullscreen close button renders only when open.
+      expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
+    });
+
+    it("clears the destination view-transition-name after the transition finishes", async () => {
+      installFakeVT();
+      setMedia([
+        { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
+        { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+      ]);
+      render(<GameScreenshotStrip appid={42} />);
+      fireEvent.click(
+        screen.getByRole("button", { name: /View screenshot 1 of 2 fullscreen/ })
+      );
+      // Drain the microtask queue so the `transition.finished.finally`
+      // cleanup runs.
+      await Promise.resolve();
+      await Promise.resolve();
+      const lightboxImg = document.querySelector(
+        'img[src="/f1.jpg"]'
+      ) as HTMLImageElement | null;
+      expect(lightboxImg?.style.viewTransitionName).toBe("");
+    });
+  });
+
   it("unsubscribes from embla on unmount so the api callback doesn't leak", () => {
     setMedia([
       { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
