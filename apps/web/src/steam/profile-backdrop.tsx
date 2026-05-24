@@ -1,5 +1,6 @@
 import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
 import { useRefCountedClaim } from "@/_shared/backdrop/use-ref-counted-claim";
+import { onRouteTransitionStart } from "@/lib/route-transition-bus";
 import { steamPageBackgroundUrl } from "@/steam/_shared/steam-image";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { m, useReducedMotion } from "motion/react";
@@ -170,6 +171,12 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
   );
 }
 
+// Window the resume covers the longest route VT we emit (240ms slide
+// keyframe in styles/view-transitions.css) + a small buffer so the
+// resume doesn't race the tail of the animation. Cross-section + account
+// swap fire at 200ms, well inside the window.
+const VT_RESUME_DELAY_MS = 360;
+
 function BackdropVideo({ src, poster }: { src: string; poster: string }) {
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -192,6 +199,27 @@ function BackdropVideo({ src, poster }: { src: string; poster: string }) {
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
+
+  // Pause decoding during a router-level view transition. Steady-state
+  // Safari frame profiling on /steam routes showed ~70-90ms of "Other"
+  // per frame coming from the video → blur filter chain, *including*
+  // frames captured inside the VT snapshot. Pausing for the slide
+  // window drops that to a static-image cost during the transition;
+  // the visible poster frame freezes on screen and resumes from the
+  // same loop offset on the other side. Tab visibility is re-checked
+  // on resume so we don't fight the visibility handler above.
+  useEffect(() => {
+    return onRouteTransitionStart(() => {
+      const video = ref.current;
+      if (!video) return;
+      const wasPlaying = !video.paused;
+      if (wasPlaying) video.pause();
+      window.setTimeout(() => {
+        if (document.hidden) return;
+        if (wasPlaying) void video.play().catch(() => {});
+      }, VT_RESUME_DELAY_MS);
+    });
   }, []);
 
   return (

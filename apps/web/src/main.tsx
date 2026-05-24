@@ -22,6 +22,7 @@ import { LazyMotion, domMax } from "motion/react";
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { getNavigationType } from "./lib/navigation-type";
+import { emitRouteTransitionStart } from "./lib/route-transition-bus";
 import { mainScrollRef } from "./lib/scroll-container";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
@@ -59,6 +60,11 @@ const router = createRouter({
       // default group rect-morph then interpolates that delta, sliding the
       // content diagonally instead of purely horizontally.
       if (isSlide && mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+      // Tell subscribers (e.g. the Steam profile-background video) that a
+      // VT is about to start — fires only when this nav will actually
+      // animate, so listeners can pause expensive continuous work during
+      // the snapshot+slide window without churning on skipped navs.
+      if (Array.isArray(types)) emitRouteTransitionStart();
       return types;
     },
   },
