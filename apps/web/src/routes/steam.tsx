@@ -123,22 +123,8 @@ function SteamTabs({ pathname }: { pathname: string }) {
             {active && (
               <m.div
                 layoutId="steam-tab-indicator"
-                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-blue-400 via-cyan-400 to-sky-300"
-                animate={{
-                  boxShadow: [
-                    "0 0 0px 0px rgba(96,165,250,0)",
-                    "0 0 10px 1px rgba(96,165,250,0.45)",
-                    "0 0 0px 0px rgba(96,165,250,0)",
-                  ],
-                }}
-                transition={{
-                  default: { type: "spring", stiffness: 500, damping: 35 },
-                  boxShadow: {
-                    duration: 2.4,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                  },
-                }}
+                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-blue-400 via-cyan-400 to-sky-300 shadow-[0_0_8px_1px_rgba(96,165,250,0.35)]"
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
               />
             )}
           </Link>
