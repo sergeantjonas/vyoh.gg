@@ -1,3 +1,4 @@
+import { DeferredMount } from "@/_shared/deferred-mount";
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
@@ -65,6 +66,22 @@ interface Tile {
 }
 
 const INACTIVE_PENALTY = 1000;
+
+// First N tiles by priority sort mount eagerly — they sit above the fold
+// on every realistic viewport, so deferring them costs a single-frame
+// placeholder flash with zero scroll-perf upside. The rest defer behind
+// IntersectionObserver and mount once within 200px of the viewport.
+const EAGER_TILE_COUNT = 4;
+
+// Approximate tile heights by grid span — the placeholder reserves this
+// height before the deferred child mounts so the grid doesn't collapse.
+// Values pulled from the live tiles; ±40px of the typical content
+// height, close enough that the post-mount reflow is invisible.
+const PLACEHOLDER_HEIGHT_BY_SPAN: Record<1 | 2 | 3, number> = {
+  1: 200,
+  2: 260,
+  3: 300,
+};
 
 function buildTiles(
   current: MatchSummary[],
@@ -271,9 +288,14 @@ function TrendsPage() {
           layout
           className="grid grid-cols-1 gap-4 md:grid-flow-row-dense md:grid-cols-3"
         >
-          {sortedTiles.map((tile) => (
+          {sortedTiles.map((tile, index) => (
             <Cell key={tile.id} span={tile.span}>
-              {tile.node}
+              <DeferredMount
+                eager={index < EAGER_TILE_COUNT}
+                minHeight={PLACEHOLDER_HEIGHT_BY_SPAN[tile.span]}
+              >
+                {tile.node}
+              </DeferredMount>
             </Cell>
           ))}
         </m.div>
