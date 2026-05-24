@@ -239,6 +239,35 @@ Wiring shipped (commit `30d9001`):
 
 ---
 
+## Catalogued candidate surfaces (post-Steam survey 2026-05-24)
+
+Surveyed after Steam library shipped to inventory remaining VT-worthy surfaces. The "What's next" list above is the strategic next-step view; this section is the exhaustive catalog so a future session doesn't have to re-survey. Group by category, not by priority — pick based on appetite when picking up.
+
+### List-↔-detail morphs (route navigation)
+
+- **Steam library row → game detail.** [`library-row.tsx`](../../../apps/web/src/steam/library/library-row.tsx) is the compact list-view variant of [`library-tile.tsx`](../../../apps/web/src/steam/library/library-tile.tsx); both navigate to the same `/steam/game/$appid` destination. Apply the same `steam-game-${appid}` name + shared blurred-capsule morph anchor pattern. One source surface to add, zero changes to the destination. Smallest possible chunk in the list.
+- **Patches list → patch detail.** [`patches-page.tsx`](../../../apps/web/src/lol/patches/patches-page.tsx) → `/lol/patches/$version`. New surface — currently no morph wiring at all in this section. Single hero element (the patch version badge / header). Straightforward port of the shipped pattern; no aspect-mismatch quirks.
+- **Wishlist → game detail.** [`/steam/wishlist`](../../../apps/web/src/routes/steam/wishlist.tsx) currently uses a `?appid=` query-param focus pane rather than a real route. Not a VT problem — a product/architectural decision about whether wishlist becomes a list↔detail pair. If/when it does, VT applies trivially.
+
+### Sort / filter reorder (same-route, list reflow)
+
+For each: drop in `view-transition-name: <surface>-${id}` per row before the sort-state update; wrap the state setter in `startViewTransition()`. The SectionShell incompatibility doesn't apply (same route, same DOM tree). Cheap and self-contained.
+
+- **Steam library tile/row reorder** under [`library-controls.tsx`](../../../apps/web/src/steam/library/library-controls.tsx) (sort: Name / Platform / Playtime / Recent).
+- **LoL champion table reorder** under [`champion-sort-selector.tsx`](../../../apps/web/src/lol/champions/champion-sort-selector.tsx) (sort: Games / WR / KDA / Playtime). This is the Chunk 4 spike already in the chunked plan above — compare side-by-side with Motion `layout` before adopting, per the "skip if Motion is fine" gate.
+- **Steam achievements** sort / grouping if any becomes user-controllable.
+
+### Modal / lightbox open-close (same-route, element ↔ overlay)
+
+- **Game screenshot strip → lightbox.** [`game-screenshot-strip.tsx`](../../../apps/web/src/steam/game/game-screenshot-strip.tsx) opens a modal with a fade. A VT-driven morph (carousel item → expanded lightbox) is exactly the "open Lightroom-style" UX VT was designed for, and it's the one category where Motion has no clean answer (rect-capture across modal mount is what VT solves natively). Highest "feels native" payoff of anything in this catalog. Caveat: Embla makes rect-capture annoying; the named element must be the currently-visible carousel item, not the whole strip.
+
+### Deferred (bundled into bigger arcs)
+
+- **Tab indicator bars** — Steam tabs ([`steam.tsx`](../../../apps/web/src/routes/steam.tsx)), LoL account tabs ([`$accountSlug.tsx`](../../../apps/web/src/routes/lol/$accountSlug.tsx)), match-detail tabs ([`match-detail-tabs.tsx`](../../../apps/web/src/lol/matches/match-detail-tabs.tsx)). Motion `layoutId` indicator already works well; visible delta from a VT swap is marginal. Bundled under #1 of "What's next" (the SectionShell migration) rather than separate items.
+- **Trophy-case strip → expanded item.** No existing detail target; would need to invent the "click rare-unlock to expand" UX first. Not a VT problem until that UX exists.
+
+---
+
 ## Reduced motion
 
 Already handled — see Chunk 1. The standard pattern (per [03-motion.md §6.6](~/.claude/knowledge/frontend-2026/03-motion.md)):
