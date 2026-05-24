@@ -136,10 +136,49 @@ body[data-vt-shell="on"] [data-vt-main] {
   background: transparent;
 }
 
+/* ── Safari-only sibling-tab slide (non-VT) ───────────────────────────────
+   WebKit's VT snapshot capture is expensive on Steam-shaped DOM (tiles,
+   virtualized rows, blurred chip badges), so navigation-type.ts returns
+   `false` for intra-Steam navs on WebKit to bypass router VT entirely.
+   The destination would otherwise pop in with no animation; these
+   classes are applied to a freshly-mounted wrapper in routes/steam.tsx
+   when `useSafariSlideDirection` returns a direction, giving Safari
+   users a visible slide that runs purely on the compositor — no
+   snapshot, no main-thread cost.
+
+   Distinct keyframes from the VT slide types (no opacity fade): real
+   VT animates both OLD (sliding out + fading down) and NEW (sliding in
+   + fading up) simultaneously, so the user's eye always has content to
+   track. Without an OLD snapshot to balance the slide-in, the opacity
+   fade-from-zero on NEW left the destination invisible for the first
+   ~60ms of the animation, making the motion feel slower than the
+   cross-engine version. Translate-only keeps NEW fully visible from
+   frame 0 — the slide alone telegraphs motion. */
+
+@keyframes safari-slide-in-from-right {
+  from { transform: translateX(48px); }
+  to   { transform: translateX(0); }
+}
+@keyframes safari-slide-in-from-left {
+  from { transform: translateX(-48px); }
+  to   { transform: translateX(0); }
+}
+
+.safari-slide-in-from-right {
+  animation: safari-slide-in-from-right 220ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.safari-slide-in-from-left {
+  animation: safari-slide-in-from-left 220ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+  .safari-slide-in-from-right,
+  .safari-slide-in-from-left {
+    animation: none;
   }
 }

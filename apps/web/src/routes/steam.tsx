@@ -5,6 +5,7 @@ import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import { isSteamTabActive } from "@/steam/tabs";
+import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
@@ -36,6 +37,14 @@ const tabIconVariants: Variants = {
 
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Safari/iOS bypasses router VT for intra-Steam navs (see
+  // navigation-type.ts) because WebKit's VT snapshot capture is
+  // expensive on Steam-shaped DOM. Without VT the destination would
+  // appear instantly with no animation — `useSafariSlideDirection`
+  // computes the would-be slide direction so a cheap CSS animation
+  // can stand in. Returns null on Chrome/Firefox, on cross-section
+  // navs, and on first mount.
+  const safariSlideDir = useSafariSlideDirection(pathname);
 
   useScrollResetOnNav(pathname, [
     { fromPrefix: "/steam/game/", toExact: "/steam/library" },
@@ -44,7 +53,26 @@ function SteamLayout() {
   return (
     <SteamProfileBackdrop>
       <SectionShell identity={<SteamIdentity />} nav={<SteamTabs pathname={pathname} />}>
-        <Outlet />
+        {safariSlideDir ? (
+          // `key` forces a fresh DOM element per pathname so the CSS
+          // animation re-fires on every Safari intra-Steam nav. The
+          // Outlet inside would unmount/remount anyway on a route
+          // change (TanStack swaps the matched component), so the
+          // wrapper recreation adds one extra div replacement, no
+          // additional component churn.
+          <div
+            key={pathname}
+            className={
+              safariSlideDir === "left"
+                ? "safari-slide-in-from-right"
+                : "safari-slide-in-from-left"
+            }
+          >
+            <Outlet />
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </SectionShell>
     </SteamProfileBackdrop>
   );
