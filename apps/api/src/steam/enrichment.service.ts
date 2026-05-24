@@ -34,6 +34,7 @@ export interface EnrichmentUpsert {
   isFree: boolean | null;
   tagIds: number[];
   featureCategoryIds: number[];
+  shortDescription: string | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -86,6 +87,7 @@ export function projectEnrichment(
     isFree: raw.is_free ?? null,
     tagIds: (raw.tagids ?? []).slice(0, MAX_TAG_IDS),
     featureCategoryIds: categories?.feature_categoryids ?? [],
+    shortDescription: raw.basic_info?.short_description ?? null,
   };
 }
 

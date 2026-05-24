@@ -161,6 +161,11 @@ export function LibraryTileHovercardContent({
       {showMeta && (
         <div className="flex flex-col gap-2 p-3">
           <span className="line-clamp-2 text-sm font-semibold">{game.name}</span>
+          {game.shortDescription !== null && (
+            <p className="line-clamp-3 text-xs text-muted-foreground italic">
+              {game.shortDescription}
+            </p>
+          )}
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
               Time played

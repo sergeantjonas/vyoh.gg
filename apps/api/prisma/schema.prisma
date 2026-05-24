@@ -121,6 +121,10 @@ model SteamGameEnrichment {
   isFree               Boolean?
   tagIds               Int[]
   featureCategoryIds   Int[]
+  // `basic_info.short_description` from IStoreBrowseService — the one-line
+  // marketing blurb shown on the Steam store card. Typically 150–300 chars.
+  // Null when upstream returns no basic_info block (delisted/private apps).
+  shortDescription     String?
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps

@@ -46,6 +46,7 @@ function makeGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     appType: 0,
     tagIds: [],
     rtimeLastPlayedAt: null,
+    shortDescription: null,
     ...overrides,
   };
 }

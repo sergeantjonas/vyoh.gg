@@ -96,4 +96,15 @@ describe("projectEnrichment", () => {
     );
     expect(row?.logoPath).toBe("c0cb6f0c5702fdb43a1ff89cee79ffbe4d990b47");
   });
+
+  it("projects basic_info.short_description into shortDescription", () => {
+    const row = projectEnrichment(
+      raw({ basic_info: { short_description: "Explore a vast ruined kingdom." } })
+    );
+    expect(row?.shortDescription).toBe("Explore a vast ruined kingdom.");
+  });
+
+  it("defaults shortDescription to null when basic_info is absent", () => {
+    expect(projectEnrichment(raw({}))?.shortDescription).toBeNull();
+  });
 });

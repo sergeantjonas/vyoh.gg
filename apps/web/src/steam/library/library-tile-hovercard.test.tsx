@@ -150,6 +150,23 @@ describe("LibraryTileHovercardContent", () => {
     expect(imgs.length).toBe(3);
   });
 
+  it("renders the short description in the meta block when set", () => {
+    const { container } = render(
+      <LibraryTileHovercardContent
+        game={game({ shortDescription: "A hat-based shooter." })}
+      />
+    );
+    expect(container.textContent).toContain("A hat-based shooter.");
+  });
+
+  it("omits the short description block when null", () => {
+    const { container } = render(
+      <LibraryTileHovercardContent game={game({ shortDescription: null })} />
+    );
+    // No <p> with italic class slipped in.
+    expect(container.querySelector("p.italic")).toBeNull();
+  });
+
   it("skips the rotation tick while the document is hidden", () => {
     mockMedia([
       { thumbUrl: "https://example.com/a.jpg" },

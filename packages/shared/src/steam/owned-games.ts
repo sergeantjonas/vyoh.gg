@@ -43,6 +43,11 @@ export interface SteamOwnedGame {
   // Paired with the most recent unlock timestamp to surface a
   // "still launching, not progressing" verdict.
   rtimeLastPlayedAt: string | null;
+  // One-line marketing blurb from `basic_info.short_description`. Surfaced
+  // as a tooltip on the library card title and as a subtitle on the game
+  // detail header. Null when the enrichment row is missing or the upstream
+  // omitted basic_info.
+  shortDescription: string | null;
 }
 
 export interface SteamOwnedGames {

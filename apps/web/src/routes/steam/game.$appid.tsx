@@ -162,8 +162,8 @@ function SteamGamePage() {
             {game?.name ?? `App ${appidParam}`}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Lifetime + recent playtime from the daily poller, with per-game achievement
-            state where Steam exposes it.
+            {game?.shortDescription ??
+              "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
           </p>
         </div>
       )}
