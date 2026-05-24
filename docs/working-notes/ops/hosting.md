@@ -76,21 +76,20 @@ never proxies the stream.
 
 ### 1. Replace hardcoded API_URL with an env var
 
-`apps/web/src/lol/matches/use-matches.ts:11` has:
+`const API_URL = "http://localhost:2010"` is **duplicated across 20+ sites** in `apps/web/src/` — every query hook in `home/`, `steam/`, `lol/matches/`, `lol/champions/`, plus the SSE `EventSource` URL and the `head()` `og:image` URL in [`apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx`](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L31). All tests assert the literal `"http://localhost:2010"` too, so they need parallel updates.
 
-```ts
-const API_URL = "http://localhost:2010";
-```
+The change is therefore not a one-line replace but a small chunked task to land alongside the hosting choice:
 
-Replace with:
+1. Introduce a single `apps/web/src/lib/api-url.ts` helper (or equivalent) that reads `import.meta.env.VITE_API_URL` once.
+2. Add `apps/web/.env.development` with `VITE_API_URL=http://localhost:2010` so dev keeps working.
+3. Sweep the 20+ duplicate `const API_URL = "http://localhost:2010"` sites to import the helper.
+4. Update the parallel test assertions that compare the literal string.
+5. Add a Vite dev proxy if the production shape is same-origin (Option C), so dev mirrors prod and the helper can return a relative base.
+6. Set `VITE_API_URL=https://api.vyoh.gg` (or whatever the chosen host's URL is) in the deploy environment.
 
-```ts
-const API_URL = import.meta.env.VITE_API_URL;
-```
+This affects all fetch calls **and** the `EventSource` URL for SSE **and** the `head()` `og:image` URL — all share the constant. The `head()` case is the most user-visible breakage in production (broken social previews on every shared match URL) but cannot be fixed in isolation: `head()` runs at navigation time in the browser, so relative URLs in `og:image` would only resolve correctly for crawlers that follow OpenGraph's "relative URLs allowed" allowance (Facebook does; Twitter/X historically required absolute). Safer to wait until the hosting choice fixes the absolute base URL.
 
-Then set `VITE_API_URL=https://<railway-service>.railway.app` (or custom domain
-once wired) in Vercel's environment variable settings. This affects all fetch
-calls **and** the `EventSource` URL for SSE — both share the constant.
+**Why not ship as a quick-win today:** the fix shape depends on the hosting decision. Option A/B (separate api.vyoh.gg subdomain) → absolute env var URL everywhere. Option C (same-origin Nginx reverse-proxy) → relative `/api/...` paths everywhere + Vite dev proxy. Picking one before hosting lands means rework on the loser.
 
 ### 2. Configure CORS on the NestJS side
 

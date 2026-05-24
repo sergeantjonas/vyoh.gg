@@ -363,14 +363,14 @@ The `localhost` bug is the more urgent half: it's a one-line fix and any product
 
 **Tension with Start:** None — `head()` exports are identical between Router SPA and Start. In Start, the head also influences the SSR document; in SPA mode it mutates the client `<head>` after hydration (still picked up by crawlers that execute JS, and by some that don't with the right SSR posture later). Shipping `head()` per-route now is the structural prep for the Start migration's chunk 2 ("per-route metadata").
 
-**How to apply:** Two commits.
+**How to apply:** Two commits, but the first is gated on the hosting decision — not shippable in isolation.
 
-1. **Fix the localhost bug.** Replace `const API_URL = "http://localhost:2010"` with a resolution that reads `import.meta.env.VITE_API_URL` (or `window.location.origin` if API is same-origin in production via reverse proxy). Confirm by running `pnpm build && pnpm preview` and inspecting the rendered `<head>` for the match route — `og:image` must be the production URL.
-2. **Fan out `head()` to the remaining deep routes.** Per route, derive title/description from the loader-primed data (matches Gap 15 nicely — loader primes the query, `head()` reads the cache). Champion-detail uses champion display name; game-detail uses game title from Steam; patch-detail uses patch version + headline change count. Use the existing OG image pipeline for og:image where one exists; fall back to the static favicon for routes without a per-page image.
+1. **Fix the localhost bug** as part of the hosting pre-deploy sweep (see [hosting.md § Pre-deploy checklist #1](../ops/hosting.md)). The hardcoded `const API_URL = "http://localhost:2010"` is **duplicated across 20+ sites** in `apps/web/src/` (every query hook in `home/`, `steam/`, `lol/matches/`, `lol/champions/`, plus the SSE `EventSource` URL — not unique to the `head()` site), so a one-file replace would leave the broader inconsistency. The fix shape also depends on hosting Option A/B (separate api.vyoh.gg → absolute env var) vs Option C (same-origin reverse-proxy → relative paths + Vite dev proxy). Don't pre-decide.
+2. **Fan out `head()` to the remaining deep routes.** Independent of #1 — does not need the localhost bug fixed first since it only adds new `head()` exports, doesn't touch the existing buggy one. Per route, derive title/description from the loader-primed data (matches Gap 15 nicely — loader primes the query, `head()` reads the cache). Champion-detail uses champion display name; game-detail uses game title from Steam; patch-detail uses patch version + headline change count. Use the existing OG image pipeline for og:image where one exists; fall back to the static favicon for routes without a per-page image.
 
-Order the work after Gap 15's pilot so the loader-primed cache is available to `head()` synchronously. Without a loader, `head()` runs before the query resolves and can't read the data — you'd have to derive titles from URL params only (still better than nothing for the localhost-bug commit).
+Order the work after Gap 15's pilot so the loader-primed cache is available to `head()` synchronously. Without a loader, `head()` runs before the query resolves and can't read the data — you'd have to derive titles from URL params only.
 
-**Effort:** Bug fix ~15 min. Fan-out ~20 min per route family × 4–5 = ~2h. Total: ~2.5h.
+**Effort:** Localhost bug fix is part of the hosting sweep (~1–2h once hosting is picked, not a standalone quick-win). Fan-out ~20 min per route family × 4–5 = ~2h. Total: ~2h fan-out + hosting-sweep dependency for the bug.
 
 ### Round 5 non-gaps (worth knowing, no action)
 
@@ -387,8 +387,8 @@ These are strong-adoption signals confirming the framework pick is correctly use
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
 | **N — Route loader pilot on match-detail** | #15 (pilot) | ~1h | Ship now, single commit |
-| **O — `head()` localhost bug fix** | #16 (part 1) | ~15 min | Ship now, single commit (independent of N) |
-| **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; order after N + O land |
+| **O — `head()` localhost bug fix** | #16 (part 1) | hosting-gated | Land as part of [hosting.md § Pre-deploy #1](../ops/hosting.md) — 20+ duplicate API_URL sites + hosting-shape dependency means this isn't a standalone quick-win |
+| **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; can order after N alone (independent of O) |
 
 ---
 
