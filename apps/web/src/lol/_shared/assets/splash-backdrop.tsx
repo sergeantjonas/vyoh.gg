@@ -1,3 +1,4 @@
+import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -13,7 +14,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 
 type SplashClaim = { champion: string; offsetX: number };
 
@@ -198,7 +198,7 @@ export function SplashProvider({ children }: { children: ReactNode }) {
   return (
     <SplashContext.Provider value={value}>
       {children}
-      {createPortal(
+      <BackdropPortal>
         <AnimatePresence>
           {champion && (
             <m.div
@@ -207,14 +207,13 @@ export function SplashProvider({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.7 }}
-              className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+              className={BACKDROP_SHELL_CLASS}
             >
               <ChampionSplashLayer champion={champion} offsetX={offsetX} />
             </m.div>
           )}
-        </AnimatePresence>,
-        document.body
-      )}
+        </AnimatePresence>
+      </BackdropPortal>
     </SplashContext.Provider>
   );
 }
