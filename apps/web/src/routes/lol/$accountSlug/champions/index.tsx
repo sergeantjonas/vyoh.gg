@@ -1,5 +1,6 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
+import { withReorderViewTransition } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import {
   ROLE_LABEL,
@@ -120,13 +121,15 @@ function ChampionsPage() {
   const setHoveredChampion = useHoverChampion();
 
   const setRole = (next: RolePosition | undefined) =>
-    navigate({
-      to: ".",
-      search: (prev) => {
-        const { role: _, ...rest } = prev;
-        return next !== undefined ? { ...rest, role: next } : rest;
-      },
-    });
+    withReorderViewTransition(() =>
+      navigate({
+        to: ".",
+        search: (prev) => {
+          const { role: _, ...rest } = prev;
+          return next !== undefined ? { ...rest, role: next } : rest;
+        },
+      })
+    );
 
   return (
     <div className="flex flex-col gap-3">
@@ -143,7 +146,7 @@ function ChampionsPage() {
           <RoleChipStrip value={role} onChange={setRole} />
           <ChampionSortSelector
             value={sort}
-            onChange={setSort}
+            onChange={(v) => withReorderViewTransition(() => setSort(v))}
             layoutId="champions-sort-indicator"
           />
         </div>

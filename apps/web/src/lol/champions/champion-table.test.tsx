@@ -143,6 +143,15 @@ describe("ChampionTable", () => {
     expect(chrome).toEqual(["Long", "Short"]);
   });
 
+  it("stamps `champion-${alias}` as view-transition-name on the row li so sort/role reorders pair OLD↔NEW", () => {
+    const { container } = renderTable(
+      <ChampionTable stats={[stat()]} sort="games" accountSlug="ahri" />
+    );
+    const li = container.querySelector("li");
+    if (!li) throw new Error("li missing");
+    expect(li.style.viewTransitionName).toBe("champion-Ahri");
+  });
+
   it("invokes onCardHover with the champion key when the row is hovered", () => {
     const onCardHover = vi.fn();
     renderTable(

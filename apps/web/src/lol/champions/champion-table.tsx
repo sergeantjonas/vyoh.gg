@@ -327,6 +327,14 @@ function ChampionTableRow({
       variants={item}
       animate={{ opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
+      // Always-on `view-transition-name` lets sort/role reorders wrapped in
+      // `withReorderViewTransition` pair OLD↔NEW positions per champion.
+      // Disjoint namespace from the click-time `champion-${alias}-${position}`
+      // applied to the inner cardRef during forward-nav (different name → no
+      // collision), and the outer li name has no pair on the destination
+      // champion page so it falls back to the UA exit fade — visually
+      // equivalent to today since the surrounding root group is also fading.
+      style={{ viewTransitionName: `champion-${alias}` }}
     >
       <CardTilt>
         <Link
