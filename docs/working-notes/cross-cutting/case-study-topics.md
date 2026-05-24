@@ -344,6 +344,43 @@ Evidence to collect:
 
 Pairs naturally with a [personal-baselines.md](../lol/personal-baselines.md) follow-on, or absorbs the personal-baselines framing into a single longer piece if revisited.
 
+## Candidate write-up 10 — Refusing to accept Safari as broken
+
+Status: **diagnosed, shipped 2026-05-24, undocumented as a public write-up.** Multi-session debugging arc that started as "Safari feels choppy on Steam tabs", went through six discarded hypotheses, surfaced a documented WebKit code path no app-level CSS can reach, and landed on a working engine-gated fix that preserves the visual continuity Chrome/Firefox users get. Source-of-truth working note: [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md).
+
+Most "Safari is slow" anecdotes online stop at *"it just is — here's a workaround that removes the affected feature."* This arc is the opposite arc: a refusal to settle, a structured bisection that ruled out plausible-but-wrong causes empirically rather than by hand-waving, primary-source research into WebKit engineering mailing lists, and a fix that **gives Safari users the same visual treatment as other engines without paying the engine-specific cost**.
+
+The diagnostic arc is more interesting than the fix. The fix took ~100 lines of CSS + a hook + an engine gate. The diagnosis took multiple debugging sessions across several refresh-and-test cycles, with the owner pushing back on premature conclusions when the data didn't support them.
+
+Topics:
+
+- **Why "Safari is slow" anecdotes don't replicate cleanly** — most are surface-level conclusions that conflate browser behaviour with feature complexity. Real perf debugging requires cross-engine isolation, instrumentation, and engine-internal context (WebKit's compositor running snapshot work on the main thread vs Blink's compositor-thread offload).
+- **The bisection method** — using Safari Web Inspector → Timelines → Frames view to expand individual slow frames and read named event rows (`Transition Start Event Dispatched`, `Composite`, `Paint` per layer). Naming what's actually expensive instead of guessing.
+- **Asymmetric symptoms as a clue** — the user-observed pattern "leaving wishlist is uniquely fast; leaving anything else is choppy" was the diagnostic key. Symmetric symptoms (uniformly slow) misdirect; asymmetric ones constrain the search space.
+- **The six discarded hypotheses** — animated profile video, runtime backdrop blur, full-viewport backdrop layer, tile/row composite layer count from `perspective(...)` at rest, hidden hero-anchor `blur-sm` layers, TanStack Virtual measurement/teardown. Each was a plausible candidate that got an empirical test and was killed by re-recording. The honest acceptance that each was wrong.
+- **The WebKit mailing-list quote** — "*The default pseudo element structure results in an asynchronous animation of the snapshot position via transform, and a sync animation of the width/height. If there's any slowness at all on the main thread, then this looks super jumpy.*" Primary-source documentation of the exact behaviour we were measuring. Validates the diagnosis with WebKit engineers' own words.
+- **The decision to gate vs continue chasing CSS** — when the cost lives in an engine code path that no CSS property reaches, the right move is engine-gating with a compositor-only substitute, not endless parity tuning. The repo conventions now codify this rule.
+- **The CSS-slide substitute** — `transform`-only keyframes (no opacity), 48px, 220ms, iOS-style easing. Tuned by side-by-side comparison against the cross-engine VT version. Compositor-only, no main-thread cost.
+- **The meta-lesson about research timing** — earlier `WebSearch` would have surfaced TanStack Virtual's then-just-shipped perf release and React's Activity API papers explicitly acknowledging unmount cost. Saved sessions of speculation.
+
+Evidence to collect:
+
+- before/after Safari Frames recordings on the same Steam → Steam nav (the chop disappears between recordings)
+- frame-time comparison: typical 60-130 ms per nav frame on the broken version vs flat 16 ms with the bypass + CSS slide
+- side-by-side screen recordings of the same nav on Safari before/after, alongside Chrome for parity comparison
+- the diff that landed (small for the size of the diagnosis): `is-webkit.ts`, the bypass branch in `navigation-type.ts`, `use-safari-slide-direction.ts`, the wrapper in `routes/steam.tsx`, the keyframes in `view-transitions.css`
+- the WebKit mailing-list URL + screenshot of the documented quote, as primary-source proof
+
+Portfolio signal:
+
+- structured debugging discipline under sustained pressure — willingness to throw away wrong hypotheses, willingness to keep going past the point where many engineers would call it accepted
+- primary-source engineering investigation (WebKit mailing list, GitHub issues, library changelogs) instead of folk wisdom
+- pragmatic engine-gating with substitute UX rather than degraded UX on one engine
+- meta-awareness of the debugging process itself: the working note ends with explicit lessons learned about instrumentation timing, research timing, and the cost of speculating without measuring
+- the visible result: a Safari user gets a smooth slide animation that LOOKS the same as the Chrome user's, but achieves it through a fundamentally different mechanism beneath the surface — a deliberate cross-engine substitution rather than a "Safari users get less" trade-off
+
+Pairs naturally with [Candidate write-up 6](#candidate-write-up-6--killing-fullscreen-blur-flicker-on-a-4k-dashboard) — both are perf-debugging arcs that landed on compositor-level fixes after ruling out higher-layer suspects. Could be cross-linked as a two-part series: "*The blur flicker arc was a single fix landing a cluster of causes; the Safari VT arc was a cluster of fixes landing a single irreducible cause.*"
+
 ## README sections to grow incrementally
 
 ### Architecture

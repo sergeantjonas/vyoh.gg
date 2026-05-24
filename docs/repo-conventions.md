@@ -122,6 +122,23 @@ For rich or animated tooltips (hover cards, sparkline popovers) use the fuller C
 
 **How to apply:** Any new element that needs a label or explanation uses `TooltipPrimitive`. Add `aria-label` on the trigger when there is no visible text label (icon-only buttons). Reference: [nav.tsx](../apps/web/src/components/nav.tsx) for the compact form.
 
+### Gate engine-specific perf cliffs instead of chasing CSS parity
+
+When a feature performs well in Blink/Gecko but produces visible chop on WebKit (Safari/iOS), and you've exhausted reasonable in-CSS optimisations without closing the gap, **gate the feature on `isWebKit()` ([apps/web/src/lib/is-webkit.ts](../apps/web/src/lib/is-webkit.ts)) and ship a compositor-only substitute** for the engine that doesn't handle it well. Don't continue tuning CSS toward parity when the cost lives inside an engine code path no CSS property reaches (snapshot capture, filter pipeline, layer-tree management).
+
+**Currently in scope:** intra-Steam router VT is bypassed on WebKit in [navigation-type.ts](../apps/web/src/lib/navigation-type.ts), substituted by the `safari-slide-in-from-*` keyframes + [`useSafariSlideDirection`](../apps/web/src/steam/use-safari-slide-direction.ts) hook applied in [routes/steam.tsx](../apps/web/src/routes/steam.tsx). Documented end-to-end in [safari-vt-snapshot-cost.md](working-notes/cross-cutting/safari-vt-snapshot-cost.md).
+
+**Why:** WebKit's compositor and filter pipeline run more work on the main thread than Blink/Gecko's. For Steam-shaped DOM (high stacking-context density, multiple `backdrop-blur` chips, virtualised rows with absolute positioning), Safari's `startViewTransition` snapshot capture costs hundreds of ms — contending with React commits and producing chop. A two-session debugging arc ruled out backdrop, filters, perspective transforms, blur layers, and virtualiser teardown one-by-one before landing on snapshot capture as the irreducible cost. CSS-level tuning helped marginally but couldn't cross the gap because the cost path was unreachable from app code.
+
+**How to apply:**
+- Before reaching for `isWebKit()`, exhaust standard perf moves: reduce composite layer count, drop `filter:` properties, defer mount, virtualise lists, simplify component chrome. Many issues *do* yield to CSS-level fixes; gate only when they don't.
+- Validate with Safari Web Inspector → Timelines → Frames before and after each change. If Composite or "Other" stays high after the standard moves and the user-felt cost persists, the cost likely lives in an engine path you can't reach — gate.
+- The gate goes in `getNavigationType` (route-level) or at the component opt-in (feature-level), not as a global engine downgrade. Other surfaces on the same engine may handle the feature fine; LoL VT works on Safari while Steam VT doesn't.
+- When you gate, ship a substitute that runs purely on the compositor: `transform`-only CSS animations, no `opacity`, no `filter:`, no `backdrop-filter`. The substitute should preserve the visual intent (motion, continuity) without paying the engine cost.
+- Detection is by `navigator.vendor === "Apple Computer, Inc."` (cached at module load). This catches iOS Chrome / Firefox too, which both wrap WKWebView and share the same cost.
+
+**Generalisation guidance:** the current `useSafariSlideDirection` hook hard-codes the Steam tab order. When a second section needs the same pattern, generalise — pass tab order as a parameter, lift the hook into `_shared`. Don't pre-emptively abstract before a second consumer exists ([per the "three similar lines is better than a premature abstraction" rule](#)).
+
 ### Committed generated files must be documented here
 
 Generated files (codegen output, router manifests, OpenAPI clients, Prisma artefacts) default to gitignored. Commit a generated file only when there is a deliberate reason (e.g. zero-cold-start dev, diff-as-audit-log), and record that reason in this section so the next reviewer doesn't raise it as a defect.
