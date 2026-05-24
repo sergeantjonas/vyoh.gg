@@ -27,6 +27,24 @@ Each integration owns its own top-level route tree: `/lol/...`, `/steam/...`, an
 
 **How to apply:** When adding a new section (TFT, future verticals), call `useScrollResetOnNav` in the section root in the same change, with `skips` for any list↔detail back-restore pairs. When adding a new sectionless top-level route, no scroll wiring is needed. **Never** call `useScrollResetOnNav` from a leaf route component — the first-mount no-op makes it look like it works in dev (subsequent intra-route navigation, if any, would fire) but it doesn't reset on the navigation that brought you there. If a sectionless route grows children and becomes a section, add `useScrollResetOnNav` to its new layout component at that point.
 
+### Virtualize only when the list can exceed ~100 items AND grows via paged loading
+
+A virtualizer (`@tanstack/react-virtual` etc.) trades implementation cost for render cost. **Implementation cost is real:** scroll-restore needs a pin loop, the loop has to be StrictMode-resilient (mount → cleanup → remount races the first RAF and can leave scroll stuck — see the `pinCompletedRef` pattern in [apps/web/src/lol/matches/match-list.tsx](../apps/web/src/lol/matches/match-list.tsx)), the virtualizer container's `getTotalSize()` height has to land before the first scrollTo, intersection-observer plumbing has to coexist with whatever else mounts in the route, and the whole thing interacts with AnimatePresence + route transitions in ways that take a while to debug. **Render cost is negligible at small N:** 50 rows of a tilt-card with hover state and Motion variants are not a perf problem on any mainstream device.
+
+**Use a virtualizer when:**
+- The list count can exceed ~100 items (a Steam library of 500 games, an active match history of 1000+ matches), AND
+- The list grows via infinite scroll / paged loading rather than a bounded fetch, AND
+- A representative render of the full list shows actual measurable jank (long tasks > 50 ms, dropped frames on scroll).
+
+**Do NOT virtualize when:**
+- The count has a structural cap (champion list at ~150 unique champions max, patches list at ~30 over a season, profile widgets that fan out to single-digit counts).
+- The list is part of a bounded view (recap match-by-match, trend rollup rows).
+- "It might get longer eventually" — virtualize *when* it does, not pre-emptively. Future-you can always add it; future-you can't easily remove it.
+
+**Why:** Pre-emptively virtualizing a bounded list buys ~zero render savings and adds a class of bugs that take real time to diagnose. The match-list virtualizer is justified (potentially 1000+ matches via infinite scroll); the champion-list is not (capped, no infinite scroll); the Steam library is borderline (capped per-user, but a power-user can have 500+ games — promote when it shows real jank on a representative library).
+
+**How to apply:** When adding a new list surface, default to a flat unvirtualized render. Re-evaluate only if perf measurement shows a problem on a realistic dataset. When the user-base shifts (e.g., Steam power-users become common), promote to virtualized in a focused change that's tested specifically for scroll-restore + nav-transition interactions.
+
 ### Skeleton loaders must mirror the layout they replace
 
 A skeleton loader's job is to reserve the shape of incoming content, not to render a generic shimmer. If a page has multiple tabs/sections with different layouts (e.g. match-detail's Recap / Your game / Timeline), the skeleton must branch on the active surface — the example pattern lives in [apps/web/src/lol/matches/match-detail-skeleton.tsx](../apps/web/src/lol/matches/match-detail-skeleton.tsx), gated by tab prop in [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx](../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx).

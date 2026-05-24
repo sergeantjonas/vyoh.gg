@@ -24,6 +24,8 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
+- **View Transitions rollout — next chunks** — champion + match single-element morphs shipped 2026-05-24 (54dce85, 0db5547). Open follow-ups in priority order: (1) Steam library ↔ game detail morph using the shipped pattern, (2) SectionShell AnimatePresence → VT migration to structurally unblock per-element morph and stop accumulating slideKey-coarsening debt, (3) multi-element morph refinement (deferred from match chunk; gated on #2), (4) per-morph CSS defaults + body-hold evaluation, (5) telemetry before removing rect-morph fallback. → [view-transitions-rollout.md § What's next](cross-cutting/view-transitions-rollout.md#whats-next-priority-order)
+- **SectionShell AnimatePresence → VT migration** — full arc scaffolded 2026-05-24; companion to the VT rollout. Replaces `<AnimatePresence mode="popLayout">` wrap around `<Outlet />` with `router.defaultViewTransition` + CSS slide keyframes scoped by transition types. Five chunks: audit/spike → direction-aware VT slide → SectionShell rewrite → revisit slideKey coarsenings → unblock multi-element morph refinement (including the `ChampionCardChrome` restructure). → [section-shell-vt-migration.md](cross-cutting/section-shell-vt-migration.md)
 
 ### Pre-deploy / admin
 
