@@ -118,6 +118,24 @@ body[data-vt-shell="on"] [data-vt-main] {
   animation: vt-fade-in 200ms ease-out both;
 }
 
+/* ── Scrollbar hide during VT ─────────────────────────────────────────────
+   `<main>` carries `scrollbar-gutter: stable both-edges`, so the gutter
+   itself reserves space regardless. The scrollbar *thumb* though paints
+   into the OLD snapshot at whatever scroll position the page held, and
+   the NEW snapshot's thumb sits where the destination's scrollTop lands
+   (reset to 0 for slide types) — interpolating the two reads as a thumb
+   sliding diagonally across the page during the transition. Hide it on
+   both pseudos for the duration; the gutter holds layout so nothing
+   shifts. `:root:active-view-transition` auto-applies during a VT and
+   auto-clears at end, so no JS toggling needed. */
+:root:active-view-transition [data-vt-main] {
+  scrollbar-color: transparent transparent;
+}
+:root:active-view-transition [data-vt-main]::-webkit-scrollbar-thumb,
+:root:active-view-transition [data-vt-main]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
