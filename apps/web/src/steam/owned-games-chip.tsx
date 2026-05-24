@@ -2,21 +2,20 @@ import { Link } from "@tanstack/react-router";
 import { FactCard } from "./_shared/fact-card";
 import { useSteamOwnedGames } from "./use-owned-games";
 
-function formatHours(minutes: number): string {
-  const hours = Math.round(minutes / 60);
-  return `${hours.toLocaleString("en-US")}h`;
+function minutesToHours(minutes: number): number {
+  return Math.round(minutes / 60);
 }
 
 export function OwnedGamesChip() {
   const { data, isPending, isError } = useSteamOwnedGames();
 
   if (isPending) {
-    return <FactCard title="Owned games" verdict="Loading playtime…" empty />;
+    return <FactCard title="Most played" verdict="Loading playtime…" empty />;
   }
 
   if (isError || !data) {
     return (
-      <FactCard title="Owned games" verdict="Playtime is unavailable right now." empty />
+      <FactCard title="Most played" verdict="Playtime is unavailable right now." empty />
     );
   }
 
@@ -25,31 +24,35 @@ export function OwnedGamesChip() {
   if (top === undefined) {
     return (
       <FactCard
-        title="Owned games"
+        title="Most played"
         verdict="Nothing played yet — first poll lands at 04:00 Brussels time."
         empty
       />
     );
   }
 
-  const verdict = `${formatHours(top.playtimeForeverMinutes)} into ${top.name}.`;
-  const prescription = `Most-played of ${everLaunched.length} ever-launched ${
-    everLaunched.length === 1 ? "title" : "titles"
-  }.`;
+  const lifetimeHours = minutesToHours(top.playtimeForeverMinutes);
+  const recentHours = minutesToHours(top.playtime2WeeksMinutes ?? 0);
+  const verdict = `${lifetimeHours.toLocaleString("en-US")}h into ${top.name}.`;
+  const prescription =
+    recentHours > 0
+      ? `${recentHours.toLocaleString("en-US")}h in the last two weeks.`
+      : undefined;
 
   return (
     <FactCard
-      title="Owned games"
-      metric={everLaunched.length}
-      metricLabel={{ singular: "game", plural: "games" }}
+      title="Most played"
+      metric={lifetimeHours}
+      metricLabel={{ singular: "hour", plural: "hours" }}
       verdict={verdict}
       prescription={prescription}
       evidence={
         <Link
-          to="/steam/library"
+          to="/steam/game/$appid"
+          params={{ appid: String(top.appid) }}
           className="text-sm text-foreground/70 underline-offset-2 hover:underline"
         >
-          See the full library →
+          Open {top.name} →
         </Link>
       }
     />

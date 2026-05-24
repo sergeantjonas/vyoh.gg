@@ -105,15 +105,19 @@ describe("OwnedGamesChip", () => {
     });
     renderChip();
     expect(screen.getByText("10h into Team Fortress 2.")).toBeTruthy();
-    expect(screen.getByText("Most-played of 1 ever-launched title.")).toBeTruthy();
+    expect(screen.getByText(/Open Team Fortress 2/)).toBeTruthy();
   });
 
-  it("pluralizes 'titles' when there are 2+ ever-launched games", () => {
+  it("shows recent two-week playtime in the prescription when present", () => {
     mockHook({
       data: {
         games: [
-          makeGame({ appid: 1, name: "First", playtimeForeverMinutes: 6000 }),
-          makeGame({ appid: 2, name: "Second", playtimeForeverMinutes: 60 }),
+          makeGame({
+            appid: 1,
+            name: "First",
+            playtimeForeverMinutes: 6000,
+            playtime2WeeksMinutes: 180,
+          }),
         ],
         lastSyncedAt: "2026-05-19T00:00:00Z",
       },
@@ -121,6 +125,26 @@ describe("OwnedGamesChip", () => {
       isError: false,
     });
     renderChip();
-    expect(screen.getByText("Most-played of 2 ever-launched titles.")).toBeTruthy();
+    expect(screen.getByText("3h in the last two weeks.")).toBeTruthy();
+  });
+
+  it("omits the prescription when there is no recent playtime", () => {
+    mockHook({
+      data: {
+        games: [
+          makeGame({
+            appid: 1,
+            name: "Idle",
+            playtimeForeverMinutes: 6000,
+            playtime2WeeksMinutes: 0,
+          }),
+        ],
+        lastSyncedAt: "2026-05-19T00:00:00Z",
+      },
+      isPending: false,
+      isError: false,
+    });
+    renderChip();
+    expect(screen.queryByText(/last two weeks/)).toBeNull();
   });
 });
