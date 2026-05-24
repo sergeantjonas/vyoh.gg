@@ -75,27 +75,51 @@ The VT morph for Steam library → game-detail is already tracked in [view-trans
 
 ---
 
-### Item 4 — Extract shared ref-counted backdrop provider
+### Item 4 — Share the lease + portal shell between the two backdrops
 
-**What:** [`SplashProvider`](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx) (LoL) and [`SteamProfileBackdrop`](../../../apps/web/src/steam/profile-backdrop.tsx) (Steam) implement nearly-identical ref-counted portal-rendered backdrops: ref-count on mount/unmount, owner-keyed crossfade, blurhash placeholder, unmount-safety against stale leases. Each was implemented independently and they've drifted in small ways (animation timings, fallback behaviour, asset-timestamp handling).
+**Audit-correction (2026-05-24):** The original framing here ("nearly-identical ref-counted portal-rendered backdrops") was wrong. Reading both files end-to-end before drafting a chunk plan surfaced that they are *structurally different* patterns that happen to share a portal shell:
+
+- **[`SplashProvider`](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx) (LoL)** — multi-claim stack with deepest-owner-wins selection (`Map<ownerSeq, SplashClaim>`, highest id renders). One layer, `<AnimatePresence>` keyed on champion string. Blurhash placeholder + Ken Burns drift + per-champion `offsetX` pan. No ref-counting per owner — one owner = one claim slot.
+- **[`SteamProfileBackdrop`](../../../apps/web/src/steam/profile-backdrop.tsx) (Steam)** — static base layer (profile image/video) + ref-counted overlay (game detail). `acquire()/release()` lease exists specifically to defend against the `<AnimatePresence>`-around-`<Outlet />` double-mount during nav (in-file comment at lines 30–37). Always-mounted overlay with opacity-driven visibility; no `AnimatePresence`. Includes `<BackdropVideo>` with `visibilitychange` pause-when-hidden.
+
+The visual layer differs in every meaningful dimension (blurhash vs video, single-layer vs base+overlay, AnimatePresence vs always-mounted opacity, owner-stack vs ref-count). The lease semantics differ too (deepest-owner-wins vs any-claim-keeps-alive). What's actually shared is small: the portal target, the fixed-inset-0-z-10-pointer-events-none shell, the blur/brightness aesthetic, and the transition-token timings.
+
+**Design call (Option B):** extract two small primitives — `useRefCountedClaim<T>()` hook and a `<BackdropPortal>` shell — into `apps/web/src/_shared/backdrop/`. Each section keeps its existing provider, structurally distinct, but composes both primitives instead of hand-rolling them. Rejected alternatives:
+
+- **Option A — one generic provider configured by props.** Selection strategy (deepest-id-wins vs ref-count) and layer composition (single vs base+overlay) would need to become flags, and the visual layer would still be `children` anyway. The "shared abstraction" would just be the lease + portal — i.e. Option B with extra ceremony around it.
+- **Option C — extract only CSS/timing tokens.** Cheapest, but leaves the StrictMode/AnimatePresence-around-Outlet defensiveness duplicated across both providers, which is exactly where the past drift happened.
+- **Central `<BackdropOutlet />` in `__root.tsx` instead of per-provider portals.** Concrete payoff is cross-section crossfade (e.g. `/steam → /lol` fades the Steam backdrop out under the rising LoL backdrop). Currently the swap is abrupt because the section unmount tears down its portal entirely. Nobody has flagged this as a bug. Punt; revisit if cross-section crossfade becomes a real ask.
+
+**Pre-work — verify the AnimatePresence-around-Outlet stale-instance hazard in LoL too.** Steam's ref-counting comment cites the same `SectionShell`/`AnimatePresence`/`<Outlet />` setup LoL has. LoL's owner-keyed claims may be latently exposed to the same double-mount but masked by deepest-id-wins selection (the second mount gets a higher `ownerSeq` and immediately takes over). Worth a 10-minute manual probe (devtools, intentional double-mount, observe whether the LoL backdrop ever blanks during a card→detail nav under StrictMode) *before* extracting primitives — the answer affects whether the LoL provider needs lease semantics added during the migration or stays as-is. Document the finding in this note before chunk 1 lands.
 
 **Files in scope:**
-- Likely new: `apps/web/src/lib/ref-counted-backdrop.tsx` (or `packages/shared/src/ui/` if a shared component lib emerges) — generic `<RefCountedBackdrop>` provider + `useRefCountedBackdrop(key)` hook
-- Modified: both existing backdrops re-implement as thin wrappers that supply their asset URL + accent + crossfade timing
-- Tests: both existing backdrop tests should keep passing unchanged; new tests on the abstraction
+- New: `apps/web/src/_shared/backdrop/use-ref-counted-claim.ts` — generic hook, returns `{ claim, acquire, setClaim }` triple, defends against StrictMode double-invoke + transient unmount-from-stale-instance.
+- New: `apps/web/src/_shared/backdrop/backdrop-portal.tsx` — thin `<Portal>` wrapper that ports children to `document.body` with the fixed-inset-0-z-10-pointer-events-none shell + SSR guard.
+- New: `apps/web/src/_shared/backdrop/use-ref-counted-claim.test.tsx` + `backdrop-portal.test.tsx` — primitive-level lease/release semantics and portal mount/unmount safety.
+- Modified: [`apps/web/src/steam/profile-backdrop.tsx`](../../../apps/web/src/steam/profile-backdrop.tsx) — `acquire/release` + `setClaim` delegate to the new hook; portal delegates to `<BackdropPortal>`. Visual layer (`<BackdropVideo>`, `<GameBackdropLayer>`) unchanged.
+- Modified: [`apps/web/src/lol/_shared/assets/splash-backdrop.tsx`](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx) — *only* portal delegation in chunk 2; if pre-work finds the latent hazard, swap the owner-keyed Map for the new hook in chunk 3, otherwise leave selection logic intact.
+- Both existing backdrop tests stay passing unchanged. Test additions live on the new primitives, not the providers.
 
-**Effort:** Small arc, 2–3 chunks. Needs a quick design pass before code (decide where the abstraction lives — `apps/web/src/lib/` or `packages/shared/`; whether transition timing is per-instance config or fixed; whether blurhash + crossfade are baked in or pluggable).
+**Effort:** Small arc, 3 chunks max.
 
-**Open question:** Whether the backdrop owns its DOM portal target (current pattern) or whether a separate `<BackdropOutlet />` is mounted once in `__root.tsx` and providers just lease it. The second shape composes better but is a bigger refactor.
+#### Chunk plan
+
+> **Pre-condition:** complete the LoL AnimatePresence-around-Outlet probe (see "Pre-work" above) and write the finding into this note before opening chunk 1. The probe outcome may collapse chunk 3 to a no-op or expand it slightly.
+
+1. **Chunk 1 — Extract primitives + tests.** Create `_shared/backdrop/use-ref-counted-claim.ts` + `backdrop-portal.tsx` with unit tests. Neither provider consumes them yet. Verifies the primitives in isolation — lease semantics under StrictMode, portal SSR guard, transient-unmount safety. Single commit. ~150 LoC + tests.
+2. **Chunk 2 — Migrate Steam to the primitives.** Replace `liveCountRef` + `acquire/release` in `SteamProfileBackdrop` with the new hook; replace the inline `createPortal` + shell with `<BackdropPortal>`. Visual layer untouched. Existing `profile-backdrop.test.tsx` stays green unchanged. Single commit.
+3. **Chunk 3 — Migrate LoL to `<BackdropPortal>` (and, conditionally, to the lease hook).** Always: swap inline `createPortal` for `<BackdropPortal>`. Conditional on the pre-work finding: if LoL is latently exposed, add the lease hook in place of the owner-stack; if not, leave selection logic intact (the highest-id-wins behaviour is *itself* a stale-claim defense). Existing `splash-backdrop.test.tsx` stays green unchanged. Single commit.
+
+**Out of scope (explicit punts):** central `<BackdropOutlet />` in `__root.tsx`; any change to the visual layers (blurhash, Ken Burns, video pause); cross-section crossfade.
 
 ---
 
 ## Suggested order
 
-1. **Item 1** (scroll-reset skip-pairs) — smallest, fixes a convention violation, no design call.
-2. **Item 2** (Steam skeletons) — biggest visual delta, 3 small chunks, no new abstractions.
-3. **Item 3** (EmptyState port) — composes naturally with Item 2's chunks if folded in.
-4. **Item 4** (backdrop unification) — last, because it needs the design call and touches both sections; do it after the smaller items have built up parity confidence elsewhere.
+1. **Item 1** (scroll-reset skip-pairs) — *shipped 2026-05-24, [`23bc24e`](../../../).*
+2. **Item 2** (Steam skeletons) — *shipped 2026-05-24, [`8dfc523`](../../../).*
+3. **Item 3** (EmptyState port) — *shipped 2026-05-24, [`16d56e0`](../../../).*
+4. **Item 4** (backdrop primitive extraction, Option B) — pending. Pre-work + 3-chunk plan documented above.
 
 The Steam VT morph from [view-transitions-rollout.md](view-transitions-rollout.md) is independent of all four and can interleave in any order.
 
