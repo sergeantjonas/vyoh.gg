@@ -3,8 +3,11 @@ import { topLevelScope } from "@/lib/top-level-scope";
 // Tab order mirrors the TABS arrays in
 //   apps/web/src/routes/lol/$accountSlug.tsx
 //   apps/web/src/routes/steam.tsx
-// Kept private to the spike. If the rollout sticks, fold the source-of-truth
-// into a shared module (per-section) and import it here instead of duplicating.
+// Local to this classifier so the slide-direction lookup is self-contained.
+// If a third surface (e.g. TFT) needs the same ordering, fold the source-of-
+// truth into a shared per-section module and import it here instead of
+// duplicating — but until then, the duplication is cheaper than the cross-
+// file indirection.
 const LOL_TAB_ORDER = ["", "matches", "trends", "champions", "live"] as const;
 const STEAM_TAB_ORDER = ["", "library", "wishlist", "achievements"] as const;
 

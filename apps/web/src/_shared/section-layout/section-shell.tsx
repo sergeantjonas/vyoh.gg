@@ -1,25 +1,15 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
-import { type Transition, m, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import { type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SectionShellProvider } from "./section-shell-context";
-
-// Kept exported-shape only while consumers still pass it; the VT spike no
-// longer reads any field. Drop in Chunk 6 of the migration plan.
-type SlideTransitionOverride = {
-  initial?: false | "enter" | "center";
-  transition?: Transition;
-};
 
 type SectionShellProps = {
   identity: ReactNode;
   actions?: ReactNode;
   nav: ReactNode;
   children: ReactNode;
-  pathname: string;
-  slideDirection: number;
-  slideTransitionOverride?: SlideTransitionOverride | undefined;
   // External ref to the <header>; merged with the shell's internal ref.
   // Consumers who need DOM access (e.g. LoL writing `--account-header-h`) pass
   // a ref here OR use `onHeaderRect` for the callback flavour.
@@ -34,12 +24,6 @@ export function SectionShell({
   actions,
   nav,
   children,
-  // Spike: pathname / slideDirection / slideTransitionOverride are still in
-  // the prop surface but unused now that the router-level VT call drives
-  // section transitions. Drop in Chunk 6 once consumers are updated.
-  pathname: _pathname,
-  slideDirection: _slideDirection,
-  slideTransitionOverride: _slideTransitionOverride,
   headerRef: externalHeaderRef,
   onHeaderRect,
 }: SectionShellProps) {

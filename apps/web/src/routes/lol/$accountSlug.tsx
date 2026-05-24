@@ -1,6 +1,5 @@
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
-import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
 import { NotFound } from "@/components/not-found";
 import { useMe } from "@/identity/use-me";
 import { toastMessage } from "@/lib/toast";
@@ -19,12 +18,10 @@ import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
 import { type AccountSearch, validateAccountSearch } from "@/lol/account/account-search";
 import {
   iconPop,
-  isChampionDetail as isChampionDetailFn,
   isInChampionsSubtree as isInChampionsSubtreeFn,
   isInMatchesSubtree as isInMatchesSubtreeFn,
   isMatchDetail as isMatchDetailFn,
   isTabActive,
-  tabIndexFromPath,
 } from "@/lol/account/account-tab-helpers";
 import {
   ActiveChampionProvider,
@@ -165,7 +162,6 @@ function AccountLayout() {
 
   const matchesPath = `/lol/${accountSlug}/matches`;
   const matchesPathPrefix = `${matchesPath}/`;
-  const championsPathForKey = `/lol/${accountSlug}/champions`;
   const isMatchDetail = isMatchDetailFn(pathname, accountSlug);
   // Saved-scroll/active-match state is only meaningful while we're inside
   // the matches subtree (list ↔ detail). Once the user navigates to Trends
@@ -173,32 +169,6 @@ function AccountLayout() {
   // restore from firing on routine tab returns.
   const isInMatchesSubtree = isInMatchesSubtreeFn(pathname, accountSlug);
   const isInChampionsSubtree = isInChampionsSubtreeFn(pathname, accountSlug);
-
-  // Coarsen the AnimatePresence key so list ↔ detail navigations within a
-  // section reuse the same wrapping <m.div> instead of triggering an
-  // enter/exit pair. Three reasons:
-  // 1. Match-detail tabs (/recap, /your-game, /timeline) shouldn't remount
-  //    the shell on every tab click — that would reset bodyReady, show the
-  //    skeleton, and re-run entry animations.
-  // 2. View Transitions need `view-transition-name` to be unique per
-  //    snapshot. When the key changes, AnimatePresence keeps both the
-  //    exiting and entering m.div mounted briefly. Each contains an
-  //    <Outlet />, and since <Outlet /> always renders the current route
-  //    (TanStack's API exposes no per-instance location binding), both
-  //    render the destination component at NEW-snapshot capture — two
-  //    heroes with the same view-transition-name → VT collision.
-  // 3. Same applies to back-nav from detail to list: list page would
-  //    enter while detail exits, with both Outlets resolving to the same
-  //    route during reconciliation.
-  // Coarsening to the section root keeps the m.div stable across list ↔
-  // detail and detail-tab navs, so Outlet just re-renders in place.
-  // Section-level navigations (between matches/champions/trends/etc) still
-  // change the key, so the slide transition still fires correctly.
-  const slideKey = isInMatchesSubtree
-    ? matchesPath
-    : isInChampionsSubtree
-      ? championsPathForKey
-      : pathname;
 
   // TanStack Router's built-in scrollRestoration was disabled to let
   // MatchList drive its own restore on detail → list back-nav. The side
@@ -214,37 +184,6 @@ function AccountLayout() {
   ]);
 
   const prefersReducedMotion = useReducedMotion();
-
-  // Page-slide direction is computed against the resolved tab paths (exact
-  // match after `$accountSlug` substitution + trailing-slash strip). Match
-  // detail routes like `/matches/<id>` return -1 and the slide is short-
-  // circuited via slideTransitionOverride below — the card-morph animation
-  // owns the visual transition there.
-  const tabIndexOf = useCallback(
-    (path: string) => tabIndexFromPath(TABS, path, accountSlug),
-    [accountSlug]
-  );
-  const rawDirection = useTabSlideDirection(pathname, tabIndexOf);
-  const slideDirection = prefersReducedMotion ? 0 : rawDirection;
-
-  // Match-detail and champion-detail transitions cut to 0 duration so the
-  // card-morph animation runs without competing with a page slide. Tracked
-  // synchronously during render so the same frame the new pathname mounts
-  // uses the correct initial state.
-  const isCardMorphTransitionRef = useRef(false);
-  const prevPathnameForCutRef = useRef(pathname);
-  if (prevPathnameForCutRef.current !== pathname) {
-    const prev = prevPathnameForCutRef.current;
-    const prevIsMorph =
-      isMatchDetailFn(prev, accountSlug) || isChampionDetailFn(prev, accountSlug);
-    const currIsMorph =
-      isMatchDetailFn(pathname, accountSlug) || isChampionDetailFn(pathname, accountSlug);
-    isCardMorphTransitionRef.current = prevIsMorph || currIsMorph;
-    prevPathnameForCutRef.current = pathname;
-  }
-  const slideTransitionOverride = isCardMorphTransitionRef.current
-    ? { initial: "center" as const, transition: { duration: 0 } }
-    : undefined;
 
   const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
   const [initialChampion, setInitialChampion] = useState<string | null>(null);
@@ -312,9 +251,6 @@ function AccountLayout() {
           <SeriousQueuesProvider>
             <MatchWindowProvider value={matchWindowValue}>
               <SectionShell
-                pathname={slideKey}
-                slideDirection={slideDirection}
-                slideTransitionOverride={slideTransitionOverride}
                 headerRef={setHeaderEl}
                 onHeaderRect={onHeaderRect}
                 identity={

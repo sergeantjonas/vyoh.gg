@@ -1,10 +1,57 @@
 # SectionShell → View Transitions migration
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Removes the Motion `<AnimatePresence>` wrap around the route `<Outlet />` in [`section-shell.tsx`](../../../apps/web/src/_shared/section-layout/section-shell.tsx) in favour of native View Transitions for route-level navigation. Companion arc to [view-transitions-rollout](view-transitions-rollout.md) — the VT rollout depends on this for any per-element morph beyond the single-element shape currently shipped.
+**Status:** Shipped 2026-05-24. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. The Motion `<AnimatePresence>` wrap around the route `<Outlet />` in [`section-shell.tsx`](../../../apps/web/src/_shared/section-layout/section-shell.tsx) has been replaced with native View Transitions for route-level navigation. Companion arc to [view-transitions-rollout](view-transitions-rollout.md). The original chunked plan + spike findings are preserved below for the audit trail.
 
-Read this when picking up VT polish work, when scoping a new section that wants per-element morphing, or before adding a third surface that would otherwise need the `slideKey` coarsening trick.
+Read this when picking up VT polish work, when scoping a new section that wants per-element morphing, or when debugging a section-transition regression.
 
 KB anchors: [03-motion.md §3 + §5.4 + §6.6](~/.claude/knowledge/frontend-2026/03-motion.md). MDN: https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API.
+
+---
+
+## What landed
+
+### Core machinery
+
+- [`apps/web/src/main.tsx`](../../../apps/web/src/main.tsx) — `defaultViewTransition.types` callback routes every navigation through [`getNavigationType()`](../../../apps/web/src/lib/navigation-type.ts), emitting one of `slide-left`, `slide-right`, `intra-section`, `cross-section`, `account-swap`, or `false`. Also sets `body[data-vt-shell]` BEFORE `startViewTransition` so the OLD snapshot already reflects the gate, and resets `mainScrollRef.scrollTop = 0` for slide types before the OLD capture so the slide is purely horizontal instead of diagonal.
+- [`apps/web/src/styles/view-transitions.css`](../../../apps/web/src/styles/view-transitions.css) — per-type keyframes scoped via `:root:active-view-transition-type(...)`. The view-transition-name `vt-main` attaches to `<main data-vt-main>` only when `body[data-vt-shell="on"]`, so intra-section transitions hand the snapshot to per-element morphs (champion / match / steam-game) without a parent group competing.
+- [`apps/web/src/routes/__root.tsx`](../../../apps/web/src/routes/__root.tsx) — `<main data-vt-main>` is the named element; the section header is portaled into a `#section-header-slot` div between `<Nav>` and `<main>` so only the content slides, not the header.
+
+### Per-element morphs
+
+- LoL champion card → champion detail (hero), LoL match row → match detail (hero), Steam game tile → game detail (hero), Steam game row → game detail (hero + logo two-element). Each click handler applies `view-transition-name` to its source element via ref, calls `document.startViewTransition`, then clears the name and navigates with `viewTransition: false` so the per-element morph isn't nested inside a router-level VT.
+
+### Why named `<main>` (viewport-stable element) and not the inner content
+
+The initial spike named `[data-section-content]` — the inner wrapper. That broke in two ways:
+
+1. **Squish-then-stretch on first-load navigations.** The wrapper's height varies with the loaded data (cached library = tall, skeleton = short), so the OLD and NEW snapshots had different group rects and the browser interpolated between them. Fixed by naming `<main>` (which has a stable `flex-1` viewport height inside `h-dvh`), so the group rect is identical across OLD and NEW.
+2. **Multi-MB textures stalling Safari.** Naming a document-height element on a list-heavy page (Steam library with 500+ tiles) made the VT pipeline allocate a snapshot bitmap the full document tall. Safari rasters on the main thread, which pushed INP into multi-second territory. Naming the viewport-sized `<main>` caps the snapshot at viewport height.
+
+### Header sliding regression
+
+After re-pointing the name from the inner wrapper to `<main>`, the header (then sticky inside `<main>`) became part of the snapshot and slid with the content. Fixed by portaling the section header out of `<main>` into the slot div in `__root.tsx`. The header keeps its compact spring + band tint (still driven by `mainScrollRef.scrollTop`), but now lives outside the named scroll container so it holds still while only the content slides.
+
+### Scrollbar thumb regression
+
+Tab nav from a long page (matches) to a short page captured an old-snapshot thumb at the deep scroll position and a new-snapshot thumb at the top — the browser interpolated, sliding the thumb diagonally across the gutter. Fixed in `view-transitions.css` by hiding the thumb during VT (`:root:active-view-transition [data-vt-main]` zero-paints `scrollbar-color` + `::-webkit-scrollbar-thumb`). The `scrollbar-gutter: stable both-edges` reservation holds layout, so nothing shifts.
+
+### Adjacent perf work delivered while debugging
+
+The VT debugging surfaced compounding paint cost on the most navigation-heavy surfaces, so the same arc landed:
+
+- **Steam library virtualized** (both row + tile layouts) using TanStack `useVirtualizer` — single-column for rows, `lanes`-based for the tile grid with breakpoint-driven lane count. See [library-list-virtual.tsx](../../../apps/web/src/steam/library/library-list-virtual.tsx) and [library-grid-virtual.tsx](../../../apps/web/src/steam/library/library-grid-virtual.tsx). Drops Steam library first-paint nodes from 2000–3000 to ~150.
+- **Shared virtualizer-stats overlay** ([components/virtualizer-stats.tsx](../../../apps/web/src/components/virtualizer-stats.tsx)) reused by match-list + both library variants, gated on `?perf=1` or `vyoh:perf=1` in localStorage.
+- **Trends tiles defer-mount** via [`_shared/deferred-mount.tsx`](../../../apps/web/src/_shared/deferred-mount.tsx) — IntersectionObserver-gated, mount once, never unmount. First 4 tiles eager; the rest defer behind a `200px` rootMargin with sized placeholders so the grid doesn't collapse.
+- **Recharts off `/recap` chunk** — `MatchLanePhase` (your-game tab) and `MatchGoldLead` (timeline tab) lazy-loaded with `React.lazy` + Suspense inside [`match-detail-view.tsx`](../../../apps/web/src/lol/matches/match-detail-view.tsx). The default landing tab (recap) no longer pulls Recharts.
+
+### Spike cleanup
+
+- `SectionShell` no longer accepts `pathname`, `slideDirection`, or `slideTransitionOverride` — those were AnimatePresence-era props with nothing to drive after the VT migration. Removed in the same pass.
+- `apps/web/src/_shared/section-layout/use-tab-slide-direction.ts` (+ test) deleted — the slide direction is now computed router-side in `getNavigationType` rather than per-shell.
+- `slideKey` coarsening dropped from both `$accountSlug.tsx` and `steam.tsx` — needed only while AnimatePresence kept old/new Outlets briefly co-mounted; with VT, only one Outlet is mounted at a time.
+- Stale "spike-private" framing on the LOL_TAB_ORDER / STEAM_TAB_ORDER constants in `navigation-type.ts` downgraded — the duplication is now documented as deliberate (cheaper than the cross-file indirection until a third surface needs the same lookup).
+
+---
 
 ---
 

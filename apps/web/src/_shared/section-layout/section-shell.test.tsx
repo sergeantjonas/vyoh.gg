@@ -42,8 +42,6 @@ function renderShell(props: Partial<Parameters<typeof SectionShell>[0]> = {}) {
         identity={<span>identity</span>}
         actions={<button type="button">act</button>}
         nav={<nav>nav</nav>}
-        pathname="/a"
-        slideDirection={0}
         {...props}
       >
         <p>section body</p>
@@ -119,12 +117,7 @@ describe("SectionShell", () => {
     expect(screen.queryByRole("button", { name: "act" })).toBeNull();
     rerender(
       <MotionConfig reducedMotion="always">
-        <SectionShell
-          identity={<span>identity</span>}
-          nav={<nav>nav</nav>}
-          pathname="/a"
-          slideDirection={0}
-        >
+        <SectionShell identity={<span>identity</span>} nav={<nav>nav</nav>}>
           <p>body</p>
         </SectionShell>
       </MotionConfig>

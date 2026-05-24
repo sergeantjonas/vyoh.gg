@@ -1,11 +1,10 @@
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
-import { useTabSlideDirection } from "@/_shared/section-layout/use-tab-slide-direction";
 import { NotFound } from "@/components/not-found";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
-import { isSteamTabActive, steamTabIndexOf } from "@/steam/tabs";
+import { isSteamTabActive } from "@/steam/tabs";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
@@ -37,35 +36,14 @@ const tabIconVariants: Variants = {
 
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const prefersReducedMotion = useReducedMotion();
 
   useScrollResetOnNav(pathname, [
     { fromPrefix: "/steam/game/", toExact: "/steam/library" },
   ]);
 
-  const rawDirection = useTabSlideDirection(pathname, (p) => steamTabIndexOf(TABS, p));
-  const slideDirection = prefersReducedMotion ? 0 : rawDirection;
-
-  // Coarsen the AnimatePresence key so /steam/library ↔ /steam/game/$appid
-  // reuse the same <m.div>. Mirrors the LoL trick in $accountSlug.tsx — see
-  // its comment block. Required for the view-transition morph: when the key
-  // changes, both old and new m.divs are briefly mounted, each rendering the
-  // current route via <Outlet />, producing two elements with the same
-  // view-transition-name and a NEW-snapshot collision.
-  const isInLibrarySubtree =
-    pathname === "/steam/library" ||
-    pathname.startsWith("/steam/library/") ||
-    pathname.startsWith("/steam/game/");
-  const slideKey = isInLibrarySubtree ? "/steam/library" : pathname;
-
   return (
     <SteamProfileBackdrop>
-      <SectionShell
-        pathname={slideKey}
-        slideDirection={slideDirection}
-        identity={<SteamIdentity />}
-        nav={<SteamTabs pathname={pathname} />}
-      >
+      <SectionShell identity={<SteamIdentity />} nav={<SteamTabs pathname={pathname} />}>
         <Outlet />
       </SectionShell>
     </SteamProfileBackdrop>
