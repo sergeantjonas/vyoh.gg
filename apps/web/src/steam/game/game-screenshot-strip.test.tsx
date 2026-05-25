@@ -1,11 +1,11 @@
-import { useGameMedia } from "@/steam/library/use-game-media";
+import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GameScreenshotStrip } from "./game-screenshot-strip";
 
-vi.mock("@/steam/library/use-game-media", () => ({
-  useGameMedia: vi.fn(),
+vi.mock("@/steam/game/use-game-screenshots", () => ({
+  useGameScreenshots: vi.fn(),
 }));
 
 // Capture the most-recent Carousel setApi callback so tests can drive the
@@ -68,34 +68,38 @@ vi.mock("embla-carousel-fade", () => ({
   default: () => () => ({}),
 }));
 
-function setMedia(screenshots: { thumbUrl: string; fullUrl: string }[] | undefined) {
-  vi.mocked(useGameMedia).mockReturnValue({
-    data: screenshots ? { screenshots } : undefined,
-  } as unknown as ReturnType<typeof useGameMedia>);
+// Tests feed `{filename, ordinal}` entries straight into the hook mock and
+// the strip composes URLs via the shared `steamScreenshotThumbUrl` helper.
+// Keeping the helper inputs simple (`ss_1.jpg`, `ss_2.jpg`) keeps assertions
+// readable against the well-formed CDN URL the helper emits.
+function setScreenshots(entries: { filename: string; ordinal: number }[] | undefined) {
+  vi.mocked(useGameScreenshots).mockReturnValue({
+    data: entries ? { appid: 42, allAges: entries, mature: [] } : undefined,
+  } as unknown as ReturnType<typeof useGameScreenshots>);
 }
 
 afterEach(() => {
-  vi.mocked(useGameMedia).mockReset();
+  vi.mocked(useGameScreenshots).mockReset();
   lastCarouselApi = null;
 });
 
 describe("GameScreenshotStrip", () => {
   it("renders null when there are no screenshots", () => {
-    setMedia([]);
+    setScreenshots([]);
     const { container } = render(<GameScreenshotStrip appid={42} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders null while media is still loading", () => {
-    setMedia(undefined);
+    setScreenshots(undefined);
     const { container } = render(<GameScreenshotStrip appid={42} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders the lightbox trigger with the screenshot count label", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     expect(
@@ -104,9 +108,9 @@ describe("GameScreenshotStrip", () => {
   });
 
   it("renders the strip chevron controls when there is more than one screenshot", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     // Strip controls render two "Previous screenshot" / "Next screenshot" buttons total
@@ -115,16 +119,16 @@ describe("GameScreenshotStrip", () => {
   });
 
   it("does NOT render chevron controls when there is only one screenshot", () => {
-    setMedia([{ thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" }]);
+    setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
     render(<GameScreenshotStrip appid={42} />);
     expect(screen.queryByLabelText("Previous screenshot")).toBeNull();
     expect(screen.queryByLabelText("Next screenshot")).toBeNull();
   });
 
   it("subscribes to embla's 'select' and 'reInit' events when api becomes available", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     expect(lastCarouselApi).not.toBeNull();
@@ -136,9 +140,9 @@ describe("GameScreenshotStrip", () => {
   });
 
   it("snaps the carousel back to the first frame when the appid changes", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     const { rerender } = render(<GameScreenshotStrip appid={42} />);
     const initialScrollToCalls = (lastCarouselApi?.scrollTo as ReturnType<typeof vi.fn>)
@@ -155,18 +159,18 @@ describe("GameScreenshotStrip", () => {
   it("calls autoplay.play() on initial mount (modal closed branch)", () => {
     autoplayInstance.play.mockClear();
     autoplayInstance.stop.mockClear();
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     expect(autoplayInstance.play).toHaveBeenCalled();
   });
 
   it("invokes selectedScrollSnap on initial select to bootstrap currentIndex", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     // The mount-time onSelect() call must have hit the api's snap getter to
@@ -175,9 +179,9 @@ describe("GameScreenshotStrip", () => {
   });
 
   it("dispatches ArrowRight/ArrowLeft window keydowns to api.scrollNext/scrollPrev while the modal is open", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     // Open the dialog by clicking the lightbox trigger.
@@ -196,9 +200,9 @@ describe("GameScreenshotStrip", () => {
   it("stops autoplay when the lightbox opens and resumes when it closes", () => {
     autoplayInstance.play.mockClear();
     autoplayInstance.stop.mockClear();
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     render(<GameScreenshotStrip appid={42} />);
     fireEvent.click(
@@ -208,7 +212,7 @@ describe("GameScreenshotStrip", () => {
   });
 
   it("does NOT bind window keydown when there's only one screenshot (length <= 1 guard)", () => {
-    setMedia([{ thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" }]);
+    setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
     const addSpy = vi.spyOn(window, "addEventListener");
     render(<GameScreenshotStrip appid={42} />);
     fireEvent.click(
@@ -220,10 +224,10 @@ describe("GameScreenshotStrip", () => {
   });
 
   it("preloads neighbour full-res screenshots while the modal is open", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
-      { thumbUrl: "/t3.jpg", fullUrl: "/f3.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
+      { filename: "ss_3.jpg", ordinal: 3 },
     ]);
     const created: string[] = [];
     const realImage = window.Image;
@@ -240,7 +244,10 @@ describe("GameScreenshotStrip", () => {
         screen.getByRole("button", { name: /View screenshot 1 of 3 fullscreen/ })
       );
       // Effect schedules an `Image()` for both prev and next neighbour URLs.
-      expect(created).toEqual(expect.arrayContaining(["/f2.jpg", "/f3.jpg"]));
+      const matchedNeighbour = (needle: string) =>
+        created.some((url) => url.includes(needle));
+      expect(matchedNeighbour("ss_2.1920x1080.jpg")).toBe(true);
+      expect(matchedNeighbour("ss_3.1920x1080.jpg")).toBe(true);
     } finally {
       window.Image = realImage;
     }
@@ -265,10 +272,10 @@ describe("GameScreenshotStrip", () => {
         // browsers — record what the active source img is carrying right now
         // so the test can assert it was applied before the call.
         const activeSlide = document.querySelector(
-          'img[src="/t1.jpg"]'
+          'img[src*="ss_1.600x338.jpg"]'
         ) as HTMLImageElement | null;
         const lightboxImg = document.querySelector(
-          'img[src="/f1.jpg"]'
+          'img[src*="ss_1.1920x1080.jpg"]'
         ) as HTMLImageElement | null;
         capturedSourceName =
           activeSlide?.style.viewTransitionName ||
@@ -310,9 +317,9 @@ describe("GameScreenshotStrip", () => {
 
     it("applies view-transition-name to the active slide before startViewTransition, then clears it", () => {
       installFakeVT();
-      setMedia([
-        { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-        { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+      setScreenshots([
+        { filename: "ss_1.jpg", ordinal: 1 },
+        { filename: "ss_2.jpg", ordinal: 2 },
       ]);
       render(<GameScreenshotStrip appid={42} />);
       fireEvent.click(
@@ -326,11 +333,11 @@ describe("GameScreenshotStrip", () => {
       // doesn't double-bind it) and the destination lightbox img carries
       // the matching name for the NEW snapshot.
       const activeSlide = document.querySelector(
-        'img[src="/t1.jpg"]'
+        'img[src*="ss_1.600x338.jpg"]'
       ) as HTMLImageElement | null;
       expect(activeSlide?.style.viewTransitionName).toBe("");
       const lightboxImg = document.querySelector(
-        'img[src="/f1.jpg"]'
+        'img[src*="ss_1.1920x1080.jpg"]'
       ) as HTMLImageElement | null;
       expect(lightboxImg?.style.viewTransitionName).toBe("screenshot-42");
     });
@@ -339,9 +346,9 @@ describe("GameScreenshotStrip", () => {
       // No installFakeVT — happy-dom ships without the API, so the
       // supportsViewTransitions guard returns false and the modal opens
       // straight through Radix.
-      setMedia([
-        { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-        { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+      setScreenshots([
+        { filename: "ss_1.jpg", ordinal: 1 },
+        { filename: "ss_2.jpg", ordinal: 2 },
       ]);
       render(<GameScreenshotStrip appid={42} />);
       fireEvent.click(
@@ -353,9 +360,9 @@ describe("GameScreenshotStrip", () => {
 
     it("clears the destination view-transition-name after the transition finishes", async () => {
       installFakeVT();
-      setMedia([
-        { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-        { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+      setScreenshots([
+        { filename: "ss_1.jpg", ordinal: 1 },
+        { filename: "ss_2.jpg", ordinal: 2 },
       ]);
       render(<GameScreenshotStrip appid={42} />);
       fireEvent.click(
@@ -366,16 +373,16 @@ describe("GameScreenshotStrip", () => {
       await Promise.resolve();
       await Promise.resolve();
       const lightboxImg = document.querySelector(
-        'img[src="/f1.jpg"]'
+        'img[src*="ss_1.1920x1080.jpg"]'
       ) as HTMLImageElement | null;
       expect(lightboxImg?.style.viewTransitionName).toBe("");
     });
   });
 
   it("unsubscribes from embla on unmount so the api callback doesn't leak", () => {
-    setMedia([
-      { thumbUrl: "/t1.jpg", fullUrl: "/f1.jpg" },
-      { thumbUrl: "/t2.jpg", fullUrl: "/f2.jpg" },
+    setScreenshots([
+      { filename: "ss_1.jpg", ordinal: 1 },
+      { filename: "ss_2.jpg", ordinal: 2 },
     ]);
     const { unmount } = render(<GameScreenshotStrip appid={42} />);
     const offBefore = (lastCarouselApi?.off as ReturnType<typeof vi.fn>).mock.calls

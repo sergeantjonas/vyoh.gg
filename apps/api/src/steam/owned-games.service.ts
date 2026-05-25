@@ -1,11 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type {
   SteamGameRating,
+  SteamGameScreenshots,
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatform,
   SteamPlatformMix,
   SteamReviewSummary,
+  SteamScreenshotEntry,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
@@ -440,5 +442,24 @@ export class SteamOwnedGamesService {
       select: { fullDescriptionBbcode: true },
     });
     return { appid, bbcode: row?.fullDescriptionBbcode ?? null };
+  }
+
+  // Per-app screenshot payload for the game-detail strip + (Chunk 9c) the
+  // library-tile hovercard rotation. Reads straight from the enrichment row;
+  // the monthly cron + manual backfill keep both buckets populated. Empty
+  // arrays cover the "no enrichment yet" / "upstream bucket empty" cases —
+  // renderers don't need to special-case the missing-row branch.
+  async getGameScreenshots(appid: number): Promise<SteamGameScreenshots> {
+    const row = await this.prisma.steamGameEnrichment.findUnique({
+      where: { appid },
+      select: { screenshotsAllAges: true, screenshotsMature: true },
+    });
+    const cast = (raw: unknown): SteamScreenshotEntry[] =>
+      Array.isArray(raw) ? (raw as SteamScreenshotEntry[]) : [];
+    return {
+      appid,
+      allAges: cast(row?.screenshotsAllAges),
+      mature: cast(row?.screenshotsMature),
+    };
   }
 }

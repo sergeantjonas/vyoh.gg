@@ -13,6 +13,7 @@ import type {
   SteamGameAchievements,
   SteamGameDescription,
   SteamGameMedia,
+  SteamGameScreenshots,
   SteamLibraryCompletion,
   SteamLibrarySummary,
   SteamOwnedGames,
@@ -118,6 +119,17 @@ export class SteamController {
     @Param("appid", ParseIntPipe) appid: number
   ): Promise<SteamGameDescription> {
     return this.ownedGames.getGameDescription(appid);
+  }
+
+  // Per-app screenshot buckets for the /steam/game/$appid strip + (Chunk 9c)
+  // the library-tile hovercard rotation. Both buckets returned; renderers
+  // pick which to surface (all-ages default; mature gated behind an
+  // owner-opt-in toggle when the auth model lands).
+  @Get("game/:appid/screenshots")
+  async getGameScreenshots(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<SteamGameScreenshots> {
+    return this.ownedGames.getGameScreenshots(appid);
   }
 
   @Get("achievements/recent")

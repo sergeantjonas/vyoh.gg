@@ -6,8 +6,9 @@ import {
   useCarousel,
 } from "@/components/ui/carousel";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
-import { useGameMedia } from "@/steam/library/use-game-media";
+import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { steamScreenshotFullUrl, steamScreenshotThumbUrl } from "@vyoh/shared";
 import Autoplay from "embla-carousel-autoplay";
 import Fade from "embla-carousel-fade";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -41,8 +42,17 @@ const SCREENSHOT_ROTATION_MS = 3_500;
 // auto-rotation. Manual scrollPrev/scrollNext go through shadcn's wrapper
 // which resets the autoplay timer on each click — no double-advance.
 export function GameScreenshotStrip({ appid }: { appid: number }) {
-  const { data: media } = useGameMedia(appid, true);
-  const screenshots = media?.screenshots ?? [];
+  const { data } = useGameScreenshots(appid);
+  // All-ages only by default — matches Steam's storefront default. Mature
+  // bucket stays gated behind an owner-only toggle once the auth model
+  // lands (see docs/working-notes/steam/library-card-enrichment.md Chunk 9b).
+  const screenshots = useMemo(() => {
+    const entries = data?.allAges ?? [];
+    return entries.map((e) => ({
+      thumbUrl: steamScreenshotThumbUrl(appid, e.filename),
+      fullUrl: steamScreenshotFullUrl(appid, e.filename),
+    }));
+  }, [data, appid]);
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);

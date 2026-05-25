@@ -133,6 +133,7 @@ export {
 export type { ParsedSteamLibraryQuery } from "./steam/library-query.ts";
 export { bbcodeToHtml } from "./steam/bbcode-to-html.ts";
 export type { SteamGameDescription } from "./steam/game-description.ts";
+export type { SteamGameScreenshots } from "./steam/game-screenshots.ts";
 export {
   steamScreenshotFullUrl,
   steamScreenshotThumbUrl,
