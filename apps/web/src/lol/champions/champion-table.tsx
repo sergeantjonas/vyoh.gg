@@ -331,10 +331,13 @@ function ChampionTableRow({
       // `withReorderViewTransition` pair OLD↔NEW positions per champion.
       // Disjoint namespace from the click-time `champion-${alias}-${position}`
       // applied to the inner cardRef during forward-nav (different name → no
-      // collision), and the outer li name has no pair on the destination
-      // champion page so it falls back to the UA exit fade — visually
-      // equivalent to today since the surrounding root group is also fading.
+      // collision). On a nav click the marker below lets the handler strip
+      // every list-item name before snapshot — without that, each off-screen
+      // row gets its own ::view-transition-old(champion-X) group painted at
+      // the root pseudo layer (outside <main>'s overflow clip), making rows
+      // scrolled behind the navbar bleed through during the morph.
       style={{ viewTransitionName: `champion-${alias}` }}
+      data-list-item-vt
     >
       <CardTilt>
         <Link
@@ -373,6 +376,20 @@ function ChampionTableRow({
             const el = cardRef.current;
             if (!el) return;
             e.preventDefault();
+            // Strip every list-item's `view-transition-name` before snapshot
+            // capture. The row `li`s carry per-champion names (used by
+            // `withReorderViewTransition` for in-place sort/role morphs); on
+            // a NAV transition those names exist only in OLD, so each row
+            // would get its own independent `::view-transition-old(champion-X)`
+            // group painted at the root pseudo layer — bleeding through the
+            // navbar at the top of the page. Clearing them collapses every
+            // non-clicked row into the root group's single unified fade.
+            // Mirrors steam library-row.tsx.
+            for (const li of document.querySelectorAll<HTMLElement>(
+              "[data-list-item-vt]"
+            )) {
+              li.style.viewTransitionName = "";
+            }
             const name = `champion-${alias}-${position}`;
             el.style.viewTransitionName = name;
             const doc = document as Document & {

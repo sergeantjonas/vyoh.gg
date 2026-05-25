@@ -291,4 +291,57 @@ describe("ChampionTable", () => {
       expect(chromes).toHaveLength(1);
     });
   });
+
+  describe("view-transition wiring", () => {
+    afterEach(() => {
+      const doc = document as unknown as { startViewTransition?: unknown };
+      doc.startViewTransition = undefined;
+    });
+
+    it("clears every list-item view-transition-name before OLD-snapshot capture so off-screen rows don't paint above the navbar", () => {
+      const startVT = vi.fn();
+      (document as unknown as { startViewTransition?: unknown }).startViewTransition =
+        startVT;
+
+      const { container } = renderTable(
+        <ChampionTable
+          stats={[stat({ champion: "Janna" }), stat({ champion: "Seraphine" })]}
+          sort="games"
+          accountSlug="ahri"
+        />
+      );
+      const lis = Array.from(container.querySelectorAll("li")) as HTMLLIElement[];
+      const [janna, seraphine] = lis;
+      if (!janna || !seraphine) throw new Error("expected two list rows");
+      expect(janna.style.viewTransitionName).toBe("champion-Janna");
+      expect(seraphine.style.viewTransitionName).toBe("champion-Seraphine");
+
+      // The clicked row carries its click-time name on the inner card, not
+      // the li — capture both at OLD-snapshot time (synchronous with the
+      // startViewTransition call).
+      const snapshot: {
+        liNames: string[];
+        clickedCardName: string | undefined;
+      } = { liNames: [], clickedCardName: undefined };
+      startVT.mockImplementation((cb: () => Promise<void> | void) => {
+        snapshot.liNames = lis.map((li) => li.style.viewTransitionName);
+        snapshot.clickedCardName = (
+          seraphine.querySelector("a > div") as HTMLElement | null
+        )?.style.viewTransitionName;
+        return Promise.resolve(cb());
+      });
+
+      const seraphineLink = seraphine.querySelector("a");
+      if (!seraphineLink) throw new Error("expected an anchor in the Seraphine row");
+      fireEvent.click(seraphineLink, { button: 0 });
+
+      expect(startVT).toHaveBeenCalledTimes(1);
+      // Both lis cleared so each row collapses into the root group's
+      // single fade instead of getting its own ::view-transition-old pseudo
+      // painted over the navbar.
+      expect(snapshot.liNames).toEqual(["", ""]);
+      // The clicked row's inner card carries the paired morph name.
+      expect(snapshot.clickedCardName).toBe("champion-Seraphine-MIDDLE");
+    });
+  });
 });
