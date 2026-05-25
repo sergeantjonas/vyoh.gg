@@ -19,10 +19,17 @@
 // safe to feed into `dangerouslySetInnerHTML`, but the `<img src>` values may
 // still point at wiki upstream until the proxy rewrite lands.
 
+// `h1`/`h2`/`h3` were added for the Steam BBCode pipeline (chunk 8 in
+// docs/working-notes/steam/library-card-enrichment.md): Steam descriptions
+// emit `[h1]…[/h1]` section headers liberally. Structural tags only — no
+// attributes, no scripting surface, safe by definition.
 const ALLOWED_TAGS = new Set([
   "b",
   "br",
   "em",
+  "h1",
+  "h2",
+  "h3",
   "i",
   "img",
   "li",

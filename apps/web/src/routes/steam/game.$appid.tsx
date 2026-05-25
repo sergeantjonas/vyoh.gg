@@ -18,6 +18,7 @@ import {
 } from "@/steam/_shared/steam-image";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
+import { GameAboutBlock } from "@/steam/game/game-about-block";
 import { GameDetailSkeleton } from "@/steam/game/game-detail-skeleton";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
@@ -218,6 +219,8 @@ function SteamGamePage() {
       )}
 
       {game && <GameScreenshotStrip appid={appid} />}
+
+      {game && <GameAboutBlock appid={appid} />}
 
       {game && <GameUnlockTimeline appid={appid} />}
 

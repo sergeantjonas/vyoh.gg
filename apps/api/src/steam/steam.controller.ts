@@ -11,6 +11,7 @@ import type {
   GameUnlockTimeline,
   SteamChronotype,
   SteamGameAchievements,
+  SteamGameDescription,
   SteamGameMedia,
   SteamLibraryCompletion,
   SteamLibrarySummary,
@@ -107,6 +108,16 @@ export class SteamController {
     @Param("appid", ParseIntPipe) appid: number
   ): Promise<SteamGameMedia> {
     return this.screenshots.getGameMedia(appid);
+  }
+
+  // Per-app BBCode body for the game-detail "About this game" block. Carved
+  // out from the bulk owned-games payload because each game's description is
+  // 2-8KB; bulk-shipping 200+ games would inflate the list response.
+  @Get("game/:appid/description")
+  async getGameDescription(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<SteamGameDescription> {
+    return this.ownedGames.getGameDescription(appid);
   }
 
   @Get("achievements/recent")

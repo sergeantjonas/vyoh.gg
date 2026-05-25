@@ -24,7 +24,7 @@ Sized so each row is independently committable. Some chunks land changes in this
 | 5 | `game_rating` ESRB/PEGI chip + descriptors | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
 | 6 | `basic_info.publishers / developers / franchises` filtering | [command-palette.md](../cross-cutting/command-palette.md) Phase G | ✅ shipped 2026-05-25 |
 | 7 | `trailers.highlights[].microtrailer` hover preview | [microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md) | Planned (arc) |
-| 8 | `full_description_bbcode` → game-detail body | this note (Chunk 8 below) | Planned |
+| 8 | `full_description_bbcode` → game-detail body | this note (Chunk 8 below) | ✅ shipped 2026-05-25 |
 | 9 | `screenshots.all_ages_screenshots[]` → game-detail gallery | this note (Chunk 9 below) | Planned |
 | 10 | `supported_languages` → audio/subtitle filter | [steam-integration.md candidate board](./steam-integration.md) | Backlogged |
 | 11 | `related_items.demos / demo_appid` → "Try the demo" link | [steam-integration.md candidate board](./steam-integration.md) | Backlogged |
@@ -161,21 +161,23 @@ Multi-occurrence unions (same as `with:` / `vs:` in the LoL grammar). Slug-match
 
 ---
 
-## Chunk 8 — Full description on game-detail page
+## Chunk 8 — Full description on game-detail page ✅ shipped 2026-05-25
 
 **Field:** `full_description_bbcode` — string, ~2-8KB of BBCode markup. Stellar Blade returns 3890 chars.
 
-**Architectural fit:** the existing LoL rich-description pipeline (shipped 2026-05-21, see [[project_rich_descriptions]] auto-memory and [rich-descriptions.md](../lol/rich-descriptions.md)) already sanitises wiki HTML for ability / item tooltips. A BBCode → safe HTML pass slots into the same trust-boundary architecture — different input grammar, same output guarantees (sanitised, image URLs proxied through the existing img pipeline, no inline scripts, no arbitrary CSS).
+**Shipped shape:**
 
-**BBCode → HTML library:** see [library-shortlist.md](../cross-cutting/library-shortlist.md) — add `xbbcode-parser` / `js-bbcode-parser` / hand-rolled candidate as a library-shortlist entry to evaluate before this chunk lands. Steam's BBCode dialect is a constrained subset ([documented here](https://steamcommunity.com/comment/Recommendation/formattinghelp)) — a parser that handles the actual tags in use (`[h1]`, `[b]`, `[i]`, `[url]`, `[img]`, `[list]`, `[*]`, `[table]`, `[tr]`, `[td]`, `[previewyoutube]`, etc.) is enough; we don't need a full Steam Community parser.
+- **Column:** `fullDescriptionBbcode String?` on `SteamGameEnrichment` (raw on disk, sanitised at render time so a renderer-side change doesn't require re-enrichment).
+- **Endpoint:** `GET /steam/game/:appid/description` returns `{ appid, bbcode }`. Carved out from `/steam/owned-games` because each game's body is 2-8KB; bulk-shipping 200+ games would inflate the list response.
+- **Hook:** [apps/web/src/steam/game/use-game-description.ts](../../../apps/web/src/steam/game/use-game-description.ts) — TanStack Query with 1h stale-time matching the other per-game hooks (`useGameMedia`, `useGameAchievements`).
+- **Parser:** hand-rolled [packages/shared/src/steam/bbcode-to-html.ts](../../../packages/shared/src/steam/bbcode-to-html.ts) with 17 unit tests. Tag set covered: `[h1-3]`, `[b]`, `[i]`, `[u]`, `[url]`/`[url=…]`, `[img]`, `[list]`/`[olist]`/`[*]`. Drop-with-content set: `[previewyoutube]`, `[video]`, `[table]`/`[tr]`/`[td]`, `[code]`, `[quote]`. Unknown tags fall through to inner text. Paragraph splitter runs last; skips wrapping block-level elements in `<p>`.
+- **Trust boundary:** publisher-supplied BBCode → `bbcodeToHtml` → `sanitizeRichHtml` (the existing LoL pipeline, extended with `h1`/`h2`/`h3` in the same commit). `<img>` is dropped via `rewriteImgSrc → null` for now — Steam descriptions link `steamcdn-a.akamaihd.net` URLs and we don't have a generic image proxy yet; the editorial intent is the text, screenshots get their own strip in Chunk 9. When a generic proxy lands, swap the rewrite.
+- **Render:** new [apps/web/src/steam/game/game-about-block.tsx](../../../apps/web/src/steam/game/game-about-block.tsx), mounted under the screenshot strip in [routes/steam/game.$appid.tsx](../../../apps/web/src/routes/steam/game.$appid.tsx). Renders nothing when bbcode is null (DLC / bundle / unresolved app) — empty placeholder would add no value next to all the other blocks on the page.
+- **Library choice:** hand-rolled (no `xbbcode-parser` / `js-bbcode-parser` dependency). Same judgment as `sanitizeRichHtml` — the Steam dialect is narrow enough that a purpose-built converter beats a 20kB+ general-purpose dependency.
 
-**Trust boundary:** BBCode is publisher-supplied. Treat as untrusted: sanitise output HTML via the same DOMPurify pipeline the LoL wiki HTML uses. `[img]` tags rewritten to `<img>` with `src` rewritten through the image proxy (same pattern as wiki inline icons).
+**Why no `library-shortlist.md` decision row:** the BBCode-parser library shortlist landed via "decided in the chunk" — the hand-rolled implementation is short enough (~120 LOC, fully test-covered) that adding a row for a rejected dependency would be process for process's sake. If a future Steam Community comment renderer needs richer tag coverage, that's the moment to reconsider.
 
-**Render:** `/steam/game/$appid` detail page gets a dedicated "About this game" block. Today the page is sparse — playtime + the (planned) achievement panel + chips. The full description is the missing editorial content that turns a stub page into a real game-detail surface.
-
-**Data shape:** `fullDescriptionBbcode String?` on `SteamGameEnrichment` (raw, sanitisation at render time so updates to the sanitiser don't require re-enrichment); optional precomputed `fullDescriptionHtml String?` as render-time cache if measurement shows the sanitiser is hot enough to matter.
-
-**Refresh cadence:** descriptions update with major content patches / DLC releases. Cache-buster like `assetTimestamp` would catch the typical case; otherwise the existing enrichment-poller cadence is fine.
+**Refresh cadence:** descriptions update with major content patches / DLC releases. Existing monthly enrichment-poller cadence is fine; the manual `backfill-steam-enrichment.ts` script (already shipped, used for the chunk's initial population) is the catch-up button when a new release goes live mid-month.
 
 ---
 

@@ -51,6 +51,7 @@ export interface EnrichmentUpsert {
   publisherNames: string[];
   developerNames: string[];
   franchiseNames: string[];
+  fullDescriptionBbcode: string | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -120,6 +121,7 @@ export function projectEnrichment(
     publisherNames: mapEntityNames(raw.basic_info?.publishers),
     developerNames: mapEntityNames(raw.basic_info?.developers),
     franchiseNames: mapEntityNames(raw.basic_info?.franchises),
+    fullDescriptionBbcode: raw.full_description_bbcode ?? null,
   };
 }
 

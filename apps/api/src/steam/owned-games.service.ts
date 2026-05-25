@@ -425,4 +425,20 @@ export class SteamOwnedGamesService {
       lastSyncedAt: latest.snapshotDate.toISOString(),
     };
   }
+
+  // Per-app BBCode body for the /steam/game/:appid "About this game" block.
+  // Read straight from the enrichment row — the monthly cron + the one-shot
+  // backfill keep this column populated. Returns `bbcode: null` when the
+  // enrichment row is missing (delisted/private/unresolved) or when the
+  // upstream block was empty (DLC / bundle / demo entries); the renderer
+  // omits the block entirely in either case.
+  async getGameDescription(
+    appid: number
+  ): Promise<{ appid: number; bbcode: string | null }> {
+    const row = await this.prisma.steamGameEnrichment.findUnique({
+      where: { appid },
+      select: { fullDescriptionBbcode: true },
+    });
+    return { appid, bbcode: row?.fullDescriptionBbcode ?? null };
+  }
 }

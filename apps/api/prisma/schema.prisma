@@ -163,6 +163,12 @@ model SteamGameEnrichment {
   publisherNames       String[]  @default([])
   developerNames       String[]  @default([])
   franchiseNames       String[]  @default([])
+  // BBCode markup body from `full_description_bbcode` — typically 2–8KB per
+  // game. Stored raw so a renderer-side sanitiser change doesn't force a
+  // re-enrichment pass; the web side runs BBCode → HTML → sanitised HTML on
+  // demand via the `/steam/game/:appid/description` endpoint. Null when
+  // upstream omits the full description block (DLC / bundle entries, demos).
+  fullDescriptionBbcode String?
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps
