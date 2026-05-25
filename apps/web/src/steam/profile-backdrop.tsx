@@ -98,19 +98,15 @@ export function SteamProfileBackdrop({ children }: { children: ReactNode }) {
 // page. Sources Steam's store-page background through the API proxy, which
 // internally tries the less-compressed `page_bg_generated_v6b.jpg` first and
 // falls back to the universally available `storepagebackground` mirror.
-// Opacity is driven by the live claim from the provider; internal state
-// tracks the last non-null claim so the image stays painted during fade-out.
+// Mounted/unmounted in lockstep with the live claim — when the user
+// leaves a game-detail page the layer disappears immediately so no
+// previous-game pixels linger behind the profile backdrop fade-in.
 // On a real load error (proxy 502 — both upstreams missing for this title),
 // `failed` flips and the layer hides so the profile backdrop reads through.
 function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) {
   const prefersReducedMotion = useReducedMotion();
 
-  const [activeClaim, setActiveClaim] = useState<SteamGameBackdropClaim | null>(claim);
-  useEffect(() => {
-    if (claim) setActiveClaim(claim);
-  }, [claim]);
-
-  const activeAppid = activeClaim?.appid ?? null;
+  const activeAppid = claim?.appid ?? null;
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -125,14 +121,10 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
     setReady(false);
   }
 
-  if (!activeClaim) return null;
+  if (!claim) return null;
 
-  const src = steamPageBackgroundUrl(
-    activeClaim.appid,
-    activeClaim.assetTimestamp,
-    activeClaim.flipHero
-  );
-  const visible = claim !== null && ready && !failed;
+  const src = steamPageBackgroundUrl(claim.appid, claim.assetTimestamp, claim.flipHero);
+  const visible = ready && !failed;
 
   return (
     <m.div
@@ -155,6 +147,13 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
       {!failed && (
         <>
           <img
+            // Keying on `src` forces React to mount a fresh `<img>` when
+            // the URL changes (game A → game B without a library detour,
+            // or a flipHero swap). A reused `<img>` whose `src` is
+            // reassigned keeps painting the previously-decoded bytes
+            // until the new ones arrive, which leaks the prior game's
+            // backdrop visibly during the route VT crossfade.
+            key={src}
             src={src}
             alt=""
             onLoad={() => setReady(true)}

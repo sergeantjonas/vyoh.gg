@@ -77,7 +77,7 @@ describe("SteamProfileBackdrop", () => {
     );
   });
 
-  it("keeps the last-known img painted while no consumers are mounted so the layer can fade out", () => {
+  it("unmounts the game-backdrop layer when the last consumer drops", () => {
     setSummary({ profileBackgroundUrl: null });
     function Switcher({ show }: { show: boolean }) {
       return show ? <GameConsumer appid={7} ts={null} /> : null;
@@ -96,13 +96,18 @@ describe("SteamProfileBackdrop", () => {
         </SteamProfileBackdrop>
       </MotionConfig>
     );
-    // The activeClaim sticks to the last non-null value so the layer can
-    // animate its opacity to 0 over the same image.
+    // Previously the layer retained the last non-null claim so it could
+    // fade out over its own image. With the route VT crossfade in place,
+    // that retention leaked the previous game's image behind the
+    // profile-backdrop fade-in on game → library → other-game navigation
+    // (browser kept painting the old decoded bytes during the img.src
+    // swap). The layer now mounts/unmounts in lockstep with the live
+    // claim and the page-level VT crossfade handles the visual hand-off.
     expect(
       Array.from(document.querySelectorAll("img")).some((i) =>
         i.src.includes("/steam-bg/7")
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("hides the game-backdrop img after the image fails to load", () => {
