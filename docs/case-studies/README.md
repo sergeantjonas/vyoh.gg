@@ -12,6 +12,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [bundling-the-bounded-cdn.md](bundling-the-bounded-cdn.md) | Bundling the bounded CDN — a three-phase fix for flaky LoL image delivery |
 | [conclusion-card-pattern.md](conclusion-card-pattern.md) | A stats site that talks — the ConclusionCard pattern |
 | [cross-stream-synthesis.md](cross-stream-synthesis.md) | Cross-stream synthesis on `/` — the self-portrait, not the feed |
+| [face-aware-library-row.md](face-aware-library-row.md) | Face-aware Steam library rows — composing 200 unique hero arts with one CSS rule |
 | [frontend-perf.md](frontend-perf.md) | Frontend perf when 28% of the bundle is on purpose |
 | [fullscreen-blur-flicker.md](fullscreen-blur-flicker.md) | Killing flicker on a fullscreen-blur backdrop |
 | [historical-backfill-and-sse.md](historical-backfill-and-sse.md) | Backfilling Riot history in the background, streaming deltas to the client |
