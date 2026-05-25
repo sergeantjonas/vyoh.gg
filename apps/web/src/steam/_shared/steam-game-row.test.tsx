@@ -38,18 +38,42 @@ describe("SteamGameRowShell", () => {
     expect(queryByTestId("trailing-marker")).not.toBeNull();
   });
 
-  it("attaches heroRef to the foreground hero img (not the edge-extended backdrop)", () => {
+  it("attaches heroRef to the cover hero img", () => {
     const ref = createRef<HTMLImageElement>();
     const { container } = render(
       <SteamGameRowShell appid={730} name="CS2" heroRef={ref} />
     );
-    // Shell stacks: [edge-extended backdrop, sharp foreground hero
-    // (heroRef), logo]. heroRef lands on the SECOND img — the backdrop
-    // is not a morph anchor; only the foreground hero and logo are
-    // named for view-transitions.
+    // Shell stacks: [cover hero (heroRef), logo]. The hero is the first
+    // img — the cover composition has no separate palette backdrop layer.
     const imgs = container.querySelectorAll("img");
     expect(imgs.length).toBeGreaterThanOrEqual(2);
-    expect(ref.current).toBe(imgs[1]);
+    expect(ref.current).toBe(imgs[0]);
+  });
+
+  it("steers `object-position` from the saliency anchor when provided", () => {
+    const { container } = render(
+      <SteamGameRowShell
+        appid={730}
+        name="CS2"
+        subjectXPercent={75}
+        subjectYPercent={30}
+      />
+    );
+    const hero = container.querySelector("img");
+    expect(hero?.style.objectPosition).toBe("75% 30%");
+  });
+
+  it("falls back to a 50/50 anchor when subject percents are null", () => {
+    const { container } = render(
+      <SteamGameRowShell
+        appid={730}
+        name="CS2"
+        subjectXPercent={null}
+        subjectYPercent={null}
+      />
+    );
+    const hero = container.querySelector("img");
+    expect(hero?.style.objectPosition).toBe("50% 50%");
   });
 
   it("attaches logoRef to the logo wordmark img", () => {

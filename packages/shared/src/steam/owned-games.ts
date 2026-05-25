@@ -79,6 +79,13 @@ export interface SteamOwnedGame {
   publisherNames: string[];
   developerNames: string[];
   franchiseNames: string[];
+  // Saliency centroid of `library_hero.jpg`, expressed as integer percent
+  // (0-100). Drives `object-position` on the library row's full-bleed cover
+  // crop so the focal subject stays visible regardless of where it sits in
+  // the source. Null when the anchor hasn't been computed yet; renderer
+  // treats null and 50/50 identically (center crop).
+  subjectXPercent: number | null;
+  subjectYPercent: number | null;
 }
 
 export interface SteamGameRating {

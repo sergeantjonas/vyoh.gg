@@ -3,6 +3,7 @@ import type { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentService } from "./enrichment.service";
 import type { SteamPicsService } from "./pics.service";
 import type { SteamClientService } from "./steam-client.service";
+import type { SteamSubjectAnchorService } from "./subject-anchor.service";
 
 function makeService(opts: {
   storeItems?: unknown[];
@@ -20,15 +21,20 @@ function makeService(opts: {
       ? vi.fn().mockRejectedValue(opts.logoAssetsThrows)
       : vi.fn().mockResolvedValue(opts.logoAssets ?? []),
   };
+  const anchors = {
+    computeMissingAnchors: vi.fn().mockResolvedValue(0),
+  };
   return {
     service: new SteamEnrichmentService(
       prisma as unknown as PrismaService,
       client as unknown as SteamClientService,
-      pics as unknown as SteamPicsService
+      pics as unknown as SteamPicsService,
+      anchors as unknown as SteamSubjectAnchorService
     ),
     prisma,
     client,
     pics,
+    anchors,
   };
 }
 

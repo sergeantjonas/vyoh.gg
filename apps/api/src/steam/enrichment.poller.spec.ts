@@ -3,6 +3,7 @@ import type { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import type { SteamEnrichmentService } from "./enrichment.service";
 import type { SteamService } from "./steam.service";
+import type { SteamSubjectAnchorService } from "./subject-anchor.service";
 
 function makePrisma() {
   return {
@@ -19,16 +20,27 @@ function makeSteam() {
   return { getOwnerWishlist: vi.fn().mockResolvedValue({ items: [] }) };
 }
 
-function makePoller(prisma = makePrisma(), service = makeService(), steam = makeSteam()) {
+function makeAnchors() {
+  return { computeMissingAnchors: vi.fn().mockResolvedValue(0) };
+}
+
+function makePoller(
+  prisma = makePrisma(),
+  service = makeService(),
+  steam = makeSteam(),
+  anchors = makeAnchors()
+) {
   return {
     poller: new SteamEnrichmentPoller(
       prisma as unknown as PrismaService,
       service as unknown as SteamEnrichmentService,
-      steam as unknown as SteamService
+      steam as unknown as SteamService,
+      anchors as unknown as SteamSubjectAnchorService
     ),
     prisma,
     service,
     steam,
+    anchors,
   };
 }
 

@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamService } from "./steam.service";
+import { SteamSubjectAnchorService } from "./subject-anchor.service";
 
 // Enrichment data (asset hashes, type, release date, tags) shifts only when a
 // publisher updates store art or metadata — monthly is plenty. Anchored to
@@ -23,7 +24,8 @@ export class SteamEnrichmentPoller implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly service: SteamEnrichmentService,
-    private readonly steam: SteamService
+    private readonly steam: SteamService,
+    private readonly anchors: SteamSubjectAnchorService
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -47,14 +49,25 @@ export class SteamEnrichmentPoller implements OnModuleInit {
       enriched.filter((r) => r.logoPath !== null).map((r) => r.appid)
     );
     const needsBackfill = candidates.filter((appid) => !completeAppids.has(appid));
-    if (needsBackfill.length === 0) return;
-    this.logger.log(`backfilling ${needsBackfill.length} incomplete apps at boot`);
+    if (needsBackfill.length > 0) {
+      this.logger.log(`backfilling ${needsBackfill.length} incomplete apps at boot`);
+      try {
+        await this.service.enrichApps(needsBackfill);
+      } catch (err) {
+        // Boot must not block on Steam — log and move on. Next month's cron
+        // (or the on-add hook for incremental additions) will reconcile.
+        this.logger.warn(`boot backfill failed: ${err}`);
+      }
+    }
+
+    // Saliency anchors are a newer column than enrichment itself, so
+    // already-enriched rows can still have null `subjectXPercent`. Run the
+    // anchor pass against the full candidate list — the IS NULL filter
+    // makes this a no-op once every row is anchored.
     try {
-      await this.service.enrichApps(needsBackfill);
+      await this.anchors.computeMissingAnchors(candidates);
     } catch (err) {
-      // Boot must not block on Steam — log and move on. Next month's cron
-      // (or the on-add hook for incremental additions) will reconcile.
-      this.logger.warn(`boot backfill failed: ${err}`);
+      this.logger.warn(`boot anchor backfill failed: ${err}`);
     }
   }
 

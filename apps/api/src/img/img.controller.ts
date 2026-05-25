@@ -15,7 +15,6 @@ import {
   type TranscodeParams,
   UpstreamError,
   fetchUpstreamChain,
-  generatePaletteGradient,
   transcodeToWebp,
 } from "./upstream";
 
@@ -288,36 +287,6 @@ export class ImgController {
     }
     const resolved = await this.steam.hero(id);
     await this.proxyWebp(resolved.urls, resolved.params, res);
-  }
-
-  // Library row bottom palette layer. Fetches `library_hero.jpg`, extracts
-  // its dominant color via Sharp `.stats()`, and bakes a small gradient.
-  // Does not go through `proxyWebp` — the byte path is fetch → palette
-  // gradient, not fetch → transcode — so the route is inlined.
-  @Get("steam/hero-palette/:appid/:assetTimestamp.webp")
-  @Header("Content-Type", "image/webp")
-  @Header("Cache-Control", IMMUTABLE_YEAR)
-  async steamHeroPalette(
-    @Param("appid") appid: string,
-    @Res() res: Response
-  ): Promise<void> {
-    const id = Number.parseInt(appid, 10);
-    if (!Number.isFinite(id)) {
-      res.status(HttpStatus.BAD_REQUEST).send();
-      return;
-    }
-    const resolved = await this.steam.heroPalette(id);
-    try {
-      const bytes = await fetchUpstreamChain(resolved.urls);
-      const gradient = await generatePaletteGradient(bytes);
-      res.send(gradient);
-    } catch (err) {
-      if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
-        return;
-      }
-      throw err;
-    }
   }
 
   @Get("steam/logo/:appid/:assetTimestamp.webp")

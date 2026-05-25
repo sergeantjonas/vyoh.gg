@@ -179,6 +179,17 @@ model SteamGameEnrichment {
   // `screenshots` + `screenshotsFetchedAt` pair, which Chunk 9c drops.
   screenshotsAllAges   Json      @default("[]")
   screenshotsMature    Json      @default("[]")
+  // Saliency centroid of `library_hero.jpg`, expressed as integer percent
+  // (0-100) on each axis. Computed at enrichment via smartcrop-sharp on the
+  // raw upstream bytes and used by the library row's `object-cover`
+  // composition as the `objectPosition` anchor so the focal subject stays
+  // in the cropped frame regardless of where it sits in the source. Both
+  // null when never computed (new app, smartcrop unavailable); a defaulted
+  // 50/50 indicates "computed but detection inconclusive" and renders as a
+  // center crop. Renderer always treats null as 50/50 too — the distinction
+  // is only meaningful to the enrichment job (null → retry; 50/50 → don't).
+  subjectXPercent      Int?
+  subjectYPercent      Int?
   enrichedAt           DateTime  @default(now())
 }
 

@@ -119,6 +119,8 @@ export function LibraryRow({
         appid={game.appid}
         assetTimestamp={game.assetTimestamp}
         name={game.name}
+        subjectXPercent={game.subjectXPercent}
+        subjectYPercent={game.subjectYPercent}
         meta={
           <>
             {lifetime ? `${lifetime} lifetime` : "Never launched"}

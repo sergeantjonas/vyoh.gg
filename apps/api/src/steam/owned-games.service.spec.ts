@@ -400,6 +400,8 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         publisherNames: [],
         developerNames: [],
         franchiseNames: [],
+        subjectXPercent: null,
+        subjectYPercent: null,
       },
     ]);
   });

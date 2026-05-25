@@ -8,6 +8,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamPicsService } from "./pics.service";
 import { SteamClientService } from "./steam-client.service";
+import { SteamSubjectAnchorService } from "./subject-anchor.service";
 import type {
   SteamStoreItemFullRaw,
   SteamStoreItemGameRatingRaw,
@@ -218,7 +219,8 @@ export class SteamEnrichmentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly client: SteamClientService,
-    private readonly pics: SteamPicsService
+    private readonly pics: SteamPicsService,
+    private readonly anchors: SteamSubjectAnchorService
   ) {}
 
   // Fetches IStoreBrowseService/GetItems for the supplied appids in batches
@@ -283,6 +285,17 @@ export class SteamEnrichmentService {
     this.logger.log(
       `enriched ${written}/${appids.length} apps (skipped=${skipped}) in ${duration}ms`
     );
+
+    // Saliency anchors run after the upserts so new rows can be picked up
+    // by the anchor service's `subjectXPercent IS NULL` filter without
+    // needing a second cycle. Failure is non-fatal — anchors fall back to
+    // 50/50 at render time, which renders as a centered crop.
+    try {
+      await this.anchors.computeMissingAnchors(appids);
+    } catch (err) {
+      this.logger.warn(`subject-anchor pass failed: ${describeError(err)}`);
+    }
+
     return written;
   }
 

@@ -103,21 +103,6 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
     expect(resolved.params).toMatchObject({ width: 1280, quality: 85 });
   });
 
-  it("heroPalette resolves the same upstream chain as hero (controller does the palette work)", async () => {
-    const prisma = makePrisma();
-    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
-      libraryHeroPath: "abc/library_hero.jpg",
-      assetTimestamp: 1_715_000_000n,
-    });
-    const service = makeService(prisma);
-
-    const resolved = await service.heroPalette(440);
-    expect(resolved.urls).toEqual([
-      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/abc/library_hero.jpg?t=1715000000",
-      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
-    ]);
-  });
-
   it("logo never emits a ?t= cache-buster even if enrichment has a timestamp", async () => {
     const prisma = makePrisma();
     prisma.steamGameEnrichment.findUnique.mockResolvedValue({

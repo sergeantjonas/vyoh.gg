@@ -15,8 +15,14 @@ allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': true
   '@swc/core': true
+  core-js: false
   esbuild: true
   msw: true
+  # ONNX runtime for the face-detection anchor (apps/api). Native prebuilts
+  # for x86-64 + aarch64 Linux + macOS ship from the package; this just
+  # tells pnpm it's allowed to run the install hook that drops them in
+  # place. Used by SteamSubjectAnchorService at enrichment time.
+  onnxruntime-node: true
   prisma: true
   protobufjs: true
   sharp: true

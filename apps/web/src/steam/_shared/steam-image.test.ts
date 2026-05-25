@@ -3,7 +3,6 @@ import {
   steamAchievementIconUrl,
   steamCapsuleUrl,
   steamLibraryCapsuleUrl,
-  steamLibraryHeroPaletteUrl,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
   steamPageBackgroundUrl,
@@ -19,9 +18,6 @@ describe("steam image url helpers", () => {
     );
     expect(steamLibraryHeroUrl(440)).toBe(
       "http://localhost:2010/img/steam/hero/440/0.webp"
-    );
-    expect(steamLibraryHeroPaletteUrl(440)).toBe(
-      "http://localhost:2010/img/steam/hero-palette/440/0.webp"
     );
     expect(steamLibraryLogoUrl(440)).toBe(
       "http://localhost:2010/img/steam/logo/440/0.webp"
@@ -43,9 +39,6 @@ describe("steam image url helpers", () => {
   it("encodes a BigInt assetTimestamp into the URL", () => {
     expect(steamLibraryHeroUrl(440, 1717000000n)).toBe(
       "http://localhost:2010/img/steam/hero/440/1717000000.webp"
-    );
-    expect(steamLibraryHeroPaletteUrl(440, 1717000000n)).toBe(
-      "http://localhost:2010/img/steam/hero-palette/440/1717000000.webp"
     );
   });
 

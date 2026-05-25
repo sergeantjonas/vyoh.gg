@@ -6,7 +6,6 @@ import * as upstream from "./upstream";
 
 const fetchChainSpy = vi.spyOn(upstream, "fetchUpstreamChain");
 const transcodeSpy = vi.spyOn(upstream, "transcodeToWebp");
-const paletteSpy = vi.spyOn(upstream, "generatePaletteGradient");
 
 interface ResStub {
   status: ReturnType<typeof vi.fn>;
@@ -53,7 +52,6 @@ function makeController(
       .fn()
       .mockResolvedValue({ urls: ["https://steam/lib"], params: {} }),
     hero: vi.fn().mockResolvedValue({ urls: ["https://steam/hero"], params: {} }),
-    heroPalette: vi.fn().mockResolvedValue({ urls: ["https://steam/hero-palette"] }),
     logo: vi.fn().mockResolvedValue({ urls: ["https://steam/logo"], params: {} }),
     backdrop: vi.fn().mockResolvedValue({ urls: ["https://steam/backdrop"], params: {} }),
     achievement: vi.fn().mockResolvedValue({ urls: ["https://steam/ach"], params: {} }),
@@ -68,13 +66,11 @@ function makeController(
 beforeEach(() => {
   fetchChainSpy.mockResolvedValue(Buffer.from([1, 2, 3]));
   transcodeSpy.mockResolvedValue(Buffer.from([4, 5, 6]));
-  paletteSpy.mockResolvedValue(Buffer.from([7, 8, 9]));
 });
 
 afterEach(() => {
   fetchChainSpy.mockReset();
   transcodeSpy.mockReset();
-  paletteSpy.mockReset();
 });
 
 describe("ImgController.champion", () => {
@@ -144,10 +140,6 @@ describe("ImgController numeric-id BAD_REQUEST guards", () => {
       call: (c: ImgController, res: ResStub) => c.steamHero("abc", res as never),
     },
     {
-      name: "steamHeroPalette",
-      call: (c: ImgController, res: ResStub) => c.steamHeroPalette("abc", res as never),
-    },
-    {
       name: "steamLogo",
       call: (c: ImgController, res: ResStub) => c.steamLogo("abc", res as never),
     },
@@ -201,7 +193,6 @@ describe("ImgController happy paths", () => {
     { method: "steamCapsule" as const },
     { method: "steamLibraryCapsule" as const },
     { method: "steamHero" as const },
-    { method: "steamHeroPalette" as const },
     { method: "steamLogo" as const },
     { method: "steamBackdrop" as const },
   ])("$method proxies the chain", async ({ method }) => {

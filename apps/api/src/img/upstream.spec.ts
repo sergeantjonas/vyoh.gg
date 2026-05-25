@@ -4,7 +4,6 @@ import {
   UpstreamError,
   fetchUpstream,
   fetchUpstreamChain,
-  generatePaletteGradient,
   transcodeToWebp,
 } from "./upstream";
 
@@ -163,83 +162,5 @@ describe("transcodeToWebp", () => {
     const meta = await sharp(out).metadata();
     expect(meta.width).toBe(8);
     expect(meta.height).toBe(8);
-  });
-});
-
-describe("generatePaletteGradient (edge-extension backdrop)", () => {
-  // Build a hero with distinct left/right halves so we can verify the
-  // function samples the LEFT edge specifically (not the right or
-  // overall dominant). Left half is dark warm red, right half is bright
-  // cyan — if extension samples the left, output should be warm-toned.
-  async function makeSplitHero(): Promise<Buffer> {
-    return sharp({
-      create: { width: 1920, height: 620, channels: 3, background: { r: 0, g: 0, b: 0 } },
-    })
-      .composite([
-        {
-          input: {
-            create: {
-              width: 960,
-              height: 620,
-              channels: 3,
-              background: { r: 130, g: 40, b: 30 },
-            },
-          },
-          top: 0,
-          left: 0,
-        },
-        {
-          input: {
-            create: {
-              width: 960,
-              height: 620,
-              channels: 3,
-              background: { r: 40, g: 200, b: 220 },
-            },
-          },
-          top: 0,
-          left: 960,
-        },
-      ])
-      .png()
-      .toBuffer();
-  }
-
-  async function makeSolidHero(r: number, g: number, b: number): Promise<Buffer> {
-    return sharp({
-      create: { width: 1920, height: 620, channels: 3, background: { r, g, b } },
-    })
-      .png()
-      .toBuffer();
-  }
-
-  it("returns a WebP at the asset's native height and 1920px wide", async () => {
-    const out = await generatePaletteGradient(await makeSplitHero());
-    const meta = await sharp(out).metadata();
-    expect(meta.format).toBe("webp");
-    expect(meta.width).toBe(1920);
-    expect(meta.height).toBe(620);
-  });
-
-  it("samples the LEFT edge specifically (not the right or overall dominant)", async () => {
-    // Left half is warm red, right half is bright cyan. If the function
-    // samples the left edge correctly, the output should be uniformly
-    // warm-red across its width — not cyan, not a mix.
-    const out = await generatePaletteGradient(await makeSplitHero());
-    const { dominant } = await sharp(out).stats();
-    expect(dominant.r).toBeGreaterThan(dominant.g);
-    expect(dominant.r).toBeGreaterThan(dominant.b);
-  });
-
-  it("does not throw on a fully-black input", async () => {
-    const out = await generatePaletteGradient(await makeSolidHero(0, 0, 0));
-    const meta = await sharp(out).metadata();
-    expect(meta.format).toBe("webp");
-  });
-
-  it("does not throw on a near-white input (Pragmata-style)", async () => {
-    const out = await generatePaletteGradient(await makeSolidHero(250, 250, 250));
-    const meta = await sharp(out).metadata();
-    expect(meta.format).toBe("webp");
   });
 });

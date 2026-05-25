@@ -4,6 +4,7 @@ import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamAchievementsService } from "./achievements.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import { SteamEnrichmentService } from "./enrichment.service";
+import { FaceDetectionService } from "./face-detection.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
@@ -20,6 +21,7 @@ import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamClientService } from "./steam-client.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
+import { SteamSubjectAnchorService } from "./subject-anchor.service";
 import { SteamTagPoller } from "./tag.poller";
 import { SteamTagService } from "./tag.service";
 
@@ -48,6 +50,8 @@ import { SteamTagService } from "./tag.service";
     SteamAchievementsService,
     SteamTagService,
     SteamTagPoller,
+    SteamSubjectAnchorService,
+    FaceDetectionService,
   ],
   exports: [
     SteamService,

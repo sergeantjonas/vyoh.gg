@@ -1,26 +1,24 @@
 import { cn } from "@/lib/utils";
 import {
   makeHeroFallbackHandlers,
-  steamLibraryHeroPaletteUrl,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
 import { type ReactNode, type RefObject, useState } from "react";
 
-// Reusable Steam-native row shell. Composition mirrors the Steam Library's
-// "recent activity" tile: the landscape hero art sits on the right half of
-// the row at near-natural aspect and is feathered into the card body via
-// a CSS mask (no hard seam between art and text), with a blurred copy of
-// the same hero filling the row beneath so the left side has visual
-// texture instead of an empty dark rectangle. Same `steamLibraryHeroUrl`
-// for both means one network fetch (the browser dedupes). The wordmark
-// logo overlays the content column on the left as the "title"; meta + an
-// optional trailing slot stack underneath.
+// Reusable Steam-native row shell. Composition mirrors Steam's own "Recent
+// Activity" tiles: the hero art covers the row full-bleed with a per-asset
+// `(subjectXPercent, subjectYPercent)` anchor steering `object-position` so
+// the focal subject stays in frame regardless of where it sits in the
+// source `library_hero.jpg`. Saliency-derived anchors are computed at
+// enrichment (smartcrop-sharp; see SteamSubjectAnchorService). Null
+// anchors render as a centered crop. A left-side dim gradient over the
+// art carries text legibility for the wordmark logo + meta line.
 //
-// View-transition morph anchors: `heroRef` attaches to the sharp foreground
-// hero img (named `steam-game-${appid}-hero` on the destination), `logoRef`
-// to the wordmark (named `-logo`). Pair names lock these two landmarks
-// across the route swap. See library-tile.tsx and
+// View-transition morph anchors: `heroRef` attaches to the cover hero img
+// (named `steam-game-${appid}-hero` on the destination), `logoRef` to the
+// wordmark (named `-logo`). Pair names lock these two landmarks across
+// the route swap. See library-tile.tsx and
 // docs/working-notes/cross-cutting/view-transitions-rollout.md.
 
 export interface SteamGameRowShellProps {
@@ -30,12 +28,17 @@ export interface SteamGameRowShellProps {
   // the logo asset is missing. Pass the game's display name, not the appid.
   name: string;
   meta?: ReactNode;
+  // Saliency-derived anchor for the hero's `object-position`. Null/undefined
+  // renders as 50/50 (centered crop). See SteamSubjectAnchorService for how
+  // these are derived from `library_hero.jpg` at enrichment time.
+  subjectXPercent?: number | null;
+  subjectYPercent?: number | null;
   // Right-aligned trailing slot. Render visual indicators only (icons,
   // badges); never put click targets here because the row wrapper is the
   // click target and nested interactives break accessibility.
   trailing?: ReactNode;
-  // View-transition morph anchors. `heroRef` attaches to the foreground
-  // hero img, `logoRef` to the wordmark logo img — the caller applies
+  // View-transition morph anchors. `heroRef` attaches to the cover hero
+  // img, `logoRef` to the wordmark logo img — the caller applies
   // `view-transition-name` to each in onClick, pairing with matching names
   // on the destination game-detail page. Only the library row uses these;
   // the wishlist row leaves them undefined (external navigation has no
@@ -52,6 +55,8 @@ export function SteamGameRowShell({
   assetTimestamp,
   name,
   meta,
+  subjectXPercent,
+  subjectYPercent,
   trailing,
   heroRef,
   logoRef,
@@ -79,6 +84,9 @@ export function SteamGameRowShell({
     else setLogoLoaded(true);
   };
 
+  const xPct = subjectXPercent ?? 50;
+  const yPct = subjectYPercent ?? 50;
+
   return (
     <div
       className={cn(
@@ -91,69 +99,18 @@ export function SteamGameRowShell({
         // `perspective(...)` lives on :hover only — see comment on the
         // matching tile chrome in library-tile.tsx for the Safari
         // composite-layer rationale.
-        "relative isolate h-32 overflow-hidden rounded-lg border border-border/40 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[colors,box-shadow,transform] duration-500 ease-out sm:h-36",
+        "relative isolate h-36 overflow-hidden rounded-lg border border-border/40 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[colors,box-shadow,transform] duration-500 ease-out sm:h-40",
         "group-hover/row:border-border group-hover/row:shadow-[0_18px_28px_-10px_rgba(0,0,0,0.7),0_10px_20px_-8px_rgba(255,255,255,0.1)] group-hover/row:transform-[perspective(900px)_rotateX(2deg)_rotateY(-1.5deg)_scale(1.005)]",
         className
       )}
     >
-      {/* Backdrop: edge-extended copy of the hero. The API samples the
-          asset's leftmost 200px, horizontally averages each row to one
-          pixel, then stretches to 1920px — every vertical position in
-          the backdrop is the per-row-averaged tint of the asset's
-          leftward content at that y. For Pragmata's white edge → white
-          bg. For RE3's dark sky → dark sky bg. For Cyberpunk's yellow
-          → yellow bg. The averaging step dissolves localized highlights
-          (lanterns, sparks, dust) that would otherwise become hard
-          horizontal streaks if we just stretched the leftmost column.
-
-          `object-fill` (NOT cover) is intentional: the foreground hero
-          uses `object-contain` which squashes the full 620px asset
-          height into the row's 144px. `object-cover` on the backdrop
-          would crop top+bottom and stretch only the vertical middle
-          band, so at the seam the backdrop would show the asset's
-          mid-edge color while the foreground shows top/bottom edge
-          colors (RE3 sunset bg vs dark-sky foreground top). `fill`
-          stretches y 1:1 with the foreground's contain mapping; every
-          x is uniform color so non-uniform horizontal stretch adds no
-          artifact.
-
-          Horizontal mask fades the backdrop in over the left ~half so
-          the streaky / averaged region only shows in the right half
-          where it flanks the foreground hero — without the mask, the
-          backdrop was reading as the dominant element of the card
-          (especially on assets with non-trivial leftward content). The
-          card's dark bg shows through on the left half, reframing the
-          backdrop as "atmospheric extension flanking the hero" rather
-          than "streaky bg with a hero pasted on the right." */}
-      {!heroFailed && (
-        <img
-          src={steamLibraryHeroPaletteUrl(appid, assetTimestamp)}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          decoding="async"
-          fetchPriority="high"
-          className="absolute inset-0 size-full object-fill [mask-image:linear-gradient(to_right,transparent_0%,black_55%)] [mask-repeat:no-repeat] [mask-size:100%_100%]"
-        />
-      )}
-
-      {/* Left-anchored dim for text legibility. The extended-edge bg
-          carries the asset's actual edge color — sometimes bright
-          (Pragmata white, Cyberpunk yellow) — so we need a soft
-          darkening over the text zone for white text to read. The
-          gradient fades to transparent before the hero starts so the
-          bg's edge tones remain visible on the right. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 w-3/5 bg-[linear-gradient(to_right,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.45)_40%,rgba(0,0,0,0.15)_75%,rgba(0,0,0,0)_100%)]"
-      />
-
-      {/* Sharp foreground hero — right-anchored at natural ~3:1 aspect.
-          Left edge feathers into the extended-edge backdrop so the
-          transition between "actual hero" and "edge-extension" is
-          smooth. Since the backdrop's right edge color matches the
-          hero's left edge color (same source pixels), the feather
-          blends colors that are already tonally consistent. */}
+      {/* Full-bleed cover hero — `object-position` steered by the
+          saliency anchor so the focal subject stays in frame across the
+          row's wide aspect (~8:1 container vs ~3:1 source). The source
+          asset is the same `library_hero.jpg` used by the destination
+          game page; one network fetch covers both via browser dedupe.
+          Inline `style` rather than a Tailwind arbitrary class because
+          the percentages are dynamic per-row. */}
       {!heroFailed && (
         <img
           ref={heroRef}
@@ -162,16 +119,28 @@ export function SteamGameRowShell({
           aria-hidden
           loading="lazy"
           decoding="async"
+          fetchPriority="high"
           onLoad={heroHandlers.onLoad}
           onError={heroHandlers.onError}
+          style={{ objectPosition: `${xPct}% ${yPct}%` }}
           className={cn(
-            "absolute inset-y-0 right-0 h-full w-auto max-w-full object-contain object-right transition-[opacity,transform] duration-600 ease-out",
-            "[mask-image:linear-gradient(to_right,transparent_0%,black_30%)] [mask-repeat:no-repeat] [mask-size:100%_100%]",
+            "absolute inset-0 size-full object-cover transition-[opacity,transform] duration-600 ease-out",
             "group-hover/row:scale-105",
             heroLoaded ? "opacity-100" : "opacity-0"
           )}
         />
       )}
+
+      {/* Left-anchored dim for text legibility. The cover hero can be
+          arbitrarily bright on the left side (Pragmata's white edge,
+          Cyberpunk's yellow); this gradient ramps darkness over the
+          leftmost ~55% so the wordmark + meta read against any source.
+          Falls to transparent past the text zone so the right half of
+          the art remains untouched. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-3/5 bg-[linear-gradient(to_right,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.55)_35%,rgba(0,0,0,0.2)_70%,rgba(0,0,0,0)_100%)]"
+      />
 
       {/* Steam-style anchored sheen — same gradient pattern as the tile
           (see library-tile.tsx), anchored at the top-right corner. The
@@ -205,10 +174,10 @@ export function SteamGameRowShell({
               className={cn(
                 // Generous bbox so logos with built-in transparent
                 // padding (RE Requiem, Cyberpunk) render at comparable
-                // size to tightly-cropped ones (RE2). Logo sits on
-                // solid card bg, so no drop-shadow is needed for
-                // legibility.
-                "max-h-12 max-w-56 object-contain object-left transition-opacity duration-500 ease-out sm:max-h-14",
+                // size to tightly-cropped ones (RE2). Drop-shadow keeps
+                // light wordmarks legible against bright art that the
+                // left-side dim doesn't fully tame (Pragmata, FC2).
+                "max-h-12 max-w-56 object-contain object-left drop-shadow-lg transition-opacity duration-500 ease-out sm:max-h-14",
                 logoLoaded ? "opacity-100" : "opacity-0"
               )}
             />
