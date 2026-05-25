@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ActiveGameProvider } from "./active-game-context";
 import { LibraryListVirtual } from "./library-list-virtual";
 
 // Same pattern as match-list.test.tsx: stub the router primitives the row
@@ -66,12 +67,17 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
   } as unknown as SteamOwnedGame;
 }
 
-function renderList(games: SteamOwnedGame[]) {
+function renderList(
+  games: SteamOwnedGame[],
+  { settled = true }: { settled?: boolean } = {}
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <TooltipPrimitive.Provider>
       <QueryClientProvider client={client}>
-        <LibraryListVirtual games={games} />
+        <ActiveGameProvider>
+          <LibraryListVirtual games={games} settled={settled} />
+        </ActiveGameProvider>
       </QueryClientProvider>
     </TooltipPrimitive.Provider>
   );

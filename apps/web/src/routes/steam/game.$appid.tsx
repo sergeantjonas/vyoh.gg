@@ -1,11 +1,3 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
 import { CreditsLine } from "@/steam/_shared/credits-line";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
@@ -28,9 +20,10 @@ import { LastProgressedCard } from "@/steam/game/last-progressed-card";
 import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
 import { TimeTo100Card } from "@/steam/game/time-to-100-card";
+import { GameBreadcrumb } from "@/steam/library/game-breadcrumb";
 import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import { useState } from "react";
 
@@ -105,19 +98,7 @@ function SteamGamePage() {
   // larger between-band gap so the eye can land on group boundaries.
   return (
     <div className="flex flex-col gap-10">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/steam/library">Library</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{game?.name ?? `App ${appidParam}`}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <GameBreadcrumb appid={appid} gameName={game?.name ?? `App ${appidParam}`} />
 
       {/* Hero banner — Steam's library_hero.jpg (1920×620) with logo.png
           overlay positioned bottom-left, mirroring Steam's own library page
@@ -135,6 +116,7 @@ function SteamGamePage() {
           snapshot pair, so the darkening crossfades in throughout the
           morph instead of snapping on. */}
       <div
+        data-steam-game-hero={appid}
         style={{ viewTransitionName: `steam-game-${appid}-hero` }}
         className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-linear-to-br from-muted via-card to-muted"
       >
@@ -179,6 +161,7 @@ function SteamGamePage() {
             loading="eager"
             onLoad={handleLogoLoad}
             onError={() => setLogoFailed(true)}
+            data-steam-game-logo={appid}
             style={{ viewTransitionName: `steam-game-${appid}-logo` }}
             className={cn(
               "absolute bottom-4 left-4 h-1/3 max-w-[55%] object-contain object-bottom-left drop-shadow-lg transition-opacity duration-500 ease-out sm:bottom-6 sm:left-6",

@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ActiveGameProvider } from "./active-game-context";
 import { LibraryGridVirtual } from "./library-grid-virtual";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -76,7 +77,9 @@ function renderGrid(games: SteamOwnedGame[]) {
   return render(
     <TooltipPrimitive.Provider>
       <QueryClientProvider client={client}>
-        <LibraryGridVirtual games={games} />
+        <ActiveGameProvider>
+          <LibraryGridVirtual games={games} />
+        </ActiveGameProvider>
       </QueryClientProvider>
     </TooltipPrimitive.Provider>
   );

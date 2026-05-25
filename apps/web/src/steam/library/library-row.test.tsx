@@ -11,7 +11,16 @@ import {
   it,
   vi,
 } from "vitest";
+import { ActiveGameProvider } from "./active-game-context";
 import { LibraryRow } from "./library-row";
+
+function renderRow(game: SteamOwnedGame) {
+  return render(
+    <ActiveGameProvider>
+      <LibraryRow game={game} />
+    </ActiveGameProvider>
+  );
+}
 
 const navigateMock = vi.fn();
 
@@ -76,62 +85,54 @@ afterAll(() => {
 
 describe("LibraryRow", () => {
   it("renders the game name (as logo alt) and 'Never launched' when no playtime is recorded", () => {
-    render(<LibraryRow game={makeGame({ name: "Half-Life 2" })} />);
+    renderRow(makeGame({ name: "Half-Life 2" }));
     // Name lives on the logo wordmark img's alt (see SteamGameRowShell).
     expect(screen.getByAltText("Half-Life 2")).toBeTruthy();
     expect(screen.getByText("Never launched")).toBeTruthy();
   });
 
   it("renders lifetime in hours when playtimeForeverMinutes is set", () => {
-    const { container } = render(
-      <LibraryRow game={makeGame({ playtimeForeverMinutes: 6000 })} />
-    );
+    const { container } = renderRow(makeGame({ playtimeForeverMinutes: 6000 }));
     // 6000m / 60 = 100h
     expect(container.textContent).toContain("100h lifetime");
   });
 
   it("appends 'last two weeks' marker when the 2-week field is non-zero", () => {
-    const { container } = render(
-      <LibraryRow
-        game={makeGame({
-          playtimeForeverMinutes: 6000,
-          playtime2WeeksMinutes: 120,
-        })}
-      />
+    const { container } = renderRow(
+      makeGame({
+        playtimeForeverMinutes: 6000,
+        playtime2WeeksMinutes: 120,
+      })
     );
     expect(container.textContent).toContain("100h lifetime");
     expect(container.textContent).toContain("2h last two weeks");
   });
 
   it("suppresses the 'last played' hint when the 2-week marker is set (avoids duplicate signals)", () => {
-    const { container } = render(
-      <LibraryRow
-        game={makeGame({
-          playtimeForeverMinutes: 6000,
-          playtime2WeeksMinutes: 120,
-          rtimeLastPlayedAt: "2026-05-18T00:00:00Z",
-        })}
-      />
+    const { container } = renderRow(
+      makeGame({
+        playtimeForeverMinutes: 6000,
+        playtime2WeeksMinutes: 120,
+        rtimeLastPlayedAt: "2026-05-18T00:00:00Z",
+      })
     );
     expect(container.textContent).not.toMatch(/last played/);
   });
 
   it("renders the 'last played' hint for cold rows when 2-week is null", () => {
-    const { container } = render(
-      <LibraryRow
-        game={makeGame({
-          playtimeForeverMinutes: 6000,
-          playtime2WeeksMinutes: null,
-          // 180 days ago
-          rtimeLastPlayedAt: "2025-11-20T12:00:00Z",
-        })}
-      />
+    const { container } = renderRow(
+      makeGame({
+        playtimeForeverMinutes: 6000,
+        playtime2WeeksMinutes: null,
+        // 180 days ago
+        rtimeLastPlayedAt: "2025-11-20T12:00:00Z",
+      })
     );
     expect(container.textContent).toMatch(/last played .*months ago/);
   });
 
   it("stamps `library-row-${appid}` as view-transition-name on the li so sort/filter reorders pair OLD↔NEW", () => {
-    const { container } = render(<LibraryRow game={makeGame({ appid: 12345 })} />);
+    const { container } = renderRow(makeGame({ appid: 12345 }));
     const li = container.querySelector("li");
     if (!li) throw new Error("li missing");
     expect(li.style.viewTransitionName).toBe("library-row-12345");
@@ -153,7 +154,7 @@ describe("LibraryRow view-transition wiring", () => {
     (document as unknown as { startViewTransition?: unknown }).startViewTransition =
       startVT;
 
-    const { container } = render(<LibraryRow game={makeGame({ appid: 730 })} />);
+    const { container } = renderRow(makeGame({ appid: 730 }));
     const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
     // SteamGameRowShell renders imgs in order: [cover hero (heroRef), logo
     // (logoRef)]. The cover composition has no separate palette backdrop
@@ -196,7 +197,7 @@ describe("LibraryRow view-transition wiring", () => {
     (document as unknown as { startViewTransition?: unknown }).startViewTransition =
       startVT;
 
-    const { container } = render(<LibraryRow game={makeGame({ appid: 440 })} />);
+    const { container } = renderRow(makeGame({ appid: 440 }));
     const link = container.querySelector("a");
     if (!link) throw new Error("link missing");
 
@@ -206,7 +207,7 @@ describe("LibraryRow view-transition wiring", () => {
   });
 
   it("falls through when the browser lacks startViewTransition", () => {
-    const { container } = render(<LibraryRow game={makeGame({ appid: 570 })} />);
+    const { container } = renderRow(makeGame({ appid: 570 }));
     const link = container.querySelector("a");
     if (!link) throw new Error("link missing");
 

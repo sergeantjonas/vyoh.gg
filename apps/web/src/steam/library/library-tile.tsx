@@ -7,6 +7,7 @@ import {
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
+import { useActiveGame } from "@/steam/library/active-game-context";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -41,6 +42,7 @@ export function LibraryTile({
   const [capsuleFailed, setCapsuleFailed] = useState(false);
   const [capsuleLoaded, setCapsuleLoaded] = useState(false);
   const navigate = useNavigate();
+  const { saveListScroll, setActiveGame } = useActiveGame();
   // Hidden hero-img layer is the morph anchor: the destination renders the
   // same hero asset as its foreground banner, so naming *just* this hidden
   // layer carries the visual continuity across a 2:3 → 3:1 aspect change
@@ -79,6 +81,14 @@ export function LibraryTile({
             onFocus={() =>
               prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
             }
+            onPointerDown={() => {
+              // Mirrors LibraryRow: save scroll + flag the active game on
+              // press so the detail page can restore both on back-nav. Even
+              // though the tile layout skips the backward rect-morph, the
+              // scroll restore still applies.
+              saveListScroll();
+              setActiveGame(game.appid);
+            }}
             onClick={(e) => {
               // VT path: apply `view-transition-name` to the backdrop layer
               // via ref so it is present at OLD-snapshot capture (synchronous

@@ -1,13 +1,16 @@
 import { useMediaQuery } from "@/lib/use-media-query";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
+import type { GameOrigin } from "@/steam/library/active-game-context";
+import { useActiveGame } from "@/steam/library/active-game-context";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import type { CSSProperties, Ref } from "react";
-import { useRef } from "react";
+import { useReducedMotion } from "motion/react";
+import type { CSSProperties } from "react";
+import { useLayoutEffect, useRef } from "react";
 import {
   LIBRARY_HOVERCARD_CONTENT_CLASS,
   LibraryTileHovercardContent,
@@ -36,21 +39,22 @@ const HOVERCARD_VIEWPORT_QUERY = "(min-width: 1536px)";
 
 export function LibraryRow({
   game,
-  liRef,
   style,
   dataIndex,
 }: {
   game: SteamOwnedGame;
   // Virtualizer-controlled `<li>` positioning. When the row is rendered
-  // inside a virtualized list, the parent assigns ref + absolute style +
-  // data-index so TanStack can measure the row and place it at the right
-  // y offset. Plain (non-virtualized) callers leave these undefined and
-  // the row lays out in normal flow.
-  liRef?: Ref<HTMLLIElement>;
+  // inside a virtualized list, the parent assigns absolute style +
+  // data-index so TanStack can place the row at the right y offset.
+  // The list deliberately does NOT pass a measureElement ref — rows are
+  // a fixed-size shell, so the static estimate is correct and dynamic
+  // measurement just causes scroll-restore drift (see library-list-virtual).
   style?: CSSProperties;
   dataIndex?: number;
 }) {
   const navigate = useNavigate();
+  const { saveListScroll, setActiveGame, originRectRef, setOriginRect } = useActiveGame();
+  const reduced = useReducedMotion();
   const showHovercard = useMediaQuery(HOVERCARD_VIEWPORT_QUERY);
   // Two-element morph: hero img + logo img each carry a unique
   // view-transition-name on click, pairing with matching names on the
@@ -59,6 +63,90 @@ export function LibraryRow({
   // then simply crossfades via the root transition.
   const heroRef = useRef<HTMLImageElement>(null);
   const logoRef = useRef<HTMLImageElement>(null);
+  const liRef = useRef<HTMLLIElement>(null);
+  // Captured once on mount so StrictMode's double-invocation doesn't lose
+  // the origin after the first run clears originRectRef. Mirrors
+  // match-row's pattern.
+  const savedOrigin = useRef<GameOrigin | null>(null);
+
+  // Return animation: when this row is the destination of a back-nav from
+  // /steam/game/$appid, animate the hero (and logo, when present) from the
+  // captured detail-page rect to their natural row position. Mirrors
+  // match-row's mount-only effect but runs two independent `el.animate()`
+  // calls so the logo can morph from its own bottom-left detail-page
+  // anchor rather than scaling with the hero. Tile layout skips this
+  // entirely: the breadcrumb only writes an origin rect when layout is
+  // "rows", so originRectRef is null in tile-layout back-navs.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only entrance animation
+  useLayoutEffect(() => {
+    if (!savedOrigin.current) {
+      const o = originRectRef.current;
+      if (o?.appid !== game.appid || o.direction !== "backward") return;
+      savedOrigin.current = o;
+    }
+    const origin = savedOrigin.current;
+    if (!origin) return;
+    if (reduced) return;
+    const heroEl = heroRef.current;
+    const logoEl = logoRef.current;
+    const liEl = liRef.current;
+    if (!heroEl) return;
+    // Morph the WHOLE row chrome (the `h-36 / sm:h-40` div) rather than
+    // just the hero img. Earlier iterations transformed the hero only and
+    // left the chrome's gradient/sheen/logo/meta siblings in place at the
+    // natural row slot — the user saw the hero img sliding past the
+    // stationary left-side legibility gradient ("the card is moving
+    // behind a darkening layer"), and once the hero flew away the row
+    // slot showed `bg-card` + gradient with no image behind it ("exposing
+    // a black background"). Morphing the chrome as one piece carries
+    // every overlay along with it, so there is no static gradient for the
+    // hero to slide under and no empty row slot.
+    const chromeEl = heroEl.parentElement;
+    if (!chromeEl) return;
+    // Lift the active LI's z-index so the morphing chrome paints above
+    // any neighbouring rows it overlaps in flight.
+    if (liEl) liEl.style.zIndex = "50";
+    // Force opacity:1 inline on the hero img so the morph has visible
+    // content. Tailwind defaults the img to `opacity-0` until `onLoad`
+    // flips `heroLoaded`, which can land 1–3 frames after mount even on
+    // a cache hit — without this override the chrome morphs around an
+    // invisible image for the first frames.
+    heroEl.style.opacity = "1";
+    if (logoEl) logoEl.style.opacity = "1";
+    // Consume the origin synchronously so a re-render of this row (e.g.
+    // a virtualizer remount) doesn't try to start a second morph.
+    setOriginRect(null);
+    // Measure the chrome's natural rect. The origin captured from the
+    // detail page's hero wrapper rect is the "where it came from" anchor;
+    // the chrome's live rect is "where it's landing." FLIP delta between
+    // those drives a single transform on the chrome — everything inside
+    // (hero, gradient, logo, meta) travels along.
+    const chromeLive = chromeEl.getBoundingClientRect();
+    const dx = origin.heroRect.left - chromeLive.left;
+    const dy = origin.heroRect.top - chromeLive.top;
+    const sx = origin.heroRect.width / chromeLive.width;
+    const sy = origin.heroRect.height / chromeLive.height;
+    const anim = chromeEl.animate(
+      [
+        {
+          transform: `translate(${dx}px, ${dy}px) scaleX(${sx}) scaleY(${sy})`,
+          transformOrigin: "0 0",
+        },
+        { transform: "none", transformOrigin: "0 0" },
+      ],
+      { duration: 550, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "none" }
+    );
+    const restore = () => {
+      if (liEl) liEl.style.zIndex = "";
+    };
+    anim.onfinish = restore;
+    return () => {
+      anim.cancel();
+      restore();
+      heroEl.style.opacity = "";
+      if (logoEl) logoEl.style.opacity = "";
+    };
+  }, []);
 
   const lifetime =
     game.playtimeForeverMinutes > 0 ? formatPlaytime(game.playtimeForeverMinutes) : null;
@@ -84,6 +172,14 @@ export function LibraryRow({
       onFocus={() =>
         prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
       }
+      onPointerDown={() => {
+        // Save list scroll + flag the active game on press so the
+        // detail page can later restore both on back-navigation. Mirrors
+        // match-row's pattern: pointerdown fires before the navigation
+        // resolves, and the active marker carries through forward + back.
+        saveListScroll();
+        setActiveGame(game.appid);
+      }}
       onClick={(e) => {
         // Apply `view-transition-name` to each available morph anchor
         // (hero + logo) so both are present at OLD-snapshot capture,

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ActiveGameProvider } from "./active-game-context";
 import { LibraryTile } from "./library-tile";
 
 const navigateMock = vi.fn();
@@ -41,9 +42,11 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
 
 function renderTile(g: SteamOwnedGame) {
   return render(
-    <ul>
-      <LibraryTile game={g} />
-    </ul>
+    <ActiveGameProvider>
+      <ul>
+        <LibraryTile game={g} />
+      </ul>
+    </ActiveGameProvider>
   );
 }
 
@@ -106,9 +109,11 @@ describe("LibraryTile", () => {
 describe("LibraryTile HeroFallback branches", () => {
   function renderWithCapsuleError(name: string) {
     const result = render(
-      <ul>
-        <LibraryTile game={game({ name })} />
-      </ul>
+      <ActiveGameProvider>
+        <ul>
+          <LibraryTile game={game({ name })} />
+        </ul>
+      </ActiveGameProvider>
     );
     const capsule = result.container.querySelector(
       "img:not([aria-hidden])"
