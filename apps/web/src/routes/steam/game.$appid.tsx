@@ -20,7 +20,7 @@ import {
 } from "@/steam/_shared/steam-image";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
-import { GameAboutBlock } from "@/steam/game/game-about-block";
+import { GameAboutBlock, useGameDescriptionHtml } from "@/steam/game/game-about-block";
 import { GameDetailSkeleton } from "@/steam/game/game-detail-skeleton";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
@@ -32,6 +32,7 @@ import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 interface SteamGameSearch {
@@ -93,6 +94,14 @@ function SteamGamePage() {
     if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
     else setLogoLoaded(true);
   };
+
+  // Full-description disclosure. Default collapsed (short description is
+  // typically enough for a one-glance read); user opts in to load the full
+  // BBCode body inline. Per-page transient state — no persistence — because
+  // toggling open on every visit doesn't match the user's actual intent
+  // ("I want to read more about THIS game right now").
+  const [descExpanded, setDescExpanded] = useState(false);
+  const descMeta = useGameDescriptionHtml(appid);
 
   // Page is grouped into three bands. The first ("Identity") collapses the
   // hero, the facts strip, and the editorial blurb into one tight visual
@@ -169,18 +178,21 @@ function SteamGamePage() {
         )}
       </div>
 
-      {/* Band 1 — Identity. The hero banner already carries the wordmark,
-          so the duplicate h1 only renders when the logo asset failed (older
-          titles missing `library_logo.png`). The facts row sits with `mt-1`
-          to read as a continuation of the hero band rather than the start
-          of a new section; chips + playtime pills + credits + description
-          stack inside it. Playtime is rendered as inline pills in the same
-          row as the chips so the page never floats a near-empty playtime
-          card next to a tall description column. */}
+      {/* Band 1 — Identity card. The hero banner already carries the
+          wordmark, so the duplicate h1 only renders when the logo asset
+          failed (older titles missing `library_logo.png`). Card chrome
+          matches the sibling sections on the page (verdict cards, unlock
+          timeline, achievement panel) so the identity content reads as a
+          discrete block instead of floating text. Playtime is rendered as
+          inline pills in the chip row — no separate playtime card competes
+          for vertical space. The full BBCode "About this game" body is
+          folded into the same card behind a "Read full description" toggle
+          (default collapsed) so the short description handles the
+          one-glance case and the long form is one click away. */}
       {isPending ? (
         <GameDetailSkeleton />
       ) : (
-        <section className="-mt-2 flex flex-col gap-3">
+        <section className="-mt-2 flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
           {logoFailed && (
             <h1 className="text-2xl font-bold tracking-tight">
               {game?.name ?? `App ${appidParam}`}
@@ -233,6 +245,34 @@ function SteamGamePage() {
             {game?.shortDescription ??
               "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
           </p>
+          {/* Disclosure toggle: only render when the upstream actually has
+              a full body to show (skips the toggle for DLC / bundle / demo
+              entries with no description on file). Once expanded, the body
+              renders inline beneath a soft divider so it visually belongs
+              to this card, not a new section. */}
+          {game && descMeta.hasDescription && (
+            <>
+              <button
+                type="button"
+                onClick={() => setDescExpanded((v) => !v)}
+                aria-expanded={descExpanded}
+                className="-mx-1 inline-flex w-fit cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 transition-transform",
+                    descExpanded && "rotate-180"
+                  )}
+                />
+                {descExpanded ? "Hide full description" : "Read full description"}
+              </button>
+              {descExpanded && (
+                <div className="mt-1 border-t border-border/40 pt-3">
+                  <GameAboutBlock appid={appid} />
+                </div>
+              )}
+            </>
+          )}
         </section>
       )}
 
@@ -247,15 +287,10 @@ function SteamGamePage() {
         </p>
       )}
 
-      {/* Band 2 — Editorial. Screenshots + description are paired media
-          surfaces (both grow tall, both are publisher-supplied). Tight
-          inner gap keeps them visually linked as one editorial block. */}
-      {game && (
-        <section className="flex flex-col gap-4">
-          <GameScreenshotStrip appid={appid} />
-          <GameAboutBlock appid={appid} />
-        </section>
-      )}
+      {/* Band 2 — Editorial. Screenshots stand alone — the full description
+          is now folded into the identity card above behind a disclosure
+          toggle, so the editorial band is purely media. */}
+      {game && <GameScreenshotStrip appid={appid} />}
 
       {/* Band 3 — Progress. Unlock timeline → 5-card verdict grid →
           per-achievement panel, in narrative order ("when did it happen"

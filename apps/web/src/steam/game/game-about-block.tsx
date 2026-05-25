@@ -27,41 +27,66 @@ function useRenderedDescription(bbcode: string | null): string | null {
   }, [bbcode]);
 }
 
+// Inline-prose About block. The wrapper section + h2 + card chrome that the
+// previous standalone version carried have been removed — this block is now
+// rendered inside the game-detail identity card, behind a "Read full
+// description" toggle, so the page-level chrome is owned by the parent
+// (identity card) and the toggle button doubles as the section header.
+//
+// Loading / error / empty branches:
+//   - loading: a small inline skeleton (3 lines)
+//   - error / empty: null (the parent toggle stays clickable but expanding
+//     reveals only a one-line "no description on file" hint, kept out of
+//     this component because the parent decides how to message that)
+//
+// `data` is exposed via a sibling `useGameDescriptionHtml` hook so the
+// parent can decide whether to even render the toggle (no description ⇒
+// no toggle).
 export function GameAboutBlock({ appid }: { appid: number }) {
-  const { data, isPending, isError } = useGameDescription(appid);
-  const html = useRenderedDescription(data?.bbcode ?? null);
+  const { html, isPending } = useGameDescriptionHtml(appid);
 
   if (isPending) {
     return (
-      <section aria-busy className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
-        <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+      <div className="flex flex-col gap-2" aria-busy>
         <div className="h-4 w-full animate-pulse rounded bg-foreground/10" />
         <div className="h-4 w-5/6 animate-pulse rounded bg-foreground/10" />
         <div className="h-4 w-4/6 animate-pulse rounded bg-foreground/10" />
-      </section>
+      </div>
     );
   }
 
-  // Network error or empty description (no enrichment row, DLC/bundle, etc.)
-  // both render as "no block at all" — there's no editorial value in a
-  // placeholder, and the block is one of several on the page.
-  if (isError || !html) return null;
+  if (!html) {
+    return (
+      <p className="text-sm text-muted-foreground italic">
+        No full description on file for this game.
+      </p>
+    );
+  }
 
-  // Card chrome (`rounded-lg border bg-card/50 p-4`) matches the sibling
-  // sections on the game-detail page (unlock timeline, verdict cards,
-  // achievement panel). Heading style mirrors the same convention —
-  // small-caps muted-foreground subhead — so the page reads as a stack of
-  // uniform cards rather than a mix of bare blocks and chromed ones.
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        About this game
-      </h2>
-      <div
-        className="prose prose-sm max-w-none text-foreground/85 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_ul]:my-2"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml; img dropped
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </section>
+    <div
+      className="prose prose-sm max-w-none text-foreground/85 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_ul]:my-2"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml; img dropped
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
+}
+
+// Companion hook the parent uses to decide whether to render the toggle at
+// all. Returns `hasDescription` (true once we know there's a non-empty
+// sanitised body), `isPending`, and the rendered HTML so the parent doesn't
+// have to re-run the BBCode pipeline. Single source of truth for "does this
+// game have a renderable About block."
+export function useGameDescriptionHtml(appid: number): {
+  html: string | null;
+  isPending: boolean;
+  hasDescription: boolean;
+} {
+  const { data, isPending, isError } = useGameDescription(appid);
+  const html = useRenderedDescription(data?.bbcode ?? null);
+  return {
+    html: isError ? null : html,
+    isPending,
+    hasDescription: !!html,
+  };
 }

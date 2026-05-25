@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import type { SteamGameDescription } from "@vyoh/shared";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GameAboutBlock } from "./game-about-block";
+import { GameAboutBlock, useGameDescriptionHtml } from "./game-about-block";
 import { useGameDescription } from "./use-game-description";
 
 vi.mock("./use-game-description", () => ({
@@ -19,8 +19,8 @@ beforeEach(() => {
   vi.mocked(useGameDescription).mockReset();
 });
 
-describe("GameAboutBlock", () => {
-  it("renders a loading skeleton while the query is pending", () => {
+describe("GameAboutBlock (inline prose, no card chrome)", () => {
+  it("renders a small inline skeleton while the query is pending", () => {
     vi.mocked(useGameDescription).mockReturnValue({
       data: undefined,
       isPending: true,
@@ -31,7 +31,7 @@ describe("GameAboutBlock", () => {
     expect(container.querySelector("[aria-busy]")).toBeTruthy();
   });
 
-  it("renders nothing when the description is null (DLC / bundle / unresolved app)", () => {
+  it("renders a 'no description on file' note when bbcode is null", () => {
     const payload: SteamGameDescription = { appid: 42, bbcode: null };
     vi.mocked(useGameDescription).mockReturnValue({
       data: payload,
@@ -39,11 +39,11 @@ describe("GameAboutBlock", () => {
       isError: false,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
-    expect(container.firstChild).toBeNull();
+    renderWithClient(<GameAboutBlock appid={42} />);
+    expect(screen.getByText(/No full description on file/)).toBeTruthy();
   });
 
-  it("renders sanitised HTML when BBCode is present", async () => {
+  it("renders sanitised HTML when BBCode is present (no h2 wrapper)", async () => {
     const payload: SteamGameDescription = {
       appid: 42,
       bbcode: "[h1]About Title[/h1]\n\n[b]Bold[/b] paragraph.",
@@ -54,11 +54,13 @@ describe("GameAboutBlock", () => {
       isError: false,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    renderWithClient(<GameAboutBlock appid={42} />);
+    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
     await waitFor(() => {
-      expect(screen.getByText("About this game")).toBeTruthy();
+      expect(screen.getByText("About Title")).toBeTruthy();
     });
-    expect(screen.getByText("About Title").tagName).toBe("H1");
+    // The parent identity card owns the section heading now — this component
+    // must NOT render its own "About this game" h2.
+    expect(container.querySelector("h2")).toBeNull();
     expect(screen.getByText("Bold").tagName).toBe("STRONG");
   });
 
@@ -77,15 +79,55 @@ describe("GameAboutBlock", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText(/Text\./)).toBeTruthy();
   });
+});
 
-  it("renders nothing on a network error", () => {
+describe("useGameDescriptionHtml", () => {
+  function HookProbe({ appid }: { appid: number }) {
+    const { hasDescription, isPending, html } = useGameDescriptionHtml(appid);
+    return (
+      <div
+        data-testid="probe"
+        data-has={String(hasDescription)}
+        data-pending={String(isPending)}
+        data-html-len={(html ?? "").length}
+      />
+    );
+  }
+
+  it("reports hasDescription=true when sanitised body is non-empty", () => {
+    const payload: SteamGameDescription = {
+      appid: 42,
+      bbcode: "[b]Hi[/b]",
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    renderWithClient(<HookProbe appid={42} />);
+    expect(screen.getByTestId("probe").dataset.has).toBe("true");
+  });
+
+  it("reports hasDescription=false on a network error (parent suppresses toggle)", () => {
     vi.mocked(useGameDescription).mockReturnValue({
       data: undefined,
       isPending: false,
       isError: true,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
-    expect(container.firstChild).toBeNull();
+    renderWithClient(<HookProbe appid={42} />);
+    expect(screen.getByTestId("probe").dataset.has).toBe("false");
+  });
+
+  it("reports hasDescription=false when bbcode is null", () => {
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: { appid: 42, bbcode: null },
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    renderWithClient(<HookProbe appid={42} />);
+    expect(screen.getByTestId("probe").dataset.has).toBe("false");
   });
 });
