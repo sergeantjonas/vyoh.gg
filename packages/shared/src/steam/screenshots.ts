@@ -22,8 +22,7 @@ export interface SteamScreenshotEntry {
 // Steam serves storefront screenshots under one CDN host with two size
 // derivatives. The `?t=` cache-buster lives inside the stored filename
 // (publisher refreshes bump it), so we don't add or strip it here.
-const SCREENSHOT_BASE =
-  "https://shared.cloudflare.steamstatic.com/store_item_assets";
+const SCREENSHOT_BASE = "https://shared.cloudflare.steamstatic.com/store_item_assets";
 
 // `ss_<hash>.600x338.jpg` is Steam's standard preview thumbnail (16:9).
 // `ss_<hash>.1920x1080.jpg` is the full-size variant the storefront lightbox

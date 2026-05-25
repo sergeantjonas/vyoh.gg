@@ -3,9 +3,7 @@ import { steamScreenshotFullUrl, steamScreenshotThumbUrl } from "./screenshots.t
 
 describe("steamScreenshotThumbUrl", () => {
   it("composes the 600x338 thumbnail URL by injecting size before .jpg", () => {
-    expect(
-      steamScreenshotThumbUrl(550, "steam/apps/550/ss_abc.jpg?t=1772742214")
-    ).toBe(
+    expect(steamScreenshotThumbUrl(550, "steam/apps/550/ss_abc.jpg?t=1772742214")).toBe(
       "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/550/ss_abc.600x338.jpg?t=1772742214"
     );
   });
@@ -32,9 +30,7 @@ describe("steamScreenshotThumbUrl", () => {
 
 describe("steamScreenshotFullUrl", () => {
   it("composes the 1920x1080 full-size URL preserving the `?t=` cache buster", () => {
-    expect(
-      steamScreenshotFullUrl(550, "steam/apps/550/ss_abc.jpg?t=1772742214")
-    ).toBe(
+    expect(steamScreenshotFullUrl(550, "steam/apps/550/ss_abc.jpg?t=1772742214")).toBe(
       "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/550/ss_abc.1920x1080.jpg?t=1772742214"
     );
   });

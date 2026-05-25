@@ -12,7 +12,6 @@ import { describe, expect, it, vi } from "vitest";
 import { SteamAchievementsService } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
-import { SteamScreenshotService } from "./screenshot.service";
 import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
@@ -39,7 +38,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -75,7 +73,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -102,7 +99,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -132,7 +128,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -160,7 +155,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: { getCatalog: stub } },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -188,7 +182,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getGameAchievements: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -210,7 +203,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getRecentUnlocks: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -241,7 +233,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -262,33 +253,12 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
     await expect(controller.getOwnedGames()).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledOnce();
-  });
-
-  it("delegates to SteamScreenshotService.getGameMedia for game media", async () => {
-    const payload = { appid: 730, screenshots: [] } as unknown;
-    const stub = vi.fn().mockResolvedValue(payload);
-    const moduleRef = await Test.createTestingModule({
-      controllers: [SteamController],
-      providers: [
-        { provide: SteamService, useValue: {} },
-        { provide: SteamOwnedGamesService, useValue: {} },
-        { provide: SteamTagService, useValue: {} },
-        { provide: SteamAchievementsService, useValue: {} },
-        { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: { getGameMedia: stub } },
-        { provide: SteamChronotypeService, useValue: {} },
-      ],
-    }).compile();
-    const controller = moduleRef.get(SteamController);
-    await expect(controller.getGameMedia(730)).resolves.toBe(payload);
-    expect(stub).toHaveBeenCalledWith(730);
   });
 
   it("delegates to SteamAchievementsService.getCrossGameRarest with caller-supplied limit", async () => {
@@ -302,7 +272,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getCrossGameRarest: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -322,7 +291,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getLibraryCompletion: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -342,7 +310,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getUnlockTimeline: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();
@@ -362,7 +329,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: { getChronotype: stub } },
       ],
     }).compile();
@@ -382,7 +348,6 @@ describe("SteamController", () => {
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
-        { provide: SteamScreenshotService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
     }).compile();

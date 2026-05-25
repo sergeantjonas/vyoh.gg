@@ -389,6 +389,17 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         appType: "game",
         tagIds: [1628, 1625],
         rtimeLastPlayedAt: rtimeLastPlayed.toISOString(),
+        shortDescription: null,
+        steamDeckCompat: null,
+        platformWindows: null,
+        platformMac: null,
+        platformLinux: null,
+        platformVr: null,
+        reviewSummary: null,
+        gameRating: null,
+        publisherNames: [],
+        developerNames: [],
+        franchiseNames: [],
       },
     ]);
   });

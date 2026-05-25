@@ -1,17 +1,17 @@
+import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryTileHovercardContent } from "./library-tile-hovercard";
-import { useGameMedia } from "./use-game-media";
 
-vi.mock("./use-game-media", () => ({
-  useGameMedia: vi.fn(),
+vi.mock("@/steam/game/use-game-screenshots", () => ({
+  useGameScreenshots: vi.fn(),
 }));
 
-function mockMedia(screenshots: { thumbUrl: string; fullUrl?: string }[] = []) {
-  vi.mocked(useGameMedia).mockReturnValue({
-    data: { screenshots },
-  } as unknown as ReturnType<typeof useGameMedia>);
+function mockMedia(entries: { filename: string; ordinal: number }[] = []) {
+  vi.mocked(useGameScreenshots).mockReturnValue({
+    data: { appid: 440, allAges: entries, mature: [] },
+  } as unknown as ReturnType<typeof useGameScreenshots>);
 }
 
 function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
@@ -35,7 +35,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.mocked(useGameMedia).mockReset();
+  vi.mocked(useGameScreenshots).mockReset();
   vi.useRealTimers();
 });
 
@@ -133,9 +133,9 @@ describe("LibraryTileHovercardContent", () => {
 
   it("rotates the screenshot index on the interval when ≥2 screenshots exist", () => {
     mockMedia([
-      { thumbUrl: "https://example.com/a.jpg" },
-      { thumbUrl: "https://example.com/b.jpg" },
-      { thumbUrl: "https://example.com/c.jpg" },
+      { filename: "ss_a.jpg", ordinal: 1 },
+      { filename: "ss_b.jpg", ordinal: 2 },
+      { filename: "ss_c.jpg", ordinal: 3 },
     ]);
     render(<LibraryTileHovercardContent game={game()} />);
     // Advance two rotation intervals — the second one flips `hasRotated`.
@@ -145,8 +145,9 @@ describe("LibraryTileHovercardContent", () => {
     act(() => {
       vi.advanceTimersByTime(2_500);
     });
-    // Sanity: at least three screenshot imgs render (one per element).
-    const imgs = document.querySelectorAll('img[src^="https://example.com"]');
+    // Sanity: three screenshot imgs render (one per entry), URL composed via
+    // the shared helper so the host comes from the steamstatic CDN base.
+    const imgs = document.querySelectorAll('img[src*="steamstatic"]');
     expect(imgs.length).toBe(3);
   });
 
@@ -169,8 +170,8 @@ describe("LibraryTileHovercardContent", () => {
 
   it("skips the rotation tick while the document is hidden", () => {
     mockMedia([
-      { thumbUrl: "https://example.com/a.jpg" },
-      { thumbUrl: "https://example.com/b.jpg" },
+      { filename: "ss_a.jpg", ordinal: 1 },
+      { filename: "ss_b.jpg", ordinal: 2 },
     ]);
     const visibilitySpy = vi
       .spyOn(document, "visibilityState", "get")
@@ -181,7 +182,7 @@ describe("LibraryTileHovercardContent", () => {
     });
     // We can't read index directly; just ensure rendering did not throw and the
     // imgs still exist.
-    expect(document.querySelectorAll('img[src^="https://example.com"]').length).toBe(2);
+    expect(document.querySelectorAll('img[src*="steamstatic"]').length).toBe(2);
     visibilitySpy.mockRestore();
   });
 });

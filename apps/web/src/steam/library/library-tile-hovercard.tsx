@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl, steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
+import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { useEffect, useState } from "react";
-import { useGameMedia } from "./use-game-media";
+import { steamScreenshotThumbUrl } from "@vyoh/shared";
+import { useEffect, useMemo, useState } from "react";
 
 // Shared hovercard chrome className — same panel treatment whether the
 // trigger is the library tile or the library row. Kept here (next to the
@@ -60,12 +61,19 @@ export function LibraryTileHovercardContent({
   };
 
   // Component only mounts while the popover is open (Radix unmounts on close),
-  // so `enabled: true` here is the lazy-fetch trigger. The hook gates the
-  // request server-side via the SteamScreenshotService SWR layer; the first
-  // hover of a given game blocks on appdetails, subsequent hovers within the
-  // 30-day TTL serve from cache.
-  const { data: media } = useGameMedia(game.appid, true);
-  const screenshots = media?.screenshots ?? [];
+  // so the query fires on first hover. Backed by the per-app enrichment row
+  // (Chunk 9a/b), not appdetails — every owned game has the bucket
+  // pre-populated by the monthly cron, so the first hover is normally a
+  // ~30ms in-flight cache miss on the React Query client, not a blocking
+  // upstream round-trip.
+  const { data } = useGameScreenshots(game.appid);
+  const screenshots = useMemo(
+    () =>
+      (data?.allAges ?? []).map((e) => ({
+        thumbUrl: steamScreenshotThumbUrl(game.appid, e.filename),
+      })),
+    [data, game.appid]
+  );
   const [index, setIndex] = useState(0);
   // Tracks whether at least one inter-screenshot rotation has happened. The
   // first screenshot snaps in directly over the hero (no fade, no scrim) —

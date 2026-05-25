@@ -29,12 +29,12 @@ type DocumentWithVT = Document & {
 const SCREENSHOT_ROTATION_MS = 3_500;
 
 // Rotating screenshot carousel slotted on /steam/game/$appid between the
-// playtime block and the verdict grid. Reuses the appdetails-backed
-// `useGameMedia` hook + the 30-day server cache that the library-tile
-// hovercard primes — most game pages visited after a hover are zero-cost.
-// Hides entirely when the upstream returned no screenshots (delisted / demo
-// / region-blocked) or while the fetch is in flight, so the layout doesn't
-// reserve an empty letterbox.
+// playtime block and the verdict grid. Reads from the enrichment-backed
+// `useGameScreenshots` hook (Chunk 9b in library-card-enrichment.md) — the
+// same buckets the library-tile hovercard rotates over, so navigating from a
+// tile to the page is a query-cache hit. Hides entirely when the bucket is
+// empty (no enrichment row / upstream empty) or while the fetch is in
+// flight, so the layout doesn't reserve an empty letterbox.
 //
 // Driven by Embla via shadcn's `Carousel`, with the `embla-carousel-fade`
 // plugin so we keep a cross-fade transition (same visual language as the

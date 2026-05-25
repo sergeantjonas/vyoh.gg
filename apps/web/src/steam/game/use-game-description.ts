@@ -22,7 +22,7 @@ async function fetchGameDescription(appid: number): Promise<SteamGameDescription
 // Per-app BBCode body. Description changes only with content patches / DLC
 // releases, so the monthly enrichment cadence is plenty — within a session
 // the description is effectively immutable. 1h stale-time matches the other
-// per-game hooks (useGameMedia, useGameAchievements) for cache cohesion.
+// per-game hooks (useGameScreenshots, useGameAchievements) for cache cohesion.
 export function useGameDescription(appid: number) {
   return useQuery({
     queryKey: ["steam", "game", appid, "description"],

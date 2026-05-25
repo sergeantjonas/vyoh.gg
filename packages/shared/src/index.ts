@@ -139,7 +139,6 @@ export {
   steamScreenshotThumbUrl,
 } from "./steam/screenshots.ts";
 export type { SteamScreenshotEntry } from "./steam/screenshots.ts";
-export type { SteamGameMedia, SteamScreenshot } from "./steam/media.ts";
 export type { SteamPlayerState } from "./steam/player-state.ts";
 export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";
 export type {

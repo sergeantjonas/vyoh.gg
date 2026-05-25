@@ -1,4 +1,3 @@
-import { useGameMedia } from "@/steam/library/use-game-media";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -35,11 +34,6 @@ type SteamHookCase = {
 };
 
 const cases: SteamHookCase[] = [
-  {
-    name: "useGameMedia (enabled=true)",
-    call: () => useGameMedia(42, true),
-    url: "http://localhost:2010/steam/game/42/media",
-  },
   {
     name: "useGameUnlockTimeline",
     call: () => useGameUnlockTimeline(42),
@@ -81,12 +75,5 @@ describe.each(cases)("$name", ({ call, url }) => {
     const { result } = renderHook(call, { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect((result.current.error as Error).message).toBe("HTTP 500");
-  });
-});
-
-describe("useGameMedia (enabled=false)", () => {
-  it("does not fetch when enabled is false", () => {
-    renderHook(() => useGameMedia(42, false), { wrapper: makeWrapper() });
-    expect(vi.mocked(fetch).mock.calls.length).toBe(0);
   });
 });
