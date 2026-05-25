@@ -179,20 +179,46 @@ Multi-occurrence unions (same as `with:` / `vs:` in the LoL grammar). Slug-match
 
 ---
 
-## Chunk 9 — Screenshot gallery on game-detail page
+## Chunk 9 — Screenshot gallery on game-detail page (consolidation, not greenfield)
+
+**Heads-up:** screenshots already ship in the project via a different upstream — see § "Existing screenshot pipeline (to be consolidated)" below. This chunk is a **migration**, not a from-scratch build. Read that section before scoping the work.
 
 **Fields:** `screenshots.all_ages_screenshots[]` (default render) and `screenshots.mature_content_screenshots[]` (Steam server-side bucket for "behind the maturity gate"). Each screenshot has `{filename, ordinal}` shape — paths CDN-resolve via `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}/{filename}` or similar.
 
-**Render:** Image strip + lightbox on `/steam/game/$appid`. Per-image lazy load (`loading="lazy"` + intersection-observer fallback already a pattern in the project).
+**Render:** Image strip + lightbox on `/steam/game/$appid` (the existing [game-screenshot-strip.tsx](../../../apps/web/src/steam/game/game-screenshot-strip.tsx) ports onto the new data shape), plus continued use in the [library-tile-hovercard](../../../apps/web/src/steam/library/library-tile-hovercard.tsx) rotation (only for games without a microtrailer per [microtrailer-hover-preview.md § Hovercard popover coexistence](../cross-cutting/microtrailer-hover-preview.md)). Per-image lazy load (`loading="lazy"` + intersection-observer fallback already a pattern in the project).
 
 **Two-bucket decision:**
 - **Default render** = `all_ages_screenshots` only. Matches Steam's own storefront default.
 - **Mature bucket gate** — render `mature_content_screenshots` only when the page is in owner-authenticated view, or behind an explicit "Show mature screenshots" toggle. This is the orthogonal NSFW handling that doesn't need content-descriptor capture: the **bucket choice is the signal**, no additional descriptor logic needed.
 - For a portfolio-public game-detail page, defaulting to `all_ages_screenshots` is the right call; the toggle is the owner's escape hatch.
 
-**Data shape:** `screenshotsAllAges Json?` + `screenshotsMature Json?` (each a small array of `{filename, ordinal}`). Json column over flat arrays because filenames are publisher-supplied strings and ordinal pairs them — denormalising into two columns would lose the pairing.
+**Data shape:** `screenshotsAllAges Json?` + `screenshotsMature Json?` (each a small array of `{filename, ordinal}`). Json column over flat arrays because filenames are publisher-supplied strings and ordinal pairs them — denormalising into two columns would lose the pairing. Sunsets the existing `screenshots Json @default("[]")` + `screenshotsFetchedAt DateTime?` columns on the same model.
 
-**Image proxy:** route all screenshot URLs through the existing image-proxy pattern from [steam-integration.md Phase S3 Chunk 3](./steam-integration.md). No new pipeline.
+**Image proxy:** route all screenshot URLs through the existing image-proxy pattern from [steam-integration.md Phase S3 Chunk 3](./steam-integration.md). No new pipeline; the existing `{thumbUrl, fullUrl}` consumers swap to composing URLs from `{filename, ordinal}` via a shared helper (`steamScreenshotThumbUrl(appid, filename)` / `…FullUrl(...)`).
+
+### Existing screenshot pipeline (to be consolidated)
+
+The current state — relevant context for scoping the chunk:
+- `SteamGameEnrichment.screenshots Json` column already exists, populated **lazily on tile hover** by `useGameMedia` hitting `store.steampowered.com/api/appdetails` (a **different upstream** from `IStoreBrowseService/GetItems` that drives the rest of this enrichment arc). Stored shape is `[{ thumbUrl, fullUrl }]`.
+- `screenshotsFetchedAt DateTime?` tracks "we've tried" so empty upstream and never-fetched stay distinguishable.
+- Two surfaces consume that column: the [library-tile-hovercard](../../../apps/web/src/steam/library/library-tile-hovercard.tsx) rotation and the [game-screenshot-strip.tsx](../../../apps/web/src/steam/game/game-screenshot-strip.tsx) lightbox-grid.
+- The lazy-fetch path was built around the appdetails rate limit (~200 req / 5 min per IP) — only a handful of the 196 owned games ever get hovered, so populating on-demand kept us under budget.
+
+`IStoreBrowseService/GetItems` doesn't have that rate limit (the same call already pulls every owned + wishlist appid in the monthly enrichment cron), so the dual-pipeline rationale is gone. Migration unlocks:
+- One upstream for screenshots, matching the rest of the enrichment columns.
+- Pre-populated screenshots for **every** owned game, not just hovered ones — no first-hover stall.
+- The two-bucket NSFW signal for free.
+- One less rate-limit budget to reason about, one less SWR-gated controller path to maintain.
+
+### Sub-chunks (atomic commits)
+
+- **9a — Capture + projection.** Add `screenshotsAllAges Json?` + `screenshotsMature Json?` to `SteamGameEnrichment`, project from `raw.screenshots.{all_ages_screenshots, mature_content_screenshots}` in `projectEnrichment`. Shared URL helper in `packages/shared/src/steam/`. Re-run the existing [backfill-steam-enrichment.ts](../../../apps/api/src/scripts/backfill-steam-enrichment.ts) script — idempotent upsert covers every owned + wishlist appid.
+- **9b — Game-detail strip migration.** [game-screenshot-strip.tsx](../../../apps/web/src/steam/game/game-screenshot-strip.tsx) ports onto the new columns + URL helper. All-ages bucket renders by default; mature bucket gated behind a toggle (owner auth model is its own decision — see [owner-auth.md auto-memory pointer](../../../CLAUDE.md); first cut may just hard-code a feature flag).
+- **9c — Hovercard rotation migration + appdetails sunset.** [library-tile-hovercard](../../../apps/web/src/steam/library/library-tile-hovercard.tsx) reads from the new columns (same composition as 9b). `useGameMedia` hook, `steam-media-service` / `SteamScreenshotService`, and `screenshots` + `screenshotsFetchedAt` columns get dropped in the same commit — no need for a deprecation window, the new path is already serving by then. Sub-chunk that drops the appdetails-side controller/service runs whatever its existing tests assert against; pre-removal those should be re-pointed or deleted as appropriate.
+
+### Hovercard rotation behaviour after consolidation
+
+The popover rotation logic itself doesn't change — only the data source. When the microtrailer arc ([microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md)) lands its hovercard-coexistence rule, the rotation suppresses for tiles with a trailer; tiles without a trailer keep rotating screenshots via this new column. The two arcs compose without conflict because both read the same enrichment row.
 
 ---
 
