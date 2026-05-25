@@ -1,6 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import type { SteamGameRating, SteamReviewSummary } from "@vyoh/shared";
+import type {
+  SteamGameRating,
+  SteamReviewSummary,
+  SteamScreenshotEntry,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamPicsService } from "./pics.service";
 import { SteamClientService } from "./steam-client.service";
@@ -52,6 +56,8 @@ export interface EnrichmentUpsert {
   developerNames: string[];
   franchiseNames: string[];
   fullDescriptionBbcode: string | null;
+  screenshotsAllAges: SteamScreenshotEntry[];
+  screenshotsMature: SteamScreenshotEntry[];
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -122,7 +128,27 @@ export function projectEnrichment(
     developerNames: mapEntityNames(raw.basic_info?.developers),
     franchiseNames: mapEntityNames(raw.basic_info?.franchises),
     fullDescriptionBbcode: raw.full_description_bbcode ?? null,
+    screenshotsAllAges: mapScreenshots(raw.screenshots?.all_ages_screenshots),
+    screenshotsMature: mapScreenshots(raw.screenshots?.mature_content_screenshots),
   };
+}
+
+// Drop entries that don't carry both `filename` and `ordinal` — the URL
+// helpers assume non-empty filename and the renderer keys on ordinal, so a
+// half-populated entry would surface as a broken thumbnail. Persisting only
+// well-formed entries keeps the read path branchless.
+function mapScreenshots(
+  raw: { filename?: string; ordinal?: number }[] | undefined
+): SteamScreenshotEntry[] {
+  if (!raw) return [];
+  const out: SteamScreenshotEntry[] = [];
+  for (const entry of raw) {
+    const filename = entry.filename?.trim();
+    const ordinal = entry.ordinal;
+    if (!filename || ordinal === undefined) continue;
+    out.push({ filename, ordinal });
+  }
+  return out;
 }
 
 // Flatten `[{name, creator_clan_account_id}]` to `["Name", …]` and drop
@@ -237,6 +263,12 @@ export class SteamEnrichmentService {
           gameRating: (row.gameRating ?? Prisma.JsonNull) as unknown as
             | Prisma.InputJsonValue
             | typeof Prisma.JsonNull,
+          // Screenshot columns are NOT NULL with default `[]`, so the
+          // sentinel isn't strictly required; the cast widens the typed
+          // array shape to InputJsonValue without the index-signature
+          // contract InputJsonObject demands.
+          screenshotsAllAges: row.screenshotsAllAges as unknown as Prisma.InputJsonValue,
+          screenshotsMature: row.screenshotsMature as unknown as Prisma.InputJsonValue,
         };
         await this.prisma.steamGameEnrichment.upsert({
           where: { appid: row.appid },

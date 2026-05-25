@@ -169,6 +169,16 @@ model SteamGameEnrichment {
   // demand via the `/steam/game/:appid/description` endpoint. Null when
   // upstream omits the full description block (DLC / bundle entries, demos).
   fullDescriptionBbcode String?
+  // Storefront screenshots, two server-side buckets from `screenshots.*` on
+  // IStoreBrowseService. `screenshotsAllAges` is the storefront default;
+  // `screenshotsMature` is the bucket Steam itself gates behind a maturity
+  // toggle. JSON shape per entry: `{ filename, ordinal }` — filename composes
+  // with the shared `steamScreenshotThumbUrl` / `…FullUrl` helpers. Defaults
+  // to `[]` so the renderer's empty-list branch covers both "never enriched"
+  // and "upstream returned an empty bucket". Supersede the older lazy
+  // `screenshots` + `screenshotsFetchedAt` pair, which Chunk 9c drops.
+  screenshotsAllAges   Json      @default("[]")
+  screenshotsMature    Json      @default("[]")
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps
