@@ -34,6 +34,7 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     appType: 0,
     assetTimestamp: null,
     tagIds: [],
+    flipHero: false,
     ...overrides,
   } as unknown as SteamOwnedGame;
 }
@@ -70,7 +71,7 @@ describe("LibraryTile", () => {
     if (!link) throw new Error("link not rendered");
     fireEvent.mouseEnter(link);
     fireEvent.focus(link);
-    expect(prefetchSteamGameBackdrop).toHaveBeenCalledWith(730, 1234);
+    expect(prefetchSteamGameBackdrop).toHaveBeenCalledWith(730, 1234, false);
   });
 
   it("falls back to the synthetic hero when the capsule image errors", () => {

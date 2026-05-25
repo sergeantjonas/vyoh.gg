@@ -17,7 +17,9 @@ describe("steam image url helpers", () => {
       "http://localhost:2010/img/steam/library-capsule/440/0.webp"
     );
     expect(steamLibraryHeroUrl(440)).toBe(
-      "http://localhost:2010/img/steam/hero/440/0.webp"
+      // `noflip` segment defaults when flipHero is undefined/false — the
+      // proxy serves the original orientation. See `steamLibraryHeroUrl`.
+      "http://localhost:2010/img/steam/hero/noflip/440/0.webp"
     );
     expect(steamLibraryLogoUrl(440)).toBe(
       // v2 cache-bust segment — bumped when the logo proxy pipeline added
@@ -29,7 +31,8 @@ describe("steam image url helpers", () => {
       // v3 cache-bust segment — flips browsers off the year-cached prior
       // bytes onto the latest preference order (library_hero first, then
       // page_bg variants, then mirror). See BACKDROP_SCHEMA_VERSION.
-      "http://localhost:2010/img/steam/backdrop/3/440/0.webp"
+      // `noflip` matches the hero route's default.
+      "http://localhost:2010/img/steam/backdrop/3/noflip/440/0.webp"
     );
   });
 
@@ -41,7 +44,13 @@ describe("steam image url helpers", () => {
 
   it("encodes a BigInt assetTimestamp into the URL", () => {
     expect(steamLibraryHeroUrl(440, 1717000000n)).toBe(
-      "http://localhost:2010/img/steam/hero/440/1717000000.webp"
+      "http://localhost:2010/img/steam/hero/noflip/440/1717000000.webp"
+    );
+  });
+
+  it("encodes the flip segment when flipHero is true", () => {
+    expect(steamLibraryHeroUrl(440, 1717000000n, true)).toBe(
+      "http://localhost:2010/img/steam/hero/flip/440/1717000000.webp"
     );
   });
 

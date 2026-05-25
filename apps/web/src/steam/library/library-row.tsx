@@ -78,8 +78,12 @@ export function LibraryRow({
     <Link
       to="/steam/game/$appid"
       params={{ appid: String(game.appid) }}
-      onMouseEnter={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
-      onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
+      onMouseEnter={() =>
+        prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
+      }
+      onFocus={() =>
+        prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
+      }
       onClick={(e) => {
         // Apply `view-transition-name` to each available morph anchor
         // (hero + logo) so both are present at OLD-snapshot capture,

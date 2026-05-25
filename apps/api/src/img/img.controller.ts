@@ -276,16 +276,27 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
-  @Get("steam/hero/:appid/:assetTimestamp.webp")
+  // `flip` segment ("flip" | "noflip") bakes a horizontal mirror into the
+  // hero bytes when set, so Chrome's view-transition snapshot of the
+  // morphing img is already flipped at the pixel level. CSS-only
+  // `transform: scaleX(-1)` works for the static DOM but is stripped from
+  // VT snapshots — see SteamSubjectAnchorService and the row shell for
+  // the rationale, and the consumer at steam-image.ts (`steamLibraryHeroUrl`).
+  @Get("steam/hero/:flip/:appid/:assetTimestamp.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)
-  async steamHero(@Param("appid") appid: string, @Res() res: Response): Promise<void> {
+  async steamHero(
+    @Param("appid") appid: string,
+    @Param("flip") flip: string,
+    @Res() res: Response
+  ): Promise<void> {
     const id = Number.parseInt(appid, 10);
     if (!Number.isFinite(id)) {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
     const resolved = await this.steam.hero(id);
+    if (flip === "flip") resolved.params = { ...resolved.params, flop: true };
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -312,11 +323,15 @@ export class ImgController {
   // dim/blue v6b variant to the warmer `page_bg_generated.jpg`). Without
   // this, existing browsers keep serving year-cached v1 bytes from the
   // immutable Cache-Control header.
-  @Get("steam/backdrop/:schemaVersion/:appid/:assetTimestamp.webp")
+  // `:flip` ("flip" | "noflip") same as the hero route — bakes a
+  // horizontal mirror into the bytes so the route VT crossfade matches
+  // the flipped hero (see `steamLibraryHeroUrl` for the rationale).
+  @Get("steam/backdrop/:schemaVersion/:flip/:appid/:assetTimestamp.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)
   async steamBackdrop(
     @Param("appid") appid: string,
+    @Param("flip") flip: string,
     @Res() res: Response
   ): Promise<void> {
     const id = Number.parseInt(appid, 10);
@@ -325,6 +340,7 @@ export class ImgController {
       return;
     }
     const resolved = await this.steam.backdrop(id);
+    if (flip === "flip") resolved.params = { ...resolved.params, flop: true };
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 

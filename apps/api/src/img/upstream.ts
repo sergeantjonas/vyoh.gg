@@ -50,13 +50,23 @@ export interface TranscodeParams {
   // cleanly; threshold of 1 catches edge anti-alias halos that the
   // default threshold (10) preserves and that read as extra padding.
   trim?: boolean;
+  // Horizontally mirrors the source (Sharp `.flop()`). Used by the hero
+  // and page-backdrop routes when the enrichment row has `flipHero=true`
+  // (face detected at the left of source — see SteamSubjectAnchorService).
+  // Baking the flip into the bytes — rather than applying CSS
+  // `transform: scaleX(-1)` on the consumer — keeps Chrome's
+  // view-transition snapshots flipped through the morph animation.
+  // Otherwise the snapshot captures the un-transformed pixels and the
+  // morph animates between two un-flipped frames, snapping to the
+  // flipped DOM only after the animation ends.
+  flop?: boolean;
 }
 
 export async function transcodeToWebp(
   input: Buffer,
   params: TranscodeParams = {}
 ): Promise<Buffer> {
-  const { width, height, fit, quality = 85, blur, extractTopHalf, trim } = params;
+  const { width, height, fit, quality = 85, blur, extractTopHalf, trim, flop } = params;
   let pipeline = sharp(input);
   if (extractTopHalf) {
     const meta = await pipeline.metadata();
@@ -70,6 +80,7 @@ export async function transcodeToWebp(
     }
   }
   if (trim) pipeline = pipeline.trim({ threshold: 1 });
+  if (flop) pipeline = pipeline.flop();
   if (width || height) {
     pipeline = pipeline.resize({
       width,

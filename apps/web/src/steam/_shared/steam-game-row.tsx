@@ -84,6 +84,7 @@ export function SteamGameRowShell({
   const heroHandlers = makeHeroFallbackHandlers({
     appid,
     assetTimestamp,
+    flipHero: flipHero ?? false,
     onSuccess: () => setHeroLoaded(true),
     onMissing: () => setHeroFailed(true),
   });
@@ -122,7 +123,7 @@ export function SteamGameRowShell({
       {!heroFailed && (
         <img
           ref={heroRef}
-          src={steamLibraryHeroUrl(appid, assetTimestamp)}
+          src={steamLibraryHeroUrl(appid, assetTimestamp, flipHero)}
           alt=""
           aria-hidden
           loading="lazy"
@@ -132,17 +133,14 @@ export function SteamGameRowShell({
           onError={heroHandlers.onError}
           style={{ objectPosition: `${xPct}% ${yPct}%` }}
           className={cn(
+            // The horizontal flip (when flipHero is true) is baked into
+            // the URL — see `steamLibraryHeroUrl` — rather than applied
+            // via CSS `transform: scaleX(-1)`. View-transition snapshots
+            // strip CSS transforms from the captured pixels, so a
+            // CSS-only flip would un-mirror during the morph animation
+            // even though the static DOM still renders flipped.
             "absolute inset-0 size-full object-cover transition-[opacity,transform] duration-600 ease-out",
-            // Per-asset horizontal mirror with hover-preserving scale.
-            // The CSS `transform` property is single-valued: the default
-            // `group-hover/row:scale-105` (which sets both x and y scale
-            // to 1.05) would clobber a separately-declared `scaleX(-1)`
-            // base, snapping the hero un-flipped on hover. Splitting the
-            // hover scale into independent x and y axes — keeping x
-            // negative — lets the flip persist through the hover zoom.
-            flipHero
-              ? "-scale-x-100 group-hover/row:-scale-x-105 group-hover/row:scale-y-105"
-              : "group-hover/row:scale-105",
+            "group-hover/row:scale-105",
             heroLoaded ? "opacity-100" : "opacity-0"
           )}
         />

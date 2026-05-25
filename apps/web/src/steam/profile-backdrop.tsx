@@ -1,7 +1,6 @@
 import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
 import { useRefCountedClaim } from "@/_shared/backdrop/use-ref-counted-claim";
 import { onRouteTransitionStart } from "@/lib/route-transition-bus";
-import { cn } from "@/lib/utils";
 import { steamPageBackgroundUrl } from "@/steam/_shared/steam-image";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { m, useReducedMotion } from "motion/react";
@@ -128,7 +127,11 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
 
   if (!activeClaim) return null;
 
-  const src = steamPageBackgroundUrl(activeClaim.appid, activeClaim.assetTimestamp);
+  const src = steamPageBackgroundUrl(
+    activeClaim.appid,
+    activeClaim.assetTimestamp,
+    activeClaim.flipHero
+  );
   const visible = claim !== null && ready && !failed;
 
   return (
@@ -167,15 +170,11 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
             // `blur()` is the same compositing path but it's structurally
             // required for the visual treatment.
             //
-            // `scale-x-[-1.05]` (when claim.flipHero) keeps the 1.05
-            // ambient zoom from the unflipped path AND mirrors the X
-            // axis, matching the destination hero's flip so the route VT
-            // crossfade doesn't reveal an un-flipped backdrop behind the
-            // morphing row hero.
-            className={cn(
-              "size-full object-cover blur-[8px]",
-              activeClaim.flipHero ? "scale-x-[-1.05] scale-y-105" : "scale-105"
-            )}
+            // Flip is baked into the URL — see `steamPageBackgroundUrl`.
+            // CSS scaleX would survive a normal crossfade but the
+            // consistency with the hero's URL-baked flip is cleaner
+            // (one mechanism for both).
+            className="size-full scale-105 object-cover blur-[8px]"
           />
           {/* Layered dim wash: flat base (replaces the previous
               `brightness-75` filter, see comment on the img) + a
@@ -274,17 +273,22 @@ function BackdropVideo({ src, poster }: { src: string; poster: string }) {
 const prefetchedBackdrops = new Set<string>();
 export function prefetchSteamGameBackdrop(
   appid: number,
-  assetTimestamp: number | null
+  assetTimestamp: number | null,
+  flipHero?: boolean
 ): void {
   if (typeof window === "undefined") return;
-  const url = steamPageBackgroundUrl(appid, assetTimestamp);
+  const url = steamPageBackgroundUrl(appid, assetTimestamp, flipHero);
   if (prefetchedBackdrops.has(url)) return;
   prefetchedBackdrops.add(url);
   const img = new Image();
   img.src = url;
 }
 
-export function useSteamGameBackdrop({ appid, assetTimestamp }: SteamGameBackdropClaim) {
+export function useSteamGameBackdrop({
+  appid,
+  assetTimestamp,
+  flipHero,
+}: SteamGameBackdropClaim) {
   const ctx = useContext(SteamBackdropContext);
   if (!ctx) {
     throw new Error("useSteamGameBackdrop must be used within SteamProfileBackdrop");
@@ -293,6 +297,6 @@ export function useSteamGameBackdrop({ appid, assetTimestamp }: SteamGameBackdro
   useEffect(() => ctx.acquire(), [ctx]);
 
   useEffect(() => {
-    ctx.setClaim({ appid, assetTimestamp });
-  }, [ctx, appid, assetTimestamp]);
+    ctx.setClaim({ appid, assetTimestamp, flipHero: flipHero ?? false });
+  }, [ctx, appid, assetTimestamp, flipHero]);
 }

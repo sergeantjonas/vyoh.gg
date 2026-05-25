@@ -68,9 +68,11 @@ export function LibraryTile({
             to="/steam/game/$appid"
             params={{ appid: String(game.appid) }}
             onMouseEnter={() =>
-              prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)
+              prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
             }
-            onFocus={() => prefetchSteamGameBackdrop(game.appid, game.assetTimestamp)}
+            onFocus={() =>
+              prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
+            }
             onClick={(e) => {
               // VT path: apply `view-transition-name` to the backdrop layer
               // via ref so it is present at OLD-snapshot capture (synchronous
@@ -137,7 +139,7 @@ export function LibraryTile({
                   without paying the rest-state layer cost. */}
               <img
                 ref={morphLayerRef}
-                src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
+                src={steamLibraryHeroUrl(game.appid, game.assetTimestamp, game.flipHero)}
                 alt=""
                 aria-hidden
                 loading="lazy"
@@ -254,7 +256,7 @@ function HeroFallback({ game }: { game: SteamOwnedGame }) {
   return (
     <>
       <img
-        src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
+        src={steamLibraryHeroUrl(game.appid, game.assetTimestamp, game.flipHero)}
         alt=""
         loading="lazy"
         onLoad={handleHeroLoad}

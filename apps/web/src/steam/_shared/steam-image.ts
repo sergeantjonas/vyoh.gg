@@ -53,11 +53,21 @@ export function steamLibraryCapsuleUrl(
   return `${API_URL}/img/steam/library-capsule/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
+// `flipHero` bakes a horizontal mirror into the served bytes via Sharp's
+// `.flop()` on the proxy side. Routing the flip through the URL — rather
+// than applying `transform: scaleX(-1)` on the consumer — keeps Chrome's
+// view-transition snapshots flipped at the pixel level through the morph
+// animation. The CSS-only transform works for the static DOM but Chrome
+// strips it from the snapshot used for the morph, so the animating
+// element shows un-flipped pixels until the morph ends. See
+// SteamSubjectAnchorService for where `flipHero` is decided per asset.
 export function steamLibraryHeroUrl(
   appid: number,
-  assetTimestamp?: number | bigint | null
+  assetTimestamp?: number | bigint | null,
+  flipHero?: boolean
 ): string {
-  return `${API_URL}/img/steam/hero/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  const flip = flipHero ? "flip" : "noflip";
+  return `${API_URL}/img/steam/hero/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 export function steamLibraryLogoUrl(
@@ -70,12 +80,18 @@ export function steamLibraryLogoUrl(
 // Profile page backdrop. The proxy tries the high-quality
 // `page_bg_generated_v6b.jpg` variant first and falls back to the universally
 // available `storepagebackground/app/{appid}` mirror — both handled
-// server-side so callers don't need an onError fallback chain.
+// server-side so callers don't need an onError fallback chain. The
+// `flipHero` segment bakes a horizontal mirror into the bytes when the
+// hero is flipped (see `steamLibraryHeroUrl` for the rationale); without
+// it, the route VT crossfade from library → detail reveals an un-flipped
+// blurred backdrop behind the flipped morph.
 export function steamPageBackgroundUrl(
   appid: number,
-  assetTimestamp?: number | bigint | null
+  assetTimestamp?: number | bigint | null,
+  flipHero?: boolean
 ): string {
-  return `${API_URL}/img/steam/backdrop/${BACKDROP_SCHEMA_VERSION}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  const flip = flipHero ? "flip" : "noflip";
+  return `${API_URL}/img/steam/backdrop/${BACKDROP_SCHEMA_VERSION}/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // Hero img → page-background fallback chain shared by the destination
@@ -100,11 +116,13 @@ export interface HeroFallbackHandlers {
 export function makeHeroFallbackHandlers({
   appid,
   assetTimestamp,
+  flipHero,
   onSuccess,
   onMissing,
 }: {
   appid: number;
   assetTimestamp: number | bigint | null | undefined;
+  flipHero?: boolean;
   onSuccess: () => void;
   onMissing: () => void;
 }): HeroFallbackHandlers {
@@ -114,7 +132,7 @@ export function makeHeroFallbackHandlers({
       return;
     }
     target.dataset.fellBack = "1";
-    target.src = steamPageBackgroundUrl(appid, assetTimestamp);
+    target.src = steamPageBackgroundUrl(appid, assetTimestamp, flipHero);
   };
   return {
     onLoad: (e) => {

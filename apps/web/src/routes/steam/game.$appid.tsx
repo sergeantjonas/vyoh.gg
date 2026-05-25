@@ -137,21 +137,21 @@ function SteamGamePage() {
             docs/working-notes/cross-cutting/view-transitions-rollout.md. */}
         {!heroFailed && (
           <img
-            src={steamLibraryHeroUrl(appid, game?.assetTimestamp)}
+            src={steamLibraryHeroUrl(appid, game?.assetTimestamp, game?.flipHero)}
             alt=""
             loading="eager"
             onLoad={heroHandlers.onLoad}
             onError={heroHandlers.onError}
             style={{ viewTransitionName: `steam-game-${appid}-hero` }}
             className={cn(
+              // Flip is baked into the URL — see `steamLibraryHeroUrl`.
+              // CSS-only `transform: scaleX(-1)` survives in the static
+              // DOM but is stripped from the view-transition snapshot
+              // pixels, so the morph from library row would animate
+              // between un-flipped frames and snap to the flipped DOM at
+              // the end. URL-baked flip keeps both snapshots flipped
+              // through the entire morph.
               "absolute inset-0 size-full object-cover transition-opacity duration-500 ease-out",
-              // Mirror the hero on the detail page when the enrichment
-              // anchor said so, matching the library row's flip. Both
-              // ends use the same transform so the view-transition morph
-              // tweens between two flipped frames continuously — without
-              // this, the row's mirrored hero would un-mirror mid-morph
-              // and the result reads as a sudden snap.
-              game?.flipHero && "-scale-x-100",
               heroLoaded ? "opacity-100" : "opacity-0"
             )}
           />

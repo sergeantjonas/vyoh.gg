@@ -115,7 +115,7 @@ export function LibraryTileHovercardContent({
       <div className={cn("relative overflow-hidden bg-muted", heroSizeClass)}>
         {!heroFailed ? (
           <img
-            src={steamLibraryHeroUrl(game.appid, game.assetTimestamp)}
+            src={steamLibraryHeroUrl(game.appid, game.assetTimestamp, game.flipHero)}
             alt=""
             onLoad={handleHeroLoad}
             onError={() => setHeroFailed(true)}

@@ -137,7 +137,8 @@ describe("ImgController numeric-id BAD_REQUEST guards", () => {
     },
     {
       name: "steamHero",
-      call: (c: ImgController, res: ResStub) => c.steamHero("abc", res as never),
+      call: (c: ImgController, res: ResStub) =>
+        c.steamHero("abc", "noflip", res as never),
     },
     {
       name: "steamLogo",
@@ -145,7 +146,8 @@ describe("ImgController numeric-id BAD_REQUEST guards", () => {
     },
     {
       name: "steamBackdrop",
-      call: (c: ImgController, res: ResStub) => c.steamBackdrop("abc", res as never),
+      call: (c: ImgController, res: ResStub) =>
+        c.steamBackdrop("abc", "noflip", res as never),
     },
     {
       name: "steamAchievement",
@@ -192,9 +194,7 @@ describe("ImgController happy paths", () => {
   it.each([
     { method: "steamCapsule" as const },
     { method: "steamLibraryCapsule" as const },
-    { method: "steamHero" as const },
     { method: "steamLogo" as const },
-    { method: "steamBackdrop" as const },
   ])("$method proxies the chain", async ({ method }) => {
     const res = makeRes();
     const controller = makeController();
@@ -202,6 +202,26 @@ describe("ImgController happy paths", () => {
       controller as unknown as Record<string, (a: string, b: never) => Promise<void>>
     )[method]?.("42", res as never);
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+
+  it("steamHero proxies the chain when the flip segment is `noflip`", async () => {
+    const res = makeRes();
+    await makeController().steamHero("42", "noflip", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+
+  it("steamBackdrop proxies the chain when the flip segment is `noflip`", async () => {
+    const res = makeRes();
+    await makeController().steamBackdrop("42", "noflip", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+
+  it("steamHero passes flop=true when the flip segment is `flip`", async () => {
+    const transcodeSpy = vi.spyOn(upstream, "transcodeToWebp");
+    const res = makeRes();
+    await makeController().steamHero("42", "flip", res as never);
+    const callArgs = transcodeSpy.mock.calls[0]?.[1] as { flop?: boolean } | undefined;
+    expect(callArgs?.flop).toBe(true);
   });
 
   it("steamAchievement proxies the chain with appid + apiName", async () => {
