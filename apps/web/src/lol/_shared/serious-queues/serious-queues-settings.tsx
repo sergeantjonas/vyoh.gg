@@ -75,7 +75,7 @@ export function SeriousQueuesSettings() {
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(q.id)}
-                      className="size-4 cursor-pointer accent-sky-500"
+                      className="size-4 cursor-pointer"
                     />
                     <span className="text-foreground/90">{q.label}</span>
                   </label>

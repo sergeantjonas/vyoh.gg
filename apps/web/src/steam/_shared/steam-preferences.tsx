@@ -66,7 +66,7 @@ export function SteamPreferences() {
                   type="checkbox"
                   checked={showMature}
                   onChange={(e) => setShowMature(e.target.checked)}
-                  className="mt-0.5 size-4 shrink-0 cursor-pointer accent-sky-500"
+                  className="mt-0.5 size-4 shrink-0 cursor-pointer"
                 />
                 <span className="flex flex-col">
                   <span className="text-foreground/90">Show mature content</span>
