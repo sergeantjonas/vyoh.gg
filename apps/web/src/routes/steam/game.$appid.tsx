@@ -101,7 +101,7 @@ function SteamGamePage() {
   // toggling open on every visit doesn't match the user's actual intent
   // ("I want to read more about THIS game right now").
   const [descExpanded, setDescExpanded] = useState(false);
-  const descMeta = useGameDescriptionHtml(appid);
+  const descMeta = useGameDescriptionHtml(appid, game?.shortDescription ?? null);
 
   // Page is grouped into three bands. The first ("Identity") collapses the
   // hero, the facts strip, and the editorial blurb into one tight visual
@@ -241,22 +241,17 @@ function SteamGamePage() {
               franchises={game.franchiseNames}
             />
           )}
-          {/* Description: the toggle swaps between summary (short) and
-              detail (full) views rather than stacking them — overlap between
-              the two strings is common (the short is often a marketing
-              condensation of the opening paragraphs of the full, sometimes
-              paraphrased), but it isn't universal, so an overlap-stripping
-              heuristic would hurt as many games as it helps. The simpler
-              rule is: show one or the other, never both. The toggle text
-              ("Read full description" / "Hide full description") and the
-              soft divider above the full body double as the section header
-              for the expanded view. */}
-          {!descExpanded && (
-            <p className="text-sm text-muted-foreground">
-              {game?.shortDescription ??
-                "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
-            </p>
-          )}
+          {/* The short description is always visible — it's the page's
+              summary tagline. When the user expands the full body, the
+              renderer strips leading paragraphs that paraphrase the short
+              (see `stripLeadingOverlapWithShort`) so we don't restate the
+              same sentences twice. Games where the short is a standalone
+              tagline (no overlap with the full) leave the full body
+              untouched. */}
+          <p className="text-sm text-muted-foreground">
+            {game?.shortDescription ??
+              "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
+          </p>
           {game && descMeta.hasDescription && (
             <>
               <button
@@ -275,7 +270,10 @@ function SteamGamePage() {
               </button>
               {descExpanded && (
                 <div className="mt-1 border-t border-border/40 pt-3">
-                  <GameAboutBlock appid={appid} />
+                  <GameAboutBlock
+                    appid={appid}
+                    shortDescription={game?.shortDescription ?? null}
+                  />
                 </div>
               )}
             </>

@@ -27,7 +27,9 @@ describe("GameAboutBlock (inline prose, no card chrome)", () => {
       isError: false,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
+    const { container } = renderWithClient(
+      <GameAboutBlock appid={42} shortDescription={null} />
+    );
     expect(container.querySelector("[aria-busy]")).toBeTruthy();
   });
 
@@ -39,7 +41,7 @@ describe("GameAboutBlock (inline prose, no card chrome)", () => {
       isError: false,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    renderWithClient(<GameAboutBlock appid={42} />);
+    renderWithClient(<GameAboutBlock appid={42} shortDescription={null} />);
     expect(screen.getByText(/No full description on file/)).toBeTruthy();
   });
 
@@ -54,7 +56,9 @@ describe("GameAboutBlock (inline prose, no card chrome)", () => {
       isError: false,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
+    const { container } = renderWithClient(
+      <GameAboutBlock appid={42} shortDescription={null} />
+    );
     await waitFor(() => {
       expect(screen.getByText("About Title")).toBeTruthy();
     });
@@ -75,15 +79,26 @@ describe("GameAboutBlock (inline prose, no card chrome)", () => {
       isError: false,
     } as unknown as ReturnType<typeof useGameDescription>);
 
-    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
+    const { container } = renderWithClient(
+      <GameAboutBlock appid={42} shortDescription={null} />
+    );
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText(/Text\./)).toBeTruthy();
   });
 });
 
 describe("useGameDescriptionHtml", () => {
-  function HookProbe({ appid }: { appid: number }) {
-    const { hasDescription, isPending, html } = useGameDescriptionHtml(appid);
+  function HookProbe({
+    appid,
+    shortDescription = null,
+  }: {
+    appid: number;
+    shortDescription?: string | null;
+  }) {
+    const { hasDescription, isPending, html } = useGameDescriptionHtml(
+      appid,
+      shortDescription
+    );
     return (
       <div
         data-testid="probe"
@@ -129,5 +144,56 @@ describe("useGameDescriptionHtml", () => {
 
     renderWithClient(<HookProbe appid={42} />);
     expect(screen.getByTestId("probe").dataset.has).toBe("false");
+  });
+
+  it("strips overlap with the short description before sanitising", () => {
+    // Short paraphrases the opening line — the dedupe pass should drop it,
+    // leaving the unique sentence behind.
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: {
+        appid: 42,
+        bbcode: [
+          "Defeat the dragon king of Aldoria.",
+          "",
+          "Featuring 40 hours of branching narrative content.",
+        ].join("\n"),
+      },
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    renderWithClient(
+      <HookProbe
+        appid={42}
+        shortDescription="Defeat the dragon king and save the realm of Aldoria."
+      />
+    );
+    renderWithClient(
+      <GameAboutBlock
+        appid={42}
+        shortDescription="Defeat the dragon king and save the realm of Aldoria."
+      />
+    );
+    expect(screen.getAllByText(/Featuring 40 hours/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Defeat the dragon king/)).toBeNull();
+  });
+
+  it("leaves the body untouched when the short doesn't overlap (tagline case)", () => {
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: {
+        appid: 42,
+        bbcode: "Welcome to the void between stars, traveller.",
+      },
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    renderWithClient(
+      <GameAboutBlock
+        appid={42}
+        shortDescription="A roguelike deckbuilder for the cosmically curious."
+      />
+    );
+    expect(screen.getByText(/Welcome to the void/)).toBeTruthy();
   });
 });
