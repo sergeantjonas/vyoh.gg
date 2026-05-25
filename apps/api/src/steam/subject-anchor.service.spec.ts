@@ -185,12 +185,42 @@ describe("SteamSubjectAnchorService.computeMissingAnchors", () => {
     await service.computeMissingAnchors([42]);
     expect(faceDetection.detectBestFace).toHaveBeenCalled();
     const call = prisma.steamGameEnrichment.update.mock.calls[0]?.[0] as
-      | { data: { subjectXPercent: number; subjectYPercent: number } }
+      | {
+          data: {
+            subjectXPercent: number;
+            subjectYPercent: number;
+            flipHero: boolean;
+          };
+        }
       | undefined;
     // X passes through (25.3, no inset needed — far from any edge).
     expect(call?.data.subjectXPercent).toBe(25);
     // Y has the FACE_HEADROOM_PCT (4%) subtracted: 77.8 − 4 = 73.8 → 74.
     expect(call?.data.subjectYPercent).toBe(74);
+    // X=25 is above FLIP_TRIGGER_X_PCT (22) — no flip.
+    expect(call?.data.flipHero).toBe(false);
+  });
+
+  it("flips the hero and inverts X when the face is far enough left to clash with the logo", async () => {
+    fetchUpstreamChain.mockResolvedValue(Buffer.from([1, 2, 3]));
+    const { service, prisma } = makeService(
+      [{ appid: 42, libraryHeroPath: "hash", assetTimestamp: 1n }],
+      // RE4-style: Leon detected at source X≈18%, well inside the logo zone.
+      { centerXPct: 18, centerYPct: 47, score: 0.6, rotation: 0 }
+    );
+    await service.computeMissingAnchors([42]);
+    const call = prisma.steamGameEnrichment.update.mock.calls[0]?.[0] as
+      | {
+          data: {
+            subjectXPercent: number;
+            subjectYPercent: number;
+            flipHero: boolean;
+          };
+        }
+      | undefined;
+    expect(call?.data.flipHero).toBe(true);
+    // Inverted: 100 − 18 = 82 → after clamp to insetHigh (90) stays 82.
+    expect(call?.data.subjectXPercent).toBe(82);
   });
 
   it("clamps face anchors to the inset bounds when the face sits flush against an edge", async () => {

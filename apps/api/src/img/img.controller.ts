@@ -289,7 +289,11 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
-  @Get("steam/logo/:appid/:assetTimestamp.webp")
+  // `:schemaVersion` segment exists purely as a browser cache key — the
+  // proxy ignores it. Bumping it on the web side (steam-image.ts) forces
+  // a re-fetch past any year-cached immutable bytes when the logo pipeline
+  // changes (resize params, trim, etc.). See `LOGO_SCHEMA_VERSION` there.
+  @Get("steam/logo/:schemaVersion/:appid/:assetTimestamp.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)
   async steamLogo(@Param("appid") appid: string, @Res() res: Response): Promise<void> {

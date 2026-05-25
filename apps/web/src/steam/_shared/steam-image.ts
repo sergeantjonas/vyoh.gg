@@ -28,6 +28,12 @@ const ACHIEVEMENT_SCHEMA_VERSION = 1;
 // Without this segment, browsers with `Cache-Control: immutable` would
 // keep serving year-old cached bytes against the same URL.
 const BACKDROP_SCHEMA_VERSION = 3;
+// Bump when the logo proxy pipeline changes (trim, resize, etc.) so
+// browsers holding the prior immutable bytes refresh on next request.
+//   v1: width=480, no trim (original).
+//   v2: width=480 + alpha trim threshold 1 (strips Steam's per-publisher
+//       transparent-padding inconsistencies before resize).
+const LOGO_SCHEMA_VERSION = 2;
 
 function cacheKey(assetTimestamp?: number | bigint | null): string {
   return assetTimestamp != null ? assetTimestamp.toString() : "0";
@@ -58,7 +64,7 @@ export function steamLibraryLogoUrl(
   appid: number,
   assetTimestamp?: number | bigint | null
 ): string {
-  return `${API_URL}/img/steam/logo/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_URL}/img/steam/logo/${LOGO_SCHEMA_VERSION}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // Profile page backdrop. The proxy tries the high-quality

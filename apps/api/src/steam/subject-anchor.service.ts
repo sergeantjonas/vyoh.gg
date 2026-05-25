@@ -65,16 +65,32 @@ const FACE_HEADROOM_PCT = 4;
 // the source itself frames it close to the edge.
 const FACE_INSET_PCT = 10;
 
+// When the focal face sits in the leftmost slice of source, the library
+// row's wordmark logo (anchored at the card's left edge) lands on top of
+// the face. Mirroring the hero horizontally puts the face on the right
+// side instead — clear of the logo — at the cost of a flipped composition
+// (acceptable for 3D portrait art; live with rare baked-asymmetry quirks).
+// Threshold picked just under the X anchor where the logo's right edge
+// starts encroaching on a centered face. The same `flipHero` boolean
+// flows to both the row hero and the game-detail destination hero so the
+// view-transition morph stays continuous across the route swap.
+const FLIP_TRIGGER_X_PCT = 22;
+
 // 50/50 is the "computed but inconclusive / unavailable" sentinel. Stored
 // rather than left null so the enrichment job doesn't re-fetch the same
 // missing asset every cycle (Track B titles like Deus Ex HR original or
 // Far Cry 1, where `library_hero.jpg` 404s at every URL in the chain).
 // Renderer treats null and 50/50 identically.
-const DEFAULT_ANCHOR = { subjectXPercent: 50, subjectYPercent: 50 } as const;
+const DEFAULT_ANCHOR = {
+  subjectXPercent: 50,
+  subjectYPercent: 50,
+  flipHero: false,
+} as const;
 
 export interface SubjectAnchor {
   subjectXPercent: number;
   subjectYPercent: number;
+  flipHero: boolean;
 }
 
 function composeHeroUrls(
@@ -142,6 +158,12 @@ export async function smartcropAnchorFromBytes(bytes: Buffer): Promise<SubjectAn
   return {
     subjectXPercent: Math.max(0, Math.min(100, Math.round((cx / srcW) * 100))),
     subjectYPercent: Math.max(0, Math.min(100, Math.round(yObj))),
+    // No flip on the smartcrop fallback path. Smartcrop returns generic
+    // saliency, not face position — without knowing which side a face
+    // sits on, we can't decide whether flipping would help. Frontend
+    // renders these unflipped (face-detected rows are the ones that get
+    // the flip when X is leftward).
+    flipHero: false,
   };
 }
 
@@ -191,6 +213,7 @@ export class SteamSubjectAnchorService {
           data: {
             subjectXPercent: anchor.subjectXPercent,
             subjectYPercent: anchor.subjectYPercent,
+            flipHero: anchor.flipHero,
           },
         });
         updated += 1;
@@ -217,12 +240,19 @@ export class SteamSubjectAnchorService {
       const bytes = await fetchUpstreamChain(urls);
       const face = await this.faceDetection.detectBestFace(bytes);
       if (face !== null) {
+        // Flip decision happens BEFORE the edge-inset clamp so we judge
+        // against the raw detected position. If the face lives in the
+        // leftmost slice of source, we mirror the hero so the face moves
+        // out from under the wordmark logo; the X anchor is also inverted
+        // (100 − X) so the cover-crop still tracks the face after flip.
+        const flipHero = face.centerXPct < FLIP_TRIGGER_X_PCT;
+        const detectedX = flipHero ? 100 - face.centerXPct : face.centerXPct;
         // Edge-inset clamp keeps the face from sitting flush against the
         // row's edge (RE Requiem-style framing). Headroom bias shifts up
         // slightly so hair/forehead has breathing room above the face.
         const insetLow = FACE_INSET_PCT;
         const insetHigh = 100 - FACE_INSET_PCT;
-        const x = Math.min(insetHigh, Math.max(insetLow, face.centerXPct));
+        const x = Math.min(insetHigh, Math.max(insetLow, detectedX));
         const y = Math.min(
           insetHigh,
           Math.max(insetLow, face.centerYPct - FACE_HEADROOM_PCT)
@@ -232,6 +262,7 @@ export class SteamSubjectAnchorService {
           anchor: {
             subjectXPercent: Math.max(0, Math.min(100, Math.round(x))),
             subjectYPercent: Math.max(0, Math.min(100, Math.round(y))),
+            flipHero,
           },
         };
       }

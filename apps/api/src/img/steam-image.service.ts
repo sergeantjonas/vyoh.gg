@@ -83,7 +83,13 @@ export class SteamImageService {
     });
     return {
       urls: composeAssetUrls(appid, row?.logoPath, null, "logo.png"),
-      params: { width: 480 },
+      // `trim: true` strips transparent padding from the upstream PNG before
+      // resize, normalising the displayed size across publishers. Without
+      // this, logos with built-in 30%+ alpha padding (NieR Replicant,
+      // Cyberpunk's compact wordmark, AI:LIMIT) render visibly smaller than
+      // tightly-cropped ones (RE2, Wuchang) under the same `max-h`/`max-w`
+      // constraints on the frontend.
+      params: { width: 480, trim: true },
     };
   }
 

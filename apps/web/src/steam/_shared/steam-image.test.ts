@@ -20,7 +20,10 @@ describe("steam image url helpers", () => {
       "http://localhost:2010/img/steam/hero/440/0.webp"
     );
     expect(steamLibraryLogoUrl(440)).toBe(
-      "http://localhost:2010/img/steam/logo/440/0.webp"
+      // v2 cache-bust segment — bumped when the logo proxy pipeline added
+      // alpha trim, so browsers refresh past the prior untrimmed bytes.
+      // See LOGO_SCHEMA_VERSION.
+      "http://localhost:2010/img/steam/logo/2/440/0.webp"
     );
     expect(steamPageBackgroundUrl(440)).toBe(
       // v3 cache-bust segment — flips browsers off the year-cached prior
@@ -44,7 +47,7 @@ describe("steam image url helpers", () => {
 
   it("treats explicit null assetTimestamp as '0'", () => {
     expect(steamLibraryLogoUrl(440, null)).toBe(
-      "http://localhost:2010/img/steam/logo/440/0.webp"
+      "http://localhost:2010/img/steam/logo/2/440/0.webp"
     );
   });
 

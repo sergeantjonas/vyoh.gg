@@ -121,6 +121,7 @@ export function LibraryRow({
         name={game.name}
         subjectXPercent={game.subjectXPercent}
         subjectYPercent={game.subjectYPercent}
+        flipHero={game.flipHero}
         meta={
           <>
             {lifetime ? `${lifetime} lifetime` : "Never launched"}

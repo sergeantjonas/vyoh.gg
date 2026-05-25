@@ -379,6 +379,7 @@ export class SteamOwnedGamesService {
         franchiseNames: true,
         subjectXPercent: true,
         subjectYPercent: true,
+        flipHero: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -426,6 +427,7 @@ export class SteamOwnedGamesService {
           franchiseNames: e?.franchiseNames ?? [],
           subjectXPercent: e?.subjectXPercent ?? null,
           subjectYPercent: e?.subjectYPercent ?? null,
+          flipHero: e?.flipHero ?? false,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

@@ -86,6 +86,13 @@ export interface SteamOwnedGame {
   // treats null and 50/50 identically (center crop).
   subjectXPercent: number | null;
   subjectYPercent: number | null;
+  // When true, the renderer mirrors the hero img (`transform: scaleX(-1)`)
+  // so a face detected at the left edge of source ends up on the right,
+  // clear of the row's wordmark logo. The X anchor is pre-inverted at
+  // enrichment time, so callers don't need to compensate. Both the
+  // library row and the game-detail page hero apply the same flip so
+  // the view-transition morph stays continuous.
+  flipHero: boolean;
 }
 
 export interface SteamGameRating {

@@ -33,6 +33,13 @@ export interface SteamGameRowShellProps {
   // these are derived from `library_hero.jpg` at enrichment time.
   subjectXPercent?: number | null;
   subjectYPercent?: number | null;
+  // When true, the hero is rendered mirrored horizontally (`scaleX(-1)`)
+  // so a face at the left of source lands on the right of the row, clear
+  // of the wordmark. The X anchor is already inverted at enrichment time,
+  // so this prop only drives the visual flip. The game-detail destination
+  // hero must apply the same flip for the view-transition morph to stay
+  // continuous across the route swap.
+  flipHero?: boolean;
   // Right-aligned trailing slot. Render visual indicators only (icons,
   // badges); never put click targets here because the row wrapper is the
   // click target and nested interactives break accessibility.
@@ -57,6 +64,7 @@ export function SteamGameRowShell({
   meta,
   subjectXPercent,
   subjectYPercent,
+  flipHero,
   trailing,
   heroRef,
   logoRef,
@@ -125,6 +133,13 @@ export function SteamGameRowShell({
           style={{ objectPosition: `${xPct}% ${yPct}%` }}
           className={cn(
             "absolute inset-0 size-full object-cover transition-[opacity,transform] duration-600 ease-out",
+            // Per-asset horizontal mirror — applied when the face was
+            // detected on the left of source so the wordmark logo doesn't
+            // sit over the face (RE4 Leon). The `scaleX(-1)` composes with
+            // `group-hover/row:scale-105` because both feed the same
+            // `transform` channel; using Tailwind's `-scale-x-100` keeps
+            // hover's uniform scale working alongside the flip.
+            flipHero && "-scale-x-100",
             "group-hover/row:scale-105",
             heroLoaded ? "opacity-100" : "opacity-0"
           )}
@@ -152,14 +167,17 @@ export function SteamGameRowShell({
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/row:opacity-100 group-hover/row:[--sheen-extent:42%]"
       />
 
-      {/* Content overlay — anchored to the left. The logo wordmark IS the
-          title; the text fallback only renders when the logo asset is
-          missing. The container is width-capped so it never overlaps the
-          hero focal region. */}
+      {/* Logo wordmark — anchored vertically centered in the card. The
+          logo IS the title; the text fallback only renders when the
+          asset is missing. With meta moved to the bottom strip, the
+          logo gets the full vertical column to itself, so we can run
+          the bbox larger (max-h up from 12/14 to 16/20) without
+          colliding with anything. Width-capped at 60% so it never
+          overlaps the hero focal region. */}
       <div className="absolute inset-0 flex items-center px-4 sm:px-5">
-        <div className="flex min-w-0 max-w-[60%] flex-col gap-1.5">
+        <div className="flex min-w-0 max-w-[55%] items-center">
           {logoFailed ? (
-            <span className="line-clamp-1 text-base font-bold text-white drop-shadow-lg sm:text-lg">
+            <span className="line-clamp-1 text-lg font-bold text-white drop-shadow-lg sm:text-xl">
               {name}
             </span>
           ) : (
@@ -172,23 +190,31 @@ export function SteamGameRowShell({
               onLoad={handleLogoLoad}
               onError={() => setLogoFailed(true)}
               className={cn(
-                // Generous bbox so logos with built-in transparent
-                // padding (RE Requiem, Cyberpunk) render at comparable
-                // size to tightly-cropped ones (RE2). Drop-shadow keeps
-                // light wordmarks legible against bright art that the
-                // left-side dim doesn't fully tame (Pragmata, FC2).
-                "max-h-12 max-w-56 object-contain object-left drop-shadow-lg transition-opacity duration-500 ease-out sm:max-h-14",
+                // Logos are now trimmed proxy-side (see steam-image.ts
+                // LOGO_SCHEMA_VERSION v2), so their visible bboxes are
+                // consistent across publishers. The bbox here is sized to
+                // produce a roughly title-sized wordmark; drop-shadow
+                // keeps light wordmarks legible against bright art that
+                // the left-side dim doesn't fully tame (Pragmata, FC2).
+                "max-h-16 max-w-64 object-contain object-left drop-shadow-lg transition-opacity duration-500 ease-out sm:max-h-20 sm:max-w-72",
                 logoLoaded ? "opacity-100" : "opacity-0"
               )}
             />
           )}
-          {meta ? (
-            <span className="line-clamp-1 text-xs font-medium text-white/85 drop-shadow-sm sm:text-sm">
-              {meta}
-            </span>
-          ) : null}
         </div>
       </div>
+
+      {/* Bottom-left meta strip. Pulled out of the logo column so the
+          logo can claim the full vertical centre; the meta line still
+          reads as a "status" subtitle attached to the card without
+          competing for the wordmark's space. */}
+      {meta ? (
+        <div className="absolute bottom-2 left-4 max-w-[60%] sm:bottom-2.5 sm:left-5">
+          <span className="line-clamp-1 text-xs font-medium text-white/85 drop-shadow-sm sm:text-sm">
+            {meta}
+          </span>
+        </div>
+      ) : null}
 
       {trailing ? (
         <div className="absolute top-2 right-3 flex items-center text-white/80 drop-shadow sm:top-3 sm:right-4">

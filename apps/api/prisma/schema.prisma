@@ -190,6 +190,15 @@ model SteamGameEnrichment {
   // is only meaningful to the enrichment job (null → retry; 50/50 → don't).
   subjectXPercent      Int?
   subjectYPercent      Int?
+  // When true, the renderer applies `transform: scaleX(-1)` to the hero
+  // img so a face detected at the left side of source (where the
+  // wordmark logo lives) flips to the right side, clear of the logo. Set
+  // at anchor-compute time when the face center X falls below the
+  // FLIP_TRIGGER_X_PCT threshold; `subjectXPercent` is also inverted in
+  // the same pass so the cover-crop anchor still tracks the face after
+  // the flip. Both the library row and the game-detail page hero apply
+  // the same transform, so the view-transition morph stays continuous.
+  flipHero             Boolean   @default(false)
   enrichedAt           DateTime  @default(now())
 }
 

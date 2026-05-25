@@ -41,13 +41,22 @@ export interface TranscodeParams {
   // clipped to render as a single CS icon. Resolved from `.metadata()` at
   // transcode time so callers don't need to know sprite dimensions.
   extractTopHalf?: boolean;
+  // Trims uniform-alpha borders before resize. Used for Steam wordmark
+  // `logo.png` assets — publishers ship them with wildly different
+  // transparent-padding conventions (some tightly cropped, some with ~30%
+  // padding per side). Trimming normalises the visible bbox so frontend
+  // `max-h`/`max-w` constraints produce consistent rendered sizes across
+  // the library. Sharp's `.trim()` defaults handle alpha-bordered PNGs
+  // cleanly; threshold of 1 catches edge anti-alias halos that the
+  // default threshold (10) preserves and that read as extra padding.
+  trim?: boolean;
 }
 
 export async function transcodeToWebp(
   input: Buffer,
   params: TranscodeParams = {}
 ): Promise<Buffer> {
-  const { width, height, fit, quality = 85, blur, extractTopHalf } = params;
+  const { width, height, fit, quality = 85, blur, extractTopHalf, trim } = params;
   let pipeline = sharp(input);
   if (extractTopHalf) {
     const meta = await pipeline.metadata();
@@ -60,6 +69,7 @@ export async function transcodeToWebp(
       });
     }
   }
+  if (trim) pipeline = pipeline.trim({ threshold: 1 });
   if (width || height) {
     pipeline = pipeline.resize({
       width,

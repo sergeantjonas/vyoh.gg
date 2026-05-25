@@ -402,6 +402,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         franchiseNames: [],
         subjectXPercent: null,
         subjectYPercent: null,
+        flipHero: false,
       },
     ]);
   });

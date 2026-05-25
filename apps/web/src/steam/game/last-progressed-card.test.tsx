@@ -59,6 +59,7 @@ function makeGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     franchiseNames: [],
     subjectXPercent: null,
     subjectYPercent: null,
+    flipHero: false,
     ...overrides,
   };
 }
