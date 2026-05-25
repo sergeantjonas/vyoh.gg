@@ -180,7 +180,8 @@ describe("SteamSubjectAnchorService.computeMissingAnchors", () => {
     fetchUpstreamChain.mockResolvedValue(Buffer.from([1, 2, 3]));
     const { service, prisma, faceDetection } = makeService(
       [{ appid: 42, libraryHeroPath: "hash", assetTimestamp: 1n }],
-      { centerXPct: 25.3, centerYPct: 77.8, score: 0.92, rotation: 180 }
+      // X=55 (right of center) — well above FLIP_TRIGGER_X_PCT, so no flip.
+      { centerXPct: 55, centerYPct: 77.8, score: 0.92, rotation: 180 }
     );
     await service.computeMissingAnchors([42]);
     expect(faceDetection.detectBestFace).toHaveBeenCalled();
@@ -193,11 +194,11 @@ describe("SteamSubjectAnchorService.computeMissingAnchors", () => {
           };
         }
       | undefined;
-    // X passes through (25.3, no inset needed — far from any edge).
-    expect(call?.data.subjectXPercent).toBe(25);
+    // X passes through (55, no inset needed — far from any edge).
+    expect(call?.data.subjectXPercent).toBe(55);
     // Y has the FACE_HEADROOM_PCT (4%) subtracted: 77.8 − 4 = 73.8 → 74.
     expect(call?.data.subjectYPercent).toBe(74);
-    // X=25 is above FLIP_TRIGGER_X_PCT (22) — no flip.
+    // X=55 is above FLIP_TRIGGER_X_PCT (33) — no flip.
     expect(call?.data.flipHero).toBe(false);
   });
 
@@ -205,8 +206,9 @@ describe("SteamSubjectAnchorService.computeMissingAnchors", () => {
     fetchUpstreamChain.mockResolvedValue(Buffer.from([1, 2, 3]));
     const { service, prisma } = makeService(
       [{ appid: 42, libraryHeroPath: "hash", assetTimestamp: 1n }],
-      // RE4-style: Leon detected at source X≈18%, well inside the logo zone.
-      { centerXPct: 18, centerYPct: 47, score: 0.6, rotation: 0 }
+      // RE4-style: Leon detected at source X≈26%, well inside the wordmark
+      // zone (FLIP_TRIGGER_X_PCT = 33).
+      { centerXPct: 26, centerYPct: 47, score: 0.5, rotation: 0 }
     );
     await service.computeMissingAnchors([42]);
     const call = prisma.steamGameEnrichment.update.mock.calls[0]?.[0] as
@@ -219,8 +221,8 @@ describe("SteamSubjectAnchorService.computeMissingAnchors", () => {
         }
       | undefined;
     expect(call?.data.flipHero).toBe(true);
-    // Inverted: 100 − 18 = 82 → after clamp to insetHigh (90) stays 82.
-    expect(call?.data.subjectXPercent).toBe(82);
+    // Inverted: 100 − 26 = 74, no clamp needed (74 ≤ insetHigh=90).
+    expect(call?.data.subjectXPercent).toBe(74);
   });
 
   it("clamps face anchors to the inset bounds when the face sits flush against an edge", async () => {

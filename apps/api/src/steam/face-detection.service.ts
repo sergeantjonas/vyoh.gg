@@ -17,11 +17,12 @@ const MODEL_RELATIVE_PATH = "models/ultraface-rfb-320.onnx";
 const MODEL_INPUT_WIDTH = 320;
 const MODEL_INPUT_HEIGHT = 240;
 
-// Confidence floor. 0.4 catches profile / partially-occluded faces like
-// RE4's Leon (his cover art profile detects at 0.588). Below this, we
-// reject as either noise or phantom (geometric patterns the detector
-// misreads as face-like).
-const SCORE_THRESHOLD = 0.4;
+// Confidence floor. 0.35 catches RE4's Leon profile close-up (detects at
+// ~0.37 after the two-step resize) while still excluding noise. The bbox
+// size + edge-guard filters below are what reject phantoms; lowering the
+// score threshold without those would be risky, but with them in place
+// it's safe to widen the score window.
+const SCORE_THRESHOLD = 0.35;
 
 // "Good enough" threshold for the natural-orientation (0°) detection. If
 // 0° produces a face at or above this score, we use it even when a
@@ -39,21 +40,19 @@ const SCORE_THRESHOLD = 0.4;
 const PREFER_ZERO_DEG_THRESHOLD = 0.5;
 
 // Bbox size sanity bounds for a "real face" detection, expressed as a
-// fraction of the source dimensions (the model output is already in
-// normalized 0-1 source coords). Real Steam hero art faces typically
-// span 5-30% on each axis, with the largest legitimate cases being
-// close-up profiles like RE4's Leon (estimated ~40-50% on the taller
-// axis). Ultraface occasionally hallucinates large "faces" covering
-// most of a frame when rotated source produces high-contrast geometric
-// patterns — DOOM 3's demon-and-marine composition at 270° produces a
-// phantom 67%×54% "face" at score 0.518.
+// fraction of source dimensions. Real Steam hero art faces are typically
+// taller than wide (vertical aspect on game character art), and the
+// extreme case is a profile close-up where the bbox includes the full
+// head + hair span (RE4 Leon at ~30% width × 85% height). Phantoms tend
+// to be wide and squarish (DOOM 3's demon-and-marine at 67%×54%).
 //
-// Bounds chosen as: MIN excludes pixel-tiny noise; MAX excludes the
-// "whole composition" phantoms while leaving enough headroom for
-// legitimate close-up shots. The 0.6 ceiling rejects DOOM 3's 67%×54%
-// phantom but accepts plausible large detections.
+// Splitting the bound by axis means we accept a 30%×85% real close-up
+// while rejecting a 67%×54% phantom. A single combined cap can't
+// distinguish them — pick a cap high enough for Leon and the phantom
+// slips through; pick one low enough for the phantom and Leon is rejected.
 const MIN_BBOX_FRACTION = 0.03;
-const MAX_BBOX_FRACTION = 0.6;
+const MAX_BBOX_WIDTH_FRACTION = 0.4;
+const MAX_BBOX_HEIGHT_FRACTION = 0.9;
 
 // Edge-guard for NON-zero-degree detections. A face detected at 90/180/270°
 // that un-rotates to the outer 10% strip of source is virtually always a
@@ -173,9 +172,22 @@ export class FaceDetectionService {
 // Sharp rotate + resize + normalize. Pulled out so the rotation loop in
 // `detectBestFace` stays focused on orchestration; the per-pixel buffer
 // reshape (HWC uint8 → CHW float32, mean-and-scale) lives here.
+//
+// Resizing is two-stage: source → ~1280-wide intermediate → 320×240 model
+// input. The single-stage path (raw 1920×620 JPEG → 320×240 directly)
+// drops Ultraface's confidence on large close-up faces below the
+// detection threshold — RE4's Leon profile produces zero detections via
+// single-stage but ~0.37 via two-stage. The intermediate matches the
+// downscale path the proxy already does for the WEBP-served version of
+// the asset, which empirically yields stable detections across the test
+// set. Cost is one extra Sharp pass per asset per rotation (~ms).
+const PREPROCESS_INTERMEDIATE_WIDTH = 1280;
 async function preprocess(bytes: Buffer, rotation: Rotation): Promise<ort.Tensor> {
-  const { data } = await sharp(bytes)
+  const intermediate = await sharp(bytes)
     .rotate(rotation)
+    .resize({ width: PREPROCESS_INTERMEDIATE_WIDTH })
+    .toBuffer();
+  const { data } = await sharp(intermediate)
     .resize(MODEL_INPUT_WIDTH, MODEL_INPUT_HEIGHT, { fit: "fill" })
     .removeAlpha()
     .raw()
@@ -218,7 +230,7 @@ function topDetection(
     const w = x2 - x1;
     const h = y2 - y1;
     if (w < MIN_BBOX_FRACTION || h < MIN_BBOX_FRACTION) continue;
-    if (w > MAX_BBOX_FRACTION || h > MAX_BBOX_FRACTION) continue;
+    if (w > MAX_BBOX_WIDTH_FRACTION || h > MAX_BBOX_HEIGHT_FRACTION) continue;
     bestScore = score;
     bestX1 = x1;
     bestY1 = y1;

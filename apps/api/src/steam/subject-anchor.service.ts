@@ -65,16 +65,18 @@ const FACE_HEADROOM_PCT = 4;
 // the source itself frames it close to the edge.
 const FACE_INSET_PCT = 10;
 
-// When the focal face sits in the leftmost slice of source, the library
-// row's wordmark logo (anchored at the card's left edge) lands on top of
-// the face. Mirroring the hero horizontally puts the face on the right
-// side instead — clear of the logo — at the cost of a flipped composition
-// (acceptable for 3D portrait art; live with rare baked-asymmetry quirks).
-// Threshold picked just under the X anchor where the logo's right edge
-// starts encroaching on a centered face. The same `flipHero` boolean
-// flows to both the row hero and the game-detail destination hero so the
-// view-transition morph stays continuous across the route swap.
-const FLIP_TRIGGER_X_PCT = 22;
+// When the focal face sits in the leftmost ~third of source, the library
+// row's wordmark logo (anchored at the card's left edge, occupying
+// roughly the leftmost ~25-33% of row width depending on viewport) lands
+// on top of the face. Mirroring the hero horizontally puts the face on
+// the right side instead — clear of the logo — at the cost of a flipped
+// composition (acceptable for 3D portrait art; live with rare
+// baked-asymmetry quirks). Threshold of 33 covers RE4's Leon profile
+// (face center detected at ~26%) and leaves single-figure centered
+// compositions (typical face at X≈40-50%) unflipped. The same `flipHero`
+// boolean flows to both the row hero and the game-detail destination
+// hero so the view-transition morph stays continuous.
+const FLIP_TRIGGER_X_PCT = 33;
 
 // 50/50 is the "computed but inconclusive / unavailable" sentinel. Stored
 // rather than left null so the enrichment job doesn't re-fetch the same
