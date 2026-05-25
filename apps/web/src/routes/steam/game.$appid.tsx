@@ -125,7 +125,19 @@ function SteamGamePage() {
           the image loads. For the rare older titles that never shipped a
           library_hero asset, the `heroFailed` branch leaves the
           gradient-on-bg-muted backdrop visible (no jarring black box). */}
-      <div className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-linear-to-br from-muted via-card to-muted">
+      {/* `view-transition-name` lives on this wrapper rather than the
+          `<img>` so the snapshot captures both the hero and the dark
+          gradient layered over it. With the name on the img alone, the
+          gradient was rendered into the root group only — it appeared
+          AFTER the morph completed and the live DOM became visible,
+          which read as the banner suddenly darkening at the end of the
+          animation. Naming the wrapper folds the gradient into the same
+          snapshot pair, so the darkening crossfades in throughout the
+          morph instead of snapping on. */}
+      <div
+        style={{ viewTransitionName: `steam-game-${appid}-hero` }}
+        className="relative aspect-1920/620 w-full overflow-hidden rounded-lg border bg-linear-to-br from-muted via-card to-muted"
+      >
         {/* Two view-transition morph anchors. From the library TILE: only
             the hero name pairs (tile renders a hidden hero img as its
             anchor); the logo name has no source pair and crossfades.
@@ -142,7 +154,6 @@ function SteamGamePage() {
             loading="eager"
             onLoad={heroHandlers.onLoad}
             onError={heroHandlers.onError}
-            style={{ viewTransitionName: `steam-game-${appid}-hero` }}
             className={cn(
               // Flip is baked into the URL — see `steamLibraryHeroUrl`.
               // CSS-only `transform: scaleX(-1)` survives in the static
