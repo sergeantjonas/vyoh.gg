@@ -16,7 +16,7 @@ describe("useLibraryPrefs", () => {
   it("returns defaults when localStorage is empty", () => {
     const { result } = renderHook(() => useLibraryPrefs());
     expect(result.current[0]).toEqual({
-      layout: "tiles",
+      layout: "rows",
       sort: "recent",
       playedFilter: "all",
       appTypeFilter: "game",
@@ -56,7 +56,7 @@ describe("useLibraryPrefs", () => {
       })
     );
     const { result } = renderHook(() => useLibraryPrefs());
-    expect(result.current[0].layout).toBe("tiles");
+    expect(result.current[0].layout).toBe("rows");
     expect(result.current[0].sort).toBe("recent");
     expect(result.current[0].playedFilter).toBe("all");
     expect(result.current[0].appTypeFilter).toBe("all");
@@ -74,7 +74,7 @@ describe("useLibraryPrefs", () => {
   it("falls back to defaults when persisted JSON is invalid", () => {
     window.localStorage.setItem(STORAGE_KEY, "not-json{");
     const { result } = renderHook(() => useLibraryPrefs());
-    expect(result.current[0].layout).toBe("tiles");
+    expect(result.current[0].layout).toBe("rows");
   });
 
   it("updates an individual pref via the setter and persists it", () => {
@@ -89,7 +89,7 @@ describe("useLibraryPrefs", () => {
     const { result } = renderHook(() => useLibraryPrefs());
     act(() => result.current[1]("sort", "name"));
     expect(result.current[0].sort).toBe("name");
-    expect(result.current[0].layout).toBe("tiles");
+    expect(result.current[0].layout).toBe("rows");
     expect(result.current[0].playedFilter).toBe("all");
   });
 });

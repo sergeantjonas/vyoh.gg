@@ -20,7 +20,11 @@ export interface LibraryPrefs {
 
 const STORAGE_KEY = "vyoh:steam-library-prefs";
 const DEFAULTS: LibraryPrefs = {
-  layout: "tiles",
+  // Rows expose the trimmed-logo wordmark, the face-aware cover crop, and
+  // the saliency-anchored hero. Tiles read as the more "Steam-like" grid,
+  // but the editorial intent on this app is the row view; default new
+  // visitors into it. Persisted preference still wins for returning users.
+  layout: "rows",
   sort: "recent",
   playedFilter: "all",
   appTypeFilter: "game",
@@ -35,7 +39,7 @@ function parsePrefs(raw: string | null): LibraryPrefs {
   try {
     const parsed = JSON.parse(raw) as Partial<LibraryPrefs>;
     return {
-      layout: parsed.layout === "rows" ? "rows" : "tiles",
+      layout: parsed.layout === "tiles" ? "tiles" : "rows",
       sort:
         parsed.sort === "name" || parsed.sort === "twoWeeks" || parsed.sort === "lifetime"
           ? parsed.sort
