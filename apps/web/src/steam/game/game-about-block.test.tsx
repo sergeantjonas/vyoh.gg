@@ -146,9 +146,9 @@ describe("useGameDescriptionHtml", () => {
     expect(screen.getByTestId("probe").dataset.has).toBe("false");
   });
 
-  it("strips overlap with the short description before sanitising", () => {
-    // Short paraphrases the opening line — the dedupe pass should drop it,
-    // leaving the unique sentence behind.
+  it("strips verbatim sentences from the full when they also appear in the short", () => {
+    // The body's opening sentence is word-for-word in the short — the
+    // dedupe pass drops it; the unique trailing sentence stays.
     vi.mocked(useGameDescription).mockReturnValue({
       data: {
         appid: 42,
@@ -163,18 +163,12 @@ describe("useGameDescriptionHtml", () => {
     } as unknown as ReturnType<typeof useGameDescription>);
 
     renderWithClient(
-      <HookProbe
-        appid={42}
-        shortDescription="Defeat the dragon king and save the realm of Aldoria."
-      />
-    );
-    renderWithClient(
       <GameAboutBlock
         appid={42}
-        shortDescription="Defeat the dragon king and save the realm of Aldoria."
+        shortDescription="Defeat the dragon king of Aldoria. A tale of triumph."
       />
     );
-    expect(screen.getAllByText(/Featuring 40 hours/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Featuring 40 hours/)).toBeTruthy();
     expect(screen.queryByText(/Defeat the dragon king/)).toBeNull();
   });
 

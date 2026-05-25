@@ -8,13 +8,7 @@ describe("stripLeadingOverlapWithShort", () => {
     expect(stripLeadingOverlapWithShort("hello world", "")).toBe("hello world");
   });
 
-  it("returns the body unchanged when the short description is too thin to compare", () => {
-    // 1-2 content word shorts would over-trigger on shared nouns; bail.
-    const bbcode = "Adventure awaits in this thrilling new release.";
-    expect(stripLeadingOverlapWithShort(bbcode, "Game.")).toBe(bbcode);
-  });
-
-  it("strips word-for-word duplicate openers but preserves paraphrased lines with new content (Resident Evil 4 case)", () => {
+  it("removes verbatim sentences but preserves paraphrased ones (Resident Evil 4 case)", () => {
     const short =
       "Survival is just the beginning. Six years have passed since the biological disaster in Raccoon City. Leon S. Kennedy, one of the survivors, tracks the president's kidnapped daughter to a secluded European village, where there is something terribly wrong with the locals.";
     const bbcode = [
@@ -31,21 +25,26 @@ describe("stripLeadingOverlapWithShort", () => {
       "Relive the nightmare that revolutionized survival horror.",
     ].join("\n");
     const out = stripLeadingOverlapWithShort(bbcode, short);
-    // Lines 1 & 3 are word-for-word in the short → stripped.
+
+    // The two verbatim opening sentences are gone.
     expect(out).not.toContain("Survival is just the beginning");
     expect(out).not.toContain("biological disaster");
-    // Line 4 ("Agent Leon…") adds unique storytelling detail ("Agent",
-    // "the incident", "has been sent to rescue") — the threshold preserves
-    // it, and once the loop bails the rest of the body follows.
-    expect(out.startsWith("Agent Leon S. Kennedy")).toBe(true);
+    // But the paraphrased "Agent Leon…" line carries unique storytelling
+    // ("Agent", "the incident", "has been sent to rescue") — the regex
+    // wouldn't match it because it's a different sentence. Kept.
+    expect(out).toContain("Agent Leon S. Kennedy");
+    expect(out).toContain("the incident");
+    expect(out).toContain("has been sent to rescue");
+    // "He tracks her…" also isn't a verbatim match for the short's
+    // "Leon S. Kennedy, one of the survivors, tracks…" sentence. Kept.
     expect(out).toContain("He tracks her");
+    // The remaining body all the way through is untouched.
     expect(out).toContain("And the curtain rises");
     expect(out).toContain("Featuring modernized gameplay");
     expect(out).toContain("Relive the nightmare");
   });
 
-  it("leaves a tagline-style short alone (no overlap with the body)", () => {
-    // The short is editorial standalone; the full opens with unrelated copy.
+  it("leaves a tagline-style short alone (no verbatim sentences in the full)", () => {
     const short = "A roguelike deckbuilder for the cosmically curious.";
     const bbcode = [
       "Welcome to the void between stars, traveller.",
@@ -55,55 +54,66 @@ describe("stripLeadingOverlapWithShort", () => {
     expect(stripLeadingOverlapWithShort(bbcode, short)).toBe(bbcode);
   });
 
-  it("stops at the first line that doesn't overlap (preserves new content)", () => {
-    const short = "Defeat the dragon king and save the realm of Aldoria.";
+  it("matches across flexible whitespace (sentence broken across newlines)", () => {
+    const short = "Defeat the dragon king of Aldoria.";
+    const bbcode = "Defeat the dragon\nking of Aldoria.\n\nMore content follows.";
+    const out = stripLeadingOverlapWithShort(bbcode, short);
+    expect(out).toBe("More content follows.");
+  });
+
+  it("matches case-insensitively", () => {
+    const short = "DEFEAT THE DRAGON KING OF ALDORIA.";
+    const bbcode = "Defeat the Dragon King of Aldoria.\n\nMore content.";
+    const out = stripLeadingOverlapWithShort(bbcode, short);
+    expect(out).toBe("More content.");
+  });
+
+  it("removes sentences anywhere in the body (not just leading)", () => {
+    // Publishers sometimes restate the short sentence mid-body for emphasis.
+    const short = "Defeat the dragon king of Aldoria.";
     const bbcode = [
-      "Defeat the dragon king and save Aldoria.",
+      "Begin your journey.",
       "",
-      "Featuring 40 hours of branching narrative content.",
+      "Defeat the dragon king of Aldoria.",
+      "",
+      "Forge your destiny.",
     ].join("\n");
     const out = stripLeadingOverlapWithShort(bbcode, short);
-    // First line strips (dragon, king, save, aldoria all match).
-    expect(out.startsWith("Featuring 40 hours")).toBe(true);
+    expect(out).toBe("Begin your journey.\n\nForge your destiny.");
   });
 
-  it("stops at the first BBCode tag — never strips structured content", () => {
-    const short = "Survival is just the beginning of the long dark journey.";
-    const bbcode = [
-      "[h1]About this game[/h1]",
-      "",
-      "Survival is just the beginning.",
-    ].join("\n");
-    // The heading is the first non-blank line — stripper bails before
-    // ever considering the overlapping plain-text line that follows.
+  it("ignores fragments below the minimum sentence length", () => {
+    // A 1-word "sentence" like "Adventure." would match inside "Adventure
+    // awaits the brave." — too risky. Skip it.
+    const short = "Run.";
+    const bbcode = "Run. Adventure awaits.";
     expect(stripLeadingOverlapWithShort(bbcode, short)).toBe(bbcode);
   });
 
-  it("ignores leading lines too short to score meaningfully (single-word headers)", () => {
-    const short = "An adventure across the dark forest of Eldenore.";
-    const bbcode = ["Eldenore.", "", "A new chapter begins."].join("\n");
-    // The 1-content-word line is below MIN_LINE_CONTENT_WORDS — stripper
-    // returns 0 overlap (not 1.0) and bails, keeping the body intact.
-    expect(stripLeadingOverlapWithShort(bbcode, short)).toBe(bbcode);
-  });
-
-  it("filters common stopwords so 'the' and 'of' don't inflate overlap", () => {
-    // Both strings share several stopwords but no content overlap.
-    const short = "Explore the depths of the abyss.";
-    const bbcode = "Walk on the shores of the river that flows by the village.";
-    expect(stripLeadingOverlapWithShort(bbcode, short)).toBe(bbcode);
-  });
-
-  it("preserves blank line structure after the first kept line", () => {
-    const short = "Defeat the dragon king and save the realm of Aldoria.";
+  it("collapses blank-line runs left by the removal", () => {
+    const short = "Defeat the dragon king of Aldoria.";
     const bbcode = [
       "Defeat the dragon king of Aldoria.",
       "",
-      "Chapter 1: The forest.",
       "",
-      "Chapter 2: The keep.",
+      "",
+      "More content follows.",
     ].join("\n");
     const out = stripLeadingOverlapWithShort(bbcode, short);
-    expect(out).toBe(["Chapter 1: The forest.", "", "Chapter 2: The keep."].join("\n"));
+    expect(out).toBe("More content follows.");
+  });
+
+  it("preserves BBCode tags around the matched sentence", () => {
+    // Defensive: if a publisher wrapped a sentence in `[b]...[/b]`, the
+    // sentence content inside still gets removed, but the surrounding
+    // tags are preserved as residual markup. Rare in practice; documented
+    // here so future readers know it's a quirk, not a feature.
+    const short = "Defeat the dragon king of Aldoria.";
+    const bbcode = "[b]Defeat the dragon king of Aldoria.[/b]\n\nMore content.";
+    const out = stripLeadingOverlapWithShort(bbcode, short);
+    expect(out).toContain("[b]");
+    expect(out).toContain("[/b]");
+    expect(out).not.toContain("Defeat the dragon king");
+    expect(out).toContain("More content");
   });
 });

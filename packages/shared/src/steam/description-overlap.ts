@@ -1,167 +1,84 @@
-// Short→full overlap stripper for Steam game descriptions.
+// Strip sentences from the full description that are already literally
+// present in the short description.
 //
-// Context: Steam's `short_description` is editorial-supplied marketing copy
-// that's often (but NOT always) a condensation of the opening paragraphs of
-// `full_description_bbcode`. When the owner expands the full body on the
-// game-detail card, repeating those opening lines reads as duplicated text.
-// But plenty of games use the short field as a standalone tagline ("A
-// roguelike deckbuilder for the cosmically curious"), and stripping content
-// in that case would silently delete real information. So this is a
-// best-effort heuristic, not a general rule: aggressive enough to catch
-// obvious duplication (the Resident Evil 4 case has paraphrased rewrites
-// like "Agent Leon" → "Leon"), conservative enough that low-overlap inputs
-// are returned unchanged.
+// Context: Steam's `short_description` is editorial-supplied marketing
+// copy. Publishers often copy-paste one or two opening sentences from the
+// full description verbatim, then add more depth below. When the owner
+// expands the full body on the game-detail card, those copy-pasted
+// sentences repeat the always-visible summary above. The earlier
+// implementation tried a word-overlap heuristic with a tunable threshold,
+// but tunable thresholds are guesses — either too aggressive (strips
+// paraphrased lines with unique storytelling detail) or too conservative
+// (leaves clear duplicates). The simpler, predictable rule is:
 //
-// Algorithm: walk the BBCode source line-by-line from the top. For each
-// leading plain-text line, compute the fraction of its content words (≥3
-// chars, not in the stopword list) that also appear in the short
-// description's content-word set. Drop the line if that fraction is at or
-// above the threshold; continue scanning. STOP at the first line that
-// either:
-//   - carries a `[` (any BBCode tag — heading, list, code block, etc.).
-//     Structured content is publisher-authored editorial and never noise;
-//     never touch it.
-//   - has overlap below the threshold (we've reached the "new" content the
-//     full description adds beyond the short).
-// Blank lines are skipped without committing. The remaining body is
-// returned verbatim and passed to `bbcodeToHtml` as normal.
+//   For each sentence in the short, build a flexible-whitespace regex
+//   that case-insensitively matches the sentence's exact token sequence,
+//   and delete every occurrence from the full body. Sentences that aren't
+//   literally present (paraphrased openings, unique storytelling) stay
+//   untouched.
 //
-// Why source-level (not HTML-level): publishers commonly use single
-// newlines between sentences within a paragraph, which `bbcodeToHtml`
-// joins with `<br>` into one `<p>` block. Per-paragraph HTML comparison
-// would treat 4 duplicated sentences + 1 new sentence as one mixed block
-// and either drop everything (losing the new one) or nothing. Per-line
-// source comparison gets the granularity right — RE4 has 5 leading lines,
-// 4 overlap, the 5th doesn't, the stripper keeps the 5th.
+// The Resident Evil 4 case:
+//   - Short sentences:
+//       "Survival is just the beginning."
+//       "Six years have passed since the biological disaster in Raccoon City."
+//       "Leon S. Kennedy, one of the survivors, tracks the president's
+//        kidnapped daughter to a secluded European village, where there
+//        is something terribly wrong with the locals."
+//   - First two appear verbatim in the full → stripped.
+//   - Third doesn't appear verbatim — the full says "Agent Leon S.
+//     Kennedy, one of the survivors of the incident, has been sent to
+//     rescue…" → left intact.
+//
+// Tagline-style shorts (no copy-pasted sentences in the full) no-op:
+// none of the sentence regexes match, so the full body is returned
+// unchanged.
 
-// Common English stopwords plus tiny structural words. Filtering these
-// stops "the" and "of" appearing in both texts from inflating the overlap
-// ratio above noise level.
-const STOPWORDS = new Set([
-  "the",
-  "and",
-  "or",
-  "but",
-  "for",
-  "of",
-  "with",
-  "by",
-  "in",
-  "on",
-  "at",
-  "to",
-  "from",
-  "into",
-  "than",
-  "is",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "being",
-  "has",
-  "have",
-  "had",
-  "do",
-  "does",
-  "did",
-  "this",
-  "that",
-  "these",
-  "those",
-  "it",
-  "its",
-  "as",
-  "an",
-  "a",
-  "he",
-  "she",
-  "him",
-  "her",
-  "his",
-  "hers",
-  "they",
-  "them",
-  "their",
-  "who",
-  "what",
-  "where",
-  "when",
-  "one",
-  "two",
-]);
+const SENTENCE_BOUNDARY = /(?<=[.!?])\s+/;
 
-// Threshold tuned against the Resident Evil 4 case + owner sanity check.
-// The bar is "near word-for-word duplicate" — sentences that paraphrase
-// the short with genuinely new content (e.g. RE4's "Agent Leon S. Kennedy,
-// one of the survivors of the incident, has been sent to rescue…" — the
-// "Agent" / "incident" / "has been sent to rescue" details aren't in the
-// short) should pass through. RE4's paraphrased line scores ~0.55 after
-// stopword filtering; setting the threshold at 0.75 keeps it while still
-// catching the truly duplicate openers ("Survival is just the beginning.",
-// "Six years have passed since the biological disaster in Raccoon City.").
-// Earlier 0.5 was too aggressive — it nuked paraphrased content that
-// carried unique storytelling detail.
-const OVERLAP_THRESHOLD = 0.75;
+// Minimum sentence length to attempt removal — short fragments like "Yes."
+// or "Run." would match spuriously inside larger sentences and corrupt the
+// body. 12 chars is below "Survival is just the beginning." (32) but above
+// any single-word exclamation.
+const MIN_SENTENCE_CHARS = 12;
 
-// Below this, the short description is too thin to be a meaningful corpus
-// — a 3-word short would over-trigger on any leading line that happens to
-// share one of those words.
-const MIN_SHORT_CONTENT_WORDS = 5;
-
-// Skip leading lines below this length too — a single shared content word
-// on a 1-word line ("Highlights:") would otherwise score 1.0 and get
-// stripped despite being a meaningful header.
-const MIN_LINE_CONTENT_WORDS = 3;
-
-function contentWords(text: string): Set<string> {
-  const words = text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
-  return new Set(words);
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function overlapRatio(line: string, shortWords: Set<string>): number {
-  const lineWords = contentWords(line);
-  if (lineWords.size < MIN_LINE_CONTENT_WORDS) return 0;
-  let matches = 0;
-  for (const w of lineWords) {
-    if (shortWords.has(w)) matches += 1;
-  }
-  return matches / lineWords.size;
+function splitSentences(text: string): string[] {
+  return text
+    .split(SENTENCE_BOUNDARY)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= MIN_SENTENCE_CHARS);
+}
+
+// Build a case-insensitive global regex that matches the sentence's token
+// sequence with flexible whitespace between tokens — covers the common
+// case where the full body breaks a sentence across newlines or extra
+// spaces that the short description doesn't have.
+function buildSentenceRegex(sentence: string): RegExp | null {
+  const tokens = sentence.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const pattern = tokens.map(escapeRegex).join("\\s+");
+  return new RegExp(pattern, "gi");
 }
 
 export function stripLeadingOverlapWithShort(
   bbcode: string,
   shortDescription: string | null | undefined
 ): string {
-  if (!shortDescription) return bbcode;
-  const shortWords = contentWords(shortDescription);
-  if (shortWords.size < MIN_SHORT_CONTENT_WORDS) return bbcode;
+  if (!shortDescription?.trim()) return bbcode;
+  const sentences = splitSentences(shortDescription);
+  if (sentences.length === 0) return bbcode;
 
-  const lines = bbcode.split("\n");
-  let cursor = 0;
-  while (cursor < lines.length) {
-    const line = lines[cursor];
-    const trimmed = line?.trim() ?? "";
-    if (!trimmed) {
-      cursor += 1;
-      continue;
-    }
-    if (trimmed.includes("[")) {
-      // Any BBCode tag — never strip editorial structure.
-      break;
-    }
-    if (overlapRatio(trimmed, shortWords) >= OVERLAP_THRESHOLD) {
-      cursor += 1;
-    } else {
-      break;
-    }
+  let result = bbcode;
+  for (const sentence of sentences) {
+    const re = buildSentenceRegex(sentence);
+    if (!re) continue;
+    result = result.replace(re, "");
   }
-  // `trimStart` cleans any leading blank lines we stepped over so the
-  // remaining body opens cleanly at the first kept paragraph.
-  return lines.slice(cursor).join("\n").trimStart();
+  // Collapse the blank lines a deletion may have left behind (`\n\n\n` →
+  // `\n\n`) and trim leading whitespace so the body opens cleanly on the
+  // first surviving paragraph.
+  return result.replace(/\n{3,}/g, "\n\n").trimStart();
 }
