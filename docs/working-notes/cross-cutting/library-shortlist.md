@@ -42,6 +42,28 @@ Potential uses:
 
 Still relevant.
 
+## Text / markup parsing
+
+### BBCode parser (for Steam `full_description_bbcode`)
+
+Status: not yet evaluated — open question for [steam/library-card-enrichment.md Chunk 8](../steam/library-card-enrichment.md)
+
+Surfaced 2026-05-24. Steam's `IStoreBrowseService/GetItems` returns `full_description_bbcode` (~2-8 KB per game) which would land on `/steam/game/$appid` as the missing "About this game" body, slotting into the existing sanitised-HTML pipeline that powers LoL tooltip rich descriptions ([rich-descriptions.md](../lol/rich-descriptions.md)).
+
+**Constraints driving the choice:**
+
+- Steam's BBCode dialect is a constrained subset — only the tags Steam allows in store descriptions, [documented here](https://steamcommunity.com/comment/Recommendation/formattinghelp). We don't need a full Steam Community parser (forum / profile BBCode includes more tags).
+- Trust boundary: BBCode is publisher-supplied. The parser's HTML output goes through the same DOMPurify sanitiser the wiki-HTML pipeline uses, so the parser itself doesn't need to enforce trust — it just needs to map tags faithfully.
+- `[img]` tags rewritten to `<img>` with `src` routed through the existing image proxy (same pattern as wiki inline icons).
+
+**Candidates to evaluate (do not add blindly):**
+
+- `xbbcode-parser` — actively maintained, configurable tag set, can disable disallowed tags.
+- `js-bbcode-parser` — older but small, ~5KB.
+- Hand-rolled — Steam's tag set is small (~12 tags in the wild); a 100-line parser may be cheaper than a dep + its sanitisation surface area.
+
+Pick when [steam/library-card-enrichment.md Chunk 8](../steam/library-card-enrichment.md) is picked up. Lean before evaluation: **hand-rolled is plausible** — the LoL rich-descriptions pipeline already proves a small constrained parser plus DOMPurify is the right shape for this trust boundary.
+
 ## Visual / animation — high leverage
 
 ### `@number-flow/react`

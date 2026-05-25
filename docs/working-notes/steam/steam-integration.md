@@ -87,6 +87,20 @@ Already confirmed: wishlist panel. The rest is plausible — none committed yet.
 - **Genre drift over time.** Tag-derived; needs daily polling to build the timeseries.
 - **Achievement tracking family.** Per-game and cross-game; large enough surface to brainstorm separately — see [Achievement family](#achievement-family) below.
 
+### From the 2026-05-24 GetItems field harvest
+
+Surfaced from probing `IStoreBrowseService/GetItems` with all `include_*` flags. Each maps to a chunk in [library-card-enrichment.md](./library-card-enrichment.md); the small ones live here in the candidate board until they get picked up. The bigger ones (Steam Deck chip, microtrailer hover preview, full-description body, screenshot gallery, palette grammar for devs/publishers/franchises) are filed in their own destinations — see the roadmap note for the full chunk table.
+
+- **Supported-languages chip.** `supported_languages` per game → `/steam/game/$appid` line "English, French, Japanese full audio + 22 subtitles." Free metadata, niche but characterful. If it ever becomes filterable, palette grammar `audio:french` / `subs:french`.
+- **Demo discoverability.** `related_items.demos` / `demo_appid` / `standalone_demo_appid` → "Try the demo" link on game-detail header when present. Bonus surface: "wishlisted games with untried demos" — pairs with the existing wishlist drill-in.
+- **Bundle expansion.** `included_items.included_apps` → for bundle entries (Resident Evil collection etc.) expand to the list of included games. Defer until a real bundle-heavy use surfaces.
+
+### From the 2026-05-24 Steam Web API survey (beyond GetItems)
+
+The companion note [api-surface-survey.md](./api-surface-survey.md) inventories *other* Steam Web API endpoints that aren't yet wired — Steam level + badges, per-game user stats, profile showcases, rarest achievements, in-Steam game notes, news, top-sellers cross-reference, animated avatar / profile background. Each chunk lands in its own destination (quick-wins for level + badges, the survey note itself for the medium chunks, [elevation-arcs.md](../cross-cutting/elevation-arcs.md) → `live-presence-chip` for the animated avatar work). The tiny / parked ones (weekly top-sellers cross-reference, inventory, family-share detection, generic store query, community badge progress) live here for breadcrumb:
+
+- **Weekly top-sellers cross-reference.** `IStoreTopSellersService/GetWeeklyTopSellers` ∩ owned library → `/` synthesis chip "3 of this week's top sellers are in your library — you played [game] yesterday." Storefront-grade but novel.
+
 ### Cross-stream (the self-portrait engine payoff)
 
 - **Weekly gaming-total bento card.** LoL match count + Steam hours = total gaming this week. Smallest surface that proves the recap-engine reuse claim — best first cross-stream pick.

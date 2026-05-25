@@ -99,6 +99,38 @@ Two independent chunks; ship in either order:
 - ~~**D1 — Champion mode**~~ ✅ shipped 2026-05-18 — typed champion name surfaces a Champions group above Matches, navigates to `/lol/<slug>/champions/<alias>`. Source: `useChampions()` (already query-cached `Infinity` for the Champions page). Gated on active `currentSlug` and non-empty freeText so the palette doesn't dump 160+ champions when first opened.
 - ~~**D2 — Cross-account scope**~~ ✅ shipped 2026-05-18 — companion "Search matches in <account>" item per matched account, navigates to `/lol/<slug>/matches` and keeps the palette open with the input cleared. The pathname change re-derives `currentSlug` via `useRouterState`, so the Matches group rebinds to the scoped account on the next render without any explicit scope state in the palette.
 
+### Phase G — Steam developer / publisher / franchise grammar (planned)
+
+Surfaced from the 2026-05-24 `IStoreBrowseService/GetItems` field-harvest session ([steam/library-card-enrichment.md Chunk 6](../steam/library-card-enrichment.md)). Answers the existing Open question above ("Steam search. Worth a `with:` / `played:` parallel grammar?") with a first concrete Steam-scoped grammar.
+
+| Verb | Example | Meaning |
+|---|---|---|
+| `dev:` | `dev:from-software` | Games developed by FromSoftware |
+| `pub:` | `pub:playstation` | Games published by PlayStation Publishing |
+| `franchise:` | `franchise:resident-evil` | Games in the Resident Evil franchise |
+
+Multi-occurrence union semantics, matching the LoL `with:` / `vs:` pattern. Slug-match against name with `kebabCase(name).includes(kebabCase(query))` so users don't have to type the canonical capitalisation.
+
+**Chunk shape:**
+
+- **G1 — Parser foundation.** New `parseSteamLibraryQuery` in `@vyoh/shared/steam/` (parallel to `parseMatchQuery`). Returns `{ devs, pubs, franchises, freeText }`. Unit-tested in `packages/shared`. No UI consumer yet.
+- **G2 — Wire into Steam library palette mode.** Trigger: from `/steam/library` (or any `/steam/*` route with a library cache present), typing into the palette surfaces a Steam library group filtered by the parsed verbs. `matchesSteamQuery(game, parsed)` colocated in the dialog.
+- **G3 — Chips UI.** Reuse the C3 chip-row pattern, extended for the new verbs.
+
+**Architectural notes:**
+
+- Steam grammar is a **separate parser** from `parseMatchQuery`. Two grammars sharing one parser entangles two grammars unrelated to each other; per the existing F-chunk pattern (`parsePaletteVerb` is also separate), keep them isolated and let the dialog dispatch by route scope.
+- Data source: the Steam owned-games query already populates `SteamOwnedGame` + enrichment join. Once [library-card-enrichment.md Chunk 6](../steam/library-card-enrichment.md) lands the `publisherNames` / `developerNames` / `franchiseNames` columns, the matcher reads them directly off the cached query.
+- Cache-hit-before-fetch invariant still holds — same architecture rule as Phases B-D.
+
+**Acceptance criteria:**
+
+- **G1:** parser unit tests pass; no UI behavior change.
+- **G2:** from `/steam/library`, typing `dev:from` surfaces an Elden Ring / Sekiro / Dark Souls group filtered against the cached owned-games query.
+- **G3:** parsed chips render and click-remove like the LoL chips do.
+
+**Bonus surface this unlocks:** "by SHIFT UP Corporation, published by PlayStation Publishing LLC" line on `/steam/game/$appid` — pure render off the same captured data, separate from the palette grammar.
+
 ### Phase E — Recent commands + result persistence ✅ shipped 2026-05-18
 
 - Last 5 selected items persisted in `localStorage` under `vyoh:palette-recents:<scope>` — scope from pathname: `lol:<slug>` per account, plain `lol` / `steam` per top-level stream, `global` for `/` and unknown paths.

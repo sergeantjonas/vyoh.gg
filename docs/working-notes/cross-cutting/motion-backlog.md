@@ -17,6 +17,14 @@ Guardrails:
 
 ## High impact
 
+### Steam library tiles play microtrailers on hover
+
+Status: planned arc — see [microtrailer-hover-preview.md](./microtrailer-hover-preview.md)
+
+Origin: 2026-05-24 `IStoreBrowseService/GetItems` field-harvest session ([steam/library-card-enrichment.md Chunk 7](../steam/library-card-enrichment.md)). Steam returns per-game 6-second silent webm/mp4 microtrailers used on its own storefront grid; surfacing them on the owner's library tiles makes the surface feel storefront-grade and turns a static art grid into a visually alive browsing experience.
+
+Hard guardrails captured in the arc note: singleton playback (one tile at a time), 200ms hover debounce, cross-fade between poster and `<video>`, `<video>` disposed on hover-out (avoids GPU memory exhaustion on hover-scroll), reduced-motion users see static posters only. Engine-perf considerations match the [safari-vt-snapshot-cost.md](./safari-vt-snapshot-cost.md) pattern — measure before pre-emptively gating on `isWebKit()`.
+
 ### Trends charts come alive
 
 Status: shipped

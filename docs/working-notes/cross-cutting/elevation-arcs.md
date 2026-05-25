@@ -34,6 +34,7 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 | [data-viz-densification](data-viz-densification.md) | Inline `<svg>` sparklines on stat cells + `:has()` parent-aware affordances + match-outcome ambient hue drift | Planned |
 | [anchor-positioned-overlays](anchor-positioned-overlays.md) | CSS Anchor Positioning for command-palette result peek + hover-card follow-on-scroll; feature-detect + Oddbird polyfill fallback | Planned |
 | [reduced-motion-replacements](reduced-motion-replacements.md) | Audit + standardise replacement variants per animated surface (splash drift → cross-fade, orb mark → static constellation, tilt → flat scale-up) | Planned |
+| [microtrailer-hover-preview](microtrailer-hover-preview.md) | Steam library tiles play official 6-second silent microtrailers on hover (singleton playback, cross-fade, reduced-motion poster); from the 2026-05-24 GetItems harvest | Planned |
 
 ### Tier 3 — Bigger bets, portfolio payoff
 
