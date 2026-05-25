@@ -38,15 +38,15 @@ describe("SteamGameRowShell", () => {
     expect(queryByTestId("trailing-marker")).not.toBeNull();
   });
 
-  it("attaches heroRef to the foreground hero img (right-pane sharp layer)", () => {
+  it("attaches heroRef to the foreground hero img (not the edge-extended backdrop)", () => {
     const ref = createRef<HTMLImageElement>();
     const { container } = render(
       <SteamGameRowShell appid={730} name="CS2" heroRef={ref} />
     );
-    // The shell stacks: [blurred backdrop hero, foreground hero on right,
-    // logo]. heroRef must land on the SECOND img (foreground) so the VT
-    // morph anchor is the sharp visible art — pairs with the destination's
-    // sharp foreground hero via `steam-game-${appid}-hero`.
+    // Shell stacks: [edge-extended backdrop, sharp foreground hero
+    // (heroRef), logo]. heroRef lands on the SECOND img — the backdrop
+    // is not a morph anchor; only the foreground hero and logo are
+    // named for view-transitions.
     const imgs = container.querySelectorAll("img");
     expect(imgs.length).toBeGreaterThanOrEqual(2);
     expect(ref.current).toBe(imgs[1]);

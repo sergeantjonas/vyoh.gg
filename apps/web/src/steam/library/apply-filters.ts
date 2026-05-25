@@ -4,7 +4,7 @@ export function applyLibraryFilters(
   games: SteamOwnedGame[],
   opts: {
     query: string;
-    sort: "lifetime" | "name" | "twoWeeks";
+    sort: "lifetime" | "name" | "twoWeeks" | "recent";
     playedFilter: "all" | "played" | "never";
     appTypeFilter: "all" | "game" | "app";
     selectedTagIds: number[];
@@ -38,6 +38,15 @@ export function applyLibraryFilters(
     return [...filtered].sort(
       (a, b) => (b.playtime2WeeksMinutes ?? 0) - (a.playtime2WeeksMinutes ?? 0)
     );
+  }
+  if (opts.sort === "recent") {
+    // Never-launched games (null rtimeLastPlayedAt) sort to the bottom; among
+    // played games, more recent last-launch wins.
+    return [...filtered].sort((a, b) => {
+      const at = a.rtimeLastPlayedAt === null ? 0 : Date.parse(a.rtimeLastPlayedAt);
+      const bt = b.rtimeLastPlayedAt === null ? 0 : Date.parse(b.rtimeLastPlayedAt);
+      return bt - at;
+    });
   }
   // lifetime — endpoint already returns lifetime-desc but we re-sort defensively
   // after filtering so the order is stable regardless of upstream contract.

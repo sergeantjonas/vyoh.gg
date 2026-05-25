@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
   makeHeroFallbackHandlers,
+  steamLibraryHeroPaletteUrl,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
@@ -90,49 +91,69 @@ export function SteamGameRowShell({
         // `perspective(...)` lives on :hover only — see comment on the
         // matching tile chrome in library-tile.tsx for the Safari
         // composite-layer rationale.
-        "relative isolate h-32 overflow-hidden rounded-lg border border-border/40 bg-card/50 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[colors,box-shadow,transform] duration-500 ease-out sm:h-36",
+        "relative isolate h-32 overflow-hidden rounded-lg border border-border/40 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[colors,box-shadow,transform] duration-500 ease-out sm:h-36",
         "group-hover/row:border-border group-hover/row:shadow-[0_18px_28px_-10px_rgba(0,0,0,0.7),0_10px_20px_-8px_rgba(255,255,255,0.1)] group-hover/row:transform-[perspective(900px)_rotateX(2deg)_rotateY(-1.5deg)_scale(1.005)]",
         className
       )}
     >
-      {/* Bottom layer: same hero asset fills the entire row, giving the
-          left content column visual texture instead of a dead dark
-          rectangle. Shares its src with the foreground hero below, so
-          the browser fetches the asset once. Not a morph anchor — the
-          foreground hero handles that.
-          No `filter:` here (was `blur-md saturate-150`) — any CSS
-          filter forces this layer onto its own composite layer, and
-          Safari's compositor merged 20 of them per library-row paint.
-          The dark wash + gradient above already mute the image to
-          background-texture levels without runtime filter cost. */}
+      {/* Backdrop: edge-extended copy of the hero. The API samples the
+          asset's leftmost 200px, horizontally averages each row to one
+          pixel, then stretches to 1920px — every vertical position in
+          the backdrop is the per-row-averaged tint of the asset's
+          leftward content at that y. For Pragmata's white edge → white
+          bg. For RE3's dark sky → dark sky bg. For Cyberpunk's yellow
+          → yellow bg. The averaging step dissolves localized highlights
+          (lanterns, sparks, dust) that would otherwise become hard
+          horizontal streaks if we just stretched the leftmost column.
+
+          `object-fill` (NOT cover) is intentional: the foreground hero
+          uses `object-contain` which squashes the full 620px asset
+          height into the row's 144px. `object-cover` on the backdrop
+          would crop top+bottom and stretch only the vertical middle
+          band, so at the seam the backdrop would show the asset's
+          mid-edge color while the foreground shows top/bottom edge
+          colors (RE3 sunset bg vs dark-sky foreground top). `fill`
+          stretches y 1:1 with the foreground's contain mapping; every
+          x is uniform color so non-uniform horizontal stretch adds no
+          artifact.
+
+          Horizontal mask fades the backdrop in over the left ~half so
+          the streaky / averaged region only shows in the right half
+          where it flanks the foreground hero — without the mask, the
+          backdrop was reading as the dominant element of the card
+          (especially on assets with non-trivial leftward content). The
+          card's dark bg shows through on the left half, reframing the
+          backdrop as "atmospheric extension flanking the hero" rather
+          than "streaky bg with a hero pasted on the right." */}
       {!heroFailed && (
         <img
-          src={steamLibraryHeroUrl(appid, assetTimestamp)}
+          src={steamLibraryHeroPaletteUrl(appid, assetTimestamp)}
           alt=""
           aria-hidden
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 size-full object-cover"
+          fetchPriority="high"
+          className="absolute inset-0 size-full object-fill [mask-image:linear-gradient(to_right,transparent_0%,black_55%)] [mask-repeat:no-repeat] [mask-size:100%_100%]"
         />
       )}
-      {/* Dark wash over the whole row, plus a left-anchored gradient that
-          deepens the area under the logo + meta column. Without the second
-          layer, light hero art (Monster Hunter's sky, Batman's white bg)
-          washes out the wordmark even with a drop-shadow. The gradient
-          carries through with extra darkness past the midpoint so dark
-          logos (Firewatch maroon-on-orange-sunset) still sit over a
-          mostly-black canvas where the wordmark can read. */}
-      <div className="absolute inset-0 bg-black/45" />
-      <div className="absolute inset-y-0 left-0 w-3/4 bg-linear-to-r from-black/85 via-black/60 to-transparent" />
 
-      {/* Hero art on the right ~55% of the row. mask-image feathers the
-          left edge into the backdrop so there's no vertical seam between
-          the hero strip and the content area. The hero rect is sized close
-          to the asset's 3:1 native aspect, which keeps subjects (heads,
-          weapons, focal poses) in frame without aggressive top/bottom
-          cropping. On hover, scale + brightness + saturate is applied
-          only to this layer (not the whole card) so the overlaid logo +
-          meta text don't shift or brighten. */}
+      {/* Left-anchored dim for text legibility. The extended-edge bg
+          carries the asset's actual edge color — sometimes bright
+          (Pragmata white, Cyberpunk yellow) — so we need a soft
+          darkening over the text zone for white text to read. The
+          gradient fades to transparent before the hero starts so the
+          bg's edge tones remain visible on the right. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-3/5 bg-[linear-gradient(to_right,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.45)_40%,rgba(0,0,0,0.15)_75%,rgba(0,0,0,0)_100%)]"
+      />
+
+      {/* Sharp foreground hero — right-anchored at natural ~3:1 aspect.
+          Left edge feathers into the extended-edge backdrop so the
+          transition between "actual hero" and "edge-extension" is
+          smooth. Since the backdrop's right edge color matches the
+          hero's left edge color (same source pixels), the feather
+          blends colors that are already tonally consistent. */}
       {!heroFailed && (
         <img
           ref={heroRef}
@@ -144,13 +165,9 @@ export function SteamGameRowShell({
           onLoad={heroHandlers.onLoad}
           onError={heroHandlers.onError}
           className={cn(
-            // `filter` dropped from the transition list so the
-            // brightness/saturate hover change snaps rather than
-            // interpolating — same Safari composite-layer reasoning as
-            // the tile's transition list (see library-tile.tsx).
-            "absolute inset-y-0 right-0 h-full w-3/5 object-cover transition-[opacity,transform] duration-600 ease-out",
-            "[mask-image:linear-gradient(to_right,transparent_0%,black_45%)] [mask-repeat:no-repeat] [mask-size:100%_100%]",
-            "group-hover/row:scale-105 group-hover/row:brightness-110 group-hover/row:saturate-110",
+            "absolute inset-y-0 right-0 h-full w-auto max-w-full object-contain object-right transition-[opacity,transform] duration-600 ease-out",
+            "[mask-image:linear-gradient(to_right,transparent_0%,black_30%)] [mask-repeat:no-repeat] [mask-size:100%_100%]",
+            "group-hover/row:scale-105",
             heroLoaded ? "opacity-100" : "opacity-0"
           )}
         />
@@ -186,20 +203,12 @@ export function SteamGameRowShell({
               onLoad={handleLogoLoad}
               onError={() => setLogoFailed(true)}
               className={cn(
-                // Cap both height AND width so wordmark logos with wildly
-                // different natural aspect ratios read as comparable
-                // presence: wide wordmarks (Dark Souls III ~6:1) hit the
-                // width cap and shrink to fit; compact stacked designs
-                // (PUBG, Hollow Knight) hit the height cap and grow up
-                // to it. No explicit h/w → browser preserves intrinsic
-                // aspect inside the bbox automatically. Stacked
-                // drop-shadow approximates an outline so the wordmark
-                // stays legible against bright art. The tight WHITE
-                // halo handles the reverse case — dark wordmarks
-                // (Firewatch maroon) against dark gradients — without
-                // affecting light logos (white-on-white blends imperceptibly).
+                // Generous bbox so logos with built-in transparent
+                // padding (RE Requiem, Cyberpunk) render at comparable
+                // size to tightly-cropped ones (RE2). Logo sits on
+                // solid card bg, so no drop-shadow is needed for
+                // legibility.
                 "max-h-12 max-w-56 object-contain object-left transition-opacity duration-500 ease-out sm:max-h-14",
-                "[filter:drop-shadow(0_0_6px_rgba(0,0,0,0.9))_drop-shadow(0_2px_3px_rgba(0,0,0,0.9))_drop-shadow(0_0_4px_rgba(255,255,255,0.55))]",
                 logoLoaded ? "opacity-100" : "opacity-0"
               )}
             />

@@ -152,9 +152,9 @@ describe("LibraryRow view-transition wiring", () => {
 
     const { container } = render(<LibraryRow game={makeGame({ appid: 730 })} />);
     const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
-    // SteamGameRowShell renders imgs in order: [blurred backdrop hero,
-    // foreground sharp hero (heroRef), logo (logoRef)]. The backdrop is
-    // NOT a morph anchor; only the foreground hero + logo are named.
+    // SteamGameRowShell renders imgs in order: [edge-extended backdrop
+    // (not a morph anchor), sharp foreground hero (heroRef), logo
+    // (logoRef)]. Only the foreground hero and logo are named.
     const [, hero, logo] = imgs;
     const link = container.querySelector("a");
     if (!hero || !logo || !link) throw new Error("expected hero + logo imgs and a link");

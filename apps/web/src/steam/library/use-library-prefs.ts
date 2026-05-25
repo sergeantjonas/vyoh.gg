@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type LibraryLayout = "rows" | "tiles";
-export type LibrarySort = "lifetime" | "name" | "twoWeeks";
+export type LibrarySort = "lifetime" | "name" | "twoWeeks" | "recent";
 export type LibraryPlayedFilter = "all" | "played" | "never";
 // Steam StoreItemType: 0 = Game, 6 = Application/Tool. Other values
 // (DLC/Music/Video) almost never appear in GetOwnedGames, so we don't expose
@@ -21,7 +21,7 @@ export interface LibraryPrefs {
 const STORAGE_KEY = "vyoh:steam-library-prefs";
 const DEFAULTS: LibraryPrefs = {
   layout: "tiles",
-  sort: "lifetime",
+  sort: "recent",
   playedFilter: "all",
   appTypeFilter: "game",
   selectedTagIds: [],
@@ -37,7 +37,9 @@ function parsePrefs(raw: string | null): LibraryPrefs {
     return {
       layout: parsed.layout === "rows" ? "rows" : "tiles",
       sort:
-        parsed.sort === "name" || parsed.sort === "twoWeeks" ? parsed.sort : "lifetime",
+        parsed.sort === "name" || parsed.sort === "twoWeeks" || parsed.sort === "lifetime"
+          ? parsed.sort
+          : "recent",
       playedFilter:
         parsed.playedFilter === "played" || parsed.playedFilter === "never"
           ? parsed.playedFilter

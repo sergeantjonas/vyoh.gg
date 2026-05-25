@@ -76,6 +76,27 @@ export class SteamImageService {
     };
   }
 
+  // Source URLs for the library row's bottom palette layer. Returns the
+  // same upstream chain as `hero()` — the controller route runs Sharp's
+  // `.stats()` on the resulting bytes to extract a dominant color and bake
+  // it into a small gradient (see `generatePaletteGradient` in upstream.ts).
+  // Going through a service method here keeps URL composition (hashed →
+  // legacy fallback) in one place rather than duplicating it in the route.
+  async heroPalette(appid: number): Promise<{ urls: string[] }> {
+    const row = await this.prisma.steamGameEnrichment.findUnique({
+      where: { appid },
+      select: { libraryHeroPath: true, assetTimestamp: true },
+    });
+    return {
+      urls: composeAssetUrls(
+        appid,
+        row?.libraryHeroPath,
+        row?.assetTimestamp,
+        "library_hero.jpg"
+      ),
+    };
+  }
+
   async logo(appid: number): Promise<Resolved> {
     const row = await this.prisma.steamGameEnrichment.findUnique({
       where: { appid },

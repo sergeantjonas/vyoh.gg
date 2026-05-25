@@ -54,6 +54,19 @@ export function steamLibraryHeroUrl(
   return `${API_URL}/img/steam/hero/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
+// Dominant-color gradient sampled from `library_hero.jpg`. Used as the library
+// row's bottom palette layer instead of a blurred copy of the foreground —
+// the eye reads a blurred hero as "same image twice", so the API extracts
+// the asset's dominant color via Sharp `.stats()` and bakes it into a small
+// gradient. Pragmata's white dominant becomes a muted grey; RE3's sunset
+// stays warm but darker. See `generatePaletteGradient` in upstream.ts.
+export function steamLibraryHeroPaletteUrl(
+  appid: number,
+  assetTimestamp?: number | bigint | null
+): string {
+  return `${API_URL}/img/steam/hero-palette/${appid}/${cacheKey(assetTimestamp)}.webp`;
+}
+
 export function steamLibraryLogoUrl(
   appid: number,
   assetTimestamp?: number | bigint | null

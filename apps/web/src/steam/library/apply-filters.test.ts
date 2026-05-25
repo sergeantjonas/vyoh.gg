@@ -46,6 +46,17 @@ describe("applyLibraryFilters", () => {
     expect(out.map((g) => g.appid)).toEqual([3, 1, 2]);
   });
 
+  it("sorts by last-played descending when sort=recent, never-played last", () => {
+    const games = [
+      game({ appid: 1, rtimeLastPlayedAt: "2026-01-15T00:00:00Z" }),
+      game({ appid: 2, rtimeLastPlayedAt: null }),
+      game({ appid: 3, rtimeLastPlayedAt: "2026-05-01T00:00:00Z" }),
+      game({ appid: 4, rtimeLastPlayedAt: "2025-12-20T00:00:00Z" }),
+    ];
+    const out = applyLibraryFilters(games, { ...baseOpts, sort: "recent" });
+    expect(out.map((g) => g.appid)).toEqual([3, 1, 4, 2]);
+  });
+
   it("sorts alphabetically case-insensitively when sort=name", () => {
     const games = [
       game({ appid: 1, name: "Banana" }),

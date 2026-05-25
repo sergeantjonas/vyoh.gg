@@ -17,7 +17,7 @@ describe("useLibraryPrefs", () => {
     const { result } = renderHook(() => useLibraryPrefs());
     expect(result.current[0]).toEqual({
       layout: "tiles",
-      sort: "lifetime",
+      sort: "recent",
       playedFilter: "all",
       appTypeFilter: "game",
       selectedTagIds: [],
@@ -57,7 +57,7 @@ describe("useLibraryPrefs", () => {
     );
     const { result } = renderHook(() => useLibraryPrefs());
     expect(result.current[0].layout).toBe("tiles");
-    expect(result.current[0].sort).toBe("lifetime");
+    expect(result.current[0].sort).toBe("recent");
     expect(result.current[0].playedFilter).toBe("all");
     expect(result.current[0].appTypeFilter).toBe("all");
   });

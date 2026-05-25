@@ -77,6 +77,7 @@ export function LibraryControls({
           <SelectContent>
             <SelectItem value="lifetime">Lifetime playtime</SelectItem>
             <SelectItem value="twoWeeks">Last two weeks</SelectItem>
+            <SelectItem value="recent">Recently played</SelectItem>
             <SelectItem value="name">Name (A–Z)</SelectItem>
           </SelectContent>
         </Select>
