@@ -71,6 +71,12 @@ const UNKNOWN_TAG_RE = /\[\/?[a-zA-Z][a-zA-Z0-9]*(?:=[^\]]*)?\]/g;
 // is whitespace/noise and is dropped.
 const LIST_BLOCK_RE = /\[(o?list)\]([\s\S]*?)\[\/\1\]/gi;
 
+// `[*]` and its closer `[/*]` aren't matched by UNKNOWN_TAG_RE (the `*`
+// character isn't `[a-zA-Z]`). Steam emits both `[*]item` and `[*]item[/*]`
+// forms — without this, the closer leaks through as literal text under each
+// bullet (seen on Doom 3: BFG Edition's description).
+const STRAY_ITEM_TAG_RE = /\[\/?\*\]/g;
+
 function escapeHtml(input: string): string {
   return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -146,6 +152,9 @@ export function bbcodeToHtml(input: string | null | undefined): string {
   // URL: keep inner text, drop the link itself (LoL sanitiser policy).
   html = html.replace(URL_WITH_TEXT_RE, (_full, text: string) => text);
   html = html.replace(URL_BARE_RE, (_full, text: string) => text);
+  // Strip any stray `[*]` / `[/*]` left outside a `[list]` block, or `[/*]`
+  // closers consumed inside one (split-on-[*] leaves them in the item body).
+  html = html.replace(STRAY_ITEM_TAG_RE, "");
   // Strip any remaining unknown bracket tags — their inner text survives.
   html = html.replace(UNKNOWN_TAG_RE, "");
   // Paragraph-split last so block-level elements don't get re-wrapped.

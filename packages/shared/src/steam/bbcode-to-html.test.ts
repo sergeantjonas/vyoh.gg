@@ -44,6 +44,15 @@ describe("bbcodeToHtml", () => {
     expect(html).toBe("<ul><li>one</li><li>two</li></ul>");
   });
 
+  it("handles paired [*]…[/*] list items without leaking the closer", () => {
+    const html = bbcodeToHtml("[list][*]one[/*][*]two[/*][/list]");
+    expect(html).toBe("<ul><li>one</li><li>two</li></ul>");
+  });
+
+  it("strips stray [*] / [/*] outside a [list] block", () => {
+    expect(bbcodeToHtml("before [*]item[/*] after")).toBe("<p>before item after</p>");
+  });
+
   it("converts [olist] to <ol>", () => {
     const html = bbcodeToHtml("[olist][*]first[*]second[/olist]");
     expect(html).toBe("<ol><li>first</li><li>second</li></ol>");
