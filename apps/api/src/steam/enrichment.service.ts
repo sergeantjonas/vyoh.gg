@@ -48,6 +48,9 @@ export interface EnrichmentUpsert {
   platformVr: boolean | null;
   reviewSummary: SteamReviewSummary | null;
   gameRating: SteamGameRating | null;
+  publisherNames: string[];
+  developerNames: string[];
+  franchiseNames: string[];
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -114,7 +117,24 @@ export function projectEnrichment(
         : null,
     reviewSummary: mapReviewSummary(raw.reviews?.summary_filtered),
     gameRating: mapGameRating(raw.game_rating),
+    publisherNames: mapEntityNames(raw.basic_info?.publishers),
+    developerNames: mapEntityNames(raw.basic_info?.developers),
+    franchiseNames: mapEntityNames(raw.basic_info?.franchises),
   };
+}
+
+// Flatten `[{name, creator_clan_account_id}]` to `["Name", …]` and drop
+// entries with missing / empty / whitespace-only names. Steam occasionally
+// returns an entity object with no `name` (creator-id-only); persisting it
+// would add empty strings to the filterable column.
+function mapEntityNames(raw: { name?: string }[] | undefined): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  for (const entry of raw) {
+    const name = entry.name?.trim();
+    if (name) out.push(name);
+  }
+  return out;
 }
 
 function mapGameRating(

@@ -554,4 +554,159 @@ describe("CommandPaletteDialog", () => {
       expect(screen.queryByRole("option", { name: /Load matches/ })).toBeNull();
     });
   });
+
+  describe("Steam library grammar", () => {
+    const ownedGames = {
+      games: [
+        {
+          appid: 1245620,
+          name: "Elden Ring",
+          playtimeForeverMinutes: 0,
+          playtime2WeeksMinutes: null,
+          assetUrlFormat: null,
+          assetTimestamp: null,
+          libraryCapsulePath: null,
+          libraryCapsule2xPath: null,
+          libraryHeroPath: null,
+          libraryHero2xPath: null,
+          headerPath: null,
+          heroCapsulePath: null,
+          logoPath: null,
+          appType: 0,
+          tagIds: [],
+          rtimeLastPlayedAt: null,
+          shortDescription: null,
+          steamDeckCompat: null,
+          platformWindows: null,
+          platformMac: null,
+          platformLinux: null,
+          platformVr: null,
+          reviewSummary: null,
+          gameRating: null,
+          publisherNames: ["Bandai Namco"],
+          developerNames: ["FromSoftware Inc."],
+          franchiseNames: ["Elden Ring"],
+        },
+        {
+          appid: 990080,
+          name: "Hogwarts Legacy",
+          playtimeForeverMinutes: 0,
+          playtime2WeeksMinutes: null,
+          assetUrlFormat: null,
+          assetTimestamp: null,
+          libraryCapsulePath: null,
+          libraryCapsule2xPath: null,
+          libraryHeroPath: null,
+          libraryHero2xPath: null,
+          headerPath: null,
+          heroCapsulePath: null,
+          logoPath: null,
+          appType: 0,
+          tagIds: [],
+          rtimeLastPlayedAt: null,
+          shortDescription: null,
+          steamDeckCompat: null,
+          platformWindows: null,
+          platformMac: null,
+          platformLinux: null,
+          platformVr: null,
+          reviewSummary: null,
+          gameRating: null,
+          publisherNames: ["Warner Bros. Games"],
+          developerNames: ["Avalanche Software"],
+          franchiseNames: ["Wizarding World"],
+        },
+      ],
+      lastSyncedAt: "2026-05-25T00:00:00.000Z",
+    };
+
+    function renderWithSteamCache() {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      client.setQueryData(["steam", "owned-games"], ownedGames);
+      return render(
+        <QueryClientProvider client={client}>
+          <CommandPaletteDialog open onOpenChange={vi.fn()} />
+        </QueryClientProvider>
+      );
+    }
+
+    it("does NOT surface the Steam library group outside /steam routes", () => {
+      pathnameRef.current = "/";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from-software" },
+      });
+      expect(screen.queryByRole("option", { name: /Elden Ring/ })).toBeNull();
+    });
+
+    it("dev:from surfaces FromSoftware games under /steam", () => {
+      pathnameRef.current = "/steam/library";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from" },
+      });
+      expect(screen.getByRole("option", { name: /Elden Ring/ })).toBeTruthy();
+      expect(screen.queryByRole("option", { name: /Hogwarts Legacy/ })).toBeNull();
+    });
+
+    it("pub:warner surfaces Warner Bros. games", () => {
+      pathnameRef.current = "/steam/library";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "pub:warner" },
+      });
+      expect(screen.getByRole("option", { name: /Hogwarts Legacy/ })).toBeTruthy();
+      expect(screen.queryByRole("option", { name: /Elden Ring/ })).toBeNull();
+    });
+
+    it("franchise:wizarding surfaces Wizarding World games", () => {
+      pathnameRef.current = "/steam/library";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "franchise:wizarding" },
+      });
+      expect(screen.getByRole("option", { name: /Hogwarts Legacy/ })).toBeTruthy();
+    });
+
+    it("renders a dev: chip when the verb is parsed", () => {
+      pathnameRef.current = "/steam/library";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from-software" },
+      });
+      expect(
+        screen.getByRole("button", { name: "Remove filter: dev: from-software" })
+      ).toBeTruthy();
+    });
+
+    it("collapses Pages/Accounts when a Steam verb is in play", () => {
+      pathnameRef.current = "/steam/library";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from-software" },
+      });
+      expect(screen.queryByRole("option", { name: /^Home$/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /League of Legends/ })).toBeNull();
+    });
+
+    it("selecting a Steam game navigates to /steam/game/<appid>", () => {
+      pathnameRef.current = "/steam/library";
+      renderWithSteamCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from-software" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Elden Ring/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/game/1245620" });
+    });
+
+    it("renders no Steam group when the cache is empty (cache-hit-before-fetch)", () => {
+      pathnameRef.current = "/steam/library";
+      // No setQueryData — cache miss
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from-software" },
+      });
+      expect(screen.queryByRole("option", { name: /Elden Ring/ })).toBeNull();
+    });
+  });
 });

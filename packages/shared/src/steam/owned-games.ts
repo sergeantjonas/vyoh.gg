@@ -72,6 +72,13 @@ export interface SteamOwnedGame {
   // AO-rated titles typically skip ESRB submission, and the renderer treats
   // null as "no badge" — never as a maturity signal.
   gameRating: SteamGameRating | null;
+  // `basic_info.{publishers,developers,franchises}[].name` flattened to plain
+  // strings. Empty arrays mean either the enrichment row is missing or the
+  // upstream block had no resolvable entity names — treated identically by
+  // the renderer / palette grammar.
+  publisherNames: string[];
+  developerNames: string[];
+  franchiseNames: string[];
 }
 
 export interface SteamGameRating {

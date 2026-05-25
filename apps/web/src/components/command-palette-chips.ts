@@ -1,4 +1,4 @@
-import type { ParsedMatchQuery } from "@vyoh/shared";
+import type { ParsedMatchQuery, ParsedSteamLibraryQuery } from "@vyoh/shared";
 
 export type ChipDescriptor = {
   key: string;
@@ -117,6 +117,38 @@ export function buildChips(input: string, parsed: ParsedMatchQuery): ChipDescrip
       key: "kda<",
       label: `kda < ${parsed.kdaLt}`,
       remove: (i) => dropPrefix(i, "kda<"),
+    });
+  }
+
+  return chips;
+}
+
+// Chip-row builder for the Steam library grammar (`dev:` / `pub:` /
+// `franchise:`). Parallel to `buildChips` above — Steam grammar is its own
+// parser so its chip surface is its own builder rather than a parallel branch
+// inside a single function.
+export function buildSteamChips(parsed: ParsedSteamLibraryQuery): ChipDescriptor[] {
+  const chips: ChipDescriptor[] = [];
+
+  for (const d of parsed.devs) {
+    chips.push({
+      key: `dev:${d}`,
+      label: `dev: ${d}`,
+      remove: (i) => dropExact(i, `dev:${d}`),
+    });
+  }
+  for (const p of parsed.pubs) {
+    chips.push({
+      key: `pub:${p}`,
+      label: `pub: ${p}`,
+      remove: (i) => dropExact(i, `pub:${p}`),
+    });
+  }
+  for (const f of parsed.franchises) {
+    chips.push({
+      key: `franchise:${f}`,
+      label: `franchise: ${f}`,
+      remove: (i) => dropExact(i, `franchise:${f}`),
     });
   }
 

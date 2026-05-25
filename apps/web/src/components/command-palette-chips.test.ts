@@ -1,9 +1,13 @@
-import { parseMatchQuery } from "@vyoh/shared";
+import { parseMatchQuery, parseSteamLibraryQuery } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
-import { buildChips } from "./command-palette-chips";
+import { buildChips, buildSteamChips } from "./command-palette-chips";
 
 function chipFor(input: string) {
   return buildChips(input, parseMatchQuery(input));
+}
+
+function steamChipFor(input: string) {
+  return buildSteamChips(parseSteamLibraryQuery(input));
 }
 
 describe("buildChips", () => {
@@ -134,6 +138,33 @@ describe("buildChips", () => {
   it("removes ALL kda< occurrences regardless of which value the chip displays", () => {
     const chips = chipFor("kda<2 kda<4");
     expect(chips[0]?.remove("kda<2 kda<4")).toBe("");
+  });
+
+  it("renders a dev:/pub:/franchise: chip via buildSteamChips", () => {
+    const chips = steamChipFor("dev:from-software pub:capcom franchise:resident-evil");
+    expect(chips.map((c) => c.label)).toEqual([
+      "dev: from-software",
+      "pub: capcom",
+      "franchise: resident-evil",
+    ]);
+  });
+
+  it("removes a single dev: token by clicking its chip", () => {
+    const chips = steamChipFor("dev:from-software dev:capcom");
+    const target = chips.find((c) => c.label === "dev: from-software");
+    expect(target?.remove("dev:from-software dev:capcom")).toBe("dev:capcom");
+  });
+
+  it("removes a pub:/franchise: chip cleanly", () => {
+    const chips = steamChipFor("pub:capcom franchise:resident-evil");
+    const pub = chips.find((c) => c.label === "pub: capcom");
+    expect(pub?.remove("pub:capcom franchise:resident-evil")).toBe(
+      "franchise:resident-evil"
+    );
+  });
+
+  it("returns no Steam chips for freeText-only input", () => {
+    expect(steamChipFor("nightreign")).toEqual([]);
   });
 
   it("lastTailWithPrefix returns an empty label when the verb has no value (since:)", () => {

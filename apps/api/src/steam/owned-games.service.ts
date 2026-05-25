@@ -372,6 +372,9 @@ export class SteamOwnedGamesService {
         platformVr: true,
         reviewSummary: true,
         gameRating: true,
+        publisherNames: true,
+        developerNames: true,
+        franchiseNames: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -414,6 +417,9 @@ export class SteamOwnedGamesService {
               : null,
           gameRating:
             e?.gameRating != null ? (e.gameRating as unknown as SteamGameRating) : null,
+          publisherNames: e?.publisherNames ?? [],
+          developerNames: e?.developerNames ?? [],
+          franchiseNames: e?.franchiseNames ?? [],
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

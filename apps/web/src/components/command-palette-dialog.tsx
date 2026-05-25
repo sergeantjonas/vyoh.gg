@@ -1,5 +1,5 @@
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
-import { buildChips } from "@/components/command-palette-chips";
+import { buildChips, buildSteamChips } from "@/components/command-palette-chips";
 import { matchesQuery } from "@/components/command-palette-matcher";
 import {
   type RecentItem,
@@ -29,9 +29,12 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   type CachedMatchesResult,
   type MatchSummary,
+  type SteamOwnedGames,
   excludeRemakes,
+  nameMatchesQuery,
   parseMatchQuery,
   parsePaletteVerb,
+  parseSteamLibraryQuery,
 } from "@vyoh/shared";
 import {
   Crown,
@@ -81,6 +84,10 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const currentSlug = pathname.match(/^\/lol\/([^/]+)/)?.[1];
+  // Steam grammar is only meaningful under the Steam subtree. The dialog
+  // dispatches by route scope (per the F-chunk pattern) — outside `/steam`
+  // the Steam parser short-circuits to an empty result.
+  const isSteamScope = pathname.startsWith("/steam");
   const queryClient = useQueryClient();
 
   const currentAccount = me.data?.lol.find(
@@ -102,7 +109,14 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   }, [open, recentsScope]);
 
   const parsed = useMemo(() => parseMatchQuery(input), [input]);
-  const chips = useMemo(() => buildChips(input, parsed), [input, parsed]);
+  const steamParsed = useMemo(() => parseSteamLibraryQuery(input), [input]);
+  const chips = useMemo(
+    () => [
+      ...buildChips(input, parsed),
+      ...(isSteamScope ? buildSteamChips(steamParsed) : []),
+    ],
+    [input, parsed, steamParsed, isSteamScope]
+  );
   // Navigation verbs (`/patches …`) are a separate grammar from the
   // match-filter verbs above — they drive cross-page routing, not match
   // filtering, so they don't feed chips and they short-circuit the
@@ -126,6 +140,12 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     parsed.until !== null ||
     parsed.kdaGt !== null ||
     parsed.kdaLt !== null;
+
+  const hasSteamStructuredVerbs =
+    isSteamScope &&
+    (steamParsed.devs.length > 0 ||
+      steamParsed.pubs.length > 0 ||
+      steamParsed.franchises.length > 0);
 
   function passesFreeText(haystack: string): boolean {
     if (!parsed.freeText) return true;
@@ -195,8 +215,10 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   // Non-Matches groups are hidden once any structured verb is in play —
   // `with:nidalee` should not surface Pages/Accounts, only Matches — and
-  // also when a navigation verb is in play.
-  const showNonMatchGroups = !hasStructuredVerbs && !showVerbDestinationsOnly;
+  // also when a navigation verb is in play. Steam grammar (`dev:`, `pub:`,
+  // `franchise:`) collapses the same chrome under `/steam`.
+  const showNonMatchGroups =
+    !hasStructuredVerbs && !hasSteamStructuredVerbs && !showVerbDestinationsOnly;
 
   // Default slug for verbs that omit `@<slug>`: the first known LoL
   // account on `useMe()`. Mirrors the nav-dropdown fallback in Chunk 2 so
@@ -254,6 +276,39 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             .slice(0, 6);
         })()
       : [];
+
+  // Steam library group: read the owned-games query cache directly per the
+  // cache-hit-before-fetch invariant (architecture note in command-palette.md).
+  // Empty list is the natural "library not loaded yet" state — the palette
+  // doesn't surface a load affordance for Steam because the library lands on
+  // first /steam route mount and stale-time keeps it warm.
+  const steamGames = useMemo(() => {
+    if (!isSteamScope) return [];
+    const cached = queryClient.getQueryData<SteamOwnedGames>(["steam", "owned-games"]);
+    if (!cached) return [];
+    const filtered = cached.games.filter((g) => {
+      for (const dev of steamParsed.devs) {
+        if (!nameMatchesQuery(g.developerNames, dev)) return false;
+      }
+      for (const pub of steamParsed.pubs) {
+        if (!nameMatchesQuery(g.publisherNames, pub)) return false;
+      }
+      for (const fr of steamParsed.franchises) {
+        if (!nameMatchesQuery(g.franchiseNames, fr)) return false;
+      }
+      if (steamParsed.freeText) {
+        const hay =
+          `${g.name} ${g.developerNames.join(" ")} ${g.publisherNames.join(" ")} ${g.franchiseNames.join(" ")}`.toLowerCase();
+        if (!hay.includes(steamParsed.freeText)) return false;
+      }
+      return true;
+    });
+    return filtered.slice(0, 8);
+  }, [isSteamScope, queryClient, steamParsed]);
+
+  const showSteamGames =
+    isSteamScope &&
+    (hasSteamStructuredVerbs || (parsed.freeText.length > 0 && steamGames.length > 0));
 
   const currentTabs = currentSlug
     ? [
@@ -426,6 +481,32 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             </CommandGroup>
           )}
 
+        {showSteamGames && steamGames.length > 0 && (
+          <CommandGroup heading="Steam library">
+            {steamGames.map((g) => (
+              <CommandItem
+                key={g.appid}
+                value={`steam ${g.name.toLowerCase()} ${g.appid}`}
+                onSelect={() =>
+                  go({
+                    path: `/steam/game/${g.appid}`,
+                    label: g.name,
+                    kind: "page",
+                  })
+                }
+              >
+                <SteamIcon className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                {g.developerNames[0] && (
+                  <span className="ml-2 shrink-0 truncate text-xs text-muted-foreground">
+                    {g.developerNames[0]}
+                  </span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         {showGlobalLol && (
           <CommandGroup heading="Global LoL">
             <CommandItem
@@ -440,7 +521,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
 
-        {currentAccount && !showVerbDestinationsOnly && (
+        {currentAccount && !showVerbDestinationsOnly && !hasSteamStructuredVerbs && (
           <CommandGroup heading="Matches">
             {filteredMatches === null ? (
               <>

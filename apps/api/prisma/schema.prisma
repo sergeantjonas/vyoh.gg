@@ -154,6 +154,15 @@ model SteamGameEnrichment {
   // treats null as "no badge" rather than as a maturity signal — see the
   // working note for the explicit no-NSFW-gating decision.
   gameRating           Json?
+  // `basic_info.{publishers,developers,franchises}[].name` flattened to string
+  // arrays for the ⌘K palette grammar (`pub:` / `dev:` / `franchise:` verbs).
+  // Postgres native arrays (not Json) so future filters can use `&&` / `@>`
+  // ops once the dataset is large enough to warrant indexing. Default `[]` so
+  // a missing enrichment row and an upstream block with no entities serialise
+  // the same — the renderer treats empty as "no chip / no filter hit".
+  publisherNames       String[]  @default([])
+  developerNames       String[]  @default([])
+  franchiseNames       String[]  @default([])
   enrichedAt           DateTime  @default(now())
   // Screenshots from store.steampowered.com/api/appdetails. Fetched lazily on
   // tile-hover rather than by the monthly enrichment cron — appdetails caps
