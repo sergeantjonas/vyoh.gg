@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl, steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
+import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { steamScreenshotThumbUrl } from "@vyoh/shared";
@@ -67,16 +68,21 @@ export function LibraryTileHovercardContent({
   // ~30ms in-flight cache miss on the React Query client, not a blocking
   // upstream round-trip.
   const { data, isPending } = useGameScreenshots(game.appid);
-  // Prefer all-ages; fall back to mature when empty — Steam bucket labels
-  // are publisher-assigned and unreliable as a NSFW signal (Dark Souls 2
-  // dumps everything in mature for violence labeling). Same policy as the
-  // game-detail strip so both surfaces stay consistent.
+  const { showMature } = useMatureScreenshotsPref();
+  // Same bucket policy as GameScreenshotStrip so both surfaces stay in sync
+  // when the global preference flips. See the strip for the rationale.
   const screenshots = useMemo(() => {
-    const entries = data?.allAges.length ? data.allAges : (data?.mature ?? []);
-    return entries.map((e) => ({
+    const allAges = data?.allAges ?? [];
+    const mature = data?.mature ?? [];
+    const merged = showMature
+      ? [...allAges, ...mature].sort((a, b) => a.ordinal - b.ordinal)
+      : allAges.length > 0
+        ? allAges
+        : mature;
+    return merged.map((e) => ({
       thumbUrl: steamScreenshotThumbUrl(game.appid, e.filename),
     }));
-  }, [data, game.appid]);
+  }, [data, showMature, game.appid]);
   const [index, setIndex] = useState(0);
   // Tracks whether at least one inter-screenshot rotation has happened. The
   // first screenshot snaps in directly over the hero (no fade, no scrim) —

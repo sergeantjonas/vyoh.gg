@@ -3,6 +3,7 @@ import { useSectionShellState } from "@/_shared/section-layout/section-shell-con
 import { NotFound } from "@/components/not-found";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
+import { SteamPreferences } from "@/steam/_shared/steam-preferences";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import { isSteamTabActive } from "@/steam/tabs";
 import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
@@ -52,7 +53,15 @@ function SteamLayout() {
 
   return (
     <SteamProfileBackdrop>
-      <SectionShell identity={<SteamIdentity />} nav={<SteamTabs pathname={pathname} />}>
+      <SectionShell
+        identity={<SteamIdentity />}
+        nav={
+          <div className="flex items-center gap-2">
+            <SteamTabs pathname={pathname} />
+            <SteamPreferences />
+          </div>
+        }
+      >
         {safariSlideDir ? (
           // `key` forces a fresh DOM element per pathname so the CSS
           // animation re-fires on every Safari intra-Steam nav. The

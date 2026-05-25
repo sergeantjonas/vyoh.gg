@@ -78,9 +78,19 @@ function setScreenshots(entries: { filename: string; ordinal: number }[] | undef
   } as unknown as ReturnType<typeof useGameScreenshots>);
 }
 
+function setBuckets(
+  allAges: { filename: string; ordinal: number }[],
+  mature: { filename: string; ordinal: number }[]
+) {
+  vi.mocked(useGameScreenshots).mockReturnValue({
+    data: { appid: 42, allAges, mature },
+  } as unknown as ReturnType<typeof useGameScreenshots>);
+}
+
 afterEach(() => {
   vi.mocked(useGameScreenshots).mockReset();
   lastCarouselApi = null;
+  localStorage.clear();
 });
 
 describe("GameScreenshotStrip", () => {
@@ -94,6 +104,39 @@ describe("GameScreenshotStrip", () => {
     setScreenshots(undefined);
     const { container } = render(<GameScreenshotStrip appid={42} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it("falls back to the mature bucket when all-ages is empty (showMature off)", () => {
+    setBuckets([], [{ filename: "ss_mature.jpg", ordinal: 1 }]);
+    render(<GameScreenshotStrip appid={42} />);
+    expect(
+      screen.getByRole("button", { name: /View screenshot 1 of 1 fullscreen/ })
+    ).toBeTruthy();
+    expect(document.querySelector('img[src*="ss_mature.600x338.jpg"]')).toBeTruthy();
+  });
+
+  it("unions all-ages + mature buckets sorted by ordinal when showMature is on", () => {
+    localStorage.setItem("vyoh:steam-show-mature-screenshots", "1");
+    setBuckets(
+      [{ filename: "ss_a.jpg", ordinal: 1 }],
+      [{ filename: "ss_b.jpg", ordinal: 2 }]
+    );
+    render(<GameScreenshotStrip appid={42} />);
+    expect(
+      screen.getByRole("button", { name: /View screenshot 1 of 2 fullscreen/ })
+    ).toBeTruthy();
+    expect(document.querySelector('img[src*="ss_a.600x338.jpg"]')).toBeTruthy();
+    expect(document.querySelector('img[src*="ss_b.600x338.jpg"]')).toBeTruthy();
+  });
+
+  it("hides the mature bucket when showMature is off and all-ages is present", () => {
+    setBuckets(
+      [{ filename: "ss_safe.jpg", ordinal: 1 }],
+      [{ filename: "ss_mature.jpg", ordinal: 2 }]
+    );
+    render(<GameScreenshotStrip appid={42} />);
+    expect(document.querySelector('img[src*="ss_safe.600x338.jpg"]')).toBeTruthy();
+    expect(document.querySelector('img[src*="ss_mature.600x338.jpg"]')).toBeNull();
   });
 
   it("renders the lightbox trigger with the screenshot count label", () => {

@@ -11,6 +11,7 @@ import { CreditsLine } from "@/steam/_shared/credits-line";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
 import { GameRatingBadge } from "@/steam/_shared/game-rating-badge";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
+import { PlaytimePill } from "@/steam/_shared/playtime-pill";
 import { ReviewSummaryChip } from "@/steam/_shared/review-summary-chip";
 import {
   makeHeroFallbackHandlers,
@@ -93,15 +94,14 @@ function SteamGamePage() {
     else setLogoLoaded(true);
   };
 
-  // Page is grouped into three major bands separated by `gap-10`:
-  //   1. Identity — breadcrumb, hero, title/chips/credits/short-description,
-  //      plus the small playtime card (the "who is this game" block).
-  //   2. Editorial — screenshot strip + About-this-game body (the "what is
-  //      this game" block, both visually media-heavy).
-  //   3. Progress — unlock timeline, 5-card verdict grid, achievement panel
-  //      (the "what's your relationship with this game" block).
-  // Within each band, `gap-4` keeps the cards visually grouped; the band
-  // gap is larger so the eye lands on group boundaries.
+  // Page is grouped into three bands. The first ("Identity") collapses the
+  // hero, the facts strip, and the editorial blurb into one tight visual
+  // unit — chips sit right under the hero (`gap-3`) so they read as part of
+  // the hero band rather than a floating new section, and playtime is folded
+  // into the facts strip as small pills rather than rendered as a separate
+  // card (the older card layout had a short box floating next to a tall
+  // description column). The next two bands (Editorial, Progress) keep the
+  // larger between-band gap so the eye can land on group boundaries.
   return (
     <div className="flex flex-col gap-10">
       <Breadcrumb>
@@ -169,63 +169,70 @@ function SteamGamePage() {
         )}
       </div>
 
-      {/* Band 1 — Identity. Header content (title/chips/credits/short
-          description) sits next to the playtime card on the same band so the
-          "who/what is this game + what have you done with it" summary reads
-          as one block instead of two stacked rows. Stacks on small screens. */}
+      {/* Band 1 — Identity. The hero banner already carries the wordmark,
+          so the duplicate h1 only renders when the logo asset failed (older
+          titles missing `library_logo.png`). The facts row sits with `mt-1`
+          to read as a continuation of the hero band rather than the start
+          of a new section; chips + playtime pills + credits + description
+          stack inside it. Playtime is rendered as inline pills in the same
+          row as the chips so the page never floats a near-empty playtime
+          card next to a tall description column. */}
       {isPending ? (
         <GameDetailSkeleton />
       ) : (
-        <section className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
-          <header className="flex min-w-0 flex-1 flex-col gap-2">
+        <section className="-mt-2 flex flex-col gap-3">
+          {logoFailed && (
             <h1 className="text-2xl font-bold tracking-tight">
               {game?.name ?? `App ${appidParam}`}
             </h1>
-            {game && (
-              <div className="flex flex-wrap items-center gap-2">
-                <DeckCompatChip tier={game.steamDeckCompat} size="md" />
-                <ReviewSummaryChip summary={game.reviewSummary} />
-                <GameRatingBadge rating={game.gameRating} />
-                <PlatformIconRow
-                  windows={game.platformWindows}
-                  mac={game.platformMac}
-                  linux={game.platformLinux}
-                  vr={game.platformVr}
-                />
-              </div>
-            )}
-            {game && (
-              <CreditsLine
-                developers={game.developerNames}
-                publishers={game.publisherNames}
-                franchises={game.franchiseNames}
-              />
-            )}
-            <p className="text-sm text-muted-foreground">
-              {game?.shortDescription ??
-                "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
-            </p>
-          </header>
-          {game && (
-            <dl className="flex w-full flex-col gap-1 rounded-lg border bg-card/50 p-4 text-sm md:w-72 md:shrink-0">
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-muted-foreground">Lifetime</dt>
-                <dd className="font-medium tabular-nums">
-                  {game.playtimeForeverMinutes > 0
-                    ? formatPlaytime(game.playtimeForeverMinutes)
-                    : "Never launched"}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-muted-foreground">Last two weeks</dt>
-                <dd className="font-medium tabular-nums">
-                  {game.playtime2WeeksMinutes !== null && game.playtime2WeeksMinutes > 0
-                    ? formatPlaytime(game.playtime2WeeksMinutes)
-                    : "—"}
-                </dd>
-              </div>
-            </dl>
           )}
+          {game && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+              <DeckCompatChip tier={game.steamDeckCompat} size="md" />
+              <ReviewSummaryChip summary={game.reviewSummary} />
+              <GameRatingBadge rating={game.gameRating} />
+              <PlatformIconRow
+                windows={game.platformWindows}
+                mac={game.platformMac}
+                linux={game.platformLinux}
+                vr={game.platformVr}
+              />
+              <span className="mx-1 hidden h-5 w-px bg-border/60 sm:inline-block" />
+              <PlaytimePill
+                label="Total"
+                value={
+                  game.playtimeForeverMinutes > 0
+                    ? formatPlaytime(game.playtimeForeverMinutes)
+                    : "Never launched"
+                }
+                tone={game.playtimeForeverMinutes > 0 ? "active" : "muted"}
+              />
+              <PlaytimePill
+                label="Recent"
+                value={
+                  game.playtime2WeeksMinutes !== null && game.playtime2WeeksMinutes > 0
+                    ? formatPlaytime(game.playtime2WeeksMinutes)
+                    : "—"
+                }
+                tone={
+                  game.playtime2WeeksMinutes && game.playtime2WeeksMinutes > 0
+                    ? "active"
+                    : "muted"
+                }
+              />
+            </div>
+          )}
+          {game && (
+            <CreditsLine
+              developers={game.developerNames}
+              publishers={game.publisherNames}
+              franchises={game.franchiseNames}
+            />
+          )}
+          <p className="text-sm text-muted-foreground">
+            {game?.shortDescription ??
+              "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
+          </p>
         </section>
       )}
 

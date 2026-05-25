@@ -6,6 +6,7 @@ import {
   useCarousel,
 } from "@/components/ui/carousel";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { steamScreenshotFullUrl, steamScreenshotThumbUrl } from "@vyoh/shared";
@@ -43,20 +44,29 @@ const SCREENSHOT_ROTATION_MS = 3_500;
 // which resets the autoplay timer on each click — no double-advance.
 export function GameScreenshotStrip({ appid }: { appid: number }) {
   const { data } = useGameScreenshots(appid);
-  // Bucket policy: prefer all-ages; fall back to mature when the all-ages
-  // bucket is empty. Publisher-assigned buckets are unreliable as a NSFW
-  // signal — Dark Souls 2 puts ALL screenshots in `mature_content_screenshots`
-  // (violence labeling, not actual mature content), which would leave the
-  // page empty if we never read that bucket. Games with both buckets keep
-  // the all-ages default; games that put everything in mature still surface
-  // at least some media instead of an empty letterbox.
+  const { showMature } = useMatureScreenshotsPref();
+  // Bucket policy (the toggle lives in the global Steam preferences popover
+  // mounted in the section nav):
+  //   - showMature off (default): all-ages; fall back to mature when
+  //     all-ages is empty. Steam's storefront default is all-ages-only, but
+  //     publisher labels are unreliable — Dark Souls 2 dumps everything in
+  //     `mature_content_screenshots` for violence, so the strict default
+  //     would leave the page empty for plenty of M-rated games.
+  //   - showMature on: union both buckets, sorted by publisher-assigned
+  //     ordinal so the strip preserves Steam's storefront order.
   const screenshots = useMemo(() => {
-    const entries = data?.allAges.length ? data.allAges : (data?.mature ?? []);
-    return entries.map((e) => ({
+    const allAges = data?.allAges ?? [];
+    const mature = data?.mature ?? [];
+    const merged = showMature
+      ? [...allAges, ...mature].sort((a, b) => a.ordinal - b.ordinal)
+      : allAges.length > 0
+        ? allAges
+        : mature;
+    return merged.map((e) => ({
       thumbUrl: steamScreenshotThumbUrl(appid, e.filename),
       fullUrl: steamScreenshotFullUrl(appid, e.filename),
     }));
-  }, [data, appid]);
+  }, [data, showMature, appid]);
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
