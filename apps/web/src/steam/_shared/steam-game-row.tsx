@@ -133,14 +133,16 @@ export function SteamGameRowShell({
           style={{ objectPosition: `${xPct}% ${yPct}%` }}
           className={cn(
             "absolute inset-0 size-full object-cover transition-[opacity,transform] duration-600 ease-out",
-            // Per-asset horizontal mirror — applied when the face was
-            // detected on the left of source so the wordmark logo doesn't
-            // sit over the face (RE4 Leon). The `scaleX(-1)` composes with
-            // `group-hover/row:scale-105` because both feed the same
-            // `transform` channel; using Tailwind's `-scale-x-100` keeps
-            // hover's uniform scale working alongside the flip.
-            flipHero && "-scale-x-100",
-            "group-hover/row:scale-105",
+            // Per-asset horizontal mirror with hover-preserving scale.
+            // The CSS `transform` property is single-valued: the default
+            // `group-hover/row:scale-105` (which sets both x and y scale
+            // to 1.05) would clobber a separately-declared `scaleX(-1)`
+            // base, snapping the hero un-flipped on hover. Splitting the
+            // hover scale into independent x and y axes — keeping x
+            // negative — lets the flip persist through the hover zoom.
+            flipHero
+              ? "-scale-x-100 group-hover/row:-scale-x-105 group-hover/row:scale-y-105"
+              : "group-hover/row:scale-105",
             heroLoaded ? "opacity-100" : "opacity-0"
           )}
         />
