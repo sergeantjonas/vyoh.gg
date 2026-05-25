@@ -11,7 +11,7 @@ export default defineConfig({
       exclude: ["src/**/*.{test,spec}.ts", "src/**/*.d.ts", "src/index.ts"],
       // Floor is well below current (100% lines) to give a buffer; CI reports
       // the actual numbers so a slow erosion is still visible on the PR.
-      thresholds: { lines: 90 },
+      thresholds: { statements: 95, branches: 89, functions: 97, lines: 99 },
     },
   },
 });
