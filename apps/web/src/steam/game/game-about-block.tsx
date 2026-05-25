@@ -33,8 +33,8 @@ export function GameAboutBlock({ appid }: { appid: number }) {
 
   if (isPending) {
     return (
-      <section aria-busy className="space-y-3">
-        <div className="h-6 w-40 animate-pulse rounded-md bg-foreground/10" />
+      <section aria-busy className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+        <div className="h-3 w-28 animate-pulse rounded bg-muted" />
         <div className="h-4 w-full animate-pulse rounded bg-foreground/10" />
         <div className="h-4 w-5/6 animate-pulse rounded bg-foreground/10" />
         <div className="h-4 w-4/6 animate-pulse rounded bg-foreground/10" />
@@ -47,9 +47,16 @@ export function GameAboutBlock({ appid }: { appid: number }) {
   // placeholder, and the block is one of several on the page.
   if (isError || !html) return null;
 
+  // Card chrome (`rounded-lg border bg-card/50 p-4`) matches the sibling
+  // sections on the game-detail page (unlock timeline, verdict cards,
+  // achievement panel). Heading style mirrors the same convention —
+  // small-caps muted-foreground subhead — so the page reads as a stack of
+  // uniform cards rather than a mix of bare blocks and chromed ones.
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold tracking-tight">About this game</h2>
+    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        About this game
+      </h2>
       <div
         className="prose prose-sm max-w-none text-foreground/85 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_ul]:my-2"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml; img dropped

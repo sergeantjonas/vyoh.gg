@@ -7,6 +7,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { CreditsLine } from "@/steam/_shared/credits-line";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
 import { GameRatingBadge } from "@/steam/_shared/game-rating-badge";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
@@ -92,8 +93,17 @@ function SteamGamePage() {
     else setLogoLoaded(true);
   };
 
+  // Page is grouped into three major bands separated by `gap-10`:
+  //   1. Identity — breadcrumb, hero, title/chips/credits/short-description,
+  //      plus the small playtime card (the "who is this game" block).
+  //   2. Editorial — screenshot strip + About-this-game body (the "what is
+  //      this game" block, both visually media-heavy).
+  //   3. Progress — unlock timeline, 5-card verdict grid, achievement panel
+  //      (the "what's your relationship with this game" block).
+  // Within each band, `gap-4` keeps the cards visually grouped; the band
+  // gap is larger so the eye lands on group boundaries.
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -159,31 +169,64 @@ function SteamGamePage() {
         )}
       </div>
 
+      {/* Band 1 — Identity. Header content (title/chips/credits/short
+          description) sits next to the playtime card on the same band so the
+          "who/what is this game + what have you done with it" summary reads
+          as one block instead of two stacked rows. Stacks on small screens. */}
       {isPending ? (
         <GameDetailSkeleton />
       ) : (
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {game?.name ?? `App ${appidParam}`}
-          </h1>
-          {game && (
-            <div className="flex flex-wrap items-center gap-2">
-              <DeckCompatChip tier={game.steamDeckCompat} size="md" />
-              <ReviewSummaryChip summary={game.reviewSummary} />
-              <GameRatingBadge rating={game.gameRating} />
-              <PlatformIconRow
-                windows={game.platformWindows}
-                mac={game.platformMac}
-                linux={game.platformLinux}
-                vr={game.platformVr}
+        <section className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
+          <header className="flex min-w-0 flex-1 flex-col gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {game?.name ?? `App ${appidParam}`}
+            </h1>
+            {game && (
+              <div className="flex flex-wrap items-center gap-2">
+                <DeckCompatChip tier={game.steamDeckCompat} size="md" />
+                <ReviewSummaryChip summary={game.reviewSummary} />
+                <GameRatingBadge rating={game.gameRating} />
+                <PlatformIconRow
+                  windows={game.platformWindows}
+                  mac={game.platformMac}
+                  linux={game.platformLinux}
+                  vr={game.platformVr}
+                />
+              </div>
+            )}
+            {game && (
+              <CreditsLine
+                developers={game.developerNames}
+                publishers={game.publisherNames}
+                franchises={game.franchiseNames}
               />
-            </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {game?.shortDescription ??
+                "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
+            </p>
+          </header>
+          {game && (
+            <dl className="flex w-full flex-col gap-1 rounded-lg border bg-card/50 p-4 text-sm md:w-72 md:shrink-0">
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-muted-foreground">Lifetime</dt>
+                <dd className="font-medium tabular-nums">
+                  {game.playtimeForeverMinutes > 0
+                    ? formatPlaytime(game.playtimeForeverMinutes)
+                    : "Never launched"}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-muted-foreground">Last two weeks</dt>
+                <dd className="font-medium tabular-nums">
+                  {game.playtime2WeeksMinutes !== null && game.playtime2WeeksMinutes > 0
+                    ? formatPlaytime(game.playtime2WeeksMinutes)
+                    : "—"}
+                </dd>
+              </div>
+            </dl>
           )}
-          <p className="text-sm text-muted-foreground">
-            {game?.shortDescription ??
-              "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
-          </p>
-        </div>
+        </section>
       )}
 
       {isError && (
@@ -197,43 +240,33 @@ function SteamGamePage() {
         </p>
       )}
 
+      {/* Band 2 — Editorial. Screenshots + description are paired media
+          surfaces (both grow tall, both are publisher-supplied). Tight
+          inner gap keeps them visually linked as one editorial block. */}
       {game && (
-        <dl className="flex flex-col gap-1 rounded-lg border bg-card/50 p-4 text-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Lifetime</dt>
-            <dd className="font-medium tabular-nums">
-              {game.playtimeForeverMinutes > 0
-                ? formatPlaytime(game.playtimeForeverMinutes)
-                : "Never launched"}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-muted-foreground">Last two weeks</dt>
-            <dd className="font-medium tabular-nums">
-              {game.playtime2WeeksMinutes !== null && game.playtime2WeeksMinutes > 0
-                ? formatPlaytime(game.playtime2WeeksMinutes)
-                : "—"}
-            </dd>
-          </div>
-        </dl>
+        <section className="flex flex-col gap-4">
+          <GameScreenshotStrip appid={appid} />
+          <GameAboutBlock appid={appid} />
+        </section>
       )}
 
-      {game && <GameScreenshotStrip appid={appid} />}
-
-      {game && <GameAboutBlock appid={appid} />}
-
-      {game && <GameUnlockTimeline appid={appid} />}
-
+      {/* Band 3 — Progress. Unlock timeline → 5-card verdict grid →
+          per-achievement panel, in narrative order ("when did it happen"
+          → "how complete is it" → "what's left"). Tight inner gap so the
+          three card layers read as one progress story. */}
       {game && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <CompletionVerdictCard appid={appid} />
-          <TimeTo100Card appid={appid} />
-          <LastProgressedCard appid={appid} />
-          <RaritySignatureCard appid={appid} />
-          <RarestUnlockCard appid={appid} />
-        </div>
+        <section className="flex flex-col gap-4">
+          <GameUnlockTimeline appid={appid} />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <CompletionVerdictCard appid={appid} />
+            <TimeTo100Card appid={appid} />
+            <LastProgressedCard appid={appid} />
+            <RaritySignatureCard appid={appid} />
+            <RarestUnlockCard appid={appid} />
+          </div>
+          <AchievementPanel appid={appid} highlightTarget={ach} />
+        </section>
       )}
-      {game && <AchievementPanel appid={appid} highlightTarget={ach} />}
     </div>
   );
 }

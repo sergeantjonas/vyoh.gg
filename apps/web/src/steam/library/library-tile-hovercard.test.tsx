@@ -11,6 +11,14 @@ vi.mock("@/steam/game/use-game-screenshots", () => ({
 function mockMedia(entries: { filename: string; ordinal: number }[] = []) {
   vi.mocked(useGameScreenshots).mockReturnValue({
     data: { appid: 440, allAges: entries, mature: [] },
+    isPending: false,
+  } as unknown as ReturnType<typeof useGameScreenshots>);
+}
+
+function mockMediaPending() {
+  vi.mocked(useGameScreenshots).mockReturnValue({
+    data: undefined,
+    isPending: true,
   } as unknown as ReturnType<typeof useGameScreenshots>);
 }
 
@@ -121,6 +129,20 @@ describe("LibraryTileHovercardContent", () => {
     fireEvent.load(hero);
     // Still one img after the swap (capsule fallback).
     expect(container.querySelectorAll("img").length).toBe(1);
+  });
+
+  it("renders a pulsing scrim over the hero while the screenshots query is pending", () => {
+    mockMediaPending();
+    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    // The scrim is the absolutely-positioned animate-pulse div over the hero;
+    // it's the only `animate-pulse` element in the hovercard body.
+    expect(container.querySelector(".animate-pulse")).toBeTruthy();
+  });
+
+  it("removes the pulsing scrim once the screenshots query resolves (empty bucket)", () => {
+    mockMedia([]);
+    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    expect(container.querySelector(".animate-pulse")).toBeNull();
   });
 
   it("marks the hero as loaded when onLoad reports a non-zero natural width", () => {

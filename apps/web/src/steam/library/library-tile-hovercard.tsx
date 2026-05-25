@@ -66,7 +66,7 @@ export function LibraryTileHovercardContent({
   // pre-populated by the monthly cron, so the first hover is normally a
   // ~30ms in-flight cache miss on the React Query client, not a blocking
   // upstream round-trip.
-  const { data } = useGameScreenshots(game.appid);
+  const { data, isPending } = useGameScreenshots(game.appid);
   const screenshots = useMemo(
     () =>
       (data?.allAges ?? []).map((e) => ({
@@ -119,6 +119,17 @@ export function LibraryTileHovercardContent({
             alt=""
             className="h-full w-full scale-105 object-cover blur-[2px]"
           />
+        )}
+        {/* Cold-load placeholder: the popover hero reuses the same library_hero
+            asset the library tile/row already shows, so without this scrim
+            the popover reads as "a duplicate of the card you're hovering over"
+            until screenshots stream in. While the query is pending, overlay a
+            faint pulsing gradient so the popover visibly differs and signals
+            "media is loading." Drops cleanly the moment the query resolves —
+            if screenshots exist they take over (with their own black scrim),
+            and if the bucket is empty the hero stays as the final state. */}
+        {isPending && (
+          <div className="pointer-events-none absolute inset-0 animate-pulse bg-linear-to-t from-black/55 via-black/15 to-transparent" />
         )}
         {screenshots.length > 0 && (
           <>
