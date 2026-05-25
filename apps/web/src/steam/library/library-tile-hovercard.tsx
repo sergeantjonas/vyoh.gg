@@ -67,13 +67,16 @@ export function LibraryTileHovercardContent({
   // ~30ms in-flight cache miss on the React Query client, not a blocking
   // upstream round-trip.
   const { data, isPending } = useGameScreenshots(game.appid);
-  const screenshots = useMemo(
-    () =>
-      (data?.allAges ?? []).map((e) => ({
-        thumbUrl: steamScreenshotThumbUrl(game.appid, e.filename),
-      })),
-    [data, game.appid]
-  );
+  // Prefer all-ages; fall back to mature when empty — Steam bucket labels
+  // are publisher-assigned and unreliable as a NSFW signal (Dark Souls 2
+  // dumps everything in mature for violence labeling). Same policy as the
+  // game-detail strip so both surfaces stay consistent.
+  const screenshots = useMemo(() => {
+    const entries = data?.allAges.length ? data.allAges : (data?.mature ?? []);
+    return entries.map((e) => ({
+      thumbUrl: steamScreenshotThumbUrl(game.appid, e.filename),
+    }));
+  }, [data, game.appid]);
   const [index, setIndex] = useState(0);
   // Tracks whether at least one inter-screenshot rotation has happened. The
   // first screenshot snaps in directly over the hero (no fade, no scrim) —

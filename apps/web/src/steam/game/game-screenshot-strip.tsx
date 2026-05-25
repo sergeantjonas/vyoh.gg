@@ -43,11 +43,15 @@ const SCREENSHOT_ROTATION_MS = 3_500;
 // which resets the autoplay timer on each click — no double-advance.
 export function GameScreenshotStrip({ appid }: { appid: number }) {
   const { data } = useGameScreenshots(appid);
-  // All-ages only by default — matches Steam's storefront default. Mature
-  // bucket stays gated behind an owner-only toggle once the auth model
-  // lands (see docs/working-notes/steam/library-card-enrichment.md Chunk 9b).
+  // Bucket policy: prefer all-ages; fall back to mature when the all-ages
+  // bucket is empty. Publisher-assigned buckets are unreliable as a NSFW
+  // signal — Dark Souls 2 puts ALL screenshots in `mature_content_screenshots`
+  // (violence labeling, not actual mature content), which would leave the
+  // page empty if we never read that bucket. Games with both buckets keep
+  // the all-ages default; games that put everything in mature still surface
+  // at least some media instead of an empty letterbox.
   const screenshots = useMemo(() => {
-    const entries = data?.allAges ?? [];
+    const entries = data?.allAges.length ? data.allAges : (data?.mature ?? []);
     return entries.map((e) => ({
       thumbUrl: steamScreenshotThumbUrl(appid, e.filename),
       fullUrl: steamScreenshotFullUrl(appid, e.filename),
