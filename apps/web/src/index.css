@@ -295,6 +295,17 @@ p {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
   }
+  /* Extend the per-entity --theme-color cascade (set on `<main>` per
+     route by useThemeColor) to native browser primitives: form controls
+     pick up the route accent via `accent-color`, and text selection
+     highlights pick it up via `::selection`. Both inherit, so a single
+     declaration at the root scope propagates through every subtree. */
+  :root {
+    accent-color: var(--theme-color);
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--theme-color) 40%, transparent);
+  }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;
