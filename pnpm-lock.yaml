@@ -63,9 +63,6 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
-      node-vibrant:
-        specifier: ^4.0.4
-        version: 4.0.4
       pg:
         specifier: ^8.20.0
         version: 8.20.0
