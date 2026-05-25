@@ -14,7 +14,7 @@ describe("stripLeadingOverlapWithShort", () => {
     expect(stripLeadingOverlapWithShort(bbcode, "Game.")).toBe(bbcode);
   });
 
-  it("strips leading lines that fully overlap with the short (Resident Evil 4 case)", () => {
+  it("strips word-for-word duplicate openers but preserves paraphrased lines with new content (Resident Evil 4 case)", () => {
     const short =
       "Survival is just the beginning. Six years have passed since the biological disaster in Raccoon City. Leon S. Kennedy, one of the survivors, tracks the president's kidnapped daughter to a secluded European village, where there is something terribly wrong with the locals.";
     const bbcode = [
@@ -31,14 +31,17 @@ describe("stripLeadingOverlapWithShort", () => {
       "Relive the nightmare that revolutionized survival horror.",
     ].join("\n");
     const out = stripLeadingOverlapWithShort(bbcode, short);
-    // Leading 4 overlapping lines dropped, "And the curtain rises…" survives.
-    expect(out.startsWith("And the curtain rises")).toBe(true);
+    // Lines 1 & 3 are word-for-word in the short → stripped.
+    expect(out).not.toContain("Survival is just the beginning");
+    expect(out).not.toContain("biological disaster");
+    // Line 4 ("Agent Leon…") adds unique storytelling detail ("Agent",
+    // "the incident", "has been sent to rescue") — the threshold preserves
+    // it, and once the loop bails the rest of the body follows.
+    expect(out.startsWith("Agent Leon S. Kennedy")).toBe(true);
+    expect(out).toContain("He tracks her");
+    expect(out).toContain("And the curtain rises");
     expect(out).toContain("Featuring modernized gameplay");
     expect(out).toContain("Relive the nightmare");
-    // None of the dropped sentences remain.
-    expect(out).not.toContain("Survival is just the beginning");
-    expect(out).not.toContain("Agent Leon");
-    expect(out).not.toContain("biological disaster");
   });
 
   it("leaves a tagline-style short alone (no overlap with the body)", () => {

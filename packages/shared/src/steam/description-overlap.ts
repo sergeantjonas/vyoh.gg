@@ -92,13 +92,18 @@ const STOPWORDS = new Set([
   "two",
 ]);
 
-// Threshold tuned against the Resident Evil 4 case. RE4's worst-matching
-// paraphrased line ("Agent Leon S. Kennedy, one of the survivors of the
-// incident, has been sent to rescue the president's kidnapped daughter")
-// scores ~0.6 against the short description after stopword filtering. 0.5
-// catches it while leaving sub-0.5 content alone — see the test suite for
-// the negative cases (tagline shorts, unrelated leading content).
-const OVERLAP_THRESHOLD = 0.5;
+// Threshold tuned against the Resident Evil 4 case + owner sanity check.
+// The bar is "near word-for-word duplicate" — sentences that paraphrase
+// the short with genuinely new content (e.g. RE4's "Agent Leon S. Kennedy,
+// one of the survivors of the incident, has been sent to rescue…" — the
+// "Agent" / "incident" / "has been sent to rescue" details aren't in the
+// short) should pass through. RE4's paraphrased line scores ~0.55 after
+// stopword filtering; setting the threshold at 0.75 keeps it while still
+// catching the truly duplicate openers ("Survival is just the beginning.",
+// "Six years have passed since the biological disaster in Raccoon City.").
+// Earlier 0.5 was too aggressive — it nuked paraphrased content that
+// carried unique storytelling detail.
+const OVERLAP_THRESHOLD = 0.75;
 
 // Below this, the short description is too thin to be a meaningful corpus
 // — a 3-word short would over-trigger on any leading line that happens to
