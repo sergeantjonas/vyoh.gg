@@ -60,6 +60,11 @@ const UNDERLINE_RE = /\[u\]([\s\S]*?)\[\/u\]/gi;
 const URL_WITH_TEXT_RE = /\[url=[^\]]*\]([\s\S]*?)\[\/url\]/gi;
 const URL_BARE_RE = /\[url\]([\s\S]*?)\[\/url\]/gi;
 const IMG_RE = /\[img\]([\s\S]*?)\[\/img\]/gi;
+// Steam also emits `[img=URL fromclient=1]LABEL[/img]` (seen on Elden Ring's
+// description). The attribute carries the real URL; the inner is a duplicate
+// label that would otherwise leak as visible text once UNKNOWN_TAG_RE strips
+// the wrapper.
+const IMG_ATTR_RE = /\[img=([^\]]*)\]([\s\S]*?)\[\/img\]/gi;
 // Drop any remaining unknown bracket tag (open or close, with optional
 // `=value` arg). Inner content survives because we don't match across the
 // closer here.
@@ -148,6 +153,15 @@ export function bbcodeToHtml(input: string | null | undefined): string {
     const trimmed = url.trim();
     if (!trimmed) return "";
     return `<img src="${escapeAttr(trimmed)}">`;
+  });
+  // `[img=URL ...]label[/img]`: the attribute holds the real URL (possibly
+  // followed by space-separated extras like `fromclient=1`). Prefer the
+  // attribute over the inner-text label, which is typically a duplicate or a
+  // template token like `{STEAM_APP_IMAGE}/extras/…`.
+  html = html.replace(IMG_ATTR_RE, (_full, attr: string, inner: string) => {
+    const src = (attr.split(/\s+/)[0] ?? "").trim() || inner.trim();
+    if (!src) return "";
+    return `<img src="${escapeAttr(src)}">`;
   });
   // URL: keep inner text, drop the link itself (LoL sanitiser policy).
   html = html.replace(URL_WITH_TEXT_RE, (_full, text: string) => text);

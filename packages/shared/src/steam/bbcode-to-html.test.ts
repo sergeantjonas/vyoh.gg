@@ -39,6 +39,27 @@ describe("bbcodeToHtml", () => {
     expect(bbcodeToHtml("[img][/img]")).toBe("");
   });
 
+  it("handles the [img=URL ...]label[/img] attribute form", () => {
+    const html = bbcodeToHtml(
+      "[img=https://cdn.example/a.gif fromclient=1]inner label[/img]"
+    );
+    expect(html).toBe('<p><img src="https://cdn.example/a.gif"></p>');
+  });
+
+  it("does not leak the inner label of [img=URL]label[/img] as text", () => {
+    // Real-world Elden Ring case: the inner label is a {STEAM_APP_IMAGE}
+    // template token that would otherwise render as literal text after
+    // UNKNOWN_TAG_RE strips the wrapper.
+    const html = bbcodeToHtml(
+      "[img=http://STEAM_APP_IMAGE}/extras/foo fromclient=1]{STEAM_APP_IMAGE}/extras/foo[/img]"
+    );
+    // The {STEAM_APP_IMAGE} token (with curly braces) is the inner label;
+    // it must not survive as visible text. The token *without* braces appears
+    // inside the attribute URL, which is fine — it's inside src=.
+    expect(html).not.toContain("{STEAM_APP_IMAGE}");
+    expect(html).toMatch(/<img\s+src="[^"]*"\s*>/);
+  });
+
   it("converts [list]/[*] to <ul>/<li>", () => {
     const html = bbcodeToHtml("[list][*]one[*]two[/list]");
     expect(html).toBe("<ul><li>one</li><li>two</li></ul>");
