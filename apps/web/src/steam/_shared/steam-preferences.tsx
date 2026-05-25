@@ -43,7 +43,7 @@ export function SteamPreferences() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Steam preferences"
-        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-background/40 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
       >
         <SlidersHorizontal className="size-4" />
       </button>

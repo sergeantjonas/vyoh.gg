@@ -58,7 +58,9 @@ function SteamLayout() {
         nav={
           <div className="flex items-center gap-2">
             <SteamTabs pathname={pathname} />
-            <SteamPreferences />
+            <div className="ml-auto">
+              <SteamPreferences />
+            </div>
           </div>
         }
       >
