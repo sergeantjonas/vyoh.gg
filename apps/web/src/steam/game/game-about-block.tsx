@@ -63,9 +63,16 @@ export function GameAboutBlock({ appid }: { appid: number }) {
     );
   }
 
+  // Explicit typography rules instead of `prose prose-sm` — Tailwind v4
+  // here ships without `@tailwindcss/typography`, so the `prose` classes
+  // are no-ops and headings fall back to browser defaults (huge `<h1>`,
+  // base 16px `<p>`), reading as a jarring size jump from the surrounding
+  // `text-sm` short description. Body text matches the short description
+  // exactly (`text-sm text-muted-foreground`) so the expansion looks like
+  // "more of the same paragraph", not a separate document.
   return (
     <div
-      className="prose prose-sm max-w-none text-foreground/85 [&_h1]:mt-4 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_ul]:my-2"
+      className="text-sm text-muted-foreground [&_h1]:mt-3 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground/85 [&_h1:first-child]:mt-0 [&_h2]:mt-3 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground/70 [&_h2:first-child]:mt-0 [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground/85 [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:text-foreground/90 [&_ul]:my-2"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml; img dropped
       dangerouslySetInnerHTML={{ __html: html }}
     />
