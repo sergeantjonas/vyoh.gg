@@ -168,6 +168,11 @@ p {
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-theme: var(--theme-color);
+  --color-theme-fg: var(--theme-fg);
+  --color-theme-muted: var(--theme-muted);
+  --color-theme-strong: var(--theme-strong);
+  --color-theme-ring: var(--theme-ring);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -222,6 +227,17 @@ p {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Per-entity theme color cascade. `--theme-color` is the primitive — set
+     by `useThemeColor` from champion/match/Steam-game dominant palette, or
+     inline on themed cards. Derived tokens use relative-color syntax so a
+     single set propagates everywhere. The default matches the body radial
+     gradient hue, so un-themed routes stay visually identical. */
+  --theme-color: oklch(0.6 0.16 240);
+  --theme-fg: oklch(from var(--theme-color) min(l, 0.45) c h);
+  --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
+  --theme-strong: oklch(from var(--theme-color) calc(l * 0.85) c h);
+  --theme-ring: oklch(from var(--theme-color) l c h / 0.6);
 }
 
 .dark {
@@ -256,6 +272,21 @@ p {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Dark-mode foreground lifts toward white against the near-black body;
+     muted/strong/ring derivations mirror :root. */
+  --theme-color: oklch(0.6 0.16 240);
+  --theme-fg: oklch(from var(--theme-color) max(l, 0.85) c h);
+  --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
+  --theme-strong: oklch(from var(--theme-color) calc(l * 1.1) c h);
+  --theme-ring: oklch(from var(--theme-color) l c h / 0.7);
+}
+
+@media (prefers-contrast: more) {
+  :root,
+  .dark {
+    --theme-ring: oklch(from var(--theme-color) l c h / 0.95);
+  }
 }
 
 @layer base {
@@ -289,9 +320,12 @@ p {
   }
   body {
     @apply text-foreground;
+    /* Tint the ambient page gradient with the route's --theme-color so the
+       background reads as part of the current entity (champion/match accent).
+       Falls back to the default declared in :root for un-themed routes. */
     background: radial-gradient(
         ellipse 80% 55% at 50% -10%,
-        color-mix(in oklch, oklch(0.6 0.16 240) 8%, transparent),
+        color-mix(in oklch, var(--theme-color) 8%, transparent),
         transparent 70%
       ), var(--background);
     background-attachment: fixed;

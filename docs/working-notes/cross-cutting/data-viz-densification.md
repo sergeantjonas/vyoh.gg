@@ -85,9 +85,11 @@ Variations as needed: filled area version (with `<polygon>` + accent-muted fill)
 
 For data sources that don't already exist, file a follow-up note rather than expanding this arc — the sparkline component is the unit of work; consumers come incrementally.
 
-### Color: tie to accent
+### Color: tie to theme
 
-`stroke={varAccent}` by default — the sparkline picks up the route's accent from [accent-color-system.md](accent-color-system.md). Per-surface overrides where the meaning demands it (win rate sparkline can be `var(--accent)`; loss rate can stay neutral).
+`stroke="var(--theme-strong)"` by default — the sparkline picks up the route's accent from [accent-color-system.md](accent-color-system.md). Per-surface overrides where the meaning demands it (win rate sparkline can be `var(--theme-strong)`; loss rate can stay neutral).
+
+> **Note (2026-05-26):** accent-color-system shipped under the `--theme-*` namespace (not `--accent-*` as originally planned — `--accent` is reserved by shadcn for neutral hover surfaces). The available tokens are `--theme-color` (primitive), `--theme-fg`, `--theme-muted`, `--theme-strong`, `--theme-ring`, with corresponding Tailwind utilities `bg-theme`, `text-theme-fg`, `ring-theme-ring`, etc. Every `var(--accent…)` reference further down in this file should be read as `var(--theme…)`. This arc is the natural pickup site for the deferred Chunk 5 sweep — when implementing the sparkline strokes, hover sheen, focus rings, etc., wire them to `var(--theme-strong)` / `var(--theme-ring)` directly.
 
 ### Tooltip with full series
 
@@ -120,7 +122,7 @@ On hover, show a small Radix tooltip with the underlying numeric series + period
 
 /* Champion card highlights when its detail panel is the active route */
 .champion-card:has([data-route-active="true"]) {
-  outline: 2px solid var(--accent-ring);
+  outline: 2px solid var(--theme-ring);
 }
 
 /* "Has new data" card pulses subtly */
@@ -154,17 +156,17 @@ Document each addition with the WCAG implication: `:has()` affordances must not 
 }
 
 .match-row[data-outcome="win"] {
-  --row-tint: oklch(from var(--accent) 0.5 0.12 145deg / 0.04); /* green-shifted */
+  --row-tint: oklch(from var(--theme-color) 0.5 0.12 145deg / 0.04); /* green-shifted */
 }
 .match-row[data-outcome="win"]:hover {
-  --row-tint: oklch(from var(--accent) 0.55 0.16 145deg / 0.10);
+  --row-tint: oklch(from var(--theme-color) 0.55 0.16 145deg / 0.10);
 }
 
 .match-row[data-outcome="loss"] {
-  --row-tint: oklch(from var(--accent) 0.5 0.10 25deg / 0.03); /* red-shifted, fainter */
+  --row-tint: oklch(from var(--theme-color) 0.5 0.10 25deg / 0.03); /* red-shifted, fainter */
 }
 .match-row[data-outcome="loss"]:hover {
-  --row-tint: oklch(from var(--accent) 0.55 0.14 25deg / 0.08);
+  --row-tint: oklch(from var(--theme-color) 0.55 0.14 25deg / 0.08);
 }
 
 .match-row[data-outcome="remake"] {

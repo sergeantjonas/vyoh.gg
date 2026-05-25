@@ -24,7 +24,7 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 | [section-shell-vt-migration](section-shell-vt-migration.md) | Remove SectionShell's `<AnimatePresence>` route-slide wrap in favour of VT-driven slides with CSS keyframes scoped by transition `types` | ✅ Shipped 2026-05-24 |
 | [scroll-driven-shell](scroll-driven-shell.md) | Native CSS `animation-timeline: scroll()/view()` on nav, splash backdrop opacity, section progress bar — zero JS | Planned |
 | [mount-and-overlay-motion](mount-and-overlay-motion.md) | Tile/list mount stagger + `@starting-style` + `transition-behavior: allow-discrete` for overlays (Select/Popover/Dropdown shadcn defaults) | Planned |
-| [accent-color-system](accent-color-system.md) | Per-route `--accent` token derived from splash/game dominant; propagate to focus rings, scrollbar, sparklines, `<meta name="theme-color">` | Planned |
+| [accent-color-system](accent-color-system.md) | Per-route `--accent` token derived from splash/game dominant; propagate to focus rings, scrollbar, sparklines, `<meta name="theme-color">` | ✅ Shipped 2026-05-26 (`--theme-*` namespace, LoL + body gradient). Steam wiring + broader sweep deferred. |
 
 ### Tier 2 — Visible craft, modest effort
 

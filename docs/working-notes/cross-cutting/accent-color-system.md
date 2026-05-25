@@ -1,6 +1,30 @@
 # Per-route / per-entity accent color system
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Promotes the existing per-champion "theme color" (currently used only for splash backdrop overlay tint) into a **full propagated accent token** (`--accent`, `--accent-fg`, `--accent-muted`, `--accent-strong`) that cascades to focus rings, scrollbar, sparklines, hover glow, and `<meta name="theme-color">` (so mobile browser chrome adopts the active entity's color).
+**Status:** ✅ Shipped 2026-05-26 (core cascade + LoL wiring + hook + meta-color updates). Steam-side wiring (Chunk 6) and the broader sweep (Chunk 5 — scrollbar, focus ring, sparklines, hover sheen) deferred; see [Shipped + deferred](#shipped--deferred) below. Original plan body retained for historical context.
+
+## Shipped + deferred
+
+**Shipped 2026-05-26:**
+- **Token cascade** in [apps/web/src/index.css](../../../apps/web/src/index.css) — `--theme-color` primitive + derived `--theme-fg`/`--theme-muted`/`--theme-strong`/`--theme-ring` via `oklch(from …)` relative-color syntax, mirrored in `:root` and `.dark`, plus a `@media (prefers-contrast: more)` ring-opacity bump. Default value `oklch(0.6 0.16 240)` matches the body radial-gradient hue, so un-themed routes are visually unchanged.
+- **Tailwind `@theme inline` mappings** — `--color-theme`, `--color-theme-fg/-muted/-strong/-ring` so utilities like `bg-theme`, `text-theme-fg`, `ring-theme-ring` exist.
+- **`useThemeColor` hook** at [apps/web/src/lib/use-theme-color.ts](../../../apps/web/src/lib/use-theme-color.ts) — sets `--theme-color` on `<html>` and `<meta name="theme-color">`, restores both on unmount. Tested for set/clear/leak prevention and rapid changes.
+- **LoL champion detail wiring** at [apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx](../../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) — pulls dominantHex from `championTheme(championKey)`.
+- **LoL match detail wiring** at [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx) — pulls dominantHex from the player's pick.
+- **Body radial-gradient swap** (Chunk 5 partial) — replaced the hardcoded `oklch(0.6 0.16 240)` literal with `var(--theme-color)` so the ambient page gradient tracks the route accent.
+
+**Namespace deviation from original plan:** The arc was scoped against `--accent-*`, but `--accent` is already reserved by shadcn (`bg-accent`, `text-accent-foreground` drive neutral hover surfaces in command/select/dropdown-menu primitives). Shipped under `--theme-*` instead, extending the existing per-entity `--theme-color` convention used by `.themed-card`. References to `--accent-*` in the plan below should be read as `--theme-*`.
+
+**Deferred:**
+- **Chunk 6 — Steam game detail wiring.** No Steam-side dominant-color pipeline exists. Two paths: (a) build-time palette extraction analogous to LoL's `champion-assets.json` (best long-term), (b) runtime canvas sampling of the hero image (cheaper, cross-origin gotchas). Defer until a Steam asset-prep arc lands. Steam routes currently render with the default `oklch(0.6 0.16 240)` accent. Tracked as [steam-lol-parity.md Item 6](steam-lol-parity.md#item-6--per-game-accent-color-on-steam-game-detail) — the parity tracker is the canonical owner.
+- **Chunk 5 — broader sweep.** Only the body radial gradient was swept. Per-site judgement still needed for: scrollbar thumb tint (likely best left grey — colour-flipping on every nav reads as noise), focus ring `--ring` (would tint shadcn's primary ring across unthemed surfaces too — needs scoping), Recharts strokes in sparklines, hover sheen on tiles. Re-pick these one-by-one when scoping data-viz-densification.
+
+**Pickup path for the deferred Chunk 5 sweep:** [data-viz-densification.md](data-viz-densification.md) is the natural home — its sparkline component, `:has()` outline rules, and ambient-hue-drift section all already reference theme tokens (updated 2026-05-26 to use the `--theme-*` namespace). When that arc gets picked up, the per-surface accent wiring lands incidentally.
+
+**Original 7-chunk plan retained below for context.**
+
+---
+
+**Status (historical):** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Promotes the existing per-champion "theme color" (currently used only for splash backdrop overlay tint) into a **full propagated accent token** (`--accent`, `--accent-fg`, `--accent-muted`, `--accent-strong`) that cascades to focus rings, scrollbar, sparklines, hover glow, and `<meta name="theme-color">` (so mobile browser chrome adopts the active entity's color).
 
 Read this before adding any visual that should "belong to" the current route/entity, and before scoping arcs that depend on `--accent` ([scroll-driven-shell.md](scroll-driven-shell.md) Chunk 4, [data-viz-densification.md](data-viz-densification.md), [editorial-typography.md](editorial-typography.md)).
 

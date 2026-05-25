@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { useChampionName } from "@/lol/champions/use-champions";
@@ -129,6 +131,11 @@ function MatchDetailLayout() {
       : undefined;
 
   useSplashChampion(myParticipant?.championName);
+  useThemeColor(
+    myParticipant?.championName
+      ? championTheme(myParticipant.championName).dominantHex
+      : null
+  );
 
   const heroSummary: MatchSummary | undefined =
     cachedSummary ??
