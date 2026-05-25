@@ -56,6 +56,9 @@ export default defineConfig({
     port: 2009,
     strictPort: true,
   },
+  build: {
+    target: "baseline-widely-available",
+  },
   optimizeDeps: {
     include: ["cmdk"],
   },

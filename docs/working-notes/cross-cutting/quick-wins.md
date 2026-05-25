@@ -16,8 +16,7 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 
 ## Build / tooling (one-line config wins)
 
-- **`build.target: 'baseline-widely-available'` in vite.config** — [apps/web/vite.config.ts](../../../apps/web/vite.config.ts). Today the project relies on Vite 8's default target without naming it. Setting it explicitly to `'baseline-widely-available'` (Vite 8's name for Baseline 2023 = Widely available in 2026) documents intent, produces measurably smaller output by skipping down-leveling of async/await/classes (5-15% bundle reduction on a typical React app per KB §9.3), and gives the next maintainer a one-line answer to "what browsers do we target?". Full context in [frontend-2026-gaps.md § Round 6 non-gaps](frontend-2026-gaps.md). ~5 min, atomic.
-- **`"sideEffects": false` on `packages/shared/package.json`** — pure re-export barrel today; absence of the annotation forces Rolldown to conservatively walk every leaf module on every import from `@vyoh/shared`. One-line fix. Full context in [frontend-2026-gaps.md § Gap 19](frontend-2026-gaps.md). ~5 min, atomic.
+✅ `build.target: 'baseline-widely-available'` and `"sideEffects": false` on `packages/shared` — shipped 2026-05-25.
 
 ## SEO hygiene (one-line config wins, no library adds)
 
