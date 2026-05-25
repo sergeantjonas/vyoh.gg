@@ -27,7 +27,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### Steam surfaces
 
-- **Description image rendering** — Steam game-detail "About this game" block currently drops every inline image (deliberate floor: no description-asset proxy yet). Parser leak that surfaced literal `{STEAM_APP_IMAGE}/extras/…` text under each list/img was fixed 2026-05-25 (0dfd0d7), but the dropped-images behaviour is unchanged. ~6–9 chunk plan written, framed as a proxy-engineering chapter — re-decide for/against editorial value at pickup. → [description-image-rendering.md](steam/description-image-rendering.md)
+- **Description image rendering** — Steam game-detail "About this game" block currently drops every inline image (deliberate floor: no description-asset proxy yet). Framing approved 2026-05-26 as a proxy-engineering chapter; ~6–9 chunk plan ready, chunk 1 (`bbcodeToHtml` token substitution in `packages/shared`) is the entry point. Closes the last unproxied Steam image family. → [description-image-rendering.md](steam/description-image-rendering.md)
 
 ### Pre-deploy / admin
 

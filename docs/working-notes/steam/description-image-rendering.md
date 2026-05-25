@@ -1,6 +1,6 @@
 # Steam description image rendering
 
-**Status:** Planned — chunk plan ready. Parser leak fixed 2026-05-25 ([0dfd0d7](../../../packages/shared/src/steam/bbcode-to-html.ts)), but inline images are still dropped wholesale. Pick up when proxy depth is the case-study target, not before — see § "Should we ship this?" for the framing tradeoff.
+**Status:** Ready to pick up — chunk plan ready, framing approved as a proxy-engineering chapter (see § "Framing decision"). Parser leak fixed 2026-05-25 ([0dfd0d7](../../../packages/shared/src/steam/bbcode-to-html.ts)); inline images still dropped wholesale at the consumer. Chunk 1 is the entry point.
 
 ## Today's behaviour
 
@@ -36,14 +36,14 @@ The same token (`{STEAM_CLAN_IMAGE}` for community-image references) may appear 
 - A new Steam image-proxy family (description assets) — symmetric with the existing LoL 12-family proxy, closes the last unproxied Steam image surface.
 - Reusable shape for future bbcode surfaces (community posts, news, workshop) if those ever land.
 
-## Should we ship this?
+## Framing decision
 
-Tradeoff worth re-deciding at the start of the arc, not assumed:
+**Decided 2026-05-26: ship as a proxy-engineering chapter.** The case-study value (token parsing, extension probing, animated-gif transcode, cache layering, closing the last unproxied Steam image family) is the headline. Visual enrichment of the about-block is a side effect, not the goal — so scope the editorial polish (chunk 6: per-description cap, reduced-motion handling, width-cap) to keep the surface from drifting toward "Steam storefront clone."
 
-- **For:** Proxy-engineering depth — token parsing, extension probing, animated-gif transcode, cache layering. Concrete case-study material on top of the existing LoL pipeline. Visual richness on a currently text-heavy block.
-- **Against:** These are publisher marketing gifs. Inserting 4–5 animated assets per game-detail page nudges the surface from "self-portrait dashboard" toward "Steam storefront clone," which fights the framing in [self-portrait-surfaces.md](./player-portrait.md) and the rest of the project.
+Recorded tradeoff for reference:
 
-If picked up, scope the arc as a **proxy-engineering chapter** in the case study. If the goal is editorial enrichment of the detail page, prefer denser-signal alternatives first (review-summary panel, playtime histogram, achievement velocity chart) — those tell the user about themselves, not about the publisher.
+- **For:** Symmetric with the LoL 12-family proxy. Concrete depth on top of the existing image pipeline. The malformed-attribute / token-substitution / no-extension trio is unusual enough to write up.
+- **Against (mitigated by chunk 6):** Publisher marketing gifs aren't self-portrait content. The editorial cap + reduced-motion gate keeps the visual footprint bounded so the page still reads as "what this player thinks about this game" rather than "publisher promo loop."
 
 ---
 
