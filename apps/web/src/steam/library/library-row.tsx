@@ -97,6 +97,17 @@ export function LibraryRow({
         if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
         if (!heroRef.current && !logoRef.current) return;
         e.preventDefault();
+        // Strip every list-item's `view-transition-name` before snapshot
+        // capture. The row/tile `li`s carry per-game names (used by
+        // `withReorderViewTransition` for in-place sort/filter morphs);
+        // on a NAV transition those names exist only in OLD, so each row
+        // would get its own independent `::view-transition-old(...)`
+        // fade-out — reading as a flicker of "remnant cards" against the
+        // root crossfade. Clearing them collapses every non-clicked row
+        // into the root group's single unified fade.
+        for (const el of document.querySelectorAll<HTMLElement>("[data-list-item-vt]")) {
+          el.style.viewTransitionName = "";
+        }
         const base = `steam-game-${game.appid}`;
         if (heroRef.current) heroRef.current.style.viewTransitionName = `${base}-hero`;
         if (logoRef.current) logoRef.current.style.viewTransitionName = `${base}-logo`;
@@ -154,13 +165,13 @@ export function LibraryRow({
 
   if (!showHovercard)
     return (
-      <li ref={liRef} style={liStyle} data-index={dataIndex}>
+      <li ref={liRef} style={liStyle} data-index={dataIndex} data-list-item-vt>
         {link}
       </li>
     );
 
   return (
-    <li ref={liRef} style={liStyle} data-index={dataIndex}>
+    <li ref={liRef} style={liStyle} data-index={dataIndex} data-list-item-vt>
       <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
         <HoverCardPrimitive.Trigger asChild>{link}</HoverCardPrimitive.Trigger>
         <HoverCardPrimitive.Portal>

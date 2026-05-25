@@ -61,7 +61,13 @@ export function LibraryTile({
   };
 
   return (
-    <li ref={liRef} style={liStyle} data-index={dataIndex} className="group/tile">
+    <li
+      ref={liRef}
+      style={liStyle}
+      data-index={dataIndex}
+      data-list-item-vt
+      className="group/tile"
+    >
       <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
         <HoverCardPrimitive.Trigger asChild>
           <Link
@@ -86,6 +92,14 @@ export function LibraryTile({
               const el = morphLayerRef.current;
               if (!el) return;
               e.preventDefault();
+              // Drop every list-item VT name before snapshot capture so
+              // non-clicked tiles fall into the root group's unified
+              // crossfade. See LibraryRow's onClick for the rationale.
+              for (const target of document.querySelectorAll<HTMLElement>(
+                "[data-list-item-vt]"
+              )) {
+                target.style.viewTransitionName = "";
+              }
               const name = `steam-game-${game.appid}-hero`;
               el.style.viewTransitionName = name;
               const doc = document as Document & {
