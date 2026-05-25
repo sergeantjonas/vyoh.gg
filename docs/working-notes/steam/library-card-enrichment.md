@@ -1,6 +1,6 @@
 # Steam library-card enrichment — `GetItems` field harvest
 
-**Status:** Active — research session 2026-05-24 probed `IStoreBrowseService/GetItems/v1/` with every `include_*` flag and inventoried the unused fields. This note is the umbrella roadmap; each chunk below links out to the working-note (quick-wins, elevation arc, palette grammar, etc.) where it actually lands.
+**Status:** Largely shipped 2026-05-25 — chunks 0-6, 8, and 9a/9b/9c all landed in one session. The harvest's outstanding in-scope work is Chunk 7 (microtrailer hover preview), which lives in its own arc note ([microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md)). Backlogged rows (10-12) stay parked in [steam-integration.md candidate board](./steam-integration.md). This note is the umbrella roadmap; each chunk links out to the working-note (quick-wins, elevation arc, palette grammar, etc.) where it actually lands.
 
 Premise: the existing [enrichment.service.ts](../../../apps/api/src/steam/enrichment.service.ts) already calls `GetItems` per owned game and writes a `SteamGameEnrichment` row. The current `data_request` only opts into `include_assets`, `include_release`, `include_categories`, `include_tag_count` — but the same endpoint, same rate-limit budget, returns ~12 more field families when more flags flip on. Capturing them is purely "more `include_*: true` + more columns + more projection lines" — no new endpoint, no extra request, no second cache.
 

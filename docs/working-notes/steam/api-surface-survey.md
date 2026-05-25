@@ -13,7 +13,8 @@ Already wired ([steam-client.service.ts](../../../apps/api/src/steam/steam-clien
 - `ISteamUserStats/GetGlobalAchievementPercentagesForApp`
 - `IStoreBrowseService/GetItems`
 - `IWishlistService/GetWishlist`
-- `store.steampowered.com/api/appdetails` (legacy host, screenshot service only)
+
+(`store.steampowered.com/api/appdetails` was the screenshot source under the legacy lazy-fetch design — sunset 2026-05-25 by [library-card-enrichment.md Chunk 9c](./library-card-enrichment.md) when `IStoreBrowseService/GetItems`'s `screenshots` block was confirmed to cover the same data. No code now hits appdetails.)
 
 Everything below is **not yet wired**. Triaged into chunks the same way as [library-card-enrichment.md](./library-card-enrichment.md) — each lands in the matching destination note rather than this one.
 
