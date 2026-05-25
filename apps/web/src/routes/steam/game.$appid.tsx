@@ -241,15 +241,22 @@ function SteamGamePage() {
               franchises={game.franchiseNames}
             />
           )}
-          <p className="text-sm text-muted-foreground">
-            {game?.shortDescription ??
-              "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
-          </p>
-          {/* Disclosure toggle: only render when the upstream actually has
-              a full body to show (skips the toggle for DLC / bundle / demo
-              entries with no description on file). Once expanded, the body
-              renders inline beneath a soft divider so it visually belongs
-              to this card, not a new section. */}
+          {/* Description: the toggle swaps between summary (short) and
+              detail (full) views rather than stacking them — overlap between
+              the two strings is common (the short is often a marketing
+              condensation of the opening paragraphs of the full, sometimes
+              paraphrased), but it isn't universal, so an overlap-stripping
+              heuristic would hurt as many games as it helps. The simpler
+              rule is: show one or the other, never both. The toggle text
+              ("Read full description" / "Hide full description") and the
+              soft divider above the full body double as the section header
+              for the expanded view. */}
+          {!descExpanded && (
+            <p className="text-sm text-muted-foreground">
+              {game?.shortDescription ??
+                "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
+            </p>
+          )}
           {game && descMeta.hasDescription && (
             <>
               <button
