@@ -26,6 +26,10 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
 - **View Transitions rollout — remaining polish** — bulk of arc shipped 2026-05-24: champion + match + Steam library/row morphs, SectionShell → VT migration, Safari snapshot-cost bypass. LoL multi-element refinement closed as abandoned (tried, didn't justify the `ChampionCardChrome` restructure cost). Visual polish on shipped morphs also done 2026-05-24 (per-morph CSS defaults scoped to `intra-section`, `MORPH_SETTLE_MS` body-hold gated behind `!supportsViewTransitions()`). Remaining: telemetry before removing rect-morph fallback. Candidate surfaces still open: patches list↔detail, screenshot strip → lightbox, sort/filter reorder spikes. → [view-transitions-rollout.md § What's next](cross-cutting/view-transitions-rollout.md#whats-next-priority-order)
 
+### Steam surfaces
+
+- **Description image rendering** — Steam game-detail "About this game" block currently drops every inline image (deliberate floor: no description-asset proxy yet). Parser leak that surfaced literal `{STEAM_APP_IMAGE}/extras/…` text under each list/img was fixed 2026-05-25 (0dfd0d7), but the dropped-images behaviour is unchanged. ~6–9 chunk plan written, framed as a proxy-engineering chapter — re-decide for/against editorial value at pickup. → [description-image-rendering.md](steam/description-image-rendering.md)
+
 ### Pre-deploy / admin
 
 - **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces (including the new status-page triggers below). Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](ops/owner-auth.md)
