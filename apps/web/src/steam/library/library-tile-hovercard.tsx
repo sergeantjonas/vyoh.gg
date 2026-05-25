@@ -43,13 +43,13 @@ export function LibraryTileHovercardContent({
   game: SteamOwnedGame;
   // "tile" matches the square tile's hover popout: 2:1 hero strip + title +
   // playtime block. "row" is screenshot-only (no title/playtime, redundant
-  // with what the wide row already shows) and the hero area is fixed at the
-  // row's own height (h-36 = 144px) so the popout reads as a continuation
+  // with what the wide row already shows) and the hero area mirrors the
+  // row's own height (h-36 / sm:h-40) so the popout reads as a continuation
   // of the row rather than a free-floating card with mismatched proportions.
   variant?: "tile" | "row";
 }) {
   const showMeta = variant === "tile";
-  const heroSizeClass = variant === "tile" ? "aspect-[2/1]" : "h-36";
+  const heroSizeClass = variant === "tile" ? "aspect-[2/1]" : "h-36 sm:h-40";
   const [heroFailed, setHeroFailed] = useState(false);
   const [heroLoaded, setHeroLoaded] = useState(false);
 
