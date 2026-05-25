@@ -10,6 +10,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import {
@@ -139,6 +140,7 @@ function ChampionDetailPage() {
     [data, ids]
   );
   const championName = useChampionName();
+  useSplashChampion(championKey);
   useThemeColor(championTheme(championKey).dominantHex);
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
