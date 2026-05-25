@@ -61,6 +61,7 @@ function SteamGamePage() {
   useSteamGameBackdrop({
     appid,
     assetTimestamp: game?.assetTimestamp ?? null,
+    flipHero: game?.flipHero ?? false,
   });
 
   // Not every Steam game ships `library_hero.jpg` / `logo.png` — these are

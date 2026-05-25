@@ -1,6 +1,7 @@
 import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
 import { useRefCountedClaim } from "@/_shared/backdrop/use-ref-counted-claim";
 import { onRouteTransitionStart } from "@/lib/route-transition-bus";
+import { cn } from "@/lib/utils";
 import { steamPageBackgroundUrl } from "@/steam/_shared/steam-image";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { m, useReducedMotion } from "motion/react";
@@ -20,6 +21,14 @@ export type SteamGameBackdropClaim = {
   // and updated when Steam publishers refresh art. Optional because newly-owned
   // games render before the enrichment row catches up.
   assetTimestamp: number | null;
+  // Mirrors the hero img's flip state. The backdrop's underlying asset
+  // is the same `library_hero.jpg` for modern titles, blurred + dimmed
+  // at full screen. Without the matching flip, the route-VT crossfade
+  // from library → detail-page reveals an un-flipped Leon-on-left
+  // backdrop behind the flipped-row morph (RE4 case), which reads as
+  // "the destination is wrong" mid-animation. Optional so callers
+  // without enrichment data (live state / chronotype chips) can omit.
+  flipHero?: boolean;
 };
 
 type SteamBackdropContextValue = {
@@ -30,7 +39,9 @@ type SteamBackdropContextValue = {
 const SteamBackdropContext = createContext<SteamBackdropContextValue | null>(null);
 
 const isSameClaim = (a: SteamGameBackdropClaim, b: SteamGameBackdropClaim) =>
-  a.appid === b.appid && a.assetTimestamp === b.assetTimestamp;
+  a.appid === b.appid &&
+  a.assetTimestamp === b.assetTimestamp &&
+  (a.flipHero ?? false) === (b.flipHero ?? false);
 
 export function SteamProfileBackdrop({ children }: { children: ReactNode }) {
   const { data: summary } = useSteamSummary();
@@ -155,7 +166,16 @@ function GameBackdropLayer({ claim }: { claim: SteamGameBackdropClaim | null }) 
             // visibly during the route-transition opacity cross-fade.
             // `blur()` is the same compositing path but it's structurally
             // required for the visual treatment.
-            className="size-full scale-105 object-cover blur-[8px]"
+            //
+            // `scale-x-[-1.05]` (when claim.flipHero) keeps the 1.05
+            // ambient zoom from the unflipped path AND mirrors the X
+            // axis, matching the destination hero's flip so the route VT
+            // crossfade doesn't reveal an un-flipped backdrop behind the
+            // morphing row hero.
+            className={cn(
+              "size-full object-cover blur-[8px]",
+              activeClaim.flipHero ? "scale-x-[-1.05] scale-y-105" : "scale-105"
+            )}
           />
           {/* Layered dim wash: flat base (replaces the previous
               `brightness-75` filter, see comment on the img) + a
