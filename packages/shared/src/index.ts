@@ -132,7 +132,6 @@ export {
 } from "./steam/library-query.ts";
 export type { ParsedSteamLibraryQuery } from "./steam/library-query.ts";
 export { bbcodeToHtml } from "./steam/bbcode-to-html.ts";
-export { stripLeadingOverlapWithShort } from "./steam/description-overlap.ts";
 export type { SteamGameDescription } from "./steam/game-description.ts";
 export type { SteamGameScreenshots } from "./steam/game-screenshots.ts";
 export {

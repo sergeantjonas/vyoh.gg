@@ -20,7 +20,7 @@ import {
 } from "@/steam/_shared/steam-image";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
-import { GameAboutBlock, useGameDescriptionHtml } from "@/steam/game/game-about-block";
+import { GameAboutBlock } from "@/steam/game/game-about-block";
 import { GameDetailSkeleton } from "@/steam/game/game-detail-skeleton";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
@@ -32,7 +32,6 @@ import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
-import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 interface SteamGameSearch {
@@ -94,14 +93,6 @@ function SteamGamePage() {
     if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
     else setLogoLoaded(true);
   };
-
-  // Full-description disclosure. Default collapsed (short description is
-  // typically enough for a one-glance read); user opts in to load the full
-  // BBCode body inline. Per-page transient state — no persistence — because
-  // toggling open on every visit doesn't match the user's actual intent
-  // ("I want to read more about THIS game right now").
-  const [descExpanded, setDescExpanded] = useState(false);
-  const descMeta = useGameDescriptionHtml(appid, game?.shortDescription ?? null);
 
   // Page is grouped into three bands. The first ("Identity") collapses the
   // hero, the facts strip, and the editorial blurb into one tight visual
@@ -241,43 +232,15 @@ function SteamGamePage() {
               franchises={game.franchiseNames}
             />
           )}
-          {/* The short description is always visible — it's the page's
-              summary tagline. When the user expands the full body, the
-              renderer strips leading paragraphs that paraphrase the short
-              (see `stripLeadingOverlapWithShort`) so we don't restate the
-              same sentences twice. Games where the short is a standalone
-              tagline (no overlap with the full) leave the full body
-              untouched. */}
+          {/* Short description as the identity card's summary. The full
+              "About this game" body lives in its own card lower on the
+              page (band 2), physically separated by the screenshot strip
+              so any content overlap between the two doesn't read as
+              visually adjacent duplication. */}
           <p className="text-sm text-muted-foreground">
             {game?.shortDescription ??
               "Lifetime + recent playtime from the daily poller, with per-game achievement state where Steam exposes it."}
           </p>
-          {game && descMeta.hasDescription && (
-            <>
-              <button
-                type="button"
-                onClick={() => setDescExpanded((v) => !v)}
-                aria-expanded={descExpanded}
-                className="-mx-1 inline-flex w-fit cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <ChevronDown
-                  className={cn(
-                    "size-3.5 transition-transform",
-                    descExpanded && "rotate-180"
-                  )}
-                />
-                {descExpanded ? "Hide full description" : "Read full description"}
-              </button>
-              {descExpanded && (
-                <div className="mt-1 border-t border-border/40 pt-3">
-                  <GameAboutBlock
-                    appid={appid}
-                    shortDescription={game?.shortDescription ?? null}
-                  />
-                </div>
-              )}
-            </>
-          )}
         </section>
       )}
 
@@ -292,10 +255,18 @@ function SteamGamePage() {
         </p>
       )}
 
-      {/* Band 2 — Editorial. Screenshots stand alone — the full description
-          is now folded into the identity card above behind a disclosure
-          toggle, so the editorial band is purely media. */}
-      {game && <GameScreenshotStrip appid={appid} />}
+      {/* Band 2 — Editorial. Screenshots + the full "About this game" body
+          live here together. Screenshots come first so the strip acts as
+          the visual interlude between the identity card's short summary
+          and the longer prose — the eye doesn't pattern-match the
+          inevitable content overlap between the two descriptions when
+          they're separated by a wide media block. */}
+      {game && (
+        <section className="flex flex-col gap-4">
+          <GameScreenshotStrip appid={appid} />
+          <GameAboutBlock appid={appid} />
+        </section>
+      )}
 
       {/* Band 3 — Progress. Unlock timeline → 5-card verdict grid →
           per-achievement panel, in narrative order ("when did it happen"
