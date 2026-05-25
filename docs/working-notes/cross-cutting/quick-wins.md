@@ -20,9 +20,7 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 
 ## SEO hygiene (one-line config wins, no library adds)
 
-- **AI crawler tokens in `robots.txt`** — [apps/web/public/robots.txt](../../../apps/web/public/robots.txt) is `Allow: /` only. Add explicit `User-agent:` groups for `Google-Extended`, `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `ClaudeBot`, `anthropic-ai`, `Claude-User`, `PerplexityBot`, `Perplexity-User`, `CCBot`, `Applebot-Extended`, `Meta-ExternalAgent`, `Bytespider`. The portfolio's positioning logic *wants* training crawlers to ingest — record that decision in a comment so the next reviewer doesn't reflexively block them. Full context in [frontend-2026-gaps.md § Gap 28](frontend-2026-gaps.md). ~10 min, atomic.
-- **Sitemap `lastmod` + drop `changefreq`/`priority`** — [apps/web/public/sitemap.xml](../../../apps/web/public/sitemap.xml) ships fields Google explicitly ignores and lacks the only field Google honors. Replace with `<lastmod>YYYY-MM-DD</lastmod>` (truthful — git mtime or last redesign date, not build date). Full context in [frontend-2026-gaps.md § Gap 30](frontend-2026-gaps.md). ~5 min, atomic.
-- **`max-image-preview:large` robots meta** — one line in [apps/web/index.html](../../../apps/web/index.html): `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`. Discover eligibility, zero risk. Full context in [frontend-2026-gaps.md § Gap 33](frontend-2026-gaps.md). ~2 min, atomic.
+✅ AI crawler opt-in (`robots.txt`), sitemap `lastmod` cleanup, and `max-image-preview:large` meta — shipped 2026-05-25.
 
 ## Testing hygiene (one-line config wins, no library adds)
 
