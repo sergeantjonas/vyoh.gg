@@ -6,21 +6,30 @@ import * as upstream from "./upstream";
 
 const fetchChainSpy = vi.spyOn(upstream, "fetchUpstreamChain");
 const transcodeSpy = vi.spyOn(upstream, "transcodeToWebp");
+const streamSpy = vi.spyOn(upstream, "streamUpstream");
 
 interface ResStub {
   status: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
 }
 
-function makeRes(): ResStub & { _status: number } {
+function makeRes(): ResStub & { _status: number; _headers: Record<string, string> } {
   const send = vi.fn();
-  const wrapper: ResStub & { _status: number } = {
+  const setHeader = vi.fn();
+  const wrapper: ResStub & { _status: number; _headers: Record<string, string> } = {
     _status: 200,
+    _headers: {},
     status: vi.fn(),
     send,
+    setHeader,
   };
   wrapper.status.mockImplementation((code: number) => {
     wrapper._status = code;
+    return wrapper;
+  });
+  wrapper.setHeader.mockImplementation((name: string, value: string) => {
+    wrapper._headers[name] = value;
     return wrapper;
   });
   return wrapper;
@@ -71,6 +80,7 @@ beforeEach(() => {
 afterEach(() => {
   fetchChainSpy.mockReset();
   transcodeSpy.mockReset();
+  streamSpy.mockReset();
 });
 
 describe("ImgController.champion", () => {
@@ -364,5 +374,153 @@ describe("ImgController.champClass", () => {
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
     expect(upstream.transcodeToWebp).toHaveBeenCalled();
     expect(res.send).toHaveBeenCalled();
+  });
+});
+
+describe("ImgController.steamDescriptionAsset", () => {
+  const HASH = "b2d503549e33e6603c86b6bd7babdb38";
+
+  function makeBody() {
+    return { pipe: vi.fn() } as unknown as ReturnType<
+      typeof upstream.streamUpstream
+    > extends Promise<infer R>
+      ? R extends { body: infer B }
+        ? B
+        : never
+      : never;
+  }
+
+  it("returns 400 for a non-numeric appid", async () => {
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "abc",
+      `${HASH}.webm`,
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+    expect(streamSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a zero appid", async () => {
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "0",
+      `${HASH}.webm`,
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+  });
+
+  it("returns 400 when the asset name doesn't match the hash pattern", async () => {
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      "../../../../etc/passwd",
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+    expect(streamSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the extension isn't on the allowlist", async () => {
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      `${HASH}.gif`,
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+  });
+
+  it("streams a .webm with 200 + Accept-Ranges and pipes to res", async () => {
+    const body = makeBody();
+    streamSpy.mockResolvedValueOnce({
+      status: 200,
+      contentType: "video/webm",
+      contentLength: "12345",
+      contentRange: null,
+      acceptRanges: "bytes",
+      body,
+    });
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      `${HASH}.webm`,
+      undefined,
+      res as never
+    );
+    expect(streamSpy).toHaveBeenCalledWith(
+      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.webm`,
+      undefined
+    );
+    expect(res._status).toBe(200);
+    expect(res._headers["Content-Type"]).toBe("video/webm");
+    expect(res._headers["Accept-Ranges"]).toBe("bytes");
+    expect(res._headers["Content-Length"]).toBe("12345");
+    expect(res._headers["Content-Range"]).toBeUndefined();
+    expect(
+      (body as unknown as { pipe: ReturnType<typeof vi.fn> }).pipe
+    ).toHaveBeenCalledWith(res);
+  });
+
+  it("forwards the Range header and relays a 206 with Content-Range", async () => {
+    const body = makeBody();
+    streamSpy.mockResolvedValueOnce({
+      status: 206,
+      contentType: "video/webm",
+      contentLength: "1024",
+      contentRange: "bytes 0-1023/12345",
+      acceptRanges: "bytes",
+      body,
+    });
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      `${HASH}.webm`,
+      "bytes=0-1023",
+      res as never
+    );
+    expect(streamSpy).toHaveBeenCalledWith(expect.any(String), "bytes=0-1023");
+    expect(res._status).toBe(206);
+    expect(res._headers["Content-Range"]).toBe("bytes 0-1023/12345");
+  });
+
+  it("streams a .poster.avif under the same route", async () => {
+    const body = makeBody();
+    streamSpy.mockResolvedValueOnce({
+      status: 200,
+      contentType: "image/avif",
+      contentLength: "5000",
+      contentRange: null,
+      acceptRanges: "bytes",
+      body,
+    });
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      `${HASH}.poster.avif`,
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(200);
+    expect(res._headers["Content-Type"]).toBe("image/avif");
+  });
+
+  it("returns 502 when upstream throws an UpstreamError", async () => {
+    streamSpy.mockRejectedValueOnce(
+      new upstream.UpstreamError("https://up", new Error("dead"))
+    );
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      `${HASH}.webm`,
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(502);
   });
 });

@@ -1,4 +1,4 @@
-import { Controller, Get, Header, HttpStatus, Param, Res } from "@nestjs/common";
+import { Controller, Get, Header, Headers, HttpStatus, Param, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
   CHAMPION_CLASS_SLUGS,
@@ -15,10 +15,31 @@ import {
   type TranscodeParams,
   UpstreamError,
   fetchUpstreamChain,
+  streamUpstream,
   transcodeToWebp,
 } from "./upstream";
 
 const IMMUTABLE_YEAR = "public, max-age=31536000, immutable";
+
+// Description-block extras: content-hashed `<hash>.poster.avif` posters and
+// `<hash>.webm` clips Steam emits inline in `about_the_game` HTML. The hash
+// IS the cache key (Steam regenerates the hash on republish), so a 7-day
+// cache is conservative — most assets are immutable for the life of the
+// game's marketing page.
+const DESCRIPTION_ASSET_CACHE = "public, max-age=604800";
+// `<32-hex-hash>` for both webm + avif, with an optional `.poster` subext
+// before `.avif`. Anchored to keep the path-traversal surface zero — no
+// directory separators, no `..`, no querystring sneaking in via `:asset`.
+const DESCRIPTION_ASSET_RE = /^[a-f0-9]{32}(?:\.poster)?\.(webm|avif|png|jpg|jpeg)$/;
+const DESCRIPTION_CONTENT_TYPES: Record<string, string> = {
+  webm: "video/webm",
+  avif: "image/avif",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+};
+const STEAM_STORE_ASSETS_BASE =
+  "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps";
 
 const CHAMPION_VARIANTS = new Set<ChampionVariant>(["square", "card", "backdrop"]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
@@ -376,6 +397,61 @@ export class ImgController {
     }
     const resolved = await this.steam.achievementGray(id, apiName);
     await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
+  // Streaming proxy for description-block inline assets: WebM clips and AVIF
+  // posters Steam emits in the rendered `about_the_game` HTML. Range-aware
+  // because `<video>` scrubbing depends on 206 Partial Content; the route
+  // pipes the upstream body straight to the response without buffering, and
+  // forwards the upstream `Content-Range` / `Content-Length` headers so the
+  // client sees a faithful HTTP response. Cache-Control is set per-route at
+  // 7 days because the hash IS the cache key — content-hashed asset paths
+  // change when Steam regenerates them, so the upstream `?t=` cache-buster
+  // adds nothing here.
+  @Get("steam/desc/:appid/extras/:asset")
+  @Header("Cache-Control", DESCRIPTION_ASSET_CACHE)
+  async steamDescriptionAsset(
+    @Param("appid") appid: string,
+    @Param("asset") asset: string,
+    @Headers("range") range: string | undefined,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const match = DESCRIPTION_ASSET_RE.exec(asset);
+    if (!match) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const ext = match[1];
+    if (!ext) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const contentType = DESCRIPTION_CONTENT_TYPES[ext];
+    if (!contentType) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const url = `${STEAM_STORE_ASSETS_BASE}/${id}/extras/${asset}`;
+    try {
+      const result = await streamUpstream(url, range);
+      res.status(result.status);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Accept-Ranges", result.acceptRanges ?? "bytes");
+      if (result.contentLength) res.setHeader("Content-Length", result.contentLength);
+      if (result.contentRange) res.setHeader("Content-Range", result.contentRange);
+      result.body.pipe(res);
+    } catch (err) {
+      if (err instanceof UpstreamError) {
+        res.status(HttpStatus.BAD_GATEWAY).send();
+        return;
+      }
+      throw err;
+    }
   }
 
   private async proxyWebp(

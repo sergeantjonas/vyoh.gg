@@ -4,6 +4,7 @@ import {
   UpstreamError,
   fetchUpstream,
   fetchUpstreamChain,
+  streamUpstream,
   transcodeToWebp,
 } from "./upstream";
 
@@ -162,5 +163,66 @@ describe("transcodeToWebp", () => {
     const meta = await sharp(out).metadata();
     expect(meta.width).toBe(8);
     expect(meta.height).toBe(8);
+  });
+});
+
+describe("streamUpstream", () => {
+  it("returns the upstream body as a Readable with response headers surfaced", async () => {
+    const payload = new TextEncoder().encode("clip-bytes").buffer as ArrayBuffer;
+    mockFetchOnce(
+      () =>
+        new Response(payload, {
+          status: 200,
+          headers: {
+            "content-type": "video/webm",
+            "content-length": "10",
+            "accept-ranges": "bytes",
+          },
+        })
+    );
+    const result = await streamUpstream("https://cdn.example/clip.webm");
+    expect(result.status).toBe(200);
+    expect(result.contentType).toBe("video/webm");
+    expect(result.contentLength).toBe("10");
+    expect(result.acceptRanges).toBe("bytes");
+    expect(result.contentRange).toBeNull();
+    const chunks: Buffer[] = [];
+    for await (const chunk of result.body) chunks.push(chunk as Buffer);
+    expect(Buffer.concat(chunks).toString()).toBe("clip-bytes");
+  });
+
+  it("forwards Range to upstream and treats 206 as success", async () => {
+    let receivedRange: string | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string | URL, init?: RequestInit) => {
+        const headers = init?.headers as Record<string, string> | undefined;
+        receivedRange = headers?.Range;
+        return new Response(new ArrayBuffer(1), {
+          status: 206,
+          headers: { "content-range": "bytes 0-0/100" },
+        });
+      })
+    );
+    const result = await streamUpstream("https://cdn/clip.webm", "bytes=0-0");
+    expect(receivedRange).toBe("bytes=0-0");
+    expect(result.status).toBe(206);
+    expect(result.contentRange).toBe("bytes 0-0/100");
+  });
+
+  it("throws UpstreamError on a non-2xx, non-206 response", async () => {
+    mockFetchOnce(() => new Response(null, { status: 404 }));
+    await expect(streamUpstream("https://cdn/missing.webm")).rejects.toBeInstanceOf(
+      UpstreamError
+    );
+  });
+
+  it("throws UpstreamError when the upstream response has no body", async () => {
+    // 204 No Content has res.ok=true but body=null — treat as upstream failure
+    // since we have nothing to pipe.
+    mockFetchOnce(() => new Response(null, { status: 204 }));
+    await expect(streamUpstream("https://cdn/empty.webm")).rejects.toBeInstanceOf(
+      UpstreamError
+    );
   });
 });

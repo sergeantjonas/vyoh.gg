@@ -1,3 +1,5 @@
+import { Readable } from "node:stream";
+import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import sharp from "sharp";
 
 // Bounded budget so a hung upstream can't tie up a Node worker. The proxy is
@@ -91,6 +93,56 @@ export async function transcodeToWebp(
   }
   if (blur !== undefined) pipeline = pipeline.blur(blur);
   return pipeline.webp({ quality }).toBuffer();
+}
+
+// Streaming variant for assets the proxy must pipe untouched — Steam
+// description-block `<video>` WebM clips are 1–10 MB each × up to ~5 per
+// page; buffering them into RAM before res.send would waste memory and
+// break HTTP `Range` requests (the `<video>` element relies on 206 for
+// scrubbing + bandwidth probing). Forwards an optional `Range` header to
+// the upstream and surfaces its status/headers so the controller can
+// faithfully relay them. Caller is responsible for piping the returned
+// body to the response.
+export interface StreamUpstreamResult {
+  status: number;
+  contentType: string | null;
+  contentLength: string | null;
+  contentRange: string | null;
+  acceptRanges: string | null;
+  body: Readable;
+}
+
+export async function streamUpstream(
+  url: string,
+  range?: string
+): Promise<StreamUpstreamResult> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const headers: Record<string, string> = {};
+    if (range) headers.Range = range;
+    const res = await fetch(url, { signal: ac.signal, headers });
+    // 206 Partial Content is a success for `Range` requests; treat it like 200.
+    if (!res.ok && res.status !== 206) {
+      throw new UpstreamError(url, `HTTP ${res.status}`);
+    }
+    if (!res.body) {
+      throw new UpstreamError(url, "no body");
+    }
+    return {
+      status: res.status,
+      contentType: res.headers.get("content-type"),
+      contentLength: res.headers.get("content-length"),
+      contentRange: res.headers.get("content-range"),
+      acceptRanges: res.headers.get("accept-ranges"),
+      body: Readable.fromWeb(res.body as WebReadableStream),
+    };
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    throw new UpstreamError(url, err);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Attempt each candidate URL in order; return bytes from the first 2xx. Used
