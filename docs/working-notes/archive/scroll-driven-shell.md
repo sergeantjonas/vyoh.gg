@@ -1,6 +1,6 @@
 # Scroll-driven shell behaviors
 
-**Status:** Shipped 2026-05-26. All six chunks landed: motion.css with scroll-timeline + @property, nav compaction (--nav-collapse), splash opacity decay (.splash-scroll-scrim), section progress hairline (ScrollProgress), view-entry on BentoTile + CardShell. Firefox degrades gracefully (animation absent, initial state). prefers-reduced-motion: replace strategy in motion.css.
+**Status:** Shipped 2026-05-26, refined 2026-05-26. Shipped scope: motion.css with named `--main-scroll` timeline + @property, nav compaction (`--nav-collapse`), section progress hairline ([scroll-progress.tsx](../../../apps/web/src/components/scroll-progress.tsx)), view-entry on BentoTile + CardShell. **Splash opacity decay was reverted** — the wrapper opacity multiplier made the splash feel dull, and removing it surfaced the Ken Burns loop against low-res splash art; the right call was to leave the pre-arc splash behavior intact. `SplashProvider` now drives `useThemeColor` so the per-route `--theme-color` cascade follows the active backdrop champion. ScrollProgress lives as a sibling of `<main>` (between `#section-header-slot` and `<main>`) — inside `<main>` it inherited the scrollbar-gutter inset. Firefox stable doesn't ship CSS scroll-driven animations on default builds, so ScrollProgress carries a JS fallback (`CSS.supports("animation-timeline: scroll()")` feature-detect → `requestAnimationFrame`-throttled scroll listener on `mainScrollRef`); nav compaction degrades to its initial-value state (uncompacted) on Firefox stable. prefers-reduced-motion: replace strategy in motion.css.
 
 Read this when adding any scroll-coupled visual behavior, or when scoping a polish pass on the `<main>` scroll container.
 
@@ -35,8 +35,14 @@ The reverted parallax used a JS-driven `y` transform that caused jank under load
 | `animation-timeline: scroll()` | 115+ | 26+ | Behind `layout.css.scroll-driven-animations.enabled` |
 | `animation-timeline: view()` | 115+ | 26+ | Same flag |
 | `@property` (needed for animating custom props) | 85+ | 16.4+ | 128+ |
+| `timeline-scope` (named timeline across subtrees) | 115+ | 26+ | Same flag |
 
-Firefox falls back to **no animation** — the styled state is the initial keyframe. Acceptable because all four target behaviors are decoration: the nav still works, the splash still shows, content still scrolls.
+Firefox stable falls back to **no animation** — the styled state is the initial-value keyframe (e.g. `--nav-collapse: 0` = uncompacted nav). Acceptable for decoration tier. The progress hairline carries a JS fallback so it still tracks scroll on Firefox stable; the other surfaces stay at their initial state.
+
+Two practical Firefox quirks discovered during the refinement pass:
+
+- **`animation-duration` must be non-zero.** The `animation: <name> linear both` shorthand defaults duration to `0s`, which Firefox refuses to apply — even when `animation-timeline` is set. Use `1ms` as a sentinel; the duration is ignored once the scroll timeline takes over. Applies to every `animation:` declaration inside the `@supports (animation-timeline: scroll())` block.
+- **Don't rely on `animation-fill-mode: both` with an unresolved timeline.** If the timeline can't resolve (Firefox stable, broken named-lookup, etc.), `fill: both` plus a `0s` default duration collapses to a 0-duration time-based animation that instantly completes at the `to` keyframe — manifests as "bar permanently at 100%, nav permanently compacted." Gate every scroll-driven rule behind `@supports (animation-timeline: scroll())` so non-supporting engines see only the initial-value state.
 
 ---
 
@@ -179,6 +185,40 @@ Modified:
 Per [reduced-motion-replacements.md](reduced-motion-replacements.md):
 
 - **Nav compaction**: replace with the *compacted state always*. Better information density anyway for reduced-motion users on smaller viewports.
-- **Splash opacity decay**: replace with a single static value at the midpoint (`0.18`). Calmer than animating.
 - **Section progress indicator**: leave the bar at 100% width with reduced opacity — it becomes a static accent underline.
 - **`view()` entries**: replace with `opacity: 1; transform: none` (just don't animate in).
+
+(Splash opacity decay reduced-motion replacement was dropped along with the feature — splash now uses its baseline pre-arc opacity unconditionally.)
+
+---
+
+## Post-ship refinements (2026-05-26)
+
+After the initial six chunks landed, an iteration pass produced these changes:
+
+### Splash decay reverted
+
+Initial implementation wrapped `ChampionSplashLayer` in a `.splash-scroll-scrim` div with `opacity: var(--splash-opacity)` decaying from `0.28` → `0.08` across the first 320px of scroll. Two problems surfaced once it shipped:
+
+1. The endpoint at `0.08` made the data-reading region feel **dull** — the splash effectively disappeared, killing the per-champion identity signal.
+2. Tuning the endpoint upward (`0.16`) helped the dullness, but the wrapper introduced an opacity multiplier on top of the inner image's existing `opacity: 0.2` / `filter: brightness(0.7)` baseline — the splash was never going to read the same as pre-arc no matter how we tuned it.
+3. Removing the wrapper entirely surfaced the existing Ken Burns drift loop (which had always been there but was masked by the previously-lower visible opacity), and the slow scale 1 → 1.13 + ±3% drift was more noticeable than expected against 1080p splash art.
+
+Resolution: revert the splash decay entirely. The `--splash-opacity` `@property`, `splash-decay` keyframes, `.splash-scroll-scrim` rule, `@supports` declaration, and reduced-motion replacement were all removed. The inner image's `animate={{ opacity: imgReady ? 0.2 : 0 }}` is back to its pre-arc value (had drifted to `1.0` during the experiment). Ken Burns retained — it was always part of pre-arc behavior, and once the visible opacity returned to `0.2` the motion reads as ambience rather than passive resizing.
+
+### `--theme-color` cascade lifted into `SplashProvider`
+
+Originally `useThemeColor` was called per-route (champion detail, match detail). Now `SplashProvider` calls it from the active backdrop champion, so the accent cascade follows the splash automatically — account overview, champion detail, match detail, and any future LoL surface that claims the splash all light up without per-route wiring. Removed the explicit `useThemeColor` calls and `championTheme` imports from `$championKey.tsx` and `$matchId.tsx`.
+
+### ScrollProgress relocated outside `<main>`
+
+Initial placement: inside `<main>` with `position: sticky; top: 0`. Two problems:
+
+1. `<main>` has `scrollbar-gutter: stable both-edges` (~10px reserved on each side to prevent content shift). Any element inside `<main>` is constrained to the content area; the bar sat inset on both sides. Negative margins (`-mx-4`) shifted the bar's box but not its rendered `width: var(--progress-width)` resolution, so the bar still rendered at content-width regardless.
+2. Anonymous `animation-timeline: scroll()` (which I'd used to avoid `timeline-scope`) worked in Chrome/Safari but the gutter constraint forced a re-architecture anyway.
+
+Resolution: ScrollProgress is now a sibling of `<main>`, mounted between `#section-header-slot` and `<main>` in [__root.tsx](../../../apps/web/src/routes/__root.tsx). It gets the full viewport width naturally. Switched back to the named `--main-scroll` timeline (timeline-scope on `<body>` reaches it across the subtree). 2px inline-margin (`mx-0.5`) tucks the bar a hair inside the viewport edges so it doesn't overlap window chrome.
+
+### Firefox JS fallback for the progress bar
+
+Firefox stable still has `layout.css.scroll-driven-animations.enabled` flagged off as of 2026-05. `CSS.supports("animation-timeline: scroll()")` returns false → the `@supports` block doesn't apply → `--progress-width` stays at its initial `0%` → bar invisible. Added a feature-detected JS fallback in [scroll-progress.tsx](../../../apps/web/src/components/scroll-progress.tsx): when CSS support is missing, attach a `requestAnimationFrame`-throttled scroll listener to `mainScrollRef` that writes `--progress-width` directly. Chrome/Safari early-return and stay on the pure-CSS path. The fallback is scoped to the progress bar only — nav compaction stays at its uncompacted initial state on Firefox stable (decoration tier, acceptable).
