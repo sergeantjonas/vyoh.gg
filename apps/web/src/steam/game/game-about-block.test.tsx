@@ -80,6 +80,81 @@ describe("GameAboutBlock", () => {
     expect(screen.getByText(/Text\./)).toBeTruthy();
   });
 
+  it("prefers rendered html over bbcode when both are present and renders <video>", () => {
+    const hash = "b2d503549e33e6603c86b6bd7babdb38";
+    const payload: SteamGameDescription = {
+      appid: 1245620,
+      bbcode: "[b]bbcode fallback[/b]",
+      html: `<h2>About</h2><video autoplay muted loop playsinline poster="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${hash}.poster.avif"><source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${hash}.webm" type="video/webm"></video>`,
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={1245620} />);
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    expect(video?.getAttribute("poster")).toBe(
+      `http://localhost:2010/img/steam/desc/1245620/extras/${hash}.poster.avif`
+    );
+    const source = container.querySelector("video source");
+    expect(source?.getAttribute("src")).toBe(
+      `http://localhost:2010/img/steam/desc/1245620/extras/${hash}.webm`
+    );
+    expect(container.textContent).not.toContain("bbcode fallback");
+  });
+
+  it("falls back to bbcode rendering when html is null", () => {
+    const payload: SteamGameDescription = {
+      appid: 42,
+      bbcode: "[b]bbcode fallback[/b]",
+      html: null,
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
+    expect(container.querySelector("strong")?.textContent).toBe("bbcode fallback");
+  });
+
+  it("falls back to bbcode when html is the terminal empty-string sentinel", () => {
+    const payload: SteamGameDescription = {
+      appid: 42,
+      bbcode: "[b]bbcode body[/b]",
+      html: "",
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
+    expect(container.querySelector("strong")?.textContent).toBe("bbcode body");
+  });
+
+  it("drops non-extras image URLs from the rendered html branch", () => {
+    const payload: SteamGameDescription = {
+      appid: 42,
+      bbcode: null,
+      html: '<p>Body</p><img src="https://publisher.example.com/promo.jpg" alt="promo">',
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={42} />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent).toContain("Body");
+  });
+
   it("renders nothing on a network error", () => {
     vi.mocked(useGameDescription).mockReturnValue({
       data: undefined,

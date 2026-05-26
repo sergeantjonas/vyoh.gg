@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  rewriteSteamDescriptionAssetUrl,
   steamAchievementIconUrl,
   steamCapsuleUrl,
   steamLibraryCapsuleUrl,
@@ -70,5 +71,71 @@ describe("steam image url helpers", () => {
     expect(steamAchievementIconUrl(440, "BACKSTABBER", true)).toBe(
       "http://localhost:2010/img/steam/achievement-gray/440/BACKSTABBER/1.webp"
     );
+  });
+});
+
+describe("rewriteSteamDescriptionAssetUrl", () => {
+  const HASH = "b2d503549e33e6603c86b6bd7babdb38";
+
+  it("rewrites a .webm extras URL to the proxy path", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.webm`
+      )
+    ).toBe(`http://localhost:2010/img/steam/desc/1245620/extras/${HASH}.webm`);
+  });
+
+  it("rewrites a .poster.avif extras URL to the proxy path", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.poster.avif`
+      )
+    ).toBe(`http://localhost:2010/img/steam/desc/1245620/extras/${HASH}.poster.avif`);
+  });
+
+  it("strips the ?t=… cache-buster from the upstream URL", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.webm?t=1767883716`
+      )
+    ).toBe(`http://localhost:2010/img/steam/desc/1245620/extras/${HASH}.webm`);
+  });
+
+  it("accepts http as well as https upstreams", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        `http://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.webm`
+      )
+    ).toContain("/img/steam/desc/1245620/extras/");
+  });
+
+  it("returns null for non-extras Steam paths (publisher screenshots, header art)", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg"
+      )
+    ).toBeNull();
+  });
+
+  it("returns null for upstream URLs with editorial slug filenames (pre-pivot bbcode shape)", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/er_steam_gif_01_-_wide"
+      )
+    ).toBeNull();
+  });
+
+  it("returns null for non-Steam hosts", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(`https://evil.example.com/extras/${HASH}.webm`)
+    ).toBeNull();
+  });
+
+  it("returns null for unsupported extensions", () => {
+    expect(
+      rewriteSteamDescriptionAssetUrl(
+        `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.mp4`
+      )
+    ).toBeNull();
   });
 });

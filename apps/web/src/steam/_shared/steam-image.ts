@@ -151,3 +151,19 @@ export function steamAchievementIconUrl(
   const route = gray ? "achievement-gray" : "achievement";
   return `${API_URL}/img/steam/${route}/${appid}/${apiName}/${ACHIEVEMENT_SCHEMA_VERSION}.webp`;
 }
+
+// Matches Steam's rendered `about_the_game` asset URLs — content-hashed
+// `<hash>.webm` and `<hash>.poster.avif` paths emitted inside `<video>` and
+// `<source>` tags. Pattern mirrors the API proxy's validation regex so a
+// rejected URL never reaches the network (the proxy would return 400
+// either way, but skipping the round-trip keeps the rendered surface free
+// of broken-image placeholders). The `?t=` cache-buster is stripped because
+// the content hash IS the identity — Steam emits a fresh hash on republish.
+const STEAM_DESCRIPTION_ASSET_URL_RE =
+  /^https?:\/\/[^/]+\/store_item_assets\/steam\/apps\/(\d+)\/extras\/([a-f0-9]{32}(?:\.poster)?\.(?:webm|avif|png|jpg|jpeg))(?:\?.*)?$/;
+
+export function rewriteSteamDescriptionAssetUrl(url: string): string | null {
+  const m = STEAM_DESCRIPTION_ASSET_URL_RE.exec(url);
+  if (!m) return null;
+  return `${API_URL}/img/steam/desc/${m[1]}/extras/${m[2]}`;
+}

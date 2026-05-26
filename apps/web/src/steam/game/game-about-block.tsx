@@ -1,30 +1,39 @@
 import { bbcodeToHtml, sanitizeRichHtml } from "@vyoh/shared";
 import { useMemo } from "react";
+import { rewriteSteamDescriptionAssetUrl } from "../_shared/steam-image";
 import { useGameDescription } from "./use-game-description";
 
-// `<img>` policy: drop all inline images for now. Steam descriptions embed
-// publisher screenshots/logos via raw `steamcdn-a.akamaihd.net` URLs, which
-// would either leak the upstream into the browser (no caching, no transcode)
-// or require a generic image proxy endpoint that doesn't yet exist. The
-// editorial intent of the "About this game" block is the text content;
-// screenshots ship in their own strip. When the generic proxy lands, swap
-// the `rewriteImgSrc` to route through it.
-function rewriteImgSrcDrop(): null {
-  return null;
-}
-
-// Render order: raw BBCode → bbcodeToHtml (Steam dialect → tagged HTML) →
-// sanitizeRichHtml (LoL trust-boundary pipeline → safe HTML) → React via
-// `dangerouslySetInnerHTML`. Both layers are pure and run on each render —
-// the source rarely changes (cron updates the column on content patches), so
-// memoise so re-renders during scroll / route transitions are free.
-function useRenderedDescription(bbcode: string | null): string | null {
+// Render order, preferred path: rendered `about_the_game` HTML from Steam's
+// storefront → sanitizeRichHtml with `allowVideo: true` → React via
+// `dangerouslySetInnerHTML`. Content-hashed `extras/<hash>.{webm,poster.avif}`
+// URLs (the only path to Steam's inline gameplay clips) route through the
+// project's description-asset proxy; any non-extras URL is dropped to keep
+// raw upstreams out of the browser. Steam emits both `<img>` and `<video>`
+// inside about-the-game, so the same rewriter feeds both attribute hooks.
+//
+// Fallback path: monthly-enriched BBCode rendered through bbcodeToHtml + the
+// img-drop policy. Used while the lazy `aboutTheGameHtml` fetch is in flight,
+// when the storefront fetch failed transiently, and for delisted titles where
+// Steam emits no about-block (html === ""). BBCode survival keeps the card
+// from disappearing on the first cold view.
+function useRenderedDescription(
+  html: string | null,
+  bbcode: string | null
+): string | null {
   return useMemo(() => {
+    if (html && html.length > 0) {
+      const safe = sanitizeRichHtml(html, {
+        allowVideo: true,
+        rewriteImgSrc: rewriteSteamDescriptionAssetUrl,
+        rewriteVideoUrl: rewriteSteamDescriptionAssetUrl,
+      });
+      if (safe.length > 0) return safe;
+    }
     if (!bbcode) return null;
-    const html = bbcodeToHtml(bbcode);
-    const safe = sanitizeRichHtml(html, { rewriteImgSrc: rewriteImgSrcDrop });
+    const fromBb = bbcodeToHtml(bbcode);
+    const safe = sanitizeRichHtml(fromBb, { rewriteImgSrc: () => null });
     return safe.length > 0 ? safe : null;
-  }, [bbcode]);
+  }, [html, bbcode]);
 }
 
 // Standalone "About this game" card. Lives in its own band on the
@@ -43,7 +52,7 @@ function useRenderedDescription(bbcode: string | null): string | null {
 //     entire card is hidden so an empty box doesn't reserve space)
 export function GameAboutBlock({ appid }: { appid: number }) {
   const { data, isPending, isError } = useGameDescription(appid);
-  const html = useRenderedDescription(data?.bbcode ?? null);
+  const html = useRenderedDescription(data?.html ?? null, data?.bbcode ?? null);
 
   if (isPending) {
     return (
@@ -69,8 +78,8 @@ export function GameAboutBlock({ appid }: { appid: number }) {
         About this game
       </h2>
       <div
-        className="text-sm text-muted-foreground [&_h1]:mt-3 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground/85 [&_h1:first-child]:mt-0 [&_h2]:mt-3 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground/70 [&_h2:first-child]:mt-0 [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground/85 [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:text-foreground/90 [&_ul]:my-2"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml; img dropped
+        className="text-sm text-muted-foreground [&_h1]:mt-3 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground/85 [&_h1:first-child]:mt-0 [&_h2]:mt-3 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground/70 [&_h2:first-child]:mt-0 [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground/85 [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:text-foreground/90 [&_ul]:my-2 [&_video]:my-2 [&_video]:h-auto [&_video]:max-w-full [&_video]:rounded"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml with video/img allowlist + proxy rewriters
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </section>
