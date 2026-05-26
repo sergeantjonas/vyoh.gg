@@ -63,7 +63,7 @@ function RootLayout() {
                 no intrinsic height; it grows to fit the portaled header and
                 its compact-spring padding animation, and <main flex-1> absorbs
                 the delta. */}
-            <div id="section-header-slot" className="relative z-50" />
+            <div id="section-header-slot" className="relative z-40" />
             <ScrollProgress />
             <main
               ref={(el) => {
