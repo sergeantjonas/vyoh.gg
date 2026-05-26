@@ -206,3 +206,34 @@ describe("SteamImageService.achievement / achievementGray", () => {
     );
   });
 });
+
+describe("SteamImageService.descriptionAsset", () => {
+  it("composes the extras/<name>.<ext> URL under the canonical CDN root", () => {
+    const service = makeService(makePrisma());
+    const resolved = service.descriptionAsset(1245620, "er_steam_gif_01_-_wide", "gif");
+    expect(resolved.url).toBe(
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/er_steam_gif_01_-_wide.gif"
+    );
+  });
+
+  it.each([
+    ["gif", "gif"],
+    ["png", "png"],
+    ["jpg", "jpg"],
+    ["jpeg", "jpeg"],
+  ])("preserves the ext (%s) verbatim in the composed URL", (ext, expected) => {
+    const service = makeService(makePrisma());
+    const resolved = service.descriptionAsset(440, "promo_banner", ext);
+    expect(resolved.url).toBe(
+      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/extras/promo_banner.${expected}`
+    );
+  });
+
+  it("does not hit prisma — pure composition, no DB enrichment needed", () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma);
+    service.descriptionAsset(440, "asset", "gif");
+    expect(prisma.steamGameEnrichment.findUnique).not.toHaveBeenCalled();
+    expect(prisma.steamGameAchievement.findUnique).not.toHaveBeenCalled();
+  });
+});
