@@ -10,6 +10,12 @@ vi.mock("./use-game-description", () => ({
   useGameDescription: vi.fn(),
 }));
 
+// Default to "no reduce motion" so the html branch renders <video>.
+// Individual tests override via mockReturnValueOnce.
+vi.mock("motion/react", () => ({
+  useReducedMotion: vi.fn(() => false),
+}));
+
 function renderWithClient(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
@@ -99,11 +105,82 @@ describe("GameAboutBlock", () => {
     expect(video?.getAttribute("poster")).toBe(
       `http://localhost:2010/img/steam/desc/1245620/extras/${hash}.poster.avif`
     );
+    expect(video?.getAttribute("preload")).toBe("metadata");
     const source = container.querySelector("video source");
     expect(source?.getAttribute("src")).toBe(
       `http://localhost:2010/img/steam/desc/1245620/extras/${hash}.webm`
     );
     expect(container.textContent).not.toContain("bbcode fallback");
+  });
+
+  it("swaps <video> for an <img> using the poster under prefers-reduced-motion", async () => {
+    const { useReducedMotion } = await import("motion/react");
+    vi.mocked(useReducedMotion).mockReturnValueOnce(true);
+    const hash = "b2d503549e33e6603c86b6bd7babdb38";
+    const payload: SteamGameDescription = {
+      appid: 1245620,
+      bbcode: null,
+      html: `<video autoplay poster="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${hash}.poster.avif" width="780" height="320"><source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${hash}.webm" type="video/webm"></video>`,
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={1245620} />);
+    expect(container.querySelector("video")).toBeNull();
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(
+      `http://localhost:2010/img/steam/desc/1245620/extras/${hash}.poster.avif`
+    );
+    expect(img?.getAttribute("loading")).toBe("lazy");
+    expect(img?.getAttribute("decoding")).toBe("async");
+    expect(img?.getAttribute("width")).toBe("780");
+    expect(img?.getAttribute("height")).toBe("320");
+  });
+
+  it("caps rendered media at the editorial limit", () => {
+    const hash = "b2d503549e33e6603c86b6bd7babdb38";
+    const sources = Array.from({ length: 8 }, () => hash);
+    const videos = sources
+      .map(
+        (h) =>
+          `<video autoplay poster="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/extras/${h}.poster.avif"><source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/extras/${h}.webm" type="video/webm"></video>`
+      )
+      .join("");
+    const payload: SteamGameDescription = {
+      appid: 1,
+      bbcode: null,
+      html: `<p>Intro</p>${videos}<p>Outro</p>`,
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={1} />);
+    expect(container.querySelectorAll("video").length).toBe(5);
+    expect(container.textContent).toContain("Intro");
+  });
+
+  it("adds loading=lazy + decoding=async to inline <img> in the html branch", () => {
+    const payload: SteamGameDescription = {
+      appid: 1245620,
+      bbcode: null,
+      html: '<p>x</p><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/b2d503549e33e6603c86b6bd7babdb38.poster.avif" alt="frame">',
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={1245620} />);
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("loading")).toBe("lazy");
+    expect(img?.getAttribute("decoding")).toBe("async");
   });
 
   it("falls back to bbcode rendering when html is null", () => {
