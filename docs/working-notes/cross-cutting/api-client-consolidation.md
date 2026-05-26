@@ -1,5 +1,7 @@
 # API client consolidation — deferred decision
 
+**Status:** Reference — decision record from a 2026-05-25 analysis comparing the Riot and Steam upstream clients in `apps/api/`. Conclusion: keep them separate today; revisit when a third upstream (Spotify, GitHub, WakaTime) lands.
+
 Decision record from a 2026-05-25 analysis comparing the Riot and Steam upstream clients in `apps/api/`. Conclusion: keep them separate today; revisit when a third upstream lands.
 
 Surface this note any time a new upstream API integration is being scoped (Spotify, GitHub, WakaTime, or any other third-party fetcher beyond Riot + Steam).

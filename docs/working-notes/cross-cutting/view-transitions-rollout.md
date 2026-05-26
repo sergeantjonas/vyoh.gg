@@ -1,6 +1,6 @@
 # View Transitions API rollout
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Replaces ~200 lines of manual rect-morph plumbing (`active-match-context.tsx`, `active-champion-context.tsx`) with the native View Transitions API where the browser supports it; Motion `layoutId` morph stays as the cross-browser fallback.
+**Status:** Shipped (bulk) 2026-05-24 — section-shell VT migration, champion + match + Steam library/row morphs, sort/filter reorder spikes, patches reflow, and the Safari snapshot-cost bypass all landed (`778a805`, `5193301`, `fbb4703`, `646f7da`, `0c4d134`, `0db5547`, `54dce85`, `816b9c1`). LoL multi-element refinement closed as abandoned (didn't justify the `ChampionCardChrome` restructure cost). Remaining open: telemetry before removing the rect-morph fallback, plus candidate surfaces (patches list↔detail, screenshot strip → lightbox) catalogued in [What's next](#whats-next-priority-order). Tracked under "View Transitions rollout — remaining polish" in [open-work.md](../open-work.md).
 
 Read this when starting the VT rollout, or before extending the rect-capture pattern to a third surface (Steam library, live-game participants).
 

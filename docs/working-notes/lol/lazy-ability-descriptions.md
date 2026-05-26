@@ -1,6 +1,8 @@
-# vyoh.gg — Lazy ability descriptions (parked follow-up arc)
+# vyoh.gg — Lazy ability descriptions
 
-**Status:** Parked — proposed 2026-05-21 immediately after the 6.5 sync run hit ~58/447 wiki 429s on cold-start (a recurrence of the original arc's known caveat). Owner's question: *"could we not populate as we need rather than getting EVERYTHING?"*
+**Status:** Shipped 2026-05-21 — chunks L1 (backend resolver + `GET /lol/static/ability/:championId/:slot/:abilityIndex`) and L2 (web `useAbilityDescription` hook + tooltip shimmer) both landed. `ensureAbilityDescription` in [lol-static-sync.service.ts](../../../apps/api/src/lol/lol-static-sync.service.ts), endpoint in [lol-static.controller.ts](../../../apps/api/src/lol/lol-static.controller.ts), web hook at [use-ability-description.ts](../../../apps/web/src/lol/matches/use-ability-description.ts), `wikiSyncedPatchVersion` watermark column on `LolChampionAbility` in [schema.prisma](../../../apps/api/prisma/schema.prisma). Cold-start cron tick no longer fans out ~800 wiki calls; descriptions stream in on first hover per patch.
+
+The remainder of this note is the original 2026-05-21 proposal, kept as a design record of the shipped resolver/dedup/watermark approach.
 
 ## Motivation
 

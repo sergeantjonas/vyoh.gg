@@ -1,6 +1,6 @@
 # vyoh.gg — Post-static-metadata roadmap (3-arc sequencing)
 
-**Status:** Roadmap drafted 2026-05-21 as the LoL static-metadata arc (chunks 4a–6.5) wrapped up. Three follow-up arcs are parked in this folder; this note sequences them and flags inter-arc dependencies so each can land cleanly.
+**Status:** Reference — post-arc roadmap drafted 2026-05-21 as the LoL static-metadata arc (chunks 4a–6.5) wrapped up. All three follow-ups have since shipped on the recommended sequence: `lazy` (2026-05-21), `unified` (2026-05-21 to 2026-05-23), `rich` (2026-05-21). Kept as a record of how the three arcs were sequenced and which inter-arc dependencies held.
 
 ## The three arcs
 

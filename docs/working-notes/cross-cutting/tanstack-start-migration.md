@@ -1,6 +1,6 @@
 # TanStack Start migration — Vite SPA → SSR on Hetzner
 
-**Status:** Parked — proposal written 2026-05-22 against the frontend-2026 knowledge base. Not scoped into open-work yet; gated to the pre-launch sweep alongside [owner-auth.md](../ops/owner-auth.md) and [hosting.md](../ops/hosting.md). Materially changes the web tier shape that hosting.md currently assumes (static rsync → long-running Node SSR), so the two notes need to land together when the sweep starts.
+**Status:** Active — committed direction (2026-05-26). Migration will happen as part of the pre-launch sweep alongside [owner-auth.md](../ops/owner-auth.md) and [hosting.md](../ops/hosting.md). Materially changes the web tier shape that hosting.md currently assumes (static rsync → long-running Node SSR), so the two notes need to land together when the sweep starts. Sequenced after MR3/MR4 + PN1–PN4 ship and TFT shape is decided, before owner-auth implementation begins. Round 5 N (route-loader pilot on match-detail) is the migration-safe Start prep that lands first.
 
 ## Motivation
 

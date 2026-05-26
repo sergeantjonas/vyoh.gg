@@ -1,6 +1,6 @@
 # vyoh.gg — LoL image asset pipeline
 
-**Status:** Active — Phases 0–4 all shipped (runtime image proxy chunks 1–4 landed 2026-05-16). One open tail: the wiki-image migration — 12 files spread across matches, profile, champions, shared analytics/assets, the live tab, and `components/game-icons.tsx` still resolve images through `cdn.communitydragon.org`/`raw.communitydragon.org` client-side; target end state is zero CDragon client usages via `wikiEntryIconUrl()` (direction confirmed 2026-05-17 during patch-notes PN7). Tracked in [open-work.md](../open-work.md).
+**Status:** Shipped — Phases 0–4 landed 2026-05-16; the wiki-image migration closed via the [unified-image-fallback](./unified-image-fallback.md) arc (chunks A–F, shipped 2026-05-21 to 2026-05-23). All client-side `cdn.communitydragon.org`/`raw.communitydragon.org` usages are gone; every LoL image flows through the runtime proxy with wiki-primary upstream + 2-stage fallback. Kept as a reference for the splash-resolver fix, build-time prefetch, automated patch refresh, and runtime fallback design.
 
 Working plan for the image-loading arc. Read this when working on: champion icon / splash performance, the splash-resolver, build-time asset prefetch, the CI refresh workflow, runtime URL helpers, or the static-asset story in the hosting note.
 
