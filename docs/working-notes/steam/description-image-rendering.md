@@ -1,6 +1,6 @@
 # Steam description image rendering
 
-**Status:** Active — chunk 1 (parser token substitution) shipped 2026-05-26; inline images still dropped wholesale at the consumer until chunk 5. Chunk 2 (API proxy family `store_item_assets/extras`) is the next entry point.
+**Status:** Active — chunk 1 (parser token substitution) shipped 2026-05-26; chunk 2 attempted 2026-05-26 and **reverted same-day** (the slug-form `extras/<name>.<ext>` URL it proxied doesn't exist on Steam's CDN — Steam stores extras as content-hashed `<hash>.poster.avif` + `<hash>.webm` exposed via `<video>` in the storefront's pre-rendered `about_the_game` HTML). Arc pivoted to **Option A: consume the rendered HTML directly**. Chunk A1 (storage + sync) is the next entry point.
 
 ## Today's behaviour
 
@@ -16,59 +16,77 @@ So the visual gap on the game-detail "About this game" block (no gameplay gifs, 
 
 ## The source shape
 
-Verified live for Elden Ring (`appid 1245620`) via `GET /steam/game/1245620/description` on 2026-05-25. Each inline image is emitted as:
+Verified live for Elden Ring (`appid 1245620`) on 2026-05-26 via two independent probes:
+
+**1. BBCode (what our DB stores).** `GET /steam/game/1245620/description` returns:
 
 ```
 [img=http://STEAM_APP_IMAGE}/extras/er_steam_gif_01_-_wide fromclient=1]{STEAM_APP_IMAGE}/extras/er_steam_gif_01_-_wide[/img]
 ```
 
-Three quirks to handle:
+Three quirks to handle at the parser layer (all addressed in chunk 1):
+1. **Token, not URL.** `{STEAM_APP_IMAGE}` is Steam's template placeholder. Canonical substitution is `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>`.
+2. **No extension.** `er_steam_gif_01_-_wide` is path-only. The `_gif_` substring is a publisher-supplied naming hint, not a contract.
+3. **Attribute URL is malformed.** `http://STEAM_APP_IMAGE}` is missing `{` and uses `http` not `https`. Inner-text token is the trustworthy one.
 
-1. **Token, not URL.** `{STEAM_APP_IMAGE}` is Steam's template placeholder. Canonical substitution is `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>` (also reachable through `cdn.cloudflare.steamstatic.com` and `shared.steamstatic.com`).
-2. **No extension.** `er_steam_gif_01_-_wide` is path-only. The `_gif_` substring is a naming hint, not a contract — Steam's own renderer resolves the extension via storefront metadata we don't fetch. Real-world set seen on Elden Ring: all `.gif`. Other publishers ship `.png`/`.jpg`.
-3. **Attribute URL is malformed.** Note `http://STEAM_APP_IMAGE}` (missing `{`, `http` not `https`). The inner-text token is the trustworthy one. Our 2026-05-25 fix prefers the attribute URL but falls back to inner-text — for these we'd want the opposite preference or skip the attribute entirely once we recognise the token.
+**2. Rendered HTML (what Steam's storefront serves to users).** `GET https://store.steampowered.com/api/appdetails?appids=1245620&l=en` returns an `about_the_game` field with each inline image fully rendered as:
 
-The same token (`{STEAM_CLAN_IMAGE}` for community-image references) may appear in some descriptions; treat them as a follow-up family — Elden Ring doesn't use it.
+```html
+<video class="bb_img" autoplay muted loop playsinline crossorigin="anonymous"
+       poster="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/b2d503549e33e6603c86b6bd7babdb38.poster.avif?t=1767883716"
+       width=780 height=320>
+  <source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/b2d503549e33e6603c86b6bd7babdb38.webm?t=1767883716" type="video/webm">
+</video>
+```
+
+**Critical finding (2026-05-26):** the bbcode slug `er_steam_gif_01_-_wide` is an editorial label, not a CDN path. The actual stored assets are content-hashed `<md5>.poster.avif` (still) + `<md5>.webm` (animation), and the slug→hash mapping lives only in Steam's backend — exposed exclusively through `about_the_game`. Direct fetches of `/extras/<slug>.gif` (any host, any ext) return 404. This invalidated the original chunks 2–4.
+
+The same token (`{STEAM_CLAN_IMAGE}` for community-image references) may appear in some descriptions; treat as a follow-up family — Elden Ring doesn't use it.
 
 ## What rendering this unlocks
 
-- Animated gameplay gifs in-place on the game-detail page, matching Steam's storefront editorial intent.
-- A new Steam image-proxy family (description assets) — symmetric with the existing LoL 12-family proxy, closes the last unproxied Steam image surface.
-- Reusable shape for future bbcode surfaces (community posts, news, workshop) if those ever land.
+- Animated gameplay clips in-place via `<video>` autoplay (WebM), matching Steam's own storefront output.
+- A new description-asset proxy family in `apps/api/src/img` — covers WebM (video) + AVIF (poster). Closes the last unproxied Steam image surface AND adds a new video-mime branch to the proxy (range/streaming).
+- A video-aware sanitiser policy (current LoL sanitiser is `<img>`-only).
+- Reusable shape for future Steam HTML surfaces (community posts, news, workshop) if those ever land.
 
 ## Framing decision
 
-**Decided 2026-05-26: ship as a proxy-engineering chapter.** The case-study value (token parsing, extension probing, animated-gif transcode, cache layering, closing the last unproxied Steam image family) is the headline. Visual enrichment of the about-block is a side effect, not the goal — so scope the editorial polish (chunk 6: per-description cap, reduced-motion handling, width-cap) to keep the surface from drifting toward "Steam storefront clone."
+**Decided 2026-05-26: ship as a proxy-engineering chapter (Option A pivot).**
 
-Recorded tradeoff for reference:
+Original framing (proxy + bbcode token resolution) was invalidated when we discovered the slug-form CDN path doesn't exist. Rather than build a slug→hash resolver service on top of bbcode (Option B), we pivoted to consuming Steam's pre-rendered `about_the_game` HTML directly. Case-study value shifts from "bbcode token parser" to "video-capable sanitiser + range-streaming proxy for a new media class" — equally rich, more current.
 
-- **For:** Symmetric with the LoL 12-family proxy. Concrete depth on top of the existing image pipeline. The malformed-attribute / token-substitution / no-extension trio is unusual enough to write up.
-- **Against (mitigated by chunk 6):** Publisher marketing gifs aren't self-portrait content. The editorial cap + reduced-motion gate keeps the visual footprint bounded so the page still reads as "what this player thinks about this game" rather than "publisher promo loop."
+Recorded tradeoffs for reference:
+
+- **For Option A:** Steam does slug→hash resolution server-side. We render in the modern formats Steam itself ships (WebM + AVIF), not gif transcode. Range-streaming the proxy is a substantive new chapter. Single source of truth (`about_the_game` column).
+- **Against Option A:** Bbcode parser work (chunk 1) becomes mostly cosmetic for the extras case — still useful for any non-extras `{STEAM_APP_IMAGE}` references. Sanitiser needs `<video>`/`<source>` support, not just `<img>`. Range/206 handling is new for the proxy.
+- **Against the publisher-marketing concern:** editorial cap + `prefers-reduced-motion` gate (chunk A5) keeps the about-block from drifting into "publisher promo loop" framing.
 
 ---
 
-## Chunk plan
+## Chunk plan (post-pivot, 2026-05-26)
 
-Sized so each row is independently committable and verifiable. Total estimate: ~6–9 focused chunks. The first four are the technical core; the last three are productisation.
+Sized so each row is independently committable and verifiable. Total estimate: ~6–7 focused chunks plus tests.
 
 | # | Title | Lands in | Notes |
 |---|---|---|---|
-| 1 ✅ | `bbcodeToHtml` token substitution | `packages/shared` | Shipped 2026-05-26. Optional `appid` arg; `{STEAM_APP_IMAGE}` substituted via `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>`; inner-text preferred over the malformed attribute when it begins with a recognised template token; `{STEAM_CLAN_IMAGE}` deferred to chunk 9. |
-| 2 | API proxy family: `store_item_assets/extras` | `apps/api/src/img` | New upstream family in [upstream.ts](../../../apps/api/src/img/upstream.ts) + [steam-image.service.ts](../../../apps/api/src/img/steam-image.service.ts). Path shape: `/img/steam/desc/<appid>/<asset>.<ext>`. Mirrors existing Steam header/library logic for caching, ETag, content-type passthrough. |
-| 3 | Extension resolution | `apps/api/src/img` | First miss: HEAD-probe `.gif`, `.png`, `.jpg` in that order against the upstream CDN; cache the winning ext per `(appid, asset)` in Postgres (`SteamDescriptionAssetExt` row or column on existing enrichment). Falls back to 404 if all three miss. |
-| 4 | Animated GIF transcode policy | `apps/api/src/img` | Decide: pass-through `.gif`, transcode to `.webp` (smaller, single-pass), or `.mp4`/`.webm` (smallest, but adds `<video>` rendering on the consumer side). Lean WebP — keeps `<img>` tag, ~70-80% size reduction vs gif. Validate animation preservation. |
-| 5 | Consumer flip: route via proxy | `apps/web/src/steam/game` | Replace `rewriteImgSrcDrop` in [game-about-block.tsx](../../../apps/web/src/steam/game/game-about-block.tsx) with a rewriter that recognises `{STEAM_APP_IMAGE}`-substituted URLs and rewrites them to the `/img/steam/desc/...` proxy path. Update the comment block at [game-about-block.tsx:5-13](../../../apps/web/src/steam/game/game-about-block.tsx#L5) describing the new policy. |
-| 6 | Editorial polish | `apps/web/src/steam/game` | Cap image count per description (e.g. first 3) to keep scroll length sane. Add `loading="lazy"` + `decoding="async"`. Width-cap CSS so wide promo banners don't blow out the card. Honor `prefers-reduced-motion` for animated assets (pause to first frame, or skip rendering). |
-| 7 | Tests | both layers | Parser: token-substitution variants, malformed attribute form, both `{STEAM_APP_IMAGE}` and `{STEAM_CLAN_IMAGE}`. API: extension-probe cache, 404 fallthrough, transcode output. Web: snapshot of Elden Ring's about-block with images on. |
-| 8 *(optional)* | Backfill probe | `apps/api/src/steam` | One-off script: parse every stored `fullDescriptionBbcode`, extract `(appid, asset)` pairs, pre-warm the extension cache so the first browser request isn't a probe miss. Cheap, makes the rollout feel instant. |
-| 9 *(optional)* | `{STEAM_CLAN_IMAGE}` family | both layers | Only if a real game in the library uses it. Same shape as chunks 2–3, different upstream root (`steamcommunity/public/images/clans/<clanid>/`). |
+| 1 ✅ | `bbcodeToHtml` token substitution | `packages/shared` | Shipped 2026-05-26. Optional `appid` arg; `{STEAM_APP_IMAGE}` substituted via canonical CDN base; inner-text preferred over malformed attribute for token-shaped sources. Retained post-pivot because the parser is still on the critical path for any non-extras `{STEAM_APP_IMAGE}` reference and for parser-level case-study writeups. |
+| ~~2~~ | ~~Passthrough proxy for `extras/<slug>.<ext>`~~ | `apps/api/src/img` | **Attempted + reverted 2026-05-26 (commit 43667a0 → revert 3689c93).** Built a content-type passthrough route at `/img/steam/desc/<appid>/extras/<assetName>.<ext>`. Upstream returns 404 across all three CDN hosts and all extension probes — the slug path simply doesn't exist on the CDN. See "The source shape" finding above. |
+| A1 | Storage + sync | `apps/api/src/steam` + Prisma | Add `aboutTheGameHtml` column to `SteamGameEnrichment` (or equivalent). Populate from `storefront/api/appdetails?appids=<appid>&l=en` during existing game-enrichment sync. Verify whether the sync already hits `appdetails` (likely — that's where `fullDescriptionBbcode` comes from) and extend it rather than introducing a second call. Migration + sync extension + backfill script. |
+| A2 | Sanitiser extensions | `packages/shared/src/lol/sanitize-rich-html.ts` (or split per-domain) | Allow `<video>` + `<source>` + `<br>` with strict per-tag attribute allowlists. Allowed video attrs: `autoplay muted loop playsinline poster preload width height`. Source attrs: `src type`. Rewrite `src` and `poster` via callback. Strip Steam's `class="bb_*"` noise (we re-style via Tailwind anyway). Confirm `<br>` survives — `bb_tag` heading classes already get stripped. |
+| A3 | Description-asset proxy | `apps/api/src/img` | Route shape `/img/steam/desc/<appid>/extras/<hash>.<ext>` with `ext ∈ {webm, avif, png, jpg, jpeg}`. Image branch (avif/png/jpg) uses the existing buffer-and-send shape. **Video branch (`webm`) streams with `Range` / `206 Partial Content`** — new pattern for the proxy. Cache-Control immutable for content-hashed paths. |
+| A4 | Consumer flip | `apps/web/src/steam/game` | Switch `useGameDescription` source from bbcode to `aboutTheGameHtml`. Replace `rewriteImgSrcDrop` with rewriters for `<img src>`, `<video poster>`, `<source src>` that route hashed `extras/...` URLs through the proxy. Render `<video>` via `dangerouslySetInnerHTML` (sanitiser now allows it). Update the policy comment block. |
+| A5 | Editorial polish | `apps/web/src/steam/game` | Cap rendered media count per description (first 3–5). Add `loading="lazy"` + `decoding="async"` to `<img>`. Add `preload="metadata"` to `<video>` so the WebM isn't eagerly downloaded. Honor `prefers-reduced-motion` (replace `<video>` with the AVIF poster as `<img>`, or pause + remove `autoplay`). Width-cap CSS. |
+| A6 | Tests | all layers | API: range-request shape (200 vs 206, `Content-Range`, partial bytes), MIME branching, validation guards. Sanitiser: `<video>`/`<source>` allowlist + strip of disallowed attributes + class scrubbing. Web: snapshot of Elden Ring's about-block with media on, `prefers-reduced-motion` fallback. |
+| A7 *(optional)* | Backfill probe | `apps/api/src/steam` | One-off script to populate `aboutTheGameHtml` for already-synced games so the first render isn't blocked on enrichment. Makes the rollout feel instant. |
 
 ## Risks / decisions to revisit at start
 
-- **Sanitizer img policy** — confirm [sanitize-rich-html.ts](../../../packages/shared/src/lol/sanitize-rich-html.ts) actually preserves `<img>` tags through to `rewriteImgSrc`. If it strips `<img>` outright, the LoL-shared sanitiser needs an opt-in, or Steam needs its own sanitiser variant.
-- **Animated GIF cost** — Elden Ring ships 5 wide gifs; some publishers (early access, demo storefronts) ship 10+. Decide on a per-page cap *before* enabling rendering — easier than retrofitting.
-- **HEAD-probe latency** — three sequential HEADs on first miss is ~600ms-1s on cold cache. Either parallelise probes or accept the cold-fetch latency since it only happens once per asset. Chunk 8 (backfill) makes this moot in production.
-- **Transcode worker shape** — chunk 4 introduces ffmpeg/sharp in the request path. Decide whether to do it inline (simple, blocks request) or via a background BullMQ job (matches the planned LoL backfill worker shape — see CLAUDE.md note on Redis/BullMQ).
+- **Sync extension shape** — confirm whether existing Steam-game-enrichment code already calls `appdetails` for bbcode. If so, A1 is a column-add + extend-existing-mapper. If not, A1 needs a new API client surface + rate-limit considerations.
+- **Range-streaming pattern** — current `fetchUpstream` buffers the whole response into a `Buffer` and `res.send`s it. WebM clips can be 1–10 MB each × 5 per page; buffer-then-send wastes memory and breaks `Range` requests. A3 likely needs a streaming variant (`fetch` body → `ReadableStream` → pipe to `res`) that honours upstream `Content-Range`/`Accept-Ranges`. This is the meatiest chunk.
+- **`prefers-reduced-motion` policy** — pause + remove `autoplay`, or swap `<video>` for the AVIF poster as `<img>`? The latter avoids loading the WebM entirely (bandwidth + battery). Probably worth the asymmetry.
+- **Sanitiser scope** — does the LoL sanitiser become Steam-aware (`<video>` allowed only under a Steam opt-in), or do we split a Steam-specific sanitiser? The LoL shape doesn't need `<video>` and arguably shouldn't allow it. Lean toward an opt-in flag (`{ allowVideo: true }`) rather than a fork.
+- **DLC / bundle empty `about_the_game`** — many DLC entries have empty or trivial `about_the_game`. The existing `null`-return branch in `GameAboutBlock` handles this, but confirm A1's sync sets the column to `null` (not empty string) for those rows.
 
 ## Pointer hygiene
 
