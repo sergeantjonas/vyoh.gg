@@ -26,6 +26,11 @@ async function processChampion(alias: string): Promise<ChampionAsset> {
   if (!res.ok) throw new Error(`fetch ${alias} splash → HTTP ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
 
+  // node-vibrant categorises the median-cut clusters into six slots; prefer
+  // mid-lightness saturated tones (Vibrant) and fall through toward lighter
+  // or dimmer alternatives. Drives the `--theme-color` cascade so source
+  // chroma matters more than source lightness — index.css derives lifted /
+  // muted / strong variants via relative oklch.
   const palette = await Vibrant.from(buffer).getPalette();
   const dominantHex =
     palette.Vibrant?.hex ??
@@ -96,7 +101,10 @@ async function main() {
   };
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const outPath = resolve(__dirname, "../../../apps/web/src/data/champion-assets.json");
+  const outPath = resolve(
+    __dirname,
+    "../../../apps/web/src/lol/_shared/assets/champion-assets.json"
+  );
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(output, null, 2)}\n`);
 
