@@ -18,6 +18,7 @@
 //   [list]..[/list]   → <ul>..</ul>     [olist]..[/olist] → <ol>..</ol>
 //   [*] item          → <li>item</li>   (terminated by next [*] or end of list)
 //   [img]URL[/img]    → <img src="URL"> (URL caller-rewritten via sanitizer)
+//   [img=URL ...]L    → <img src="URL"> (attribute form, see IMG_ATTR_RE below)
 //   [url=X]Y[/url]    → Y               (strip link, keep text — same policy
 //   [url]Y[/url]      → Y                as the LoL sanitiser drops <a>)
 //   blank line        → paragraph break (split into <p>..</p> blocks)
@@ -65,6 +66,19 @@ const IMG_RE = /\[img\]([\s\S]*?)\[\/img\]/gi;
 // label that would otherwise leak as visible text once UNKNOWN_TAG_RE strips
 // the wrapper.
 const IMG_ATTR_RE = /\[img=([^\]]*)\]([\s\S]*?)\[\/img\]/gi;
+// Steam's template placeholder for app-scoped description assets. Resolves to
+// `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>`
+// (also reachable via cdn.cloudflare.steamstatic.com and shared.steamstatic.com).
+// Only substituted when an `appid` is supplied to bbcodeToHtml.
+const STEAM_APP_IMAGE_TOKEN = "{STEAM_APP_IMAGE}";
+const STEAM_CLAN_IMAGE_TOKEN = "{STEAM_CLAN_IMAGE}";
+const steamAppImageBase = (appid: number): string =>
+  `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}`;
+const substituteSteamTokens = (src: string, appid: number | undefined): string => {
+  if (appid === undefined) return src;
+  if (!src.includes(STEAM_APP_IMAGE_TOKEN)) return src;
+  return src.split(STEAM_APP_IMAGE_TOKEN).join(steamAppImageBase(appid));
+};
 // Drop any remaining unknown bracket tag (open or close, with optional
 // `=value` arg). Inner content survives because we don't match across the
 // closer here.
@@ -126,7 +140,10 @@ function paragraphise(html: string): string {
   return wrapped.join("\n");
 }
 
-export function bbcodeToHtml(input: string | null | undefined): string {
+// `appid` is required to substitute Steam's `{STEAM_APP_IMAGE}` template token
+// in description image URLs. When omitted, any `{STEAM_APP_IMAGE}` substring
+// survives unchanged — the downstream sanitiser / image proxy will reject it.
+export function bbcodeToHtml(input: string | null | undefined, appid?: number): string {
   if (!input) return "";
   // Escape first so any literal `<`/`>` in the source can't smuggle real HTML
   // through the inline-tag conversions below.
@@ -152,16 +169,24 @@ export function bbcodeToHtml(input: string | null | undefined): string {
   html = html.replace(IMG_RE, (_full, url: string) => {
     const trimmed = url.trim();
     if (!trimmed) return "";
-    return `<img src="${escapeAttr(trimmed)}">`;
+    return `<img src="${escapeAttr(substituteSteamTokens(trimmed, appid))}">`;
   });
-  // `[img=URL ...]label[/img]`: the attribute holds the real URL (possibly
-  // followed by space-separated extras like `fromclient=1`). Prefer the
-  // attribute over the inner-text label, which is typically a duplicate or a
-  // template token like `{STEAM_APP_IMAGE}/extras/…`.
+  // `[img=URL ...]label[/img]`: the attribute usually holds the real URL,
+  // followed by space-separated extras like `fromclient=1`. For Steam template
+  // tokens, however, the attribute is emitted *malformed* — e.g.
+  // `http://STEAM_APP_IMAGE}/extras/…` (missing `{`, wrong scheme) — while the
+  // inner-text label carries the canonical `{STEAM_APP_IMAGE}/extras/…` token.
+  // Prefer the inner-text when it begins with a recognised template token;
+  // fall back to attribute-first for the non-token form.
   html = html.replace(IMG_ATTR_RE, (_full, attr: string, inner: string) => {
-    const src = (attr.split(/\s+/)[0] ?? "").trim() || inner.trim();
+    const attrUrl = (attr.split(/\s+/)[0] ?? "").trim();
+    const innerUrl = inner.trim();
+    const innerLooksTemplated =
+      innerUrl.startsWith(STEAM_APP_IMAGE_TOKEN) ||
+      innerUrl.startsWith(STEAM_CLAN_IMAGE_TOKEN);
+    const src = innerLooksTemplated ? innerUrl : attrUrl || innerUrl;
     if (!src) return "";
-    return `<img src="${escapeAttr(src)}">`;
+    return `<img src="${escapeAttr(substituteSteamTokens(src, appid))}">`;
   });
   // URL: keep inner text, drop the link itself (LoL sanitiser policy).
   html = html.replace(URL_WITH_TEXT_RE, (_full, text: string) => text);

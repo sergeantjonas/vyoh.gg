@@ -53,11 +53,57 @@ describe("bbcodeToHtml", () => {
     const html = bbcodeToHtml(
       "[img=http://STEAM_APP_IMAGE}/extras/foo fromclient=1]{STEAM_APP_IMAGE}/extras/foo[/img]"
     );
-    // The {STEAM_APP_IMAGE} token (with curly braces) is the inner label;
-    // it must not survive as visible text. The token *without* braces appears
-    // inside the attribute URL, which is fine — it's inside src=.
-    expect(html).not.toContain("{STEAM_APP_IMAGE}");
     expect(html).toMatch(/<img\s+src="[^"]*"\s*>/);
+    // The visible-text path must not leak the token. The src= attribute may
+    // still contain it (when no appid is passed for substitution); that's
+    // checked separately in the substitution suite below.
+    expect(html).not.toMatch(/>\s*\{STEAM_APP_IMAGE\}/);
+  });
+
+  describe("{STEAM_APP_IMAGE} substitution", () => {
+    // Canonical resolution per Steam's storefront renderer.
+    const base = (appid: number) =>
+      `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}`;
+
+    it("substitutes the token in plain [img] URLs when appid is supplied", () => {
+      expect(bbcodeToHtml("[img]{STEAM_APP_IMAGE}/extras/foo[/img]", 1245620)).toBe(
+        `<p><img src="${base(1245620)}/extras/foo"></p>`
+      );
+    });
+
+    it("leaves the token unchanged when appid is omitted", () => {
+      // No substitution — the sanitiser / image proxy downstream rejects the
+      // non-https src. The parser must not invent a URL.
+      const html = bbcodeToHtml("[img]{STEAM_APP_IMAGE}/extras/foo[/img]");
+      expect(html).toContain("{STEAM_APP_IMAGE}");
+    });
+
+    it("prefers inner-text over the malformed attribute for token-shaped sources", () => {
+      // Real-world Elden Ring shape: attribute is `http://STEAM_APP_IMAGE}/…`
+      // (missing `{`, wrong scheme); inner-text holds the canonical
+      // `{STEAM_APP_IMAGE}/…` token. With the inner-text-first policy + appid
+      // substitution we land on a proper https URL.
+      const html = bbcodeToHtml(
+        "[img=http://STEAM_APP_IMAGE}/extras/gif fromclient=1]{STEAM_APP_IMAGE}/extras/gif[/img]",
+        1245620
+      );
+      expect(html).toBe(`<p><img src="${base(1245620)}/extras/gif"></p>`);
+    });
+
+    it("keeps attribute-first preference for non-token attribute-form URLs", () => {
+      // Existing happy path: attribute holds a real URL, inner is just a
+      // label. The chunk-1 changes must not regress this.
+      const html = bbcodeToHtml(
+        "[img=https://cdn.example/a.gif fromclient=1]inner label[/img]",
+        1245620
+      );
+      expect(html).toBe('<p><img src="https://cdn.example/a.gif"></p>');
+    });
+
+    it("leaves {STEAM_CLAN_IMAGE} unchanged (handled in a later chunk)", () => {
+      const html = bbcodeToHtml("[img]{STEAM_CLAN_IMAGE}/12345/abc.png[/img]", 1245620);
+      expect(html).toContain("{STEAM_CLAN_IMAGE}");
+    });
   });
 
   it("converts [list]/[*] to <ul>/<li>", () => {

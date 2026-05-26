@@ -29,7 +29,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ### Steam surfaces
 
-- **Description image rendering** — Steam game-detail "About this game" block currently drops every inline image (deliberate floor: no description-asset proxy yet). Framing approved 2026-05-26 as a proxy-engineering chapter; ~6–9 chunk plan ready, chunk 1 (`bbcodeToHtml` token substitution in `packages/shared`) is the entry point. Closes the last unproxied Steam image family. → [description-image-rendering.md](steam/description-image-rendering.md)
+- **Description image rendering** — Steam game-detail "About this game" block currently drops every inline image (deliberate floor: no description-asset proxy yet). Framing approved 2026-05-26 as a proxy-engineering chapter; chunk 1 (parser token substitution) shipped 2026-05-26, chunk 2 (API proxy family `store_item_assets/extras`) is the next entry point. Closes the last unproxied Steam image family. → [description-image-rendering.md](steam/description-image-rendering.md)
 - **Steam ↔ LoL parity Item 6 — per-game accent color** — Items 1–5 shipped 2026-05-24; Item 6 remains, blocked on a Steam dominant-color source (build-time palette extraction from `library_hero.jpg`/`header.jpg` preferred over runtime canvas sampling). Wiring is ~3 lines once the source exists. → [steam-lol-parity.md § Item 6](cross-cutting/steam-lol-parity.md)
 
 ### Pre-deploy / admin
