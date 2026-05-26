@@ -79,7 +79,7 @@ Convention: CSS-controllable animations should branch in CSS (cheaper, no React 
 ### 5. Scroll-driven shell behaviors
 
 **Animated**: nav compaction over 120px, splash opacity decay, section progress bar, per-element view() entries.
-**Reduced**: replace with **midpoint static values** per [scroll-driven-shell.md](scroll-driven-shell.md):
+**Reduced**: replace with **midpoint static values** per [scroll-driven-shell.md](../archive/scroll-driven-shell.md):
 - Nav stays at compacted state always.
 - Splash opacity sits at 0.18 (midpoint between decay endpoints).
 - Section progress bar stays at 100% width with reduced opacity (becomes a static accent underline).
@@ -151,7 +151,7 @@ This is genuine "replace": each surface keeps the *information* the animation ca
 
 ## The standard CSS file structure
 
-Per [scroll-driven-shell.md](scroll-driven-shell.md) Chunk 1, `apps/web/src/styles/motion.css` consolidates motion declarations. A single `@media (prefers-reduced-motion: reduce)` block at the bottom contains all overrides, organized by section. Example:
+Per [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 1, `apps/web/src/styles/motion.css` consolidates motion declarations. A single `@media (prefers-reduced-motion: reduce)` block at the bottom contains all overrides, organized by section. Example:
 
 ```css
 @media (prefers-reduced-motion: reduce) {
@@ -206,7 +206,7 @@ This keeps the reduced-motion contract reviewable as a single block.
 
 ### Chunk 4 — Consolidate into `motion.css`
 
-- Once [scroll-driven-shell.md](scroll-driven-shell.md) Chunk 1 lands `motion.css`, migrate scattered `@media (prefers-reduced-motion)` blocks into the single consolidated block at the bottom.
+- Once [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 1 lands `motion.css`, migrate scattered `@media (prefers-reduced-motion)` blocks into the single consolidated block at the bottom.
 - Leaves per-component CSS narrower and the reduced-motion contract reviewable in one place.
 
 ### Chunk 5 — Test pass

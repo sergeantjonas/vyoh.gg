@@ -1,6 +1,6 @@
 # Patches as a global LoL surface — roadmap
 
-**Status:** Planned — not started. Four chunks scoped below. Pick up by starting Chunk 1.
+**Status:** Shipped — all four chunks landed. Global `/lol/patches` and `/lol/patches/$version` routes exist; account-scoped patches routes removed; Patches dropped from the account TABS in [$accountSlug.tsx](../../../apps/web/src/routes/lol/$accountSlug.tsx); Chunk 4 (palette grammar) shipped 2026-05-23.
 
 Read this before touching the LoL top-nav, the patches routes, or `PatchesPage`. The shape of `/lol/patches` here is also the template for future global LoL surfaces (champion DB, item meta, tier list, etc.) that have been considered for the dropdown.
 

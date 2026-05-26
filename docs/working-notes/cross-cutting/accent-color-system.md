@@ -26,7 +26,7 @@
 
 **Status (historical):** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Promotes the existing per-champion "theme color" (currently used only for splash backdrop overlay tint) into a **full propagated accent token** (`--accent`, `--accent-fg`, `--accent-muted`, `--accent-strong`) that cascades to focus rings, scrollbar, sparklines, hover glow, and `<meta name="theme-color">` (so mobile browser chrome adopts the active entity's color).
 
-Read this before adding any visual that should "belong to" the current route/entity, and before scoping arcs that depend on `--accent` ([scroll-driven-shell.md](scroll-driven-shell.md) Chunk 4, [data-viz-densification.md](data-viz-densification.md), [editorial-typography.md](editorial-typography.md)).
+Read this before adding any visual that should "belong to" the current route/entity, and before scoping arcs that depend on `--accent` ([scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 4, [data-viz-densification.md](data-viz-densification.md), [editorial-typography.md](editorial-typography.md)).
 
 KB anchors: [01-css-and-styling.md §OKLCH is the new default working space](~/.claude/knowledge/frontend-2026/01-css-and-styling.md), [02-design-systems.md §Token tiers](~/.claude/knowledge/frontend-2026/02-design-systems.md).
 
@@ -126,7 +126,7 @@ After the token cascade lands, these consumers switch from hardcoded sky-blue / 
 | Focus ring | `apps/web/src/components/ui/*` shadcn primitives | `--ring: var(--accent-ring)` in the theme block |
 | Scrollbar thumb | `apps/web/src/styles/globals.css` (verify selector) | `scrollbar-color: var(--accent-muted) transparent;` |
 | Recharts strokes | feature-level chart components | Pass `stroke="var(--accent)"` into `<Line>`, `<Area>`, `<ReferenceLine>` |
-| Section progress bar | from [scroll-driven-shell.md](scroll-driven-shell.md) Chunk 4 | `background: var(--accent)` |
+| Section progress bar | from [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 4 | `background: var(--accent)` |
 | Sparklines | from [data-viz-densification.md](data-viz-densification.md) | `stroke="var(--accent)"` |
 | Hover sheen end-color | Steam library tile sheen | The registered `--sheen-extent` already drives extent; tint the end-color with `var(--accent)` |
 | Card-breathe glow | `apps/web/src/lol/_shared/ui/themed-card.tsx` (verify) | Replace hardcoded shadow color with `var(--accent-muted)` |

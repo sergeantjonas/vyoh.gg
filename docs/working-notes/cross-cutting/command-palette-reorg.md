@@ -1,6 +1,6 @@
 # Command palette reorganization + Steam parity
 
-**Status:** Planning, 2026-05-19. Follow-up arc to [command-palette.md](./command-palette.md) (D2 + E shipped 2026-05-18). This note captures the structural rework prompted by the post-launch read of the palette feeling unorganized, plus the Steam-parity work that should ride along to avoid solidifying LoL-shape into the new taxonomy.
+**Status:** Active — not started. Visible UX bug (Accounts group still renders doubled `Search matches in <id>` companion rows; `Current section` group / Steam parity not generalized; `useCurrentSectionTabs` helper file doesn't exist). Follow-up arc to [command-palette.md](./command-palette.md) (D2 + E shipped 2026-05-18). This note captures the structural rework prompted by the post-launch read of the palette feeling unorganized, plus the Steam-parity work that should ride along to avoid solidifying LoL-shape into the new taxonomy.
 
 ## Why
 

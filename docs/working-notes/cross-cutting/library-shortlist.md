@@ -111,7 +111,7 @@ Potential use:
 
 ### `lenis`
 
-Status: parked — evaluate alongside [scroll-driven-shell.md](scroll-driven-shell.md)
+Status: parked — evaluate alongside [scroll-driven-shell.md](../archive/scroll-driven-shell.md)
 
 Potential use:
 
@@ -136,7 +136,7 @@ Status: parked
 Potential use:
 
 - scroll-driven animations
-- reserved for scrollytelling case-study pages once those exist (per [elevation-arcs.md](elevation-arcs.md) §"When CSS, when Motion, when View Transitions"); not for product UI — that slot is owned by CSS-first `animation-timeline` ([scroll-driven-shell.md](scroll-driven-shell.md))
+- reserved for scrollytelling case-study pages once those exist (per [elevation-arcs.md](elevation-arcs.md) §"When CSS, when Motion, when View Transitions"); not for product UI — that slot is owned by CSS-first `animation-timeline` ([scroll-driven-shell.md](../archive/scroll-driven-shell.md))
 
 Caveat:
 

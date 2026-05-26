@@ -23,7 +23,7 @@ Both are CSS-only and Newly Available in 2024 (`@starting-style`) and forever (C
 
 - **Not animating route changes.** Route transitions are owned by [view-transitions-rollout.md](view-transitions-rollout.md).
 - **Not replacing Motion `AnimatePresence` for rich overlay content.** Command palette, hover cards with media, animated dialogs stay on Motion because they have orchestration (sequenced child animations, gestures, dismiss interactions). Plain Select/Popover/Dropdown surfaces move to CSS.
-- **Not infinite-scroll lazy entries.** Per-row entries on scroll are handled by `animation-timeline: view()` in [scroll-driven-shell.md](scroll-driven-shell.md) Chunk 5. This arc handles **the initial mount only**.
+- **Not infinite-scroll lazy entries.** Per-row entries on scroll are handled by `animation-timeline: view()` in [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 5. This arc handles **the initial mount only**.
 
 ---
 
@@ -63,7 +63,7 @@ Tunables:
 ### Where to apply
 
 - [apps/web/src/components/bento/](../../../apps/web/src/components/bento/) — tile-grid items on `/`.
-- [apps/web/src/lol/matches/match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) — first N rows above the fold (below-the-fold handled by [scroll-driven-shell.md](scroll-driven-shell.md) Chunk 5).
+- [apps/web/src/lol/matches/match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) — first N rows above the fold (below-the-fold handled by [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 5).
 - [apps/web/src/lol/champions/champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx) — initial mount only; sort reflow stays on Motion `layout` per `vnext-ideas.md`.
 - Steam library tiles.
 - Per-section secondary cards on match detail (build, runes, timeline tabs).
@@ -129,7 +129,7 @@ Add to the shadcn primitive files where these live:
 
 Verify the actual filenames at pickup — shadcn copies vary.
 
-The CSS lives in `apps/web/src/styles/motion.css` (created in [scroll-driven-shell.md](scroll-driven-shell.md) Chunk 1) under a clearly-labeled `/* Overlay entry/exit */` block. Target by Radix data-attributes so it's primitive-wide.
+The CSS lives in `apps/web/src/styles/motion.css` (created in [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 1) under a clearly-labeled `/* Overlay entry/exit */` block. Target by Radix data-attributes so it's primitive-wide.
 
 ### Don't touch
 
@@ -149,7 +149,7 @@ The CSS lives in `apps/web/src/styles/motion.css` (created in [scroll-driven-she
 
 ### Chunk 2 — Apply stagger to match list (above-the-fold)
 
-- Modify [match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) — first 8 rows get `--i`, rest get no stagger (handled by `view()` later in [scroll-driven-shell.md](scroll-driven-shell.md)).
+- Modify [match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) — first 8 rows get `--i`, rest get no stagger (handled by `view()` later in [scroll-driven-shell.md](../archive/scroll-driven-shell.md)).
 - Cap rule: if `i >= 8`, omit the `--i` style.
 - Test: 8th row has `--i: 7`, 9th does not.
 

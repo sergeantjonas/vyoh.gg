@@ -1,6 +1,6 @@
 # Steam ↔ LoL section parity
 
-**Status:** Planned. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md), but tracks the *non-VT* parity items between the Steam and LoL section trees. Surfaced by a cross-section audit on 2026-05-24 that compared route shape, animation density, loading states, scroll handling, and empty states.
+**Status:** Items 1–5 shipped 2026-05-24; Item 6 (per-game accent color on Steam game detail) remains, blocked on a Steam dominant-color source. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md); surfaced by a cross-section audit on 2026-05-24.
 
 Read this when picking up any Steam polish task, or before adding a new Steam surface that has a structural equivalent in LoL.
 

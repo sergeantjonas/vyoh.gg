@@ -1,6 +1,6 @@
 # Scroll-driven shell behaviors
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Native CSS `animation-timeline: scroll()/view()` for shell-level choreography — nav compaction, splash backdrop opacity decay, section progress indicator, parallax on hero strips. Zero JS for the entire shell.
+**Status:** Shipped 2026-05-26. All six chunks landed: motion.css with scroll-timeline + @property, nav compaction (--nav-collapse), splash opacity decay (.splash-scroll-scrim), section progress hairline (ScrollProgress), view-entry on BentoTile + CardShell. Firefox degrades gracefully (animation absent, initial state). prefers-reduced-motion: replace strategy in motion.css.
 
 Read this when adding any scroll-coupled visual behavior, or when scoping a polish pass on the `<main>` scroll container.
 
