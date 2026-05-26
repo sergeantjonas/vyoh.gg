@@ -1,6 +1,6 @@
 # Steam description image rendering
 
-**Status:** Active — chunks 1 (parser token substitution) + 2 (API proxy passthrough family `store_item_assets/extras`) shipped 2026-05-26; inline images still dropped wholesale at the consumer until chunk 5. Chunk 3 (extension resolution via HEAD-probe + Postgres cache) is the next entry point.
+**Status:** Active — chunk 1 (parser token substitution) shipped 2026-05-26; inline images still dropped wholesale at the consumer until chunk 5. Chunk 2 (API proxy family `store_item_assets/extras`) is the next entry point.
 
 ## Today's behaviour
 
@@ -54,7 +54,7 @@ Sized so each row is independently committable and verifiable. Total estimate: ~
 | # | Title | Lands in | Notes |
 |---|---|---|---|
 | 1 ✅ | `bbcodeToHtml` token substitution | `packages/shared` | Shipped 2026-05-26. Optional `appid` arg; `{STEAM_APP_IMAGE}` substituted via `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>`; inner-text preferred over the malformed attribute when it begins with a recognised template token; `{STEAM_CLAN_IMAGE}` deferred to chunk 9. |
-| 2 ✅ | API proxy family: `store_item_assets/extras` | `apps/api/src/img` | Shipped 2026-05-26. New route `GET /img/steam/desc/:appid/extras/:assetName.:ext` (ext ∈ `gif|png|jpg|jpeg`, assetName `[a-zA-Z0-9_-]+`). Content-type passthrough (no WebP transcode — chunk 4 will revisit `.gif`). `SteamImageService.descriptionAsset` is pure URL composition (no DB lookup). `proxyPassThrough` helper added to controller; week-long cache (`max-age=604800`) since publishers update extras. Tests cover validation guards, ext allowlist, 502 fallthrough, lowercase-ext delegation. |
+| 2 | API proxy family: `store_item_assets/extras` | `apps/api/src/img` | New upstream family in [upstream.ts](../../../apps/api/src/img/upstream.ts) + [steam-image.service.ts](../../../apps/api/src/img/steam-image.service.ts). Path shape: `/img/steam/desc/<appid>/<asset>.<ext>`. Mirrors existing Steam header/library logic for caching, ETag, content-type passthrough. |
 | 3 | Extension resolution | `apps/api/src/img` | First miss: HEAD-probe `.gif`, `.png`, `.jpg` in that order against the upstream CDN; cache the winning ext per `(appid, asset)` in Postgres (`SteamDescriptionAssetExt` row or column on existing enrichment). Falls back to 404 if all three miss. |
 | 4 | Animated GIF transcode policy | `apps/api/src/img` | Decide: pass-through `.gif`, transcode to `.webp` (smaller, single-pass), or `.mp4`/`.webm` (smallest, but adds `<video>` rendering on the consumer side). Lean WebP — keeps `<img>` tag, ~70-80% size reduction vs gif. Validate animation preservation. |
 | 5 | Consumer flip: route via proxy | `apps/web/src/steam/game` | Replace `rewriteImgSrcDrop` in [game-about-block.tsx](../../../apps/web/src/steam/game/game-about-block.tsx) with a rewriter that recognises `{STEAM_APP_IMAGE}`-substituted URLs and rewrites them to the `/img/steam/desc/...` proxy path. Update the comment block at [game-about-block.tsx:5-13](../../../apps/web/src/steam/game/game-about-block.tsx#L5) describing the new policy. |

@@ -14,30 +14,11 @@ import { SteamImageService } from "./steam-image.service";
 import {
   type TranscodeParams,
   UpstreamError,
-  fetchUpstream,
   fetchUpstreamChain,
   transcodeToWebp,
 } from "./upstream";
 
 const IMMUTABLE_YEAR = "public, max-age=31536000, immutable";
-// Description extras can be updated by publishers (patch trailers, seasonal
-// promo gifs) — week-long cache keeps the proxy cheap without pinning a
-// stale frame for months. Chunk 6 may revisit once the editorial cap lands.
-const DESCRIPTION_ASSET_CACHE = "public, max-age=604800";
-
-// Extensions Steam publishers actually ship under `extras/` (verified live
-// 2026-05-25 on Elden Ring). The route trusts the ext path-segment only when
-// it's in this set — anything else is a 400 before any upstream fetch.
-const DESCRIPTION_ASSET_EXTS: Record<string, string> = {
-  gif: "image/gif",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
-
-// Steam publishers' asset filenames are alphanumeric + `_` + `-` in the wild;
-// reject anything else to keep the path-traversal surface trivially closed.
-const DESCRIPTION_ASSET_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 
 const CHAMPION_VARIANTS = new Set<ChampionVariant>(["square", "card", "backdrop"]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
@@ -395,62 +376,6 @@ export class ImgController {
     }
     const resolved = await this.steam.achievementGray(id, apiName);
     await this.proxyWebp(resolved.urls, resolved.params, res);
-  }
-
-  // Description-asset proxy (the inline images Steam publishers reference
-  // from `full_description_bbcode` via `{STEAM_APP_IMAGE}`). Unlike the
-  // other Steam routes this one is *content-type passthrough* — gif/png/jpg
-  // bytes are forwarded verbatim. Chunk 4 (animated-gif transcode policy)
-  // will revisit whether to re-encode `.gif` to animated WebP; for now the
-  // 1:1 passthrough is the simplest shape and lets animation render in-place.
-  //
-  // The `:ext` segment is matched against an allowlist before any upstream
-  // fetch, and `:assetName` is constrained to `[a-zA-Z0-9_-]+` — neither
-  // can introduce path traversal because the upstream URL is composed
-  // structurally rather than concatenated.
-  @Get("steam/desc/:appid/extras/:assetName.:ext")
-  @Header("Cache-Control", DESCRIPTION_ASSET_CACHE)
-  async steamDescriptionAsset(
-    @Param("appid") appid: string,
-    @Param("assetName") assetName: string,
-    @Param("ext") ext: string,
-    @Res() res: Response
-  ): Promise<void> {
-    const id = Number.parseInt(appid, 10);
-    if (!Number.isFinite(id)) {
-      res.status(HttpStatus.BAD_REQUEST).send();
-      return;
-    }
-    if (!DESCRIPTION_ASSET_NAME_RE.test(assetName)) {
-      res.status(HttpStatus.BAD_REQUEST).send();
-      return;
-    }
-    const extLower = ext.toLowerCase();
-    const contentType = DESCRIPTION_ASSET_EXTS[extLower];
-    if (!contentType) {
-      res.status(HttpStatus.BAD_REQUEST).send();
-      return;
-    }
-    const resolved = this.steam.descriptionAsset(id, assetName, extLower);
-    await this.proxyPassThrough(resolved.url, contentType, res);
-  }
-
-  private async proxyPassThrough(
-    url: string,
-    contentType: string,
-    res: Response
-  ): Promise<void> {
-    try {
-      const bytes = await fetchUpstream(url);
-      res.setHeader("Content-Type", contentType);
-      res.send(bytes);
-    } catch (err) {
-      if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
-        return;
-      }
-      throw err;
-    }
   }
 
   private async proxyWebp(

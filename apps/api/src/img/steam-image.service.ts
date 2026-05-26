@@ -161,19 +161,4 @@ export class SteamImageService {
       params: { width: 64, quality: 85 },
     };
   }
-
-  // Description-asset (`extras/<name>.<ext>`) family — the inline images Steam
-  // publishers reference from `full_description_bbcode` via the
-  // `{STEAM_APP_IMAGE}` token. Pure URL composition: there's no per-asset DB
-  // row to enrich (the bbcode is the source of truth) and the proxy serves
-  // the upstream bytes verbatim (no WebP transcode — chunk 4 will revisit
-  // for animated GIFs).
-  //
-  // Validation of `assetName` / `ext` lives at the controller boundary; this
-  // method trusts its inputs and only composes the URL.
-  descriptionAsset(appid: number, assetName: string, ext: string): { url: string } {
-    return {
-      url: `${STEAM_CDN_HOST}/${STEAM_STORE_ASSETS_PATH}/steam/apps/${appid}/extras/${assetName}.${ext}`,
-    };
-  }
 }

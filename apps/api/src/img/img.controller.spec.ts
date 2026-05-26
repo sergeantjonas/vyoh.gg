@@ -6,7 +6,6 @@ import * as upstream from "./upstream";
 
 const fetchChainSpy = vi.spyOn(upstream, "fetchUpstreamChain");
 const transcodeSpy = vi.spyOn(upstream, "transcodeToWebp");
-const fetchSingleSpy = vi.spyOn(upstream, "fetchUpstream");
 
 interface ResStub {
   status: ReturnType<typeof vi.fn>;
@@ -59,7 +58,6 @@ function makeController(
     achievementGray: vi
       .fn()
       .mockResolvedValue({ urls: ["https://steam/ach-gray"], params: {} }),
-    descriptionAsset: vi.fn().mockReturnValue({ url: "https://steam/desc/asset.gif" }),
     ...steamOverrides,
   } as unknown as SteamImageService;
   return new ImgController(lol, steam);
@@ -68,13 +66,11 @@ function makeController(
 beforeEach(() => {
   fetchChainSpy.mockResolvedValue(Buffer.from([1, 2, 3]));
   transcodeSpy.mockResolvedValue(Buffer.from([4, 5, 6]));
-  fetchSingleSpy.mockResolvedValue(Buffer.from([7, 8, 9]));
 });
 
 afterEach(() => {
   fetchChainSpy.mockReset();
   transcodeSpy.mockReset();
-  fetchSingleSpy.mockReset();
 });
 
 describe("ImgController.champion", () => {
@@ -368,96 +364,5 @@ describe("ImgController.champClass", () => {
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
     expect(upstream.transcodeToWebp).toHaveBeenCalled();
     expect(res.send).toHaveBeenCalled();
-  });
-});
-
-describe("ImgController.steamDescriptionAsset", () => {
-  it("returns 400 when appid is non-numeric", async () => {
-    const res = makeRes();
-    await makeController().steamDescriptionAsset(
-      "abc",
-      "promo_banner",
-      "gif",
-      res as never
-    );
-    expect(res._status).toBe(400);
-    expect(upstream.fetchUpstream).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when assetName contains path-traversal characters", async () => {
-    const res = makeRes();
-    await makeController().steamDescriptionAsset("440", "../escape", "gif", res as never);
-    expect(res._status).toBe(400);
-    expect(upstream.fetchUpstream).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when assetName contains a slash", async () => {
-    const res = makeRes();
-    await makeController().steamDescriptionAsset("440", "sub/dir", "gif", res as never);
-    expect(res._status).toBe(400);
-    expect(upstream.fetchUpstream).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when ext is not in the allowlist", async () => {
-    const res = makeRes();
-    await makeController().steamDescriptionAsset(
-      "440",
-      "promo_banner",
-      "webp",
-      res as never
-    );
-    expect(res._status).toBe(400);
-    expect(upstream.fetchUpstream).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["gif", "image/gif"],
-    ["png", "image/png"],
-    ["jpg", "image/jpeg"],
-    ["jpeg", "image/jpeg"],
-    ["GIF", "image/gif"],
-  ])(
-    "proxies through fetchUpstream and sets Content-Type for ext=%s",
-    async (ext, contentType) => {
-      const res = makeRes();
-      const setHeader = vi.fn();
-      (res as unknown as { setHeader: typeof setHeader }).setHeader = setHeader;
-      await makeController().steamDescriptionAsset(
-        "1245620",
-        "er_steam_gif_01_-_wide",
-        ext,
-        res as never
-      );
-      expect(upstream.fetchUpstream).toHaveBeenCalled();
-      expect(setHeader).toHaveBeenCalledWith("Content-Type", contentType);
-      expect(res.send).toHaveBeenCalled();
-    }
-  );
-
-  it("returns 502 when fetchUpstream throws an UpstreamError", async () => {
-    fetchSingleSpy.mockRejectedValueOnce(
-      new upstream.UpstreamError("https://up", new Error("desc upstream dead"))
-    );
-    const res = makeRes();
-    const setHeader = vi.fn();
-    (res as unknown as { setHeader: typeof setHeader }).setHeader = setHeader;
-    await makeController().steamDescriptionAsset("1245620", "asset", "gif", res as never);
-    expect(res._status).toBe(502);
-  });
-
-  it("delegates URL composition to SteamImageService.descriptionAsset with lowercased ext", async () => {
-    const descSpy = vi.fn().mockReturnValue({ url: "https://steam/desc/x.gif" });
-    const res = makeRes();
-    const setHeader = vi.fn();
-    (res as unknown as { setHeader: typeof setHeader }).setHeader = setHeader;
-    await makeController({}, {
-      descriptionAsset: descSpy,
-    } as unknown as Partial<SteamImageService>).steamDescriptionAsset(
-      "440",
-      "my_asset",
-      "GIF",
-      res as never
-    );
-    expect(descSpy).toHaveBeenCalledWith(440, "my_asset", "gif");
   });
 });
