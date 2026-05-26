@@ -41,6 +41,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 - Riot-investigation parked tail: per-account cache TTL self-healing, re-derive `reservoirIncreaseInterval` when prod-tier key lands, sync fairness if accounts ever run in parallel. → [riot-investigation-2026-05-07.md](lol/riot-investigation-2026-05-07.md)
 - LoL breadcrumb consistency pass — triggered post-Steam-S4.5 once the shadcn `@/components/ui/breadcrumb` primitive becomes canonical; decide per-surface whether deep drill-ins (match detail, champion detail) gain a breadcrumb trail alongside the existing `AccountLayout` tab bar. → [steam-integration.md](steam/steam-integration.md) S4.5 post-ship follow-up
+- Champion accent color picker — explore alternative extraction libraries (`colorthief`, `colorgram`, hand-rolled HSV histogram) to reduce the 3-entry override list (Ahri, Lux, Soraka) toward 0. node-vibrant blurs gradient halos into desaturated mid-tones and doesn't surface small-population saturated clusters. → [champion-accent-color.md § Future extensions](lol/champion-accent-color.md#future-extensions)
 
 ### Cross-cutting
 

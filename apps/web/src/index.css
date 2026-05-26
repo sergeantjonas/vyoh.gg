@@ -276,7 +276,7 @@ p {
   /* Dark-mode foreground lifts toward white against the near-black body;
      muted/strong/ring derivations mirror :root. */
   --theme-color: oklch(0.6 0.16 240);
-  --theme-fg: oklch(from var(--theme-color) max(l, 0.85) calc(c * 1.3) h);
+  --theme-fg: oklch(from var(--theme-color) max(l, 0.74) calc(c * 1.3) h);
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 1.1) c h);
   --theme-ring: oklch(from var(--theme-color) l c h / 0.7);

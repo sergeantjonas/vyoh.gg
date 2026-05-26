@@ -1,6 +1,6 @@
 # Champion accent color extraction
 
-**Status:** Shipped 2026-05-26 — regenerated `champion-assets.json` via the existing `tools/champion-assets` pipeline; corrected the tool's stale output path. No schema change, no consumer flip. The visible `accent-color` / `::selection` / `--theme-fg` / `--theme-strong` cascade now varies per champion.
+**Status:** Shipped 2026-05-26 — iconic-color picker that combines wiki Loading + Square palettes, ranks by chroma, and applies a 3-entry override list for the residual stuck cases. Drives the per-champion `--theme-color` cascade across `accent-color`, `::selection`, `--theme-fg`, `--theme-strong`.
 
 ## What turned out to be the actual fix
 
@@ -36,6 +36,26 @@ Test surfaces:
 
 If any consumer reads as "too loud" or "too washed out," the next move is to tune the derived-token formulas in [index.css:236-240](../../../apps/web/src/index.css#L236-L240) (chroma multiplier in `--theme-muted`, lightness clamp in `--theme-fg`) rather than the source value — the regenerated `dominantHex` is the right source, and per-surface intensity belongs in the derivations.
 
+## Follow-up 2026-05-26 — iconic-color picker
+
+Initial regeneration shipped with single-source (full splash) + Vibrant-slot priority. Visual review with the owner exposed two further problems:
+
+1. **Case-mismatch in `championTheme()` lookup.** `champion-table.tsx:345` constructs URL params with `alias.toLowerCase()`, but `champion-assets.json` keys are PascalCase. Every champion fell through to `#888888` FALLBACK; the visible variation people thought they saw was actually the splash backdrop image, not the CSS cascade. Fixed with a case-insensitive lookup index built once at module load. Now in [champion-theme.ts](../../../apps/web/src/lol/_shared/assets/champion-theme.ts).
+2. **Non-iconic picks for some champions.** Even with correct data flow, node-vibrant's `Vibrant` slot picks the most-saturated mid-L cluster regardless of surface area, which surfaces small accent colors (Ahri's blue orb) over the iconic outfit hue (Ahri's red dress). Worked through several picker variants before landing on the current approach.
+
+**Final picker** (in [tools/champion-assets/src/index.ts](../../../tools/champion-assets/src/index.ts)):
+
+- **Sources**: union of two wiki images per champion:
+  - `OriginalLoading.jpg` (308×560 portrait) — surfaces outfit colors when prominent (Wukong red sash, Kai'Sa purple suit, Seraphine pink hair).
+  - `OriginalSquare.png` (~120×120 head crop) — surfaces hood/cape/aura colors that loading misses (Akali green hood, Yasuo sky-blue, Garen Demacia-blue).
+- **Picker**: union both palettes (12 swatches max), filter to `population > 0`, sort by HSL chroma descending, take the most-saturated. **Population is deliberately ignored** — every population-weighted score tested loses to large face/skin Muted clusters (e.g. `Loading Muted pop=469` smothers Akali's hood `Vibrant pop=2`). The only way to surface iconic outfit hues is to rank by chroma.
+- **Overrides**: `tools/champion-assets/src/overrides.ts` lists the residual cases where no algorithm can recover the iconic color from the current splash pixels. Currently 3 entries: Ahri (red dress out-pixelled by blue), Lux (gold quantization-blurred to beige), Soraka (no saturated white/teal cluster anywhere).
+
+**Image sourcing now wiki-primary** — previously CDragon-direct, now routed through wiki to honour the project's wiki-primary image rule. Champion-summary metadata still comes from CDragon (text, not images).
+
+**Cascade extension to native primitives**: `accent-color` and `::selection` are now declared on `:root` in [index.css:298-315](../../../apps/web/src/index.css#L298-L315) referencing `var(--theme-fg)` (the chroma-boosted, lightness-lifted derivation of `--theme-color`). Form controls and text selection now read as the champion's identity color in dark mode.
+
 ## Future extensions
 
-Same fix shape will apply to Steam game accents when that pipeline lands — extracting a per-app dominant via node-vibrant from the Steam header asset, writing alongside the other `SteamGameEnrichment` fields, exposing through a `steamGameTheme()` helper symmetric to `championTheme()`. Not in scope for this arc.
+- **Other color-extraction libraries** — node-vibrant's median-cut quantization blurs gradient halos into desaturated mid-tones (Lux gold → beige) and doesn't surface small-population saturated clusters reliably. Worth evaluating `colorthief`, `colorgram`, or a hand-rolled HSV histogram with hue bucketing. Goal: reduce the override list from 3 toward 0. Not blocking — current results are good enough to ship and the override is the escape hatch.
+- **Steam game accents** — same picker shape will apply when that pipeline lands. Extract per-app dominant from the Steam header asset, write alongside the other `SteamGameEnrichment` fields, expose through a `steamGameTheme()` helper symmetric to `championTheme()`. Decide whether the same hybrid-source approach applies (Steam doesn't have a "loading screen" equivalent — likely just the library hero + capsule).
