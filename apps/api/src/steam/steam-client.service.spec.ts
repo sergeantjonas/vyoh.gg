@@ -107,6 +107,51 @@ describe("SteamClientService.getWishlist", () => {
   });
 });
 
+describe("SteamClientService.getAboutTheGameHtml", () => {
+  it("hits the legacy storefront appdetails endpoint and returns about_the_game", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          "1245620": {
+            success: true,
+            data: { about_the_game: "<h2>About</h2><p>Tarnished, rise.</p>" },
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const html = await service.getAboutTheGameHtml(1245620);
+    expect(html).toBe("<h2>About</h2><p>Tarnished, rise.</p>");
+    const url = vi.mocked(fetch).mock.calls[0]?.[0] as string;
+    expect(url).toBe(
+      "https://store.steampowered.com/api/appdetails?appids=1245620&l=en&filters=basic"
+    );
+  });
+
+  it("returns null when Steam reports success: false (delisted/private)", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ "999": { success: false } }), { status: 200 })
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    expect(await service.getAboutTheGameHtml(999)).toBeNull();
+  });
+
+  it("returns empty string when success is true but about_the_game is absent", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ "1": { success: true, data: {} } }), { status: 200 })
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    expect(await service.getAboutTheGameHtml(1)).toBe("");
+  });
+
+  it("returns null when the keyed entry is missing entirely", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    const service = new SteamClientService(passThroughLimiter);
+    expect(await service.getAboutTheGameHtml(42)).toBeNull();
+  });
+});
+
 describe("SteamClientService.getStoreItems", () => {
   it("skips the fetch entirely when the appid list is empty", async () => {
     const service = new SteamClientService(passThroughLimiter);

@@ -261,6 +261,20 @@ export interface SteamGetStoreItemsFullResponse {
   };
 }
 
+// Legacy storefront endpoint at `store.steampowered.com/api/appdetails`. Used
+// only for `about_the_game` HTML — the modern `IStoreBrowseService` returns
+// `full_description_bbcode` but not the rendered HTML, and that HTML is the
+// only path to Steam's content-hashed `extras/<hash>.{webm,poster.avif}`
+// asset URLs (bbcode carries publisher slugs, the CDN doesn't expose them).
+// Keyed by appid stringified; `success: false` for delisted/private games.
+export interface SteamAppDetailsEntry {
+  success: boolean;
+  data?: {
+    about_the_game?: string;
+  };
+}
+export type SteamAppDetailsResponse = Record<string, SteamAppDetailsEntry>;
+
 // IPlayerService/GetOwnedGames/v1/. With `include_appinfo=1` Steam returns the
 // game name + img hashes; `include_played_free_games=1` keeps F2P titles the
 // owner has launched (otherwise they're omitted entirely). `playtime_2weeks`

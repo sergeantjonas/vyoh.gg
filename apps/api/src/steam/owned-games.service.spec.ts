@@ -21,14 +21,19 @@ interface PrismaStubs {
     findMany: ReturnType<typeof vi.fn>;
   };
   steamGameEnrichment?: {
-    findMany: ReturnType<typeof vi.fn>;
+    findMany?: ReturnType<typeof vi.fn>;
+    findUnique?: ReturnType<typeof vi.fn>;
+    update?: ReturnType<typeof vi.fn>;
   };
 }
 
-function makeService(prisma: PrismaStubs): SteamOwnedGamesService {
+function makeService(
+  prisma: PrismaStubs,
+  client: Partial<SteamClientService> = {}
+): SteamOwnedGamesService {
   return new SteamOwnedGamesService(
     prisma as unknown as PrismaService,
-    {} as SteamClientService,
+    client as SteamClientService,
     {} as SteamEnrichmentService,
     {} as SteamAchievementSchemaService,
     {} as SteamPlayerUnlocksService,
@@ -473,5 +478,103 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         orderBy: { playtimeForeverMinutes: "desc" },
       })
     );
+  });
+});
+
+describe("SteamOwnedGamesService.getGameDescription", () => {
+  function makeStubs(row: {
+    fullDescriptionBbcode: string | null;
+    aboutTheGameHtml: string | null;
+  }) {
+    const findUnique = vi.fn().mockResolvedValue(row);
+    const update = vi.fn().mockResolvedValue({});
+    const prisma: PrismaStubs = {
+      steamOwnedGame: { count: vi.fn() },
+      steamPlaytimeSnapshot: {
+        findFirst: vi.fn(),
+        count: vi.fn(),
+        aggregate: vi.fn(),
+        findMany: vi.fn(),
+      },
+      steamGameEnrichment: { findUnique, update },
+    };
+    return { prisma, findUnique, update };
+  }
+
+  it("hot path: returns persisted html without calling the client", async () => {
+    const { prisma } = makeStubs({
+      fullDescriptionBbcode: "[b]bb[/b]",
+      aboutTheGameHtml: "<p>cached</p>",
+    });
+    const client = { getAboutTheGameHtml: vi.fn() };
+    const result = await makeService(prisma, client).getGameDescription(42);
+    expect(result).toEqual({ appid: 42, bbcode: "[b]bb[/b]", html: "<p>cached</p>" });
+    expect(client.getAboutTheGameHtml).not.toHaveBeenCalled();
+  });
+
+  it("cold path: lazy-fetches and persists when aboutTheGameHtml is null", async () => {
+    const { prisma, update } = makeStubs({
+      fullDescriptionBbcode: "[b]bb[/b]",
+      aboutTheGameHtml: null,
+    });
+    const client = {
+      getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>fetched</p>"),
+    };
+    const result = await makeService(prisma, client).getGameDescription(42);
+    expect(client.getAboutTheGameHtml).toHaveBeenCalledWith(42);
+    expect(update).toHaveBeenCalledWith({
+      where: { appid: 42 },
+      data: { aboutTheGameHtml: "<p>fetched</p>" },
+    });
+    expect(result.html).toBe("<p>fetched</p>");
+  });
+
+  it("delisted: persists empty string as the terminal don't-retry sentinel", async () => {
+    const { prisma, update } = makeStubs({
+      fullDescriptionBbcode: null,
+      aboutTheGameHtml: null,
+    });
+    const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue(null) };
+    const result = await makeService(prisma, client).getGameDescription(42);
+    expect(update).toHaveBeenCalledWith({
+      where: { appid: 42 },
+      data: { aboutTheGameHtml: "" },
+    });
+    expect(result.html).toBe("");
+  });
+
+  it("upstream failure: leaves the column null and returns html=null", async () => {
+    const { prisma, update } = makeStubs({
+      fullDescriptionBbcode: "[b]bb[/b]",
+      aboutTheGameHtml: null,
+    });
+    const client = {
+      getAboutTheGameHtml: vi.fn().mockRejectedValue(new Error("boom")),
+    };
+    const result = await makeService(prisma, client).getGameDescription(42);
+    expect(update).not.toHaveBeenCalled();
+    expect(result).toEqual({ appid: 42, bbcode: "[b]bb[/b]", html: null });
+  });
+
+  it("missing enrichment row: lazy-fetches and surfaces P2025 as a logged warning", async () => {
+    const findUnique = vi.fn().mockResolvedValue(null);
+    const update = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error("Record to update not found."), { code: "P2025" })
+      );
+    const prisma: PrismaStubs = {
+      steamOwnedGame: { count: vi.fn() },
+      steamPlaytimeSnapshot: {
+        findFirst: vi.fn(),
+        count: vi.fn(),
+        aggregate: vi.fn(),
+        findMany: vi.fn(),
+      },
+      steamGameEnrichment: { findUnique, update },
+    };
+    const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>x</p>") };
+    const result = await makeService(prisma, client).getGameDescription(42);
+    expect(result).toEqual({ appid: 42, bbcode: null, html: null });
   });
 });

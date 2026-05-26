@@ -32,7 +32,7 @@ describe("GameAboutBlock", () => {
   });
 
   it("renders nothing when the description is null (DLC / bundle / unresolved app)", () => {
-    const payload: SteamGameDescription = { appid: 42, bbcode: null };
+    const payload: SteamGameDescription = { appid: 42, bbcode: null, html: null };
     vi.mocked(useGameDescription).mockReturnValue({
       data: payload,
       isPending: false,
@@ -47,6 +47,7 @@ describe("GameAboutBlock", () => {
     const payload: SteamGameDescription = {
       appid: 42,
       bbcode: "[h1]Game Title[/h1]\n\n[b]Bold[/b] paragraph.",
+      html: null,
     };
     vi.mocked(useGameDescription).mockReturnValue({
       data: payload,
@@ -66,6 +67,7 @@ describe("GameAboutBlock", () => {
     const payload: SteamGameDescription = {
       appid: 42,
       bbcode: "[img]https://steamcdn-a.akamaihd.net/foo.jpg[/img]\n\nText.",
+      html: null,
     };
     vi.mocked(useGameDescription).mockReturnValue({
       data: payload,

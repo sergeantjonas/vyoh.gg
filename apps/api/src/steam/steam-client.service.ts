@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../env";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
+  SteamAppDetailsResponse,
   SteamGameAchievementSchema,
   SteamGetGameAchievementsResponse,
   SteamGetGlobalAchievementPercentagesResponse,
@@ -25,6 +26,7 @@ import type {
 } from "./types";
 
 const STEAM_API_BASE = "https://api.steampowered.com";
+const STEAM_STORE_BASE = "https://store.steampowered.com";
 const FETCH_TIMEOUT_MS = 10_000;
 
 export class SteamClientError extends Error {
@@ -162,6 +164,28 @@ export class SteamClientService {
     });
   }
 
+  // Rendered "About this game" HTML from the legacy storefront endpoint.
+  // `IStoreBrowseService/GetItems` (above) returns `full_description_bbcode`
+  // but not the rendered HTML, and the rendered HTML is the only surface that
+  // exposes Steam's content-hashed `extras/<hash>.{webm,poster.avif}` asset
+  // URLs — bbcode `[img]` slugs are publisher-supplied editorial labels that
+  // require server-side slug→hash resolution. Different host
+  // (`store.steampowered.com` vs `api.steampowered.com`); no API key
+  // accepted, public endpoint. Returns `null` when Steam reports
+  // `success: false` (delisted/private game) and `""` when the game has no
+  // about-block (DLC, bundle, demo); both are persisted-and-don't-retry
+  // states. Routes through the shared limiter under a dedicated family so
+  // budget bookkeeping stays unified.
+  async getAboutTheGameHtml(appid: number): Promise<string | null> {
+    return this.limiter.schedule("appdetails", async () => {
+      const url = `${STEAM_STORE_BASE}/api/appdetails?appids=${appid}&l=en&filters=basic`;
+      const data = await this.fetchJson<SteamAppDetailsResponse>(url);
+      const entry = data[String(appid)];
+      if (!entry || !entry.success) return null;
+      return entry.data?.about_the_game ?? "";
+    });
+  }
+
   // Global community-tag catalog (id → name). Backs the library filter
   // popover's label resolver. Pulled monthly by SteamTagPoller — Steam adds
   // tags rarely enough that a daily refresh would be wasted budget.
@@ -235,8 +259,14 @@ export class SteamClientService {
     });
   }
 
-  private async fetchJson<T>(path: string): Promise<T> {
-    const url = `${STEAM_API_BASE}${path}`;
+  // Accepts either a path under `STEAM_API_BASE` or an absolute URL — the
+  // latter so the storefront-only `appdetails` endpoint can route through the
+  // same timeout/limiter wiring without forking a second helper.
+  private async fetchJson<T>(pathOrUrl: string): Promise<T> {
+    const url = pathOrUrl.startsWith("http")
+      ? pathOrUrl
+      : `${STEAM_API_BASE}${pathOrUrl}`;
+    const path = pathOrUrl.startsWith("http") ? new URL(pathOrUrl).pathname : pathOrUrl;
     const start = performance.now();
 
     // Same hard-timeout race as the Riot client: Node's undici fetch occasionally

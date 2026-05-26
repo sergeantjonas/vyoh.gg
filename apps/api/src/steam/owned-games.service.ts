@@ -434,20 +434,53 @@ export class SteamOwnedGamesService {
     };
   }
 
-  // Per-app BBCode body for the /steam/game/:appid "About this game" block.
-  // Read straight from the enrichment row — the monthly cron + the one-shot
-  // backfill keep this column populated. Returns `bbcode: null` when the
-  // enrichment row is missing (delisted/private/unresolved) or when the
-  // upstream block was empty (DLC / bundle / demo entries); the renderer
-  // omits the block entirely in either case.
+  // Per-app description payload for the /steam/game/:appid "About this game"
+  // block. Returns two parallel representations:
+  // - `bbcode` from the monthly enrichment cron (`IStoreBrowseService`)
+  // - `html` from the legacy storefront `appdetails` endpoint, fetched lazily
+  //   on first view so the 500-game library doesn't serialise 500 rate-
+  //   limited calls at sync time. The hot path (column already populated) is
+  //   a single read; the cold path fans out to one extra HTTP call.
+  //
+  // `aboutTheGameHtml` uses three states in one nullable column: `null` =
+  // never successfully fetched (retry next view), `""` = fetched and Steam
+  // reported delisted/empty (don't retry), anything else = the rendered HTML.
+  // Returning `null` from the upstream call is treated as a terminal "don't
+  // retry" state and persisted as `""`. Fetch failures (network, rate limit)
+  // bubble out of the limiter; we catch + log and leave the column null so
+  // the next view retries — the caller still gets the bbcode fallback.
   async getGameDescription(
     appid: number
-  ): Promise<{ appid: number; bbcode: string | null }> {
+  ): Promise<{ appid: number; bbcode: string | null; html: string | null }> {
     const row = await this.prisma.steamGameEnrichment.findUnique({
       where: { appid },
-      select: { fullDescriptionBbcode: true },
+      select: { fullDescriptionBbcode: true, aboutTheGameHtml: true },
     });
-    return { appid, bbcode: row?.fullDescriptionBbcode ?? null };
+    const bbcode = row?.fullDescriptionBbcode ?? null;
+    if (row?.aboutTheGameHtml != null) {
+      return { appid, bbcode, html: row.aboutTheGameHtml };
+    }
+
+    let html: string | null = null;
+    try {
+      const fetched = await this.client.getAboutTheGameHtml(appid);
+      // `null` from upstream = delisted/private. Persist `""` as the terminal
+      // "don't retry" sentinel rather than leaving the column null.
+      html = fetched ?? "";
+      await this.prisma.steamGameEnrichment.update({
+        where: { appid },
+        data: { aboutTheGameHtml: html },
+      });
+    } catch (err) {
+      // Missing enrichment row (P2025) means the game was never enriched —
+      // leave html null so a future enrichment pass can populate first.
+      // Other errors (network, rate limit, Steam 5xx) also leave html null
+      // and surface in logs; the next view retries.
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`steam appdetails(${appid}) → ${message}`);
+      html = null;
+    }
+    return { appid, bbcode, html };
   }
 
   // Per-app screenshot payload for the game-detail strip + (Chunk 9c) the
