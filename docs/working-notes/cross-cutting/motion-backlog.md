@@ -154,6 +154,19 @@ Implemented as:
 - `champion-card.tsx` inner splash div uses `.card-splash-breathe` class (replaced `group-hover:scale-105` CSS transition)
 - `@media (prefers-reduced-motion: reduce)` suppresses animation
 
+### Logo ambient micro-animation
+
+Status: planned
+
+Ideas:
+
+- the `vyoh.gg` mark in the primary nav carries a subtle ambient micro-animation — a slow drift, a soft hue shift tied to the `--theme-*` cascade from [accent-color-system](./accent-color-system.md) (shipped), or a registered-property gradient that breathes
+- low-frequency motion (10s+ cycle), so it reads as ambient rather than attention-grabbing
+- the mark is the brand surface; subtle motion here signals "this app is alive" without claiming any user attention
+- composes with [scroll-driven-shell](../archive/scroll-driven-shell.md) (shipped) — could tie to scroll progress instead of being time-based
+- reduced-motion: static mark with the active `--theme-*` tint applied at full opacity but no animation
+- worth doing only once the broader visual baseline lands (accent system fully wired, editorial typography in place); too early and the logo carries weight the rest of the app can't yet match
+
 ### Animated nav icons on tab change
 
 Status: shipped

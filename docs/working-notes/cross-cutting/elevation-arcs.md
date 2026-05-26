@@ -35,18 +35,22 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 | [anchor-positioned-overlays](anchor-positioned-overlays.md) | CSS Anchor Positioning for command-palette result peek + hover-card follow-on-scroll; feature-detect + Oddbird polyfill fallback | Planned |
 | [reduced-motion-replacements](reduced-motion-replacements.md) | Audit + standardise replacement variants per animated surface (splash drift → cross-fade, orb mark → static constellation, tilt → flat scale-up) | Planned |
 | [microtrailer-hover-preview](microtrailer-hover-preview.md) | Steam library tiles play official 6-second silent microtrailers on hover (singleton playback, cross-fade, reduced-motion poster); from the 2026-05-24 GetItems harvest | Planned |
+| [nav-condensation-arc](nav-condensation-arc.md) | Condense three-layer chrome to two: merge identity strip + secondary tabs, drop "Home" from primary nav, avatar straddles the seam, restore section nav in detail pages, demote detail tabs to inline content. Suggested order: 1.1 (core nav rework, including active-tab `layoutId` morph) → 1.3a (bare identity block, ship-ready) → 1.3b (visual flair, gated on [pointer-parallax-splash](pointer-parallax-splash.md) or [editorial-typography](editorial-typography.md)) + 1.5 (picker dropdown showcase) in parallel → 1.2 (avatar rings, evaluated against real implementation experience once 1.1 has been in front of real eyes). | Planned |
+| [cross-section-nav-arc](cross-section-nav-arc.md) | Cross-section navigation transition (LoL ↔ Steam ↔ `/` ↔ `/status`); composes the merged strip from nav-condensation-arc § 1.1 with the existing [section-shell-vt-migration](section-shell-vt-migration.md) pattern so the chrome no longer reads as a hard swap. Depends on 1.1 landing first. | Planned |
 
 ### Tier 3 — Bigger bets, portfolio payoff
 
 | Arc | What | Status |
 |---|---|---|
-| [ambient-home-hero](ambient-home-hero.md) | Canvas2D (or WebGPU stretch) generative ambient piece on `/` synthesis surface; time-of-day reactive in Europe/Brussels TZ | Planned |
+| [ambient-home-hero](ambient-home-hero.md) | Canvas2D (or WebGPU stretch) generative ambient piece on `/` synthesis surface; time-of-day reactive in Europe/Brussels TZ. Likely consumed as a chunk of [landing-showcase-arc](landing-showcase-arc.md). | Planned |
+| [landing-showcase-arc](landing-showcase-arc.md) | Elevate `/` synthesis surface into a deliberate first-impression portfolio showcase. Resolves the "showcase behind a Profile-tab click" gap by giving recruiters / scanners a strong landing moment without violating the synthesis-only convention. Consumes [ambient-home-hero](ambient-home-hero.md) and pulls from [editorial-typography](editorial-typography.md), [accent-color-system](accent-color-system.md), [self-portrait-surfaces](self-portrait-surfaces.md). | Planned |
 | [speculation-rules-prefetch](speculation-rules-prefetch.md) | `<script type="speculationrules">` for instant nav on match-row/champion-grid/Steam-tile hover; gated to same-origin | Planned |
 | [og-image-pipeline](og-image-pipeline.md) | Per-route OG images (Satori or Canvas at edge) for shareable match/champion deep-links; SEO + share-delight win | Planned |
 | [live-presence-chip](live-presence-chip.md) | "Currently playing Jinx" / "Last seen 2h ago" chip in nav; SSE-pushed from Riot spectator endpoint + Steam presence | Planned |
 | [personal-record-moments](personal-record-moments.md) | Subtle one-time visual moment when a stat hits a new PB (highest KDA on champion, longest win streak); replaces "loud" celebration vocabulary | Planned |
 | [optional-ui-audio](optional-ui-audio.md) | Opt-in Web Audio toggle: subtle tick on palette open, soft chime on match-win render; off by default with persistent preference | Planned |
 | [pointer-parallax-splash](pointer-parallax-splash.md) | Cursor-aware parallax layer on splash backdrop (multi-plane: bg + character at different offsets); composes with existing Ken Burns | Planned |
+| [detail-panel-arc](detail-panel-arc.md) | Detail pages (match / champion / Steam game detail) become full-width slide-over panels with URL-as-state via TanStack parallel routes; list stays mounted, row→panel VT morph for click-from-list, virtualizer-scroll-to-row for cold deep-link arrivals | Planned |
 
 ---
 
