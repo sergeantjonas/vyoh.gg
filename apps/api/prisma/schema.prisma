@@ -169,6 +169,16 @@ model SteamGameEnrichment {
   // demand via the `/steam/game/:appid/description` endpoint. Null when
   // upstream omits the full description block (DLC / bundle entries, demos).
   fullDescriptionBbcode String?
+  // Rendered `about_the_game` HTML from Steam's legacy storefront
+  // `appdetails?appids=<appid>&l=en` endpoint. The bulk enrichment call
+  // (`IStoreBrowseService/GetStoreItemsFull`, see `fullDescriptionBbcode`
+  // above) does not return rendered HTML, and bbcode `[img]` slugs are
+  // editorial labels Steam resolves to content-hashed `extras/<hash>.{webm,
+  // poster.avif}` URLs server-side. Populated lazily on the first
+  // `/steam/game/:appid/description` call so the 500-game library doesn't
+  // serialise 500 rate-limited fetches at sync time. Null until first view
+  // (or for DLC/bundle entries with no rendered about-block).
+  aboutTheGameHtml      String?
   // Storefront screenshots, two server-side buckets from `screenshots.*` on
   // IStoreBrowseService. `screenshotsAllAges` is the storefront default;
   // `screenshotsMature` is the bucket Steam itself gates behind a maturity
