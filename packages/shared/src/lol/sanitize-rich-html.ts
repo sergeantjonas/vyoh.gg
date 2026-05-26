@@ -42,15 +42,33 @@ const ALLOWED_TAGS = new Set([
   "ul",
 ]);
 
+// `<video>` / `<source>` are gated behind `allowVideo` because the LoL
+// tooltip path must never get them — they're scoped to the Steam about-the-
+// game pipeline (chunk A2 in docs/working-notes/steam/description-image-
+// rendering.md). Attribute allowlists are minimal: just the playback
+// directives Steam itself emits + width/height so the layout reserves space.
+const VIDEO_TAGS = new Set(["video", "source"]);
+
 const EMPTY_ATTRS: ReadonlySet<string> = new Set();
 
 const ATTR_ALLOW: Record<string, ReadonlySet<string>> = {
   img: new Set(["src", "alt", "width", "height"]),
   span: new Set(["class"]),
   ol: new Set(["start"]),
+  video: new Set([
+    "autoplay",
+    "muted",
+    "loop",
+    "playsinline",
+    "poster",
+    "preload",
+    "width",
+    "height",
+  ]),
+  source: new Set(["src", "type"]),
 };
 
-const VOID_TAGS = new Set(["br", "img"]);
+const VOID_TAGS = new Set(["br", "img", "source"]);
 
 // Strip the content too (not just the tags) for script-ish elements — leaving
 // the inner text of a `<script>` block in place would let attackers smuggle
@@ -95,6 +113,17 @@ export interface SanitizeRichHtmlOptions {
   // wiki upstream into the browser. Return `null` to drop the `<img>` entirely
   // (e.g. when the src doesn't match a recognised wiki upload path).
   rewriteImgSrc?: (src: string) => string | null;
+  // Opt-in to `<video>` and `<source>`. Default false — the LoL tooltip path
+  // doesn't need them and shouldn't allow them, so the policy stays
+  // restrictive unless a caller explicitly flips this for the Steam about-
+  // block pipeline.
+  allowVideo?: boolean;
+  // Rewrite for `<video poster>` and `<source src>` values. Steam consumer
+  // routes Steam-CDN `extras/<hash>.{webm,poster.avif}` paths through the
+  // description-asset proxy. Returning `null` drops the surface: an unknown
+  // `<source>` is removed entirely; an unknown `<video poster>` strips just
+  // the poster attribute (the `<video>` itself still renders).
+  rewriteVideoUrl?: (src: string) => string | null;
 }
 
 function escapeAttr(value: string): string {
@@ -110,10 +139,13 @@ export function sanitizeRichHtml(
   options: SanitizeRichHtmlOptions = {}
 ): string {
   if (!input) return "";
+  const allowVideo = options.allowVideo === true;
   let html = input.replace(DROP_ELEMENT_RE, "").replace(COMMENT_RE, "");
   html = html.replace(TAG_RE, (_full, slash: string, tag: string, attrs: string) => {
     const name = tag.toLowerCase();
-    if (!ALLOWED_TAGS.has(name)) return "";
+    const isVideoTag = VIDEO_TAGS.has(name);
+    if (isVideoTag && !allowVideo) return "";
+    if (!isVideoTag && !ALLOWED_TAGS.has(name)) return "";
     if (slash) return `</${name}>`;
     const allowed = ATTR_ALLOW[name] ?? EMPTY_ATTRS;
     const parsed = parseAttrs(attrs);
@@ -131,10 +163,34 @@ export function sanitizeRichHtml(
         parsed.set("src", rewritten);
       }
     }
+    if (name === "video") {
+      const poster = parsed.get("poster");
+      if (poster !== undefined && !isSafeImgSrc(poster)) {
+        parsed.delete("poster");
+      } else if (poster !== undefined && options.rewriteVideoUrl) {
+        const rewritten = options.rewriteVideoUrl(poster);
+        if (rewritten === null) parsed.delete("poster");
+        else parsed.set("poster", rewritten);
+      }
+    }
+    if (name === "source") {
+      const rawSrc = parsed.get("src");
+      if (rawSrc === undefined || !isSafeImgSrc(rawSrc)) {
+        // `<source>` is meaningless without a src — drop the surface entirely
+        // rather than emit an empty tag that the `<video>` will ignore anyway.
+        return "";
+      }
+      if (options.rewriteVideoUrl) {
+        const rewritten = options.rewriteVideoUrl(rawSrc);
+        if (rewritten === null) return "";
+        parsed.set("src", rewritten);
+      }
+    }
     const kept: string[] = [];
     for (const [k, v] of parsed) {
       if (!allowed.has(k)) continue;
       if (k === "src" && !isSafeImgSrc(v)) continue;
+      if (k === "poster" && !isSafeImgSrc(v)) continue;
       kept.push(`${k}="${escapeAttr(v)}"`);
     }
     const attrPart = kept.length > 0 ? ` ${kept.join(" ")}` : "";
