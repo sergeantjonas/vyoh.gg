@@ -1,4 +1,5 @@
 import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
+import { useThemeColor } from "@/lib/use-theme-color";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -194,6 +195,12 @@ export function SplashProvider({ children }: { children: ReactNode }) {
   }
   const champion = topClaim?.champion ?? null;
   const offsetX = topClaim?.offsetX ?? 0;
+
+  // Drive the per-route theme color from the active backdrop champion. This
+  // makes the theme cascade follow whatever champion is currently showing
+  // (account overview's most-played, match-detail's hero, champion detail
+  // page, etc.) instead of each route having to wire its own useThemeColor.
+  useThemeColor(champion ? championTheme(champion).dominantHex : null);
 
   return (
     <SplashContext.Provider value={value}>

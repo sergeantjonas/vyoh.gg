@@ -72,7 +72,7 @@ export function Nav() {
   const openedAtRef = useRef(0);
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
+    <nav data-vt-nav="" className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
@@ -81,7 +81,10 @@ export function Nav() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-400/35 via-50% to-transparent opacity-70 blur-[1px]"
       />
-      <div className="relative mx-auto flex max-w-4xl items-center gap-6 px-6 py-3">
+      <div
+        data-nav-inner=""
+        className="relative mx-auto flex max-w-4xl items-center gap-6 px-6 py-3"
+      >
         <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
           <OrbGlyph className="size-[1.5em] translate-y-[0.1em]" />
           <span className="flex items-baseline">

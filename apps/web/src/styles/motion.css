@@ -1,0 +1,154 @@
+/* ─── Named scroll-timeline scope ───────────────────────────────────────────
+   body scope extends --main-scroll to elements outside <main>'s subtree.
+   Both the nav (sibling of main) and the progress bar (sibling between
+   section-header-slot and main) reference it by name.                       */
+body {
+  timeline-scope: --main-scroll;
+}
+
+/* The actual scroller. scroll-timeline-name must be on the scroll container. */
+[data-vt-main] {
+  scroll-timeline-name: --main-scroll;
+  scroll-timeline-axis: block;
+}
+
+/* ─── Animatable custom properties ──────────────────────────────────────────
+   @property required so browsers can interpolate these as typed values.
+   Without registration, keyframe interpolation silently degrades to a jump. */
+
+/* Normalised 0→1 progress that nav derivations (blur, padding, scale) read.
+   inherits:true so [data-nav-inner] descendants can consume the same value. */
+@property --nav-collapse {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Section progress bar width, driven from 0% to 100% across full scroll.   */
+@property --progress-width {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────── */
+
+/* Nav compaction: normalised progress consumed via calc() in nav CSS.        */
+@keyframes nav-compact {
+  to {
+    --nav-collapse: 1;
+  }
+}
+
+/* Section progress hairline: 0% → 100% across the full scroll extent.       */
+@keyframes section-progress {
+  to {
+    --progress-width: 100%;
+  }
+}
+
+/* Per-element below-fold entry: opacity + subtle vertical lift.              */
+@keyframes view-entry {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Section progress indicator ────────────────────────────────────────── */
+
+/* 2px hairline placed as a sibling of <main> (between section-header-slot
+   and <main>) so it gets full viewport width without being constrained by
+   <main>'s scrollbar-gutter. Color inherits per-route --theme-fg (set on
+   <html> by SplashProvider → useThemeColor). Width 0% at scroll=0 means
+   the bar is naturally invisible at top.                                    */
+[data-scroll-progress] {
+  width: var(--progress-width);
+  background: var(--theme-fg);
+}
+
+/* ─── Nav compaction ─────────────────────────────────────────────────────── */
+
+[data-vt-nav] {
+  /* backdrop-blur-md = blur(12px); intensifies to blur(16px) on scroll.    */
+  --nav-blur: calc(12px + var(--nav-collapse) * 4px);
+  backdrop-filter: blur(var(--nav-blur));
+}
+
+[data-nav-inner] {
+  /* py-3 = 0.75rem; compacts to 0.5rem over the same 120px range.          */
+  padding-block: calc(0.75rem - var(--nav-collapse) * 0.25rem);
+}
+
+/* Wordmark micro-scales 1 → 0.92 from the left edge.                       */
+[data-nav-inner] > :first-child {
+  transform-origin: left center;
+  scale: calc(1 - var(--nav-collapse) * 0.08);
+}
+
+/* ─── Scroll-driven animation declarations ───────────────────────────────── */
+
+/* Guard all animation-timeline assignments behind @supports. Without this,
+   `animation: <name> linear both` in non-supporting browsers (Firefox as of
+   2026, older Safari) falls back to a 0-duration time-based animation that
+   instantly completes at the `to` value — progress bar stuck at 100%, nav
+   always compacted. With the guard, those browsers see only the non-animated
+   properties above (initial values: --nav-collapse: 0, --progress-width: 0%).
+   The progress bar additionally has a JS fallback in scroll-progress.tsx.    */
+/* Every `animation` shorthand here uses 1ms as the duration. Firefox refuses
+   to apply a scroll-driven animation when the duration defaults to 0s, even
+   when `animation-timeline` is set — the duration must be present and
+   non-zero. The value itself is ignored once the scroll timeline takes over,
+   so 1ms is just a sentinel that makes Firefox accept the declaration.      */
+@supports (animation-timeline: scroll()) {
+  /* Named --main-scroll timeline reaches the bar via timeline-scope on body
+     (Chrome / Safari both implement it). Firefox stable doesn't yet, but it
+     falls back to the JS scroll listener in scroll-progress.tsx.            */
+  [data-scroll-progress] {
+    animation: section-progress 1ms linear both;
+    animation-timeline: --main-scroll;
+  }
+
+  [data-vt-nav] {
+    animation: nav-compact 1ms linear both;
+    animation-timeline: --main-scroll;
+    animation-range: 0px 120px;
+  }
+
+  /* Per-element view() entries on below-fold tiles and cards. Fires once as
+     the element crosses the viewport entry threshold; already-visible
+     elements (above fold) land in the fully-resolved state via fill: both. */
+  .view-entry {
+    animation: view-entry 1ms linear both;
+    animation-timeline: view(block);
+    animation-range: entry 0% cover 30%;
+  }
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+/* Replace, don't disable: every behavior collapses to its resting state.    */
+/* Nav: compacted always (better density on small screens).                  */
+/* Progress: static full-width accent underline at reduced opacity.          */
+/* view-entry: elements render at their final visible state immediately.     */
+@media (prefers-reduced-motion: reduce) {
+  [data-vt-nav] {
+    animation: none;
+    --nav-collapse: 1;
+  }
+
+  [data-scroll-progress] {
+    animation: none;
+    --progress-width: 100%;
+    opacity: 0.4;
+  }
+
+  .view-entry {
+    animation: none;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

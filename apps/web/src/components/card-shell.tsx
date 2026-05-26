@@ -38,7 +38,7 @@ export function CardShell({
   return (
     <div
       className={cn(
-        "flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4",
+        "view-entry flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4",
         className
       )}
     >

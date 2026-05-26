@@ -44,7 +44,9 @@ export function BentoTile({
   className?: string;
 }) {
   return (
-    <div className={cn("min-h-0", COL_SPAN[width], ROW_SPAN[height], className)}>
+    <div
+      className={cn("view-entry min-h-0", COL_SPAN[width], ROW_SPAN[height], className)}
+    >
       {children}
     </div>
   );

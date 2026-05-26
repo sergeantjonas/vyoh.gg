@@ -1,13 +1,11 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
-import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
-import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
@@ -141,7 +139,6 @@ function ChampionDetailPage() {
   );
   const championName = useChampionName();
   useSplashChampion(championKey);
-  useThemeColor(championTheme(championKey).dominantHex);
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
   const itemsData = useItems();

@@ -27,6 +27,7 @@ import { mainScrollRef } from "./lib/scroll-container";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 import "./styles/view-transitions.css";
+import "./styles/motion.css";
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 

@@ -6,6 +6,7 @@ import { Nav } from "@/components/nav";
 import { NotFound } from "@/components/not-found";
 import { OrbGlyph } from "@/components/orb-glyph";
 import { PerfOverlay } from "@/components/perf-overlay";
+import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -63,6 +64,7 @@ function RootLayout() {
                 its compact-spring padding animation, and <main flex-1> absorbs
                 the delta. */}
             <div id="section-header-slot" className="relative z-40" />
+            <ScrollProgress />
             <main
               ref={(el) => {
                 mainScrollRef.current = el;
