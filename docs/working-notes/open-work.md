@@ -30,6 +30,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Steam surfaces
 
 - **Description image rendering — A7 (optional backfill probe)** — A1–A5 shipped 2026-05-26 end-to-end: rendered `about_the_game` HTML now drives game-detail descriptions with inline `<video>` clips routed through a new range-streaming description-asset proxy, lazy-populated on first view. A7 (eager backfill so first views skip the cold-fetch round-trip) is the only pending item; defer until a marquee surface shows a visible cold-window. → [description-image-rendering.md](steam/description-image-rendering.md)
+- **Game-detail enrichment — directions index** — backlog of per-game enrichment leads (trailers reusing the new proxy, personal-time storytelling, top rarest achievements, demo links, in-Steam game notes) consolidated from api-surface-survey, library-card-enrichment, steam-integration. Also carries the pending structural question of whether to split the page into editorial-landing + playthrough-tab. → [game-detail-enrichment.md](steam/game-detail-enrichment.md)
 - **Steam ↔ LoL parity Item 6 — per-game accent color** — Items 1–5 shipped 2026-05-24; Item 6 remains, blocked on a Steam dominant-color source (build-time palette extraction from `library_hero.jpg`/`header.jpg` preferred over runtime canvas sampling). Wiring is ~3 lines once the source exists. → [steam-lol-parity.md § Item 6](cross-cutting/steam-lol-parity.md)
 
 ### Pre-deploy / admin

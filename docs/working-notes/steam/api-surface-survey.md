@@ -18,6 +18,8 @@ Already wired ([steam-client.service.ts](../../../apps/api/src/steam/steam-clien
 
 Everything below is **not yet wired**. Triaged into chunks the same way as [library-card-enrichment.md](./library-card-enrichment.md) — each lands in the matching destination note rather than this one.
 
+Chunks A2 / A3 / A4 / A7 land their consumer on `/steam/game/$appid`; the consolidated directions index for that surface lives in [game-detail-enrichment.md](./game-detail-enrichment.md) — read that note when scoping any of those chunks, so adjacent (non-API-derived) enrichment ideas land alongside.
+
 ---
 
 ## Chunks at a glance
