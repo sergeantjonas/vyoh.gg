@@ -9,8 +9,11 @@ import { useEffect, useMemo, useState } from "react";
 // Shared hovercard chrome className — same panel treatment whether the
 // trigger is the library tile or the library row. Kept here (next to the
 // content component) so every consumer imports it from one place.
+// `z-40` sits below the top nav and section header band (both z-50) so a
+// card opened on a trigger that's partially behind those sticky bands is
+// clipped by them instead of floating over them.
 export const LIBRARY_HOVERCARD_CONTENT_CLASS =
-  "z-50 w-64 overflow-hidden rounded-md border bg-popover/90 text-popover-foreground shadow-xl backdrop-blur-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+  "z-40 w-64 overflow-hidden rounded-md border bg-popover/90 text-popover-foreground shadow-xl backdrop-blur-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const SCREENSHOT_ROTATION_MS = 2_500;
 const DAY_MS = 86_400_000;
