@@ -234,7 +234,7 @@ p {
      single set propagates everywhere. The default matches the body radial
      gradient hue, so un-themed routes stay visually identical. */
   --theme-color: oklch(0.6 0.16 240);
-  --theme-fg: oklch(from var(--theme-color) min(l, 0.45) c h);
+  --theme-fg: oklch(from var(--theme-color) min(l, 0.45) calc(c * 1.3) h);
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 0.85) c h);
   --theme-ring: oklch(from var(--theme-color) l c h / 0.6);
@@ -276,7 +276,7 @@ p {
   /* Dark-mode foreground lifts toward white against the near-black body;
      muted/strong/ring derivations mirror :root. */
   --theme-color: oklch(0.6 0.16 240);
-  --theme-fg: oklch(from var(--theme-color) max(l, 0.85) c h);
+  --theme-fg: oklch(from var(--theme-color) max(l, 0.85) calc(c * 1.3) h);
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 1.1) c h);
   --theme-ring: oklch(from var(--theme-color) l c h / 0.7);
@@ -295,16 +295,18 @@ p {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
   }
-  /* Extend the per-entity --theme-color cascade (set on `<main>` per
-     route by useThemeColor) to native browser primitives: form controls
-     pick up the route accent via `accent-color`, and text selection
-     highlights pick it up via `::selection`. Both inherit, so a single
-     declaration at the root scope propagates through every subtree. */
+  /* Extend the per-entity theme cascade (driven by useThemeColor on
+     <html>) to native browser primitives: form controls via `accent-color`
+     and text selection via `::selection`. Both pull from `--theme-fg` so
+     dark-mode renders read as the champion's identity — the .dark
+     derivation lifts L to >=0.85, preserving hue/chroma while pulling the
+     swatch into the visible range against the dark page. Both properties
+     inherit, so the :root declaration cascades through every subtree. */
   :root {
-    accent-color: var(--theme-color);
+    accent-color: var(--theme-fg);
   }
   ::selection {
-    background: color-mix(in oklch, var(--theme-color) 40%, transparent);
+    background: color-mix(in oklch, var(--theme-fg) 40%, transparent);
   }
   *::-webkit-scrollbar {
     width: 10px;
