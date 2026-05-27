@@ -3,7 +3,11 @@ import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import type { SteamEnrichmentService } from "./enrichment.service";
 import type { SteamGlobalRarityService } from "./global-rarity.service";
-import { SteamOwnedGamesService, diffOwnedGames } from "./owned-games.service";
+import {
+  SteamOwnedGamesService,
+  buildRecentPlaytimeSeries,
+  diffOwnedGames,
+} from "./owned-games.service";
 import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import type { SteamClientService } from "./steam-client.service";
 import type { SteamOwnedGameRaw } from "./types";
@@ -85,6 +89,35 @@ describe("diffOwnedGames", () => {
     const diff = diffOwnedGames([game(1)], previous);
     expect(diff.removed).toEqual([]);
     expect(diff.persisted).toEqual([1]);
+  });
+});
+
+describe("buildRecentPlaytimeSeries", () => {
+  it("computes consecutive-snapshot deltas grouped by appid", () => {
+    const series = buildRecentPlaytimeSeries([
+      { appid: 1, playtimeForeverMinutes: 100 },
+      { appid: 1, playtimeForeverMinutes: 130 },
+      { appid: 1, playtimeForeverMinutes: 140 },
+      { appid: 2, playtimeForeverMinutes: 5_000 },
+      { appid: 2, playtimeForeverMinutes: 5_060 },
+    ]);
+    expect(series.get(1)).toEqual([30, 10]);
+    expect(series.get(2)).toEqual([60]);
+  });
+
+  it("clamps negative deltas to zero (family-share / refund resets)", () => {
+    const series = buildRecentPlaytimeSeries([
+      { appid: 1, playtimeForeverMinutes: 1_000 },
+      { appid: 1, playtimeForeverMinutes: 1_010 },
+      { appid: 1, playtimeForeverMinutes: 500 },
+      { appid: 1, playtimeForeverMinutes: 520 },
+    ]);
+    expect(series.get(1)).toEqual([10, 0, 20]);
+  });
+
+  it("returns an empty series for an appid with a single snapshot", () => {
+    const series = buildRecentPlaytimeSeries([{ appid: 1, playtimeForeverMinutes: 100 }]);
+    expect(series.get(1)).toEqual([]);
   });
 });
 
@@ -408,6 +441,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         subjectXPercent: null,
         subjectYPercent: null,
         flipHero: false,
+        recentPlaytimeMinutes: [],
       },
     ]);
   });

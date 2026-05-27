@@ -1,3 +1,4 @@
+import { Sparkline } from "@/components/ui/sparkline";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
@@ -240,11 +241,24 @@ export function LibraryRow({
         subjectYPercent={game.subjectYPercent}
         flipHero={game.flipHero}
         meta={
-          <>
-            {lifetime ? `${lifetime} lifetime` : "Never launched"}
-            {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
-            {lastPlayed ? ` · last played ${lastPlayed}` : ""}
-          </>
+          <span className="inline-flex items-center gap-2 align-middle">
+            <span>
+              {lifetime ? `${lifetime} lifetime` : "Never launched"}
+              {twoWeeks ? ` · ${twoWeeks} last two weeks` : ""}
+              {lastPlayed ? ` · last played ${lastPlayed}` : ""}
+            </span>
+            {game.recentPlaytimeMinutes.length >= 5 &&
+              Math.max(...game.recentPlaytimeMinutes) > 0 && (
+                <Sparkline
+                  data={game.recentPlaytimeMinutes}
+                  width={48}
+                  height={12}
+                  className="shrink-0 text-white/85"
+                  stroke="currentColor"
+                  aria-label={`playtime trend, last ${game.recentPlaytimeMinutes.length} days`}
+                />
+              )}
+          </span>
         }
         heroRef={heroRef}
         logoRef={logoRef}

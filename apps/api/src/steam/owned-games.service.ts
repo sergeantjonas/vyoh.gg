@@ -75,6 +75,34 @@ function localDateBucket(now: Date, timeZone: string): Date {
   return new Date(`${ymd}T00:00:00Z`);
 }
 
+// Group snapshot rows (already sorted by appid asc, snapshotDate asc) into
+// per-appid arrays of per-day minute deltas. Each delta is
+// `playtimeForeverMinutes[d] - playtimeForeverMinutes[d-1]`, clamped at >= 0
+// to absorb the occasional family-share / refund reset. Single appid with one
+// snapshot produces an empty series (no prior baseline to subtract from).
+// Exported for unit testing.
+export function buildRecentPlaytimeSeries(
+  rows: ReadonlyArray<{ appid: number; playtimeForeverMinutes: number }>
+): Map<number, number[]> {
+  const out = new Map<number, number[]>();
+  let currentAppid: number | null = null;
+  let prev = 0;
+  let series: number[] = [];
+  for (const row of rows) {
+    if (row.appid !== currentAppid) {
+      if (currentAppid !== null) out.set(currentAppid, series);
+      currentAppid = row.appid;
+      prev = row.playtimeForeverMinutes;
+      series = [];
+      continue;
+    }
+    series.push(Math.max(0, row.playtimeForeverMinutes - prev));
+    prev = row.playtimeForeverMinutes;
+  }
+  if (currentAppid !== null) out.set(currentAppid, series);
+  return out;
+}
+
 @Injectable()
 export class SteamOwnedGamesService {
   private readonly logger = new Logger(SteamOwnedGamesService.name);
@@ -351,6 +379,24 @@ export class SteamOwnedGamesService {
     // serialize as per-field nulls and the image helpers fall back to legacy
     // unhashed paths.
     const appids = rows.map((r) => r.appid);
+    // 30-day playtime sparkline series — fetch every snapshot in the window
+    // for the currently-owned set in a single sorted query, then group + diff
+    // in memory. 500 games × 31 days bounds this at ~15k rows, well within
+    // a single round-trip.
+    const since = new Date(latest.snapshotDate);
+    since.setUTCDate(since.getUTCDate() - 30);
+    const recentRows = await this.prisma.steamPlaytimeSnapshot.findMany({
+      where: {
+        snapshotDate: { gte: since, lte: latest.snapshotDate },
+        game: { removedAt: null },
+      },
+      select: {
+        appid: true,
+        playtimeForeverMinutes: true,
+      },
+      orderBy: [{ appid: "asc" }, { snapshotDate: "asc" }],
+    });
+    const recentByAppid = buildRecentPlaytimeSeries(recentRows);
     const enrichments = await this.prisma.steamGameEnrichment.findMany({
       where: { appid: { in: appids } },
       select: {
@@ -428,6 +474,7 @@ export class SteamOwnedGamesService {
           subjectXPercent: e?.subjectXPercent ?? null,
           subjectYPercent: e?.subjectYPercent ?? null,
           flipHero: e?.flipHero ?? false,
+          recentPlaytimeMinutes: recentByAppid.get(r.appid) ?? [],
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

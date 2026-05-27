@@ -68,6 +68,7 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     appType: 0,
     assetTimestamp: null,
     tagIds: [],
+    recentPlaytimeMinutes: [],
     ...overrides,
   } as unknown as SteamOwnedGame;
 }

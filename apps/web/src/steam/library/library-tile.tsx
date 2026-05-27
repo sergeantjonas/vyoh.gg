@@ -1,3 +1,4 @@
+import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import {
@@ -211,8 +212,21 @@ export function LibraryTile({
               <span className="truncate text-sm font-medium underline-offset-2 group-hover/tile:underline">
                 {game.name}
               </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {lifetime ? `${lifetime} lifetime` : "Never launched"}
+              <span className="flex items-center gap-2 truncate text-xs text-muted-foreground">
+                <span className="truncate">
+                  {lifetime ? `${lifetime} lifetime` : "Never launched"}
+                </span>
+                {game.recentPlaytimeMinutes.length >= 5 &&
+                  Math.max(...game.recentPlaytimeMinutes) > 0 && (
+                    <Sparkline
+                      data={game.recentPlaytimeMinutes}
+                      width={36}
+                      height={10}
+                      className="shrink-0 text-foreground/60"
+                      stroke="currentColor"
+                      aria-label={`playtime trend, last ${game.recentPlaytimeMinutes.length} days`}
+                    />
+                  )}
               </span>
             </div>
           </Link>

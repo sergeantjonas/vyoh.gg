@@ -93,6 +93,13 @@ export interface SteamOwnedGame {
   // library row and the game-detail page hero apply the same flip so
   // the view-transition morph stays continuous.
   flipHero: boolean;
+  // Per-day playtime in minutes over the last up-to-30 days, oldest first.
+  // Derived from consecutive SteamPlaytimeSnapshot rows for this appid —
+  // each entry is `playtimeForeverMinutes[d] - playtimeForeverMinutes[d-1]`,
+  // clamped at >= 0 to absorb the occasional family-share / refund reset.
+  // Empty when the game has fewer than two snapshots on file. Drives the
+  // tile/row sparkline; renderer skips the sparkline for all-zero series.
+  recentPlaytimeMinutes: number[];
 }
 
 export interface SteamGameRating {
