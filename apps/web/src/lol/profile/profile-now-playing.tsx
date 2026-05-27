@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
@@ -62,9 +63,7 @@ export function ProfileNowPlaying({ accountSlug }: { accountSlug: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-        Now Playing · last {DAYS} days
-      </div>
+      <SectionTitle>Now Playing · last {DAYS} days</SectionTitle>
       <m.div
         initial="hidden"
         animate="show"

@@ -1,6 +1,6 @@
 # Page composition — section structure + container convention
 
-**Status:** Active — Chunk 1 (audit) shipped 2026-05-27. Chunks 2–5 pending. Opened 2026-05-27 after the editorial-typography arc closed out. Three rounds of typography sweeps surfaced a structural-level inconsistency the typography arc couldn't address: pages use different IA (flat list of cards vs grouped under section dividers) and different container patterns (chrome around sections vs bare) without a shared rule. This arc decides the rules and sweeps.
+**Status:** Mostly shipped 2026-05-27 — Chunks 1 (audit), 2 (top-3 surface decisions + reframed compositional rule), 4 (LoL profile header sweep, one commit), 5 (repo-conventions.md writeback) all landed in one session. Chunk 3 (side-by-side visual capture) deferred as owner-run documentation; not blocking. Secondary surfaces (LoL recap, champion-detail chrome→bare, trends grouping, Steam achievements/signature) remain on the standing backlog if/when picked up. Opened 2026-05-27 after the editorial-typography arc closed out. Three rounds of typography sweeps surfaced a structural-level inconsistency the typography arc couldn't address: pages use different IA (flat list of cards vs grouped under section dividers) and different container patterns (chrome around sections vs bare) without a shared rule. This arc decides the rules and sweeps.
 
 ## Why this arc exists
 
@@ -231,6 +231,6 @@ This is the canonical "bare-everything, header-led" pattern. Cite it in Chunk 3 
 
 ### Remaining chunks
 
-- **Chunk 3:** Ratify the compositional rule above with one side-by-side visual capture (Steam game-detail bands vs LoL Your Game stack). Codify in this note.
-- **Chunk 4:** Per-surface sweep. Only one identified target so far — the 3 LoL profile header migrations (one commit). Secondary candidates (LoL recap, champion-detail chrome→bare transition, trends ~18-tile grouping, Steam achievements/signature) get per-surface decisions before any code lands.
-- **Chunk 5:** Writeback to `repo-conventions.md` § "Header primitives" — append the compositional container rule + the two reference surfaces.
+- **Chunk 3 — deferred (owner-run visual).** The rule is text-defined in this note and codified in `repo-conventions.md`; the side-by-side capture is documentation-only and can be produced from a running dev server when convenient. Not blocking.
+- ~~**Chunk 4 — shipped 2026-05-27.**~~ Three ad-hoc span headers on LoL profile migrated to `SectionTitle`: `profile-lp-history.tsx:540`, `profile-season-history.tsx:213`, `profile-now-playing.tsx:65`. One commit. Secondary candidates (LoL recap, champion-detail chrome→bare transition, trends ~18-tile grouping, Steam achievements/signature) remain — each will get a per-surface decision via the same Chunk 2 walk-through pattern if/when picked up.
+- ~~**Chunk 5 — shipped 2026-05-27.**~~ Compositional container rule appended to `repo-conventions.md` as a new sub-section "Page composition: chrome belongs at the lowest level that visually groups heterogeneous content," sibling to the existing header-primitives rule. Cross-links the two reference surfaces (Steam game-detail, LoL Your Game) and pairs the chrome decision with the header-primitive decision.

@@ -1,5 +1,6 @@
 // Baseline: personal — your LP snapshots; streak overlay derives from your match results.
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
@@ -537,9 +538,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            LP History
-          </div>
+          <SectionTitle>LP History</SectionTitle>
           {streak && (
             <TooltipPrimitive.Root>
               <TooltipPrimitive.Trigger asChild>

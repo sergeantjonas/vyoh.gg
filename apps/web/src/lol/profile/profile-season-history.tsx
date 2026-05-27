@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
@@ -210,9 +211,7 @@ export function ProfileSeasonHistory({ accountSlug }: { accountSlug: string }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            Season history
-          </div>
+          <SectionTitle>Season history</SectionTitle>
           <TooltipPrimitive.Root>
             <TooltipPrimitive.Trigger asChild>
               <span className="cursor-help rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">

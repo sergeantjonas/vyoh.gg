@@ -145,6 +145,27 @@ This aligns with the industry-standard slot pattern documented in `~/.claude/kno
 
 If you're about to write a new ad-hoc `<span>` / `<p>` header with uppercase + font-weight classes, you almost certainly want `SectionTitle` or `CardTitle` instead.
 
+### Page composition: chrome belongs at the lowest level that visually groups heterogeneous content
+
+When choosing the container shape for a new section (chrome `rounded-lg border bg-card/…` wrapper vs bare `<section>` / `<div>` with only flex/spacing classes), the rule is **compositional**, not content-based:
+
+> Chrome belongs at the lowest level that visually groups heterogeneous content. **Don't nest chrome inside chrome.**
+
+Three sub-rules:
+
+1. **If a section's children each carry their own chrome, the outer wrapper stays bare.** Wrapping creates nested borders — visually noisy, and the chrome stops "containing" anything because each child is already contained.
+2. **If a section's children are bare inline content** (text, chips, a single chart body, a strip of metadata), **the wrapper carries chrome.** The chrome is doing the visual lifting that no individual child does.
+3. **A `<section>` whose role is purely to group sibling sections under a shared `SectionTitle` divider stays bare regardless of child content.** It's an IA scope marker, not a visual band.
+
+The two reference surfaces in the app:
+
+- **Bare wrapper, chromed children** — [apps/web/src/routes/steam/game.$appid.tsx](../apps/web/src/routes/steam/game.$appid.tsx). The Editorial band (`GameScreenshotStrip` + `GameAboutBlock`) and Progress band (`GameUnlockTimeline` + verdict-grid + `AchievementPanel`) each use `<section className="flex flex-col gap-4">` because every child component carries its own `rounded-lg border bg-card/50` wrapper. The Identity band one row above *does* carry chrome — because its children (price strip, platform pills, review chip, ESRB chip, short description) are bare inline content.
+- **Bare wrapper, bare children, dividers do the work** — [apps/web/src/lol/matches/match-detail-view.tsx](../apps/web/src/lol/matches/match-detail-view.tsx) (`MatchYourGameTab`). Six chart sections (`MatchBuildOrder`, `MatchSpellCasts`, `MatchDamageProfile`, `MatchOwnerStats`, `MatchSkillOrder`, `MatchLanePhase`) sit in a flat `flex flex-col gap-6` stack with no chrome anywhere. Each child uses `<section className="flex flex-col gap-3">` with a `SectionTitle` header. Works because the children are individual chart bodies of similar visual weight, sitting under a scrollspy nav that already implies the section structure.
+
+**Why:** The earlier draft of this rule was content-shape-based ("chart/timeline/grid → chrome, text/sentence → bare"), but that produced false-positive "incomplete migration" readings on layouts like Steam game-detail where chrome lives at the child level by design. The compositional rule subsumes the content-shape heuristic and makes both reference patterns obviously correct — the question collapses from "is this content important enough to chrome?" to the mechanical "is there already chrome below this point?".
+
+**How to apply:** When adding a new section, look one level down before deciding. If the immediate children mostly carry `rounded-lg border bg-card/…` already, use a bare wrapper. If they're bare content blocks, use a chrome wrapper. If you find yourself wanting to wrap chrome around already-chromed children to "tie them together visually," the IA wants the *children* to share a single `SectionTitle` divider above the bare wrapper, not nested chrome. The compositional rule pairs with the [header primitive rule](#header-primitives-sectiontitle-vs-cardtitle--pick-by-chrome-not-by-content) above: chrome decision picks the wrapper, header primitive picks the title treatment, and they decide each other (chromed wrapper → `CardTitle`, bare wrapper → `SectionTitle`).
+
 ### Gate engine-specific perf cliffs instead of chasing CSS parity
 
 When a feature performs well in Blink/Gecko but produces visible chop on WebKit (Safari/iOS), and you've exhausted reasonable in-CSS optimisations without closing the gap, **gate the feature on `isWebKit()` ([apps/web/src/lib/is-webkit.ts](../apps/web/src/lib/is-webkit.ts)) and ship a compositor-only substitute** for the engine that doesn't handle it well. Don't continue tuning CSS toward parity when the cost lives inside an engine code path no CSS property reaches (snapshot capture, filter pipeline, layer-tree management).
