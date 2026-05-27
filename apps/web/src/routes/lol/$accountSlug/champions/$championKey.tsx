@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
+import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -83,10 +84,10 @@ function DeltaTile({
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
       className="flex flex-1 flex-col gap-1 rounded-lg border bg-card/50 p-4"
     >
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div
+      <HeroLabel>{label}</HeroLabel>
+      <HeroNumber
+        size="md"
         className={cn(
-          "text-2xl font-bold tabular-nums",
           isZero
             ? "text-muted-foreground"
             : positive
@@ -95,7 +96,7 @@ function DeltaTile({
         )}
       >
         {isZero ? "—" : `${positive ? "+" : ""}${format(value)}`}
-      </div>
+      </HeroNumber>
       <div className="text-xs text-muted-foreground">vs. your average</div>
     </m.div>
   );
@@ -387,14 +388,12 @@ function ChampionDetailPage() {
           ).map(([label, val]) => (
             <div
               key={label}
-              className="flex flex-1 flex-col items-center gap-0.5 rounded-lg border bg-card/50 py-3"
+              className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/50 py-3"
             >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                {label}
-              </div>
-              <div className="text-lg font-semibold tabular-nums">
+              <HeroLabel>{label}</HeroLabel>
+              <HeroNumber size="md">
                 <CountUp to={val} decimals={1} />
-              </div>
+              </HeroNumber>
             </div>
           ))}
         </m.div>
