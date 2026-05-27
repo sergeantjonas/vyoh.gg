@@ -18,6 +18,7 @@ vi.mock("@/lol/profile/use-rank-history", () => ({
 }));
 
 const referenceAreaCalls: Array<Record<string, unknown>> = [];
+const referenceDotCalls: Array<Record<string, unknown>> = [];
 vi.mock("recharts", () => {
   const Passthrough = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
   const NullEl = () => null;
@@ -32,7 +33,10 @@ vi.mock("recharts", () => {
       referenceAreaCalls.push(props);
       return null;
     },
-    ReferenceDot: NullEl,
+    ReferenceDot: (props: Record<string, unknown>) => {
+      referenceDotCalls.push(props);
+      return null;
+    },
     ReferenceLine: NullEl,
     ResponsiveContainer: Passthrough,
   };
@@ -112,6 +116,7 @@ afterEach(() => {
   vi.mocked(useAccountFromSlug).mockReset();
   vi.mocked(useRankHistory).mockReset();
   referenceAreaCalls.length = 0;
+  referenceDotCalls.length = 0;
 });
 
 describe("ProfileLpHistory", () => {
@@ -262,6 +267,17 @@ describe("ProfileLpHistory", () => {
     setHistory({ solo: points });
     renderShell();
     expect(screen.getByText("LP History")).toBeTruthy();
+    // Three tier/division crossings: Silver II → Silver I (up), Silver I → Gold
+    // IV (up), Gold IV → Gold IV is a no-op so only 2 ReferenceDot calls. Each
+    // carries a direction-derived label and points "up" because LP rose.
+    const markers = referenceDotCalls.filter((p) => {
+      const label = p.label as { value?: string } | undefined;
+      return typeof label?.value === "string";
+    });
+    expect(markers.length).toBe(2);
+    const labels = markers.map((p) => (p.label as { value: string }).value);
+    expect(labels).toContain("Silver I");
+    expect(labels).toContain("Gold IV");
   });
 
   it("applies a brush sub-range and a Show all reset clears it", () => {
@@ -430,5 +446,46 @@ describe("ProfileLpHistory", () => {
     expect(seasonBands.length).toBe(2);
     // Bands alternate fill opacity to visually separate adjacent seasons.
     expect(seasonBands[0]?.fillOpacity).not.toBe(seasonBands[1]?.fillOpacity);
+  });
+
+  it("renders alternating tier bands when the visible range spans more than one tier", () => {
+    // Snapshots span Silver III (normalized ~900) → Gold IV (normalized ~1200)
+    // so the visible window straddles the Silver/Gold boundary at 1200. Both
+    // tier bands should render with their label values.
+    const captureBase = new Date("2026-01-01T00:00:00Z").getTime();
+    const points = Array.from({ length: 6 }, (_, i) =>
+      point({
+        capturedAt: new Date(captureBase + i * 86_400_000).toISOString(),
+        tier: i < 3 ? "SILVER" : "GOLD",
+        rank: i < 3 ? "III" : "IV",
+        leaguePoints: 50 + i * 10,
+      })
+    );
+    setHistory({ solo: points });
+    renderShell();
+    const tierBands = referenceAreaCalls.filter((p) => p.className === "lp-tier-band");
+    // Silver + Gold visible; the rest are filtered out as out-of-range.
+    expect(tierBands.length).toBe(2);
+    const labels = tierBands.map((p) => (p.label as { value: string }).value);
+    expect(labels).toEqual(expect.arrayContaining(["Silver", "Gold"]));
+    // Alternating fill opacity for visual separation.
+    expect(tierBands[0]?.fillOpacity).not.toBe(tierBands[1]?.fillOpacity);
+  });
+
+  it("hides tier bands when the visible range fits inside one tier", () => {
+    // All snapshots within Gold IV — only one tier visible, no bands render.
+    const captureBase = new Date("2026-01-01T00:00:00Z").getTime();
+    const points = Array.from({ length: 6 }, (_, i) =>
+      point({
+        capturedAt: new Date(captureBase + i * 86_400_000).toISOString(),
+        tier: "GOLD",
+        rank: "IV",
+        leaguePoints: 30 + i * 5,
+      })
+    );
+    setHistory({ solo: points });
+    renderShell();
+    const tierBands = referenceAreaCalls.filter((p) => p.className === "lp-tier-band");
+    expect(tierBands.length).toBe(0);
   });
 });

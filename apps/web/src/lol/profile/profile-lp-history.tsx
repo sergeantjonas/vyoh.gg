@@ -93,6 +93,41 @@ const DAY_KEY_FMT = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
+// Normalized-LP boundaries for each tier (matches `normalizeLp` in shared).
+// Master+ has no upper bound; we pin a large sentinel and rely on the chart's
+// own Y domain to clip via `ifOverflow="hidden"`.
+const TIER_BANDS: ReadonlyArray<{ name: string; fromLp: number; toLp: number }> = [
+  { name: "Iron", fromLp: 0, toLp: 400 },
+  { name: "Bronze", fromLp: 400, toLp: 800 },
+  { name: "Silver", fromLp: 800, toLp: 1200 },
+  { name: "Gold", fromLp: 1200, toLp: 1600 },
+  { name: "Platinum", fromLp: 1600, toLp: 2000 },
+  { name: "Emerald", fromLp: 2000, toLp: 2400 },
+  { name: "Diamond", fromLp: 2400, toLp: 2800 },
+  { name: "Master+", fromLp: 2800, toLp: 99_999 },
+];
+
+const TIER_SHORT: Record<string, string> = {
+  IRON: "Iron",
+  BRONZE: "Bronze",
+  SILVER: "Silver",
+  GOLD: "Gold",
+  PLATINUM: "Plat",
+  EMERALD: "Emerald",
+  DIAMOND: "Diamond",
+  MASTER: "Master",
+  GRANDMASTER: "GM",
+  CHALLENGER: "Chall",
+};
+
+const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
+
+function formatTierShort(tier: string, rank: string): string {
+  const t = tier.toUpperCase();
+  const display = TIER_SHORT[t] ?? tier;
+  return APEX_TIERS.has(t) ? display : `${display} ${rank}`;
+}
+
 interface BucketMeta {
   kind: "session" | "day";
   gameCount: number;
@@ -298,17 +333,27 @@ function findLongestStreak(points: ChartPoint[]): Streak | null {
   return best;
 }
 
-function findTierChanges(points: ChartPoint[]): number[] {
-  const indices: number[] = [];
+interface TierChange {
+  idx: number;
+  direction: "up" | "down";
+  label: string;
+}
+
+function findTierChanges(points: ChartPoint[]): TierChange[] {
+  const changes: TierChange[] = [];
   for (let i = 1; i < points.length; i++) {
     const prev = points[i - 1];
     const curr = points[i];
     if (!prev || !curr) continue;
     if (prev.tier !== curr.tier || prev.rank !== curr.rank) {
-      indices.push(i);
+      changes.push({
+        idx: i,
+        direction: curr.totalLp >= prev.totalLp ? "up" : "down",
+        label: formatTierShort(curr.tier, curr.rank),
+      });
     }
   }
-  return indices;
+  return changes;
 }
 
 // One tick per calendar day, placed at the visual `t` of the first data point
@@ -680,7 +725,24 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const tickFormatter = useMemo(() => makeTickFormatter(visiblePoints), [visiblePoints]);
 
   const streak = useMemo(() => findLongestStreak(visiblePoints), [visiblePoints]);
-  const tierChangeIdxs = useMemo(() => findTierChanges(visiblePoints), [visiblePoints]);
+  const tierChanges = useMemo(() => findTierChanges(visiblePoints), [visiblePoints]);
+
+  // Tier bands give the Y axis meaning that raw normalized LP can't. We only
+  // render them when more than one tier is visible — a single full-chart band
+  // adds noise without context (e.g. Master+ accounts whose LP stays above
+  // 2800 see no bands, which is correct: there's no "next tier" to anchor to).
+  const visibleTierBands = useMemo(() => {
+    const pool = visiblePoints.length > 0 ? visiblePoints : points;
+    if (pool.length === 0) return [];
+    let yMin = pool[0]?.totalLp ?? 0;
+    let yMax = yMin;
+    for (const p of pool) {
+      if (p.totalLp < yMin) yMin = p.totalLp;
+      if (p.totalLp > yMax) yMax = p.totalLp;
+    }
+    const bands = TIER_BANDS.filter((b) => b.fromLp < yMax && b.toLp > yMin);
+    return bands.length >= 2 ? bands : [];
+  }, [visiblePoints, points]);
 
   // Patch boundaries are derived from ranked matches in the chart's queue
   // (timestamps line up with rank-snapshot timestamps closely enough). Out-of-
@@ -832,6 +894,25 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 content={<LpTooltip />}
                 cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
               />
+              {visibleTierBands.map((band, i) => (
+                <ReferenceArea
+                  key={`tier-band-${band.name}`}
+                  y1={band.fromLp}
+                  y2={band.toLp}
+                  fill="var(--foreground)"
+                  fillOpacity={i % 2 === 0 ? 0.035 : 0.012}
+                  stroke="none"
+                  ifOverflow="hidden"
+                  className="lp-tier-band"
+                  label={{
+                    value: band.name,
+                    position: "insideTopLeft",
+                    fill: "var(--muted-foreground)",
+                    fontSize: 10,
+                    offset: 6,
+                  }}
+                />
+              ))}
               {seasonBands.map((b) => (
                 <ReferenceArea
                   key={b.key}
@@ -890,19 +971,42 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 animationEasing="ease-out"
                 isAnimationActive={!reduced}
               />
-              {tierChangeIdxs.map((idx) => {
-                const p = visiblePoints[idx];
+              {tierChanges.map((tc) => {
+                const p = visiblePoints[tc.idx];
                 if (!p) return null;
+                const color = tc.direction === "up" ? "#34d399" : "#f87171";
                 return (
                   <ReferenceDot
-                    key={`tier-${idx}`}
+                    key={`tier-${tc.idx}`}
                     x={p.t}
                     y={p.totalLp}
-                    r={5}
-                    fill="#facc15"
-                    stroke="var(--background)"
-                    strokeWidth={2}
                     ifOverflow="hidden"
+                    shape={(props: { cx?: number; cy?: number }) => {
+                      const { cx, cy } = props;
+                      if (cx === undefined || cy === undefined) return <g />;
+                      const s = 6;
+                      const points =
+                        tc.direction === "up"
+                          ? `${cx},${cy - s} ${cx - s * 0.85},${cy + s * 0.7} ${cx + s * 0.85},${cy + s * 0.7}`
+                          : `${cx},${cy + s} ${cx - s * 0.85},${cy - s * 0.7} ${cx + s * 0.85},${cy - s * 0.7}`;
+                      return (
+                        <polygon
+                          points={points}
+                          fill={color}
+                          stroke="var(--background)"
+                          strokeWidth={1.5}
+                          data-testid="tier-change-marker"
+                          data-direction={tc.direction}
+                        />
+                      );
+                    }}
+                    label={{
+                      value: tc.label,
+                      position: tc.direction === "up" ? "top" : "bottom",
+                      fill: color,
+                      fontSize: 10,
+                      offset: 8,
+                    }}
                   />
                 );
               })}
