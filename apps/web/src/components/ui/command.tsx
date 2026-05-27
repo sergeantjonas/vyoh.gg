@@ -91,7 +91,13 @@ export function CommandGroup({
   return (
     <CommandPrimitive.Group
       className={cn(
-        "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
+        // `overflow-hidden` on the group establishes a nested scroll container
+        // that cmdk's scrollIntoView walks up into first. On Blink/WebKit the
+        // remaining scroll budget then fails to propagate to the outer
+        // cmdk-list, leaving arrow-key navigation stuck mid-list. Groups
+        // stack vertically and don't overflow, so dropping it is a no-op
+        // visually.
+        "p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
         className
       )}
       {...props}
