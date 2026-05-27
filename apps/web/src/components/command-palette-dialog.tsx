@@ -130,21 +130,28 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   // Corrective scroll pass. cmdk's built-in scrollIntoView lands short on
   // both Blink and WebKit in this DOM topology — the selected row's
   // bottom edge ends up below the cmdk-list viewport even when there's
-  // plenty of scroll room left. Runs after cmdk's own effect (we're the
-  // parent component) and compares the selected row's rect against the
-  // list's; if the row is out of bounds, set scrollTop directly.
+  // plenty of scroll room left. Deferred to rAF so cmdk's own write has
+  // landed first. Reads the selected row's rect against the list's and
+  // sets scrollTop directly when out of bounds, with a small headroom
+  // so the row doesn't sit flush against the viewport edge.
   useLayoutEffect(() => {
     if (!open || !highlighted) return;
-    const list = document.querySelector<HTMLElement>("[cmdk-list]");
-    const row = document.querySelector<HTMLElement>('[cmdk-item][aria-selected="true"]');
-    if (!list || !row) return;
-    const listRect = list.getBoundingClientRect();
-    const rowRect = row.getBoundingClientRect();
-    if (rowRect.top < listRect.top) {
-      list.scrollTop -= listRect.top - rowRect.top;
-    } else if (rowRect.bottom > listRect.bottom) {
-      list.scrollTop += rowRect.bottom - listRect.bottom;
-    }
+    const id = requestAnimationFrame(() => {
+      const list = document.querySelector<HTMLElement>("[cmdk-list]");
+      const row = document.querySelector<HTMLElement>(
+        '[cmdk-item][aria-selected="true"]'
+      );
+      if (!list || !row) return;
+      const listRect = list.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const headroom = 8;
+      if (rowRect.top < listRect.top + headroom) {
+        list.scrollTop -= listRect.top + headroom - rowRect.top;
+      } else if (rowRect.bottom > listRect.bottom - headroom) {
+        list.scrollTop += rowRect.bottom + headroom - listRect.bottom;
+      }
+    });
+    return () => cancelAnimationFrame(id);
   }, [open, highlighted]);
 
   const parsed = useMemo(() => parseMatchQuery(input), [input]);
