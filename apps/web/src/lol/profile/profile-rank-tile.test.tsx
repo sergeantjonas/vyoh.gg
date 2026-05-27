@@ -18,14 +18,14 @@ function entry(overrides: Partial<RankEntry> = {}): RankEntry {
   } as RankEntry;
 }
 
-function renderTiles(entries: RankEntry[]) {
+function renderTiles(entries: RankEntry[], recentLpByQueue?: Record<string, number[]>) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
       <MotionConfig reducedMotion="always">
-        <ProfileRankTiles entries={entries} />
+        <ProfileRankTiles entries={entries} recentLpByQueue={recentLpByQueue} />
       </MotionConfig>
     </QueryClientProvider>
   );
@@ -66,5 +66,21 @@ describe("ProfileRankTiles", () => {
       entry({ wins: null, losses: null } as unknown as Partial<RankEntry>),
     ]);
     expect(container.textContent).not.toMatch(/\dW \dL/);
+  });
+
+  it("renders the LP trend sparkline when recentLpByQueue carries >=5 points", () => {
+    const { container } = renderTiles([entry()], {
+      RANKED_SOLO_5x5: [1200, 1215, 1230, 1245, 1260, 1275],
+    });
+    const sparkline = container.querySelector('[data-slot="sparkline"]');
+    expect(sparkline).toBeTruthy();
+    expect(sparkline?.getAttribute("aria-label")).toMatch(/LP trend/);
+  });
+
+  it("omits the LP trend sparkline when the queue has fewer than 5 points", () => {
+    const { container } = renderTiles([entry()], {
+      RANKED_SOLO_5x5: [1200, 1215, 1230, 1245],
+    });
+    expect(container.querySelector('[data-slot="sparkline"]')).toBeNull();
   });
 });

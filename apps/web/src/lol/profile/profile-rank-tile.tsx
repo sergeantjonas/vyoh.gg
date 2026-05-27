@@ -1,4 +1,5 @@
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
+import { Sparkline } from "@/components/ui/sparkline";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { type RankEntry, formatPercent } from "@vyoh/shared";
@@ -28,7 +29,17 @@ const TIER_COLOR: Record<string, string> = {
 
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
-function RankTileContent({ entry }: { entry: RankEntry }) {
+function RankTileContent({
+  entry,
+  recentLp,
+}: {
+  entry: RankEntry;
+  // Normalized-LP series for the last ~30 days of this queue, oldest first.
+  // Normalization (see normalizeLp in @vyoh/shared) collapses tier/division into
+  // a single ordinal so promotions and demotions don't break the visual line.
+  // Skipped when fewer than 5 points are available.
+  recentLp?: number[] | undefined;
+}) {
   const emblemYear = useRankedEmblemYear();
   const emblemUrl = rankEmblemUrl(entry.tier, emblemYear);
   const [emblemLoaded, setEmblemLoaded] = useState(() => loadedEmblems.has(emblemUrl));
@@ -60,8 +71,18 @@ function RankTileContent({ entry }: { entry: RankEntry }) {
           {entry.tier.charAt(0) + entry.tier.slice(1).toLowerCase()}
           {division}
         </HeroNumber>
-        <div className="text-sm font-medium text-muted-foreground">
-          {entry.leaguePoints} LP
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <span>{entry.leaguePoints} LP</span>
+          {recentLp && recentLp.length >= 5 && (
+            <Sparkline
+              data={recentLp}
+              width={48}
+              height={12}
+              className={tierColor}
+              stroke="currentColor"
+              aria-label={`LP trend, last ${recentLp.length} snapshots`}
+            />
+          )}
         </div>
         {wins != null && losses != null && (
           <span className="text-sm text-muted-foreground">
@@ -104,7 +125,16 @@ function UnrankedTile({ queueId }: { queueId: string }) {
   );
 }
 
-export function ProfileRankTiles({ entries }: { entries: RankEntry[] }) {
+export function ProfileRankTiles({
+  entries,
+  recentLpByQueue,
+}: {
+  entries: RankEntry[];
+  // Per-queue normalized-LP series for the last ~30 days, oldest first.
+  // Optional so callers without rank history (or before the second query
+  // settles) can render the tile shell immediately without a placeholder.
+  recentLpByQueue?: Record<string, number[]> | undefined;
+}) {
   const byQueue = new Map(entries.map((e) => [e.queueId, e]));
   const queues = ["RANKED_SOLO_5x5", "RANKED_FLEX_SR"];
 
@@ -113,7 +143,11 @@ export function ProfileRankTiles({ entries }: { entries: RankEntry[] }) {
       {queues.map((queueId) => {
         const entry = byQueue.get(queueId);
         return entry ? (
-          <RankTileContent key={queueId} entry={entry} />
+          <RankTileContent
+            key={queueId}
+            entry={entry}
+            recentLp={recentLpByQueue?.[queueId]}
+          />
         ) : (
           <UnrankedTile key={queueId} queueId={queueId} />
         );
