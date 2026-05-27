@@ -464,7 +464,7 @@ function ChampionTableRow({
                   </span>
                   <span className="text-muted-foreground"> KDA</span>
                 </div>
-                {s.recentWinRates.length >= 2 && (
+                {s.recentWinRates.length >= 5 && (
                   <Sparkline
                     data={s.recentWinRates}
                     width={48}
