@@ -24,7 +24,7 @@ export function CommandPalettePreviewChampion({ alias }: Props) {
       data-testid="command-palette-preview"
       data-preview-type="champion"
       aria-hidden
-      className="palette-preview pointer-events-none z-50 hidden w-64 flex-col gap-2 rounded-md border bg-popover/85 px-3 py-3 text-xs text-popover-foreground shadow-xl backdrop-blur-md md:flex"
+      className="pointer-events-none flex w-64 flex-col gap-2 rounded-md border bg-popover/85 px-3 py-3 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
     >
       <div className="flex items-start gap-3">
         <ChampionSquareIcon

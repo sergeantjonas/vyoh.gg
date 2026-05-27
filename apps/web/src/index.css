@@ -467,36 +467,3 @@ p {
 .ability-tooltip-body .border {
   border: 0;
 }
-
-/* Anchor-positioned overlays — Chunk 2 of
-   docs/working-notes/cross-cutting/anchor-positioned-overlays.md. cmdk sets
-   `data-selected="true"` on the highlighted CommandItem (driven by the same
-   React state we lift via `value` / `onValueChange` on the Command root), so
-   targeting that attribute is equivalent to React-state-driven inline style
-   without threading a `style` prop through every CommandItem call site. The
-   anchor is consumed by `<CommandPalettePreview>` via `position-anchor:
-   --palette-focused-row`. Engines without anchor-positioning ignore this
-   declaration cleanly; the Oddbird polyfill (lazy-loaded from
-   `apps/web/src/lib/anchor-positioning.ts`) picks it up the same way. */
-[cmdk-list] [cmdk-item][data-selected="true"] {
-  anchor-name: --palette-focused-row;
-}
-
-/* Preview card pinned to the focused row. Position-try fallback rules
-   (`@position-try --flip-inline` / `--flip-block`) land in Chunk 4 once the
-   smoke-test wiring is validated. Engines without anchor-positioning leave
-   the card at its default static position — the Chunk 5 fallback path
-   detects that via `ensureAnchorPositioning()` and renders inline instead. */
-.palette-preview {
-  position: fixed;
-  /* biome-ignore lint/correctness/noUnknownProperty: CSS Anchor Positioning,
-     Newly Available 2024–2025, not yet in biome's property list. */
-  position-anchor: --palette-focused-row;
-  /* Physical sides + explicit anchor-name resolve more reliably across
-     Chrome 125+, Safari 26+, and the Oddbird polyfill than the logical
-     `inset-block-start: anchor(start)` shorthand, which produced an
-     unanchored fallback position during initial Safari + Firefox testing
-     on 2026-05-28. */
-  top: anchor(--palette-focused-row top);
-  left: calc(anchor(--palette-focused-row right) + 12px);
-}

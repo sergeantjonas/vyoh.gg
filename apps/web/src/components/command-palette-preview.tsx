@@ -1,25 +1,29 @@
-// Dispatcher for the command-palette anchor-positioned preview overlay.
-// Reads the focused cmdk row's value, parses the sentinel prefix, and
-// renders the matching per-entity preview component. Returns null when the
-// highlighted row isn't a preview-able entity (pages, tabs, recents,
-// accounts) so the preview surface stays out of the way.
+// Dispatcher + positioning host for the command-palette preview overlay.
 //
-// Renders through a body-level portal: Radix `DialogContent` applies a
-// `translate(-50%, -50%)` for centering, which establishes a containing
-// block for `position: fixed` descendants AND combines with the
-// `overflow-hidden` on `DialogContent` to clip anything that tries to
-// escape the dialog rect. Portalling to `document.body` lets `position:
-// fixed` resolve against the viewport so the card can pin itself to the
-// focused row outside the dialog's clipping box. The anchor-name rule on
-// `[cmdk-item][aria-selected="true"]` still resolves because the initial
-// containing block (the viewport) is an acceptable anchor scope.
+// Positioning uses Floating UI's `useFloating` (transitively in our bundle
+// via Radix Popper, now imported directly) with `autoUpdate` for scroll +
+// resize tracking and `flip` for collision-aware edge handling. CSS Anchor
+// Positioning was the original plan (see polyfill loader at
+// `apps/web/src/lib/anchor-positioning.ts`) but cross-browser resolution
+// quirks during 2026-05-28 testing — including native Firefox computing
+// wrong positions for our specific CSS shape — pushed us to JS positioning
+// for ship-reliability. The polyfill loader is kept as a future-migration
+// hook for when the CSS spec consolidates across engines.
 //
-// Per-entity files are imported eagerly for now — they're small and reuse
-// hooks already mounted by the dialog. Bundle analysis at Chunk 7 will
-// decide whether to lazy-load via React.lazy.
+// Reference element discovery: cmdk sets `aria-selected="true"` on the
+// highlighted item. We query for it on each `value` change and feed the
+// element to `useFloating` via the `elements.reference` slot, which
+// Floating UI uses to re-anchor the floating card.
+//
+// Renders through a body-level portal: Radix `DialogContent`'s
+// `transform: translate(-50%, -50%)` establishes a containing block for
+// `position: fixed` descendants AND combines with `overflow-hidden` to
+// clip anything that escapes the dialog rect. Portalling to
+// `document.body` keeps the card visible outside the dialog.
 
 import { CommandPalettePreviewChampion } from "@/components/command-palette-preview-champion";
 import { parsePaletteValue } from "@/components/command-palette-preview-value";
+import { autoUpdate, flip, offset, useFloating } from "@floating-ui/react-dom";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -28,12 +32,28 @@ type Props = {
 };
 
 export function CommandPalettePreview({ value }: Props) {
-  // Defer portal mount until after first client render so SSR/initial
-  // hydration doesn't try to read `document`. The dialog itself is already
-  // client-only, but keep the preview portal-safe in case it's later used
-  // from a non-dialog context.
   const [mounted, setMounted] = useState(false);
+  const [referenceEl, setReferenceEl] = useState<Element | null>(null);
+
   useEffect(() => setMounted(true), []);
+
+  // Re-query the selected cmdk-item whenever the highlighted value changes.
+  // cmdk normalises selection state to a single `aria-selected="true"` at a
+  // time, so this returns one element or null.
+  useEffect(() => {
+    if (!value || typeof document === "undefined") {
+      setReferenceEl(null);
+      return;
+    }
+    setReferenceEl(document.querySelector('[cmdk-item][aria-selected="true"]'));
+  }, [value]);
+
+  const { refs, floatingStyles } = useFloating({
+    placement: "right-start",
+    middleware: [offset(12), flip()],
+    whileElementsMounted: autoUpdate,
+    elements: { reference: referenceEl },
+  });
 
   const parsed = parsePaletteValue(value);
   let content: React.ReactNode = null;
@@ -43,6 +63,12 @@ export function CommandPalettePreview({ value }: Props) {
       break;
     // match, steam-game previews land in follow-up chunks (3c, 3d).
   }
-  if (!content || !mounted) return null;
-  return createPortal(content, document.body);
+  if (!content || !mounted || !referenceEl) return null;
+
+  return createPortal(
+    <div ref={refs.setFloating} style={floatingStyles} className="z-50 hidden md:block">
+      {content}
+    </div>,
+    document.body
+  );
 }

@@ -70,6 +70,13 @@ describe("CommandPalettePreviewChampion", () => {
     expect(preview.textContent).toContain("Tank · Fighter");
   });
 
+  it("no longer carries the .palette-preview class (positioning moved to JS)", () => {
+    setChampions();
+    render(<CommandPalettePreviewChampion alias="jinx" />);
+    const preview = screen.getByTestId("command-palette-preview");
+    expect(preview.className).not.toContain("palette-preview");
+  });
+
   it("renders modern-class chips", () => {
     setChampions();
     render(<CommandPalettePreviewChampion alias="JarvanIV" />);

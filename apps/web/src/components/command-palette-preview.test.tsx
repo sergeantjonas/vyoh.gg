@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPalettePreview } from "./command-palette-preview";
 
 vi.mock("@/components/command-palette-preview-champion", () => ({
@@ -8,20 +8,41 @@ vi.mock("@/components/command-palette-preview-champion", () => ({
   ),
 }));
 
+// Floating UI needs a reference element to anchor against. The dispatcher
+// finds the focused cmdk row via `document.querySelector('[cmdk-item]
+// [aria-selected="true"]')`, so the dispatch specs that assert content
+// renders need to install one in the test DOM.
+function installCmdkItem() {
+  const item = document.createElement("div");
+  item.setAttribute("cmdk-item", "");
+  item.setAttribute("aria-selected", "true");
+  document.body.appendChild(item);
+  return () => item.remove();
+}
+
 describe("CommandPalettePreview dispatch", () => {
+  let cleanup: (() => void) | undefined;
+  beforeEach(() => {
+    cleanup = installCmdkItem();
+  });
+  afterEach(() => {
+    cleanup?.();
+  });
+
   it("renders nothing for empty value", () => {
     const { container } = render(<CommandPalettePreview value="" />);
     expect(container.firstChild).toBeNull();
+    expect(screen.queryByTestId("champion-preview")).toBeNull();
   });
 
   it("renders nothing for un-prefixed values (pages, tabs, recents)", () => {
-    const { container } = render(<CommandPalettePreview value="home" />);
-    expect(container.firstChild).toBeNull();
+    render(<CommandPalettePreview value="home" />);
+    expect(screen.queryByTestId("champion-preview")).toBeNull();
   });
 
   it("renders nothing for account values (no preview content yet)", () => {
-    const { container } = render(<CommandPalettePreview value="account:foo Foo BAR" />);
-    expect(container.firstChild).toBeNull();
+    render(<CommandPalettePreview value="account:foo Foo BAR" />);
+    expect(screen.queryByTestId("champion-preview")).toBeNull();
   });
 
   it("dispatches champion sentinel to the champion preview", () => {
