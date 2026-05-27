@@ -59,6 +59,27 @@ body {
   }
 }
 
+/* Initial-mount stagger cascade. Parent gets .stagger-children, each child
+   carries an inline `--i` ordinal. `backwards` fill holds the from-state until
+   the delay elapses. Overrides the .view-entry shorthand on tiles that carry
+   both (above-fold tiles inside a stagger container don't need scroll-driven
+   entry — they're visible at first paint).                                    */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-children > * {
+  animation: stagger-in 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
 /* ─── Section progress indicator ────────────────────────────────────────── */
 
 /* 2px hairline placed as a sibling of <main> (between section-header-slot
@@ -150,5 +171,9 @@ body {
     animation: none;
     opacity: 1;
     transform: translateY(0);
+  }
+
+  .stagger-children > * {
+    animation: none;
   }
 }

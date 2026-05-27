@@ -1,6 +1,6 @@
 # Mount stagger + overlay entry motion
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Combines two related arcs that both target "static-feeling" surfaces with CSS-first entry motion: **(a) mount stagger** for tile/list grids and **(b) native `@starting-style` + `transition-behavior: allow-discrete`** for overlay surfaces (Select, Popover, Dropdown, Toast).
+**Status:** Active 2026-05-27. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Combines two related arcs that both target "static-feeling" surfaces with CSS-first entry motion: **(a) mount stagger** for tile/list grids and **(b) native `@starting-style` + `transition-behavior: allow-discrete`** for overlay surfaces (Select, Popover, Dropdown, Toast).
 
 Read this before adding any new tile grid, list surface, or overlay primitive — the patterns here become the default and replace ad-hoc Motion `AnimatePresence` wrappings where the overlay is simple.
 
@@ -55,9 +55,10 @@ Both are CSS-only and Newly Available in 2024 (`@starting-style`) and forever (C
 }
 ```
 
-Tunables:
-- **Step delay**: 40ms (snappy) to 80ms (deliberate). Default **50ms**.
-- **Duration**: 280–360ms. Default **320ms**.
+Tunables (current shipped defaults, dialed 2026-05-27 against the bento on `/`):
+- **Step delay**: 40ms (snappy) to 80ms (deliberate). Shipped **80ms** — the snappier defaults were imperceptible on a fast dev machine; the deliberate-end value reads as an intentional wave and the owner explicitly preferred the slower pace ("adds nice visual depth").
+- **Duration**: 280–460ms. Shipped **420ms**.
+- **Translate**: shipped **10px** — 6px was too subtle to register as motion against the static "everything appears at once" baseline.
 - **Cap total cascade**: for lists >20 items, divide step by `max(1, n / 20)` so the total cascade never exceeds ~1s. Otherwise a 60-item match list takes 3 seconds to settle.
 
 ### Where to apply

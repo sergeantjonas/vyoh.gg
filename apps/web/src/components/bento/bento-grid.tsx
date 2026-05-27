@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import {
+  type CSSProperties,
+  Children,
+  type ReactNode,
+  cloneElement,
+  isValidElement,
+} from "react";
 
 export type TileWidth = 1 | 2;
 export type TileHeight = 1 | 2;
@@ -20,14 +26,25 @@ export function BentoGrid({
   children: ReactNode;
   className?: string;
 }) {
+  // Walk top-level children once and stamp each with its ordinal via inline
+  // `--i`, consumed by the .stagger-children rule in motion.css. Non-element
+  // children (strings, fragments) pass through untouched.
+  let index = 0;
+  const staggered = Children.map(children, (child) => {
+    if (!isValidElement<{ style?: CSSProperties }>(child)) return child;
+    const i = index++;
+    const merged: CSSProperties = { ...(child.props.style ?? {}), ["--i" as string]: i };
+    return cloneElement(child, { style: merged });
+  });
+
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:auto-rows-[minmax(11rem,auto)] lg:grid-cols-4",
+        "stagger-children grid grid-cols-1 gap-4 sm:grid-cols-2 sm:auto-rows-[minmax(11rem,auto)] lg:grid-cols-4",
         className
       )}
     >
-      {children}
+      {staggered}
     </div>
   );
 }
@@ -37,15 +54,18 @@ export function BentoTile({
   height = 1,
   children,
   className,
+  style,
 }: {
   width?: TileWidth;
   height?: TileHeight;
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }) {
   return (
     <div
       className={cn("view-entry min-h-0", COL_SPAN[width], ROW_SPAN[height], className)}
+      style={style}
     >
       {children}
     </div>

@@ -17,6 +17,39 @@ describe("BentoGrid", () => {
     const { container } = render(<BentoGrid className="extra">x</BentoGrid>);
     expect((container.firstElementChild as HTMLElement).className).toContain("extra");
   });
+
+  it("marks the wrapper as a stagger container", () => {
+    const { container } = render(<BentoGrid>x</BentoGrid>);
+    expect((container.firstElementChild as HTMLElement).className).toContain(
+      "stagger-children"
+    );
+  });
+
+  it("stamps each tile child with an --i ordinal", () => {
+    const { container } = render(
+      <BentoGrid>
+        <BentoTile>a</BentoTile>
+        <BentoTile>b</BentoTile>
+        <BentoTile>c</BentoTile>
+      </BentoGrid>
+    );
+    const tiles = Array.from(
+      (container.firstElementChild as HTMLElement).children
+    ) as HTMLElement[];
+    expect(tiles.map((el) => el.style.getPropertyValue("--i"))).toEqual(["0", "1", "2"]);
+  });
+
+  it("preserves consumer-supplied style alongside --i", () => {
+    const { container } = render(
+      <BentoGrid>
+        <BentoTile style={{ background: "red" }}>x</BentoTile>
+      </BentoGrid>
+    );
+    const tile = (container.firstElementChild as HTMLElement)
+      .firstElementChild as HTMLElement;
+    expect(tile.style.background).toBe("red");
+    expect(tile.style.getPropertyValue("--i")).toBe("0");
+  });
 });
 
 describe("BentoTile", () => {
