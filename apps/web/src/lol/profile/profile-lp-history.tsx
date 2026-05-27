@@ -15,7 +15,7 @@ import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import type { RankHistoryPoint } from "@vyoh/shared";
-import { formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
+import { detectSeasons, formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -68,6 +68,45 @@ const STREAK_MIN_LENGTH = 3;
 // step roughly 2x a normal between-game width.
 const MAX_VISUAL_GAP_MS = 60 * 60 * 1000;
 
+// Gap threshold separating two play sessions: anything longer than this
+// between consecutive snapshots starts a new session bucket. Picked at 60min
+// to forgive between-queue breaks (champ select + post-game) without leaking
+// across meal/sleep breaks.
+const SESSION_GAP_MS = 60 * 60 * 1000;
+
+// Per-bucket aggregation density: trades intra-day detail for legibility.
+// 30d view shows enough horizontal room per day for session-level nodes;
+// 90d/season collapse to one node per Brussels day or the chart becomes
+// a fuzzy dot caterpillar for active accounts (Agurin: 15+ games/day).
+type Resolution = "per-game" | "session" | "day";
+
+const RESOLUTION_FOR_RANGE: Record<RangeKey, Resolution> = {
+  "30d": "session",
+  "90d": "day",
+  season: "day",
+};
+
+const DAY_KEY_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Brussels",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+interface BucketMeta {
+  kind: "session" | "day";
+  gameCount: number;
+  openLp: number;
+  closeLp: number;
+  lowLp: number;
+  highLp: number;
+  netLp: number;
+  winCount: number;
+  lossCount: number;
+  startRealT: number;
+  endRealT: number;
+}
+
 interface ChartPoint extends RankHistoryPoint {
   // Visual X position with oversized gaps collapsed. Use this for plotting
   // and for any overlay that needs to align with the data line.
@@ -76,28 +115,126 @@ interface ChartPoint extends RankHistoryPoint {
   // mapping from real time (e.g. patch boundaries) back onto the chart.
   realT: number;
   totalLp: number;
+  // Set when the point represents more than one underlying snapshot
+  // (session/day bucket). Undefined for per-game resolution.
+  bucket?: BucketMeta;
 }
 
-function toChartPoints(points: RankHistoryPoint[]): ChartPoint[] {
+interface RawPoint extends RankHistoryPoint {
+  totalLp: number;
+  realT: number;
+}
+
+function withDerivedFields(p: RankHistoryPoint): RawPoint {
+  return {
+    ...p,
+    totalLp: normalizeLp(p.tier, p.rank, p.leaguePoints),
+    realT: new Date(p.capturedAt).getTime(),
+  };
+}
+
+function aggregateBuckets(
+  raw: RawPoint[],
+  resolution: Resolution
+): Array<RawPoint & { bucket?: BucketMeta }> {
+  if (resolution === "per-game" || raw.length === 0) {
+    return raw.map((p) => ({ ...p }));
+  }
+
+  const sameBucket = (prev: RawPoint, curr: RawPoint): boolean =>
+    resolution === "session"
+      ? curr.realT - prev.realT <= SESSION_GAP_MS
+      : DAY_KEY_FMT.format(curr.realT) === DAY_KEY_FMT.format(prev.realT);
+
+  const out: Array<RawPoint & { bucket?: BucketMeta }> = [];
+  // Carry the closing LP of the *previous bucket* so within-bucket W/L can
+  // be tallied relative to "before this bucket started", not just within it.
+  let prevBucketClose: number | null = null;
+
+  let i = 0;
+  while (i < raw.length) {
+    const first = raw[i];
+    if (!first) {
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < raw.length) {
+      const prev = raw[j - 1];
+      const curr = raw[j];
+      if (!prev || !curr || !sameBucket(prev, curr)) break;
+      j++;
+    }
+    const bucketSlice = raw.slice(i, j);
+    const last = bucketSlice[bucketSlice.length - 1] ?? first;
+
+    let low = first.totalLp;
+    let high = first.totalLp;
+    let wins = 0;
+    let losses = 0;
+    let runningPrev = prevBucketClose;
+    for (const snap of bucketSlice) {
+      if (snap.totalLp < low) low = snap.totalLp;
+      if (snap.totalLp > high) high = snap.totalLp;
+      if (runningPrev !== null) {
+        const delta = snap.totalLp - runningPrev;
+        if (delta > 0) wins++;
+        else if (delta < 0) losses++;
+      }
+      runningPrev = snap.totalLp;
+    }
+    const openLp = prevBucketClose ?? first.totalLp;
+    const netLp = last.totalLp - openLp;
+
+    if (bucketSlice.length === 1) {
+      // A single-game bucket is structurally per-game; skip the metadata so
+      // the chart treats it identically to per-game mode (no compound tooltip).
+      out.push({ ...last });
+    } else {
+      out.push({
+        ...last,
+        bucket: {
+          kind: resolution,
+          gameCount: bucketSlice.length,
+          openLp,
+          closeLp: last.totalLp,
+          lowLp: low,
+          highLp: high,
+          netLp,
+          winCount: wins,
+          lossCount: losses,
+          startRealT: first.realT,
+          endRealT: last.realT,
+        },
+      });
+    }
+    prevBucketClose = last.totalLp;
+    i = j;
+  }
+  return out;
+}
+
+function toChartPoints(
+  points: RankHistoryPoint[],
+  resolution: Resolution = "per-game"
+): ChartPoint[] {
   if (points.length === 0) return [];
+  const aggregated = aggregateBuckets(points.map(withDerivedFields), resolution);
   const out: ChartPoint[] = [];
   let visualT = 0;
   let prevRealT = 0;
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
+  for (let i = 0; i < aggregated.length; i++) {
+    const p = aggregated[i];
     if (!p) continue;
-    const realT = new Date(p.capturedAt).getTime();
     if (i === 0) {
-      visualT = realT;
+      visualT = p.realT;
     } else {
-      visualT += Math.min(realT - prevRealT, MAX_VISUAL_GAP_MS);
+      visualT += Math.min(p.realT - prevRealT, MAX_VISUAL_GAP_MS);
     }
-    prevRealT = realT;
+    prevRealT = p.realT;
     out.push({
       ...p,
       t: visualT,
-      realT,
-      totalLp: normalizeLp(p.tier, p.rank, p.leaguePoints),
     });
   }
   return out;
@@ -204,6 +341,25 @@ function makeTickFormatter(points: ChartPoint[]): (visualT: number) => string {
   return (t) => map.get(t) ?? "";
 }
 
+function formatBucketHeader(bucket: BucketMeta): string {
+  const start = new Date(bucket.startRealT);
+  const end = new Date(bucket.endRealT);
+  if (bucket.kind === "day") {
+    return start.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  }
+  const dateStr = start.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeFmt: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
+  return `${dateStr} · ${start.toLocaleTimeString(undefined, timeFmt)} – ${end.toLocaleTimeString(undefined, timeFmt)}`;
+}
+
 function LpTooltip({
   active,
   payload,
@@ -213,6 +369,7 @@ function LpTooltip({
 }) {
   const reduced = useReducedMotion();
   const point = payload?.[0]?.payload;
+  const bucket = point?.bucket;
   return (
     <AnimatePresence>
       {active && point ? (
@@ -224,14 +381,49 @@ function LpTooltip({
           className="rounded-md border bg-popover/85 px-3 py-2 text-sm text-popover-foreground shadow-xl backdrop-blur-md"
         >
           <div className="mb-0.5 text-xs text-muted-foreground">
-            {new Date(point.realT).toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
+            {bucket
+              ? formatBucketHeader(bucket)
+              : new Date(point.realT).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
           </div>
           <div className="font-semibold">
             {formatRank(point.tier, point.rank, point.leaguePoints)}
           </div>
+          {bucket ? (
+            <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span>
+                  {bucket.gameCount} {bucket.gameCount === 1 ? "game" : "games"}
+                </span>
+                {(bucket.winCount > 0 || bucket.lossCount > 0) && (
+                  <span>
+                    <span className="text-emerald-400">{bucket.winCount}W</span>
+                    {" – "}
+                    <span className="text-rose-400">{bucket.lossCount}L</span>
+                  </span>
+                )}
+                <span
+                  className={
+                    bucket.netLp > 0
+                      ? "text-emerald-400"
+                      : bucket.netLp < 0
+                        ? "text-rose-400"
+                        : "text-muted-foreground"
+                  }
+                >
+                  {bucket.netLp > 0 ? "+" : ""}
+                  {bucket.netLp} LP
+                </span>
+              </div>
+              {bucket.highLp !== bucket.lowLp && (
+                <div>
+                  Range {bucket.lowLp}–{bucket.highLp} LP
+                </div>
+              )}
+            </div>
+          ) : null}
         </m.div>
       ) : null}
     </AnimatePresence>
@@ -462,10 +654,12 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
       ? "solo"
       : "flex";
 
+  const resolution = RESOLUTION_FOR_RANGE[range];
+
   const points = useMemo(() => {
     const raw = history.data?.[activeQueue] ?? [];
-    return toChartPoints(raw);
-  }, [history.data, activeQueue]);
+    return toChartPoints(raw, resolution);
+  }, [history.data, activeQueue, resolution]);
 
   // Reset the brush selection whenever the underlying dataset changes
   // (different range or queue) so the user never sees a stale selection
@@ -505,6 +699,25 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
       (m) => new Date(m.playedAt).getTime()
     );
   }, [allMatches, activeQueue, points.length]);
+
+  // Season detection runs on raw snapshots — `detectSeasons` keys off the
+  // ≥7-day gap + ≥400 LP drop signature, which aggregation can't fuse across
+  // (a week-long break always lands the bracketing snapshots in distinct
+  // daily buckets). We then map each season's wall-clock window onto the
+  // collapsed visual axis so the bands align with the line. Only render bands
+  // when there's more than one season — a full-chart band carries no signal.
+  const seasonBands = useMemo(() => {
+    const raw = history.data?.[activeQueue] ?? [];
+    if (raw.length === 0 || points.length === 0) return [];
+    const seasons = detectSeasons(raw);
+    if (seasons.length < 2) return [];
+    return seasons.map((s, i) => ({
+      key: `season-${s.startAt}`,
+      index: i,
+      x1: mapRealToVisual(new Date(s.startAt).getTime(), points),
+      x2: mapRealToVisual(new Date(s.endAt).getTime(), points),
+    }));
+  }, [history.data, activeQueue, points]);
 
   const isEmpty = !history.isLoading && points.length === 0;
   const stroke = QUEUE_COLOR[activeQueue];
@@ -619,6 +832,18 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 content={<LpTooltip />}
                 cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
               />
+              {seasonBands.map((b) => (
+                <ReferenceArea
+                  key={b.key}
+                  x1={b.x1}
+                  x2={b.x2}
+                  fill="var(--foreground)"
+                  fillOpacity={b.index % 2 === 0 ? 0.04 : 0.015}
+                  stroke="none"
+                  ifOverflow="hidden"
+                  className="lp-season-band"
+                />
+              ))}
               {streak &&
                 (() => {
                   const pt1 = visiblePoints[streak.startIdx];

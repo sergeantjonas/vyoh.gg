@@ -17,6 +17,7 @@ vi.mock("@/lol/profile/use-rank-history", () => ({
   useRankHistory: vi.fn(),
 }));
 
+const referenceAreaCalls: Array<Record<string, unknown>> = [];
 vi.mock("recharts", () => {
   const Passthrough = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
   const NullEl = () => null;
@@ -27,7 +28,10 @@ vi.mock("recharts", () => {
     YAxis: NullEl,
     Tooltip: NullEl,
     CartesianGrid: NullEl,
-    ReferenceArea: NullEl,
+    ReferenceArea: (props: Record<string, unknown>) => {
+      referenceAreaCalls.push(props);
+      return null;
+    },
     ReferenceDot: NullEl,
     ReferenceLine: NullEl,
     ResponsiveContainer: Passthrough,
@@ -107,6 +111,7 @@ function renderShell(matches: MatchSummary[] = []) {
 afterEach(() => {
   vi.mocked(useAccountFromSlug).mockReset();
   vi.mocked(useRankHistory).mockReset();
+  referenceAreaCalls.length = 0;
 });
 
 describe("ProfileLpHistory", () => {
@@ -145,12 +150,16 @@ describe("ProfileLpHistory", () => {
   });
 
   it("renders a streak chip when a 3+ outcome run is present in the dataset", () => {
-    const points = [
-      point({ leaguePoints: 30 }),
-      point({ leaguePoints: 50 }),
-      point({ leaguePoints: 70 }),
-      point({ leaguePoints: 90 }),
-    ];
+    // Spread across 4 calendar days so day-aggregation (active on the default
+    // 90d view) leaves 4 distinct buckets — otherwise everything collapses to
+    // one daily node and there's no streak to detect.
+    const captureBase = new Date("2026-01-01T00:00:00Z").getTime();
+    const points = [30, 50, 70, 90].map((lp, i) =>
+      point({
+        capturedAt: new Date(captureBase + i * 86_400_000).toISOString(),
+        leaguePoints: lp,
+      })
+    );
     setHistory({ solo: points });
     renderShell();
     // Win run shows "NW run" — exact length depends on findLongestStreak;
@@ -293,5 +302,133 @@ describe("ProfileLpHistory", () => {
     expect(afterCalls).toBeGreaterThan(initialCalls);
     const lastCall = vi.mocked(useRankHistory).mock.calls.at(-1);
     expect(lastCall?.[1]).toBe("30d");
+  });
+
+  it("collapses high-density days into one daily node on the 90d view", () => {
+    // Two days × 10 games per day; on 90d (day resolution) this should aggregate
+    // to exactly 2 ChartPoints — not 20 — so the chart isn't a dot caterpillar.
+    const day1 = new Date("2026-01-01T08:00:00Z").getTime();
+    const day2 = new Date("2026-01-02T08:00:00Z").getTime();
+    const snaps: RankHistoryPoint[] = [];
+    for (let i = 0; i < 10; i++) {
+      snaps.push(
+        point({
+          // 20-min cadence — same calendar day
+          capturedAt: new Date(day1 + i * 20 * 60 * 1000).toISOString(),
+          leaguePoints: 30 + i * 5,
+        })
+      );
+    }
+    for (let i = 0; i < 10; i++) {
+      snaps.push(
+        point({
+          capturedAt: new Date(day2 + i * 20 * 60 * 1000).toISOString(),
+          leaguePoints: 80 - i * 3,
+        })
+      );
+    }
+    setHistory({ solo: snaps });
+    renderShell();
+    // 90d is the default range → day-aggregation is active. We can't peek at
+    // the LineChart data through the mock; instead, drive the brush onChange
+    // and assert sub-range hint flips — which only works when point count > 0.
+    // Smoke-check: header renders, brush exists (≥4 points after aggregation).
+    expect(screen.getByText("LP History")).toBeTruthy();
+    expect(screen.queryByTestId("brush")).toBeNull();
+    // Only 2 daily nodes — fewer than the brush threshold (4), so the brush
+    // hides. This is the direct observable of "20 raw snapshots became 2 dots".
+  });
+
+  it("keeps the brush strip on 30d when there are enough session buckets", () => {
+    // 6 sessions of 5 games each across 2 days (3 sessions/day, ≥2h apart).
+    const dayBase = new Date("2026-01-01T08:00:00Z").getTime();
+    const snaps: RankHistoryPoint[] = [];
+    let lp = 40;
+    for (let session = 0; session < 6; session++) {
+      const sessionStart = dayBase + session * 4 * 60 * 60 * 1000; // 4h gap
+      for (let game = 0; game < 5; game++) {
+        lp += game % 2 === 0 ? 22 : -18;
+        snaps.push(
+          point({
+            capturedAt: new Date(sessionStart + game * 25 * 60 * 1000).toISOString(),
+            leaguePoints: Math.max(0, lp),
+          })
+        );
+      }
+    }
+    setHistory({ solo: snaps });
+    renderShell();
+    // Switch to 30d → session resolution. 6 sessions ≥ 4, so brush renders.
+    fireEvent.click(screen.getByRole("button", { name: "30d" }));
+    expect(screen.getByTestId("brush")).toBeTruthy();
+  });
+
+  it("renders alternating season bands when split resets are detected", () => {
+    // Two seasons separated by a ≥7 day gap and a ≥400 normalized-LP drop.
+    // Season 1: Platinum I climbing 30→90 LP across 4 days.
+    // Season 2 (after 10-day break): Silver IV starting 0→60 LP across 4 days.
+    // Normalized drop: Plat I ~1900 → Silver IV ~800 = 1100 LP drop.
+    const base = new Date("2026-01-01T08:00:00Z").getTime();
+    const day = 86_400_000;
+    const snaps: RankHistoryPoint[] = [
+      point({
+        capturedAt: new Date(base).toISOString(),
+        tier: "PLATINUM",
+        rank: "I",
+        leaguePoints: 30,
+      }),
+      point({
+        capturedAt: new Date(base + day).toISOString(),
+        tier: "PLATINUM",
+        rank: "I",
+        leaguePoints: 50,
+      }),
+      point({
+        capturedAt: new Date(base + 2 * day).toISOString(),
+        tier: "PLATINUM",
+        rank: "I",
+        leaguePoints: 70,
+      }),
+      point({
+        capturedAt: new Date(base + 3 * day).toISOString(),
+        tier: "PLATINUM",
+        rank: "I",
+        leaguePoints: 90,
+      }),
+      // 10-day gap, then a hard reset back into Silver IV.
+      point({
+        capturedAt: new Date(base + 13 * day).toISOString(),
+        tier: "SILVER",
+        rank: "IV",
+        leaguePoints: 0,
+      }),
+      point({
+        capturedAt: new Date(base + 14 * day).toISOString(),
+        tier: "SILVER",
+        rank: "IV",
+        leaguePoints: 20,
+      }),
+      point({
+        capturedAt: new Date(base + 15 * day).toISOString(),
+        tier: "SILVER",
+        rank: "IV",
+        leaguePoints: 40,
+      }),
+      point({
+        capturedAt: new Date(base + 16 * day).toISOString(),
+        tier: "SILVER",
+        rank: "IV",
+        leaguePoints: 60,
+      }),
+    ];
+    setHistory({ solo: snaps });
+    renderShell();
+    fireEvent.click(screen.getByRole("button", { name: "Season" }));
+    const seasonBands = referenceAreaCalls.filter(
+      (p) => p.className === "lp-season-band"
+    );
+    expect(seasonBands.length).toBe(2);
+    // Bands alternate fill opacity to visually separate adjacent seasons.
+    expect(seasonBands[0]?.fillOpacity).not.toBe(seasonBands[1]?.fillOpacity);
   });
 });
