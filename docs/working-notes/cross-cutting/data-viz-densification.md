@@ -1,6 +1,8 @@
 # Data-viz densification
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Three related moves that together transform the app's flattest surfaces (stat lists, match tables, text-heavy data displays) into the most-information-per-pixel:
+**Status:** Part 1 (inline sparklines) shipped 2026-05-27 across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Parts 2 (`:has()` affordances) and 3 (ambient hue drift) are still pending; pick them up independently.
+
+Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Three related moves that together transform the app's flattest surfaces (stat lists, match tables, text-heavy data displays) into the most-information-per-pixel:
 
 1. **Inline `<svg>` sparklines** on stat cells next to numbers (24×8 polyline, no Recharts).
 2. **`:has()` parent-aware affordances** — cards, rows, grids that style themselves based on descendant state (`:has(.remake-badge)`, `tbody:has(tr:hover) tr:not(:hover)`).
@@ -208,11 +210,10 @@ The opacities (`0.04 → 0.10` range) are deliberately small. The motion happens
 - First use: champion-detail per-game K/D/A tiles (`routes/lol/$accountSlug/champions/$championKey.tsx`). Extended `ChampionDetailStats.matchHistory` with per-game `kills`/`deaths`/`assists`. Sliced last 10 games per stat, `text-theme-strong/70` + `stroke="currentColor"` for the tinted theme stroke.
 - Surface survey done — see "Where to apply" table above. Champion grid is next-best pickup; the other four blocked on missing data sources.
 
-### Chunk 2 — Sparklines in match list
+### Chunk 2 — Sparklines in match list ✅ shipped 2026-05-27
 
-- Add gold-lead-over-time sparkline per row.
-- Data: derive from existing timeline data if loaded, otherwise add a `goldLeadTrend: number[]` field at the API mapper level.
-- This may require a `apps/api/src/lol/match-mapper.ts` change — be careful, scope explicitly.
+- Landed via ingest-time persistence rather than at-request derivation: added `teamGoldDiffSeries Int[]` to the `Match` Prisma model (migration `20260527000000_match_team_gold_diff_series`), extended `riotTimelineToSummaryMetrics` to emit one (user-team − enemy-team) value per frame, threaded through `lol.service`'s two select projections and the shared `MatchSummary` type. Match-row meta line renders an inline `Sparkline` tinted emerald/red on win/loss when the series carries ≥5 frames.
+- `apps/api/src/scripts/backfill-team-gold-diff-series.ts` replays existing `MatchTimelineCache` rows to seed `hasTimeline=true` matches without a Riot refetch. Run after build: `node dist/src/scripts/backfill-team-gold-diff-series.js`. Owner-run on 2026-05-27 — 534 of 534 timeline-projected rows populated.
 
 ### Chunk 3 — `:has()` pattern starter pack
 
@@ -226,16 +227,17 @@ The opacities (`0.04 → 0.10` range) are deliberately small. The motion happens
 - Modify [match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) to set `data-outcome={...}` on each row.
 - Visual verification on long lists — does the cumulative tint feel too saturated when many rows are visible? Adjust opacity if so.
 
-### Chunk 5 — Roll sparklines into Profile + Trends + Steam
+### Chunk 5 — Roll sparklines into Profile + Trends + Steam ✅ shipped 2026-05-27
 
-- Apply to surfaces listed in Part 1's table.
-- Each surface gets one commit.
+- Profile hero rank tile: 30-day normalized LP per queue from `RankSnapshot`, shares TanStack Query cache with the LP-history chart below.
+- Steam library tile + row: 30-day per-game playtime series derived from `SteamPlaytimeSnapshot` diffs.
+- Trends summary cards: deferred as a non-fit after re-survey — every card already owns chart-level evidence or sits next to the same data in another component. See the "Where to apply" table for the reasoning.
 
-### Chunk 6 — Sparkline accessibility pass
+### Chunk 6 — Sparkline accessibility pass — partial
 
-- Each sparkline has an `aria-label` describing the trend ("KDA over last 10 games: 2.1 to 3.4, generally upward").
-- Tooltip on hover for full series.
-- Axe scan addition per [repo-conventions.md §Axe-scan](../../repo-conventions.md).
+- ✅ Each sparkline has an `aria-label` describing the trend (shipped with each surface; e.g. "win rate trend, last N games", "gold lead trend, N frames", "LP trend, last N snapshots", "playtime trend, last N days").
+- ⏳ Tooltip on hover for full series — not yet wired. Pattern: wrap the `<svg>` in `TooltipPrimitive.Trigger` per [repo-conventions.md §TooltipPrimitive](../../repo-conventions.md).
+- ⏳ Axe scan addition per [repo-conventions.md §Axe-scan](../../repo-conventions.md) — not yet wired into the Sparkline primitive's test suite.
 
 ---
 
