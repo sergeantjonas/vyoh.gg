@@ -1,6 +1,6 @@
 # Mount stagger + overlay entry motion
 
-**Status:** Active 2026-05-27. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Combines two related arcs that both target "static-feeling" surfaces with CSS-first entry motion: **(a) mount stagger** for tile/list grids and **(b) native `@starting-style` + `transition-behavior: allow-discrete`** for overlay surfaces (Select, Popover, Dropdown, Toast).
+**Status:** Shipped 2026-05-27. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Chunks 1 (bento `.stagger-children`), 4 (Steam library `data-mount-stagger`), 5 (Radix popper `@starting-style`) shipped. Chunks 2 + 3 descoped (match-list + champion-table already had Motion entry stagger). Chunk 6 sweep ran 2026-05-27 — no Motion wrappers around bare Tooltip/HoverCard content found, arc fully closed.
 
 Read this before adding any new tile grid, list surface, or overlay primitive — the patterns here become the default and replace ad-hoc Motion `AnimatePresence` wrappings where the overlay is simple.
 
@@ -154,7 +154,7 @@ The CSS lives in `apps/web/src/styles/motion.css` (created in [scroll-driven-she
 
 See "Where NOT to apply" above. Both surfaces already have Motion-driven entry stagger that goes beyond entry (flash-new spring, settle-hold, layout reflow). Keep Motion.
 
-### Chunk 4 — Apply stagger to Steam library
+### Chunk 4 — Apply stagger to Steam library — SHIPPED 2026-05-27
 
 - Virtualized — use the per-item `data-mount-stagger=""` opt-in, not the `.stagger-children` wrapper. The wrapper would also fire on rows that mount via scroll later, which is wrong.
 - Track `isInitialMountRef` in each virtualizer (`useRef(true)`, flipped to `false` in `useEffect(() => { ... }, [])`). First render frame sees `true`; subsequent renders see `false`.
@@ -169,15 +169,14 @@ See "Where NOT to apply" above. Both surfaces already have Motion-driven entry s
 - Reduced-motion block disables the transition; `@starting-style` cannot be overridden inside `@media` (Biome parser limitation), but the missing transition makes the one-frame from-state imperceptible.
 - Existing shadcn primitives (Dialog/Popover/DropdownMenu/Select) continue to use tw-animate-css for entry/exit, unchanged. The new layer fills the gap for bare TooltipPrimitive + HoverCardPrimitive consumers.
 
-### Chunk 6 — Refactor: remove Motion wrappers where CSS now covers it
+### Chunk 6 — Sweep Motion wrappers superseded by CSS — RAN 2026-05-27, NOTHING TO REMOVE
 
-Sweep `apps/web/src/components/ui/` and feature components for places that wrap Select/Popover content in Motion just for entry animation. If the wrapper was *only* for entry/exit motion (no orchestration), remove it and rely on the CSS layer.
+Swept `apps/web/src/components/ui/` and the 14 feature files that combine Radix popper Content with Motion components. Result: no candidates.
 
-Don't remove Motion wrappers that have:
-- Gesture handlers (drag, whileHover, whileTap)
-- Orchestrated child animations
-- Layout animations (`layout` prop)
-- Variants beyond entry/exit
+- `components/ui/` primitives (Dialog, Popover, DropdownMenu, Select, NavigationMenu, etc.) all use tw-animate-css `data-[state=...]:animate-in fade-in-0 zoom-in-95` for entry/exit. None use Motion.
+- The 14 feature files with both `*Primitive.Content` and `<m.*>` use Motion outside the popper — typically as the list/grid container wrapper. None wrap Radix popper content with Motion-only-for-entry via `asChild`.
+
+Arc closed.
 
 ---
 
