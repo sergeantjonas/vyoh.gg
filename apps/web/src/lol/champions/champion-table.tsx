@@ -215,7 +215,7 @@ export function ChampionTable({
     ? { initial: false as const }
     : { initial: "hidden" as const, animate: "show" as const, variants: container };
   return (
-    <m.ul {...listMotionProps} className="flex flex-col gap-3">
+    <m.ul {...listMotionProps} className="champion-list flex flex-col gap-3">
       {sorted.map((s) => {
         // One row per champion; multi-role pools surface their breakdown
         // inline (see ChampionTableRow). The detail page is role-agnostic, so

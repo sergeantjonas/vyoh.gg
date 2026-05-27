@@ -231,7 +231,7 @@ export function LibraryRow({
           });
         });
       }}
-      className="group/row block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="library-tile group/row block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <SteamGameRowShell
         appid={game.appid}

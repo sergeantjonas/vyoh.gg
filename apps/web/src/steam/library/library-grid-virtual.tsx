@@ -75,7 +75,7 @@ export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
   return (
     <ul
       ref={parentRef}
-      className="relative"
+      className="steam-library relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
       <VirtualizerStats rendered={items.length} total={games.length} lanes={lanes} />

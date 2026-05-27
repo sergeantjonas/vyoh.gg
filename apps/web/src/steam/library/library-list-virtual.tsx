@@ -89,7 +89,7 @@ export function LibraryListVirtual({
   return (
     <ul
       ref={parentRef}
-      className="relative"
+      className="steam-library relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
       <VirtualizerStats rendered={items.length} total={games.length} />

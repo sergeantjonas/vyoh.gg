@@ -207,7 +207,7 @@ export function MatchList({
   return (
     <div
       ref={parentRef}
-      className="relative"
+      className="match-list relative"
       style={{ height: virtualizer.getTotalSize() }}
     >
       <VirtualizerStats rendered={items.length} total={matches.length} />

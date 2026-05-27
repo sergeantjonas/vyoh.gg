@@ -1,6 +1,6 @@
 # Data-viz densification
 
-**Status:** Part 1 (inline sparklines) shipped 2026-05-27 across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Part 3 (ambient hue drift) shipped 2026-05-27 on match-list rows. Part 2 (`:has()` affordances) and Chunk 6's sparkline tooltip + axe pass are still pending; pick them up independently.
+**Status:** Part 1 (inline sparklines) shipped 2026-05-27 across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Part 3 (ambient hue drift) shipped 2026-05-27 on match-list rows. Part 2 (`:has()` affordances) shipped 2026-05-27 as a sibling-dim pattern on match list, champion table, and Steam library (list + grid). Chunk 6's sparkline tooltip + axe pass is the only remaining piece.
 
 Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Three related moves that together transform the app's flattest surfaces (stat lists, match tables, text-heavy data displays) into the most-information-per-pixel:
 
@@ -215,11 +215,11 @@ The opacities (`0.04 → 0.10` range) are deliberately small. The motion happens
 - Landed via ingest-time persistence rather than at-request derivation: added `teamGoldDiffSeries Int[]` to the `Match` Prisma model (migration `20260527000000_match_team_gold_diff_series`), extended `riotTimelineToSummaryMetrics` to emit one (user-team − enemy-team) value per frame, threaded through `lol.service`'s two select projections and the shared `MatchSummary` type. Match-row meta line renders an inline `Sparkline` tinted emerald/red on win/loss when the series carries ≥5 frames.
 - `apps/api/src/scripts/backfill-team-gold-diff-series.ts` replays existing `MatchTimelineCache` rows to seed `hasTimeline=true` matches without a Riot refetch. Run after build: `node dist/src/scripts/backfill-team-gold-diff-series.js`. Owner-run on 2026-05-27 — 534 of 534 timeline-projected rows populated.
 
-### Chunk 3 — `:has()` pattern starter pack
+### Chunk 3 — `:has()` pattern starter pack ✅ shipped 2026-05-27
 
-- Add the 3 most-applicable rules to `apps/web/src/styles/globals.css` (or a dedicated `interactions.css`).
-- Apply data attributes where needed (`data-remake-badge`, `data-route-active`).
-- Visual verification of each rule firing.
+- Shipped a single parent-aware sibling-dim rule applied to three list containers: match list (`.match-list`), champion table (`.champion-list`), and Steam library list + grid (`.steam-library`). When one card is hovered, the others fade to `opacity: 0.65` with a 220ms ease-out transition. Reduced-motion disables the transition only.
+- Rule lives in [index.css](../../../apps/web/src/index.css) alongside the `--row-tint` block. Semantic classes added to the four parent containers ([match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx), [champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx), [library-list-virtual.tsx](../../../apps/web/src/steam/library/library-list-virtual.tsx), [library-grid-virtual.tsx](../../../apps/web/src/steam/library/library-grid-virtual.tsx)) and a `library-tile` class to the Steam tile/row wrappers ([library-row.tsx](../../../apps/web/src/steam/library/library-row.tsx), [library-tile.tsx](../../../apps/web/src/steam/library/library-tile.tsx)).
+- Other patterns from the note skipped: `:has([data-remake-badge])` is redundant with the existing `data-outcome="remake"` attribute selector (direct selector beats `:has()` here); `:has([data-route-active])` and the fresh-pulse pattern need state wiring that isn't worth the lift for a starter-pack chunk. Two solid lists at three surfaces > three forced rules.
 
 ### Chunk 4 — Ambient hue drift on match rows ✅ shipped 2026-05-27
 

@@ -107,6 +107,17 @@ p {
   animation: lp-marker-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1) 1600ms both;
 }
 
+/* Tier-band labels ("Diamond", "Master+", etc. on the Y axis) fade in on
+   the same beat as the tier-change markers so static rank text doesn't
+   appear mid-draw while the line is still animating. The band rectangles
+   stay always-on so the chart has structure during the line draw.
+   Note: the class is set on the Label-prop object — Recharts forwards it
+   to the rendered <text> element. Setting it on the ReferenceArea would
+   land on the rect instead. */
+.lp-tier-band-label {
+  animation: heatmap-reveal 280ms ease-out 1600ms both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer {
     animation: none;
@@ -118,6 +129,9 @@ p {
     animation: none;
   }
   .lp-tier-marker {
+    animation: none;
+  }
+  .lp-tier-band-label {
     animation: none;
   }
 }
@@ -203,6 +217,25 @@ p {
 }
 @media (prefers-reduced-motion: reduce) {
   .match-row {
+    transition: none;
+  }
+}
+
+/* Parent-aware sibling dim: when one card in a list is hovered, the others
+   fade back to push focus toward the active row. Enhancement only — the
+   hovered card already has its own border/translate signal, so the dim
+   adds emphasis without being the sole state cue. */
+.match-list:has(.match-row:hover) .match-row:not(:hover),
+.champion-list:has(.themed-card-interactive:hover) .themed-card-interactive:not(:hover),
+.steam-library:has(.library-tile:hover) .library-tile:not(:hover) {
+  opacity: 0.65;
+  transition: opacity 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-list:has(.match-row:hover) .match-row:not(:hover),
+  .champion-list:has(.themed-card-interactive:hover) .themed-card-interactive:not(:hover),
+  .steam-library:has(.library-tile:hover) .library-tile:not(:hover) {
     transition: none;
   }
 }

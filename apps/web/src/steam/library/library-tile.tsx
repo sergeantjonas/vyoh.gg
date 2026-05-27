@@ -73,7 +73,7 @@ export function LibraryTile({
       data-index={dataIndex}
       data-list-item-vt
       data-mount-stagger={mountStagger ? "" : undefined}
-      className="group/tile"
+      className="library-tile group/tile"
     >
       <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
         <HoverCardPrimitive.Trigger asChild>
