@@ -76,12 +76,14 @@ Variations as needed: filled area version (with `<polygon>` + accent-muted fill)
 
 | Surface | Data | Notes |
 |---|---|---|
-| Champion detail stat row | last-10 KDA per stat | Already aggregating last-10 in `champion-stats.ts` (verify) |
-| Profile hero KPI strip | LP delta last 14 days | Wraps `<HeroNumber>` from [editorial-typography.md](editorial-typography.md) |
-| Match list row | gold-lead delta over the match | One sparkline per row, big payoff |
-| Trends summary cards | each metric's trend across selected range | Replaces a sub-chart in some cases |
-| Steam library tile | playtime last 30d distribution | Density-meter feel |
-| Champion grid item | win rate trend last 10 games on that champ | Sort by recent-WR-trend becomes visible |
+| Champion detail stat row | last-10 KDA per stat | ✅ shipped 2026-05-27 — wired in `routes/lol/$accountSlug/champions/$championKey.tsx` per-game K/D/A tiles. Data sourced from `ChampionDetailStats.matchHistory` (extended with per-game K/D/A in the same chunk). |
+| Profile hero KPI strip | LP delta last 14 days | **Blocked** — no LP history persisted. Riot doesn't expose per-match LP delta, would need backfill via league-V4 polling. Skip until a data source exists. |
+| Match list row | gold-lead delta over the match | **Blocked** — `MatchSummary` carries only the scalar `teamGoldDiffAt15` (one number, not a series). Sparkline needs a timeline; would require persisting goldDiff samples per minute in the match record. File follow-up before picking up. |
+| Trends summary cards | each metric's trend across selected range | **Per-card design call** — every trend card already owns a chart (Recharts LineChart for WR trajectory, etc). Sparkline replaces only where the card currently shows just a number + sub-text. Re-survey when picking up. |
+| Steam library tile | playtime last 30d distribution | **Blocked** — Steam API exposes `playtime_forever` + `playtime_2weeks` scalars, no per-day distribution. Need a poller writing daily snapshots to our own table. File follow-up. |
+| Champion grid item | win rate trend last 10 games on that champ | **Almost ready** — `buildWinRateSeries` already exists; `ChampionStats` (the row-level type fed to `ChampionTable`) doesn't currently carry the per-champion `matchHistory`. Either extend `aggregateChampionStats` to attach a `recentWinRates: number[]` field, or push raw matches down and compute per-row. Small change — pick up next. |
+
+**Survey result (2026-05-27):** Of the six surfaces, only champion-detail K/D/A is shipped. Champion grid is the next-best pickup (small data-shape change). The remaining four are blocked on missing data sources (LP history, gold-lead timeline, Steam daily playtime) or per-card design decisions. Don't ship a second sparkline use until either (a) `ChampionStats` is extended for the grid, or (b) one of the data-source follow-ups lands.
 
 For data sources that don't already exist, file a follow-up note rather than expanding this arc — the sparkline component is the unit of work; consumers come incrementally.
 
@@ -200,11 +202,11 @@ The opacities (`0.04 → 0.10` range) are deliberately small. The motion happens
 
 ## Chunked plan
 
-### Chunk 1 — `Sparkline` primitive + first use
+### Chunk 1 — `Sparkline` primitive + first use ✅ shipped 2026-05-27
 
-- Implement `apps/web/src/components/ui/sparkline.tsx` per pattern above + test.
-- Apply to one surface (suggest: champion detail stat row) to validate.
-- Visual verification.
+- `apps/web/src/components/ui/sparkline.tsx` + test (8 cases: empty/single, point count, x linear scaling, y inversion, flat-midline no-NaN, stroke default+override, aria-hidden/label gate, className merge). `data-slot="sparkline"`, default stroke `var(--theme-strong)`, `vectorEffect="non-scaling-stroke"`, `<title>` element + `role="img"` when `aria-label` provided.
+- First use: champion-detail per-game K/D/A tiles (`routes/lol/$accountSlug/champions/$championKey.tsx`). Extended `ChampionDetailStats.matchHistory` with per-game `kills`/`deaths`/`assists`. Sliced last 10 games per stat, `text-theme-strong/70` + `stroke="currentColor"` for the tinted theme stroke.
+- Surface survey done — see "Where to apply" table above. Champion grid is next-best pickup; the other four blocked on missing data sources.
 
 ### Chunk 2 — Sparklines in match list
 

@@ -9,8 +9,10 @@ export interface ChampionDetailStats extends ChampionStats {
   avgKills: number;
   avgDeaths: number;
   avgAssists: number;
-  // Chronological (oldest first) — used for win-rate trend sparkline
-  matchHistory: Array<{ win: boolean }>;
+  // Chronological (oldest first) — drives the win-rate trend (cumulative) plus
+  // per-stat inline sparklines on the K/D/A tiles, so each entry carries the
+  // raw per-game numbers alongside the win flag.
+  matchHistory: Array<{ win: boolean; kills: number; deaths: number; assists: number }>;
 }
 
 export function computeChampionDetail(
@@ -85,7 +87,12 @@ export function computeChampionDetail(
     avgKills: totalKills / games,
     avgDeaths: totalDeaths / games,
     avgAssists: totalAssists / games,
-    matchHistory: sorted.map((m) => ({ win: m.win })),
+    matchHistory: sorted.map((m) => ({
+      win: m.win,
+      kills: m.kills,
+      deaths: m.deaths,
+      assists: m.assists,
+    })),
   };
 }
 

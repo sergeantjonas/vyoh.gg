@@ -122,13 +122,38 @@ describe("computeChampionDetail", () => {
     expect(stats?.position).toBe("MIDDLE");
   });
 
-  it("returns matchHistory in chronological order (oldest first)", () => {
+  it("returns matchHistory in chronological order (oldest first) with per-game K/D/A", () => {
     const stats = computeChampionDetail("Ahri", [
-      buildMatch({ champion: "Ahri", playedAt: "2026-05-19T12:00:00Z", win: true }),
-      buildMatch({ champion: "Ahri", playedAt: "2026-05-19T10:00:00Z", win: false }),
-      buildMatch({ champion: "Ahri", playedAt: "2026-05-19T11:00:00Z", win: true }),
+      buildMatch({
+        champion: "Ahri",
+        playedAt: "2026-05-19T12:00:00Z",
+        win: true,
+        kills: 9,
+        deaths: 2,
+        assists: 5,
+      }),
+      buildMatch({
+        champion: "Ahri",
+        playedAt: "2026-05-19T10:00:00Z",
+        win: false,
+        kills: 1,
+        deaths: 6,
+        assists: 2,
+      }),
+      buildMatch({
+        champion: "Ahri",
+        playedAt: "2026-05-19T11:00:00Z",
+        win: true,
+        kills: 4,
+        deaths: 3,
+        assists: 8,
+      }),
     ]);
-    expect(stats?.matchHistory).toEqual([{ win: false }, { win: true }, { win: true }]);
+    expect(stats?.matchHistory).toEqual([
+      { win: false, kills: 1, deaths: 6, assists: 2 },
+      { win: true, kills: 4, deaths: 3, assists: 8 },
+      { win: true, kills: 9, deaths: 2, assists: 5 },
+    ]);
   });
 });
 

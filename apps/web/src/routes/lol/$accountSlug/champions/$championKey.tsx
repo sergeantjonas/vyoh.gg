@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
+import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -381,21 +382,35 @@ function ChampionDetailPage() {
         >
           {(
             [
-              ["K", detail.avgKills],
-              ["D", detail.avgDeaths],
-              ["A", detail.avgAssists],
+              ["K", detail.avgKills, "kills"],
+              ["D", detail.avgDeaths, "deaths"],
+              ["A", detail.avgAssists, "assists"],
             ] as const
-          ).map(([label, val]) => (
-            <div
-              key={label}
-              className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/50 py-3"
-            >
-              <HeroLabel>{label}</HeroLabel>
-              <HeroNumber size="md">
-                <CountUp to={val} decimals={1} />
-              </HeroNumber>
-            </div>
-          ))}
+          ).map(([label, val, key]) => {
+            // Last 10 games for this stat — matchHistory is oldest first.
+            const trend = detail.matchHistory.slice(-10).map((m) => m[key]);
+            return (
+              <div
+                key={label}
+                className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/50 py-3"
+              >
+                <HeroLabel>{label}</HeroLabel>
+                <HeroNumber size="md">
+                  <CountUp to={val} decimals={1} />
+                </HeroNumber>
+                {trend.length >= 2 && (
+                  <Sparkline
+                    data={trend}
+                    width={64}
+                    height={14}
+                    className="text-theme-strong/70"
+                    stroke="currentColor"
+                    aria-label={`${key} per game — last ${trend.length}`}
+                  />
+                )}
+              </div>
+            );
+          })}
         </m.div>
 
         {/* Delta vs account average */}
