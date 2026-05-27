@@ -47,12 +47,22 @@ import {
   User,
   X,
 } from "lucide-react";
-import { useLayoutEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useLayoutEffect, useMemo, useState } from "react";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
+
+// Module-scope platform check mirrors the `nav.tsx` shortcut-label pattern
+// so the chord hint reads `⌘↵` on macOS, `Ctrl ↵` elsewhere.
+const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+const chordHint = isMac ? "⌘↵" : "Ctrl ↵";
+
+// Sentinel prefix on Account row `value` strings — lets the chord handler
+// distinguish a highlighted Account row from any other group's row without
+// reverse-mapping the value back to a slug.
+const ACCOUNT_VALUE_PREFIX = "account:";
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -100,6 +110,11 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [input, setInput] = useState("");
   const [recents, setRecents] = useState<RecentItem[]>([]);
+  // Highlighted item value, lifted out of cmdk so the chord handler on the
+  // input can branch on which row Enter would have selected. cmdk normalises
+  // this to the first existing item when the prior value disappears, so we
+  // never need to clear it manually as the filtered list shifts.
+  const [highlighted, setHighlighted] = useState("");
 
   const recentsScope = deriveRecentsScope(pathname);
 
@@ -205,6 +220,24 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     setInput("");
     // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
     navigate({ to: item.path as any });
+  }
+
+  // ⌘↵ / Ctrl↵ on a highlighted Account row → jump into that account's
+  // matches without closing the palette. cmdk's `onSelect` doesn't expose
+  // the original event, so the chord has to ride the input's keydown.
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    if (!event.metaKey && !event.ctrlKey) return;
+    if (!highlighted.startsWith(ACCOUNT_VALUE_PREFIX)) return;
+    const slug = highlighted.slice(ACCOUNT_VALUE_PREFIX.length).split(" ")[0];
+    const acc = (me.data?.lol ?? []).find((a) => a.slug === slug);
+    if (!acc) return;
+    event.preventDefault();
+    goAndKeepOpen({
+      path: `/lol/${acc.slug}/matches`,
+      label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
+      kind: "tab",
+    });
   }
 
   // When a navigation verb (`/patches …`) is parsed, all other groups —
@@ -340,12 +373,19 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     : [];
 
   return (
-    <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false}>
+    <CommandDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      shouldFilter={false}
+      value={highlighted}
+      onValueChange={setHighlighted}
+    >
       <DialogTitle className="sr-only">Command palette</DialogTitle>
       <CommandInput
         placeholder="Type a command or search…"
         value={input}
         onValueChange={setInput}
+        onKeyDown={handleInputKeyDown}
       />
       {chips.length > 0 && (
         <div
@@ -400,43 +440,56 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
         {showNonMatchGroups && accounts.length > 0 && (
           <CommandGroup heading="Accounts">
-            {accounts.flatMap((acc) => [
-              <CommandItem
-                key={acc.slug}
-                value={`${acc.gameName} ${acc.tagLine} ${acc.slug}`}
-                onSelect={() =>
-                  go({
-                    path: `/lol/${acc.slug}`,
-                    label: `${acc.gameName}#${acc.tagLine}`,
-                    kind: "account",
-                  })
-                }
-              >
-                <User />
-                <span>
-                  {acc.gameName}
-                  <span className="text-muted-foreground">#{acc.tagLine}</span>
-                </span>
-              </CommandItem>,
-              <CommandItem
-                key={`${acc.slug}-search`}
-                value={`search matches in ${acc.gameName} ${acc.tagLine} ${acc.slug}`}
-                onSelect={() =>
-                  goAndKeepOpen({
-                    path: `/lol/${acc.slug}/matches`,
-                    label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
-                    kind: "tab",
-                  })
-                }
-              >
-                <Swords className="size-4" />
-                <span className="text-muted-foreground">Search matches in</span>
-                <span>
-                  {acc.gameName}
-                  <span className="text-muted-foreground">#{acc.tagLine}</span>
-                </span>
-              </CommandItem>,
-            ])}
+            {accounts.flatMap((acc) => {
+              const items = [
+                <CommandItem
+                  key={acc.slug}
+                  value={`${ACCOUNT_VALUE_PREFIX}${acc.slug} ${acc.gameName} ${acc.tagLine}`}
+                  onSelect={() =>
+                    go({
+                      path: `/lol/${acc.slug}`,
+                      label: `${acc.gameName}#${acc.tagLine}`,
+                      kind: "account",
+                    })
+                  }
+                >
+                  <User />
+                  <span>
+                    {acc.gameName}
+                    <span className="text-muted-foreground">#{acc.tagLine}</span>
+                  </span>
+                  <CommandShortcut>{chordHint} matches</CommandShortcut>
+                </CommandItem>,
+              ];
+              // Companion "Search matches in <id>" row is intentionally kept
+              // only when freeText is non-empty — at idle the chord+hint chip
+              // is the discoverable path. On touch / no-keyboard, typing the
+              // account name surfaces the companion so the scope-switch flow
+              // stays reachable without a chord.
+              if (parsed.freeText.length > 0) {
+                items.push(
+                  <CommandItem
+                    key={`${acc.slug}-search`}
+                    value={`search matches in ${acc.gameName} ${acc.tagLine} ${acc.slug}`}
+                    onSelect={() =>
+                      goAndKeepOpen({
+                        path: `/lol/${acc.slug}/matches`,
+                        label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
+                        kind: "tab",
+                      })
+                    }
+                  >
+                    <Swords className="size-4" />
+                    <span className="text-muted-foreground">Search matches in</span>
+                    <span>
+                      {acc.gameName}
+                      <span className="text-muted-foreground">#{acc.tagLine}</span>
+                    </span>
+                  </CommandItem>
+                );
+              }
+              return items;
+            })}
           </CommandGroup>
         )}
 

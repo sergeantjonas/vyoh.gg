@@ -157,22 +157,45 @@ describe("CommandPaletteDialog", () => {
     expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/foo/champions/nidalee" });
   });
 
-  it("renders 'Search matches in <account>' companion for each matched account", () => {
+  it("renders 'Search matches in <account>' companion only on non-empty input", () => {
     accountsRef.current = [
       { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
       { slug: "jonalt-na", gameName: "JonAlt", tagLine: "NA", region: "NA1" },
     ];
     pathnameRef.current = "/";
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    // Empty input: companion rows are suppressed; the chord+hint is the
+    // discoverable scope-switch path.
+    expect(screen.queryByRole("option", { name: /Search matches in/ })).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
       target: { value: "jon" },
     });
+    // Typing a name fragment surfaces the companion alongside the account
+    // row so touch / no-keyboard users can still reach matches-in-account.
     expect(
       screen.getByRole("option", { name: /Search matches in.*Jonas/ })
     ).not.toBeNull();
     expect(
       screen.getByRole("option", { name: /Search matches in.*JonAlt/ })
     ).not.toBeNull();
+  });
+
+  it("Ctrl+Enter on an account row navigates to /lol/<slug>/matches and keeps the palette open", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/";
+    const onOpenChange = vi.fn();
+    wrap(<CommandPaletteDialog open onOpenChange={onOpenChange} />);
+    const input = screen.getByPlaceholderText(
+      "Type a command or search…"
+    ) as HTMLInputElement;
+    // Typing makes cmdk highlight the first matching item (the account row).
+    fireEvent.change(input, { target: { value: "jonas" } });
+    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/jonas-euw/matches" });
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(input.value).toBe("");
   });
 
   it("clicking 'Search matches in X' navigates to /matches and clears input without closing", () => {
