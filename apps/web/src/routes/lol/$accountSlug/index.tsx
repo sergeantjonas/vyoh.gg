@@ -17,8 +17,11 @@ import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { ProfileSynergy } from "@/lol/profile/profile-synergy";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
+import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { ChevronRight } from "lucide-react";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/")({
   component: ProfilePage,
@@ -28,11 +31,32 @@ function ProfilePage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const rank = useProfileRank(account);
+  // Shares the cache key with ProfileLpHistory below, so the second consumer
+  // is free on the wire — TanStack Query dedupes the in-flight fetch and both
+  // tiles + chart hydrate from the same response.
+  const rankHistory = useRankHistory(account, "30d");
+  const recentLpByQueue = useMemo<Record<string, number[]>>(() => {
+    const data = rankHistory.data;
+    if (!data) return {};
+    const toSeries = (points: typeof data.solo) =>
+      [...points]
+        .sort(
+          (a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime()
+        )
+        .map((p) => normalizeLp(p.tier, p.rank, p.leaguePoints));
+    return {
+      RANKED_SOLO_5x5: toSeries(data.solo),
+      RANKED_FLEX_SR: toSeries(data.flex),
+    };
+  }, [rankHistory.data]);
   const { matches } = useMatchWindow();
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileRankTiles entries={rank.data?.rankEntries ?? []} />
+      <ProfileRankTiles
+        entries={rank.data?.rankEntries ?? []}
+        recentLpByQueue={recentLpByQueue}
+      />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePatchNotice accountSlug={accountSlug} />
       <ProfilePregameRitual accountSlug={accountSlug} />
