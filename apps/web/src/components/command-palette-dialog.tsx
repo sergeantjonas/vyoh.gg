@@ -62,7 +62,10 @@ const chordHint = isMac ? "⌘↵" : "Ctrl ↵";
 
 // Sentinel prefix on Account row `value` strings — lets the chord handler
 // distinguish a highlighted Account row from any other group's row without
-// reverse-mapping the value back to a slug.
+// reverse-mapping the value back to a slug. The same `<type>:<id> ...`
+// shape is used by champion/match/steam-game rows so
+// `parsePaletteValue` (see command-palette-preview-value.ts) can dispatch
+// the focused row to the matching preview content component.
 const ACCOUNT_VALUE_PREFIX = "account:";
 
 function relativeTime(iso: string): string {
@@ -505,7 +508,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               {championList.map((c) => (
                 <CommandItem
                   key={c.alias}
-                  value={`${c.alias} ${c.name.toLowerCase()}`}
+                  value={`champion:${c.alias} ${c.alias} ${c.name.toLowerCase()}`}
                   onSelect={() =>
                     go({
                       path: `/lol/${currentSlug}/champions/${c.alias}`,
@@ -529,7 +532,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             {steamGames.map((g) => (
               <CommandItem
                 key={g.appid}
-                value={`steam ${g.name.toLowerCase()} ${g.appid}`}
+                value={`steam-game:${g.appid} steam ${g.name.toLowerCase()} ${g.appid}`}
                 onSelect={() =>
                   go({
                     path: `/steam/game/${g.appid}`,
@@ -591,7 +594,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               filteredMatches.slice(0, 8).map((match) => (
                 <CommandItem
                   key={match.matchId}
-                  value={`${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
+                  value={`match:${match.matchId} ${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
                   onSelect={() =>
                     go({
                       path: `/lol/${currentSlug}/matches/${match.matchId}`,

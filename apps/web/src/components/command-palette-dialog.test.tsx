@@ -35,15 +35,47 @@ vi.mock("@/identity/use-me", () => ({
       : { data: undefined },
 }));
 
+const championInfoMap = new Map([
+  [
+    "nidalee",
+    {
+      id: 76,
+      alias: "Nidalee",
+      name: "Nidalee",
+      roles: ["Assassin", "Fighter"],
+      modernClasses: ["Skirmisher"],
+      modernSubclasses: [],
+    },
+  ],
+  [
+    "ahri",
+    {
+      id: 103,
+      alias: "Ahri",
+      name: "Ahri",
+      roles: ["Mage", "Assassin"],
+      modernClasses: ["Burst"],
+      modernSubclasses: [],
+    },
+  ],
+  [
+    "jarvaniv",
+    {
+      id: 59,
+      alias: "JarvanIV",
+      name: "Jarvan IV",
+      roles: ["Tank", "Fighter"],
+      modernClasses: ["Vanguard"],
+      modernSubclasses: [],
+    },
+  ],
+]);
+
 vi.mock("@/lol/champions/use-champions", () => ({
-  useChampionName: () => (key: string) => key,
-  useChampions: () => ({
-    data: new Map([
-      ["nidalee", { name: "Nidalee", description: "", roles: [] }],
-      ["ahri", { name: "Ahri", description: "", roles: [] }],
-      ["jarvaniv", { name: "Jarvan IV", description: "", roles: [] }],
-    ]),
-  }),
+  useChampionName: () => (key: string) =>
+    championInfoMap.get(key.toLowerCase())?.name ?? key,
+  useChampions: () => ({ data: championInfoMap }),
+  useChampionInfo: (alias: string) => championInfoMap.get(alias.toLowerCase()),
 }));
 
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
@@ -107,15 +139,18 @@ describe("CommandPaletteDialog", () => {
     expect(screen.queryByRole("option", { name: /Home/ })).toBeNull();
   });
 
-  it("mounts the anchor-positioning preview reflecting the focused row", () => {
+  it("mounts the anchor-positioning preview reflecting the focused champion row", () => {
+    pathnameRef.current = "/lol/foo";
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
-    // Filter to a single Steam Page row so cmdk's auto-selected first item is
-    // deterministic — otherwise the highlighted value depends on test order.
+    // Type a champion name so the Champions group is the only visible group
+    // and the first row is the focused one — exercises the parse→dispatch
+    // path end-to-end (champion sentinel → CommandPalettePreviewChampion).
     fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
-      target: { value: "steam" },
+      target: { value: "nid" },
     });
     const preview = screen.getByTestId("command-palette-preview");
-    expect(preview.textContent).toMatch(/steam/i);
+    expect(preview.getAttribute("data-preview-type")).toBe("champion");
+    expect(preview.textContent).toContain("Nidalee");
   });
 
   it("renders parsed chips for structured verbs", () => {
