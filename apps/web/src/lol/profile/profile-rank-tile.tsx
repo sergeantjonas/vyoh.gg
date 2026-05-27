@@ -1,3 +1,4 @@
+import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import type { RankEntry } from "@vyoh/shared";
@@ -50,17 +51,15 @@ function RankTileContent({ entry }: { entry: RankEntry }) {
     >
       <div className="flex flex-1 flex-col gap-1">
         <div className="flex items-center gap-1.5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            {label}
-          </div>
+          <HeroLabel>{label}</HeroLabel>
           {entry.hotStreak && (
             <Flame className="size-3 text-orange-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.6)]" />
           )}
         </div>
-        <div className={`text-2xl font-bold tabular-nums ${tierColor}`}>
+        <HeroNumber size="md" className={tierColor}>
           {entry.tier.charAt(0) + entry.tier.slice(1).toLowerCase()}
           {division}
-        </div>
+        </HeroNumber>
         <div className="text-sm font-medium text-muted-foreground">
           {entry.leaguePoints} LP
         </div>
@@ -97,8 +96,10 @@ function UnrankedTile({ queueId }: { queueId: string }) {
   const label = QUEUE_LABEL[queueId] ?? queueId;
   return (
     <div className="flex flex-1 flex-col gap-1 rounded-lg border bg-card/50 p-4 opacity-50">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-2xl font-bold text-muted-foreground">Unranked</div>
+      <HeroLabel>{label}</HeroLabel>
+      <HeroNumber size="md" className="text-muted-foreground">
+        Unranked
+      </HeroNumber>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useNarrativeLifetime } from "@/lol/profile/use-narrative-lifetime";
 import { type Variants, m } from "motion/react";
@@ -18,10 +19,10 @@ function StatItem({ label, children }: { label: string; children: ReactNode }) {
   return (
     <m.div
       variants={item}
-      className="flex flex-1 flex-col items-center gap-0.5 px-4 py-3"
+      className="flex flex-1 flex-col items-center gap-1.5 px-4 py-3"
     >
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold tabular-nums">{children}</div>
+      <HeroLabel>{label}</HeroLabel>
+      <HeroNumber size="md">{children}</HeroNumber>
     </m.div>
   );
 }

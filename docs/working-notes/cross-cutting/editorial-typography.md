@@ -147,11 +147,11 @@ Findings pinned in the Status section above. Geist Variable v4 exposes `wght` 10
 - Champion detail hero: aggregated win rate + games + average KDA.
 - Verify the visual rhythm reads consistent across both pages.
 
-### Chunk 5 — Trends + Bento
+### Chunk 5 — Trends + Bento ✅ 2026-05-27 (scope reshaped)
 
-- Trends summary cards adopt the primitives.
-- Bento tiles on `/` adopt them where they have a hero number (chronotype hour bucket, weekly totals, session lengths).
-- Pay attention to the bento grid context — small tiles may need `size="md"` instead of `lg`.
+Adopted in profile-multikill-strip (Pentas/Quadras/Triples/Doubles/Best Spree) and profile-rank-tile (Tier+division as the hero, queue label as caption). Both used the same `text-lg font-semibold` + uppercase-tracked-label pattern as profile-stats-bar (Chunk 3).
+
+**Bento + Trends finding (no edits):** the home bento tiles (TileWeeklyTotals, TileSessionLengths, TileChronotype, etc.) and the trend cards (ConclusionCard-based: TrendTiltIndicator, TrendWeeklyReview, etc.) communicate via *verdict sentences* ("5h 23m gaming", "75% of sessions are under 1h.", "Win rate drops 8% after a loss.") rather than isolated hero stat numbers. None of them use `text-2xl`-or-larger displays. Forcing HeroNumber would either break the sentence flow or require splitting verdicts into number + suffix pairs that read worse than the current treatment. The editorial-typography primitives stay scoped to KPI-strip and stat-tile surfaces; verdict-sentence tiles keep their `text-base font-semibold` rhythm.
 
 ### Chunk 6 — Section title pass
 
