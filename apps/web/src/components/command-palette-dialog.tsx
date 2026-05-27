@@ -127,6 +127,26 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     setRecents(loadRecents(recentsScope));
   }, [open, recentsScope]);
 
+  // Corrective scroll pass. cmdk's built-in scrollIntoView lands short on
+  // both Blink and WebKit in this DOM topology — the selected row's
+  // bottom edge ends up below the cmdk-list viewport even when there's
+  // plenty of scroll room left. Runs after cmdk's own effect (we're the
+  // parent component) and compares the selected row's rect against the
+  // list's; if the row is out of bounds, set scrollTop directly.
+  useLayoutEffect(() => {
+    if (!open || !highlighted) return;
+    const list = document.querySelector<HTMLElement>("[cmdk-list]");
+    const row = document.querySelector<HTMLElement>('[cmdk-item][aria-selected="true"]');
+    if (!list || !row) return;
+    const listRect = list.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.top < listRect.top) {
+      list.scrollTop -= listRect.top - rowRect.top;
+    } else if (rowRect.bottom > listRect.bottom) {
+      list.scrollTop += rowRect.bottom - listRect.bottom;
+    }
+  }, [open, highlighted]);
+
   const parsed = useMemo(() => parseMatchQuery(input), [input]);
   const steamParsed = useMemo(() => parseSteamLibraryQuery(input), [input]);
   const chips = useMemo(
