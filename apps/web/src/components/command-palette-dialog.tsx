@@ -1,6 +1,7 @@
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { buildChips, buildSteamChips } from "@/components/command-palette-chips";
 import { matchesQuery } from "@/components/command-palette-matcher";
+import { CommandPalettePreview } from "@/components/command-palette-preview";
 import {
   type RecentItem,
   type RecentKind,
@@ -623,6 +624,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
       </CommandList>
+      <CommandPalettePreview value={highlighted} />
       <div className="flex items-center justify-end border-t px-3 py-2 text-xs text-muted-foreground">
         <span>
           Press{" "}

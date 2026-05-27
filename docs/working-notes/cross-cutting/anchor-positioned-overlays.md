@@ -1,6 +1,6 @@
 # Anchor-positioned overlays
 
-**Status:** Active — Chunk 1 shipped 2026-05-27 (`ensureAnchorPositioning()` feature-detect + lazy Oddbird `/fn` loader at [apps/web/src/lib/anchor-positioning.ts](../../../apps/web/src/lib/anchor-positioning.ts); `@oddbird/css-anchor-positioning` added to web deps as a lazy-imported runtime dep). Chunks 2–7 pending. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. CSS Anchor Positioning ([`anchor-name`](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name) / [`position-anchor`](https://developer.mozilla.org/en-US/docs/Web/CSS/position-anchor) / [`@position-try`](https://developer.mozilla.org/en-US/docs/Web/CSS/@position-try)) for the command-palette result peek and a small set of follow-on-scroll overlays, with a feature-detect + Oddbird polyfill fallback for older browsers.
+**Status:** Active — Chunks 1 + 2 shipped 2026-05-27. Chunk 1: `ensureAnchorPositioning()` feature-detect + lazy Oddbird `/fn` loader at [apps/web/src/lib/anchor-positioning.ts](../../../apps/web/src/lib/anchor-positioning.ts); `@oddbird/css-anchor-positioning` added to web deps as a lazy-imported runtime dep. Chunk 2: `<CommandPalettePreview>` shell at [apps/web/src/components/command-palette-preview.tsx](../../../apps/web/src/components/command-palette-preview.tsx) anchored to the focused cmdk row via `[cmdk-item][data-selected="true"] { anchor-name: --palette-focused-row }` + `.palette-preview { position-anchor: --palette-focused-row }` rules in [apps/web/src/index.css](../../../apps/web/src/index.css); smoke-test content (focused value rendered twice) validates wiring before Chunk 3. Chunks 3–7 pending. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. CSS Anchor Positioning ([`anchor-name`](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name) / [`position-anchor`](https://developer.mozilla.org/en-US/docs/Web/CSS/position-anchor) / [`@position-try`](https://developer.mozilla.org/en-US/docs/Web/CSS/@position-try)) for the command-palette result peek and a small set of follow-on-scroll overlays, with a feature-detect + Oddbird polyfill fallback for older browsers.
 
 Read this before adding any overlay that should track its trigger across scroll/resize/zoom, or that needs collision-aware fallback positions.
 
@@ -98,16 +98,37 @@ export async function ensureAnchorPositioning(): Promise<"native" | "polyfill" |
 
 Test: `CSS.supports` mocked both ways; polyfill import branch tested with `vi.mock`.
 
-### Chunk 2 — Palette preview component shell
+### Chunk 2 — Palette preview component shell ✅ shipped 2026-05-27
 
-- New file `apps/web/src/components/command-palette-preview.tsx`.
-- Reads the focused result from the palette's existing focused-index state.
-- Renders the preview card with `position-anchor: --palette-focused-row` inline.
-- For now, no actual entity preview — just render the result label twice as a smoke test. Validates the anchor-positioning wiring before adding content.
+Landed at [apps/web/src/components/command-palette-preview.tsx](../../../apps/web/src/components/command-palette-preview.tsx) + colocated test, mounted in [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) via `<CommandPalettePreview value={highlighted} />`. The preview reads from the existing `highlighted` cmdk state (already lifted out of cmdk via `value`/`onValueChange` on the Command root for the chord handler) and renders the value twice as a smoke test.
 
-The result rows need `anchor-name: --palette-focused-row` set inline **on the focused row only** (others have `anchor-name: none`). Toggle via React state in the palette's existing focus management.
+Two implementation calls that differed from the original sketch (kept rationale here as trail-of-evidence):
 
-Test: focusing different rows updates which row has the anchor-name.
+- **`anchor-name` via a global CSS attribute selector, not inline style.** The arc note originally asked for inline `anchor-name` toggled per-row via React state. Implementing that would require threading a `style` prop through every `CommandItem` call site (~7 surfaces). cmdk already sets `data-selected="true"` on the highlighted item, driven by the same React state we lifted (`value`/`onValueChange`) — so `[cmdk-list] [cmdk-item][data-selected="true"] { anchor-name: --palette-focused-row }` in [index.css](../../../apps/web/src/index.css) is equivalent React-state-driven behavior with zero call-site churn. Only one item ever has `data-selected="true"` at a time, so there's no need for an explicit `anchor-name: none` reset on the others.
+- **`.palette-preview` class, not inline style on the card.** happy-dom drops anchor-positioning properties from `style.cssText`, which makes inline-style assertions untestable. Centralising `position-anchor` + `inset-block-start` + `inset-inline-start` in the `.palette-preview` rule makes the class the testable contract AND positions Chunk 4 to extend the same rule with `position-try-fallbacks` — no second migration needed.
+
+Original sketch:
+
+```ts
+// inline anchor-name toggled per CommandItem render
+<CommandItem style={{ anchorName: isFocused ? "--palette-focused-row" : "none" }} />
+```
+
+What shipped:
+
+```css
+[cmdk-list] [cmdk-item][data-selected="true"] {
+  anchor-name: --palette-focused-row;
+}
+.palette-preview {
+  position: fixed;
+  position-anchor: --palette-focused-row;
+  inset-block-start: anchor(start);
+  inset-inline-start: calc(anchor(end) + 12px);
+}
+```
+
+Tests: preview renders nothing when value is empty, renders the value twice when non-empty, applies the `.palette-preview` class; dialog-level test types a query and asserts the preview's text reflects the auto-focused first result.
 
 ### Chunk 3 — Real preview content for champion / match / game
 

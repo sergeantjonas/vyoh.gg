@@ -107,6 +107,17 @@ describe("CommandPaletteDialog", () => {
     expect(screen.queryByRole("option", { name: /Home/ })).toBeNull();
   });
 
+  it("mounts the anchor-positioning preview reflecting the focused row", () => {
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    // Filter to a single Steam Page row so cmdk's auto-selected first item is
+    // deterministic — otherwise the highlighted value depends on test order.
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "steam" },
+    });
+    const preview = screen.getByTestId("command-palette-preview");
+    expect(preview.textContent).toMatch(/steam/i);
+  });
+
   it("renders parsed chips for structured verbs", () => {
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
