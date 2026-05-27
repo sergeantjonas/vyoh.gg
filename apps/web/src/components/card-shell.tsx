@@ -1,3 +1,4 @@
+import { CardTitle } from "@/components/ui/card-title";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
@@ -43,7 +44,7 @@ export function CardShell({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-muted-foreground">{title}</h3>
+        <CardTitle>{title}</CardTitle>
         {indicator}
       </div>
       <AnimatePresence mode="wait" initial={false}>

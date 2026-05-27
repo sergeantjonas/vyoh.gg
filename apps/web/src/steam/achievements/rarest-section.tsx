@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { AchievementCardInner } from "@/steam/_shared/achievement-card";
 import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
 import { Link } from "@tanstack/react-router";
@@ -26,12 +27,12 @@ export function RarestSection() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <SectionTitle as="h2">
           Rarest unlocks
           <span className="ml-2 font-normal tabular-nums text-muted-foreground/60">
             {unlocks.length}
           </span>
-        </h2>
+        </SectionTitle>
         <p className="text-xs text-muted-foreground/70">By global unlock rarity</p>
       </div>
       <ul className="flex flex-col gap-2">

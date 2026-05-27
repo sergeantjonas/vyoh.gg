@@ -2,7 +2,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, formatKda, formatPercent } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 
 const DAYS = 7;
@@ -72,11 +72,11 @@ export function ProfileNowPlaying({ accountSlug }: { accountSlug: string }) {
         className="flex flex-col gap-2"
       >
         {champs.map((c) => {
-          const winPct = Math.round((c.wins / c.games) * 100);
+          const winPct = formatPercent(c.wins / c.games);
           const kda =
             c.deaths === 0
               ? (c.kills + c.assists).toFixed(1)
-              : ((c.kills + c.assists) / c.deaths).toFixed(2);
+              : formatKda((c.kills + c.assists) / c.deaths);
           return (
             <m.div key={c.champion} variants={row}>
               <Link
@@ -92,7 +92,7 @@ export function ProfileNowPlaying({ accountSlug }: { accountSlug: string }) {
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{championName(c.champion)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {c.games} {c.games === 1 ? "game" : "games"} · {winPct}% WR
+                    {c.games} {c.games === 1 ? "game" : "games"} · {winPct} WR
                   </div>
                 </div>
                 <div className="text-right text-sm tabular-nums text-muted-foreground">

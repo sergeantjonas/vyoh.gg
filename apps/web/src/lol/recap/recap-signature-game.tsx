@@ -2,7 +2,7 @@
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatKda } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -78,7 +78,7 @@ export function RecapSignatureGame({
   }
 
   const kda = kdaValue(pick);
-  const kdaText = pick.deaths === 0 ? `${kda.toFixed(0)} (perfect)` : kda.toFixed(2);
+  const kdaText = pick.deaths === 0 ? `${kda.toFixed(0)} (perfect)` : formatKda(kda);
   const dateLabel = formatDate(pick.playedAt);
   const headline = pick.win
     ? pick.teamGoldDiffAt15 <= -3000

@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { steamLibraryCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useLibraryCompletion } from "@/steam/use-library-completion";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
@@ -62,12 +63,12 @@ export function HundredPercentHall() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <SectionTitle as="h2">
           100%'d
           <span className="ml-2 font-normal tabular-nums text-muted-foreground/60">
             {entries.length}
           </span>
-        </h2>
+        </SectionTitle>
         <p className="text-xs text-muted-foreground/70">Every achievement, every game</p>
       </div>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

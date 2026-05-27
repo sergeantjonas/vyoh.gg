@@ -40,7 +40,7 @@ import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
-import { formatPlaytimeFromSeconds } from "@vyoh/shared";
+import { formatKda, formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -361,7 +361,7 @@ function ChampionDetailPage() {
             {Math.round(detail.winRate * 100)}% WR
           </span>
           <span className="text-xs tabular-nums text-amber-400">
-            {detail.avgKda.toFixed(2)} KDA
+            {formatKda(detail.avgKda)} KDA
           </span>
         </div>
       </ChampionStickyStrip>
@@ -404,7 +404,7 @@ function ChampionDetailPage() {
             <DeltaTile
               label="KDA"
               value={kdaDelta}
-              format={(v) => Math.abs(v).toFixed(2)}
+              format={(v) => formatKda(Math.abs(v))}
             />
             <DeltaTile
               label="Win Rate"

@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { MatchRecord } from "@/lol/_shared/ui/match-record";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeStreak } from "@/lol/trends/trend-stats";
@@ -15,9 +16,7 @@ export function ProfileRecentForm({ accountSlug }: { accountSlug: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-          Recent Form
-        </div>
+        <SectionTitle>Recent form</SectionTitle>
         <TrendStreak streak={computeStreak(recent)} />
       </div>
       <MatchRecord matches={recent} accountSlug={accountSlug} />

@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -5,14 +6,16 @@ import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
-import type {
-  LolAccount,
-  MatchBaseline,
-  MatchDetail,
-  MatchSummary,
-  MatchTimelineProjection,
-  ParticipantOwnerExtras,
-  TeamSummary,
+import {
+  type LolAccount,
+  type MatchBaseline,
+  type MatchDetail,
+  type MatchSummary,
+  type MatchTimelineProjection,
+  type ParticipantOwnerExtras,
+  type TeamSummary,
+  formatKda,
+  formatPercent,
 } from "@vyoh/shared";
 import {
   Crosshair,
@@ -590,9 +593,7 @@ function MomentHighlightsStrip({ owner }: { owner: ParticipantOwnerExtras | unde
   const chips = owner ? buildHighlightChips(owner) : [];
   return (
     <>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-sm font-medium">Highlights</span>
-      </div>
+      <SectionTitle className="mb-2">Highlights</SectionTitle>
       <div className="flex flex-wrap gap-2">
         {chips.length === 0 ? (
           <span className="text-sm italic text-muted-foreground">A quiet game.</span>
@@ -669,13 +670,13 @@ function buildBaselineTiles(
       label: "KDA",
       thisGame: thisGame.kda,
       baseline: baseline.kda,
-      format: (v) => v.toFixed(2),
+      format: formatKda,
     },
     {
       label: "Damage share",
       thisGame: thisGame.damageShare,
       baseline: baseline.damageShare,
-      format: (v) => `${Math.round(v * 100)}%`,
+      format: (v) => formatPercent(v),
     },
     {
       label: "CS @ 10",
@@ -747,8 +748,8 @@ function BaselineDeviationPanel({
 
   return (
     <>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-sm font-medium">Your baseline</span>
+      <div className="mb-2 flex items-baseline gap-2">
+        <SectionTitle>Your baseline</SectionTitle>
         {subtext && <span className="text-xs text-muted-foreground">{subtext}</span>}
       </div>
       {isPending && !baseline ? (
@@ -791,7 +792,7 @@ function BaselineDeviationPanel({
                       )}
                     >
                       {rel >= 0 ? "+" : ""}
-                      {Math.round(rel * 100)}%
+                      {formatPercent(rel)}
                     </span>
                   )}
                 </div>
@@ -840,7 +841,7 @@ function DecisionNarrativePanel({
 
   return (
     <>
-      <p className="mb-2 text-sm font-medium">Decision quality</p>
+      <SectionTitle className="mb-2">Decision quality</SectionTitle>
       <div className="space-y-1.5">
         {sentences.map((s) => (
           <p key={s.text} className={cn("text-sm", TONE_CLASS[s.tone])}>
@@ -941,8 +942,8 @@ export function MatchReviewView({
       className="flex flex-col gap-6"
     >
       <section aria-label="Team gold advantage over time">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="text-sm font-medium">Gold lead</span>
+        <div className="mb-2 flex items-baseline gap-2">
+          <SectionTitle>Gold lead</SectionTitle>
           <span className="text-xs text-muted-foreground">your team vs. opponents</span>
         </div>
         {goldDiffSeries.length >= 2 ? (

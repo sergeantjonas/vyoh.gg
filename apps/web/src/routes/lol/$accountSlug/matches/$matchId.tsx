@@ -15,7 +15,7 @@ import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, formatLpDelta } from "@vyoh/shared";
 import { ChevronLeft } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useState } from "react";
@@ -220,8 +220,7 @@ function MatchDetailLayout() {
                         : "text-muted-foreground"
                   )}
                 >
-                  {lpDelta > 0 ? "+" : ""}
-                  {lpDelta} LP
+                  {formatLpDelta(lpDelta)} LP
                 </span>
               )}
               <span className="font-mono text-sm tabular-nums">

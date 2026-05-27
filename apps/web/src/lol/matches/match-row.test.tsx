@@ -156,9 +156,9 @@ describe("MatchRow", () => {
     expect(container.textContent).toContain("-18 LP");
   });
 
-  it("renders a 0-LP delta in the muted neutral tint", () => {
+  it("renders a 0-LP delta as +0 in the muted neutral tint for column alignment", () => {
     const { container } = renderRow({ match: summary(), lpDelta: 0 });
-    expect(container.textContent).toContain("0 LP");
+    expect(container.textContent).toContain("+0 LP");
   });
 
   it("formats hour-old games as 'Xh ago'", () => {

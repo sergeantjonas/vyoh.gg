@@ -1,4 +1,5 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
@@ -286,7 +287,7 @@ export function MatchBuildOrder({
       className="flex flex-col gap-3"
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Build order</h3>
+        <SectionTitle>Build order</SectionTitle>
         <div className="flex items-center gap-3">
           {opponent && (
             <button

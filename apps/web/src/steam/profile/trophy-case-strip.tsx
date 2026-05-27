@@ -5,6 +5,7 @@ import {
   CarouselItem,
   useCarousel,
 } from "@/components/ui/carousel";
+import { SectionTitle } from "@/components/ui/section-title";
 import { steamAchievementIconUrl, steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
@@ -66,9 +67,7 @@ export function TrophyCaseStrip() {
       className="flex flex-col gap-3"
     >
       <header className="flex items-baseline justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Trophy case
-        </h2>
+        <SectionTitle as="h2">Trophy case</SectionTitle>
         <div className="flex items-center gap-3">
           <CarouselHeaderControls />
           <Link

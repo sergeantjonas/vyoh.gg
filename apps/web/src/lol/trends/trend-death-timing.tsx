@@ -1,7 +1,7 @@
 // Baseline: personal — your death-timing histogram; peak window is internal to your data, no external floor.
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 5;
@@ -122,16 +122,16 @@ function PhaseStrip({
                 sideOffset={6}
                 className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
               >
-                {`${c.label} min: ${c.count} (${Math.round(c.share * 100)}%)`}
+                {`${c.label} min: ${c.count} (${formatPercent(c.share)})`}
               </TooltipPrimitive.Content>
             </TooltipPrimitive.Portal>
           </TooltipPrimitive.Root>
         ))}
       </div>
       <div className="flex justify-between text-[10px] text-muted-foreground/70 tabular-nums">
-        <span>{`${Math.round((cells[0]?.share ?? 0) * 100)}% early`}</span>
-        <span>{`${Math.round((cells[1]?.share ?? 0) * 100)}% mid`}</span>
-        <span>{`${Math.round((cells[2]?.share ?? 0) * 100)}% late`}</span>
+        <span>{`${formatPercent(cells[0]?.share ?? 0)} early`}</span>
+        <span>{`${formatPercent(cells[1]?.share ?? 0)} mid`}</span>
+        <span>{`${formatPercent(cells[2]?.share ?? 0)} late`}</span>
       </div>
     </div>
   );
@@ -235,19 +235,19 @@ export function TrendDeathTiming({
   let verdict: string;
   let prescription: string | undefined;
   if (earlyShare >= DOMINANT_PHASE_SHARE) {
-    verdict = `${Math.round(earlyShare * 100)}% of your deaths happen in the first 15 minutes — ${stats.phases.early} of ${stats.total} across ${stats.matchesWithProjection} games.`;
+    verdict = `${formatPercent(earlyShare)} of your deaths happen in the first 15 minutes — ${stats.phases.early} of ${stats.total} across ${stats.matchesWithProjection} games.`;
     prescription = "Early-game safety: ward early and respect lane swap-ins.";
   } else if (lateShare >= DOMINANT_PHASE_SHARE) {
-    verdict = `${Math.round(lateShare * 100)}% of your deaths happen after 25 minutes — ${stats.phases.late} of ${stats.total} across ${stats.matchesWithProjection} games.`;
+    verdict = `${formatPercent(lateShare)} of your deaths happen after 25 minutes — ${stats.phases.late} of ${stats.total} across ${stats.matchesWithProjection} games.`;
     prescription =
       "Late-game positioning: hold tempo, group for objectives, avoid solo picks.";
   } else if (midShare >= DOMINANT_PHASE_SHARE) {
-    verdict = `${Math.round(midShare * 100)}% of your deaths fall in the 15–25 minute window — ${stats.phases.mid} of ${stats.total} across ${stats.matchesWithProjection} games.`;
+    verdict = `${formatPercent(midShare)} of your deaths fall in the 15–25 minute window — ${stats.phases.mid} of ${stats.total} across ${stats.matchesWithProjection} games.`;
     prescription = "Be cautious during transition — prefer farm over fight.";
   } else if (peakShare >= 0.25) {
     // No single phase dominates but the peak 3-min bin still clusters
     // meaningfully (≥25%) — use the fine-grained bucket framing.
-    verdict = `Deaths cluster at minutes ${peakLabel} — ${peakValue} of ${stats.total} (${Math.round(peakShare * 100)}%).`;
+    verdict = `Deaths cluster at minutes ${peakLabel} — ${peakValue} of ${stats.total} (${formatPercent(peakShare)}).`;
     if (stats.peakIndex >= 4 && stats.peakIndex <= 5) {
       prescription = "Be cautious during transition — prefer farm over fight.";
     } else if (stats.peakIndex >= 0 && stats.peakIndex <= 1) {

@@ -1,7 +1,7 @@
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
-import type { RankEntry } from "@vyoh/shared";
+import { type RankEntry, formatPercent } from "@vyoh/shared";
 import { Flame } from "lucide-react";
 import { m } from "motion/react";
 import { useState } from "react";
@@ -40,7 +40,7 @@ function RankTileContent({ entry }: { entry: RankEntry }) {
   const losses = entry.losses;
   const total = wins != null && losses != null ? wins + losses : null;
   const pct =
-    total != null && total > 0 && wins != null ? Math.round((wins / total) * 100) : null;
+    total != null && total > 0 && wins != null ? formatPercent(wins / total) : null;
 
   return (
     <m.div
@@ -65,7 +65,7 @@ function RankTileContent({ entry }: { entry: RankEntry }) {
         </div>
         {wins != null && losses != null && (
           <span className="text-sm text-muted-foreground">
-            {wins}W {losses}L{pct != null ? ` · ${pct}%` : ""}
+            {wins}W {losses}L{pct != null ? ` · ${pct}` : ""}
           </span>
         )}
       </div>

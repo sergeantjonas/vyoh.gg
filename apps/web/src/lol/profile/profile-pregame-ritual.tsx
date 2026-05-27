@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import {
@@ -481,7 +482,7 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">Pre-game</h3>
+      <SectionTitle>Pre-game</SectionTitle>
       <CompositeVerdict
         composite={composite}
         signals={signals}

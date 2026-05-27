@@ -1,5 +1,6 @@
 import { DeferredMount } from "@/_shared/deferred-mount";
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
+import { SectionTitle } from "@/components/ui/section-title";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
 import { TrendComebackResilience } from "@/lol/trends/trend-comeback-resilience";
@@ -271,7 +272,7 @@ function TrendsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Trends</h2>
+        <SectionTitle as="h2">Trends</SectionTitle>
         <TrendsRangeSelector value={rangeId} onChange={setRangeId} />
       </div>
 

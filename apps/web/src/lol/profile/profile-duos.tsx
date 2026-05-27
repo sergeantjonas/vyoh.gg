@@ -1,7 +1,9 @@
 import { EmptyDuosIllustration, EmptyState } from "@/components/empty-state";
+import { SectionTitle } from "@/components/ui/section-title";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useDuos } from "@/lol/profile/use-duos";
+import { formatPercent } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 
 const DISPLAY_COUNT = 3;
@@ -18,7 +20,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
   if (data.length === 0) {
     return (
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">Duos</h3>
+        <SectionTitle>Duos</SectionTitle>
         <div className="rounded-lg border border-dashed bg-card/20">
           <EmptyState
             illustration={<EmptyDuosIllustration />}
@@ -35,7 +37,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">Duos</h3>
+      <SectionTitle>Duos</SectionTitle>
       <m.div
         initial="hidden"
         animate="show"
@@ -44,7 +46,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
       >
         {duos.map((d) => {
           const losses = d.games - d.wins;
-          const wr = Math.round((d.wins / d.games) * 100);
+          const wr = formatPercent(d.wins / d.games);
           return (
             <m.div
               key={d.puuid}
@@ -72,7 +74,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
                   <span className="text-rose-500/80">{losses}</span>
                 </div>
                 <div className="text-xs text-muted-foreground tabular-nums">
-                  {d.games} games · {wr}% WR
+                  {d.games} games · {wr} WR
                 </div>
               </div>
             </m.div>

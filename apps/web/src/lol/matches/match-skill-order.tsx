@@ -1,4 +1,5 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
+import { SectionTitle } from "@/components/ui/section-title";
 import { toRichDescription } from "@/lol/_shared/static/rich-description";
 import { useAbilityDescription } from "@/lol/matches/use-ability-description";
 import type { SpellInfo } from "@/lol/matches/use-champion-spells";
@@ -214,7 +215,7 @@ export function MatchSkillOrder({
       transition={springIn.transition}
       className="flex flex-col gap-3"
     >
-      <h3 className="text-sm font-medium">Skill order</h3>
+      <SectionTitle>Skill order</SectionTitle>
       <div className="overflow-x-auto">
         {/* Level header */}
         <div style={gridRowStyle} className="mb-1">

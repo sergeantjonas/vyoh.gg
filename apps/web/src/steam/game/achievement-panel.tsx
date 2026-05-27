@@ -1,3 +1,4 @@
+import { CardTitle } from "@/components/ui/card-title";
 import { cn } from "@/lib/utils";
 import { AchievementCardInner, rareTier } from "@/steam/_shared/achievement-card";
 import type { SteamAchievement } from "@vyoh/shared";
@@ -113,9 +114,7 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
   if (data.achievements.length === 0) {
     return (
       <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Achievements
-        </h2>
+        <CardTitle as="h2">Achievements</CardTitle>
         <p className="text-sm text-muted-foreground">
           Schema is in flight. Unlocks land with the next sync.
         </p>
@@ -153,9 +152,7 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
       <header className="flex items-baseline justify-between gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Achievements
-        </h2>
+        <CardTitle as="h2">Achievements</CardTitle>
         <p className="text-xs tabular-nums text-muted-foreground">
           {unlocked} / {total} unlocked
         </p>

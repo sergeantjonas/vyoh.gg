@@ -14,6 +14,7 @@ import {
   TowerIcon,
   VisionIcon,
 } from "@/components/game-icons";
+import { SectionTitle } from "@/components/ui/section-title";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -789,7 +790,7 @@ function TeamBlock({
   const win = participants[0]?.win ?? false;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="flex items-baseline gap-2 text-sm font-medium">
+      <SectionTitle className="flex items-baseline gap-2">
         <span>{title}</span>
         <span
           className={cn(
@@ -810,7 +811,7 @@ function TeamBlock({
             {(goldLead / 1000).toFixed(1)}k gold
           </span>
         )}
-      </h3>
+      </SectionTitle>
       <m.ul
         initial={skipAnimation ? "show" : "hidden"}
         animate="show"

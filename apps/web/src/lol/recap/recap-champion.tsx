@@ -3,7 +3,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, formatKda, formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -75,11 +75,11 @@ export function RecapChampion({
     );
   }
 
-  const wr = Math.round((top.wins / top.games) * 100);
+  const wr = formatPercent(top.wins / top.games);
   const avgKda =
     top.deaths === 0
       ? (top.kills + top.assists).toFixed(1)
-      : ((top.kills + top.assists) / top.deaths).toFixed(2);
+      : formatKda((top.kills + top.assists) / top.deaths);
 
   return (
     <m.section
@@ -139,13 +139,13 @@ export function RecapChampion({
             {championName(top.champion)}
           </p>
           <p className="text-sm text-muted-foreground">
-            {top.games} games · {wr}% win rate
+            {top.games} games · {wr} win rate
           </p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Stat label="Games" value={String(top.games)} />
-        <Stat label="Win rate" value={`${wr}%`} />
+        <Stat label="Win rate" value={wr} />
         <Stat label="Average KDA" value={avgKda} />
       </div>
     </m.section>

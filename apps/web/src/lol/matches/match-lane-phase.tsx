@@ -1,4 +1,5 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import { formatGold } from "@vyoh/shared";
@@ -187,7 +188,7 @@ export function MatchLanePhase({
       transition={springIn.transition}
       className="flex flex-col gap-3"
     >
-      <h3 className="text-sm font-medium">Lane phase</h3>
+      <SectionTitle>Lane phase</SectionTitle>
       <div className="h-40 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>

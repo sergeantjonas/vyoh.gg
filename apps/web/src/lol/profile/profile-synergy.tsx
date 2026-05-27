@@ -4,13 +4,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useChampionPairs } from "@/lol/profile/use-champion-pairs";
 import { Link } from "@tanstack/react-router";
-import type { ChampionPair } from "@vyoh/shared";
+import { type ChampionPair, formatPercent } from "@vyoh/shared";
 import { ArrowRight } from "lucide-react";
 import { type Variants, m } from "motion/react";
 import { useMemo } from "react";
@@ -112,7 +113,7 @@ function ChampionSynergyCard({
 }) {
   const championName = useChampionName();
   const overallWr = entry.totalWins / entry.totalGames;
-  const overallWrPct = Math.round(overallWr * 100);
+  const overallWrPct = formatPercent(overallWr);
   const overallLosses = entry.totalGames - entry.totalWins;
   const overallAccent = wrAccent(overallWr);
   const maxGames = entry.teammates.reduce((acc, t) => Math.max(acc, t.games), 1);
@@ -141,7 +142,7 @@ function ChampionSynergyCard({
               <span className="text-rose-500/80">{overallLosses}</span>
             </div>
             <div className={cn("text-xs", overallAccent.text)}>
-              {entry.totalGames}g · {overallWrPct}%
+              {entry.totalGames}g · {overallWrPct}
             </div>
           </div>
         </AccordionTrigger>
@@ -149,7 +150,7 @@ function ChampionSynergyCard({
           <ul className="flex flex-col gap-1">
             {entry.teammates.map((t) => {
               const accent = wrAccent(t.wr);
-              const wrPct = Math.round(t.wr * 100);
+              const wrPct = formatPercent(t.wr);
               const barWidth = `${Math.max(6, (t.games / maxGames) * 100)}%`;
               return (
                 <li
@@ -190,7 +191,7 @@ function ChampionSynergyCard({
                       accent.text
                     )}
                   >
-                    {wrPct}%
+                    {wrPct}
                   </div>
                 </li>
               );
@@ -219,7 +220,7 @@ export function ProfileSynergy({ accountSlug }: { accountSlug: string }) {
   if (entries.length === 0) {
     return (
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">Synergy</h3>
+        <SectionTitle>Synergy</SectionTitle>
         <p className="rounded-lg border border-dashed bg-card/20 px-3 py-3 text-xs text-muted-foreground/70">
           Not enough team data to map champion synergy yet.
         </p>
@@ -230,7 +231,7 @@ export function ProfileSynergy({ accountSlug }: { accountSlug: string }) {
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">Synergy</h3>
+        <SectionTitle>Synergy</SectionTitle>
         <span className="text-[10px] text-muted-foreground/60">
           your top champs · best teammates
         </span>

@@ -13,8 +13,7 @@ import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { formatDuration } from "@vyoh/shared";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, formatDuration, formatLpDelta } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 
@@ -218,8 +217,7 @@ export function MatchRow({
                             : "text-muted-foreground"
                       )}
                     >
-                      {lpDelta > 0 ? "+" : ""}
-                      {lpDelta} LP
+                      {formatLpDelta(lpDelta)} LP
                     </span>
                   )}
                 </div>

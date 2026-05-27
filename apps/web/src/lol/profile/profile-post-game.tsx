@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import {
   ROLE_DAMAGE_SHARE,
   ROLE_LABEL,
@@ -358,7 +359,7 @@ export function ProfilePostGame({ accountSlug }: { accountSlug: string }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">Post-game</h3>
+      <SectionTitle>Post-game</SectionTitle>
       <m.div
         className="relative grid grid-cols-1 gap-2 rounded-lg sm:grid-cols-2 lg:grid-cols-4"
         animate={

@@ -3,7 +3,7 @@ import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { computeKdaSeries, computeTrendSummary } from "@/lol/trends/trend-stats";
 import type { KdaPoint } from "@/lol/trends/trend-stats";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatKda } from "@vyoh/shared";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import {
@@ -60,7 +60,7 @@ function KdaTooltip({
           className="rounded-md border bg-popover/85 px-3 py-2 text-sm text-popover-foreground shadow-xl backdrop-blur-md"
         >
           <div className="mb-0.5 text-xs text-muted-foreground">Game {label}</div>
-          <div className="font-semibold">{Number(payload[0]?.value).toFixed(2)} KDA</div>
+          <div className="font-semibold">{formatKda(Number(payload[0]?.value))} KDA</div>
         </m.div>
       ) : null}
     </AnimatePresence>
@@ -179,13 +179,13 @@ export function TrendKda({
   let verdict: string;
   if (prevSummary && prevSummary.games > 0) {
     const delta = currentSummary.avgKda - prevSummary.avgKda;
-    const abs = Math.abs(delta).toFixed(2);
+    const abs = formatKda(Math.abs(delta));
     verdict =
       delta >= 0
         ? `KDA up ${abs} vs prior window — improving.`
         : `KDA down ${abs} vs prior window.`;
   } else {
-    verdict = `Avg KDA: ${currentSummary.avgKda.toFixed(2)} over ${sampleSize} game${sampleSize !== 1 ? "s" : ""}.`;
+    verdict = `Avg KDA: ${formatKda(currentSummary.avgKda)} over ${sampleSize} game${sampleSize !== 1 ? "s" : ""}.`;
   }
 
   return (

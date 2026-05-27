@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { useSummonerSpells } from "@/lol/_shared/analytics/use-summoner-spells";
 import { useChampionSpells } from "@/lol/matches/use-champion-spells";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -159,7 +160,7 @@ export function MatchSpellCasts({
       transition={springIn.transition}
       className="flex flex-col gap-3"
     >
-      <h3 className="text-sm font-medium">Spell casts</h3>
+      <SectionTitle>Spell casts</SectionTitle>
       <div className="flex items-end gap-4 rounded-md border bg-card/60 p-3 backdrop-blur-sm">
         <div className="flex items-end gap-2">
           {slots.map(({ key, count, slotIndex }) => {

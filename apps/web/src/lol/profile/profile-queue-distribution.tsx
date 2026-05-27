@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeQueueCounts } from "@/lol/trends/trend-stats";
@@ -13,7 +14,7 @@ export function ProfileQueueDistribution() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">Queue distribution</h3>
+      <SectionTitle>Queue distribution</SectionTitle>
       <div className="flex h-2.5 w-full overflow-hidden rounded-full">
         {counts.map((entry) => (
           <div

@@ -3,6 +3,7 @@ import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug"
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useDuos } from "@/lol/profile/use-duos";
+import { formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 
 const MIN_GAMES_FOR_DUO = 5;
@@ -37,7 +38,7 @@ export function RecapDuoOfYear({ accountSlug }: { accountSlug: string }) {
     );
   }
 
-  const wr = Math.round((top.wins / top.games) * 100);
+  const wr = formatPercent(top.wins / top.games);
   const losses = top.games - top.wins;
 
   return (
@@ -64,7 +65,7 @@ export function RecapDuoOfYear({ accountSlug }: { accountSlug: string }) {
             <span className="ml-1 text-muted-foreground">#{top.tagLine}</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            {top.games} games · {wr}% win rate · most on {championName(top.topChampion)}
+            {top.games} games · {wr} win rate · most on {championName(top.topChampion)}
           </p>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -57,7 +58,7 @@ export function MatchDamageProfile({
       transition={springIn.transition}
       className="flex flex-col gap-3"
     >
-      <h3 className="text-sm font-medium">Damage profile</h3>
+      <SectionTitle>Damage profile</SectionTitle>
       <div className="flex flex-col gap-4 rounded-md border bg-card/60 p-4 backdrop-blur-sm">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">

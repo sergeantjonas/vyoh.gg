@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 
@@ -51,7 +52,7 @@ export function MatchOwnerStats({
       transition={springIn.transition}
       className="flex flex-col gap-3"
     >
-      <h3 className="text-sm font-medium">Stats</h3>
+      <SectionTitle>Stats</SectionTitle>
       <div className="flex flex-col gap-3 rounded-md border bg-card/60 p-4 backdrop-blur-sm">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">

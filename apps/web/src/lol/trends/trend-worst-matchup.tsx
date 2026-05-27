@@ -3,7 +3,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 3;
@@ -79,7 +79,7 @@ function MatchupRowView({
         <span className="text-rose-500/80">{losses}</span>
       </span>
       <span className="w-9 tabular-nums text-right text-muted-foreground/60">
-        {Math.round(row.wr * 100)}%
+        {formatPercent(row.wr)}
       </span>
     </div>
   );

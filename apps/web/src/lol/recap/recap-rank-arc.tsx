@@ -1,6 +1,6 @@
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
-import type { LolAccount, RankHistoryPoint } from "@vyoh/shared";
+import { type LolAccount, type RankHistoryPoint, formatLpDelta } from "@vyoh/shared";
 import {
   type DetectedSeason,
   detectSeasons,
@@ -116,8 +116,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
                   : "text-xl font-semibold tabular-nums text-rose-400"
               }
             >
-              {lpDelta >= 0 ? "+" : ""}
-              {lpDelta} LP
+              {formatLpDelta(lpDelta)} LP
             </div>
           </div>
         )}

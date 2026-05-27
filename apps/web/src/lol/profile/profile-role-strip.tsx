@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import {
   ROLE_LABEL,
   ROLE_ORDER,
@@ -6,7 +7,7 @@ import {
   isRolePosition,
 } from "@/lol/_shared/assets/role-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const ARAM_HEAVY_RATIO = 0.9;
@@ -54,8 +55,8 @@ function aggregate(matches: MatchSummary[]): {
 
 function Slot({ slot, anyPlayed }: { slot: RoleSlot; anyPlayed: boolean }) {
   const muted = slot.games === 0;
-  const wrPct = Math.round(slot.wr * 100);
-  const sharePct = Math.round(slot.share * 100);
+  const wrPct = formatPercent(slot.wr);
+  const sharePct = formatPercent(slot.share);
   return (
     <div className="flex flex-col items-center gap-1 px-1">
       <RoleIcon
@@ -76,12 +77,12 @@ function Slot({ slot, anyPlayed }: { slot: RoleSlot; anyPlayed: boolean }) {
       ) : (
         <span className="text-xs tabular-nums text-foreground/80">
           {slot.games}
-          {anyPlayed && <span className="text-muted-foreground/60"> · {sharePct}%</span>}
+          {anyPlayed && <span className="text-muted-foreground/60"> · {sharePct}</span>}
         </span>
       )}
       {!muted && slot.games >= 3 && (
         <span className="text-[10px] tabular-nums text-muted-foreground/60">
-          {wrPct}% WR
+          {wrPct} WR
         </span>
       )}
     </div>
@@ -101,7 +102,7 @@ export function ProfileRoleStrip() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-muted-foreground">Roles</h3>
+      <SectionTitle>Roles</SectionTitle>
       {heavyAram ? (
         <p className="text-xs text-muted-foreground/70">
           Mostly ARAM — role data limited.

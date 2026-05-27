@@ -14,6 +14,7 @@ import {
   VoidGrubIcon,
 } from "@/components/game-icons";
 import { ShimmerBlock } from "@/components/shimmer-block";
+import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
@@ -306,7 +307,7 @@ export function MatchEventTimelines({
       className="flex flex-col gap-3"
     >
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Kill & objective timeline</h3>
+        <SectionTitle>Kill & objective timeline</SectionTitle>
         <div className="flex items-center gap-3">
           {showMapTrigger && (
             <button

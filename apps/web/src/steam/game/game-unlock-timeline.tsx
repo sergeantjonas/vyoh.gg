@@ -1,3 +1,4 @@
+import { CardTitle } from "@/components/ui/card-title";
 import { useGameUnlockTimeline } from "@/steam/game/use-game-unlock-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
@@ -123,9 +124,7 @@ export function GameUnlockTimeline({ appid }: { appid: number }) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
-          Unlock Timeline
-        </h3>
+        <CardTitle>Unlock Timeline</CardTitle>
         {isComplete && (
           <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
             100%

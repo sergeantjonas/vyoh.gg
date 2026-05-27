@@ -65,7 +65,7 @@ describe("ProfileRecentForm", () => {
 
   it("renders the record and streak when at least one non-remake match exists", () => {
     renderWith([fakeMatch()]);
-    expect(screen.getByText("Recent Form")).toBeTruthy();
+    expect(screen.getByText("Recent form")).toBeTruthy();
     expect(screen.getByTestId("record")).toBeTruthy();
     expect(screen.getByTestId("streak")).toBeTruthy();
   });

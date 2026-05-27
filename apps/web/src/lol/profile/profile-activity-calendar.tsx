@@ -1,3 +1,4 @@
+import { SectionTitle } from "@/components/ui/section-title";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -75,7 +76,7 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+        <SectionTitle>Activity</SectionTitle>
         {isCapped && (
           <TooltipPrimitive.Root delayDuration={150}>
             <TooltipPrimitive.Trigger asChild>

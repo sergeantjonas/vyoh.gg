@@ -1,3 +1,4 @@
+import { CardTitle } from "@/components/ui/card-title";
 import { bbcodeToHtml, sanitizeRichHtml } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useMemo } from "react";
@@ -149,9 +150,7 @@ export function GameAboutBlock({ appid }: { appid: number }) {
   // detail levels.
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        About this game
-      </h2>
+      <CardTitle as="h2">About this game</CardTitle>
       <div
         className="text-sm text-muted-foreground [&_h1]:mt-3 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground/85 [&_h1:first-child]:mt-0 [&_h2]:mt-3 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground/70 [&_h2:first-child]:mt-0 [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground/85 [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:text-foreground/90 [&_ul]:my-2 [&_video]:my-2 [&_video]:h-auto [&_video]:max-w-full [&_video]:rounded"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised via sanitizeRichHtml with video/img allowlist + proxy rewriters

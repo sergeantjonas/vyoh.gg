@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { SectionTitle } from "@/components/ui/section-title";
 import { useMe } from "@/identity/use-me";
 import { toastError, toastInfo, toastSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -54,9 +55,7 @@ export function StatusPage() {
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Rate limiter — app windows
-        </h2>
+        <SectionTitle as="h2">Rate limiter — app windows</SectionTitle>
         <div className="grid gap-2 md:grid-cols-2">
           {data.rateLimiter.app.map((w) => (
             <AppWindowRow key={`${w.regional}-${w.role}`} window={w} />
@@ -65,9 +64,7 @@ export function StatusPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Rate limiter — method families
-        </h2>
+        <SectionTitle as="h2">Rate limiter — method families</SectionTitle>
         {data.rateLimiter.method.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No method limiters initialised yet — limiters are created lazily on the first
@@ -97,9 +94,7 @@ export function StatusPage() {
 
       {data.sync.history.length > 1 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Recent ticks
-          </h2>
+          <SectionTitle as="h2">Recent ticks</SectionTitle>
           <ul className="flex flex-col gap-1 text-sm">
             {data.sync.history.slice(1).map((tick) => (
               <li
@@ -174,9 +169,7 @@ function SyncCard({
     <section className="flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Match sync
-          </h2>
+          <SectionTitle as="h2">Match sync</SectionTitle>
           <div className="flex items-center gap-2 text-xs">
             {!enabled && <Badge tone="muted">paused</Badge>}
             {running && <Badge tone="active">running</Badge>}
