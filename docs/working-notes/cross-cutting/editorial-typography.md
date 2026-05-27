@@ -1,6 +1,18 @@
 # Editorial typography pass
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Lean into the Geist Variable font's weight and (if exposed) optical-size axes for hero numbers and section headlines, with subdued label treatment paired beneath. Recruiter-scan signal in 4 seconds.
+**Status:** Active — Chunk 1 verified 2026-05-27 (Geist axis inventory pinned below). Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Lean into the Geist Variable font's `wght` axis for hero numbers and section headlines, with subdued label treatment paired beneath. Recruiter-scan signal in 4 seconds.
+
+## Geist variable axes (verified 2026-05-27, Chunk 1)
+
+Source: `apps/web/node_modules/@fontsource-variable/geist/metadata.json` (`@fontsource-variable/geist@5.2.8`, Geist v4, 2025-09-11).
+
+- `wght`: 100–900, step 1, default 400 — **continuous, supports 380 and 720 directly**.
+- `opsz`: NOT exposed. Drop all optical-size language from this note; rely on weight + size only.
+- `slnt` / `ital`: NOT exposed (single `"normal"` style). No italic axis to lean on.
+
+Subsets shipped: cyrillic, latin, latin-ext. Loaded via `@import "@fontsource-variable/geist"` in `apps/web/src/index.css:4`; `--font-sans: "Geist Variable", sans-serif` declared at `index.css:151`.
+
+The Chunk 2 component design is unchanged for weight (720/380) and tracking. Any `font-variation-settings: "opsz" ...` declarations must be omitted.
 
 Read this before adding any new hero stat, headline, or section title; pick from the established type ramp rather than inventing new sizes/weights ad-hoc.
 
@@ -22,7 +34,7 @@ The cost is one stylesheet pass + a small component (`<HeroNumber>` and `<HeroLa
 
 ## What this is NOT
 
-- **Not a font swap.** Geist stays. Optical-size axis usage is contingent on Geist's variable axes — verify what's actually exposed before relying on it. If Geist Variable doesn't expose optical-size, fall back to weight + size alone.
+- **Not a font swap.** Geist stays. Geist Variable v4 exposes `wght` only (no `opsz`, no italic) — design relies on weight + size alone.
 - **Not a full type-scale overhaul.** Most body text is already fine. This arc targets hero numbers, section headlines, and labels — the three rungs where contrast pays off.
 - **Not a dark/light mode tweak.** Independent of palette.
 
@@ -34,15 +46,14 @@ Three rungs with deliberate axis usage:
 
 ### Hero numbers (KDA, win rate, LP delta, playtime hours)
 - **Size**: clamp(2.5rem, 5vw, 4rem) for top-level hero; clamp(1.75rem, 3vw, 2.5rem) for inline secondary.
-- **Weight**: 720 (heavier than the default 600 semibold; verify Geist Variable exposes axis 100–900).
+- **Weight**: 720 (heavier than the default 600 semibold; Geist `wght` axis 100–900 verified).
 - **Tracking**: `-0.02em` (tight, editorial).
-- **Optical size**: 36 if exposed; otherwise omit.
 - **Tabular numerals**: `font-variant-numeric: tabular-nums;` — non-negotiable for stat displays (column alignment).
 - **Line height**: 1 (flat, magazine-style).
 
 ### Hero labels (paired with hero numbers)
 - **Size**: 0.6875rem (11px).
-- **Weight**: 380 (lighter than the default 400; verify axis range).
+- **Weight**: 380 (lighter than the default 400; Geist `wght` axis supports it directly).
 - **Tracking**: `0.18em`.
 - **Transform**: uppercase.
 - **Color**: `text-muted-foreground/80`.
@@ -116,12 +127,9 @@ Composition: `<HeroLabel>KDA</HeroLabel><HeroNumber>3.42</HeroNumber>`. The labe
 
 ## Chunked plan
 
-### Chunk 1 — Verify Geist's variable axes
+### Chunk 1 — Verify Geist's variable axes ✅ 2026-05-27
 
-- Open the Geist Variable file (likely `/apps/web/public/fonts/geist-variable.woff2` or via the npm package); inspect with `fonttools` or a web tool to list its variation axes.
-- Confirm `wght` axis range (100–900 hoped for).
-- Confirm whether `opsz` (optical size) is exposed. If not, drop the optical-size language from this note (currently flagged as "if exposed").
-- Output: a one-line note pinned in this section listing the actual axes Geist offers.
+Findings pinned in the Status section above. Geist Variable v4 exposes `wght` 100–900 continuous (step 1) and nothing else; no `opsz`, no italic. Design holds for the 720/380 weight pairing; optical-size language has been removed from the rest of this note.
 
 ### Chunk 2 — `HeroNumber` + `HeroLabel` primitives
 
@@ -177,7 +185,7 @@ Modified:
 
 ## Risks / open questions
 
-- **Geist axis exposure.** Hard dependency. If `wght` ranges 100–900 work, the design holds. If Geist Variable only exposes 400/600/800 discrete weights via fvar instances, the editorial contrast collapses. **Verify in Chunk 1 before writing component code.**
+- **Geist axis exposure.** Resolved 2026-05-27 (Chunk 1): `wght` 100–900 continuous, no `opsz`, no italic. Design holds.
 - **`tabular-nums` and CountUp.** CountUp animates a numeric value across frames. Each frame's rendered string may differ in width during animation. `tabular-nums` should pin the width per digit slot — verify the animation doesn't visibly jitter.
 - **Accent color and number color.** Hero numbers default to `text-foreground`. Some surfaces may want `text-accent` to tie into the accent system from [accent-color-system.md](accent-color-system.md) — e.g. KDA on champion detail. Decide per-surface; document the rule.
 - **i18n.** Different locales have different numeric conventions (comma vs. period decimal separator, narrow non-breaking space thousands separator). If i18n ever lands per [vnext-ideas.md](vnext-ideas.md), formatters must use `Intl.NumberFormat`. Note as a forward-reference.
