@@ -41,7 +41,7 @@ import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute } from "@tanstack/react-router";
-import { formatKda, formatPlaytimeFromSeconds } from "@vyoh/shared";
+import { formatKda, formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -416,16 +416,8 @@ function ChampionDetailPage() {
         {/* Delta vs account average */}
         {kdaDelta !== null && wrDelta !== null && (
           <div className="flex gap-4">
-            <DeltaTile
-              label="KDA"
-              value={kdaDelta}
-              format={(v) => formatKda(Math.abs(v))}
-            />
-            <DeltaTile
-              label="Win Rate"
-              value={wrDelta}
-              format={(v) => `${Math.round(Math.abs(v) * 100)}%`}
-            />
+            <DeltaTile label="KDA" value={kdaDelta} format={formatKda} />
+            <DeltaTile label="Win Rate" value={wrDelta} format={formatPercent} />
           </div>
         )}
 
