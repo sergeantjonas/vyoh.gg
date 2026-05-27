@@ -6,6 +6,7 @@ function makeService(opts: {
   unlockRows?: unknown[];
   totals?: unknown[];
   groupedUnlocks?: unknown[];
+  achievementMeta?: { achievementCount: number | null } | null;
 }) {
   const prisma = {
     steamPlayerUnlock: {
@@ -14,6 +15,9 @@ function makeService(opts: {
     },
     steamGameAchievement: {
       groupBy: vi.fn().mockResolvedValue(opts.totals ?? []),
+    },
+    steamGameAchievementMeta: {
+      findUnique: vi.fn().mockResolvedValue(opts.achievementMeta ?? null),
     },
   };
   return {
@@ -88,41 +92,44 @@ describe("SteamAchievementsService.getCrossGameRarest", () => {
 });
 
 describe("SteamAchievementsService.getUnlockTimeline", () => {
-  it("returns empty months when no unlocks exist", async () => {
+  it("returns an empty unlocks array when no unlocks exist", async () => {
     const { service } = makeService({ unlockRows: [] });
     const result = await service.getUnlockTimeline(42);
-    expect(result).toEqual({ months: [], total: 0 });
+    expect(result).toEqual({ unlocks: [], total: 0, achievementCount: null });
   });
 
-  it("buckets unlocks by year-month between the first and last unlock", async () => {
+  it("returns per-unlock ISO timestamps and the schema achievement count", async () => {
     const { service } = makeService({
       unlockRows: [
         { unlockedAt: new Date("2026-01-15T12:00:00Z") },
         { unlockedAt: new Date("2026-01-22T12:00:00Z") },
         { unlockedAt: new Date("2026-03-05T12:00:00Z") },
       ],
+      achievementMeta: { achievementCount: 40 },
     });
     const result = await service.getUnlockTimeline(42);
     expect(result.total).toBe(3);
-    expect(result.months).toHaveLength(3);
-    expect(result.months[0]).toMatchObject({ year: 2026, month: 1, count: 2 });
-    expect(result.months[1]).toMatchObject({ year: 2026, month: 2, count: 0 });
-    expect(result.months[2]).toMatchObject({ year: 2026, month: 3, count: 1 });
+    expect(result.achievementCount).toBe(40);
+    expect(result.unlocks).toEqual([
+      "2026-01-15T12:00:00.000Z",
+      "2026-01-22T12:00:00.000Z",
+      "2026-03-05T12:00:00.000Z",
+    ]);
   });
 
-  it("rolls over the year correctly when the span crosses December", async () => {
-    const { service } = makeService({
-      unlockRows: [
-        { unlockedAt: new Date("2025-11-15T12:00:00Z") },
-        { unlockedAt: new Date("2026-02-05T12:00:00Z") },
-      ],
-    });
+  it("returns achievementCount=null when the schema meta row is missing", async () => {
+    const { service } = makeService({ unlockRows: [], achievementMeta: null });
     const result = await service.getUnlockTimeline(42);
-    expect(result.months[0]).toMatchObject({ year: 2025, month: 11 });
-    expect(result.months[result.months.length - 1]).toMatchObject({
-      year: 2026,
-      month: 2,
-    });
+    expect(result.achievementCount).toBeNull();
+  });
+
+  it("orders the query by unlockedAt ascending", async () => {
+    const { service, prisma } = makeService({ unlockRows: [] });
+    await service.getUnlockTimeline(42);
+    const call = prisma.steamPlayerUnlock.findMany.mock.calls[0]?.[0] as
+      | { orderBy?: { unlockedAt?: string } }
+      | undefined;
+    expect(call?.orderBy?.unlockedAt).toBe("asc");
   });
 });
 

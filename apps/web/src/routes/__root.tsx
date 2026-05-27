@@ -17,10 +17,11 @@ import {
   HeadContent,
   Outlet,
   createRootRoute,
+  useRouter,
   useRouterState,
 } from "@tanstack/react-router";
 import { m } from "motion/react";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -43,6 +44,24 @@ function RootLayout() {
     if (prev === null || prev === scope) return;
     mainScrollRef.current?.scrollTo(0, 0);
   }, [scope]);
+  // Eagerly preload the route chunks for /steam and /lol on idle so the
+  // first cross-section navigation doesn't pay a fetch cost. Goes beyond
+  // the router's intent-based hover preload, which only fires when the
+  // pointer touches a Link. Neither route has a loader, so this is a
+  // pure JS-chunk warmup.
+  const router = useRouter();
+  useEffect(() => {
+    const preload = () => {
+      router.preloadRoute({ to: "/steam" }).catch(() => {});
+      router.preloadRoute({ to: "/lol" }).catch(() => {});
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(preload, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(preload, 200);
+    return () => window.clearTimeout(id);
+  }, [router]);
   return (
     <TooltipPrimitive.Provider delayDuration={150}>
       <CommandPaletteProvider>

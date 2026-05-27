@@ -8,7 +8,6 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 
 ## Fully atomic (pure CSS/HTML, no design call)
 
-- **Audit other horizontal scrollers for `mask-image` fade edges** — [trophy-case-strip.tsx](../../../apps/web/src/lol/_shared/ui/trophy-case-strip.tsx) already uses one; grep other horizontal-overflow regions (match-pip rows, champion icon strips, item rows in match-detail) and add the same `linear-gradient` mask where the strip reads as a hard-cut today. `mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)`.
 - **Per-tab favicon dot** — `<link rel="icon">` swap based on presence state (live game → green dot, just-finished → blue, idle → default). Drop-in hook; pairs with [live-presence-chip.md](live-presence-chip.md) but doesn't need it.
 - **iOS PWA polish** — `apple-touch-icon`, `apple-mobile-web-app-status-bar-style`, `theme-color` per route accent, `manifest.json` review. Owner uses iOS; the app currently looks like a generic web bookmark on the home screen.
 
