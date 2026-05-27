@@ -1,6 +1,6 @@
 # Page composition — section structure + container convention
 
-**Status:** Planned — opened 2026-05-27 after the editorial-typography arc closed out. Three rounds of typography sweeps surfaced a structural-level inconsistency the typography arc couldn't address: pages use different IA (flat list of cards vs grouped under section dividers) and different container patterns (chrome around sections vs bare) without a shared rule. This arc decides the rules and sweeps.
+**Status:** Active — Chunk 1 (audit) shipped 2026-05-27. Chunks 2–5 pending. Opened 2026-05-27 after the editorial-typography arc closed out. Three rounds of typography sweeps surfaced a structural-level inconsistency the typography arc couldn't address: pages use different IA (flat list of cards vs grouped under section dividers) and different container patterns (chrome around sections vs bare) without a shared rule. This arc decides the rules and sweeps.
 
 ## Why this arc exists
 
@@ -123,3 +123,48 @@ When picking this up next session:
 1. Start with Chunk 1 (audit pass). It's read-only — no code changes. Output goes in a new section "## Audit (Chunk 1)" appended below this scaffolding.
 2. Bring the audit table back to the owner for sign-off before Chunk 2 (IA decisions).
 3. Don't skip ahead to sweeps — the per-surface decisions in Chunks 2 + 3 are the load-bearing part. Sweeping without them produces the same kind of drift the typography arc had to clean up three times.
+
+---
+
+## Audit (Chunk 1) — shipped 2026-05-27
+
+Read-only enumeration of every product surface, their current IA shape, container shape, and implicit conceptual zones. Done via an Explore subagent pass over the route trees + their section components. Evidence column points to representative file:line for the most load-bearing finding per surface.
+
+| Route | IA shape | Container shape | Conceptual zones implicit in content | What would be more coherent |
+|---|---|---|---|---|
+| `/` (Home synthesis bento) | Flat list | Bare | Bento spans self-organize by weight (no zones) | Leave as-is. Bento IA is inherently flat; grouping would fight the layout. |
+| `/lol/$accountSlug` (profile) | Partially grouped | Mixed | Pre-game · Post-game · Form history · Role distribution · Calendar · Multikill · Synergy · Duos | Pre/Post-game already grouped under `SectionTitle`; sibling tiles (RankTiles, Stats, Duos, Synergy, Calendar) sit ungrouped at the same depth. Either group all top-level chunks or commit to flat. Current state reads as two patterns side-by-side. |
+| `/lol/.../matches/$matchId` — Recap | Flat list | Bare | Blue team · Red team | Two side-by-side `TeamBlock`s in a grid. Implicit grouping (the two teams) is conveyed by layout, not divider. Fine as-is. |
+| `/lol/.../matches/$matchId` — Your Game | Flat list | Bare | Build · Casts · Damage · Stats · Skills · Lane phase | Six sections in flex-col, each with its own `SectionTitle`, no shared wrapper or zone grouping. Pure linear scroll. Per arc opening: chart bodies sit bare on page bg vs equivalent Steam surfaces which wrap in chrome. Container rule decision needed. |
+| `/lol/.../matches/$matchId` — Review / Timeline | Flat list | Bare | Team participants · Objectives · Event timeline | Same shape as Your Game. No dividers, no chrome. |
+| `/lol/.../trends` | Flat list | Bare | Grid of 18+ trend tiles by priority | Single `SectionTitle` at top with range selector; grid cells follow. No grouping by trend category (form/champion/role/etc.). Worth considering whether ~18 tiles benefit from category dividers. |
+| `/lol/.../champions/$championKey` | Partially grouped | Chrome | Hero · Stats deltas · Win rate chart · Build path · Patch history · Matchups · Heatmaps | DeltaTiles wrap in `rounded-lg border bg-card/50` (chrome) but subsequent sections render bare. Mid-page chrome→bare transition with no clear rule. |
+| `/lol/.../recap` | Flat list | Bare | Rank arc · Champion · Most improved · Signature game · Patch · Duo · Insight | Seven stacked components; each renders its own heading inline, no shared `SectionTitle`/divider. Reads as a slideshow of cards, not a structured doc. |
+| `/steam/` (profile) | Flat list | Mixed | Now playing · Trophy strip · Recent unlocks · Wishlist · Library · Platform mix | No dividers; `TrophyCaseStrip` renders its own card chrome internally, siblings sit bare. Chrome appears only inside one tile, not at section level. |
+| `/steam/game/$appid` | Fully grouped | Mixed | Identity (hero + about) · Editorial (screenshots + body) · Progress (timeline + verdict grid + achievements) | Three explicit bands. Identity band wraps in `rounded-lg border bg-card/50`; Editorial and Progress bands use bare `<section className="flex flex-col gap-4">` wrappers despite carrying the same CardTitle + content shape. Asymmetric — reads as incomplete migration. |
+| `/steam/library` | Flat list | Bare | Virtual grid/list of games | Pure inventory; no zones. Fine as-is. |
+| `/steam/wishlist` | Flat list | Bare | Chronological list of wishlist items | Flat by definition. Fine. |
+| `/steam/achievements` | Flat list | Bare | Recent unlocks feed (virtual list) | Header + flat list. Fine. |
+| `/steam/achievements/signature` | Partially grouped | Bare | Completionist axis · Chronotype · 100% hall · Rarest | Four components stacked; `HundredPercentHall` and `RarestSection` each carry their own `SectionTitle` internally, but no outer divider grouping the trio. Mid-page primitive switch without zone framing. |
+| `/status` | Fully grouped | Bare | Rate limiter windows · Rate limiter methods · Recent ticks · Match sync | Four `SectionTitle`-headed sections stacked directly on page bg. Already the cleanest reference pattern in the app for "flat list of bare sections under dividers." |
+
+### Top 3 priority surfaces for the sweep
+
+Driven by the audit. These will be the first sweep targets in Chunk 4 (order TBD).
+
+**1. Steam game-detail (`/steam/game/$appid`)** — owner-flagged. Three bands already exist (Identity / Editorial / Progress) but only Identity wraps in chrome. Either commit all three bands to chrome (option `body-shape rule` from Chunk 3) or strip Identity's chrome to match the others. Current asymmetry is the loudest "incomplete migration" reading in the app.
+
+**2. LoL profile (`/lol/$accountSlug`)** — partially-grouped IA. Pre-game / Post-game / Recent form sit under `SectionTitle` dividers but ~5 sibling tiles (RankTiles, Stats, Duos, Synergy, Calendar, Multikill, Role distribution) live ungrouped at the same depth. Decision: invent zones for the unyoked tiles (e.g. "Identity & rank" / "Companions" / "Patterns") or demote the existing dividers so the whole surface reads as a flat tile mosaic.
+
+**3. LoL match-detail "Your Game" tab** — flat-bare-chart pattern that the arc opening explicitly called out as inconsistent with equivalent Steam surfaces. Six chart sections (Build, Casts, Damage, Stats, Skills, Lane phase) sit on page bg; the analogous Steam `UnlockTimeline` chart wraps in card chrome. Container rule decision lands here. Likely outcome per Chunk 3 candidate option 3: chart/timeline bodies → chrome; text/sentence bodies → bare. Apply across all 6 sections.
+
+### Secondary sweep candidates (deferred to per-surface judgment in Chunk 4)
+
+- LoL recap — invent a `SectionTitle` divider scheme or accept the slideshow framing as intentional.
+- LoL champion-detail — chrome→bare transition mid-page; pick a rule.
+- LoL trends — consider grouping ~18 tiles by category (form / champion / role / habit) under dividers.
+- Steam achievements/signature — wrap the four components in shared zones or leave as flat.
+
+### Reference surface (don't touch)
+
+- `/status` is the cleanest existing instance of "flat sections under SectionTitle dividers, bare bodies." Use as the model when the container-rule decision in Chunk 3 is being ratified.
