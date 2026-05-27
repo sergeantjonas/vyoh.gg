@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 const API_URL = "http://localhost:2010";
 export const MATCHES_PAGE_SIZE = 20;
@@ -62,9 +62,10 @@ export function useMatches(account: LolAccount | undefined, queue?: number) {
   });
 }
 
-export function useCachedMatchSummary(matchId: string): MatchSummary | undefined {
-  const queryClient = useQueryClient();
-
+function findMatchSummaryInCache(
+  queryClient: QueryClient,
+  matchId: string
+): MatchSummary | undefined {
   const infinite = queryClient.getQueriesData<{ pages: MatchSummary[][] }>({
     queryKey: ["lol", "matches"],
   });
@@ -104,6 +105,19 @@ export function useCachedMatchSummary(matchId: string): MatchSummary | undefined
     if (hit) return hit;
   }
   return undefined;
+}
+
+// Subscribes to the QueryCache so a deep refresh on a match-detail child route
+// (e.g. /review) re-renders once the parent layout's matches-window fetch lands.
+// Without this, the synchronous getQueriesData lookup races the parent fetch
+// and the child shows "Match data not available" until the user swaps tabs.
+export function useCachedMatchSummary(matchId: string): MatchSummary | undefined {
+  const queryClient = useQueryClient();
+  return useSyncExternalStore(
+    (onChange) => queryClient.getQueryCache().subscribe(onChange),
+    () => findMatchSummaryInCache(queryClient, matchId),
+    () => findMatchSummaryInCache(queryClient, matchId)
+  );
 }
 
 export function useMatchesWindow(

@@ -410,6 +410,20 @@ describe("useCachedMatchSummary", () => {
     });
     expect(result.current).toEqual(hit);
   });
+
+  it("re-renders when the match lands in cache after mount", async () => {
+    const client = makeClient();
+    const hit: MatchSummary = { ...sample, matchId: "EUW1_LATE" };
+    const { result } = renderHook(() => useCachedMatchSummary("EUW1_LATE"), {
+      wrapper: makeWrapper(client),
+    });
+    expect(result.current).toBeUndefined();
+    client.setQueryData(
+      ["lol", "matches-cached", "euw1", "Vyoh", "Ahri", 10, undefined],
+      { matches: [hit], total: 1 }
+    );
+    await waitFor(() => expect(result.current).toEqual(hit));
+  });
 });
 
 describe("useMatchEventsSubscription", () => {
