@@ -71,6 +71,17 @@ export function computeChampionDetail(
     .sort((a, b) => b.games - a.games);
   const position: RolePosition = roles[0]?.position ?? "MIDDLE";
 
+  // Mirror the per-row sparkline series the consolidated `ChampionStats` carries
+  // so the detail hero and list row agree on "recent form" length. The detail
+  // page itself prefers the full `buildWinRateSeries(matchHistory)`; this field
+  // is here to satisfy the shared interface.
+  const recentWins = sorted.slice(-10);
+  let runningWins = 0;
+  const recentWinRates = recentWins.map((m, i) => {
+    if (m.win) runningWins++;
+    return runningWins / (i + 1);
+  });
+
   return {
     champion: originalAlias,
     position,
@@ -84,6 +95,7 @@ export function computeChampionDetail(
     avgKda,
     totalDurationSec,
     roles,
+    recentWinRates,
     avgKills: totalKills / games,
     avgDeaths: totalDeaths / games,
     avgAssists: totalAssists / games,

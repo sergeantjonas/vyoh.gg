@@ -74,6 +74,7 @@ function stat(overrides: Partial<ChampionStats> = {}): ChampionStats {
         winRate: overrides.winRate ?? wins / games,
       },
     ],
+    recentWinRates: overrides.recentWinRates ?? [],
   };
 }
 

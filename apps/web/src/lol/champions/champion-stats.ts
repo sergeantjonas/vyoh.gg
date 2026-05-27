@@ -29,6 +29,30 @@ export interface ChampionStats {
   totalDurationSec: number;
   // Sorted by games desc; length 1 for single-role pools.
   roles: ChampionRoleSplit[];
+  // Cumulative win rate over the last up-to-10 ranked games on this champion,
+  // chronological (oldest first). Drives the row-level sparkline — short
+  // enough to fit beside the WR number, long enough to show recent form.
+  recentWinRates: number[];
+}
+
+const RECENT_WINDOW = 10;
+
+// Cumulative win rate over the most recent up-to-`RECENT_WINDOW` games on this
+// champion, chronological. Sort desc by playedAt, slice the window, reverse to
+// oldest-first, then accumulate. Mirrors `buildWinRateSeries` in
+// champion-detail-stats.ts but bounded so the per-row sparkline stays legible.
+function buildRecentWinRates(
+  timeline: Array<{ playedAt: string; win: boolean }>
+): number[] {
+  const recent = [...timeline]
+    .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+    .slice(0, RECENT_WINDOW)
+    .reverse();
+  let wins = 0;
+  return recent.map(({ win }, i) => {
+    if (win) wins++;
+    return wins / (i + 1);
+  });
 }
 
 export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[] {
@@ -40,6 +64,10 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
     totalAssists: number;
     totalDurationSec: number;
     roleAccums: Map<RolePosition, RoleAccum>;
+    // Win flags paired with `playedAt` so the per-champion order is independent
+    // of the input array's order. Sorted at the end to derive the rolling-WR
+    // sparkline series.
+    timeline: Array<{ playedAt: string; win: boolean }>;
   };
   const byChamp = new Map<string, ChampAccum>();
 
@@ -57,6 +85,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
         totalAssists: 0,
         totalDurationSec: 0,
         roleAccums: new Map(),
+        timeline: [],
       };
       byChamp.set(match.champion, champ);
     }
@@ -64,6 +93,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
     champ.totalDeaths += match.deaths;
     champ.totalAssists += match.assists;
     champ.totalDurationSec += match.durationSec;
+    champ.timeline.push({ playedAt: match.playedAt, win: match.win });
     let role = champ.roleAccums.get(match.teamPosition);
     if (!role) {
       role = { games: 0, wins: 0 };
@@ -94,6 +124,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
       champ.totalDeaths === 0
         ? champ.totalKills + champ.totalAssists
         : (champ.totalKills + champ.totalAssists) / champ.totalDeaths;
+    const recentWinRates = buildRecentWinRates(champ.timeline);
     result.push({
       champion: champ.champion,
       position: dominantRole,
@@ -107,6 +138,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
       avgKda,
       totalDurationSec: champ.totalDurationSec,
       roles,
+      recentWinRates,
     });
   }
 

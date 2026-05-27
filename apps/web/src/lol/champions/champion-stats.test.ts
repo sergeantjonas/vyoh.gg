@@ -12,7 +12,7 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     assists: overrides.assists ?? 7,
     win: overrides.win ?? true,
     durationSec: overrides.durationSec ?? 1800,
-    playedAt: new Date().toISOString(),
+    playedAt: overrides.playedAt ?? new Date().toISOString(),
     remake: overrides.remake ?? false,
     teamPosition: overrides.teamPosition ?? "MIDDLE",
     gameVersion: overrides.gameVersion ?? "",
@@ -141,5 +141,52 @@ describe("aggregateChampionStats", () => {
     ]);
     expect(stats).toHaveLength(1);
     expect(stats[0]).toMatchObject({ champion: "Ahri", position: "MIDDLE", games: 1 });
+  });
+
+  it("emits a chronological rolling win rate over the last up-to-10 games per champion", () => {
+    const stats = aggregateChampionStats([
+      buildMatch({
+        matchId: "1",
+        champion: "Ahri",
+        win: true,
+        playedAt: "2026-05-01T00:00:00Z",
+      }),
+      buildMatch({
+        matchId: "2",
+        champion: "Ahri",
+        win: false,
+        playedAt: "2026-05-02T00:00:00Z",
+      }),
+      buildMatch({
+        matchId: "3",
+        champion: "Ahri",
+        win: true,
+        playedAt: "2026-05-03T00:00:00Z",
+      }),
+      buildMatch({
+        matchId: "4",
+        champion: "Ahri",
+        win: true,
+        playedAt: "2026-05-04T00:00:00Z",
+      }),
+    ]);
+    expect(stats[0]?.recentWinRates).toEqual([1, 0.5, 2 / 3, 0.75]);
+  });
+
+  it("caps recentWinRates at the 10 most recent games per champion", () => {
+    const matches = Array.from({ length: 14 }, (_, i) =>
+      buildMatch({
+        matchId: `M_${i}`,
+        champion: "Ahri",
+        win: i % 2 === 0,
+        // Older first; newest are the higher indices.
+        playedAt: new Date(2026, 4, i + 1).toISOString(),
+      })
+    );
+    const stats = aggregateChampionStats(matches);
+    expect(stats[0]?.recentWinRates).toHaveLength(10);
+    // Most recent 10 are indices 4..13 → wins: even ⇒ [T,F,T,F,T,F,T,F,T,F]
+    expect(stats[0]?.recentWinRates[0]).toBe(1);
+    expect(stats[0]?.recentWinRates[9]).toBe(0.5);
   });
 });

@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { Sparkline } from "@/components/ui/sparkline";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
@@ -450,17 +451,31 @@ function ChampionTableRow({
                   )}
                 </div>
               )}
-              <div className="font-mono text-sm tabular-nums">
-                <span
-                  className={cn(s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400")}
-                >
-                  <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
-                </span>
-                <span className="text-muted-foreground"> WR · </span>
-                <span className="text-amber-400">
-                  <CountUp to={s.avgKda} decimals={2} duration={0.7} />
-                </span>
-                <span className="text-muted-foreground"> KDA</span>
+              <div className="flex items-center gap-2 font-mono text-sm tabular-nums">
+                <div>
+                  <span
+                    className={cn(s.winRate >= 0.5 ? "text-emerald-400" : "text-red-400")}
+                  >
+                    <CountUp to={Math.round(s.winRate * 100)} duration={0.7} />%
+                  </span>
+                  <span className="text-muted-foreground"> WR · </span>
+                  <span className="text-amber-400">
+                    <CountUp to={s.avgKda} decimals={2} duration={0.7} />
+                  </span>
+                  <span className="text-muted-foreground"> KDA</span>
+                </div>
+                {s.recentWinRates.length >= 2 && (
+                  <Sparkline
+                    data={s.recentWinRates}
+                    width={48}
+                    height={12}
+                    className={cn(
+                      s.winRate >= 0.5 ? "text-emerald-400/70" : "text-red-400/70"
+                    )}
+                    stroke="currentColor"
+                    aria-label={`win rate trend, last ${s.recentWinRates.length} games`}
+                  />
+                )}
               </div>
               <div className="text-xs text-muted-foreground">
                 {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
