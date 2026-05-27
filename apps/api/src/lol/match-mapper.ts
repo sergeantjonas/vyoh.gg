@@ -152,6 +152,7 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15: 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],

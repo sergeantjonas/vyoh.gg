@@ -31,6 +31,11 @@ export interface MatchSummary {
   goldAt10: number;
   goldAt15: number;
   teamGoldDiffAt15: number;
+  // Per-minute team-gold-diff across every frame in the match (user-team
+  // minus enemy-team), oldest first. Drives the match-row gold-lead
+  // sparkline. Empty for matches whose timeline hasn't been projected yet
+  // (pre-backfill rows or remakes without a 15-min frame).
+  teamGoldDiffSeries: number[];
   deathTimings: number[];
   // Rift-coord positions (0–15000 game space, Y not flipped) parallel to
   // deathTimings, plus matched kill-side arrays. Empty when the timeline

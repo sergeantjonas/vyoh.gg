@@ -24,6 +24,7 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
     goldAt10: overrides.goldAt10 ?? 0,
     goldAt15: overrides.goldAt15 ?? 0,
     teamGoldDiffAt15: overrides.teamGoldDiffAt15 ?? 0,
+    teamGoldDiffSeries: overrides.teamGoldDiffSeries ?? [],
     deathTimings: overrides.deathTimings ?? [],
     deathXs: overrides.deathXs ?? [],
     deathYs: overrides.deathYs ?? [],

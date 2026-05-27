@@ -6,6 +6,12 @@ export interface TimelineSummaryMetrics {
   goldAt10: number;
   goldAt15: number;
   teamGoldDiffAt15: number;
+  // Per-minute (user-team minus enemy-team) gold delta across every frame in
+  // the match, oldest first. Positive = user team ahead. Drives the match-row
+  // gold-lead sparkline without loading the full timeline blob — a 30-min game
+  // typically yields ~30 entries (Riot emits frameInterval=60_000ms). Empty
+  // when the timeline hasn't been fetched yet (historical pre-T4 rows).
+  teamGoldDiffSeries: number[];
   deathTimings: number[];
   deathXs: number[];
   deathYs: number[];
@@ -20,6 +26,7 @@ const ZERO: TimelineSummaryMetrics = {
   goldAt10: 0,
   goldAt15: 0,
   teamGoldDiffAt15: 0,
+  teamGoldDiffSeries: [],
   deathTimings: [],
   deathXs: [],
   deathYs: [],
@@ -77,13 +84,29 @@ export function riotTimelineToSummaryMetrics(
   const goldAt10 = me10?.totalGold ?? 0;
   const goldAt15 = me15?.totalGold ?? 0;
 
+  const userTeam = participantId <= 5 ? 100 : 200;
+
+  // Walk every frame to build the per-minute team-gold-diff series the
+  // match-row sparkline reads. Frames 0/1 (~minute 0) carry only the initial
+  // 500 gold per participant — keeping them in the series lets the sparkline
+  // start near baseline rather than mid-game, so the visual narrative reads
+  // left-to-right.
+  const teamGoldDiffSeries: number[] = [];
+  for (const frame of timeline.info.frames) {
+    let userTeamGold = 0;
+    let enemyTeamGold = 0;
+    for (const pf of Object.values(frame.participantFrames)) {
+      const team = pf.participantId <= 5 ? 100 : 200;
+      if (team === userTeam) userTeamGold += pf.totalGold;
+      else enemyTeamGold += pf.totalGold;
+    }
+    teamGoldDiffSeries.push(userTeamGold - enemyTeamGold);
+  }
+
   let teamGoldDiffAt15 = 0;
   if (f15) {
-    // Team 100 = participants 1-5, team 200 = 6-10. The user's team is
-    // determined by their participantId. Sum each side's totalGold at the
-    // 15-min frame and take user-team minus enemy-team so a positive number
-    // always means "we were ahead."
-    const userTeam = participantId <= 5 ? 100 : 200;
+    // Sum each side's totalGold at the 15-min frame and take user-team minus
+    // enemy-team so a positive number always means "we were ahead."
     let userTeamGold = 0;
     let enemyTeamGold = 0;
     for (const pf of Object.values(f15.participantFrames)) {
@@ -132,6 +155,7 @@ export function riotTimelineToSummaryMetrics(
     goldAt10,
     goldAt15,
     teamGoldDiffAt15,
+    teamGoldDiffSeries,
     deathTimings,
     deathXs,
     deathYs,

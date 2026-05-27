@@ -31,6 +31,7 @@ function match(idx: number, win: boolean, teamGoldDiffAt15: number): MatchSummar
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],

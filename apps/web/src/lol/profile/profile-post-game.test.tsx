@@ -53,6 +53,7 @@ function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
     goldAt10: 4000,
     goldAt15: 6000,
     teamGoldDiffAt15: 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],

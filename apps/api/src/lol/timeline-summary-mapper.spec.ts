@@ -58,6 +58,7 @@ describe("riotTimelineToSummaryMetrics", () => {
       goldAt10: 0,
       goldAt15: 0,
       teamGoldDiffAt15: 0,
+      teamGoldDiffSeries: [],
       deathTimings: [],
       deathXs: [],
       deathYs: [],
@@ -195,6 +196,59 @@ describe("riotTimelineToSummaryMetrics", () => {
       "me"
     );
     expect(meOnRedSide.teamGoldDiffAt15).toBe(-5000); // 20000 − 25000 from red POV
+  });
+
+  it("emits one teamGoldDiffSeries entry per frame, signed from the user's POV", () => {
+    const frames = [
+      {
+        timestamp: 60_000,
+        participantFrames: {
+          "1": pf(1, { totalGold: 500 }),
+          "2": pf(2, { totalGold: 500 }),
+          "3": pf(3, { totalGold: 500 }),
+          "4": pf(4, { totalGold: 500 }),
+          "5": pf(5, { totalGold: 500 }),
+          "6": pf(6, { totalGold: 500 }),
+          "7": pf(7, { totalGold: 500 }),
+          "8": pf(8, { totalGold: 500 }),
+          "9": pf(9, { totalGold: 500 }),
+          "10": pf(10, { totalGold: 500 }),
+        },
+      },
+      {
+        timestamp: 600_000,
+        participantFrames: {
+          "1": pf(1, { totalGold: 3000 }),
+          "2": pf(2, { totalGold: 3000 }),
+          "3": pf(3, { totalGold: 3000 }),
+          "4": pf(4, { totalGold: 3000 }),
+          "5": pf(5, { totalGold: 3000 }),
+          "6": pf(6, { totalGold: 2500 }),
+          "7": pf(7, { totalGold: 2500 }),
+          "8": pf(8, { totalGold: 2500 }),
+          "9": pf(9, { totalGold: 2500 }),
+          "10": pf(10, { totalGold: 2500 }),
+        },
+      },
+    ];
+    const blue = riotTimelineToSummaryMetrics(
+      buildTimeline({
+        participants: ["me", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+        frames,
+      }),
+      "me"
+    );
+    // Frame 1: both teams 2500g each → 0. Frame 2: 15000 − 12500 = 2500.
+    expect(blue.teamGoldDiffSeries).toEqual([0, 2500]);
+
+    const red = riotTimelineToSummaryMetrics(
+      buildTimeline({
+        participants: ["a", "b", "c", "d", "e", "me", "g", "h", "i", "j"],
+        frames,
+      }),
+      "me"
+    );
+    expect(red.teamGoldDiffSeries).toEqual([0, -2500]);
   });
 
   it("collects parallel kill/death timing + x/y arrays, skipping events without position", () => {

@@ -40,6 +40,7 @@ function match(idx: number, k: number, d: number, a: number): MatchSummary {
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15: 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],

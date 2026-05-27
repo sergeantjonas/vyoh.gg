@@ -27,6 +27,7 @@ function match(idx: number, position: string, damageShare: number): MatchSummary
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15: 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],

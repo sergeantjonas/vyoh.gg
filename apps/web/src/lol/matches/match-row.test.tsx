@@ -56,6 +56,7 @@ function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15: 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],
@@ -98,6 +99,22 @@ describe("MatchRow", () => {
     renderRow({ match: summary({ win: false }) });
     expect(screen.getByText("Loss")).toBeTruthy();
     expect(screen.queryByText("Win")).toBeNull();
+  });
+
+  it("renders the gold-lead sparkline when teamGoldDiffSeries has >=5 frames", () => {
+    const { container } = renderRow({
+      match: summary({ teamGoldDiffSeries: [0, 100, 250, 480, 720, 1100] }),
+    });
+    const sparkline = container.querySelector('[data-slot="sparkline"]');
+    expect(sparkline).toBeTruthy();
+    expect(sparkline?.getAttribute("aria-label")).toMatch(/gold lead trend/);
+  });
+
+  it("omits the gold-lead sparkline when fewer than 5 frames are recorded", () => {
+    const { container } = renderRow({
+      match: summary({ teamGoldDiffSeries: [0, 100, 250] }),
+    });
+    expect(container.querySelector('[data-slot="sparkline"]')).toBeNull();
   });
 
   it("renders the Remake badge and suppresses LP delta on remakes", () => {

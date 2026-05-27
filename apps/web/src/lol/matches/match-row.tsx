@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
@@ -238,6 +239,19 @@ export function MatchRow({
                     {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
                     {formatTimeAgo(match.playedAt)}
                   </span>
+                  {match.teamGoldDiffSeries.length >= 5 && (
+                    <Sparkline
+                      data={match.teamGoldDiffSeries}
+                      width={48}
+                      height={12}
+                      className={cn(
+                        "shrink-0",
+                        match.win ? "text-emerald-400/80" : "text-red-400/80"
+                      )}
+                      stroke="currentColor"
+                      aria-label={`gold lead trend, ${match.teamGoldDiffSeries.length} frames`}
+                    />
+                  )}
                 </div>
                 {showVsLabel && match.laneOpponent && (
                   <div className="text-xs text-muted-foreground/60">

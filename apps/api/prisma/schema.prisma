@@ -397,6 +397,11 @@ model Match {
   goldAt10     Int      @default(0)
   goldAt15     Int      @default(0)
   teamGoldDiffAt15 Int  @default(0)
+  // Per-minute team-gold-diff across every frame, user-team minus enemy-team
+  // (positive = ahead). Drives the match-row gold-lead sparkline without
+  // reading the full MatchTimelineCache JSON. Empty until backfilled or until
+  // a fresh timeline-aware ingest writes the row.
+  teamGoldDiffSeries Int[] @default([])
   deathTimings Int[]    @default([])
   deathXs      Int[]    @default([])
   deathYs      Int[]    @default([])

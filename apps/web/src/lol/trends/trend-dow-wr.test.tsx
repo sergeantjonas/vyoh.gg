@@ -28,6 +28,7 @@ function match(playedAt: string, win: boolean, idx: number): MatchSummary {
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15: 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],

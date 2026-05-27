@@ -41,6 +41,7 @@ function match(overrides: Partial<MatchSummary>): MatchSummary {
     goldAt10: 0,
     goldAt15: 0,
     teamGoldDiffAt15: overrides.teamGoldDiffAt15 ?? 0,
+    teamGoldDiffSeries: [],
     deathTimings: [],
     deathXs: [],
     deathYs: [],
@@ -110,6 +111,7 @@ describe("RecapSignatureGame", () => {
         deaths: 2,
         assists: 6,
         teamGoldDiffAt15: -4000,
+        teamGoldDiffSeries: [],
       }),
     ]);
     expect(screen.getByText("Comeback win on Ahri")).toBeTruthy();

@@ -54,6 +54,7 @@ function makeSummary(overrides: Partial<MatchSummary> = {}): MatchSummary {
     goldAt10: 3600,
     goldAt15: 5800,
     teamGoldDiffAt15: 2000,
+    teamGoldDiffSeries: [],
     deathTimings: [620, 1200],
     deathXs: [],
     deathYs: [],
