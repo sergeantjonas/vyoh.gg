@@ -167,10 +167,15 @@ Tests cover the parser (6 specs) + dispatch (5 specs) + champion content (4 spec
 
 Test: visual on a small viewport — preview flips when the focused row is near the right edge.
 
-### Chunk 5 — Polyfill fallback path
+### Chunk 5 — Polyfill loader wiring ✅ shipped 2026-05-28
 
-- Branch: if `ensureAnchorPositioning()` returns `"unavailable"`, render the preview inside the focused row inline (less elegant but functional).
-- This is the Firefox-without-flag case; minimise design effort.
+`CommandPaletteDialog` calls `ensureAnchorPositioning()` in a `useLayoutEffect` keyed on `open` so the Oddbird polyfill loads (and applies) the first time the palette opens on an engine without native anchor positioning (Firefox without flag, pre-26 Safari). Singleton-promise inside the lib ensures repeated opens are cheap.
+
+The "polyfill `unavailable` → render inline inside focused row" fallback from the original sketch is **descoped**: Oddbird ships in every modern browser the polyfill targets, and the unavailable branch in practice means a transient network failure where retrying on next open is fine. If unavailability shows up in real telemetry, revisit.
+
+Two side-fixes landed in the same arc:
+- `CommandPalettePreview` portals to `document.body` via `createPortal`. Radix `DialogContent` applies `transform: translate(-50%, -50%)` for centering, which establishes a containing block for `position: fixed` descendants AND combines with `overflow-hidden` to clip anything that escapes the dialog rect. Portalling to the body level moves the preview's containing block to the viewport so anchor positioning resolves against viewport coordinates and the card isn't clipped.
+- `.palette-preview` CSS rule rewritten to use physical sides + explicit anchor-name reference (`top: anchor(--palette-focused-row top); left: calc(anchor(--palette-focused-row right) + 12px)`) instead of logical `inset-block-start: anchor(start)` / `inset-inline-start: anchor(end)`. The logical-side shorthand produced an unanchored fallback position during initial Safari + Firefox testing on 2026-05-28 even with the portal fix — switching to physical sides + explicit name made the resolution reliable across both engines.
 
 ### Chunk 6 — Apply to Steam library hover card
 

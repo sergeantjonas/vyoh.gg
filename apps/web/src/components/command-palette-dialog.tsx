@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/command";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/identity/use-me";
+import { ensureAnchorPositioning } from "@/lib/anchor-positioning";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName, useChampions } from "@/lol/champions/use-champions";
@@ -126,6 +127,17 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     if (!open) return;
     setRecents(loadRecents(recentsScope));
   }, [open, recentsScope]);
+
+  // Kick the anchor-positioning polyfill loader on first dialog open so
+  // engines without native support (Firefox, older Safari) pick up the
+  // preview card's `position-anchor` / `anchor()` rules. Returns a singleton
+  // promise — calling on every open is cheap. Discard the result; the
+  // polyfill mutates the DOM directly and the preview re-renders from
+  // cmdk's `aria-selected` state.
+  useLayoutEffect(() => {
+    if (!open) return;
+    void ensureAnchorPositioning();
+  }, [open]);
 
   const parsed = useMemo(() => parseMatchQuery(input), [input]);
   const steamParsed = useMemo(() => parseSteamLibraryQuery(input), [input]);

@@ -492,6 +492,11 @@ p {
   /* biome-ignore lint/correctness/noUnknownProperty: CSS Anchor Positioning,
      Newly Available 2024–2025, not yet in biome's property list. */
   position-anchor: --palette-focused-row;
-  inset-block-start: anchor(start);
-  inset-inline-start: calc(anchor(end) + 12px);
+  /* Physical sides + explicit anchor-name resolve more reliably across
+     Chrome 125+, Safari 26+, and the Oddbird polyfill than the logical
+     `inset-block-start: anchor(start)` shorthand, which produced an
+     unanchored fallback position during initial Safari + Firefox testing
+     on 2026-05-28. */
+  top: anchor(--palette-focused-row top);
+  left: calc(anchor(--palette-focused-row right) + 12px);
 }

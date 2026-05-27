@@ -88,6 +88,10 @@ vi.mock("@/lol/matches/use-matches", () => ({
   prefetchCachedMatches: vi.fn(),
 }));
 
+vi.mock("@/lib/anchor-positioning", () => ({
+  ensureAnchorPositioning: vi.fn().mockResolvedValue("native"),
+}));
+
 function wrap(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
