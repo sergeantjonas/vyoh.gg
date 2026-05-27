@@ -2,9 +2,12 @@ export {
   formatDuration,
   formatGameTime,
   formatGold,
+  formatHoursMinutes,
+  formatKda,
+  formatLpDelta,
+  formatPercent,
   formatPlaytime,
   formatPlaytimeFromSeconds,
-  formatHoursMinutes,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
 export {

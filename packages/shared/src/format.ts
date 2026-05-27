@@ -43,3 +43,22 @@ export function formatHoursMinutes(minutes: number): string {
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
 }
+
+// KDA ratio rendered with two decimals. (kills + assists) / deaths, with a
+// zero-deaths fallback to a whole-number "perfect" annotation handled by the
+// caller — this helper only formats the ratio itself.
+export function formatKda(ratio: number): string {
+  return ratio.toFixed(2);
+}
+
+// LP delta with explicit sign for non-negative values. Zero renders as "+0"
+// to stay visually aligned with positive results in tabular columns.
+export function formatLpDelta(delta: number): string {
+  return delta >= 0 ? `+${delta}` : `${delta}`;
+}
+
+// 0..1 ratio → integer percent. Pass decimals>0 only when the surface needs
+// sub-point precision (rare; most win-rate displays round to whole percent).
+export function formatPercent(ratio: number, decimals = 0): string {
+  return `${(ratio * 100).toFixed(decimals)}%`;
+}

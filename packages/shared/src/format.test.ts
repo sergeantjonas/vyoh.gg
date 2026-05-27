@@ -4,6 +4,9 @@ import {
   formatGameTime,
   formatGold,
   formatHoursMinutes,
+  formatKda,
+  formatLpDelta,
+  formatPercent,
   formatPlaytime,
 } from "./format.ts";
 
@@ -103,5 +106,49 @@ describe("formatHoursMinutes", () => {
   it("combines hours and minutes when both are non-zero", () => {
     expect(formatHoursMinutes(65)).toBe("1h 5m");
     expect(formatHoursMinutes(125)).toBe("2h 5m");
+  });
+});
+
+describe("formatKda", () => {
+  it("renders two decimals for typical ratios", () => {
+    expect(formatKda(3.42)).toBe("3.42");
+    expect(formatKda(1)).toBe("1.00");
+  });
+
+  it("rounds to the second decimal place", () => {
+    expect(formatKda(1.234)).toBe("1.23");
+    expect(formatKda(1.236)).toBe("1.24");
+  });
+
+  it("keeps two decimals on zero", () => {
+    expect(formatKda(0)).toBe("0.00");
+  });
+});
+
+describe("formatLpDelta", () => {
+  it("prefixes a plus for positive values", () => {
+    expect(formatLpDelta(24)).toBe("+24");
+    expect(formatLpDelta(1)).toBe("+1");
+  });
+
+  it("renders zero as +0 for column alignment", () => {
+    expect(formatLpDelta(0)).toBe("+0");
+  });
+
+  it("renders negatives with their native minus sign", () => {
+    expect(formatLpDelta(-15)).toBe("-15");
+  });
+});
+
+describe("formatPercent", () => {
+  it("rounds 0..1 ratios to whole percent by default", () => {
+    expect(formatPercent(0.583)).toBe("58%");
+    expect(formatPercent(1)).toBe("100%");
+    expect(formatPercent(0)).toBe("0%");
+  });
+
+  it("honors the decimals override for sub-point precision", () => {
+    expect(formatPercent(0.583, 1)).toBe("58.3%");
+    expect(formatPercent(0.5025, 2)).toBe("50.25%");
   });
 });

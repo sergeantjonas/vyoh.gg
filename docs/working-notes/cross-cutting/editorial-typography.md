@@ -153,17 +153,38 @@ Adopted in profile-multikill-strip (Pentas/Quadras/Triples/Doubles/Best Spree) a
 
 **Bento + Trends finding (no edits):** the home bento tiles (TileWeeklyTotals, TileSessionLengths, TileChronotype, etc.) and the trend cards (ConclusionCard-based: TrendTiltIndicator, TrendWeeklyReview, etc.) communicate via *verdict sentences* ("5h 23m gaming", "75% of sessions are under 1h.", "Win rate drops 8% after a loss.") rather than isolated hero stat numbers. None of them use `text-2xl`-or-larger displays. Forcing HeroNumber would either break the sentence flow or require splitting verdicts into number + suffix pairs that read worse than the current treatment. The editorial-typography primitives stay scoped to KPI-strip and stat-tile surfaces; verdict-sentence tiles keep their `text-base font-semibold` rhythm.
 
-### Chunk 6 — Section title pass
+### Chunk 6 — Section title pass ⏸ deferred 2026-05-27 (needs visual sign-off)
 
-- Sweep section headlines across the app.
-- Standardise on the two ramp rungs (12px sub, 14px section).
-- Often this means tightening existing `<h2>`/`<h3>` styles, not adding new ones.
+**Audit findings (2026-05-27):**
 
-### Chunk 7 — Number formatting consolidation
+Two distinct section-header idioms in use, cleanly split by section:
 
-- Side-quest that emerges naturally: shared formatting helpers in `packages/shared/src/format/` (per [repo-conventions.md §Cross-package utilities](../../repo-conventions.md)) for KDA (`3.42`), playtime (`1d 4h`), LP delta (`+24`), percentages (`58.3%`). Likely some already exist; consolidate per the same audit pattern that surfaced the 6 duration formatter copies in May 2026.
-- Each formatter returns a string that's safe to pass into `<HeroNumber>`.
-- Tests for each formatter.
+- **LoL (~14 surfaces):** sentence-case `text-sm font-medium text-muted-foreground` — quiet, body-weight, mixed case. Used for `<h3>Roles</h3>`, `<h3>Synergy</h3>`, `<h3>Activity</h3>`, `<h3>Lane phase</h3>`, etc.
+- **Steam + Status (~12 surfaces):** uppercase-tracked `text-xs/sm font-semibold uppercase tracking-wide text-muted-foreground` — editorial, semibold, ALL CAPS.
+
+The spec in this note wants the uppercase-tracked direction (14px medium 500, `tracking-[0.2em]`, uppercase, `text-foreground/70`). Converging LoL to match would touch ~14 surfaces and change the section-header identity of the highest-traffic feature in the app — visible enough that it should get explicit visual sign-off, not a unilateral sweep mid-arc.
+
+Also note: `text-xs uppercase tracking-wide text-muted-foreground[/70]` is the dominant *sub-section label* pattern (~29 instances, mostly bento + trends + stat-tile labels). HeroLabel uses `tracking-[0.18em]` for the pair-caption role; that intentionally diverges from the section-title `tracking-[0.2em]` target. Don't conflate the two.
+
+**To resume:** visual decision on LoL section-header direction (keep sentence-case quiet, or converge to Steam's uppercase-tracked editorial). Once decided, the sweep is mechanical.
+
+### Chunk 7 — Number formatting consolidation ✅ 2026-05-27
+
+Helpers landed in `packages/shared/src/format.ts` (existing file, not a new directory — the audit found `formatDuration`, `formatGold`, `formatPlaytime*`, `formatHoursMinutes` already there):
+
+- `formatKda(ratio)` — two decimals (`3.42`).
+- `formatLpDelta(delta)` — explicit `+` for ≥ 0 (`+24`, `+0`, `-15`). Zero renders as `+0` for tabular column alignment.
+- `formatPercent(ratio, decimals = 0)` — whole percent by default (`58%`), optional decimals for sub-point precision (`58.3%`).
+
+All three exported via `packages/shared/src/index.ts`; 13 new tests added covering rounding behavior, sign semantics, and decimal precision. `formatKda` test uses `1.234`/`1.236` rather than `.005`/`.015` edge values — IEEE 754 representation makes `.x15` test cases non-deterministic.
+
+**Call-site migration deferred.** Inline patterns identified during the audit:
+
+- KDA: 5 sites (`apps/web/src/lol/recap/recap-signature-game.tsx`, `apps/web/src/lol/trends/trend-kda.tsx` ×3, `apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx`).
+- LP delta: 4 sites (`recap-rank-arc.tsx`, `match-row.tsx`, `_shared/ui/match-record.tsx`, `routes/lol/.../$matchId.tsx`) — but inconsistent zero-handling (`> 0 ? "+" : ""` vs `>= 0 ? "+" : ""`). Sweeping to `formatLpDelta` changes `"0"` → `"+0"` at three of those sites. Each needs a per-site visual call.
+- Win-rate percent: 20+ sites with `Math.round(ratio * 100)`. Some use whole percent; some use `toFixed(1)`. Mechanical sweep is safe but high-volume.
+
+Migrating these is a follow-up cleanup ticket — they don't block the editorial-typography arc landing, and bundling them here would mean ~30 file touches in one commit. Track in [quick-wins.md](quick-wins.md) instead.
 
 ---
 

@@ -10,6 +10,7 @@ If an item grows past "one PR" once you start it, move it into its own arc note 
 
 - **Per-tab favicon dot** — `<link rel="icon">` swap based on presence state (live game → green dot, just-finished → blue, idle → default). Drop-in hook; pairs with [live-presence-chip.md](live-presence-chip.md) but doesn't need it.
 - **iOS PWA polish** — `apple-touch-icon`, `apple-mobile-web-app-status-bar-style`, `theme-color` per route accent, `manifest.json` review. Owner uses iOS; the app currently looks like a generic web bookmark on the home screen.
+- **Migrate inline KDA / LP delta / win-rate-percent formatters to `@vyoh/shared`** — helpers (`formatKda`, `formatLpDelta`, `formatPercent`) landed 2026-05-27 with editorial-typography Chunk 7 but call sites weren't swept. ~30 inline patterns identified (5 KDA, 4 LP delta with inconsistent zero-handling, 20+ win-rate percent). Sweep per-site since LP delta's zero rendering changes (`"0"` → `"+0"`); win-rate is mechanical. Reference: [editorial-typography.md §Chunk 7](editorial-typography.md).
 
 ## Build / tooling (one-line config wins)
 
