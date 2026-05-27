@@ -17,7 +17,7 @@ import { LinePath } from "@visx/shape";
 import type { RankHistoryPoint } from "@vyoh/shared";
 import { detectSeasons, formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
@@ -793,6 +793,33 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const isEmpty = !history.isLoading && points.length === 0;
   const stroke = QUEUE_COLOR[activeQueue];
   const gradientId = `lp-area-${activeQueue}`;
+  // Defer the static rank-band labels and tier-change markers so they fade
+  // in alongside each Line re-animation instead of snapping to the new
+  // position. CSS keyframes alone aren't enough — Recharts reuses its
+  // label/marker elements when props change, and keyframes only fire on
+  // mount. So we unmount + remount via labelsVisible going false→true on
+  // each view change, which re-fires the keyframe.
+  //
+  // Initial mount stays visible (labelsVisible=true) and relies on the CSS
+  // keyframe alone for its first fade-in. Forcing a delayed initial mount
+  // here would require waiting for useReducedMotion to resolve, which is
+  // async — and tests that read captures synchronously would see nothing.
+  const [labelsVisible, setLabelsVisible] = useState(true);
+  const isFirstMount = useRef(true);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-defer on view change
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (reduced) {
+      setLabelsVisible(true);
+      return;
+    }
+    setLabelsVisible(false);
+    const t = setTimeout(() => setLabelsVisible(true), 1700);
+    return () => clearTimeout(t);
+  }, [range, activeQueue, reduced]);
 
   // Y axis fits the brushed window so a narrow selection zooms vertically too.
   const yDomain = useMemo<[number | "auto", number | "auto"]>(() => {
@@ -906,25 +933,39 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 content={<LpTooltip />}
                 cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
               />
-              {visibleTierBands.map((band, i) => (
-                <ReferenceArea
-                  key={`tier-band-${band.name}`}
-                  y1={band.fromLp}
-                  y2={band.toLp}
-                  fill="var(--foreground)"
-                  fillOpacity={i % 2 === 0 ? 0.035 : 0.012}
-                  stroke="none"
-                  ifOverflow="hidden"
-                  className="lp-tier-band"
-                  label={{
-                    value: band.name,
-                    position: "insideTopLeft",
-                    fill: "var(--muted-foreground)",
-                    fontSize: 10,
-                    offset: 6,
-                  }}
-                />
-              ))}
+              {visibleTierBands.map((band, i) => {
+                // State-gating controls when the text element mounts (and the
+                // fade-in keyframe fires); the className on the label is
+                // forwarded by Recharts to the underlying <text>, where the
+                // animation lands. Conditionally spreading the `label` prop
+                // avoids passing `undefined`, which `exactOptionalPropertyTypes`
+                // rejects.
+                const labelProps = labelsVisible
+                  ? {
+                      label: {
+                        value: band.name,
+                        position: "insideTopLeft" as const,
+                        fill: "var(--muted-foreground)",
+                        fontSize: 10,
+                        offset: 6,
+                        className: "lp-tier-band-label",
+                      },
+                    }
+                  : {};
+                return (
+                  <ReferenceArea
+                    key={`tier-band-${band.name}`}
+                    y1={band.fromLp}
+                    y2={band.toLp}
+                    fill="var(--foreground)"
+                    fillOpacity={i % 2 === 0 ? 0.035 : 0.012}
+                    stroke="none"
+                    ifOverflow="hidden"
+                    className="lp-tier-band"
+                    {...labelProps}
+                  />
+                );
+              })}
               {seasonBands.map((b) => (
                 <ReferenceArea
                   key={b.key}
@@ -1002,46 +1043,50 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 animationEasing="ease-out"
                 isAnimationActive={!reduced}
               />
-              {tierChanges.map((tc) => {
-                const p = points[tc.idx];
-                if (!p) return null;
-                const color = tc.direction === "up" ? "#34d399" : "#f87171";
-                return (
-                  <ReferenceDot
-                    key={`tier-${tc.idx}`}
-                    x={p.t}
-                    y={p.totalLp}
-                    ifOverflow="hidden"
-                    className="lp-tier-marker"
-                    shape={(props: { cx?: number; cy?: number }) => {
-                      const { cx, cy } = props;
-                      if (cx === undefined || cy === undefined) return <g />;
-                      const s = 6;
-                      const points =
-                        tc.direction === "up"
-                          ? `${cx},${cy - s} ${cx - s * 0.85},${cy + s * 0.7} ${cx + s * 0.85},${cy + s * 0.7}`
-                          : `${cx},${cy + s} ${cx - s * 0.85},${cy - s * 0.7} ${cx + s * 0.85},${cy - s * 0.7}`;
-                      return (
-                        <polygon
-                          points={points}
-                          fill={color}
-                          stroke="var(--background)"
-                          strokeWidth={1.5}
-                          data-testid="tier-change-marker"
-                          data-direction={tc.direction}
-                        />
-                      );
-                    }}
-                    label={{
-                      value: tc.label,
-                      position: tc.direction === "up" ? "top" : "bottom",
-                      fill: color,
-                      fontSize: 10,
-                      offset: 8,
-                    }}
-                  />
-                );
-              })}
+              {labelsVisible &&
+                tierChanges.map((tc) => {
+                  const p = points[tc.idx];
+                  if (!p) return null;
+                  const color = tc.direction === "up" ? "#34d399" : "#f87171";
+                  return (
+                    <ReferenceDot
+                      key={`tier-${tc.idx}`}
+                      x={p.t}
+                      y={p.totalLp}
+                      ifOverflow="hidden"
+                      className="lp-tier-marker"
+                      shape={(props: { cx?: number; cy?: number }) => {
+                        const { cx, cy } = props;
+                        if (cx === undefined || cy === undefined) return <g />;
+                        const s = 6;
+                        const points =
+                          tc.direction === "up"
+                            ? `${cx},${cy - s} ${cx - s * 0.85},${cy + s * 0.7} ${cx + s * 0.85},${cy + s * 0.7}`
+                            : `${cx},${cy + s} ${cx - s * 0.85},${cy - s * 0.7} ${cx + s * 0.85},${cy - s * 0.7}`;
+                        return (
+                          <polygon
+                            points={points}
+                            fill={color}
+                            stroke="var(--background)"
+                            strokeWidth={1.5}
+                            data-testid="tier-change-marker"
+                            data-direction={tc.direction}
+                          />
+                        );
+                      }}
+                      label={{
+                        value: tc.label,
+                        // Both labels render above the marker — placing the
+                        // demotion label below the triangle pushed it into the
+                        // X-axis tick labels at the chart floor.
+                        position: "top",
+                        fill: color,
+                        fontSize: 10,
+                        offset: 14,
+                      }}
+                    />
+                  );
+                })}
             </LineChart>
           </ResponsiveContainer>
         </div>
