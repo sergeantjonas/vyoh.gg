@@ -1,6 +1,6 @@
 # Data-viz densification
 
-**Status:** Part 1 (inline sparklines) shipped 2026-05-27 across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Part 3 (ambient hue drift) shipped 2026-05-27 on match-list rows. Part 2 (`:has()` affordances) shipped 2026-05-27 as a sibling-dim pattern on match list, champion table, and Steam library (list + grid). Chunk 6's sparkline tooltip + axe pass is the only remaining piece.
+**Status:** Arc shipped 2026-05-27. Part 1 (inline sparklines) across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Part 2 (`:has()` affordances) as a sibling-dim pattern on match list, champion table, and Steam library (list + grid). Part 3 (ambient hue drift) on match-list rows. Chunk 6 closed with sparkline tooltip support + axe scan on the primitive; tooltip rolled out on standalone surfaces (profile rank tile, champion-detail K/D/A tiles) and intentionally skipped on sparklines nested inside other popovers/hovercards (match-row, champion-table rows, Steam tile/row).
 
 Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Three related moves that together transform the app's flattest surfaces (stat lists, match tables, text-heavy data displays) into the most-information-per-pixel:
 
@@ -234,11 +234,11 @@ The opacities (`0.04 → 0.10` range) are deliberately small. The motion happens
 - Steam library tile + row: 30-day per-game playtime series derived from `SteamPlaytimeSnapshot` diffs.
 - Trends summary cards: deferred as a non-fit after re-survey — every card already owns chart-level evidence or sits next to the same data in another component. See the "Where to apply" table for the reasoning.
 
-### Chunk 6 — Sparkline accessibility pass — partial
+### Chunk 6 — Sparkline accessibility pass ✅ shipped 2026-05-27
 
 - ✅ Each sparkline has an `aria-label` describing the trend (shipped with each surface; e.g. "win rate trend, last N games", "gold lead trend, N frames", "LP trend, last N snapshots", "playtime trend, last N days").
-- ⏳ Tooltip on hover for full series — not yet wired. Pattern: wrap the `<svg>` in `TooltipPrimitive.Trigger` per [repo-conventions.md §TooltipPrimitive](../../repo-conventions.md).
-- ⏳ Axe scan addition per [repo-conventions.md §Axe-scan](../../repo-conventions.md) — not yet wired into the Sparkline primitive's test suite.
+- ✅ Tooltip on hover for full series — `Sparkline` primitive grew an opt-in `tooltip?: React.ReactNode` prop ([sparkline.tsx](../../../apps/web/src/components/ui/sparkline.tsx)) that wraps the svg in `TooltipPrimitive` with a focusable `<button>` trigger so keyboard users can also reach it. Rolled out on the two standalone surfaces: profile rank tile ([profile-rank-tile.tsx](../../../apps/web/src/lol/profile/profile-rank-tile.tsx) — LP trend with first/last + min/max breakdown) and champion-detail K/D/A tiles ([routes/.../$championKey.tsx](../../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx) — full per-game values). Other surfaces (match-row, champion-table rows, Steam tile + row) were intentionally skipped because their sparklines live inside another popover/hovercard — nested triggers would race and conflict. Per-surface judgment, not a blanket rule.
+- ✅ Axe scan wired into the Sparkline primitive's test suite ([sparkline.test.tsx](../../../apps/web/src/components/ui/sparkline.test.tsx)) covering both bare and tooltip-enabled variants. Tests also assert the tooltip-enabled variant renders a focusable `<button type="button">` with the svg inside.
 
 ---
 

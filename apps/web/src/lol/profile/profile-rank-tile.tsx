@@ -81,6 +81,18 @@ function RankTileContent({
               className={tierColor}
               stroke="currentColor"
               aria-label={`LP trend, last ${recentLp.length} snapshots`}
+              tooltip={
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">LP trend</span>
+                  <span className="text-muted-foreground">
+                    last {recentLp.length} snapshots
+                  </span>
+                  <span className="font-mono tabular-nums">
+                    {recentLp[0]} → {recentLp[recentLp.length - 1]} (min{" "}
+                    {Math.min(...recentLp)} · max {Math.max(...recentLp)})
+                  </span>
+                </div>
+              }
             />
           )}
         </div>

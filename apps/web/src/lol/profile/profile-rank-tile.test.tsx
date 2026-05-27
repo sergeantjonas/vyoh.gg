@@ -1,3 +1,4 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { RankEntry } from "@vyoh/shared";
@@ -23,11 +24,13 @@ function renderTiles(entries: RankEntry[], recentLpByQueue?: Record<string, numb
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <MotionConfig reducedMotion="always">
-        <ProfileRankTiles entries={entries} recentLpByQueue={recentLpByQueue} />
-      </MotionConfig>
-    </QueryClientProvider>
+    <TooltipPrimitive.Provider>
+      <QueryClientProvider client={client}>
+        <MotionConfig reducedMotion="always">
+          <ProfileRankTiles entries={entries} recentLpByQueue={recentLpByQueue} />
+        </MotionConfig>
+      </QueryClientProvider>
+    </TooltipPrimitive.Provider>
   );
 }
 

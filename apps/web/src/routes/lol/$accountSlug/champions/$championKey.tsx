@@ -406,6 +406,17 @@ function ChampionDetailPage() {
                     className="text-theme-strong/70"
                     stroke="currentColor"
                     aria-label={`${key} per game — last ${trend.length}`}
+                    tooltip={
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium capitalize">{key} per game</span>
+                        <span className="text-muted-foreground">
+                          last {trend.length} games
+                        </span>
+                        <span className="font-mono tabular-nums">
+                          {trend.join(" · ")}
+                        </span>
+                      </div>
+                    }
                   />
                 )}
               </div>

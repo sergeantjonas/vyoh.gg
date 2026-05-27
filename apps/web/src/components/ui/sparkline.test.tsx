@@ -1,7 +1,21 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render } from "@testing-library/react";
+import { configureAxe } from "jest-axe";
+import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import { Sparkline } from "./sparkline";
+
+const axe = configureAxe({
+  rules: {
+    "color-contrast": { enabled: false },
+    "aria-hidden-focus": { enabled: false },
+  },
+});
+
+function withProvider(ui: ReactNode) {
+  return render(<TooltipPrimitive.Provider>{ui}</TooltipPrimitive.Provider>);
+}
 
 function parsePoints(points: string | null) {
   if (!points) return [];
@@ -88,5 +102,37 @@ describe("Sparkline", () => {
     const svg = container.querySelector("[data-slot='sparkline']");
     expect(svg?.getAttribute("class")).toContain("inline-block");
     expect(svg?.getAttribute("class")).toContain("text-emerald-400");
+  });
+
+  it("renders the bare svg when no tooltip prop is passed", () => {
+    const { container } = render(<Sparkline data={[1, 2, 3]} aria-label="trend" />);
+    expect(container.querySelector("[data-slot='sparkline']")).toBeTruthy();
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("wraps the svg in a focusable trigger when a tooltip is provided", () => {
+    const { container } = withProvider(
+      <Sparkline data={[1, 2, 3]} aria-label="trend" tooltip={<span>details</span>} />
+    );
+    const trigger = container.querySelector("button");
+    expect(trigger).toBeTruthy();
+    expect(trigger?.getAttribute("type")).toBe("button");
+    expect(trigger?.querySelector("[data-slot='sparkline']")).toBeTruthy();
+  });
+
+  it("passes axe a11y checks for both bare and tooltip-enabled variants", async () => {
+    const { container: bare } = render(
+      <Sparkline data={[1, 2, 3]} aria-label="bare trend" />
+    );
+    expect((await axe(bare)).violations).toHaveLength(0);
+
+    const { container: tipped } = withProvider(
+      <Sparkline
+        data={[1, 2, 3]}
+        aria-label="tooltip trend"
+        tooltip={<span>details</span>}
+      />
+    );
+    expect((await axe(tipped)).violations).toHaveLength(0);
   });
 });
