@@ -96,14 +96,15 @@ p {
 }
 
 /* Recharts ReferenceDot wrapper for LP-history tier-change markers. The
-   animation is delayed to start after the line draw-in settles (~200ms
-   begin + ~1500ms duration) so the triangle + label appear as a beat
-   after the curve, not on top of it. transform-box keeps the SVG scale
-   origin at each marker's own bounding box rather than the chart origin. */
+   animation is delayed to start after the line draw-in settles (200ms
+   begin + 1400ms duration on the Line) so the triangle + label appear as
+   a beat after the curve, not on top of it. transform-box keeps the SVG
+   scale origin at each marker's own bounding box rather than the chart
+   origin. */
 .lp-tier-marker {
   transform-box: fill-box;
   transform-origin: center;
-  animation: lp-marker-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1) 1700ms both;
+  animation: lp-marker-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1) 1600ms both;
 }
 
 @media (prefers-reduced-motion: reduce) {

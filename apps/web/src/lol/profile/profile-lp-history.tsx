@@ -725,7 +725,16 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const tickFormatter = useMemo(() => makeTickFormatter(visiblePoints), [visiblePoints]);
 
   const streak = useMemo(() => findLongestStreak(visiblePoints), [visiblePoints]);
-  const tierChanges = useMemo(() => findTierChanges(visiblePoints), [visiblePoints]);
+  // Tier changes are computed against `points` (not visiblePoints) so the
+  // index returned by Recharts' custom-dot function on `<Line data={points}>`
+  // can be matched directly. Out-of-brush tier changes are clipped by the
+  // ReferenceDot's `ifOverflow="hidden"`, so the user-facing behavior is
+  // unchanged.
+  const tierChanges = useMemo(() => findTierChanges(points), [points]);
+  const tierChangeIdxSet = useMemo(
+    () => new Set(tierChanges.map((tc) => tc.idx)),
+    [tierChanges]
+  );
 
   // Tier bands give the Y axis meaning that raw normalized LP can't. We only
   // render them when more than one tier is visible — a single full-chart band
@@ -795,8 +804,11 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
       if (p.totalLp < min) min = p.totalLp;
       if (p.totalLp > max) max = p.totalLp;
     }
-    const padding = Math.max(20, Math.round((max - min) * 0.1));
-    return [Math.max(0, min - padding), max + padding];
+    // Top padding is sized so a tier-change marker + label near the visible
+    // max won't clip — both markers render ~22 px above their data point.
+    const topPad = Math.max(35, Math.round((max - min) * 0.12));
+    const botPad = Math.max(20, Math.round((max - min) * 0.08));
+    return [Math.max(0, min - botPad), max + topPad];
   }, [visiblePoints, points]);
 
   const xDomain = useMemo<[number | "dataMin", number | "dataMax"]>(() => {
@@ -963,7 +975,26 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 dataKey="totalLp"
                 stroke={stroke}
                 strokeWidth={2}
-                dot={{ r: 2.5, fill: stroke, stroke }}
+                dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                  const { cx, cy, index } = props;
+                  if (cx === undefined || cy === undefined) return <g />;
+                  // Suppress the line's circle at tier-change indices so the
+                  // ReferenceDot triangle isn't painted on top of by a circle
+                  // (Recharts renders all reference elements before the Line).
+                  if (typeof index === "number" && tierChangeIdxSet.has(index)) {
+                    return <g key={`gap-${index}`} />;
+                  }
+                  return (
+                    <circle
+                      key={`dot-${index ?? `${cx}-${cy}`}`}
+                      cx={cx}
+                      cy={cy}
+                      r={2.5}
+                      fill={stroke}
+                      stroke={stroke}
+                    />
+                  );
+                }}
                 activeDot={{ r: 5, fill: stroke, stroke }}
                 fill={`url(#${gradientId})`}
                 animationDuration={reduced ? 0 : 1400}
@@ -972,7 +1003,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 isAnimationActive={!reduced}
               />
               {tierChanges.map((tc) => {
-                const p = visiblePoints[tc.idx];
+                const p = points[tc.idx];
                 if (!p) return null;
                 const color = tc.direction === "up" ? "#34d399" : "#f87171";
                 return (
@@ -981,6 +1012,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                     x={p.t}
                     y={p.totalLp}
                     ifOverflow="hidden"
+                    className="lp-tier-marker"
                     shape={(props: { cx?: number; cy?: number }) => {
                       const { cx, cy } = props;
                       if (cx === undefined || cy === undefined) return <g />;
