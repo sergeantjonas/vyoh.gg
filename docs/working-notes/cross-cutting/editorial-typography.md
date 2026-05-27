@@ -1,6 +1,6 @@
 # Editorial typography pass
 
-**Status:** Active — Chunk 1 verified 2026-05-27 (Geist axis inventory pinned below). Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Lean into the Geist Variable font's `wght` axis for hero numbers and section headlines, with subdued label treatment paired beneath. Recruiter-scan signal in 4 seconds.
+**Status:** Shipped 2026-05-27 — Chunks 1–5 + 7 landed; Chunk 6 (section-title sweep) explicitly deferred pending visual sign-off on LoL convergence. Migrated surfaces: profile KPI strip, profile multikill strip, profile rank tile (incl. unranked), champion-detail K/D/A averages, champion-detail DeltaTile. Helpers `formatKda` / `formatLpDelta` / `formatPercent` exported from `@vyoh/shared`; call-site sweep moved to [quick-wins.md](quick-wins.md). MatchHero + bento + trend-card surfaces intentionally not migrated — see per-chunk notes. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2.
 
 ## Geist variable axes (verified 2026-05-27, Chunk 1)
 

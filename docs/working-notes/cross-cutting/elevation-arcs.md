@@ -30,7 +30,7 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 
 | Arc | What | Status |
 |---|---|---|
-| [editorial-typography](editorial-typography.md) | Variable-font weight axis (Geist `wght` 100–900) on hero numbers (KDA, win rate, LP delta); subdued label treatment | 🚧 In progress — Chunk 1 (axis verification) done 2026-05-27 |
+| [editorial-typography](editorial-typography.md) | Variable-font weight axis (Geist `wght` 100–900) on hero numbers (KDA, win rate, LP delta); subdued label treatment | ✅ Shipped 2026-05-27 — Chunks 1–5+7 landed; Chunk 6 (section-title sweep) deferred pending visual sign-off |
 | [data-viz-densification](data-viz-densification.md) | Inline `<svg>` sparklines on stat cells + `:has()` parent-aware affordances + match-outcome ambient hue drift | Planned |
 | [anchor-positioned-overlays](anchor-positioned-overlays.md) | CSS Anchor Positioning for command-palette result peek + hover-card follow-on-scroll; feature-detect + Oddbird polyfill fallback | Planned |
 | [reduced-motion-replacements](reduced-motion-replacements.md) | Audit + standardise replacement variants per animated surface (splash drift → cross-fade, orb mark → static constellation, tilt → flat scale-up) | Planned |
