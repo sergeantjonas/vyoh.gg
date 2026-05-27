@@ -296,7 +296,7 @@ export function LibraryRow({
             collisionPadding={16}
             className={LIBRARY_HOVERCARD_CONTENT_CLASS}
           >
-            <LibraryTileHovercardContent game={game} variant="row" />
+            <LibraryTileHovercardContent game={game} />
           </HoverCardPrimitive.Content>
         </HoverCardPrimitive.Portal>
       </HoverCardPrimitive.Root>
