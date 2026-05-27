@@ -168,3 +168,69 @@ Driven by the audit. These will be the first sweep targets in Chunk 4 (order TBD
 ### Reference surface (don't touch)
 
 - `/status` is the cleanest existing instance of "flat sections under SectionTitle dividers, bare bodies." Use as the model when the container-rule decision in Chunk 3 is being ratified.
+
+---
+
+## Decisions (Chunk 2) — shipped 2026-05-27
+
+Per-surface IA + container decisions for the top 3 priority surfaces. A reframed candidate container rule emerged from working surface #1 and is carried forward into Chunk 3 ratification.
+
+### Reframed container rule (carried into Chunk 3)
+
+Earlier draft was content-shape-based ("chart/timeline/grid → chrome, text/sentence → bare"). Working surface #1 surfaced a cleaner formulation:
+
+> **Chrome belongs at the lowest level that visually groups heterogeneous content. Don't nest chrome inside chrome.**
+>
+> - If a section's children each carry their own chrome (`rounded-lg border bg-card/…`), the outer wrapper stays bare.
+> - If a section's children are bare inline content (text, chips, a single chart), the wrapper carries chrome.
+> - A `<section>` whose role is purely to group sibling sections under one `SectionTitle` divider stays bare regardless of child content — it's an IA scope marker, not a visual band.
+
+The compositional rule subsumes the content-shape rule and makes the existing Steam game-detail layout the **reference implementation** rather than a defect. The Chunk 1 audit's "incomplete migration" reading on `/steam/game/$appid` was a false-positive — bands 2 and 3 are bare because their children already chrome themselves.
+
+### Surface #1 — Steam game-detail (`/steam/game/$appid`)
+
+**No change. Promote to reference.**
+
+Three bands: Identity (line 188, chrome), Editorial (line 267, bare wrapper around `GameScreenshotStrip` + `GameAboutBlock`), Progress (line 278, bare wrapper around `GameUnlockTimeline` + `completion-verdict-card` grid + `AchievementPanel`). All children of bands 2 and 3 carry their own chrome via internal `rounded-lg border bg-card/50` wrappers or `CardShell`. Adding chrome to the bands would create nested borders. Identity carries chrome because its children (price strip, platform pills, review chip, ESRB chip, short description) are bare inline content — exactly the rule's "wrapper carries chrome" branch.
+
+This is the canonical "bare wrapper, chromed children" pattern. Cite it in Chunk 3 when ratifying the compositional rule.
+
+### Surface #2 — LoL profile (`/lol/$accountSlug`)
+
+**Keep flat stack. Migrate three ad-hoc headers to `SectionTitle` in Chunk 4.**
+
+Page is a flat stack of 15 components with an implicit identity → content → strips rhythm:
+
+- **Identity strip:** `ProfileRankTiles`, `LiveGameChip`, `ProfilePatchNotice`
+- **Content sections:** `ProfilePregameRitual`†, `ProfilePostGame`†, `ProfileRecentForm`†, `ProfileLpHistory`*, `ProfileSeasonHistory`*, `ProfileNowPlaying`*, `ProfileRoleStrip`†, `ProfileDuos`†, `ProfileSynergy`†, `ProfileQueueDistribution`†, `ProfileActivityCalendar`†
+- **Fact strips:** `ProfileStatsBar`, `ProfileMultikillStrip`
+- **Recap link tile**
+
+† = already uses `SectionTitle`; * = uses ad-hoc `text-xs uppercase tracking-wide text-muted-foreground` span header (the exact pitfall called out in `repo-conventions.md` § "Header primitives").
+
+The implicit rhythm reads cleanly enough that explicit zone dividers ("Identity" / "Activity" / "Highlights") would feel bureaucratic and add no information the page doesn't already convey by ordering. The asymmetry the Chunk 1 audit flagged is real but localized to the three ad-hoc headers.
+
+**Chunk 4 sweep targets** (one commit):
+- `profile-lp-history.tsx:540` — swap span → `SectionTitle`
+- `profile-season-history.tsx:213` — swap span → `SectionTitle`
+- `profile-now-playing.tsx:65` — swap span → `SectionTitle`
+
+`ProfileNowPlaying` stays mid-page (it's a 7-day recent-form aggregation, not live-match identity — does not belong with `LiveGameChip`).
+
+`ProfileStatsBar` and `ProfileMultikillStrip` stay header-less bottom strips by design (single-row fact displays, not sections that need a title).
+
+### Surface #3 — LoL match-detail "Your Game" tab
+
+**No change. Promote to reference as the counterpart pattern.**
+
+Six chart sections in a flat `flex flex-col gap-6` stack: `MatchBuildOrder`, `MatchSpellCasts`, `MatchDamageProfile`, `MatchOwnerStats`, `MatchSkillOrder`, `MatchLanePhase`. Each child uses `<section className="flex flex-col gap-3">` (bare wrapper) with a top-level `SectionTitle` divider. No chrome anywhere in the tree.
+
+The arc opening read this as "inconsistent with Steam" — but under the compositional rule it's the second valid pattern: **"bare wrapper, bare children, dividers do all the visual lifting."** It works because the children are individual chart bodies of similar visual weight, sitting under an existing scrollspy nav that already implies the section structure. Adding chrome to all 6 would create a heavier "boxy" feel that fights the long-form scrollspy reading flow.
+
+This is the canonical "bare-everything, header-led" pattern. Cite it in Chunk 3 alongside Surface #1 to show both branches of the compositional rule produce coherent layouts.
+
+### Remaining chunks
+
+- **Chunk 3:** Ratify the compositional rule above with one side-by-side visual capture (Steam game-detail bands vs LoL Your Game stack). Codify in this note.
+- **Chunk 4:** Per-surface sweep. Only one identified target so far — the 3 LoL profile header migrations (one commit). Secondary candidates (LoL recap, champion-detail chrome→bare transition, trends ~18-tile grouping, Steam achievements/signature) get per-surface decisions before any code lands.
+- **Chunk 5:** Writeback to `repo-conventions.md` § "Header primitives" — append the compositional container rule + the two reference surfaces.
