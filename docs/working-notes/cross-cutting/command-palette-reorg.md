@@ -1,6 +1,6 @@
 # Command palette reorganization + Steam parity
 
-**Status:** Active — not started. Visible UX bug (Accounts group still renders doubled `Search matches in <id>` companion rows; `Current section` group / Steam parity not generalized; `useCurrentSectionTabs` helper file doesn't exist). Follow-up arc to [command-palette.md](./command-palette.md) (D2 + E shipped 2026-05-18). This note captures the structural rework prompted by the post-launch read of the palette feeling unorganized, plus the Steam-parity work that should ride along to avoid solidifying LoL-shape into the new taxonomy.
+**Status:** Active — F1 shipped 2026-05-27 (doubled-row pattern in Accounts collapsed to one row + `⌘↵ matches` chord). F2/F3/S1/S2/F4/F5 pending. Follow-up arc to [command-palette.md](./command-palette.md) (D2 + E shipped 2026-05-18). This note captures the structural rework prompted by the post-launch read of the palette feeling unorganized, plus the Steam-parity work that should ride along to avoid solidifying LoL-shape into the new taxonomy.
 
 ## Why
 
@@ -25,7 +25,7 @@ Direct read of the shipped palette against the screenshots taken on 2026-05-19:
 
 Each chunk independently committable. Sequencing matters: S1 lands before F3 because F3's group-order assertions need Steam to already be a first-class branch, otherwise S1 has to re-modify the same code immediately after.
 
-### F1 — Account row: chord + hint, remove doubling
+### F1 — Account row: chord + hint, remove doubling — ✅ shipped 2026-05-27
 
 - One `CommandItem` per account in the Accounts group. `Enter` → navigate to `/lol/<slug>` (profile). `⌘↵` / `Ctrl↵` → `goAndKeepOpen` to `/lol/<slug>/matches`.
 - Right-aligned hint chip on each account row using the existing `CommandShortcut` style: `⌘↵ matches`. Platform-aware label, computed once at module scope (mirrors the nav-chip pattern from A2).
