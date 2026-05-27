@@ -1,19 +1,17 @@
 // Dispatcher + positioning host for the command-palette preview overlay.
 //
-// Positioning uses Floating UI's `useFloating` (transitively in our bundle
-// via Radix Popper, now imported directly) with `autoUpdate` for scroll +
-// resize tracking and `flip` for collision-aware edge handling. CSS Anchor
-// Positioning was the original plan (see polyfill loader at
-// `apps/web/src/lib/anchor-positioning.ts`) but cross-browser resolution
-// quirks during 2026-05-28 testing — including native Firefox computing
-// wrong positions for our specific CSS shape — pushed us to JS positioning
-// for ship-reliability. The polyfill loader is kept as a future-migration
-// hook for when the CSS spec consolidates across engines.
+// Positioning is direct rect-based. Earlier attempts (CSS Anchor
+// Positioning across three iterations, then Floating UI's `useFloating`
+// with `offset()` + `flip()` middleware) all produced misaligned positions
+// across Firefox + Safari with no consistent explanation from the
+// abstractions. Direct positioning gives us full control: query the
+// focused cmdk row, read its `getBoundingClientRect()`, set the card's
+// `top` and `left` to (row.top, row.right + 12). One source of truth.
 //
-// Reference element discovery: cmdk sets `aria-selected="true"` on the
-// highlighted item. We query for it on each `value` change and feed the
-// element to `useFloating` via the `elements.reference` slot, which
-// Floating UI uses to re-anchor the floating card.
+// Re-position on:
+// - Highlighted value change (selection moved to a different row)
+// - Scroll on any ancestor (cmdk-list, page) via capture-phase listener
+// - Window resize
 //
 // Renders through a body-level portal: Radix `DialogContent`'s
 // `transform: translate(-50%, -50%)` establishes a containing block for
@@ -23,37 +21,56 @@
 
 import { CommandPalettePreviewChampion } from "@/components/command-palette-preview-champion";
 import { parsePaletteValue } from "@/components/command-palette-preview-value";
-import { autoUpdate, flip, offset, useFloating } from "@floating-ui/react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
   value: string;
 };
 
+type Position = { top: number; left: number };
+
 export function CommandPalettePreview({ value }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [referenceEl, setReferenceEl] = useState<Element | null>(null);
+  const [referenceEl, setReferenceEl] = useState<HTMLElement | null>(null);
+  const [position, setPosition] = useState<Position | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // Re-query the selected cmdk-item whenever the highlighted value changes.
-  // cmdk normalises selection state to a single `aria-selected="true"` at a
-  // time, so this returns one element or null.
+  // Re-query the focused cmdk row whenever the highlighted value changes.
+  // cmdk normalises selection state to a single `aria-selected="true"` at
+  // a time so this returns one element or null.
   useEffect(() => {
     if (!value || typeof document === "undefined") {
       setReferenceEl(null);
       return;
     }
-    setReferenceEl(document.querySelector('[cmdk-item][aria-selected="true"]'));
+    setReferenceEl(
+      document.querySelector<HTMLElement>('[cmdk-item][aria-selected="true"]')
+    );
   }, [value]);
 
-  const { refs, floatingStyles } = useFloating({
-    placement: "right-start",
-    middleware: [offset(12), flip()],
-    whileElementsMounted: autoUpdate,
-    elements: { reference: referenceEl },
-  });
+  // Compute and track the position. `useLayoutEffect` so the initial
+  // position is set before paint (avoids a flash at 0,0). Capture-phase
+  // scroll listener catches scrolls on the cmdk-list ancestor; resize on
+  // the window covers viewport resize.
+  useLayoutEffect(() => {
+    if (!referenceEl) {
+      setPosition(null);
+      return;
+    }
+    const update = () => {
+      const rect = referenceEl.getBoundingClientRect();
+      setPosition({ top: rect.top, left: rect.right + 12 });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [referenceEl]);
 
   const parsed = parsePaletteValue(value);
   let content: React.ReactNode = null;
@@ -63,10 +80,13 @@ export function CommandPalettePreview({ value }: Props) {
       break;
     // match, steam-game previews land in follow-up chunks (3c, 3d).
   }
-  if (!content || !mounted || !referenceEl) return null;
+  if (!content || !mounted || !referenceEl || !position) return null;
 
   return createPortal(
-    <div ref={refs.setFloating} style={floatingStyles} className="z-50 hidden md:block">
+    <div
+      style={{ position: "fixed", top: position.top, left: position.left }}
+      className="z-50 hidden md:block"
+    >
       {content}
     </div>,
     document.body
