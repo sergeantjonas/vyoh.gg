@@ -211,20 +211,9 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     navigate({ to: item.path as any });
   }
 
-  // Cross-account scope switch: navigate into a different account's match
-  // surface without closing the palette, so the user can immediately type a
-  // match query against the new scope. Input is cleared because the Riot ID
-  // fragment that surfaced the account won't match any matches.
-  function goAndKeepOpen(item: RecentItem) {
-    recordRecent(recentsScope, item);
-    setInput("");
-    // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
-    navigate({ to: item.path as any });
-  }
-
   // ⌘↵ / Ctrl↵ on a highlighted Account row → jump into that account's
-  // matches without closing the palette. cmdk's `onSelect` doesn't expose
-  // the original event, so the chord has to ride the input's keydown.
+  // matches. cmdk's `onSelect` doesn't expose the original event, so the
+  // chord has to ride the input's keydown.
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     if (!event.metaKey && !event.ctrlKey) return;
@@ -233,7 +222,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     const acc = (me.data?.lol ?? []).find((a) => a.slug === slug);
     if (!acc) return;
     event.preventDefault();
-    goAndKeepOpen({
+    go({
       path: `/lol/${acc.slug}/matches`,
       label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
       kind: "tab",
@@ -461,9 +450,9 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                   <CommandShortcut>{chordHint} matches</CommandShortcut>
                 </CommandItem>,
               ];
-              // Companion "Search matches in <id>" row is intentionally kept
-              // only when freeText is non-empty — at idle the chord+hint chip
-              // is the discoverable path. On touch / no-keyboard, typing the
+              // Companion "Search matches in <id>" row is kept only when
+              // freeText is non-empty — at idle the chord+hint chip is the
+              // discoverable path. On touch / no-keyboard, typing the
               // account name surfaces the companion so the scope-switch flow
               // stays reachable without a chord.
               if (parsed.freeText.length > 0) {
@@ -472,7 +461,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                     key={`${acc.slug}-search`}
                     value={`search matches in ${acc.gameName} ${acc.tagLine} ${acc.slug}`}
                     onSelect={() =>
-                      goAndKeepOpen({
+                      go({
                         path: `/lol/${acc.slug}/matches`,
                         label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
                         kind: "tab",

@@ -180,7 +180,7 @@ describe("CommandPaletteDialog", () => {
     ).not.toBeNull();
   });
 
-  it("Ctrl+Enter on an account row navigates to /lol/<slug>/matches and keeps the palette open", () => {
+  it("Ctrl+Enter on an account row navigates to /lol/<slug>/matches and closes the palette", () => {
     accountsRef.current = [
       { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
     ];
@@ -194,11 +194,10 @@ describe("CommandPaletteDialog", () => {
     fireEvent.change(input, { target: { value: "jonas" } });
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
     expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/jonas-euw/matches" });
-    expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    expect(input.value).toBe("");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("clicking 'Search matches in X' navigates to /matches and clears input without closing", () => {
+  it("clicking 'Search matches in X' navigates to /matches and closes the palette", () => {
     accountsRef.current = [
       { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
     ];
@@ -211,8 +210,7 @@ describe("CommandPaletteDialog", () => {
     fireEvent.change(input, { target: { value: "jon" } });
     fireEvent.click(screen.getByRole("option", { name: /Search matches in.*Jonas/ }));
     expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/jonas-euw/matches" });
-    expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    expect(input.value).toBe("");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("hides 'Search matches in X' when a structured verb is in play", () => {
