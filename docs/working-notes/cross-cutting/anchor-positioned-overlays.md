@@ -1,6 +1,6 @@
 # Anchor-positioned overlays
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. CSS Anchor Positioning ([`anchor-name`](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name) / [`position-anchor`](https://developer.mozilla.org/en-US/docs/Web/CSS/position-anchor) / [`@position-try`](https://developer.mozilla.org/en-US/docs/Web/CSS/@position-try)) for the command-palette result peek and a small set of follow-on-scroll overlays, with a feature-detect + Oddbird polyfill fallback for older browsers.
+**Status:** Active — Chunk 1 shipped 2026-05-27 (`ensureAnchorPositioning()` feature-detect + lazy Oddbird `/fn` loader at [apps/web/src/lib/anchor-positioning.ts](../../../apps/web/src/lib/anchor-positioning.ts); `@oddbird/css-anchor-positioning` added to web deps as a lazy-imported runtime dep). Chunks 2–7 pending. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. CSS Anchor Positioning ([`anchor-name`](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name) / [`position-anchor`](https://developer.mozilla.org/en-US/docs/Web/CSS/position-anchor) / [`@position-try`](https://developer.mozilla.org/en-US/docs/Web/CSS/@position-try)) for the command-palette result peek and a small set of follow-on-scroll overlays, with a feature-detect + Oddbird polyfill fallback for older browsers.
 
 Read this before adding any overlay that should track its trigger across scroll/resize/zoom, or that needs collision-aware fallback positions.
 
@@ -75,9 +75,11 @@ Per [01-css-and-styling.md](~/.claude/knowledge/frontend-2026/01-css-and-styling
 
 ## Chunked plan
 
-### Chunk 1 — Feature-detect + polyfill loader
+### Chunk 1 — Feature-detect + polyfill loader ✅ shipped 2026-05-27
 
-New file `apps/web/src/lib/anchor-positioning.ts`:
+Landed at [apps/web/src/lib/anchor-positioning.ts](../../../apps/web/src/lib/anchor-positioning.ts) + colocated test. The actual shape differs slightly from the original sketch below — the import path is `@oddbird/css-anchor-positioning/fn` (functional subpath), not the bare entry. The bare entry auto-applies on import and would defeat the lazy gate; the `/fn` subpath exposes the manual `polyfill()` function as default per the package's `exports` map. The cached value is a `Promise<"native" | "polyfill" | "unavailable">` (not a polyfill-loaded flag), so a single singleton serves all four states.
+
+Original sketch (kept for trail-of-evidence):
 
 ```ts
 let polyfillPromise: Promise<unknown> | null = null;
