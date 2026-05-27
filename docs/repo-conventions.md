@@ -122,6 +122,29 @@ For rich or animated tooltips (hover cards, sparkline popovers) use the fuller C
 
 **How to apply:** Any new element that needs a label or explanation uses `TooltipPrimitive`. Add `aria-label` on the trigger when there is no visible text label (icon-only buttons). Reference: [nav.tsx](../apps/web/src/components/nav.tsx) for the compact form.
 
+### Header primitives: `SectionTitle` vs `CardTitle` — pick by chrome, not by content
+
+Two header primitives live in [apps/web/src/components/ui/](../apps/web/src/components/ui/). They share the same uppercase-tracked editorial aesthetic but carry different visual weight so the page hierarchy reads. **The rule is structural, not semantic — it's about whether the header sits inside card chrome.**
+
+- **`SectionTitle`** (`text-sm font-semibold uppercase tracking-[0.2em] text-foreground`, defaults to `<h3>`, `as` prop for `h2`/`h4`) — for **page-zone dividers** that sit on the page background. No card chrome around the header. The header itself does the visual lifting because there's no border/bg to contain the region. Examples: LoL profile's `Pre-game` / `Post-game` / `Recent form` (group multiple tiles), every LoL match-detail section header (`Build order`, `Spell casts`, `Damage profile`), Steam `Trophy case` / `100%'d` / `Rarest unlocks`.
+- **`CardTitle`** (`text-sm font-medium uppercase tracking-[0.2em] text-foreground/70`, same `as` prop) — for **headers inside card chrome** (a `rounded-lg border bg-card/…` wrapper). The chrome contains the region; the header can be quieter because the border is already doing the dividing work. Examples: Steam `About this game`, `Unlock Timeline`, `Achievements` (each lives inside `<section className="rounded-lg border bg-card/50 p-4">`).
+
+The test is mechanical: **look at the immediate wrapper of the header**. If it has `rounded-lg border bg-card/…` (or equivalent card chrome), use `CardTitle`. If it's a plain `<section>` / `<div>` with just flex/spacing classes, use `SectionTitle`. Don't pick by what the content "feels like" — pick by whether there's a visible card boundary around the header.
+
+This aligns with the industry-standard slot pattern documented in `~/.claude/knowledge/frontend-2026/02-design-systems.md` §6 (Primer, Carbon, shadcn/ui — `CardTitle` is its own named primitive distinct from page-section headers) and the token-tier principle in §1 (semantic role gets its own token slot; reusing one primitive for two roles is an anti-pattern).
+
+**Why:** The earlier `SectionTitle`-only approach used one primitive for both slots, which made page-zone dividers and card-internal headers render identically. The result was structural inconsistency between sections that used the bare-header pattern (LoL profile, LoL match-detail) and sections that used the card-with-internal-header pattern (Steam game-detail) — both rendered the same weight even though they have different visual containment around them. The bifurcation lets the page-zone divider command its region while the in-chrome card title fits naturally into the chrome.
+
+**How to apply:** When introducing a new section header, the choice is determined by the wrapper element you're putting around the header *in the same JSX*. Don't pick `SectionTitle` because the content feels important, or `CardTitle` because the content feels minor. If you find yourself wanting `SectionTitle` inside card chrome (or vice versa), that's a signal the layout itself wants reworking — either remove the surrounding chrome (and use SectionTitle), or commit to the chrome-as-container pattern (and use CardTitle). When in doubt, mirror the closest existing surface of the same shape — most LoL surfaces are `SectionTitle`; most Steam in-card cards are `CardTitle`.
+
+**When auditing for missed migrations** (i.e., scanning for ad-hoc headers that should be a primitive), three pitfalls cost this convention three sweep rounds during its initial landing:
+
+1. **Don't grep only for `<h2>` / `<h3>` tags.** Headers also show up as `<span className="text-sm font-medium">…</span>` or `<p className="text-sm font-medium">…</p>` — semantically wrong but visually identical. Search for the visual pattern (uppercase, font-weight, tracking) AND the heading tags.
+2. **Don't grep only for the LoL idiom (`text-muted-foreground` suffix).** A header that uses plain `text-sm font-medium` without an explicit color class will be missed by `text-sm font-medium text-muted-foreground` regex. Audit for the *role* (introduces a substantial body) not the specific text-class signature.
+3. **Check shared layout primitives once and let them propagate.** `card-shell.tsx`'s internal `<h3>` was missed in the first two sweep rounds because it wasn't a direct call site — ~45 chip surfaces inherited the unmigrated treatment through it. When a single change point covers many consumers (`CardShell`, `ConclusionCard`, `FactCard`, future card primitives), migrate the primitive itself, not every callsite.
+
+If you're about to write a new ad-hoc `<span>` / `<p>` header with uppercase + font-weight classes, you almost certainly want `SectionTitle` or `CardTitle` instead.
+
 ### Gate engine-specific perf cliffs instead of chasing CSS parity
 
 When a feature performs well in Blink/Gecko but produces visible chop on WebKit (Safari/iOS), and you've exhausted reasonable in-CSS optimisations without closing the gap, **gate the feature on `isWebKit()` ([apps/web/src/lib/is-webkit.ts](../apps/web/src/lib/is-webkit.ts)) and ship a compositor-only substitute** for the engine that doesn't handle it well. Don't continue tuning CSS toward parity when the cost lives inside an engine code path no CSS property reaches (snapshot capture, filter pipeline, layer-tree management).
