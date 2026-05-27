@@ -115,4 +115,21 @@ describe("LibraryGridVirtual", () => {
     expect(secondLeft.endsWith("%")).toBe(true);
     expect(Number.parseFloat(secondLeft)).toBeGreaterThan(0);
   });
+
+  it("stamps data-mount-stagger + --i on the first 8 tiles of the initial paint", () => {
+    const games = Array.from({ length: 12 }, (_, i) => game({ appid: i + 1 }));
+    const { container } = renderGrid(games);
+    const tiles = Array.from(container.querySelectorAll("li")) as HTMLElement[];
+    expect(tiles.length).toBe(12);
+    for (let i = 0; i < 8; i++) {
+      const tile = tiles[i] as HTMLElement;
+      expect(tile.hasAttribute("data-mount-stagger")).toBe(true);
+      expect(tile.style.getPropertyValue("--i")).toBe(String(i));
+    }
+    for (let i = 8; i < 12; i++) {
+      const tile = tiles[i] as HTMLElement;
+      expect(tile.hasAttribute("data-mount-stagger")).toBe(false);
+      expect(tile.style.getPropertyValue("--i")).toBe("");
+    }
+  });
 });

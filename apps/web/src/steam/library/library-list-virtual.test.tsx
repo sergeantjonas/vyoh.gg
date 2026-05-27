@@ -114,4 +114,32 @@ describe("LibraryListVirtual", () => {
       expect((row as HTMLElement).style.position).toBe("absolute");
     }
   });
+
+  it("stamps data-mount-stagger + --i on the first 8 rows of the initial paint", () => {
+    const games = Array.from({ length: 12 }, (_, i) => game({ appid: i + 1 }));
+    const { container } = renderList(games);
+    const rows = Array.from(container.querySelectorAll("li")) as HTMLElement[];
+    expect(rows.length).toBe(12);
+    for (let i = 0; i < 8; i++) {
+      const row = rows[i] as HTMLElement;
+      expect(row.hasAttribute("data-mount-stagger")).toBe(true);
+      expect(row.style.getPropertyValue("--i")).toBe(String(i));
+    }
+    for (let i = 8; i < 12; i++) {
+      const row = rows[i] as HTMLElement;
+      expect(row.hasAttribute("data-mount-stagger")).toBe(false);
+      expect(row.style.getPropertyValue("--i")).toBe("");
+    }
+  });
+
+  it("skips the cascade during back-nav settle so it doesn't fight the morph", () => {
+    const { container } = renderList([game({ appid: 1 }), game({ appid: 2 })], {
+      settled: false,
+    });
+    const rows = Array.from(container.querySelectorAll("li")) as HTMLElement[];
+    for (const row of rows) {
+      expect(row.hasAttribute("data-mount-stagger")).toBe(false);
+      expect(row.style.getPropertyValue("--i")).toBe("");
+    }
+  });
 });

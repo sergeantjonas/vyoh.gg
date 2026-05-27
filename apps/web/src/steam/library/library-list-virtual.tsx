@@ -5,7 +5,8 @@ import { useActiveGame } from "@/steam/library/active-game-context";
 import { LibraryRow } from "@/steam/library/library-row";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // Row footprint constants. Rows are a fixed-size shell (h-36 / sm:h-40 =
 // 144 / 160) inside an `<li>` with 8px padding-bottom, so the LI's
@@ -30,6 +31,11 @@ const ROW_HEIGHT_SM_UP = 168;
 // the visual.
 const SETTLE_HOLD_OPACITY = 0.6;
 
+// Initial-mount cascade — only the first N visible rows get the
+// data-mount-stagger opt-in. Beyond 8 the cascade would feel laggy
+// (8 × 80ms = 640ms, the calm-ceiling per the arc note's tunables).
+const MOUNT_STAGGER_LIMIT = 8;
+
 export function LibraryListVirtual({
   games,
   settled,
@@ -40,6 +46,14 @@ export function LibraryListVirtual({
   const { activeGame } = useActiveGame();
   const parentRef = useRef<HTMLUListElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
+  // First-paint cascade gate. True for the first render commit only;
+  // flipped to false after mount so rows entering via scroll do NOT
+  // replay the entry animation. Read at render time, not via state, so
+  // we never re-render purely to clear it.
+  const isInitialMountRef = useRef(true);
+  useEffect(() => {
+    isInitialMountRef.current = false;
+  }, []);
   // Match the row-shell's `sm:h-40` breakpoint. The two constants above
   // give us the LI's offsetHeight at each tier, so the virtualizer's
   // y-positions match the rows' actual layout without ever measuring.
@@ -88,11 +102,18 @@ export function LibraryListVirtual({
         // morph's destination. Once `settled` flips, every row fades to 1
         // via the CSS transition.
         const heldDuringSettle = !settled && !isActiveRow;
+        // Cascade gate: only stamp data-mount-stagger + --i on rows
+        // that are part of the FIRST-paint window. We also skip when
+        // the list is in settle-hold (back-nav morph): the morph is
+        // the show, an entry cascade alongside it would compete.
+        const isInitialMountWindow =
+          isInitialMountRef.current && settled && virtualRow.index < MOUNT_STAGGER_LIMIT;
         return (
           <LibraryRow
             key={game.appid}
             game={game}
             dataIndex={virtualRow.index}
+            mountStagger={isInitialMountWindow}
             style={{
               position: "absolute",
               top: 0,
@@ -102,6 +123,9 @@ export function LibraryListVirtual({
               paddingBottom: 8,
               opacity: heldDuringSettle ? SETTLE_HOLD_OPACITY : 1,
               transition: "opacity 350ms ease-out",
+              ...(isInitialMountWindow
+                ? ({ ["--i" as string]: virtualRow.index } as CSSProperties)
+                : {}),
             }}
           />
         );

@@ -41,6 +41,7 @@ export function LibraryRow({
   game,
   style,
   dataIndex,
+  mountStagger,
 }: {
   game: SteamOwnedGame;
   // Virtualizer-controlled `<li>` positioning. When the row is rendered
@@ -51,6 +52,11 @@ export function LibraryRow({
   // measurement just causes scroll-restore drift (see library-list-virtual).
   style?: CSSProperties;
   dataIndex?: number;
+  // First-paint cascade opt-in. Parent stamps this on the first ~8 items
+  // of the initial mount and merges --i into `style`; the data-attribute
+  // triggers the `[data-mount-stagger]` rule in motion.css. Scrolled-in
+  // rows mount with mountStagger=undefined and don't replay the animation.
+  mountStagger?: boolean;
 }) {
   const navigate = useNavigate();
   const { saveListScroll, setActiveGame, originRectRef, setOriginRect } = useActiveGame();
@@ -261,13 +267,25 @@ export function LibraryRow({
 
   if (!showHovercard)
     return (
-      <li ref={liRef} style={liStyle} data-index={dataIndex} data-list-item-vt>
+      <li
+        ref={liRef}
+        style={liStyle}
+        data-index={dataIndex}
+        data-list-item-vt
+        data-mount-stagger={mountStagger ? "" : undefined}
+      >
         {link}
       </li>
     );
 
   return (
-    <li ref={liRef} style={liStyle} data-index={dataIndex} data-list-item-vt>
+    <li
+      ref={liRef}
+      style={liStyle}
+      data-index={dataIndex}
+      data-list-item-vt
+      data-mount-stagger={mountStagger ? "" : undefined}
+    >
       <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
         <HoverCardPrimitive.Trigger asChild>{link}</HoverCardPrimitive.Trigger>
         <HoverCardPrimitive.Portal>

@@ -63,11 +63,18 @@ Tunables (current shipped defaults, dialed 2026-05-27 against the bento on `/`):
 
 ### Where to apply
 
-- [apps/web/src/components/bento/](../../../apps/web/src/components/bento/) — tile-grid items on `/`.
-- [apps/web/src/lol/matches/match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) — first N rows above the fold (below-the-fold handled by [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 5).
-- [apps/web/src/lol/champions/champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx) — initial mount only; sort reflow stays on Motion `layout` per `vnext-ideas.md`.
-- Steam library tiles.
+- [apps/web/src/components/bento/](../../../apps/web/src/components/bento/) — tile-grid items on `/`. **Shipped 2026-05-27.**
+- Steam library tiles (list + grid virtualizers). Virtualized — only the first-paint window stagger, not scrolled-in rows; gate via per-item `data-mount-stagger` opt-in (see Part A.5 below).
 - Per-section secondary cards on match detail (build, runes, timeline tabs).
+
+### Where NOT to apply (audit correction, 2026-05-27)
+
+The original audit lumped two surfaces in that already had Motion-driven entry stagger — `data-mount-stagger` would have collided with the existing Motion orchestration and removed behavior the user can already see:
+
+- [match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) already staggers via Motion `transition.delay` keyed on `(virtualRow.index - seenCount) * STAGGER_PER_ITEM` (60ms, 0.2s duration). It also carries flash-new spring + settle-hold variants beyond entry — falls under Chunk 6's "keep Motion when variants extend past entry" rule.
+- [champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx) staggers via Motion `staggerChildren: 0.04` on a `container` variant, with `initial: false` gating on back-nav. Also carries `layout` for sort reflow.
+
+Both stay on Motion; **Chunks 2 + 3 are descoped**. The first-paint cascade is already present on those surfaces — the perceived gap was on bento, Steam library, and the overlay primitives only.
 
 ### Filter / refresh reflows
 
@@ -142,27 +149,24 @@ The CSS lives in `apps/web/src/styles/motion.css` (created in [scroll-driven-she
 
 ## Chunked plan
 
-### Chunk 1 — `stagger-children` utility + first surface
+### Chunk 1 — `stagger-children` utility + first surface — SHIPPED 2026-05-27
 
-- Add the `.stagger-children` rule and `@keyframes stagger-in` to `motion.css`.
-- Apply to the bento grid on `/` ([apps/web/src/components/bento/](../../../apps/web/src/components/bento/)) — simplest, highest visible payoff.
-- Test: assert `style={{ "--i": ... }}` is set on each child, snapshot the parent class.
+- Added `.stagger-children > *` rule + `@keyframes stagger-in` to `motion.css`.
+- BentoGrid walks children once via `Children.map` + `cloneElement` and stamps `style={{ "--i": i }}` on each tile so consumers don't thread an index prop.
+- Tests cover wrapper class, `--i` ordinals, and consumer-style preservation.
 
-### Chunk 2 — Apply stagger to match list (above-the-fold)
+### Chunks 2 + 3 — descoped 2026-05-27
 
-- Modify [match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) — first 8 rows get `--i`, rest get no stagger (handled by `view()` later in [scroll-driven-shell.md](../archive/scroll-driven-shell.md)).
-- Cap rule: if `i >= 8`, omit the `--i` style.
-- Test: 8th row has `--i: 7`, 9th does not.
-
-### Chunk 3 — Apply stagger to champion grid
-
-- [champion-table.tsx](../../../apps/web/src/lol/champions/champion-table.tsx) — initial mount only.
-- **Care:** the existing `layout` prop on `<m.li>` for sort reflow must not conflict with the CSS animation. Motion's layout animation runs on transform; the CSS keyframe also uses transform. Test the sort-change flow specifically — does the first sort after mount glitch? If yes, gate the stagger to a `data-first-mount` attribute that's removed after first render.
+See "Where NOT to apply" above. Both surfaces already have Motion-driven entry stagger that goes beyond entry (flash-new spring, settle-hold, layout reflow). Keep Motion.
 
 ### Chunk 4 — Apply stagger to Steam library
 
-- Steam library tiles get the same treatment.
-- Cap rule applies (large libraries).
+- Virtualized — use the per-item `data-mount-stagger=""` opt-in, not the `.stagger-children` wrapper. The wrapper would also fire on rows that mount via scroll later, which is wrong.
+- Track `isInitialMountRef` in each virtualizer (`useRef(true)`, flipped to `false` in `useEffect(() => { ... }, [])`). First render frame sees `true`; subsequent renders see `false`.
+- Stamp `--i: virtualItem.index` and `data-mount-stagger=""` on items where `isInitialMountRef.current && virtualItem.index < 8`. Skip beyond 8 (visible window is small and 8 × 80ms = 640ms is the calm-ceiling).
+- Also gate on `settled === true` (list-virtual only) so back-nav settle doesn't fight the morph.
+- Extend `LibraryRow` + `LibraryTile` signatures with `mountStagger?: boolean`; the row renders the data-attribute on the outer `<li>`. The parent merges `--i` into the inline style alongside the virtualizer transform — the keyframe uses `translate:` longhand so it composes with the parent `transform:`.
+- Tests cover both virtualizers: first 8 items carry `data-mount-stagger` + `--i`, 9th doesn't.
 
 ### Chunk 5 — Overlay entry CSS
 

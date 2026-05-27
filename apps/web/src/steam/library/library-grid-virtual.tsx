@@ -4,7 +4,8 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { LibraryTile } from "@/steam/library/library-tile";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // Tile rows are a 2:3 portrait capsule + ~50px name/lifetime line; the
 // height depends on lane width (= container width / lanes). Measured
@@ -13,6 +14,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 // ballpark across breakpoints. Empirically ~320px holds for 3-5 lanes at
 // realistic viewport widths.
 const ESTIMATED_ROW_HEIGHT = 320;
+
+// See library-list-virtual.tsx for the cascade-limit rationale.
+const MOUNT_STAGGER_LIMIT = 8;
 
 // Lane count tracks the existing CSS grid breakpoints:
 //   default     → 2
@@ -35,6 +39,11 @@ export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
   const parentRef = useRef<HTMLUListElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
   const lanes = useLaneCount();
+  // See library-list-virtual.tsx for the rationale.
+  const isInitialMountRef = useRef(true);
+  useEffect(() => {
+    isInitialMountRef.current = false;
+  }, []);
 
   // See LibraryListVirtual for the rationale on scrollMargin — same
   // pattern, same reason.
@@ -77,12 +86,15 @@ export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
         // on all four sides — adjacent tiles add to a 16px visible gap
         // (matching the original `gap-4` static grid), and the outer edges
         // get an 8px inset rather than touching the container edge.
+        const isInitialMountWindow =
+          isInitialMountRef.current && virtualItem.index < MOUNT_STAGGER_LIMIT;
         return (
           <LibraryTile
             key={game.appid}
             game={game}
             liRef={virtualizer.measureElement}
             dataIndex={virtualItem.index}
+            mountStagger={isInitialMountWindow}
             style={{
               position: "absolute",
               top: 0,
@@ -90,6 +102,9 @@ export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
               width: `${lanePct}%`,
               transform: `translateY(${virtualItem.start - scrollMargin}px)`,
               padding: 8,
+              ...(isInitialMountWindow
+                ? ({ ["--i" as string]: virtualItem.index } as CSSProperties)
+                : {}),
             }}
           />
         );

@@ -25,6 +25,7 @@ export function LibraryTile({
   liRef,
   style,
   dataIndex,
+  mountStagger,
 }: {
   game: SteamOwnedGame;
   // Virtualizer-controlled `<li>` positioning — see LibraryRow for the
@@ -33,6 +34,8 @@ export function LibraryTile({
   liRef?: Ref<HTMLLIElement>;
   style?: CSSProperties;
   dataIndex?: number;
+  // See LibraryRow.mountStagger — same contract.
+  mountStagger?: boolean;
 }) {
   // Library art priority mirrors Steam's own client: prefer the dedicated
   // 600×900 portrait capsule, fall back to a synthetic composition of the
@@ -68,6 +71,7 @@ export function LibraryTile({
       style={liStyle}
       data-index={dataIndex}
       data-list-item-vt
+      data-mount-stagger={mountStagger ? "" : undefined}
       className="group/tile"
     >
       <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
