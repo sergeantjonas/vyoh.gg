@@ -157,6 +157,35 @@ body {
   }
 }
 
+/* ─── Overlay entry (Radix popper-positioned content) ───────────────────────
+   Adds a soft fade + lift on mount for Radix popper content (tooltip,
+   hover card, popover, dropdown, select). The selector targets the
+   `[data-radix-popper-content-wrapper]` element Radix injects around
+   every popper-positioned surface. `@starting-style` declares the
+   starting values; the `transition` rule interpolates to the natural
+   state on first paint.
+
+   Coexistence with tw-animate-css `animate-in` keyframes (used by the
+   shadcn Dialog/Popover/DropdownMenu/Select primitives): a running CSS
+   `animation:` overrides `transition:` on the same property during its
+   runtime. Those primitives keep their tw-animate-css entry; this rule
+   only takes effect for the surfaces without one (bare TooltipPrimitive
+   + HoverCardPrimitive consumers).
+
+   `translate:` longhand is used rather than `transform: translate(...)`
+   so Radix's own positioning `transform:` (matrix from Popper) isn't
+   overridden during the transition.                                       */
+[data-radix-popper-content-wrapper] {
+  transition: opacity 180ms ease-out, translate 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@starting-style {
+  [data-radix-popper-content-wrapper] {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────── */
 /* Replace, don't disable: every behavior collapses to its resting state.    */
 /* Nav: compacted always (better density on small screens).                  */
@@ -183,5 +212,16 @@ body {
   .stagger-children > *,
   [data-mount-stagger] {
     animation: none;
+  }
+
+  /* Overlay entry: drop the transition so freshly-mounted popper
+     content paints at its natural opacity/position immediately. The
+     `@starting-style` values still apply for one paint frame (Biome's
+     CSS parser doesn't accept `@starting-style` nested under `@media`,
+     so we can't override them here), but with `transition: none` the
+     element jumps straight to the final state on the next frame —
+     functionally equivalent to "no animation".                           */
+  [data-radix-popper-content-wrapper] {
+    transition: none;
   }
 }

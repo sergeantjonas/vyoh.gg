@@ -87,47 +87,42 @@ Default: **don't replay**. Loud is not allowed (guardrail from [motion-backlog.m
 
 ---
 
-## Part B — Native overlay entry/exit
+## Part B — Native overlay entry (entry only, scoped to gap-filling)
 
-### Pattern
+### Audit correction 2026-05-27
+
+The original arc-note premise — "shadcn overlay defaults are abrupt, render via `display: none → block` with no transition" — was wrong for this codebase. The shadcn Dialog/Popover/DropdownMenu/Select primitives **already use `tw-animate-css`** (`data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95` etc.), which fires CSS keyframe animations on data-state transitions. Those primitives are not the gap.
+
+The real gap is **bare `TooltipPrimitive` + `HoverCardPrimitive` consumers** (~30 files using `@radix-ui/react-tooltip` directly) — these have no entry animation and pop in instantly.
+
+### Shipped pattern (2026-05-27)
+
+Entry-only, opacity + translate. No close animation (tw-animate-css already handles close for primitives that need it; bare Tooltip/HoverCard's instant close is fine):
 
 ```css
-[data-radix-popper-content-wrapper] [data-state="open"] {
-  opacity: 1;
-  transform: scale(1) translateY(0);
+[data-radix-popper-content-wrapper] {
   transition:
     opacity 180ms ease-out,
-    transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
-    display 180ms allow-discrete;
+    translate 180ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-[data-radix-popper-content-wrapper] [data-state="closed"] {
-  opacity: 0;
-  transform: scale(0.96) translateY(-4px);
-}
-
-/* Entry animation from initial state */
 @starting-style {
-  [data-radix-popper-content-wrapper] [data-state="open"] {
+  [data-radix-popper-content-wrapper] {
     opacity: 0;
-    transform: scale(0.96) translateY(-4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-radix-popper-content-wrapper] [data-state="open"],
-  [data-radix-popper-content-wrapper] [data-state="closed"] {
-    transition: none;
-    transform: none;
+    translate: 0 -4px;
   }
 }
 ```
 
-Three primitives at play (per [01-css-and-styling.md](~/.claude/knowledge/frontend-2026/01-css-and-styling.md)):
+Three deliberate scoping choices:
 
-1. **`@starting-style`** — declares the *starting* values an element should transition *from* when it enters the DOM. Without it, freshly-mounted elements have no "before" state to transition from.
-2. **`transition-behavior: allow-discrete`** — explicitly allows transitioning the otherwise-discrete `display` property. Without it, the element snaps in/out and the opacity/transform transitions can't run on close.
-3. **`@property`** — only needed if animating custom properties (color stops, complex curves). Not required for opacity/transform.
+1. **`translate:` longhand, not `transform: translate(...)`** — Radix's Popper sets `transform: matrix(...)` for positioning. Animating `transform:` would override Radix's positioning. `translate:` composes independently.
+2. **No `transition-behavior: allow-discrete` on `display`** — we only animate entry, not close, so the discrete `display: block → none` close transition isn't needed.
+3. **No `data-state` targeting** — the wrapper selector applies on any mount. A running tw-animate-css `animation:` overrides our `transition:` on the same property, so primitives with existing animations keep them; bare-Radix consumers gain a soft entry.
+
+### Reduced-motion limitation
+
+Biome's CSS parser doesn't accept `@starting-style` nested inside `@media (prefers-reduced-motion: reduce)`. The reduced-motion block disables the `transition:` but can't override the `@starting-style` from-values. The result: one frame at opacity 0 / translate -4px, then immediate jump to the final state. Functionally equivalent to "no animation" — not a perceptible flash.
 
 ### Where to apply
 
@@ -168,12 +163,11 @@ See "Where NOT to apply" above. Both surfaces already have Motion-driven entry s
 - Extend `LibraryRow` + `LibraryTile` signatures with `mountStagger?: boolean`; the row renders the data-attribute on the outer `<li>`. The parent merges `--i` into the inline style alongside the virtualizer transform — the keyframe uses `translate:` longhand so it composes with the parent `transform:`.
 - Tests cover both virtualizers: first 8 items carry `data-mount-stagger` + `--i`, 9th doesn't.
 
-### Chunk 5 — Overlay entry CSS
+### Chunk 5 — Overlay entry CSS — SHIPPED 2026-05-27
 
-- Add the `@starting-style` + `allow-discrete` block to `motion.css` targeting Radix popper data-attributes.
-- Reduced-motion media block.
-- Manual verification across: Select, Popover, Dropdown, Tooltip, HoverCard. Each should animate in/out smoothly without flicker.
-- Test: structural — the CSS rule is present. Visual verification via the `verify` skill.
+- Added `[data-radix-popper-content-wrapper]` `transition:` + `@starting-style` block to `motion.css` (Part B above).
+- Reduced-motion block disables the transition; `@starting-style` cannot be overridden inside `@media` (Biome parser limitation), but the missing transition makes the one-frame from-state imperceptible.
+- Existing shadcn primitives (Dialog/Popover/DropdownMenu/Select) continue to use tw-animate-css for entry/exit, unchanged. The new layer fills the gap for bare TooltipPrimitive + HoverCardPrimitive consumers.
 
 ### Chunk 6 — Refactor: remove Motion wrappers where CSS now covers it
 
