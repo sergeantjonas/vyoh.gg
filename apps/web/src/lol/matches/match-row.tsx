@@ -168,7 +168,8 @@ export function MatchRow({
             <div
               ref={cardRef}
               style={championCardStyle(match.champion)}
-              className={championCardClassName}
+              className={cn(championCardClassName, "match-row")}
+              data-outcome={match.remake ? "remake" : match.win ? "win" : "loss"}
             >
               {isNew && !reduced && (
                 <m.div
@@ -190,6 +191,11 @@ export function MatchRow({
                 />
               )}
               <ChampionCardChrome champion={match.champion} win={match.win} />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{ backgroundColor: "var(--row-tint)" }}
+              />
               <div className="relative ml-auto flex flex-col items-end gap-1">
                 <div className="flex items-baseline gap-2">
                   <span className="font-medium">{championDisplayName}</span>

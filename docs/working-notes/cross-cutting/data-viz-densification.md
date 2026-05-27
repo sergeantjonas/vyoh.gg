@@ -1,6 +1,6 @@
 # Data-viz densification
 
-**Status:** Part 1 (inline sparklines) shipped 2026-05-27 across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Parts 2 (`:has()` affordances) and 3 (ambient hue drift) are still pending; pick them up independently.
+**Status:** Part 1 (inline sparklines) shipped 2026-05-27 across 5 of 6 surveyed surfaces — see the "Where to apply" table below. Part 3 (ambient hue drift) shipped 2026-05-27 on match-list rows. Part 2 (`:has()` affordances) and Chunk 6's sparkline tooltip + axe pass are still pending; pick them up independently.
 
 Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. Three related moves that together transform the app's flattest surfaces (stat lists, match tables, text-heavy data displays) into the most-information-per-pixel:
 
@@ -221,11 +221,12 @@ The opacities (`0.04 → 0.10` range) are deliberately small. The motion happens
 - Apply data attributes where needed (`data-remake-badge`, `data-route-active`).
 - Visual verification of each rule firing.
 
-### Chunk 4 — Ambient hue drift on match rows
+### Chunk 4 — Ambient hue drift on match rows ✅ shipped 2026-05-27
 
-- Add the `@property` registration + the data-attribute-targeted rules.
-- Modify [match-list.tsx](../../../apps/web/src/lol/matches/match-list.tsx) to set `data-outcome={...}` on each row.
-- Visual verification on long lists — does the cumulative tint feel too saturated when many rows are visible? Adjust opacity if so.
+- `@property --row-tint` registered in [index.css](../../../apps/web/src/index.css) next to the existing `--sheen-extent` block; `.match-row` rules with win/loss/remake `data-outcome` selectors + `:hover` boost + `prefers-reduced-motion` transition disable.
+- `data-outcome` set on the card root in [match-row.tsx](../../../apps/web/src/lol/matches/match-row.tsx) (`match.remake ? "remake" : match.win ? "win" : "loss"`); the `match-row` class is added on the same row so the CSS only targets match-list rows, not the shared `championCardClassName` consumers (champion table, etc.).
+- Tint paints through the splash-side gradient where it's transparent (left ~10–45% of the card); the solid right portion of the gradient masks it from the stats column by design — splash side warms, text side stays clean.
+- Visual verification still pending on long lists for cumulative-tint saturation; if needed, dial back the `0.04 / 0.10` win opacities first since the splash placeholder already contributes some theme-tint warmth.
 
 ### Chunk 5 — Roll sparklines into Profile + Trends + Steam ✅ shipped 2026-05-27
 
