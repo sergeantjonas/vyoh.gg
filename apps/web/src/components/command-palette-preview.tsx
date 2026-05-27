@@ -52,6 +52,12 @@ export function CommandPalettePreview({ value }: Props) {
   // document origin.
   useLayoutEffect(() => {
     let rafId = 0;
+    // Bookkeeping for skipping no-op writes. Card identity is tracked so
+    // that when the portal re-mounts (the user leaves and re-enters a
+    // row of the same type — content stays the same shape but the div
+    // is brand new with `visibility: hidden` inline), we force a fresh
+    // write even if the row is in the same position as before.
+    let lastCard: HTMLDivElement | null = null;
     let lastTop = Number.NaN;
     let lastLeft = Number.NaN;
     const tick = () => {
@@ -63,7 +69,8 @@ export function CommandPalettePreview({ value }: Props) {
         const rect = row.getBoundingClientRect();
         const top = rect.top;
         const left = rect.right + 12;
-        if (top !== lastTop || left !== lastLeft) {
+        if (card !== lastCard || top !== lastTop || left !== lastLeft) {
+          lastCard = card;
           lastTop = top;
           lastLeft = left;
           card.style.top = `${top}px`;
