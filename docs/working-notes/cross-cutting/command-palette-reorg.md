@@ -1,6 +1,6 @@
 # Command palette reorganization + Steam parity
 
-**Status:** Active — F1 shipped 2026-05-27 (doubled-row pattern in Accounts collapsed to one row + `⌘↵ matches` chord). F2/F3/S1/S2/F4/F5 pending. Follow-up arc to [command-palette.md](./command-palette.md) (D2 + E shipped 2026-05-18). This note captures the structural rework prompted by the post-launch read of the palette feeling unorganized, plus the Steam-parity work that should ride along to avoid solidifying LoL-shape into the new taxonomy.
+**Status:** Shipped — F1/S2 shipped 2026-05-27 (doubled-row pattern collapsed, Games group for Steam). F2/S1/F3/F4/F5 shipped 2026-05-28 (Matches gate, Steam "Current section" tabs, group reorder, chord label cleanup, docs writeback). Follow-up arc to [command-palette.md](./command-palette.md) (D2 + E shipped 2026-05-18). This note captures the structural rework prompted by the post-launch read of the palette feeling unorganized, plus the Steam-parity work that should ride along to avoid solidifying LoL-shape into the new taxonomy.
 
 ## Why
 
@@ -34,24 +34,23 @@ Each chunk independently committable. Sequencing matters: S1 lands before F3 bec
 - **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
 - **Tests:** [command-palette-dialog.test.tsx](../../../apps/web/src/components/command-palette-dialog.test.tsx) — remove the doubled-row assertion if present; add a chord-keydown test (`fireEvent.keyDown` with `metaKey: true` on the input while an account is highlighted).
 
-### F2 — Suppress Matches group at empty input
+### F2 — Suppress Matches group at empty input — ✅ shipped 2026-05-28
 
 - Gate the entire `{currentAccount && (<CommandGroup heading="Matches">…)}` block on `(parsed.freeText || hasStructuredVerbs || (allMatches && allMatches.length > 0))`.
 - The "Load matches" CTA's prefetch behavior is unchanged; only its visibility is restricted.
 - **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
 - **Tests:** assert the Matches group is absent at empty input on `/lol/<slug>`, present after typing.
 
-### S1 — Generalize "Current account" → "Current section"
+### S1 — Generalize "Current account" → "Current section" — ✅ shipped 2026-05-28
 
 - The group's job is "tabs of the active top-level route." Today only fires for `/lol/<slug>`. Make it section-aware:
   - On `/lol/<slug>`: Profile / Matches / Trends / Champions (today, unchanged).
   - On `/steam/...`: Library / Wishlist / Achievements (+ `Game: <title>` row when on `/steam/game/<appid>`, resolving appid → title via the owned-games cache).
-- Implementation: derive section + tab list from a single helper (`useCurrentSectionTabs(pathname)`) instead of the current inline `currentSlug` branch. Helper returns `{ section: "lol" | "steam" | null, tabs: Tab[] }`.
-- Heading text becomes section-aware: `"Current account"` for LoL (slug-scoped), `"Current section"` for Steam. Keeps the existing label discoverable for the LoL flow that already shipped.
-- **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx), new helper at `apps/web/src/components/use-current-section-tabs.ts`.
-- **Tests:** unit-test the helper for `/lol/<slug>`, `/lol/<slug>/matches`, `/steam`, `/steam/library`, `/steam/game/<appid>`, `/` (returns null).
+- Implementation: kept inline in `command-palette-dialog.tsx` (the planned `use-current-section-tabs.ts` helper was not extracted — the logic is small enough to stay colocated and no second consumer exists). Steam branch derives `steamAppid` from pathname regex and resolves the game title via `queryClient.getQueryData(["steam", "owned-games"])`. Heading: `"Current account"` for LoL, `"Current section"` for Steam.
+- **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
+- **Tests:** dialog-level tests covering `/steam` (Library/Wishlist/Achievements), `/steam/game/<appid>` with warm cache (Game: title) and cold cache (Game fallback), and `/` (no tabs).
 
-### F3 — Group order for empty-input prioritization
+### F3 — Group order for empty-input prioritization — ✅ shipped 2026-05-28
 
 - **Empty input** (`!input.trim()`): `Recent → Current section → Pages → Accounts` (Matches gone per F2).
 - **With freeText, no structured verbs:** `Current section → Champions/Games → Accounts → Matches → Pages`.
@@ -59,7 +58,7 @@ Each chunk independently committable. Sequencing matters: S1 lands before F3 bec
 - **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) — JSX reorder only, no logic changes.
 - **Tests:** assert group-heading order at each of the three states.
 
-### S2 — Games group (Steam equivalent of Champions)
+### S2 — Games group (Steam equivalent of Champions) — ✅ shipped
 
 - Read `useOwnedGames()` from cache (already populated on `/steam/library` and `/steam` visits — same "cache hit before fetch" rule as Champions per D1).
 - Filter by game name against freeText, top 6, navigate to `/steam/game/<appid>`.
@@ -68,7 +67,7 @@ Each chunk independently committable. Sequencing matters: S1 lands before F3 bec
 - **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
 - **Tests:** assert Games group visibility gating (pathname + freeText), assert cache-miss "Load library" affordance fires the prefetch.
 
-### F4 — Recents label cleanup for cross-account scope
+### F4 — Recents label cleanup for cross-account scope — ✅ shipped 2026-05-28
 
 - After F1's chord path replaces the companion row, the scope-switch recording becomes `{ kind: "account", label: "<gameName>#<tagLine> — matches", path: "/lol/<slug>/matches" }`.
 - Path is still unique (distinct from the profile `/lol/<slug>`) so Recents dedup-by-path keeps both as separate entries when both have been visited.
@@ -76,7 +75,7 @@ Each chunk independently committable. Sequencing matters: S1 lands before F3 bec
 - **Files:** [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) — call-site change only.
 - **Tests:** optional dialog-level test asserting the recorded entry's shape after a `⌘↵` chord.
 
-### F5 — Update [command-palette.md](./command-palette.md) + extract lesson
+### F5 — Update [command-palette.md](./command-palette.md) + extract lesson — ✅ shipped 2026-05-28
 
 - Mark D2's companion-row implementation as superseded in the original arc note.
 - Add a "Lessons" subsection in [command-palette.md](./command-palette.md): *"Secondary actions on a row should be a chord + hint chip, not a sibling row. Doubling rows pollutes the group it lives in and reads as visual rhyme — the first hit of this was D2 (Accounts companion rows), revised in F1–F4 on the dates this arc lands."*

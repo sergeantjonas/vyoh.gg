@@ -358,12 +358,25 @@ describe("CommandPaletteDialog", () => {
     ).toBe("");
   });
 
-  it("renders 'Match history not loaded' and a Load matches action on a current account", () => {
+  it("hides Matches group at empty input on a current account", () => {
     accountsRef.current = [
       { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
     ];
     pathnameRef.current = "/lol/jonas-euw";
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    expect(screen.queryByText(/Match history not loaded yet/)).toBeNull();
+    expect(screen.queryByRole("option", { name: /Load matches/ })).toBeNull();
+  });
+
+  it("renders 'Match history not loaded' and a Load matches action after typing on a current account", () => {
+    accountsRef.current = [
+      { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+    ];
+    pathnameRef.current = "/lol/jonas-euw";
+    wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "ahri" },
+    });
     expect(screen.getByText(/Match history not loaded yet/)).toBeTruthy();
     expect(screen.getByRole("option", { name: /Load matches/ })).toBeTruthy();
   });
@@ -377,6 +390,9 @@ describe("CommandPaletteDialog", () => {
     const prefetch = vi.mocked(useMatchesMod.prefetchCachedMatches);
     prefetch.mockResolvedValueOnce(undefined);
     wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+      target: { value: "ahri" },
+    });
     fireEvent.click(screen.getByRole("option", { name: /Load matches/ }));
     await waitFor(() => expect(prefetch).toHaveBeenCalled());
   });
@@ -619,6 +635,75 @@ describe("CommandPaletteDialog", () => {
       });
       expect(screen.queryByText(/Match history not loaded yet/)).toBeNull();
       expect(screen.queryByRole("option", { name: /Load matches/ })).toBeNull();
+    });
+  });
+
+  describe("Current section tabs (S1)", () => {
+    it("shows Library / Wishlist / Achievements on /steam at empty input", () => {
+      pathnameRef.current = "/steam";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      expect(screen.getByRole("option", { name: /^Library$/ })).toBeTruthy();
+      expect(screen.getByRole("option", { name: /^Wishlist$/ })).toBeTruthy();
+      expect(screen.getByRole("option", { name: /^Achievements$/ })).toBeTruthy();
+    });
+
+    it("shows 'Game: Elden Ring' on /steam/game/1245620 when the owned-games cache is warm", () => {
+      pathnameRef.current = "/steam/game/1245620";
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      client.setQueryData(["steam", "owned-games"], {
+        games: [
+          {
+            appid: 1245620,
+            name: "Elden Ring",
+            playtimeForeverMinutes: 0,
+            playtime2WeeksMinutes: null,
+            assetUrlFormat: null,
+            assetTimestamp: null,
+            libraryCapsulePath: null,
+            libraryCapsule2xPath: null,
+            libraryHeroPath: null,
+            libraryHero2xPath: null,
+            headerPath: null,
+            heroCapsulePath: null,
+            logoPath: null,
+            appType: 0,
+            tagIds: [],
+            rtimeLastPlayedAt: null,
+            shortDescription: null,
+            steamDeckCompat: null,
+            platformWindows: null,
+            platformMac: null,
+            platformLinux: null,
+            platformVr: null,
+            reviewSummary: null,
+            gameRating: null,
+            publisherNames: [],
+            developerNames: [],
+            franchiseNames: [],
+          },
+        ],
+        lastSyncedAt: "2026-05-25T00:00:00.000Z",
+      });
+      render(
+        <QueryClientProvider client={client}>
+          <CommandPaletteDialog open onOpenChange={vi.fn()} />
+        </QueryClientProvider>
+      );
+      expect(screen.getByRole("option", { name: /Game: Elden Ring/ })).toBeTruthy();
+    });
+
+    it("shows 'Game' fallback on /steam/game/<appid> when the cache is empty", () => {
+      pathnameRef.current = "/steam/game/9999";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      expect(screen.getByRole("option", { name: /^Game$/ })).toBeTruthy();
+    });
+
+    it("does not show Steam section tabs at /", () => {
+      pathnameRef.current = "/";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      expect(screen.queryByRole("option", { name: /^Library$/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /^Wishlist$/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /^Achievements$/ })).toBeNull();
     });
   });
 

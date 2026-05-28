@@ -39,12 +39,16 @@ import {
 } from "@vyoh/shared";
 import {
   Crown,
+  Gamepad2,
   History,
   Home,
+  Library,
+  ListChecks,
   Loader2,
   ScrollText,
   Swords,
   TrendingUp,
+  Trophy,
   User,
   X,
 } from "lucide-react";
@@ -255,8 +259,8 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     event.preventDefault();
     go({
       path: `/lol/${acc.slug}/matches`,
-      label: `Search matches in ${acc.gameName}#${acc.tagLine}`,
-      kind: "tab",
+      label: `${acc.gameName}#${acc.tagLine} — matches`,
+      kind: "account",
     });
   }
 
@@ -363,6 +367,15 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     isSteamScope &&
     (hasSteamStructuredVerbs || (parsed.freeText.length > 0 && steamGames.length > 0));
 
+  const steamAppid = isSteamScope
+    ? (pathname.match(/^\/steam\/game\/([^/]+)/)?.[1] ?? null)
+    : null;
+  const steamGameTitle = steamAppid
+    ? (queryClient
+        .getQueryData<SteamOwnedGames>(["steam", "owned-games"])
+        ?.games.find((g) => String(g.appid) === steamAppid)?.name ?? null)
+    : null;
+
   const currentTabs = currentSlug
     ? [
         {
@@ -390,7 +403,38 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           path: `/lol/${currentSlug}/champions`,
         },
       ].filter((t) => passesFreeText(t.value))
-    : [];
+    : isSteamScope
+      ? [
+          {
+            value: "steam library games",
+            icon: <Library />,
+            label: "Library",
+            path: "/steam/library",
+          },
+          {
+            value: "steam wishlist",
+            icon: <ListChecks />,
+            label: "Wishlist",
+            path: "/steam/wishlist",
+          },
+          {
+            value: "steam achievements trophies",
+            icon: <Trophy />,
+            label: "Achievements",
+            path: "/steam/achievements",
+          },
+          ...(steamAppid
+            ? [
+                {
+                  value: `steam game ${steamAppid} ${steamGameTitle ?? ""}`.trim(),
+                  icon: <Gamepad2 />,
+                  label: steamGameTitle ? `Game: ${steamGameTitle}` : "Game",
+                  path: `/steam/game/${steamAppid}`,
+                },
+              ]
+            : []),
+        ].filter((t) => passesFreeText(t.value))
+      : [];
 
   return (
     <CommandDialog
@@ -439,6 +483,20 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               >
                 {recentIcon(r.kind)}
                 <span>{r.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {showNonMatchGroups && currentTabs.length > 0 && (
+          <CommandGroup heading={currentSlug ? "Current account" : "Current section"}>
+            {currentTabs.map((t) => (
+              <CommandItem
+                key={t.value}
+                value={t.value}
+                onSelect={() => go({ path: t.path, label: t.label, kind: "tab" })}
+              >
+                {t.icon} {t.label}
               </CommandItem>
             ))}
           </CommandGroup>
@@ -513,20 +571,6 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
 
-        {showNonMatchGroups && currentTabs.length > 0 && (
-          <CommandGroup heading="Current account">
-            {currentTabs.map((t) => (
-              <CommandItem
-                key={t.value}
-                value={t.value}
-                onSelect={() => go({ path: t.path, label: t.label, kind: "tab" })}
-              >
-                {t.icon} {t.label}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
         {showNonMatchGroups &&
           currentSlug &&
           parsed.freeText &&
@@ -594,7 +638,10 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
 
-        {currentAccount && !showVerbDestinationsOnly && !hasSteamStructuredVerbs && (
+        {currentAccount &&
+          !showVerbDestinationsOnly &&
+          !hasSteamStructuredVerbs &&
+          (parsed.freeText || hasStructuredVerbs || (allMatches && allMatches.length > 0)) && (
           <CommandGroup heading="Matches">
             {filteredMatches === null ? (
               <>
