@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { MatchDetail } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
@@ -19,11 +19,15 @@ async function fetchMatchDetail(matchId: string): Promise<MatchDetail> {
   return res.json();
 }
 
-export function useMatchDetail(matchId: string) {
-  return useQuery({
+export function matchDetailQueryOptions(matchId: string) {
+  return queryOptions({
     queryKey: ["lol", "match", matchId],
     queryFn: () => fetchMatchDetail(matchId),
     enabled: matchId.length > 0,
     staleTime: Number.POSITIVE_INFINITY,
   });
+}
+
+export function useMatchDetail(matchId: string) {
+  return useQuery(matchDetailQueryOptions(matchId));
 }

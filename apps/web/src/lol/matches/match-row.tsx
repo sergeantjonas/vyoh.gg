@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { Sparkline } from "@/components/ui/sparkline";
+import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
@@ -13,6 +14,8 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
+import { matchDetailQueryOptions } from "@/lol/matches/use-match-detail";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type MatchSummary, formatDuration, formatLpDelta } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
@@ -53,6 +56,10 @@ export function MatchRow({
   const championName = useChampionName();
   const reduced = useReducedMotion();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const prefetch = useHoverPrefetch(() => {
+    queryClient.prefetchQuery(matchDetailQueryOptions(match.matchId));
+  });
   const cardRef = useRef<HTMLDivElement>(null);
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef.
@@ -119,7 +126,10 @@ export function MatchRow({
             to="/lol/$accountSlug/matches/$matchId"
             params={{ accountSlug, matchId: match.matchId }}
             onMouseEnter={() => onCardHover?.(match.champion)}
+            onPointerEnter={prefetch.onPointerEnter}
+            onPointerLeave={prefetch.onPointerLeave}
             onPointerDown={() => {
+              prefetch.onPointerDown();
               saveListScroll();
               setActiveMatch(match.matchId);
               if (supportsViewTransitions()) return;

@@ -1,8 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import { type ReactNode, useLayoutEffect } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveMatchProvider, useActiveMatch } from "./active-match-context";
 import { MatchRow } from "./match-row";
 
@@ -68,23 +69,33 @@ function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
   };
 }
 
+function newQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
 function renderRow(props: {
   match: MatchSummary;
   lpDelta?: number;
   isNew?: boolean;
+  queryClient?: QueryClient;
 }) {
+  const qc = props.queryClient ?? newQueryClient();
   return render(
-    <MotionConfig reducedMotion="always">
-      <ActiveMatchProvider>
-        <MatchRow
-          match={props.match}
-          accountSlug="jonas-euw"
-          championDisplayName="Ahri"
-          {...(props.lpDelta !== undefined && { lpDelta: props.lpDelta })}
-          {...(props.isNew !== undefined && { isNew: props.isNew })}
-        />
-      </ActiveMatchProvider>
-    </MotionConfig>
+    <QueryClientProvider client={qc}>
+      <MotionConfig reducedMotion="always">
+        <ActiveMatchProvider>
+          <MatchRow
+            match={props.match}
+            accountSlug="jonas-euw"
+            championDisplayName="Ahri"
+            {...(props.lpDelta !== undefined && { lpDelta: props.lpDelta })}
+            {...(props.isNew !== undefined && { isNew: props.isNew })}
+          />
+        </ActiveMatchProvider>
+      </MotionConfig>
+    </QueryClientProvider>
   );
 }
 
@@ -221,17 +232,20 @@ describe("MatchRow", () => {
       observed.current = useActiveMatch();
       return null;
     }
+    const qc = newQueryClient();
     const { container } = render(
-      <MotionConfig reducedMotion="always">
-        <ActiveMatchProvider>
-          <Probe />
-          <MatchRow
-            match={summary({ matchId: "EUW1_PD" })}
-            accountSlug="jonas-euw"
-            championDisplayName="Ahri"
-          />
-        </ActiveMatchProvider>
-      </MotionConfig>
+      <QueryClientProvider client={qc}>
+        <MotionConfig reducedMotion="always">
+          <ActiveMatchProvider>
+            <Probe />
+            <MatchRow
+              match={summary({ matchId: "EUW1_PD" })}
+              accountSlug="jonas-euw"
+              championDisplayName="Ahri"
+            />
+          </ActiveMatchProvider>
+        </MotionConfig>
+      </QueryClientProvider>
     );
     const links = container.querySelectorAll("a");
     const detail = links[1];
@@ -241,6 +255,56 @@ describe("MatchRow", () => {
     const origin = observed.current?.originRectRef.current;
     expect(origin?.matchId).toBe("EUW1_PD");
     expect(origin?.direction).toBe("forward");
+  });
+
+  describe("hover prefetch", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("calls prefetchQuery with the match-detail key 150ms after pointer enter", () => {
+      const qc = newQueryClient();
+      const spy = vi
+        .spyOn(qc, "prefetchQuery")
+        .mockImplementation(() => Promise.resolve());
+      const { container } = renderRow({
+        match: summary({ matchId: "EUW1_HOVER" }),
+        queryClient: qc,
+      });
+      const detail = container.querySelectorAll("a")[1];
+      if (!detail) throw new Error("detail link not rendered");
+
+      fireEvent.pointerEnter(detail);
+      vi.advanceTimersByTime(149);
+      expect(spy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual(["lol", "match", "EUW1_HOVER"]);
+    });
+
+    it("does not call prefetchQuery if the pointer leaves before 150ms", () => {
+      const qc = newQueryClient();
+      const spy = vi
+        .spyOn(qc, "prefetchQuery")
+        .mockImplementation(() => Promise.resolve());
+      const { container } = renderRow({
+        match: summary({ matchId: "EUW1_LEAVE" }),
+        queryClient: qc,
+      });
+      const detail = container.querySelectorAll("a")[1];
+      if (!detail) throw new Error("detail link not rendered");
+
+      fireEvent.pointerEnter(detail);
+      vi.advanceTimersByTime(100);
+      fireEvent.pointerLeave(detail);
+      vi.advanceTimersByTime(500);
+
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -279,12 +343,18 @@ describe("MatchRow return animation", () => {
     try {
       const match = summary({ matchId: "EUW1_BACK" });
       render(
-        <MotionConfig reducedMotion="never">
-          <ActiveMatchProvider>
-            <BackwardPrimer matchId={match.matchId} />
-            <MatchRow match={match} accountSlug="jonas-euw" championDisplayName="Ahri" />
-          </ActiveMatchProvider>
-        </MotionConfig>
+        <QueryClientProvider client={newQueryClient()}>
+          <MotionConfig reducedMotion="never">
+            <ActiveMatchProvider>
+              <BackwardPrimer matchId={match.matchId} />
+              <MatchRow
+                match={match}
+                accountSlug="jonas-euw"
+                championDisplayName="Ahri"
+              />
+            </ActiveMatchProvider>
+          </MotionConfig>
+        </QueryClientProvider>
       );
       expect(animate).toHaveBeenCalled();
     } finally {
@@ -304,12 +374,18 @@ describe("MatchRow return animation", () => {
     try {
       const match = summary({ matchId: "EUW1_BACK_UNMOUNT" });
       const { unmount } = render(
-        <MotionConfig reducedMotion="never">
-          <ActiveMatchProvider>
-            <BackwardPrimer matchId={match.matchId} />
-            <MatchRow match={match} accountSlug="jonas-euw" championDisplayName="Ahri" />
-          </ActiveMatchProvider>
-        </MotionConfig>
+        <QueryClientProvider client={newQueryClient()}>
+          <MotionConfig reducedMotion="never">
+            <ActiveMatchProvider>
+              <BackwardPrimer matchId={match.matchId} />
+              <MatchRow
+                match={match}
+                accountSlug="jonas-euw"
+                championDisplayName="Ahri"
+              />
+            </ActiveMatchProvider>
+          </MotionConfig>
+        </QueryClientProvider>
       );
       unmount();
       expect(cancel).toHaveBeenCalledWith(99);
