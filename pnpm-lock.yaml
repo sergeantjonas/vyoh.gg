@@ -241,6 +241,9 @@ importers:
       shadcn:
         specifier: ^4.7.0
         version: 4.7.0(@types/node@24.12.2)(typescript@6.0.3)
+      shaka-player:
+        specifier: ^5.1.6
+        version: 5.1.6
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -5837,6 +5840,10 @@ packages:
   shadcn@4.7.0:
     resolution: {integrity: sha512-70fwnesNrY1GgeD7Kdzn+3SsYeyfibm8immsA5L68+OusoPTvYF01oWExl8/latKpMpvVXcbgdbbE6VFBJQ38w==}
     hasBin: true
+
+  shaka-player@5.1.6:
+    resolution: {integrity: sha512-c+VRH/7lEylYH/pquAJQWWW17gF7/aS60qpQRvuj00rxtrBhdUFAvK6RY0SAJjfLWO9G4AUVPjU5Cg9+Rbgfhw==}
+    engines: {node: '>=18'}
 
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
@@ -12168,6 +12175,8 @@ snapshots:
       - babel-plugin-macros
       - supports-color
       - typescript
+
+  shaka-player@5.1.6: {}
 
   sharp@0.34.5:
     dependencies:
