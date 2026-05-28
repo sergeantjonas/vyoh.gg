@@ -18,7 +18,7 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
-import { LazyMotion, domMax } from "motion/react";
+import { LazyMotion, MotionConfig, domMax } from "motion/react";
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { getNavigationType } from "./lib/navigation-type";
@@ -116,7 +116,14 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <LazyMotion features={domMax}>
-        <RouterProvider router={router} />
+        {/* reducedMotion="user" drops transform + layout animations under the OS
+            preference while leaving opacity/color animations intact — the
+            "replace, don't disable" principle as a single switch. Surface-level
+            useReducedMotion() calls (orb mark, splash drift, card tilt, count-up)
+            still apply on top for finer-grained replacements. */}
+        <MotionConfig reducedMotion="user">
+          <RouterProvider router={router} />
+        </MotionConfig>
       </LazyMotion>
       <Suspense fallback={null}>
         <Toaster theme="dark" richColors position="bottom-right" />

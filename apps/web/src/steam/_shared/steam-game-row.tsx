@@ -164,6 +164,7 @@ export function SteamGameRowShell({
           edge across the row. */}
       <div
         aria-hidden
+        data-sheen
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/row:opacity-100 group-hover/row:[--sheen-extent:42%]"
       />
 

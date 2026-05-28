@@ -241,6 +241,20 @@ p {
   .steam-library:has(.library-tile:hover) .library-tile:not(:hover) {
     transition: none;
   }
+
+  /* Steam-style anchored sheen: gradient stops pinned at midpoint with no
+     hover sweep. Replaces the 900ms transition + 25%↔42% --sheen-extent
+     animation across library tile, achievement tile, and library row. The
+     sheen stays visible (the gradient layer still renders) but doesn't
+     translate any falloff edge on hover. */
+  [data-sheen] {
+    transition: none !important;
+    --sheen-extent: 33%;
+  }
+  .group\/tile:hover [data-sheen],
+  .group\/row:hover [data-sheen] {
+    --sheen-extent: 33%;
+  }
 }
 
 [cmdk-input] {
