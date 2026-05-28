@@ -1,6 +1,6 @@
 // Baseline: personal — your first-blood-game WR vs your overall WR (NOT a role-population baseline).
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 5;
@@ -16,10 +16,8 @@ function ConversionBars({
   totalGames: number;
   totalWins: number;
 }) {
-  const fbWr = fbCount === 0 ? 0 : fbWins / fbCount;
-  const overallWr = totalGames === 0 ? 0 : totalWins / totalGames;
-  const fbPct = Math.round(fbWr * 100);
-  const overallPct = Math.round(overallWr * 100);
+  const fbPct = formatPercent(fbCount === 0 ? 0 : fbWins / fbCount);
+  const overallPct = formatPercent(totalGames === 0 ? 0 : totalWins / totalGames);
 
   return (
     <div className="flex flex-col gap-2 text-xs">
@@ -29,11 +27,11 @@ function ConversionBars({
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted/30">
             <div
               className="h-full rounded-full bg-amber-500/70 transition-[width] duration-500"
-              style={{ width: `${fbPct}%` }}
+              style={{ width: fbPct }}
             />
           </div>
           <span className="w-8 tabular-nums text-right text-muted-foreground">
-            {fbPct}%
+            {fbPct}
           </span>
         </div>
       </div>
@@ -43,11 +41,11 @@ function ConversionBars({
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted/30">
             <div
               className="h-full rounded-full bg-foreground/30 transition-[width] duration-500"
-              style={{ width: `${overallPct}%` }}
+              style={{ width: overallPct }}
             />
           </div>
           <span className="w-8 tabular-nums text-right text-muted-foreground">
-            {overallPct}%
+            {overallPct}
           </span>
         </div>
       </div>

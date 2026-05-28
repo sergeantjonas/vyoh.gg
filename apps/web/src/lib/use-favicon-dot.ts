@@ -1,5 +1,5 @@
-import type { LiveMatch, SteamPlayerState } from "@vyoh/shared";
 import { useQueryClient } from "@tanstack/react-query";
+import type { LiveMatch, SteamPlayerState } from "@vyoh/shared";
 import { useEffect, useRef } from "react";
 
 const FAVICON_DEFAULT = "/vyoh-orb-favicon.svg";
@@ -61,7 +61,10 @@ export function useFaviconDot() {
 
   useEffect(() => {
     function isCurrentlyLive(): boolean {
-      const playerState = queryClient.getQueryData<SteamPlayerState>(["steam", "player-state"]);
+      const playerState = queryClient.getQueryData<SteamPlayerState>([
+        "steam",
+        "player-state",
+      ]);
       if (playerState?.currentGame != null) return true;
       const lolQueries = queryClient.getQueriesData<LiveMatch | null>({
         queryKey: ["lol", "live"],

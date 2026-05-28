@@ -1,6 +1,6 @@
 import { CardShell } from "@/components/card-shell";
-import { formatPercent } from "@vyoh/shared";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { formatPercent } from "@vyoh/shared";
 import { useGameAchievements } from "./use-game-achievements";
 
 const TOOLTIP_CONTENT_CLASS =
@@ -88,7 +88,8 @@ export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
               sideOffset={4}
               className={TOOLTIP_CONTENT_CLASS}
             >
-              Your completion: {unlocked} of {total} achievements unlocked ({formatPercent(pct)}).
+              Your completion: {unlocked} of {total} achievements unlocked (
+              {formatPercent(pct)}).
             </TooltipPrimitive.Content>
           </TooltipPrimitive.Portal>
         </TooltipPrimitive.Root>

@@ -1,5 +1,9 @@
 import type { CompositeRead } from "@/lol/profile/pregame-composite";
-import { formatPercent, type CalibrationStats, MIN_CALIBRATION_SAMPLE } from "@vyoh/shared";
+import {
+  type CalibrationStats,
+  MIN_CALIBRATION_SAMPLE,
+  formatPercent,
+} from "@vyoh/shared";
 
 export {
   MIN_CALIBRATION_SAMPLE,

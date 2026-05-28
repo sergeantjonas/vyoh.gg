@@ -1,6 +1,6 @@
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 

@@ -1,7 +1,7 @@
 // Baseline: personal — your WR by game-position-within-session.
 import { cn } from "@/lib/utils";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const SESSION_GAP_MS = 30 * 60 * 1000;

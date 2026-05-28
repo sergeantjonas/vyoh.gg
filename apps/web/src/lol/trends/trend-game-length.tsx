@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { GameLengthBucket } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 function barColor(wr: number): string {

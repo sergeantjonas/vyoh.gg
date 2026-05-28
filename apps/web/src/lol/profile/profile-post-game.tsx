@@ -12,7 +12,7 @@ import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { useNewMatchNotice } from "@/lol/profile/use-new-match-notice";
 import { Link } from "@tanstack/react-router";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 

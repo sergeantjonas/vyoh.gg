@@ -641,65 +641,67 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
         {currentAccount &&
           !showVerbDestinationsOnly &&
           !hasSteamStructuredVerbs &&
-          (parsed.freeText || hasStructuredVerbs || (allMatches && allMatches.length > 0)) && (
-          <CommandGroup heading="Matches">
-            {filteredMatches === null ? (
-              <>
-                <CommandItem disabled value="matches-not-loaded">
-                  <Swords className="size-4" />
-                  <span className="text-muted-foreground">
-                    Match history not loaded yet
-                  </span>
-                </CommandItem>
-                <CommandItem
-                  value="load matches history"
-                  onSelect={handleLoadMatches}
-                  disabled={loadingMatches}
-                >
-                  {loadingMatches ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <History className="size-4" />
-                  )}
-                  Load matches
-                </CommandItem>
-              </>
-            ) : (
-              filteredMatches.slice(0, 8).map((match) => (
-                <CommandItem
-                  key={match.matchId}
-                  value={`match:${match.matchId} ${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
-                  onSelect={() =>
-                    go({
-                      path: `/lol/${currentSlug}/matches/${match.matchId}`,
-                      label: `${championName(match.champion)} ${match.kills}/${match.deaths}/${match.assists} ${match.queueType}`,
-                      kind: "match",
-                    })
-                  }
-                >
-                  <span
-                    className={cn(
-                      "size-2 shrink-0 rounded-full",
-                      match.win ? "bg-emerald-400" : "bg-rose-400"
-                    )}
-                    aria-hidden
-                  />
-                  <Swords className="size-4 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">
-                    {championName(match.champion)}
-                  </span>
-                  <span className="ml-2 flex shrink-0 gap-3 text-xs text-muted-foreground">
-                    <span>
-                      {match.kills}/{match.deaths}/{match.assists}
+          (parsed.freeText ||
+            hasStructuredVerbs ||
+            (allMatches && allMatches.length > 0)) && (
+            <CommandGroup heading="Matches">
+              {filteredMatches === null ? (
+                <>
+                  <CommandItem disabled value="matches-not-loaded">
+                    <Swords className="size-4" />
+                    <span className="text-muted-foreground">
+                      Match history not loaded yet
                     </span>
-                    <span>{match.queueType}</span>
-                    <span>{relativeTime(match.playedAt)}</span>
-                  </span>
-                </CommandItem>
-              ))
-            )}
-          </CommandGroup>
-        )}
+                  </CommandItem>
+                  <CommandItem
+                    value="load matches history"
+                    onSelect={handleLoadMatches}
+                    disabled={loadingMatches}
+                  >
+                    {loadingMatches ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <History className="size-4" />
+                    )}
+                    Load matches
+                  </CommandItem>
+                </>
+              ) : (
+                filteredMatches.slice(0, 8).map((match) => (
+                  <CommandItem
+                    key={match.matchId}
+                    value={`match:${match.matchId} ${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
+                    onSelect={() =>
+                      go({
+                        path: `/lol/${currentSlug}/matches/${match.matchId}`,
+                        label: `${championName(match.champion)} ${match.kills}/${match.deaths}/${match.assists} ${match.queueType}`,
+                        kind: "match",
+                      })
+                    }
+                  >
+                    <span
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        match.win ? "bg-emerald-400" : "bg-rose-400"
+                      )}
+                      aria-hidden
+                    />
+                    <Swords className="size-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {championName(match.champion)}
+                    </span>
+                    <span className="ml-2 flex shrink-0 gap-3 text-xs text-muted-foreground">
+                      <span>
+                        {match.kills}/{match.deaths}/{match.assists}
+                      </span>
+                      <span>{match.queueType}</span>
+                      <span>{relativeTime(match.playedAt)}</span>
+                    </span>
+                  </CommandItem>
+                ))
+              )}
+            </CommandGroup>
+          )}
       </CommandList>
       <CommandPalettePreview value={highlighted} matches={allMatches} />
       <div className="flex items-center justify-end border-t px-3 py-2 text-xs text-muted-foreground">

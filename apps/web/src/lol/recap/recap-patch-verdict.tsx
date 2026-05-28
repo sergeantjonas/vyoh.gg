@@ -1,6 +1,6 @@
 // Baseline: personal — per-patch WR from your own games; surfaces the best and worst patch with min-sample.
 import { groupByPatch } from "@/lol/_shared/patch/patch-version";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 

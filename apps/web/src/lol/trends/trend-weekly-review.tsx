@@ -2,7 +2,7 @@
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HabitsStats } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

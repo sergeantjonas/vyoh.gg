@@ -2,7 +2,7 @@
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
