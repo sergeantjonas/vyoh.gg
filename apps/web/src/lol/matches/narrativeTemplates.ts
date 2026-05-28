@@ -1,3 +1,5 @@
+import { formatPercent } from "@vyoh/shared";
+
 export type NarrativeTone = "positive" | "neutral" | "warning";
 
 export type NarrativeSentence = {
@@ -20,17 +22,17 @@ export function getTimeDeadSentence(
   if (!baselineSec) return null;
   const rel = (thisGameSec - baselineSec) / baselineSec;
   const fmt = fmtSec(Math.round(thisGameSec));
-  const pct = Math.round(Math.abs(rel) * 100);
+  const pct = formatPercent(Math.abs(rel));
 
   if (rel < -0.2) {
     return {
-      text: `You spent ${fmt} dead — ${pct}% below your baseline. Clean on survival.`,
+      text: `You spent ${fmt} dead — ${pct} below your baseline. Clean on survival.`,
       tone: "positive",
     };
   }
   if (rel > 0.2) {
     return {
-      text: `You spent ${fmt} dead — ${pct}% above your baseline. Deaths were costly.`,
+      text: `You spent ${fmt} dead — ${pct} above your baseline. Deaths were costly.`,
       tone: "warning",
     };
   }

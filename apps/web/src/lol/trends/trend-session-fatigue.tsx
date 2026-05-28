@@ -1,7 +1,7 @@
 // Baseline: personal — your WR by game-position-within-session.
 import { cn } from "@/lib/utils";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const SESSION_GAP_MS = 30 * 60 * 1000;
@@ -189,14 +189,14 @@ export function TrendSessionFatigue({
   }
 
   const { buckets, g1Wr, g4Wr, dropPp, sampleSize } = stats;
-  const g1Pct = Math.round(g1Wr * 100);
-  const g4Pct = Math.round(g4Wr * 100);
+  const g1Pct = formatPercent(g1Wr);
+  const g4Pct = formatPercent(g4Wr);
 
   const hasFatigue = dropPp >= PRESCRIPTION_THRESHOLD_PP;
 
   const verdict = hasFatigue
-    ? `Win rate drops to ${g4Pct}% from game 4 onward — down from ${g1Pct}% at game 1.`
-    : `Win rate holds at ${g4Pct}% in game 4+ — no clear fatigue pattern.`;
+    ? `Win rate drops to ${g4Pct} from game 4 onward — down from ${g1Pct} at game 1.`
+    : `Win rate holds at ${g4Pct} in game 4+ — no clear fatigue pattern.`;
 
   const prescription = hasFatigue ? "Three-game cap?" : undefined;
 

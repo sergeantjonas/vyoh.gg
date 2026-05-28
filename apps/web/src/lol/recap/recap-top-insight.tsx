@@ -1,6 +1,6 @@
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -92,10 +92,10 @@ function hourInsight(matches: MatchSummary[]): Insight | null {
   const deltaPp = Math.round((bestSlot.wr - overallWr) * 100);
   if (deltaPp < 10) return null;
   const dayLabel = DAY_LABELS[bestSlot.day] ?? "?";
-  const wrPct = Math.round(bestSlot.wr * 100);
+  const wrPct = formatPercent(bestSlot.wr);
   return {
     kind: "hour",
-    headline: `Your strongest slot is ${dayLabel} ${bestSlot.hour}:00 — ${wrPct}% WR.`,
+    headline: `Your strongest slot is ${dayLabel} ${bestSlot.hour}:00 — ${wrPct} WR.`,
     detail: `${bestSlot.games} games at this hour, +${deltaPp}% above your average.`,
     weight: deltaPp + 5,
   };

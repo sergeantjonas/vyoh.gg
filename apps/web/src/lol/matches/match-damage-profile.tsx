@@ -1,4 +1,5 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { formatPercent } from "@vyoh/shared";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -46,10 +47,10 @@ export function MatchDamageProfile({
 
   const dominant =
     physical >= magic && physical >= trueDmg
-      ? { label: "phys", share: dealt > 0 ? Math.round((physical / dealt) * 100) : 0 }
+      ? { label: "phys", share: dealt > 0 ? formatPercent(physical / dealt) : "0%" }
       : magic >= trueDmg
-        ? { label: "magic", share: dealt > 0 ? Math.round((magic / dealt) * 100) : 0 }
-        : { label: "true", share: dealt > 0 ? Math.round((trueDmg / dealt) * 100) : 0 };
+        ? { label: "magic", share: dealt > 0 ? formatPercent(magic / dealt) : "0%" }
+        : { label: "true", share: dealt > 0 ? formatPercent(trueDmg / dealt) : "0%" };
 
   return (
     <m.section
@@ -66,7 +67,7 @@ export function MatchDamageProfile({
             <div className="flex items-center gap-1 font-mono text-xs tabular-nums">
               <span>{fmtK(dealt)}</span>
               <span className="text-muted-foreground">
-                ({dominant.share}% {dominant.label})
+                ({dominant.share} {dominant.label})
               </span>
             </div>
           </div>

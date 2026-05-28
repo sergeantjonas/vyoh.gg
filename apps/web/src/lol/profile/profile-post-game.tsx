@@ -12,7 +12,7 @@ import { type RitualSignal, SignalTile } from "@/lol/profile/ritual-tile";
 import { computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { useNewMatchNotice } from "@/lol/profile/use-new-match-notice";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -95,17 +95,10 @@ function buildBaselineSignal({ last }: PostGameInput): RitualSignal {
   type Pick = {
     key: "damage" | "vision";
     delta: number;
-    pct: number;
-    actualPct?: number;
   };
   const candidates: Pick[] = [
-    {
-      key: "damage",
-      delta: dmgDelta,
-      pct: Math.round(dmgDelta * 100),
-      actualPct: Math.round(last.damageShare * 100),
-    },
-    { key: "vision", delta: visionDelta, pct: Math.round(visionDelta * 100) },
+    { key: "damage", delta: dmgDelta },
+    { key: "vision", delta: visionDelta },
   ];
   candidates.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
   const top = candidates[0];
@@ -122,17 +115,17 @@ function buildBaselineSignal({ last }: PostGameInput): RitualSignal {
   const tone: RitualSignal["tone"] = top.delta >= 0 ? "positive" : "warning";
   let verdict: string;
   if (top.key === "damage") {
-    verdict = `Damage share ${sign}${top.pct}% ${direction} the ${ROLE_LABEL[role].toLowerCase()} norm.`;
+    verdict = `Damage share ${sign}${formatPercent(Math.abs(top.delta))} ${direction} the ${ROLE_LABEL[role].toLowerCase()} norm.`;
   } else {
-    verdict = `Vision ${sign}${top.pct}% ${direction} the ${ROLE_LABEL[role].toLowerCase()} norm.`;
+    verdict = `Vision ${sign}${formatPercent(Math.abs(top.delta))} ${direction} the ${ROLE_LABEL[role].toLowerCase()} norm.`;
   }
   return {
     id: "baseline",
     label: "Performance",
     verdict,
     detail:
-      top.key === "damage" && top.actualPct !== undefined
-        ? `${top.actualPct}% of team damage`
+      top.key === "damage"
+        ? `${formatPercent(last.damageShare)} of team damage`
         : top.key === "vision"
           ? `${last.visionScore} vision score`
           : undefined,
@@ -163,18 +156,18 @@ function buildTiltForecastSignal({ last, history }: PostGameInput): RitualSignal
     excludeRemakes(history).filter((m) => m.win).length /
     Math.max(1, excludeRemakes(history).length);
   const wr = bucket.wins / bucket.games;
-  const pct = Math.round(wr * 100);
+  const pct = formatPercent(wr);
   const delta = wr - overallWr;
   let tone: RitualSignal["tone"] = "neutral";
   let verdict: string;
   if (delta >= TILT_DELTA) {
     tone = "positive";
-    verdict = `You historically win ${pct}% after a ${last.win ? "win" : "loss"} — ride it.`;
+    verdict = `You historically win ${pct} after a ${last.win ? "win" : "loss"} — ride it.`;
   } else if (delta <= -TILT_DELTA) {
     tone = "warning";
-    verdict = `You only win ${pct}% after a ${last.win ? "win" : "loss"} — consider stepping away.`;
+    verdict = `You only win ${pct} after a ${last.win ? "win" : "loss"} — consider stepping away.`;
   } else {
-    verdict = `${pct}% historical WR after a ${last.win ? "win" : "loss"}.`;
+    verdict = `${pct} historical WR after a ${last.win ? "win" : "loss"}.`;
   }
   return {
     id: "tilt",

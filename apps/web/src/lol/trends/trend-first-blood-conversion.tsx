@@ -1,6 +1,6 @@
 // Baseline: personal — your first-blood-game WR vs your overall WR (NOT a role-population baseline).
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_SAMPLE = 5;
@@ -106,15 +106,15 @@ export function TrendFirstBloodConversion({
   const fbWr = stats.fbWins / stats.fbCount;
   const overallWr = stats.totalWins / stats.totalGames;
   const deltaPp = Math.round((fbWr - overallWr) * 100);
-  const fbPct = Math.round(fbWr * 100);
+  const fbPct = formatPercent(fbWr);
 
   let verdict: string;
   if (Math.abs(deltaPp) < 4) {
     verdict = `${stats.fbWins}/${stats.fbCount} first bloods — wins close to your overall rate.`;
   } else if (deltaPp > 0) {
-    verdict = `${stats.fbWins}/${stats.fbCount} first bloods — ${fbPct}% WR, ${deltaPp}% above overall.`;
+    verdict = `${stats.fbWins}/${stats.fbCount} first bloods — ${fbPct} WR, ${deltaPp}% above overall.`;
   } else {
-    verdict = `${stats.fbWins}/${stats.fbCount} first bloods — ${fbPct}% WR, ${Math.abs(deltaPp)}% below overall.`;
+    verdict = `${stats.fbWins}/${stats.fbCount} first bloods — ${fbPct} WR, ${Math.abs(deltaPp)}% below overall.`;
   }
 
   // Negative-delta prescription only — first-blood matches *should* lift WR.

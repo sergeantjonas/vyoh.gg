@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { GameLengthBucket } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 function barColor(wr: number): string {
@@ -18,7 +18,7 @@ function GameLengthBars({ buckets }: { buckets: GameLengthBucket[] }) {
     <div className="flex flex-col gap-2 text-xs">
       {buckets.map((b) => {
         const wr = b.games > 0 ? b.wins / b.games : 0;
-        const pct = Math.round(wr * 100);
+        const pct = formatPercent(wr);
         return (
           <div key={b.label} className="flex items-center gap-2">
             <span className="w-20 shrink-0 text-muted-foreground">{b.label}</span>
@@ -35,7 +35,7 @@ function GameLengthBars({ buckets }: { buckets: GameLengthBucket[] }) {
                 )}
               </div>
               <span className="w-8 tabular-nums text-right text-muted-foreground">
-                {b.games > 0 ? `${pct}%` : "—"}
+                {b.games > 0 ? pct : "—"}
               </span>
             </div>
           </div>
@@ -85,7 +85,7 @@ export function TrendGameLength({
   }
 
   const sampleSize = buckets.reduce((s, b) => s + b.games, 0);
-  const verdict = `You're strongest in ${best.label} games — ${Math.round((best.wins / best.games) * 100)}% WR over ${best.games} games.`;
+  const verdict = `You're strongest in ${best.label} games — ${formatPercent(best.wins / best.games)} WR over ${best.games} games.`;
 
   const longBucket = buckets.find((b) => b.label === "Over 35m");
   const prescription =

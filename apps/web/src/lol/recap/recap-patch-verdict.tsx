@@ -1,6 +1,6 @@
 // Baseline: personal — per-patch WR from your own games; surfaces the best and worst patch with min-sample.
 import { groupByPatch } from "@/lol/_shared/patch/patch-version";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -60,9 +60,6 @@ export function RecapPatchVerdict({ matches }: { matches: MatchSummary[] | undef
     );
   }
 
-  const bestPct = Math.round(verdict.best.wr * 100);
-  const worstPct = Math.round(verdict.worst.wr * 100);
-
   return (
     <m.section
       layout
@@ -79,14 +76,14 @@ export function RecapPatchVerdict({ matches }: { matches: MatchSummary[] | undef
         <PatchTile
           label="Best patch"
           patch={verdict.best.patch}
-          wr={bestPct}
+          wr={formatPercent(verdict.best.wr)}
           games={verdict.best.games}
           tone="up"
         />
         <PatchTile
           label="Worst patch"
           patch={verdict.worst.patch}
-          wr={worstPct}
+          wr={formatPercent(verdict.worst.wr)}
           games={verdict.worst.games}
           tone="down"
         />
@@ -104,7 +101,7 @@ function PatchTile({
 }: {
   label: string;
   patch: string;
-  wr: number;
+  wr: string;
   games: number;
   tone: "up" | "down";
 }) {
@@ -118,7 +115,7 @@ function PatchTile({
         <span className="text-2xl font-semibold tabular-nums text-foreground/90">
           {patch}
         </span>
-        <span className={`text-base font-medium tabular-nums ${accent}`}>{wr}%</span>
+        <span className={`text-base font-medium tabular-nums ${accent}`}>{wr}</span>
       </div>
       <div className="text-xs text-muted-foreground/70">{games} games</div>
     </div>

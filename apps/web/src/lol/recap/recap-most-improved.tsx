@@ -2,7 +2,7 @@
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -93,8 +93,8 @@ export function RecapMostImproved({
     );
   }
 
-  const earlyPct = Math.round(best.earlyWr * 100);
-  const recentPct = Math.round(best.recentWr * 100);
+  const earlyPct = formatPercent(best.earlyWr);
+  const recentPct = formatPercent(best.recentWr);
 
   return (
     <m.section
@@ -125,7 +125,7 @@ export function RecapMostImproved({
             {championName(best.champion)}
           </p>
           <p className="text-sm text-muted-foreground">
-            {earlyPct}% → {recentPct}% win rate · +{best.deltaPp}% in the recent half
+            {earlyPct} → {recentPct} win rate · +{best.deltaPp}% in the recent half
           </p>
         </div>
       </div>

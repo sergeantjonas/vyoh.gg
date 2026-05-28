@@ -1,5 +1,5 @@
 import type { CompositeRead } from "@/lol/profile/pregame-composite";
-import { type CalibrationStats, MIN_CALIBRATION_SAMPLE } from "@vyoh/shared";
+import { formatPercent, type CalibrationStats, MIN_CALIBRATION_SAMPLE } from "@vyoh/shared";
 
 export {
   MIN_CALIBRATION_SAMPLE,
@@ -22,9 +22,9 @@ export function calibrateConfidence(
 ): CalibratedConfidence {
   if (composite.empty) return { text: "", source: "heuristic" };
   if (calibration.n >= MIN_CALIBRATION_SAMPLE) {
-    const pct = Math.round(calibration.directionalAccuracy * 100);
+    const pct = formatPercent(calibration.directionalAccuracy);
     return {
-      text: `Directionally right ${pct}% on your last ${calibration.n} ranked games.`,
+      text: `Directionally right ${pct} on your last ${calibration.n} ranked games.`,
       source: "calibration",
     };
   }

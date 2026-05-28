@@ -2,7 +2,7 @@
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HabitsStats } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -17,14 +17,14 @@ function pickInsights(stats: HabitsStats): string[] {
     const wrLoss = afterLoss.wins / afterLoss.games;
     const diff = Math.abs(wrWin - wrLoss);
     if (diff >= 0.08) {
-      const pW = Math.round(wrWin * 100);
-      const pL = Math.round(wrLoss * 100);
+      const pW = formatPercent(wrWin);
+      const pL = formatPercent(wrLoss);
       insights.push({
         score: diff,
         text:
           wrWin > wrLoss
-            ? `${pW}% WR after a win vs ${pL}% after a loss — momentum carries.`
-            : `${pW}% WR after a win vs ${pL}% after a loss — fresh sessions seem to help.`,
+            ? `${pW} WR after a win vs ${pL} after a loss — momentum carries.`
+            : `${pW} WR after a win vs ${pL} after a loss — fresh sessions seem to help.`,
       });
     }
   }
@@ -40,10 +40,10 @@ function pickInsights(stats: HabitsStats): string[] {
     if (best && worst) {
       const spread = best.wins / best.games - worst.wins / worst.games;
       if (spread >= 0.12) {
-        const pBest = Math.round((best.wins / best.games) * 100);
+        const pBest = formatPercent(best.wins / best.games);
         insights.push({
           score: spread,
-          text: `${best.label} is your strongest — ${pBest}% WR over ${best.games} games.`,
+          text: `${best.label} is your strongest — ${pBest} WR over ${best.games} games.`,
         });
       }
     }
@@ -58,10 +58,10 @@ function pickInsights(stats: HabitsStats): string[] {
     const slotWR = bestHotspot.wins / bestHotspot.games;
     const margin = slotWR - stats.overallWinRate;
     if (margin >= 0.15) {
-      const pct = Math.round(slotWR * 100);
+      const pct = formatPercent(slotWR);
       insights.push({
         score: margin,
-        text: `${DAY_LABELS[bestHotspot.day]} around ${bestHotspot.hour}:00 is a strong slot — ${pct}% WR over ${bestHotspot.games} games.`,
+        text: `${DAY_LABELS[bestHotspot.day]} around ${bestHotspot.hour}:00 is a strong slot — ${pct} WR over ${bestHotspot.games} games.`,
       });
     }
   }
