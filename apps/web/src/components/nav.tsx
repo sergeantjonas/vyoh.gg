@@ -10,12 +10,17 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { useMe } from "@/identity/use-me";
+import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
+import { prefetchCachedMatches } from "@/lol/matches/use-matches";
+import { patchListQueryOptions } from "@/lol/patches/use-patch-list";
+import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { LolAccountWithSummary } from "@vyoh/shared";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
@@ -58,7 +63,11 @@ export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { setOpen } = useCommandPalette();
   const me = useMe();
+  const queryClient = useQueryClient();
   const accounts: readonly NavLolAccount[] = me.data?.lol ?? [];
+  const prefetchSteamLibrary = () => {
+    queryClient.prefetchQuery(steamOwnedGamesQueryOptions());
+  };
   // Pre-fill `?as=<slug>` from the viewer's default LoL account so
   // "Patches" lands on the personalized lens by default. Falls through to
   // the neutral global view when no default account is available.
@@ -152,6 +161,7 @@ export function Nav() {
               label="Steam"
               Icon={SteamIcon}
               pathname={pathname}
+              prefetch={prefetchSteamLibrary}
             />
             <SimpleNavItem
               to="/status"
@@ -188,23 +198,38 @@ export function Nav() {
   );
 }
 
+const noop = () => {};
+
+// Faster hover threshold for nav links than for in-content tiles — nav clicks
+// are higher-intent, so 100ms still filters cursor drift but doesn't make the
+// click wait noticeably longer than a 150ms tile threshold would.
+const NAV_PREFETCH_DELAY_MS = 100;
+
 function SimpleNavItem({
   to,
   label,
   Icon,
   pathname,
+  prefetch,
 }: {
   to: string;
   label: string;
   Icon: IconComponent;
   pathname: string;
+  prefetch?: () => void;
 }) {
   const active = isItemActive(pathname, to);
+  const prefetchHandlers = useHoverPrefetch(prefetch ?? noop, {
+    delay: NAV_PREFETCH_DELAY_MS,
+  });
   return (
     <NavigationMenuItem>
       <NavigationMenuLink asChild active={active}>
         <Link
           to={to}
+          onPointerEnter={prefetchHandlers.onPointerEnter}
+          onPointerLeave={prefetchHandlers.onPointerLeave}
+          onPointerDown={prefetchHandlers.onPointerDown}
           className={cn(
             "relative flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors data-active:bg-transparent data-active:focus:bg-transparent data-active:hover:bg-transparent",
             active
@@ -236,6 +261,13 @@ function LolMenuPanel({
   pathname: string;
 }) {
   const patchesActive = isItemActive(pathname, "/lol/patches");
+  const queryClient = useQueryClient();
+  const patchesPrefetch = useHoverPrefetch(
+    () => {
+      queryClient.prefetchQuery(patchListQueryOptions());
+    },
+    { delay: NAV_PREFETCH_DELAY_MS }
+  );
   return (
     <div className="flex flex-col">
       {accounts.length > 0 && (
@@ -257,6 +289,9 @@ function LolMenuPanel({
         <Link
           to="/lol/patches"
           search={defaultLolSlug ? { as: defaultLolSlug } : {}}
+          onPointerEnter={patchesPrefetch.onPointerEnter}
+          onPointerLeave={patchesPrefetch.onPointerLeave}
+          onPointerDown={patchesPrefetch.onPointerDown}
           aria-current={patchesActive ? "page" : undefined}
           className={cn(
             "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
@@ -296,6 +331,13 @@ function AccountRow({
 }) {
   const ddVersion = useDDragonVersion();
   const emblemYear = useRankedEmblemYear();
+  const queryClient = useQueryClient();
+  const prefetch = useHoverPrefetch(
+    () => {
+      prefetchCachedMatches(queryClient, account);
+    },
+    { delay: NAV_PREFETCH_DELAY_MS }
+  );
   const summary = account.summary;
   const isHydrated = summary !== null && summary.updatedAt !== null;
   const rank = summary?.rank ?? null;
@@ -306,6 +348,9 @@ function AccountRow({
       <Link
         to="/lol/$accountSlug"
         params={{ accountSlug: account.slug }}
+        onPointerEnter={prefetch.onPointerEnter}
+        onPointerLeave={prefetch.onPointerLeave}
+        onPointerDown={prefetch.onPointerDown}
         aria-current={active ? "page" : undefined}
         className={cn(
           "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",

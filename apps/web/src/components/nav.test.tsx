@@ -79,8 +79,9 @@ afterEach(() => {
   vi.mocked(useRouterState).mockReset();
 });
 
-function renderNav() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderNav(
+  client: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+) {
   return render(
     <QueryClientProvider client={client}>
       <MotionConfig reducedMotion="always">
@@ -313,6 +314,93 @@ describe("Nav", () => {
       await waitFor(() => {
         expect(screen.queryByRole("link", { name: /Patches/i })).toBeNull();
       });
+    });
+  });
+
+  describe("hover prefetch", () => {
+    // Each test enables fake timers only after the menu (if needed) is open —
+    // findByRole polls via real setTimeout under the hood, so global fake
+    // timers in beforeEach would deadlock the menu-open tests.
+
+    it("prefetches the Steam owned-games query 100ms after pointer-enter on the /steam link", () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const spy = vi
+        .spyOn(qc, "prefetchQuery")
+        .mockImplementation(() => Promise.resolve());
+      renderNav(qc);
+      const link = screen.getByRole("link", { name: /Steam/i });
+      vi.useFakeTimers();
+      try {
+        fireEvent.pointerEnter(link);
+        vi.advanceTimersByTime(99);
+        expect(spy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual(["steam", "owned-games"]);
+    });
+
+    it("prefetches the patch list 100ms after pointer-enter on the Patches link", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const spy = vi
+        .spyOn(qc, "prefetchQuery")
+        .mockImplementation(() => Promise.resolve());
+      renderNav(qc);
+      openLolMenu();
+      const patches = await screen.findByRole("link", { name: /Patches/i });
+      vi.useFakeTimers();
+      try {
+        fireEvent.pointerEnter(patches);
+        vi.advanceTimersByTime(99);
+        expect(spy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual(["lol", "patches", "list"]);
+    });
+
+    it("prefetches the cached-matches infinite query 100ms after pointer-enter on an account row", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
+      ];
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const spy = vi
+        .spyOn(qc, "prefetchInfiniteQuery")
+        .mockImplementation(() => Promise.resolve());
+      renderNav(qc);
+      openLolMenu();
+      const link = await screen.findByRole("link", { name: /Jonas/i });
+      vi.useFakeTimers();
+      try {
+        fireEvent.pointerEnter(link);
+        vi.advanceTimersByTime(99);
+        expect(spy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual([
+        "lol",
+        "matches-cached-infinite",
+        "europe",
+        "Jonas",
+        "EUW",
+        undefined,
+      ]);
     });
   });
 });

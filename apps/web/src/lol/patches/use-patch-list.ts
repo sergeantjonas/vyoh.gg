@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { PatchListEntry } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
@@ -24,10 +24,14 @@ async function fetchPatchList(): Promise<PatchListEntry[]> {
 // it powers both the C2 "current patch" lookup and the C3 selector.
 const STALE_TIME_MS = 60_000;
 
-export function usePatchList() {
-  return useQuery({
+export function patchListQueryOptions() {
+  return queryOptions({
     queryKey: ["lol", "patches", "list"],
     queryFn: fetchPatchList,
     staleTime: STALE_TIME_MS,
   });
+}
+
+export function usePatchList() {
+  return useQuery(patchListQueryOptions());
 }
