@@ -18,7 +18,7 @@ export function useThemeColor(color: string | null | undefined): void {
       root.style.setProperty("--theme-color", color);
       root.style.setProperty(
         "--theme-grad-from",
-        `oklch(from ${color} calc(l + 0.15) calc(c - 0.03) calc(h - 40))`
+        `oklch(from ${color} calc(l + 0.15) c calc(h - 10))`
       );
       root.style.setProperty(
         "--theme-grad-mid",
@@ -26,7 +26,7 @@ export function useThemeColor(color: string | null | undefined): void {
       );
       root.style.setProperty(
         "--theme-grad-to",
-        `oklch(from ${color} calc(l + 0.15) c calc(h - 10))`
+        `oklch(from ${color} calc(l + 0.15) calc(c - 0.03) calc(h - 40))`
       );
       if (meta) meta.content = color;
     } else {
