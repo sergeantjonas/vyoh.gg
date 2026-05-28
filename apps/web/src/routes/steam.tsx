@@ -183,7 +183,7 @@ function SteamTabs({ pathname }: { pathname: string }) {
             {active && (
               <m.div
                 layoutId="steam-tab-indicator"
-                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-[var(--theme-grad-from)] via-[var(--theme-grad-mid)] to-[var(--theme-grad-to)] shadow-[0_0_8px_1px_var(--theme-ring)]"
+                className="theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)] shadow-[0_0_8px_1px_var(--theme-ring)]"
                 transition={{ type: "spring", stiffness: 500, damping: 35 }}
               />
             )}

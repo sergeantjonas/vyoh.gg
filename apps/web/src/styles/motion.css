@@ -87,6 +87,74 @@ body {
   animation-delay: calc(var(--i, 0) * 80ms);
 }
 
+/* ─── LoL tab indicator pulse ────────────────────────────────────────────
+   Motion's `animate.boxShadow` can't interpolate CSS variables, so the
+   pulse is driven by a CSS keyframe instead. The shadow references
+   var(--theme-ring) so the glow re-tints live whenever the theme
+   cascade updates (SplashProvider → useThemeColor).                       */
+@keyframes lol-tab-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 14px 2px var(--theme-ring);
+  }
+}
+
+.lol-tab-pulse {
+  animation: lol-tab-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lol-tab-pulse {
+    animation: none;
+  }
+}
+
+/* ─── Active tab glint ───────────────────────────────────────────────────
+   A small white highlight that sweeps across the active indicator every
+   ~4s. Layered as ::after on top of the flat bg color, so it coexists
+   with the pulse halo (.lol-tab-pulse) on the same element. Scoped to
+   tab indicators only — the scroll progress bar stays flat.             */
+.theme-bar-glint {
+  overflow: hidden;
+}
+
+.theme-bar-glint::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 60%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.85),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: theme-bar-glint-sweep 4s ease-in-out infinite;
+}
+
+@keyframes theme-bar-glint-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  40% {
+    transform: translateX(450%);
+  }
+  100% {
+    transform: translateX(450%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-bar-glint::after {
+    animation: none;
+    display: none;
+  }
+}
+
 /* ─── Section progress indicator ────────────────────────────────────────── */
 
 /* 2px hairline placed as a sibling of <main> (between section-header-slot
@@ -96,7 +164,11 @@ body {
    the bar is naturally invisible at top.                                    */
 [data-scroll-progress] {
   width: var(--progress-width);
-  background: var(--theme-fg);
+  /* Flat per-route theme color, paired with the tab indicator above which
+     uses the same var. Single-color (no gradient) so this bar joins the
+     same hue-family treatment as --theme-strong / --theme-ring / icons,
+     instead of pulling them in a different L direction.                  */
+  background: var(--theme-color);
 }
 
 /* ─── Nav compaction ─────────────────────────────────────────────────────── */

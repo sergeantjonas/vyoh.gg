@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { KeystoneIcon } from "@/lol/_shared/assets/keystone-icon";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionAliasById, useChampionInfoById } from "@/lol/champions/use-champions";
@@ -410,6 +411,15 @@ function LivePage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const { data, isPending } = useLiveGame(account);
+
+  // Splash + theme cascade follows the owner's current champion in the live
+  // game. Falls through to whatever claim the route lower in the tree had
+  // when there's no live match.
+  const aliasById = useChampionAliasById();
+  const playingChampionId = data?.participants.find((p) =>
+    isUserParticipant(p, account)
+  )?.championId;
+  useSplashChampion(playingChampionId ? aliasById(playingChampionId) : null);
 
   // Track whether we were ever in a game so we can show "Game ended" vs "Not in game"
   const [hadGame, setHadGame] = useState(false);

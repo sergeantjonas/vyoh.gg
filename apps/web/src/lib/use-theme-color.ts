@@ -16,31 +16,13 @@ export function useThemeColor(color: string | null | undefined): void {
 
     if (color) {
       root.style.setProperty("--theme-color", color);
-      root.style.setProperty(
-        "--theme-grad-from",
-        `oklch(from ${color} calc(l + 0.15) c calc(h - 10))`
-      );
-      root.style.setProperty(
-        "--theme-grad-mid",
-        `oklch(from ${color} calc(l + 0.22) calc(c - 0.04) calc(h - 15))`
-      );
-      root.style.setProperty(
-        "--theme-grad-to",
-        `oklch(from ${color} calc(l + 0.15) calc(c - 0.03) calc(h - 40))`
-      );
       if (meta) meta.content = color;
     } else {
       root.style.removeProperty("--theme-color");
-      root.style.removeProperty("--theme-grad-from");
-      root.style.removeProperty("--theme-grad-mid");
-      root.style.removeProperty("--theme-grad-to");
     }
 
     return () => {
       root.style.removeProperty("--theme-color");
-      root.style.removeProperty("--theme-grad-from");
-      root.style.removeProperty("--theme-grad-mid");
-      root.style.removeProperty("--theme-grad-to");
       if (meta && previousMeta !== undefined) meta.content = previousMeta;
     };
   }, [color]);

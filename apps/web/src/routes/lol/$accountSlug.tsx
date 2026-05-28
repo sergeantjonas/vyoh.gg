@@ -425,7 +425,7 @@ function LolTabLink({
   Icon,
   active,
   prefersReducedMotion,
-  iconActiveClassName = "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]",
+  iconActiveClassName = "text-theme-strong drop-shadow-[0_0_6px_var(--theme-muted)]",
   iconIdleClassName = "text-muted-foreground group-hover:text-foreground",
 }: {
   to:
@@ -470,22 +470,8 @@ function LolTabLink({
       {active && (
         <m.div
           layoutId="lol-tab-indicator"
-          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-sky-400 via-violet-400 to-emerald-400"
-          animate={{
-            boxShadow: [
-              "0 0 0px 0px rgba(56,189,248,0)",
-              "0 0 10px 1px rgba(56,189,248,0.45)",
-              "0 0 0px 0px rgba(56,189,248,0)",
-            ],
-          }}
-          transition={{
-            default: { type: "spring", stiffness: 500, damping: 35 },
-            boxShadow: {
-              duration: 2.4,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            },
-          }}
+          className="lol-tab-pulse theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)]"
+          transition={{ type: "spring", stiffness: 500, damping: 35 }}
         />
       )}
     </Link>

@@ -16,7 +16,7 @@ interface ChampionAggregate {
   assists: number;
 }
 
-function aggregate(matches: MatchSummary[]): ChampionAggregate | null {
+export function selectChampionOfYear(matches: MatchSummary[]): ChampionAggregate | null {
   const map = new Map<string, ChampionAggregate>();
   for (const m of matches) {
     if (m.remake) continue;
@@ -52,7 +52,7 @@ export function RecapChampion({
 }) {
   const reduced = useReducedMotion();
   const patch = useDDragonVersion();
-  const top = useMemo(() => (matches ? aggregate(matches) : null), [matches]);
+  const top = useMemo(() => (matches ? selectChampionOfYear(matches) : null), [matches]);
   const championName = useChampionName();
 
   if (!top) {

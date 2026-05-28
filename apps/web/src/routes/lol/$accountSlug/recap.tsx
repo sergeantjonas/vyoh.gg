@@ -1,6 +1,7 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
-import { RecapChampion } from "@/lol/recap/recap-champion";
+import { RecapChampion, selectChampionOfYear } from "@/lol/recap/recap-champion";
 import { RecapDuoOfYear } from "@/lol/recap/recap-duo-of-year";
 import { RecapMostImproved } from "@/lol/recap/recap-most-improved";
 import { RecapPatchVerdict } from "@/lol/recap/recap-patch-verdict";
@@ -24,6 +25,12 @@ function RecapPage() {
   const { matches } = useSeriousMatches();
   const reduced = useReducedMotion();
   const playedCount = excludeRemakes(matches ?? []).length;
+
+  // Drive the splash + theme cascade from the champion-of-year pick so the
+  // whole recap reads in that champion's tint — same selector as RecapChampion
+  // so the headline tile and the backdrop never disagree.
+  const championOfYear = matches ? selectChampionOfYear(matches) : null;
+  useSplashChampion(championOfYear?.champion ?? null);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-12">
