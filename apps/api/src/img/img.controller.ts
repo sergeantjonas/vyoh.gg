@@ -40,6 +40,13 @@ const DESCRIPTION_CONTENT_TYPES: Record<string, string> = {
 };
 const STEAM_STORE_ASSETS_BASE =
   "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps";
+// Microtrailers + their poster derivatives live on a completely separate
+// Steam CDN — NOT under `store_item_assets/steam/apps/`. Verified live
+// against RE4's microtrailer (appid 2050650) and its `movie.293x165.jpg`
+// poster (movieid 256998128) on 2026-05-29. The store_item_assets host
+// 404s for both. Hot-linked from the storefront the same way the page
+// player consumes them.
+const STEAM_TRAILER_BASE = "https://video.akamai.steamstatic.com/store_trailers";
 
 // Microtrailer (6-second silent loop) lives at
 // `store_item_assets/steam/apps/{appid}/{movieid}/{hash}/{ts}/microtrailer.{webm|mp4}`.
@@ -519,7 +526,7 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const url = `${STEAM_STORE_ASSETS_BASE}/${id}/${movieid}/${hash}/${ts}/${asset}`;
+    const url = `${STEAM_TRAILER_BASE}/${id}/${movieid}/${hash}/${ts}/${asset}`;
     try {
       const result = await streamUpstream(url, range);
       res.status(result.status);
@@ -563,7 +570,7 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const url = `${STEAM_STORE_ASSETS_BASE}/${movieid}/${asset}`;
+    const url = `${STEAM_TRAILER_BASE}/${movieid}/${asset}`;
     try {
       const result = await streamUpstream(url);
       res.status(result.status);

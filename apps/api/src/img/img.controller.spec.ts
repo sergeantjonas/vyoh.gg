@@ -615,7 +615,7 @@ describe("ImgController.steamMicrotrailer", () => {
       res as never
     );
     expect(streamSpy).toHaveBeenCalledWith(
-      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2050650/657549/cb3c3f74c8ef584d34401e5786b1858845df8fbe/1750745214/microtrailer.webm",
+      "https://video.akamai.steamstatic.com/store_trailers/2050650/657549/cb3c3f74c8ef584d34401e5786b1858845df8fbe/1750745214/microtrailer.webm",
       undefined
     );
     expect(res._status).toBe(200);
@@ -730,7 +730,7 @@ describe("ImgController.steamMicrotrailerPoster", () => {
       res as never
     );
     expect(streamSpy).toHaveBeenCalledWith(
-      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256998128/movie.293x165.jpg"
+      "https://video.akamai.steamstatic.com/store_trailers/256998128/movie.293x165.jpg"
     );
     expect(res._status).toBe(200);
     expect(res._headers["Content-Type"]).toBe("image/jpeg");
