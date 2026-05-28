@@ -1,6 +1,6 @@
 # Anchor-positioned overlays
 
-**Status:** Active — positioning pivoted twice on 2026-05-28: CSS Anchor Positioning → Floating UI → continuous `requestAnimationFrame` loop with direct DOM mutation (the only mechanism that produced correct positioning across Firefox + Safari in every entry direction and across cmdk list re-flows). Chunks 1, 2, 3a, 3b, 3c, 3d shipped 2026-05-27 → 2026-05-28; Chunk 5 (polyfill loader wiring) descoped. Chunk 1: `ensureAnchorPositioning()` feature-detect + lazy Oddbird `/fn` loader at [apps/web/src/lib/anchor-positioning.ts](../../../apps/web/src/lib/anchor-positioning.ts) — kept as a future-migration hook, no longer consumed. Chunk 2: `<CommandPalettePreview>` shell positions via a body-portalled card whose `top`/`left` are written each frame from the focused cmdk row's `getBoundingClientRect()`; row node is re-queried inside the rAF tick to survive cmdk's mid-stream list re-renders. Chunk 3a: sentinel-prefix parser ([command-palette-preview-value.ts](../../../apps/web/src/components/command-palette-preview-value.ts)) lets the preview dispatch on `<type>:<id>` row values; champion/match/steam-game `CommandItem` values migrated. Chunk 3b: champion preview content ([command-palette-preview-champion.tsx](../../../apps/web/src/components/command-palette-preview-champion.tsx)) — icon + display name + roles + modern-class chips, sourced from already-mounted `useChampionInfo`. Chunk 3c: match preview content ([command-palette-preview-match.tsx](../../../apps/web/src/components/command-palette-preview-match.tsx)) — champion icon + KDA + queue + duration + relative time + Win/Loss chip, sourced from the dialog's lifted `allMatches`. Chunk 3d: Steam-game preview content ([command-palette-preview-steam-game.tsx](../../../apps/web/src/components/command-palette-preview-steam-game.tsx)) — capsule + name + developer + lifetime/last-played + optional achievement %, all from queryClient cache hits. Also fixed on 2026-05-28: a related cmdk arrow-key `scrollIntoView` bug that left the highlighted row below the list viewport; corrective rAF-deferred `scrollTop` pass in CommandPaletteDialog now keeps the row in view across the full list. Chunks 4 (collision-aware flip — partially landed via earlier `flip()` work), 6 (Steam library hover-card), 7 (match-row peek) remain pending. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. CSS Anchor Positioning ([`anchor-name`](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name) / [`position-anchor`](https://developer.mozilla.org/en-US/docs/Web/CSS/position-anchor) / [`@position-try`](https://developer.mozilla.org/en-US/docs/Web/CSS/@position-try)) for the command-palette result peek and a small set of follow-on-scroll overlays, with a feature-detect + Oddbird polyfill fallback for older browsers.
+**Status:** Closed 2026-05-28 — positioning pivoted twice (CSS Anchor Positioning → Floating UI → continuous `requestAnimationFrame` loop with direct DOM mutation, the only mechanism that produced correct positioning across Firefox + Safari in every entry direction and across cmdk list re-flows). Chunks 1, 2, 3a, 3b, 3c, 3d, 4 shipped 2026-05-27 → 2026-05-28; Chunk 5 (polyfill loader wiring) descoped (kept as a future-migration hook only); Chunk 6 (Steam library hover-card) audit-only — already correct via Radix HoverCard's built-in Floating UI; Chunk 7 (match-row peek) descoped (fetch-on-hover cost not worth the surface delight). Also fixed in the same arc: a related cmdk arrow-key `scrollIntoView` shortfall, via an rAF-deferred corrective `scrollTop` pass in CommandPaletteDialog. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. CSS Anchor Positioning ([`anchor-name`](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name) / [`position-anchor`](https://developer.mozilla.org/en-US/docs/Web/CSS/position-anchor) / [`@position-try`](https://developer.mozilla.org/en-US/docs/Web/CSS/@position-try)) — kept here as the original framing; the shipped implementation does not use it.
 
 Read this before adding any overlay that should track its trigger across scroll/resize/zoom, or that needs collision-aware fallback positions.
 
@@ -156,29 +156,9 @@ Prefetch-on-arrow-nav (~50ms head start) deferred — all three content types ar
 
 Tests cover the parser (6 specs) + dispatch (9 specs, including match-with/without-cache and steam-game) + champion content (4 specs) + match content (5 specs) + steam-game content (6 specs) + an end-to-end dialog test that types a champion name and asserts the preview's `data-preview-type="champion"` + displayed name.
 
-### Chunk 4 — Position-try fallback positions
+### Chunk 4 — Collision-aware flip ✅ shipped 2026-05-28
 
-```css
-.palette-preview {
-  position: fixed;
-  position-anchor: --palette-focused-row;
-  inset-block-start: anchor(start);
-  inset-inline-start: calc(anchor(end) + 12px);
-  position-try-fallbacks: --flip-block, --flip-inline;
-}
-
-@position-try --flip-inline {
-  inset-inline-start: auto;
-  inset-inline-end: calc(anchor(start) + 12px);
-}
-
-@position-try --flip-block {
-  inset-block-start: auto;
-  inset-block-end: anchor(end);
-}
-```
-
-Test: visual on a small viewport — preview flips when the focused row is near the right edge.
+Originally specced as CSS `position-try-fallbacks` with `@position-try --flip-inline` / `--flip-block` rules. After the positioning approach pivoted to the rAF loop, the same behaviour lives directly in the loop tick in [command-palette-preview.tsx](../../../apps/web/src/components/command-palette-preview.tsx): the default position is `rect.right + 12` (card to the right of the row); when that would overflow the viewport right edge (`rightPos + cardWidth + viewportPadding > window.innerWidth`), the card flips to `rect.left - cardWidth - 12` (card to the left). Card width is measured live each frame via `card.offsetWidth`, so the same logic survives the champion / match / steam-game content shapes without per-type config. Vertical clipping was skipped — the card height is small enough relative to the dialog's 80vh ceiling that vertical overflow doesn't occur in practice.
 
 ### Chunk 5 — Polyfill loader wiring ✅ shipped 2026-05-28
 
@@ -190,13 +170,13 @@ Two side-fixes landed in the same arc:
 - `CommandPalettePreview` portals to `document.body` via `createPortal`. Radix `DialogContent` applies `transform: translate(-50%, -50%)` for centering, which establishes a containing block for `position: fixed` descendants AND combines with `overflow-hidden` to clip anything that escapes the dialog rect. Portalling to the body level moves the preview's containing block to the viewport so anchor positioning resolves against viewport coordinates and the card isn't clipped.
 - `.palette-preview` CSS rule rewritten to use physical sides + explicit anchor-name reference (`top: anchor(--palette-focused-row top); left: calc(anchor(--palette-focused-row right) + 12px)`) instead of logical `inset-block-start: anchor(start)` / `inset-inline-start: anchor(end)`. The logical-side shorthand produced an unanchored fallback position during initial Safari + Firefox testing on 2026-05-28 even with the portal fix — switching to physical sides + explicit name made the resolution reliable across both engines.
 
-### Chunk 6 — Apply to Steam library hover card
+### Chunk 6 — Apply to Steam library hover card ✅ no work needed 2026-05-28
 
-- Audit current behavior — is the HoverCard already correctly tracking? If yes, no change needed. If not, swap to anchor positioning on tiles that have `anchor-name: --tile-${appId}` and a HoverCard content with `position-anchor`.
+Audit outcome: the Steam library tile and row already use Radix `HoverCardPrimitive` at [library-row.tsx:303-316](../../../apps/web/src/steam/library/library-row.tsx#L303-L316) and [library-tile.tsx:78](../../../apps/web/src/steam/library/library-tile.tsx#L78) with `side`, `align`, `sideOffset`, and `collisionPadding` set. Radix HoverCard delegates positioning to Floating UI internally — collision detection, flip-on-overflow, and viewport tracking are already correct. No swap to anchor positioning is warranted; the existing setup is the same mechanism the new palette preview uses, just packaged inside Radix.
 
-### Chunk 7 — (Optional) Match-row peek
+### Chunk 7 — Match-row peek ❌ descoped 2026-05-28
 
-- Defer until palette + Steam hover are validated. The match-row peek is delightful but adds the cost of fetching the scoreboard data for every hover; consider behind a 300ms hover delay.
+Match-row hover-card was always tagged optional in the original spec. Descoped to close this arc: the fetch-on-hover cost for scoreboard data isn't worth the surface delight given the data-density on match rows is already high. Reopen as its own focused task if (a) the scoreboard data becomes incidentally available without a new fetch, or (b) telemetry suggests users actively need a peek instead of clicking through.
 
 ---
 
