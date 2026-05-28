@@ -230,4 +230,104 @@ describe("projectEnrichment", () => {
     const row = projectEnrichment(raw({ game_rating: { type: "PEGI", rating: "16" } }));
     expect(row?.gameRating?.descriptors).toEqual([]);
   });
+
+  it("projects highlights[0] microtrailer + poster + name into the row", () => {
+    const row = projectEnrichment(
+      raw({
+        trailers: {
+          highlights: [
+            {
+              microtrailer: [
+                {
+                  filename: "367520/2090056095/abc/microtrailer.webm",
+                  type: "video/webm",
+                },
+                {
+                  filename: "367520/2090056095/abc/microtrailer.mp4",
+                  type: "video/mp4",
+                },
+              ],
+              screenshot_medium: "367520/extras/launch_trailer_medium.jpg",
+              trailer_name: "Full Launch trailer",
+            },
+            // Second highlight is intentionally richer; the projection must
+            // ignore it (the arc note specifies `[0]` only).
+            {
+              microtrailer: [
+                {
+                  filename: "367520/9999/zzz/microtrailer.webm",
+                  type: "video/webm",
+                },
+              ],
+              trailer_name: "Gameplay trailer",
+            },
+          ],
+        },
+      })
+    );
+    expect(row).toMatchObject({
+      microtrailerWebm: "367520/2090056095/abc/microtrailer.webm",
+      microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
+      microtrailerPoster: "367520/extras/launch_trailer_medium.jpg",
+      microtrailerName: "Full Launch trailer",
+    });
+  });
+
+  it("nulls each microtrailer field when the trailers block is absent", () => {
+    const row = projectEnrichment(raw({}));
+    expect(row).toMatchObject({
+      microtrailerWebm: null,
+      microtrailerMp4: null,
+      microtrailerPoster: null,
+      microtrailerName: null,
+    });
+  });
+
+  it("nulls codec slots independently when their source entry is missing", () => {
+    const row = projectEnrichment(
+      raw({
+        trailers: {
+          highlights: [
+            {
+              microtrailer: [
+                {
+                  filename: "367520/2090056095/abc/microtrailer.mp4",
+                  type: "video/mp4",
+                },
+              ],
+              trailer_name: "Full Launch trailer",
+            },
+          ],
+        },
+      })
+    );
+    expect(row).toMatchObject({
+      microtrailerWebm: null,
+      microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
+      microtrailerPoster: null,
+      microtrailerName: "Full Launch trailer",
+    });
+  });
+
+  it("skips microtrailer sources with empty filenames or unrecognised types", () => {
+    const row = projectEnrichment(
+      raw({
+        trailers: {
+          highlights: [
+            {
+              microtrailer: [
+                { filename: "   ", type: "video/webm" },
+                { filename: "367520/abc/microtrailer.webm", type: "video/webm" },
+                { filename: "367520/abc/microtrailer.mov", type: "video/quicktime" },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    expect(row).toMatchObject({
+      microtrailerWebm: "367520/abc/microtrailer.webm",
+      microtrailerMp4: null,
+    });
+  });
 });

@@ -182,6 +182,17 @@ export interface SteamStoreItemTrailerSourceRaw {
 
 export interface SteamStoreItemTrailerHighlightRaw {
   microtrailer?: SteamStoreItemTrailerSourceRaw[];
+  // Poster frame Steam shows before the microtrailer plays. CDN-resolvable
+  // path under the same `steam/apps/{appid}/` prefix as `microtrailer`. The
+  // hover-preview renderer uses it as the still under the `<video>` so the
+  // pre-play frame matches the trailer's first frame; without it the tile
+  // would fall back to the library capsule art for the static poster.
+  screenshot_medium?: string;
+  // Editorial label ("Full Launch trailer", "Gameplay trailer", etc.) — used
+  // as the `<video>`'s `aria-label` for screen readers and as the hovercard
+  // tooltip on touch surfaces. Distinct from microtrailer URLs because Steam
+  // associates the name with the trailer entry as a whole, not per-source.
+  trailer_name?: string;
 }
 
 export interface SteamStoreItemTrailersRaw {

@@ -189,6 +189,21 @@ model SteamGameEnrichment {
   // `screenshots` + `screenshotsFetchedAt` pair, which Chunk 9c drops.
   screenshotsAllAges   Json      @default("[]")
   screenshotsMature    Json      @default("[]")
+  // First-entry microtrailer from `trailers.highlights[0]` — Steam's 6-second
+  // silent loop the storefront plays on hover. Captured as flat columns (not
+  // a JSON blob) because the renderer reads each independently: webm is the
+  // primary `<source>`, mp4 is the H.264 fallback for Safari/legacy, poster
+  // is the still under the `<video>` pre-play, name is the `aria-label`. All
+  // nullable because (a) the upstream block is optional per item (older
+  // titles often skip trailers entirely), (b) per-source codec entries are
+  // independently optional within `microtrailer[]`. Paths only — the raw
+  // CDN filenames are stored, resolved through the api-side media proxy at
+  // request time (mirrors how `library_capsule` etc. resolve, keeps the
+  // existing `asset_url_format` cache-buster discipline in one place).
+  microtrailerWebm     String?
+  microtrailerMp4      String?
+  microtrailerPoster   String?
+  microtrailerName     String?
   // Saliency centroid of `library_hero.jpg`, expressed as integer percent
   // (0-100) on each axis. Computed at enrichment via smartcrop-sharp on the
   // raw upstream bytes and used by the library row's `object-cover`

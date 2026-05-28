@@ -59,6 +59,10 @@ export interface EnrichmentUpsert {
   fullDescriptionBbcode: string | null;
   screenshotsAllAges: SteamScreenshotEntry[];
   screenshotsMature: SteamScreenshotEntry[];
+  microtrailerWebm: string | null;
+  microtrailerMp4: string | null;
+  microtrailerPoster: string | null;
+  microtrailerName: string | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -131,6 +135,44 @@ export function projectEnrichment(
     fullDescriptionBbcode: raw.full_description_bbcode ?? null,
     screenshotsAllAges: mapScreenshots(raw.screenshots?.all_ages_screenshots),
     screenshotsMature: mapScreenshots(raw.screenshots?.mature_content_screenshots),
+    ...mapMicrotrailer(raw.trailers?.highlights?.[0]),
+  };
+}
+
+// Pick the first highlight's webm + mp4 sources plus poster and name. Steam's
+// `highlights[]` is ordered with the launch trailer at `[0]` in the bulk
+// response; lower-priority trailers stay unused per the arc note. Returns
+// four nulls when the block is absent so the row shape stays consistent.
+function mapMicrotrailer(
+  highlight:
+    | {
+        microtrailer?: { filename?: string; type?: string }[];
+        screenshot_medium?: string;
+        trailer_name?: string;
+      }
+    | undefined
+): {
+  microtrailerWebm: string | null;
+  microtrailerMp4: string | null;
+  microtrailerPoster: string | null;
+  microtrailerName: string | null;
+} {
+  const sources = highlight?.microtrailer ?? [];
+  let webm: string | null = null;
+  let mp4: string | null = null;
+  for (const source of sources) {
+    const filename = source.filename?.trim();
+    if (!filename) continue;
+    if (webm === null && source.type === "video/webm") webm = filename;
+    else if (mp4 === null && source.type === "video/mp4") mp4 = filename;
+  }
+  const poster = highlight?.screenshot_medium?.trim();
+  const name = highlight?.trailer_name?.trim();
+  return {
+    microtrailerWebm: webm,
+    microtrailerMp4: mp4,
+    microtrailerPoster: poster ? poster : null,
+    microtrailerName: name ? name : null,
   };
 }
 
