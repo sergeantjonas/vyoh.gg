@@ -32,7 +32,7 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 |---|---|---|
 | [editorial-typography](editorial-typography.md) | Variable-font weight axis (Geist `wght` 100–900) on hero numbers (KDA, win rate, LP delta); subdued label treatment | ✅ Shipped 2026-05-27 — all chunks landed, cross-app extension sweep, AND primitive bifurcation same day. Final state: `SectionTitle` (prominent — ~23 page-zone dividers) + `CardTitle` (quieter — 4 sites inside card chrome) per industry-standard slot pattern; convention codified in [repo-conventions.md](../repo-conventions.md). Tile captions across both apps intentionally untouched; formatter call-sites swept KDA + LP delta + ~25 clean-display percent sites. |
 | [page-composition](page-composition.md) | Decide section-structure (IA — when to group cards under dividers vs flat list) and container convention (chrome around section bodies vs bare) per surface. Sweep ~10 product surfaces with per-surface decisions; codify ruleset alongside the typography arc's CardTitle/SectionTitle rule. | ✅ Mostly shipped 2026-05-27 — Chunks 1, 2, 4, 5 all landed same day. Compositional rule codified in [repo-conventions.md](../repo-conventions.md) § "Page composition": chrome belongs at the lowest level that visually groups heterogeneous content; don't nest chrome. Steam game-detail + LoL Your Game promoted to reference surfaces; 3 LoL profile span headers swept to `SectionTitle`. Chunk 3 (owner-run visual capture) deferred, non-blocking. Secondary surfaces remain in backlog. |
-| [data-viz-densification](data-viz-densification.md) | Inline `<svg>` sparklines on stat cells + `:has()` parent-aware affordances + match-outcome ambient hue drift | 🟡 Part 1 shipped 2026-05-27 (sparkline primitive + 5 surfaces: champion-detail K/D/A, champion grid WR trend, Steam library, profile rank tile LP, match-row gold-lead). Parts 2 (`:has()` affordances) and 3 (OKLCH ambient hue drift) still pending. |
+| [data-viz-densification](data-viz-densification.md) | Inline `<svg>` sparklines on stat cells + `:has()` parent-aware affordances + match-outcome ambient hue drift | ✅ Shipped 2026-05-27 — all three parts. Part 1: sparkline primitive + 5 surfaces (`8816e18`, `cad0b6e`, `20b1511`, `c216457`, `3fabfed`, `a0b6729`) plus opt-in tooltip with axe pass (`6f68a2c`). Part 2: parent-aware sibling-dim across match, champion table, and Steam library lists (`7ee822d`). Part 3: ambient OKLCH hue drift on match-list rows (`d1f190b`). |
 | [anchor-positioned-overlays](anchor-positioned-overlays.md) | CSS Anchor Positioning for command-palette result peek + hover-card follow-on-scroll; feature-detect + Oddbird polyfill fallback | ✅ Closed 2026-05-28 — all chunks shipped (3c/3d, 4) or descoped (5 polyfill loader kept as future hook, 6 already correct via Radix HoverCard/Floating UI, 7 fetch-on-hover cost not worth it). Pivoted from CSS Anchor Positioning to rAF + direct DOM mutation for cross-browser correctness. |
 | [reduced-motion-replacements](reduced-motion-replacements.md) | Audit + standardise replacement variants per animated surface (splash drift → cross-fade, orb mark → static constellation, tilt → flat scale-up) | Planned |
 | [microtrailer-hover-preview](microtrailer-hover-preview.md) | Steam library tiles play official 6-second silent microtrailers on hover (singleton playback, cross-fade, reduced-motion poster); from the 2026-05-24 GetItems harvest | Planned |
@@ -59,19 +59,18 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 
 Curated 2026-05-28 to remaining picks only — the original 1–15 ranking from 2026-05-23 covered seven arcs that have since shipped. When updating after the next shipping wave, drop completed items rather than annotating around them.
 
-1. **data-viz-densification Parts 2 & 3** — Part 1 shipped 2026-05-27; finish `:has()` parent-aware affordances + OKLCH match-outcome hue drift. Smallest remaining lift on an already-active arc.
-2. **reduced-motion-replacements** — audit before more motion lands; one pass covers all prior arcs (VT, scroll-driven, mount stagger, accent cascade).
-3. **speculation-rules-prefetch** — perceived perf win, near-zero code; cheap last-mile after the VT + scroll work landed.
-4. **microtrailer-hover-preview** — Steam library tiles; pairs with the existing tile hover-card and uses the 2026-05-24 GetItems harvest.
-5. **nav-condensation-arc** — three-layer chrome → two; unblocks `cross-section-nav-arc` and composes with the active-tab layoutId morph.
-6. **cross-section-nav-arc** — only after nav-condensation 1.1 lands; composes the merged strip with the section-shell VT pattern.
-7. **ambient-home-hero** / **landing-showcase-arc** — bold, recruiter-bait, the most design judgment; landing-showcase consumes ambient-home-hero so they tend to ship together.
-8. **og-image-pipeline** — once shareable URLs exist, OG cards convert; pairs with [self-portrait-surfaces.md](self-portrait-surfaces.md).
-9. **personal-record-moments** — emotional payoff; depends on PB detection landing first.
-10. **live-presence-chip** — depends on Riot spectator endpoint + Steam presence API plumbing.
-11. **pointer-parallax-splash** — small but distinctive; can ship any time on top of the shipped accent-color cascade.
-12. **detail-panel-arc** — biggest structural lift on this list; defer until the simpler arcs have absorbed their feedback.
-13. **optional-ui-audio** — bold; consider after the visual baseline lands so the audio doesn't carry the whole "wow".
+1. **reduced-motion-replacements** — audit before more motion lands; one pass covers all prior arcs (VT, scroll-driven, mount stagger, accent cascade, sibling-dim, ambient hue drift).
+2. **speculation-rules-prefetch** — perceived perf win, near-zero code; cheap last-mile after the VT + scroll work landed.
+3. **microtrailer-hover-preview** — Steam library tiles; pairs with the existing tile hover-card and uses the 2026-05-24 GetItems harvest.
+4. **nav-condensation-arc** — three-layer chrome → two; unblocks `cross-section-nav-arc` and composes with the active-tab layoutId morph.
+5. **cross-section-nav-arc** — only after nav-condensation 1.1 lands; composes the merged strip with the section-shell VT pattern.
+6. **ambient-home-hero** / **landing-showcase-arc** — bold, recruiter-bait, the most design judgment; landing-showcase consumes ambient-home-hero so they tend to ship together.
+7. **og-image-pipeline** — once shareable URLs exist, OG cards convert; pairs with [self-portrait-surfaces.md](self-portrait-surfaces.md).
+8. **personal-record-moments** — emotional payoff; depends on PB detection landing first.
+9. **live-presence-chip** — depends on Riot spectator endpoint + Steam presence API plumbing.
+10. **pointer-parallax-splash** — small but distinctive; can ship any time on top of the shipped accent-color cascade.
+11. **detail-panel-arc** — biggest structural lift on this list; defer until the simpler arcs have absorbed their feedback.
+12. **optional-ui-audio** — bold; consider after the visual baseline lands so the audio doesn't carry the whole "wow".
 
 ---
 
