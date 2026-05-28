@@ -257,7 +257,7 @@ function TrendsPage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const [rangeId, setRangeId] = useState<TrendsRangeId>("30d");
-  const { current, previous, isPending } = useTrendsWindows(rangeId, account);
+  const { current, previous, isPending, livePatch } = useTrendsWindows(rangeId, account);
 
   const sortedTiles = useMemo(() => {
     const tiles = buildTiles(current, previous, accountSlug, account);
@@ -273,7 +273,11 @@ function TrendsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <SectionTitle as="h2">Trends</SectionTitle>
-        <TrendsRangeSelector value={rangeId} onChange={setRangeId} />
+        <TrendsRangeSelector
+          value={rangeId}
+          onChange={setRangeId}
+          livePatch={livePatch}
+        />
       </div>
 
       {isPending && current.length === 0 ? (
@@ -281,8 +285,16 @@ function TrendsPage() {
       ) : current.length === 0 ? (
         <EmptyState
           illustration={<EmptyMatchesIllustration />}
-          title="No matches in this window yet"
-          hint="Try a wider range, or check back once the next sync runs."
+          title={
+            rangeId === "patch" && livePatch
+              ? `No games on Patch ${livePatch} yet`
+              : "No matches in this window yet"
+          }
+          hint={
+            rangeId === "patch" && livePatch
+              ? "Switch to a wider range, or check back once you've played a few games on the new patch."
+              : "Try a wider range, or check back once the next sync runs."
+          }
         />
       ) : (
         <m.div

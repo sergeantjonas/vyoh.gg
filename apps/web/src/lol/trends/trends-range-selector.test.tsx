@@ -5,11 +5,12 @@ import { type TrendsRangeId, TrendsRangeSelector } from "./trends-range-selector
 
 function renderSelector(
   value: TrendsRangeId,
-  onChange: (id: TrendsRangeId) => void = () => {}
+  onChange: (id: TrendsRangeId) => void = () => {},
+  livePatch?: string
 ) {
   return render(
     <MotionConfig reducedMotion="always">
-      <TrendsRangeSelector value={value} onChange={onChange} />
+      <TrendsRangeSelector value={value} onChange={onChange} livePatch={livePatch} />
     </MotionConfig>
   );
 }
@@ -31,6 +32,16 @@ describe("TrendsRangeSelector", () => {
     fireEvent.click(screen.getByText("100 games"));
     expect(onChange).toHaveBeenCalledWith("100g");
     fireEvent.click(screen.getByText("Patch"));
+    expect(onChange).toHaveBeenCalledWith("patch");
+  });
+
+  it("renders the live patch label when provided and fires the patch range id when clicked", () => {
+    const onChange = vi.fn();
+    renderSelector("30d", onChange, "26.9");
+    const button = screen.getByText("Live Patch (26.9)");
+    expect(button).toBeTruthy();
+    expect(screen.queryByText("Patch")).toBeNull();
+    fireEvent.click(button);
     expect(onChange).toHaveBeenCalledWith("patch");
   });
 

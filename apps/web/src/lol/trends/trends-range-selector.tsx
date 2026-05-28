@@ -13,14 +13,18 @@ const RANGES: { id: TrendsRangeId; label: string }[] = [
 export function TrendsRangeSelector({
   value,
   onChange,
+  livePatch,
 }: {
   value: TrendsRangeId;
   onChange: (id: TrendsRangeId) => void;
+  livePatch?: string | undefined;
 }) {
   return (
     <div className="flex items-center gap-1 rounded-md border p-0.5">
       {RANGES.map(({ id, label }) => {
         const active = value === id;
+        const displayLabel =
+          id === "patch" && livePatch ? `Live Patch (${livePatch})` : label;
         return (
           <button
             key={id}
@@ -31,7 +35,7 @@ export function TrendsRangeSelector({
               active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <span className="relative z-10">{label}</span>
+            <span className="relative z-10">{displayLabel}</span>
             {active && (
               <m.div
                 layoutId="trends-range-indicator"

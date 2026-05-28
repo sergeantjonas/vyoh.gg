@@ -4,6 +4,7 @@ import {
   useSeriousQueues,
 } from "@/lol/_shared/serious-queues/serious-queues";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
+import { usePatchList } from "@/lol/patches/use-patch-list";
 import type { LolAccount, MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 import type { TrendsRangeId } from "./trends-range-selector";
@@ -23,7 +24,9 @@ function getFetchCount(rangeId: TrendsRangeId): number {
 
 function splitWindows(
   matches: MatchSummary[],
-  rangeId: TrendsRangeId
+  rangeId: TrendsRangeId,
+  livePatch: string | undefined,
+  livePreviousPatch: string | undefined
 ): { current: MatchSummary[]; previous: MatchSummary[] } {
   // Newest first so slice(0, 100) gives the most recent 100 games.
   const sorted = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
@@ -36,15 +39,16 @@ function splitWindows(
   }
 
   if (rangeId === "patch") {
-    // groupByPatch returns oldest-first; the last bucket is the current patch,
-    // the bucket before it is the previous patch. Matches with empty
-    // gameVersion drop out — same posture as the rest of the patch features.
+    // Look the buckets up by *live* patch keys (from /lol/patches) rather than
+    // taking the last bucket the user has played in. Otherwise a freshly
+    // shipped patch with zero games would silently render the previous patch
+    // as "current". Empty buckets are valid — the UI treats them as
+    // "no games on patch X.Y yet".
     const buckets = groupByPatch(matches, (m) => m.gameVersion);
-    const currentBucket = buckets[buckets.length - 1];
-    const previousBucket = buckets.length >= 2 ? buckets[buckets.length - 2] : undefined;
+    const byPatch = new Map(buckets.map((b) => [b.patch, b.items]));
     return {
-      current: currentBucket?.items ?? [],
-      previous: previousBucket?.items ?? [],
+      current: livePatch ? (byPatch.get(livePatch) ?? []) : [],
+      previous: livePreviousPatch ? (byPatch.get(livePreviousPatch) ?? []) : [],
     };
   }
 
@@ -65,9 +69,17 @@ function splitWindows(
 export function useTrendsWindows(
   rangeId: TrendsRangeId,
   account: LolAccount | undefined
-): { current: MatchSummary[]; previous: MatchSummary[]; isPending: boolean } {
+): {
+  current: MatchSummary[];
+  previous: MatchSummary[];
+  isPending: boolean;
+  livePatch: string | undefined;
+} {
   const { data, isPending } = useCachedMatchesWindow(account, getFetchCount(rangeId));
   const { ids } = useSeriousQueues();
+  const { data: patchList } = usePatchList();
+  const livePatch = patchList?.[0]?.version;
+  const livePreviousPatch = patchList?.[1]?.version;
 
   // Trends is an analysis surface — aggregate only over the user's "serious"
   // queues so KDA/tilt/win-rate trajectory don't get diluted by ARAM noise.
@@ -77,9 +89,9 @@ export function useTrendsWindows(
   }, [data, ids]);
 
   const { current, previous } = useMemo(
-    () => splitWindows(seriousMatches, rangeId),
-    [seriousMatches, rangeId]
+    () => splitWindows(seriousMatches, rangeId, livePatch, livePreviousPatch),
+    [seriousMatches, rangeId, livePatch, livePreviousPatch]
   );
 
-  return { current, previous, isPending };
+  return { current, previous, isPending, livePatch };
 }

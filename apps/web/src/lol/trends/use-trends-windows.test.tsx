@@ -1,7 +1,8 @@
 import { useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
+import { usePatchList } from "@/lol/patches/use-patch-list";
 import { renderHook } from "@testing-library/react";
-import type { LolAccount, MatchSummary } from "@vyoh/shared";
+import type { LolAccount, MatchSummary, PatchListEntry } from "@vyoh/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useTrendsWindows } from "./use-trends-windows";
 
@@ -12,6 +13,10 @@ vi.mock("@/lol/matches/use-matches", () => ({
 vi.mock("@/lol/_shared/serious-queues/serious-queues", () => ({
   useSeriousQueues: vi.fn(),
   filterToSerious: (matches: MatchSummary[]) => matches,
+}));
+
+vi.mock("@/lol/patches/use-patch-list", () => ({
+  usePatchList: vi.fn(),
 }));
 
 const account: LolAccount = {
@@ -44,11 +49,31 @@ function setMatches(matches: MatchSummary[] | undefined, isPending = false) {
   vi.mocked(useSeriousQueues).mockReturnValue({
     ids: ["Ranked Solo"],
   } as unknown as ReturnType<typeof useSeriousQueues>);
+  // Default to an empty patch list so tests that don't care about patch keys
+  // don't crash on the destructure. Patch-specific tests override via
+  // setPatchList().
+  if (vi.mocked(usePatchList).getMockImplementation() === undefined) {
+    vi.mocked(usePatchList).mockReturnValue({
+      data: [],
+    } as unknown as ReturnType<typeof usePatchList>);
+  }
+}
+
+function setPatchList(versions: string[]) {
+  const entries: PatchListEntry[] = versions.map((v) => ({
+    version: v,
+    patchDate: null,
+    fetchedAt: new Date().toISOString(),
+  }));
+  vi.mocked(usePatchList).mockReturnValue({
+    data: entries,
+  } as unknown as ReturnType<typeof usePatchList>);
 }
 
 afterEach(() => {
   vi.mocked(useCachedMatchesWindow).mockReset();
   vi.mocked(useSeriousQueues).mockReset();
+  vi.mocked(usePatchList).mockReset();
 });
 
 describe("useTrendsWindows", () => {
@@ -112,17 +137,20 @@ describe("useTrendsWindows", () => {
     expect(result.current.previous).toHaveLength(1);
   });
 
-  it("returns current+previous patch buckets via groupByPatch for the patch range", () => {
+  it("returns current+previous patch buckets keyed off the live patch list for the patch range", () => {
     const now = Date.now();
     const matches: MatchSummary[] = [
       fakeMatch(now - 1 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
       fakeMatch(now - 2 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
       fakeMatch(now - 30 * MS_PER_DAY, { gameVersion: "14.19.586.5840" }),
     ];
+    // truncatePatch maps the API major (14) onto display major (+10).
+    setPatchList(["24.20", "24.19"]);
     setMatches(matches);
     const { result } = renderHook(() => useTrendsWindows("patch", account));
-    expect(result.current.current.length).toBeGreaterThan(0);
-    expect(result.current.previous.length).toBeGreaterThan(0);
+    expect(result.current.current).toHaveLength(2);
+    expect(result.current.previous).toHaveLength(1);
+    expect(result.current.livePatch).toBe("24.20");
   });
 
   it("returns an empty previous bucket for the patch range when only one patch is in scope", () => {
@@ -131,8 +159,40 @@ describe("useTrendsWindows", () => {
       fakeMatch(now - 1 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
       fakeMatch(now - 2 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
     ];
+    setPatchList(["24.20", "24.19"]);
     setMatches(matches);
     const { result } = renderHook(() => useTrendsWindows("patch", account));
     expect(result.current.previous).toEqual([]);
+  });
+
+  it("returns an empty current bucket when no games have been played on the live patch yet", () => {
+    // Live patch is 24.21, but the user has only played 24.20 and 24.19.
+    // Old behaviour would have returned the 24.20 bucket as "current" — the
+    // fix should surface this honestly as zero current-patch games.
+    const now = Date.now();
+    const matches: MatchSummary[] = [
+      fakeMatch(now - 1 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
+      fakeMatch(now - 2 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
+      fakeMatch(now - 30 * MS_PER_DAY, { gameVersion: "14.19.586.5840" }),
+    ];
+    setPatchList(["24.21", "24.20"]);
+    setMatches(matches);
+    const { result } = renderHook(() => useTrendsWindows("patch", account));
+    expect(result.current.current).toEqual([]);
+    expect(result.current.previous).toHaveLength(2);
+    expect(result.current.livePatch).toBe("24.21");
+  });
+
+  it("returns empty windows for the patch range when the patch list hasn't loaded yet", () => {
+    const now = Date.now();
+    const matches: MatchSummary[] = [
+      fakeMatch(now - 1 * MS_PER_DAY, { gameVersion: "14.20.586.5840" }),
+    ];
+    setPatchList([]);
+    setMatches(matches);
+    const { result } = renderHook(() => useTrendsWindows("patch", account));
+    expect(result.current.current).toEqual([]);
+    expect(result.current.previous).toEqual([]);
+    expect(result.current.livePatch).toBeUndefined();
   });
 });
