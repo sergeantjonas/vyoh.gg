@@ -1,86 +1,54 @@
-import { cn } from "@/lib/utils";
-import {
-  steamMicrotrailerPosterUrl,
-  steamMicrotrailerUrl,
-} from "@/steam/_shared/steam-image";
-import { useReducedMotionConfig } from "motion/react";
-import { useState } from "react";
+import type { SteamGameTrailer } from "@vyoh/shared";
+import { Suspense, lazy, useState } from "react";
 
-// Game-detail page-local opt-in for the looping microtrailer. The pill sits
-// in the bottom-right of the hero banner and gates on `microtrailerWebm` —
-// no pill, no video, no behavior change when Steam didn't ship a trailer.
-// Default state stays static so the library → game-detail view-transition
-// morph on `steam-game-${appid}-hero` always lands on the same static hero
-// image; the trailer only mounts after an explicit click, which is well past
-// the morph window.
+// Lazy-load the modal subtree (which pulls Shaka via dynamic import inside
+// its player effect — see trailer-modal.tsx). The pill itself stays in the
+// main game-detail chunk so the affordance is decided at first paint, but
+// the player infrastructure waits until the user actually clicks.
+const TrailerModal = lazy(() =>
+  import("./trailer-modal").then((m) => ({ default: m.TrailerModal }))
+);
+
+// Game-detail page-local entry point into the full-trailer modal. Self-gates
+// on `trailer` — no pill, no behavior change when Steam didn't ship a
+// playable trailer for this game. Anchored to the hero wrapper (which
+// carries the view-transition name) so the pill participates in the same
+// VT snapshot as the hero img.
 //
-// Why a pill instead of autoplay on mount: the hovercard already gives the
-// auto-loop behavior at the deliberate-hover surface. On the detail page,
-// autoplay would compete with the player's intent (they're here to read
-// chips / unlock timeline / achievements), and starting a 6-second loop on
-// every visit drains attention without consent.
+// Earlier iteration of this component crossfaded the hero in-place to the
+// looping microtrailer. The follow-up arc replaced that with the modal —
+// the modal carries audio, adaptive streaming, native controls, and a
+// large viewport, all of which the in-place crossfade couldn't. The
+// affordance and placement stay so the muscle memory carries over.
 export interface GameHeroTrailerPillProps {
-  microtrailerWebm: string | null;
-  microtrailerMp4: string | null;
-  microtrailerPoster: string | null;
-  microtrailerName: string | null;
+  trailer: SteamGameTrailer | null;
 }
 
-export function GameHeroTrailerPill({
-  microtrailerWebm,
-  microtrailerMp4,
-  microtrailerPoster,
-  microtrailerName,
-}: GameHeroTrailerPillProps) {
-  const prefersReducedMotion = useReducedMotionConfig();
+export function GameHeroTrailerPill({ trailer }: GameHeroTrailerPillProps) {
   const [open, setOpen] = useState(false);
-  if (microtrailerWebm === null) return null;
-  const webmUrl = steamMicrotrailerUrl(microtrailerWebm);
-  if (webmUrl === null) return null;
-  const mp4Url = microtrailerMp4 ? steamMicrotrailerUrl(microtrailerMp4) : null;
-  const posterUrl = microtrailerPoster
-    ? steamMicrotrailerPosterUrl(microtrailerPoster)
-    : null;
-  const label = microtrailerName ?? "Trailer";
+  if (trailer === null) return null;
+  const label = trailer.trailerName ?? "Trailer";
   return (
     <>
-      {open && (
-        // Video sits between the hero img and the gradient/logo overlay.
-        // The hero img keeps its `view-transition-name`, so a follow-up
-        // navigation away from the page still morphs the static frame —
-        // the video is a transient overlay that unmounts on dismiss. The
-        // crossfade is a CSS opacity transition; under reduced-motion the
-        // duration collapses to 0 so the swap is a hard cut without
-        // suppressing the affordance itself.
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={posterUrl ?? undefined}
-          aria-label={label}
-          className={cn(
-            "absolute inset-0 size-full object-cover",
-            prefersReducedMotion
-              ? "opacity-100"
-              : "animate-in fade-in-0 duration-200 ease-out"
-          )}
-        >
-          <source src={webmUrl} type="video/webm" />
-          {mp4Url !== null && <source src={mp4Url} type="video/mp4" />}
-        </video>
-      )}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-pressed={open}
-        aria-label={open ? `Hide ${label}` : `Play ${label}`}
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-label={`Play ${label}`}
         className="absolute right-4 bottom-4 z-10 flex cursor-pointer items-center gap-1.5 rounded-full border border-white/20 bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/75 sm:right-6 sm:bottom-6"
       >
-        <span aria-hidden="true">{open ? "✕" : "▶"}</span>
-        <span>{open ? "Hide preview" : "Preview"}</span>
+        <span aria-hidden="true">▶</span>
+        <span>Preview</span>
       </button>
+      {/* Mount the modal subtree only while it's open — Suspense covers
+          the dynamic-import chunk fetch on the first click per session.
+          Closing unmounts the modal entirely, which destroys the Shaka
+          player and releases its MediaSource (see trailer-modal.tsx). */}
+      {open && (
+        <Suspense fallback={null}>
+          <TrailerModal trailer={trailer} open={open} onOpenChange={setOpen} />
+        </Suspense>
+      )}
     </>
   );
 }

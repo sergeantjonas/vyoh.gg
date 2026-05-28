@@ -1,102 +1,88 @@
-import { fireEvent, render } from "@testing-library/react";
-import { MotionConfig } from "motion/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { SteamGameTrailer } from "@vyoh/shared";
+import { describe, expect, it, vi } from "vitest";
 import { GameHeroTrailerPill } from "./game-hero-trailer-pill";
 
-function props(overrides: Partial<Parameters<typeof GameHeroTrailerPill>[0]> = {}) {
+// Stub the modal child — the pill's job is to gate, render an affordance,
+// and toggle the modal's open state. The modal's own behavior is covered
+// in trailer-modal.test.tsx.
+vi.mock("./trailer-modal", () => ({
+  TrailerModal: ({
+    open,
+    onOpenChange,
+    trailer,
+  }: {
+    open: boolean;
+    onOpenChange: (next: boolean) => void;
+    trailer: SteamGameTrailer;
+  }) =>
+    open ? (
+      <div data-testid="trailer-modal-stub" data-trailer-name={trailer.trailerName}>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          stub-close
+        </button>
+      </div>
+    ) : null,
+}));
+
+function trailer(overrides: Partial<SteamGameTrailer> = {}): SteamGameTrailer {
   return {
+    trailerName: "Full Launch trailer",
+    trailerCategory: 0,
+    allAges: true,
     microtrailerWebm: "2050650/657549/abc/1750745214/microtrailer.webm",
     microtrailerMp4: "2050650/657549/abc/1750745214/microtrailer.mp4",
-    microtrailerPoster: "256998128/movie.293x165.jpg",
-    microtrailerName: "Full Launch trailer",
+    screenshotMedium: "256998128/movie.293x165.jpg",
+    screenshotFull: "256998128/movie_full.jpg",
+    adaptiveTrailers: [
+      {
+        cdnPath: "2050650/657549/abc/1750745214/dash_h264.mpd",
+        encoding: "dash_h264",
+      },
+    ],
     ...overrides,
-  } satisfies Parameters<typeof GameHeroTrailerPill>[0];
+  };
 }
 
 describe("GameHeroTrailerPill", () => {
-  it("renders nothing when no microtrailer is set", () => {
-    const { container } = render(
-      <GameHeroTrailerPill {...props({ microtrailerWebm: null })} />
-    );
-    expect(container.querySelector("button")).toBeNull();
-    expect(container.querySelector("video")).toBeNull();
-  });
-
-  it("renders nothing when the stored filename is malformed (URL builder rejects)", () => {
-    const { container } = render(
-      <GameHeroTrailerPill {...props({ microtrailerWebm: "not-a-valid-path" })} />
-    );
+  it("renders nothing when no trailer is set", () => {
+    const { container } = render(<GameHeroTrailerPill trailer={null} />);
     expect(container.querySelector("button")).toBeNull();
   });
 
-  it("renders the pill closed by default with the Play affordance", () => {
-    const { container } = render(<GameHeroTrailerPill {...props()} />);
+  it("renders the Preview pill with a play affordance", () => {
+    const { container } = render(<GameHeroTrailerPill trailer={trailer()} />);
     const button = container.querySelector("button");
     if (!button) throw new Error("pill button not rendered");
-    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(button.getAttribute("aria-haspopup")).toBe("dialog");
     expect(button.getAttribute("aria-label")).toBe("Play Full Launch trailer");
     expect(button.textContent).toContain("Preview");
-    expect(container.querySelector("video")).toBeNull();
   });
 
-  it("mounts the looping <video> on click and toggles the pill to the Hide affordance", () => {
-    const { container } = render(<GameHeroTrailerPill {...props()} />);
-    const button = container.querySelector("button");
-    if (!button) throw new Error("pill button not rendered");
-    fireEvent.click(button);
-    expect(button.getAttribute("aria-pressed")).toBe("true");
-    expect(button.getAttribute("aria-label")).toBe("Hide Full Launch trailer");
-    expect(button.textContent).toContain("Hide preview");
-    const video = container.querySelector("video");
-    if (!video) throw new Error("video not rendered after click");
-    expect(video.hasAttribute("autoplay")).toBe(true);
-    expect(video.hasAttribute("loop")).toBe(true);
-    expect(video.hasAttribute("muted")).toBe(true);
-    expect(video.getAttribute("aria-label")).toBe("Full Launch trailer");
-    const sources = video.querySelectorAll("source");
-    expect(sources.length).toBe(2);
-    expect(sources[0]?.getAttribute("type")).toBe("video/webm");
-    expect(sources[1]?.getAttribute("type")).toBe("video/mp4");
+  it("does not mount the modal until the pill is clicked", () => {
+    render(<GameHeroTrailerPill trailer={trailer()} />);
+    expect(screen.queryByTestId("trailer-modal-stub")).toBeNull();
   });
 
-  it("unmounts the video on a second click (dismiss)", () => {
-    const { container } = render(<GameHeroTrailerPill {...props()} />);
-    const button = container.querySelector("button") as HTMLButtonElement;
-    fireEvent.click(button);
-    fireEvent.click(button);
-    expect(container.querySelector("video")).toBeNull();
-    expect(button.getAttribute("aria-pressed")).toBe("false");
+  it("mounts the TrailerModal with the provided trailer on click", async () => {
+    render(<GameHeroTrailerPill trailer={trailer()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Play Full Launch trailer" }));
+    const modal = await waitFor(() => screen.getByTestId("trailer-modal-stub"));
+    expect(modal.dataset.trailerName).toBe("Full Launch trailer");
   });
 
-  it("falls back to the 'Trailer' aria-label when the publisher name is null", () => {
-    const { container } = render(
-      <GameHeroTrailerPill {...props({ microtrailerName: null })} />
-    );
-    const button = container.querySelector("button");
-    expect(button?.getAttribute("aria-label")).toBe("Play Trailer");
+  it("falls back to 'Trailer' on the aria-label when the publisher name is null", () => {
+    render(<GameHeroTrailerPill trailer={trailer({ trailerName: null })} />);
+    expect(screen.getByRole("button", { name: "Play Trailer" })).toBeTruthy();
   });
 
-  it("omits the mp4 source when only the webm filename is set", () => {
-    const { container } = render(
-      <GameHeroTrailerPill {...props({ microtrailerMp4: null })} />
-    );
-    fireEvent.click(container.querySelector("button") as HTMLButtonElement);
-    const sources = container.querySelectorAll("video source");
-    expect(sources.length).toBe(1);
-    expect(sources[0]?.getAttribute("type")).toBe("video/webm");
-  });
-
-  it("collapses the crossfade to a hard cut under prefers-reduced-motion", () => {
-    const { container } = render(
-      <MotionConfig reducedMotion="always">
-        <GameHeroTrailerPill {...props()} />
-      </MotionConfig>
-    );
-    fireEvent.click(container.querySelector("button") as HTMLButtonElement);
-    const video = container.querySelector("video");
-    if (!video) throw new Error("video not rendered");
-    // Hard cut: opacity-100 only, no `animate-in fade-in-0` enter class chain.
-    expect(video.className).toContain("opacity-100");
-    expect(video.className).not.toContain("fade-in-0");
+  it("unmounts the modal subtree when its onOpenChange flips to false", async () => {
+    render(<GameHeroTrailerPill trailer={trailer()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Play Full Launch trailer" }));
+    await waitFor(() => screen.getByTestId("trailer-modal-stub"));
+    fireEvent.click(screen.getByText("stub-close"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("trailer-modal-stub")).toBeNull();
+    });
   });
 });

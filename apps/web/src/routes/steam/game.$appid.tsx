@@ -172,20 +172,14 @@ function SteamGamePage() {
             )}
           />
         )}
-        {/* Microtrailer opt-in. Self-gating: renders nothing when the game
-            has no microtrailer, so the hero stays untouched for the ~30% of
-            titles Steam doesn't ship a trailer for. Anchored to the hero
-            wrapper (which carries the VT name) so the pill participates in
-            the same view-transition snapshot as the hero img — without that,
-            the pill would crossfade in independently after the morph lands. */}
-        {game && (
-          <GameHeroTrailerPill
-            microtrailerWebm={game.microtrailerWebm}
-            microtrailerMp4={game.microtrailerMp4}
-            microtrailerPoster={game.microtrailerPoster}
-            microtrailerName={game.microtrailerName}
-          />
-        )}
+        {/* Full-trailer modal entry point. Self-gating: renders nothing when
+            the game has no playable trailer. Passes the first highlight
+            (Steam orders highlights[] with the launch trailer at [0]) — a
+            future carousel arc can widen this to surface every highlight
+            individually. Anchored to the hero wrapper (which carries the VT
+            name) so the pill participates in the same view-transition
+            snapshot as the hero img. */}
+        {game && <GameHeroTrailerPill trailer={game.trailers?.[0] ?? null} />}
       </div>
 
       {/* Band 1 — Identity card. The hero banner already carries the
