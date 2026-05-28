@@ -5,9 +5,9 @@ import { GameHeroTrailerPill } from "./game-hero-trailer-pill";
 
 function props(overrides: Partial<Parameters<typeof GameHeroTrailerPill>[0]> = {}) {
   return {
-    microtrailerWebm: "367520/2090056095/abc/microtrailer.webm",
-    microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
-    microtrailerPoster: "367520/extras/launch_trailer_medium.jpg",
+    microtrailerWebm: "2050650/657549/abc/1750745214/microtrailer.webm",
+    microtrailerMp4: "2050650/657549/abc/1750745214/microtrailer.mp4",
+    microtrailerPoster: "256998128/movie.293x165.jpg",
     microtrailerName: "Full Launch trailer",
     ...overrides,
   } satisfies Parameters<typeof GameHeroTrailerPill>[0];

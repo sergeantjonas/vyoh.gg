@@ -143,51 +143,74 @@ describe("rewriteSteamDescriptionAssetUrl", () => {
 });
 
 describe("steamMicrotrailerUrl", () => {
-  it("splits the canonical 4-segment filename into proxy path segments", () => {
-    expect(steamMicrotrailerUrl("367520/2090056095/abc/microtrailer.webm")).toBe(
-      "http://localhost:2010/img/steam/microtrailer/367520/2090056095/abc/microtrailer.webm"
+  // Real-world shape captured 2026-05-29 from RE4 (appid 2050650): five
+  // slash-separated segments `{appid}/{movieid}/{hash}/{ts}/microtrailer.{ext}`,
+  // where ts is a unix-epoch cache-bump on the directory itself.
+  it("splits the canonical 5-segment filename into proxy path segments", () => {
+    expect(
+      steamMicrotrailerUrl(
+        "2050650/657549/cb3c3f74c8ef584d34401e5786b1858845df8fbe/1750745214/microtrailer.webm"
+      )
+    ).toBe(
+      "http://localhost:2010/img/steam/microtrailer/2050650/657549/cb3c3f74c8ef584d34401e5786b1858845df8fbe/1750745214/microtrailer.webm"
     );
   });
 
   it("accepts mp4 alongside webm", () => {
-    expect(steamMicrotrailerUrl("367520/2090056095/abc/microtrailer.mp4")).toBe(
-      "http://localhost:2010/img/steam/microtrailer/367520/2090056095/abc/microtrailer.mp4"
+    expect(steamMicrotrailerUrl("2050650/657549/abc/1750745214/microtrailer.mp4")).toBe(
+      "http://localhost:2010/img/steam/microtrailer/2050650/657549/abc/1750745214/microtrailer.mp4"
     );
   });
 
   it("returns null for unexpected extensions (mov, etc.)", () => {
-    expect(steamMicrotrailerUrl("367520/2090056095/abc/microtrailer.mov")).toBeNull();
+    expect(
+      steamMicrotrailerUrl("2050650/657549/abc/1750745214/microtrailer.mov")
+    ).toBeNull();
   });
 
   it("returns null when the path doesn't end in microtrailer.{ext}", () => {
-    expect(steamMicrotrailerUrl("367520/2090056095/abc/trailer.webm")).toBeNull();
+    expect(steamMicrotrailerUrl("2050650/657549/abc/1750745214/trailer.webm")).toBeNull();
   });
 
   it("returns null when path traversal characters appear in a segment", () => {
-    expect(steamMicrotrailerUrl("367520/../etc/passwd/microtrailer.webm")).toBeNull();
+    expect(
+      steamMicrotrailerUrl("2050650/../etc/passwd/1750745214/microtrailer.webm")
+    ).toBeNull();
+  });
+
+  it("returns null when the old 4-segment shape is supplied", () => {
+    // Older draft assumed `{appid}/{movieid}/{hash}/microtrailer.{ext}`.
+    // Steam returns the 5-segment shape; the 4-segment one was never real.
+    expect(steamMicrotrailerUrl("2050650/657549/abc/microtrailer.webm")).toBeNull();
   });
 });
 
 describe("steamMicrotrailerPosterUrl", () => {
-  it("rewrites a canonical extras poster filename to the proxy path", () => {
-    expect(steamMicrotrailerPosterUrl("367520/extras/launch_trailer_medium.jpg")).toBe(
-      "http://localhost:2010/img/steam/microtrailer-poster/367520/extras/launch_trailer_medium.jpg"
+  // Real-world shape captured 2026-05-29 from RE4: `{movieid}/movie.NxN.{ext}`,
+  // rooted at the trailer's own publisher id (NOT the parent appid).
+  it("rewrites a canonical movie.NxN.jpg poster filename to the proxy path", () => {
+    expect(steamMicrotrailerPosterUrl("256998128/movie.293x165.jpg")).toBe(
+      "http://localhost:2010/img/steam/microtrailer-poster/256998128/movie.293x165.jpg"
     );
   });
 
   it("accepts png posters", () => {
-    expect(steamMicrotrailerPosterUrl("367520/extras/launch_trailer_medium.png")).toBe(
-      "http://localhost:2010/img/steam/microtrailer-poster/367520/extras/launch_trailer_medium.png"
+    expect(steamMicrotrailerPosterUrl("256998128/movie.293x165.png")).toBe(
+      "http://localhost:2010/img/steam/microtrailer-poster/256998128/movie.293x165.png"
     );
   });
 
-  it("returns null for an unknown bucket (non-extras)", () => {
+  it("returns null for the older extras/ shape (never the real Steam format)", () => {
     expect(
-      steamMicrotrailerPosterUrl("367520/movies/launch_trailer_medium.jpg")
+      steamMicrotrailerPosterUrl("367520/extras/launch_trailer_medium.jpg")
     ).toBeNull();
   });
 
+  it("returns null when the size suffix is missing", () => {
+    expect(steamMicrotrailerPosterUrl("256998128/movie.jpg")).toBeNull();
+  });
+
   it("returns null for path traversal attempts", () => {
-    expect(steamMicrotrailerPosterUrl("367520/extras/../../etc/passwd.jpg")).toBeNull();
+    expect(steamMicrotrailerPosterUrl("256998128/../etc/passwd.jpg")).toBeNull();
   });
 });

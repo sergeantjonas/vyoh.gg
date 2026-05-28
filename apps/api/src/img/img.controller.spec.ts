@@ -540,9 +540,10 @@ describe("ImgController.steamMicrotrailer", () => {
     const res = makeRes();
     await makeController().steamMicrotrailer(
       "abc",
-      "2090056095",
+      "657549",
       "hash",
-      "webm",
+      "1750745214",
+      "microtrailer.webm",
       undefined,
       res as never
     );
@@ -553,10 +554,11 @@ describe("ImgController.steamMicrotrailer", () => {
   it("returns 400 when a path segment contains traversal characters", async () => {
     const res = makeRes();
     await makeController().steamMicrotrailer(
-      "367520",
+      "2050650",
       "..",
       "hash",
-      "webm",
+      "1750745214",
+      "microtrailer.webm",
       undefined,
       res as never
     );
@@ -564,13 +566,28 @@ describe("ImgController.steamMicrotrailer", () => {
     expect(streamSpy).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when the extension isn't on the codec allowlist", async () => {
+  it("returns 400 when the asset segment isn't on the codec allowlist", async () => {
     const res = makeRes();
     await makeController().steamMicrotrailer(
-      "367520",
-      "2090056095",
+      "2050650",
+      "657549",
       "hash",
-      "mov",
+      "1750745214",
+      "microtrailer.mov",
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+  });
+
+  it("returns 400 when the asset isn't literal microtrailer.{ext}", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "2050650",
+      "657549",
+      "hash",
+      "1750745214",
+      "trailer.webm",
       undefined,
       res as never
     );
@@ -589,15 +606,16 @@ describe("ImgController.steamMicrotrailer", () => {
     });
     const res = makeRes();
     await makeController().steamMicrotrailer(
-      "367520",
-      "2090056095",
-      "hash",
-      "webm",
+      "2050650",
+      "657549",
+      "cb3c3f74c8ef584d34401e5786b1858845df8fbe",
+      "1750745214",
+      "microtrailer.webm",
       undefined,
       res as never
     );
     expect(streamSpy).toHaveBeenCalledWith(
-      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/2090056095/hash/microtrailer.webm",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2050650/657549/cb3c3f74c8ef584d34401e5786b1858845df8fbe/1750745214/microtrailer.webm",
       undefined
     );
     expect(res._status).toBe(200);
@@ -620,10 +638,11 @@ describe("ImgController.steamMicrotrailer", () => {
     });
     const res = makeRes();
     await makeController().steamMicrotrailer(
-      "367520",
-      "2090056095",
+      "2050650",
+      "657549",
       "hash",
-      "mp4",
+      "1750745214",
+      "microtrailer.mp4",
       "bytes=0-1023",
       res as never
     );
@@ -639,10 +658,11 @@ describe("ImgController.steamMicrotrailer", () => {
     );
     const res = makeRes();
     await makeController().steamMicrotrailer(
-      "367520",
-      "2090056095",
+      "2050650",
+      "657549",
       "hash",
-      "webm",
+      "1750745214",
+      "microtrailer.webm",
       undefined,
       res as never
     );
@@ -661,22 +681,22 @@ describe("ImgController.steamMicrotrailerPoster", () => {
       : never;
   }
 
-  it("returns 400 for a non-numeric appid", async () => {
+  it("returns 400 when the movieid contains traversal characters", async () => {
     const res = makeRes();
     await makeController().steamMicrotrailerPoster(
-      "abc",
-      "launch_trailer_medium.jpg",
+      "..",
+      "movie.293x165.jpg",
       res as never
     );
     expect(res._status).toBe(400);
     expect(streamSpy).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when the poster name doesn't match the allowlist regex", async () => {
+  it("returns 400 when the poster name doesn't match the movie.NxN.{ext} shape", async () => {
     const res = makeRes();
     await makeController().steamMicrotrailerPoster(
-      "367520",
-      "../../etc/passwd.jpg",
+      "256998128",
+      "launch_trailer_medium.jpg",
       res as never
     );
     expect(res._status).toBe(400);
@@ -686,8 +706,8 @@ describe("ImgController.steamMicrotrailerPoster", () => {
   it("returns 400 for unsupported poster extensions (gif, webp, etc.)", async () => {
     const res = makeRes();
     await makeController().steamMicrotrailerPoster(
-      "367520",
-      "launch_trailer_medium.gif",
+      "256998128",
+      "movie.293x165.gif",
       res as never
     );
     expect(res._status).toBe(400);
@@ -705,12 +725,12 @@ describe("ImgController.steamMicrotrailerPoster", () => {
     });
     const res = makeRes();
     await makeController().steamMicrotrailerPoster(
-      "367520",
-      "launch_trailer_medium.jpg",
+      "256998128",
+      "movie.293x165.jpg",
       res as never
     );
     expect(streamSpy).toHaveBeenCalledWith(
-      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/extras/launch_trailer_medium.jpg"
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/256998128/movie.293x165.jpg"
     );
     expect(res._status).toBe(200);
     expect(res._headers["Content-Type"]).toBe("image/jpeg");
@@ -726,8 +746,8 @@ describe("ImgController.steamMicrotrailerPoster", () => {
     );
     const res = makeRes();
     await makeController().steamMicrotrailerPoster(
-      "367520",
-      "launch_trailer_medium.jpg",
+      "256998128",
+      "movie.293x165.jpg",
       res as never
     );
     expect(res._status).toBe(502);

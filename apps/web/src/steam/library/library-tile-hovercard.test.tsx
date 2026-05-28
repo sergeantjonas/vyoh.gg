@@ -218,9 +218,9 @@ describe("LibraryTileHovercardContent", () => {
     const { container } = render(
       <LibraryTileHovercardContent
         game={game({
-          microtrailerWebm: "440/movieid/hash/microtrailer.webm",
-          microtrailerMp4: "440/movieid/hash/microtrailer.mp4",
-          microtrailerPoster: "440/extras/launch_trailer_medium.jpg",
+          microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
+          microtrailerMp4: "440/657549/hash/1750745214/microtrailer.mp4",
+          microtrailerPoster: "256998128/movie.293x165.jpg",
           microtrailerName: "Full Launch trailer",
         })}
       />
@@ -232,7 +232,7 @@ describe("LibraryTileHovercardContent", () => {
     expect(video.hasAttribute("loop")).toBe(true);
     expect(video.hasAttribute("muted")).toBe(true);
     expect(video.getAttribute("poster")).toContain(
-      "/img/steam/microtrailer-poster/440/extras/launch_trailer_medium.jpg"
+      "/img/steam/microtrailer-poster/256998128/movie.293x165.jpg"
     );
     const sources = video.querySelectorAll("source");
     expect(sources.length).toBe(2);
@@ -247,9 +247,9 @@ describe("LibraryTileHovercardContent", () => {
       <MotionConfig reducedMotion="always">
         <LibraryTileHovercardContent
           game={game({
-            microtrailerWebm: "440/movieid/hash/microtrailer.webm",
-            microtrailerMp4: "440/movieid/hash/microtrailer.mp4",
-            microtrailerPoster: "440/extras/launch_trailer_medium.jpg",
+            microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
+            microtrailerMp4: "440/657549/hash/1750745214/microtrailer.mp4",
+            microtrailerPoster: "256998128/movie.293x165.jpg",
             microtrailerName: "Full Launch trailer",
           })}
         />
@@ -267,7 +267,7 @@ describe("LibraryTileHovercardContent", () => {
     render(
       <LibraryTileHovercardContent
         game={game({
-          microtrailerWebm: "440/movieid/hash/microtrailer.webm",
+          microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
           microtrailerMp4: null,
           microtrailerPoster: null,
           microtrailerName: null,
@@ -282,7 +282,7 @@ describe("LibraryTileHovercardContent", () => {
     const { container } = render(
       <LibraryTileHovercardContent
         game={game({
-          microtrailerWebm: "440/movieid/hash/microtrailer.webm",
+          microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
           microtrailerMp4: null,
           microtrailerPoster: null,
           microtrailerName: null,
