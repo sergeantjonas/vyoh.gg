@@ -1,11 +1,14 @@
 import { Sparkline } from "@/components/ui/sparkline";
+import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
+import { gameAchievementsQueryOptions } from "@/steam/game/use-game-achievements";
 import type { GameOrigin } from "@/steam/library/active-game-context";
 import { useActiveGame } from "@/steam/library/active-game-context";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
@@ -60,6 +63,10 @@ export function LibraryRow({
   mountStagger?: boolean;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const prefetch = useHoverPrefetch(() => {
+    queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid));
+  });
   const { saveListScroll, setActiveGame, originRectRef, setOriginRect } = useActiveGame();
   const reduced = useReducedMotion();
   const showHovercard = useMediaQuery(HOVERCARD_VIEWPORT_QUERY);
@@ -176,10 +183,13 @@ export function LibraryRow({
       onMouseEnter={() =>
         prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
       }
+      onPointerEnter={prefetch.onPointerEnter}
+      onPointerLeave={prefetch.onPointerLeave}
       onFocus={() =>
         prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
       }
       onPointerDown={() => {
+        prefetch.onPointerDown();
         // Save list scroll + flag the active game on press so the
         // detail page can later restore both on back-navigation. Mirrors
         // match-row's pattern: pointerdown fires before the navigation

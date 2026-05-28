@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamGameAchievements } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
@@ -23,10 +23,14 @@ async function fetchGameAchievements(appid: number): Promise<SteamGameAchievemen
 // poller. Unlock state changes at most once per 24h, so 30min stale-time
 // matches the other owned-games-derived hooks — keeps in-session navigation
 // (library → game → library → game) silent.
-export function useGameAchievements(appid: number) {
-  return useQuery({
+export function gameAchievementsQueryOptions(appid: number) {
+  return queryOptions({
     queryKey: ["steam", "game", appid, "achievements"],
     queryFn: () => fetchGameAchievements(appid),
     staleTime: 30 * 60 * 1_000,
   });
+}
+
+export function useGameAchievements(appid: number) {
+  return useQuery(gameAchievementsQueryOptions(appid));
 }

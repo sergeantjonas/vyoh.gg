@@ -1,13 +1,14 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { useQuery } from "@tanstack/react-query";
-import type { ChampionExtras } from "@vyoh/shared";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import type { ChampionExtras, LolAccount } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 
-export function useChampionExtras(accountSlug: string, championKey: string) {
-  const account = useAccountFromSlug(accountSlug);
-
-  return useQuery<ChampionExtras>({
+export function championExtrasQueryOptions(
+  account: LolAccount | undefined,
+  championKey: string
+) {
+  return queryOptions<ChampionExtras>({
     queryKey: [
       "lol",
       "champion-extras",
@@ -28,4 +29,9 @@ export function useChampionExtras(accountSlug: string, championKey: string) {
     enabled: !!account,
     staleTime: 5 * 60_000,
   });
+}
+
+export function useChampionExtras(accountSlug: string, championKey: string) {
+  const account = useAccountFromSlug(accountSlug);
+  return useQuery(championExtrasQueryOptions(account, championKey));
 }

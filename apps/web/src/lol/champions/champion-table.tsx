@@ -1,8 +1,10 @@
 import { CountUp } from "@/components/count-up";
 import { Sparkline } from "@/components/ui/sparkline";
 import { mainScrollRef } from "@/lib/scroll-container";
+import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
@@ -16,7 +18,9 @@ import {
   championCardClassName,
   championCardStyle,
 } from "@/lol/champions/champion-card";
+import { championExtrasQueryOptions } from "@/lol/champions/use-champion-extras";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
@@ -271,6 +275,11 @@ function ChampionTableRow({
   const cardRef = useRef<HTMLDivElement>(null);
   const alias = s.champion;
   const position = s.position;
+  const queryClient = useQueryClient();
+  const account = useAccountFromSlug(accountSlug);
+  const prefetch = useHoverPrefetch(() => {
+    queryClient.prefetchQuery(championExtrasQueryOptions(account, alias));
+  });
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef. Mirrors match-row.
   const savedOrigin = useRef<ChampionOrigin | null>(null);
@@ -345,7 +354,10 @@ function ChampionTableRow({
           to="/lol/$accountSlug/champions/$championKey"
           params={{ accountSlug, championKey: alias.toLowerCase() }}
           onMouseEnter={() => onCardHover?.(alias)}
+          onPointerEnter={prefetch.onPointerEnter}
+          onPointerLeave={prefetch.onPointerLeave}
           onPointerDown={() => {
+            prefetch.onPointerDown();
             saveListScroll();
             setActiveChampion(alias);
             setActivePosition(position);

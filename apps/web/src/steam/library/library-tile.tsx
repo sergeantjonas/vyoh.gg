@@ -1,4 +1,5 @@
 import { Sparkline } from "@/components/ui/sparkline";
+import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import {
@@ -8,9 +9,11 @@ import {
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
 } from "@/steam/_shared/steam-image";
+import { gameAchievementsQueryOptions } from "@/steam/game/use-game-achievements";
 import { useActiveGame } from "@/steam/library/active-game-context";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
@@ -47,6 +50,10 @@ export function LibraryTile({
   const [capsuleLoaded, setCapsuleLoaded] = useState(false);
   const navigate = useNavigate();
   const { saveListScroll, setActiveGame } = useActiveGame();
+  const queryClient = useQueryClient();
+  const prefetch = useHoverPrefetch(() => {
+    queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid));
+  });
   // Hidden hero-img layer is the morph anchor: the destination renders the
   // same hero asset as its foreground banner, so naming *just* this hidden
   // layer carries the visual continuity across a 2:3 → 3:1 aspect change
@@ -86,11 +93,14 @@ export function LibraryTile({
             onFocus={() =>
               prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
             }
+            onPointerEnter={prefetch.onPointerEnter}
+            onPointerLeave={prefetch.onPointerLeave}
             onPointerDown={() => {
               // Mirrors LibraryRow: save scroll + flag the active game on
               // press so the detail page can restore both on back-nav. Even
               // though the tile layout skips the backward rect-morph, the
               // scroll restore still applies.
+              prefetch.onPointerDown();
               saveListScroll();
               setActiveGame(game.appid);
             }}

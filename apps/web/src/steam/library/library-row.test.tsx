@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
@@ -14,11 +15,17 @@ import {
 import { ActiveGameProvider } from "./active-game-context";
 import { LibraryRow } from "./library-row";
 
-function renderRow(game: SteamOwnedGame) {
+function newQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+function renderRow(game: SteamOwnedGame, queryClient: QueryClient = newQueryClient()) {
   return render(
-    <ActiveGameProvider>
-      <LibraryRow game={game} />
-    </ActiveGameProvider>
+    <QueryClientProvider client={queryClient}>
+      <ActiveGameProvider>
+        <LibraryRow game={game} />
+      </ActiveGameProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -215,5 +222,39 @@ describe("LibraryRow view-transition wiring", () => {
 
     fireEvent.click(link, { button: 0 });
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("LibraryRow hover prefetch", () => {
+  it("prefetches game achievements 150ms after pointer enter", () => {
+    const qc = newQueryClient();
+    const spy = vi.spyOn(qc, "prefetchQuery").mockImplementation(() => Promise.resolve());
+    const { container } = renderRow(makeGame({ appid: 730 }), qc);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+    fireEvent.pointerEnter(link);
+    vi.advanceTimersByTime(149);
+    expect(spy).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual([
+      "steam",
+      "game",
+      730,
+      "achievements",
+    ]);
+  });
+
+  it("does not prefetch if the pointer leaves before 150ms", () => {
+    const qc = newQueryClient();
+    const spy = vi.spyOn(qc, "prefetchQuery").mockImplementation(() => Promise.resolve());
+    const { container } = renderRow(makeGame({ appid: 730 }), qc);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+    fireEvent.pointerEnter(link);
+    vi.advanceTimersByTime(100);
+    fireEvent.pointerLeave(link);
+    vi.advanceTimersByTime(500);
+    expect(spy).not.toHaveBeenCalled();
   });
 });

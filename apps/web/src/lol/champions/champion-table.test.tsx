@@ -1,5 +1,6 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -13,6 +14,10 @@ vi.mock("@tanstack/react-router", () => ({
     <a {...(props as Record<string, unknown>)}>{children}</a>
   ),
   useNavigate: () => vi.fn(),
+}));
+
+vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
+  useAccountFromSlug: () => ({ region: "EUW1", gameName: "X", tagLine: "EUW" }),
 }));
 
 vi.mock("./use-champions", () => ({
@@ -78,13 +83,19 @@ function stat(overrides: Partial<ChampionStats> = {}): ChampionStats {
   };
 }
 
-function renderTable(ui: ReactNode) {
+function newQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+function renderTable(ui: ReactNode, queryClient: QueryClient = newQueryClient()) {
   return render(
-    <MotionConfig reducedMotion="always">
-      <TooltipPrimitive.Provider>
-        <ActiveChampionProvider>{ui}</ActiveChampionProvider>
-      </TooltipPrimitive.Provider>
-    </MotionConfig>
+    <QueryClientProvider client={queryClient}>
+      <MotionConfig reducedMotion="always">
+        <TooltipPrimitive.Provider>
+          <ActiveChampionProvider>{ui}</ActiveChampionProvider>
+        </TooltipPrimitive.Provider>
+      </MotionConfig>
+    </QueryClientProvider>
   );
 }
 
@@ -214,14 +225,16 @@ describe("ChampionTable", () => {
 
     function renderWithProbe(stats: ChampionStats[]) {
       return render(
-        <MotionConfig reducedMotion="always">
-          <TooltipPrimitive.Provider>
-            <ActiveChampionProvider>
-              <ChampionTable stats={stats} sort="games" accountSlug="ahri" />
-              <ProbeConsumer />
-            </ActiveChampionProvider>
-          </TooltipPrimitive.Provider>
-        </MotionConfig>
+        <QueryClientProvider client={newQueryClient()}>
+          <MotionConfig reducedMotion="always">
+            <TooltipPrimitive.Provider>
+              <ActiveChampionProvider>
+                <ChampionTable stats={stats} sort="games" accountSlug="ahri" />
+                <ProbeConsumer />
+              </ActiveChampionProvider>
+            </TooltipPrimitive.Provider>
+          </MotionConfig>
+        </QueryClientProvider>
       );
     }
 
@@ -257,13 +270,15 @@ describe("ChampionTable", () => {
       }
 
       render(
-        <MotionConfig reducedMotion="always">
-          <TooltipPrimitive.Provider>
-            <ActiveChampionProvider>
-              <TableWithSavedScroll stats={[stat()]} />
-            </ActiveChampionProvider>
-          </TooltipPrimitive.Provider>
-        </MotionConfig>
+        <QueryClientProvider client={newQueryClient()}>
+          <MotionConfig reducedMotion="always">
+            <TooltipPrimitive.Provider>
+              <ActiveChampionProvider>
+                <TableWithSavedScroll stats={[stat()]} />
+              </ActiveChampionProvider>
+            </TooltipPrimitive.Provider>
+          </MotionConfig>
+        </QueryClientProvider>
       );
 
       // The didInitialScrollRef branch (sync scrollTo during render) plus the
@@ -343,6 +358,53 @@ describe("ChampionTable", () => {
       expect(snapshot.liNames).toEqual(["", ""]);
       // The clicked row's inner card carries the paired morph name.
       expect(snapshot.clickedCardName).toBe("champion-Seraphine-MIDDLE");
+    });
+  });
+
+  describe("hover prefetch", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("prefetches champion-extras 150ms after pointer enter", () => {
+      const qc = newQueryClient();
+      const spy = vi
+        .spyOn(qc, "prefetchQuery")
+        .mockImplementation(() => Promise.resolve());
+      renderTable(<ChampionTable stats={[stat()]} sort="games" accountSlug="ahri" />, qc);
+      const link = screen.getByTestId("chrome").closest("a");
+      if (!link) throw new Error("expected a link wrapping the chrome");
+      fireEvent.pointerEnter(link);
+      vi.advanceTimersByTime(149);
+      expect(spy).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual([
+        "lol",
+        "champion-extras",
+        "EUW1",
+        "X",
+        "EUW",
+        "Ahri",
+      ]);
+    });
+
+    it("does not prefetch if the pointer leaves before 150ms", () => {
+      const qc = newQueryClient();
+      const spy = vi
+        .spyOn(qc, "prefetchQuery")
+        .mockImplementation(() => Promise.resolve());
+      renderTable(<ChampionTable stats={[stat()]} sort="games" accountSlug="ahri" />, qc);
+      const link = screen.getByTestId("chrome").closest("a");
+      if (!link) throw new Error("expected a link wrapping the chrome");
+      fireEvent.pointerEnter(link);
+      vi.advanceTimersByTime(100);
+      fireEvent.pointerLeave(link);
+      vi.advanceTimersByTime(500);
+      expect(spy).not.toHaveBeenCalled();
     });
   });
 });

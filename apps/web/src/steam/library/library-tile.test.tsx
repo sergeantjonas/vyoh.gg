@@ -1,4 +1,5 @@
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
@@ -41,13 +42,19 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
   } as unknown as SteamOwnedGame;
 }
 
-function renderTile(g: SteamOwnedGame) {
+function newQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+function renderTile(g: SteamOwnedGame, queryClient: QueryClient = newQueryClient()) {
   return render(
-    <ActiveGameProvider>
-      <ul>
-        <LibraryTile game={g} />
-      </ul>
-    </ActiveGameProvider>
+    <QueryClientProvider client={queryClient}>
+      <ActiveGameProvider>
+        <ul>
+          <LibraryTile game={g} />
+        </ul>
+      </ActiveGameProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -110,11 +117,13 @@ describe("LibraryTile", () => {
 describe("LibraryTile HeroFallback branches", () => {
   function renderWithCapsuleError(name: string) {
     const result = render(
-      <ActiveGameProvider>
-        <ul>
-          <LibraryTile game={game({ name })} />
-        </ul>
-      </ActiveGameProvider>
+      <QueryClientProvider client={newQueryClient()}>
+        <ActiveGameProvider>
+          <ul>
+            <LibraryTile game={game({ name })} />
+          </ul>
+        </ActiveGameProvider>
+      </QueryClientProvider>
     );
     const capsule = result.container.querySelector(
       "img:not([aria-hidden])"
@@ -238,5 +247,46 @@ describe("LibraryTile view-transition wiring", () => {
 
     fireEvent.click(link, { button: 0 });
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("LibraryTile hover prefetch", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("prefetches game achievements 150ms after pointer enter", () => {
+    const qc = newQueryClient();
+    const spy = vi.spyOn(qc, "prefetchQuery").mockImplementation(() => Promise.resolve());
+    const { container } = renderTile(game({ appid: 730 }), qc);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+    fireEvent.pointerEnter(link);
+    vi.advanceTimersByTime(149);
+    expect(spy).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual([
+      "steam",
+      "game",
+      730,
+      "achievements",
+    ]);
+  });
+
+  it("does not prefetch if the pointer leaves before 150ms", () => {
+    const qc = newQueryClient();
+    const spy = vi.spyOn(qc, "prefetchQuery").mockImplementation(() => Promise.resolve());
+    const { container } = renderTile(game({ appid: 730 }), qc);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+    fireEvent.pointerEnter(link);
+    vi.advanceTimersByTime(100);
+    fireEvent.pointerLeave(link);
+    vi.advanceTimersByTime(500);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
