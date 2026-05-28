@@ -427,6 +427,10 @@ export class SteamOwnedGamesService {
         subjectYPercent: true,
         flipHero: true,
         dominantHex: true,
+        microtrailerWebm: true,
+        microtrailerMp4: true,
+        microtrailerPoster: true,
+        microtrailerName: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -476,6 +480,10 @@ export class SteamOwnedGamesService {
           subjectYPercent: e?.subjectYPercent ?? null,
           flipHero: e?.flipHero ?? false,
           dominantHex: e?.dominantHex ?? null,
+          microtrailerWebm: e?.microtrailerWebm ?? null,
+          microtrailerMp4: e?.microtrailerMp4 ?? null,
+          microtrailerPoster: e?.microtrailerPoster ?? null,
+          microtrailerName: e?.microtrailerName ?? null,
           recentPlaytimeMinutes: recentByAppid.get(r.appid) ?? [],
         };
       }),

@@ -167,3 +167,34 @@ export function rewriteSteamDescriptionAssetUrl(url: string): string | null {
   if (!m) return null;
   return `${API_URL}/img/steam/desc/${m[1]}/extras/${m[2]}`;
 }
+
+// Microtrailer (6-second silent loop). The enrichment row stores the
+// CDN-relative filename in the canonical Steam shape
+// `{appid}/{movieid}/{hash}/microtrailer.{webm|mp4}`; the builder splits it
+// into the four route segments the proxy expects. Returns null when the
+// stored shape doesn't match (so the renderer falls back to the static
+// poster or to the existing screenshot rotation instead of issuing a
+// guaranteed-400 request). Mirrors the proxy's segment regex one-for-one so
+// rejection happens client-side and the network round-trip is skipped.
+const STEAM_MICROTRAILER_FILENAME_RE =
+  /^(\d+)\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/microtrailer\.(webm|mp4)$/;
+
+export function steamMicrotrailerUrl(filename: string): string | null {
+  const m = STEAM_MICROTRAILER_FILENAME_RE.exec(filename);
+  if (!m) return null;
+  return `${API_URL}/img/steam/microtrailer/${m[1]}/${m[2]}/${m[3]}/microtrailer.${m[4]}`;
+}
+
+// Microtrailer poster — `screenshot_medium` from the same
+// `trailers.highlights[0]` block. Observed shape:
+// `{appid}/extras/{name}.{jpg|jpeg|png}` (e.g. `launch_trailer_medium.jpg`).
+// The bucket is locked to `extras` on both sides; an unknown bucket returns
+// null so the renderer falls back to the still under the `<video>`.
+const STEAM_MICROTRAILER_POSTER_FILENAME_RE =
+  /^(\d+)\/extras\/([A-Za-z0-9_-]+\.(?:jpg|jpeg|png))$/;
+
+export function steamMicrotrailerPosterUrl(filename: string): string | null {
+  const m = STEAM_MICROTRAILER_POSTER_FILENAME_RE.exec(filename);
+  if (!m) return null;
+  return `${API_URL}/img/steam/microtrailer-poster/${m[1]}/extras/${m[2]}`;
+}

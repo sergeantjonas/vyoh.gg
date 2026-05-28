@@ -6,6 +6,8 @@ import {
   steamLibraryCapsuleUrl,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
+  steamMicrotrailerPosterUrl,
+  steamMicrotrailerUrl,
   steamPageBackgroundUrl,
 } from "./steam-image";
 
@@ -137,5 +139,55 @@ describe("rewriteSteamDescriptionAssetUrl", () => {
         `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/extras/${HASH}.mp4`
       )
     ).toBeNull();
+  });
+});
+
+describe("steamMicrotrailerUrl", () => {
+  it("splits the canonical 4-segment filename into proxy path segments", () => {
+    expect(steamMicrotrailerUrl("367520/2090056095/abc/microtrailer.webm")).toBe(
+      "http://localhost:2010/img/steam/microtrailer/367520/2090056095/abc/microtrailer.webm"
+    );
+  });
+
+  it("accepts mp4 alongside webm", () => {
+    expect(steamMicrotrailerUrl("367520/2090056095/abc/microtrailer.mp4")).toBe(
+      "http://localhost:2010/img/steam/microtrailer/367520/2090056095/abc/microtrailer.mp4"
+    );
+  });
+
+  it("returns null for unexpected extensions (mov, etc.)", () => {
+    expect(steamMicrotrailerUrl("367520/2090056095/abc/microtrailer.mov")).toBeNull();
+  });
+
+  it("returns null when the path doesn't end in microtrailer.{ext}", () => {
+    expect(steamMicrotrailerUrl("367520/2090056095/abc/trailer.webm")).toBeNull();
+  });
+
+  it("returns null when path traversal characters appear in a segment", () => {
+    expect(steamMicrotrailerUrl("367520/../etc/passwd/microtrailer.webm")).toBeNull();
+  });
+});
+
+describe("steamMicrotrailerPosterUrl", () => {
+  it("rewrites a canonical extras poster filename to the proxy path", () => {
+    expect(steamMicrotrailerPosterUrl("367520/extras/launch_trailer_medium.jpg")).toBe(
+      "http://localhost:2010/img/steam/microtrailer-poster/367520/extras/launch_trailer_medium.jpg"
+    );
+  });
+
+  it("accepts png posters", () => {
+    expect(steamMicrotrailerPosterUrl("367520/extras/launch_trailer_medium.png")).toBe(
+      "http://localhost:2010/img/steam/microtrailer-poster/367520/extras/launch_trailer_medium.png"
+    );
+  });
+
+  it("returns null for an unknown bucket (non-extras)", () => {
+    expect(
+      steamMicrotrailerPosterUrl("367520/movies/launch_trailer_medium.jpg")
+    ).toBeNull();
+  });
+
+  it("returns null for path traversal attempts", () => {
+    expect(steamMicrotrailerPosterUrl("367520/extras/../../etc/passwd.jpg")).toBeNull();
   });
 });

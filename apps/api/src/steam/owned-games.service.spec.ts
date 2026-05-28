@@ -402,6 +402,10 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
             logoPath: "abc123/logo.png",
             appType: "game",
             tagIds: [1628, 1625],
+            microtrailerWebm: "367520/2090056095/abc/microtrailer.webm",
+            microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
+            microtrailerPoster: "367520/extras/launch_trailer_medium.jpg",
+            microtrailerName: "Full Launch trailer",
           },
         ]),
       },
@@ -442,6 +446,10 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         subjectYPercent: null,
         flipHero: false,
         dominantHex: null,
+        microtrailerWebm: "367520/2090056095/abc/microtrailer.webm",
+        microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
+        microtrailerPoster: "367520/extras/launch_trailer_medium.jpg",
+        microtrailerName: "Full Launch trailer",
         recentPlaytimeMinutes: [],
       },
     ]);
@@ -487,6 +495,10 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
       appType: null,
       tagIds: [],
       rtimeLastPlayedAt: null,
+      microtrailerWebm: null,
+      microtrailerMp4: null,
+      microtrailerPoster: null,
+      microtrailerName: null,
     });
   });
 

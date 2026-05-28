@@ -524,3 +524,212 @@ describe("ImgController.steamDescriptionAsset", () => {
     expect(res._status).toBe(502);
   });
 });
+
+describe("ImgController.steamMicrotrailer", () => {
+  function makeBody() {
+    return { pipe: vi.fn() } as unknown as ReturnType<
+      typeof upstream.streamUpstream
+    > extends Promise<infer R>
+      ? R extends { body: infer B }
+        ? B
+        : never
+      : never;
+  }
+
+  it("returns 400 for a non-numeric appid", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "abc",
+      "2090056095",
+      "hash",
+      "webm",
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+    expect(streamSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when a path segment contains traversal characters", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "367520",
+      "..",
+      "hash",
+      "webm",
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+    expect(streamSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the extension isn't on the codec allowlist", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "367520",
+      "2090056095",
+      "hash",
+      "mov",
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(400);
+  });
+
+  it("streams a .webm with 200, video/webm, and pipes the body to res", async () => {
+    const body = makeBody();
+    streamSpy.mockResolvedValueOnce({
+      status: 200,
+      contentType: "video/webm",
+      contentLength: "98765",
+      contentRange: null,
+      acceptRanges: "bytes",
+      body,
+    });
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "367520",
+      "2090056095",
+      "hash",
+      "webm",
+      undefined,
+      res as never
+    );
+    expect(streamSpy).toHaveBeenCalledWith(
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/2090056095/hash/microtrailer.webm",
+      undefined
+    );
+    expect(res._status).toBe(200);
+    expect(res._headers["Content-Type"]).toBe("video/webm");
+    expect(res._headers["Accept-Ranges"]).toBe("bytes");
+    expect(
+      (body as unknown as { pipe: ReturnType<typeof vi.fn> }).pipe
+    ).toHaveBeenCalledWith(res);
+  });
+
+  it("streams an .mp4 with video/mp4 and forwards Range / 206", async () => {
+    const body = makeBody();
+    streamSpy.mockResolvedValueOnce({
+      status: 206,
+      contentType: "video/mp4",
+      contentLength: "1024",
+      contentRange: "bytes 0-1023/98765",
+      acceptRanges: "bytes",
+      body,
+    });
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "367520",
+      "2090056095",
+      "hash",
+      "mp4",
+      "bytes=0-1023",
+      res as never
+    );
+    expect(streamSpy).toHaveBeenCalledWith(expect.any(String), "bytes=0-1023");
+    expect(res._status).toBe(206);
+    expect(res._headers["Content-Type"]).toBe("video/mp4");
+    expect(res._headers["Content-Range"]).toBe("bytes 0-1023/98765");
+  });
+
+  it("returns 502 when upstream throws an UpstreamError", async () => {
+    streamSpy.mockRejectedValueOnce(
+      new upstream.UpstreamError("https://up", new Error("dead"))
+    );
+    const res = makeRes();
+    await makeController().steamMicrotrailer(
+      "367520",
+      "2090056095",
+      "hash",
+      "webm",
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(502);
+  });
+});
+
+describe("ImgController.steamMicrotrailerPoster", () => {
+  function makeBody() {
+    return { pipe: vi.fn() } as unknown as ReturnType<
+      typeof upstream.streamUpstream
+    > extends Promise<infer R>
+      ? R extends { body: infer B }
+        ? B
+        : never
+      : never;
+  }
+
+  it("returns 400 for a non-numeric appid", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailerPoster(
+      "abc",
+      "launch_trailer_medium.jpg",
+      res as never
+    );
+    expect(res._status).toBe(400);
+    expect(streamSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the poster name doesn't match the allowlist regex", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailerPoster(
+      "367520",
+      "../../etc/passwd.jpg",
+      res as never
+    );
+    expect(res._status).toBe(400);
+    expect(streamSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for unsupported poster extensions (gif, webp, etc.)", async () => {
+    const res = makeRes();
+    await makeController().steamMicrotrailerPoster(
+      "367520",
+      "launch_trailer_medium.gif",
+      res as never
+    );
+    expect(res._status).toBe(400);
+  });
+
+  it("streams a .jpg poster with image/jpeg and pipes to res", async () => {
+    const body = makeBody();
+    streamSpy.mockResolvedValueOnce({
+      status: 200,
+      contentType: "image/jpeg",
+      contentLength: "5000",
+      contentRange: null,
+      acceptRanges: null,
+      body,
+    });
+    const res = makeRes();
+    await makeController().steamMicrotrailerPoster(
+      "367520",
+      "launch_trailer_medium.jpg",
+      res as never
+    );
+    expect(streamSpy).toHaveBeenCalledWith(
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/extras/launch_trailer_medium.jpg"
+    );
+    expect(res._status).toBe(200);
+    expect(res._headers["Content-Type"]).toBe("image/jpeg");
+    expect(res._headers["Content-Length"]).toBe("5000");
+    expect(
+      (body as unknown as { pipe: ReturnType<typeof vi.fn> }).pipe
+    ).toHaveBeenCalledWith(res);
+  });
+
+  it("returns 502 when upstream throws an UpstreamError", async () => {
+    streamSpy.mockRejectedValueOnce(
+      new upstream.UpstreamError("https://up", new Error("dead"))
+    );
+    const res = makeRes();
+    await makeController().steamMicrotrailerPoster(
+      "367520",
+      "launch_trailer_medium.jpg",
+      res as never
+    );
+    expect(res._status).toBe(502);
+  });
+});

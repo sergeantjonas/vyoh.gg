@@ -47,6 +47,10 @@ function buildGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     subjectYPercent: null,
     flipHero: false,
     dominantHex: null,
+    microtrailerWebm: null,
+    microtrailerMp4: null,
+    microtrailerPoster: null,
+    microtrailerName: null,
     recentPlaytimeMinutes: [],
     ...overrides,
   };

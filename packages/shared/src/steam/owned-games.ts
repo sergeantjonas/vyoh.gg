@@ -94,6 +94,18 @@ export interface SteamOwnedGame {
   // the view-transition morph stays continuous.
   flipHero: boolean;
   dominantHex: string | null;
+  // Microtrailer is Steam's 6-second silent loop for the storefront hover
+  // preview. Paths are CDN-relative under `store_item_assets/steam/apps/`;
+  // the web composes proxy URLs (see `steamMicrotrailerUrl`). Null when the
+  // upstream returned no `trailers.highlights[0]` entry — most games have one,
+  // but pre-2018 titles, tools, and indies without marketing art often don't.
+  // `microtrailerName` is the publisher's editorial label
+  // ("Full Launch trailer", "Gameplay trailer"), used as the `<video>`'s
+  // aria-label.
+  microtrailerWebm: string | null;
+  microtrailerMp4: string | null;
+  microtrailerPoster: string | null;
+  microtrailerName: string | null;
   // Per-day playtime in minutes over the last up-to-30 days, oldest first.
   // Derived from consecutive SteamPlaytimeSnapshot rows for this appid —
   // each entry is `playtimeForeverMinutes[d] - playtimeForeverMinutes[d-1]`,

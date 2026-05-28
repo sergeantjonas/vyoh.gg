@@ -41,6 +41,30 @@ const DESCRIPTION_CONTENT_TYPES: Record<string, string> = {
 const STEAM_STORE_ASSETS_BASE =
   "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps";
 
+// Microtrailer (6-second silent loop) lives at
+// `store_item_assets/steam/apps/{appid}/{movieid}/{hash}/microtrailer.{webm|mp4}`.
+// The movieid and hash segments are publisher-stable and embed cache-buster
+// identity (Steam regenerates them on republish), so a long Cache-Control is
+// safe. Same 7-day window as description-asset.
+const MICROTRAILER_CACHE = "public, max-age=604800";
+const MICROTRAILER_SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
+const MICROTRAILER_CONTENT_TYPES: Record<string, string> = {
+  webm: "video/webm",
+  mp4: "video/mp4",
+};
+// Trailer poster (the still rendered before/under the `<video>`) — same CDN
+// prefix, comes from `trailers.highlights[0].screenshot_medium`. Observed
+// shape: `{appid}/extras/{name}.{jpg|jpeg|png}` (typically
+// `launch_trailer_medium.jpg`). The name segment allows the limited extra
+// chars Steam uses ([A-Za-z0-9_.-]); the bucket is fixed to `extras` so the
+// surface stays narrow.
+const MICROTRAILER_POSTER_NAME_RE = /^[A-Za-z0-9_-]+\.(jpg|jpeg|png)$/;
+const MICROTRAILER_POSTER_CONTENT_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+};
+
 const CHAMPION_VARIANTS = new Set<ChampionVariant>(["square", "card", "backdrop"]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
 const UI_ICONS = new Set<UiIconName>(UI_ICON_NAMES);
@@ -444,6 +468,101 @@ export class ImgController {
       res.setHeader("Accept-Ranges", result.acceptRanges ?? "bytes");
       if (result.contentLength) res.setHeader("Content-Length", result.contentLength);
       if (result.contentRange) res.setHeader("Content-Range", result.contentRange);
+      result.body.pipe(res);
+    } catch (err) {
+      if (err instanceof UpstreamError) {
+        res.status(HttpStatus.BAD_GATEWAY).send();
+        return;
+      }
+      throw err;
+    }
+  }
+
+  // Streaming proxy for storefront microtrailer clips. The stored filename
+  // shape `{appid}/{movieid}/{hash}/microtrailer.{webm|mp4}` is split into
+  // explicit segments so the route's path-traversal surface is bounded —
+  // each segment is alphanumeric (+`_`/`-`) only, no `..`, no slashes. The
+  // ext segment is keyed against the codec map so an off-list extension
+  // 400s before reaching the upstream.
+  @Get("steam/microtrailer/:appid/:movieid/:hash/microtrailer.:ext")
+  @Header("Cache-Control", MICROTRAILER_CACHE)
+  async steamMicrotrailer(
+    @Param("appid") appid: string,
+    @Param("movieid") movieid: string,
+    @Param("hash") hash: string,
+    @Param("ext") ext: string,
+    @Headers("range") range: string | undefined,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    if (!MICROTRAILER_SEGMENT_RE.test(movieid) || !MICROTRAILER_SEGMENT_RE.test(hash)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const contentType = MICROTRAILER_CONTENT_TYPES[ext];
+    if (!contentType) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const url = `${STEAM_STORE_ASSETS_BASE}/${id}/${movieid}/${hash}/microtrailer.${ext}`;
+    try {
+      const result = await streamUpstream(url, range);
+      res.status(result.status);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Accept-Ranges", result.acceptRanges ?? "bytes");
+      if (result.contentLength) res.setHeader("Content-Length", result.contentLength);
+      if (result.contentRange) res.setHeader("Content-Range", result.contentRange);
+      result.body.pipe(res);
+    } catch (err) {
+      if (err instanceof UpstreamError) {
+        res.status(HttpStatus.BAD_GATEWAY).send();
+        return;
+      }
+      throw err;
+    }
+  }
+
+  // Poster frame for the microtrailer — Steam returns it as
+  // `{appid}/extras/{name}.{jpg|jpeg|png}`. Bucket is locked to `extras`
+  // (the only bucket observed for `screenshot_medium`); name is constrained
+  // to filename-safe characters so traversal can't escape the route.
+  @Get("steam/microtrailer-poster/:appid/extras/:asset")
+  @Header("Cache-Control", MICROTRAILER_CACHE)
+  async steamMicrotrailerPoster(
+    @Param("appid") appid: string,
+    @Param("asset") asset: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const match = MICROTRAILER_POSTER_NAME_RE.exec(asset);
+    if (!match) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const ext = match[1];
+    if (!ext) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const contentType = MICROTRAILER_POSTER_CONTENT_TYPES[ext];
+    if (!contentType) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const url = `${STEAM_STORE_ASSETS_BASE}/${id}/extras/${asset}`;
+    try {
+      const result = await streamUpstream(url);
+      res.status(result.status);
+      res.setHeader("Content-Type", contentType);
+      if (result.contentLength) res.setHeader("Content-Length", result.contentLength);
       result.body.pipe(res);
     } catch (err) {
       if (err instanceof UpstreamError) {
