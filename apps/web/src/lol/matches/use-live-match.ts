@@ -31,7 +31,10 @@ export function liveGameQueryKey(account: LolAccount | undefined) {
   return ["lol", "live", account?.region, account?.gameName, account?.tagLine] as const;
 }
 
-export function useLiveGame(account: LolAccount | undefined) {
+export function useLiveGame(
+  account: LolAccount | undefined,
+  options?: { refetchIntervalMs?: number }
+) {
   return useQuery<LiveMatch | null>({
     queryKey: liveGameQueryKey(account),
     queryFn: () => {
@@ -40,6 +43,7 @@ export function useLiveGame(account: LolAccount | undefined) {
     },
     enabled: account !== undefined,
     staleTime: 30_000,
+    refetchInterval: options?.refetchIntervalMs ?? false,
   });
 }
 

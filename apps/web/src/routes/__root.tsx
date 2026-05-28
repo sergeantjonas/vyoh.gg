@@ -9,9 +9,10 @@ import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
-import { useFaviconDot } from "@/lib/use-favicon-dot";
+import { PresenceMounts } from "@/lib/presence-mounts";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { topLevelScope } from "@/lib/top-level-scope";
+import { useFaviconDot } from "@/lib/use-favicon-dot";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import {
@@ -69,6 +70,7 @@ function RootLayout() {
       <CommandPaletteProvider>
         <SplashProvider>
           <HeadContent />
+          <PresenceMounts />
           <FetchProgress />
           <CommandPalette />
           <ScrollToTop />
