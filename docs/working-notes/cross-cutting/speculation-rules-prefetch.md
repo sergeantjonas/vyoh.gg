@@ -1,6 +1,6 @@
 # Speculation Rules prefetch / prerender
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. Wire the [Speculation Rules API](https://developer.mozilla.org/en-US/docs/Web/API/Speculation_Rules_API) to prefetch (or prerender) likely-next routes on hover/touchstart of match rows, champion grid items, and Steam library tiles. Perceived-perf win for near-zero code.
+**Status:** Chunks 1–5 shipped 2026-05-28 as the cheap manual-prefetch path (TanStack Query `prefetchQuery` on hover/touchstart, no Speculation Rules API yet). Match rows, champion grid items, Steam library tiles + rows, and nav links all warm their destination's primary query on a 150 ms hover (100 ms for nav — higher intent), with pointer-down firing immediately for the touch path. Chunk 6 (Speculation Rules `<script>` block) stays gated on the Start migration — it only earns its keep once cross-document navigation is real. See [tanstack-start-migration.md](tanstack-start-migration.md).
 
 Read this before any work on prefetch heuristics; coordinate with TanStack Router's existing route-chunk prefetching to avoid duplication.
 
@@ -51,7 +51,9 @@ Optional: when Start migration lands ([tanstack-start-migration.md](tanstack-sta
 
 ## Chunked plan
 
-### Chunk 1 — `useHoverPrefetch` hook
+Status: 1–5 shipped 2026-05-28; commits noted inline. 6 deferred to Start migration.
+
+### Chunk 1 — `useHoverPrefetch` hook (shipped: `216821f`)
 
 New file `apps/web/src/lib/use-hover-prefetch.ts`:
 
@@ -77,27 +79,30 @@ export function useHoverPrefetch<T>(
 
 Test: trigger fires after delay on enter; cancels on leave; fires immediately on pointerdown.
 
-### Chunk 2 — Apply to match rows
+### Chunk 2 — Apply to match rows (shipped: `26ab2b3`)
 
 - [match-row.tsx](../../../apps/web/src/lol/matches/match-row.tsx): add `useHoverPrefetch(() => queryClient.prefetchQuery(matchDetailQuery(matchId)))`.
 - Verify the `matchDetailQuery` shape — should be a query options object that's stable per matchId.
 - Test: hovering for 150ms invokes `prefetchQuery`; hovering for 100ms does not.
 - Measure: match-detail INP after this lands; should drop substantially for the hover-then-click path.
 
-### Chunk 3 — Apply to champion grid + Steam library
+### Chunk 3 — Apply to champion grid + Steam library (shipped: `7e1c4c3`)
 
 - Same pattern, different query keys.
 - Champion grid items prefetch champion-detail aggregations.
 - Steam library tiles prefetch game-detail.
 
-### Chunk 4 — Apply to nav links
+### Chunk 4 — Apply to nav links (shipped: `1642910`)
 
 - Nav links use a shorter delay (100ms) — nav clicks are high-intent.
-- For section landing routes (`/lol/$accountSlug/matches`, `/lol/$accountSlug/champions`), prefetch the list query, not just the route chunk.
+- Steam nav item → `steamOwnedGamesQueryOptions()`; Patches → `patchListQueryOptions()`; LoL account rows → `prefetchCachedMatches(qc, account)` (infinite query).
+- Home + Status left bare — neither has a single primary query worth prefetching.
 
-### Chunk 5 — Mobile touch path
+### Chunk 5 — Mobile touch path (verified via test, real-device sim owner-side)
 
-- The hook already handles `pointerdown`. Verify on mobile sim that touch fires the prefetch immediately before the navigation click — should give ~50ms head start which is meaningful on mobile networks.
+- The hook handles `pointerdown` synchronously (no 150ms wait); on touch this fires before `click` → before route nav, so the prefetch lands as the finger touches.
+- Hook-level immediacy is covered by [use-hover-prefetch.test.ts](../../../apps/web/src/lib/use-hover-prefetch.test.ts); wired-surface pass-through covered by a `pointerDown` assertion in [library-tile.test.tsx](../../../apps/web/src/steam/library/library-tile.test.tsx).
+- Real-device verification (Chrome DevTools mobile sim → Network panel under Slow 3G, tap a tile, observe prefetch fires on `pointerdown` while the route nav fires on `click`): owner-side bench check. Expected head start ~50ms on mobile networks.
 
 ### Chunk 6 — (Conditional) Speculation Rules for Start migration
 

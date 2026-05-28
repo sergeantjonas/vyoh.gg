@@ -289,4 +289,23 @@ describe("LibraryTile hover prefetch", () => {
     vi.advanceTimersByTime(500);
     expect(spy).not.toHaveBeenCalled();
   });
+
+  // Touch path: a tap on mobile fires `pointerdown` before `click` (and well
+  // before navigation), so the prefetch lands as soon as the finger touches
+  // the tile — no 150ms wait. Mirrors what mobile Safari/Chrome do for touch.
+  it("prefetches synchronously on pointer-down (mobile touch path)", () => {
+    const qc = newQueryClient();
+    const spy = vi.spyOn(qc, "prefetchQuery").mockImplementation(() => Promise.resolve());
+    const { container } = renderTile(game({ appid: 730 }), qc);
+    const link = container.querySelector("a");
+    if (!link) throw new Error("link missing");
+    fireEvent.pointerDown(link);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual([
+      "steam",
+      "game",
+      730,
+      "achievements",
+    ]);
+  });
 });
