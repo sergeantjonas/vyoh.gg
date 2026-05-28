@@ -654,7 +654,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           </CommandGroup>
         )}
       </CommandList>
-      <CommandPalettePreview value={highlighted} />
+      <CommandPalettePreview value={highlighted} matches={allMatches} />
       <div className="flex items-center justify-end border-t px-3 py-2 text-xs text-muted-foreground">
         <span>
           Press{" "}

@@ -30,15 +30,19 @@
 // `document.body` keeps the card visible outside the dialog.
 
 import { CommandPalettePreviewChampion } from "@/components/command-palette-preview-champion";
+import { CommandPalettePreviewMatch } from "@/components/command-palette-preview-match";
+import { CommandPalettePreviewSteamGame } from "@/components/command-palette-preview-steam-game";
 import { parsePaletteValue } from "@/components/command-palette-preview-value";
+import type { MatchSummary } from "@vyoh/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
   value: string;
+  matches: MatchSummary[] | null;
 };
 
-export function CommandPalettePreview({ value }: Props) {
+export function CommandPalettePreview({ value, matches }: Props) {
   const [mounted, setMounted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +94,14 @@ export function CommandPalettePreview({ value }: Props) {
     case "champion":
       content = <CommandPalettePreviewChampion alias={parsed.alias} />;
       break;
-    // match, steam-game previews land in follow-up chunks (3c, 3d).
+    case "match": {
+      const match = matches?.find((m) => m.matchId === parsed.matchId);
+      if (match) content = <CommandPalettePreviewMatch match={match} />;
+      break;
+    }
+    case "steam-game":
+      content = <CommandPalettePreviewSteamGame appid={parsed.appid} />;
+      break;
   }
   if (!content || !mounted) return null;
 
