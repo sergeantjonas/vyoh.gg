@@ -330,4 +330,132 @@ describe("projectEnrichment", () => {
       microtrailerMp4: null,
     });
   });
+
+  it("projects every highlight (not just [0]) into the trailers array", () => {
+    const row = projectEnrichment(
+      raw({
+        trailers: {
+          highlights: [
+            {
+              microtrailer: [
+                {
+                  filename: "2050650/657549/abc/1750745214/microtrailer.webm",
+                  type: "video/webm",
+                },
+                {
+                  filename: "2050650/657549/abc/1750745214/microtrailer.mp4",
+                  type: "video/mp4",
+                },
+              ],
+              screenshot_medium: "256998128/movie.293x165.jpg",
+              screenshot_full: "256998128/movie_full.jpg",
+              trailer_name: "Full Launch trailer",
+              trailer_category: 0,
+              all_ages: true,
+              adaptive_trailers: [
+                {
+                  cdn_path: "2050650/657549/abc/1750745214/dash_av1.mpd",
+                  encoding: "dash_av1",
+                },
+                {
+                  cdn_path: "2050650/657549/abc/1750745214/dash_h264.mpd",
+                  encoding: "dash_h264",
+                },
+                {
+                  cdn_path: "2050650/657549/abc/1750745214/hls_264_master.m3u8",
+                  encoding: "hls_h264",
+                },
+              ],
+            },
+            {
+              microtrailer: [
+                {
+                  filename: "2050650/999/zzz/1750745214/microtrailer.webm",
+                  type: "video/webm",
+                },
+              ],
+              trailer_name: "Gameplay trailer",
+              adaptive_trailers: [
+                {
+                  cdn_path: "2050650/999/zzz/1750745214/dash_h264.mpd",
+                  encoding: "dash_h264",
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    expect(row?.trailers).toEqual([
+      {
+        trailerName: "Full Launch trailer",
+        trailerCategory: 0,
+        allAges: true,
+        microtrailerWebm: "2050650/657549/abc/1750745214/microtrailer.webm",
+        microtrailerMp4: "2050650/657549/abc/1750745214/microtrailer.mp4",
+        screenshotMedium: "256998128/movie.293x165.jpg",
+        screenshotFull: "256998128/movie_full.jpg",
+        adaptiveTrailers: [
+          { cdnPath: "2050650/657549/abc/1750745214/dash_av1.mpd", encoding: "dash_av1" },
+          {
+            cdnPath: "2050650/657549/abc/1750745214/dash_h264.mpd",
+            encoding: "dash_h264",
+          },
+          {
+            cdnPath: "2050650/657549/abc/1750745214/hls_264_master.m3u8",
+            encoding: "hls_h264",
+          },
+        ],
+      },
+      {
+        trailerName: "Gameplay trailer",
+        trailerCategory: null,
+        allAges: null,
+        microtrailerWebm: "2050650/999/zzz/1750745214/microtrailer.webm",
+        microtrailerMp4: null,
+        screenshotMedium: null,
+        screenshotFull: null,
+        adaptiveTrailers: [
+          { cdnPath: "2050650/999/zzz/1750745214/dash_h264.mpd", encoding: "dash_h264" },
+        ],
+      },
+    ]);
+  });
+
+  it("returns trailers: null when the upstream omits the trailers block entirely", () => {
+    const row = projectEnrichment(raw({}));
+    expect(row?.trailers).toBeNull();
+  });
+
+  it("returns trailers: [] when the trailers block is present but highlights is empty", () => {
+    const row = projectEnrichment(raw({ trailers: { highlights: [] } }));
+    expect(row?.trailers).toEqual([]);
+  });
+
+  it("drops adaptive_trailers entries missing cdn_path or encoding", () => {
+    const row = projectEnrichment(
+      raw({
+        trailers: {
+          highlights: [
+            {
+              adaptive_trailers: [
+                { cdn_path: "", encoding: "dash_av1" },
+                { cdn_path: "2050650/657549/abc/1750745214/dash_h264.mpd" },
+                {
+                  cdn_path: "2050650/657549/abc/1750745214/hls_264_master.m3u8",
+                  encoding: "hls_h264",
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    expect(row?.trailers?.[0]?.adaptiveTrailers).toEqual([
+      {
+        cdnPath: "2050650/657549/abc/1750745214/hls_264_master.m3u8",
+        encoding: "hls_h264",
+      },
+    ]);
+  });
 });

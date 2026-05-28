@@ -170,29 +170,53 @@ export interface SteamStoreItemGameRatingRaw {
 
 // Each `microtrailer` entry is a 6-second silent loop the storefront plays
 // on hover. `filename` is a CDN-resolvable path
-// `{appid}/{movieid}/.../microtrailer.{webm|mp4}` under
-// `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/`.
-// Trailers also carry full-length variants Steam plays on click; those
-// fields are present in the response but typed lazily — add when a chunk
-// actually consumes them.
+// `{appid}/{movieid}/{hash}/{ts}/microtrailer.{webm|mp4}` under
+// `https://video.akamai.steamstatic.com/store_trailers/` (NOT under
+// `store_item_assets/steam/apps/` like capsules — verified live 2026-05-29).
 export interface SteamStoreItemTrailerSourceRaw {
   filename?: string;
   type?: string;
 }
 
+// Per-highlight adaptive trailer reference. Steam emits three variants per
+// trailer: AV1-encoded DASH manifest, H.264 DASH manifest, and an HLS master
+// playlist with H.264. Player picks based on browser capability. `cdn_path`
+// is rooted at the same `video.akamai.steamstatic.com/store_trailers/` base
+// as `microtrailer.filename`; the path shape is
+// `{appid}/{movieid}/{hash}/{ts}/{filename.{mpd|m3u8}}`. Segment files
+// referenced inside the manifest live in subdirectories alongside it.
+export interface SteamStoreItemAdaptiveTrailerRaw {
+  cdn_path?: string;
+  encoding?: string;
+}
+
 export interface SteamStoreItemTrailerHighlightRaw {
   microtrailer?: SteamStoreItemTrailerSourceRaw[];
-  // Poster frame Steam shows before the microtrailer plays. CDN-resolvable
-  // path under the same `steam/apps/{appid}/` prefix as `microtrailer`. The
-  // hover-preview renderer uses it as the still under the `<video>` so the
-  // pre-play frame matches the trailer's first frame; without it the tile
-  // would fall back to the library capsule art for the static poster.
+  // Poster derivatives. `screenshot_medium` is the 293×165 thumbnail used as
+  // the microtrailer's static poster; `screenshot_full` is the larger
+  // `movie_full.jpg` derivative shown in the storefront's lightbox header
+  // and the trailer modal's loading state. Both rooted at
+  // `video.akamai.steamstatic.com/store_trailers/{movieid}/`.
   screenshot_medium?: string;
+  screenshot_full?: string;
   // Editorial label ("Full Launch trailer", "Gameplay trailer", etc.) — used
   // as the `<video>`'s `aria-label` for screen readers and as the hovercard
   // tooltip on touch surfaces. Distinct from microtrailer URLs because Steam
   // associates the name with the trailer entry as a whole, not per-source.
   trailer_name?: string;
+  // Adaptive-streaming manifests for the full trailer. Same trailer in three
+  // encodings — player module picks one per browser. Empty / missing when
+  // the trailer hasn't been transcoded (rare; legacy uploads).
+  adaptive_trailers?: SteamStoreItemAdaptiveTrailerRaw[];
+  // Publisher-set classification flag. False means the trailer is gated
+  // behind Steam's maturity toggle; the storefront hides the thumbnail and
+  // skips inline playback when the viewer hasn't opted in. Surface verbatim
+  // so the modal can apply the same gate.
+  all_ages?: boolean;
+  // Editorial bucket id ("Launch", "Gameplay", etc.); surfaced as a
+  // metadata chip on the modal. Unstable label across locales; we store the
+  // id only and resolve labels client-side if needed.
+  trailer_category?: number;
 }
 
 export interface SteamStoreItemTrailersRaw {

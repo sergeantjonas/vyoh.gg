@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type {
   SteamGameRating,
+  SteamGameTrailer,
   SteamReviewSummary,
   SteamScreenshotEntry,
 } from "@vyoh/shared";
@@ -13,6 +14,7 @@ import type {
   SteamStoreItemFullRaw,
   SteamStoreItemGameRatingRaw,
   SteamStoreItemReviewSummaryRaw,
+  SteamStoreItemTrailerHighlightRaw,
 } from "./types";
 
 // Steam's IStoreBrowseService accepts many ids per call. Empirical batch size
@@ -63,6 +65,11 @@ export interface EnrichmentUpsert {
   microtrailerMp4: string | null;
   microtrailerPoster: string | null;
   microtrailerName: string | null;
+  // Full projected trailer payload covering every highlight (not just [0]).
+  // Null when the upstream returned no trailers block at all; an empty
+  // array means the block was present but every highlight filtered out
+  // (no microtrailer + no adaptive variants — rare).
+  trailers: SteamGameTrailer[] | null;
 }
 
 // Pure-function projection of the raw Steam shape into a row-shaped upsert.
@@ -136,6 +143,7 @@ export function projectEnrichment(
     screenshotsAllAges: mapScreenshots(raw.screenshots?.all_ages_screenshots),
     screenshotsMature: mapScreenshots(raw.screenshots?.mature_content_screenshots),
     ...mapMicrotrailer(raw.trailers?.highlights?.[0]),
+    trailers: mapTrailers(raw.trailers?.highlights),
   };
 }
 
@@ -174,6 +182,53 @@ function mapMicrotrailer(
     microtrailerPoster: poster ? poster : null,
     microtrailerName: name ? name : null,
   };
+}
+
+// Project every `trailers.highlights[]` entry into the flat
+// `SteamGameTrailer` shape. Returns null when the upstream omitted the
+// whole `trailers` block (vs `[]` which means the block was present but
+// every highlight was skip-worthy — currently no skip rule fires, but
+// keeping the distinction means a future "no playable variants" filter can
+// add one without changing the column nullability).
+//
+// One highlight per output entry — no further normalisation. Microtrailer
+// codecs are picked the same way as `mapMicrotrailer` so the per-row flat
+// columns and the per-entry trailers array stay byte-identical at index 0.
+function mapTrailers(
+  highlights: SteamStoreItemTrailerHighlightRaw[] | undefined
+): SteamGameTrailer[] | null {
+  if (!highlights) return null;
+  return highlights.map((h) => {
+    const sources = h.microtrailer ?? [];
+    let webm: string | null = null;
+    let mp4: string | null = null;
+    for (const source of sources) {
+      const filename = source.filename?.trim();
+      if (!filename) continue;
+      if (webm === null && source.type === "video/webm") webm = filename;
+      else if (mp4 === null && source.type === "video/mp4") mp4 = filename;
+    }
+    const adaptive: SteamGameTrailer["adaptiveTrailers"] = [];
+    for (const a of h.adaptive_trailers ?? []) {
+      const cdnPath = a.cdn_path?.trim();
+      const encoding = a.encoding?.trim();
+      if (!cdnPath || !encoding) continue;
+      adaptive.push({ cdnPath, encoding });
+    }
+    const trailerName = h.trailer_name?.trim();
+    const screenshotMedium = h.screenshot_medium?.trim();
+    const screenshotFull = h.screenshot_full?.trim();
+    return {
+      trailerName: trailerName ? trailerName : null,
+      trailerCategory: h.trailer_category ?? null,
+      allAges: h.all_ages ?? null,
+      microtrailerWebm: webm,
+      microtrailerMp4: mp4,
+      screenshotMedium: screenshotMedium ? screenshotMedium : null,
+      screenshotFull: screenshotFull ? screenshotFull : null,
+      adaptiveTrailers: adaptive,
+    };
+  });
 }
 
 // Drop entries that don't carry both `filename` and `ordinal` — the URL
@@ -313,6 +368,13 @@ export class SteamEnrichmentService {
           // contract InputJsonObject demands.
           screenshotsAllAges: row.screenshotsAllAges as unknown as Prisma.InputJsonValue,
           screenshotsMature: row.screenshotsMature as unknown as Prisma.InputJsonValue,
+          // `trailers` IS nullable (no DB-side default), so the JsonNull
+          // sentinel disambiguates "missing trailers block on upstream"
+          // (DB NULL) from a literal JSON `null` value. The array shape
+          // gets the same widening cast as the screenshots above.
+          trailers: (row.trailers ?? Prisma.JsonNull) as unknown as
+            | Prisma.InputJsonValue
+            | typeof Prisma.JsonNull,
         };
         await this.prisma.steamGameEnrichment.upsert({
           where: { appid: row.appid },

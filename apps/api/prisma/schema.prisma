@@ -204,6 +204,21 @@ model SteamGameEnrichment {
   microtrailerMp4      String?
   microtrailerPoster   String?
   microtrailerName     String?
+  // Full `trailers.highlights[]` payload from IStoreBrowseService, projected
+  // to the per-highlight shape consumed by the game-detail trailer modal.
+  // Stored as Json (not normalised into a sister table) because the array is
+  // small (3-6 trailers per game in practice), the inner shape is stable
+  // across publishers, and no query plan needs SQL-level access to its
+  // contents — the modal hydrates the whole array client-side and picks the
+  // best adaptive variant per browser. Each entry carries: `trailerName`,
+  // `trailerCategory`, `allAges`, microtrailer paths (`webm`/`mp4`/`poster`
+  // — duplicated with the flat columns above for highlights[0] for
+  // back-compat with the hovercard, present for every highlight here),
+  // `screenshotMedium` + `screenshotFull` (poster derivatives), and
+  // `adaptiveTrailers` array of `{ cdnPath, encoding }` for dash_av1 /
+  // dash_h264 / hls_h264. Null while the enrichment cron hasn't run; the
+  // renderer treats null and `[]` identically (no modal available).
+  trailers             Json?
   // Saliency centroid of `library_hero.jpg`, expressed as integer percent
   // (0-100) on each axis. Computed at enrichment via smartcrop-sharp on the
   // raw upstream bytes and used by the library row's `object-cover`
