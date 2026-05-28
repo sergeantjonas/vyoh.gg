@@ -51,6 +51,7 @@ function buildGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
     microtrailerMp4: null,
     microtrailerPoster: null,
     microtrailerName: null,
+    trailers: null,
     recentPlaytimeMinutes: [],
     ...overrides,
   };

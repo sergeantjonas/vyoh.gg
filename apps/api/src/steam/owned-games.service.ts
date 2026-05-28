@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import type {
   SteamGameRating,
   SteamGameScreenshots,
+  SteamGameTrailer,
   SteamLibrarySummary,
   SteamOwnedGames,
   SteamPlatform,
@@ -431,6 +432,7 @@ export class SteamOwnedGamesService {
         microtrailerMp4: true,
         microtrailerPoster: true,
         microtrailerName: true,
+        trailers: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -484,6 +486,13 @@ export class SteamOwnedGamesService {
           microtrailerMp4: e?.microtrailerMp4 ?? null,
           microtrailerPoster: e?.microtrailerPoster ?? null,
           microtrailerName: e?.microtrailerName ?? null,
+          // Cast at the boundary — the projection writes a strict
+          // SteamGameTrailer[] shape and the column is Json (no
+          // index-signature contract), same convention as reviewSummary
+          // and gameRating above. Prisma DB null and JSON null both
+          // collapse to TS null at the row.trailers field.
+          trailers:
+            e?.trailers != null ? (e.trailers as unknown as SteamGameTrailer[]) : null,
           recentPlaytimeMinutes: recentByAppid.get(r.appid) ?? [],
         };
       }),

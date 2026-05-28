@@ -450,6 +450,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
         microtrailerPoster: "367520/extras/launch_trailer_medium.jpg",
         microtrailerName: "Full Launch trailer",
+        trailers: null,
         recentPlaytimeMinutes: [],
       },
     ]);
@@ -499,6 +500,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
       microtrailerMp4: null,
       microtrailerPoster: null,
       microtrailerName: null,
+      trailers: null,
     });
   });
 

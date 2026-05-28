@@ -6,6 +6,8 @@
 // 2-week activity (Steam omits the field entirely in that case — we keep the
 // null/0 distinction honest at the column).
 
+import type { SteamGameTrailer } from "./trailers.ts";
+
 export interface SteamOwnedGame {
   appid: number;
   name: string;
@@ -106,6 +108,12 @@ export interface SteamOwnedGame {
   microtrailerMp4: string | null;
   microtrailerPoster: string | null;
   microtrailerName: string | null;
+  // Full per-highlight trailer payload. `null` when the upstream had no
+  // trailers block, `[]` when the block was present but every highlight
+  // was skip-worthy. The hovercard still reads the flat `microtrailer*`
+  // fields above; this array is the source of truth for the full-trailer
+  // modal on game-detail (carries all highlights + adaptive variants).
+  trailers: SteamGameTrailer[] | null;
   // Per-day playtime in minutes over the last up-to-30 days, oldest first.
   // Derived from consecutive SteamPlaytimeSnapshot rows for this appid —
   // each entry is `playtimeForeverMinutes[d] - playtimeForeverMinutes[d-1]`,

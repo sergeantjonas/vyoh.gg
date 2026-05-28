@@ -142,6 +142,10 @@ export {
   steamScreenshotThumbUrl,
 } from "./steam/screenshots.ts";
 export type { SteamScreenshotEntry } from "./steam/screenshots.ts";
+export {
+  pickAdaptiveTrailer,
+  steamTrailerCdnUrl,
+} from "./steam/trailers.ts";
 export type { SteamAdaptiveTrailer, SteamGameTrailer } from "./steam/trailers.ts";
 export type { SteamPlayerState } from "./steam/player-state.ts";
 export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";

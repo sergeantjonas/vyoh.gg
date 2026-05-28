@@ -22,6 +22,49 @@ export interface SteamAdaptiveTrailer {
   encoding: string;
 }
 
+// Direct CDN base. Trailer assets (microtrailers + adaptive manifests +
+// segment files referenced inside the manifests) are served with
+// `Access-Control-Allow-Origin: *`, so the browser can fetch them straight
+// from Steam. Skipping the proxy avoids one redundant network hop per
+// segment (DASH/HLS trailers fetch 30+ segments) AND avoids maintaining a
+// segment-file proxy route for every codec subdir Steam might add.
+//
+// Same approach as `steamScreenshotThumbUrl` (also direct CDN); contrast
+// with capsule/hero which DO route through the proxy because Sharp WebP
+// transcoding happens there.
+const TRAILER_CDN_BASE = "https://video.akamai.steamstatic.com/store_trailers";
+
+export function steamTrailerCdnUrl(cdnPath: string): string {
+  return `${TRAILER_CDN_BASE}/${cdnPath}`;
+}
+
+// Pick the best adaptive variant for the current browser. Order:
+// 1. Safari → HLS (Shaka uses Safari's native player; smoother than MSE-on-Safari).
+// 2. AV1-capable Blink/Gecko → DASH AV1 (smaller byte size, sharper at the same bitrate).
+// 3. Anything else → DASH H.264 (universally decodable).
+// 4. No adaptive variants at all → null; renderer falls back to playing
+//    `microtrailerMp4` as a static `<video>` (no audio, no quality switching).
+export function pickAdaptiveTrailer(
+  variants: SteamAdaptiveTrailer[],
+  detect: { isSafari: boolean; supportsAv1: boolean }
+): SteamAdaptiveTrailer | null {
+  if (variants.length === 0) return null;
+  const byEncoding = new Map(variants.map((v) => [v.encoding, v]));
+  // Safari never gets AV1 — desktop Safari's AV1 support is recent and
+  // patchy, iOS Safari doesn't have it at all, and HLS is the native path
+  // anyway. Always prefer HLS, then h264 DASH, then whatever's there.
+  if (detect.isSafari) {
+    return (
+      byEncoding.get("hls_h264") ?? byEncoding.get("dash_h264") ?? variants[0] ?? null
+    );
+  }
+  if (detect.supportsAv1) {
+    const av1 = byEncoding.get("dash_av1");
+    if (av1) return av1;
+  }
+  return byEncoding.get("dash_h264") ?? byEncoding.get("hls_h264") ?? variants[0] ?? null;
+}
+
 export interface SteamGameTrailer {
   // Editorial label as the publisher wrote it. Often a long internal id
   // (`07【RE4】_GELaunchPV_…`) rather than a clean title; the modal trims
