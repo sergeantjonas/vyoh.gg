@@ -9,6 +9,7 @@ import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
+import { useFaviconDot } from "@/lib/use-favicon-dot";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { topLevelScope } from "@/lib/top-level-scope";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
@@ -29,6 +30,7 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
+  useFaviconDot();
   const scope = useRouterState({
     select: (s) => topLevelScope(s.location.pathname),
   });
