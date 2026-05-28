@@ -15,6 +15,7 @@ import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { GameAboutBlock } from "@/steam/game/game-about-block";
 import { GameDetailSkeleton } from "@/steam/game/game-detail-skeleton";
+import { GameHeroTrailerPill } from "@/steam/game/game-hero-trailer-pill";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
 import { LastProgressedCard } from "@/steam/game/last-progressed-card";
@@ -169,6 +170,20 @@ function SteamGamePage() {
               "absolute bottom-4 left-4 h-1/3 max-w-[55%] object-contain object-bottom-left drop-shadow-lg transition-opacity duration-500 ease-out sm:bottom-6 sm:left-6",
               logoLoaded ? "opacity-100" : "opacity-0"
             )}
+          />
+        )}
+        {/* Microtrailer opt-in. Self-gating: renders nothing when the game
+            has no microtrailer, so the hero stays untouched for the ~30% of
+            titles Steam doesn't ship a trailer for. Anchored to the hero
+            wrapper (which carries the VT name) so the pill participates in
+            the same view-transition snapshot as the hero img — without that,
+            the pill would crossfade in independently after the morph lands. */}
+        {game && (
+          <GameHeroTrailerPill
+            microtrailerWebm={game.microtrailerWebm}
+            microtrailerMp4={game.microtrailerMp4}
+            microtrailerPoster={game.microtrailerPoster}
+            microtrailerName={game.microtrailerName}
           />
         )}
       </div>
