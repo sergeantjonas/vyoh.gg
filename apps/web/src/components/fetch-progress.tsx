@@ -22,8 +22,8 @@ export function FetchProgress() {
               repeat: Number.POSITIVE_INFINITY,
               ease: "linear",
             }}
-            className="h-full w-1/3 bg-gradient-to-r from-transparent via-sky-400 to-transparent"
-            style={{ boxShadow: "0 0 6px rgba(56,189,248,0.5)" }}
+            className="h-full w-1/3 bg-gradient-to-r from-transparent via-[var(--theme-color)] to-transparent"
+            style={{ boxShadow: "0 0 6px var(--theme-ring)" }}
           />
         </m.div>
       )}

@@ -40,12 +40,17 @@ export function ScrollProgress() {
     };
   }, []);
 
+  // z-[45] sits above the section header band (z-40, which contains the
+  // portaled compact-collapse chrome on long sections) but below the top
+  // nav and overlays (z-50). Bumped from z-40 because on pages where the
+  // section header collapses into a chrome strip, that strip painted over
+  // this hairline.
   return (
     <div
       ref={ref}
       data-scroll-progress=""
       aria-hidden="true"
-      className="pointer-events-none relative z-40 mx-0.5 h-0.5"
+      className="pointer-events-none relative z-[45] mx-0.5 h-0.5"
     />
   );
 }

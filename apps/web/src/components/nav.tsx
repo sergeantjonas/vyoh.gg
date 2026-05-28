@@ -97,7 +97,10 @@ export function Nav() {
         <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
           <OrbGlyph className="size-[1.5em] translate-y-[0.1em]" />
           <span className="flex items-baseline">
-            <span className="bg-gradient-to-br from-sky-400 via-violet-400 to-emerald-400 bg-clip-text text-transparent">
+            {/* `vyoh` follows the per-route theme color so it tints
+                alongside the section the user is on. `.gg` stays muted to
+                preserve the wordmark's secondary read.                   */}
+            <span className="text-[var(--theme-color)] transition-colors duration-300">
               vyoh
             </span>
             <span className="text-muted-foreground">.gg</span>
