@@ -1,3 +1,4 @@
+import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { CreditsLine } from "@/steam/_shared/credits-line";
 import { DeckCompatChip } from "@/steam/_shared/deck-compat-chip";
@@ -56,6 +57,7 @@ function SteamGamePage() {
     assetTimestamp: game?.assetTimestamp ?? null,
     flipHero: game?.flipHero ?? false,
   });
+  useThemeColor(game?.dominantHex ?? undefined);
 
   // Not every Steam game ships `library_hero.jpg` / `logo.png` — these are
   // part of the newer library-presentation asset set, missing on plenty of

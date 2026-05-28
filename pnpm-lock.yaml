@@ -63,6 +63,9 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      node-vibrant:
+        specifier: ^4.0.3
+        version: 4.0.4
       onnxruntime-node:
         specifier: ^1.26.0
         version: 1.26.0

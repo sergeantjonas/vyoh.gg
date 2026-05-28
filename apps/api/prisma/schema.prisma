@@ -209,6 +209,7 @@ model SteamGameEnrichment {
   // the flip. Both the library row and the game-detail page hero apply
   // the same transform, so the view-transition morph stays continuous.
   flipHero             Boolean   @default(false)
+  dominantHex          String?
   enrichedAt           DateTime  @default(now())
 }
 

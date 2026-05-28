@@ -93,6 +93,7 @@ export interface SteamOwnedGame {
   // library row and the game-detail page hero apply the same flip so
   // the view-transition morph stays continuous.
   flipHero: boolean;
+  dominantHex: string | null;
   // Per-day playtime in minutes over the last up-to-30 days, oldest first.
   // Derived from consecutive SteamPlaytimeSnapshot rows for this appid —
   // each entry is `playtimeForeverMinutes[d] - playtimeForeverMinutes[d-1]`,

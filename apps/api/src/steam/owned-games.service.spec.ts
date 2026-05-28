@@ -441,6 +441,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         subjectXPercent: null,
         subjectYPercent: null,
         flipHero: false,
+        dominantHex: null,
         recentPlaytimeMinutes: [],
       },
     ]);

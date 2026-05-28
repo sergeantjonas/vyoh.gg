@@ -79,7 +79,7 @@ export function Nav() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-400/35 via-50% to-transparent opacity-70 blur-[1px]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-theme/35 via-50% to-transparent opacity-70 blur-[1px]"
       />
       <div
         data-nav-inner=""

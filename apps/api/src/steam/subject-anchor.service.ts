@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Vibrant } from "node-vibrant/node";
 import sharp from "sharp";
 import smartcrop from "smartcrop-sharp";
 import { UpstreamError, fetchUpstreamChain } from "../img/upstream";
@@ -93,6 +94,27 @@ export interface SubjectAnchor {
   subjectXPercent: number;
   subjectYPercent: number;
   flipHero: boolean;
+}
+
+function hexChroma(hex: string): number {
+  const r = Number.parseInt(hex.slice(1, 3), 16);
+  const g = Number.parseInt(hex.slice(3, 5), 16);
+  const b = Number.parseInt(hex.slice(5, 7), 16);
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+async function extractDominantHex(bytes: Buffer): Promise<string | null> {
+  try {
+    const palette = await Vibrant.from(bytes).getPalette();
+    const swatches = Object.values(palette).filter(
+      (s): s is NonNullable<typeof s> => s !== null && s.population > 0
+    );
+    if (swatches.length === 0) return null;
+    swatches.sort((a, b) => hexChroma(b.hex) - hexChroma(a.hex));
+    return swatches[0]?.hex ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function composeHeroUrls(
@@ -209,13 +231,14 @@ export class SteamSubjectAnchorService {
           this.computeOne(row.appid, row.libraryHeroPath, row.assetTimestamp)
         )
       );
-      for (const { appid, anchor } of results) {
+      for (const { appid, anchor, dominantHex } of results) {
         await this.prisma.steamGameEnrichment.update({
           where: { appid },
           data: {
             subjectXPercent: anchor.subjectXPercent,
             subjectYPercent: anchor.subjectYPercent,
             flipHero: anchor.flipHero,
+            dominantHex,
           },
         });
         updated += 1;
@@ -236,11 +259,14 @@ export class SteamSubjectAnchorService {
     appid: number,
     libraryHeroPath: string | null,
     assetTimestamp: bigint | null
-  ): Promise<{ appid: number; anchor: SubjectAnchor }> {
+  ): Promise<{ appid: number; anchor: SubjectAnchor; dominantHex: string | null }> {
     try {
       const urls = composeHeroUrls(appid, libraryHeroPath, assetTimestamp);
       const bytes = await fetchUpstreamChain(urls);
-      const face = await this.faceDetection.detectBestFace(bytes);
+      const [face, dominantHex] = await Promise.all([
+        this.faceDetection.detectBestFace(bytes),
+        extractDominantHex(bytes),
+      ]);
       if (face !== null) {
         // Flip decision happens BEFORE the edge-inset clamp so we judge
         // against the raw detected position. If the face lives in the
@@ -261,6 +287,7 @@ export class SteamSubjectAnchorService {
         );
         return {
           appid,
+          dominantHex,
           anchor: {
             subjectXPercent: Math.max(0, Math.min(100, Math.round(x))),
             subjectYPercent: Math.max(0, Math.min(100, Math.round(y))),
@@ -271,12 +298,59 @@ export class SteamSubjectAnchorService {
       // `smartcropAnchorFromBytes` already anchors to the salient window's
       // top with the cover-fit transform applied; no post-processing here.
       const anchor = await smartcropAnchorFromBytes(bytes);
-      return { appid, anchor };
+      return { appid, dominantHex, anchor };
     } catch (err) {
       if (!(err instanceof UpstreamError)) {
         this.logger.warn(`anchor compute failed for ${appid}: ${String(err)}`);
       }
-      return { appid, anchor: DEFAULT_ANCHOR };
+      return { appid, anchor: DEFAULT_ANCHOR, dominantHex: null };
     }
+  }
+
+  // Backfill pass for games that already have a subject anchor but were
+  // enriched before the dominantHex column existed. Targets rows where
+  // subjectXPercent IS NOT NULL (hero bytes were reachable) and dominantHex
+  // IS NULL. Re-fetches the hero and runs Vibrant; writes only dominantHex.
+  async backfillMissingDominantHex(appids: number[]): Promise<number> {
+    if (appids.length === 0) return 0;
+    const rows = await this.prisma.steamGameEnrichment.findMany({
+      where: {
+        appid: { in: appids },
+        dominantHex: null,
+        subjectXPercent: { not: null },
+      },
+      select: { appid: true, libraryHeroPath: true, assetTimestamp: true },
+    });
+    if (rows.length === 0) return 0;
+    let updated = 0;
+    for (let i = 0; i < rows.length; i += ANCHOR_CONCURRENCY) {
+      const batch = rows.slice(i, i + ANCHOR_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(async (row) => {
+          try {
+            const urls = composeHeroUrls(
+              row.appid,
+              row.libraryHeroPath,
+              row.assetTimestamp
+            );
+            const bytes = await fetchUpstreamChain(urls);
+            return { appid: row.appid, dominantHex: await extractDominantHex(bytes) };
+          } catch {
+            return { appid: row.appid, dominantHex: null };
+          }
+        })
+      );
+      for (const { appid, dominantHex } of results) {
+        if (dominantHex !== null) {
+          await this.prisma.steamGameEnrichment.update({
+            where: { appid },
+            data: { dominantHex },
+          });
+          updated += 1;
+        }
+      }
+    }
+    this.logger.log(`backfilled dominantHex for ${updated}/${rows.length} apps`);
+    return updated;
   }
 }

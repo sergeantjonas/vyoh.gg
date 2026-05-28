@@ -333,6 +333,9 @@ p {
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 0.85) c h);
   --theme-ring: oklch(from var(--theme-color) l c h / 0.6);
+  --theme-grad-from: #60a5fa;
+  --theme-grad-mid: #22d3ee;
+  --theme-grad-to: #7dd3fc;
 }
 
 .dark {
@@ -375,6 +378,9 @@ p {
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 1.1) c h);
   --theme-ring: oklch(from var(--theme-color) l c h / 0.7);
+  --theme-grad-from: #60a5fa;
+  --theme-grad-mid: #22d3ee;
+  --theme-grad-to: #7dd3fc;
 }
 
 @media (prefers-contrast: more) {

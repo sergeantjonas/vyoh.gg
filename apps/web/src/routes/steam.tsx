@@ -174,7 +174,7 @@ function SteamTabs({ pathname }: { pathname: string }) {
                 className={cn(
                   "size-4 transition-colors",
                   active
-                    ? "text-blue-400 drop-shadow-[0_0_6px_rgba(96,165,250,0.5)]"
+                    ? "text-theme-strong drop-shadow-[0_0_6px_var(--theme-muted)]"
                     : "text-muted-foreground group-hover:text-foreground"
                 )}
               />
@@ -183,7 +183,7 @@ function SteamTabs({ pathname }: { pathname: string }) {
             {active && (
               <m.div
                 layoutId="steam-tab-indicator"
-                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-blue-400 via-cyan-400 to-sky-300 shadow-[0_0_8px_1px_rgba(96,165,250,0.35)]"
+                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-linear-to-r from-[var(--theme-grad-from)] via-[var(--theme-grad-mid)] to-[var(--theme-grad-to)] shadow-[0_0_8px_1px_var(--theme-ring)]"
                 transition={{ type: "spring", stiffness: 500, damping: 35 }}
               />
             )}
