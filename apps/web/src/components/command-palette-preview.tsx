@@ -64,6 +64,14 @@ export function CommandPalettePreview({ value, matches }: Props) {
     let lastCard: HTMLDivElement | null = null;
     let lastTop = Number.NaN;
     let lastLeft = Number.NaN;
+    // Collision-aware flip: default position is `rect.right + gap` (card to
+    // the right of the row). If that would overflow the viewport right edge,
+    // flip to `rect.left - cardWidth - gap` (card to the left). Card width
+    // is read from the DOM each frame so the same logic survives content
+    // height changes between champion / match / steam-game previews — no
+    // assumption about a fixed card width.
+    const gap = 12;
+    const viewportPadding = 8;
     const tick = () => {
       const card = cardRef.current;
       const row = document.querySelector<HTMLElement>(
@@ -71,8 +79,12 @@ export function CommandPalettePreview({ value, matches }: Props) {
       );
       if (card && row) {
         const rect = row.getBoundingClientRect();
+        const cardWidth = card.offsetWidth;
+        const viewportWidth = window.innerWidth;
+        const rightPos = rect.right + gap;
+        const flipsRight = rightPos + cardWidth + viewportPadding > viewportWidth;
+        const left = flipsRight ? rect.left - cardWidth - gap : rightPos;
         const top = rect.top;
-        const left = rect.right + 12;
         if (card !== lastCard || top !== lastTop || left !== lastLeft) {
           lastCard = card;
           lastTop = top;
