@@ -1,6 +1,6 @@
 # Reduced-motion replacements — audit + standard
 
-**Status:** Active — Chunk 1 audit in progress (picked 2026-05-28). Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. A single pass to audit every animated surface in the app against the **"replace, don't disable"** principle from [03-motion.md §6.5](~/.claude/knowledge/frontend-2026/03-motion.md), and to standardise the replacement variants in one place so future motion arcs inherit the pattern.
+**Status:** Active — Chunks 1–3 landed (2026-05-28). Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. A single pass to audit every animated surface in the app against the **"replace, don't disable"** principle from [03-motion.md §6.5](~/.claude/knowledge/frontend-2026/03-motion.md), and to standardise the replacement variants in one place so future motion arcs inherit the pattern.
 
 Read this **after** any new motion-bearing arc lands and as a standing checklist before merging anything motion-touching. Also acts as the reference for the reduced-motion sections inside every other arc note in this directory.
 
@@ -329,7 +329,30 @@ Beyond §11 sheen, no other CSS-driven motion was found that lacks a reduced-mot
    - Match-list scroll-restore still pins correctly (the StrictMode pin loop isn't motion).
    - Steam tile hover doesn't sweep sheen.
 
-**Chunk 3 — Backfill missing reduced-motion on existing surfaces:** nothing concrete remains after §11 sheen. The original arc's §13–16 (PR flare, ambient hero, presence chip, audio) belong to arcs that haven't shipped yet — track them inside those arc notes.
+**Chunk 3 — Backfill missing reduced-motion on existing surfaces:** ✅ closed 2026-05-28 as no-op. Full keyframe inventory cross-checked against `(prefers-reduced-motion: reduce)` blocks:
+
+| Keyframe | Consumer | rm block |
+|---|---|---|
+| `shimmer` | `.animate-shimmer` | [index.css:125-127](../../../apps/web/src/index.css#L125-L127) |
+| `heatmap-reveal` | `.heatmap-cell`, `.lp-tier-band-label` | [index.css:128-130](../../../apps/web/src/index.css#L128-L130), [137-139](../../../apps/web/src/index.css#L137-L139) |
+| `card-breathe` | `.card-splash-breathe` (`:hover`) | [index.css:131-133](../../../apps/web/src/index.css#L131-L133) |
+| `lp-marker-pop` | `.lp-tier-marker` | [index.css:134-136](../../../apps/web/src/index.css#L134-L136) |
+| `nav-compact` | `[data-vt-nav]` | [motion.css:267-270](../../../apps/web/src/styles/motion.css#L267-L270) |
+| `section-progress` | `[data-scroll-progress]` | [motion.css:272-276](../../../apps/web/src/styles/motion.css#L272-L276) |
+| `view-entry` | `.view-entry` | [motion.css:278-282](../../../apps/web/src/styles/motion.css#L278-L282) |
+| `stagger-in` | `.stagger-children > *`, `[data-mount-stagger]` | [motion.css:284-287](../../../apps/web/src/styles/motion.css#L284-L287) |
+| `lol-tab-pulse` | `.lol-tab-pulse` | [motion.css:109-113](../../../apps/web/src/styles/motion.css#L109-L113) |
+| `theme-bar-glint-sweep` | `.theme-bar-glint::after` | [motion.css:151-156](../../../apps/web/src/styles/motion.css#L151-L156) |
+| VT `vt-slide-*` / `vt-fade-*` | `::view-transition-*` pseudos | [view-transitions.css:209-214](../../../apps/web/src/styles/view-transitions.css#L209-L214) |
+| `safari-slide-in-*` | `.safari-slide-in-*` | [view-transitions.css:215-218](../../../apps/web/src/styles/view-transitions.css#L215-L218) |
+| (non-keyframe) `.match-row --row-tint` transition | match-row hover tint | [index.css:221-225](../../../apps/web/src/index.css#L221-L225) |
+| (non-keyframe) sibling-dim opacity transition | `.match-list / .champion-list / .steam-library :has(:hover)` | [index.css:238-243](../../../apps/web/src/index.css#L238-L243) |
+| (non-keyframe) `[data-sheen] --sheen-extent` transition | Steam tile/row/hall sheen | [index.css:250-257](../../../apps/web/src/index.css#L250-L257) — added Chunk 2 |
+| (non-keyframe) `[data-radix-popper-content-wrapper]` @starting-style transition | Radix popper overlays | [motion.css:296-298](../../../apps/web/src/styles/motion.css#L296-L298) |
+
+The audit's earlier prediction that §17 (heatmap reveal) and §18 (LP marker pop) "need adding" was incorrect — both `.heatmap-cell` and `.lp-tier-marker` already had `animation: none` blocks colocated with their keyframe definitions. No backfill required.
+
+The original arc's §13–16 (PR flare, ambient hero, presence chip, audio) belong to arcs that haven't shipped yet — track them inside those arc notes.
 
 **Chunk 4 — Consolidate into `motion.css`:** the §11 sheen block is the only CSS file move out of `index.css`. Most other reduced-motion blocks are colocated with their owners (one inside `index.css` near each keyframe, one inside `view-transitions.css`); leave them — the standard's "single consolidated block at the bottom" idea is at odds with how the team has been writing colocated motion. Update the arc note to reflect this if the call holds at Chunk 4 time.
 
