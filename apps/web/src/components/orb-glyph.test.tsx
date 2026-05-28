@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { OrbGlyph } from "./orb-glyph";
 
 describe("OrbGlyph", () => {
-  it("renders the orb image marked aria-hidden", () => {
+  it("renders the orb silhouette marked aria-hidden", () => {
     const { container } = render(
       <MotionConfig reducedMotion="never">
         <OrbGlyph />
@@ -12,9 +12,13 @@ describe("OrbGlyph", () => {
     );
     const wrapper = container.firstElementChild as HTMLElement;
     expect(wrapper.getAttribute("aria-hidden")).toBe("true");
-    expect(container.querySelector("img")?.getAttribute("src")).toContain(
-      "vyoh-orb-mark"
-    );
+    // The silhouette is a CSS-mask span (not <img>) so it can be recolored
+    // via --theme-color. happy-dom strips the inline mask-image style, so we
+    // assert the structural shape: two inner spans — the animated halo and
+    // the themed silhouette carrying the theme-color background class.
+    const innerSpans = wrapper.querySelectorAll(":scope > span");
+    expect(innerSpans).toHaveLength(2);
+    expect(innerSpans[1]?.className).toContain("bg-[var(--theme-color)]");
   });
 
   it("applies the className to the outer wrapper", () => {
