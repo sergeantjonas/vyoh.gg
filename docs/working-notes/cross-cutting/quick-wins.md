@@ -41,19 +41,20 @@ All five rows shipped in the 2026-05-25 session — see [library-card-enrichment
 ✅ **`<link rel="modulepreload">` for route chunks** — shipped in a prior session via eager `router.preloadRoute()` calls in `__root.tsx`.
 ✅ **Print stylesheet** — shipped 2026-05-28; `@media print` block in `index.css` resets dark-mode vars, unfreezes `h-dvh` layout, hides `[data-vt-nav]`/scroll-progress/sticky strips/tab lists.
 
-- **HTML `popover` attribute where it fits** — light tooltips, simple disclosure menus that aren't already Radix. Native top-layer, ESC-to-dismiss, light-dismiss for free. Don't replace existing Radix overlays — those have richer behavior.
+✅ **HTML `popover` attribute where it fits** — dropped 2026-05-28; audit found nothing to convert. Tooltips/overlays are governed by Radix (`TooltipPrimitive`, `react-popover`, `react-hover-card`), and the remaining `aria-expanded` sites are inline accordions where native `popover` doesn't apply.
+
 - **`<picture>` art-direction for splash backdrop on mobile** — blocked: the splash proxy (`/img/lol/champion/${slug}/backdrop/${patch}.webp`) has no size parameter; needs API work to add a `?w=960` variant before art-direction is useful.
 
 ## Tier-2-ish (small but design-touching — drop a paragraph in a new note before picking up)
 
-- **Calendar heatmap** — GitHub-style year-of-games grid on profile. Needs grid sizing/color-scale decision; small note, then implement.
-- **SVG `<feTurbulence>` noise overlay** — film-grain texture on splash backdrops at 3% opacity. Needs to be tested per-champion (busy splashes overcrowd); small visual call.
+✅ **Calendar heatmap** — already shipped as `ProfileActivityCalendar` ([profile-activity-calendar.tsx](../../../apps/web/src/lol/profile/profile-activity-calendar.tsx)); 365-day window, 5-tier emerald scale, per-cell tooltips, Riot 1000-match-cap handling. Entry was stale.
+- **SVG `<feTurbulence>` noise overlay on splash backdrops** — global body-level noise exists at 6% ([index.css:460](../../../apps/web/src/index.css#L460)) and home orb uses feTurbulence ([orb-mark.tsx:213](../../../apps/web/src/home/orb-mark.tsx#L213)); what's still open is the per-champion splash-backdrop 3% overlay. Needs per-champion test (busy splashes overcrowd); small visual call.
 - **WebShare API** — share button on match/profile pages. Decide what the share payload looks like (title, text, url, OG image link).
 - **Generative visitor identity glyph** — small SVG that hashes the visitor's IP/UA into a unique 4-shape mark, shown in the corner. Anti-cliché twist on "Hello, you". Needs design direction.
 
 ## Engineering-trust (worth doing, no UX surface)
 
-- **Trusted Types + CSP nonces** — `Content-Security-Policy` with `require-trusted-types-for 'script'`. Signals security awareness on a public site. Vite + Nest both support it; mostly a config + script-source audit.
+- **Trusted Types + CSP nonces** — `Content-Security-Policy` with `require-trusted-types-for 'script'`. Signals security awareness on a public site. Vite + Nest both support it; mostly a config + script-source audit. **Deferred until hosting target is picked** (2026-05-28) — CSP delivery layer is hosting-specific (`_headers` for Cloudflare, `vercel.json` for Vercel, reverse-proxy config for self-host), so a speculative shipment would either need rework or rot. Two `dangerouslySetInnerHTML` sites (`steam/game/game-about-block.tsx:157`, `lol/_shared/static/rich-description.ts`) will need a `trusted-types` policy if HTML sinks are gated; `require-trusted-types-for 'script'` alone is fine.
 - **Sigstore signing on the deployment artifact** — `cosign sign` in CI. Reviewer who clicks "verify" sees a real signature. Niche but unmissable signal.
 
 ## Bolder bets (need their own arc note before pickup)
@@ -61,7 +62,7 @@ All five rows shipped in the 2026-05-25 session — see [library-card-enrichment
 These were surfaced in the sweep but are big enough that a chunked working-note is required first. Listed here so they don't get forgotten:
 
 - **Houdini PaintWorklet** — custom paint for repeating textures (could replace `<feTurbulence>` noise with a worklet). Research-y.
-- **Public status page** — `/status` route showing Riot rate-limit headroom, last successful sync, queue depth. Engineering-trust signal.
+✅ **Public status page** — shipped: `/status` route is a full match-sync + Riot rate-limiter view with sync history ([apps/web/src/status/status-page.tsx](../../../apps/web/src/status/status-page.tsx)). Entry was stale.
 - **Service Worker offline cache** — view last-fetched match-detail when offline. Coordinates with PWA polish above.
 - **RSS/Atom feed for matches** — `/lol/$accountSlug/matches.atom`. Niche but characterful.
 - **iCal feed for Steam wishlist release dates** — `/steam/wishlist.ics`. Adds release dates to the owner's (and visitor's) calendar.
