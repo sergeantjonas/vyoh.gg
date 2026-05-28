@@ -24,7 +24,7 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 | [section-shell-vt-migration](section-shell-vt-migration.md) | Remove SectionShell's `<AnimatePresence>` route-slide wrap in favour of VT-driven slides with CSS keyframes scoped by transition `types` | ✅ Shipped 2026-05-24 |
 | [scroll-driven-shell](../archive/scroll-driven-shell.md) | Native CSS `animation-timeline: scroll()/view()` on nav compaction, section progress hairline, view-entry on tiles/cards. Splash decay attempted then reverted (made splash feel dull, surfaced Ken Burns against low-res art). `--theme-color` cascade lifted into `SplashProvider`. Firefox-stable JS fallback for the progress bar. | ✅ Shipped 2026-05-26 |
 | [mount-and-overlay-motion](mount-and-overlay-motion.md) | Tile/list mount stagger + `@starting-style` + `transition-behavior: allow-discrete` for overlays (Select/Popover/Dropdown shadcn defaults) | ✅ Shipped 2026-05-27 (bento `.stagger-children`, Steam library `data-mount-stagger`, Radix popper `@starting-style`; sweep found no Motion wrappers to remove) |
-| [accent-color-system](accent-color-system.md) | Per-route `--accent` token derived from splash/game dominant; propagate to focus rings, scrollbar, sparklines, `<meta name="theme-color">` | ✅ Shipped 2026-05-26 (`--theme-*` namespace, LoL + body gradient). Steam wiring + broader sweep deferred. |
+| [accent-color-system](accent-color-system.md) | Per-route `--accent` token derived from splash/game dominant; propagate to focus rings, scrollbar, sparklines, `<meta name="theme-color">` | ✅ Shipped 2026-05-26 (core cascade, LoL). Steam Chunk 6 shipped 2026-05-28 (`dominantHex` pipeline + game-detail + nav theming). |
 
 ### Tier 2 — Visible craft, modest effort
 
