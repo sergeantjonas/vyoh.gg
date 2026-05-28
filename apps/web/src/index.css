@@ -6,6 +6,8 @@
 html,
 body {
   overflow: hidden;
+  /* biome-ignore lint/correctness/noUnknownProperty: Chrome 129+ / Safari 26+ — not yet in Biome's property list */
+  interpolate-size: allow-keywords;
 }
 
 h1,
