@@ -2,6 +2,7 @@ import { CardShell } from "@/components/card-shell";
 import { useLibraryCompletion } from "@/steam/use-library-completion";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamTags } from "@/steam/use-tags";
+import { formatPercent } from "@vyoh/shared";
 import type { SteamGameCompletion, SteamOwnedGame } from "@vyoh/shared";
 import { useMemo } from "react";
 
@@ -12,9 +13,9 @@ import { useMemo } from "react";
 // outlier game isn't a pattern worth surfacing.
 const MIN_SAMPLE = 5;
 const MIN_TAG_SAMPLE = 3;
-// A tag slice has to beat the library median by this many points before it
+// A tag slice has to beat the library median by this fraction before it
 // reads as a real signal rather than rounding noise.
-const TAG_SLICE_LEAD_POINTS = 15;
+const TAG_SLICE_LEAD_POINTS = 0.15;
 
 interface AxisVerdict {
   verdict: string;
@@ -31,10 +32,10 @@ function median(values: number[]): number {
 }
 
 function bandFor(pct: number): string {
-  if (pct >= 90) return "Hard completionist";
-  if (pct >= 60) return "Sees it through";
-  if (pct >= 30) return "Honest middle ground";
-  if (pct >= 10) return "Skim, then move on";
+  if (pct >= 0.9) return "Hard completionist";
+  if (pct >= 0.6) return "Sees it through";
+  if (pct >= 0.3) return "Honest middle ground";
+  if (pct >= 0.1) return "Skim, then move on";
   return "Pulls a few, drops it";
 }
 
@@ -45,11 +46,11 @@ function buildVerdict(
 ): AxisVerdict {
   const cohortSize = cohort.length;
   const headline = bandFor(libraryMedian);
-  const baseEvidence = `${Math.round(libraryMedian)}% median across ${cohortSize} game${cohortSize === 1 ? "" : "s"} you've made progress in.`;
+  const baseEvidence = `${formatPercent(libraryMedian)} median across ${cohortSize} game${cohortSize === 1 ? "" : "s"} you've made progress in.`;
   if (tagSlice && tagSlice.median - libraryMedian >= TAG_SLICE_LEAD_POINTS) {
     return {
       verdict: `${headline} — except ${tagSlice.name}.`,
-      evidence: `${baseEvidence} ${tagSlice.name}: ${Math.round(tagSlice.median)}% median across ${tagSlice.size}.`,
+      evidence: `${baseEvidence} ${tagSlice.name}: ${formatPercent(tagSlice.median)} median across ${tagSlice.size}.`,
       empty: false,
     };
   }
@@ -67,7 +68,7 @@ export function CompletionistAxisCard() {
   }, [completion.data]);
 
   const libraryMedian = useMemo(() => {
-    const pcts = cohort.map((c) => (c.unlocked / c.total) * 100);
+    const pcts = cohort.map((c) => c.unlocked / c.total);
     return median(pcts);
   }, [cohort]);
 
@@ -80,7 +81,7 @@ export function CompletionistAxisCard() {
     for (const stat of cohort) {
       const game: SteamOwnedGame | undefined = gameById.get(stat.appid);
       if (!game) continue;
-      const pct = (stat.unlocked / stat.total) * 100;
+      const pct = stat.unlocked / stat.total;
       for (const tid of game.tagIds) {
         const bucket = byTag.get(tid);
         if (bucket) bucket.push(pct);
@@ -137,7 +138,7 @@ export function CompletionistAxisCard() {
       title="Completionist axis"
       indicator={
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {Math.round(libraryMedian)}% · n={cohort.length}
+          {formatPercent(libraryMedian)} · n={cohort.length}
         </span>
       }
       verdict={verdict}

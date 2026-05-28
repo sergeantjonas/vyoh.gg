@@ -1,3 +1,4 @@
+import { formatPercent } from "@vyoh/shared";
 import type { SteamPlatform, SteamPlatformMix } from "@vyoh/shared";
 import { FactCard } from "./_shared/fact-card";
 import { useSteamPlatformMix } from "./use-platform-mix";
@@ -9,9 +10,9 @@ const PLATFORM_LABEL: Record<SteamPlatform, string> = {
   deck: "Steam Deck",
 };
 
-function shareOf(minutes: number, total: number): number {
-  if (total === 0) return 0;
-  return Math.round((minutes / total) * 100);
+function shareOf(minutes: number, total: number): string {
+  if (total === 0) return "0%";
+  return formatPercent(minutes / total);
 }
 
 function secondaryBreakdown(data: SteamPlatformMix): string {
@@ -27,7 +28,7 @@ function secondaryBreakdown(data: SteamPlatformMix): string {
     .sort((a, b) => b[1] - a[1])
     .map(
       ([platform, minutes]) =>
-        `${PLATFORM_LABEL[platform]} ${shareOf(minutes, totalMinutes)}%`
+        `${PLATFORM_LABEL[platform]} ${shareOf(minutes, totalMinutes)}`
     );
 
   if (rest.length === 0) {
@@ -73,7 +74,7 @@ export function PlatformMixChip() {
   };
   const dominantMinutes = dominantMinutesByPlatform[data.dominantPlatform];
   const dominantShare = shareOf(dominantMinutes, data.totalMinutes);
-  const verdict = `${PLATFORM_LABEL[data.dominantPlatform]} accounts for ${dominantShare}% of all tracked playtime.`;
+  const verdict = `${PLATFORM_LABEL[data.dominantPlatform]} accounts for ${dominantShare} of all tracked playtime.`;
 
   return (
     <FactCard

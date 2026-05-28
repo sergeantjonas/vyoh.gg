@@ -1,6 +1,6 @@
 import { useHomeDaySplit } from "@/home/use-home-day-split";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { formatHoursMinutes } from "@vyoh/shared";
+import { formatHoursMinutes, formatPercent } from "@vyoh/shared";
 import type { HomeDaySplitHour } from "@vyoh/shared";
 
 const TOOLTIP_CONTENT_CLASS =
@@ -115,14 +115,14 @@ export function TileDaySplit() {
 
   const maxMinutes = Math.max(...hours.map((h) => h.lolMinutes + h.steamMinutes), 1);
   const tzLabel = timeZone.split("/").pop() ?? timeZone;
-  const lolShare = Math.round((totalLolMinutes / grandTotal) * 100);
-  const steamShare = 100 - lolShare;
+  const lolShare = formatPercent(totalLolMinutes / grandTotal);
+  const steamShare = formatPercent(totalSteamMinutes / grandTotal);
 
   return (
     <Shell>
       <Heading />
       <p className="text-base font-semibold leading-snug text-foreground/90">
-        {lolShare}% LoL, {steamShare}% Steam across the day.
+        {lolShare} LoL, {steamShare} Steam across the day.
       </p>
       <div className="mt-1 flex min-h-20 flex-1 items-stretch gap-0.5">
         {hours.map((bucket) => (

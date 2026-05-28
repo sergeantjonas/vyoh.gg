@@ -1,5 +1,6 @@
 import { useHomeSessionLengths } from "@/home/use-home-session-lengths";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { formatPercent } from "@vyoh/shared";
 import type { HomeSessionLengthsBucket } from "@vyoh/shared";
 
 const TOOLTIP_CONTENT_CLASS =
@@ -125,13 +126,13 @@ export function TileSessionLengths() {
   const shortCount = buckets
     .filter((b) => b.label === "<30m" || b.label === "30m–1h")
     .reduce((sum, b) => sum + b.lolCount + b.steamCount, 0);
-  const shortShare = Math.round((shortCount / grandTotal) * 100);
+  const shortShare = formatPercent(shortCount / grandTotal);
 
   return (
     <Shell>
       <Heading />
       <p className="text-base font-semibold leading-snug text-foreground/90">
-        {shortShare}% of sessions are under 1h.
+        {shortShare} of sessions are under 1h.
       </p>
       <div className="mt-1 flex min-h-20 flex-1 items-stretch gap-2">
         {buckets.map((bucket) => (

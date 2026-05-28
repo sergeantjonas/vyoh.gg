@@ -1,4 +1,5 @@
 import { CardShell } from "@/components/card-shell";
+import { formatPercent } from "@vyoh/shared";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useGameAchievements } from "./use-game-achievements";
 
@@ -16,10 +17,10 @@ interface CompletionVerdictCardProps {
 function verdictFor(unlocked: number, total: number, pct: number): string {
   if (total === 0) return "No achievements defined.";
   if (unlocked === 0) return "Owned but untouched on the achievement front.";
-  if (pct === 100) return "100% complete — every achievement earned.";
-  if (pct >= 75) return `Closing in — ${total - unlocked} to go.`;
-  if (pct >= 50) return "Past the halfway mark.";
-  if (pct >= 25) return "Working through it.";
+  if (pct === 1) return "100% complete — every achievement earned.";
+  if (pct >= 0.75) return `Closing in — ${total - unlocked} to go.`;
+  if (pct >= 0.5) return "Past the halfway mark.";
+  if (pct >= 0.25) return "Working through it.";
   return "Just getting started.";
 }
 
@@ -38,7 +39,7 @@ export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
 
   const total = achievements.length;
   const unlocked = achievements.filter((a) => a.unlockedAt !== null).length;
-  const pct = total === 0 ? 0 : Math.round((unlocked / total) * 100);
+  const pct = total === 0 ? 0 : unlocked / total;
 
   // Rare = global unlock % below 5%; very-rare below 1%. Only count rows
   // the owner has actually unlocked — the value is "look what you pulled
@@ -78,7 +79,7 @@ export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
         <TooltipPrimitive.Root>
           <TooltipPrimitive.Trigger asChild>
             <span className="shrink-0 cursor-help text-xs tabular-nums text-muted-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
-              {unlocked}/{total} · {pct}%
+              {unlocked}/{total} · {formatPercent(pct)}
             </span>
           </TooltipPrimitive.Trigger>
           <TooltipPrimitive.Portal>
@@ -87,7 +88,7 @@ export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
               sideOffset={4}
               className={TOOLTIP_CONTENT_CLASS}
             >
-              Your completion: {unlocked} of {total} achievements unlocked ({pct}%).
+              Your completion: {unlocked} of {total} achievements unlocked ({formatPercent(pct)}).
             </TooltipPrimitive.Content>
           </TooltipPrimitive.Portal>
         </TooltipPrimitive.Root>
