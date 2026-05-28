@@ -14,7 +14,6 @@ import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
-import { HoverChampionProvider } from "@/lol/_shared/ui/hover-champion-context";
 import { type AccountSearch, validateAccountSearch } from "@/lol/account/account-search";
 import {
   iconPop,
@@ -35,6 +34,7 @@ import {
   useMatchEventsSubscription,
 } from "@/lol/matches/use-matches";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
+import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import {
   Link,
   Outlet,
@@ -185,37 +185,27 @@ function AccountLayout() {
 
   const prefersReducedMotion = useReducedMotion();
 
-  const [hoveredChampion, setHoveredChampion] = useState<string | null>(null);
-  const [initialChampion, setInitialChampion] = useState<string | null>(null);
-  // Initialize once per account so the splash follows account swaps but does
-  // not reshuffle every time the match list refetches (e.g. SSE backfill).
+  // Splash claim for the LoL section: top-played champion in the windowed
+  // match set (same selector as Recap so the splash backdrop and Recap's
+  // "champion of the year" tile always agree). Pinned once per account
+  // slug so the splash doesn't reshuffle as the SSE backfill streams in
+  // and shifts the leader. Sub-routes that care about a more specific
+  // champion (Live → playing champion, match-detail → match hero, etc.)
+  // make their own useSplashChampion call which wins over this one.
+  const [splashChampion, setSplashChampion] = useState<string | null>(null);
   const initializedSlugRef = useRef<string | null>(null);
   useEffect(() => {
     if (!matches) return;
     if (initializedSlugRef.current === accountSlug) return;
-    if (matches.length > 0) {
-      const first = matches[0];
-      if (first) setInitialChampion(first.champion);
-    } else {
+    const top = selectChampionOfYear(matches);
+    if (top) {
+      setSplashChampion(top.champion);
+    } else if (matches.length === 0) {
       const key = CHAMPION_KEYS[Math.floor(Math.random() * CHAMPION_KEYS.length)];
-      if (key) setInitialChampion(key);
+      if (key) setSplashChampion(key);
     }
     initializedSlugRef.current = accountSlug;
   }, [matches, accountSlug]);
-  // Debounce hover-driven splash changes so a quick mouse sweep over the match
-  // list doesn't remount the backdrop (and refetch its splash) per row.
-  // First-set and clears stay instant — only value↔value transitions wait.
-  const target = hoveredChampion ?? initialChampion;
-  const [splashChampion, setSplashChampion] = useState<string | null>(null);
-  useEffect(() => {
-    if (target === splashChampion) return;
-    if (splashChampion === null || target === null) {
-      setSplashChampion(target);
-      return;
-    }
-    const id = setTimeout(() => setSplashChampion(target), 80);
-    return () => clearTimeout(id);
-  }, [target, splashChampion]);
   useSplashChampion(splashChampion);
 
   // Stable context value — pathname-driven re-renders of AccountLayout would
@@ -247,48 +237,46 @@ function AccountLayout() {
       <ActiveChampionProvider>
         <MatchListReturnReset inSubtree={isInMatchesSubtree} />
         <ChampionListReturnReset inSubtree={isInChampionsSubtree} />
-        <HoverChampionProvider setHovered={setHoveredChampion}>
-          <SeriousQueuesProvider>
-            <MatchWindowProvider value={matchWindowValue}>
-              <SectionShell
-                headerRef={setHeaderEl}
-                onHeaderRect={onHeaderRect}
-                identity={
-                  <LolIdentity
-                    account={account}
-                    iconId={iconId}
-                    level={level}
-                    ddVersion={ddVersion}
-                    prefersReducedMotion={prefersReducedMotion}
-                  />
-                }
-                actions={
-                  isMatchDetail ? undefined : (
-                    <div className="flex items-center gap-2">
-                      {/* The Matches subtree shows every queue (it's a browse
+        <SeriousQueuesProvider>
+          <MatchWindowProvider value={matchWindowValue}>
+            <SectionShell
+              headerRef={setHeaderEl}
+              onHeaderRect={onHeaderRect}
+              identity={
+                <LolIdentity
+                  account={account}
+                  iconId={iconId}
+                  level={level}
+                  ddVersion={ddVersion}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
+              }
+              actions={
+                isMatchDetail ? undefined : (
+                  <div className="flex items-center gap-2">
+                    {/* The Matches subtree shows every queue (it's a browse
                         surface), so the serious-queues preference has no
                         effect there — hide the icon to avoid implying it does. */}
-                      {!isInMatchesSubtree && <SeriousQueuesSettings />}
-                      <AccountSwitcher currentSlug={accountSlug} />
-                      <RefreshAccountButton account={account} />
-                    </div>
-                  )
-                }
-                nav={
-                  <LolNav
-                    isMatchDetail={isMatchDetail}
-                    accountSlug={accountSlug}
-                    pathname={pathname}
-                    liveData={liveData}
-                    prefersReducedMotion={prefersReducedMotion}
-                  />
-                }
-              >
-                <Outlet />
-              </SectionShell>
-            </MatchWindowProvider>
-          </SeriousQueuesProvider>
-        </HoverChampionProvider>
+                    {!isInMatchesSubtree && <SeriousQueuesSettings />}
+                    <AccountSwitcher currentSlug={accountSlug} />
+                    <RefreshAccountButton account={account} />
+                  </div>
+                )
+              }
+              nav={
+                <LolNav
+                  isMatchDetail={isMatchDetail}
+                  accountSlug={accountSlug}
+                  pathname={pathname}
+                  liveData={liveData}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
+              }
+            >
+              <Outlet />
+            </SectionShell>
+          </MatchWindowProvider>
+        </SeriousQueuesProvider>
       </ActiveChampionProvider>
     </ActiveMatchProvider>
   );

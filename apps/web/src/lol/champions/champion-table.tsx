@@ -158,12 +158,10 @@ export function ChampionTable({
   stats,
   sort,
   accountSlug,
-  onCardHover,
 }: {
   stats: ChampionStats[];
   sort: ChampionSortOption;
   accountSlug: string;
-  onCardHover?: ((champion: string) => void) | undefined;
 }) {
   const championName = useChampionName();
   const champions = useChampions();
@@ -237,7 +235,6 @@ export function ChampionTable({
             subclasses={subclasses}
             accountSlug={accountSlug}
             displayName={championName(s.champion)}
-            onCardHover={onCardHover}
             heldDuringSettle={heldDuringSettle}
           />
         );
@@ -252,7 +249,6 @@ function ChampionTableRow({
   subclasses,
   accountSlug,
   displayName,
-  onCardHover,
   heldDuringSettle,
 }: {
   s: ChampionStats;
@@ -260,7 +256,6 @@ function ChampionTableRow({
   subclasses: string[];
   accountSlug: string;
   displayName: string;
-  onCardHover?: ((champion: string) => void) | undefined;
   heldDuringSettle: boolean;
 }) {
   const {
@@ -353,7 +348,6 @@ function ChampionTableRow({
         <Link
           to="/lol/$accountSlug/champions/$championKey"
           params={{ accountSlug, championKey: alias.toLowerCase() }}
-          onMouseEnter={() => onCardHover?.(alias)}
           onPointerEnter={prefetch.onPointerEnter}
           onPointerLeave={prefetch.onPointerLeave}
           onPointerDown={() => {

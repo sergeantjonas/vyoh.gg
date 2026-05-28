@@ -31,14 +31,12 @@ const SETTLE_HOLD_OPACITY = 0.6;
 export function MatchList({
   matches,
   accountSlug,
-  onCardHover,
   hasNextPage,
   fetchNextPage,
   isFetchingNextPage,
 }: {
   matches: MatchSummary[];
   accountSlug: string;
-  onCardHover?: ((champion: string) => void) | undefined;
   hasNextPage?: boolean | undefined;
   fetchNextPage?: (() => void) | undefined;
   isFetchingNextPage?: boolean | undefined;
@@ -278,7 +276,6 @@ export function MatchList({
                   match={match}
                   accountSlug={accountSlug}
                   championDisplayName={championName(match.champion)}
-                  onCardHover={onCardHover}
                   isNew={isFlashNew}
                   lpDelta={lpDeltaMap.get(match.matchId)}
                 />

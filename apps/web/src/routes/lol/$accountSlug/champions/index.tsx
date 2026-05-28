@@ -13,7 +13,6 @@ import {
   filterToSerious,
   useSeriousQueues,
 } from "@/lol/_shared/serious-queues/serious-queues";
-import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
 import { ChampionPoolDrift } from "@/lol/champions/champion-pool-drift";
 import {
   CHAMPION_SORT_OPTIONS,
@@ -118,7 +117,6 @@ function ChampionsPage() {
     [matches]
   );
   const [sort, setSort] = useState<ChampionSortOption>(CHAMPION_SORT_OPTIONS[0].value);
-  const setHoveredChampion = useHoverChampion();
 
   const setRole = (next: RolePosition | undefined) =>
     withReorderViewTransition(() =>
@@ -161,12 +159,7 @@ function ChampionsPage() {
           hint="Play a few games and your champion pool will appear here once data lands."
         />
       ) : (
-        <ChampionTable
-          stats={stats}
-          sort={sort}
-          accountSlug={accountSlug}
-          onCardHover={setHoveredChampion ?? undefined}
-        />
+        <ChampionTable stats={stats} sort={sort} accountSlug={accountSlug} />
       )}
     </div>
   );

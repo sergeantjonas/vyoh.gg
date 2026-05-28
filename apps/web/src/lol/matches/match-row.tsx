@@ -40,14 +40,12 @@ export function MatchRow({
   match,
   accountSlug,
   championDisplayName,
-  onCardHover,
   isNew,
   lpDelta,
 }: {
   match: MatchSummary;
   accountSlug: string;
   championDisplayName: string;
-  onCardHover?: ((champion: string) => void) | undefined;
   isNew?: boolean | undefined;
   lpDelta?: number | undefined;
 }) {
@@ -125,7 +123,6 @@ export function MatchRow({
           <Link
             to="/lol/$accountSlug/matches/$matchId"
             params={{ accountSlug, matchId: match.matchId }}
-            onMouseEnter={() => onCardHover?.(match.champion)}
             onPointerEnter={prefetch.onPointerEnter}
             onPointerLeave={prefetch.onPointerLeave}
             onPointerDown={() => {

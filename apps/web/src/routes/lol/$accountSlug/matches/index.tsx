@@ -3,7 +3,6 @@ import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { QueueFilter } from "@/lol/_shared/queue/queue-filter";
-import { useHoverChampion } from "@/lol/_shared/ui/hover-champion-context";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
 import { useCachedMatches } from "@/lol/matches/use-matches";
@@ -27,8 +26,6 @@ function MatchesPage() {
     [matches.data?.pages]
   );
 
-  const setHoveredChampion = useHoverChampion();
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-end">
@@ -48,7 +45,6 @@ function MatchesPage() {
           <MatchList
             matches={flat}
             accountSlug={accountSlug}
-            onCardHover={setHoveredChampion ?? undefined}
             hasNextPage={matches.hasNextPage}
             fetchNextPage={matches.fetchNextPage}
             isFetchingNextPage={matches.isFetchingNextPage}

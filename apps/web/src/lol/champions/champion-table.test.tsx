@@ -164,22 +164,6 @@ describe("ChampionTable", () => {
     expect(li.style.viewTransitionName).toBe("champion-Ahri");
   });
 
-  it("invokes onCardHover with the champion key when the row is hovered", () => {
-    const onCardHover = vi.fn();
-    renderTable(
-      <ChampionTable
-        stats={[stat()]}
-        sort="games"
-        accountSlug="ahri"
-        onCardHover={onCardHover}
-      />
-    );
-    const link = screen.getByTestId("chrome").closest("a");
-    if (!link) throw new Error("expected a link wrapping the chrome");
-    fireEvent.mouseEnter(link);
-    expect(onCardHover).toHaveBeenCalledWith("Ahri");
-  });
-
   it("formats playtime in minutes when under 1h", () => {
     renderTable(
       <ChampionTable
