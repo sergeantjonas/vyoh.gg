@@ -98,11 +98,11 @@ Test: trigger fires after delay on enter; cancels on leave; fires immediately on
 - Steam nav item → `steamOwnedGamesQueryOptions()`; Patches → `patchListQueryOptions()`; LoL account rows → `prefetchCachedMatches(qc, account)` (infinite query).
 - Home + Status left bare — neither has a single primary query worth prefetching.
 
-### Chunk 5 — Mobile touch path (verified via test, real-device sim owner-side)
+### Chunk 5 — Mobile touch path (verified 2026-05-28)
 
 - The hook handles `pointerdown` synchronously (no 150ms wait); on touch this fires before `click` → before route nav, so the prefetch lands as the finger touches.
 - Hook-level immediacy is covered by [use-hover-prefetch.test.ts](../../../apps/web/src/lib/use-hover-prefetch.test.ts); wired-surface pass-through covered by a `pointerDown` assertion in [library-tile.test.tsx](../../../apps/web/src/steam/library/library-tile.test.tsx).
-- Real-device verification (Chrome DevTools mobile sim → Network panel under Slow 3G, tap a tile, observe prefetch fires on `pointerdown` while the route nav fires on `click`): owner-side bench check. Expected head start ~50ms on mobile networks.
+- Real-device verification: confirmed working by owner — prefetch fires on touch start before navigation triggers, giving the route loader a warm cache.
 
 ### Chunk 6 — (Conditional) Speculation Rules for Start migration
 
