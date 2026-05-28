@@ -151,38 +151,15 @@ This is genuine "replace": each surface keeps the *information* the animation ca
 
 ## The standard CSS file structure
 
-Per [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 1, `apps/web/src/styles/motion.css` consolidates motion declarations. A single `@media (prefers-reduced-motion: reduce)` block at the bottom contains all overrides, organized by section. Example:
+**Colocate the reduced-motion override with its keyframe / animation declaration, not in a single bottom-of-file block.** The Chunk 1 draft suggested consolidating every override into one block in `motion.css`; Chunk 4 (2026-05-28) reversed that — the codebase already writes motion in colocated triplets (`@keyframes` → `.class { animation: … }` → `@media (prefers-reduced-motion: reduce) { .class { animation: none; … } }`) at the call site, and the Chunk 3 audit table shows the resulting per-keyframe blocks span three CSS files cleanly. Three reasons:
 
-```css
-@media (prefers-reduced-motion: reduce) {
-  /* §3 Mount stagger */
-  .stagger-children > * { animation: none; }
+1. **Diff locality.** Changing a keyframe and its rm override in the same commit means both land in the same hunk. A bottom-of-file block forces every motion edit to touch two regions of `motion.css`.
+2. **Review locality.** A reviewer looking at a new `@keyframes` immediately sees whether the matching rm block exists three lines down; a consolidated block requires cross-file jumping to verify coverage.
+3. **No global ordering tax.** A consolidated block is a single specificity baseline; per-surface needs (e.g. sheen's `!important` to win over `transition-[--sheen-extent,opacity]` from inline Tailwind) live with the surface that needs them, not in a shared block that has to escalate for the noisiest consumer.
 
-  /* §4 Overlay entry */
-  [data-radix-popper-content-wrapper] [data-state] {
-    transition: none;
-    transform: none;
-  }
+What this means at the JS layer is unchanged: the global `MotionConfig reducedMotion="user"` in [main.tsx](../../../apps/web/src/main.tsx) is the *single* JS switch, and surface-level `useReducedMotion()` calls layer finer-grained replacements on top. The "one place" principle applies to JS contract, not CSS placement.
 
-  /* §5 Scroll-driven */
-  :root {
-    --nav-collapse: 1;
-    --splash-opacity: 0.18;
-  }
-  [data-scroll-progress] { animation: none; width: 100%; opacity: 0.4; }
-  .view-entry { animation: none; opacity: 1; transform: none; }
-
-  /* §13 PR flare */
-  .pr-flare[data-record-fire="true"]::before {
-    transition: opacity 400ms ease-out;
-    --flare-progress: 0.25;
-  }
-
-  /* etc. */
-}
-```
-
-This keeps the reduced-motion contract reviewable as a single block.
+The Chunk 3 audit table above is the authoritative inventory — if a new keyframe lands without an entry there, it's missing an rm block.
 
 ---
 
@@ -354,9 +331,9 @@ The audit's earlier prediction that §17 (heatmap reveal) and §18 (LP marker po
 
 The original arc's §13–16 (PR flare, ambient hero, presence chip, audio) belong to arcs that haven't shipped yet — track them inside those arc notes.
 
-**Chunk 4 — Consolidate into `motion.css`:** the §11 sheen block is the only CSS file move out of `index.css`. Most other reduced-motion blocks are colocated with their owners (one inside `index.css` near each keyframe, one inside `view-transitions.css`); leave them — the standard's "single consolidated block at the bottom" idea is at odds with how the team has been writing colocated motion. Update the arc note to reflect this if the call holds at Chunk 4 time.
+**Chunk 4 — Consolidate into `motion.css`:** ✅ closed 2026-05-28 as no-op + standard update. The Chunk 1 audit confirmed colocated blocks across `index.css`, `motion.css`, and `view-transitions.css`; the call held. Standard rewritten above ("Colocate the reduced-motion override with its keyframe / animation declaration") to make this the documented pattern instead of a footnote — future motion arcs won't need to relitigate the placement question.
 
-**Chunk 5 — Test pass:** the `MotionConfig reducedMotion="always"` test pattern already exists in 9 component tests. Add a single integration-style test in `apps/web/src/main.test.tsx` (or a new `apps/web/src/styles/reduced-motion.test.tsx`) that asserts `<MotionConfig reducedMotion="user">` wraps the tree in prod, so the global mount can't regress silently.
+**Chunk 5 — Test pass:** ✅ closed 2026-05-28 via [apps/web/src/main.test.tsx](../../../apps/web/src/main.test.tsx) (added in Chunk 2). The test mocks `createRoot` to capture the JSX passed to `.render()`, walks the element tree, and asserts a `MotionConfig` element with `reducedMotion="user"` wraps the router. The wrapping can't regress silently.
 
 ### Surfaces NOT in scope
 
