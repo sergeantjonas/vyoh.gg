@@ -3,7 +3,7 @@ import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HourDayStat } from "@/lol/profile/use-habits-stats";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
 
@@ -39,8 +39,8 @@ function cellBgStyle(games: number, wins: number): CSSProperties {
 
 function cellLabel(stat: HourDayStat): string | null {
   if (stat.games === 0) return null;
-  const wr = Math.round((stat.wins / stat.games) * 100);
-  return `${stat.games} game${stat.games !== 1 ? "s" : ""} · ${wr}% WR`;
+  const wr = formatPercent(stat.wins / stat.games);
+  return `${stat.games} game${stat.games !== 1 ? "s" : ""} · ${wr} WR`;
 }
 
 function HeatmapCell({
@@ -168,9 +168,9 @@ export function TrendTimeHeatmap({ current }: { current: MatchSummary[] }) {
   let verdict: string;
   let prescription: string | undefined;
   if (bestStat) {
-    const wr = Math.round((bestStat.wins / bestStat.games) * 100);
+    const wr = formatPercent(bestStat.wins / bestStat.games);
     const dayName = DAY_LABELS[bestStat.day] ?? "Unknown";
-    verdict = `Strongest slot: ${dayName} around ${bestStat.hour}:00 — ${wr}% WR over ${bestStat.games} games.`;
+    verdict = `Strongest slot: ${dayName} around ${bestStat.hour}:00 — ${wr} WR over ${bestStat.games} games.`;
     if (bestStat.wins / bestStat.games > stats.overallWinRate + 0.1) {
       prescription = "Schedule ranked sessions there.";
     }

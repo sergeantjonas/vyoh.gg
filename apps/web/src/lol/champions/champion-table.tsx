@@ -18,7 +18,7 @@ import {
 } from "@/lol/champions/champion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { formatPlaytimeFromSeconds } from "@vyoh/shared";
+import { formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -123,7 +123,7 @@ function RoleBreakdown({ roles }: { roles: ChampionRoleSplit[] }) {
                     r.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
                   )}
                 >
-                  {Math.round(r.winRate * 100)}%
+                  {formatPercent(r.winRate)}
                 </span>
               </li>
             ))}

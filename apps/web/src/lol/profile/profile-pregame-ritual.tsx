@@ -22,6 +22,7 @@ import {
   type PregameCalibrationByQueue,
   emptyBySignal,
   excludeRemakes,
+  formatPercent,
 } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
@@ -134,14 +135,14 @@ export function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
   const wr = bucket.wins / bucket.games;
   const overallWr = played.filter((m) => m.win).length / played.length;
   const delta = wr - overallWr;
-  const pct = Math.round(wr * 100);
-  const overallPct = Math.round(overallWr * 100);
+  const pct = formatPercent(wr);
+  const overallPct = formatPercent(overallWr);
   const result = last.win ? "win" : "loss";
   if (delta >= SIGNAL_WR_DELTA) {
     return {
       id: "tilt",
       label: "After last game",
-      verdict: `After a ${result} your WR climbs to ${pct}% (vs. ${overallPct}% overall).`,
+      verdict: `After a ${result} your WR climbs to ${pct} (vs. ${overallPct} overall).`,
       detail: `${bucket.games} games tracked`,
       tone: "positive",
     };
@@ -150,7 +151,7 @@ export function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
     return {
       id: "tilt",
       label: "After last game",
-      verdict: `After a ${result} your WR drops to ${pct}% (vs. ${overallPct}% overall).`,
+      verdict: `After a ${result} your WR drops to ${pct} (vs. ${overallPct} overall).`,
       detail: `${bucket.games} games tracked`,
       tone: "warning",
     };
@@ -158,7 +159,7 @@ export function buildTiltSignal(matches: MatchSummary[]): RitualSignal {
   return {
     id: "tilt",
     label: "After last game",
-    verdict: `After a ${result} you hold ${pct}% — close to your ${overallPct}% baseline.`,
+    verdict: `After a ${result} you hold ${pct} — close to your ${overallPct} baseline.`,
     detail: `${bucket.games} games tracked`,
     tone: "neutral",
   };
@@ -193,12 +194,12 @@ export function buildTimeSlotSignal(
   }
   const wr = slot.wins / slot.games;
   const delta = wr - overallWr;
-  const wrPct = Math.round(wr * 100);
+  const wrPct = formatPercent(wr);
   if (delta >= TIME_SLOT_DELTA) {
     return {
       id: "slot",
       label: "Time slot",
-      verdict: `${slotLabel} is one of your stronger slots — ${wrPct}% WR.`,
+      verdict: `${slotLabel} is one of your stronger slots — ${wrPct} WR.`,
       detail: `${slot.games} games at this hour`,
       tone: "positive",
     };
@@ -252,7 +253,7 @@ export function buildChampionSignal(
   }
   const [name, stat] = top;
   const wrFloat = stat.wins / stat.games;
-  const wr = Math.round(wrFloat * 100);
+  const wr = formatPercent(wrFloat);
   const overallWr = recent.filter((m) => m.win).length / recent.length;
   const delta = wrFloat - overallWr;
   let tone: RitualSignal["tone"] = "neutral";
@@ -275,7 +276,7 @@ export function buildChampionSignal(
           />
         </Link>
         <span>
-          {nameFor(name)} — {stat.games}g · {wr}% WR
+          {nameFor(name)} — {stat.games}g · {wr} WR
         </span>
       </span>
     ),
@@ -416,7 +417,7 @@ function CompositeDisclosure({
                 <span className="text-foreground/70">{queueType}</span>
                 <span className="text-muted-foreground/60">
                   {stats.n >= MIN_CALIBRATION_SAMPLE
-                    ? `${Math.round(stats.directionalAccuracy * 100)}% directional · n=${stats.n}`
+                    ? `${formatPercent(stats.directionalAccuracy)} directional · n=${stats.n}`
                     : `n=${stats.n} (need ${MIN_CALIBRATION_SAMPLE})`}
                 </span>
               </li>

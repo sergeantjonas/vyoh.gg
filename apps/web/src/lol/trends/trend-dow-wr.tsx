@@ -1,7 +1,7 @@
 // Baseline: personal — your WR by day-of-week; weakest day is flagged against your other days.
 import { cn } from "@/lib/utils";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { formatPercent, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -24,7 +24,7 @@ function DowBars({
   return (
     <div className="flex flex-col gap-1.5 text-xs">
       {days.map((d, i) => {
-        const pct = Math.round(d.wr * 100);
+        const pct = formatPercent(d.wr);
         const isWeakest = i === weakestIdx && d.games >= MIN_GAMES_PER_DAY;
         return (
           <div key={d.label} className="flex items-center gap-2">
@@ -44,7 +44,7 @@ function DowBars({
                       "h-full rounded-full transition-[width] duration-500",
                       isWeakest ? "bg-rose-500/70" : "bg-zinc-500/50"
                     )}
-                    style={{ width: `${pct}%` }}
+                    style={{ width: pct }}
                   />
                 )}
               </div>
@@ -55,7 +55,7 @@ function DowBars({
                   d.games === 0 && "opacity-30"
                 )}
               >
-                {d.games > 0 ? `${pct}%` : "—"}
+                {d.games > 0 ? pct : "—"}
               </span>
               <span className="w-6 tabular-nums text-right text-[10px] text-muted-foreground/60">
                 {d.games > 0 ? `${d.games}g` : ""}
@@ -118,11 +118,11 @@ export function TrendDowWr({
 
   const { days, weakest, strongest, weakestIdx, deltaPp, sampleSize } = stats;
 
-  const verdict = `${weakest.label} is your weakest day — ${Math.round(weakest.wr * 100)}% WR over ${weakest.games} games.`;
+  const verdict = `${weakest.label} is your weakest day — ${formatPercent(weakest.wr)} WR over ${weakest.games} games.`;
 
   const prescription =
     deltaPp >= 12
-      ? `Consider lighter ranked load on ${weakest.label}. ${strongest.label} is your best at ${Math.round(strongest.wr * 100)}%.`
+      ? `Consider lighter ranked load on ${weakest.label}. ${strongest.label} is your best at ${formatPercent(strongest.wr)}.`
       : undefined;
 
   return (

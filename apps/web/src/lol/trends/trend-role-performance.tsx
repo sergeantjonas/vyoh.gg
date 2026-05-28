@@ -7,6 +7,7 @@ import {
   isRolePosition,
 } from "@/lol/_shared/assets/role-icon";
 import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { formatPercent } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 
@@ -56,7 +57,7 @@ function aggregate(matches: MatchSummary[]): {
 
 function RoleBar({ row }: { row: RoleStat }) {
   const insufficient = row.games < MIN_BAR_SAMPLE;
-  const wrPct = Math.round(row.wr * 100);
+  const wrPct = formatPercent(row.wr);
   return (
     <div className="flex items-center gap-2 text-xs">
       <RoleIcon
@@ -72,7 +73,7 @@ function RoleBar({ row }: { row: RoleStat }) {
         {!insufficient && (
           <div
             className="h-full rounded-full bg-sky-500/60 transition-[width] duration-500"
-            style={{ width: `${wrPct}%` }}
+            style={{ width: wrPct }}
           />
         )}
       </div>
@@ -83,7 +84,7 @@ function RoleBar({ row }: { row: RoleStat }) {
       ) : (
         <>
           <span className="w-9 tabular-nums text-right text-muted-foreground/80">
-            {wrPct}%
+            {wrPct}
           </span>
           <span className="w-7 tabular-nums text-right text-[10px] text-muted-foreground/60">
             {row.games}g
@@ -155,15 +156,15 @@ export function TrendRolePerformance({
       />
     );
   }
-  const wrPct = Math.round(best.wr * 100);
+  const wrPct = formatPercent(best.wr);
   const gamesLabel = `${best.games} game${best.games === 1 ? "" : "s"}`;
   // Heavy-ARAM windows still get a real "strongest role" verdict — the bars
   // below show the underlying data either way — but we tag it so the user
   // knows the Rift sample is the minority of the window. Prescription stays
   // suppressed in that case to avoid pushing climb advice off a biased read.
   const verdict = heavyAram
-    ? `Strongest Rift role is ${ROLE_LABEL[best.position]} — ${wrPct}% over ${gamesLabel} (mostly ARAM otherwise).`
-    : `Strongest on ${ROLE_LABEL[best.position]} — ${wrPct}% over ${gamesLabel}.`;
+    ? `Strongest Rift role is ${ROLE_LABEL[best.position]} — ${wrPct} over ${gamesLabel} (mostly ARAM otherwise).`
+    : `Strongest on ${ROLE_LABEL[best.position]} — ${wrPct} over ${gamesLabel}.`;
 
   let prescription: string | undefined;
   if (!heavyAram) {
