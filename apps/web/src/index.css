@@ -479,3 +479,56 @@ p {
 .ability-tooltip-body .border {
   border: 0;
 }
+
+@media print {
+  /* Reset dark-mode token values to their light-mode counterparts so text
+     stays readable against the white printer canvas. */
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --border: oklch(0.922 0 0);
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: white !important;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  /* Remove the viewport-height constraint from the root flex container */
+  #root > div {
+    height: auto !important;
+    overflow: visible;
+    display: block;
+  }
+
+  [data-vt-main] {
+    overflow: visible;
+    height: auto;
+    flex: none;
+  }
+
+  /* Hide navigational and interactive chrome */
+  [data-vt-nav],
+  [data-scroll-progress],
+  #section-header-slot,
+  [data-champion-strip],
+  [role="tablist"],
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  /* Keep stat sections together when content spans multiple pages */
+  section {
+    break-inside: avoid;
+  }
+}

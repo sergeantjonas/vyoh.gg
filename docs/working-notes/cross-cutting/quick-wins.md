@@ -36,12 +36,13 @@ All five rows shipped in the 2026-05-25 session — see [library-card-enrichment
 
 ## Small feature (~30–60 min, no notes needed)
 
-- **`interpolate-size: allow-keywords`** — globals. Enables `height: auto` ⇄ `height: 0` transitions (currently impossible). Replaces 5+ Motion AnimatePresence height animations with pure CSS. Safari 26+ / Chrome 129+.
-- **`field-sizing: content` on inputs that need it** — command palette input, any single-line filter input. Input grows with content; no JS measurement. Chrome 123+.
+✅ **`interpolate-size: allow-keywords`** — shipped 2026-05-28 in `html, body {}` block.
+✅ **`field-sizing: content` on command palette input** — shipped 2026-05-28 via `[cmdk-input]` selector.
+✅ **`<link rel="modulepreload">` for route chunks** — shipped in a prior session via eager `router.preloadRoute()` calls in `__root.tsx`.
+✅ **Print stylesheet** — shipped 2026-05-28; `@media print` block in `index.css` resets dark-mode vars, unfreezes `h-dvh` layout, hides `[data-vt-nav]`/scroll-progress/sticky strips/tab lists.
+
 - **HTML `popover` attribute where it fits** — light tooltips, simple disclosure menus that aren't already Radix. Native top-layer, ESC-to-dismiss, light-dismiss for free. Don't replace existing Radix overlays — those have richer behavior.
-- **`<link rel="modulepreload">` for likely-next route chunks** — `__root.tsx`. Preload `/lol/$accountSlug` and `/steam` route bundles. Pair with [speculation-rules-prefetch.md](speculation-rules-prefetch.md) but cheaper.
-- **`<picture>` art-direction for splash backdrop on mobile** — currently the same 1920×1080 splash is served everywhere. Mobile can take the 960×540 variant. Save real KB on first paint.
-- **Print stylesheet** — `@media print { ... }` to render a clean match-detail or champion-detail page as a printable summary. Niche but signals craft — and reviewers do print things.
+- **`<picture>` art-direction for splash backdrop on mobile** — blocked: the splash proxy (`/img/lol/champion/${slug}/backdrop/${patch}.webp`) has no size parameter; needs API work to add a `?w=960` variant before art-direction is useful.
 
 ## Tier-2-ish (small but design-touching — drop a paragraph in a new note before picking up)
 
