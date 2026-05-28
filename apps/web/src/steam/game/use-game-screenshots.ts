@@ -21,11 +21,18 @@ async function fetchGameScreenshots(appid: number): Promise<SteamGameScreenshots
 
 // Per-app screenshot buckets. Stale-time mirrors the other per-game hooks —
 // screenshots change only with publisher refreshes that already bump the
-// enrichment cron's `assetTimestamp`, so a long stale-time is safe.
-export function useGameScreenshots(appid: number) {
+// enrichment cron's `assetTimestamp`, so a long stale-time is safe. The
+// `enabled` option lets the hovercard skip the fetch when the game already
+// has a microtrailer that takes over the same slot — the slot would never
+// render the screenshots, so the network round-trip is pure waste.
+export function useGameScreenshots(
+  appid: number,
+  { enabled = true }: { enabled?: boolean } = {}
+) {
   return useQuery({
     queryKey: ["steam", "game", appid, "screenshots"],
     queryFn: () => fetchGameScreenshots(appid),
     staleTime: 60 * 60 * 1_000,
+    enabled,
   });
 }

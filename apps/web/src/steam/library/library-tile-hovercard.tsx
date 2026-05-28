@@ -1,9 +1,15 @@
 import { cn } from "@/lib/utils";
-import { steamCapsuleUrl, steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
+import {
+  steamCapsuleUrl,
+  steamLibraryHeroUrl,
+  steamMicrotrailerPosterUrl,
+  steamMicrotrailerUrl,
+} from "@/steam/_shared/steam-image";
 import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { steamScreenshotThumbUrl } from "@vyoh/shared";
+import { useReducedMotionConfig } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
 // Shared hovercard chrome className — same panel treatment whether the
@@ -43,6 +49,26 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
   const [heroFailed, setHeroFailed] = useState(false);
   const [heroLoaded, setHeroLoaded] = useState(false);
 
+  // Microtrailer takes over the media slot when Steam returned one for this
+  // game — the screenshot rotation is suppressed entirely (no query, no
+  // interval, no cross-fade). When absent, the existing screenshot rotation
+  // stays as today. Reduced-motion users get the poster still in place of the
+  // looping video on either branch.
+  // `useReducedMotionConfig` (not `useReducedMotion`) so a parent
+  // `<MotionConfig reducedMotion="always">` — set in tests, and potentially
+  // elsewhere if we add a global user-controlled toggle — flips the slot to
+  // the poster path. The plain hook only reads the OS media query.
+  const prefersReducedMotion = useReducedMotionConfig();
+  const microtrailerWebm = game.microtrailerWebm;
+  const microtrailerMp4 = game.microtrailerMp4;
+  const microtrailerPoster = game.microtrailerPoster;
+  const hasTrailer = microtrailerWebm != null;
+  const trailerWebmUrl = microtrailerWebm ? steamMicrotrailerUrl(microtrailerWebm) : null;
+  const trailerMp4Url = microtrailerMp4 ? steamMicrotrailerUrl(microtrailerMp4) : null;
+  const trailerPosterUrl = microtrailerPoster
+    ? steamMicrotrailerPosterUrl(microtrailerPoster)
+    : null;
+
   // wsrv.nl forwards upstream 404s as 200 OK with empty body — same trick the
   // outer tile uses to detect a missing library_hero.jpg. When it's missing,
   // fall through to header.jpg (the universally-available Steam asset).
@@ -56,8 +82,9 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
   // (Chunk 9a/b), not appdetails — every owned game has the bucket
   // pre-populated by the monthly cron, so the first hover is normally a
   // ~30ms in-flight cache miss on the React Query client, not a blocking
-  // upstream round-trip.
-  const { data, isPending } = useGameScreenshots(game.appid);
+  // upstream round-trip. Skipped entirely when the microtrailer takes the
+  // slot — the screenshots would never paint.
+  const { data, isPending } = useGameScreenshots(game.appid, { enabled: !hasTrailer });
   const { showMature } = useMatureScreenshotsPref();
   // Same bucket policy as GameScreenshotStrip so both surfaces stay in sync
   // when the global preference flips. See the strip for the rationale.
@@ -81,6 +108,7 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
   const [hasRotated, setHasRotated] = useState(false);
 
   useEffect(() => {
+    if (hasTrailer) return;
     if (screenshots.length <= 1) return;
     // Reset to the first frame each time the screenshot set changes so the
     // first paint of a freshly-loaded game starts at index 0.
@@ -95,7 +123,7 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
       setIndex((i) => (i + 1) % screenshots.length);
     }, SCREENSHOT_ROTATION_MS);
     return () => clearInterval(handle);
-  }, [screenshots.length]);
+  }, [screenshots.length, hasTrailer]);
 
   const twoWeeks = game.playtime2WeeksMinutes ?? 0;
   const total = game.playtimeForeverMinutes;
@@ -130,7 +158,42 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
         {isPending && (
           <div className="pointer-events-none absolute inset-0 animate-pulse bg-linear-to-t from-black/55 via-black/15 to-transparent" />
         )}
-        {screenshots.length > 0 && (
+        {hasTrailer && prefersReducedMotion && trailerPosterUrl !== null && (
+          // Reduced-motion path: the poster still replaces the screenshot
+          // rotation entirely, so the slot is stable — no looping, no fade,
+          // no rotation. Without the poster URL (rare — Steam usually emits
+          // `screenshot_medium` alongside the microtrailer), the hero stays
+          // as the final state and the user sees the static base layer.
+          <img
+            src={trailerPosterUrl}
+            alt={game.microtrailerName ?? ""}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        {hasTrailer && !prefersReducedMotion && trailerWebmUrl !== null && (
+          // Motion path: 6-second silent loop, decoded by the first source
+          // the UA accepts. `playsInline` keeps iOS from launching fullscreen
+          // on autoplay. `aria-label` carries the publisher-supplied trailer
+          // name so screen readers announce "video: Full Launch trailer" or
+          // similar rather than a bare "video" announcement. `poster` shows
+          // the trailer's first-frame still under the `<video>` while the
+          // bytes load — without it, the slot would briefly fall through to
+          // the hero base then snap to the trailer's first frame.
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster={trailerPosterUrl ?? undefined}
+            aria-label={game.microtrailerName ?? ""}
+            className="absolute inset-0 h-full w-full object-cover"
+          >
+            <source src={trailerWebmUrl} type="video/webm" />
+            {trailerMp4Url !== null && <source src={trailerMp4Url} type="video/mp4" />}
+          </video>
+        )}
+        {!hasTrailer && screenshots.length > 0 && (
           <>
             {/* Black scrim sits *between* hero and screenshots. Stays hidden
                 during the first appearance so screenshot 0 cross-fades cleanly

@@ -1,6 +1,8 @@
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
+import { configureAxe } from "jest-axe";
+import { MotionConfig } from "motion/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryTileHovercardContent } from "./library-tile-hovercard";
 
@@ -206,5 +208,119 @@ describe("LibraryTileHovercardContent", () => {
     // imgs still exist.
     expect(document.querySelectorAll('img[src*="steamstatic"]').length).toBe(2);
     visibilitySpy.mockRestore();
+  });
+
+  it("renders a looping <video> in place of the screenshot rotation when a microtrailer exists", () => {
+    mockMedia([
+      { filename: "ss_a.jpg", ordinal: 1 },
+      { filename: "ss_b.jpg", ordinal: 2 },
+    ]);
+    const { container } = render(
+      <LibraryTileHovercardContent
+        game={game({
+          microtrailerWebm: "440/movieid/hash/microtrailer.webm",
+          microtrailerMp4: "440/movieid/hash/microtrailer.mp4",
+          microtrailerPoster: "440/extras/launch_trailer_medium.jpg",
+          microtrailerName: "Full Launch trailer",
+        })}
+      />
+    );
+    const video = container.querySelector("video");
+    if (!video) throw new Error("video not rendered");
+    expect(video.getAttribute("aria-label")).toBe("Full Launch trailer");
+    expect(video.hasAttribute("autoplay")).toBe(true);
+    expect(video.hasAttribute("loop")).toBe(true);
+    expect(video.hasAttribute("muted")).toBe(true);
+    expect(video.getAttribute("poster")).toContain(
+      "/img/steam/microtrailer-poster/440/extras/launch_trailer_medium.jpg"
+    );
+    const sources = video.querySelectorAll("source");
+    expect(sources.length).toBe(2);
+    expect(sources[0]?.getAttribute("type")).toBe("video/webm");
+    expect(sources[1]?.getAttribute("type")).toBe("video/mp4");
+    // Screenshot rotation suppressed even when screenshots exist.
+    expect(container.querySelectorAll('img[src*="steamstatic"]').length).toBe(0);
+  });
+
+  it("falls back to the poster <img> under prefers-reduced-motion", () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="always">
+        <LibraryTileHovercardContent
+          game={game({
+            microtrailerWebm: "440/movieid/hash/microtrailer.webm",
+            microtrailerMp4: "440/movieid/hash/microtrailer.mp4",
+            microtrailerPoster: "440/extras/launch_trailer_medium.jpg",
+            microtrailerName: "Full Launch trailer",
+          })}
+        />
+      </MotionConfig>
+    );
+    expect(container.querySelector("video")).toBeNull();
+    const posterImg = container.querySelector(
+      'img[src*="/img/steam/microtrailer-poster/"]'
+    );
+    expect(posterImg).not.toBeNull();
+    expect(posterImg?.getAttribute("alt")).toBe("Full Launch trailer");
+  });
+
+  it("does not fetch screenshots when the microtrailer is present", () => {
+    render(
+      <LibraryTileHovercardContent
+        game={game({
+          microtrailerWebm: "440/movieid/hash/microtrailer.webm",
+          microtrailerMp4: null,
+          microtrailerPoster: null,
+          microtrailerName: null,
+        })}
+      />
+    );
+    const lastCallEnabled = vi.mocked(useGameScreenshots).mock.calls.at(-1)?.[1]?.enabled;
+    expect(lastCallEnabled).toBe(false);
+  });
+
+  it("omits the mp4 source when only the webm filename is set", () => {
+    const { container } = render(
+      <LibraryTileHovercardContent
+        game={game({
+          microtrailerWebm: "440/movieid/hash/microtrailer.webm",
+          microtrailerMp4: null,
+          microtrailerPoster: null,
+          microtrailerName: null,
+        })}
+      />
+    );
+    const sources = container.querySelectorAll("video source");
+    expect(sources.length).toBe(1);
+    expect(sources[0]?.getAttribute("type")).toBe("video/webm");
+  });
+
+  it("renders the screenshot rotation unchanged when no microtrailer exists", () => {
+    mockMedia([
+      { filename: "ss_a.jpg", ordinal: 1 },
+      { filename: "ss_b.jpg", ordinal: 2 },
+    ]);
+    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    expect(container.querySelector("video")).toBeNull();
+    expect(document.querySelectorAll('img[src*="steamstatic"]').length).toBe(2);
+  });
+
+  it("passes an axe scan on the rotation branch", async () => {
+    // Axe uses microtasks + setTimeout internally; fake timers (set in
+    // beforeEach for the rotation tests) leave the scan hanging. Drop back
+    // to real timers for the scan, then restore so afterEach can still call
+    // useRealTimers cleanly. The trailer branch is excluded because
+    // happy-dom kicks off real fetches for `<video>` sources, which the
+    // scan races with — we cover that branch separately by asserting the
+    // explicit aria-label / source structure above.
+    vi.useRealTimers();
+    const axe = configureAxe({
+      rules: {
+        "color-contrast": { enabled: false },
+        "aria-hidden-focus": { enabled: false },
+      },
+    });
+    mockMedia([{ filename: "ss_a.jpg", ordinal: 1 }]);
+    const rotation = render(<LibraryTileHovercardContent game={game()} />);
+    expect((await axe(rotation.container)).violations).toEqual([]);
   });
 });
