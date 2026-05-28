@@ -243,6 +243,10 @@ p {
   }
 }
 
+[cmdk-input] {
+  field-sizing: content;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
