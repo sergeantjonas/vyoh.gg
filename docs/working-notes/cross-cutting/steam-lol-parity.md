@@ -1,6 +1,6 @@
 # Steam ↔ LoL section parity
 
-**Status:** Items 1–5 shipped 2026-05-24; Item 6 (per-game accent color on Steam game detail) remains, blocked on a Steam dominant-color source. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md); surfaced by a cross-section audit on 2026-05-24.
+**Status:** All items shipped — Items 1–5 on 2026-05-24, Item 6 on 2026-05-28. Kept as the cross-section parity audit trail; consult before adding a new Steam surface that has a structural equivalent in LoL. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md).
 
 Read this when picking up any Steam polish task, or before adding a new Steam surface that has a structural equivalent in LoL.
 
@@ -127,23 +127,9 @@ The library tile has three hover behaviors the row was missing: (a) a CSS-only p
 
 ---
 
-### Item 6 — Per-game accent color on Steam game detail
+### Item 6 — Per-game accent color on Steam game detail — Shipped 2026-05-28
 
-**What:** [accent-color-system.md](accent-color-system.md) shipped 2026-05-26 with LoL champion + match detail wired to a per-entity `--theme-color`. Steam game detail (`/steam/game/$appid`) currently has no dominant-color source, so it renders with the default `oklch(0.6 0.16 240)` accent — a visible parity gap with LoL once the Chunk 5 sweep starts consuming `--theme-*` across the app.
-
-**Pre-work (blocker):** no Steam-side dominant-color pipeline exists. Two paths:
-
-- **(a) Build-time palette extraction.** Add a `dominantHex` field to whatever Steam asset prep is closest. The LoL pattern is in `apps/web/src/lol/_shared/assets/champion-assets.json` — extracted at build time from splash art and committed. Steam equivalent would extract from `library_hero.jpg` or `header.jpg` per appid. Best long-term; the same extraction can later feed OG images, blurhash placeholders, tile-edge tinting, etc.
-- **(b) Runtime canvas sampling.** Load the hero image into a `<canvas>`, sample center pixels, average to oklch. Cheaper to land but has cross-origin gotchas (`wsrv.nl` CORS headers vary) and pays the cost on every visit instead of once at build.
-
-**Files in scope (path (a)):**
-- New: a Steam asset-prep script (location TBD — pair with whatever build-time Steam asset work lands first) that writes `dominantHex` per appid into a committed JSON.
-- New: `apps/web/src/steam/_shared/assets/game-theme.ts` mirroring `champion-theme.ts` shape — `gameTheme(appid).dominantHex` with fallback.
-- Modified: [`apps/web/src/routes/steam/game.$appid.tsx`](../../../apps/web/src/routes/steam/game.$appid.tsx) — call `useThemeColor(gameTheme(appid).dominantHex)` near the top of `SteamGamePage`, mirroring the LoL wiring at `$championKey.tsx:141` and `$matchId.tsx:131`.
-
-**Effort:** Small arc, 1–2 chunks. The runtime wiring is ~3 lines once a `gameTheme` source exists; the palette pipeline is the load-bearing piece.
-
-**Why this lives here, not as its own arc:** it's a parity gap, not a feature. Once Steam has a dominant-color source for any reason (e.g., for blurhash placeholders, OG images, tile-edge tinting), the accent wiring is incidentally cheap.
+**What shipped:** [accent-color-system.md](accent-color-system.md) Chunk 6 landed the Steam-side `dominantHex` pipeline + per-game accent on `/steam/game/$appid` and nav theming. See commits `732a636` (pipeline + game-detail + nav theming) and `b6d272b` (status flip). Closes the parity gap with LoL `--theme-color` wiring; defer to [accent-color-system.md](accent-color-system.md) for implementation detail.
 
 ---
 
@@ -154,7 +140,7 @@ The library tile has three hover behaviors the row was missing: (a) a CSS-only p
 3. **Item 3** (EmptyState port) — *shipped 2026-05-24, [`16d56e0`](../../../).*
 4. **Item 4** (backdrop primitive extraction, Option B) — *shipped 2026-05-24 across [`dc471e5`](../../../), [`9151ddf`](../../../), [`c69c7ac`](../../../)*.
 5. **Item 5** (tile-parity hover chrome) — *shipped 2026-05-24 (this commit), follows the row redesign.*
-6. **Item 6** (per-game accent color) — *planned; blocked on a Steam dominant-color source.*
+6. **Item 6** (per-game accent color) — *shipped 2026-05-28, [`732a636`](../../../) + [`b6d272b`](../../../).*
 
 The Steam VT morph from [view-transitions-rollout.md](view-transitions-rollout.md) is independent of all four and can interleave in any order.
 

@@ -57,23 +57,21 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 
 ## Pick order suggestion
 
-Picked roughly for "biggest perceived delta per session" given the current state:
+Curated 2026-05-28 to remaining picks only — the original 1–15 ranking from 2026-05-23 covered seven arcs that have since shipped. When updating after the next shipping wave, drop completed items rather than annotating around them.
 
-1. **view-transitions-rollout** — replaces ~200 lines of manual rect plumbing with the platform primitive; portfolio-resonant ("uses the 2026 default, not the legacy approach")
-2. **accent-color-system** — single token cascade unlocks #5/#6/#7 below; cheap if done early, expensive if retrofitted
-3. **scroll-driven-shell** — zero-JS shell choreography, instant "depth as a system" signal
-4. **mount-and-overlay-motion** — quietly lifts the whole UI; first thing reviewers feel without naming
-5. **editorial-typography** — recruiter-scan signal in 4 seconds
-6. **data-viz-densification** — turns the flattest part of the app (stat lists) into the most-information-per-pixel
-7. **anchor-positioned-overlays** — palette peek pays off the "single find-anything surface" framing
-8. **reduced-motion-replacements** — audit before more motion lands; one pass covers all prior arcs
-9. **speculation-rules-prefetch** — perceived perf win, near-zero code; cheap last-mile
-10. **ambient-home-hero** — `/` synthesis surface; bold, recruiter-bait, needs the most design judgment
-11. **og-image-pipeline** — once shareable URLs exist, OG cards convert; pairs with [self-portrait-surfaces.md](self-portrait-surfaces.md)
-12. **personal-record-moments** — emotional payoff; depends on PB detection landing first
-13. **live-presence-chip** — depends on Riot spectator endpoint + Steam presence API plumbing
-14. **pointer-parallax-splash** — small but distinctive; can ship any time after accent-color lands
-15. **optional-ui-audio** — bold; consider after the visual baseline lands so the audio doesn't carry the whole "wow"
+1. **data-viz-densification Parts 2 & 3** — Part 1 shipped 2026-05-27; finish `:has()` parent-aware affordances + OKLCH match-outcome hue drift. Smallest remaining lift on an already-active arc.
+2. **reduced-motion-replacements** — audit before more motion lands; one pass covers all prior arcs (VT, scroll-driven, mount stagger, accent cascade).
+3. **speculation-rules-prefetch** — perceived perf win, near-zero code; cheap last-mile after the VT + scroll work landed.
+4. **microtrailer-hover-preview** — Steam library tiles; pairs with the existing tile hover-card and uses the 2026-05-24 GetItems harvest.
+5. **nav-condensation-arc** — three-layer chrome → two; unblocks `cross-section-nav-arc` and composes with the active-tab layoutId morph.
+6. **cross-section-nav-arc** — only after nav-condensation 1.1 lands; composes the merged strip with the section-shell VT pattern.
+7. **ambient-home-hero** / **landing-showcase-arc** — bold, recruiter-bait, the most design judgment; landing-showcase consumes ambient-home-hero so they tend to ship together.
+8. **og-image-pipeline** — once shareable URLs exist, OG cards convert; pairs with [self-portrait-surfaces.md](self-portrait-surfaces.md).
+9. **personal-record-moments** — emotional payoff; depends on PB detection landing first.
+10. **live-presence-chip** — depends on Riot spectator endpoint + Steam presence API plumbing.
+11. **pointer-parallax-splash** — small but distinctive; can ship any time on top of the shipped accent-color cascade.
+12. **detail-panel-arc** — biggest structural lift on this list; defer until the simpler arcs have absorbed their feedback.
+13. **optional-ui-audio** — bold; consider after the visual baseline lands so the audio doesn't carry the whole "wow".
 
 ---
 
