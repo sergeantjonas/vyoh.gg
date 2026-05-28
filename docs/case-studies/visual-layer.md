@@ -136,3 +136,20 @@ Each of these decisions has a low-effort regression path:
 - Removing the Radix `Portal` wrapper (a "we don't need this, the content fits") would clip tooltips when content gets longer.
 
 The cluster of patterns is therefore *worth documenting as patterns*, not just as code. The shipped state is correct; the failure modes from accidentally regressing any one of them are subtle enough that a PR reviewer wouldn't necessarily catch them. The intended use of this case study is exactly that — a thing to point at in review when one of these guardrails comes under pressure.
+
+## Postscript — 2026-05-28
+
+The hover-override layer described above was later removed. Matches-list and champions-list rows no longer drive the splash on hover; the splash claim now lives at the LoL layout (picked via `selectChampionOfYear` instead of "first match's champion or random"), and at sub-routes that own a specific champion identity (Live → playing champion, Recap → champion-of-year, match detail → match hero, champion detail → that champion). The `HoverChampionProvider` context and its `apps/web/src/lol/_shared/ui/hover-champion-context.tsx` file were deleted in the cleanup. Motivation: hover-driven splash transitions read as noisy when scanning long lists; splash now changes only on navigation.
+
+What from this case study is still load-bearing in the current codebase:
+
+- `SplashProvider` mounted at the root layout (unchanged).
+- Owner-sequence claims-stack picking the deepest active claim — still how a sub-route like Live overrides the LoL layout's top-played claim.
+- Outer `AnimatePresence` keyed on the first path segment (unchanged).
+- `LazyMotion` `domMax` feature bundle (unchanged).
+- Radix Tooltip portal escape from `overflow-hidden` ancestors (unchanged).
+
+What's archived:
+
+- The hover-override mechanism via `HoverChampionProvider`.
+- The dual-context bug specifically — the bug really happened, and the *lesson* ("any React Context that crosses file boundaries in a directory-resolved router should live in a path-stable module") is still generic and worth keeping in mind. The specific live instance no longer exists.

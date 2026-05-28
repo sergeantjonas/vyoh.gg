@@ -156,7 +156,7 @@ Implemented as:
 
 ### Logo ambient micro-animation
 
-Status: planned
+Status: base theme-following shipped 2026-05-28 ([`607e708`](../../../) — `vyoh` wordmark + orb halo + orb body all follow `var(--theme-color)`); ambient micro-motion layer remains planned
 
 Ideas:
 
@@ -165,7 +165,7 @@ Ideas:
 - the mark is the brand surface; subtle motion here signals "this app is alive" without claiming any user attention
 - composes with [scroll-driven-shell](../archive/scroll-driven-shell.md) (shipped) — could tie to scroll progress instead of being time-based
 - reduced-motion: static mark with the active `--theme-*` tint applied at full opacity but no animation
-- worth doing only once the broader visual baseline lands (accent system fully wired, editorial typography in place); too early and the logo carries weight the rest of the app can't yet match
+- the base theming layer is now in: wordmark uses `text-[var(--theme-color)]` with a `transition-colors` so theme changes already feel "alive" without explicit motion. Picking up the micro-animation layer is a pure addition rather than a from-scratch wiring.
 
 ### Animated nav icons on tab change
 

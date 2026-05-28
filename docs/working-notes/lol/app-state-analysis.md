@@ -80,7 +80,7 @@ Three hero sections: rank arc, headline champion (with splash polish 2026-05-11)
 - **Activation-priority sort** on Trends — inactive tiles drop down rather than disappearing. Mirrors "show me what I have data for."
 - **Single windowed query at layout level** ([`$accountSlug.tsx`](../../../apps/web/src/routes/lol/$accountSlug.tsx)) → tab switches cost nothing upstream; memoised provider value avoids fan-out.
 - **Per-view queue scope** — performance views read serious-queues only, identity/cadence views read everything, match list owns its own filter. Right call per surface.
-- **Layout architecture** — sticky header with compact mode, splash backdrop hover-debounced, layoutId morphs from list to detail. Motion stack pulls real weight.
+- **Layout architecture** — sticky header with compact mode, splash backdrop driven by `selectChampionOfYear` at the layout (sub-routes override via the owner-sequence claims-stack), layoutId morphs from list to detail. Motion stack pulls real weight.
 - **SSE invalidation** — list lights up when the backfill worker reports new rows; no polling on the client.
 - **Empty-state primitive across 8 surfaces** — calm, consistent, lifts the tonal bar everywhere it lands.
 
