@@ -1,6 +1,6 @@
 # Nav condensation arc
 
-**Status:** Planned — design draft from 2026-05-27 brainstorm. No code yet.
+**Status:** Active — pre-1.1 sizing pass complete (2026-05-29, collapse strategy LOCKED below). Chunk 1.1 implementation next. Promoted to [open-work.md](../open-work.md).
 
 Condense top-of-page chrome from three layers (primary nav + identity header + secondary tabs) to two, restore section context inside detail pages, and elevate the avatar — currently a small static circle — into a piece of visible identity character. Multi-chunk arc; 1.1 lands first and unblocks 1.2 and 1.3.
 
@@ -12,7 +12,7 @@ Sister notes: [elevation-arcs.md](elevation-arcs.md) (this arc is added there at
 
 The current chrome on `/lol/$accountSlug/*` and `/steam/*` stacks three sticky-ish layers — primary nav, identity header (avatar + name + account switcher), secondary tabs (Profile/Matches/Trends/Champions or Profile/Library/Wishlist/Achievements). On long pages, that's ~140px of always-visible chrome before the content begins. The identity header reads as a separate strip with a separate job, but it's actually serving the *same* purpose as the secondary tab strip — orienting you inside a section.
 
-The fix is to merge identity + tabs into one strip, drop one item from the primary nav that the logo already handles ("Home"), and treat the showcase moment (big avatar, frame, rank, stats) as **page content** on the Profile tab rather than as section chrome that every tab pays for.
+The fix is to merge identity + tabs into one strip and treat the showcase moment (big avatar, frame, rank, stats) as **page content** on the Profile tab rather than as section chrome that every tab pays for. (The earlier draft also dropped "Home" from the primary nav; the sizing pass showed that ~80px lives in the *unconstrained* primary nav, not the *constrained* section strip — removing it buys nothing for the strip budget and costs first-time-visitor discoverability, so **Home stays**. See sizing-pass result below.)
 
 The avatar then gets two homes: a small seam-straddling anchor in the merged strip that's always visible, and a content-level identity block on the Profile tab that earns its space because it *is* the page's content.
 
@@ -37,6 +37,27 @@ Before chunk 1.1 starts, two load-bearing things need a sketch + measurement, no
 
 Both outputs feed into 1.1's component shape, not into a follow-up arc.
 
+### Sizing-pass result — LOCKED (2026-05-29)
+
+Iterated in a throwaway dev-server mock (`apps/web/src/routes/mock-strip.tsx`, **delete when 1.1's strip lands**), eyeballed across viewports and a "on /live" toggle. Outcome is the **F2 tiered strip**.
+
+**Content width is 848px**, not the assumed ~896/1280. `__root.tsx` wraps the `Outlet` in `mx-auto max-w-4xl p-6` → `max-w-4xl` (896px) − `p-6` (2×24px) = **848px usable**. The strip is built against 848, and the breakpoints below are *viewport* widths (`min-[…]px:`) chosen so the strip never overflows that 848 content box. (Mock bug worth remembering: the mock first measured 800px because `StripFrame` added its *own* `mx-auto max-w-4xl px-6` on top of `__root`'s — double-padding. A strip component must not re-wrap in `max-w`/`px`; it lives inside `__root`'s container already.)
+
+**Three tiers:**
+
+- **≥820px — full row.** `avatar · Vyoh#Ahri ▾ · Profile Matches Trends Champions · ⟶ · [Live chip] · filters/refresh`. The four section *tabs* (with `layoutId` morph) render here.
+- **640–819px — inline single row.** `avatar · identity (protected, never shrinks) · [section dropdown, fills row, min-w so its label never truncates] · [Live chip] · actions`. Tabs collapse into a single **section dropdown** (current section shown as the trigger label).
+- **<640px — own-row (F2).** Row 1: `avatar · identity · ⟶ · [Live chip] · actions`. Row 2: full-width section dropdown. **F2 was chosen over F1** (which kept row 1 name-only and pushed chip+actions down to row 2 alongside the dropdown) because F2 fills the dead space next to a short Riot ID by floating chip+actions up to row 1, and reads less asymmetric/messy at the narrowest widths.
+
+**Live is a route-aware chip, NOT a tab.** Idle = subdued pulsing `● Live` (you have a live game; click to watch). Active = bright/filled when on `/live` (the section tabs/dropdown then show *nothing* selected). The justification is **semantic, not capacity** — pulling Live out of the tab row does *not* "free room for a 5th tab" (it still occupies width whenever a game is live); it's that Live is a transient special state that reads better as a presence chip and needs route-active treatment. Tab *growth*, if ever needed, is absorbed by the dropdown-overflow mechanism, not by the chip.
+
+**Real-impl refinements (carry into chunk 2):**
+- Make the inline→own-row break **live-aware**: break lower (~540px) when there's no live game, so the absent chip isn't reserving width and forcing an early wrap. With a live game present, keep the 640 break.
+- The avatar sat too close to the left border in early mocks — keep it inset with the content gutter, not flush.
+- Dropdown gets `min-w-[168px]` and wraps to its own row *before* it would ever have to truncate its label (rejected: horizontal-scroll tab strip — "not easy to use"; icon-only tabs — "users start guessing what a tab is").
+
+**Deferred to the end of this arc (NOT chunk 1.1):** primary-nav (`nav.tsx`) responsiveness at low widths. The `logo · Home · LoL · Steam · Status · ⌘K` bar overflows/clips on narrow screens; its collapse strategy (scroll / menu / hide-labels) is a separate concern from the section strip and is scheduled after the arc's main chunks.
+
 ## Chunks
 
 Each chunk independently committable.
@@ -47,14 +68,14 @@ Each chunk independently committable.
 
 **Goal:** condense chrome from three layers to two; restore section context inside detail pages.
 
-- **Primary nav:** drop the "Home" link. The logo already routes to `/` and is the conventional home affordance. Result: `logo · LoL · Steam · Status · ⌘K`. Frees ~80px.
+- **Primary nav: unchanged for 1.1.** The earlier plan dropped "Home" (logo doubles as the home affordance), but the sizing pass showed the ~80px gain is in the *unconstrained* primary nav, not the *constrained* section strip — so it does nothing for the budget that actually matters and costs first-time discoverability. **Home stays.** Primary-nav low-width responsiveness is handled at the end of the arc (see sizing-pass result).
 - **Merged sticky strip** replaces today's identity header + secondary tabs in a single bar.
   - LoL: `[avatar] Vyoh#Ahri ▾   Profile · Matches · Trends · Champions   [⟳] [≡]`
   - Steam: `[avatar] Vyoh   Profile · Library · Wishlist · Achievements   [≡]`
 - **Identity is the picker.** Caret renders on the full `Vyoh#Ahri ▾`, not on the tag chip alone — clicking the full identity opens the account switcher. The right-side dropdown ("Vyoh #Ahri ▾") is removed; the picker lives on the left as the identity.
 - **Region badge moves into the picker dropdown.** Each account row in the dropdown carries its region (`Vyoh #Ahri · EUW`, `OtherSmurf #NA1 · NA`). The always-visible strip stops showing the region — it's per-account metadata, not identity.
 - **Right cluster is route-aware:** `[refresh?] [filters?]`, both conditional per route. No persistent picker on the right.
-- **Logo-as-home usability check.** Dropping the explicit "Home" link assumes the logo is discoverable as the home affordance. Universal-ish convention, but not zero-cost for first-time visitors. Verify with a fresh visitor before this chunk lands — a single round of "do you know how to get back to the start?" with someone who hasn't seen the app is enough.
+- ~~**Logo-as-home usability check.**~~ Moot — Home stays in the primary nav (see above), so there's no logo-as-only-home affordance to validate.
 - **Active-tab indicator with shared-layout morph.** The underline/pill that marks the active tab uses Motion `layoutId` to morph smoothly between tabs as the user navigates, instead of snapping. The project already has the `layoutId pills` pattern per [elevation-arcs.md](elevation-arcs.md) — this extends the existing primitive rather than introducing a new one. Folded into 1.1 because it lives inside the same merged-strip component being built here; not worth splitting into a separate chunk. Reduced-motion variant: indicator snaps to position (no morph) per [reduced-motion-replacements](reduced-motion-replacements.md) guardrail.
 - **Account-switcher landing behaviour — decide during implementation.** When the user picks a different account from the `Vyoh#Ahri ▾` dropdown, where do they land? Today: same sub-route on the new account. Open question: should they land on Profile (greeting them with the identity block from 1.3a) instead? Resolve while building 1.1; default to same-sub-route unless the showcase landing reads obviously better in practice.
 - **Avatar sits at the seam** between the primary nav and the merged strip — half above, half below the divider. Square crop preserved (avatars are platform identity per [feedback memory](~/.claude/projects/-workspaces-vyoh-gg/memory/feedback_avatars_are_identity.md)). Implementation is `margin-top` + `z-index`, no scroll state machine.
@@ -62,12 +83,12 @@ Each chunk independently committable.
 - **Detail pages restore the section nav.** Today match-detail hides Profile/Matches/Trends/Champions and shows only a breadcrumb. Restore the section nav (with Matches highlighted), and demote the detail's own tab nav (Recap / Your game / Timeline) from a sticky chrome strip to an **inline tab bar at the top of the detail page content**. Breadcrumb becomes inline content too (e.g. `← Matches · Match · 2026-05-25 vs Aatrox`).
 
 **Files in scope (estimated):**
-- [`apps/web/src/components/nav.tsx`](../../apps/web/src/components/nav.tsx) — remove Home link.
+- [`apps/web/src/components/nav.tsx`](../../apps/web/src/components/nav.tsx) — **no change in 1.1** (Home stays; low-width responsiveness deferred to end of arc).
 - [`apps/web/src/routes/lol/$accountSlug.tsx`](../../apps/web/src/routes/lol/$accountSlug.tsx) — merge identity strip + secondary tabs into one component.
 - [`apps/web/src/routes/steam.tsx`](../../apps/web/src/routes/steam.tsx) — same merge for Steam.
 - LoL account-picker dropdown component — add per-row region display, remove from chrome.
 - Match-detail route files — restore section nav, demote detail-tab chrome to inline.
-- New shared component for the merged strip (likely `apps/web/src/_shared/section-strip.tsx` or similar) — both LoL and Steam consume it.
+- [`apps/web/src/_shared/section-layout/section-shell.tsx`](../../apps/web/src/_shared/section-layout/section-shell.tsx) — **reshape, not greenfield.** This already exists with `identity`/`actions`/`nav` slots, the `#section-header-slot` portal, the `compact`/`bandOpaque` scroll state, the ResizeObserver band-height sync, and `SectionShellProvider`. Chunk 2 collapses its current two-row render (identity+actions row, then nav row) into the single tiered merged strip above, preserving all of that machinery and the `layoutId` tab indicators. One change point propagates to both LoL and Steam.
 
 **Libraries needed:**
 - **Existing only.** Shadcn `DropdownMenu` (Radix-based, already in project at 103 import sites per [library-shortlist.md](library-shortlist.md)) for the account picker. `TooltipPrimitive` for icon tooltips per [repo-conventions.md](../../repo-conventions.md). Shadcn `Tabs` for the inline detail-page tab nav.
