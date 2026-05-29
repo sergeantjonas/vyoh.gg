@@ -45,7 +45,7 @@ Iterated in a throwaway dev-server mock (`apps/web/src/routes/mock-strip.tsx`, *
 
 **Three tiers:**
 
-- **≥820px — full row.** `avatar · Vyoh#Ahri ▾ · Profile Matches Trends Champions · ⟶ · [Live chip] · filters/refresh`. The four section *tabs* (with `layoutId` morph) render here.
+- **≥820px — full row.** `avatar · Vyoh#Ahri · Profile Matches Trends Champions · ⟶ · [Live chip] · filters/refresh`. The four section *tabs* (with `layoutId` morph) render here. (Identity is static — no caret; switching is in the topbar, see 1.1 decision.)
 - **640–819px — inline single row.** `avatar · identity (protected, never shrinks) · [section dropdown, fills row, min-w so its label never truncates] · [Live chip] · actions`. Tabs collapse into a single **section dropdown** (current section shown as the trigger label).
 - **<640px — own-row (F2).** Row 1: `avatar · identity · ⟶ · [Live chip] · actions`. Row 2: full-width section dropdown. **F2 was chosen over F1** (which kept row 1 name-only and pushed chip+actions down to row 2 alongside the dropdown) because F2 fills the dead space next to a short Riot ID by floating chip+actions up to row 1, and reads less asymmetric/messy at the narrowest widths.
 
@@ -72,12 +72,12 @@ Each chunk independently committable.
 - **Merged sticky strip** replaces today's identity header + secondary tabs in a single bar.
   - LoL: `[avatar] Vyoh#Ahri ▾   Profile · Matches · Trends · Champions   [⟳] [≡]`
   - Steam: `[avatar] Vyoh   Profile · Library · Wishlist · Achievements   [≡]`
-- **Identity is the picker.** Caret renders on the full `Vyoh#Ahri ▾`, not on the tag chip alone — clicking the full identity opens the account switcher. The right-side dropdown ("Vyoh #Ahri ▾") is removed; the picker lives on the left as the identity.
-- **Region badge moves into the picker dropdown.** Each account row in the dropdown carries its region (`Vyoh #Ahri · EUW`, `OtherSmurf #NA1 · NA`). The always-visible strip stops showing the region — it's per-account metadata, not identity.
-- **Right cluster is route-aware:** `[refresh?] [filters?]`, both conditional per route. No persistent picker on the right.
+- **DECISION (2026-05-30): no account picker in the section strip.** The original plan put a caret on the identity (`Vyoh#Ahri ▾`) opening a switcher. We prototyped it, then dropped it: the **top-nav LoL menu already owns account switching** with a richer surface (per-account summoner icon + rank emblem + `region · queue · rank` subline — see `AccountRow` in [`nav.tsx`](../../apps/web/src/components/nav.tsx)). A second picker in the constrained strip duplicates a better surface, forks the affordance, and fights the arc's whole condensation goal. The section identity is now a **static header** (`[avatar] Vyoh#Ahri`); switching lives in the topbar.
+- **Region dropped from the strip.** Single-region by design (owner tracks only EUW alts), so there's no per-account region to disambiguate; the topbar picker rows still carry region for completeness. An always-visible region badge would just float between the name and the tab row.
+- **Right cluster is route-aware:** `[refresh?] [filters?]`, both conditional per route. No picker on the right (the redundant right-side `AccountSwitcher` is removed entirely).
+- **Switch-landing = profile root (topbar behaviour).** Picking an account from the topbar lands on `/lol/$accountSlug` (profile overview), not the prior sub-route. Subtree-preservation (switch account, stay on Matches with window state) was the section picker's one unique value; if it's missed, the small follow-up is to port `(prev) => prev` search + subtree inference into the topbar `AccountRow` — there'd still be only one picker.
 - ~~**Logo-as-home usability check.**~~ Moot — Home stays in the primary nav (see above), so there's no logo-as-only-home affordance to validate.
 - **Active-tab indicator with shared-layout morph.** The underline/pill that marks the active tab uses Motion `layoutId` to morph smoothly between tabs as the user navigates, instead of snapping. The project already has the `layoutId pills` pattern per [elevation-arcs.md](elevation-arcs.md) — this extends the existing primitive rather than introducing a new one. Folded into 1.1 because it lives inside the same merged-strip component being built here; not worth splitting into a separate chunk. Reduced-motion variant: indicator snaps to position (no morph) per [reduced-motion-replacements](reduced-motion-replacements.md) guardrail.
-- **Account-switcher landing behaviour — decide during implementation.** When the user picks a different account from the `Vyoh#Ahri ▾` dropdown, where do they land? Today: same sub-route on the new account. Open question: should they land on Profile (greeting them with the identity block from 1.3a) instead? Resolve while building 1.1; default to same-sub-route unless the showcase landing reads obviously better in practice.
 - **Avatar sits at the seam** between the primary nav and the merged strip — half above, half below the divider. Square crop preserved (avatars are platform identity per [feedback memory](~/.claude/projects/-workspaces-vyoh-gg/memory/feedback_avatars_are_identity.md)). Implementation is `margin-top` + `z-index`, no scroll state machine.
 - **Both bars stay sticky.**
 - **Detail pages restore the section nav.** Today match-detail hides Profile/Matches/Trends/Champions and shows only a breadcrumb. Restore the section nav (with Matches highlighted), and demote the detail's own tab nav (Recap / Your game / Timeline) from a sticky chrome strip to an **inline tab bar at the top of the detail page content**. Breadcrumb becomes inline content too (e.g. `← Matches · Match · 2026-05-25 vs Aatrox`).
@@ -86,22 +86,24 @@ Each chunk independently committable.
 - [`apps/web/src/components/nav.tsx`](../../apps/web/src/components/nav.tsx) — **no change in 1.1** (Home stays; low-width responsiveness deferred to end of arc).
 - [`apps/web/src/routes/lol/$accountSlug.tsx`](../../apps/web/src/routes/lol/$accountSlug.tsx) — merge identity strip + secondary tabs into one component.
 - [`apps/web/src/routes/steam.tsx`](../../apps/web/src/routes/steam.tsx) — same merge for Steam.
-- LoL account-picker dropdown component — add per-row region display, remove from chrome.
+- ~~LoL account-picker dropdown component~~ — **deleted.** `apps/web/src/lol/_shared/account/account-switcher.tsx` (+ test) removed; the topbar `AccountRow` is the sole switcher.
 - Match-detail route files — restore section nav, demote detail-tab chrome to inline.
 - [`apps/web/src/_shared/section-layout/section-shell.tsx`](../../apps/web/src/_shared/section-layout/section-shell.tsx) — **reshape, not greenfield.** This already exists with `identity`/`actions`/`nav` slots, the `#section-header-slot` portal, the `compact`/`bandOpaque` scroll state, the ResizeObserver band-height sync, and `SectionShellProvider`. Chunk 2 collapses its current two-row render (identity+actions row, then nav row) into the single tiered merged strip above, preserving all of that machinery and the `layoutId` tab indicators. One change point propagates to both LoL and Steam.
 
 **Libraries needed:**
-- **Existing only.** Shadcn `DropdownMenu` (Radix-based, already in project at 103 import sites per [library-shortlist.md](library-shortlist.md)) for the account picker. `TooltipPrimitive` for icon tooltips per [repo-conventions.md](../../repo-conventions.md). Shadcn `Tabs` for the inline detail-page tab nav.
+- **Existing only.** Shadcn `DropdownMenu` (Radix-based, already in project at 103 import sites per [library-shortlist.md](library-shortlist.md)) for the collapsed section dropdown (<820px tiers). `TooltipPrimitive` for icon tooltips per [repo-conventions.md](../../repo-conventions.md). Shadcn `Tabs` for the inline detail-page tab nav.
 - No new dependencies.
 
 **Tests in scope (same commit):**
-- Merged-strip component: keyboard navigation between tabs, ARIA tab roles, account-picker open/close, region rendering in dropdown rows. Axe scan.
+- Merged-strip component: keyboard navigation between tabs, ARIA tab roles. Axe scan. (No account-picker/region tests — picker dropped.)
 - Detail-page section-nav-restored test: confirm Profile/Matches/Trends/Champions render inside match-detail with Matches highlighted.
 - Detail-page inline-tabs test: confirm Recap/Your game/Timeline render as inline tabs, not as a sticky strip.
 
 ### Chunk 1.5 — Picker dropdown as a showcase surface
 
-**Goal:** the account-switcher dropdown becomes a discoverable showcase moment, not a plain menu list. The click on `Vyoh#Ahri ▾` (established in 1.1) opens what reads as a small magazine page of the user's identity-per-account.
+> **RETARGETED (2026-05-30):** 1.1 dropped the section-strip picker (the topbar owns switching — see the 1.1 decision note). So this chunk's target is no longer a new section picker but the **existing topbar `AccountRow`** ([`nav.tsx`](../../apps/web/src/components/nav.tsx)), which already ships the icon + rank-emblem + `region · queue · rank` row. The "plain menu list → magazine page" delta is therefore *smaller* than originally scoped: bigger avatars, splash-tint row backgrounds, and the open-stagger, layered onto rows that already exist. Re-read the goal below against the topbar component, not a `Vyoh#Ahri ▾` section caret. The Steam single-card variant still applies to the topbar Steam menu.
+
+**Goal:** the account-switcher dropdown becomes a discoverable showcase moment, not a plain menu list — a small magazine page of the user's identity-per-account.
 
 **Each account row carries:**
 - Avatar at a meaningful size (~40–48px, not the 16–20px of a typical menu row).
@@ -119,8 +121,8 @@ Each chunk independently committable.
 **Sequencing:** lands after 1.1 (the picker exists once 1.1 ships). Can parallelize with 1.2 / 1.3a / 1.3b — they touch different surfaces.
 
 **Files in scope (estimated):**
-- Refactor the existing LoL account-switcher component (currently a basic dropdown) into the showcase shape.
-- New small Steam variant of the same component.
+- Enhance the topbar LoL `AccountRow` ([`nav.tsx`](../../apps/web/src/components/nav.tsx)) into the showcase shape (bigger avatar, splash-tint background, open-stagger) — the rank-emblem/region/queue row already exists.
+- Steam variant of the same row in the topbar Steam menu.
 - Possibly extract a shared `AccountPickerRow` primitive in `apps/web/src/_shared/` if both streams converge on similar row shape.
 
 **Libraries needed:**

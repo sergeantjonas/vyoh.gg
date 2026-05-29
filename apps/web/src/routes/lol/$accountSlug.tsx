@@ -6,7 +6,6 @@ import { useMe } from "@/identity/use-me";
 import { toastMessage } from "@/lib/toast";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
-import { AccountSwitcher } from "@/lol/_shared/account/account-switcher";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import championAssets from "@/lol/_shared/assets/champion-assets.json";
@@ -42,7 +41,6 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
@@ -175,8 +173,6 @@ function AccountLayout() {
     { fromPrefix: championsPathPrefix, toExact: championsPath },
   ]);
 
-  const prefersReducedMotion = useReducedMotion();
-
   // Splash claim for the LoL section: top-played champion in the windowed
   // match set (same selector as Recap so the splash backdrop and Recap's
   // "champion of the year" tile always agree). Pinned once per account
@@ -262,7 +258,6 @@ function AccountLayout() {
                   iconId={iconId}
                   level={level}
                   ddVersion={ddVersion}
-                  prefersReducedMotion={prefersReducedMotion}
                 />
               }
               actions={
@@ -272,7 +267,6 @@ function AccountLayout() {
                         surface), so the serious-queues preference has no
                         effect there — hide the icon to avoid implying it does. */}
                     {!isInMatchesSubtree && <SeriousQueuesSettings />}
-                    <AccountSwitcher currentSlug={accountSlug} />
                     <RefreshAccountButton account={account} />
                   </div>
                 )
@@ -295,13 +289,11 @@ function LolIdentity({
   iconId,
   level,
   ddVersion,
-  prefersReducedMotion,
 }: {
   account: ReturnType<typeof useAccountFromSlug>;
   iconId: number | null | undefined;
   level: number | null | undefined;
   ddVersion: ReturnType<typeof useDDragonVersion>;
-  prefersReducedMotion: boolean | null;
 }) {
   const { compact } = useSectionShellState();
   return (
@@ -330,30 +322,18 @@ function LolIdentity({
           )}
         />
       )}
-      <div className="flex items-baseline gap-3">
-        {account ? (
-          <h2 className="text-xl font-semibold">
-            {account.gameName}
-            <span className="text-muted-foreground">#{account.tagLine}</span>
-          </h2>
-        ) : (
-          <div className="h-5 w-40 animate-pulse rounded bg-muted" />
-        )}
-        <AnimatePresence>
-          {account && !compact && (
-            <m.span
-              key="region"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.15 }}
-              className="text-sm uppercase text-muted-foreground"
-            >
-              {account.region}
-            </m.span>
-          )}
-        </AnimatePresence>
-      </div>
+      {account ? (
+        // Account switching lives in the top-nav LoL picker (richer rows with
+        // rank emblems); the section identity is a static header. Region is
+        // omitted — single-region by design, and it'd only float between the
+        // name and the tab row.
+        <h2 className="text-xl font-semibold">
+          {account.gameName}
+          <span className="text-muted-foreground">#{account.tagLine}</span>
+        </h2>
+      ) : (
+        <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+      )}
     </section>
   );
 }
