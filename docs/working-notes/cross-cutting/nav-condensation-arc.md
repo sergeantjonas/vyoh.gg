@@ -45,8 +45,8 @@ Iterated in a throwaway dev-server mock (`apps/web/src/routes/mock-strip.tsx`, *
 
 **Three tiers:**
 
-- **≥820px — full row.** `avatar · Vyoh#Ahri · Profile Matches Trends Champions · ⟶ · [Live chip] · filters/refresh`. The four section *tabs* (with `layoutId` morph) render here. (Identity is static — no caret; switching is in the topbar, see 1.1 decision.)
-- **640–819px — inline single row.** `avatar · identity (protected, never shrinks) · [section dropdown, fills row, min-w so its label never truncates] · [Live chip] · actions`. Tabs collapse into a single **section dropdown** (current section shown as the trigger label).
+- **≥880px — full row.** `avatar · Vyoh#Ahri · Profile Matches Trends Champions · ⟶ · [Live chip] · filters/refresh`. The four section *tabs* (with `layoutId` morph) render here. (Identity is static — no caret; switching is in the topbar, see 1.1 decision.) **Break nudged 820 → 880 (2026-05-30):** a long Riot ID like `Nine Tailed Fox#EUW` + 4 tabs + live chip crowded the 848 box at 820; collapse to the dropdown a bit sooner. Eyeball-tunable.
+- **640–879px — inline single row.** `avatar · identity (protected, never shrinks) · [section dropdown, fills row, min-w so its label never truncates] · [Live chip] · actions`. Tabs collapse into a single **section dropdown** (current section shown as the trigger label).
 - **<640px — own-row (F2).** Row 1: `avatar · identity · ⟶ · [Live chip] · actions`. Row 2: full-width section dropdown. **F2 was chosen over F1** (which kept row 1 name-only and pushed chip+actions down to row 2 alongside the dropdown) because F2 fills the dead space next to a short Riot ID by floating chip+actions up to row 1, and reads less asymmetric/messy at the narrowest widths.
 
 **Live is a route-aware chip, NOT a tab.** Idle = subdued pulsing `● Live` (you have a live game; click to watch). Active = bright/filled when on `/live` (the section tabs/dropdown then show *nothing* selected). The justification is **semantic, not capacity** — pulling Live out of the tab row does *not* "free room for a 5th tab" (it still occupies width whenever a game is live); it's that Live is a transient special state that reads better as a presence chip and needs route-active treatment. Tab *growth*, if ever needed, is absorbed by the dropdown-overflow mechanism, not by the chip.
@@ -55,8 +55,11 @@ Iterated in a throwaway dev-server mock (`apps/web/src/routes/mock-strip.tsx`, *
 - Make the inline→own-row break **live-aware**: break lower (~540px) when there's no live game, so the absent chip isn't reserving width and forcing an early wrap. With a live game present, keep the 640 break.
 - The avatar sat too close to the left border in early mocks — keep it inset with the content gutter, not flush.
 - Dropdown gets `min-w-[168px]` and wraps to its own row *before* it would ever have to truncate its label (rejected: horizontal-scroll tab strip — "not easy to use"; icon-only tabs — "users start guessing what a tab is").
+- **Own-row tier (<640px) row gap** bumped `gap-y-2.5 → gap-y-3.5` (2026-05-30) — the identity row and the wrapped dropdown row read too cramped at 10px.
 
-**Deferred to the end of this arc (NOT chunk 1.1):** primary-nav (`nav.tsx`) responsiveness at low widths. The `logo · Home · LoL · Steam · Status · ⌘K` bar overflows/clips on narrow screens; its collapse strategy (scroll / menu / hide-labels) is a separate concern from the section strip and is scheduled after the arc's main chunks.
+**Deferred to the end of this arc (NOT chunk 1.1):**
+- **Primary-nav (`nav.tsx`) responsiveness at low widths.** The `logo · Home · LoL · Steam · Status · ⌘K` bar overflows/clips on narrow screens; its collapse strategy (scroll / menu / hide-labels) is a separate concern from the section strip and is scheduled after the arc's main chunks.
+- **Topbar LoL account picker behaves oddly at small viewports** (flagged 2026-05-30 from screenshots; pre-existing, not caused by the merged-strip work). Pick up alongside the primary-nav responsiveness pass since they share the same `nav.tsx` surface.
 
 ## Chunks
 
@@ -91,7 +94,7 @@ Each chunk independently committable.
 - [`apps/web/src/_shared/section-layout/section-shell.tsx`](../../apps/web/src/_shared/section-layout/section-shell.tsx) — **reshape, not greenfield.** This already exists with `identity`/`actions`/`nav` slots, the `#section-header-slot` portal, the `compact`/`bandOpaque` scroll state, the ResizeObserver band-height sync, and `SectionShellProvider`. Chunk 2 collapses its current two-row render (identity+actions row, then nav row) into the single tiered merged strip above, preserving all of that machinery and the `layoutId` tab indicators. One change point propagates to both LoL and Steam.
 
 **Libraries needed:**
-- **Existing only.** Shadcn `DropdownMenu` (Radix-based, already in project at 103 import sites per [library-shortlist.md](library-shortlist.md)) for the collapsed section dropdown (<820px tiers). `TooltipPrimitive` for icon tooltips per [repo-conventions.md](../../repo-conventions.md). Shadcn `Tabs` for the inline detail-page tab nav.
+- **Existing only.** Shadcn `DropdownMenu` (Radix-based, already in project at 103 import sites per [library-shortlist.md](library-shortlist.md)) for the collapsed section dropdown (<880px tiers). `TooltipPrimitive` for icon tooltips per [repo-conventions.md](../../repo-conventions.md). Shadcn `Tabs` for the inline detail-page tab nav.
 - No new dependencies.
 
 **Tests in scope (same commit):**

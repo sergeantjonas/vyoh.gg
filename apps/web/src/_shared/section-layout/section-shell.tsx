@@ -15,7 +15,7 @@ type SectionShellProps = {
   identity: ReactNode;
   actions?: ReactNode;
   // Structured tabs the shell renders three ways across viewport tiers (full
-  // row ≥820px / filling section dropdown 640–819px / own-row dropdown <640px).
+  // row ≥880px / filling section dropdown 640–879px / own-row dropdown <640px).
   // Empty (or omitted) renders no section nav — e.g. a detail page that hasn't
   // restored it yet.
   tabs?: SectionTab[];
@@ -170,14 +170,17 @@ export function SectionShell({
             nav-condensation-arc.md). One flex-wrap row whose pieces reorder by
             viewport via `order` + `basis`, so identity/live/actions each render
             ONCE (no per-tier duplication of interactive controls):
-              ≥820px  identity · [tab row] · ⟶ · live · actions
-              640-819 identity · [filling section dropdown] · live · actions
-              <640    row1: identity · ⟶ · live · actions  /  row2: dropdown */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
+              ≥880px  identity · [tab row] · ⟶ · live · actions
+              640-879 identity · [filling section dropdown] · live · actions
+              <640    row1: identity · ⟶ · live · actions  /  row2: dropdown
+            The full-row break is 880 (not 820): a long Riot ID like
+            "Nine Tailed Fox#EUW" + 4 tabs + live chip crowds the 848 box at
+            820, so collapse to the dropdown a bit sooner. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-3.5">
           <div className="order-1 flex min-w-0 shrink items-center">{identity}</div>
           {tabs.length > 0 && (
             <>
-              <div className="order-2 hidden shrink-0 min-[820px]:block">
+              <div className="order-2 hidden shrink-0 min-[880px]:block">
                 <SectionTabRow
                   tabs={tabs}
                   indicatorId={tabIndicatorId}
@@ -187,7 +190,7 @@ export function SectionShell({
               <SectionTabsDropdown
                 tabs={tabs}
                 onLive={live?.active ?? false}
-                className="order-last basis-full min-[640px]:order-3 min-[640px]:basis-0 min-[640px]:grow min-[820px]:hidden"
+                className="order-last basis-full min-[640px]:order-3 min-[640px]:basis-0 min-[640px]:grow min-[880px]:hidden"
               />
             </>
           )}
