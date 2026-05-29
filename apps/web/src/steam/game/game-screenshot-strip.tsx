@@ -213,6 +213,12 @@ export function GameScreenshotStrip({
   const slideRefs = useRef(new Map<number, HTMLImageElement>());
   const lightboxImgRef = useRef<HTMLImageElement | null>(null);
   const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Outer aspect-video wrapper — what the user perceives as "the carousel"
+  // chrome (border, image area, chevron overlays). Used as the hover
+  // target for autoplay pause; the embla viewport is smaller than this
+  // and excludes the chevron buttons, so probing :hover on the viewport
+  // missed cursor positions over the chrome edges and chevron rows.
+  const cardWrapperRef = useRef<HTMLDivElement | null>(null);
   // Shaka load state. The variant + manifest are recomputed per opened
   // trailer; falling back to the static .mp4 + poster when no adaptive
   // variant exists or Shaka throws is handled inside the render below.
@@ -233,10 +239,16 @@ export function GameScreenshotStrip({
   // case; modal-pause (below) covers active inspection. `stopOnInteraction:
   // false` keeps rotation going after a chevron click — the shadcn wrapper
   // resets the timer either way.
+  // `stopOnMouseEnter` is OFF intentionally — the plugin's mouseenter
+  // listener fires only when the cursor *crosses* its internal root by
+  // motion, which misses the common case of the strip mounting under a
+  // stationary cursor (data settles after the user has moved to the
+  // strip). We manage hover-pause manually on the visible card wrapper
+  // (`cardWrapperRef`) so the hover boundary matches what the user sees
+  // and the initial state can be probed via `:hover` reliably.
   const autoplay = useRef(
     Autoplay({
       delay: SCREENSHOT_ROTATION_MS,
-      stopOnMouseEnter: true,
       stopOnInteraction: false,
     })
   );
@@ -281,51 +293,54 @@ export function GameScreenshotStrip({
       ? currentIndex - trailerItems.length
       : null;
 
-  // Freeze autoplay while the lightbox is open so the strip stays on the
-  // frame the user clicked into. Guarded on `api` because
-  // `useEmblaCarousel` defers `plugin.init` until after a viewport-ref
-  // callback re-renders the carousel — without the guard, the first mount
-  // fires `plugin.play()` before autoplay's internal emblaApi is set, and
-  // Embla throws "internalEngine on undefined" out of `documentIsHidden`.
+  // Single source of truth for "is autoplay currently allowed to run":
+  // modal closed AND cursor not over the visible card. Listeners drive
+  // plugin.stop/play on hover transitions; the modal-open branch also
+  // vetoes any autoplay:play resume the plugin itself might initiate
+  // (visibility change etc.) while the modal owns focus. Effect deps
+  // intentionally include `modalOpen` so a modal transition while the
+  // cursor is still over the card re-evaluates the right pause source.
   //
-  // ALSO guarded on items.length > 1: embla-carousel-autoplay@8 early-exits
-  // its own init() when there's a single slide, leaving its internal
-  // `delay` array uninitialised. A later play() then crashes accessing
-  // `delay[selectedScrollSnap()]`. Games with one trailer + zero loaded
-  // screenshots hit this exact shape, so the gate is real, not theoretical.
-  //
-  // AND we listen for `autoplay:play` while the modal is open and
-  // re-stop on every fire. With `stopOnMouseEnter: true`, the mouse
-  // leaving the carousel root (which happens when the modal opens over
-  // it) fires mouseleave inside the plugin, which calls startAutoplay()
-  // and overrides our initial stop. Intercepting the `autoplay:play`
-  // event lets us veto any resume path the plugin itself initiates while
-  // the modal owns the user's attention.
+  // Guards:
+  //   - `api`: useEmblaCarousel defers plugin.init until after the
+  //     viewport-ref callback re-renders, so calling play() before that
+  //     hits "internalEngine on undefined".
+  //   - `items.length > 1`: embla-carousel-autoplay@8 early-exits init()
+  //     for single-slide carousels, leaving its internal `delay` array
+  //     uninitialised; a later play() crashes accessing it.
   useEffect(() => {
-    if (!api) return;
-    if (items.length <= 1) return;
+    const card = cardWrapperRef.current;
+    if (!card || !api || items.length <= 1) return;
     const plugin = autoplay.current;
-    if (modalOpen) {
+    const onEnter = () => plugin.stop();
+    const onLeave = () => {
+      if (!modalOpen) plugin.play();
+    };
+    card.addEventListener("mouseenter", onEnter);
+    card.addEventListener("mouseleave", onLeave);
+    // Initial state: modal open OR cursor already inside the card →
+    // pause. Otherwise resume. Probing `:hover` covers the "strip
+    // mounted under a stationary cursor" case that the DOM
+    // mouseenter event can't catch.
+    const initiallyHovered = card.matches(":hover");
+    if (modalOpen || initiallyHovered) {
       plugin.stop();
+    } else {
+      plugin.play();
+    }
+    if (modalOpen) {
       const onPlay = () => plugin.stop();
       api.on("autoplay:play", onPlay);
       return () => {
+        card.removeEventListener("mouseenter", onEnter);
+        card.removeEventListener("mouseleave", onLeave);
         api.off("autoplay:play", onPlay);
       };
     }
-    plugin.play();
-    // Autoplay's own `stopOnMouseEnter` listener uses `mouseenter`, which
-    // only fires when the cursor *crosses* the carousel root's boundary by
-    // motion. When the strip mounts with the cursor already inside its
-    // bounds — common, since the page renders after the user has moved
-    // cursor into the layout — `mouseenter` never fires and the pause
-    // doesn't engage. Probe `:hover` here as the synthetic equivalent and
-    // stop manually; the real `mouseenter`/`mouseleave` listeners take
-    // over on the next crossing.
-    const rootNode = api.rootNode?.();
-    if (rootNode?.matches(":hover")) {
-      plugin.stop();
-    }
+    return () => {
+      card.removeEventListener("mouseenter", onEnter);
+      card.removeEventListener("mouseleave", onLeave);
+    };
   }, [modalOpen, api, items.length]);
 
   // Preload neighbour full-res screenshots while the lightbox is open so
@@ -517,8 +532,12 @@ export function GameScreenshotStrip({
         className="group"
       >
         {/* The aspect-ratio wrapper anchors everything: the embla viewport
-            fills it, and the dispatch button + chevrons + counter overlay it. */}
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-black">
+            fills it, and the dispatch button + chevrons + counter overlay it.
+            Also the autoplay hover-pause target — see the autoplay effect. */}
+        <div
+          ref={cardWrapperRef}
+          className="relative aspect-video w-full overflow-hidden rounded-lg border bg-black"
+        >
           <CarouselContent className="ml-0 h-full">
             {items.map((item, i) => (
               <CarouselItem
