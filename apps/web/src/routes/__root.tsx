@@ -5,7 +5,6 @@ import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
 import { NotFound } from "@/components/not-found";
 import { OrbGlyph } from "@/components/orb-glyph";
-import { PerfOverlay } from "@/components/perf-overlay";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { PresenceMounts } from "@/lib/presence-mounts";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { topLevelScope } from "@/lib/top-level-scope";
 import { useFaviconDot } from "@/lib/use-favicon-dot";
+import { usePerfFlag } from "@/lib/use-perf-flag";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import {
@@ -23,7 +23,14 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { m } from "motion/react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
+
+// Debug-only web-vitals overlay. Gated on usePerfFlag() at the mount site so
+// the chunk is only fetched when ?perf / localStorage opt-in is set — keeps it
+// out of the eager bundle for the 99% of visits that never enable it.
+const PerfOverlay = lazy(() =>
+  import("@/components/perf-overlay").then((mod) => ({ default: mod.PerfOverlay }))
+);
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -32,6 +39,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   useFaviconDot();
+  const perfEnabled = usePerfFlag();
   const scope = useRouterState({
     select: (s) => topLevelScope(s.location.pathname),
   });
@@ -75,7 +83,11 @@ function RootLayout() {
           <CommandPalette />
           <ScrollToTop />
           <ErrorBoundary>
-            <PerfOverlay />
+            {perfEnabled && (
+              <Suspense fallback={null}>
+                <PerfOverlay />
+              </Suspense>
+            )}
           </ErrorBoundary>
           <div className="flex h-dvh flex-col overflow-hidden text-foreground">
             <Nav />
