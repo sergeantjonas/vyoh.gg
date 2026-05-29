@@ -172,14 +172,21 @@ function SteamGamePage() {
             )}
           />
         )}
-        {/* Full-trailer modal entry point. Self-gating: renders nothing when
-            the game has no playable trailer. Passes the first highlight
-            (Steam orders highlights[] with the launch trailer at [0]) — a
-            future carousel arc can widen this to surface every highlight
-            individually. Anchored to the hero wrapper (which carries the VT
-            name) so the pill participates in the same view-transition
-            snapshot as the hero img. */}
-        {game && <GameHeroTrailerPill trailer={game.trailers?.[0] ?? null} />}
+        {/* Quick-preview microtrailer pill. Self-gating on microtrailerWebm.
+            The full-trailer modal (with audio + adaptive streaming + native
+            controls) is reached separately, via trailer thumbnails in the
+            screenshot carousel below the hero — see GameScreenshotStrip.
+            Anchored to the hero wrapper (which carries the VT name) so the
+            pill participates in the same view-transition snapshot as the
+            hero img. */}
+        {game && (
+          <GameHeroTrailerPill
+            microtrailerWebm={game.microtrailerWebm}
+            microtrailerMp4={game.microtrailerMp4}
+            microtrailerPoster={game.microtrailerPoster}
+            microtrailerName={game.microtrailerName}
+          />
+        )}
       </div>
 
       {/* Band 1 — Identity card. The hero banner already carries the
