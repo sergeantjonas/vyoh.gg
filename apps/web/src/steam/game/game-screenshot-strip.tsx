@@ -213,6 +213,21 @@ export function GameScreenshotStrip({
   const slideRefs = useRef(new Map<number, HTMLImageElement>());
   const lightboxImgRef = useRef<HTMLImageElement | null>(null);
   const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Callback ref on the lightbox <video>. Applies the persisted volume
+  // synchronously at element creation — before autoplay starts the
+  // playback — so a returning user never hears the trailer blast at full
+  // volume before the useEffect below has a chance to lower it. The
+  // useEffect can't help here because effects run after the commit, by
+  // which point the video has already attached its audio output. Refs
+  // (object + callback) coexist: lightboxVideoRef.current is still the
+  // source of truth that the Shaka effect reads.
+  const setLightboxVideoRef = useCallback((video: HTMLVideoElement | null) => {
+    lightboxVideoRef.current = video;
+    if (!video) return;
+    const stored = loadPersistedVolume();
+    if (typeof stored.volume === "number") video.volume = stored.volume;
+    if (typeof stored.muted === "boolean") video.muted = stored.muted;
+  }, []);
   // Outer aspect-video wrapper — what the user perceives as "the carousel"
   // chrome (border, image area, chevron overlays). Used as the hover
   // target for autoplay pause; the embla viewport is smaller than this
@@ -403,18 +418,14 @@ export function GameScreenshotStrip({
   // trailers) and tears down when leaving a trailer slot (navigating to
   // a screenshot, or closing the modal). Code-split: shaka-player lands
   // in its own chunk fetched on the first trailer open per session.
-  // Volume + muted persistence. Re-applies the stored preference whenever
-  // a video mounts (kind transitions trailer→trailer or screenshot→trailer)
-  // and writes back on every native volumechange event. Both the Shaka
-  // video and the fallback `<video>` carry `lightboxVideoRef`, so this
-  // effect covers both render paths.
+  // Persist the user's volume + muted preference on every native
+  // `volumechange` event. The reverse direction (applying the stored
+  // preference on mount) lives in `setLightboxVideoRef` so it can happen
+  // synchronously before autoplay; this effect only writes.
   useEffect(() => {
     if (!modalOpen || activeItem?.kind !== "trailer") return;
     const video = lightboxVideoRef.current;
     if (!video) return;
-    const stored = loadPersistedVolume();
-    if (typeof stored.volume === "number") video.volume = stored.volume;
-    if (typeof stored.muted === "boolean") video.muted = stored.muted;
     const onVolumeChange = () => {
       persistVolume({ volume: video.volume, muted: video.muted });
     };
@@ -622,7 +633,7 @@ export function GameScreenshotStrip({
             // and the modal Content shrink-wraps around it.
             activeTrailerManifestUrl && !shakaError ? (
               <video
-                ref={lightboxVideoRef}
+                ref={setLightboxVideoRef}
                 autoPlay
                 controls
                 playsInline
@@ -636,7 +647,7 @@ export function GameScreenshotStrip({
               </video>
             ) : activeTrailerFallbackUrl ? (
               <video
-                ref={lightboxVideoRef}
+                ref={setLightboxVideoRef}
                 autoPlay
                 muted
                 loop
