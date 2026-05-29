@@ -314,6 +314,18 @@ export function GameScreenshotStrip({
       };
     }
     plugin.play();
+    // Autoplay's own `stopOnMouseEnter` listener uses `mouseenter`, which
+    // only fires when the cursor *crosses* the carousel root's boundary by
+    // motion. When the strip mounts with the cursor already inside its
+    // bounds — common, since the page renders after the user has moved
+    // cursor into the layout — `mouseenter` never fires and the pause
+    // doesn't engage. Probe `:hover` here as the synthetic equivalent and
+    // stop manually; the real `mouseenter`/`mouseleave` listeners take
+    // over on the next crossing.
+    const rootNode = api.rootNode?.();
+    if (rootNode?.matches(":hover")) {
+      plugin.stop();
+    }
   }, [modalOpen, api, items.length]);
 
   // Preload neighbour full-res screenshots while the lightbox is open so
