@@ -87,12 +87,13 @@ body {
   animation-delay: calc(var(--i, 0) * 80ms);
 }
 
-/* ─── LoL tab indicator pulse ────────────────────────────────────────────
-   Motion's `animate.boxShadow` can't interpolate CSS variables, so the
+/* ─── Active tab indicator pulse ─────────────────────────────────────────
+   Shared by every active-tab underline (LoL + Steam section nav, match-detail
+   tabs). Motion's `animate.boxShadow` can't interpolate CSS variables, so the
    pulse is driven by a CSS keyframe instead. The shadow references
    var(--theme-ring) so the glow re-tints live whenever the theme
    cascade updates (SplashProvider → useThemeColor).                       */
-@keyframes lol-tab-pulse {
+@keyframes tab-indicator-pulse {
   0%,
   100% {
     box-shadow: 0 0 0 0 transparent;
@@ -102,12 +103,12 @@ body {
   }
 }
 
-.lol-tab-pulse {
-  animation: lol-tab-pulse 2.4s ease-in-out infinite;
+.tab-indicator-pulse {
+  animation: tab-indicator-pulse 2.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lol-tab-pulse {
+  .tab-indicator-pulse {
     animation: none;
   }
 }
@@ -115,7 +116,7 @@ body {
 /* ─── Active tab glint ───────────────────────────────────────────────────
    A small white highlight that sweeps across the active indicator every
    ~4s. Layered as ::after on top of the flat bg color, so it coexists
-   with the pulse halo (.lol-tab-pulse) on the same element. Scoped to
+   with the pulse halo (.tab-indicator-pulse) on the same element. Scoped to
    tab indicators only — the scroll progress bar stays flat.             */
 .theme-bar-glint {
   overflow: hidden;

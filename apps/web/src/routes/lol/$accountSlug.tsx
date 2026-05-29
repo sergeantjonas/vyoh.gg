@@ -1,3 +1,4 @@
+import type { SectionLiveTab, SectionTab } from "@/_shared/section-layout/section-nav";
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { NotFound } from "@/components/not-found";
@@ -16,7 +17,6 @@ import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queu
 import { SeriousQueuesSettings } from "@/lol/_shared/serious-queues/serious-queues-settings";
 import { type AccountSearch, validateAccountSearch } from "@/lol/account/account-search";
 import {
-  iconPop,
   isInChampionsSubtree as isInChampionsSubtreeFn,
   isInMatchesSubtree as isInMatchesSubtreeFn,
   isMatchDetail as isMatchDetailFn,
@@ -36,22 +36,14 @@ import {
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import {
-  Link,
   Outlet,
   createFileRoute,
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { Crown, History, LayoutDashboard, Radio, TrendingUp } from "lucide-react";
+import { Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import {
-  type ComponentType,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
 
@@ -228,6 +220,28 @@ function AccountLayout() {
     document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
   }, []);
 
+  // Detail pages currently render no section nav (restored in a later chunk of
+  // this arc); pass empty tabs so the strip shows identity + actions only.
+  const lolTabs: SectionTab[] = isMatchDetail
+    ? []
+    : TABS.map(({ to, label, Icon, exact }) => ({
+        to,
+        params: { accountSlug },
+        preserveSearch: true,
+        label,
+        Icon,
+        active: isTabActive({ to, exact }, pathname, accountSlug),
+      }));
+  const lolLive: SectionLiveTab | undefined =
+    !isMatchDetail && liveData
+      ? {
+          to: "/lol/$accountSlug/live",
+          params: { accountSlug },
+          preserveSearch: true,
+          active: pathname === `/lol/${accountSlug}/live`,
+        }
+      : undefined;
+
   if (!me.isPending && !me.isError && !account) {
     return <NotFound />;
   }
@@ -263,15 +277,9 @@ function AccountLayout() {
                   </div>
                 )
               }
-              nav={
-                <LolNav
-                  isMatchDetail={isMatchDetail}
-                  accountSlug={accountSlug}
-                  pathname={pathname}
-                  liveData={liveData}
-                  prefersReducedMotion={prefersReducedMotion}
-                />
-              }
+              tabs={lolTabs}
+              tabIndicatorId="lol-tab-indicator"
+              live={lolLive}
             >
               <Outlet />
             </SectionShell>
@@ -347,121 +355,5 @@ function LolIdentity({
         </AnimatePresence>
       </div>
     </section>
-  );
-}
-
-function LolNav({
-  isMatchDetail,
-  accountSlug,
-  pathname,
-  liveData,
-  prefersReducedMotion,
-}: {
-  isMatchDetail: boolean;
-  accountSlug: string;
-  pathname: string;
-  liveData: ReturnType<typeof useLiveGame>["data"];
-  prefersReducedMotion: boolean | null;
-}) {
-  return (
-    <AnimatePresence mode="wait" initial={false}>
-      {isMatchDetail ? null : (
-        <m.div
-          key="tabs"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="flex gap-1"
-        >
-          {TABS.map(({ to, label, Icon, exact }) => {
-            const active = isTabActive({ to, exact }, pathname, accountSlug);
-            return (
-              <LolTabLink
-                key={to}
-                to={to}
-                accountSlug={accountSlug}
-                label={label}
-                Icon={Icon}
-                active={active}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-            );
-          })}
-          {liveData && (
-            <LolTabLink
-              to="/lol/$accountSlug/live"
-              accountSlug={accountSlug}
-              label="Live"
-              Icon={Radio}
-              active={pathname === `/lol/${accountSlug}/live`}
-              prefersReducedMotion={prefersReducedMotion}
-              iconActiveClassName="text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]"
-              iconIdleClassName="animate-pulse text-red-400/60 group-hover:text-red-400"
-            />
-          )}
-        </m.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function LolTabLink({
-  to,
-  accountSlug,
-  label,
-  Icon,
-  active,
-  prefersReducedMotion,
-  iconActiveClassName = "text-theme-strong drop-shadow-[0_0_6px_var(--theme-muted)]",
-  iconIdleClassName = "text-muted-foreground group-hover:text-foreground",
-}: {
-  to:
-    | "/lol/$accountSlug"
-    | "/lol/$accountSlug/matches"
-    | "/lol/$accountSlug/trends"
-    | "/lol/$accountSlug/champions"
-    | "/lol/$accountSlug/live";
-  accountSlug: string;
-  label: string;
-  Icon: ComponentType<{ className?: string }>;
-  active: boolean;
-  prefersReducedMotion: boolean | null;
-  iconActiveClassName?: string;
-  iconIdleClassName?: string;
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ accountSlug }}
-      search={(prev: AccountSearch) => prev}
-      className={cn(
-        "group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      <m.span
-        key={active ? 1 : 0}
-        initial={active && !prefersReducedMotion ? iconPop(label) : false}
-        animate={{ scale: 1, rotate: 0, y: 0 }}
-        transition={{ type: "spring", stiffness: 450, damping: 18 }}
-        className="inline-flex"
-      >
-        <Icon
-          className={cn(
-            "size-4 transition-colors",
-            active ? iconActiveClassName : iconIdleClassName
-          )}
-        />
-      </m.span>
-      {label}
-      {active && (
-        <m.div
-          layoutId="lol-tab-indicator"
-          className="lol-tab-pulse theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)]"
-          transition={{ type: "spring", stiffness: 500, damping: 35 }}
-        />
-      )}
-    </Link>
   );
 }

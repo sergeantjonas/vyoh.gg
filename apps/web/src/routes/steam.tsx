@@ -1,3 +1,4 @@
+import type { SectionTab } from "@/_shared/section-layout/section-nav";
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { NotFound } from "@/components/not-found";
@@ -9,9 +10,9 @@ import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import { isSteamTabActive } from "@/steam/tabs";
 import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
 import { useSteamSummary } from "@/steam/use-steam-summary";
-import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
-import { type Variants, m, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/steam")({
@@ -33,11 +34,6 @@ const TABS = [
   { to: "/steam/achievements", label: "Achievements", Icon: Trophy, exact: false },
 ] as const;
 
-const tabIconVariants: Variants = {
-  initial: { scale: 0.75, y: -4 },
-  animate: { scale: 1, y: 0 },
-};
-
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // Safari/iOS bypasses router VT for intra-Steam navs (see
@@ -58,20 +54,22 @@ function SteamLayout() {
     pathname.startsWith("/steam/library/") ||
     pathname.startsWith("/steam/game/");
 
+  const steamTabs: SectionTab[] = TABS.map((tab) => ({
+    to: tab.to,
+    label: tab.label,
+    Icon: tab.Icon,
+    active: isSteamTabActive(tab, pathname),
+  }));
+
   return (
     <ActiveGameProvider>
       <GameListReturnReset inSubtree={inLibrarySubtree} />
       <SteamProfileBackdrop>
         <SectionShell
           identity={<SteamIdentity />}
-          nav={
-            <div className="flex items-center gap-2">
-              <SteamTabs pathname={pathname} />
-              <div className="ml-auto">
-                <SteamPreferences />
-              </div>
-            </div>
-          }
+          tabs={steamTabs}
+          tabIndicatorId="steam-tab-indicator"
+          actions={<SteamPreferences />}
         >
           {safariSlideDir ? (
             // `key` forces a fresh DOM element per pathname so the CSS
@@ -144,52 +142,5 @@ function SteamIdentity() {
         <div className="h-5 w-32 animate-pulse rounded bg-muted" />
       )}
     </section>
-  );
-}
-
-function SteamTabs({ pathname }: { pathname: string }) {
-  const prefersReducedMotion = useReducedMotion();
-  return (
-    <nav aria-label="Steam sections" className="flex items-center gap-1">
-      {TABS.map((tab) => {
-        const active = isSteamTabActive(tab, pathname);
-        return (
-          <Link
-            key={tab.to}
-            to={tab.to}
-            className={cn(
-              "group relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors",
-              active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <m.span
-              key={active ? 1 : 0}
-              variants={tabIconVariants}
-              initial={active && !prefersReducedMotion ? "initial" : false}
-              animate="animate"
-              transition={{ type: "spring", stiffness: 450, damping: 18 }}
-              className="inline-flex"
-            >
-              <tab.Icon
-                className={cn(
-                  "size-4 transition-colors",
-                  active
-                    ? "text-theme-strong drop-shadow-[0_0_6px_var(--theme-muted)]"
-                    : "text-muted-foreground group-hover:text-foreground"
-                )}
-              />
-            </m.span>
-            {tab.label}
-            {active && (
-              <m.div
-                layoutId="steam-tab-indicator"
-                className="theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)] shadow-[0_0_8px_1px_var(--theme-ring)]"
-                transition={{ type: "spring", stiffness: 500, damping: 35 }}
-              />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
   );
 }

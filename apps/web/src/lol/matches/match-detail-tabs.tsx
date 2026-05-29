@@ -59,7 +59,7 @@ export function MatchDetailTabs({
             {isActive && (
               <m.div
                 layoutId={indicatorId}
-                className="lol-tab-pulse theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)]"
+                className="tab-indicator-pulse theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)]"
                 transition={{ type: "spring", stiffness: 500, damping: 35 }}
               />
             )}

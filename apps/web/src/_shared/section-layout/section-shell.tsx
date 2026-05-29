@@ -1,14 +1,29 @@
 import { mainScrollRef } from "@/lib/scroll-container";
-import { cn } from "@/lib/utils";
 import { m, useReducedMotion } from "motion/react";
 import { type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  SectionLiveChip,
+  type SectionLiveTab,
+  type SectionTab,
+  SectionTabRow,
+  SectionTabsDropdown,
+} from "./section-nav";
 import { SectionShellProvider } from "./section-shell-context";
 
 type SectionShellProps = {
   identity: ReactNode;
   actions?: ReactNode;
-  nav: ReactNode;
+  // Structured tabs the shell renders three ways across viewport tiers (full
+  // row ≥820px / filling section dropdown 640–819px / own-row dropdown <640px).
+  // Empty (or omitted) renders no section nav — e.g. a detail page that hasn't
+  // restored it yet.
+  tabs?: SectionTab[];
+  // Section-scoped `layoutId` for the active-tab underline morph. Required when
+  // `tabs` is non-empty so LoL and Steam don't share a morph group.
+  tabIndicatorId?: string;
+  // Optional live route, rendered as a route-aware presence chip (not a tab).
+  live?: SectionLiveTab | undefined;
   children: ReactNode;
   // External ref to the <header>; merged with the shell's internal ref.
   // Consumers who need DOM access (e.g. LoL writing `--account-header-h`) pass
@@ -22,7 +37,9 @@ type SectionShellProps = {
 export function SectionShell({
   identity,
   actions,
-  nav,
+  tabs = [],
+  tabIndicatorId = "section-tab-indicator",
+  live,
   children,
   headerRef: externalHeaderRef,
   onHeaderRect,
@@ -149,17 +166,37 @@ export function SectionShell({
             : { type: "spring", stiffness: 380, damping: 32 }
         }
       >
-        <div className="flex flex-col gap-3">
-          <div
-            className={cn(
-              "flex flex-wrap items-center gap-3",
-              actions ? "justify-between" : undefined
+        {/* Tiered merged strip (sizing pass locked 2026-05-29, see
+            nav-condensation-arc.md). One flex-wrap row whose pieces reorder by
+            viewport via `order` + `basis`, so identity/live/actions each render
+            ONCE (no per-tier duplication of interactive controls):
+              ≥820px  identity · [tab row] · ⟶ · live · actions
+              640-819 identity · [filling section dropdown] · live · actions
+              <640    row1: identity · ⟶ · live · actions  /  row2: dropdown */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
+          <div className="order-1 flex min-w-0 shrink items-center">{identity}</div>
+          {tabs.length > 0 && (
+            <>
+              <div className="order-2 hidden shrink-0 min-[820px]:block">
+                <SectionTabRow
+                  tabs={tabs}
+                  indicatorId={tabIndicatorId}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
+              </div>
+              <SectionTabsDropdown
+                tabs={tabs}
+                onLive={live?.active ?? false}
+                className="order-last basis-full min-[640px]:order-3 min-[640px]:basis-0 min-[640px]:grow min-[820px]:hidden"
+              />
+            </>
+          )}
+          <div className="order-3 ml-auto flex shrink-0 items-center gap-3">
+            {live && (
+              <SectionLiveChip live={live} prefersReducedMotion={prefersReducedMotion} />
             )}
-          >
-            {identity}
             {actions}
           </div>
-          {nav}
         </div>
       </m.div>
       <div
