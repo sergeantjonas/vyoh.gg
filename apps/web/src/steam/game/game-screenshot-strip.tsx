@@ -5,6 +5,8 @@ import {
   CarouselItem,
   useCarousel,
 } from "@/components/ui/carousel";
+import { isWebKit } from "@/lib/is-webkit";
+import { supportsAv1 } from "@/lib/supports-av1";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { steamMicrotrailerPosterUrl } from "@/steam/_shared/steam-image";
 import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
@@ -12,28 +14,24 @@ import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   type SteamGameTrailer,
+  pickAdaptiveTrailer,
   steamScreenshotFullUrl,
   steamScreenshotThumbUrl,
+  steamTrailerCdnUrl,
 } from "@vyoh/shared";
 import Autoplay from "embla-carousel-autoplay";
 import Fade from "embla-carousel-fade";
 import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-
-// Lazy-load the trailer modal subtree so Shaka's ~250 KB blob never lands
-// in the main route bundle — paid only the first time a user clicks a
-// trailer thumb. See trailer-modal.tsx for the player setup.
-const TrailerModal = lazy(() =>
-  import("./trailer-modal").then((m) => ({ default: m.TrailerModal }))
-);
 
 // The carousel renders a discriminated union of trailer + screenshot items
 // (trailer thumbs sit at index 0..N before the screenshot tail). Click
-// dispatch keys on the `kind`: trailer → open TrailerModal at that
-// highlight; screenshot → open the existing fullscreen lightbox with its
-// VT morph. The carousel itself stays codec-agnostic — renders the thumb
-// + optional play badge, lets the dispatch handler decide what to do.
+// opens a single unified lightbox modal — playing trailers (Shaka-driven
+// adaptive video) and fullscreen screenshots both go through the same
+// Radix Dialog so prev/next can step uniformly across the whole strip.
+// The Steam storefront does the same: one media pane, one keyboard set,
+// one set of chevrons; the content kind switches with the active slot.
 
 type DocumentWithVT = Document & {
   startViewTransition?: (callback: () => void | Promise<void>) => {
@@ -47,6 +45,37 @@ type DocumentWithVT = Document & {
 // Page dwell is longer than the hovercard's hover dwell (2.5s), so each
 // screenshot needs more time to register before the next fades in.
 const SCREENSHOT_ROTATION_MS = 3_500;
+
+// Persists `<video>` volume + muted across trailers (within a session and
+// across reloads) so the user only adjusts once. Stored as JSON so future
+// fields (preferred quality? playback rate?) can join without a key
+// migration. localStorage may be unavailable (Safari private mode);
+// reads + writes are try/catch'd at the use site.
+const TRAILER_VOLUME_KEY = "vyoh:steam-trailer-volume";
+
+interface PersistedVolume {
+  volume?: number;
+  muted?: boolean;
+}
+
+function loadPersistedVolume(): PersistedVolume {
+  try {
+    const raw = localStorage.getItem(TRAILER_VOLUME_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedVolume;
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function persistVolume(value: PersistedVolume): void {
+  try {
+    localStorage.setItem(TRAILER_VOLUME_KEY, JSON.stringify(value));
+  } catch {
+    // localStorage unavailable — drop silently.
+  }
+}
 
 // Rotating screenshot carousel slotted on /steam/game/$appid between the
 // playtime block and the verdict grid. Reads from the enrichment-backed
@@ -139,11 +168,33 @@ export function GameScreenshotStrip({
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
-  // Open trailer modal carries the highlight itself, not just an index —
-  // the trailers prop is stable across renders so the reference identity
-  // is meaningful, and the modal's effect depends on the trailer object
-  // for its Shaka load cycle.
-  const [openedTrailer, setOpenedTrailer] = useState<SteamGameTrailer | null>(null);
+  // Hoisted above all the effects so the Shaka-load effect can take
+  // `activeTrailerManifestUrl` as a dep without TDZ. items[currentIndex]
+  // is `undefined` while the strip is in its pre-mount empty state; the
+  // early-return guards below catch that case for the render path.
+  const activeItem = items[currentIndex];
+  const activeTrailerManifestUrl =
+    activeItem?.kind === "trailer"
+      ? (() => {
+          const variant = pickAdaptiveTrailer(activeItem.trailer.adaptiveTrailers, {
+            isSafari: isWebKit(),
+            supportsAv1: supportsAv1(),
+          });
+          return variant ? steamTrailerCdnUrl(variant.cdnPath) : null;
+        })()
+      : null;
+  const activeTrailerFallbackUrl =
+    activeItem?.kind === "trailer" && activeItem.trailer.microtrailerMp4
+      ? steamTrailerCdnUrl(activeItem.trailer.microtrailerMp4)
+      : null;
+  const activeTrailerPosterUrl =
+    activeItem?.kind === "trailer"
+      ? activeItem.trailer.screenshotFull
+        ? steamTrailerCdnUrl(activeItem.trailer.screenshotFull)
+        : activeItem.trailer.screenshotMedium
+          ? steamTrailerCdnUrl(activeItem.trailer.screenshotMedium)
+          : undefined
+      : undefined;
 
   // View Transitions morph between the active strip slide and the fullscreen
   // lightbox img. Same-route VT — no navigation involved — so we drive
@@ -161,6 +212,11 @@ export function GameScreenshotStrip({
   // matches `currentIndex` to carry the name.
   const slideRefs = useRef(new Map<number, HTMLImageElement>());
   const lightboxImgRef = useRef<HTMLImageElement | null>(null);
+  const lightboxVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Shaka load state. The variant + manifest are recomputed per opened
+  // trailer; falling back to the static .mp4 + poster when no adaptive
+  // variant exists or Shaka throws is handled inside the render below.
+  const [shakaError, setShakaError] = useState(false);
   const setSlideRef = useCallback(
     (i: number) => (el: HTMLImageElement | null) => {
       if (el) slideRefs.current.set(i, el);
@@ -225,25 +281,40 @@ export function GameScreenshotStrip({
       ? currentIndex - trailerItems.length
       : null;
 
-  // Freeze autoplay while EITHER modal is open so the strip stays on the
-  // frame the user clicked into, then resume on close. Guarded on `api`
-  // because `useEmblaCarousel` defers `plugin.init` until after a viewport-
-  // ref callback re-renders the carousel — without the guard, the first
-  // mount fires `plugin.play()` before autoplay's internal emblaApi is set,
-  // and Embla throws "internalEngine on undefined" out of `documentIsHidden`.
+  // Freeze autoplay while the lightbox is open so the strip stays on the
+  // frame the user clicked into. Guarded on `api` because
+  // `useEmblaCarousel` defers `plugin.init` until after a viewport-ref
+  // callback re-renders the carousel — without the guard, the first mount
+  // fires `plugin.play()` before autoplay's internal emblaApi is set, and
+  // Embla throws "internalEngine on undefined" out of `documentIsHidden`.
   //
   // ALSO guarded on items.length > 1: embla-carousel-autoplay@8 early-exits
   // its own init() when there's a single slide, leaving its internal
   // `delay` array uninitialised. A later play() then crashes accessing
   // `delay[selectedScrollSnap()]`. Games with one trailer + zero loaded
   // screenshots hit this exact shape, so the gate is real, not theoretical.
+  //
+  // AND we listen for `autoplay:play` while the modal is open and
+  // re-stop on every fire. With `stopOnMouseEnter: true`, the mouse
+  // leaving the carousel root (which happens when the modal opens over
+  // it) fires mouseleave inside the plugin, which calls startAutoplay()
+  // and overrides our initial stop. Intercepting the `autoplay:play`
+  // event lets us veto any resume path the plugin itself initiates while
+  // the modal owns the user's attention.
   useEffect(() => {
     if (!api) return;
     if (items.length <= 1) return;
     const plugin = autoplay.current;
-    if (modalOpen || openedTrailer !== null) plugin.stop();
-    else plugin.play();
-  }, [modalOpen, openedTrailer, api, items.length]);
+    if (modalOpen) {
+      plugin.stop();
+      const onPlay = () => plugin.stop();
+      api.on("autoplay:play", onPlay);
+      return () => {
+        api.off("autoplay:play", onPlay);
+      };
+    }
+    plugin.play();
+  }, [modalOpen, api, items.length]);
 
   // Preload neighbour full-res screenshots while the lightbox is open so
   // prev/next there feels snappy instead of network-bound on each step.
@@ -286,28 +357,72 @@ export function GameScreenshotStrip({
   // to the mapped item index so the source rect for the next VT morph
   // tracks the lightbox content.
   useEffect(() => {
-    if (!modalOpen || !api || screenshots.length <= 1) return;
-    if (screenshotIdxFromCarousel === null) return;
-    const baseOffset = trailerItems.length;
-    const idx = screenshotIdxFromCarousel;
+    if (!modalOpen || !api || items.length <= 1) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        api.scrollTo(baseOffset + ((idx + 1) % screenshots.length));
+        api.scrollTo((currentIndex + 1) % items.length);
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        api.scrollTo(baseOffset + ((idx - 1 + screenshots.length) % screenshots.length));
+        api.scrollTo((currentIndex - 1 + items.length) % items.length);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [
-    modalOpen,
-    api,
-    screenshots.length,
-    screenshotIdxFromCarousel,
-    trailerItems.length,
-  ]);
+  }, [modalOpen, api, items.length, currentIndex]);
+
+  // Shaka load/destroy cycle for the active lightbox trailer. Re-runs
+  // when the active manifest URL changes (navigating prev/next between
+  // trailers) and tears down when leaving a trailer slot (navigating to
+  // a screenshot, or closing the modal). Code-split: shaka-player lands
+  // in its own chunk fetched on the first trailer open per session.
+  // Volume + muted persistence. Re-applies the stored preference whenever
+  // a video mounts (kind transitions trailer→trailer or screenshot→trailer)
+  // and writes back on every native volumechange event. Both the Shaka
+  // video and the fallback `<video>` carry `lightboxVideoRef`, so this
+  // effect covers both render paths.
+  useEffect(() => {
+    if (!modalOpen || activeItem?.kind !== "trailer") return;
+    const video = lightboxVideoRef.current;
+    if (!video) return;
+    const stored = loadPersistedVolume();
+    if (typeof stored.volume === "number") video.volume = stored.volume;
+    if (typeof stored.muted === "boolean") video.muted = stored.muted;
+    const onVolumeChange = () => {
+      persistVolume({ volume: video.volume, muted: video.muted });
+    };
+    video.addEventListener("volumechange", onVolumeChange);
+    return () => video.removeEventListener("volumechange", onVolumeChange);
+  }, [modalOpen, activeItem]);
+
+  useEffect(() => {
+    if (!modalOpen || !activeTrailerManifestUrl) return;
+    setShakaError(false);
+    let mounted = true;
+    let player: { destroy: () => Promise<void> } | null = null;
+    (async () => {
+      try {
+        const shaka = (await import("shaka-player/dist/shaka-player.compiled")).default;
+        if (!mounted || !lightboxVideoRef.current) return;
+        const next = new shaka.Player();
+        await next.attach(lightboxVideoRef.current);
+        if (!mounted) {
+          await next.destroy();
+          return;
+        }
+        player = next;
+        await next.load(activeTrailerManifestUrl);
+      } catch {
+        if (mounted) setShakaError(true);
+      }
+    })();
+    return () => {
+      mounted = false;
+      player?.destroy().catch(() => {
+        // Destroy can reject mid-load; the browser GC's the MediaSource.
+      });
+    };
+  }, [modalOpen, activeTrailerManifestUrl]);
 
   // Intercept Radix's open/close to wrap the state mutation in a view
   // transition. Both directions flow through here (Trigger click, X button,
@@ -315,10 +430,19 @@ export function GameScreenshotStrip({
   // forces the React commit before the callback resolves so the destination
   // element is in the DOM at NEW-snapshot capture; otherwise the browser
   // captures the pre-mutation DOM and the morph snaps.
+  //
+  // Trailer items skip the morph entirely (the destination is a <video>
+  // tied to Shaka's load lifecycle, which can't be reliably present at
+  // NEW-snapshot capture time; an img → video pair morphs into a black
+  // box anyway). Screenshots keep the existing img → img morph.
   const handleOpenChange = useCallback(
     (next: boolean) => {
       const doc = document as DocumentWithVT;
       if (!supportsViewTransitions() || !doc.startViewTransition) {
+        setModalOpen(next);
+        return;
+      }
+      if (activeItem?.kind !== "screenshot") {
         setModalOpen(next);
         return;
       }
@@ -346,7 +470,7 @@ export function GameScreenshotStrip({
         if (destEl) destEl.style.viewTransitionName = "";
       });
     },
-    [appid, currentIndex]
+    [appid, currentIndex, activeItem?.kind]
   );
 
   // Defer carousel mount until the screenshots query has settled — even
@@ -361,7 +485,6 @@ export function GameScreenshotStrip({
   // jank from broken autoplay is not.
   if (data === undefined) return null;
   if (items.length === 0) return null;
-  const activeItem = items[currentIndex];
   if (!activeItem) return null;
   const activeScreenshot =
     screenshotIdxFromCarousel !== null
@@ -428,13 +551,7 @@ export function GameScreenshotStrip({
             type="button"
             aria-haspopup="dialog"
             aria-label={triggerAriaLabel}
-            onClick={() => {
-              if (activeItem.kind === "trailer") {
-                setOpenedTrailer(activeItem.trailer);
-              } else {
-                handleOpenChange(true);
-              }
-            }}
+            onClick={() => handleOpenChange(true)}
             className="absolute inset-0 z-10 cursor-pointer rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           />
 
@@ -449,57 +566,121 @@ export function GameScreenshotStrip({
         <DialogPrimitive.Content
           className={`fixed top-1/2 left-1/2 z-50 max-h-[95vh] max-w-[95vw] -translate-x-1/2 -translate-y-1/2 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95${vtSupported ? "" : " data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"}`}
         >
-          {/* Visually hidden — Radix Dialog requires an accessible name. */}
+          {/* Visually hidden — Radix Dialog requires an accessible name.
+              Title text adapts to the active media kind so screen readers
+              announce the right thing when prev/next steps between
+              trailers and screenshots. */}
           <DialogPrimitive.Title className="sr-only">
-            Game screenshot {(screenshotIdxFromCarousel ?? 0) + 1} of {screenshots.length}
+            {activeItem.kind === "trailer"
+              ? (activeItem.trailer.trailerName ?? "Trailer")
+              : `Game screenshot ${(screenshotIdxFromCarousel ?? 0) + 1} of ${screenshots.length}`}
           </DialogPrimitive.Title>
-          {/* width/height reserve the 16:9 layout box before pixels arrive
-              so the VT NEW snapshot captures a stable rect on first open per
-              game. Without them, `fullUrl` is uncached on first lightbox open
-              and the img reports natural 0×0, which produces a destination
-              rect of 0×0 at the page origin — the morph then plays back as
-              "shrink and fly to top-left corner". Actual served pixels may be
-              smaller; `object-contain` centers them inside the reserved box. */}
-          {activeScreenshot && (
-            <img
-              ref={lightboxImgRef}
-              src={activeScreenshot.fullUrl}
-              alt=""
-              width={1920}
-              height={1080}
-              className="block max-h-[95vh] max-w-[95vw] rounded-lg object-contain shadow-2xl"
-            />
+          {/* Discriminated render: trailers get a Shaka-driven <video>
+              (with mp4/poster fallback when there's no adaptive variant
+              or Shaka fails), screenshots get the existing fullscreen
+              <img>. The two slots have very different layout boxes —
+              video wants 16:9 viewport-filling, img wants object-contain
+              within the same — so we render either/or rather than
+              double-mounting. */}
+          {activeItem.kind === "trailer" ? (
+            // Match the screenshot path's sizing — width/height set on the
+            // element reserve the 16:9 layout box, then max-h-[95vh] +
+            // max-w-[95vw] cap the rendered size to the viewport bounds.
+            // Without explicit width/height the <video> renders at its
+            // intrinsic dimensions (often much smaller than the viewport),
+            // and the modal Content shrink-wraps around it.
+            activeTrailerManifestUrl && !shakaError ? (
+              <video
+                ref={lightboxVideoRef}
+                autoPlay
+                controls
+                playsInline
+                poster={activeTrailerPosterUrl}
+                aria-label={activeItem.trailer.trailerName ?? "Trailer"}
+                width={1920}
+                height={1080}
+                className="block max-h-[95vh] max-w-[95vw] rounded-lg bg-black shadow-2xl"
+              >
+                <track kind="captions" />
+              </video>
+            ) : activeTrailerFallbackUrl ? (
+              <video
+                ref={lightboxVideoRef}
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster={activeTrailerPosterUrl}
+                aria-label={activeItem.trailer.trailerName ?? "Trailer"}
+                width={1920}
+                height={1080}
+                className="block max-h-[95vh] max-w-[95vw] rounded-lg bg-black shadow-2xl"
+              >
+                <source src={activeTrailerFallbackUrl} type="video/mp4" />
+                <track kind="captions" />
+              </video>
+            ) : (
+              activeTrailerPosterUrl && (
+                <img
+                  src={activeTrailerPosterUrl}
+                  alt={activeItem.trailer.trailerName ?? "Trailer"}
+                  width={1920}
+                  height={1080}
+                  className="block max-h-[95vh] max-w-[95vw] rounded-lg object-contain shadow-2xl"
+                />
+              )
+            )
+          ) : (
+            // Screenshot path stays unchanged from the pre-merge lightbox.
+            // width/height reserve the 16:9 layout box before pixels arrive
+            // so the VT NEW snapshot captures a stable rect on first open
+            // per game. Without them, `fullUrl` is uncached on first
+            // lightbox open and the img reports natural 0×0, which produces
+            // a destination rect of 0×0 at the page origin — the morph
+            // then plays back as "shrink and fly to top-left corner".
+            // Actual served pixels may be smaller; `object-contain`
+            // centers them inside the reserved box.
+            activeScreenshot && (
+              <img
+                ref={lightboxImgRef}
+                src={activeScreenshot.fullUrl}
+                alt=""
+                width={1920}
+                height={1080}
+                className="block max-h-[95vh] max-w-[95vw] rounded-lg object-contain shadow-2xl"
+              />
+            )
           )}
-          {screenshots.length > 1 && (
+          {/* Prev/next now move through ALL items uniformly — trailer to
+              trailer, trailer to screenshot, screenshot to screenshot. The
+              counter shows the absolute position in the combined strip so
+              navigation feels continuous (the storefront does the same). */}
+          {hasMultiple && (
             <>
               <button
                 type="button"
-                aria-label="Previous screenshot"
-                onClick={() => {
-                  if (screenshotIdxFromCarousel === null) return;
-                  const prev =
-                    (screenshotIdxFromCarousel - 1 + screenshots.length) %
-                    screenshots.length;
-                  api?.scrollTo(trailerItems.length + prev);
-                }}
+                aria-label="Previous"
+                onClick={() =>
+                  api?.scrollTo((currentIndex - 1 + items.length) % items.length)
+                }
                 className="absolute top-1/2 left-2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <ChevronLeft className="size-6" />
               </button>
               <button
                 type="button"
-                aria-label="Next screenshot"
-                onClick={() => {
-                  if (screenshotIdxFromCarousel === null) return;
-                  const next = (screenshotIdxFromCarousel + 1) % screenshots.length;
-                  api?.scrollTo(trailerItems.length + next);
-                }}
+                aria-label="Next"
+                onClick={() => api?.scrollTo((currentIndex + 1) % items.length)}
                 className="absolute top-1/2 right-2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <ChevronRight className="size-6" />
               </button>
-              <div className="pointer-events-none absolute right-0 bottom-3 left-0 text-center text-sm text-white/80 tabular-nums">
-                {(screenshotIdxFromCarousel ?? 0) + 1} / {screenshots.length}
+              {/* Counter sits TOP-center (not bottom) so it doesn't overlap
+                  the native <video> controls on trailer slots. The
+                  top-left corner stays clear for the close button on the
+                  top-right. */}
+              <div className="pointer-events-none absolute top-3 right-0 left-0 text-center text-sm text-white/80 tabular-nums">
+                {currentIndex + 1} / {items.length}
               </div>
             </>
           )}
@@ -509,21 +690,6 @@ export function GameScreenshotStrip({
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
-      {/* TrailerModal is a sibling to the lightbox Dialog — independent
-          open state, independent focus trap, no interference between the
-          two. Mounted only while a trailer is open so Shaka unmounts +
-          releases its MediaSource on close (see trailer-modal.tsx). */}
-      {openedTrailer && (
-        <Suspense fallback={null}>
-          <TrailerModal
-            trailer={openedTrailer}
-            open={openedTrailer !== null}
-            onOpenChange={(next) => {
-              if (!next) setOpenedTrailer(null);
-            }}
-          />
-        </Suspense>
-      )}
     </DialogPrimitive.Root>
   );
 }

@@ -69,6 +69,18 @@ vi.mock("embla-carousel-fade", () => ({
   default: () => () => ({}),
 }));
 
+// Stub Shaka — happy-dom has no MediaSource and the lightbox's trailer
+// path imports shaka inside its effect via dynamic import. The variant
+// picker + URL builders are covered separately in trailers.test.ts.
+vi.mock("shaka-player/dist/shaka-player.compiled", () => {
+  class FakePlayer {
+    attach = vi.fn().mockResolvedValue(undefined);
+    load = vi.fn().mockResolvedValue(undefined);
+    destroy = vi.fn().mockResolvedValue(undefined);
+  }
+  return { default: { Player: FakePlayer } };
+});
+
 // Tests feed `{filename, ordinal}` entries straight into the hook mock and
 // the strip composes URLs via the shared `steamScreenshotThumbUrl` helper.
 // Keeping the helper inputs simple (`ss_1.jpg`, `ss_2.jpg`) keeps assertions
@@ -222,7 +234,7 @@ describe("GameScreenshotStrip", () => {
     expect(lastCarouselApi?.selectedScrollSnap).toHaveBeenCalled();
   });
 
-  it("dispatches ArrowRight/ArrowLeft window keydowns to api.scrollTo (screenshot-only navigation) while the modal is open", () => {
+  it("dispatches ArrowRight/ArrowLeft window keydowns to api.scrollTo across items[] while the modal is open", () => {
     setScreenshots([
       { filename: "ss_1.jpg", ordinal: 1 },
       { filename: "ss_2.jpg", ordinal: 2 },
@@ -520,25 +532,23 @@ describe("GameScreenshotStrip", () => {
       expect(svgs.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("opens the trailer modal (not the lightbox) when the active item is a trailer", async () => {
+    it("opens the unified lightbox with a <video> element when the active item is a trailer", async () => {
       setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
       render(<GameScreenshotStrip appid={42} trailers={[trailer()]} />);
       const trigger = screen.getByRole("button", { name: "Play Launch trailer" });
       fireEvent.click(trigger);
-      // The trailer modal is lazy-loaded; wait for the suspense fallback to
-      // resolve, then assert its dialog is open. We don't directly engage
-      // Shaka — the modal itself has its own focused test in
-      // trailer-modal.test.tsx.
       await vi.waitFor(() => {
         expect(document.querySelector('[role="dialog"]')).not.toBeNull();
       });
-      // The screenshot lightbox shouldn't have opened; its title is the
-      // screenshot-numbered SR-only text.
-      const dialogs = document.querySelectorAll('[role="dialog"]');
-      const screenshotDialog = Array.from(dialogs).find((d) =>
-        d.textContent?.includes("Game screenshot")
-      );
-      expect(screenshotDialog).toBeUndefined();
+      // Trailer slot in the lightbox renders a <video> with controls (the
+      // adaptive-stream path) and the trailer name as aria-label.
+      const video = document.querySelector('[role="dialog"] video');
+      expect(video).not.toBeNull();
+      expect(video?.getAttribute("aria-label")).toBe("Launch trailer");
+      // Lightbox should NOT also render the screenshot img.
+      expect(
+        document.querySelector('[role="dialog"] img[src*="ss_1.1920x1080.jpg"]')
+      ).toBeNull();
     });
   });
 });
