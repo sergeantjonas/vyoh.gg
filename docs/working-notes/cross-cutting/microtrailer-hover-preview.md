@@ -1,6 +1,6 @@
 # Microtrailer hover-preview on Steam library tiles
 
-**Status:** Shipped end-to-end 2026-05-28. Chunk 1 b242811 (enrichment capture + types). Chunk 2 a6462e9 (api surface + microtrailer/poster proxy routes + URL builders). Chunk 3 c336c36 (hovercard integration with reduced-motion poster fallback). Chunk 4 007021f (game-detail Preview pill). Surfaced from the 2026-05-24 `IStoreBrowseService/GetItems` field-harvest session ([library-card-enrichment.md Chunk 7](../steam/library-card-enrichment.md)). Tier 2 of the [elevation-arcs.md](./elevation-arcs.md) index. Indexed there and in [motion-backlog.md](./motion-backlog.md). Full-trailer modal arc (the next rung) is deferred pending a live probe of `adaptive_trailers` field shape — see § "Out of scope".
+**Status:** Both the microtrailer arc AND the follow-up full-trailer modal arc shipped end-to-end 2026-05-28/29. Microtrailer rung: Chunk 1 b242811 (enrichment capture + types), Chunk 2 a6462e9 (api surface + microtrailer/poster proxy routes + URL builders), Chunk 3 c336c36 (hovercard integration with reduced-motion poster fallback), Chunk 4 007021f (game-detail Preview pill — restored in-place crossfade at 6c9fed8 after a brief detour through opening the modal directly). Full-trailer modal rung: a56acfa (trailers Json column + projection of `highlights[]` + adaptive variants), e32a896 (SteamGameTrailer through SteamOwnedGame + direct-CDN URL builders + picker), e981f13 (TrailerModal + Shaka Player infra — later removed in favour of the unified lightbox), 3df0f6b → 6c9fed8 (pill UX iteration), a5db76d (trailer thumbs prepended to GameScreenshotStrip carousel + RE3 single-item crash fix), f1c1601 (unified lightbox with discriminated content + prev/next across all items + volume persistence + autoplay:play veto), b53f59f → 80cdcc7 (hover-pause for stationary-cursor mount), cae4137 (volume persistence applied synchronously via callback ref). Surfaced from the 2026-05-24 `IStoreBrowseService/GetItems` field-harvest session ([library-card-enrichment.md Chunk 7](../steam/library-card-enrichment.md)). Tier 2 of the [elevation-arcs.md](./elevation-arcs.md) index. Indexed there and in [motion-backlog.md](./motion-backlog.md).
 
 The pitch: when you hover a library row or tile, the existing right-side hovercard's media slot plays the game's 6-second silent microtrailer in place of its current static screenshot rotation. The hovercard is already a deliberate "preview this game" surface; the trailer just makes that preview move. Library row/capsule artwork stays untouched — the visual identity work that just shipped (dominantHex theming, hero-flip, face-aware crop) keeps its weight.
 
@@ -133,16 +133,16 @@ If Safari still turns out to be a cliff (e.g. hover-decode-hover-decode burst ac
 
 ---
 
-## Staged path
+## Staged path (all four rungs shipped)
 
-The microtrailer is the entry-level rung of a longer trailer story:
+The microtrailer is the entry-level rung of what turned into a four-rung trailer story; the path is recorded here as built rather than as planned.
 
-1. **This arc — microtrailer in the hovercard.** Hover-driven, deliberate, singleton-by-construction. 6-second silent loops, ~1-2 MB each, no player infrastructure beyond `<video muted loop playsinline>`.
-2. **Optional Chunk 4 — game-detail "▶ Preview" pill.** Same asset, opt-in surface on game-detail.
-3. **Follow-up arc — `adaptive_trailers` modal on game-detail.** When the "▶ Preview" pill no longer satisfies (users want the full trailer, with audio, at native resolution), upgrade the click target to open a modal with a DASH/HLS player consuming `highlights[0].adaptive_trailers`. The pill becomes the entry point; pill placement, gating, and crossfade all carry over.
-4. **Optional further rung — screenshot lightbox.** Already exists in [game-screenshot-strip.tsx](../../../apps/web/src/steam/game/game-screenshot-strip.tsx); call out as the precedent for the trailer modal's chrome.
+1. ✅ **Microtrailer in the hovercard.** Hover-driven, deliberate, singleton-by-construction. 6-second silent loops, ~1-2 MB each, no player infrastructure beyond `<video muted loop playsinline>`. Shipped as Chunks 1-3 above.
+2. ✅ **Game-detail "▶ Preview" pill.** Same asset, opt-in in-place crossfade on the hero. Shipped as Chunk 4 above; briefly upgraded to open the modal then reverted (6c9fed8) because the pill's job is the *quick* peek and the modal lives in the carousel below.
+3. ✅ **`adaptive_trailers` lightbox via the screenshot carousel.** Trailer thumbnails sit at the head of the existing `GameScreenshotStrip` carousel with a Play badge overlay; click opens the unified lightbox modal. Shaka picks the variant per browser (Safari → HLS native, AV1-capable Blink/Gecko → dash_av1, everyone else → dash_h264). Volume + muted persist across trailers and reloads via `vyoh:steam-trailer-volume` localStorage. Prev/next steps continuously across trailers AND screenshots (one media pane, one keyboard scope). VT morph applies to screenshots only.
+4. ⚠️ **Standalone TrailerModal primitive.** Built as Chunk 3 of the modal arc (e981f13) anticipating multiple consumers; removed at the cleanup commit when it became clear the unified lightbox in the strip was the only consumer that materialised. Left here as a historical breadcrumb in case a future surface (Spotify? GitHub?) needs an isolated media-modal primitive — the existence proof is in the git history.
 
-Shipping rung 1 first keeps the data layer ([library-card-enrichment.md Chunk 0](../steam/library-card-enrichment.md) already flipped `include_trailers: true`) doing double duty: every captured microtrailer is the source of both surfaces.
+Shipping rung 1 first kept the data layer ([library-card-enrichment.md Chunk 0](../steam/library-card-enrichment.md) already flipped `include_trailers: true`) doing double duty: every captured microtrailer was the source of both the hovercard loops and the modal's per-trailer poster slot.
 
 ---
 

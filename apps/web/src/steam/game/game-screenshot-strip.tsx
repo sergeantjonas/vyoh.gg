@@ -584,11 +584,12 @@ export function GameScreenshotStrip({
             ))}
           </CarouselContent>
 
-          {/* Single overlay button dispatches on the active item kind:
-              trailers open the TrailerModal at that highlight; screenshots
-              open the existing fullscreen lightbox with its VT morph.
-              Chevrons sit above at z-20; clicks on them don't bubble
-              through to here because they're siblings, not ancestors. */}
+          {/* Single overlay button opens the unified lightbox; the lightbox
+              content discriminates on the active item's kind (trailers play
+              via Shaka, screenshots render the fullscreen img with its VT
+              morph). Chevrons sit above at z-20; clicks on them don't
+              bubble through to here because they're siblings, not
+              ancestors. */}
           <button
             type="button"
             aria-haspopup="dialog"
