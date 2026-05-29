@@ -6,15 +6,34 @@ import {
   useCarousel,
 } from "@/components/ui/carousel";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { steamMicrotrailerPosterUrl } from "@/steam/_shared/steam-image";
 import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { steamScreenshotFullUrl, steamScreenshotThumbUrl } from "@vyoh/shared";
+import {
+  type SteamGameTrailer,
+  steamScreenshotFullUrl,
+  steamScreenshotThumbUrl,
+} from "@vyoh/shared";
 import Autoplay from "embla-carousel-autoplay";
 import Fade from "embla-carousel-fade";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+
+// Lazy-load the trailer modal subtree so Shaka's ~250 KB blob never lands
+// in the main route bundle — paid only the first time a user clicks a
+// trailer thumb. See trailer-modal.tsx for the player setup.
+const TrailerModal = lazy(() =>
+  import("./trailer-modal").then((m) => ({ default: m.TrailerModal }))
+);
+
+// The carousel renders a discriminated union of trailer + screenshot items
+// (trailer thumbs sit at index 0..N before the screenshot tail). Click
+// dispatch keys on the `kind`: trailer → open TrailerModal at that
+// highlight; screenshot → open the existing fullscreen lightbox with its
+// VT morph. The carousel itself stays codec-agnostic — renders the thumb
+// + optional play badge, lets the dispatch handler decide what to do.
 
 type DocumentWithVT = Document & {
   startViewTransition?: (callback: () => void | Promise<void>) => {
@@ -42,7 +61,13 @@ const SCREENSHOT_ROTATION_MS = 3_500;
 // library-tile hovercard) and the `embla-carousel-autoplay` plugin for the
 // auto-rotation. Manual scrollPrev/scrollNext go through shadcn's wrapper
 // which resets the autoplay timer on each click — no double-advance.
-export function GameScreenshotStrip({ appid }: { appid: number }) {
+export function GameScreenshotStrip({
+  appid,
+  trailers = null,
+}: {
+  appid: number;
+  trailers?: SteamGameTrailer[] | null;
+}) {
   const { data } = useGameScreenshots(appid);
   const { showMature } = useMatureScreenshotsPref();
   // Bucket policy (the toggle lives in the global Steam preferences popover
@@ -67,9 +92,58 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
       fullUrl: steamScreenshotFullUrl(appid, e.filename),
     }));
   }, [data, showMature, appid]);
+  // Trailer thumbs sit at the head of the carousel — same layout treatment
+  // as a Steam storefront. Each thumb is the publisher's `screenshot_medium`
+  // (293×165, 16:9-ish, matches the screenshot strip's aspect). Drop
+  // trailers without a usable poster — the play affordance needs a still to
+  // sit under, and the modal would still work but the carousel item would
+  // be a black square.
+  const trailerItems = useMemo(() => {
+    if (!trailers)
+      return [] as Array<{
+        kind: "trailer";
+        trailer: SteamGameTrailer;
+        thumbUrl: string;
+      }>;
+    const out: Array<{
+      kind: "trailer";
+      trailer: SteamGameTrailer;
+      thumbUrl: string;
+    }> = [];
+    for (const trailer of trailers) {
+      const poster = trailer.screenshotMedium
+        ? steamMicrotrailerPosterUrl(trailer.screenshotMedium)
+        : null;
+      if (!poster) continue;
+      out.push({ kind: "trailer", trailer, thumbUrl: poster });
+    }
+    return out;
+  }, [trailers]);
+  // Discriminated union: trailer thumbs first (Steam's storefront order),
+  // then screenshots. Single index space, single autoplay rotation —
+  // click-time dispatch on `kind` decides which modal opens.
+  const items = useMemo(
+    () => [
+      ...trailerItems,
+      ...screenshots.map(
+        (s) =>
+          ({
+            kind: "screenshot",
+            thumbUrl: s.thumbUrl,
+            fullUrl: s.fullUrl,
+          }) as const
+      ),
+    ],
+    [trailerItems, screenshots]
+  );
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  // Open trailer modal carries the highlight itself, not just an index —
+  // the trailers prop is stable across renders so the reference identity
+  // is meaningful, and the modal's effect depends on the trailer object
+  // for its Shaka load cycle.
+  const [openedTrailer, setOpenedTrailer] = useState<SteamGameTrailer | null>(null);
 
   // View Transitions morph between the active strip slide and the fullscreen
   // lightbox img. Same-route VT — no navigation involved — so we drive
@@ -141,33 +215,55 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
     api.scrollTo(0, true);
   }, [api, appid]);
 
-  // Freeze autoplay while the lightbox is open so the strip stays on the
+  // Map carousel index → screenshot index. Returns null when the active
+  // carousel slot is a trailer (which has no corresponding fullUrl). Used
+  // by the lightbox preload, arrow-key handler, and prev/next buttons —
+  // everything that's screenshot-specific needs to translate out of the
+  // mixed items[] index space.
+  const screenshotIdxFromCarousel =
+    items[currentIndex]?.kind === "screenshot"
+      ? currentIndex - trailerItems.length
+      : null;
+
+  // Freeze autoplay while EITHER modal is open so the strip stays on the
   // frame the user clicked into, then resume on close. Guarded on `api`
   // because `useEmblaCarousel` defers `plugin.init` until after a viewport-
   // ref callback re-renders the carousel — without the guard, the first
   // mount fires `plugin.play()` before autoplay's internal emblaApi is set,
   // and Embla throws "internalEngine on undefined" out of `documentIsHidden`.
+  //
+  // ALSO guarded on items.length > 1: embla-carousel-autoplay@8 early-exits
+  // its own init() when there's a single slide, leaving its internal
+  // `delay` array uninitialised. A later play() then crashes accessing
+  // `delay[selectedScrollSnap()]`. Games with one trailer + zero loaded
+  // screenshots hit this exact shape, so the gate is real, not theoretical.
   useEffect(() => {
     if (!api) return;
+    if (items.length <= 1) return;
     const plugin = autoplay.current;
-    if (modalOpen) plugin.stop();
+    if (modalOpen || openedTrailer !== null) plugin.stop();
     else plugin.play();
-  }, [modalOpen, api]);
+  }, [modalOpen, openedTrailer, api, items.length]);
 
   // Preload neighbour full-res screenshots while the lightbox is open so
   // prev/next there feels snappy instead of network-bound on each step.
+  // Skips when the active item isn't a screenshot (the trailer modal has
+  // no equivalent preload path; Shaka handles its own segment fetching).
   useEffect(() => {
     if (!modalOpen || screenshots.length <= 1) return;
-    const next = screenshots[(currentIndex + 1) % screenshots.length];
+    if (screenshotIdxFromCarousel === null) return;
+    const next = screenshots[(screenshotIdxFromCarousel + 1) % screenshots.length];
     const prev =
-      screenshots[(currentIndex - 1 + screenshots.length) % screenshots.length];
+      screenshots[
+        (screenshotIdxFromCarousel - 1 + screenshots.length) % screenshots.length
+      ];
     for (const s of [next, prev]) {
       if (s) {
         const img = new Image();
         img.src = s.fullUrl;
       }
     }
-  }, [modalOpen, currentIndex, screenshots]);
+  }, [modalOpen, screenshotIdxFromCarousel, screenshots]);
 
   // Eagerly cache the active full-res whenever it changes (autoplay rotation,
   // manual scroll, initial mount) so the first lightbox open per game has a
@@ -176,29 +272,42 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
   // loaded image — the bottom half then reads as a white flash during the
   // morph.
   useEffect(() => {
-    const s = screenshots[currentIndex];
+    if (screenshotIdxFromCarousel === null) return;
+    const s = screenshots[screenshotIdxFromCarousel];
     if (!s) return;
     const img = new Image();
     img.src = s.fullUrl;
-  }, [currentIndex, screenshots]);
+  }, [screenshotIdxFromCarousel, screenshots]);
 
   // Arrow keys inside the lightbox — `Carousel`'s own keydown handler is
   // scoped to its <section>, which doesn't reach the Radix portal. Bind at
-  // window level while the modal is open; Radix still owns Escape.
+  // window level while the modal is open; Radix still owns Escape. Steps
+  // through screenshots only (skipping trailers); we scroll the carousel
+  // to the mapped item index so the source rect for the next VT morph
+  // tracks the lightbox content.
   useEffect(() => {
     if (!modalOpen || !api || screenshots.length <= 1) return;
+    if (screenshotIdxFromCarousel === null) return;
+    const baseOffset = trailerItems.length;
+    const idx = screenshotIdxFromCarousel;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        api.scrollNext();
+        api.scrollTo(baseOffset + ((idx + 1) % screenshots.length));
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        api.scrollPrev();
+        api.scrollTo(baseOffset + ((idx - 1 + screenshots.length) % screenshots.length));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modalOpen, api, screenshots.length]);
+  }, [
+    modalOpen,
+    api,
+    screenshots.length,
+    screenshotIdxFromCarousel,
+    trailerItems.length,
+  ]);
 
   // Intercept Radix's open/close to wrap the state mutation in a view
   // transition. Both directions flow through here (Trigger click, X button,
@@ -240,10 +349,29 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
     [appid, currentIndex]
   );
 
-  if (screenshots.length === 0) return null;
-  const active = screenshots[currentIndex];
-  if (!active) return null;
-  const hasMultiple = screenshots.length > 1;
+  // Defer carousel mount until the screenshots query has settled — even
+  // if the parent already has trailers ready, mounting with a single
+  // trailer item and then re-rendering with N more items once screenshots
+  // load triggers embla-carousel-autoplay's known broken-state path: its
+  // init() early-exits when scrollSnapList <= 1 (leaving `delay`
+  // uninitialised), and a later play() then crashes accessing
+  // `delay[selectedScrollSnap()]`. Waiting for `data` to be defined
+  // guarantees one stable item count at first paint. The brief flash of
+  // no-strip during a ~30-100ms screenshot fetch is acceptable; carousel
+  // jank from broken autoplay is not.
+  if (data === undefined) return null;
+  if (items.length === 0) return null;
+  const activeItem = items[currentIndex];
+  if (!activeItem) return null;
+  const activeScreenshot =
+    screenshotIdxFromCarousel !== null
+      ? (screenshots[screenshotIdxFromCarousel] ?? null)
+      : null;
+  const hasMultiple = items.length > 1;
+  const triggerAriaLabel =
+    activeItem.kind === "trailer"
+      ? `Play ${activeItem.trailer.trailerName ?? "trailer"}`
+      : `View screenshot ${(screenshotIdxFromCarousel ?? 0) + 1} of ${screenshots.length} fullscreen`;
 
   return (
     <DialogPrimitive.Root open={modalOpen} onOpenChange={handleOpenChange}>
@@ -254,18 +382,22 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
         className="group"
       >
         {/* The aspect-ratio wrapper anchors everything: the embla viewport
-            fills it, and the Trigger + chevrons + counter overlay it. */}
+            fills it, and the dispatch button + chevrons + counter overlay it. */}
         <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-black">
           <CarouselContent className="ml-0 h-full">
-            {screenshots.map((s, i) => (
+            {items.map((item, i) => (
               <CarouselItem
-                key={s.thumbUrl}
-                className="h-full basis-full pl-0"
-                aria-label={`Screenshot ${i + 1} of ${screenshots.length}`}
+                key={item.thumbUrl}
+                className="relative h-full basis-full pl-0"
+                aria-label={
+                  item.kind === "trailer"
+                    ? `Trailer: ${item.trailer.trailerName ?? "Unnamed"}`
+                    : `Screenshot ${i - trailerItems.length + 1} of ${screenshots.length}`
+                }
               >
                 <img
                   ref={setSlideRef(i)}
-                  src={s.thumbUrl}
+                  src={item.thumbUrl}
                   alt=""
                   // Prime the first two so the strip's opening frame and its
                   // immediate next are already decoded by the time autoplay
@@ -273,22 +405,41 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
                   loading={i <= 1 ? "eager" : "lazy"}
                   className="h-full w-full object-cover"
                 />
+                {item.kind === "trailer" && (
+                  // Centered play badge tells the viewer this slot is a
+                  // trailer, not a screenshot. `pointer-events-none` keeps
+                  // the click target as the overlay button below.
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
+                      <Play className="size-7 fill-white text-white" />
+                    </div>
+                  </div>
+                )}
               </CarouselItem>
             ))}
           </CarouselContent>
 
-          {/* Single overlay button to open the lightbox — keeps tab order to
-              one focusable surface for the strip itself. Chevrons sit above
-              at z-20; clicks on them don't bubble through to here because
-              they're siblings, not ancestors. */}
-          <DialogPrimitive.Trigger
+          {/* Single overlay button dispatches on the active item kind:
+              trailers open the TrailerModal at that highlight; screenshots
+              open the existing fullscreen lightbox with its VT morph.
+              Chevrons sit above at z-20; clicks on them don't bubble
+              through to here because they're siblings, not ancestors. */}
+          <button
             type="button"
-            aria-label={`View screenshot ${currentIndex + 1} of ${screenshots.length} fullscreen`}
+            aria-haspopup="dialog"
+            aria-label={triggerAriaLabel}
+            onClick={() => {
+              if (activeItem.kind === "trailer") {
+                setOpenedTrailer(activeItem.trailer);
+              } else {
+                handleOpenChange(true);
+              }
+            }}
             className="absolute inset-0 z-10 cursor-pointer rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           />
 
           {hasMultiple && (
-            <StripControls totalCount={screenshots.length} currentIndex={currentIndex} />
+            <StripControls totalCount={items.length} currentIndex={currentIndex} />
           )}
         </div>
       </Carousel>
@@ -300,7 +451,7 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
         >
           {/* Visually hidden — Radix Dialog requires an accessible name. */}
           <DialogPrimitive.Title className="sr-only">
-            Game screenshot {currentIndex + 1} of {screenshots.length}
+            Game screenshot {(screenshotIdxFromCarousel ?? 0) + 1} of {screenshots.length}
           </DialogPrimitive.Title>
           {/* width/height reserve the 16:9 layout box before pixels arrive
               so the VT NEW snapshot captures a stable rect on first open per
@@ -309,20 +460,28 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
               rect of 0×0 at the page origin — the morph then plays back as
               "shrink and fly to top-left corner". Actual served pixels may be
               smaller; `object-contain` centers them inside the reserved box. */}
-          <img
-            ref={lightboxImgRef}
-            src={active.fullUrl}
-            alt=""
-            width={1920}
-            height={1080}
-            className="block max-h-[95vh] max-w-[95vw] rounded-lg object-contain shadow-2xl"
-          />
-          {hasMultiple && (
+          {activeScreenshot && (
+            <img
+              ref={lightboxImgRef}
+              src={activeScreenshot.fullUrl}
+              alt=""
+              width={1920}
+              height={1080}
+              className="block max-h-[95vh] max-w-[95vw] rounded-lg object-contain shadow-2xl"
+            />
+          )}
+          {screenshots.length > 1 && (
             <>
               <button
                 type="button"
                 aria-label="Previous screenshot"
-                onClick={() => api?.scrollPrev()}
+                onClick={() => {
+                  if (screenshotIdxFromCarousel === null) return;
+                  const prev =
+                    (screenshotIdxFromCarousel - 1 + screenshots.length) %
+                    screenshots.length;
+                  api?.scrollTo(trailerItems.length + prev);
+                }}
                 className="absolute top-1/2 left-2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <ChevronLeft className="size-6" />
@@ -330,13 +489,17 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
               <button
                 type="button"
                 aria-label="Next screenshot"
-                onClick={() => api?.scrollNext()}
+                onClick={() => {
+                  if (screenshotIdxFromCarousel === null) return;
+                  const next = (screenshotIdxFromCarousel + 1) % screenshots.length;
+                  api?.scrollTo(trailerItems.length + next);
+                }}
                 className="absolute top-1/2 right-2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <ChevronRight className="size-6" />
               </button>
               <div className="pointer-events-none absolute right-0 bottom-3 left-0 text-center text-sm text-white/80 tabular-nums">
-                {currentIndex + 1} / {screenshots.length}
+                {(screenshotIdxFromCarousel ?? 0) + 1} / {screenshots.length}
               </div>
             </>
           )}
@@ -346,6 +509,21 @@ export function GameScreenshotStrip({ appid }: { appid: number }) {
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
+      {/* TrailerModal is a sibling to the lightbox Dialog — independent
+          open state, independent focus trap, no interference between the
+          two. Mounted only while a trailer is open so Shaka unmounts +
+          releases its MediaSource on close (see trailer-modal.tsx). */}
+      {openedTrailer && (
+        <Suspense fallback={null}>
+          <TrailerModal
+            trailer={openedTrailer}
+            open={openedTrailer !== null}
+            onOpenChange={(next) => {
+              if (!next) setOpenedTrailer(null);
+            }}
+          />
+        </Suspense>
+      )}
     </DialogPrimitive.Root>
   );
 }

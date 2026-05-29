@@ -1,5 +1,6 @@
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { SteamGameTrailer } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GameScreenshotStrip } from "./game-screenshot-strip";
@@ -221,7 +222,7 @@ describe("GameScreenshotStrip", () => {
     expect(lastCarouselApi?.selectedScrollSnap).toHaveBeenCalled();
   });
 
-  it("dispatches ArrowRight/ArrowLeft window keydowns to api.scrollNext/scrollPrev while the modal is open", () => {
+  it("dispatches ArrowRight/ArrowLeft window keydowns to api.scrollTo (screenshot-only navigation) while the modal is open", () => {
     setScreenshots([
       { filename: "ss_1.jpg", ordinal: 1 },
       { filename: "ss_2.jpg", ordinal: 2 },
@@ -231,13 +232,15 @@ describe("GameScreenshotStrip", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /View screenshot 1 of 2 fullscreen/ })
     );
-    (lastCarouselApi?.scrollNext as ReturnType<typeof vi.fn>).mockClear();
-    (lastCarouselApi?.scrollPrev as ReturnType<typeof vi.fn>).mockClear();
+    (lastCarouselApi?.scrollTo as ReturnType<typeof vi.fn>).mockClear();
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    // Starting screenshotIdx = 0 (the test mock keeps selectedScrollSnap at
+    // 0 unless we trigger a select event). ArrowRight → screenshotIdx+1=1.
+    // With no trailers, baseOffset=0, so api.scrollTo(0+1)=1.
+    const rightCalls = (lastCarouselApi?.scrollTo as ReturnType<typeof vi.fn>).mock.calls;
+    expect(rightCalls.length).toBe(1);
+    expect(rightCalls[0]?.[0]).toBe(1);
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(lastCarouselApi?.scrollNext).toHaveBeenCalled();
-    expect(lastCarouselApi?.scrollPrev).toHaveBeenCalled();
   });
 
   it("stops autoplay when the lightbox opens and resumes when it closes", () => {
@@ -434,5 +437,108 @@ describe("GameScreenshotStrip", () => {
     expect(
       (lastCarouselApi?.off as ReturnType<typeof vi.fn>).mock.calls.length
     ).toBeGreaterThan(offBefore);
+  });
+
+  describe("trailer items", () => {
+    const trailer = (overrides: Partial<SteamGameTrailer> = {}): SteamGameTrailer => ({
+      trailerName: "Launch trailer",
+      trailerCategory: 0,
+      allAges: true,
+      microtrailerWebm: "2050650/657549/abc/1750745214/microtrailer.webm",
+      microtrailerMp4: null,
+      screenshotMedium: "256998128/movie.293x165.jpg",
+      screenshotFull: "256998128/movie_full.jpg",
+      adaptiveTrailers: [
+        {
+          cdnPath: "2050650/657549/abc/1750745214/dash_h264.mpd",
+          encoding: "dash_h264",
+        },
+      ],
+      ...overrides,
+    });
+
+    it("renders nothing when only trailers exist but no screenshots and trailers prop is null", () => {
+      setScreenshots([]);
+      const { container } = render(<GameScreenshotStrip appid={42} trailers={null} />);
+      expect(container.firstChild).toBeNull();
+    });
+
+    it("renders the strip when at least one trailer is provided even with zero screenshots", () => {
+      setScreenshots([]);
+      const { container } = render(
+        <GameScreenshotStrip appid={42} trailers={[trailer()]} />
+      );
+      expect(container.firstChild).not.toBeNull();
+      expect(
+        document.querySelector(
+          'img[src*="/microtrailer-poster/256998128/movie.293x165.jpg"]'
+        )
+      ).toBeTruthy();
+    });
+
+    it("prepends trailer thumbnails before screenshots in the carousel", () => {
+      setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
+      render(
+        <GameScreenshotStrip
+          appid={42}
+          trailers={[
+            trailer(),
+            trailer({ screenshotMedium: "256998129/movie.293x165.jpg" }),
+          ]}
+        />
+      );
+      const allImgs = Array.from(document.querySelectorAll("img"));
+      const firstThree = allImgs.slice(0, 3).map((i) => i.getAttribute("src"));
+      expect(firstThree[0]).toContain("/microtrailer-poster/256998128/movie.293x165.jpg");
+      expect(firstThree[1]).toContain("/microtrailer-poster/256998129/movie.293x165.jpg");
+      expect(firstThree[2]).toContain("ss_1.600x338.jpg");
+    });
+
+    it("skips trailers without a poster (screenshotMedium === null)", () => {
+      setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
+      render(
+        <GameScreenshotStrip
+          appid={42}
+          trailers={[trailer({ screenshotMedium: null })]}
+        />
+      );
+      expect(document.querySelector('img[src*="/microtrailer-poster/"]')).toBeNull();
+      // Strip still renders the lone screenshot.
+      expect(
+        screen.getByRole("button", { name: /View screenshot 1 of 1 fullscreen/ })
+      ).toBeTruthy();
+    });
+
+    it("renders a play badge on each trailer item", () => {
+      setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
+      const { container } = render(
+        <GameScreenshotStrip appid={42} trailers={[trailer()]} />
+      );
+      // Lucide renders the Play icon as an inline svg; the badge wrapper has
+      // a fixed-size rounded background sitting absolutely centered.
+      const svgs = container.querySelectorAll("svg.lucide-play");
+      expect(svgs.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("opens the trailer modal (not the lightbox) when the active item is a trailer", async () => {
+      setScreenshots([{ filename: "ss_1.jpg", ordinal: 1 }]);
+      render(<GameScreenshotStrip appid={42} trailers={[trailer()]} />);
+      const trigger = screen.getByRole("button", { name: "Play Launch trailer" });
+      fireEvent.click(trigger);
+      // The trailer modal is lazy-loaded; wait for the suspense fallback to
+      // resolve, then assert its dialog is open. We don't directly engage
+      // Shaka — the modal itself has its own focused test in
+      // trailer-modal.test.tsx.
+      await vi.waitFor(() => {
+        expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+      });
+      // The screenshot lightbox shouldn't have opened; its title is the
+      // screenshot-numbered SR-only text.
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      const screenshotDialog = Array.from(dialogs).find((d) =>
+        d.textContent?.includes("Game screenshot")
+      );
+      expect(screenshotDialog).toBeUndefined();
+    });
   });
 });

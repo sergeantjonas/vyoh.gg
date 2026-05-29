@@ -283,7 +283,7 @@ function SteamGamePage() {
           they're separated by a wide media block. */}
       {game && (
         <section className="flex flex-col gap-4">
-          <GameScreenshotStrip appid={appid} />
+          <GameScreenshotStrip appid={appid} trailers={game?.trailers ?? null} />
           <GameAboutBlock appid={appid} />
         </section>
       )}
