@@ -187,65 +187,57 @@ function MatchDetailLayout() {
           top="var(--account-header-h)"
           championAlias={heroSummary.champion}
         >
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-3">
-              <ChampionSquareIcon
-                championName={heroSummary.champion}
-                className="size-6 rounded-sm"
-              />
-              <span className="text-sm font-medium">
-                {championName(heroSummary.champion)}
-              </span>
-              {heroSummary.remake ? (
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Remake
-                </span>
-              ) : (
-                <span
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-wider",
-                    heroSummary.win ? "text-emerald-400" : "text-red-400"
-                  )}
-                >
-                  {heroSummary.win ? "Win" : "Loss"}
-                </span>
-              )}
-              {!heroSummary.remake && lpDelta !== undefined && (
-                <span
-                  className={cn(
-                    "text-xs tabular-nums",
-                    lpDelta > 0
-                      ? "text-emerald-400"
-                      : lpDelta < 0
-                        ? "text-red-400"
-                        : "text-muted-foreground"
-                  )}
-                >
-                  {formatLpDelta(lpDelta)} LP
-                </span>
-              )}
-              <span className="font-mono text-sm tabular-nums">
-                <span className="text-emerald-400">{heroSummary.kills}</span>
-                <span className="text-muted-foreground"> / </span>
-                <span className="text-red-400">{heroSummary.deaths}</span>
-                <span className="text-muted-foreground"> / </span>
-                <span className="text-amber-400">{heroSummary.assists}</span>
-              </span>
-            </div>
-            <MatchDetailTabs
-              accountSlug={accountSlug}
-              matchId={matchId}
-              active={tab}
-              compact
-              indicatorId="match-detail-tab-indicator-sticky"
-              className="border-b-0"
+          <div className="flex items-center gap-3">
+            <ChampionSquareIcon
+              championName={heroSummary.champion}
+              className="size-6 rounded-sm"
             />
+            <span className="text-sm font-medium">
+              {championName(heroSummary.champion)}
+            </span>
+            {heroSummary.remake ? (
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Remake
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "text-xs font-semibold uppercase tracking-wider",
+                  heroSummary.win ? "text-emerald-400" : "text-red-400"
+                )}
+              >
+                {heroSummary.win ? "Win" : "Loss"}
+              </span>
+            )}
+            {!heroSummary.remake && lpDelta !== undefined && (
+              <span
+                className={cn(
+                  "text-xs tabular-nums",
+                  lpDelta > 0
+                    ? "text-emerald-400"
+                    : lpDelta < 0
+                      ? "text-red-400"
+                      : "text-muted-foreground"
+                )}
+              >
+                {formatLpDelta(lpDelta)} LP
+              </span>
+            )}
+            <span className="font-mono text-sm tabular-nums">
+              <span className="text-emerald-400">{heroSummary.kills}</span>
+              <span className="text-muted-foreground"> / </span>
+              <span className="text-red-400">{heroSummary.deaths}</span>
+              <span className="text-muted-foreground"> / </span>
+              <span className="text-amber-400">{heroSummary.assists}</span>
+            </span>
           </div>
         </ChampionStickyStrip>
       )}
-      <div className={cn(heroScrolledPast && "invisible")}>
-        <MatchDetailTabs accountSlug={accountSlug} matchId={matchId} active={tab} />
-      </div>
+      {/* Recap / Your game / Review / Timeline — the detail page's own tabs,
+          inline at the top of its content (not chrome). The section nav above
+          (Profile · Matches · …) is the sticky strip; stacking a second sticky
+          tab bar here was the chrome this arc condensed away. */}
+      <MatchDetailTabs accountSlug={accountSlug} matchId={matchId} active={tab} />
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}

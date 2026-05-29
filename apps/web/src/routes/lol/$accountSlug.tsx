@@ -216,27 +216,26 @@ function AccountLayout() {
     document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
   }, []);
 
-  // Detail pages currently render no section nav (restored in a later chunk of
-  // this arc); pass empty tabs so the strip shows identity + actions only.
-  const lolTabs: SectionTab[] = isMatchDetail
-    ? []
-    : TABS.map(({ to, label, Icon, exact }) => ({
-        to,
+  // Every LoL route — including match-detail — renders the section nav so the
+  // user always sees where they are (Matches stays highlighted on a detail
+  // page) and can jump sections. The detail page's own Recap/Your game/
+  // Timeline tabs live inline at the top of its content, not in this strip.
+  const lolTabs: SectionTab[] = TABS.map(({ to, label, Icon, exact }) => ({
+    to,
+    params: { accountSlug },
+    preserveSearch: true,
+    label,
+    Icon,
+    active: isTabActive({ to, exact }, pathname, accountSlug),
+  }));
+  const lolLive: SectionLiveTab | undefined = liveData
+    ? {
+        to: "/lol/$accountSlug/live",
         params: { accountSlug },
         preserveSearch: true,
-        label,
-        Icon,
-        active: isTabActive({ to, exact }, pathname, accountSlug),
-      }));
-  const lolLive: SectionLiveTab | undefined =
-    !isMatchDetail && liveData
-      ? {
-          to: "/lol/$accountSlug/live",
-          params: { accountSlug },
-          preserveSearch: true,
-          active: pathname === `/lol/${accountSlug}/live`,
-        }
-      : undefined;
+        active: pathname === `/lol/${accountSlug}/live`,
+      }
+    : undefined;
 
   if (!me.isPending && !me.isError && !account) {
     return <NotFound />;

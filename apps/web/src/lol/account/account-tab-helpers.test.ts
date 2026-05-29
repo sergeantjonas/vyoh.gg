@@ -67,6 +67,26 @@ describe("isTabActive", () => {
   });
 });
 
+describe("section nav active state on a match-detail path", () => {
+  // Chunk 1.1 of the nav-condensation arc restores the section nav on match-
+  // detail pages (it used to render no tabs there), with Matches highlighted.
+  // The strip derives each tab's active flag from the pathname, so a detail
+  // subpath must light up Matches and nothing else.
+  const detailPaths = [
+    "/lol/jonas-euw/matches/EUW1_1",
+    "/lol/jonas-euw/matches/EUW1_1/recap",
+    "/lol/jonas-euw/matches/EUW1_1/your-game",
+    "/lol/jonas-euw/matches/EUW1_1/review",
+    "/lol/jonas-euw/matches/EUW1_1/timeline",
+  ];
+
+  it.each(detailPaths)("highlights only Matches on %s", (path) => {
+    // TABS order is [Profile, Matches, Trends, Champions].
+    const active = TABS.map((tab) => isTabActive(tab, path, SLUG));
+    expect(active).toEqual([false, true, false, false]);
+  });
+});
+
 describe("tabIndexFromPath", () => {
   it("returns the index of the matching tab", () => {
     expect(tabIndexFromPath(TABS, "/lol/jonas-euw", SLUG)).toBe(0);
