@@ -73,16 +73,15 @@ describe("LolIdentityHero", () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Vyoh#Ahri");
   });
 
-  it("renders the primary-queue tier + LP (split lines) and the level badge", () => {
+  it("renders the queue's tier + LP in the rank strip and the level badge", () => {
     renderHero();
-    // The hero rank moment splits tier and LP onto separate lines (cinematic
-    // emblem treatment), so they're no longer one combined string.
+    // The rank strip renders tier and LP on separate lines per queue.
     expect(screen.getByText("Emerald I")).toBeTruthy();
     expect(screen.getByText("17 LP")).toBeTruthy();
     expect(screen.getByText("412")).toBeTruthy();
   });
 
-  it("prefers Solo over Flex for the crest", () => {
+  it("renders both ranked queues in the strip (Solo and Flex)", () => {
     renderHero({
       rankEntries: [
         entry({ queueId: "RANKED_FLEX_SR", tier: "GOLD", rank: "IV", leaguePoints: 5 }),
@@ -94,13 +93,17 @@ describe("LolIdentityHero", () => {
         }),
       ],
     });
+    // Both queues now share one surface (no Solo-preference collapse).
     expect(screen.getByText("Diamond II")).toBeTruthy();
     expect(screen.getByText("44 LP")).toBeTruthy();
+    expect(screen.getByText("Gold IV")).toBeTruthy();
+    expect(screen.getByText("5 LP")).toBeTruthy();
   });
 
-  it("shows Unranked when no rank entries exist", () => {
+  it("shows Unranked in both queue cells when no rank entries exist", () => {
     renderHero({ rankEntries: [] });
-    expect(screen.getByText("Unranked")).toBeTruthy();
+    // Strip keeps both columns; each unranked queue shows the placeholder.
+    expect(screen.getAllByText("Unranked")).toHaveLength(2);
   });
 
   it("brings the signature champion splash into focus via the sharp splash variant", () => {

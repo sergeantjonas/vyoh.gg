@@ -1,10 +1,9 @@
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { cn } from "@/lib/utils";
-import { championHeroSplashUrl, rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
+import { championHeroSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
-import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type RankEntry, formatTimeAgo } from "@vyoh/shared";
 import {
@@ -15,28 +14,8 @@ import {
   useTransform,
 } from "motion/react";
 import { type PointerEvent, useState } from "react";
+import { HeroRankStrip } from "./hero-rank-strip";
 import { IDENTITY_AVATAR_MORPH_ID, IDENTITY_NAME_MORPH_ID } from "./identity-layout";
-import { TIER_COLOR, TIER_GLOW } from "./profile-rank-tile";
-
-const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
-
-// Primary-queue entry for the headline crest (Solo preferred over Flex). Both
-// queues still get their own tile below the hero.
-function primaryEntry(entries: RankEntry[]): RankEntry | null {
-  return (
-    entries.find((e) => e.queueId === "RANKED_SOLO_5x5") ??
-    entries.find((e) => e.queueId === "RANKED_FLEX_SR") ??
-    null
-  );
-}
-
-// Tier + division only (no LP) — the LP renders on its own line in the hero
-// rank moment. Apex tiers (Master+) have no division.
-function tierLabel(entry: RankEntry): string {
-  const tier = entry.tier.charAt(0) + entry.tier.slice(1).toLowerCase();
-  const division = APEX_TIERS.has(entry.tier) ? "" : ` ${entry.rank}`;
-  return `${tier}${division}`;
-}
 
 interface LolIdentityHeroProps {
   gameName: string | undefined;
@@ -44,6 +23,10 @@ interface LolIdentityHeroProps {
   profileIconId: number | null | undefined;
   summonerLevel: number | null | undefined;
   rankEntries: RankEntry[];
+  // Per-queue normalized-LP series (last ~30d, oldest first) for the rank
+  // strip's LP sparklines. Optional — the strip renders without trend lines
+  // until the rank-history query settles.
+  recentLpByQueue?: Record<string, number[]> | undefined;
   // Signature (top-played) champion alias — the SAME subject the page's
   // ambient backdrop uses, so the hero reads as that backdrop coming into
   // focus rather than a second, competing splash.
@@ -53,22 +36,24 @@ interface LolIdentityHeroProps {
 }
 
 // Cinematic identity hero for the Profile landing: the signature champion's
-// splash resolves into a sharp, framed banner (rank-tinted avatar + name +
-// crest) at the top of the page, dissolving into the ambient wash below. The
-// splash carries a slow Ken-Burns drift (CSS) plus a subtle pointer parallax
-// (Motion); both collapse to a static frame under reduced motion.
+// splash resolves into a sharp, framed banner filling the card, with identity
+// (avatar + name + last-played) top-left and both ranked queues fused into a
+// frosted-glass performance strip across the bottom — one unified rank surface,
+// no separate tiles below. The splash carries a slow Ken-Burns drift (CSS) plus
+// a subtle pointer parallax (Motion); both collapse to a static frame under
+// reduced motion.
 export function LolIdentityHero({
   gameName,
   tagLine,
   profileIconId,
   summonerLevel,
   rankEntries,
+  recentLpByQueue,
   splashChampion,
   lastMatch,
 }: LolIdentityHeroProps) {
   const ddVersion = useDDragonVersion();
   const championName = useChampionName();
-  const emblemYear = useRankedEmblemYear();
   const reduced = useReducedMotion();
   // The hero owns the shared identity `layoutId` only while it's the on-screen
   // identity — i.e. at scroll-top. Once `compact` flips, the strip takes over
@@ -117,18 +102,6 @@ export function LolIdentityHero({
         ? { duration: 0.12, ease: "easeOut" as const }
         : { delay: 0.42, type: "spring" as const, stiffness: 520, damping: 24 },
   };
-
-  const entry = primaryEntry(rankEntries);
-  const tier = entry?.tier;
-  // Tier identity lives in the rank crest + rank text only. The avatar glow
-  // follows the CHAMPION (dominantHex) so the hero unifies with the page's
-  // champion accent (nav/tabs/--theme-*) and leaves tier's prominent moment
-  // to the rank crest (and the future animated-crest work).
-  const tierText = tier
-    ? (TIER_COLOR[tier] ?? "text-foreground")
-    : "text-muted-foreground";
-  // Tier-tinted backlight for the hero rank emblem (null → neutral fallback).
-  const tierGlow = tier ? TIER_GLOW[tier] : undefined;
 
   const splashUrl = splashChampion
     ? championHeroSplashUrl(splashChampion, ddVersion)
@@ -252,52 +225,24 @@ export function LolIdentityHero({
           ) : (
             <div className="h-9 w-56 animate-pulse rounded bg-muted" />
           )}
-          {entry ? (
-            <m.div {...detailReveal(1)} className="mt-0.5 flex items-center gap-2.5">
-              {/* Cinematic rank moment: the emblem sits in a tier-tinted glow
-                  bloom (mirrors the avatar's champion glow), so rank reads as
-                  part of the hero treatment rather than text floating on the
-                  splash. The hero owns rank-as-identity; the tiles below own
-                  rank-as-performance (W/L, win%, LP trend). */}
-              <div className="relative shrink-0">
-                <span
-                  aria-hidden
-                  className={cn(
-                    "-z-10 absolute -inset-1.5 rounded-full opacity-50 blur-xl",
-                    tierGlow ?? "bg-foreground/10"
-                  )}
-                />
-                <img
-                  src={rankEmblemUrl(entry.tier, emblemYear)}
-                  alt=""
-                  className="size-11 object-contain drop-shadow-md sm:size-12"
-                />
-              </div>
-              <span className="flex flex-col leading-tight">
-                <span className={cn("font-semibold text-lg tracking-tight", tierText)}>
-                  {tierLabel(entry)}
-                </span>
-                <span className="font-medium text-muted-foreground text-xs tabular-nums">
-                  {entry.leaguePoints} LP
-                </span>
-              </span>
-            </m.div>
-          ) : (
-            <m.span
-              {...detailReveal(1)}
-              className="mt-1 font-medium text-muted-foreground text-sm"
-            >
-              Unranked
-            </m.span>
-          )}
           {lastMatch && (
-            <m.p {...detailReveal(1)} className="text-muted-foreground text-xs">
+            <m.p {...detailReveal(1)} className="text-muted-foreground text-sm">
               Last played {championName(lastMatch.champion)} ·{" "}
               {formatTimeAgo(lastMatch.playedAt)}
             </m.p>
           )}
         </div>
       </div>
+
+      {/* Both ranked queues fused into a frosted-glass performance band across
+          the card bottom — the single rank surface for the profile (no tiles
+          below). Sits above the absolute splash layer; hidden in lockstep with
+          the identity when the hero collapses to the compact strip. */}
+      <HeroRankStrip
+        entries={rankEntries}
+        recentLpByQueue={recentLpByQueue}
+        compact={compact}
+      />
     </section>
   );
 }
