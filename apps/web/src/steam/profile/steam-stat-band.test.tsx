@@ -53,17 +53,20 @@ describe("SteamStatBand", () => {
     expect(screen.getByText("Total playtime")).toBeTruthy();
   });
 
-  it("shows the most-played game (games[0]) and its hours", () => {
-    render(<SteamStatBand />);
-    expect(screen.getByText("434h")).toBeTruthy();
-    expect(screen.getByText("Most: ELDEN RING NIGHTREIGN")).toBeTruthy();
+  it("shows the most-played game as a wordmark logo with hours in the label", () => {
+    const { container } = render(<SteamStatBand />);
+    // The game wordmark logo (alt = name), routed through the logo proxy.
+    const logo = container.querySelector('img[alt="ELDEN RING NIGHTREIGN"]');
+    expect(logo).toBeTruthy();
+    expect(logo?.getAttribute("src")).toContain("/logo/");
+    expect(screen.getByText(/Most played · 434h/)).toBeTruthy();
   });
 
-  it("computes the library-played percentage", () => {
+  it("renders the library-played split as a count, bar, and percentage", () => {
     render(<SteamStatBand />);
-    // 72 / 175 = 41%.
-    expect(screen.getByText("41%")).toBeTruthy();
-    expect(screen.getByText("Library played")).toBeTruthy();
+    // everLaunched 72 / owned 175 → "72 / 175 played", 41%, 103 backlog.
+    expect(screen.getByText("72 / 175")).toBeTruthy();
+    expect(screen.getByText(/41% · 103 in backlog/)).toBeTruthy();
   });
 
   it("renders em-dash placeholders before data resolves", () => {
