@@ -3,6 +3,7 @@ import { steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamPlayerState } from "@/steam/use-player-state";
 import { useSteamSummary } from "@/steam/use-steam-summary";
+import { formatTimeAgo } from "@vyoh/shared";
 import {
   m,
   useMotionValue,
@@ -61,6 +62,12 @@ export function SteamIdentityHero() {
 
   const presence = summary ? PRESENCE[summary.personaState] : null;
   const inGame = !!liveGame;
+  // Poller staleness, folded in from the deleted NowPlayingChip — its one bit
+  // of non-duplicated info. The player-state poller runs every ~2 min, so this
+  // tells the viewer how fresh the presence read is.
+  const lastChecked = playerState?.lastPolledAt
+    ? formatTimeAgo(playerState.lastPolledAt)
+    : null;
 
   // Pointer parallax — same treatment as the LoL hero; springs smooth the raw
   // pointer signal and the transform sits on a wrapper distinct from the
@@ -165,7 +172,10 @@ export function SteamIdentityHero() {
             </p>
           )}
 
-          {/* Presence line — online status only. In-game gets a live emerald
+          {/* Presence line — online status only, with the poller staleness
+              folded in (absorbed from the now-deleted NowPlayingChip; the chip
+              duplicated the game art + presence the hero already owns, leaving
+              only "last checked" as unique). In-game gets a live emerald
               treatment with the game name; otherwise the persona-state dot. */}
           {inGame ? (
             <p className="flex items-center gap-1.5 text-emerald-300 text-xs">
@@ -176,12 +186,18 @@ export function SteamIdentityHero() {
                 <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
               </span>
               Now playing {liveGame.name}
+              {lastChecked && (
+                <span className="text-emerald-300/60">· checked {lastChecked}</span>
+              )}
             </p>
           ) : (
             presence && (
               <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
                 <span className={cn("inline-flex size-2 rounded-full", presence.dot)} />
                 {presence.label}
+                {lastChecked && (
+                  <span className="text-muted-foreground/60">· checked {lastChecked}</span>
+                )}
               </p>
             )
           )}

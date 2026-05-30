@@ -114,6 +114,15 @@ describe("SteamIdentityHero", () => {
     expect(screen.getByText("Online")).toBeTruthy();
   });
 
+  it("folds the poller staleness into the presence line", () => {
+    // Folded in from the deleted NowPlayingChip — its one unique signal.
+    playerStateMock.mockReturnValue(
+      playerState({ lastPolledAt: new Date(Date.now() - 5 * 60_000).toISOString() })
+    );
+    renderHero();
+    expect(screen.getByText(/checked 5 minutes ago/)).toBeTruthy();
+  });
+
   it("shows the live now-playing line when in-game", () => {
     playerStateMock.mockReturnValue(
       playerState({ currentGame: { appid: 440, name: "Team Fortress 2" } })
