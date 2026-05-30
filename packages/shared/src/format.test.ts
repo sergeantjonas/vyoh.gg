@@ -8,6 +8,7 @@ import {
   formatLpDelta,
   formatPercent,
   formatPlaytime,
+  formatTimeAgo,
 } from "./format.ts";
 
 describe("formatDuration", () => {
@@ -150,5 +151,23 @@ describe("formatPercent", () => {
   it("honors the decimals override for sub-point precision", () => {
     expect(formatPercent(0.583, 1)).toBe("58.3%");
     expect(formatPercent(0.5025, 2)).toBe("50.25%");
+  });
+});
+
+describe("formatTimeAgo", () => {
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
+  it("renders sub-hour diffs in minutes", () => {
+    expect(formatTimeAgo(ago(5 * 60_000))).toBe("5m ago");
+    expect(formatTimeAgo(ago(0))).toBe("0m ago");
+  });
+
+  it("renders sub-day diffs in hours", () => {
+    expect(formatTimeAgo(ago(3 * 60 * 60_000))).toBe("3h ago");
+    expect(formatTimeAgo(ago(23 * 60 * 60_000))).toBe("23h ago");
+  });
+
+  it("renders multi-day diffs in days", () => {
+    expect(formatTimeAgo(ago(2 * 24 * 60 * 60_000))).toBe("2d ago");
   });
 });

@@ -62,3 +62,19 @@ export function formatLpDelta(delta: number): string {
 export function formatPercent(ratio: number, decimals = 0): string {
   return `${(ratio * 100).toFixed(decimals)}%`;
 }
+
+// Compact "Xm/h/d ago" relative timestamp. Lives here because the same
+// three-tier shape (minutes < 60 → "Xm ago", hours < 24 → "Xh ago",
+// else "Xd ago") was inlined across the command palette, match rows, and
+// several Steam surfaces. Sub-minute diffs render as "0m ago" to keep the
+// form stable — a caller wanting "just now" should special-case before
+// calling. Migration of the existing inline copies is a separate sweep.
+export function formatTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}

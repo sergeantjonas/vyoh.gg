@@ -2,6 +2,7 @@ import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
+import { LolIdentityBlock } from "@/lol/profile/identity-block";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
@@ -10,7 +11,6 @@ import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfilePostGame } from "@/lol/profile/profile-post-game";
 import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
-import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
 import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
@@ -19,6 +19,7 @@ import { ProfileSynergy } from "@/lol/profile/profile-synergy";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { excludeRemakes } from "@vyoh/shared";
 import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
@@ -50,12 +51,28 @@ function ProfilePage() {
     };
   }, [rankHistory.data]);
   const { matches } = useMatchWindow();
+  // Most-recent non-remake match drives the identity block's "last played X"
+  // sub-row. Remakes are excluded so it mirrors the summary's
+  // lastPlayedChampionAlias semantics (see the remake invariant convention).
+  const lastMatch = useMemo(() => {
+    if (!matches) return null;
+    const real = excludeRemakes(matches);
+    if (real.length === 0) return null;
+    return real.reduce((latest, m) =>
+      new Date(m.playedAt) > new Date(latest.playedAt) ? m : latest
+    );
+  }, [matches]);
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileRankTiles
-        entries={rank.data?.rankEntries ?? []}
+      <LolIdentityBlock
+        gameName={account?.gameName}
+        tagLine={account?.tagLine}
+        profileIconId={rank.data?.profileIconId}
+        summonerLevel={rank.data?.summonerLevel}
+        rankEntries={rank.data?.rankEntries ?? []}
         recentLpByQueue={recentLpByQueue}
+        lastMatch={lastMatch}
       />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePatchNotice accountSlug={accountSlug} />

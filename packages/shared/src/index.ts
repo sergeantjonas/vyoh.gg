@@ -8,6 +8,7 @@ export {
   formatPercent,
   formatPlaytime,
   formatPlaytimeFromSeconds,
+  formatTimeAgo,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
 export {

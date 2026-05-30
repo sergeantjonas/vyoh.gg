@@ -1,6 +1,6 @@
 # Nav condensation arc
 
-**Status:** Active — **Chunk 1.1 SHIPPED 2026-05-30** (merged tiered strip, Model 3 master→detail nav, breadcrumb section-switcher, strip-action-icon parity). **Chunk 1.5 LoL portion SHIPPED 2026-05-30** (topbar `AccountRow` showcase: 44px avatar, last-played splash wash, open-stagger; Steam-card variant + live pill deferred — see the 1.5 entry). **Chunk 1.3a (Profile-tab identity block) is next** — the only remaining unblocked, dependency-free chunk, and it's the soak-time prerequisite for 1.2's evaluation trigger. 1.2 is evidence-gated on 1.1+1.3a soak; 1.3b is gated on external arcs. Promoted to [open-work.md](../open-work.md).
+**Status:** Active — **Chunk 1.1 SHIPPED 2026-05-30** (merged tiered strip, Model 3 master→detail nav, breadcrumb section-switcher, strip-action-icon parity). **Chunk 1.5 LoL portion SHIPPED 2026-05-30** (topbar `AccountRow` showcase: 44px avatar, last-played splash wash, open-stagger; Steam-card variant + live pill deferred — see the 1.5 entry). **Chunk 1.3a LoL portion SHIPPED 2026-05-30** (LoL Profile-tab identity block: 80–96px summoner-icon avatar + level badge, `Vyoh#Ahri` headline, primary-queue rank line, last-played-champion sub-row; Solo/Flex rank tiles re-parented as the block's second section — see the 1.3a entry). **Chunk 1.3a Steam portion is next** (1.3a-2 data gate → 1.3a-3 Steam identity block). 1.2 is evidence-gated on 1.1+1.3a soak; 1.3b is gated on external arcs. Promoted to [open-work.md](../open-work.md).
 
 Condense top-of-page chrome from three layers (primary nav + identity header + secondary tabs) to two, restore section context inside detail pages, and elevate the avatar — currently a small static circle — into a piece of visible identity character. Multi-chunk arc; 1.1 lands first and unblocks 1.2 and 1.3.
 
@@ -195,6 +195,15 @@ The sketch step is the chunk's first commit, not deferred work.
 **Perf-baseline check before promoting to shipped:** the ring animation adds compositor work on every page that mounts the merged strip (effectively every page). Re-baseline LCP / INP / scroll-jank against [perf-baseline.md](perf-baseline.md) before this chunk lands. If any metric regresses, prototype's design needs revisiting (likely drop the live overlay first).
 
 ### Chunk 1.3a — Profile-tab identity block (bare, ship-ready)
+
+**LoL portion SHIPPED (2026-05-30).** `apps/web/src/lol/profile/identity-block.tsx` (`LolIdentityBlock`) now opens the Profile tab as page content: an 80px→96px (sm) summoner-icon avatar with a `ring-2` border + level badge, a `Vyoh#Ahri` headline (`#tag` muted), the primary-queue rank line (`Emerald I · 17 LP`, Solo preferred over Flex, "Unranked" fallback), and a `Last played {Champion} · Nh ago` sub-row derived from the most-recent **non-remake** match (via `excludeRemakes`). The existing `ProfileRankTiles` are re-parented as the block's second section; the route ([routes/lol/$accountSlug/index.tsx](../../../apps/web/src/routes/lol/$accountSlug/index.tsx)) renders `LolIdentityBlock` in place of the standalone tiles. Tests cover headline/Solo-preference/Flex-fallback/Unranked, the last-played row (present + omitted), avatar proxy URL + decorative `alt`, placeholder state, rank-tiles-as-second-section, and an axe scan ([identity-block.test.tsx](../../../apps/web/src/lol/profile/identity-block.test.tsx)).
+
+**Deviations from the original spec, by design:**
+- **Mastery dropped from the sub-row.** Champion mastery is only fetched for live-game participants (`live-game-poller.service.ts` → `LiveMastery`); there is no per-account "mastery on last-played champion" surfaced to the Profile route. Adding one would mean an API expansion, which is out of scope for a structure-first chunk. The sub-row ships as `Last played {Champion} · Nh ago` only. If a mastery endpoint lands later, extend the sub-row then.
+- **Live `in-game now` not wired into the sub-row.** Same presence-plumbing gap as 1.5's live pill; the existing `LiveGameChip` below the block already covers the live state. Revisit when the shared SSE/presence work lands.
+- **Relative-time helper consolidated.** Added `formatTimeAgo` to `@vyoh/shared` (`format.ts`) rather than inlining a 7th `Xm/h/d ago` copy. The 6 existing inline copies (command palette, match rows, several Steam surfaces) are a **separate consolidation sweep** — not migrated here.
+
+No perf gate for this chunk: it adds no animation or compositor work (static text + one avatar image), unlike 1.2's ring.
 
 **Goal:** the Profile tab opens with a content-level identity block as page content, not chrome. Always shippable — no dependencies on other arcs.
 
