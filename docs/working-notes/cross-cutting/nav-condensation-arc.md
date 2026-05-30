@@ -1,6 +1,6 @@
 # Nav condensation arc
 
-**Status:** Active — pre-1.1 sizing pass complete (2026-05-29, collapse strategy LOCKED below). Chunk 1.1 implementation next. Promoted to [open-work.md](../open-work.md).
+**Status:** Active — **Chunk 1.1 SHIPPED 2026-05-30** (merged tiered strip, Model 3 master→detail nav, breadcrumb section-switcher, strip-action-icon parity). **Chunk 1.3a (Profile-tab identity block) is next** — the only unblocked, dependency-free chunk, and it's the soak-time prerequisite for 1.2's evaluation trigger. 1.5 can parallelize; 1.2 is evidence-gated on 1.1+1.3a soak; 1.3b is gated on external arcs. Promoted to [open-work.md](../open-work.md).
 
 Condense top-of-page chrome from three layers (primary nav + identity header + secondary tabs) to two, restore section context inside detail pages, and elevate the avatar — currently a small static circle — into a piece of visible identity character. Multi-chunk arc; 1.1 lands first and unblocks 1.2 and 1.3.
 
