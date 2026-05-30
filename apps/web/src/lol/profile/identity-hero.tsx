@@ -101,6 +101,21 @@ export function LolIdentityHero({
       : { delay: compact ? 0 : 0.22, duration: 0.26, ease: "easeOut" as const },
   });
 
+  // The level badge sits at the bottom edge of the avatar's *landing* spot, so
+  // fading it in alongside the chrome reads as the avatar sliding in behind a
+  // pre-placed badge. Land it clearly AFTER the avatar arrives (longer delay
+  // than the slide) and pop it with a small scale so it reads as settling onto
+  // the avatar, not floating ahead of it. Collapsing fades it out promptly.
+  const badgeReveal = {
+    initial: reduced ? false : ({ opacity: 0, scale: 0.6 } as const),
+    animate: { opacity: compact ? 0 : 1, scale: compact ? 0.6 : 1 },
+    transition: reduced
+      ? { duration: 0 }
+      : compact
+        ? { duration: 0.12, ease: "easeOut" as const }
+        : { delay: 0.42, type: "spring" as const, stiffness: 520, damping: 24 },
+  };
+
   const entry = primaryEntry(rankEntries);
   const tier = entry?.tier;
   // Tier identity lives in the rank crest + rank text only. The avatar glow
@@ -209,7 +224,7 @@ export function LolIdentityHero({
           )}
           {summonerLevel != null && (
             <m.span
-              {...detailReveal(1)}
+              {...badgeReveal}
               className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums ring-1 ring-border"
             >
               {summonerLevel}
