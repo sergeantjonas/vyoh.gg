@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { m } from "motion/react";
-import type { ComponentType, MouseEvent } from "react";
+import { type ComponentType, type MouseEvent, useState } from "react";
 
 // Structured descriptor for a section tab. The shell renders these three ways
 // depending on viewport (full tab row ≥820px, a filling section dropdown
@@ -188,8 +188,17 @@ export function SectionTabsDropdown({
   className?: string;
 }) {
   const active = tabs.find((tab) => tab.active);
+  // Controlled-open so we can close imperatively on item click. The default
+  // Radix close-on-click only fires when the item's click event isn't
+  // `preventDefault()`'d — but the identity morph driver (LoL/Steam Profile
+  // ↔ tab nav) preventDefault's the click to hand-roll its own view
+  // transition, which leaves the dropdown stuck open after navigation
+  // (visible on narrow viewports where the dropdown is the only nav route).
+  // Closing imperatively from inside our onClick wrapper below sidesteps
+  // Radix's defaultPrevented check.
+  const [open, setOpen] = useState(false);
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -220,7 +229,10 @@ export function SectionTabsDropdown({
               params={tab.params as never}
               search={searchProp(tab.preserveSearch) as never}
               replace={tab.replace ?? false}
-              onClick={tab.onSelect}
+              onClick={(e) => {
+                tab.onSelect?.(e);
+                setOpen(false);
+              }}
               className="flex cursor-pointer items-center gap-2"
             >
               <tab.Icon

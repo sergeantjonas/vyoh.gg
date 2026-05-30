@@ -1,4 +1,5 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { cn } from "@/lib/utils";
 import { m, useReducedMotion } from "motion/react";
 import { type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -30,6 +31,23 @@ type SectionShellProps = {
   tabIndicatorId?: string;
   // Optional live route, rendered as a route-aware presence chip (not a tab).
   live?: SectionLiveTab | undefined;
+  // Current route pathname. When provided, every change resets the scroll-
+  // driven `compact` state — every nav lands at `scrollTop=0` (via the
+  // section root's `useScrollResetOnNav`), and the `compact` toggle's 400ms
+  // cooldown can otherwise block the exit when the user scrolled into
+  // compact and then clicked a dropdown item before the cooldown elapsed,
+  // leaving the strip stuck in compact-mode on the new page until they
+  // manually scroll.
+  pathname?: string;
+  // True when a hero card upstream (LoL `LolIdentityHero` / Steam
+  // `SteamIdentityHero`) owns the identity at scroll-top, so the strip's
+  // identity slot resolves to `null` while not compact. Drives the narrow-
+  // viewport (<640px) dropdown layout: with no identity in row 1, the dropdown
+  // promotes from its own row 2 up to row 1 so the strip doesn't read as a
+  // bar of empty whitespace + a dropdown below. Once the user scrolls and the
+  // identity morphs into the strip (`compact === true`), the dropdown drops
+  // back to row 2 to make room.
+  heroOwnsIdentity?: boolean;
   children: ReactNode;
   // External ref to the <header>; merged with the shell's internal ref.
   // Consumers who need DOM access (e.g. LoL writing `--account-header-h`) pass
@@ -47,6 +65,8 @@ export function SectionShell({
   tabs = [],
   tabIndicatorId = "section-tab-indicator",
   live,
+  pathname,
+  heroOwnsIdentity = false,
   children,
   headerRef: externalHeaderRef,
   onHeaderRect,
@@ -143,6 +163,29 @@ export function SectionShell({
     return () => scrollEl.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Reset the scroll-driven states on every route transition. SectionShell
+  // is the section layout — it doesn't remount on tab nav, so without this
+  // the `compact` flag persists across pathname changes. The morph driver
+  // does set `scrollTop = 0` during the nav, which fires a scroll event,
+  // but the toggle's 400ms cooldown (above) can block the exit when the
+  // user scrolled into compact and immediately clicked the dropdown. The
+  // symptom: returning to Profile from a scrolled-other-tab leaves the
+  // hero identity faded (`compact && opacity-0` on the avatar/name) and
+  // the strip identity rendered, until the user manually scrolls to
+  // re-trigger the toggle. Resetting here is independent of the cooldown
+  // and matches the scroll-reset that `useScrollResetOnNav` already does
+  // in the section root — every nav lands at scrollTop=0, so the compact
+  // state should follow.
+  // `pathname` is intentionally the trigger — the effect body doesn't read
+  // it, it just re-fires whenever the route changes so the scroll-driven
+  // states reset.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
+  useEffect(() => {
+    setCompact(false);
+    setBandOpaque(false);
+    lastToggleRef.current = 0;
+  }, [pathname]);
+
   const header = (
     <header ref={setHeaderRef} className="relative">
       {/* Header band — `position: fixed` so it spans the true viewport width
@@ -198,7 +241,20 @@ export function SectionShell({
               <SectionTabsDropdown
                 tabs={tabs}
                 onLive={live?.active ?? false}
-                className="order-last basis-full min-[640px]:order-3 min-[640px]:basis-0 min-[640px]:grow min-[880px]:hidden"
+                className={cn(
+                  // 640px+ is unchanged: dropdown inline on row 1.
+                  "min-[640px]:order-3 min-[640px]:basis-0 min-[640px]:grow min-[880px]:hidden",
+                  // <640px: when a hero upstream owns the identity at scroll-
+                  // top (`heroOwnsIdentity && !compact`), the strip's identity
+                  // slot is null and reserving row 1 for it reads as dead
+                  // space; promote the dropdown to row 1 to fill that space.
+                  // Once compact (identity has morphed in) or on any non-hero
+                  // route (match-detail, etc.), keep the default own-row 2
+                  // layout so a non-empty identity has its row.
+                  heroOwnsIdentity && !compact
+                    ? "order-3 basis-0 grow"
+                    : "order-last basis-full"
+                )}
               />
             </>
           )}

@@ -108,6 +108,39 @@ describe("SectionShell", () => {
     expect(screen.getByRole("button", { name: "Sections" })).toBeTruthy();
   });
 
+  it("promotes the dropdown to row 1 at <640px when a hero owns the identity at scroll-top", () => {
+    // Default behaviour (no hero upstream): dropdown gets its own row 2 at
+    // narrow widths so a non-empty identity has row 1 to itself.
+    const { rerender } = renderShell();
+    const trigger = screen.getByRole("button", { name: "Sections" });
+    expect(trigger.className).toContain("order-last");
+    expect(trigger.className).toContain("basis-full");
+
+    // With `heroOwnsIdentity`, the strip's identity slot resolves to null at
+    // scroll-top — promote the dropdown to row 1 so it fills the otherwise-
+    // empty space rather than leaving a bar of whitespace above an own-row
+    // dropdown.
+    rerender(
+      <MotionConfig reducedMotion="always">
+        <SectionShell
+          identity={<span>identity</span>}
+          actions={<button type="button">act</button>}
+          tabs={TABS}
+          tabIndicatorId="test-tab-indicator"
+          heroOwnsIdentity
+        >
+          <p>section body</p>
+        </SectionShell>
+      </MotionConfig>
+    );
+    const promoted = screen.getByRole("button", { name: "Sections" });
+    expect(promoted.className).toContain("order-3");
+    expect(promoted.className).toContain("basis-0");
+    expect(promoted.className).toContain("grow");
+    expect(promoted.className).not.toContain("order-last");
+    expect(promoted.className).not.toContain("basis-full");
+  });
+
   it("has no axe violations for the merged strip (tabs + dropdown + live + actions)", async () => {
     renderShell({ live: { to: "/live", active: false } });
     // The strip is portaled into the slot in document.body, not the RTL
@@ -199,6 +232,54 @@ describe("SectionShell", () => {
       ?.querySelector('[aria-hidden="true"]');
     expect(overlay).not.toBeNull();
     expect((overlay as HTMLElement).style.opacity).toBe("1");
+  });
+
+  it("resets the scroll-driven state on pathname change so compact doesn't bleed across tab navs", () => {
+    const scrollEl = document.createElement("div");
+    Object.defineProperty(scrollEl, "scrollTop", { value: 200, writable: true });
+    mainScrollRef.current = scrollEl;
+
+    const { rerender } = render(
+      <MotionConfig reducedMotion="always">
+        <SectionShell
+          identity={<span>identity</span>}
+          actions={<button type="button">act</button>}
+          tabs={TABS}
+          tabIndicatorId="test-tab-indicator"
+          pathname="/a"
+        >
+          <p>section body</p>
+        </SectionShell>
+      </MotionConfig>
+    );
+    // Scroll deep enough to flip bandOpaque + (compact) on the source route.
+    fireEvent.scroll(scrollEl);
+    const slot = document.getElementById("section-header-slot");
+    const overlay = slot?.querySelector('[aria-hidden="true"]');
+    expect((overlay as HTMLElement).style.opacity).toBe("1");
+
+    // Navigate to a new pathname. The morph driver normally sets scrollTop=0
+    // during the VT, but the compact-toggle's 400ms cooldown can block that
+    // reset; the pathname-driven effect here is the cooldown-independent
+    // safety net so the new page doesn't start in stale compact-mode.
+    rerender(
+      <MotionConfig reducedMotion="always">
+        <SectionShell
+          identity={<span>identity</span>}
+          actions={<button type="button">act</button>}
+          tabs={TABS}
+          tabIndicatorId="test-tab-indicator"
+          pathname="/b"
+        >
+          <p>section body</p>
+        </SectionShell>
+      </MotionConfig>
+    );
+    // Overlay opacity drops back to 0 because bandOpaque reset.
+    const resetOverlay = document
+      .getElementById("section-header-slot")
+      ?.querySelector('[aria-hidden="true"]');
+    expect((resetOverlay as HTMLElement).style.opacity).toBe("0");
   });
 
   it("leaves the band transparent while scrollTop is ≤16", () => {

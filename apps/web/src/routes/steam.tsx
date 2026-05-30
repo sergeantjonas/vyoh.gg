@@ -96,6 +96,14 @@ function SteamLayout() {
       <SteamProfileBackdrop>
         <SectionShell
           identity={<SteamIdentity />}
+          // Reset the scroll-driven compact state on every nav (see the
+          // SectionShell prop comment for the full why).
+          pathname={pathname}
+          // The Steam Profile is the only tab that mounts the cinematic hero
+          // that owns identity at scroll-top — the strip's identity slot
+          // resolves to null there until the user scrolls. Same role as LoL's
+          // `isProfileIndex` flag.
+          heroOwnsIdentity={pathname === "/steam" || pathname === "/steam/"}
           tabs={steamTabs}
           tabIndicatorId="steam-tab-indicator"
           actions={<SteamPreferences />}

@@ -301,6 +301,15 @@ function AccountLayout() {
             <SectionShell
               headerRef={setHeaderEl}
               onHeaderRect={onHeaderRect}
+              // Reset the scroll-driven compact state on every nav (see the
+              // SectionShell prop comment for the full why).
+              pathname={pathname}
+              // The Profile landing is the only LoL tab that mounts a hero
+              // that takes over identity at scroll-top — the strip's identity
+              // slot resolves to null there until the user scrolls. Tell the
+              // shell so the narrow-viewport dropdown promotes to row 1 to
+              // fill the space that would otherwise read as dead whitespace.
+              heroOwnsIdentity={isProfileIndex}
               identity={
                 <LolIdentity
                   account={account}
