@@ -37,6 +37,9 @@ export function MatchesBreadcrumb({
   sections: readonly BreadcrumbSection[];
 }) {
   const { setOriginRect } = useActiveMatch();
+  // The Matches section icon (clock), so the breadcrumb carries a leading glyph
+  // like every detail tab beside it instead of reading as bare text.
+  const MatchesIcon = sections.find((s) => s.to === MATCHES_ROUTE)?.Icon;
   // One cohesive breadcrumb-switcher unit: the "Matches" label is the one-click
   // back link, the single trailing caret opens the section menu. Dropping a
   // back-pointing `‹` next to a down-pointing `⌄` (the two fought visually) for
@@ -58,8 +61,9 @@ export function MatchesBreadcrumb({
             });
           }
         }}
-        className="rounded px-1 transition-colors hover:text-foreground"
+        className="inline-flex items-center gap-1.5 rounded px-1 transition-colors hover:text-foreground"
       >
+        {MatchesIcon && <MatchesIcon className="size-4" />}
         Matches
       </Link>
       <DropdownMenu>
