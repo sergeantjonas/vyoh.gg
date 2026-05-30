@@ -37,7 +37,7 @@ function RankCell({
 
   if (!entry) {
     return (
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
         {/* Real Unranked crest (wiki `Season_{year}_-_Unranked.png`, resolved
             through the same rankEmblem proxy as every tier — no API change),
             desaturated + dimmed so the column has the same shape as a ranked
@@ -65,6 +65,11 @@ function RankCell({
             {label}
           </span>
           <span className="font-semibold text-muted-foreground/60 text-xl">Unranked</span>
+          {/* Row-parity spacer — matches the height of the ranked cell's
+              "{LP} {W}W {L}L · {WR}%" stats line so a one-queue-ranked
+              profile doesn't render with the unranked column floating
+              short of its counterpart. */}
+          <span aria-hidden className="h-5" />
         </div>
       </div>
     );
@@ -78,7 +83,7 @@ function RankCell({
     total != null && total > 0 && wins != null ? formatPercent(wins / total) : null;
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
       {/* Emblem in a rail that matches the avatar's footprint (w-20/24 === the
           avatar's size-20/24), so the leading emblem centers on the same
           vertical axis as the avatar above it instead of ragged-aligning to
@@ -170,7 +175,7 @@ export function HeroRankStrip({
       initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: compact ? 0 : 1 }}
       transition={reduced ? { duration: 0 } : { delay: compact ? 0 : 0.3, duration: 0.3 }}
-      className="relative flex flex-col gap-4 border-white/10 border-t bg-background/25 px-6 py-4 backdrop-blur-sm sm:flex-row sm:gap-6"
+      className="relative flex flex-col gap-4 border-white/10 border-t bg-background/20 px-6 py-4 backdrop-blur-xs sm:flex-row sm:gap-6"
     >
       {QUEUE_ORDER.map((queueId) => (
         <RankCell
