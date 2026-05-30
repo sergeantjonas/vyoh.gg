@@ -1,6 +1,6 @@
 # Nav condensation arc
 
-**Status:** Active — **Chunk 1.1 SHIPPED 2026-05-30** (merged tiered strip, Model 3 master→detail nav, breadcrumb section-switcher, strip-action-icon parity). **Chunk 1.5 LoL portion SHIPPED 2026-05-30** (topbar `AccountRow` showcase: 44px avatar, last-played splash wash, open-stagger; Steam-card variant + live pill deferred — see the 1.5 entry). **Chunk 1.3a LoL portion SHIPPED 2026-05-30** — landed as a **cinematic champion-splash hero** (`LolIdentityHero`), not the bare block: signature-champion splash (sharp 1280px `splash` variant) brought into focus over the ambient backdrop, avatar + `Vyoh#Ahri` + rank crest + last-played, champion-accent glow, Ken-Burns + pointer parallax. Avatar/square icon proxies bumped to native 128px. **M2 (scroll-collapse morph into the strip) SHIPPED 2026-05-30**, plus a scope extension **M2b (the same identity morphs on Profile↔tab navigation) SHIPPED 2026-05-30** — see the 1.3a entry. (Perf-validated on host Chrome 2026-05-30: nav-morph INP 8ms, no regression.) **Chunk 1.3a Steam portion still pending** (1.3a-2 data gate → 1.3a-3 Steam identity block). 1.2 is evidence-gated on 1.1+1.3a soak; 1.3b is gated on external arcs. Promoted to [open-work.md](../open-work.md).
+**Status:** Active — **Chunk 1.1 SHIPPED 2026-05-30** (merged tiered strip, Model 3 master→detail nav, breadcrumb section-switcher, strip-action-icon parity). **Chunk 1.5 LoL portion SHIPPED 2026-05-30** (topbar `AccountRow` showcase: 44px avatar, last-played splash wash, open-stagger; Steam-card variant + live pill deferred — see the 1.5 entry). **Chunk 1.3a LoL portion SHIPPED 2026-05-30** — landed as a **cinematic champion-splash hero** (`LolIdentityHero`), not the bare block: signature-champion splash (sharp 1280px `splash` variant) brought into focus over the ambient backdrop, avatar + `Vyoh#Ahri` + rank crest + last-played, champion-accent glow, Ken-Burns + pointer parallax. Avatar/square icon proxies bumped to native 128px. **M2 (scroll-collapse morph into the strip) SHIPPED 2026-05-30**, plus a scope extension **M2b (the same identity morphs on Profile↔tab navigation) SHIPPED 2026-05-30** — see the 1.3a entry. (Perf-validated on host Chrome 2026-05-30: nav-morph INP 8ms, no regression.) **Chunk 1.3a Steam portion SHIPPED 2026-05-30** — landed as a cinematic Steam identity hero (`SteamIdentityHero`) with live-game-or-top-played backdrop, avatar + persona name + identity headline (`Member since · Level · top N%`) + presence line, plus a 4-cell `SteamStatBand` (recently played + total playtime + most played + library played with bar). See the 1.3a entry for Steam-specific decisions. **Steam M2/M2b morph parity remains as a follow-on** (the LoL portion ships both scroll-collapse and nav-morph; Steam's strip identity is plain inline today). **Chunk 1.2 retargeted from the abandoned seam-straddle ring to a hero-avatar activity ring** (Steam: 7-state presence palette aligned to Steam's brand vocabulary, in-game pulse; LoL: binary in-live-game emerald pulse); 1.3b is gated on external arcs. Promoted to [open-work.md](../open-work.md).
 
 Condense top-of-page chrome from three layers (primary nav + identity header + secondary tabs) to two, restore section context inside detail pages, and elevate the avatar — currently a small static circle — into a piece of visible identity character. Multi-chunk arc; 1.1 lands first and unblocks 1.2 and 1.3.
 
@@ -148,53 +148,90 @@ Each chunk independently committable.
 
 **Perf-baseline check before promoting to shipped:** the dropdown open path now does meaningful per-row paint work (avatars, splash-tint backgrounds, animated entry). Re-baseline against [perf-baseline.md](perf-baseline.md) — specifically dropdown-open responsiveness — before this chunk lands.
 
-### Chunk 1.2 — Avatar rings (live status + rank tint)
+### Chunk 1.2 — Hero avatar activity ring
 
-**Goal:** make the small sticky-strip avatar carry visible identity character without growing.
+> **RETARGETED (2026-05-30):** the original chunk wrapped a *rank-tier-colored ring* around the *seam-straddling avatar* in the merged strip, with an animated live overlay as a third signal on the same ring. **Two premises went away during 1.1 implementation.** The seam-straddle was dropped (the shipped `LolIdentity` is plain inline, no boundary-straddle), and the rank-tier color cascade lost its justification once the cinematic Profile hero on 1.3a became the primary identity surface (the strip avatar is now a small inline anchor, not the identity star — tinting it with rank doubles up against the rank crest already visible in the hero and the existing rank tiles below). The "few days of soak" evaluation gate is moot for the same reason: the question the soak was meant to answer ("does the seam avatar feel inert without character?") doesn't apply when there's no seam. The chunk retargets to a much narrower premise: **a presence-state ring around the hero avatar** (Steam + LoL), driven by data already wired.
 
-**Sequencing — lands after 1.1 and 1.3a, with an evidence-based evaluation trigger.** This chunk answers the question "does the merged-strip avatar feel visually inert without ring treatment?" That question is only honestly answerable *after* the merged strip is in front of real eyes — pre-judging it from a sketch would be guessing.
+**Goal:** give the hero avatar an at-a-glance activity signal so the identity surface reads as live (or not) without having to parse the inline presence line. Uses presence data already polled — no new infrastructure.
 
-**Evaluation trigger before this chunk commits:**
+**Sequencing:** ship-ready now. 1.1 + 1.3a have both landed; the data sources (`summary.personaState` + `playerState.currentGame` on Steam; `useLiveGame(account)` on LoL) are already wired and consumed by adjacent surfaces. Lands before the Steam M2/M2b morph parity follow-on (see 1.3a's "Remaining gap") so the ring + morph compose in one pass.
 
-1. 1.1 and 1.3a have been merged and used for at least a few days of real navigation.
-2. Re-look at the merged strip. Does the avatar at the seam feel like a meaningful identity anchor, or does it read as a small static circle that wants something more?
-3. If it wants something more → run the prototype sketch below and ship the chunk.
-4. If it already pulls its weight → re-evaluate the chunk's design. The ring system may still be worth shipping for portfolio reasons (per [feedback memory](~/.claude/projects/-workspaces-vyoh-gg/memory/feedback_visual_showcase_is_purpose.md) — visual showcase is purpose, not decoration), but the design might shift (e.g. drop the live overlay if [live-presence-chip](live-presence-chip.md) has shipped and is carrying that signal at nav-level).
+#### Steam: 7-state presence ring on the hero avatar
 
-**Prototype sketch (when the trigger fires):** Three signals on one ring at 32–48px scale (base tier colour + base brand tint + animated live overlay) is elegant on paper but might read as noise in practice. Sketch all three live states × both base colours side-by-side at the real seam scale before writing component code. Decision points after the sketch:
+[`SteamIdentityHero`](../../../apps/web/src/steam/profile/steam-identity-hero.tsx) already maps `summary.personaState` to a colored dot in the `PRESENCE` record at the top of the file. The ring extends the same mapping to the avatar's `ring-*` treatment so dot and ring read from the same source of truth (can't drift).
 
-- If all three signals read cleanly: ship the full design as written below.
-- If three signals are too much: drop the live overlay from the ring; keep tier/brand tint only.
-- If the rank-tier tint feels too "loud" against the seam-straddle silhouette: invert — solid neutral ring as base, tier colour as a small accent corner.
+**Color palette — realigned to Steam's brand vocabulary** (the existing `PRESENCE` map uses emerald for both online AND in-game, conflating "logged in" with "actively playing." Steam's actual client distinguishes them. This chunk fixes both the inline dot AND the new ring in one pass):
 
-The sketch step is the chunk's first commit, not deferred work.
+| State | Tailwind | Steam brand reference | Treatment |
+|---|---|---|---|
+| `online` | `sky-400` (#38BDF8) | ~#57CBDE light cyan-blue | Solid ring |
+| `in-game` (`liveGame != null`) | `emerald-400` + outer pulse | ~#90BA3C yellow-green | `ring-2` + animated outer `animate-ping` layer |
+| `busy` | `rose-400` | universal red vocab | Solid ring |
+| `away` / `snooze` | `amber-400` | universal yellow vocab | Solid ring |
+| `looking-to-trade` / `looking-to-play` | `sky-400` (same as online) | Steam treats these as online + intent label | Solid ring (label disambiguates) |
+| `offline` | — (absent) | dimmed gray dot in Steam client | No ring (absence IS the signal) |
 
-- Thin ring around the avatar in the merged strip.
-  - **LoL base colour** = current rank tier (emerald gradient for Emerald, gold for Gold, etc.). Uses `--theme-*` namespace from [accent-color-system](accent-color-system.md) (shipped 2026-05-26) where possible.
-  - **Steam base colour** = constant Steam-brand tint (Steam blue gradient) for the first ship. Hours-bracket tint or dominant-most-played-game tint are later refinements; not in this chunk.
-- **Animated overlay state** for live presence:
-  - Pulsing accent ring = in-game right now / actively playing.
-  - Solid muted ring = recently active (e.g. last hour, threshold tunable).
-  - No ring overlay = idle.
-- **One DOM element doing two jobs.** Base tier/brand tint = the ring's solid colour; live state = an animated overlay pseudo-element. Compositor-only (transform/opacity), no engine-gate needed.
-- **Cross-stream consistency:** identical overlay vocabulary for LoL and Steam — only the base colour differs.
+**Design decisions resolved up-front:**
 
-**Files in scope (estimated):**
-- New `apps/web/src/_shared/avatar-ring.tsx` component.
-- Wire-up in the merged strip (chunk 1.1's output) — replace the bare avatar with the ringed variant.
-- Live-state signal: LoL already has `LiveGamePollerService` (per [library-shortlist.md § Live-match tracker](library-shortlist.md)) emitting SSE; Steam needs the equivalent — likely pulls from the existing `GetPlayerSummaries.gameid` field. If Steam live-state isn't ingested yet, drop a chunk-prerequisite.
+1. **Replace the existing `ring-2 ring-white/15` on the hero avatar**, don't stack. The new ring carries presence semantics; the old white/15 was decorative and would muddy the signal.
+2. **Pulse vocabulary for in-game**: mirror the existing inline presence-dot pattern at [`steam-identity-hero.tsx:213-217`](../../../apps/web/src/steam/profile/steam-identity-hero.tsx#L213-L217) — solid ring + an absolutely-positioned `animate-ping` outer layer. Same pattern, scaled to avatar size.
+3. **Keep the inline presence dot** (don't drop it once the ring is added). Dot + label is one parseable unit ("● Online · checked just now"); the ring is a separate identity-glance signal at a different reading scale. Not redundant — complementary.
+4. **Offline = no ring**, not a muted neutral ring. Absence is the cleanest signal that nothing is active.
+5. **Reduced motion**: `animate-ping` collapses to no animation per the global `MotionConfig reducedMotion="user"` (shipped 2026-05-28 per [reduced-motion-replacements.md](reduced-motion-replacements.md)); the solid inner ring stays bright so the in-game state is still distinguishable.
 
-**Libraries needed:**
-- **Existing only.** CSS keyframes + `@property` declarations live in `apps/web/src/styles/motion.css` per [elevation-arcs.md § Where new motion CSS lives](elevation-arcs.md). No new dependencies.
-- Coordinate with [live-presence-chip](live-presence-chip.md) — that arc covers the "currently playing X" chip in nav; this chunk covers the same data being expressed at the avatar level. Likely share the SSE subscription.
+#### LoL: binary in-game ring on the hero avatar
 
-**Tests in scope (same commit):**
-- AvatarRing component: renders ring with correct tier/brand colour, overlay state matches presence signal, no overlay when idle. Axe scan.
-- Snapshot or visual test for the three overlay states.
+[`LolIdentityHero`](../../../apps/web/src/lol/profile/identity-hero.tsx) reads `useLiveGame(account)` from [use-live-match.ts](../../../apps/web/src/lol/matches/use-live-match.ts). Binary signal: live game or not.
 
-**Perf-baseline check before promoting to shipped:** the ring animation adds compositor work on every page that mounts the merged strip (effectively every page). Re-baseline LCP / INP / scroll-jank against [perf-baseline.md](perf-baseline.md) before this chunk lands. If any metric regresses, prototype's design needs revisiting (likely drop the live overlay first).
+- **In live game**: `emerald-400` solid ring + `animate-ping` outer layer. Same vocabulary as Steam's in-game state — cross-stream consistency for "actively playing = emerald pulse."
+- **Not in game**: no presence ring (existing avatar treatment from 1.3a stays).
+
+LoL has no multi-state presence to align with Steam's 7 states — it's binary. The ring stays absent in the idle case so the cinematic hero's existing chrome (champion glow, mastery badge, Ken-Burns drift) keeps its visual budget.
+
+**Reduced-motion variant**: pulse collapses to solid bright ring; ring stays present so the live-game state remains readable.
+
+#### Files in scope
+
+- [`apps/web/src/steam/profile/steam-identity-hero.tsx`](../../../apps/web/src/steam/profile/steam-identity-hero.tsx) — extend the `PRESENCE` record with a `ring` field (or rename `dot` → `accent` since both consume the same color), refactor `online` from emerald to sky in the mapping, wire the ring + pulse onto the avatar.
+- [`apps/web/src/lol/profile/identity-hero.tsx`](../../../apps/web/src/lol/profile/identity-hero.tsx) — read `useLiveGame()` (may already be available via context or props on the hero — verify during implementation), wire emerald ring + pulse when live.
+- [`apps/web/src/lol/profile/identity-hero.test.tsx`](../../../apps/web/src/lol/profile/identity-hero.test.tsx) — add live-game-active test case asserting ring presence; idle test case asserting ring absence.
+- [`apps/web/src/steam/profile/steam-identity-hero.test.tsx`](../../../apps/web/src/steam/profile/steam-identity-hero.test.tsx) — add per-presence-state ring color assertions; verify the inline dot's color refactor (`online` → sky) didn't break existing tests.
+
+**No shared `AvatarRing` primitive.** The two heroes have different state cardinalities (7 vs 1) and different existing chrome — abstracting prematurely would re-invent the "premature abstraction" anti-pattern called out in the project's standing guidance. If a third surface needs an activity ring later, lift then.
+
+#### Libraries needed
+
+**Existing only.** No new dependencies. The pulse uses Tailwind's existing `animate-ping` utility, which composes with the project's global `MotionConfig reducedMotion="user"` for the rm collapse.
+
+#### Tests in scope (same commit)
+
+- Steam: each `PRESENCE` state renders the correct ring color. In-game overrides the persona-state ring with emerald + pulse. Offline renders no presence ring. Axe scan stays clean.
+- LoL: in-live-game renders the emerald ring + pulse; idle renders no presence ring. Axe scan stays clean.
+
+#### Perf consideration
+
+The pulse is a single `animate-ping` outer layer on the hero avatar — compositor-only, runs only when in-game (a rare and transient state for both streams). No always-on cost; no perf baseline re-run needed unless review shows a regression on the hero mount path.
+
+#### Coordination
+
+- The original 1.2 coordinated with [live-presence-chip](live-presence-chip.md) on the assumption that both surfaces would express the same SSE signal. That arc is still Planned; this chunk doesn't depend on it (uses the existing poll-based `useLiveGame` / `playerState` paths). If `live-presence-chip` ships later, the ring inherits the SSE-pushed signal for free.
 
 ### Chunk 1.3a — Profile-tab identity block (bare, ship-ready)
+
+**Steam portion SHIPPED (2026-05-30) — landed as a cinematic Steam hero, mirroring the LoL portion's structure-then-flair call.** [`SteamIdentityHero`](../../../apps/web/src/steam/profile/steam-identity-hero.tsx) frames the avatar + persona name + identity headline (`Member since {year} · Level {n} · top {N}%`) + presence line over a live-game-or-top-played hero backdrop (slow pointer parallax + Ken-Burns drift, collapses static under reduced motion). The [`SteamStatBand`](../../../apps/web/src/steam/profile/steam-stat-band.tsx) fuses to the card bottom as a frosted-glass strip carrying four cells in a uniform 3-row rhythm: **Recently played** (wordmark logo of the most-recently-launched game distinct from cell 3 + time-ago sub-stat), **Total playtime** (lifetime + 2-week rollup sub-stat), **Most played** (wordmark logo + lifetime-hours sub-stat), **Library played** (count/owned + played/backlog bar + percentage caption). Owner-iterated end-to-end this session; design decisions worth keeping:
+
+- **Cell rhythm**: all four cells share value/sub-stat/label structure (3 rows). Cell 4 is the deliberate bar-archetype outlier (the bar carries unique composition signal no other cell duplicates). Earlier iterations had 2-row game cells vs 3-row data cells; the rebalance pulled both game cells to 3 rows by promoting hours/time-ago out of inline captions into their own sub-stat row.
+- **Recency over identity**: cell 1 was "Games owned · count" before; swapped to recently-played because the owned-count is already implicit in cell 4's `72 / 175` denominator. Pure-text recency lines (cell 1 `Nh ago`, cell 2 `+Nh past 2 weeks`) gracefully hide when the value is zero rather than rendering `0`.
+- **Distinct-from-top dedup**: cell 1 prefers the most-recently-played game *other than* cell 3's most-played one, so a heavily focused player doesn't see the same wordmark twice. Falls back to the same game (with duplicate render) when no alternative exists, then to a `Stat` em-dash when nothing has ever been launched.
+- **Glass softened from the LoL hero rank strip pattern**: `bg-background/20 + backdrop-blur-xs` (down from `/25 + backdrop-blur-sm`) so the band reads as a continuation of the hero card rather than a separately-rendered frosted tray. The same softening was applied to the LoL [`HeroRankStrip`](../../../apps/web/src/lol/profile/hero-rank-strip.tsx) in the same window for cross-app parity.
+- **Per-appid optical-center nudge map**: [`WORDMARK_OFFSET_PX`](../../../apps/web/src/steam/profile/steam-stat-band.tsx) shifts publisher-authored asymmetric wordmarks (Nightreign's left-side decorative wisp → −4px) so the visible ink lines up with the sub-stat/label below. Preserves trim fidelity instead of fighting the design at the proxy. Add entries when the owner's top-played or recently-played slot reads visibly off-axis. (Lengthy debug session this turn established that proxy-level alpha trim works correctly; the asymmetry is genuine publisher authoring, not transparent padding.)
+- **`formatTimeAgo` "just now"**: sub-minute diffs now collapse to `"just now"` (was `"0m ago"`) in [`packages/shared/src/format.ts`](../../../packages/shared/src/format.ts). Applies app-wide; the Steam presence line's `checked just now` reads natural.
+
+The LoL [`HeroRankStrip`](../../../apps/web/src/lol/profile/hero-rank-strip.tsx) also got a polish pass in this window: `justify-center` on each `RankCell` so the emblem + text block stops hugging the left of its flex-1 half and instead sits centered in its column, plus a row-parity spacer on the Unranked branch so a one-queue-ranked profile doesn't render with the unranked column floating short. Same glass softening as Steam.
+
+Tested incl. axe on the Steam identity hero ([steam-identity-hero.test.tsx](../../../apps/web/src/steam/profile/steam-identity-hero.test.tsx)) and the stat band ([steam-stat-band.test.tsx](../../../apps/web/src/steam/profile/steam-stat-band.test.tsx)). `formatTimeAgo` and the LoL rank strip have their existing test coverage.
+
+**Remaining gap — Steam M2/M2b morph parity (PENDING).** The LoL portion ships with both `M2` (scroll-collapse morph: hero avatar+name → strip identity via shared Motion `layoutId` gated on `useSectionShellState().compact`) and `M2b` (nav-morph: the same identity travels on Profile↔tab clicks via the imperative `view-transition-name` driver in [identity-morph-nav.ts](../../../apps/web/src/lol/profile/identity-morph-nav.ts), wired through `SectionTab`'s `onSelect` seam). The Steam portion has neither — the Steam strip identity (currently a plain inline `<span>Vyoh</span>` or similar in [routes/steam.tsx](../../../apps/web/src/routes/steam.tsx)) does not share `layoutId` with the hero avatar+persona-name, so a Profile scroll or tab navigation reads as a hard swap rather than a continuous identity. Pick this up after the activity-ring chunk (1.2) lands so the ring + morph compose in one pass. Files in scope: shared id literals in a new `apps/web/src/steam/profile/identity-layout.ts` (mirroring the LoL pattern), wiring `SteamIdentityHero`'s avatar + persona name to the literals (drop them under `compact`), and the section strip's Steam identity slot to claim them. Tests parallel to [identity-hero.test.tsx](../../../apps/web/src/lol/profile/identity-hero.test.tsx)'s single-mount invariant.
 
 **LoL portion SHIPPED (2026-05-30) — landed as a cinematic hero, not the bare block.** The spec below describes a "structure-first" block (big avatar + text + rank tiles). On review that read bland for the Profile *landing page*, so it shipped as a **cinematic champion-splash hero** ([identity-hero.tsx](../../../apps/web/src/lol/profile/identity-hero.tsx), `LolIdentityHero`): the signature champion's splash resolves into a sharp, framed banner (avatar + `Vyoh#Ahri` name + rank crest + `Last played {Champion} · Nh ago`), with the Solo/Flex tiles as the next section. The route ([routes/lol/$accountSlug/index.tsx](../../../apps/web/src/routes/lol/$accountSlug/index.tsx)) renders the hero + standalone `ProfileRankTiles`. Tested incl. axe ([identity-hero.test.tsx](../../../apps/web/src/lol/profile/identity-hero.test.tsx)).
 
