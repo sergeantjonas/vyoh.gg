@@ -22,6 +22,7 @@ import {
   isTabActive,
   matchIdFromPath,
 } from "@/lol/account/account-tab-helpers";
+import { MatchesBreadcrumb } from "@/lol/account/matches-breadcrumb";
 import {
   ActiveChampionProvider,
   useActiveChampion,
@@ -40,13 +41,12 @@ import {
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import {
-  Link,
   Outlet,
   createFileRoute,
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { ChevronLeft, Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
+import { Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
@@ -273,12 +273,15 @@ function AccountLayout() {
                   iconId={iconId}
                   level={level}
                   ddVersion={ddVersion}
-                  avatarOnly={isMatchDetail}
                 />
               }
               leading={
                 detailMatchId ? (
-                  <MatchesBreadcrumb accountSlug={accountSlug} matchId={detailMatchId} />
+                  <MatchesBreadcrumb
+                    accountSlug={accountSlug}
+                    matchId={detailMatchId}
+                    sections={TABS}
+                  />
                 ) : undefined
               }
               actions={
@@ -307,53 +310,16 @@ function AccountLayout() {
   );
 }
 
-// The section strip's leading slot on a match-detail page (Model 3). Stands in
-// for section scope where the Matches tab used to be, and seeds the card-morph
-// back-nav by capturing the origin match card's rect before navigating — same
-// `setOriginRect` the match cards do on the way in, so the return reverses it.
-function MatchesBreadcrumb({
-  accountSlug,
-  matchId,
-}: { accountSlug: string; matchId: string }) {
-  const { setOriginRect } = useActiveMatch();
-  return (
-    <Link
-      to="/lol/$accountSlug/matches"
-      params={{ accountSlug }}
-      search={(prev: { queue?: number; count?: number }) => prev}
-      onClick={() => {
-        const heroEl = document.querySelector(`[data-match-card="${matchId}"]`);
-        if (heroEl instanceof HTMLElement) {
-          setOriginRect({
-            matchId,
-            rect: heroEl.getBoundingClientRect(),
-            direction: "backward",
-          });
-        }
-      }}
-      className="group inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-      Matches
-    </Link>
-  );
-}
-
 function LolIdentity({
   account,
   iconId,
   level,
   ddVersion,
-  avatarOnly = false,
 }: {
   account: ReturnType<typeof useAccountFromSlug>;
   iconId: number | null | undefined;
   level: number | null | undefined;
   ddVersion: ReturnType<typeof useDDragonVersion>;
-  // Match-detail trims identity to the avatar so the strip's tab row has room
-  // for the detail sub-tabs; the `‹ Matches` breadcrumb + champion caption
-  // carry the "whose match" context the name would otherwise supply.
-  avatarOnly?: boolean;
 }) {
   const { compact } = useSectionShellState();
   return (
@@ -382,7 +348,7 @@ function LolIdentity({
           )}
         />
       )}
-      {avatarOnly ? null : account ? (
+      {account ? (
         // Account switching lives in the top-nav LoL picker (richer rows with
         // rank emblems); the section identity is a static header. Region is
         // omitted — single-region by design, and it'd only float between the
