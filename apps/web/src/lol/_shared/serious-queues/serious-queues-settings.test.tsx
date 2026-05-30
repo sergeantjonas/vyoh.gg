@@ -1,3 +1,4 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MotionConfig } from "motion/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -15,11 +16,15 @@ afterEach(() => {
 
 function renderSettings() {
   return render(
-    <MotionConfig reducedMotion="always">
-      <SeriousQueuesProvider>
-        <SeriousQueuesSettings />
-      </SeriousQueuesProvider>
-    </MotionConfig>
+    // TooltipProvider lives in __root in the app; supply it here so the trigger's
+    // Radix tooltip mounts.
+    <TooltipPrimitive.Provider>
+      <MotionConfig reducedMotion="always">
+        <SeriousQueuesProvider>
+          <SeriousQueuesSettings />
+        </SeriousQueuesProvider>
+      </MotionConfig>
+    </TooltipPrimitive.Provider>
   );
 }
 

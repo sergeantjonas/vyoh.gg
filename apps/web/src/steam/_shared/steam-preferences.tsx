@@ -1,7 +1,13 @@
+import { Button } from "@/components/ui/button";
 import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+
+// Matches the LoL strip-action buttons' tooltip (label-only compact variant).
+const TOOLTIP_CONTENT_CLASS =
+  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 // Steam section preferences popover — owner-facing controls that affect the
 // whole stream, mounted in the section nav next to the tab row (parallel to
@@ -37,16 +43,32 @@ export function SteamPreferences() {
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label="Steam preferences"
-        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
-      >
-        <SlidersHorizontal className="size-4" />
-      </button>
+      {/* Shared icon Button (parallel to the LoL SeriousQueuesSettings + Refresh
+          buttons) so every strip-action icon is identical by construction. */}
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label="Steam preferences"
+          >
+            <SlidersHorizontal className="size-4" />
+          </Button>
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content
+            side="bottom"
+            sideOffset={4}
+            className={TOOLTIP_CONTENT_CLASS}
+          >
+            Steam preferences
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
       <AnimatePresence>
         {open && (
           <m.div
