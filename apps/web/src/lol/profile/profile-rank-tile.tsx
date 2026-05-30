@@ -14,7 +14,9 @@ const QUEUE_LABEL: Record<string, string> = {
   RANKED_FLEX_SR: "Ranked Flex",
 };
 
-const TIER_COLOR: Record<string, string> = {
+// Exported so the identity hero's tier text uses the exact same palette as
+// these tiles — a single source of truth keeps the two surfaces from drifting.
+export const TIER_COLOR: Record<string, string> = {
   IRON: "text-slate-400",
   BRONZE: "text-orange-500",
   SILVER: "text-slate-300",

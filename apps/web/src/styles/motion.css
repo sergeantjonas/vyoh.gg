@@ -259,12 +259,36 @@ body {
   }
 }
 
+/* LoL profile hero — slow ambient Ken-Burns drift on the in-focus champion
+   splash. The base `scale(1.08)` keeps the splash zoomed past the wrapper's
+   negative inset so neither the drift nor the pointer-parallax transform (a
+   separate wrapper element, so the two transforms compose) can reveal a hard
+   edge. Reduced motion keeps the static zoom but drops the loop. */
+.lol-hero-drift {
+  transform: scale(1.08);
+  animation: lol-hero-drift 24s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes lol-hero-drift {
+  from {
+    transform: scale(1.06) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(-1.5%, -1.5%, 0);
+  }
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────── */
 /* Replace, don't disable: every behavior collapses to its resting state.    */
 /* Nav: compacted always (better density on small screens).                  */
 /* Progress: static full-width accent underline at reduced opacity.          */
 /* view-entry: elements render at their final visible state immediately.     */
 @media (prefers-reduced-motion: reduce) {
+  .lol-hero-drift {
+    animation: none;
+  }
+
   [data-vt-nav] {
     animation: none;
     --nav-collapse: 1;

@@ -2,7 +2,7 @@ import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
-import { LolIdentityBlock } from "@/lol/profile/identity-block";
+import { LolIdentityHero } from "@/lol/profile/identity-hero";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
@@ -11,6 +11,7 @@ import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfilePostGame } from "@/lol/profile/profile-post-game";
 import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
+import { ProfileRankTiles } from "@/lol/profile/profile-rank-tile";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
 import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
@@ -18,6 +19,7 @@ import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { ProfileSynergy } from "@/lol/profile/profile-synergy";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
+import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { excludeRemakes } from "@vyoh/shared";
 import { normalizeLp } from "@vyoh/shared/lol/rank-history";
@@ -62,17 +64,28 @@ function ProfilePage() {
       new Date(m.playedAt) > new Date(latest.playedAt) ? m : latest
     );
   }, [matches]);
+  // Signature champion for the hero splash — the SAME selector the section
+  // root uses to drive the ambient backdrop ([$accountSlug.tsx]), so the hero
+  // brings that backdrop into focus instead of painting a second splash.
+  const signatureChampion = useMemo(
+    () => (matches ? (selectChampionOfYear(matches)?.champion ?? null) : null),
+    [matches]
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <LolIdentityBlock
+      <LolIdentityHero
         gameName={account?.gameName}
         tagLine={account?.tagLine}
         profileIconId={rank.data?.profileIconId}
         summonerLevel={rank.data?.summonerLevel}
         rankEntries={rank.data?.rankEntries ?? []}
-        recentLpByQueue={recentLpByQueue}
+        splashChampion={signatureChampion}
         lastMatch={lastMatch}
+      />
+      <ProfileRankTiles
+        entries={rank.data?.rankEntries ?? []}
+        recentLpByQueue={recentLpByQueue}
       />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePatchNotice accountSlug={accountSlug} />

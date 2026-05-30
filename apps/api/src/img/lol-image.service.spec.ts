@@ -87,7 +87,7 @@ describe("LolImageService.champion", () => {
       "https://wiki.leagueoflegends.com/en-us/images/Ahri_OriginalSquare.png",
       "https://cdn.communitydragon.org/latest/champion/ahri/square",
     ]);
-    expect(resolved.params).toEqual({ width: 72, quality: 85 });
+    expect(resolved.params).toEqual({ width: 128, quality: 85 });
     expect(prisma.lolChampion.findMany).toHaveBeenCalledTimes(1);
   });
 
@@ -129,6 +129,17 @@ describe("LolImageService.champion", () => {
       "https://cdn.communitydragon.org/latest/champion/ahri/splash-art/centered",
     ]);
     expect(resolved.params).toMatchObject({ width: 600, quality: 80, blur: 1 });
+  });
+
+  it("returns the same centered upstream for 'splash' but sharp and high-res (no blur)", async () => {
+    const { service } = makeService([], null, [{ alias: "Ahri", name: "Ahri" }]);
+    const resolved = await service.champion("Ahri", "splash");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ahri_OriginalCentered.jpg",
+      "https://cdn.communitydragon.org/latest/champion/ahri/splash-art/centered",
+    ]);
+    expect(resolved.params).toMatchObject({ width: 1280, quality: 85 });
+    expect(resolved.params).not.toHaveProperty("blur");
   });
 
   it("falls back to CDragon alone for 'card' when the alias is missing from the champion table", async () => {
@@ -340,7 +351,7 @@ describe("LolImageService.profileIcon", () => {
       "https://wiki.leagueoflegends.com/en-us/images/Doom_Bots_Singed_profileicon.png",
       "https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/588.png",
     ]);
-    expect(resolved.params).toEqual({ width: 72, quality: 85 });
+    expect(resolved.params).toEqual({ width: 128, quality: 85 });
     expect(prisma.lolProfileIcon.findMany).toHaveBeenCalledTimes(1);
   });
 

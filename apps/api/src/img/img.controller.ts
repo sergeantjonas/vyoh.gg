@@ -72,7 +72,12 @@ const MICROTRAILER_POSTER_CONTENT_TYPES: Record<string, string> = {
   png: "image/png",
 };
 
-const CHAMPION_VARIANTS = new Set<ChampionVariant>(["square", "card", "backdrop"]);
+const CHAMPION_VARIANTS = new Set<ChampionVariant>([
+  "square",
+  "card",
+  "backdrop",
+  "splash",
+]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
 const UI_ICONS = new Set<UiIconName>(UI_ICON_NAMES);
 const CHAMPION_CLASSES = new Set<ChampionClassSlug>(CHAMPION_CLASS_SLUGS);

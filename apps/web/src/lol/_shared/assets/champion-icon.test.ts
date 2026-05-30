@@ -3,6 +3,7 @@ import {
   championBackdropSplashUrl,
   championCardSplashUrl,
   championClassIconUrl,
+  championHeroSplashUrl,
   championIconUrl,
   championSquareIconUrl,
   itemIconUrl,
@@ -62,6 +63,12 @@ describe("variant-specific helpers", () => {
   it("championBackdropSplashUrl delegates to the backdrop variant", () => {
     expect(championBackdropSplashUrl("Ahri", "26.9")).toBe(
       championIconUrl("Ahri", "backdrop", "26.9")
+    );
+  });
+
+  it("championHeroSplashUrl delegates to the sharp splash variant", () => {
+    expect(championHeroSplashUrl("Ahri", "26.9")).toBe(
+      championIconUrl("Ahri", "splash", "26.9")
     );
   });
 });

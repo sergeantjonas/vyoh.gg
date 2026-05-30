@@ -21,7 +21,7 @@ export function normalizeChampionAlias(alias: string): string {
   return alias.startsWith(SWARM_PREFIX) ? alias.slice(SWARM_PREFIX.length) : alias;
 }
 
-export type ChampionVariant = "square" | "card" | "backdrop";
+export type ChampionVariant = "square" | "card" | "backdrop" | "splash";
 
 export function championIconUrl(
   alias: string,
@@ -42,6 +42,13 @@ export function championCardSplashUrl(alias: string, patch: string): string {
 
 export function championBackdropSplashUrl(alias: string, patch: string): string {
   return championIconUrl(alias, "backdrop", patch);
+}
+
+// Sharp, high-res centered splash for the profile hero — same subject as the
+// blurred `backdrop` ambient wash, brought into focus. Use `backdrop` for
+// ambient washes, `splash` only where the splash is a foreground showpiece.
+export function championHeroSplashUrl(alias: string, patch: string): string {
+  return championIconUrl(alias, "splash", patch);
 }
 
 export function itemIconUrl(itemId: number, patch: string): string {

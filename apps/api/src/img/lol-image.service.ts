@@ -62,7 +62,7 @@ function normalizeChampionAlias(alias: string): string {
   return alias.startsWith(SWARM_PREFIX) ? alias.slice(SWARM_PREFIX.length) : alias;
 }
 
-export type ChampionVariant = "square" | "card" | "backdrop";
+export type ChampionVariant = "square" | "card" | "backdrop" | "splash";
 
 export const UI_ICON_NAMES = ["gold", "minion", "ward", "attack"] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
@@ -148,7 +148,11 @@ export class LolImageService {
         const urls = displayName
           ? [wikiChampionSquareUrl(displayName), cdragonSquare]
           : [cdragonSquare];
-        return { urls, params: { width: 72, quality: 85 } };
+        // 128 so the largest square surfaces stay crisp on 2x displays —
+        // a few showcases render at size-14/16 (56-64px ≈ 112-128px @2x).
+        // The wiki OriginalSquare source is ≥256px, so no upscale; dense
+        // small-tile lists (match rows, champion table) just downscale it.
+        return { urls, params: { width: 128, quality: 85 } };
       }
       case "card": {
         // Wiki-primary (`OriginalCentered.jpg`) with CDragon `/centered` as
@@ -170,6 +174,19 @@ export class LolImageService {
           ? [wikiChampionCenteredUrl(displayName), cdragonCentered]
           : [cdragonCentered];
         return { urls, params: { width: 600, quality: 80, blur: 1 } };
+      }
+      case "splash": {
+        // Sharp, full-width centered splash for the profile hero — same
+        // upstream as `backdrop`, but high-res and unblurred. `backdrop` is
+        // the low-res blurred ambient wash; `splash` is that same subject
+        // brought into focus, so the hero reads as the backdrop resolving
+        // rather than a second image.
+        const displayName = await this.lookupDisplayName(alias);
+        const cdragonCentered = `${CDRAGON_CDN}/champion/${slug}/splash-art/centered`;
+        const urls = displayName
+          ? [wikiChampionCenteredUrl(displayName), cdragonCentered]
+          : [cdragonCentered];
+        return { urls, params: { width: 1280, quality: 85 } };
       }
     }
   }
@@ -223,7 +240,11 @@ export class LolImageService {
     const titles = await this.loadProfileIconTitles();
     const title = titles.get(iconId);
     const urls = title ? [wikiProfileIconUrl(title), ddragonUrl] : [ddragonUrl];
-    return { urls, params: { width: 72, quality: 85 } };
+    // 128 is the native source size (DDragon + wiki both ship 128px), so this
+    // is the sharpest the icon gets without upscaling. The profile hero renders
+    // the avatar at ~96px (≈192px @2x); 72px visibly upscaled there. Smaller
+    // consumers (strip 40-48px, nav rows) just downscale the better source.
+    return { urls, params: { width: 128, quality: 85 } };
   }
 
   // Wiki-sourced ability icon, routed through the proxy so wiki blips don't
