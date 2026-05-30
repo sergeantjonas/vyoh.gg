@@ -159,7 +159,13 @@ describe("formatTimeAgo", () => {
 
   it("renders sub-hour diffs in minutes", () => {
     expect(formatTimeAgo(ago(5 * 60_000))).toBe("5m ago");
-    expect(formatTimeAgo(ago(0))).toBe("0m ago");
+    expect(formatTimeAgo(ago(60_000))).toBe("1m ago");
+  });
+
+  it("collapses sub-minute diffs to 'just now'", () => {
+    expect(formatTimeAgo(ago(0))).toBe("just now");
+    expect(formatTimeAgo(ago(30_000))).toBe("just now");
+    expect(formatTimeAgo(ago(59_000))).toBe("just now");
   });
 
   it("renders sub-day diffs in hours", () => {

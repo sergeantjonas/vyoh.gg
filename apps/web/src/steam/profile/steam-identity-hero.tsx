@@ -11,7 +11,7 @@ import {
   useSpring,
   useTransform,
 } from "motion/react";
-import { type PointerEvent, useState } from "react";
+import { Fragment, type PointerEvent, type ReactNode, useState } from "react";
 import { SteamStatBand } from "./steam-stat-band";
 
 // Persona-state → presence label + dot colour. "Online status only" presence
@@ -149,29 +149,52 @@ export function SteamIdentityHero() {
           )}
 
           {/* Identity headline — the rank-parallel line. Each segment is
-              independently optional (privacy-locked accounts may omit any). */}
-          {summary && (
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-muted-foreground text-sm">
-              {summary.memberSinceUnix !== undefined && (
-                <span>Member since {memberSinceYear(summary.memberSinceUnix)}</span>
-              )}
-              {summary.steamLevel !== undefined && (
-                <>
-                  <span aria-hidden className="text-muted-foreground/40">
-                    ·
-                  </span>
-                  <span className="font-semibold text-foreground/90">
-                    Level {summary.steamLevel}
-                  </span>
-                </>
-              )}
-              {summary.steamLevelPercentile !== undefined && (
-                <span className="text-muted-foreground/80">
-                  top {Math.max(1, Math.round(100 - summary.steamLevelPercentile))}%
-                </span>
-              )}
-            </p>
-          )}
+              independently optional (privacy-locked accounts may omit any);
+              separators are interleaved between every present pair so an
+              absent middle segment doesn't leave its neighbours touching. */}
+          {summary &&
+            (() => {
+              const segments: { key: string; node: ReactNode }[] = [];
+              if (summary.memberSinceUnix !== undefined)
+                segments.push({
+                  key: "member-since",
+                  node: (
+                    <span>Member since {memberSinceYear(summary.memberSinceUnix)}</span>
+                  ),
+                });
+              if (summary.steamLevel !== undefined)
+                segments.push({
+                  key: "level",
+                  node: (
+                    <span className="font-semibold text-foreground/90">
+                      Level {summary.steamLevel}
+                    </span>
+                  ),
+                });
+              if (summary.steamLevelPercentile !== undefined)
+                segments.push({
+                  key: "percentile",
+                  node: (
+                    <span className="font-semibold text-foreground/90">
+                      top {Math.max(1, Math.round(100 - summary.steamLevelPercentile))}%
+                    </span>
+                  ),
+                });
+              return (
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-muted-foreground text-sm">
+                  {segments.map((seg, i) => (
+                    <Fragment key={seg.key}>
+                      {i > 0 && (
+                        <span aria-hidden className="text-muted-foreground/40">
+                          ·
+                        </span>
+                      )}
+                      {seg.node}
+                    </Fragment>
+                  ))}
+                </p>
+              );
+            })()}
 
           {/* Presence line — online status only, with the poller staleness
               folded in (absorbed from the now-deleted NowPlayingChip; the chip

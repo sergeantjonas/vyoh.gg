@@ -1,14 +1,29 @@
 import { steamLibraryLogoUrl } from "@/steam/_shared/steam-image";
 import { useSteamLibrarySummary } from "@/steam/use-library-summary";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
-import { formatPlaytime } from "@vyoh/shared";
+import { formatPlaytime, formatTimeAgo } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 
-// A plain count cell: big value + small uppercase label.
+// Per-appid optical-center corrections for wordmark IMGs rendered in this
+// band. The proxy trims transparent padding faithfully, which means
+// publisher-authored asymmetric decorations (Nightreign's left-side wisp)
+// shift the strong-ink centroid off the PNG's geometric center. The IMG
+// stays centered in its flex container, but the *visible* wordmark sits
+// off-axis from the sub-stat/label below. A small translateX nudges it
+// back without distorting the source. Add an entry when a wordmark in
+// the owner's top-played or recently-played slot reads visibly off-axis.
+//   2622380 (Elden Ring Nightreign): −4px to compensate for the left wisp.
+const WORDMARK_OFFSET_PX: Record<number, number> = {
+  2622380: -4,
+};
+
+// A plain count cell: big value + small uppercase label. Used as a fallback
+// when the richer cells below can't resolve their secondary signal (loading,
+// or a fresh account with no playtime yet).
 function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
       <span className="truncate font-semibold text-foreground/90 text-lg tracking-tight tabular-nums">
         {value}
       </span>
@@ -19,24 +34,26 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-// Most-played cell — shows the game's wordmark logo instead of a truncated
-// name (logos read instantly and never clip awkwardly), falling back to the
-// name text on a 404. Hours sit in the label.
-function MostPlayedCell({
+// Recently-played cell — wordmark logo + time-ago sub-stat + label, in the
+// 3-row rhythm shared with the data cells. The band picks a game distinct
+// from MostPlayedCell when possible (see SteamStatBand below); this component
+// is dumb about which game it gets.
+function RecentlyPlayedCell({
   appid,
   name,
   assetTimestamp,
-  hours,
+  lastPlayedAt,
 }: {
   appid: number;
   name: string;
   assetTimestamp: number | null;
-  hours: string;
+  lastPlayedAt: string;
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
+  const offsetPx = WORDMARK_OFFSET_PX[appid] ?? 0;
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <div className="flex h-7 items-center">
+    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+      <div className="flex h-9 items-center justify-center">
         {logoFailed ? (
           <span className="truncate font-semibold text-foreground/90 text-lg tracking-tight">
             {name}
@@ -50,12 +67,93 @@ function MostPlayedCell({
             onLoad={(e) => {
               if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
             }}
-            className="max-h-7 max-w-full object-contain object-left drop-shadow-sm"
+            className="max-h-9 max-w-full object-contain object-center drop-shadow-sm"
+            style={offsetPx ? { transform: `translateX(${offsetPx}px)` } : undefined}
           />
         )}
       </div>
+      <span className="truncate font-medium text-foreground/60 text-xs">
+        {formatTimeAgo(lastPlayedAt)}
+      </span>
       <span className="truncate font-medium text-[11px] text-muted-foreground uppercase tracking-[0.16em]">
-        Most played · {hours}
+        Recently played
+      </span>
+    </div>
+  );
+}
+
+// Total-playtime cell — lifetime total + 2-week rollup recency sub-line +
+// label. Mirrors the recency rhythm of the games cell on a different axis
+// (time spent vs games touched). Hidden when zero so a quiet fortnight reads
+// as a clean two-line cell rather than "+0h past 2 weeks".
+function TotalPlaytimeCell({
+  totalMinutes,
+  recentMinutes,
+}: {
+  totalMinutes: number;
+  recentMinutes: number;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+      <span className="truncate font-semibold text-foreground/90 text-lg tracking-tight tabular-nums">
+        {formatPlaytime(totalMinutes)}
+      </span>
+      {recentMinutes > 0 ? (
+        <span className="truncate font-medium text-foreground/60 text-xs tabular-nums">
+          +{formatPlaytime(recentMinutes)} past 2 weeks
+        </span>
+      ) : (
+        <span aria-hidden className="h-4" />
+      )}
+      <span className="truncate font-medium text-[11px] text-muted-foreground uppercase tracking-[0.16em]">
+        Total playtime
+      </span>
+    </div>
+  );
+}
+
+// Most-played cell — wordmark logo + lifetime-hours sub-stat + label, in the
+// 3-row rhythm shared with the data cells. The wordmark falls back to the
+// game name text on a 404.
+function MostPlayedCell({
+  appid,
+  name,
+  assetTimestamp,
+  hours,
+}: {
+  appid: number;
+  name: string;
+  assetTimestamp: number | null;
+  hours: string;
+}) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const offsetPx = WORDMARK_OFFSET_PX[appid] ?? 0;
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+      <div className="flex h-9 items-center justify-center">
+        {logoFailed ? (
+          <span className="truncate font-semibold text-foreground/90 text-lg tracking-tight">
+            {name}
+          </span>
+        ) : (
+          <img
+            src={steamLibraryLogoUrl(appid, assetTimestamp)}
+            alt={name}
+            loading="eager"
+            onError={() => setLogoFailed(true)}
+            onLoad={(e) => {
+              if (e.currentTarget.naturalWidth === 0) setLogoFailed(true);
+            }}
+            className="max-h-9 max-w-full object-contain object-center drop-shadow-sm"
+            style={offsetPx ? { transform: `translateX(${offsetPx}px)` } : undefined}
+          />
+        )}
+      </div>
+      <span className="truncate font-medium text-foreground/60 text-xs tabular-nums">
+        {hours}
+      </span>
+      <span className="truncate font-medium text-[11px] text-muted-foreground uppercase tracking-[0.16em]">
+        Most played
       </span>
     </div>
   );
@@ -75,7 +173,7 @@ function LibraryPlayedCell({
   const pct = owned > 0 ? Math.round((played / owned) * 100) : 0;
   const backlog = Math.max(0, owned - played);
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
       <span className="font-semibold text-foreground/90 text-lg tracking-tight tabular-nums">
         {played} / {owned}
         <span className="ml-1.5 font-medium text-muted-foreground text-xs">played</span>
@@ -115,18 +213,48 @@ export function SteamStatBand() {
     () => owned?.games?.reduce((sum, g) => sum + g.playtimeForeverMinutes, 0) ?? null,
     [owned]
   );
+  const recentMinutes = useMemo(
+    () => owned?.games?.reduce((sum, g) => sum + (g.playtime2WeeksMinutes ?? 0), 0) ?? 0,
+    [owned]
+  );
   const topGame = owned?.games?.[0] ?? null;
+  // Most recently launched game, preferring one distinct from topGame so the
+  // two game cells in the band carry independent signals. Falls through to
+  // the most-recent-overall if the only recently-played title is also the
+  // top-played one (a single-game library or a heavily focused player).
+  const recentGame = useMemo(() => {
+    if (!owned?.games) return null;
+    const played = owned.games
+      .filter((g) => g.rtimeLastPlayedAt != null)
+      .sort(
+        (a, b) =>
+          // biome-ignore lint/style/noNonNullAssertion: filtered above
+          new Date(b.rtimeLastPlayedAt!).getTime() -
+          // biome-ignore lint/style/noNonNullAssertion: filtered above
+          new Date(a.rtimeLastPlayedAt!).getTime()
+      );
+    if (played.length === 0) return null;
+    const distinct = played.find((g) => g.appid !== topGame?.appid);
+    return distinct ?? played[0] ?? null;
+  }, [owned, topGame]);
 
   return (
-    <div className="relative grid grid-cols-2 items-end gap-x-6 gap-y-4 border-white/10 border-t bg-background/25 px-6 py-4 backdrop-blur-sm sm:grid-cols-4">
-      <Stat
-        value={lib ? lib.ownedCount.toLocaleString("en-US") : "—"}
-        label="Games owned"
-      />
-      <Stat
-        value={totalMinutes != null ? formatPlaytime(totalMinutes) : "—"}
-        label="Total playtime"
-      />
+    <div className="relative grid grid-cols-2 items-center gap-x-6 gap-y-4 border-white/10 border-t bg-background/20 px-6 py-4 backdrop-blur-xs sm:grid-cols-4">
+      {recentGame?.rtimeLastPlayedAt ? (
+        <RecentlyPlayedCell
+          appid={recentGame.appid}
+          name={recentGame.name}
+          assetTimestamp={recentGame.assetTimestamp}
+          lastPlayedAt={recentGame.rtimeLastPlayedAt}
+        />
+      ) : (
+        <Stat value="—" label="Recently played" />
+      )}
+      {totalMinutes != null ? (
+        <TotalPlaytimeCell totalMinutes={totalMinutes} recentMinutes={recentMinutes} />
+      ) : (
+        <Stat value="—" label="Total playtime" />
+      )}
       {topGame ? (
         <MostPlayedCell
           appid={topGame.appid}
