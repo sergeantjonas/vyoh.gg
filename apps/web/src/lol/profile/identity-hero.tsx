@@ -84,6 +84,23 @@ export function LolIdentityHero({
   // time and the morph driver can name an unambiguous source/destination.
   const markIdentity = !compact;
 
+  // Supporting hero chrome (avatar glow, level badge, rank line, last-played)
+  // fades in just as the avatar + name finish landing, so the hero assembles as
+  // one move instead of the chrome popping into place while the identity is
+  // still in flight. Driven off `compact` (not mount) so it replays on every
+  // reveal: the tab→Profile nav morph AND the scroll-up from the collapsed
+  // strip both flip `compact` false and re-run the staggered fade-in. The
+  // ~slide-length in delay lands the fade at the end of the morph; collapsing
+  // (compact true) fades out promptly. Excludes the morphing avatar + name.
+  // Reduced motion swaps instantly.
+  const detailReveal = (restOpacity: number) => ({
+    initial: reduced ? false : ({ opacity: 0 } as const),
+    animate: { opacity: compact ? 0 : restOpacity },
+    transition: reduced
+      ? { duration: 0 }
+      : { delay: compact ? 0 : 0.22, duration: 0.26, ease: "easeOut" as const },
+  });
+
   const entry = primaryEntry(rankEntries);
   const tier = entry?.tier;
   // Tier identity lives in the rank crest + rank text only. The avatar glow
@@ -170,13 +187,14 @@ export function LolIdentityHero({
         <div className={cn("relative isolate shrink-0", compact && "opacity-0")}>
           {/* Champion-tinted glow bloom behind the avatar (matches the page
               accent). Neutral rim ring keeps a crisp edge over the splash. */}
-          <span
+          <m.span
+            {...detailReveal(0.6)}
+            {...(dominantHex ? { style: { backgroundColor: dominantHex } } : {})}
             aria-hidden
             className={cn(
               "-z-10 absolute -inset-2 rounded-full opacity-60 blur-2xl",
               !dominantHex && "bg-foreground/10"
             )}
-            style={dominantHex ? { backgroundColor: dominantHex } : undefined}
           />
           {profileIconId != null ? (
             <m.img
@@ -190,9 +208,12 @@ export function LolIdentityHero({
             <div className="size-20 animate-pulse rounded-full bg-muted ring-2 ring-white/15 sm:size-24" />
           )}
           {summonerLevel != null && (
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums ring-1 ring-border">
+            <m.span
+              {...detailReveal(1)}
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums ring-1 ring-border"
+            >
               {summonerLevel}
-            </span>
+            </m.span>
           )}
         </div>
 
@@ -213,7 +234,7 @@ export function LolIdentityHero({
             <div className="h-9 w-56 animate-pulse rounded bg-muted" />
           )}
           {entry ? (
-            <div className="flex items-center gap-2">
+            <m.div {...detailReveal(1)} className="flex items-center gap-2">
               <img
                 src={rankEmblemUrl(entry.tier, emblemYear)}
                 alt=""
@@ -222,15 +243,20 @@ export function LolIdentityHero({
               <span className={cn("font-medium text-sm", tierText)}>
                 {rankLabel(entry)}
               </span>
-            </div>
+            </m.div>
           ) : (
-            <span className="font-medium text-muted-foreground text-sm">Unranked</span>
+            <m.span
+              {...detailReveal(1)}
+              className="font-medium text-muted-foreground text-sm"
+            >
+              Unranked
+            </m.span>
           )}
           {lastMatch && (
-            <p className="text-muted-foreground text-xs">
+            <m.p {...detailReveal(1)} className="text-muted-foreground text-xs">
               Last played {championName(lastMatch.champion)} ·{" "}
               {formatTimeAgo(lastMatch.playedAt)}
-            </p>
+            </m.p>
           )}
         </div>
       </div>
