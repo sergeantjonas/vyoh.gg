@@ -53,12 +53,6 @@ function setIdentityNames(els: MarkedIdentity, on: boolean): void {
   if (els.name) els.name.style.viewTransitionName = on ? IDENTITY_NAME_MORPH_ID : "";
 }
 
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => resolve());
-  });
-}
-
 export interface IdentityMorphNavOptions {
   // Resolved (slug-substituted) pathnames, e.g. `/lol/vyoh-euw/matches`.
   fromPathname: string;
@@ -120,9 +114,13 @@ export function runIdentityMorphNav(opts: IdentityMorphNavOptions): boolean {
     // the destination).
     setIdentityNames(source, false);
     await opts.navigate();
-    // Route committed; wait one frame for layout, then name the freshly mounted
-    // destination identity so it's present at NEW-snapshot capture.
-    await nextFrame();
+    // Name the freshly committed destination identity so it's present when the
+    // browser captures the NEW snapshot (after this callback resolves). We must
+    // NOT wait on requestAnimationFrame here: rAF callbacks don't run while the
+    // VT update callback's promise is pending, so awaiting one deadlocks the
+    // whole transition and freezes the page. `navigate()` resolves post-commit,
+    // so the destination marker is already in the DOM; if a concurrent commit
+    // lags it, the morph degrades to the slide's crossfade rather than hanging.
     setIdentityNames(readMarkedIdentity(), true);
   });
 

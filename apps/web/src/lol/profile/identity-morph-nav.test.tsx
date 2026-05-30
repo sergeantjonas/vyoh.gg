@@ -25,12 +25,20 @@ type StartVT = (cb: () => Promise<void>) => {
 
 let capturedCallback: (() => Promise<void>) | null = null;
 let lastTypes: Set<string>;
+let resolveFinished: () => void;
 
 function stubStartViewTransition(): void {
   lastTypes = new Set<string>();
+  // `finished` stays pending until a test resolves it. In the real browser it
+  // only settles once the transition's animations complete — well after the
+  // update callback has named the destination — so the cleanup `.finally` must
+  // not race the callback (resolving it eagerly here would).
+  const finished = new Promise<void>((res) => {
+    resolveFinished = res;
+  });
   const start: StartVT = (cb) => {
     capturedCallback = cb;
-    return { finished: Promise.resolve(), types: lastTypes };
+    return { finished, types: lastTypes };
   };
   (document as unknown as { startViewTransition?: StartVT }).startViewTransition = start;
 }
@@ -109,6 +117,24 @@ describe("runIdentityMorphNav", () => {
     // Destination (the freshly mounted strip) carries the morph name.
     const destAvatar = document.querySelector<HTMLElement>("[data-identity-avatar]");
     expect(destAvatar?.style.viewTransitionName).toBe(IDENTITY_AVATAR_MORPH_ID);
+  });
+
+  it("clears the shell flag and the identity names once the transition finishes", async () => {
+    const hero = mountIdentity(true);
+    runIdentityMorphNav({
+      fromPathname: "/lol/vyoh-euw",
+      toPathname: "/lol/vyoh-euw/matches",
+      toIsProfileIndex: false,
+      navigate: vi.fn(async () => {}),
+    });
+    await capturedCallback?.();
+    expect(document.body.dataset.vtShell).toBe("on");
+    resolveFinished();
+    // Flush the finished → catch → finally microtask chain.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.body.dataset.vtShell).toBe("off");
+    expect(hero.avatar.style.viewTransitionName).toBeFalsy();
+    expect(hero.name.style.viewTransitionName).toBeFalsy();
   });
 
   it("takes over a tab→Profile nav even when the source is the strip (dest is the hero)", () => {
