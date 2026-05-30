@@ -205,9 +205,16 @@ function LibraryPlayedCell({
 // and the backlog share (the "collector vs completionist" signal, as a bar).
 // All from data already fetched (library-summary counts + owned-games
 // playtime), no new requests. Frosted glass over the hero backdrop.
-export function SteamStatBand() {
+//
+// `compact` is the hero's scroll-collapse state. When the hero's identity is
+// morphing up into the section strip, the stat band fades out; when the hero
+// is restored on scroll-up, the cells fade back in with a small delay so they
+// arrive AFTER the morph lands rather than sitting there while it runs.
+// Mirrors HeroRankStrip's fade in apps/web/src/lol/profile/hero-rank-strip.tsx.
+export function SteamStatBand({ compact = false }: { compact?: boolean }) {
   const { data: lib } = useSteamLibrarySummary();
   const { data: owned } = useSteamOwnedGames();
+  const reduced = useReducedMotion();
 
   const totalMinutes = useMemo(
     () => owned?.games?.reduce((sum, g) => sum + g.playtimeForeverMinutes, 0) ?? null,
@@ -239,7 +246,12 @@ export function SteamStatBand() {
   }, [owned, topGame]);
 
   return (
-    <div className="relative grid grid-cols-2 items-center gap-x-6 gap-y-4 border-white/10 border-t bg-background/20 px-6 py-4 backdrop-blur-xs sm:grid-cols-4">
+    <m.div
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: compact ? 0 : 1 }}
+      transition={reduced ? { duration: 0 } : { delay: compact ? 0 : 0.3, duration: 0.3 }}
+      className="relative grid grid-cols-2 items-center gap-x-6 gap-y-4 border-white/10 border-t bg-background/20 px-6 py-4 backdrop-blur-xs sm:grid-cols-4"
+    >
       {recentGame?.rtimeLastPlayedAt ? (
         <RecentlyPlayedCell
           appid={recentGame.appid}
@@ -270,6 +282,6 @@ export function SteamStatBand() {
       ) : (
         <Stat value="—" label="Library played" />
       )}
-    </div>
+    </m.div>
   );
 }

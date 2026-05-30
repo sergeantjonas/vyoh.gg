@@ -1,3 +1,4 @@
+import { SectionShellProvider } from "@/_shared/section-layout/section-shell-context";
 import { render, screen } from "@testing-library/react";
 import type { SteamOwnedGames, SteamPlayerState, SteamSummary } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
@@ -76,11 +77,15 @@ function playerState(overrides: Partial<SteamPlayerState> = {}): SteamPlayerStat
   };
 }
 
-function renderHero() {
+function renderHero({ compact = false } = {}) {
+  // The hero reads `compact` from the section shell to yield its identity to
+  // the strip morph; provide it so the hook doesn't throw.
   return render(
-    <MotionConfig reducedMotion="always">
-      <SteamIdentityHero />
-    </MotionConfig>
+    <SectionShellProvider value={{ compact }}>
+      <MotionConfig reducedMotion="always">
+        <SteamIdentityHero />
+      </MotionConfig>
+    </SectionShellProvider>
   );
 }
 
@@ -213,6 +218,37 @@ describe("SteamIdentityHero", () => {
     expect(
       container.querySelector("span.animate-pulse.bg-emerald-400\\/40")
     ).toBeTruthy();
+  });
+
+  it("keeps the headline visible at scroll-top (not compact)", () => {
+    renderHero();
+    expect(screen.getByRole("heading", { level: 2 }).className).not.toContain(
+      "opacity-0"
+    );
+  });
+
+  it("hides its avatar + name when compact so the strip morph owns the identity", () => {
+    const { container } = renderHero({ compact: true });
+    // Name fades out; only opacity changes (the box stays laid out as the
+    // shared-layout morph source for the strip copy).
+    expect(screen.getByRole("heading", { level: 2 }).className).toContain("opacity-0");
+    // Avatar wrapper (the element wrapping the persona avatar) also fades.
+    const avatar = container.querySelector<HTMLImageElement>("img[data-presence]");
+    expect(avatar?.parentElement?.className).toContain("opacity-0");
+  });
+
+  it("marks its avatar + name as the cross-nav identity owner when not compact", () => {
+    const { container } = renderHero({ compact: false });
+    expect(container.querySelector("[data-identity-avatar]")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 2 }).hasAttribute("data-identity-name")
+    ).toBe(true);
+  });
+
+  it("drops the identity markers when compact so the strip owns them", () => {
+    const { container } = renderHero({ compact: true });
+    expect(container.querySelector("[data-identity-avatar]")).toBeNull();
+    expect(container.querySelector("[data-identity-name]")).toBeNull();
   });
 
   it("has no axe violations", async () => {

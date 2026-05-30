@@ -1,3 +1,4 @@
+import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { cn } from "@/lib/utils";
 import { steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
@@ -12,6 +13,10 @@ import {
   useTransform,
 } from "motion/react";
 import { Fragment, type PointerEvent, type ReactNode, useState } from "react";
+import {
+  STEAM_IDENTITY_AVATAR_MORPH_ID,
+  STEAM_IDENTITY_NAME_MORPH_ID,
+} from "./identity-layout";
 import { SteamStatBand } from "./steam-stat-band";
 
 // Persona-state → presence label, inline dot colour, and avatar ring colour.
@@ -55,6 +60,38 @@ export function SteamIdentityHero() {
   const { data: playerState } = useSteamPlayerState();
   const { data: owned } = useSteamOwnedGames();
   const reduced = useReducedMotion();
+  // The hero owns the shared identity `layoutId` only while it's the on-screen
+  // identity — i.e. at scroll-top. Once `compact` flips, the strip
+  // (SteamIdentity in routes/steam.tsx) mounts the morph destination and the
+  // shared layoutId flies the avatar+name up into the header band. Reduced
+  // motion skips the shared layout entirely → instant swap on scroll. See
+  // identity-layout.ts.
+  const { compact } = useSectionShellState();
+  const morph = !compact && !reduced;
+  const avatarLayoutId = morph ? STEAM_IDENTITY_AVATAR_MORPH_ID : undefined;
+  const nameLayoutId = morph ? STEAM_IDENTITY_NAME_MORPH_ID : undefined;
+  // Mark the avatar + name as the on-screen identity. When compact the hero is
+  // opacity-0 and the strip carries the markers instead, so exactly one
+  // avatar/name pair is tagged in the DOM at any time — a future cross-nav VT
+  // driver (the Steam parallel of identity-morph-nav.ts) can then name an
+  // unambiguous source/destination.
+  const markIdentity = !compact;
+
+  // Supporting hero chrome (identity headline + presence line) fades in just
+  // as the avatar + name finish landing, so the hero assembles as one move
+  // instead of the surrounding text sitting there "waiting" for the morph. The
+  // glass stat band gets its own slightly later fade below. Driven off
+  // `compact` (not mount) so it replays on every reveal — scroll-up from the
+  // compact strip flips `compact` false and re-runs the staggered fade-in.
+  // Mirrors the LoL hero helper at apps/web/src/lol/profile/identity-hero.tsx.
+  // Reduced motion swaps instantly.
+  const detailReveal = (restOpacity: number) => ({
+    initial: reduced ? false : ({ opacity: 0 } as const),
+    animate: { opacity: compact ? 0 : restOpacity },
+    transition: reduced
+      ? { duration: 0 }
+      : { delay: compact ? 0 : 0.22, duration: 0.26, ease: "easeOut" as const },
+  });
 
   // Backdrop subject: live current game wins; else the most-played owned title
   // (owned games arrive sorted by lifetime playtime descending, so [0] is the
@@ -149,7 +186,12 @@ export function SteamIdentityHero() {
             small footprint reads as urgent; at avatar scale the same motion
             felt aggressive. The halo collapses under reduced motion via
             useReducedMotion; the solid ring stays. */}
-        <div className="relative shrink-0">
+        {/* When `compact`, the strip's copy owns the visible identity and
+            morphs up via the shared `layoutId`; the hero's avatar+name (still
+            scrolled partly in view) go invisible so there's no ghost
+            duplicate. Opacity only — Motion still measures the hidden box as
+            the morph source. */}
+        <div className={cn("relative shrink-0", compact && "opacity-0")}>
           {!reduced && inGame && (
             <span
               aria-hidden
@@ -157,7 +199,9 @@ export function SteamIdentityHero() {
             />
           )}
           {avatarSrc ? (
-            <img
+            <m.img
+              {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
+              {...(markIdentity ? { "data-identity-avatar": "" } : {})}
               src={avatarSrc}
               alt=""
               data-presence={inGame ? "in-game" : (summary?.personaState ?? "unknown")}
@@ -173,9 +217,16 @@ export function SteamIdentityHero() {
 
         <div className="flex min-w-0 flex-col gap-1.5">
           {summary ? (
-            <h2 className="truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl">
+            <m.h2
+              {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
+              {...(markIdentity ? { "data-identity-name": "" } : {})}
+              className={cn(
+                "truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl",
+                compact && "opacity-0"
+              )}
+            >
               {summary.personaName}
-            </h2>
+            </m.h2>
           ) : (
             <div className="h-9 w-56 animate-pulse rounded bg-muted" />
           )}
@@ -213,7 +264,10 @@ export function SteamIdentityHero() {
                   ),
                 });
               return (
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-muted-foreground text-sm">
+                <m.p
+                  {...detailReveal(1)}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-muted-foreground text-sm"
+                >
                   {segments.map((seg, i) => (
                     <Fragment key={seg.key}>
                       {i > 0 && (
@@ -224,7 +278,7 @@ export function SteamIdentityHero() {
                       {seg.node}
                     </Fragment>
                   ))}
-                </p>
+                </m.p>
               );
             })()}
 
@@ -234,7 +288,10 @@ export function SteamIdentityHero() {
               only "last checked" as unique). In-game gets a live emerald
               treatment with the game name; otherwise the persona-state dot. */}
           {inGame ? (
-            <p className="flex items-center gap-1.5 text-emerald-300 text-xs">
+            <m.p
+              {...detailReveal(1)}
+              className="flex items-center gap-1.5 text-emerald-300 text-xs"
+            >
               <span className="relative flex size-2">
                 {!reduced && (
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400/60" />
@@ -245,10 +302,13 @@ export function SteamIdentityHero() {
               {lastChecked && (
                 <span className="text-emerald-300/60">· checked {lastChecked}</span>
               )}
-            </p>
+            </m.p>
           ) : (
             presence && (
-              <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
+              <m.p
+                {...detailReveal(1)}
+                className="flex items-center gap-1.5 text-muted-foreground text-xs"
+              >
                 <span className={cn("inline-flex size-2 rounded-full", presence.dot)} />
                 {presence.label}
                 {lastChecked && (
@@ -256,15 +316,17 @@ export function SteamIdentityHero() {
                     · checked {lastChecked}
                   </span>
                 )}
-              </p>
+              </m.p>
             )
           )}
         </div>
       </div>
 
       {/* Library/activity stat band — the Steam parallel of the LoL hero's
-          glass rank strip. Fused into the card bottom, over the backdrop. */}
-      <SteamStatBand />
+          glass rank strip. Fused into the card bottom, over the backdrop.
+          Hidden in lockstep with the identity when the hero collapses; fades
+          back in just after the morph lands when scrolled back to the top. */}
+      <SteamStatBand compact={compact} />
     </section>
   );
 }
