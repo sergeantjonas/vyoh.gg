@@ -12,7 +12,10 @@ import {
 import { useMe } from "@/identity/use-me";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
-import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
+import {
+  championBackdropSplashUrl,
+  rankEmblemUrl,
+} from "@/lol/_shared/assets/champion-icon";
 import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
@@ -26,7 +29,13 @@ import type { LolAccountWithSummary } from "@vyoh/shared";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
 import { Activity, Home, ScrollText, Search } from "lucide-react";
 import { m } from "motion/react";
-import { type ComponentType, type SVGProps, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ComponentType,
+  type SVGProps,
+  useRef,
+  useState,
+} from "react";
 
 const isMac = /Mac/i.test(navigator.platform);
 const shortcutLabel = isMac ? "⌘K" : "Ctrl K";
@@ -287,9 +296,13 @@ function LolMenuPanel({
             Accounts
           </div>
           <ul className="flex max-h-[300px] flex-col overflow-y-auto">
-            {accounts.map((account) => (
+            {accounts.map((account, index) => (
               <li key={account.slug}>
-                <AccountRow account={account} active={account.slug === activeSlug} />
+                <AccountRow
+                  account={account}
+                  active={account.slug === activeSlug}
+                  index={index}
+                />
               </li>
             ))}
           </ul>
@@ -332,13 +345,17 @@ function queueShortLabel(queueId: string): string {
 // shows the highest-of solo/flex rank emblem when available; sub-line
 // carries region + queue + rank text. Sub-line and right-slot stay
 // rendered (region-only / empty) for un-hydrated rows so vertical
-// rhythm doesn't jump as data arrives.
+// rhythm doesn't jump as data arrives. A faint last-played champion
+// splash washes in from the right edge as a showcase accent; `index`
+// drives a per-row open-stagger (see `.nav-account-row` in index.css).
 function AccountRow({
   account,
   active,
+  index,
 }: {
   account: NavLolAccount;
   active: boolean;
+  index: number;
 }) {
   const ddVersion = useDDragonVersion();
   const emblemYear = useRankedEmblemYear();
@@ -353,6 +370,7 @@ function AccountRow({
   const isHydrated = summary !== null && summary.updatedAt !== null;
   const rank = summary?.rank ?? null;
   const profileIconId = account.profileIconId;
+  const splashAlias = summary?.lastPlayedChampionAlias ?? null;
 
   return (
     <NavigationMenuLink asChild active={active}>
@@ -363,23 +381,38 @@ function AccountRow({
         onPointerLeave={prefetch.onPointerLeave}
         onPointerDown={prefetch.onPointerDown}
         aria-current={active ? "page" : undefined}
+        style={{ "--row-index": index } as CSSProperties}
         className={cn(
-          "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+          "nav-account-row relative isolate flex items-center gap-3 overflow-hidden rounded-md px-2 py-1.5 text-sm transition-colors",
           active && "bg-foreground/10 text-foreground"
         )}
       >
+        {/* Last-played champion splash, washed in from the right as a faint
+        showcase accent. Overscanned + clipped so the blur edge never seams;
+        masked to fade out before it reaches the name/rank text. Decorative,
+        so aria-hidden and gated on a hydrated alias. */}
+        {splashAlias && (
+          <span
+            aria-hidden
+            className="-z-10 -inset-4 pointer-events-none absolute bg-center bg-cover opacity-[0.12] blur-[2px] [mask-image:linear-gradient(to_left,black,transparent_72%)]"
+            style={{
+              backgroundImage: `url(${championBackdropSplashUrl(splashAlias, ddVersion)})`,
+            }}
+          />
+        )}
         {/* Fixed-size left icon slot so fallback rows align with hydrated
-        ones — the only difference is what goes inside the box. */}
-        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full">
+        ones — the only difference is what goes inside the box. Enlarged to
+        read as an avatar showcase rather than a list bullet. */}
+        <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full">
           {profileIconId != null ? (
             <img
               src={profileIconUrl(profileIconId, ddVersion)}
               alt=""
               loading="lazy"
-              className="size-7 object-cover"
+              className="size-11 object-cover"
             />
           ) : (
-            <LeagueOfLegendsIcon className="size-4 text-muted-foreground" aria-hidden />
+            <LeagueOfLegendsIcon className="size-6 text-muted-foreground" aria-hidden />
           )}
         </span>
         <span className="flex min-w-0 flex-1 flex-col">

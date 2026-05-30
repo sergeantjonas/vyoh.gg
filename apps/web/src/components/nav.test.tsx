@@ -268,6 +268,79 @@ describe("Nav", () => {
       expect(link.textContent).toMatch(/Unranked/);
     });
 
+    it("washes in a last-played champion splash accent on hydrated rows", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: {
+            rank: null,
+            lastPlayedChampionAlias: "Ahri",
+            updatedAt: "2026-05-24T10:00:00Z",
+          },
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const link = await screen.findByRole("link", { name: /Jonas/i });
+      const splash = link.querySelector('[style*="background-image"]');
+      expect(splash).not.toBeNull();
+      expect(splash?.getAttribute("style")).toContain("/champion/ahri/backdrop/");
+      // Decorative — must not reach the accessibility tree.
+      expect(splash?.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("omits the splash accent when no last-played champion is known", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: {
+            rank: null,
+            lastPlayedChampionAlias: null,
+            updatedAt: "2026-05-24T10:00:00Z",
+          },
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const link = await screen.findByRole("link", { name: /Jonas/i });
+      expect(link.querySelector('[style*="background-image"]')).toBeNull();
+    });
+
+    it("sets a per-row stagger index on each account row", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
+        {
+          slug: "alt-na",
+          gameName: "Alt",
+          tagLine: "NA1",
+          region: "americas",
+          summary: null,
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const jonas = await screen.findByRole("link", { name: /Jonas/i });
+      const alt = screen.getByRole("link", { name: /Alt/i });
+      expect(jonas.className).toContain("nav-account-row");
+      expect(jonas.getAttribute("style")).toMatch(/--row-index:\s*0/);
+      expect(alt.getAttribute("style")).toMatch(/--row-index:\s*1/);
+    });
+
     it("marks the active account row with aria-current and an emphasis style", async () => {
       vi.mocked(useRouterState).mockReturnValue("/lol/jonas-euw/matches" as never);
       accountsRef.current = [
