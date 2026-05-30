@@ -13,6 +13,12 @@ import { SectionShellProvider } from "./section-shell-context";
 
 type SectionShellProps = {
   identity: ReactNode;
+  // Optional slot rendered immediately after identity, before the tab row.
+  // Model 3 uses it for the match-detail `‹ Matches` breadcrumb: on a detail
+  // page the strip carries identity · breadcrumb · detail tabs (not section
+  // tabs), so the breadcrumb represents section scope where a tab used to.
+  // Omitted by every non-detail consumer (LoL listing, Steam) — left-untouched.
+  leading?: ReactNode;
   actions?: ReactNode;
   // Structured tabs the shell renders three ways across viewport tiers (full
   // row ≥880px / filling section dropdown 640–879px / own-row dropdown <640px).
@@ -36,6 +42,7 @@ type SectionShellProps = {
 
 export function SectionShell({
   identity,
+  leading,
   actions,
   tabs = [],
   tabIndicatorId = "section-tab-indicator",
@@ -178,6 +185,7 @@ export function SectionShell({
             820, so collapse to the dropdown a bit sooner. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-3.5">
           <div className="order-1 flex min-w-0 shrink items-center">{identity}</div>
+          {leading && <div className="order-1 flex shrink-0 items-center">{leading}</div>}
           {tabs.length > 0 && (
             <>
               <div className="order-2 hidden shrink-0 min-[880px]:block">

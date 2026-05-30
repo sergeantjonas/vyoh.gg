@@ -118,6 +118,24 @@ describe("SectionShell", () => {
     expect(results.violations).toEqual([]);
   });
 
+  it("renders the leading slot when provided, omits it otherwise", () => {
+    const { rerender } = renderShell();
+    expect(screen.queryByText("‹ back")).toBeNull();
+    rerender(
+      <MotionConfig reducedMotion="always">
+        <SectionShell
+          identity={<span>identity</span>}
+          leading={<span>‹ back</span>}
+          tabs={TABS}
+          tabIndicatorId="test-tab-indicator"
+        >
+          <p>section body</p>
+        </SectionShell>
+      </MotionConfig>
+    );
+    expect(screen.getByText("‹ back")).toBeTruthy();
+  });
+
   it("renders no section nav when tabs is empty", () => {
     renderShell({ tabs: [] });
     expect(screen.queryByRole("navigation", { name: "Section tabs" })).toBeNull();
