@@ -82,6 +82,18 @@ In order of ROI:
 
 **Validation to-do for next host-Chrome session.** `pnpm --filter @vyoh/web dev`, open Profiler, cycle Profile ↔ Matches ↔ Trends ↔ Champions five times each, capture commits with these expected effects: Profile widgets should no longer commit when only the pathname changes; Champions page commits should keep `ChampionTable`'s sort-row work stable as long as the underlying matches window is unchanged.
 
+## LoL account-switcher splash wash — dropdown-open re-baseline 2026-05-30
+
+**Context.** Chunk 1.5 of the nav-condensation arc added a per-account last-played-champion splash wash + open-stagger to the topbar LoL `AccountRow` ([apps/web/src/components/nav.tsx](../../../apps/web/src/components/nav.tsx)). The open path now does meaningful per-row paint (N `backdrop` webp backgrounds + a 240 ms staggered entry), so it needed a host-Chrome re-baseline before the chunk closed.
+
+**Measured (host Chrome, owner machine, real `/me` ~7 accounts with distinct last-played champions — the realistic worst case; menu opened on a populated route).**
+
+1. **Performance panel (throttled record over the open):** clean — no long task >50 ms, no dropped frames during the stagger window.
+2. **Network (images):** first open fires the N distinct `backdrop` fetches; **second open is all cache hits** (memory/disk), so the wash does not re-fetch on subsequent opens.
+3. **Web Vitals (PerfOverlay `?perf`):** all green on the open interaction (INP in the good band).
+
+**Verdict.** No contention; the splash wash earns its keep at the representative account count. No fix sub-chunk needed — the `loading`/decode-hint and per-row-cap mitigations that were on standby are unnecessary. Chunk 1.5's LoL portion is fully done incl. the perf gate; only the explicitly-deferred Steam single-card variant + live pill remain.
+
 ## Routes that exist (for Lighthouse coverage)
 
 - `/` — landing
