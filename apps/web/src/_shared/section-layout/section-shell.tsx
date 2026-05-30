@@ -164,7 +164,7 @@ export function SectionShell({
       <m.div
         className="relative mx-auto max-w-4xl px-6"
         animate={{
-          paddingTop: compact ? 8 : 24,
+          paddingTop: compact ? 8 : 12,
           paddingBottom: compact ? 8 : 12,
         }}
         transition={

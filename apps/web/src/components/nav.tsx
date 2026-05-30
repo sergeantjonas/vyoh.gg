@@ -394,9 +394,16 @@ function AccountRow({
         {splashAlias && (
           <span
             aria-hidden
-            className="-z-10 -inset-4 pointer-events-none absolute bg-center bg-cover opacity-[0.12] blur-[2px] [mask-image:linear-gradient(to_left,black,transparent_72%)]"
+            className="-z-10 -inset-4 pointer-events-none absolute opacity-[0.28] [mask-image:linear-gradient(to_left,black,transparent_55%)]"
             style={{
               backgroundImage: `url(${championBackdropSplashUrl(splashAlias, ddVersion)})`,
+              // bg-cover leaves no horizontal slack on this 6:1 row, so a
+              // small zoom is what lets backgroundPosition pan the splash
+              // subject out from under the avatar/text into the visible right
+              // band. Lower X% pushes the subject further right; Y biases up
+              // toward the face.
+              backgroundSize: "165%",
+              backgroundPosition: "30% 28%",
             }}
           />
         )}
