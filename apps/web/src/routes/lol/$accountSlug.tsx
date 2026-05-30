@@ -239,6 +239,28 @@ function AccountLayout() {
     label,
     Icon,
     active: isTabActive({ to, exact }, pathname, accountSlug),
+    // Profile↔tab navigations morph the identity between the hero and the
+    // strip (M2b). The driver hand-rolls its own view transition and reports
+    // whether it took over; if so we suppress the Link's plain navigation.
+    // Modified clicks and reduced-motion fall through to the router slide.
+    onSelect: (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (reduced) return;
+      const tookOver = runIdentityMorphNav({
+        fromPathname: pathname,
+        toPathname: to.replace("$accountSlug", accountSlug),
+        toIsProfileIndex: to === "/lol/$accountSlug",
+        navigate: () =>
+          navigate({
+            to,
+            params: { accountSlug },
+            search: (prev: Record<string, unknown>) => prev,
+            viewTransition: false,
+          } as never),
+      });
+      if (tookOver) e.preventDefault();
+    },
   }));
   const lolLive: SectionLiveTab | undefined = liveData
     ? {
