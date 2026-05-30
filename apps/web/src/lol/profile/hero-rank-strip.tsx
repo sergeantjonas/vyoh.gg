@@ -44,12 +44,21 @@ function RankCell({
             one without competing. Keeps the two-column band balanced for the
             common one-queue-ranked profile instead of leaving an empty rail. */}
         <div className="flex w-20 shrink-0 justify-center sm:w-24">
-          <img
-            src={rankEmblemUrl("UNRANKED", emblemYear)}
-            alt=""
-            loading="eager"
-            className="size-14 object-contain opacity-30 grayscale sm:size-16"
-          />
+          <div className="relative">
+            {/* The Unranked crest is a near-black emblem on a dark strip, so a
+                faint neutral backlight lifts the silhouette enough to read
+                without making the empty state feel "active". */}
+            <span
+              aria-hidden
+              className="-z-10 absolute -inset-0.5 rounded-full bg-foreground/15 opacity-50 blur-md"
+            />
+            <img
+              src={rankEmblemUrl("UNRANKED", emblemYear)}
+              alt=""
+              loading="eager"
+              className="size-14 object-contain opacity-55 brightness-150 grayscale sm:size-16"
+            />
+          </div>
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
