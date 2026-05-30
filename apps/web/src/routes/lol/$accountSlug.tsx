@@ -38,6 +38,10 @@ import {
   useCachedMatchesWindow,
   useMatchEventsSubscription,
 } from "@/lol/matches/use-matches";
+import {
+  IDENTITY_AVATAR_MORPH_ID,
+  IDENTITY_NAME_MORPH_ID,
+} from "@/lol/profile/identity-layout";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import {
@@ -47,6 +51,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
+import { m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
@@ -158,6 +163,11 @@ function AccountLayout() {
 
   const matchesPath = `/lol/${accountSlug}/matches`;
   const matchesPathPrefix = `${matchesPath}/`;
+  // The Profile landing is the only tab that mounts the cinematic hero, so the
+  // strip's identity defers to it (and morphs with it) there. Every other tab
+  // shows the plain strip identity unconditionally.
+  const isProfileIndex =
+    pathname === `/lol/${accountSlug}` || pathname === `/lol/${accountSlug}/`;
   const isMatchDetail = isMatchDetailFn(pathname, accountSlug);
   // Saved-scroll/active-match state is only meaningful while we're inside
   // the matches subtree (list ↔ detail). Once the user navigates to Trends
@@ -273,6 +283,7 @@ function AccountLayout() {
                   iconId={iconId}
                   level={level}
                   ddVersion={ddVersion}
+                  isProfileIndex={isProfileIndex}
                 />
               }
               leading={
@@ -315,22 +326,37 @@ function LolIdentity({
   iconId,
   level,
   ddVersion,
+  isProfileIndex,
 }: {
   account: ReturnType<typeof useAccountFromSlug>;
   iconId: number | null | undefined;
   level: number | null | undefined;
   ddVersion: ReturnType<typeof useDDragonVersion>;
+  isProfileIndex: boolean;
 }) {
   const { compact } = useSectionShellState();
+  const reduced = useReducedMotion();
+  // On the Profile landing the cinematic hero owns the identity until the page
+  // scrolls; the strip stays empty so we don't double-render avatar + name (the
+  // duplication this morph was built to kill). Once `compact` flips, the strip
+  // mounts the identity and the shared `layoutId` morphs it up from the hero.
+  // On every other tab there's no hero, so the strip renders unconditionally.
+  if (isProfileIndex && !compact) return null;
+  // Attach the shared ids only when a hero exists to morph with (Profile tab)
+  // and motion is allowed; otherwise the strip renders as a plain header.
+  const morph = isProfileIndex && !reduced;
+  const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
+  const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
   return (
     <section className="flex items-center gap-3">
       {iconId != null ? (
         <div className="relative shrink-0">
-          <img
+          <m.img
+            {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
             src={profileIconUrl(iconId, ddVersion)}
             alt=""
             className={cn(
-              "rounded-full object-cover ring-1 ring-border transition-all",
+              "rounded-full object-cover ring-1 ring-border transition-[width,height]",
               compact ? "size-10" : "size-12"
             )}
           />
@@ -343,7 +369,7 @@ function LolIdentity({
       ) : (
         <div
           className={cn(
-            "shrink-0 animate-pulse rounded-full bg-muted ring-1 ring-border transition-all",
+            "shrink-0 animate-pulse rounded-full bg-muted ring-1 ring-border transition-[width,height]",
             compact ? "size-10" : "size-12"
           )}
         />
@@ -353,10 +379,13 @@ function LolIdentity({
         // rank emblems); the section identity is a static header. Region is
         // omitted — single-region by design, and it'd only float between the
         // name and the tab row.
-        <h2 className="text-xl font-semibold">
+        <m.h2
+          {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
+          className="text-xl font-semibold"
+        >
           {account.gameName}
           <span className="text-muted-foreground">#{account.tagLine}</span>
-        </h2>
+        </m.h2>
       ) : (
         <div className="h-5 w-40 animate-pulse rounded bg-muted" />
       )}

@@ -1,3 +1,4 @@
+import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { cn } from "@/lib/utils";
 import { championHeroSplashUrl, rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
@@ -14,6 +15,7 @@ import {
   useTransform,
 } from "motion/react";
 import { type PointerEvent, useState } from "react";
+import { IDENTITY_AVATAR_MORPH_ID, IDENTITY_NAME_MORPH_ID } from "./identity-layout";
 import { TIER_COLOR } from "./profile-rank-tile";
 
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
@@ -66,6 +68,15 @@ export function LolIdentityHero({
   const championName = useChampionName();
   const emblemYear = useRankedEmblemYear();
   const reduced = useReducedMotion();
+  // The hero owns the shared identity `layoutId` only while it's the on-screen
+  // identity — i.e. at scroll-top. Once `compact` flips, the strip takes over
+  // and morphs the avatar+name up into the header band; the hero (still mounted
+  // above the fold) drops the id so the two never fight over it. Reduced motion
+  // skips the shared layout entirely → instant swap. See identity-layout.ts.
+  const { compact } = useSectionShellState();
+  const morph = !compact && !reduced;
+  const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
+  const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
 
   const entry = primaryEntry(rankEntries);
   const tier = entry?.tier;
@@ -146,7 +157,11 @@ export function LolIdentityHero({
       )}
 
       <div className="relative flex min-h-[180px] items-end gap-4 p-6 sm:min-h-[220px]">
-        <div className="relative isolate shrink-0">
+        {/* When `compact`, the strip's copy owns the visible identity and morphs
+            up via the shared `layoutId`; the hero's avatar+name (still scrolled
+            partly in view) go invisible so there's no ghost duplicate. Opacity
+            only — Motion still measures the hidden box as the morph source. */}
+        <div className={cn("relative isolate shrink-0", compact && "opacity-0")}>
           {/* Champion-tinted glow bloom behind the avatar (matches the page
               accent). Neutral rim ring keeps a crisp edge over the splash. */}
           <span
@@ -158,7 +173,8 @@ export function LolIdentityHero({
             style={dominantHex ? { backgroundColor: dominantHex } : undefined}
           />
           {profileIconId != null ? (
-            <img
+            <m.img
+              {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
               src={profileIconUrl(profileIconId, ddVersion)}
               alt=""
               className="size-20 rounded-full object-cover ring-2 ring-white/15 sm:size-24"
@@ -175,10 +191,16 @@ export function LolIdentityHero({
 
         <div className="flex min-w-0 flex-col gap-1.5">
           {gameName ? (
-            <h2 className="truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl">
+            <m.h2
+              {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
+              className={cn(
+                "truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl",
+                compact && "opacity-0"
+              )}
+            >
               {gameName}
               <span className="text-muted-foreground">#{tagLine}</span>
-            </h2>
+            </m.h2>
           ) : (
             <div className="h-9 w-56 animate-pulse rounded bg-muted" />
           )}

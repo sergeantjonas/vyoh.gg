@@ -1,3 +1,4 @@
+import { SectionShellProvider } from "@/_shared/section-layout/section-shell-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { RankEntry } from "@vyoh/shared";
@@ -38,7 +39,7 @@ function entry(overrides: Partial<RankEntry> = {}): RankEntry {
 
 type Props = Parameters<typeof LolIdentityHero>[0];
 
-function renderHero(overrides: Partial<Props> = {}) {
+function renderHero(overrides: Partial<Props> = {}, { compact = false } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const props: Props = {
     gameName: "Vyoh",
@@ -53,11 +54,15 @@ function renderHero(overrides: Partial<Props> = {}) {
     },
     ...overrides,
   };
+  // The hero reads `compact` from the section shell to yield its identity to
+  // the strip morph; provide it so the hook doesn't throw.
   return render(
     <QueryClientProvider client={client}>
-      <MotionConfig reducedMotion="always">
-        <LolIdentityHero {...props} />
-      </MotionConfig>
+      <SectionShellProvider value={{ compact }}>
+        <MotionConfig reducedMotion="always">
+          <LolIdentityHero {...props} />
+        </MotionConfig>
+      </SectionShellProvider>
     </QueryClientProvider>
   );
 }
@@ -124,6 +129,23 @@ describe("LolIdentityHero", () => {
   it("omits the last-played row when no match is known", () => {
     const { container } = renderHero({ lastMatch: null });
     expect(container.textContent).not.toContain("Last played");
+  });
+
+  it("keeps the headline visible at scroll-top (not compact)", () => {
+    renderHero({}, { compact: false });
+    expect(screen.getByRole("heading", { level: 2 }).className).not.toContain(
+      "opacity-0"
+    );
+  });
+
+  it("hides its avatar + name when compact so the strip morph owns the identity", () => {
+    const { container } = renderHero({}, { compact: true });
+    // Name fades out; only opacity changes (the box stays laid out as the
+    // shared-layout morph source for the strip copy).
+    expect(screen.getByRole("heading", { level: 2 }).className).toContain("opacity-0");
+    // Avatar container (the element wrapping the proxied profile icon) also fades.
+    const avatar = container.querySelector('img[src*="/profile-icon/123/"]');
+    expect(avatar?.parentElement?.className).toContain("opacity-0");
   });
 
   it("has no axe violations", async () => {
