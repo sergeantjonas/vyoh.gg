@@ -340,6 +340,54 @@ function queueShortLabel(queueId: string): string {
   return queueId;
 }
 
+// Profile icons and rank emblems in the dropdown load over the network and
+// otherwise snap from blank to loaded — visible pop-in even though the layout
+// slot is already reserved. A pulse skeleton fills the slot until the image
+// decodes, then it fades in; the module-level cache skips the fade for images
+// already loaded this session (re-opening the menu shows them instantly).
+// Mirrors the ChampionSquareIcon pattern in lol/_shared/assets.
+const loadedNavImgs = new Set<string>();
+
+function FadeInImage({
+  src,
+  alt,
+  className,
+  imgClassName,
+  loadedClassName = "opacity-100",
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  imgClassName?: string;
+  loadedClassName?: string;
+}) {
+  const [loaded, setLoaded] = useState(() => loadedNavImgs.has(src));
+  return (
+    <span className={cn("relative inline-block overflow-hidden", className)}>
+      {!loaded && (
+        <span
+          aria-hidden
+          className="absolute inset-0 animate-pulse rounded-[inherit] bg-muted"
+        />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => {
+          loadedNavImgs.add(src);
+          setLoaded(true);
+        }}
+        className={cn(
+          "size-full transition-opacity duration-200",
+          loaded ? loadedClassName : "opacity-0",
+          imgClassName
+        )}
+      />
+    </span>
+  );
+}
+
 // Account row in the LoL dropdown. The left icon is the per-account
 // profile icon (stable identity, like a Discord avatar). Right side
 // shows the highest-of solo/flex rank emblem when available; sub-line
@@ -412,11 +460,11 @@ function AccountRow({
         read as an avatar showcase rather than a list bullet. */}
         <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full">
           {profileIconId != null ? (
-            <img
+            <FadeInImage
               src={profileIconUrl(profileIconId, ddVersion)}
               alt=""
-              loading="lazy"
-              className="size-11 object-cover"
+              className="size-11"
+              imgClassName="object-cover"
             />
           ) : (
             <LeagueOfLegendsIcon className="size-6 text-muted-foreground" aria-hidden />
@@ -443,11 +491,12 @@ function AccountRow({
         to display, keeping the row chrome stable. */}
         <span className="flex size-7 shrink-0 items-center justify-center">
           {isHydrated && rank && (
-            <img
+            <FadeInImage
               src={rankEmblemUrl(rank.tier, emblemYear)}
               alt={rank.tier}
-              loading="lazy"
-              className="size-7 object-contain opacity-90"
+              className="size-7"
+              imgClassName="object-contain"
+              loadedClassName="opacity-90"
             />
           )}
         </span>
