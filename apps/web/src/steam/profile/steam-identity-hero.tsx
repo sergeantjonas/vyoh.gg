@@ -196,7 +196,9 @@ export function SteamIdentityHero() {
                 <span className={cn("inline-flex size-2 rounded-full", presence.dot)} />
                 {presence.label}
                 {lastChecked && (
-                  <span className="text-muted-foreground/60">· checked {lastChecked}</span>
+                  <span className="text-muted-foreground/60">
+                    · checked {lastChecked}
+                  </span>
                 )}
               </p>
             )
