@@ -159,6 +159,14 @@ export function Nav() {
                 />
               </NavigationMenuContent>
             </NavigationMenuItem>
+            {/* Steam is a single plain link today. WHEN this grows nav items
+                (a dropdown / sub-routes / account-or-profile menu), revisit the
+                deferred "Steam account-showcase" parity item — the single rich
+                identity card parallel to the LoL AccountRow showcase (nav arc
+                1.5). The showcase only earns its place once there's real Steam
+                nav to host it. Detail + trigger:
+                docs/working-notes/cross-cutting/steam-lol-parity.md
+                § "Deferred — trigger-gated". */}
             <SimpleNavItem
               to="/steam"
               label="Steam"

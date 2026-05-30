@@ -1,6 +1,6 @@
 # Steam ↔ LoL section parity
 
-**Status:** All items shipped — Items 1–5 on 2026-05-24, Item 6 on 2026-05-28. Kept as the cross-section parity audit trail; consult before adding a new Steam surface that has a structural equivalent in LoL. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md).
+**Status:** Items 1–6 shipped (1–5 on 2026-05-24, 6 on 2026-05-28). **One trigger-gated item added 2026-05-30: Steam nav account-showcase (BLOCKED — see "Deferred — trigger-gated" below).** Kept as the cross-section parity audit trail; consult before adding a new Steam surface that has a structural equivalent in LoL. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md).
 
 Read this when picking up any Steam polish task, or before adding a new Steam surface that has a structural equivalent in LoL.
 
@@ -19,6 +19,18 @@ The VT morph for Steam library → game-detail is already tracked in [view-trans
 - **Not a VT migration.** The Steam library → game-detail morph is its own arc — see [view-transitions-rollout.md](view-transitions-rollout.md). The items here are loading-state, scroll, and empty-state polish that don't depend on VT.
 - **Not a Steam feature arc.** No new data, no new routes. This is hygiene against `@docs/repo-conventions.md` and visual parity with shipped LoL patterns.
 - **Not a forced symmetry.** Champion theming, queue/role taxonomies, KDA/damage-profile cards are domain-specific to LoL and stay there. Per-game genre/tag UI for Steam is a separate question, not part of this note.
+
+---
+
+## Deferred — trigger-gated
+
+### Steam nav account-showcase (BLOCKED — needs a Steam nav dropdown first)
+
+**Trigger:** when the Steam topbar nav-pill gains items beyond the single `/steam` link — a dropdown, sub-routes, or an account/profile menu. A trigger comment lives at the Steam `SimpleNavItem` in [`nav.tsx`](../../../apps/web/src/components/nav.tsx) so a future session editing that line is pointed here.
+
+**What:** the nav-condensation arc chunk 1.5 turned the LoL topbar `AccountRow` into a showcase — bigger avatar, last-played-champion (`summary.lastPlayedChampionAlias`) splash-tint row background, and per-row open-stagger. The Steam parallel from the arc — a single rich identity card inside a Steam nav dropdown — was **deferred**, not built, because Steam is currently a plain `SimpleNavItem` link with no dropdown surface to host it.
+
+**Why deferred, not dropped:** a one-item "dropdown" is poor UX; the showcase card only earns its place once Steam has real nav to anchor it. Owner intent (2026-05-30): Steam nav has a lot of unexplored space and will grow — build the showcase variant *then*, mirroring whatever the LoL `AccountRow` showcase landed as. Cross-ref: nav-condensation-arc.md chunk 1.5.
 
 ---
 
