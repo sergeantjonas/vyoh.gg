@@ -120,7 +120,7 @@ describe("SteamIdentityHero", () => {
       playerState({ lastPolledAt: new Date(Date.now() - 5 * 60_000).toISOString() })
     );
     renderHero();
-    expect(screen.getByText(/checked 5 minutes ago/)).toBeTruthy();
+    expect(screen.getByText(/checked 5m ago/)).toBeTruthy();
   });
 
   it("shows the live now-playing line when in-game", () => {
