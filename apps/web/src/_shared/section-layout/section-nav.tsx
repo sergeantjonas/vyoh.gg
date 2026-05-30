@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { m } from "motion/react";
-import type { ComponentType } from "react";
+import type { ComponentType, MouseEvent } from "react";
 
 // Structured descriptor for a section tab. The shell renders these three ways
 // depending on viewport (full tab row ≥820px, a filling section dropdown
@@ -33,6 +33,11 @@ export type SectionTab = {
   label: string;
   Icon: ComponentType<{ className?: string }>;
   active: boolean;
+  // Optional click hook. Sections that drive a hand-rolled navigation (e.g.
+  // LoL's Profile↔tab identity morph) provide this; if the handler calls
+  // `e.preventDefault()` the `<Link>` skips its own navigation. Steam tabs omit
+  // it and navigate via the plain `<Link>` (router-level VT slide).
+  onSelect?: (e: MouseEvent<HTMLAnchorElement>) => void;
 };
 
 // Live is a *route*, not a tab — it's a transient special state that reads
@@ -67,6 +72,7 @@ function SectionTabLink({
       params={tab.params as never}
       search={searchProp(tab.preserveSearch) as never}
       replace={tab.replace ?? false}
+      onClick={tab.onSelect}
       className={cn(
         "group relative flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
         tab.active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
@@ -214,6 +220,7 @@ export function SectionTabsDropdown({
               params={tab.params as never}
               search={searchProp(tab.preserveSearch) as never}
               replace={tab.replace ?? false}
+              onClick={tab.onSelect}
               className="flex cursor-pointer items-center gap-2"
             >
               <tab.Icon
