@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   CONFIGURABLE_SERIOUS_QUEUES,
   useSeriousQueues,
@@ -39,16 +40,20 @@ export function SeriousQueuesSettings() {
 
   return (
     <div ref={containerRef} className="relative">
-      <button
+      {/* Same shared primitive as RefreshAccountButton so the two strip-action
+          icons are identical by construction (size, radius, fill, hover). The
+          outline variant's `aria-expanded:bg-muted` doubles as the open state. */}
+      <Button
+        variant="outline"
+        size="icon"
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Serious-queues preferences"
-        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-background/40 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
       >
         <SlidersHorizontal className="size-4" />
-      </button>
+      </Button>
       <AnimatePresence>
         {open && (
           <m.div
