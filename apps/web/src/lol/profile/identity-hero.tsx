@@ -77,6 +77,12 @@ export function LolIdentityHero({
   const morph = !compact && !reduced;
   const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
+  // Mark the avatar + name as the on-screen identity for the cross-nav VT morph
+  // (identity-morph-nav.ts) — but only while the hero is the visible owner, i.e.
+  // not compact. When compact the hero is opacity-0 and the strip carries the
+  // markers instead, so exactly one avatar/name pair is tagged in the DOM at any
+  // time and the morph driver can name an unambiguous source/destination.
+  const markIdentity = !compact;
 
   const entry = primaryEntry(rankEntries);
   const tier = entry?.tier;
@@ -175,6 +181,7 @@ export function LolIdentityHero({
           {profileIconId != null ? (
             <m.img
               {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
+              {...(markIdentity ? { "data-identity-avatar": "" } : {})}
               src={profileIconUrl(profileIconId, ddVersion)}
               alt=""
               className="size-20 rounded-full object-cover ring-2 ring-white/15 sm:size-24"
@@ -193,6 +200,7 @@ export function LolIdentityHero({
           {gameName ? (
             <m.h2
               {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
+              {...(markIdentity ? { "data-identity-name": "" } : {})}
               className={cn(
                 "truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl",
                 compact && "opacity-0"

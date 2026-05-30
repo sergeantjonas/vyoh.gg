@@ -148,6 +148,20 @@ describe("LolIdentityHero", () => {
     expect(avatar?.parentElement?.className).toContain("opacity-0");
   });
 
+  it("marks its avatar + name as the cross-nav identity owner when not compact", () => {
+    const { container } = renderHero({}, { compact: false });
+    expect(container.querySelector("[data-identity-avatar]")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).hasAttribute("data-identity-name")).toBe(
+      true
+    );
+  });
+
+  it("drops the identity markers when compact so the strip owns them", () => {
+    const { container } = renderHero({}, { compact: true });
+    expect(container.querySelector("[data-identity-avatar]")).toBeNull();
+    expect(container.querySelector("[data-identity-name]")).toBeNull();
+  });
+
   it("has no axe violations", async () => {
     const { container } = renderHero();
     const results = await axe(container);

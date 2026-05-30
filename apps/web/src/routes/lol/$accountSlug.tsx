@@ -343,7 +343,11 @@ function LolIdentity({
   // On every other tab there's no hero, so the strip renders unconditionally.
   if (isProfileIndex && !compact) return null;
   // Attach the shared ids only when a hero exists to morph with (Profile tab)
-  // and motion is allowed; otherwise the strip renders as a plain header.
+  // and motion is allowed; otherwise the strip renders as a plain header. The
+  // `data-identity-{avatar,name}` markers below are unconditional: the strip
+  // only renders when it's the visible identity owner, so tagging it always
+  // keeps exactly one avatar/name pair marked in the DOM for the cross-nav VT
+  // morph (identity-morph-nav.ts) — the hero drops its markers when compact.
   const morph = isProfileIndex && !reduced;
   const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
@@ -353,6 +357,7 @@ function LolIdentity({
         <div className="relative shrink-0">
           <m.img
             {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
+            data-identity-avatar=""
             src={profileIconUrl(iconId, ddVersion)}
             alt=""
             className={cn(
@@ -381,6 +386,7 @@ function LolIdentity({
         // name and the tab row.
         <m.h2
           {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
+          data-identity-name=""
           className="text-xl font-semibold"
         >
           {account.gameName}
