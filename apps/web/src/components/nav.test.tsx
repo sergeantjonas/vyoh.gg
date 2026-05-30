@@ -119,6 +119,51 @@ describe("Nav", () => {
     expect(screen.getByRole("link", { name: /Status/ })).toBeTruthy();
   });
 
+  it("collapses the `vyoh.gg` wordmark below `sm` so the bar fits on narrow viewports", () => {
+    vi.mocked(useRouterState).mockReturnValue("/" as never);
+    renderNav();
+    // The wordmark wrapper sits one level above the `vyoh` color span. Below
+    // the `sm` breakpoint it's `hidden`; from `sm` up it returns as a baseline
+    // flex container. The orb glyph stays as the home affordance at all
+    // widths.
+    const wordmark = screen.getByText("vyoh").parentElement;
+    expect(wordmark?.className).toContain("hidden");
+    expect(wordmark?.className).toContain("sm:flex");
+  });
+
+  it("hides nav-item labels below `sm` so the bar scales to N items on phones", () => {
+    vi.mocked(useRouterState).mockReturnValue("/" as never);
+    renderNav();
+    // SimpleNavItem labels (Home/Steam/Status) + the LoL trigger label all
+    // collapse below `sm` — the icon stays, the visible text hides, and the
+    // affordance survives for assistive tech via `aria-label` on the link/
+    // trigger. The aria-name route is the meaningful regression guard: if a
+    // future refactor drops the aria-label while keeping the visual hide,
+    // the icon-only state would become unreadable to screen readers.
+    for (const label of ["Home", "Steam", "Status"]) {
+      const link = screen.getByRole("link", { name: label });
+      const labelSpan = link.querySelector("span.hidden");
+      expect(labelSpan?.textContent).toBe(label);
+      expect(labelSpan?.className).toContain("sm:inline");
+    }
+    const lolTrigger = screen.getByRole("button", { name: /^LoL$/i });
+    const lolLabel = lolTrigger.querySelector("span.hidden");
+    expect(lolLabel?.textContent).toBe("LoL");
+    expect(lolLabel?.className).toContain("sm:inline");
+  });
+
+  it("anchors the LoL menu absolutely at all widths so opening it can't shove the bar around", () => {
+    vi.mocked(useRouterState).mockReturnValue("/" as never);
+    const { container } = renderNav();
+    openLolMenu();
+    // The shadcn default puts `md:absolute` on NavigationMenuContent, leaving
+    // the panel `position: static` (occupying inline flex space) below 768px
+    // — which reshuffled every other nav item when the menu opened on
+    // narrow viewports. The override above forces absolute at every width.
+    const content = container.querySelector('[data-slot="navigation-menu-content"]');
+    expect(content?.className).toContain("!absolute");
+  });
+
   it("marks Home active only when pathname is exactly '/'", () => {
     vi.mocked(useRouterState).mockReturnValue("/" as never);
     const { container } = renderNav();

@@ -101,11 +101,22 @@ export function Nav() {
       />
       <div
         data-nav-inner=""
-        className="relative mx-auto flex max-w-4xl items-center gap-6 px-6 py-3"
+        // The inter-item gap tightens to 12px below `sm` so the bar fits
+        // comfortably once the wordmark collapses to just the orb glyph —
+        // 24px next to a 27px orb reads as accidental dead space.
+        className="relative mx-auto flex max-w-4xl items-center gap-3 px-6 py-3 sm:gap-6"
       >
-        <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <Link
+          to="/"
+          aria-label="vyoh.gg home"
+          className="flex items-center gap-2 text-lg font-bold tracking-tight"
+        >
           <OrbGlyph className="size-[1.5em] translate-y-[0.1em]" />
-          <span className="flex items-baseline">
+          {/* Wordmark collapses below `sm` (~640px) so the bar has room to
+              keep all four nav items readable on phones; the orb glyph alone
+              carries the home affordance at narrow widths, matching the
+              already-collapsing ⌘K → search-icon idiom below. */}
+          <span className="hidden items-baseline sm:flex">
             {/* `vyoh` follows the per-route theme color so it tints
                 alongside the section the user is on. `.gg` stays muted to
                 preserve the wordmark's secondary read.                   */}
@@ -131,6 +142,7 @@ export function Nav() {
             <SimpleNavItem to="/" label="Home" Icon={Home} pathname={pathname} />
             <NavigationMenuItem>
               <NavigationMenuTrigger
+                aria-label="LoL"
                 // Suppress the toggle-close only when the click lands
                 // inside the open animation window — almost always the
                 // trailing edge of the hover/tap that opened the menu in
@@ -156,10 +168,20 @@ export function Nav() {
                   className={cn("size-4 transition-transform", lolActive && "scale-110")}
                   aria-hidden
                 />
-                <span className="relative z-10">LoL</span>
+                {/* Same label-hide as SimpleNavItem; the trigger's built-in
+                    chevron still signals "menu" at narrow widths. */}
+                <span className="relative z-10 hidden sm:inline">LoL</span>
                 {lolActive && <NavPillHighlight />}
               </NavigationMenuTrigger>
-              <NavigationMenuContent className="!w-72 p-1">
+              {/* Force `absolute w-72` at every width. The shadcn default
+                  for NavigationMenuContent only applies `md:absolute md:w-auto`
+                  — below the `md` breakpoint the content stays `position:
+                  static` with `width: 100%`, which inserts it inline between
+                  the LoL trigger and the next nav item and shoves the whole
+                  bar around when the menu opens. `!absolute` overrides that
+                  and `max-w-[calc(100vw-1.5rem)]` keeps the 288px panel
+                  inside the viewport on the narrowest phones. */}
+              <NavigationMenuContent className="!absolute !w-72 max-w-[calc(100vw-1.5rem)] p-1">
                 <LolMenuPanel
                   accounts={accounts}
                   defaultLolSlug={defaultLolSlug}
@@ -247,6 +269,7 @@ function SimpleNavItem({
       <NavigationMenuLink asChild active={active}>
         <Link
           to={to}
+          aria-label={label}
           onPointerEnter={prefetchHandlers.onPointerEnter}
           onPointerLeave={prefetchHandlers.onPointerLeave}
           onPointerDown={prefetchHandlers.onPointerDown}
@@ -261,7 +284,10 @@ function SimpleNavItem({
             className={cn("size-4 transition-transform", active && "scale-110")}
             aria-hidden
           />
-          <span className="relative z-10">{label}</span>
+          {/* Label hides below `sm` so the bar scales to N items on narrow
+              viewports (more items are planned). `aria-label` on the link
+              keeps the affordance discoverable to assistive tech. */}
+          <span className="relative z-10 hidden sm:inline">{label}</span>
           {active && <NavPillHighlight />}
         </Link>
       </NavigationMenuLink>
