@@ -238,12 +238,20 @@ export function LolIdentityHero({
               {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
               {...(markIdentity ? { "data-identity-name": "" } : {})}
               className={cn(
-                "truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl",
+                // Editorial display register — heavier wght axis, tighter
+                // tracking, and a punchier scale at sm+ where the card has
+                // the room. Geist ships only the `wght` axis (no `opsz`),
+                // so the display "look" comes from weight + tracking + size
+                // rather than a true optical-size cut.
+                "truncate font-bold text-4xl -tracking-[0.02em] drop-shadow-md sm:text-5xl",
                 compact && "opacity-0"
               )}
             >
               {gameName}
-              <span className="text-muted-foreground">#{tagLine}</span>
+              {/* The `#tag` segment reads as a caption against the display
+                  name — drop a weight class and let muted-foreground carry
+                  the secondary read. */}
+              <span className="font-medium text-muted-foreground">#{tagLine}</span>
             </m.h2>
           ) : (
             <div className="h-9 w-56 animate-pulse rounded bg-muted" />

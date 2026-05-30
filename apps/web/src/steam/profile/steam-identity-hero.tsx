@@ -221,7 +221,11 @@ export function SteamIdentityHero() {
               {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
               {...(markIdentity ? { "data-identity-name": "" } : {})}
               className={cn(
-                "truncate font-semibold text-3xl tracking-tight drop-shadow-sm sm:text-4xl",
+                // Editorial display register — mirrors the LoL hero's move 2.
+                // Geist ships only the `wght` axis (no `opsz`) so the "display
+                // look" comes from weight + tracking + size + drop-shadow
+                // rather than a true optical-size cut.
+                "truncate font-bold text-4xl -tracking-[0.02em] drop-shadow-md sm:text-5xl",
                 compact && "opacity-0"
               )}
             >

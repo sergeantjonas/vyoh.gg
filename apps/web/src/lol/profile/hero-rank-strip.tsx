@@ -28,12 +28,53 @@ function RankCell({
   entry,
   recentLp,
   label,
+  compact,
+  reduced,
 }: {
   entry: RankEntry | undefined;
   recentLp: number[] | undefined;
   label: string;
+  compact: boolean;
+  reduced: boolean;
 }) {
   const emblemYear = useRankedEmblemYear();
+
+  // Crest reveal animation — replays on every `compact` flip false (so the
+  // emblem lands on scroll-up from the collapsed strip, not just on mount).
+  // Springs in from a smaller scale with a slight blur so it reads as the
+  // tier sigil settling into place rather than popping in. Delayed slightly
+  // past the strip's own fade-in (HeroRankStrip's delay 0.3 → crest delay
+  // 0.42) so each crest "lands" into the strip rather than racing alongside.
+  // Reduced motion: crest renders static with no transition.
+  const crestReveal = {
+    initial: reduced ? false : ({ opacity: 0, scale: 0.6, filter: "blur(4px)" } as const),
+    animate: {
+      opacity: compact ? 0 : 1,
+      scale: compact ? 0.6 : 1,
+      filter: compact ? "blur(4px)" : "blur(0px)",
+    },
+    transition: reduced
+      ? { duration: 0 }
+      : compact
+        ? { duration: 0.18, ease: "easeOut" as const }
+        : { delay: 0.42, type: "spring" as const, stiffness: 220, damping: 18 },
+  };
+  // Ambient drift — very slow continuous rotation that gives the settled
+  // crest a sense of life without ever reading as motion. ±1.2deg over 12s
+  // is below the "I see it move" threshold for most viewers but contributes
+  // to the surface feeling alive. Suspended under reduced motion and while
+  // compact (the crest is hidden under compact anyway).
+  const ambientDrift =
+    reduced || compact
+      ? {}
+      : {
+          animate: { rotate: [0, 1.2, 0, -1.2, 0] },
+          transition: {
+            duration: 12,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut" as const,
+          },
+        };
 
   if (!entry) {
     return (
@@ -44,21 +85,26 @@ function RankCell({
             one without competing. Keeps the two-column band balanced for the
             common one-queue-ranked profile instead of leaving an empty rail. */}
         <div className="flex w-20 shrink-0 justify-center sm:w-24">
-          <div className="relative">
-            {/* The Unranked crest is a near-black emblem on a dark strip, so a
-                faint neutral backlight lifts the silhouette enough to read
-                without making the empty state feel "active". */}
-            <span
-              aria-hidden
-              className="-z-10 absolute -inset-0.5 rounded-full bg-foreground/15 opacity-50 blur-md"
-            />
-            <img
-              src={rankEmblemUrl("UNRANKED", emblemYear)}
-              alt=""
-              loading="eager"
-              className="size-14 object-contain opacity-55 brightness-150 grayscale sm:size-16"
-            />
-          </div>
+          <m.div className="relative" {...crestReveal}>
+            {/* Inner ambient-drift wrapper holds the rotation loop so the
+                outer reveal's scale + opacity stay clean. Unranked drifts
+                the same way — empty state still feels alive. */}
+            <m.div {...ambientDrift}>
+              {/* The Unranked crest is a near-black emblem on a dark strip, so a
+                  faint neutral backlight lifts the silhouette enough to read
+                  without making the empty state feel "active". */}
+              <span
+                aria-hidden
+                className="-z-10 absolute -inset-0.5 rounded-full bg-foreground/15 opacity-50 blur-md"
+              />
+              <img
+                src={rankEmblemUrl("UNRANKED", emblemYear)}
+                alt=""
+                loading="eager"
+                className="size-14 object-contain opacity-55 brightness-150 grayscale sm:size-16"
+              />
+            </m.div>
+          </m.div>
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
@@ -89,21 +135,27 @@ function RankCell({
           vertical axis as the avatar above it instead of ragged-aligning to
           the card edge. The tier glow stays tight on the emblem itself. */}
       <div className="flex w-20 shrink-0 justify-center sm:w-24">
-        <div className="relative">
-          <span
-            aria-hidden
-            className={cn(
-              "-z-10 absolute -inset-0.5 rounded-full opacity-[0.22] blur-md",
-              tierGlow
-            )}
-          />
-          <img
-            src={rankEmblemUrl(entry.tier, emblemYear)}
-            alt=""
-            loading="eager"
-            className="size-14 object-contain drop-shadow-md sm:size-16"
-          />
-        </div>
+        <m.div className="relative" {...crestReveal}>
+          {/* Inner ambient-drift wrapper holds the rotation loop so the
+              outer reveal's scale + opacity stay clean. The tier glow rides
+              along with the rotation so the whole emblem-and-halo unit
+              breathes as one piece. */}
+          <m.div {...ambientDrift}>
+            <span
+              aria-hidden
+              className={cn(
+                "-z-10 absolute -inset-0.5 rounded-full opacity-[0.22] blur-md",
+                tierGlow
+              )}
+            />
+            <img
+              src={rankEmblemUrl(entry.tier, emblemYear)}
+              alt=""
+              loading="eager"
+              className="size-14 object-contain drop-shadow-md sm:size-16"
+            />
+          </m.div>
+        </m.div>
       </div>
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
@@ -183,6 +235,8 @@ export function HeroRankStrip({
           entry={byQueue.get(queueId)}
           recentLp={recentLpByQueue?.[queueId]}
           label={QUEUE_LABEL[queueId] ?? queueId}
+          compact={compact}
+          reduced={!!reduced}
         />
       ))}
     </m.div>
