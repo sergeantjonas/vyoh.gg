@@ -64,14 +64,24 @@ export class SteamService {
   constructor(private readonly client: SteamClientService) {}
 
   async getOwnerSummary(): Promise<SteamSummary> {
-    // Fetch player + equipped items in parallel. The items call is optional —
-    // a failure or empty payload leaves the cosmetic fields undefined rather
-    // than blocking the summary, which is the only must-have here.
-    const [player, items] = await Promise.all([
+    // Fetch player + equipped items + community level in parallel. Only the
+    // player payload is must-have; items and level are optional — a failure on
+    // either leaves the corresponding fields undefined rather than blocking the
+    // summary. `.catch(() => null)` on the optional calls keeps the Promise.all
+    // from rejecting.
+    const [player, items, level] = await Promise.all([
       this.client.getPlayerSummary(STEAM_OWNER_ID),
       this.client.getProfileItemsEquipped(STEAM_OWNER_ID).catch((err) => {
         this.logger.warn(
           `steam profile items fetch failed; continuing without cosmetics: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+        return null;
+      }),
+      this.client.getSteamLevel(STEAM_OWNER_ID).catch((err) => {
+        this.logger.warn(
+          `steam level fetch failed; continuing without level: ${
             err instanceof Error ? err.message : String(err)
           }`
         );
@@ -84,7 +94,21 @@ export class SteamService {
       // privacy-locked, which still returns a player with communityvisibilitystate < 3.
       throw new Error(`Steam profile not found for owner id ${STEAM_OWNER_ID}`);
     }
-    return mapPlayerToSummary(player, items);
+    // Percentile depends on the resolved level (the endpoint takes a level int),
+    // so it can only run once level is known — a dependent second hop, not part
+    // of the parallel batch. Optional like the rest.
+    const levelPercentile =
+      level != null
+        ? await this.client.getSteamLevelDistribution(level).catch((err) => {
+            this.logger.warn(
+              `steam level distribution fetch failed; continuing without percentile: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            );
+            return null;
+          })
+        : null;
+    return mapPlayerToSummary(player, items, level, levelPercentile);
   }
 
   async getOwnerWishlist(): Promise<SteamWishlist> {
@@ -192,7 +216,9 @@ function buildStoreUrl(appid: number, storeUrlPath: string | null): string {
 
 function mapPlayerToSummary(
   player: SteamPlayerRaw,
-  items: SteamGetProfileItemsEquippedResponse["response"] | null
+  items: SteamGetProfileItemsEquippedResponse["response"] | null,
+  steamLevel: number | null,
+  steamLevelPercentile: number | null
 ): SteamSummary {
   const profilePublic = player.communityvisibilitystate === 3;
   // Game-details visibility can't be verified from GetPlayerSummaries — that
@@ -234,6 +260,11 @@ function mapPlayerToSummary(
       : {}),
     personaState: PERSONA_STATE[player.personastate],
     currentGame,
+    // `timecreated` is absent on privacy-locked profiles; only surface it when
+    // present so the frontend can branch on its absence.
+    ...(player.timecreated !== undefined ? { memberSinceUnix: player.timecreated } : {}),
+    ...(steamLevel !== null ? { steamLevel } : {}),
+    ...(steamLevelPercentile !== null ? { steamLevelPercentile } : {}),
     privacyPrereqs: {
       profilePublic,
       gameDetailsPublic: "unknown",

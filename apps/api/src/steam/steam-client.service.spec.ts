@@ -187,3 +187,56 @@ describe("SteamClientService.getStoreItems", () => {
     expect(url).toContain(encodeURIComponent('"appid":214490'));
   });
 });
+
+describe("SteamClientService.getSteamLevel", () => {
+  it("returns the player_level", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ response: { player_level: 14 } }), {
+          status: 200,
+        })
+      )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const level = await service.getSteamLevel("76561198020053778");
+    expect(level).toBe(14);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("GetSteamLevel"),
+      expect.anything()
+    );
+  });
+
+  it("returns null when player_level is absent (privacy-locked)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ response: {} }), { status: 200 })
+        )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    expect(await service.getSteamLevel("76561198020053778")).toBeNull();
+  });
+});
+
+describe("SteamClientService.getSteamLevelDistribution", () => {
+  it("returns the percentile for a level int", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ response: { player_level_percentile: 94.66 } }), {
+          status: 200,
+        })
+      )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const pct = await service.getSteamLevelDistribution(14);
+    expect(pct).toBe(94.66);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("player_level=14"),
+      expect.anything()
+    );
+  });
+});

@@ -11,6 +11,8 @@ import type {
   SteamGetPlayerSummariesResponse,
   SteamGetProfileItemsEquippedResponse,
   SteamGetRecentlyPlayedGamesResponse,
+  SteamGetSteamLevelDistributionResponse,
+  SteamGetSteamLevelResponse,
   SteamGetStoreItemsFullResponse,
   SteamGetStoreItemsResponse,
   SteamGetTagListResponse,
@@ -69,6 +71,27 @@ export class SteamClientService {
       // Accounts with the default profile return `{ response: {} }` — distinct
       // from a 4xx. Return the bare object; the caller decides per-slot fallback.
       return data.response;
+    });
+  }
+
+  // Steam community level. Separate cheap call (GetPlayerSummaries doesn't
+  // carry it). Returns null when the profile is privacy-locked or the field is
+  // absent so the caller can render the summary without a level.
+  async getSteamLevel(steamId: string): Promise<number | null> {
+    return this.limiter.schedule("steam-level", async () => {
+      const path = `/IPlayerService/GetSteamLevel/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}`;
+      const data = await this.fetchJson<SteamGetSteamLevelResponse>(path);
+      return data.response.player_level ?? null;
+    });
+  }
+
+  // Percentile of accounts at or below `level`. Takes a level int, not a
+  // steamid — no per-user privacy. Returns null if Steam omits the field.
+  async getSteamLevelDistribution(level: number): Promise<number | null> {
+    return this.limiter.schedule("steam-level-distribution", async () => {
+      const path = `/IPlayerService/GetSteamLevelDistribution/v1/?key=${encodeURIComponent(this.apiKey)}&player_level=${level}`;
+      const data = await this.fetchJson<SteamGetSteamLevelDistributionResponse>(path);
+      return data.response.player_level_percentile ?? null;
     });
   }
 

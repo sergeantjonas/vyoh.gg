@@ -16,11 +16,31 @@ export interface SteamPlayerRaw {
   // Present only while in-game.
   gameid?: string;
   gameextrainfo?: string;
+  // Account-creation epoch (seconds). Present on public profiles; absent on
+  // privacy-locked ones. Drives the "member since {year}" headline.
+  timecreated?: number;
 }
 
 export interface SteamGetPlayerSummariesResponse {
   response: {
     players: SteamPlayerRaw[];
+  };
+}
+
+// IPlayerService/GetSteamLevel/v1/ — `{ response: { player_level } }`.
+// `player_level` is absent for privacy-locked profiles.
+export interface SteamGetSteamLevelResponse {
+  response: {
+    player_level?: number;
+  };
+}
+
+// IPlayerService/GetSteamLevelDistribution/v1/?player_level=N — takes a level
+// int (no steamid, no privacy concern). `player_level_percentile` is the share
+// of accounts at or below that level, e.g. 94.66 ⇒ "higher than 94.66%".
+export interface SteamGetSteamLevelDistributionResponse {
+  response: {
+    player_level_percentile?: number;
   };
 }
 

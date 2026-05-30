@@ -39,5 +39,15 @@ export interface SteamSummary {
     | "looking-to-trade"
     | "looking-to-play";
   currentGame: SteamCurrentGame | null;
+  // Account-creation epoch (seconds), for the "member since {year}" headline.
+  // Optional — privacy-locked profiles omit `timecreated` upstream.
+  memberSinceUnix?: number;
+  // Steam community level (e.g. 14). Optional — the level call can fail or be
+  // privacy-locked without blocking the rest of the summary.
+  steamLevel?: number;
+  // Percentile of accounts at or below `steamLevel` (e.g. 94.66 ⇒ "higher than
+  // ~95%"). Only meaningful alongside `steamLevel`; both come from separate
+  // optional calls, so either may be absent.
+  steamLevelPercentile?: number;
   privacyPrereqs: SteamPrivacyPrereqs;
 }

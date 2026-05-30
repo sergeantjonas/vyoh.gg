@@ -10,11 +10,15 @@ import type {
 
 function makeService(
   player: SteamPlayerRaw | null,
-  items: SteamGetProfileItemsEquippedResponse["response"] = {}
+  items: SteamGetProfileItemsEquippedResponse["response"] = {},
+  level: number | null = null,
+  levelPercentile: number | null = null
 ): SteamService {
   const client = {
     getPlayerSummary: vi.fn().mockResolvedValue(player),
     getProfileItemsEquipped: vi.fn().mockResolvedValue(items),
+    getSteamLevel: vi.fn().mockResolvedValue(level),
+    getSteamLevelDistribution: vi.fn().mockResolvedValue(levelPercentile),
   } as unknown as SteamClientService;
   return new SteamService(client);
 }
@@ -80,6 +84,30 @@ describe("SteamService.getOwnerSummary", () => {
     await expect(makeService(null).getOwnerSummary()).rejects.toThrow(
       /Steam profile not found/
     );
+  });
+
+  it("surfaces memberSinceUnix, steamLevel, and percentile when present", async () => {
+    const summary = await makeService(
+      { ...basePlayer, timecreated: 1263864425 },
+      {},
+      14,
+      94.66
+    ).getOwnerSummary();
+    expect(summary.memberSinceUnix).toBe(1263864425);
+    expect(summary.steamLevel).toBe(14);
+    expect(summary.steamLevelPercentile).toBe(94.66);
+  });
+
+  it("omits memberSinceUnix when timecreated is absent (privacy-locked)", async () => {
+    const summary = await makeService(basePlayer, {}, 14, 94.66).getOwnerSummary();
+    expect(summary.memberSinceUnix).toBeUndefined();
+    expect(summary.steamLevel).toBe(14);
+  });
+
+  it("omits level fields and skips the percentile call when level is unavailable", async () => {
+    const summary = await makeService(basePlayer, {}, null).getOwnerSummary();
+    expect(summary.steamLevel).toBeUndefined();
+    expect(summary.steamLevelPercentile).toBeUndefined();
   });
 
   it("maps equipped cosmetics to absolute CDN URLs, including animated background webm", async () => {
