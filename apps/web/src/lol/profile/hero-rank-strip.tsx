@@ -37,15 +37,25 @@ function RankCell({
 
   if (!entry) {
     return (
-      <div className="flex min-w-0 flex-1 items-center gap-3 opacity-45">
-        {/* Empty rail mirrors the ranked cell's emblem footprint so the label
-            column lines up across ranked/unranked queues. */}
-        <div className="w-20 shrink-0 sm:w-24" aria-hidden />
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* Real Unranked crest (wiki `Season_{year}_-_Unranked.png`, resolved
+            through the same rankEmblem proxy as every tier — no API change),
+            desaturated + dimmed so the column has the same shape as a ranked
+            one without competing. Keeps the two-column band balanced for the
+            common one-queue-ranked profile instead of leaving an empty rail. */}
+        <div className="flex w-20 shrink-0 justify-center sm:w-24">
+          <img
+            src={rankEmblemUrl("UNRANKED", emblemYear)}
+            alt=""
+            loading="eager"
+            className="size-14 object-contain opacity-30 grayscale sm:size-16"
+          />
+        </div>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
             {label}
           </span>
-          <span className="font-semibold text-muted-foreground text-xl">Unranked</span>
+          <span className="font-semibold text-muted-foreground/60 text-xl">Unranked</span>
         </div>
       </div>
     );

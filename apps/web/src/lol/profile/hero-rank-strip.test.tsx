@@ -63,10 +63,13 @@ describe("HeroRankStrip", () => {
   });
 
   it("keeps both queue columns, rendering Unranked for the missing one", () => {
-    renderStrip([entry({ queueId: "RANKED_SOLO_5x5" })]);
+    const { container } = renderStrip([entry({ queueId: "RANKED_SOLO_5x5" })]);
     // Solo is Emerald; Flex is absent → one Unranked placeholder.
     expect(screen.getByText("Emerald I")).toBeTruthy();
     expect(screen.getAllByText("Unranked")).toHaveLength(1);
+    // The unranked cell shows the real (proxied) Unranked crest so the column
+    // keeps the same shape as a ranked one instead of an empty rail.
+    expect(container.querySelector('img[src*="/rank/UNRANKED/"]')).toBeTruthy();
   });
 
   it("renders both queues when both are ranked", () => {
