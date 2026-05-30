@@ -16,7 +16,7 @@ import {
 } from "motion/react";
 import { type PointerEvent, useState } from "react";
 import { IDENTITY_AVATAR_MORPH_ID, IDENTITY_NAME_MORPH_ID } from "./identity-layout";
-import { TIER_COLOR } from "./profile-rank-tile";
+import { TIER_COLOR, TIER_GLOW } from "./profile-rank-tile";
 
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
@@ -30,10 +30,12 @@ function primaryEntry(entries: RankEntry[]): RankEntry | null {
   );
 }
 
-function rankLabel(entry: RankEntry): string {
+// Tier + division only (no LP) — the LP renders on its own line in the hero
+// rank moment. Apex tiers (Master+) have no division.
+function tierLabel(entry: RankEntry): string {
   const tier = entry.tier.charAt(0) + entry.tier.slice(1).toLowerCase();
   const division = APEX_TIERS.has(entry.tier) ? "" : ` ${entry.rank}`;
-  return `${tier}${division} · ${entry.leaguePoints} LP`;
+  return `${tier}${division}`;
 }
 
 interface LolIdentityHeroProps {
@@ -125,6 +127,8 @@ export function LolIdentityHero({
   const tierText = tier
     ? (TIER_COLOR[tier] ?? "text-foreground")
     : "text-muted-foreground";
+  // Tier-tinted backlight for the hero rank emblem (null → neutral fallback).
+  const tierGlow = tier ? TIER_GLOW[tier] : undefined;
 
   const splashUrl = splashChampion
     ? championHeroSplashUrl(splashChampion, ddVersion)
@@ -249,20 +253,39 @@ export function LolIdentityHero({
             <div className="h-9 w-56 animate-pulse rounded bg-muted" />
           )}
           {entry ? (
-            <m.div {...detailReveal(1)} className="flex items-center gap-2">
-              <img
-                src={rankEmblemUrl(entry.tier, emblemYear)}
-                alt=""
-                className="size-7 object-contain drop-shadow"
-              />
-              <span className={cn("font-medium text-sm", tierText)}>
-                {rankLabel(entry)}
+            <m.div {...detailReveal(1)} className="mt-0.5 flex items-center gap-2.5">
+              {/* Cinematic rank moment: the emblem sits in a tier-tinted glow
+                  bloom (mirrors the avatar's champion glow), so rank reads as
+                  part of the hero treatment rather than text floating on the
+                  splash. The hero owns rank-as-identity; the tiles below own
+                  rank-as-performance (W/L, win%, LP trend). */}
+              <div className="relative shrink-0">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "-z-10 absolute -inset-1.5 rounded-full opacity-50 blur-xl",
+                    tierGlow ?? "bg-foreground/10"
+                  )}
+                />
+                <img
+                  src={rankEmblemUrl(entry.tier, emblemYear)}
+                  alt=""
+                  className="size-11 object-contain drop-shadow-md sm:size-12"
+                />
+              </div>
+              <span className="flex flex-col leading-tight">
+                <span className={cn("font-semibold text-lg tracking-tight", tierText)}>
+                  {tierLabel(entry)}
+                </span>
+                <span className="font-medium text-muted-foreground text-xs tabular-nums">
+                  {entry.leaguePoints} LP
+                </span>
               </span>
             </m.div>
           ) : (
             <m.span
               {...detailReveal(1)}
-              className="font-medium text-muted-foreground text-sm"
+              className="mt-1 font-medium text-muted-foreground text-sm"
             >
               Unranked
             </m.span>

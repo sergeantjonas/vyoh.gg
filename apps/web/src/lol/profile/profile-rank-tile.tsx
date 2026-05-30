@@ -29,6 +29,22 @@ export const TIER_COLOR: Record<string, string> = {
   CHALLENGER: "text-yellow-300",
 };
 
+// Tier-tinted glow bloom (bg-* mirror of TIER_COLOR's hues) for the emblem's
+// backlight in the hero rank moment. Kept beside TIER_COLOR so the colour pair
+// stays in sync — same hue family, the `bg-` form for the blurred bloom.
+export const TIER_GLOW: Record<string, string> = {
+  IRON: "bg-slate-400",
+  BRONZE: "bg-orange-500",
+  SILVER: "bg-slate-300",
+  GOLD: "bg-amber-400",
+  PLATINUM: "bg-teal-300",
+  EMERALD: "bg-emerald-400",
+  DIAMOND: "bg-sky-400",
+  MASTER: "bg-violet-400",
+  GRANDMASTER: "bg-rose-400",
+  CHALLENGER: "bg-yellow-300",
+};
+
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
 function RankTileContent({

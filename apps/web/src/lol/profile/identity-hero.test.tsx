@@ -73,9 +73,12 @@ describe("LolIdentityHero", () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Vyoh#Ahri");
   });
 
-  it("renders the primary-queue rank crest label and the level badge", () => {
+  it("renders the primary-queue tier + LP (split lines) and the level badge", () => {
     renderHero();
-    expect(screen.getByText("Emerald I · 17 LP")).toBeTruthy();
+    // The hero rank moment splits tier and LP onto separate lines (cinematic
+    // emblem treatment), so they're no longer one combined string.
+    expect(screen.getByText("Emerald I")).toBeTruthy();
+    expect(screen.getByText("17 LP")).toBeTruthy();
     expect(screen.getByText("412")).toBeTruthy();
   });
 
@@ -91,7 +94,8 @@ describe("LolIdentityHero", () => {
         }),
       ],
     });
-    expect(screen.getByText("Diamond II · 44 LP")).toBeTruthy();
+    expect(screen.getByText("Diamond II")).toBeTruthy();
+    expect(screen.getByText("44 LP")).toBeTruthy();
   });
 
   it("shows Unranked when no rank entries exist", () => {
