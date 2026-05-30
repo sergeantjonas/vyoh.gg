@@ -11,10 +11,16 @@ import {
   STEAM_IDENTITY_AVATAR_MORPH_ID,
   STEAM_IDENTITY_NAME_MORPH_ID,
 } from "@/steam/profile/identity-layout";
+import { runSteamIdentityMorphNav } from "@/steam/profile/identity-morph-nav";
 import { isSteamTabActive } from "@/steam/tabs";
 import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
 import { useSteamSummary } from "@/steam/use-steam-summary";
-import { Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
+import {
+  Outlet,
+  createFileRoute,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect } from "react";
@@ -48,6 +54,8 @@ function SteamLayout() {
   // can stand in. Returns null on Chrome/Firefox, on cross-section
   // navs, and on first mount.
   const safariSlideDir = useSafariSlideDirection(pathname);
+  const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   useScrollResetOnNav(pathname, [
     { fromPrefix: "/steam/game/", toExact: "/steam/library" },
@@ -63,6 +71,23 @@ function SteamLayout() {
     label: tab.label,
     Icon: tab.Icon,
     active: isSteamTabActive(tab, pathname),
+    // Profile↔tab navigations morph the avatar + persona name between the
+    // hero and the strip (M2b). The driver hand-rolls its own view transition
+    // and reports whether it took over; if so we suppress the Link's plain
+    // navigation. Modified clicks and reduced-motion fall through to the
+    // router slide (and Safari falls through inside the driver via isWebKit).
+    onSelect: (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (prefersReducedMotion) return;
+      const tookOver = runSteamIdentityMorphNav({
+        fromPathname: pathname,
+        toPathname: tab.to,
+        toIsProfileIndex: tab.to === "/steam",
+        navigate: () => navigate({ to: tab.to, viewTransition: false } as never),
+      });
+      if (tookOver) e.preventDefault();
+    },
   }));
 
   return (
