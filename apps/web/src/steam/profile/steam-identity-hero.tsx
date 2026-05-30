@@ -12,6 +12,7 @@ import {
   useTransform,
 } from "motion/react";
 import { type PointerEvent, useState } from "react";
+import { SteamStatBand } from "./steam-stat-band";
 
 // Persona-state → presence label + dot colour. "Online status only" presence
 // line (owner decision): no most-played echo here — that lives in the stat band.
@@ -205,6 +206,10 @@ export function SteamIdentityHero() {
           )}
         </div>
       </div>
+
+      {/* Library/activity stat band — the Steam parallel of the LoL hero's
+          glass rank strip. Fused into the card bottom, over the backdrop. */}
+      <SteamStatBand />
     </section>
   );
 }
