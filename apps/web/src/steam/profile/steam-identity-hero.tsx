@@ -84,7 +84,9 @@ export function SteamIdentityHero() {
   };
 
   const avatarSrc =
-    summary?.animatedAvatarUrl && !reduced ? summary.animatedAvatarUrl : summary?.avatarUrl;
+    summary?.animatedAvatarUrl && !reduced
+      ? summary.animatedAvatarUrl
+      : summary?.avatarUrl;
 
   return (
     <section
