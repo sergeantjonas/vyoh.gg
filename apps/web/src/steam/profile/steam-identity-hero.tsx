@@ -14,16 +14,29 @@ import {
 import { Fragment, type PointerEvent, type ReactNode, useState } from "react";
 import { SteamStatBand } from "./steam-stat-band";
 
-// Persona-state → presence label + dot colour. "Online status only" presence
-// line (owner decision): no most-played echo here — that lives in the stat band.
-const PRESENCE: Record<string, { label: string; dot: string }> = {
-  online: { label: "Online", dot: "bg-emerald-400" },
-  busy: { label: "Busy", dot: "bg-rose-400" },
-  away: { label: "Away", dot: "bg-amber-400" },
-  snooze: { label: "Snoozing", dot: "bg-amber-400" },
-  "looking-to-trade": { label: "Looking to trade", dot: "bg-sky-400" },
-  "looking-to-play": { label: "Looking to play", dot: "bg-sky-400" },
-  offline: { label: "Offline", dot: "bg-muted-foreground" },
+// Persona-state → presence label, inline dot colour, and avatar ring colour.
+// Online uses Steam's brand sky (matching the client chrome) so that emerald
+// stays reserved as the in-game / live-activity signal across both heroes —
+// the inline dot below and the avatar ring share a source of truth, and a
+// glance at the ring carries the same read as a glance at the dot. Offline
+// falls back to a neutral chrome ring (no presence colour) so the absence
+// of a "live" tint IS the offline signal.
+const PRESENCE: Record<string, { label: string; dot: string; ring: string }> = {
+  online: { label: "Online", dot: "bg-sky-400", ring: "ring-sky-400" },
+  busy: { label: "Busy", dot: "bg-rose-400", ring: "ring-rose-400" },
+  away: { label: "Away", dot: "bg-amber-400", ring: "ring-amber-400" },
+  snooze: { label: "Snoozing", dot: "bg-amber-400", ring: "ring-amber-400" },
+  "looking-to-trade": {
+    label: "Looking to trade",
+    dot: "bg-sky-400",
+    ring: "ring-sky-400",
+  },
+  "looking-to-play": {
+    label: "Looking to play",
+    dot: "bg-sky-400",
+    ring: "ring-sky-400",
+  },
+  offline: { label: "Offline", dot: "bg-muted-foreground", ring: "ring-white/15" },
 };
 
 function memberSinceYear(unix: number): number {
@@ -127,15 +140,32 @@ export function SteamIdentityHero() {
       )}
 
       <div className="relative flex min-h-[220px] items-end gap-4 p-6 sm:min-h-[280px]">
+        {/* Avatar — wears the activity ring. `inGame` overrides the persona
+            state with the cross-stream live colour (emerald) plus a soft
+            animate-ping halo so the "playing right now" read jumps at a
+            glance, even before the eye reaches the "Now playing" line. The
+            ping collapses under reduced motion via the global MotionConfig;
+            the solid ring stays. Same shape as the inline presence dot's
+            pulse vocabulary, scaled up to the avatar. */}
         <div className="relative shrink-0">
+          {!reduced && inGame && (
+            <span
+              aria-hidden
+              className="absolute inset-0 animate-ping rounded-full bg-emerald-400/35"
+            />
+          )}
           {avatarSrc ? (
             <img
               src={avatarSrc}
               alt=""
-              className="size-20 rounded-full object-cover ring-2 ring-white/15 sm:size-24"
+              data-presence={inGame ? "in-game" : (summary?.personaState ?? "unknown")}
+              className={cn(
+                "relative size-20 rounded-full object-cover ring-2 sm:size-24",
+                inGame ? "ring-emerald-400" : (presence?.ring ?? "ring-white/15")
+              )}
             />
           ) : (
-            <div className="size-20 animate-pulse rounded-full bg-muted ring-2 ring-white/15 sm:size-24" />
+            <div className="relative size-20 animate-pulse rounded-full bg-muted ring-2 ring-white/15 sm:size-24" />
           )}
         </div>
 

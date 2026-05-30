@@ -169,6 +169,27 @@ describe("LolIdentityHero", () => {
     expect(container.querySelector("[data-identity-name]")).toBeNull();
   });
 
+  it("wears an emerald activity ring when the account is in a live game", () => {
+    const { container } = renderHero({ inLiveGame: true });
+    const avatar = container.querySelector<HTMLImageElement>("[data-live-game]");
+    expect(avatar).toBeTruthy();
+    expect(avatar?.className).toContain("ring-emerald-400");
+    // Live activity gets a sibling pulse halo behind the avatar.
+    // `useReducedMotion()` reads the OS media query (NOT MotionConfig), so it
+    // returns false under happy-dom and the pulse renders in tests.
+    expect(container.querySelector("span.animate-ping.bg-emerald-400\\/35")).toBeTruthy();
+  });
+
+  it("falls back to the neutral chrome ring when not in a live game", () => {
+    const { container } = renderHero({ inLiveGame: false });
+    const avatar = container.querySelector<HTMLImageElement>(
+      'img[src*="/profile-icon/123/"]'
+    );
+    expect(avatar?.className).toContain("ring-white/15");
+    expect(avatar?.className).not.toContain("ring-emerald-400");
+    expect(avatar?.hasAttribute("data-live-game")).toBe(false);
+  });
+
   it("has no axe violations", async () => {
     const { container } = renderHero();
     const results = await axe(container);

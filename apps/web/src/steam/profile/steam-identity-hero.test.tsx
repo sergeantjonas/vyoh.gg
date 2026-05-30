@@ -156,6 +156,63 @@ describe("SteamIdentityHero", () => {
     expect(container.querySelector('img[src*="/hero/noflip/1245620/"]')).toBeTruthy();
   });
 
+  it("wears a sky activity ring when online (Steam brand colour, not emerald)", () => {
+    summaryMock.mockReturnValue(summary({ personaState: "online" }));
+    const { container } = renderHero();
+    const avatar = container.querySelector<HTMLImageElement>(
+      'img[data-presence="online"]'
+    );
+    expect(avatar).toBeTruthy();
+    expect(avatar?.className).toContain("ring-sky-400");
+    // Emerald is reserved for in-game / live activity — should NOT leak onto
+    // the online state.
+    expect(avatar?.className).not.toContain("ring-emerald-400");
+  });
+
+  it("maps each non-online persona state to its ring colour", () => {
+    const cases: Array<[SteamSummary["personaState"], string]> = [
+      ["busy", "ring-rose-400"],
+      ["away", "ring-amber-400"],
+      ["snooze", "ring-amber-400"],
+      ["looking-to-trade", "ring-sky-400"],
+      ["looking-to-play", "ring-sky-400"],
+      ["offline", "ring-white/15"],
+    ];
+    for (const [state, ringClass] of cases) {
+      summaryMock.mockReturnValue(summary({ personaState: state }));
+      const { container, unmount } = renderHero();
+      const avatar = container.querySelector<HTMLImageElement>(
+        `img[data-presence="${state}"]`
+      );
+      expect(avatar, `expected avatar for state=${state}`).toBeTruthy();
+      expect(
+        avatar?.className.includes(ringClass),
+        `expected ${state} → ${ringClass}, got ${avatar?.className}`
+      ).toBe(true);
+      unmount();
+    }
+  });
+
+  it("overrides the persona ring with an emerald activity ring + pulse when in-game", () => {
+    summaryMock.mockReturnValue(summary({ personaState: "online" }));
+    playerStateMock.mockReturnValue(
+      playerState({
+        personaState: "online",
+        currentGame: { appid: 440, name: "Team Fortress 2" },
+      })
+    );
+    const { container } = renderHero();
+    const avatar = container.querySelector<HTMLImageElement>(
+      'img[data-presence="in-game"]'
+    );
+    expect(avatar).toBeTruthy();
+    expect(avatar?.className).toContain("ring-emerald-400");
+    // Live activity gets a sibling pulse halo behind the avatar.
+    // `useReducedMotion()` reads the OS media query (NOT MotionConfig), so it
+    // returns false under happy-dom and the pulse renders in tests.
+    expect(container.querySelector("span.animate-ping.bg-emerald-400\\/35")).toBeTruthy();
+  });
+
   it("has no axe violations", async () => {
     const { container } = renderHero();
     const results = await axe(container);

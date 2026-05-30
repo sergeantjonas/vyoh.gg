@@ -1,6 +1,7 @@
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useLiveGame } from "@/lol/matches/use-live-match";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { LolIdentityHero } from "@/lol/profile/identity-hero";
 import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
@@ -33,6 +34,11 @@ function ProfilePage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const rank = useProfileRank(account);
+  // Shared with LiveGameChip below — TanStack Query dedupes the in-flight
+  // fetch, so this second read is free on the wire. Drives the hero avatar's
+  // activity ring; the chip below renders the richer live-game card.
+  const liveGame = useLiveGame(account);
+  const inLiveGame = liveGame.data != null;
   // Shares the cache key with ProfileLpHistory below, so the second consumer
   // is free on the wire — TanStack Query dedupes the in-flight fetch and both
   // tiles + chart hydrate from the same response.
@@ -82,6 +88,7 @@ function ProfilePage() {
         recentLpByQueue={recentLpByQueue}
         splashChampion={signatureChampion}
         lastMatch={lastMatch}
+        inLiveGame={inLiveGame}
       />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePatchNotice accountSlug={accountSlug} />

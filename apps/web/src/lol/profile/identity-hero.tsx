@@ -33,6 +33,11 @@ interface LolIdentityHeroProps {
   splashChampion: string | null;
   // Most-recent non-remake match, for the "last played X · Nh ago" line.
   lastMatch?: { champion: string; playedAt: string } | null | undefined;
+  // True when the account has an active League live game. Drives the avatar's
+  // emerald activity ring + pulse — the cross-stream live-activity treatment
+  // shared with the Steam hero's in-game state. The hero itself stays a pure
+  // presentational component; the caller does the live-game query.
+  inLiveGame?: boolean;
 }
 
 // Cinematic identity hero for the Profile landing: the signature champion's
@@ -51,6 +56,7 @@ export function LolIdentityHero({
   recentLpByQueue,
   splashChampion,
   lastMatch,
+  inLiveGame = false,
 }: LolIdentityHeroProps) {
   const ddVersion = useDDragonVersion();
   const championName = useChampionName();
@@ -188,16 +194,31 @@ export function LolIdentityHero({
               !dominantHex && "bg-foreground/10"
             )}
           />
+          {/* Live-game activity ring + pulse — the LoL parallel of the Steam
+              hero's in-game treatment. Binary by design: in a live game (any
+              queue) or not. Reduced motion drops the ping but keeps the
+              solid emerald ring so the "playing right now" signal still
+              reads as a static halo. */}
+          {!reduced && inLiveGame && (
+            <span
+              aria-hidden
+              className="absolute inset-0 animate-ping rounded-full bg-emerald-400/35"
+            />
+          )}
           {profileIconId != null ? (
             <m.img
               {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
               {...(markIdentity ? { "data-identity-avatar": "" } : {})}
               src={profileIconUrl(profileIconId, ddVersion)}
               alt=""
-              className="size-20 rounded-full object-cover ring-2 ring-white/15 sm:size-24"
+              data-live-game={inLiveGame ? "" : undefined}
+              className={cn(
+                "relative size-20 rounded-full object-cover ring-2 sm:size-24",
+                inLiveGame ? "ring-emerald-400" : "ring-white/15"
+              )}
             />
           ) : (
-            <div className="size-20 animate-pulse rounded-full bg-muted ring-2 ring-white/15 sm:size-24" />
+            <div className="relative size-20 animate-pulse rounded-full bg-muted ring-2 ring-white/15 sm:size-24" />
           )}
           {summonerLevel != null && (
             <m.span
