@@ -94,6 +94,24 @@ In order of ROI:
 
 **Verdict.** No contention; the splash wash earns its keep at the representative account count. No fix sub-chunk needed — the `loading`/decode-hint and per-row-cap mitigations that were on standby are unnecessary. Chunk 1.5's LoL portion is fully done incl. the perf gate; only the explicitly-deferred Steam single-card variant + live pill remain.
 
+## LoL identity scroll/nav morph (M2/M2b) — re-baseline 2026-05-30
+
+**Context.** Chunk 1.3a of the nav-condensation arc added the cinematic Profile hero, then M2 (the avatar + name collapse into the compact header strip via Motion `layoutId` on scroll) and M2b (the same identity *travels on navigation* — a hand-rolled `startViewTransition` that runs the section slide and the identity morph together; see [nav-condensation-arc.md](nav-condensation-arc.md) and [identity-morph-nav.ts](../../../apps/web/src/lol/profile/identity-morph-nav.ts)). Both run on `/lol/$accountSlug`, the highest-traffic route, so the morphs needed a host-Chrome re-baseline before being treated as perf-validated.
+
+**Measured (host Chrome, owner machine, dev WEB-VITALS overlay via `?perf`, clicking through the LoL section tabs — the nav-morph path).**
+
+| Metric | Reading | Band |
+|---|---:|---|
+| INP | 8 ms | Good (≪ 200 ms) |
+| LCP | 1479 ms | Good (< 2.5 s) |
+| CLS | 0 | Good |
+| FCP | 342 ms | Good |
+| TTFB | 147 ms | Good |
+
+INP 8 ms on the morph-heavy interaction (each tab click fires the VT snapshot + Motion layout morph + the staggered chrome reveal) is ~25× under the "good" threshold — the morph adds no main-thread block. No regression vs the pre-morph `/lol/$slug` feel.
+
+**Caveat on source.** These are dev-overlay readings (the in-app `web-vitals` overlay), **not** a Lighthouse or React-Profiler capture — the devcontainer can't run Lighthouse (per "Tooling in place"), so this is the owner's host browser reading the live overlay. The margin is decisive enough that a formal Lighthouse pass isn't gating, but if a README perf-screenshot run happens later, capture `/lol/$slug` under Lighthouse then. The scroll-collapse (M2) side wasn't separately INP-sampled here (scroll rarely logs an INP event); eyeballed smooth on scroll-down/up.
+
 ## Routes that exist (for Lighthouse coverage)
 
 - `/` — landing
