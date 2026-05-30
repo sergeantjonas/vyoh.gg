@@ -37,11 +37,16 @@ function RankCell({
 
   if (!entry) {
     return (
-      <div className="flex min-w-0 flex-1 flex-col gap-1 opacity-45">
-        <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          {label}
-        </span>
-        <span className="font-semibold text-muted-foreground text-xl">Unranked</span>
+      <div className="flex min-w-0 flex-1 items-center gap-3 opacity-45">
+        {/* Empty rail mirrors the ranked cell's emblem footprint so the label
+            column lines up across ranked/unranked queues. */}
+        <div className="w-20 shrink-0 sm:w-24" aria-hidden />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="font-medium text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            {label}
+          </span>
+          <span className="font-semibold text-muted-foreground text-xl">Unranked</span>
+        </div>
       </div>
     );
   }
@@ -55,21 +60,26 @@ function RankCell({
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
-      {/* Tier-tinted emblem — the rank's one visual moment in the strip. */}
-      <div className="relative shrink-0">
-        <span
-          aria-hidden
-          className={cn(
-            "-z-10 absolute -inset-1 rounded-full opacity-40 blur-lg",
-            tierGlow
-          )}
-        />
-        <img
-          src={rankEmblemUrl(entry.tier, emblemYear)}
-          alt=""
-          loading="eager"
-          className="size-12 object-contain drop-shadow-md sm:size-14"
-        />
+      {/* Emblem in a rail that matches the avatar's footprint (w-20/24 === the
+          avatar's size-20/24), so the leading emblem centers on the same
+          vertical axis as the avatar above it instead of ragged-aligning to
+          the card edge. The tier glow stays tight on the emblem itself. */}
+      <div className="flex w-20 shrink-0 justify-center sm:w-24">
+        <div className="relative">
+          <span
+            aria-hidden
+            className={cn(
+              "-z-10 absolute -inset-0.5 rounded-full opacity-[0.22] blur-md",
+              tierGlow
+            )}
+          />
+          <img
+            src={rankEmblemUrl(entry.tier, emblemYear)}
+            alt=""
+            loading="eager"
+            className="size-14 object-contain drop-shadow-md sm:size-16"
+          />
+        </div>
       </div>
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
@@ -141,7 +151,7 @@ export function HeroRankStrip({
       initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: compact ? 0 : 1 }}
       transition={reduced ? { duration: 0 } : { delay: compact ? 0 : 0.3, duration: 0.3 }}
-      className="relative flex flex-col gap-4 border-white/10 border-t bg-background/40 px-6 py-4 backdrop-blur-md sm:flex-row sm:gap-6"
+      className="relative flex flex-col gap-4 border-white/10 border-t bg-background/25 px-6 py-4 backdrop-blur-sm sm:flex-row sm:gap-6"
     >
       {QUEUE_ORDER.map((queueId) => (
         <RankCell

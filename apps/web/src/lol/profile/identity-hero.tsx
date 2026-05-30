@@ -171,7 +171,7 @@ export function LolIdentityHero({
         </div>
       )}
 
-      <div className="relative flex min-h-[180px] items-end gap-4 p-6 sm:min-h-[220px]">
+      <div className="relative flex min-h-[220px] items-end gap-4 p-6 sm:min-h-[280px]">
         {/* When `compact`, the strip's copy owns the visible identity and morphs
             up via the shared `layoutId`; the hero's avatar+name (still scrolled
             partly in view) go invisible so there's no ghost duplicate. Opacity
