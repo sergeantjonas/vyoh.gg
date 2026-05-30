@@ -194,15 +194,17 @@ export function LolIdentityHero({
               !dominantHex && "bg-foreground/10"
             )}
           />
-          {/* Live-game activity ring + pulse — the LoL parallel of the Steam
-              hero's in-game treatment. Binary by design: in a live game (any
-              queue) or not. Reduced motion drops the ping but keeps the
-              solid emerald ring so the "playing right now" signal still
-              reads as a static halo. */}
+          {/* Live-game activity halo — the LoL parallel of the Steam hero's
+              in-game treatment. Binary by design: in a live game (any queue)
+              or not. A breathing blurred halo (animate-pulse + blur-md)
+              rather than the dot's animate-ping vocabulary — at avatar scale
+              the scale-out ping felt aggressive; a soft opacity breath reads
+              "live, but settled". Reduced motion drops the halo; the solid
+              emerald ring stays so the signal still reads. */}
           {!reduced && inLiveGame && (
             <span
               aria-hidden
-              className="absolute inset-0 animate-ping rounded-full bg-emerald-400/35"
+              className="-inset-1 absolute animate-pulse rounded-full bg-emerald-400/40 blur-md"
             />
           )}
           {profileIconId != null ? (

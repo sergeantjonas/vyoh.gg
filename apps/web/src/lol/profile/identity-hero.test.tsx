@@ -174,10 +174,12 @@ describe("LolIdentityHero", () => {
     const avatar = container.querySelector<HTMLImageElement>("[data-live-game]");
     expect(avatar).toBeTruthy();
     expect(avatar?.className).toContain("ring-emerald-400");
-    // Live activity gets a sibling pulse halo behind the avatar.
+    // Live activity gets a sibling breathing halo behind the avatar.
     // `useReducedMotion()` reads the OS media query (NOT MotionConfig), so it
-    // returns false under happy-dom and the pulse renders in tests.
-    expect(container.querySelector("span.animate-ping.bg-emerald-400\\/35")).toBeTruthy();
+    // returns false under happy-dom and the halo renders in tests.
+    expect(
+      container.querySelector("span.animate-pulse.bg-emerald-400\\/40")
+    ).toBeTruthy();
   });
 
   it("falls back to the neutral chrome ring when not in a live game", () => {

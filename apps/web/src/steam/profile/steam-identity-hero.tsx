@@ -142,16 +142,18 @@ export function SteamIdentityHero() {
       <div className="relative flex min-h-[220px] items-end gap-4 p-6 sm:min-h-[280px]">
         {/* Avatar — wears the activity ring. `inGame` overrides the persona
             state with the cross-stream live colour (emerald) plus a soft
-            animate-ping halo so the "playing right now" read jumps at a
-            glance, even before the eye reaches the "Now playing" line. The
-            ping collapses under reduced motion via the global MotionConfig;
-            the solid ring stays. Same shape as the inline presence dot's
-            pulse vocabulary, scaled up to the avatar. */}
+            breathing halo so the "playing right now" read jumps at a glance,
+            even before the eye reaches the "Now playing" line. The halo is
+            a blurred opacity breath (animate-pulse), NOT a scale-out ping —
+            the ping vocabulary stays on the inline presence dot where its
+            small footprint reads as urgent; at avatar scale the same motion
+            felt aggressive. The halo collapses under reduced motion via
+            useReducedMotion; the solid ring stays. */}
         <div className="relative shrink-0">
           {!reduced && inGame && (
             <span
               aria-hidden
-              className="absolute inset-0 animate-ping rounded-full bg-emerald-400/35"
+              className="-inset-1 absolute animate-pulse rounded-full bg-emerald-400/40 blur-md"
             />
           )}
           {avatarSrc ? (
