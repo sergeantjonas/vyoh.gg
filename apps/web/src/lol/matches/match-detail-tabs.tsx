@@ -1,71 +1,60 @@
-import { cn } from "@/lib/utils";
-import { Link } from "@tanstack/react-router";
-import { m } from "motion/react";
+import type { SectionTab } from "@/_shared/section-layout/section-nav";
+import { Activity, ScrollText, Sparkles, UserRound } from "lucide-react";
 
+// The match-detail sub-tabs. Model 3 renders these in the always-on section
+// strip (via `buildMatchDetailSectionTabs` → SectionShell `tabs`), so each
+// entry carries an Icon to match the section tabs' icon+label treatment.
 export const MATCH_DETAIL_TABS = [
-  { id: "recap", label: "Recap" },
-  { id: "your-game", label: "Your game" },
-  { id: "review", label: "Review" },
-  { id: "timeline", label: "Timeline" },
+  { id: "recap", label: "Recap", Icon: ScrollText },
+  { id: "your-game", label: "Your game", Icon: UserRound },
+  { id: "review", label: "Review", Icon: Sparkles },
+  { id: "timeline", label: "Timeline", Icon: Activity },
 ] as const;
 
 export type MatchDetailTabId = (typeof MATCH_DETAIL_TABS)[number]["id"];
 
-const TAB_TO_ROUTE = {
+export const TAB_TO_ROUTE = {
   recap: "/lol/$accountSlug/matches/$matchId/recap",
   "your-game": "/lol/$accountSlug/matches/$matchId/your-game",
   review: "/lol/$accountSlug/matches/$matchId/review",
   timeline: "/lol/$accountSlug/matches/$matchId/timeline",
 } as const;
 
-export function MatchDetailTabs({
+// Derives the active sub-tab from a detail pathname. The index route redirects
+// to /recap, so a settled detail URL always lands on one of the four segments —
+// fall back to "recap" only for the brief frame before the redirect runs.
+export function activeMatchDetailTab(
+  pathname: string,
+  matchId: string
+): MatchDetailTabId {
+  const after = pathname.split(`/matches/${matchId}`)[1] ?? "";
+  const trimmed = after.replace(/^\/+|\/+$/g, "");
+  if (trimmed === "your-game") return "your-game";
+  if (trimmed === "review") return "review";
+  if (trimmed === "timeline") return "timeline";
+  return "recap";
+}
+
+// Builds the detail sub-tabs as SectionShell descriptors. Model 3: on a detail
+// page the always-on section strip's tab row carries these (not the section
+// tabs), with the `‹ Matches` breadcrumb in the strip's leading slot standing
+// in for section scope. `replace: true` keeps the whole detail page a single
+// back-button entry regardless of which sub-tab is open.
+export function buildMatchDetailSectionTabs({
   accountSlug,
   matchId,
-  active,
-  compact = false,
-  indicatorId = "match-detail-tab-indicator",
-  className,
+  activeTabId,
 }: {
   accountSlug: string;
   matchId: string;
-  active: MatchDetailTabId;
-  compact?: boolean;
-  indicatorId?: string;
-  className?: string;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Match sections"
-      className={cn("flex gap-1 border-b border-border/60", className)}
-    >
-      {MATCH_DETAIL_TABS.map((tab) => {
-        const isActive = active === tab.id;
-        return (
-          <Link
-            key={tab.id}
-            to={TAB_TO_ROUTE[tab.id]}
-            params={{ accountSlug, matchId }}
-            replace
-            role="tab"
-            aria-selected={isActive}
-            className={cn(
-              "relative cursor-pointer px-3 text-sm font-medium transition-colors",
-              compact ? "py-1" : "py-2",
-              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {tab.label}
-            {isActive && (
-              <m.div
-                layoutId={indicatorId}
-                className="tab-indicator-pulse theme-bar-glint absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--theme-color)]"
-                transition={{ type: "spring", stiffness: 500, damping: 35 }}
-              />
-            )}
-          </Link>
-        );
-      })}
-    </div>
-  );
+  activeTabId: MatchDetailTabId;
+}): SectionTab[] {
+  return MATCH_DETAIL_TABS.map(({ id, label, Icon }) => ({
+    to: TAB_TO_ROUTE[id],
+    params: { accountSlug, matchId },
+    replace: true,
+    label,
+    Icon,
+    active: id === activeTabId,
+  }));
 }

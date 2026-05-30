@@ -26,6 +26,10 @@ export type SectionTab = {
   to: string;
   params?: Record<string, string>;
   preserveSearch?: boolean;
+  // Replace the history entry instead of pushing one. Match-detail sub-tabs set
+  // this so the whole detail page stays a single back-button entry regardless of
+  // which sub-tab is open; section tabs (Profile/Matches/…) omit it and push.
+  replace?: boolean;
   label: string;
   Icon: ComponentType<{ className?: string }>;
   active: boolean;
@@ -62,6 +66,7 @@ function SectionTabLink({
       to={tab.to as never}
       params={tab.params as never}
       search={searchProp(tab.preserveSearch) as never}
+      replace={tab.replace ?? false}
       className={cn(
         "group relative flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
         tab.active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
@@ -208,6 +213,7 @@ export function SectionTabsDropdown({
               to={tab.to as never}
               params={tab.params as never}
               search={searchProp(tab.preserveSearch) as never}
+              replace={tab.replace ?? false}
               className="flex cursor-pointer items-center gap-2"
             >
               <tab.Icon

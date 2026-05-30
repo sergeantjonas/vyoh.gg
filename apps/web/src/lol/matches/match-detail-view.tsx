@@ -962,7 +962,11 @@ export function MatchYourGameTab({
           className="hidden w-28 shrink-0 flex-col gap-0.5 sm:flex"
           style={{
             position: "sticky",
-            top: "calc(var(--account-header-h, 64px) + 88px)",
+            // Clear the section header + the one-row champion caption strip that
+            // pins below it on deep scroll (~42px: size-6 icon + py-2 + hairlines,
+            // plus a small gap). Was +88 for the old two-row strip (champion row
+            // + the detail tabs that have since moved into the section strip).
+            top: "calc(var(--account-header-h, 64px) + 52px)",
             alignSelf: "flex-start",
           }}
         >

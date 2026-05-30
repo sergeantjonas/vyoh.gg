@@ -56,6 +56,17 @@ export function isMatchDetail(pathname: string, accountSlug: string): boolean {
   return pathname.startsWith(prefix) && pathname.length > prefix.length;
 }
 
+// Extracts the match id from a detail path — the first segment after
+// /matches/. Returns null off the detail subtree (the bare /matches listing or
+// any non-matches route). Any trailing sub-tab segment (recap/your-game/…) is
+// dropped. Used to rebuild the detail sub-tabs in the always-on section strip.
+export function matchIdFromPath(pathname: string, accountSlug: string): string | null {
+  const prefix = `/lol/${accountSlug}/matches/`;
+  if (!pathname.startsWith(prefix)) return null;
+  const id = pathname.slice(prefix.length).split("/")[0];
+  return id || null;
+}
+
 // Mirror of isInMatchesSubtree for the champion list/detail flow. The
 // saved-scroll/active-champion state is only meaningful while inside this
 // subtree; navigating to Matches/Trends invalidates it.

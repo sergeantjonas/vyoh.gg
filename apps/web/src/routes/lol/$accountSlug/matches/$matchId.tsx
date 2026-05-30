@@ -7,16 +7,17 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { useChampionName } from "@/lol/champions/use-champions";
-import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
-import { type MatchDetailTabId, MatchDetailTabs } from "@/lol/matches/match-detail-tabs";
+import {
+  type MatchDetailTabId,
+  activeMatchDetailTab,
+} from "@/lol/matches/match-detail-tabs";
 import { MatchHero } from "@/lol/matches/match-hero";
 import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
-import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { type MatchSummary, formatLpDelta } from "@vyoh/shared";
-import { ChevronLeft } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -58,46 +59,13 @@ export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   },
 });
 
-function MatchBreadcrumb({
-  accountSlug,
-  matchId,
-}: { accountSlug: string; matchId: string }) {
-  const { setOriginRect } = useActiveMatch();
-  return (
-    <Link
-      to="/lol/$accountSlug/matches"
-      params={{ accountSlug }}
-      search={(prev: { queue?: number; count?: number }) => prev}
-      onClick={() => {
-        const heroEl = document.querySelector(`[data-match-card="${matchId}"]`);
-        if (heroEl instanceof HTMLElement) {
-          setOriginRect({
-            matchId,
-            rect: heroEl.getBoundingClientRect(),
-            direction: "backward",
-          });
-        }
-      }}
-      className="group inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <ChevronLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-      Matches
-    </Link>
-  );
-}
-
-// Derives the active tab from the URL's trailing path segment. The match-detail
-// index route redirects to `/recap`, so a valid detail URL always lands on one
-// of the three tab segments — fall back to "recap" only for the brief frame
-// before the redirect runs.
+// The detail sub-tabs (Recap/Your game/Review/Timeline) and the `‹ Matches`
+// breadcrumb now live in the always-on section strip (Model 3 — see
+// $accountSlug.tsx); this layout only derives the active tab to pick the
+// matching skeleton + caption.
 function useActiveTab(matchId: string): MatchDetailTabId {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const after = pathname.split(`/matches/${matchId}`)[1] ?? "";
-  const trimmed = after.replace(/^\/+|\/+$/g, "");
-  if (trimmed === "your-game") return "your-game";
-  if (trimmed === "review") return "review";
-  if (trimmed === "timeline") return "timeline";
-  return "recap";
+  return activeMatchDetailTab(pathname, matchId);
 }
 
 function MatchDetailLayout() {
@@ -167,7 +135,6 @@ function MatchDetailLayout() {
 
   return (
     <div className="flex flex-col gap-6">
-      <MatchBreadcrumb accountSlug={accountSlug} matchId={matchId} />
       <div ref={heroRef}>
         {heroSummary && (
           <m.div
@@ -233,11 +200,8 @@ function MatchDetailLayout() {
           </div>
         </ChampionStickyStrip>
       )}
-      {/* Recap / Your game / Review / Timeline — the detail page's own tabs,
-          inline at the top of its content (not chrome). The section nav above
-          (Profile · Matches · …) is the sticky strip; stacking a second sticky
-          tab bar here was the chrome this arc condensed away. */}
-      <MatchDetailTabs accountSlug={accountSlug} matchId={matchId} active={tab} />
+      {/* Recap / Your game / Review / Timeline now live in the always-on
+          section strip (Model 3); this body is just the active tab's content. */}
       <m.div
         initial={{ opacity: BODY_HOLD_OPACITY }}
         animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}

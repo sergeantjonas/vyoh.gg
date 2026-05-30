@@ -5,6 +5,7 @@ import {
   isInMatchesSubtree,
   isMatchDetail,
   isTabActive,
+  matchIdFromPath,
   normalizePath,
   resolveTabPath,
   tabIndexFromPath,
@@ -67,23 +68,30 @@ describe("isTabActive", () => {
   });
 });
 
-describe("section nav active state on a match-detail path", () => {
-  // Chunk 1.1 of the nav-condensation arc restores the section nav on match-
-  // detail pages (it used to render no tabs there), with Matches highlighted.
-  // The strip derives each tab's active flag from the pathname, so a detail
-  // subpath must light up Matches and nothing else.
-  const detailPaths = [
-    "/lol/jonas-euw/matches/EUW1_1",
-    "/lol/jonas-euw/matches/EUW1_1/recap",
-    "/lol/jonas-euw/matches/EUW1_1/your-game",
-    "/lol/jonas-euw/matches/EUW1_1/review",
-    "/lol/jonas-euw/matches/EUW1_1/timeline",
-  ];
+describe("matchIdFromPath", () => {
+  // Model 3 (nav-condensation arc): on a detail page the section strip swaps to
+  // the detail sub-tabs, so the parent route rebuilds them — it needs the match
+  // id out of the pathname, with any trailing sub-tab segment dropped.
+  it("extracts the id from the bare detail path", () => {
+    expect(matchIdFromPath("/lol/jonas-euw/matches/EUW1_1", SLUG)).toBe("EUW1_1");
+  });
 
-  it.each(detailPaths)("highlights only Matches on %s", (path) => {
-    // TABS order is [Profile, Matches, Trends, Champions].
-    const active = TABS.map((tab) => isTabActive(tab, path, SLUG));
-    expect(active).toEqual([false, true, false, false]);
+  it("drops the trailing sub-tab segment", () => {
+    expect(matchIdFromPath("/lol/jonas-euw/matches/EUW1_1/your-game", SLUG)).toBe(
+      "EUW1_1"
+    );
+    expect(matchIdFromPath("/lol/jonas-euw/matches/EUW1_1/timeline", SLUG)).toBe(
+      "EUW1_1"
+    );
+  });
+
+  it("returns null on the bare /matches listing (no id)", () => {
+    expect(matchIdFromPath("/lol/jonas-euw/matches", SLUG)).toBeNull();
+  });
+
+  it("returns null outside the matches subtree", () => {
+    expect(matchIdFromPath("/lol/jonas-euw/trends", SLUG)).toBeNull();
+    expect(matchIdFromPath("/steam", SLUG)).toBeNull();
   });
 });
 
