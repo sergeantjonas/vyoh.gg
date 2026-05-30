@@ -18,6 +18,18 @@ vi.mock("@/steam/use-player-state", () => ({
 vi.mock("@/steam/use-owned-games", () => ({
   useSteamOwnedGames: () => ({ data: ownedMock() }),
 }));
+// The hero renders <SteamStatBand>, which reads the library summary — stub it
+// so the child doesn't make a real fetch in these hero-focused tests.
+vi.mock("@/steam/use-library-summary", () => ({
+  useSteamLibrarySummary: () => ({
+    data: {
+      ownedCount: 175,
+      everLaunchedCount: 72,
+      untouchedCount: 103,
+      lastSyncedAt: "2026-05-30T00:00:00.000Z",
+    },
+  }),
+}));
 
 const axe = configureAxe({
   rules: {
