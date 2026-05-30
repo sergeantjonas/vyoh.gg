@@ -48,7 +48,8 @@ function readMarkedIdentity(): MarkedIdentity {
 }
 
 function setIdentityNames(els: MarkedIdentity, on: boolean): void {
-  if (els.avatar) els.avatar.style.viewTransitionName = on ? IDENTITY_AVATAR_MORPH_ID : "";
+  if (els.avatar)
+    els.avatar.style.viewTransitionName = on ? IDENTITY_AVATAR_MORPH_ID : "";
   if (els.name) els.name.style.viewTransitionName = on ? IDENTITY_NAME_MORPH_ID : "";
 }
 

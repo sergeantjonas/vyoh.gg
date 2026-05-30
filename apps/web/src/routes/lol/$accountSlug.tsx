@@ -42,6 +42,7 @@ import {
   IDENTITY_AVATAR_MORPH_ID,
   IDENTITY_NAME_MORPH_ID,
 } from "@/lol/profile/identity-layout";
+import { runIdentityMorphNav } from "@/lol/profile/identity-morph-nav";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import {
@@ -97,6 +98,7 @@ function AccountLayout() {
   const { count: countParam } = Route.useSearch();
   const count = countParam ?? DEFAULT_COUNT;
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
   const me = useMe();
   const account = useAccountFromSlug(accountSlug);
   const pathname = useRouterState({ select: (s) => s.location.pathname });

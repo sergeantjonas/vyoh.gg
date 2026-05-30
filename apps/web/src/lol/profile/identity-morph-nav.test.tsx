@@ -50,7 +50,9 @@ function mountIdentity(inMain: boolean): { avatar: HTMLElement; name: HTMLElemen
 }
 
 function clearIdentity(): void {
-  for (const el of document.querySelectorAll("[data-identity-avatar],[data-identity-name]")) {
+  for (const el of document.querySelectorAll(
+    "[data-identity-avatar],[data-identity-name]"
+  )) {
     el.closest("div")?.remove();
   }
 }
@@ -64,7 +66,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  (document as unknown as { startViewTransition?: StartVT }).startViewTransition = undefined;
+  (document as unknown as Record<string, unknown>).startViewTransition = undefined;
 });
 
 describe("runIdentityMorphNav", () => {

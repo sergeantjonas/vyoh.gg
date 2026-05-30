@@ -151,9 +151,9 @@ describe("LolIdentityHero", () => {
   it("marks its avatar + name as the cross-nav identity owner when not compact", () => {
     const { container } = renderHero({}, { compact: false });
     expect(container.querySelector("[data-identity-avatar]")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2 }).hasAttribute("data-identity-name")).toBe(
-      true
-    );
+    expect(
+      screen.getByRole("heading", { level: 2 }).hasAttribute("data-identity-name")
+    ).toBe(true);
   });
 
   it("drops the identity markers when compact so the strip owns them", () => {
