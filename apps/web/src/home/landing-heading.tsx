@@ -25,7 +25,7 @@ export function LandingHeading() {
       animate="visible"
     >
       <OrbMark
-        className="size-44 sm:size-56 lg:size-72"
+        className="size-48 sm:size-64 lg:size-80 xl:size-96"
         entranceDelay={reducedMotion ? 0 : 0.5}
       />
       <m.p
@@ -42,7 +42,7 @@ export function LandingHeading() {
       <EditorialHeading
         delegated
         magnitude="medium"
-        className="font-[680] text-[clamp(2rem,5.5vw,3.75rem)] leading-[1.05] -tracking-[0.02em]"
+        className="font-[640] text-[clamp(1.5rem,3.6vw,2.5rem)] leading-[1.15] -tracking-[0.015em]"
         lineClassName={[undefined, undefined, MUTED_LINE_CLASS]}
       >
         {[
