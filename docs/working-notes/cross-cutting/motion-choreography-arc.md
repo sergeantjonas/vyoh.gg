@@ -83,11 +83,13 @@ Hard requirement, not a soft preference. Per [reduced-motion-replacements.md](re
    - Second re-tune dropped per-word stagger entirely after owner observed the hero had three competing motion vectors at once (left-to-right word sweep + upward Y + blur clear), versus Linear/Resend's "only upward + blur" register. `<EditorialHeading>` now does **block-level reveal per line** — each line animates as one unit on `opacity + y + blur`; multi-line headings get a small `lineStagger` between lines (zero for single-line). No word splitting.
 
    Magnitudes ship as `{ y, duration, blur, lineStagger }`:
-   - `small`: `{ 6, 0.5s, 4px, 0.08s }` — inline accents (`<h3>` / `<h4>`).
-   - `medium`: `{ 10, 0.65s, 6px, 0.10s }` — default; section-level `<h2>` / `<h3>`.
-   - `large`: `{ 14, 0.85s, 8px, 0.12s }` — hero / `<h1>` only.
+   - `small`: `{ 8, 0.55s, 5px, 0.09s }` — inline accents (`<h3>` / `<h4>`).
+   - `medium`: `{ 14, 0.9s, 8px, 0.14s }` — default; section-level `<h2>` / `<h3>`.
+   - `large`: `{ 28, 1.6s, 12px, 0.18s }` — hero / `<h1>` only.
 
-   Landing hero: `large`, 2 lines. Line 1 lands at ~0.85s; line 2 at ~0.97s. Total ~1s, deliberate without dragging. The block reveal also cuts composite-layer count from ~12 per-word spans down to 2 per-line spans — frees frame budget that the per-word version was burning under Firefox during the cascade.
+   Landing hero: `large`, 2 lines. Line 1 lands at ~1.6s; line 2 at ~1.78s. Total ~1.8s, deliberate. **Tuned to Linear's actual hero values** (researched 2026-05-31 — Linear uses `blur(10px) → 0`, `translateY(50%) → 0`, 30ms per-word stagger with a ~4s per-word duration; we mirror the per-element travel/blur/duration but skip the word stagger — Linear's L-to-R sweep is only invisible because their 4s duration creates so much overlap between words that it dampens the sweep perception, which is a costlier path than just doing block reveal at long duration). The block reveal also cuts composite-layer count from ~12 per-word spans down to 2 per-line spans — frees frame budget the per-word version was burning under Firefox.
+
+   Orb spawn delay calibrated to land just as the headline settles — `entranceDelay = 0.9s` in `landing-heading.tsx` so the orb's 0.9s scale+blur-clear ends at ~1.8s, matching the headline. Re-tune in `landing-heading.tsx` if magnitude values change.
 2. **`whileInView` thresholds.** Default `amount: "some"` — fires when any pixel enters the viewport, not at 50%. Tune via `viewport={{ amount, margin }}`. To fire *earlier* than viewport entry, use a *positive* rootMargin-style string (e.g. `margin: "0px 0px 10% 0px"` extends the trigger box downward); a negative margin shrinks the box and delays firing. For long bento tiles / charts where the default `"some"` fires too eagerly on first pixel, switch to `amount: 0.25` or `amount: "all"` depending on the surface. Tune during M-5.
 3. **First-visit vs return-visit choreography.** Should the first-ever visit get extra theatre (longer durations, more drama)? Linear doesn't differentiate. Default: same vocabulary for both. Revisit only if owner review on first visit reads as "fine but I want more drama once."
 4. **Primitive home.** `apps/web/src/components/ui/` matches shadcn convention (other ui primitives live there). Confirm during M-1.

@@ -13,9 +13,9 @@ const MAGNITUDE: Record<
   EditorialHeadingMagnitude,
   { y: number; duration: number; blur: number; lineStagger: number }
 > = {
-  small: { y: 6, duration: 0.5, blur: 4, lineStagger: 0.08 },
-  medium: { y: 10, duration: 0.65, blur: 6, lineStagger: 0.1 },
-  large: { y: 14, duration: 0.85, blur: 8, lineStagger: 0.12 },
+  small: { y: 8, duration: 0.55, blur: 5, lineStagger: 0.09 },
+  medium: { y: 14, duration: 0.9, blur: 8, lineStagger: 0.14 },
+  large: { y: 28, duration: 1.6, blur: 12, lineStagger: 0.18 },
 };
 
 const REDUCED_FADE_DURATION = 0.15;
