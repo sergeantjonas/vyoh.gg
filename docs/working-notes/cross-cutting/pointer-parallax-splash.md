@@ -1,6 +1,13 @@
 # Pointer-aware splash parallax
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. Cursor-aware multi-plane parallax on the splash backdrop — character foreground at one offset, background-art at another offset, both lagging the cursor with spring damping. Composes with the existing Ken Burns drift; doesn't replace it.
+**Status:** Shipped 2026-05-31 (Chunks 1, 2, 4). Chunk 3 (constant-tuning iteration) not needed — defaults read as one cohesive image at rest; revisit only if in-motion feel says otherwise. Chunk 5 (background-removed plane separation) stays deferred per the recommendation in §Plane separation.
+
+Shipped commits:
+- `9308dd0` — `usePointerParallax` hook + 5 tests
+- `ceb338d` — Two-plane integration in `champion-splash-layer.tsx` (Option A: single splash rendered twice, foreground plane at scale 1.05 / opacity 0.14 with elliptical radial mask)
+- `0c7a11a` — `(pointer: fine)` gate skips the rAF + listeners on touch-only devices
+
+Cursor-aware multi-plane parallax on the splash backdrop — character foreground at one offset, background-art at another offset, both lagging the cursor with spring damping. Composes with the existing Ken Burns drift; doesn't replace it.
 
 Small but distinctive. Can ship any time after [accent-color-system.md](accent-color-system.md) lands.
 
@@ -124,28 +131,27 @@ Reduced-motion path: render only the background plane, no offset, no mask. Singl
 
 ## Chunked plan
 
-### Chunk 1 — `usePointerParallax` hook + test
+### Chunk 1 — `usePointerParallax` hook + test ✅ shipped (`9308dd0`)
 
 - Implement per pattern above.
 - Test: pointermove events update target; rAF tick moves motion values toward target; cleanup cancels rAF.
 
-### Chunk 2 — Splash backdrop integration (Option A)
+### Chunk 2 — Splash backdrop integration (Option A) ✅ shipped (`ceb338d`)
 
-- Modify [splash-backdrop.tsx](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx) to render two planes.
-- Bind both to `usePointerParallax` with different `maxOffset`.
-- Apply mask-image fade on the foreground plane.
-- Visual verification: does this read as "two planes" or "doubled image"?
+- Modified [champion-splash-layer.tsx](../../../apps/web/src/lol/_shared/assets/champion-splash-layer.tsx) (NOT `splash-backdrop.tsx` — the actual splash render lives in the lazy-loaded layer component) to render two planes inside the existing Ken Burns inner motion div so the parallax wrapper doesn't shift the bottom gradient overlay or fight the scale/drift transform stack.
+- Both planes bound to `usePointerParallax` with different `maxOffset` (6 / 12).
+- Foreground plane uses `radial-gradient(ellipse 70% 80% at 50% 45%, black 40%, transparent 92%)` mask + scale 1.05 + opacity 0.14.
+- Visual verification (screenshot review, 2026-05-31): reads as one cohesive backdrop at rest — no doubled-silhouette artifact at the radial mask edge.
 
-### Chunk 3 — Tune offsets + damping per visual feedback
+### Chunk 3 — Tune offsets + damping per visual feedback (skipped)
 
-- Pull the constants into props/defaults.
-- Iterate on a small set of champions (one with simple bg, one with busy bg, one dark, one bright).
-- Target: when stationary, the cursor offset is invisible. When sweeping the cursor, the response is subliminal but present.
+- Defaults landed cleanly per screenshot review: bg 6px / fg 12px / damping 0.08 / fg opacity 0.14 / fg scale 1.05.
+- Constants live at the call sites in `champion-splash-layer.tsx`; promote to props or a tuning store if a future need to vary per-champion emerges. Don't pre-emptively abstract.
 
-### Chunk 4 — Reduced-motion + touch-device disabled
+### Chunk 4 — Reduced-motion + touch-device disabled ✅ shipped (`ceb338d` + `0c7a11a`)
 
-- Reduced-motion: render single plane, no offset.
-- Touch devices (no fine pointer): disable via `window.matchMedia("(pointer: fine)").matches` — `false` means no parallax.
+- Reduced-motion: foreground plane gated on `!reduced` in `champion-splash-layer.tsx`; background plane renders without parallax offsets (shipped in `ceb338d`).
+- Touch devices: `usePointerParallax` internally gates on `window.matchMedia("(pointer: fine)").matches` via `useHasFinePointer()`; when false, the rAF loop and pointer listeners don't attach and the motion values stay at 0 (shipped in `0c7a11a`).
 
 ### Chunk 5 — (Optional, deferred) Background-removed plane separation
 
