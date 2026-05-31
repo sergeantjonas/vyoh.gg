@@ -1,6 +1,6 @@
 # Project hygiene audit — 2026-05-31
 
-**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). D3 followed same-day (`c8d4023`). Deferred: D1, D2, D4 below remain open.
+**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). D3 followed same-day (`c8d4023`). D2 spot-check closed same-day as outcome #1 (routing-only, no transforms to extract). Deferred: D1, D4 below remain open.
 
 Second-round structural/duplication audit, ~13 days after [project-hygiene-2026-05-18.md](project-hygiene-2026-05-18.md). Ran as a four-Explore fan-out (web structure, api structure, cross-package duplication, readability/generalization). **Headline:** boundaries and conventions remain disciplined; the new drift is concentrated in time/queue/playtime formatters that re-fragmented since F1, plus a clean generalization opportunity in Steam fact-chips.
 
@@ -212,19 +212,17 @@ Each item below needs its own session because the scope or risk doesn't fit the 
 
 **Status:** standing watch — do NOT pre-emptively split.
 
-### D2 — `img/img.controller.ts` spot-check
+### D2 — `img/img.controller.ts` spot-check — **closed 2026-05-31 as outcome #1**
 
-**Scope:** [apps/api/src/img/img.controller.ts](../../../apps/api/src/img/img.controller.ts) (611L). Controller-class size is unusual; the audit couldn't confirm without reading whether it's routing-only (acceptable) or contains transform logic (should move to services).
+Spot-check verdict: **routing-only.** All transcode runs in [./upstream](../../../apps/api/src/img/upstream.ts) (`transcodeToWebp`, `fetchUpstreamChain`, `streamUpstream`); all alias→URL resolution runs in [LolImageService](../../../apps/api/src/img/lol-image.service.ts) / [SteamImageService](../../../apps/api/src/img/steam-image.service.ts). The 611L is ~22 route handlers of identical shape (parse int → range/closed-set/regex validate → resolver call → `proxyWebp` or `streamUpstream`+pipe). Top-of-file constants are route-level URL validation/composition (path-traversal anchors, content-type maps, closed slug sets, CDN bases) — those belong on the controller, not in a service. `proxyWebp` is already a private method at the bottom.
 
-**Trigger:** next time anyone is editing the image pipeline (new asset family, new fallback source, new transcode op). Read top + bottom + a middle section first to characterize; only then decide.
+**One transform-shaped half-line worth noting** that someone might re-flag in a future audit: `steamHero` and `steamBackdrop` inline `resolved.params = { ...resolved.params, flop: true }` when the `:flip` segment is `"flip"`. That's a transcode-param decision (set the Sharp flop flag), not a transform itself — trivial and correctly placed.
 
-**Likely outcomes:**
-1. **Routing-heavy controller** — leave as-is, document why.
-2. **Transform logic inline** — extract image-shape-specific transforms to `apps/api/src/img/transforms/*` and inject them into the controller, which becomes a thin router.
+**Two cheap optional follow-ups, not landed:**
+1. `proxyStream(url, range, contentType, res)` private helper to collapse the ~15L identical streaming-response wiring across `steamDescriptionAsset`, `steamMicrotrailer`, `steamMicrotrailerPoster` (~30L net saving). Pure boilerplate consolidation.
+2. Swap the ~9-site `Number.parseInt → 400` dance for NestJS's built-in `ParseIntPipe` on `@Param("appid", ParseIntPipe)`. Removes ~3L per route + uniform error shape.
 
-**Estimated size:** 30–60 minute spot-check; up to 1 chunk if transforms exist.
-
-**Status:** investigation-first; no commitment until the read happens.
+Pick one of these up the next time anyone is editing this file. Don't open a dedicated session for them — the controller is healthy.
 
 ### D3 — `match-detail-view.tsx` standby split — **shipped `c8d4023`**
 
