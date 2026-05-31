@@ -124,9 +124,15 @@ function wispArc(startAngle: number, arcLength: number, radius: number) {
 
 interface OrbMarkProps {
   className?: string;
+  /**
+   * Delay (seconds) before the spawn-in (scale + blur-clear) fires. Lets the
+   * consumer choreography land headline text first so the orb reads as a
+   * payoff rather than a competing focal beat.
+   */
+  entranceDelay?: number;
 }
 
-export function OrbMark({ className }: OrbMarkProps) {
+export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
   const reducedMotion = useReducedMotion();
 
   const outerHalo = reducedMotion
@@ -144,7 +150,7 @@ export function OrbMark({ className }: OrbMarkProps) {
       className={cn("relative aspect-square select-none", className)}
       initial={reducedMotion ? false : { opacity: 0, scale: 0.85, filter: "blur(8px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.9, delay: entranceDelay, ease: [0.16, 1, 0.3, 1] }}
     >
       <m.div
         aria-hidden="true"
