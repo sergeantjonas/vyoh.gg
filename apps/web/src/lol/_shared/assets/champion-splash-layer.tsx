@@ -1,9 +1,17 @@
+import { usePointerParallax } from "@/lib/use-pointer-parallax";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { decode as decodeBlurhash } from "blurhash";
 import { m, useIsPresent, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
+
+// Soft elliptical mask on the foreground splash plane so the duplicated image
+// fades into the background plane at the edges instead of reading as a
+// doubled silhouette. Stops drop just before 100% to keep the corner falloff
+// genuinely transparent.
+const FOREGROUND_PLANE_MASK =
+  "radial-gradient(ellipse 70% 80% at 50% 45%, black 40%, transparent 92%)";
 
 // Stable per-champion pan direction so each splash drifts its own way
 // instead of every backdrop sliding in the same arc.
@@ -69,6 +77,14 @@ export default function ChampionSplashLayer({
   // infinite repeat from running compositor work after the layer is gone.
   const loopActive = !reduced && isPresent;
 
+  // Two parallax tracks at different magnitudes so the foreground plane
+  // visibly leads the background one when the cursor sweeps across.
+  // Wrappers live inside the Ken Burns inner div so the cursor doesn't
+  // shift the bottom gradient overlay or fight the existing scale/drift
+  // transform (each motion div owns its own transform stack).
+  const bg = usePointerParallax({ maxOffset: 6 });
+  const fg = usePointerParallax({ maxOffset: 12 });
+
   return (
     <>
       <m.div
@@ -103,29 +119,60 @@ export default function ChampionSplashLayer({
             }}
             className="absolute -top-[4%] -left-[4%] w-[108%] h-[108%]"
           >
-            {blurhashUrl && (
-              <img
-                src={blurhashUrl}
+            <m.div
+              className="absolute inset-0"
+              style={reduced ? {} : { x: bg.x, y: bg.y }}
+            >
+              {blurhashUrl && (
+                <img
+                  src={blurhashUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 size-full object-cover"
+                  style={{ opacity: 0.35 }}
+                />
+              )}
+              <m.img
+                src={url}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 size-full object-cover"
-                style={{ opacity: 0.35 }}
+                loading="eager"
+                decoding="async"
+                fetchPriority="low"
+                onLoad={() => setImgReady(true)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: imgReady ? 0.2 : 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                style={{ filter: "saturate(0.92) brightness(0.7)" }}
+                className="absolute inset-0 size-full object-cover object-top"
               />
+            </m.div>
+            {!reduced && (
+              <m.div
+                className="absolute inset-0"
+                style={{
+                  x: fg.x,
+                  y: fg.y,
+                  scale: 1.05,
+                  maskImage: FOREGROUND_PLANE_MASK,
+                  WebkitMaskImage: FOREGROUND_PLANE_MASK,
+                }}
+              >
+                <m.img
+                  src={url}
+                  alt=""
+                  aria-hidden="true"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="low"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: imgReady ? 0.14 : 0 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  style={{ filter: "saturate(0.92) brightness(0.7)" }}
+                  className="absolute inset-0 size-full object-cover object-top"
+                />
+              </m.div>
             )}
-            <m.img
-              src={url}
-              alt=""
-              aria-hidden="true"
-              loading="eager"
-              decoding="async"
-              fetchPriority="low"
-              onLoad={() => setImgReady(true)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: imgReady ? 0.2 : 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              style={{ filter: "saturate(0.92) brightness(0.7)" }}
-              className="absolute inset-0 size-full object-cover object-top"
-            />
           </div>
         </m.div>
       </m.div>
