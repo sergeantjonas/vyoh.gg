@@ -1,3 +1,4 @@
+import { LandingHeading } from "@/home/landing-heading";
 import { ActiveMatchProvider } from "@/lol/matches/active-match-context";
 import { MatchRow } from "@/lol/matches/match-row";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -122,6 +123,12 @@ describe("Accessibility (axe)", () => {
         <Nav />
       </CommandPaletteProvider>
     );
+    const results = await axe(container);
+    expect(results.violations).toHaveLength(0);
+  });
+
+  it("LandingHeading has no violations", async () => {
+    const { container } = wrap(<LandingHeading />);
     const results = await axe(container);
     expect(results.violations).toHaveLength(0);
   });

@@ -1,6 +1,6 @@
 # Ambient generative hero on `/`
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. A calm generative ambient piece on the `/` synthesis route — Canvas2D first, WebGPU stretch — that reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Replaces (or composes with) the existing `OrbMark`.
+**Status:** Active 2026-05-31 — picked up as the hero chunks (2–5) of [landing-showcase-arc.md](landing-showcase-arc.md). Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
 
 Read this when picking up the home-page hero pass. **Bold per the guardrails — but specifically the "calm bold" the project endorses; not particles-everywhere noise.**
 
@@ -86,7 +86,7 @@ Set an explicit perf cell in [perf-baseline.md](perf-baseline.md) for `/` LCP + 
 
 **Start with Canvas2D.** WebGPU is the stretch:
 - WebGPU adds an "I touched it" portfolio badge.
-- But WebGPU is significantly more code, has narrower support (Chrome/Edge default-on, Safari behind flag in 18.0 → default in 18.4, Firefox flagged), and the visual gain for *gradient meshes* is approximately zero.
+- But WebGPU is significantly more code, support is uneven across our 2025-09 floor (Chrome/Edge default-on, Safari default-on from 18.4, Firefox still flagged on most channels — verify against [elevation-arcs.md § Browser-support floor](elevation-arcs.md) at pickup time), and the visual gain for *gradient meshes* is approximately zero.
 - WebGPU pays off when shaders are genuinely doing GPU-friendly work (raymarching, fluid sim, post-processing). Gradient meshes are not that.
 
 If WebGPU appeals later, refactor in place; the data flow (time-of-day → palette → uniform-equivalent → draw call) is identical.
