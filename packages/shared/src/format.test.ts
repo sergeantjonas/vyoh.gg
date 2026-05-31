@@ -8,7 +8,9 @@ import {
   formatLpDelta,
   formatPercent,
   formatPlaytime,
+  formatPlaytimeVerbose,
   formatTimeAgo,
+  relativeTimeAgo,
 } from "./format.ts";
 
 describe("formatDuration", () => {
@@ -175,5 +177,57 @@ describe("formatTimeAgo", () => {
 
   it("renders multi-day diffs in days", () => {
     expect(formatTimeAgo(ago(2 * 24 * 60 * 60_000))).toBe("2d ago");
+  });
+});
+
+describe("formatPlaytimeVerbose", () => {
+  it("returns '0 min' for zero or negative input", () => {
+    expect(formatPlaytimeVerbose(0)).toBe("0 min");
+    expect(formatPlaytimeVerbose(-10)).toBe("0 min");
+  });
+
+  it("renders sub-hour playtime in minutes", () => {
+    expect(formatPlaytimeVerbose(18)).toBe("18 min");
+    expect(formatPlaytimeVerbose(59)).toBe("59 min");
+  });
+
+  it("renders single-digit hours with tenths precision", () => {
+    expect(formatPlaytimeVerbose(60)).toBe("1.0 hrs");
+    expect(formatPlaytimeVerbose(204)).toBe("3.4 hrs");
+  });
+
+  it("rounds ≥10h to whole hours with locale separators", () => {
+    expect(formatPlaytimeVerbose(600)).toBe("10 hrs");
+    expect(formatPlaytimeVerbose(4380)).toBe("73 hrs");
+    expect(formatPlaytimeVerbose(120_000)).toBe("2,000 hrs");
+  });
+});
+
+describe("relativeTimeAgo", () => {
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
+  it("renders sub-hour diffs in minutes (Intl form)", () => {
+    expect(relativeTimeAgo(ago(5 * 60_000))).toBe("5 minutes ago");
+    expect(relativeTimeAgo(ago(60_000))).toBe("1 minute ago");
+  });
+
+  it("renders sub-day diffs in hours", () => {
+    expect(relativeTimeAgo(ago(3 * 60 * 60_000))).toBe("3 hours ago");
+  });
+
+  it("renders sub-month diffs in days, including the 'yesterday' boundary", () => {
+    expect(relativeTimeAgo(ago(24 * 60 * 60_000))).toBe("yesterday");
+    expect(relativeTimeAgo(ago(5 * 24 * 60 * 60_000))).toBe("5 days ago");
+    expect(relativeTimeAgo(ago(29 * 24 * 60 * 60_000))).toBe("29 days ago");
+  });
+
+  it("renders multi-month diffs in months at the 30d boundary", () => {
+    expect(relativeTimeAgo(ago(30 * 24 * 60 * 60_000))).toBe("last month");
+    expect(relativeTimeAgo(ago(90 * 24 * 60 * 60_000))).toBe("3 months ago");
+  });
+
+  it("rolls to years at the 24-month boundary", () => {
+    expect(relativeTimeAgo(ago(24 * 30 * 24 * 60 * 60_000))).toBe("2 years ago");
+    expect(relativeTimeAgo(ago(3 * 365 * 24 * 60 * 60_000))).toBe("3 years ago");
   });
 });

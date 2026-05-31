@@ -1,5 +1,6 @@
 import { CardShell } from "@/components/card-shell";
 import { Link } from "@tanstack/react-router";
+import { relativeTimeAgo } from "@vyoh/shared";
 import { steamAchievementIconUrl } from "./_shared/steam-image";
 import { useRecentUnlocks } from "./use-recent-unlocks";
 
@@ -7,18 +8,6 @@ import { useRecentUnlocks } from "./use-recent-unlocks";
 // without dwarfing sibling chips. The full cross-game feed lives at
 // /steam/achievements (S5 chunk 9).
 const FETCH_LIMIT = 5;
-
-const relativeTime = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
-
-function relativeTimeSince(iso: string): string {
-  const diffMs = new Date(iso).getTime() - Date.now();
-  const minutes = Math.round(diffMs / 60_000);
-  if (Math.abs(minutes) < 60) return relativeTime.format(minutes, "minute");
-  const hours = Math.round(minutes / 60);
-  if (Math.abs(hours) < 24) return relativeTime.format(hours, "hour");
-  const days = Math.round(hours / 24);
-  return relativeTime.format(days, "day");
-}
 
 export function RecentUnlocksChip() {
   const { data, isPending, isError } = useRecentUnlocks(FETCH_LIMIT);
@@ -50,7 +39,7 @@ export function RecentUnlocksChip() {
       title="Recent unlocks"
       indicator={
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {relativeTimeSince(latest.unlockedAt)}
+          {relativeTimeAgo(latest.unlockedAt)}
         </span>
       }
       verdict={`Last progressed in ${latest.gameName}.`}
@@ -77,7 +66,7 @@ export function RecentUnlocksChip() {
                   <p className="truncate text-xs text-muted-foreground">{u.gameName}</p>
                 </div>
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground/70">
-                  {relativeTimeSince(u.unlockedAt)}
+                  {relativeTimeAgo(u.unlockedAt)}
                 </span>
               </Link>
             </li>

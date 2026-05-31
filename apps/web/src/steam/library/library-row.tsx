@@ -10,7 +10,7 @@ import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { formatPlaytime } from "@vyoh/shared";
+import { formatPlaytime, relativeTimeAgo } from "@vyoh/shared";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import type { CSSProperties } from "react";
@@ -19,18 +19,6 @@ import {
   LIBRARY_HOVERCARD_CONTENT_CLASS,
   LibraryTileHovercardContent,
 } from "./library-tile-hovercard";
-
-const DAY_MS = 86_400_000;
-const relativeTime = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
-
-function relativeTimeAgo(iso: string): string {
-  const days = Math.round((new Date(iso).getTime() - Date.now()) / DAY_MS);
-  if (Math.abs(days) < 30) return relativeTime.format(days, "day");
-  const months = Math.round(days / 30);
-  if (Math.abs(months) < 24) return relativeTime.format(months, "month");
-  const years = Math.round(days / 365);
-  return relativeTime.format(years, "year");
-}
 
 // Hovercard only renders when there's room outside the max-w-4xl container
 // for the popout to land in the side gutter without overflow. Below this

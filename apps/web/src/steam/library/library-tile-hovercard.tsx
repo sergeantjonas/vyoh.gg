@@ -8,7 +8,11 @@ import {
 import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import type { SteamOwnedGame } from "@vyoh/shared";
-import { steamScreenshotThumbUrl } from "@vyoh/shared";
+import {
+  formatPlaytimeVerbose,
+  relativeTimeAgo,
+  steamScreenshotThumbUrl,
+} from "@vyoh/shared";
 import { useReducedMotionConfig } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,28 +26,6 @@ export const LIBRARY_HOVERCARD_CONTENT_CLASS =
   "z-30 w-64 overflow-hidden rounded-md border bg-popover/90 text-popover-foreground shadow-xl backdrop-blur-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const SCREENSHOT_ROTATION_MS = 2_500;
-const DAY_MS = 86_400_000;
-const relativeTime = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
-
-// Steam-client-style "TIME PLAYED" copy. Single-digit hours get a tenths
-// precision ("3.4 hrs"); ≥10h rounds to whole hours; sub-hour shows minutes;
-// zero gets "0 min" to mirror Steam's never-played fallback.
-function formatPlaytime(minutes: number): string {
-  if (minutes <= 0) return "0 min";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = minutes / 60;
-  if (hours < 10) return `${hours.toFixed(1)} hrs`;
-  return `${Math.round(hours).toLocaleString("en-US")} hrs`;
-}
-
-function relativeTimeAgo(iso: string): string {
-  const days = Math.round((new Date(iso).getTime() - Date.now()) / DAY_MS);
-  if (Math.abs(days) < 30) return relativeTime.format(days, "day");
-  const months = Math.round(days / 30);
-  if (Math.abs(months) < 24) return relativeTime.format(months, "month");
-  const years = Math.round(days / 365);
-  return relativeTime.format(years, "year");
-}
 
 export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) {
   const [heroFailed, setHeroFailed] = useState(false);
@@ -250,11 +232,11 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
           </span>
           <div className="flex justify-between text-xs tabular-nums">
             <span className="text-muted-foreground">Last two weeks</span>
-            <span>{formatPlaytime(twoWeeks)}</span>
+            <span>{formatPlaytimeVerbose(twoWeeks)}</span>
           </div>
           <div className="flex justify-between text-xs tabular-nums">
             <span className="text-muted-foreground">Total</span>
-            <span>{formatPlaytime(total)}</span>
+            <span>{formatPlaytimeVerbose(total)}</span>
           </div>
           {game.rtimeLastPlayedAt !== null && (
             <div className="flex justify-between text-xs tabular-nums">

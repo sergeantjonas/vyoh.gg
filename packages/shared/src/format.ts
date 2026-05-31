@@ -17,12 +17,25 @@ export function formatGold(g: number): string {
   return g >= 1000 ? `${(g / 1000).toFixed(1)}k` : `${g}g`;
 }
 
-// Compact playtime for Steam surfaces (minutes input). library-tile-hovercard
-// uses a verbose "min"/"hrs" variant and stays inline.
+// Compact playtime for Steam surfaces (minutes input). The verbose
+// "min"/"hrs" Steam-client variant is formatPlaytimeVerbose below.
 export function formatPlaytime(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.round(minutes / 60);
   return `${hours.toLocaleString("en-US")}h`;
+}
+
+// Verbose Steam-client-style "TIME PLAYED" playtime (minutes input). Sub-hour
+// shows minutes ("18 min"); single-digit hours get tenths precision
+// ("3.4 hrs"); ≥10h rounds to whole hours ("73 hrs"). Zero renders "0 min"
+// to mirror Steam's never-played fallback. Used in library hovercards where
+// the Steam-UI parity matters; everywhere else uses the compact formatPlaytime.
+export function formatPlaytimeVerbose(minutes: number): string {
+  if (minutes <= 0) return "0 min";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  if (hours < 10) return `${hours.toFixed(1)} hrs`;
+  return `${Math.round(hours).toLocaleString("en-US")} hrs`;
 }
 
 // Compact playtime for LoL surfaces (seconds input) — one-decimal hours
@@ -78,4 +91,26 @@ export function formatTimeAgo(iso: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+// Intl.RelativeTimeFormat-backed relative timestamp covering the full
+// minute → year chain ("5 minutes ago", "yesterday", "3 months ago",
+// "2 years ago"). Distinct from formatTimeAgo, which is the compact
+// suffix-style form ("5m ago") preferred where horizontal space is tight.
+// Used by Steam library/game surfaces where the long Intl form reads
+// naturally in evidence rows and hovercard meta lines.
+const relativeTimeFormatter = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
+
+export function relativeTimeAgo(iso: string): string {
+  const diffMs = new Date(iso).getTime() - Date.now();
+  const minutes = Math.round(diffMs / 60_000);
+  if (Math.abs(minutes) < 60) return relativeTimeFormatter.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return relativeTimeFormatter.format(hours, "hour");
+  const days = Math.round(hours / 24);
+  if (Math.abs(days) < 30) return relativeTimeFormatter.format(days, "day");
+  const months = Math.round(days / 30);
+  if (Math.abs(months) < 24) return relativeTimeFormatter.format(months, "month");
+  const years = Math.round(days / 365);
+  return relativeTimeFormatter.format(years, "year");
 }
