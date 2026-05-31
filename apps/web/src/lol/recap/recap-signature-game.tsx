@@ -1,4 +1,9 @@
 // Baseline: personal — top KDA performance from your own games; tie-break favours wins, then biggest behind-at-15 comeback.
+import {
+  sectionChildVariants,
+  sectionContainerVariants,
+  sectionReducedContainerVariants,
+} from "@/components/ui/section-variants";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
@@ -57,22 +62,31 @@ export function RecapSignatureGame({
   const pick = useMemo(() => (matches ? pickSignature(matches) : null), [matches]);
   const championName = useChampionName();
 
+  const containerVariants = reduced
+    ? sectionReducedContainerVariants
+    : sectionContainerVariants;
+  const childProps = (role: keyof typeof sectionChildVariants) =>
+    reduced ? {} : { variants: sectionChildVariants[role] };
+
   if (!pick) {
     return (
       <m.section
         layout
-        initial={reduced ? false : { opacity: 0, y: 16 }}
-        whileInView={reduced ? {} : { opacity: 1, y: 0 }}
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
         viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
+        <m.h2
+          {...childProps("eyebrow")}
+          className="text-xs uppercase tracking-wide text-muted-foreground/70"
+        >
           Signature game
-        </h2>
-        <p className="text-base text-muted-foreground">
+        </m.h2>
+        <m.p {...childProps("body")} className="text-base text-muted-foreground">
           Once you've played a few more games, the standout performance will land here.
-        </p>
+        </m.p>
       </m.section>
     );
   }
@@ -89,35 +103,40 @@ export function RecapSignatureGame({
   return (
     <m.section
       layout
-      initial={reduced ? false : { opacity: 0, y: 32 }}
-      whileInView={reduced ? {} : { opacity: 1, y: 0 }}
+      variants={containerVariants}
+      initial="hidden"
+      whileInView="visible"
       viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
       className="flex flex-col gap-4 rounded-xl border bg-card/40 p-6 sm:p-8"
     >
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Signature game
-      </h2>
-      <Link
-        to="/lol/$accountSlug/matches/$matchId"
-        params={{ accountSlug, matchId: pick.matchId }}
-        className="group flex items-center gap-4 rounded-lg transition-colors"
+      <m.h2
+        {...childProps("eyebrow")}
+        className="text-xs uppercase tracking-wide text-muted-foreground/70"
       >
-        <ChampionSquareIcon
-          championName={pick.champion}
-          alt={championName(pick.champion)}
-          className="size-14 shrink-0 rounded-lg ring-1 ring-border/60"
-        />
-        <div className="flex flex-col">
-          <p className="text-2xl font-semibold text-foreground transition-colors group-hover:text-foreground/80 sm:text-3xl">
-            {headline} on {championName(pick.champion)}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {pick.kills}/{pick.deaths}/{pick.assists} · KDA {kdaText}
-            {dateLabel ? ` · ${dateLabel}` : ""}
-          </p>
-        </div>
-      </Link>
+        Signature game
+      </m.h2>
+      <m.div {...childProps("headline")}>
+        <Link
+          to="/lol/$accountSlug/matches/$matchId"
+          params={{ accountSlug, matchId: pick.matchId }}
+          className="group flex items-center gap-4 rounded-lg transition-colors"
+        >
+          <ChampionSquareIcon
+            championName={pick.champion}
+            alt={championName(pick.champion)}
+            className="size-14 shrink-0 rounded-lg ring-1 ring-border/60"
+          />
+          <div className="flex flex-col">
+            <p className="text-2xl font-semibold text-foreground transition-colors group-hover:text-foreground/80 sm:text-3xl">
+              {headline} on {championName(pick.champion)}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {pick.kills}/{pick.deaths}/{pick.assists} · KDA {kdaText}
+              {dateLabel ? ` · ${dateLabel}` : ""}
+            </p>
+          </div>
+        </Link>
+      </m.div>
     </m.section>
   );
 }
