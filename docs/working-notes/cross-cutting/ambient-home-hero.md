@@ -95,15 +95,19 @@ If WebGPU appeals later, refactor in place; the data flow (time-of-day → palet
 
 ## Chunked plan
 
-### Chunk 1 — Static prototype (no animation, no canvas)
+### Chunk 1 — Static prototype (no animation, no canvas) — ✅ Landed 2026-05-31
 
 - New file `apps/web/src/home/ambient-hero.tsx`.
-- Render a CSS-only static version: three large radial gradients via `background-image: radial-gradient(...), radial-gradient(...), radial-gradient(...)` with `mix-blend-mode: screen`.
-- Tune colors at four time-of-day points statically; pick the right palette based on current `Europe/Brussels` hour on mount.
+- Render a CSS-only static version: three large radial gradients composited via `background-blend-mode: screen` (single layered `background-image`, not three children with `mix-blend-mode`, which gives the same visual at one DOM node).
+- Tune colors at four time-of-day points statically; pick the right palette based on current `Europe/Brussels` hour on mount via `Intl.DateTimeFormat({ timeZone: "Europe/Brussels", hour: "numeric", hour12: false })`.
 - Composes under (or behind, with backdrop-blur in front) the bento grid.
 - Visual verification: does this alone read as "elevated"? If yes, the canvas version is just a refinement; if no, retune palettes before adding motion.
 
 This chunk alone is shippable as the floor — even without canvas, the visual will be markedly better than today.
+
+**Landed:** `AmbientHero` component (`hour` prop for tests, falls through to live Brussels clock at runtime), `paletteForHour` + `timeOfDayForHour` pure helpers, dawn/day/dusk/night palettes in oklch with gaming-chromatic saturation, mounted as an `aria-hidden` `absolute inset-x-0 top-0 -z-10 h-[60vh]` decorative layer with a bottom fade-to-background mask, sits behind `LandingHeading` + bento in `routes/index.tsx`. Same-commit test covers boundary-hour palette branching, three-layer composite, and live-clock fallthrough.
+
+**Decision gate before Chunk 2** (per § Risks "Show owner the Chunk 1 static prototype before Chunk 2"): owner visual review of the palette tuning across all four time-of-day buckets. If the static read doesn't feel right, retune palettes before promoting to canvas — the Brussels-hour resolver and palette structure stay the same.
 
 ### Chunk 2 — Canvas2D with rAF + activity intensity
 

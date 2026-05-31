@@ -1,4 +1,5 @@
 import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
+import { AmbientHero } from "@/home/ambient-hero";
 import { LandingHeading } from "@/home/landing-heading";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
@@ -19,7 +20,8 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { account } = usePrimaryAccount();
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AmbientHero />
       <LandingHeading />
       <BentoGrid>
         <BentoTile width={2} height={2}>

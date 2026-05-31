@@ -1,6 +1,6 @@
 # Landing showcase arc
 
-**Status:** Active 2026-05-31 — picked up at the top of the [elevation-arcs.md](elevation-arcs.md) pick order. Chunk 1 (editorial display headline on `/`) landed; chunks 2–5 (CSS ambient hero → Canvas2D → activity intensity → composition pass) queued per the plan, consumes [ambient-home-hero.md](ambient-home-hero.md) verbatim for the hero rungs.
+**Status:** Active 2026-05-31 — picked up at the top of the [elevation-arcs.md](elevation-arcs.md) pick order. Chunks 1 (editorial display headline) + 2 (static CSS ambient hero, time-of-day reactive) landed; chunks 3–5 (Canvas2D promotion → activity-intensity reactivity → composition pass) queued per the plan, consumes [ambient-home-hero.md](ambient-home-hero.md) verbatim for the hero rungs. **Decision gate pending owner visual review** of the static palette before promoting to Canvas2D.
 
 Elevate the `/` synthesis surface from "small logo animation + a few synthesis tiles" into a deliberate first-impression showcase that does justice to the portfolio framing of the app. Most reviewers (recruiters, fellow engineers, casual visitors) will land here and never click deeper — currently the landing page does not reflect the craft visible inside the section routes.
 
