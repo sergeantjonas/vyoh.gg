@@ -1,6 +1,6 @@
 # Ambient generative hero on `/`
 
-**Status:** Active 2026-05-31 — picked up as the hero chunks (2–6) of [landing-showcase-arc.md](landing-showcase-arc.md). Chunks 1–4 + 6 landed (Chunk 6 = bento composition pass: tile chrome `bg-card/50` → `bg-card/65` to mute worst-case dusk × high-intensity bleed-through, no `backdrop-filter` to avoid Safari composite cliff; closed out the landing-showcase-arc); remaining: optional Chunk 5 cursor parallax (subtle), Chunk 7 WebGPU stretch — both deferred. Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
+**Status:** Active 2026-05-31 — picked up as the hero chunks (2–6) of [landing-showcase-arc.md](landing-showcase-arc.md). Chunks 1–6 landed (Chunk 5 = cursor parallax via `usePointerParallax({ maxOffset: 14 })`, shipped under landing-showcase-arc D4-cursor-parallax; Chunk 6 = bento composition pass: tile chrome `bg-card/50` → `bg-card/65` to mute worst-case dusk × high-intensity bleed-through, no `backdrop-filter` to avoid Safari composite cliff); remaining: optional Chunk 7 WebGPU stretch — deferred. Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
 
 Read this when picking up the home-page hero pass. **Bold per the guardrails — but specifically the "calm bold" the project endorses; not particles-everywhere noise.**
 
@@ -136,9 +136,7 @@ The dispatcher branch renders the static layer when either gate trips. Already c
 
 ### Chunk 5 — Cursor parallax (subtle)
 
-- Optional. The canvas reads `mousemove` (throttled to 60Hz) and shifts the radial-gradient centers by `±4%` of canvas size in the cursor direction.
-- Decay-back when mouse leaves.
-- Disabled under reduced-motion.
+✅ Shipped 2026-05-31 under [landing-showcase-arc.md](landing-showcase-arc.md) D4-cursor-parallax. Implemented as a wrapper `<m.div data-ambient-parallax>` around the canvas in [`AmbientHero`](../../apps/web/src/home/ambient-hero.tsx), bound to `usePointerParallax({ maxOffset: 14 })`'s motion values. Reduced-motion + low-power paths render the static layer instead (no parallax wrapper). Hook's internal `(pointer: fine)` gate handles touch. Magnitude chosen larger than the splash backdrop's bg track (6) because the gradients are blurry enough that smaller offsets read as no motion. Originally proposed approach (shifting radial-gradient centers inside the canvas rAF) was discarded in favour of wrapping — keeps the canvas internals untouched and matches the established splash backdrop pattern.
 
 ### Chunk 6 — Composition pass with bento
 
