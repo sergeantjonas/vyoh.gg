@@ -1,11 +1,8 @@
 import { cn } from "@/lib/utils";
 import { m, useReducedMotion } from "motion/react";
+import type { CSSProperties } from "react";
 
 const ORB_SRC = "/vyoh-orb-mark.svg";
-
-const HALO_OUTER_DURATION = 4.5;
-const HALO_INNER_DURATION = 6;
-const CORE_PULSE_DURATION = 5.2;
 
 type Orbit = {
   angle: number;
@@ -135,16 +132,6 @@ interface OrbMarkProps {
 export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
   const reducedMotion = useReducedMotion();
 
-  const outerHalo = reducedMotion
-    ? { opacity: 0.5, scale: 1.05 }
-    : { opacity: [0.4, 0.7, 0.4], scale: [1, 1.14, 1] };
-  const innerHalo = reducedMotion
-    ? { opacity: 0.6, scale: 1.02 }
-    : { opacity: [0.5, 0.75, 0.5], scale: [1, 1.08, 1] };
-  const core = reducedMotion
-    ? { opacity: 0.14, scale: 1 }
-    : { opacity: [0.09, 0.2, 0.09], scale: [0.95, 1.04, 0.95] };
-
   return (
     <m.div
       className={cn("relative aspect-square select-none", className)}
@@ -152,48 +139,9 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
       transition={{ duration: 0.9, delay: entranceDelay, ease: [0.16, 1, 0.3, 1] }}
     >
-      <m.div
-        aria-hidden="true"
-        className="absolute inset-[-32%] rounded-full bg-[radial-gradient(circle,rgba(56,118,255,0.7)_0%,rgba(56,118,255,0)_65%)] blur-2xl mix-blend-screen"
-        animate={outerHalo}
-        {...(!reducedMotion
-          ? {
-              transition: {
-                duration: HALO_OUTER_DURATION,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              },
-            }
-          : {})}
-      />
-      <m.div
-        aria-hidden="true"
-        className="absolute inset-[-14%] rounded-full bg-[radial-gradient(circle,rgba(125,211,252,0.65)_0%,rgba(125,211,252,0)_60%)] blur-xl mix-blend-screen"
-        animate={innerHalo}
-        {...(!reducedMotion
-          ? {
-              transition: {
-                duration: HALO_INNER_DURATION,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              },
-            }
-          : {})}
-      />
-      <m.div
-        aria-hidden="true"
-        className="absolute inset-[30%] rounded-full bg-[radial-gradient(circle,rgba(67,56,202,0.45)_0%,rgba(56,118,255,0.18)_40%,rgba(56,118,255,0)_62%)] blur-lg mix-blend-screen"
-        animate={core}
-        {...(!reducedMotion
-          ? {
-              transition: {
-                duration: CORE_PULSE_DURATION,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              },
-            }
-          : {})}
-      />
+      <div aria-hidden="true" className="orb-halo orb-halo-outer" />
+      <div aria-hidden="true" className="orb-halo orb-halo-inner" />
+      <div aria-hidden="true" className="orb-halo orb-halo-core" />
       <img
         src={ORB_SRC}
         alt="vyoh orb"
@@ -216,31 +164,20 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
             width="130"
             height="130"
           >
+            {/* Static turbulence + displacement: the noise texture is computed */}
+            {/* once at filter init instead of every frame (the previous           */}
+            {/* `<animate>` on `baseFrequency` regenerated Perlin noise on the CPU */}
+            {/* for the page's full lifetime). The wisp paths still rotate and    */}
+            {/* fade through the filter, so the smoke effect reads as alive even  */}
+            {/* with a frozen noise field underneath. `numOctaves` dropped from   */}
+            {/* 2 to 1 — halves noise cost with no visible texture difference.    */}
             <feTurbulence
               type="fractalNoise"
               baseFrequency="0.014"
-              numOctaves="2"
+              numOctaves="1"
               seed="5"
-            >
-              {!reducedMotion && (
-                <animate
-                  attributeName="baseFrequency"
-                  values="0.012;0.02;0.012"
-                  dur="22s"
-                  repeatCount="indefinite"
-                />
-              )}
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" scale="3">
-              {!reducedMotion && (
-                <animate
-                  attributeName="scale"
-                  values="2;4;2"
-                  dur="17s"
-                  repeatCount="indefinite"
-                />
-              )}
-            </feDisplacementMap>
+            />
+            <feDisplacementMap in="SourceGraphic" scale="3" />
             <feGaussianBlur stdDeviation="2.2" />
           </filter>
           {WISPS.map((w) => {
@@ -322,49 +259,24 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
         </g>
       </svg>
       {SPARKLES.map((p) => (
-        <m.div
+        <div
           key={`sparkle-${p.angle}-${p.radius}`}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          initial={{ rotate: p.angle }}
-          animate={
-            reducedMotion
-              ? { rotate: p.angle }
-              : { rotate: p.angle + (p.reverse ? -360 : 360) }
+          className="orb-sparkle"
+          style={
+            {
+              "--orb-sparkle-angle": `${p.angle}deg`,
+              "--orb-sparkle-orbit-duration": `${p.duration}s`,
+              "--orb-sparkle-pulse-duration": `${p.duration / 4}s`,
+              "--orb-sparkle-direction": p.reverse ? "reverse" : "normal",
+              "--orb-sparkle-radius": `${p.radius}%`,
+              "--orb-sparkle-size": `${p.size}px`,
+              "--orb-sparkle-color": p.color,
+            } as CSSProperties
           }
-          {...(!reducedMotion
-            ? {
-                transition: {
-                  duration: p.duration,
-                  repeat: Number.POSITIVE_INFINITY,
-                  ease: "linear",
-                },
-              }
-            : {})}
         >
-          <m.div
-            className="absolute left-1/2 rounded-full mix-blend-screen"
-            style={{
-              top: `${50 - p.radius}%`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              x: "-50%",
-              y: "-50%",
-              background: p.color,
-              boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 6}px ${p.color}`,
-            }}
-            {...(!reducedMotion
-              ? {
-                  animate: { opacity: [0.55, 1, 0.55], scale: [0.7, 1.15, 0.7] },
-                  transition: {
-                    duration: p.duration / 4,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                  },
-                }
-              : {})}
-          />
-        </m.div>
+          <div className="orb-sparkle-dot" />
+        </div>
       ))}
     </m.div>
   );

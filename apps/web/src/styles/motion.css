@@ -279,6 +279,135 @@ body {
   }
 }
 
+/* ─── Orb mark halos ────────────────────────────────────────────────────── */
+/* Three concentric mix-blend-screen radial glows under the orb. Driven by   */
+/* CSS @keyframes (compositor) instead of Motion m.divs (main-thread rAF) —  */
+/* visual identical, 3 fewer infinite Motion timelines.                      */
+
+.orb-halo {
+  position: absolute;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+  will-change: opacity, transform;
+}
+.orb-halo-outer {
+  inset: -32%;
+  background: radial-gradient(
+    circle,
+    rgba(56, 118, 255, 0.7) 0%,
+    rgba(56, 118, 255, 0) 65%
+  );
+  filter: blur(40px);
+  animation: orb-halo-outer 4.5s ease-in-out infinite;
+}
+.orb-halo-inner {
+  inset: -14%;
+  background: radial-gradient(
+    circle,
+    rgba(125, 211, 252, 0.65) 0%,
+    rgba(125, 211, 252, 0) 60%
+  );
+  filter: blur(24px);
+  animation: orb-halo-inner 6s ease-in-out infinite;
+}
+.orb-halo-core {
+  inset: 30%;
+  background: radial-gradient(
+    circle,
+    rgba(67, 56, 202, 0.45) 0%,
+    rgba(56, 118, 255, 0.18) 40%,
+    rgba(56, 118, 255, 0) 62%
+  );
+  filter: blur(16px);
+  animation: orb-halo-core 5.2s ease-in-out infinite;
+}
+
+@keyframes orb-halo-outer {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.14);
+  }
+}
+@keyframes orb-halo-inner {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.08);
+  }
+}
+@keyframes orb-halo-core {
+  0%,
+  100% {
+    opacity: 0.09;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.04);
+  }
+}
+
+/* ─── Orb mark sparkles ─────────────────────────────────────────────────── */
+/* Six orbiting points of light. Each sparkle is two layers:                 */
+/*   .orb-sparkle    — outer wrapper rotates around the orb centre.          */
+/*   .orb-sparkle-dot — inner dot pulses opacity + scale.                    */
+/* Driven by per-sparkle CSS variables so one rule serves every variant.     */
+/* Was 12 m.divs running 12 independent Motion animations on the main        */
+/* thread; now zero JS per frame.                                            */
+
+.orb-sparkle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  rotate: var(--orb-sparkle-angle);
+  animation: orb-sparkle-orbit var(--orb-sparkle-orbit-duration) linear infinite;
+  animation-direction: var(--orb-sparkle-direction, normal);
+  will-change: rotate;
+}
+.orb-sparkle-dot {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--orb-sparkle-radius));
+  width: var(--orb-sparkle-size);
+  height: var(--orb-sparkle-size);
+  translate: -50% -50%;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+  background: var(--orb-sparkle-color);
+  box-shadow: 0 0 calc(var(--orb-sparkle-size) * 3) var(--orb-sparkle-color), 0 0
+    calc(var(--orb-sparkle-size) * 6) var(--orb-sparkle-color);
+  animation: orb-sparkle-pulse var(--orb-sparkle-pulse-duration) ease-in-out infinite;
+  will-change: opacity, scale;
+}
+@keyframes orb-sparkle-orbit {
+  from {
+    rotate: var(--orb-sparkle-angle);
+  }
+  to {
+    rotate: calc(var(--orb-sparkle-angle) + 360deg);
+  }
+}
+@keyframes orb-sparkle-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    scale: 0.7;
+  }
+  50% {
+    opacity: 1;
+    scale: 1.15;
+  }
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────── */
 /* Replace, don't disable: every behavior collapses to its resting state.    */
 /* Nav: compacted always (better density on small screens).                  */
@@ -320,5 +449,25 @@ body {
      functionally equivalent to "no animation".                           */
   [data-radix-popper-content-wrapper] {
     transition: none;
+  }
+
+  /* Orb mark: stop the halo/sparkle loops and freeze each layer at a       */
+  /* resting state that mirrors the prior Motion useReducedMotion branch.   */
+  .orb-halo,
+  .orb-sparkle,
+  .orb-sparkle-dot {
+    animation: none;
+  }
+  .orb-halo-outer {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+  .orb-halo-inner {
+    opacity: 0.6;
+    transform: scale(1.02);
+  }
+  .orb-halo-core {
+    opacity: 0.14;
+    transform: scale(1);
   }
 }
