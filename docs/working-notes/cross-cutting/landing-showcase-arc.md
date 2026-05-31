@@ -26,7 +26,7 @@ A dedicated arc closes that gap. The premise is **not** to dump per-stream conte
 This is exploratory. Concrete chunks should land once the design direction is chosen. Candidates for what fills the landing showcase:
 
 - **Ambient hero.** Generative ambient piece (Canvas2D or WebGPU stretch), time-of-day reactive in `Europe/Brussels`. Already a planned arc — see [ambient-home-hero](ambient-home-hero.md). Likely sits at the top of the landing surface as the "moment of arrival."
-- **Cross-stream synthesis hero.** "What am I doing right now" — picks the dominant live stream (in-game on LoL, playing on Steam, idle) and renders that as the headline. When live, the hero adapts: champion splash + match context, or game art + playtime. When idle, falls back to a curated synthesis ("Today: X hours across Y streams").
+- **Cross-stream synthesis hero.** "What am I doing right now" — picks the dominant live stream (in-game on LoL, playing on Steam, idle) and renders that as the headline. When live, the hero adapts: champion splash + match context, or game art + playtime. When idle, falls back to a curated synthesis ("Today: X hours across Y streams"). **Promoted 2026-05-31 to its own sibling note — see [landing-live-hero.md](landing-live-hero.md) for design alternatives (live-only / daily-dominant / hybrid), infrastructure to reuse (`LiveGamePollerService` + `SteamPlaySession` + `SplashProvider`), reduced-motion contract, and sequencing relative to [live-presence-chip.md](live-presence-chip.md).**
 - **Chronotype synthesis card.** Already alluded to in [repo-conventions.md § per-stream routes](../../repo-conventions.md) as a canonical synthesis surface: hour-bucketing across LoL + commit activity + Steam playtime. The cross-stream chronotype lives here, not on per-stream routes.
 - **Curated teaser fragments.** Per-stream "one curated highlight" allowed by the repo conventions — the strongest single fragment from each stream (e.g. most recent ranked win pip, most-played Steam game this week), each linking into the deep route. Resists turning into a per-stream feed; one fragment maximum.
 - **Editorial type treatment.** Large display-type identity / introduction. Extend the [editorial-typography](editorial-typography.md) variable-font axes (shipped 2026-05-27) to the landing display heading. Sets the visual register for the rest of the page.
@@ -75,6 +75,7 @@ No hard prerequisite ordering; pick based on cadence and what's most exciting at
 
 - [elevation-arcs.md](elevation-arcs.md) — promote this arc when it picks up active work.
 - [ambient-home-hero.md](ambient-home-hero.md) — likely a chunk of this arc.
+- [landing-live-hero.md](landing-live-hero.md) — the "cross-stream synthesis hero" candidate, surfaced as its own design note.
 - [self-portrait-surfaces.md](self-portrait-surfaces.md) — broader self-portrait direction; this arc is the surface where self-portrait work lands publicly.
 - [editorial-typography.md](editorial-typography.md) — display-type treatment.
 - [accent-color-system.md](accent-color-system.md) — accent cascade powers ambient tinting.

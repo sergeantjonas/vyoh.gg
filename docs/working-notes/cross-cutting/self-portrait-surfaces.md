@@ -22,7 +22,7 @@ Items that fail this filter are listed in [Filtered out](#filtered-out) with the
 
 ## Routing principle (sharpened 2026-05-16)
 
-Each stream owns its own route, not its own tile on `/`. The home page is for **cross-stream synthesis** — content that combines multiple streams into one verdict (chronotype hour-bucketing across LoL + commits, "what am I doing right now" picking the dominant live stream) — not stream-deep feeds. A "latest commit" or "top track this week" tile on `/` is wrong-place: it belongs on `/code` or `/music`.
+Each stream owns its own route, not its own tile on `/`. The home page is for **cross-stream synthesis** — content that combines multiple streams into one verdict (chronotype hour-bucketing across LoL + commits, "what am I doing right now" picking the dominant live stream — see [landing-live-hero.md](landing-live-hero.md) for the surfaced design) — not stream-deep feeds. A "latest commit" or "top track this week" tile on `/` is wrong-place: it belongs on `/code` or `/music`.
 
 Concrete implications for the candidates below:
 
