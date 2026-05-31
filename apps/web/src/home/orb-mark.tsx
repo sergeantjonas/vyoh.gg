@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { m, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import type { CSSProperties } from "react";
 
 const ORB_SRC = "/vyoh-orb-mark.svg";
@@ -101,7 +101,7 @@ const EMBERS: Ember[] = [
 interface OrbMarkProps {
   className?: string;
   /**
-   * Delay (seconds) before the spawn-in (scale + blur-clear) fires. Lets the
+   * Delay (seconds) before the throw-and-settle entrance fires. Lets the
    * consumer choreography land headline text first so the orb reads as a
    * payoff rather than a competing focal beat.
    */
@@ -112,12 +112,19 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
   const reducedMotion = useReducedMotion();
 
   return (
-    <m.div
-      className={cn("relative aspect-square select-none", className)}
-      initial={reducedMotion ? false : { opacity: 0, scale: 0.85, filter: "blur(8px)" }}
-      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.9, delay: entranceDelay, ease: [0.16, 1, 0.3, 1] }}
+    <div
+      className={cn(
+        "relative aspect-square select-none",
+        !reducedMotion && "orb-entrance",
+        className
+      )}
+      style={
+        reducedMotion
+          ? undefined
+          : ({ "--orb-entrance-delay": `${entranceDelay}s` } as CSSProperties)
+      }
     >
+      {!reducedMotion && <div aria-hidden="true" className="orb-entrance-bloom" />}
       <div aria-hidden="true" className="orb-halo orb-halo-outer" />
       <div aria-hidden="true" className="orb-halo orb-halo-inner" />
       <div aria-hidden="true" className="orb-halo orb-halo-core" />
@@ -167,6 +174,6 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
           <div className="orb-ember-spark" />
         </div>
       ))}
-    </m.div>
+    </div>
   );
 }

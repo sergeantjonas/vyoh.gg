@@ -279,6 +279,100 @@ body {
   }
 }
 
+/* ─── Orb mark entrance ─────────────────────────────────────────────────── */
+/* Ahri-Q-flavoured throw-and-settle: orb spawns small + blurred in the      */
+/* upper-right, flies in past center (overshoot with motion blur), pulls     */
+/* back to rest with a small under-scale bounce. A synchronised bloom        */
+/* element fires invisible-during-flight and peaks at the settle moment so   */
+/* the arrival reads as a recast tick. CSS-only, compositor; runs once.      */
+
+.orb-entrance {
+  /* Overall timing is `linear`; per-keyframe `animation-timing-function`    */
+  /* controls each segment. Intermediate segments are linear so velocity    */
+  /* stays continuous through the path — a cubic-bezier ease-out on the    */
+  /* whole animation would decelerate into every keyframe, reading as a    */
+  /* "pause along the trail." Only the final 78%→100% settle keeps a       */
+  /* decelerate ease so the bounce-to-rest still feels gentle.              */
+  animation: orb-entrance 1.4s linear var(--orb-entrance-delay, 0s) backwards;
+  /* `filter` deliberately omitted from will-change: in several compositor */
+  /* paths, promoting it via will-change worsens filter transitions       */
+  /* because the layer is retained but blur recompute still runs CPU.     */
+  will-change: opacity, translate, scale;
+}
+@keyframes orb-entrance {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+    translate: 60vw -45vh;
+    scale: 0.2;
+    filter: blur(8px);
+  }
+  22% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  /* Mid-flight waypoint — orb dips below rest line while crossing right- */
+  /* of-center, so the trajectory reads as a kite-like swoop rather than  */
+  /* a slide. Blur lifts most of the way here so the heavy scale-up phase */
+  /* that follows isn't paying filter-recompute cost per frame.           */
+  32% {
+    animation-timing-function: linear;
+    translate: 24vw 6vh;
+    scale: 0.7;
+    filter: blur(3px);
+  }
+  52% {
+    animation-timing-function: linear;
+    translate: -9% -2%;
+    scale: 1.18;
+    filter: blur(0);
+  }
+  78% {
+    animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 1);
+    translate: 0 0;
+    scale: 0.96;
+    filter: blur(0);
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+.orb-entrance-bloom {
+  position: absolute;
+  inset: -25%;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle,
+    rgba(244, 114, 182, 0.65) 0%,
+    rgba(125, 211, 252, 0.3) 42%,
+    transparent 70%
+  );
+  filter: blur(24px);
+  opacity: 0;
+  pointer-events: none;
+  animation: orb-entrance-bloom 1.4s ease-out var(--orb-entrance-delay, 0s) backwards;
+  will-change: opacity, scale;
+}
+@keyframes orb-entrance-bloom {
+  0%,
+  58% {
+    opacity: 0;
+    scale: 0.9;
+  }
+  78% {
+    opacity: 0.7;
+    scale: 1.32;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.55;
+  }
+}
+
 /* ─── Orb mark halos ────────────────────────────────────────────────────── */
 /* Three concentric mix-blend-screen radial glows under the orb. Driven by   */
 /* CSS @keyframes (compositor) instead of Motion m.divs (main-thread rAF) —  */
