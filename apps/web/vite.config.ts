@@ -66,14 +66,12 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
-    // Cap concurrent test workers. Vitest's default `pool: 'forks'` spawns one
-    // worker per CPU core (~8-10 on Apple Silicon); each loads happy-dom +
-    // React + most of src/ → ~300-500MB resident. The peak fan-out exceeded
-    // available RAM on memory-tight workstations and surfaced as
-    // intermittent ENOMEM during fork() — see commit message + chat for
-    // diagnosis. 4 workers halves peak memory at ~20-30% wall-clock cost.
-    pool: "forks",
-    poolOptions: { forks: { maxForks: 4 } },
+    // Cap concurrent test workers. Vitest defaults `maxWorkers` to the CPU
+    // count (~8-10 on Apple Silicon); each loads happy-dom + React + most of
+    // src/ → ~300-500MB resident. The peak fan-out exceeded available RAM on
+    // memory-tight hosts and surfaced as intermittent ENOMEM during fork().
+    // 4 workers halves peak memory at ~20-30% wall-clock cost.
+    maxWorkers: 4,
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov"],
