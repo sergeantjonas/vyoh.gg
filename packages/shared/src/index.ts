@@ -13,6 +13,7 @@ export {
   relativeTimeAgo,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
+export { REMAKE_DURATION_S, isRemakeMatch } from "./lol/remake.ts";
 export {
   QUEUE_TYPES,
   RANKED_QUEUE_KEY_LABEL,

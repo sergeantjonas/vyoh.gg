@@ -4,6 +4,7 @@ import type {
   ParticipantOwnerExtras,
   TeamSummary,
 } from "@vyoh/shared";
+import { isRemakeMatch } from "@vyoh/shared";
 import type { RiotMatch, RiotMatchParticipantOwner, StoredMatch } from "../riot/types";
 import { queueTypeName } from "./queue-types";
 
@@ -131,8 +132,9 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
     // info-level is not reliably populated (e.g. EUW1_7849561729 returned it
     // only per-participant). Combined with a duration under 3.5 min it
     // reliably identifies remakes (as distinct from mid-game surrenders or the
-    // new inting-surrender system).
-    remake: participant.gameEndedInEarlySurrender && match.info.gameDuration < 210,
+    // new inting-surrender system). Threshold + predicate live in shared so
+    // every aggregation reads from the same rule.
+    remake: isRemakeMatch(match.info.gameDuration, participant.gameEndedInEarlySurrender),
     teamPosition: participant.teamPosition,
     gameVersion: match.info.gameVersion,
     visionScore: participant.visionScore,

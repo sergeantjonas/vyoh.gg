@@ -15,6 +15,7 @@
 import "dotenv/config";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { REMAKE_DURATION_S } from "@vyoh/shared";
 import { AppModule } from "../app.module";
 import { IdentityService } from "../identity/identity.service";
 import { riotMatchToSummary } from "../lol/match-mapper";
@@ -23,7 +24,7 @@ import { platformToRegional } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
 import type { RiotMatch } from "../riot/types";
 
-const REMAKE_THRESHOLD_SEC = 210;
+const REMAKE_THRESHOLD_SEC = REMAKE_DURATION_S;
 
 async function main() {
   const logger = new Logger("BackfillRemakeFlag");
