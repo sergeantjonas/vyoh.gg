@@ -13,7 +13,14 @@ import { TileSignatureGame } from "@/home/tile-signature-game";
 import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
+import { useMainHeight } from "@/lib/use-main-height";
 import { createFileRoute } from "@tanstack/react-router";
+
+// Padding inside <main>'s wrapping div (`mx-auto max-w-4xl p-6`). We subtract
+// this from main's measured clientHeight so the hero fills the actual content
+// area inside that padding, not the full visible viewport — otherwise the
+// chevron at `bottom-8` plus the wrapping padding would land below the fold.
+const MAIN_VERTICAL_PADDING = 48;
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -26,14 +33,19 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { account } = usePrimaryAccount();
   const { data: activity } = useHomeActivityIntensity();
+  const mainHeight = useMainHeight();
+  // Fill <main>'s visible viewport exactly, minus the wrapping div's p-6
+  // padding. Measurement-based rather than `calc(100dvh-?rem)` so the height
+  // stays accurate as the nav collapses on scroll, mobile chrome reflows,
+  // accessibility font scaling kicks in, etc.
+  const heroMinHeight =
+    mainHeight !== null ? mainHeight - MAIN_VERTICAL_PADDING : undefined;
   return (
     <div className="relative flex flex-col">
-      {/* Height = full viewport minus the chrome above <main> (sticky nav ~52px
-          + ScrollProgress hairline + the wrapping div's `p-6` top/bottom).
-          Without this, `min-h-dvh` exceeds main's clip and the chevron at
-          `bottom-8` lands below the fold. ~7rem is a generous offset; if the
-          nav grows, bump it. */}
-      <section className="relative flex min-h-[calc(100dvh-7rem)] items-start justify-center pt-[8dvh]">
+      <section
+        className="relative flex items-start justify-center pt-[8dvh]"
+        style={heroMinHeight !== undefined ? { minHeight: heroMinHeight } : undefined}
+      >
         <AmbientHero intensity={activity?.intensity} />
         <LandingHeading />
         <HeroScrollHint />

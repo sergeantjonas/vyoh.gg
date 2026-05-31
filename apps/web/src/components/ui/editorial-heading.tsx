@@ -14,7 +14,11 @@ const MAGNITUDE: Record<
   { y: number; duration: number; blur: number; lineStagger: number }
 > = {
   small: { y: 8, duration: 0.55, blur: 5, lineStagger: 0.09 },
-  medium: { y: 14, duration: 0.9, blur: 8, lineStagger: 0.14 },
+  // Medium is currently the landing hero's register. Bumped Y / blur / duration
+  // vs. the earlier conservative values so the cascade reads as deliberate
+  // editorial drama rather than a polite fade — matches Linear / Resend's
+  // long, blurred per-line entrances scaled down for our 2.5rem-cap font.
+  medium: { y: 22, duration: 1.2, blur: 14, lineStagger: 0.2 },
   large: { y: 28, duration: 1.6, blur: 12, lineStagger: 0.18 },
 };
 
