@@ -100,6 +100,38 @@ describe("EditorialHeading", () => {
     expect(captured.node?.tagName).toBe("H1");
   });
 
+  it("applies lineClassName positionally to each block-display line", () => {
+    const { container } = render(
+      <EditorialHeading lineClassName={[undefined, "muted-line"]}>
+        {["A self-portrait,", "in League and Steam."]}
+      </EditorialHeading>
+    );
+    const lines = container.querySelectorAll(
+      "[data-slot='editorial-heading'] > span.block"
+    );
+    expect(lines.length).toBe(2);
+    expect(lines[0]?.className).not.toContain("muted-line");
+    expect(lines[1]?.className).toContain("muted-line");
+  });
+
+  it("flags the delegated mode on the data attribute and still renders per-word spans for cascade", () => {
+    const { container } = render(
+      <EditorialHeading delegated>A self-portrait</EditorialHeading>
+    );
+    const el = container.querySelector("[data-slot='editorial-heading']");
+    expect(el?.getAttribute("data-delegated")).toBe("true");
+    expect(container.querySelectorAll("[data-slot='editorial-word']").length).toBe(2);
+  });
+
+  it("omits the data-delegated attribute by default", () => {
+    const { container } = render(<EditorialHeading>Hi</EditorialHeading>);
+    expect(
+      container
+        .querySelector("[data-slot='editorial-heading']")
+        ?.hasAttribute("data-delegated")
+    ).toBe(false);
+  });
+
   it("falls back to an opacity-only fade with no per-word spans when reduced motion is requested", () => {
     useReducedMotionMock.mockReturnValue(true);
     const { container } = render(

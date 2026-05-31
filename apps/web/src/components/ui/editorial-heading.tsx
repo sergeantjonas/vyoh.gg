@@ -11,8 +11,8 @@ const MAGNITUDE: Record<
   { y: number; stagger: number; duration: number }
 > = {
   small: { y: 8, stagger: 0.03, duration: 0.4 },
-  medium: { y: 16, stagger: 0.06, duration: 0.5 },
-  large: { y: 24, stagger: 0.08, duration: 0.6 },
+  medium: { y: 14, stagger: 0.05, duration: 0.5 },
+  large: { y: 20, stagger: 0.06, duration: 0.55 },
 };
 
 const REDUCED_FADE_DURATION = 0.15;
@@ -23,6 +23,8 @@ type EditorialHeadingProps = {
   magnitude?: EditorialHeadingMagnitude;
   children: string | string[];
   className?: string;
+  lineClassName?: (string | undefined)[];
+  delegated?: boolean;
   id?: string;
   "aria-label"?: string;
   ref?: React.Ref<HTMLHeadingElement>;
@@ -37,6 +39,8 @@ function EditorialHeading({
   magnitude = "medium",
   children,
   className,
+  lineClassName,
+  delegated = false,
   id,
   "aria-label": ariaLabel,
   ref,
@@ -44,8 +48,16 @@ function EditorialHeading({
   const reducedMotion = useReducedMotion();
   const lines = Array.isArray(children) ? children : [children];
   const MotionTag = m[Tag] as typeof m.h1;
+  const lineClassFor = (i: number) => cn("block", lineClassName?.[i]);
 
   if (reducedMotion) {
+    const fadeProps = delegated
+      ? {}
+      : {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          transition: { duration: REDUCED_FADE_DURATION },
+        };
     return (
       <MotionTag
         ref={ref}
@@ -54,14 +66,13 @@ function EditorialHeading({
         data-slot="editorial-heading"
         data-magnitude={magnitude}
         data-reduced-motion="true"
+        data-delegated={delegated || undefined}
         className={cn(className)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: REDUCED_FADE_DURATION }}
+        {...fadeProps}
       >
         {lines.map((line, lineIdx) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: static positional lines
-          <span key={lineIdx} className="block">
+          <span key={lineIdx} className={lineClassFor(lineIdx)}>
             {line}
           </span>
         ))}
@@ -82,6 +93,9 @@ function EditorialHeading({
       transition: { duration: spec.duration, ease: EASE },
     },
   };
+  const orchestrationProps = delegated
+    ? { variants: containerVariants }
+    : { variants: containerVariants, initial: "hidden", animate: "visible" };
 
   return (
     <MotionTag
@@ -90,14 +104,13 @@ function EditorialHeading({
       aria-label={ariaLabel}
       data-slot="editorial-heading"
       data-magnitude={magnitude}
+      data-delegated={delegated || undefined}
       className={cn(className)}
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+      {...orchestrationProps}
     >
       {lines.map((line, lineIdx) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: static positional lines
-        <span key={lineIdx} className="block">
+        <span key={lineIdx} className={lineClassFor(lineIdx)}>
           {splitTokens(line).map((token, tokenIdx) =>
             /^\s+$/.test(token) ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: positional whitespace token
