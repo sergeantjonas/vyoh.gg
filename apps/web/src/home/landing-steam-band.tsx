@@ -11,17 +11,20 @@ import { Link } from "@tanstack/react-router";
 import { formatTimeAgo } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 
-// `amount: 0.25` is slightly stricter than the bento — the band is shorter and
-// the eyebrow + headline are stacked, so we want a quarter of the section to be
-// inside the viewport before the cascade fires (otherwise it'd land before the
-// content's even discoverable). `root: mainScrollRef` is critical — <main>
-// (not window) is the scroll container, so without it the IntersectionObserver
-// would see the band sitting near the bottom of an un-scrolling window box and
-// fire on mount.
+// The band sits right below a `min-h-[85vh]` hero so a fair chunk of it (~60%
+// on a typical viewport) is already inside <main>'s clip at scrollTop=0 — too
+// much for any `amount:` threshold to gate against. The negative bottom
+// `margin` shrinks the observer's effective root by 30% of <main>'s height, so
+// the band's top has to scroll past the 70%-of-viewport line before the IO
+// counts intersection at all. Pairs with `amount: 0.5` so the cascade lands
+// when the band is meaningfully on-screen, not the moment its top edge peeks
+// past the threshold. `root: mainScrollRef` keeps the observer rooted on the
+// actual scroll container (<main>, not window).
 const BAND_VIEWPORT = {
   once: true,
-  amount: 0.25,
+  amount: 0.5,
   root: mainScrollRef,
+  margin: "0px 0px -30% 0px",
 } as const;
 
 const WILL_CHANGE_CLASS = "[will-change:transform,opacity,filter]";

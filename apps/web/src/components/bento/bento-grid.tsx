@@ -27,18 +27,21 @@ const ROW_SPAN: Record<TileHeight, string> = {
   2: "sm:row-span-2",
 };
 
-// `amount: 0.05` fires the cascade as soon as the very top of the bento crosses
-// the viewport — even on tall first viewports the user sees the lift land
-// rather than discovering an already-rendered grid. `once: true` so back-nav
-// or scroll-up doesn't re-fire. `root` points at <main> (the actual scroll
-// container — the document body itself never scrolls in this app) so
-// IntersectionObserver measures intersection against the scrollable surface
-// instead of the static window box, which would otherwise fire `whileInView`
-// immediately for everything in the document.
+// The bento sits below the hero + steam band, so its top edge enters <main>'s
+// clip as soon as the user starts scrolling. Without the negative bottom
+// `margin`, the cascade fires while the user is still looking at the steam
+// band, which means the bottom tiles finish their entrance off-screen and
+// settle into view in their already-resting state. Shrinking the observer's
+// effective root by 30% from the bottom delays the trigger until the bento
+// top is past the 70%-of-viewport line — by then the user is looking at the
+// grid and sees the whole cascade play out. `once: true` keeps it from
+// re-firing on scroll-up. `root: mainScrollRef` anchors the IO to <main>
+// (the actual scroll container — the document body itself never scrolls).
 const BENTO_VIEWPORT = {
   once: true,
   amount: 0.05,
   root: mainScrollRef,
+  margin: "0px 0px -30% 0px",
 } as const;
 
 export function BentoGrid({
