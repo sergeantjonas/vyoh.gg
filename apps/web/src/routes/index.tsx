@@ -13,14 +13,7 @@ import { TileSignatureGame } from "@/home/tile-signature-game";
 import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
-import { useMainHeight } from "@/lib/use-main-height";
 import { createFileRoute } from "@tanstack/react-router";
-
-// Padding inside <main>'s wrapping div (`mx-auto max-w-4xl p-6`). We subtract
-// this from main's measured clientHeight so the hero fills the actual content
-// area inside that padding, not the full visible viewport — otherwise the
-// chevron at `bottom-8` plus the wrapping padding would land below the fold.
-const MAIN_VERTICAL_PADDING = 48;
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -33,19 +26,15 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { account } = usePrimaryAccount();
   const { data: activity } = useHomeActivityIntensity();
-  const mainHeight = useMainHeight();
-  // Fill <main>'s visible viewport exactly, minus the wrapping div's p-6
-  // padding. Measurement-based rather than `calc(100dvh-?rem)` so the height
-  // stays accurate as the nav collapses on scroll, mobile chrome reflows,
-  // accessibility font scaling kicks in, etc.
-  const heroMinHeight =
-    mainHeight !== null ? mainHeight - MAIN_VERTICAL_PADDING : undefined;
   return (
     <div className="relative flex flex-col">
-      <section
-        className="relative flex items-start justify-center pt-[8dvh]"
-        style={heroMinHeight !== undefined ? { minHeight: heroMinHeight } : undefined}
-      >
+      {/* `--main-h` is written by <main>'s callback ref in __root.tsx (and kept
+          current by a ResizeObserver there) — its value is <main>'s actual
+          clientHeight, so subtracting 3rem (the wrapping div's `p-6` top+bottom
+          padding) gives the exact content-area height. The `100dvh` fallback
+          covers the impossible case where the var isn't set yet — pragmatic
+          over-cover rather than a precise approximation. */}
+      <section className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh]">
         <AmbientHero intensity={activity?.intensity} />
         <LandingHeading />
         <HeroScrollHint />

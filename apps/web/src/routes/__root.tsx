@@ -65,6 +65,21 @@ function RootLayout() {
     if (prev === null || prev === scope) return;
     mainScrollRef.current?.scrollTo(0, 0);
   }, [scope]);
+  // Keep --main-h in sync with <main>'s actual height across viewport resizes
+  // and browser-chrome reflows (mobile address bar collapse, etc.). The
+  // callback ref handles first paint; this effect handles every subsequent
+  // change. ResizeObserver fires synchronously on each resize round, so
+  // descendants using `var(--main-h)` get the new value before paint.
+  useEffect(() => {
+    const main = mainScrollRef.current;
+    if (!main) return;
+    const update = () => {
+      main.style.setProperty("--main-h", `${main.clientHeight}px`);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, []);
   // Eagerly preload the route chunks for /steam and /lol on idle so the
   // first cross-section navigation doesn't pay a fetch cost. Goes beyond
   // the router's intent-based hover preload, which only fires when the
@@ -113,6 +128,17 @@ function RootLayout() {
             <main
               ref={(el) => {
                 mainScrollRef.current = el;
+                // Publish <main>'s visible height as a CSS variable that
+                // descendants can use to size themselves against the actual
+                // scroll viewport — useMainHeight (a hook variant) hit a React
+                // commit-ordering bug where a child's effect read the ref
+                // before the parent ref attached. Writing the variable from
+                // the callback ref runs during commit (before paint), so the
+                // first painted frame is already correct. ResizeObserver below
+                // keeps it current on viewport / browser-chrome changes.
+                if (el) {
+                  el.style.setProperty("--main-h", `${el.clientHeight}px`);
+                }
               }}
               data-vt-main=""
               className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
