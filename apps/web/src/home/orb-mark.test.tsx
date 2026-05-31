@@ -25,11 +25,11 @@ describe("OrbMark", () => {
     expect(container.querySelector(".test-cls")).not.toBeNull();
   });
 
-  it("emits multiple aria-hidden decorative layers (halos, sparkles, wisps)", () => {
+  it("emits multiple aria-hidden decorative layers (halos, sparkles, embers)", () => {
     const { container } = renderOrb();
     const decorative = container.querySelectorAll("[aria-hidden='true']");
-    // The component composes 2 halos + 1 core + 6 sparkles + 3 wisps as
-    // aria-hidden layers around the mark — assert there is a non-trivial set.
+    // The component composes 3 halos + 6 sparkles + 5 embers as aria-hidden
+    // layers around the mark — assert there is a non-trivial set.
     expect(decorative.length).toBeGreaterThan(8);
   });
 });

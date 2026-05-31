@@ -487,15 +487,6 @@ body {
 /* Was 12 m.divs running 12 independent Motion animations on the main        */
 /* thread; now zero JS per frame.                                            */
 
-/* SVG wisps wrapper — the whole `<svg>` translates with the orb at ~55% amp.
-   Its `userSpaceOnUse` filter and orbit paths move as one rigid layer, so the
-   smoke stays anchored to the orb instead of detaching when the orb wanders. */
-.orb-wisps {
-  --orb-wander-amp: 0.55;
-  animation: orb-wander 16s ease-in-out infinite;
-  will-change: translate;
-}
-
 .orb-sparkle {
   position: absolute;
   inset: 0;
@@ -644,7 +635,6 @@ body {
   /* fallback on the halo classes keeps blur intact without the hue cycle.  */
   .orb-halo,
   .orb-halo-echo,
-  .orb-wisps,
   .orb-sparkle,
   .orb-sparkle-dot,
   .orb-ember,
