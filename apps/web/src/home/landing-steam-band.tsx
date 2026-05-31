@@ -1,8 +1,22 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import {
+  sectionChildVariants,
+  sectionContainerVariants,
+  sectionReducedContainerVariants,
+} from "@/components/ui/section-variants";
 import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link } from "@tanstack/react-router";
 import { formatTimeAgo } from "@vyoh/shared";
+import { m, useReducedMotion } from "motion/react";
+
+// `amount: 0.25` is slightly stricter than the bento — the band is shorter and
+// the eyebrow + headline are stacked, so we want a quarter of the section to be
+// inside the viewport before the cascade fires (otherwise it'd land before the
+// content's even discoverable).
+const BAND_VIEWPORT = { once: true, amount: 0.25 } as const;
+
+const WILL_CHANGE_CLASS = "[will-change:transform,opacity,filter]";
 
 function Shell({
   eyebrow,
@@ -11,13 +25,34 @@ function Shell({
   eyebrow: string;
   children: React.ReactNode;
 }) {
+  const reducedMotion = useReducedMotion();
+  const containerVariants = reducedMotion
+    ? sectionReducedContainerVariants
+    : sectionContainerVariants;
+
   return (
-    <section className="relative">
+    <m.section
+      className="relative"
+      variants={containerVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={BAND_VIEWPORT}
+    >
       <div className="flex flex-col gap-6 py-12 sm:py-16">
-        <SectionTitle as="h2">{eyebrow}</SectionTitle>
-        {children}
+        <m.div
+          className={reducedMotion ? undefined : WILL_CHANGE_CLASS}
+          {...(reducedMotion ? {} : { variants: sectionChildVariants.eyebrow })}
+        >
+          <SectionTitle as="h2">{eyebrow}</SectionTitle>
+        </m.div>
+        <m.div
+          className={reducedMotion ? undefined : WILL_CHANGE_CLASS}
+          {...(reducedMotion ? {} : { variants: sectionChildVariants.body })}
+        >
+          {children}
+        </m.div>
       </div>
-    </section>
+    </m.section>
   );
 }
 

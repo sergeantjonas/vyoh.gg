@@ -1,8 +1,25 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("motion/react", async () => {
+  const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
+  return {
+    ...actual,
+    useReducedMotion: vi.fn(() => false),
+  };
+});
+
+import { useReducedMotion } from "motion/react";
+
 import { BentoGrid, BentoTile } from "./bento-grid";
 
+const useReducedMotionMock = vi.mocked(useReducedMotion);
+
 describe("BentoGrid", () => {
+  beforeEach(() => {
+    useReducedMotionMock.mockReturnValue(false);
+  });
+
   it("renders children inside a grid wrapper", () => {
     const { container } = render(
       <BentoGrid>
@@ -10,22 +27,22 @@ describe("BentoGrid", () => {
       </BentoGrid>
     );
     expect(screen.getByText("child")).toBeTruthy();
-    expect((container.firstElementChild as HTMLElement).className).toContain("grid");
+    const grid = container.querySelector("[data-slot='bento-grid']");
+    expect(grid?.className).toContain("grid");
   });
 
   it("applies a custom className to the wrapper", () => {
     const { container } = render(<BentoGrid className="extra">x</BentoGrid>);
-    expect((container.firstElementChild as HTMLElement).className).toContain("extra");
+    const grid = container.querySelector("[data-slot='bento-grid']");
+    expect(grid?.className).toContain("extra");
   });
 
-  it("marks the wrapper as a stagger container", () => {
+  it("renders the grid wrapper via the bento-grid data-slot (motion container)", () => {
     const { container } = render(<BentoGrid>x</BentoGrid>);
-    expect((container.firstElementChild as HTMLElement).className).toContain(
-      "stagger-children"
-    );
+    expect(container.querySelector("[data-slot='bento-grid']")).toBeTruthy();
   });
 
-  it("stamps each tile child with an --i ordinal", () => {
+  it("renders each tile as a bento-tile data-slot child", () => {
     const { container } = render(
       <BentoGrid>
         <BentoTile>a</BentoTile>
@@ -33,31 +50,45 @@ describe("BentoGrid", () => {
         <BentoTile>c</BentoTile>
       </BentoGrid>
     );
-    const tiles = Array.from(
-      (container.firstElementChild as HTMLElement).children
-    ) as HTMLElement[];
-    expect(tiles.map((el) => el.style.getPropertyValue("--i"))).toEqual(["0", "1", "2"]);
+    const tiles = container.querySelectorAll("[data-slot='bento-tile']");
+    expect(tiles.length).toBe(3);
+    expect(tiles[0]?.textContent).toBe("a");
+    expect(tiles[1]?.textContent).toBe("b");
+    expect(tiles[2]?.textContent).toBe("c");
   });
 
-  it("preserves consumer-supplied style alongside --i", () => {
+  it("pins will-change on each tile when motion is enabled (pre-promotes the layer for the lift)", () => {
     const { container } = render(
       <BentoGrid>
-        <BentoTile style={{ background: "red" }}>x</BentoTile>
+        <BentoTile>a</BentoTile>
       </BentoGrid>
     );
-    const tile = (container.firstElementChild as HTMLElement)
-      .firstElementChild as HTMLElement;
-    expect(tile.style.background).toBe("red");
-    expect(tile.style.getPropertyValue("--i")).toBe("0");
+    const tile = container.querySelector("[data-slot='bento-tile']");
+    expect(tile?.className).toContain("[will-change:transform,opacity,filter]");
+  });
+
+  it("drops the will-change pin under reduced motion (no layer needed for the opacity-only fade)", () => {
+    useReducedMotionMock.mockReturnValue(true);
+    const { container } = render(
+      <BentoGrid>
+        <BentoTile>a</BentoTile>
+      </BentoGrid>
+    );
+    const tile = container.querySelector("[data-slot='bento-tile']");
+    expect(tile?.className).not.toContain("will-change");
   });
 });
 
 describe("BentoTile", () => {
+  beforeEach(() => {
+    useReducedMotionMock.mockReturnValue(false);
+  });
+
   it("applies col-span-1 / row-span-1 by default", () => {
     const { container } = render(<BentoTile>x</BentoTile>);
-    const cls = (container.firstElementChild as HTMLElement).className;
-    expect(cls).toContain("sm:col-span-1");
-    expect(cls).toContain("sm:row-span-1");
+    const tile = container.querySelector("[data-slot='bento-tile']");
+    expect(tile?.className).toContain("sm:col-span-1");
+    expect(tile?.className).toContain("sm:row-span-1");
   });
 
   it("applies col-span-2 / row-span-2 when width and height are 2", () => {
@@ -66,13 +97,14 @@ describe("BentoTile", () => {
         x
       </BentoTile>
     );
-    const cls = (container.firstElementChild as HTMLElement).className;
-    expect(cls).toContain("sm:col-span-2");
-    expect(cls).toContain("sm:row-span-2");
+    const tile = container.querySelector("[data-slot='bento-tile']");
+    expect(tile?.className).toContain("sm:col-span-2");
+    expect(tile?.className).toContain("sm:row-span-2");
   });
 
   it("appends a custom className", () => {
     const { container } = render(<BentoTile className="tile-x">x</BentoTile>);
-    expect((container.firstElementChild as HTMLElement).className).toContain("tile-x");
+    const tile = container.querySelector("[data-slot='bento-tile']");
+    expect(tile?.className).toContain("tile-x");
   });
 });

@@ -44,6 +44,9 @@ export const sectionChildVariants = {
   headline: child(14, 8),
   meta: child(8, 5),
   body: child(10, 6),
+  // Card-sized blocks (bento tiles, summary panels). Slightly heavier than
+  // `body` so the lift reads as a deliberate plate sliding into place.
+  tile: child(12, 5),
 } as const;
 
 export type SectionChildRole = keyof typeof sectionChildVariants;
