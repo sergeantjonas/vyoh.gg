@@ -504,6 +504,56 @@ body {
   }
 }
 
+/* ─── Orb mark embers ───────────────────────────────────────────────────── */
+/* Off-orbit fox-fire flickers anchored to the inner-halo radius. Distinct  */
+/* from sparkles in two ways: (1) no orbit motion — each ember sits at a    */
+/* fixed angle, the wrapper rotation is static positioning, not animation;  */
+/* (2) the flicker keyframe pops sharply (opacity 0 → 1 in the first 10%)   */
+/* then decays slowly, mimicking flame sparks. Per-ember negative delay     */
+/* desyncs the ring. Wanders at higher amp (0.85) than sparkles because     */
+/* embers belong to the orb's fire, not the surrounding atmosphere.        */
+
+.orb-ember {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  rotate: var(--orb-ember-angle);
+  --orb-wander-amp: 0.85;
+  animation: orb-wander 16s ease-in-out infinite;
+  will-change: translate;
+}
+.orb-ember-spark {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--orb-ember-radius));
+  width: var(--orb-ember-size);
+  height: var(--orb-ember-size);
+  translate: -50% -50%;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+  background: var(--orb-ember-color);
+  box-shadow: 0 0 calc(var(--orb-ember-size) * 4) var(--orb-ember-color), 0 0
+    calc(var(--orb-ember-size) * 8) var(--orb-ember-color);
+  animation: orb-ember-flicker var(--orb-ember-duration) ease-in-out infinite;
+  animation-delay: var(--orb-ember-delay);
+  will-change: opacity, scale;
+}
+@keyframes orb-ember-flicker {
+  0%,
+  100% {
+    opacity: 0;
+    scale: 0.3;
+  }
+  10% {
+    opacity: 1;
+    scale: 1;
+  }
+  60% {
+    opacity: 0.35;
+    scale: 0.7;
+  }
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────── */
 /* Replace, don't disable: every behavior collapses to its resting state.    */
 /* Nav: compacted always (better density on small screens).                  */
@@ -555,8 +605,16 @@ body {
   .orb-wisps,
   .orb-sparkle,
   .orb-sparkle-dot,
+  .orb-ember,
+  .orb-ember-spark,
   .orb-image {
     animation: none;
+  }
+  /* Embers default to opacity:0 in the flicker keyframe — with the
+     animation halted they'd vanish entirely. Pin a resting opacity so
+     the orb still reads as adorned under reduced-motion.                */
+  .orb-ember-spark {
+    opacity: 0.55;
   }
   .orb-halo-outer {
     opacity: 0.5;

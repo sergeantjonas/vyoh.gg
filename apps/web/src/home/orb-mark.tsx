@@ -12,6 +12,14 @@ type Orbit = {
 };
 
 type Sparkle = Orbit & { size: number; color: string };
+type Ember = {
+  angle: number;
+  radius: number;
+  size: number;
+  color: string;
+  duration: number;
+  delay: number;
+};
 type Wisp = {
   startAngle: number;
   arcLength: number;
@@ -54,6 +62,53 @@ const SPARKLES: Sparkle[] = [
     duration: 26,
     reverse: true,
     color: "rgba(125,211,252,0.9)",
+  },
+];
+
+// Off-orbit embers — sit at the inner-halo radius and pulse on fast (~1s)
+// cycles rather than orbiting. Negative `animation-delay` desyncs them so the
+// ring never blinks in unison. Two pink + two cyan + one warm accent gives
+// the Ahri palette without overwhelming the existing cool-leaning sparkles.
+const EMBERS: Ember[] = [
+  {
+    angle: 35,
+    radius: 36,
+    size: 2.2,
+    color: "rgba(244,114,182,0.95)",
+    duration: 1.3,
+    delay: 0,
+  },
+  {
+    angle: 215,
+    radius: 32,
+    size: 1.8,
+    color: "rgba(236,72,153,0.9)",
+    duration: 1.1,
+    delay: 0.5,
+  },
+  {
+    angle: 105,
+    radius: 38,
+    size: 2,
+    color: "rgba(186,230,253,0.95)",
+    duration: 0.9,
+    delay: 0.2,
+  },
+  {
+    angle: 290,
+    radius: 34,
+    size: 2.4,
+    color: "rgba(125,211,252,0.9)",
+    duration: 1.4,
+    delay: 0.7,
+  },
+  {
+    angle: 160,
+    radius: 40,
+    size: 1.6,
+    color: "rgba(254,202,202,0.85)",
+    duration: 1,
+    delay: 0.3,
   },
 ];
 
@@ -279,6 +334,25 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
           }
         >
           <div className="orb-sparkle-dot" />
+        </div>
+      ))}
+      {EMBERS.map((e) => (
+        <div
+          key={`ember-${e.angle}-${e.radius}`}
+          aria-hidden="true"
+          className="orb-ember"
+          style={
+            {
+              "--orb-ember-angle": `${e.angle}deg`,
+              "--orb-ember-radius": `${e.radius}%`,
+              "--orb-ember-size": `${e.size}px`,
+              "--orb-ember-color": e.color,
+              "--orb-ember-duration": `${e.duration}s`,
+              "--orb-ember-delay": `${-e.delay}s`,
+            } as CSSProperties
+          }
+        >
+          <div className="orb-ember-spark" />
         </div>
       ))}
     </m.div>
