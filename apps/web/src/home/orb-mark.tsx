@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "motion/react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 
 const ORB_SRC = "/vyoh-orb-mark.svg";
 
@@ -110,12 +110,24 @@ interface OrbMarkProps {
 
 export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
   const reducedMotion = useReducedMotion();
+  // While the orb is being thrown in, pause every descendant animation so the
+  // wrapper has the compositor to itself for the throw (no concurrent halo
+  // breathing, hue cycle, sparkle orbits, ember flickers, or wander loops
+  // competing for frame budget). The moment `orb-entrance` completes, the
+  // pause class drops and all layers spring to life — visually frames the
+  // arrival as "orb summoned, atmosphere wakes up." Under reduced motion the
+  // entrance isn't played, so `entranceDone` starts true to skip the gate.
+  const [entranceDone, setEntranceDone] = useState(reducedMotion === true);
+  useEffect(() => {
+    if (reducedMotion) setEntranceDone(true);
+  }, [reducedMotion]);
 
   return (
     <div
       className={cn(
         "relative aspect-square select-none",
         !reducedMotion && "orb-entrance",
+        !reducedMotion && !entranceDone && "orb-children-paused",
         className
       )}
       style={
@@ -123,6 +135,9 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
           ? undefined
           : ({ "--orb-entrance-delay": `${entranceDelay}s` } as CSSProperties)
       }
+      onAnimationEnd={(e) => {
+        if (e.animationName === "orb-entrance") setEntranceDone(true);
+      }}
     >
       {!reducedMotion && <div aria-hidden="true" className="orb-entrance-bloom" />}
       <div aria-hidden="true" className="orb-halo orb-halo-outer" />

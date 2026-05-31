@@ -340,6 +340,22 @@ body {
   }
 }
 
+/* While the wrapper carries `orb-children-paused` (during the entrance     */
+/* window), every descendant animation is frozen at its starting frame so   */
+/* the wrapper has the compositor to itself. The orb-entrance-bloom is     */
+/* deliberately omitted — it IS the entrance effect and must play. The     */
+/* class drops via onAnimationEnd when `orb-entrance` finishes, and every  */
+/* layer resumes from frame 0, springing into life as the orb settles.    */
+.orb-children-paused .orb-halo,
+.orb-children-paused .orb-halo-echo,
+.orb-children-paused .orb-image,
+.orb-children-paused .orb-sparkle,
+.orb-children-paused .orb-sparkle-dot,
+.orb-children-paused .orb-ember,
+.orb-children-paused .orb-ember-spark {
+  animation-play-state: paused;
+}
+
 .orb-entrance-bloom {
   position: absolute;
   inset: -25%;
