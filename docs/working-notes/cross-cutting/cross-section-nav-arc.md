@@ -1,62 +1,56 @@
 # Cross-section navigation arc
 
-**Status:** Planned — exploratory scope from 2026-05-27 brainstorm. Depends on [nav-condensation-arc § 1.1](nav-condensation-arc.md) landing first. No code yet.
-
-When the user navigates between top-level sections (LoL → Steam, Steam → `/`, `/lol` → `/status`, etc.), the merged sticky strip's contents change wholesale: different identity, different tabs, different active states. Today [section-shell-vt-migration](section-shell-vt-migration.md) (shipped 2026-05-24) handles the section *shell* transition via View Transitions + CSS keyframes scoped by transition `types`. This arc verifies the merged strip composes cleanly with that pattern, and elevates the cross-section moment from "chrome swap" to a deliberate transition.
-
-Sister notes: [section-shell-vt-migration.md](section-shell-vt-migration.md) (the existing shell transition this arc extends), [nav-condensation-arc.md](nav-condensation-arc.md) (the merged strip pattern this arc reacts to), [view-transitions-rollout.md](view-transitions-rollout.md) (the broader VT primitive).
+**Status:** CLOSED 2026-05-31 — evaluated existing behavior, baseline judged sufficient, no code needed. Original premise (the cross-section moment reads as an undesigned chrome swap) didn't hold up against what router-level VT already does today. Recorded here so future readers don't re-litigate.
 
 ---
 
-## Premise
+## Why this closed without code
 
-[nav-condensation-arc § 1.1](nav-condensation-arc.md) introduces a merged sticky strip whose contents are entirely section-specific:
+The original 2026-05-27 brainstorm assumed that [section-shell-vt-migration](section-shell-vt-migration.md) only handled the body slide and left the chrome untouched. That assumption was wrong on inspection:
 
-- LoL: `[avatar] Vyoh#Ahri ▾   Profile · Matches · Trends · Champions   [⟳] [≡]`
-- Steam: `[avatar] Vyoh   Profile · Library · Wishlist · Achievements   [≡]`
-- `/`, `/status`: no merged strip (sectionless routes).
+- Router-level VT classifier in [`navigation-type.ts:84-85`](../../apps/web/src/lib/navigation-type.ts#L84-L85) already emits `type=cross-section` for every LoL ↔ Steam ↔ `/` ↔ `/status` nav.
+- The corresponding CSS in [`view-transitions.css:139-154`](../../apps/web/src/styles/view-transitions.css#L139-L154) fades **both** `vt-main` AND `root` groups over 200ms ease-out on that type. (Slide types hold root; cross-section explicitly fades it.)
+- The section strip lives in `#section-header-slot` (a flex sibling above `<main>` in [`__root.tsx:101`](../../apps/web/src/routes/__root.tsx#L101)) and has no `view-transition-name` — so it falls into the implicit `root` group and crossfades alongside the body today.
+- The [accent cascade](accent-color-system.md) retints nav active-tab indicators (pulse halo + glint sweep), top-nav wordmark + orb + halo, section progress hairline, and fetch progress bar per-route, so the section identity *also* changes color during the transition.
 
-When the user navigates LoL → Steam, the merged strip swaps wholesale. The active-tab `layoutId` morph (folded into 1.1) has nothing to morph between across sections — the tab DOM nodes are in different React trees. Without deliberate treatment, the transition reads as a hard chrome swap: identity disappears, tabs disappear, fresh identity + fresh tabs appear in their place.
+Net effect on a cross-section click: 200ms full-viewport crossfade plus a per-route color shift. On owner review (2026-05-31), that already reads as a deliberate transition, not a chrome swap. The "chrome swap" framing was speculation against a strawman that didn't match the shipped code.
 
-Today's [section-shell-vt-migration](section-shell-vt-migration.md) handles the section *content* (the body below the chrome) with VT-driven slides. The chrome above isn't touched by that arc. After 1.1 lands, the chrome is **bigger** — the merged strip is the chrome's most prominent element — so the chrome-vs-content transition asymmetry becomes more visible.
+## What 1.1 also resolved by default
 
-This arc fixes that asymmetry.
+The [nav-condensation-arc](nav-condensation-arc.md) ship (2026-05-31) retired three of this arc's original open decisions before they got to a prototype:
 
----
+1. **Seam-straddle avatar morph** — moot. Seam was dropped during 1.1; shipped `LolIdentity` is plain inline.
+2. **Identity caret handoff** — moot. Caret was dropped; section identity is static.
+3. **Sectionless strip variant** — never built. Sectionless routes (`/`, `/status`) ship with no strip, so "how does the strip transition into a sectionless route" reduces to "the strip is part of the `root` group's crossfade, so it fades out with everything else" — handled by the existing CSS, no special-case needed.
 
-## Scope sketch
+And one structural decision baked in:
 
-Exploratory. Concrete chunks should land once the design direction is chosen. Candidates:
+4. **Identity `layoutId` literals are deliberately per-section namespaced** (`lol-identity-*` in [`identity-layout.ts`](../../apps/web/src/lol/profile/identity-layout.ts), `steam-identity-*` in [`identity-layout.ts`](../../apps/web/src/steam/profile/identity-layout.ts)) so identity **can't** morph across sections by design. Per the [Avatars are identity](~/.claude/projects/-workspaces-vyoh-gg/memory/feedback_avatars_are_identity.md) feedback, summoner icon and Steam pic represent *different platform identities* — morphing one into the other would lie about that. If anyone proposes "morph the avatar across sections" later, cite the namespace decision.
 
-- **VT-tagged merged-strip transition.** Tag the merged strip with a `view-transition-name` so it participates in the section-route VT alongside the content body. Decide what the transition looks like: crossfade, slide-with-content, dissolve-and-reform. Should compose with [section-shell-vt-migration](section-shell-vt-migration.md)'s existing `types` scoping.
-- **Sectionless-route handling.** When navigating into `/` or `/status` (no merged strip on those routes), the strip needs to gracefully exit, not snap. Same in reverse — entering a section from `/` needs the strip to gracefully enter. View Transitions handle this when nodes appear/disappear, but the choreography needs to feel intentional.
-- **Cross-section seam-straddle avatar handling.** The seam-straddle avatar from 1.1 sits at the boundary between primary nav and merged strip. On cross-section navigation, does the avatar stay anchored at the seam and morph (avatar changes identity but stays at the seam) or does it cross-fade with the strip? Decide based on visual prototyping.
-- **Active section chip → strip relationship.** The primary nav's active section chip (e.g. "Steam" highlighted) and the merged strip's identity should compose visually. Possibly the chip's accent tint extends into the strip's seam line — a subtle anchor that says "this strip belongs to this section."
+## If this ever reopens
 
----
+Trigger conditions where someone might revisit:
 
-## Dependencies
+- Owner notices that the cross-section moment specifically reads as undesigned after living with it for a while (subjective; nothing in the code changed, but feel can shift as surrounding chrome evolves).
+- A new top-level section (e.g. `/tft`, `/music`, `/code`) lands and the cross-section transition feels increasingly load-bearing once there are 4+ sections to traverse.
+- The accent cascade picks up a stronger per-route signature (e.g. distinctive backgrounds per section) that makes the current uniform 200ms fade feel mismatched against the louder destination identity.
 
-- **[nav-condensation-arc § 1.1](nav-condensation-arc.md) must land first.** This arc only makes sense once the merged strip exists.
-- **[section-shell-vt-migration](section-shell-vt-migration.md) (shipped)** — this arc extends its `types`-scoped VT pattern to cover the chrome.
-- **[accent-color-system](accent-color-system.md) (shipped, Steam wiring deferred)** — the cross-section chip-accent treatment leans on this. If Steam wiring isn't done by the time this arc starts, decide whether to do it inside this arc or wait.
+If reopened, the contingent options would be (cheapest first):
 
----
+- **Tune the existing CSS.** Adjust duration, easing, or opacity curve on the `cross-section` rules in [view-transitions.css](../../apps/web/src/styles/view-transitions.css). No JS, no new scope.
+- **Stagger strip vs body.** Give the strip its own `view-transition-name` (conditionally applied like `vt-main` is today) so the cross-section CSS can choreograph it separately — strip leads by 80ms, slides up while body crossfades, holds opacity while contents fade, etc. One named group; still router-VT, no hand-rolled JS.
+- **Accent-cascade handshake.** Briefly hold the source accent ~80ms into the transition so the strip fades out in source-color before the dest color fades in. Polish call.
+- **Hand-rolled imperative VT (M2b idiom).** Only if router-level CSS can't express what's wanted. Probably never needed — there's no element to morph across sections (per the namespace decision above).
 
-## Open decisions
-
-1. **Transition aesthetic.** Slide (the strip slides left as the new strip slides in from the right), crossfade (one fades out, the other fades in in place), or dissolve (a brief unified moment with both partially visible). Prototype first, decide after seeing.
-2. **Sectionless-route handling.** Should `/` and `/status` grow a thin sectionless strip for visual continuity, or remain bare? Probably bare (per nav-arc decision), in which case decide how the strip enters/exits gracefully.
-3. **Avatar transition treatment.** Stay-at-seam-and-morph vs. cross-fade-with-strip. Either is defensible; visual prototype will pick the winner.
-4. **Engine-gate considerations.** [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) documents WebKit's snapshot cost for VT-heavy transitions. The merged strip is small DOM, but adding it to the VT scope expands the snapshot. Measure before assuming it's free.
+WebKit constraint to inherit: cross-section VT isn't engine-gated today (the WebKit bail in [navigation-type.ts:122](../../apps/web/src/lib/navigation-type.ts#L122) only catches `isSteamLibraryPair`). Any new scope added to the cross-section transition should re-validate Safari snapshot cost per [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — easy to regress.
 
 ---
 
 ## Cross-references
 
-- [elevation-arcs.md](elevation-arcs.md) — promote this arc when it picks up active work.
-- [nav-condensation-arc.md § 1.1](nav-condensation-arc.md) — hard prerequisite.
-- [section-shell-vt-migration.md](section-shell-vt-migration.md) — the existing shell transition this arc extends.
-- [view-transitions-rollout.md](view-transitions-rollout.md) — broader VT primitive.
-- [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — engine-gate precedent if WebKit chops.
-- [accent-color-system.md](accent-color-system.md) — accent cascade powers the chip-accent treatment.
+- [elevation-arcs.md](elevation-arcs.md) — flip this arc to ✅ closed-no-code 2026-05-31.
+- [nav-condensation-arc.md](nav-condensation-arc.md) — shipped prerequisite; resolved several of this arc's premises by default.
+- [section-shell-vt-migration.md](section-shell-vt-migration.md) — the existing body transition that turned out to already cover the chrome via the `root` group fade.
+- [view-transitions.css](../../apps/web/src/styles/view-transitions.css) and [navigation-type.ts](../../apps/web/src/lib/navigation-type.ts) — where the existing `cross-section` type and its 200ms crossfade live.
+- [accent-color-system.md](accent-color-system.md) — the per-route retint that composes with the crossfade.
+- [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — engine-gate precedent for any future reopen.
