@@ -9,9 +9,9 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
   dawn: {
     timeOfDay: "dawn",
     gradients: [
-      "radial-gradient(circle 900px at 22% 30%, oklch(0.72 0.11 45 / 0.32) 0%, transparent 70%)",
-      "radial-gradient(circle 1000px at 78% 26%, oklch(0.62 0.08 235 / 0.28) 0%, transparent 72%)",
-      "radial-gradient(circle 800px at 55% 88%, oklch(0.78 0.09 60 / 0.22) 0%, transparent 65%)",
+      "radial-gradient(circle 900px at 22% 30%, oklch(0.82 0.15 50 / 0.36) 0%, transparent 70%)",
+      "radial-gradient(circle 1000px at 78% 26%, oklch(0.66 0.12 235 / 0.30) 0%, transparent 72%)",
+      "radial-gradient(circle 800px at 55% 88%, oklch(0.80 0.13 65 / 0.30) 0%, transparent 65%)",
     ],
   },
   day: {
