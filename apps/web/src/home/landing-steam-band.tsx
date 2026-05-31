@@ -4,6 +4,7 @@ import {
   sectionContainerVariants,
   sectionReducedContainerVariants,
 } from "@/components/ui/section-variants";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link } from "@tanstack/react-router";
@@ -13,8 +14,15 @@ import { m, useReducedMotion } from "motion/react";
 // `amount: 0.25` is slightly stricter than the bento — the band is shorter and
 // the eyebrow + headline are stacked, so we want a quarter of the section to be
 // inside the viewport before the cascade fires (otherwise it'd land before the
-// content's even discoverable).
-const BAND_VIEWPORT = { once: true, amount: 0.25 } as const;
+// content's even discoverable). `root: mainScrollRef` is critical — <main>
+// (not window) is the scroll container, so without it the IntersectionObserver
+// would see the band sitting near the bottom of an un-scrolling window box and
+// fire on mount.
+const BAND_VIEWPORT = {
+  once: true,
+  amount: 0.25,
+  root: mainScrollRef,
+} as const;
 
 const WILL_CHANGE_CLASS = "[will-change:transform,opacity,filter]";
 

@@ -3,6 +3,7 @@ import {
   sectionContainerVariants,
   sectionReducedContainerVariants,
 } from "@/components/ui/section-variants";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { m, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
@@ -29,8 +30,16 @@ const ROW_SPAN: Record<TileHeight, string> = {
 // `amount: 0.05` fires the cascade as soon as the very top of the bento crosses
 // the viewport — even on tall first viewports the user sees the lift land
 // rather than discovering an already-rendered grid. `once: true` so back-nav
-// or scroll-up doesn't re-fire.
-const BENTO_VIEWPORT = { once: true, amount: 0.05 } as const;
+// or scroll-up doesn't re-fire. `root` points at <main> (the actual scroll
+// container — the document body itself never scrolls in this app) so
+// IntersectionObserver measures intersection against the scrollable surface
+// instead of the static window box, which would otherwise fire `whileInView`
+// immediately for everything in the document.
+const BENTO_VIEWPORT = {
+  once: true,
+  amount: 0.05,
+  root: mainScrollRef,
+} as const;
 
 export function BentoGrid({
   children,
