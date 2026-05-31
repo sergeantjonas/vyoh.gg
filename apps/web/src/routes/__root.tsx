@@ -9,6 +9,7 @@ import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
 import { PresenceMounts } from "@/lib/presence-mounts";
+import { routeOwnsEntry } from "@/lib/route-owns-entry";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { topLevelScope } from "@/lib/top-level-scope";
 import { useFaviconDot } from "@/lib/use-favicon-dot";
@@ -42,6 +43,15 @@ function RootLayout() {
   const perfEnabled = usePerfFlag();
   const scope = useRouterState({
     select: (s) => topLevelScope(s.location.pathname),
+  });
+  // When the active match chain opts into owning its entrance via
+  // `staticData: { ownsEntry: true }`, skip the global scope-fade for this
+  // mount — the route's own variants (e.g. landing's editorial cascade) are
+  // the only entrance the user should see. Cross-scope navigations still
+  // remount the m.div via `key={scope}`, so the standard fade re-engages
+  // whenever the next scope doesn't claim ownership.
+  const ownsEntry = useRouterState({
+    select: (s) => routeOwnsEntry(s.matches),
   });
   // Reset <main> scroll when crossing a top-level scope boundary. Section
   // roots stay mounted across child routes and own intra-section reset
@@ -130,7 +140,7 @@ function RootLayout() {
                 >
                   <m.div
                     key={scope}
-                    initial={{ opacity: 0 }}
+                    initial={ownsEntry ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
                   >

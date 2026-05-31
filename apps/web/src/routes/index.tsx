@@ -16,6 +16,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
+  // Skip the global scope-fade in <RootLayout> for the landing mount — the
+  // landing owns its own entrance via <LandingHeading>'s editorial cascade and
+  // <LandingSteamBand> / <BentoGrid>'s whileInView gates.
+  staticData: { ownsEntry: true },
 });
 
 function HomePage() {
