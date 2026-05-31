@@ -242,6 +242,8 @@ Five rules govern fallback behavior. Implemented in A-9.
 
 7. **Atmosphere layer DOM location.** Mount inside `AtmosphereProvider`'s tree, or portal to `document.body` (parity with `BackdropPortal`)? Portal gives clean isolation from route content; in-tree gives natural overflow-clipping by route container. Recommendation: portal, matching the existing backdrop pattern. Decide during A-1.
 
+8. **Hero scroll-hint enrichment.** [`<HeroScrollHint>`](../../apps/web/src/home/hero-scroll-hint.tsx) currently ships as an anonymous bobbing chevron — a stream-agnostic "more below" affordance that fades on first 80px of scroll. It replaced the earlier `min-h-[85vh]` hero trick that leaked the next section into view as a scrollability signal (the leak fought the [bento + steam-band whileInView gates](../../apps/web/src/components/bento/bento-grid.tsx) and couldn't survive band reordering anyway). Once `useDominantStream` lands (A-5), the chevron can be enriched with the leading band's eyebrow text (e.g. `"Steam · latest unlock  ↓"` when Steam leads this week, `"League · standout match  ↓"` when LoL leads, rhythm-band label on flat weeks). Open question: enrich during A-5, or stay anonymous through the whole arc and revisit as a polish chunk after A-9? Anonymous-through-arc keeps the chevron from competing visually with band entrances during A-3 / A-4 / A-6 development; named-on-A-5 ships the richer affordance sooner. Default: stay anonymous through A-9, revisit during low-activity-fallback polish.
+
 ---
 
 ## Cross-references

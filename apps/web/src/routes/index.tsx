@@ -1,5 +1,6 @@
 import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { AmbientHero } from "@/home/ambient-hero";
+import { HeroScrollHint } from "@/home/hero-scroll-hint";
 import { LandingHeading } from "@/home/landing-heading";
 import { LandingSteamBand } from "@/home/landing-steam-band";
 import { TileBuildBadge } from "@/home/tile-build-badge";
@@ -27,9 +28,10 @@ function HomePage() {
   const { data: activity } = useHomeActivityIntensity();
   return (
     <div className="relative flex flex-col">
-      <section className="relative flex min-h-[85vh] items-center justify-center">
+      <section className="relative flex min-h-dvh items-center justify-center">
         <AmbientHero intensity={activity?.intensity} />
         <LandingHeading />
+        <HeroScrollHint />
       </section>
       <LandingSteamBand />
       <BentoGrid>

@@ -11,15 +11,14 @@ import { Link } from "@tanstack/react-router";
 import { formatTimeAgo } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 
-// The band sits right below a `min-h-[85vh]` hero so a fair chunk of it (~60%
-// on a typical viewport) is already inside <main>'s clip at scrollTop=0 — too
-// much for any `amount:` threshold to gate against. The negative bottom
-// `margin` shrinks the observer's effective root by 30% of <main>'s height, so
-// the band's top has to scroll past the 70%-of-viewport line before the IO
-// counts intersection at all. Pairs with `amount: 0.5` so the cascade lands
-// when the band is meaningfully on-screen, not the moment its top edge peeks
-// past the threshold. `root: mainScrollRef` keeps the observer rooted on the
-// actual scroll container (<main>, not window).
+// Hero is `min-h-dvh`, so the band starts fully below <main>'s clip and the
+// IO doesn't fire on mount. The negative bottom `margin` (-30%) then delays
+// the trigger past first contact — the band's top has to scroll past the
+// 70%-of-viewport line before IO counts intersection. Pairs with `amount:
+// 0.5` so the cascade lands when the band is meaningfully on-screen, not
+// the moment its top edge peeks past the threshold. `root: mainScrollRef`
+// keeps the observer rooted on the actual scroll container (<main>, not
+// window — the document body never scrolls in this app).
 const BAND_VIEWPORT = {
   once: true,
   amount: 0.5,
