@@ -1,10 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { type GradientLayer, VIGNETTE_MASK } from "./ambient-hero";
 
 const DRIFT_PERIOD_MS = 60_000;
 const DRIFT_AMPLITUDE = 0.05;
 const FRAME_BUDGET_MS = 33;
-const RADIUS_REFERENCE_PX = 1600;
 
 function layerColor(layer: GradientLayer, alpha: number): string {
   const [L, C, H] = layer.lch;
@@ -13,16 +12,15 @@ function layerColor(layer: GradientLayer, alpha: number): string {
 
 interface Props {
   layers: readonly GradientLayer[];
-  onFirstFrame?: () => void;
 }
 
-export default function AmbientHeroCanvas({ layers, onFirstFrame }: Props) {
+export default function AmbientHeroCanvas({ layers }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const firstFrameRef = useRef(false);
-  const onFirstFrameRef = useRef(onFirstFrame);
-  onFirstFrameRef.current = onFirstFrame;
 
-  useEffect(() => {
+  // useLayoutEffect so frame 1 lands in the backbuffer before the browser
+  // paints the freshly-mounted tree — no blank-canvas frame between mount and
+  // first rAF.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -55,22 +53,22 @@ export default function AmbientHeroCanvas({ layers, onFirstFrame }: Props) {
         ctx.globalCompositeOperation = "screen";
         for (const layer of layers) {
           const cycle = (t / DRIFT_PERIOD_MS) * Math.PI * 2;
-          const driftX = Math.sin(cycle + layer.phase) * DRIFT_AMPLITUDE;
-          const driftY = Math.cos(cycle * 0.77 + layer.phase * 1.3) * DRIFT_AMPLITUDE;
+          // Drift cancels to zero at t=0 so the canvas's first frame matches
+          // the static CSS gradient centers exactly; drift grows over time.
+          const driftX =
+            (Math.sin(cycle + layer.phase) - Math.sin(layer.phase)) * DRIFT_AMPLITUDE;
+          const driftY =
+            (Math.cos(cycle * 0.77 + layer.phase * 1.3) - Math.cos(layer.phase * 1.3)) *
+            DRIFT_AMPLITUDE;
           const cx = (layer.cx + driftX) * cssWidth;
           const cy = (layer.cy + driftY) * cssHeight;
-          const r = layer.radius * (cssWidth / RADIUS_REFERENCE_PX);
-          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, layer.radius);
           grad.addColorStop(0, layerColor(layer, layer.alpha));
           grad.addColorStop(0.7, layerColor(layer, 0));
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, cssWidth, cssHeight);
         }
         ctx.globalCompositeOperation = "source-over";
-        if (!firstFrameRef.current) {
-          firstFrameRef.current = true;
-          onFirstFrameRef.current?.();
-        }
       }
       if (visible && mounted) {
         rafId = requestAnimationFrame(draw);
@@ -90,6 +88,9 @@ export default function AmbientHeroCanvas({ layers, onFirstFrame }: Props) {
     };
 
     resize();
+    // Synchronously paint frame 1 before browser paint so the canvas is never
+    // visible blank.
+    draw(performance.now());
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     document.addEventListener("visibilitychange", handleVisibility);

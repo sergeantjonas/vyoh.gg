@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AmbientHero, paletteForHour, timeOfDayForHour } from "./ambient-hero";
 
@@ -127,60 +127,24 @@ describe("AmbientHero", () => {
     }
   });
 
-  it("does not mount the canvas when reduced motion is preferred", async () => {
+  it("renders only the static layer when reduced motion is preferred", () => {
     mockUseReducedMotion.mockReturnValue(true);
     const { container } = render(<AmbientHero hour={12} />);
-    // Give Suspense a tick to resolve — canvas should still not appear.
-    await Promise.resolve();
     expect(container.querySelector("[data-ambient-canvas]")).toBeNull();
+    expect(container.querySelector("[data-ambient-static]")).not.toBeNull();
   });
 
-  it("does not mount the canvas before reduced-motion preference resolves", () => {
+  it("renders only the static layer before reduced-motion preference resolves", () => {
     mockUseReducedMotion.mockReturnValue(null);
     const { container } = render(<AmbientHero hour={12} />);
     expect(container.querySelector("[data-ambient-canvas]")).toBeNull();
+    expect(container.querySelector("[data-ambient-static]")).not.toBeNull();
   });
 
-  it("mounts the canvas when motion is allowed", async () => {
+  it("renders only the canvas when motion is allowed", () => {
     mockUseReducedMotion.mockReturnValue(false);
     const { container } = render(<AmbientHero hour={12} />);
-    await waitFor(() => {
-      expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
-    });
-  });
-
-  it("keeps the static layer visible until the canvas reports first frame", async () => {
-    mockUseReducedMotion.mockReturnValue(false);
-    const { container } = render(<AmbientHero hour={12} />);
-    await waitFor(() => {
-      expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
-    });
-    const staticLayer = container.querySelector(
-      "[data-ambient-static]"
-    ) as HTMLElement | null;
-    expect(staticLayer).not.toBeNull();
-    // happy-dom returns null from getContext('2d'), so the canvas effect bails
-    // before the rAF loop and onFirstFrame never fires — static stays opaque.
-    expect(staticLayer?.style.opacity).toBe("1");
-  });
-
-  it("fades the static layer when the canvas reports first frame", async () => {
-    vi.resetModules();
-    vi.doMock("./ambient-hero-canvas", () => ({
-      default: ({ onFirstFrame }: { onFirstFrame?: () => void }) => {
-        onFirstFrame?.();
-        return <div data-ambient-canvas />;
-      },
-    }));
-    const { AmbientHero: HotAmbientHero } = await import("./ambient-hero");
-    mockUseReducedMotion.mockReturnValue(false);
-    const { container } = render(<HotAmbientHero hour={12} />);
-    await waitFor(() => {
-      const staticLayer = container.querySelector(
-        "[data-ambient-static]"
-      ) as HTMLElement | null;
-      expect(staticLayer?.style.opacity).toBe("0");
-    });
-    vi.doUnmock("./ambient-hero-canvas");
+    expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
+    expect(container.querySelector("[data-ambient-static]")).toBeNull();
   });
 });

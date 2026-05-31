@@ -1,5 +1,5 @@
 import { useReducedMotion } from "motion/react";
-import { Suspense, lazy, useState } from "react";
+import AmbientHeroCanvas from "./ambient-hero-canvas";
 
 export type TimeOfDay = "dawn" | "day" | "dusk" | "night";
 
@@ -117,22 +117,16 @@ function isLowPower(): boolean {
   return false;
 }
 
-const AmbientHeroCanvas = lazy(() => import("./ambient-hero-canvas"));
-
-function StaticLayer({
-  palette,
-  fadedOut,
-}: { palette: AmbientPalette; fadedOut: boolean }) {
+function StaticLayer({ palette }: { palette: AmbientPalette }) {
   return (
     <div
       data-ambient-static
-      className="absolute inset-0 transition-opacity duration-200 ease-out"
+      className="absolute inset-0"
       style={{
         backgroundImage: palette.layers.map(layerToCssGradient).join(", "),
         backgroundBlendMode: "screen",
         maskImage: VIGNETTE_MASK,
         WebkitMaskImage: VIGNETTE_MASK,
-        opacity: fadedOut ? 0 : 1,
       }}
     />
   );
@@ -143,7 +137,6 @@ export function AmbientHero({ hour }: { hour?: number }) {
   const resolved = hour ?? hourFromSearchParams() ?? currentBrusselsHour();
   const palette = paletteForHour(resolved);
   const shouldAnimate = reducedMotion === false && !isLowPower();
-  const [canvasReady, setCanvasReady] = useState(false);
   return (
     <div
       aria-hidden
@@ -151,14 +144,10 @@ export function AmbientHero({ hour }: { hour?: number }) {
       data-time-of-day={palette.timeOfDay}
       className="pointer-events-none absolute left-1/2 -top-6 -z-10 h-[calc(70vh+1.5rem)] w-screen -translate-x-1/2 overflow-hidden"
     >
-      <StaticLayer palette={palette} fadedOut={shouldAnimate && canvasReady} />
-      {shouldAnimate && (
-        <Suspense fallback={null}>
-          <AmbientHeroCanvas
-            layers={palette.layers}
-            onFirstFrame={() => setCanvasReady(true)}
-          />
-        </Suspense>
+      {shouldAnimate ? (
+        <AmbientHeroCanvas layers={palette.layers} />
+      ) : (
+        <StaticLayer palette={palette} />
       )}
     </div>
   );
