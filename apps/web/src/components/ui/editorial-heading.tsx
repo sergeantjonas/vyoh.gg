@@ -12,7 +12,7 @@ const MAGNITUDE: Record<
 > = {
   small: { y: 6, stagger: 0.025, duration: 0.4, blur: 4 },
   medium: { y: 10, stagger: 0.04, duration: 0.45, blur: 6 },
-  large: { y: 14, stagger: 0.05, duration: 0.5, blur: 8 },
+  large: { y: 14, stagger: 0.08, duration: 0.85, blur: 8 },
 };
 
 const REDUCED_FADE_DURATION = 0.15;

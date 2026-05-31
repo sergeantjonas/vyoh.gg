@@ -78,11 +78,11 @@ Hard requirement, not a soft preference. Per [reduced-motion-replacements.md](re
 
 ## Open decisions
 
-1. **Stagger magnitude defaults.** ~~Locked 2026-05-31 during M-3.~~ `<EditorialHeading>` ships three magnitudes, each `{ y, stagger, duration }`:
-   - `small`: `{ 8, 0.03s, 0.4s }` — for inline accents (`<h3>` / `<h4>`).
-   - `medium`: `{ 14, 0.05s, 0.5s }` — default; section-level `<h2>` / `<h3>` headlines.
-   - `large`: `{ 20, 0.06s, 0.55s }` — hero / `<h1>` only.
-   The landing hero uses `large` with a 6-word 2-line headline, landing in ~0.85s — disciplined editorial feel (Linear / Resend register), tuned away from the M-1 placeholders (`24 / 0.08 / 0.6`) which trailed past 1s. The 500ms-headline-target in the performance contract is aspirational — for editorial register we accept ~700–900ms on hero so word durations don't feel jolty. Tune again only if owner review flags drag.
+1. **Stagger magnitude defaults.** ~~Locked 2026-05-31 during M-3.~~ Re-tuned 2026-05-31 after owner review felt the hero "too fast, should feel deliberate." `<EditorialHeading>` ships three magnitudes, each `{ y, stagger, duration, blur }`:
+   - `small`: `{ 6, 0.025s, 0.4s, 4px }` — for inline accents (`<h3>` / `<h4>`).
+   - `medium`: `{ 10, 0.04s, 0.45s, 6px }` — default; section-level `<h2>` / `<h3>` headlines.
+   - `large`: `{ 14, 0.08s, 0.85s, 8px }` — hero / `<h1>` only.
+   The landing hero uses `large` with a 6-word 2-line headline, landing in ~1.25s — each word lingers entering, so it reads as a deliberate Linear/Resend-grade reveal rather than a snap-in. Earlier ~0.85s pacing read as too brisk for an editorial headline at this size. Tune again only if owner review flags drag, but bias toward keeping headlines slow — the per-word duration is where the "deliberate" feeling lives.
 2. **`whileInView` thresholds.** Default `amount: "some"` — fires when any pixel enters the viewport, not at 50%. Tune via `viewport={{ amount, margin }}`. To fire *earlier* than viewport entry, use a *positive* rootMargin-style string (e.g. `margin: "0px 0px 10% 0px"` extends the trigger box downward); a negative margin shrinks the box and delays firing. For long bento tiles / charts where the default `"some"` fires too eagerly on first pixel, switch to `amount: 0.25` or `amount: "all"` depending on the surface. Tune during M-5.
 3. **First-visit vs return-visit choreography.** Should the first-ever visit get extra theatre (longer durations, more drama)? Linear doesn't differentiate. Default: same vocabulary for both. Revisit only if owner review on first visit reads as "fine but I want more drama once."
 4. **Primitive home.** `apps/web/src/components/ui/` matches shadcn convention (other ui primitives live there). Confirm during M-1.
