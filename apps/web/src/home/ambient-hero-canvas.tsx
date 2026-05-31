@@ -1,21 +1,34 @@
-import { useLayoutEffect, useRef } from "react";
-import { type GradientLayer, VIGNETTE_MASK } from "./ambient-hero";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import {
+  type GradientLayer,
+  VIGNETTE_MASK,
+  intensityToChromaMultiplier,
+} from "./ambient-hero";
 
 const DRIFT_PERIOD_MS = 60_000;
 const DRIFT_AMPLITUDE = 0.05;
 const FRAME_BUDGET_MS = 33;
 
-function layerColor(layer: GradientLayer, alpha: number): string {
+function layerColor(layer: GradientLayer, alpha: number, chromaMul: number): string {
   const [L, C, H] = layer.lch;
-  return `oklch(${L} ${C} ${H} / ${alpha})`;
+  return `oklch(${L} ${C * chromaMul} ${H} / ${alpha})`;
 }
 
 interface Props {
   layers: readonly GradientLayer[];
+  intensity: number;
 }
 
-export default function AmbientHeroCanvas({ layers }: Props) {
+export default function AmbientHeroCanvas({ layers, intensity }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Latest intensity, read inside the rAF loop. Threading through a ref avoids
+  // restarting the loop on every refetch — the next frame just picks up the
+  // new chroma multiplier mid-drift.
+  const intensityRef = useRef(intensity);
+
+  useEffect(() => {
+    intensityRef.current = intensity;
+  }, [intensity]);
 
   // useLayoutEffect so frame 1 lands in the backbuffer before the browser
   // paints the freshly-mounted tree — no blank-canvas frame between mount and
@@ -51,6 +64,7 @@ export default function AmbientHeroCanvas({ layers }: Props) {
         const t = now - startTime;
         ctx.clearRect(0, 0, cssWidth, cssHeight);
         ctx.globalCompositeOperation = "screen";
+        const chromaMul = intensityToChromaMultiplier(intensityRef.current);
         for (const layer of layers) {
           const cycle = (t / DRIFT_PERIOD_MS) * Math.PI * 2;
           // Drift cancels to zero at t=0 so the canvas's first frame matches
@@ -63,8 +77,8 @@ export default function AmbientHeroCanvas({ layers }: Props) {
           const cx = (layer.cx + driftX) * cssWidth;
           const cy = (layer.cy + driftY) * cssHeight;
           const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, layer.radius);
-          grad.addColorStop(0, layerColor(layer, layer.alpha));
-          grad.addColorStop(0.7, layerColor(layer, 0));
+          grad.addColorStop(0, layerColor(layer, layer.alpha, chromaMul));
+          grad.addColorStop(0.7, layerColor(layer, 0, chromaMul));
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, cssWidth, cssHeight);
         }

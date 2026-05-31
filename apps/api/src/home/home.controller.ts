@@ -1,11 +1,13 @@
 import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query } from "@nestjs/common";
 import type {
+  HomeActivityIntensity,
   HomeChronotype,
   HomeDaySplit,
   HomeFirstPlayed,
   HomeSessionLengths,
   HomeWeeklyTotals,
 } from "@vyoh/shared";
+import { HomeActivityIntensityService } from "./home-activity-intensity.service";
 import { HomeChronotypeService } from "./home-chronotype.service";
 import { HomeDaySplitService } from "./home-day-split.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
@@ -19,7 +21,8 @@ export class HomeController {
     private readonly weeklyTotals: HomeWeeklyTotalsService,
     private readonly firstPlayed: HomeFirstPlayedService,
     private readonly daySplit: HomeDaySplitService,
-    private readonly sessionLengths: HomeSessionLengthsService
+    private readonly sessionLengths: HomeSessionLengthsService,
+    private readonly activityIntensity: HomeActivityIntensityService
   ) {}
 
   @Get("chronotype")
@@ -47,5 +50,10 @@ export class HomeController {
   @Get("session-lengths")
   async getSessionLengths(): Promise<HomeSessionLengths> {
     return this.sessionLengths.getSessionLengths();
+  }
+
+  @Get("activity-intensity")
+  async getActivityIntensity(): Promise<HomeActivityIntensity> {
+    return this.activityIntensity.getActivityIntensity();
   }
 }

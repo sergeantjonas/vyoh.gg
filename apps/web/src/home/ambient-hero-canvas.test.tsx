@@ -10,12 +10,16 @@ const TEST_LAYERS: readonly GradientLayer[] = [
 
 describe("AmbientHeroCanvas", () => {
   it("mounts a data-ambient-canvas element", () => {
-    const { container } = render(<AmbientHeroCanvas layers={TEST_LAYERS} />);
+    const { container } = render(
+      <AmbientHeroCanvas layers={TEST_LAYERS} intensity={0.5} />
+    );
     expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
   });
 
   it("renders the canvas with the vignette mask", () => {
-    const { container } = render(<AmbientHeroCanvas layers={TEST_LAYERS} />);
+    const { container } = render(
+      <AmbientHeroCanvas layers={TEST_LAYERS} intensity={0.5} />
+    );
     const canvas = container.querySelector(
       "[data-ambient-canvas]"
     ) as HTMLCanvasElement | null;
@@ -23,7 +27,9 @@ describe("AmbientHeroCanvas", () => {
   });
 
   it("cleans up without errors on unmount", () => {
-    const { unmount } = render(<AmbientHeroCanvas layers={TEST_LAYERS} />);
+    const { unmount } = render(
+      <AmbientHeroCanvas layers={TEST_LAYERS} intensity={0.5} />
+    );
     expect(() => unmount()).not.toThrow();
   });
 });

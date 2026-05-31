@@ -10,6 +10,7 @@ import { TileLastMatch } from "@/home/tile-last-match";
 import { TileSessionLengths } from "@/home/tile-session-lengths";
 import { TileSignatureGame } from "@/home/tile-signature-game";
 import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
+import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -19,9 +20,10 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const { account } = usePrimaryAccount();
+  const { data: activity } = useHomeActivityIntensity();
   return (
     <div className="relative flex flex-col gap-6">
-      <AmbientHero />
+      <AmbientHero intensity={activity?.intensity} />
       <LandingHeading />
       <BentoGrid>
         <BentoTile width={2} height={2}>

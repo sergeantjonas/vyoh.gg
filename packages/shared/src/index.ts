@@ -162,6 +162,7 @@ export type { SteamChronotype, SteamChronotypeHour } from "./steam/chronotype.ts
 export type { GameUnlockTimeline } from "./steam/unlock-timeline.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
+export type { HomeActivityIntensity } from "./home/activity-intensity.ts";
 export type {
   HomeFirstPlayed,
   HomeFirstPlayedLol,

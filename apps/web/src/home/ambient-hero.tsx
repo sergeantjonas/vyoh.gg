@@ -80,9 +80,20 @@ export function paletteForHour(hour: number): AmbientPalette {
   return PALETTES[timeOfDayForHour(hour)];
 }
 
-export function layerToCssGradient(layer: GradientLayer): string {
+/**
+ * Map intensity [0, 1] → chroma multiplier [0.7, 1.3]. 0.5 is the "average"
+ * baseline used by the static fallback and by the canvas when data hasn't
+ * resolved yet — keeps the palette identical to the pre-reactivity look.
+ */
+export function intensityToChromaMultiplier(intensity: number): number {
+  const clamped = Math.max(0, Math.min(1, intensity));
+  return 0.7 + 0.6 * clamped;
+}
+
+export function layerToCssGradient(layer: GradientLayer, intensity = 0.5): string {
   const [L, C, H] = layer.lch;
-  return `radial-gradient(circle ${layer.radius}px at ${layer.cx * 100}% ${layer.cy * 100}%, oklch(${L} ${C} ${H} / ${layer.alpha}) 0%, transparent 70%)`;
+  const cAdj = C * intensityToChromaMultiplier(intensity);
+  return `radial-gradient(circle ${layer.radius}px at ${layer.cx * 100}% ${layer.cy * 100}%, oklch(${L} ${cAdj} ${H} / ${layer.alpha}) 0%, transparent 70%)`;
 }
 
 const brusselsHourFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -117,13 +128,21 @@ function isLowPower(): boolean {
   return false;
 }
 
-function StaticLayer({ palette }: { palette: AmbientPalette }) {
+function StaticLayer({
+  palette,
+  intensity,
+}: {
+  palette: AmbientPalette;
+  intensity: number;
+}) {
   return (
     <div
       data-ambient-static
       className="absolute inset-0"
       style={{
-        backgroundImage: palette.layers.map(layerToCssGradient).join(", "),
+        backgroundImage: palette.layers
+          .map((layer) => layerToCssGradient(layer, intensity))
+          .join(", "),
         backgroundBlendMode: "screen",
         maskImage: VIGNETTE_MASK,
         WebkitMaskImage: VIGNETTE_MASK,
@@ -132,11 +151,22 @@ function StaticLayer({ palette }: { palette: AmbientPalette }) {
   );
 }
 
-export function AmbientHero({ hour }: { hour?: number }) {
+export function AmbientHero({
+  hour,
+  intensity,
+}: {
+  hour?: number | undefined;
+  intensity?: number | undefined;
+}) {
   const reducedMotion = useReducedMotion();
   const resolved = hour ?? hourFromSearchParams() ?? currentBrusselsHour();
   const palette = paletteForHour(resolved);
   const shouldAnimate = reducedMotion === false && !isLowPower();
+  // Default to the average baseline so the palette matches the pre-reactivity
+  // look while the activity-intensity query is still loading. Reduced-motion
+  // always renders the baseline per the arc note's reduced-motion contract.
+  const resolvedIntensity = intensity ?? 0.5;
+  const staticIntensity = shouldAnimate ? resolvedIntensity : 0.5;
   return (
     <div
       aria-hidden
@@ -145,9 +175,9 @@ export function AmbientHero({ hour }: { hour?: number }) {
       className="pointer-events-none absolute left-1/2 -top-6 -z-10 h-[calc(70vh+1.5rem)] w-screen -translate-x-1/2 overflow-hidden"
     >
       {shouldAnimate ? (
-        <AmbientHeroCanvas layers={palette.layers} />
+        <AmbientHeroCanvas layers={palette.layers} intensity={resolvedIntensity} />
       ) : (
-        <StaticLayer palette={palette} />
+        <StaticLayer palette={palette} intensity={staticIntensity} />
       )}
     </div>
   );

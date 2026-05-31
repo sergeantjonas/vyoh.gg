@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { HomeActivityIntensityService } from "./home-activity-intensity.service";
 import type { HomeChronotypeService } from "./home-chronotype.service";
 import type { HomeDaySplitService } from "./home-day-split.service";
 import type { HomeFirstPlayedService } from "./home-first-played.service";
@@ -12,19 +13,30 @@ function makeController() {
   const first = { getFirstPlayed: vi.fn().mockResolvedValue({ kind: "none" }) };
   const day = { getDaySplit: vi.fn().mockResolvedValue({ weekday: 0, weekend: 0 }) };
   const sessions = { getSessionLengths: vi.fn().mockResolvedValue({ buckets: [] }) };
+  const activity = {
+    getActivityIntensity: vi.fn().mockResolvedValue({
+      lolMatches24h: 0,
+      steamMinutesToday: 0,
+      intensity: 0,
+      asOf: new Date().toISOString(),
+      timeZone: "Europe/Brussels",
+    }),
+  };
   return {
     controller: new HomeController(
       chronotype as unknown as HomeChronotypeService,
       weekly as unknown as HomeWeeklyTotalsService,
       first as unknown as HomeFirstPlayedService,
       day as unknown as HomeDaySplitService,
-      sessions as unknown as HomeSessionLengthsService
+      sessions as unknown as HomeSessionLengthsService,
+      activity as unknown as HomeActivityIntensityService
     ),
     chronotype,
     weekly,
     first,
     day,
     sessions,
+    activity,
   };
 }
 
@@ -57,5 +69,11 @@ describe("HomeController", () => {
     const { controller, sessions } = makeController();
     await controller.getSessionLengths();
     expect(sessions.getSessionLengths).toHaveBeenCalled();
+  });
+
+  it("getActivityIntensity delegates to the activity-intensity service", async () => {
+    const { controller, activity } = makeController();
+    await controller.getActivityIntensity();
+    expect(activity.getActivityIntensity).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 # Ambient generative hero on `/`
 
-**Status:** Active 2026-05-31 — picked up as the hero chunks (2–5) of [landing-showcase-arc.md](landing-showcase-arc.md). Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
+**Status:** Active 2026-05-31 — picked up as the hero chunks (2–6) of [landing-showcase-arc.md](landing-showcase-arc.md). Chunks 1–4 landed; remaining: optional Chunk 5 cursor parallax (subtle), Chunk 6 composition pass with bento. Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
 
 Read this when picking up the home-page hero pass. **Bold per the guardrails — but specifically the "calm bold" the project endorses; not particles-everywhere noise.**
 
@@ -124,19 +124,29 @@ This chunk alone is shippable as the floor — even without canvas, the visual w
 
 The dispatcher branch renders the static layer when either gate trips. Already covered above; this chunk had no separable scope once the canvas was direct-imported behind the gate.
 
-### Chunk 4 — Cursor parallax (subtle)
+### Chunk 4 — Activity-intensity reactivity — ✅ Landed 2026-05-31
+
+- New `GET /home/activity-intensity` returns `{ lolMatches24h, steamMinutesToday, intensity, asOf, timeZone }`. `lolMatches24h` is the non-remake match count over a rolling 24h; `steamMinutesToday` is closed-session minutes clipped to the Brussels calendar day (`startOfLocalDay` + per-interval clip, DST-safe via the same `Intl.DateTimeFormat` offset trick as the day-split service). Intensity is `max(lolMatches24h/6, steamMinutesToday/120)` clamped to `[0, 1]` — six matches OR two hours of Steam saturate the scalar.
+- Shared `HomeActivityIntensity` type and `useHomeActivityIntensity()` query hook on the web side (5-min `staleTime` so an in-session play swing surfaces within an hour without polling).
+- `intensityToChromaMultiplier(intensity)` maps `[0, 1] → [0.7, 1.3]` (baseline `0.5 → 1.0×`). `layerToCssGradient(layer, intensity)` and `layerColor(layer, alpha, chromaMul)` both apply the multiplier directly to `lch[1]`, so the static CSS gradients and the canvas's per-frame radial gradients move in lockstep.
+- `AmbientHero` accepts an optional `intensity` prop (`routes/index.tsx` reads the query and forwards `activity?.intensity`). Undefined ⇒ baseline 0.5, matching the pre-reactivity palette exactly while the query is still loading.
+- Reduced-motion / low-power path clamps to baseline 0.5 unconditionally per the arc note's reduced-motion contract — the static fallback never reflects activity, only time-of-day.
+- The canvas threads `intensity` through a ref (`intensityRef`) so refetches don't restart the rAF loop; the next frame just picks up the new chroma multiplier mid-drift.
+- Tests: pure helpers (`computeIntensity`, `startOfLocalDay`, `clipSessionMinutes`, `intensityToChromaMultiplier`, `layerToCssGradient` with intensity), service rollup, controller wiring, web hook fetch/error paths, dispatcher chroma identity under reduced-motion. Full suite green.
+
+### Chunk 5 — Cursor parallax (subtle)
 
 - Optional. The canvas reads `mousemove` (throttled to 60Hz) and shifts the radial-gradient centers by `±4%` of canvas size in the cursor direction.
 - Decay-back when mouse leaves.
 - Disabled under reduced-motion.
 
-### Chunk 5 — Composition pass with bento
+### Chunk 6 — Composition pass with bento
 
 - Verify visual rhythm: hero strip + bento + footer.
 - Adjust bento backdrop-blur intensity to read against the hero.
 - Adjust hero strip height (`60vh → ?`) based on what makes the bento "land" below the hero on first paint without scrolling.
 
-### Chunk 6 — (Stretch) WebGPU port
+### Chunk 7 — (Stretch) WebGPU port
 
 - Defer until visual is settled. Port the canvas code to a fragment shader.
 - Feature-detect; canvas remains the fallback.
