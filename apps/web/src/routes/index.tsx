@@ -1,11 +1,11 @@
 import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { AmbientHero } from "@/home/ambient-hero";
 import { LandingHeading } from "@/home/landing-heading";
+import { LandingSteamBand } from "@/home/landing-steam-band";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDaySplit } from "@/home/tile-day-split";
 import { TileDomainAge } from "@/home/tile-domain-age";
-import { TileFirstPlayed } from "@/home/tile-first-played";
 import { TileLastMatch } from "@/home/tile-last-match";
 import { TileSessionLengths } from "@/home/tile-session-lengths";
 import { TileSignatureGame } from "@/home/tile-signature-game";
@@ -22,9 +22,12 @@ function HomePage() {
   const { account } = usePrimaryAccount();
   const { data: activity } = useHomeActivityIntensity();
   return (
-    <div className="relative flex flex-col gap-6">
-      <AmbientHero intensity={activity?.intensity} />
-      <LandingHeading />
+    <div className="relative flex flex-col">
+      <section className="relative flex min-h-[85vh] items-center justify-center">
+        <AmbientHero intensity={activity?.intensity} />
+        <LandingHeading />
+      </section>
+      <LandingSteamBand />
       <BentoGrid>
         <BentoTile width={2} height={2}>
           <TileChronotype />
@@ -37,9 +40,6 @@ function HomePage() {
         </BentoTile>
         <BentoTile width={2}>
           <TileWeeklyTotals />
-        </BentoTile>
-        <BentoTile width={2}>
-          <TileFirstPlayed />
         </BentoTile>
         <BentoTile width={2} height={2}>
           <TileDaySplit />

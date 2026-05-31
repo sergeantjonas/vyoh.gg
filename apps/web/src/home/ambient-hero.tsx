@@ -1,4 +1,5 @@
-import { useReducedMotion } from "motion/react";
+import { usePointerParallax } from "@/lib/use-pointer-parallax";
+import { m, useReducedMotion } from "motion/react";
 import AmbientHeroCanvas from "./ambient-hero-canvas";
 
 export type TimeOfDay = "dawn" | "day" | "dusk" | "night";
@@ -67,7 +68,7 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
 };
 
 export const VIGNETTE_MASK =
-  "radial-gradient(ellipse 80% 65% at 50% 42%, black 0%, black 45%, transparent 96%)";
+  "radial-gradient(ellipse 75% 95% at 50% 45%, black 0%, black 35%, transparent 100%)";
 
 export function timeOfDayForHour(hour: number): TimeOfDay {
   if (hour >= 5 && hour < 8) return "dawn";
@@ -167,15 +168,25 @@ export function AmbientHero({
   // always renders the baseline per the arc note's reduced-motion contract.
   const resolvedIntensity = intensity ?? 0.5;
   const staticIntensity = shouldAnimate ? resolvedIntensity : 0.5;
+  // Larger maxOffset than the splash backdrop's bg track (6) — the gradients
+  // are blurry enough that smaller offsets read as no motion at all. Still
+  // subliminal at 14px against an ~95vh canvas.
+  const parallax = usePointerParallax({ maxOffset: 14 });
   return (
     <div
       aria-hidden
       data-ambient-hero
       data-time-of-day={palette.timeOfDay}
-      className="pointer-events-none absolute left-1/2 -top-6 -z-10 h-[calc(70vh+1.5rem)] w-screen -translate-x-1/2 overflow-hidden"
+      className="pointer-events-none absolute -top-6 bottom-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden"
     >
       {shouldAnimate ? (
-        <AmbientHeroCanvas layers={palette.layers} intensity={resolvedIntensity} />
+        <m.div
+          data-ambient-parallax
+          className="absolute inset-0"
+          style={{ x: parallax.x, y: parallax.y }}
+        >
+          <AmbientHeroCanvas layers={palette.layers} intensity={resolvedIntensity} />
+        </m.div>
       ) : (
         <StaticLayer palette={palette} intensity={staticIntensity} />
       )}

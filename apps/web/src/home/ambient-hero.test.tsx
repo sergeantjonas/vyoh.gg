@@ -154,6 +154,20 @@ describe("AmbientHero", () => {
     expect(container.querySelector("[data-ambient-static]")).toBeNull();
   });
 
+  it("wraps the canvas in a cursor-aware parallax track when motion is allowed", () => {
+    mockUseReducedMotion.mockReturnValue(false);
+    const { container } = render(<AmbientHero hour={12} />);
+    const track = container.querySelector("[data-ambient-parallax]");
+    expect(track).not.toBeNull();
+    expect(track?.querySelector("[data-ambient-canvas]")).not.toBeNull();
+  });
+
+  it("omits the parallax track when reduced motion is preferred", () => {
+    mockUseReducedMotion.mockReturnValue(true);
+    const { container } = render(<AmbientHero hour={12} />);
+    expect(container.querySelector("[data-ambient-parallax]")).toBeNull();
+  });
+
   it("renders the static layer at baseline chroma when reduced motion is on, regardless of intensity prop", () => {
     mockUseReducedMotion.mockReturnValue(true);
     const { container: a } = render(<AmbientHero hour={20} intensity={0} />);
