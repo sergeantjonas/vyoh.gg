@@ -1,6 +1,8 @@
 # Project hygiene audit — 2026-05-31
 
-**Status:** Active — second-round structural/duplication audit, ~13 days after [project-hygiene-2026-05-18.md](project-hygiene-2026-05-18.md). Ran as a four-Explore fan-out (web structure, api structure, cross-package duplication, readability/generalization). **Headline:** boundaries and conventions remain disciplined; the new drift is concentrated in time/queue/playtime formatters that re-fragmented since F1, plus a clean generalization opportunity in Steam fact-chips. **Chunks shipped: none yet. Pending: F2, Q1, R3, C1, X1, X2. Deferred (independent sessions): D1–D4 below.**
+**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). Deferred (independent sessions): D1–D4 below remain open.
+
+Second-round structural/duplication audit, ~13 days after [project-hygiene-2026-05-18.md](project-hygiene-2026-05-18.md). Ran as a four-Explore fan-out (web structure, api structure, cross-package duplication, readability/generalization). **Headline:** boundaries and conventions remain disciplined; the new drift is concentrated in time/queue/playtime formatters that re-fragmented since F1, plus a clean generalization opportunity in Steam fact-chips.
 
 The first-round audit (2026-05-18) caught and shipped F1 (formatters), R1/R2 (excludeRemakes), V1/V2 (ValidationPipe + GET DTOs), T1–T5 (web tests + axe). This second round was scoped to "is the structure still holding, and what slipped since?" — not a re-run of the same checks.
 
@@ -85,7 +87,7 @@ Five identical shells crosses the "three similar lines beat a premature abstract
 
 Order is dependency-aware: F2 → Q1 → R3 → C1, then X1/X2 independent. Suggest `/compact` between the shared-utility sweep (F2+Q1+R3) and C1 if context fills.
 
-### F2 — Shared `relativeTimeAgo()` + remove local `formatPlaytime` shadow (1 chunk)
+### F2 — Shared `relativeTimeAgo()` + remove local `formatPlaytime` shadow (1 chunk) — **shipped `4dc74ea`**
 
 **New code:** extend `packages/shared/src/format.ts` with `relativeTimeAgo(date | timestamp): string` covering minute → year buckets via `Intl.RelativeTimeFormat("en-US")`. Cover boundary cases (29d, 30d, 12mo) in `packages/shared/src/format.test.ts`.
 
@@ -102,7 +104,7 @@ Order is dependency-aware: F2 → Q1 → R3 → C1, then X1/X2 independent. Sugg
 
 **Commit:** `refactor: consolidate relative-time formatter into shared`
 
-### Q1 — Shared LoL queue metadata (1 chunk)
+### Q1 — Shared LoL queue metadata (1 chunk) — **shipped `10e0e97`**
 
 **New module:** `packages/shared/src/lol/queue-types.ts` — port from canonical [apps/api/src/lol/queue-types.ts](../../../apps/api/src/lol/queue-types.ts). Export `QUEUE_TYPES`, `queueLabel(id: number): string`, `RANKED_QUEUE_MAP`, `RankedQueueKey` type. Re-export from `packages/shared/src/index.ts`.
 
@@ -120,7 +122,7 @@ Order is dependency-aware: F2 → Q1 → R3 → C1, then X1/X2 independent. Sugg
 
 **Commit:** `refactor: centralize lol queue metadata in shared`
 
-### R3 — Remake threshold as shared constant (1 chunk)
+### R3 — Remake threshold as shared constant (1 chunk) — **shipped `41bb88c`**
 
 **Extend** `packages/shared/src/lol/exclude-remakes.ts`: add `REMAKE_DURATION_S = 210` and `isRemakeMatch({ gameEndedInEarlySurrender, gameDuration })`. Re-implement `excludeRemakes` using `isRemakeMatch`.
 
@@ -132,7 +134,7 @@ Order is dependency-aware: F2 → Q1 → R3 → C1, then X1/X2 independent. Sugg
 
 **Commit:** `refactor: centralize remake threshold as shared constant`
 
-### C1 — Steam fact-card data primitive (1 chunk)
+### C1 — Steam fact-card data primitive (1 chunk) — **shipped `af6347b`**
 
 **New primitive:** `apps/web/src/steam/_shared/fact-card-data.tsx` — render-prop wrapper around existing `FactCard`. Shape sketch:
 
@@ -154,7 +156,10 @@ Handles pending (skeleton matching existing chip dimensions), error (existing er
 
 **Commit:** `refactor: extract data-fact-card primitive for steam chips`
 
-### X1 — Relocate `profile-lp-history.tsx` helpers (1 chunk)
+### X1 — Relocate `profile-lp-history.tsx` helpers (1 chunk) — **shipped `85e1885`**
+
+Final layout: chart file kept render + chart-specific effects only; pure derivation, constants, and tooltip live in sibling files (`profile-lp-history-constants.ts`, `profile-lp-history-helpers.ts`, `profile-lp-history-tooltip.tsx`). Recharts' tooltip needs the render-prop shape, so the tooltip stayed `.tsx`. Recap of original plan:
+
 
 **Goal:** chart file becomes render-only; pure helpers + constants live alongside.
 
@@ -169,7 +174,10 @@ Handles pending (skeleton matching existing chip dimensions), error (existing er
 
 **Commit:** `refactor: split profile-lp-history into chart + constants + tooltip`
 
-### X2 — Extract `match-review-view.tsx` verdict logic + relocate `conclusion-card` (1 chunk)
+### X2 — Extract `match-review-view.tsx` verdict logic + relocate `conclusion-card` (1 chunk) — **shipped `4db2835`**
+
+Final landed shape: `match-review-logic.ts` holds the 4 pure verdict builders + their `HighlightChip` / `GoldPoint` / `VerdictResult` types; `match-review-view.tsx` re-imports those for the chart and verdict-strip. Existing 55-test `match-review.test.tsx` had its import path swapped — no new test file needed. `conclusion-card.tsx` + its sole dep `sample-size-badge.tsx` relocated from `lol/trends/_shared/` to `lol/_shared/ui/`; 23 consumer imports rewritten; the `lol/trends/_shared/` dir removed. Recap of original plan:
+
 
 **New file:** `apps/web/src/lol/matches/match-review-logic.ts` — pure functions `buildHighlightChips`, `getLaningVerdict`, `getMidVerdict`, `getLateVerdict`. These are pure → easy unit coverage.
 
