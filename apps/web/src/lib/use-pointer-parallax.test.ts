@@ -6,6 +6,24 @@ beforeEach(() => {
   vi.useFakeTimers();
   Object.defineProperty(window, "innerWidth", { value: 1000, configurable: true });
   Object.defineProperty(window, "innerHeight", { value: 1000, configurable: true });
+  // happy-dom's matchMedia returns matches:false for every query. The hook
+  // skips listeners + rAF on touch-only devices, so we need (pointer: fine)
+  // to match in order for the existing cursor-tracking tests to exercise the
+  // active path.
+  Object.defineProperty(window, "matchMedia", {
+    value: (query: string) => ({
+      matches: query === "(pointer: fine)",
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+    configurable: true,
+    writable: true,
+  });
 });
 
 afterEach(() => {

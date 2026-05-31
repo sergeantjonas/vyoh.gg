@@ -1,5 +1,5 @@
 import { type MotionValue, useMotionValue } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type PointerParallaxOptions = {
   damping?: number;
@@ -11,6 +11,24 @@ export type PointerParallaxValues = {
   y: MotionValue<number>;
 };
 
+// Touch devices don't have a hovering cursor — pointer events only fire on
+// tap, which would jerk the splash to the touch point and back. Gating on
+// `(pointer: fine)` skips the listeners and rAF loop entirely on those
+// devices, returning idle motion values that stay at 0.
+function useHasFinePointer(): boolean {
+  const [fine, setFine] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(pointer: fine)").matches;
+  });
+  useEffect(() => {
+    const mql = window.matchMedia("(pointer: fine)");
+    const handle = (e: MediaQueryListEvent) => setFine(e.matches);
+    mql.addEventListener("change", handle);
+    return () => mql.removeEventListener("change", handle);
+  }, []);
+  return fine;
+}
+
 /**
  * Cursor-aware damped translation, returned as Motion values bindable to
  * `<m.div style={{ x, y }}>`. Pointer position is normalised to [-1, 1] across
@@ -19,7 +37,9 @@ export type PointerParallaxValues = {
  * intentionally subliminal — see [docs/working-notes/cross-cutting/pointer-parallax-splash.md].
  *
  * The hook owns the rAF and pointer listener; callers do not pass a target
- * element because the splash backdrop spans the viewport.
+ * element because the splash backdrop spans the viewport. Returns idle motion
+ * values (stuck at 0) on touch-only devices and is a no-op when reduced-motion
+ * is requested (caller-side via Motion's `useReducedMotion`).
  */
 export function usePointerParallax({
   damping = 0.08,
@@ -29,8 +49,10 @@ export function usePointerParallax({
   const y = useMotionValue(0);
   const targetX = useRef(0);
   const targetY = useRef(0);
+  const finePointer = useHasFinePointer();
 
   useEffect(() => {
+    if (!finePointer) return;
     const handle = (e: PointerEvent) => {
       const nx = (e.clientX / window.innerWidth) * 2 - 1;
       const ny = (e.clientY / window.innerHeight) * 2 - 1;
@@ -47,9 +69,10 @@ export function usePointerParallax({
       window.removeEventListener("pointermove", handle);
       window.removeEventListener("pointerleave", reset);
     };
-  }, [maxOffset]);
+  }, [maxOffset, finePointer]);
 
   useEffect(() => {
+    if (!finePointer) return;
     let raf = 0;
     const tick = () => {
       x.set(x.get() + (targetX.current - x.get()) * damping);
@@ -58,7 +81,7 @@ export function usePointerParallax({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [damping, x, y]);
+  }, [damping, finePointer, x, y]);
 
   return { x, y };
 }
