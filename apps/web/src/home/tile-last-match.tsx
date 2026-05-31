@@ -17,7 +17,7 @@ function formatRelative(iso: string): string {
 
 function EmptyShell({ verdict }: { verdict: string }) {
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
+    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/65 px-4 py-4">
       <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
         Last match
       </h3>
@@ -39,7 +39,7 @@ export function TileLastMatch({ account }: { account: LolAccount | undefined }) 
   if (!latest) return <EmptyShell verdict="No recent games tracked." />;
 
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
+    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/65 px-4 py-4">
       <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
         Last match
       </h3>

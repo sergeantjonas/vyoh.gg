@@ -1,6 +1,6 @@
 # Ambient generative hero on `/`
 
-**Status:** Active 2026-05-31 — picked up as the hero chunks (2–6) of [landing-showcase-arc.md](landing-showcase-arc.md). Chunks 1–4 landed; remaining: optional Chunk 5 cursor parallax (subtle), Chunk 6 composition pass with bento. Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
+**Status:** Active 2026-05-31 — picked up as the hero chunks (2–6) of [landing-showcase-arc.md](landing-showcase-arc.md). Chunks 1–4 + 6 landed (Chunk 6 = bento composition pass: tile chrome `bg-card/50` → `bg-card/65` to mute worst-case dusk × high-intensity bleed-through, no `backdrop-filter` to avoid Safari composite cliff; closed out the landing-showcase-arc); remaining: optional Chunk 5 cursor parallax (subtle), Chunk 7 WebGPU stretch — both deferred. Canvas2D-first, WebGPU dropped from scope (visual gain for gradient meshes ≈ zero per § Canvas2D vs WebGPU). Reacts to **time of day in Europe/Brussels** and **recent activity intensity** across LoL + Steam. Composes with (not replaces) the existing `OrbMark`, which sits inside `LandingHeading` above the hero strip.
 
 Read this when picking up the home-page hero pass. **Bold per the guardrails — but specifically the "calm bold" the project endorses; not particles-everywhere noise.**
 

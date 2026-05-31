@@ -5,7 +5,7 @@ import { useMemo } from "react";
 
 function EmptyShell({ verdict }: { verdict: string }) {
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
+    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/65 px-4 py-4">
       <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
         Signature game
       </h3>

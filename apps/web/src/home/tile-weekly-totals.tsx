@@ -3,7 +3,7 @@ import { formatHoursMinutes } from "@vyoh/shared";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
+    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/65 px-4 py-4">
       {children}
     </div>
   );

@@ -112,6 +112,29 @@ INP 8 ms on the morph-heavy interaction (each tab click fires the VT snapshot + 
 
 **Caveat on source.** These are dev-overlay readings (the in-app `web-vitals` overlay), **not** a Lighthouse or React-Profiler capture — the devcontainer can't run Lighthouse (per "Tooling in place"), so this is the owner's host browser reading the live overlay. The margin is decisive enough that a formal Lighthouse pass isn't gating, but if a README perf-screenshot run happens later, capture `/lol/$slug` under Lighthouse then. The scroll-collapse (M2) side wasn't separately INP-sampled here (scroll rarely logs an INP event); eyeballed smooth on scroll-down/up.
 
+## Landing surface (`/`) — ambient hero + bento composition, host capture pending 2026-05-31
+
+**Context.** [landing-showcase-arc.md](landing-showcase-arc.md) shipped Chunks 1–5: editorial display headline, static CSS ambient gradient, Canvas2D rAF drift with single-path static↔canvas dispatcher, activity-intensity reactivity (`/home/activity-intensity` → canvas chroma 0.7×–1.3×), and the composition pass below.
+
+**Composition pass landed 2026-05-31.** Bento tile chrome bumped `bg-card/50` → `bg-card/65` across 9 tiles (10 occurrences) to deepen the surface and mute the high-chroma ambient bleed-through for the worst-case combo (dusk palette × `intensity = 1.0` × 1.3× chroma boost). No `backdrop-filter` was added — per [engine-gate perf cliffs](../../../docs/working-notes/cross-cutting/safari-vt-snapshot-cost.md) and the standing rule (`feedback_engine_gate_perf_cliffs` in auto-memory), always-mounted `backdrop-blur` on N tiles compounds the Safari snapshot/composite cost. Opacity tuning gives the legibility lift without engaging the WebKit cost path.
+
+**Bundle impact, this arc.**
+- Chunks 1–3: editorial heading + ambient hero, Canvas2D + drift loop, ~500 LOC across `apps/web/src/home/ambient-hero.tsx` + `ambient-hero-canvas.tsx`. Vite reports the home route chunk in the per-route range (single-digit kB), no measurable change to the main bundle (Canvas/CSS only, no new deps).
+- Chunk 4: activity-intensity (`apps/web/src/home/use-home-activity-intensity.ts` + shared type + dispatcher prop). Trivial — ~80 LOC, no new deps.
+- Chunk 5: Tailwind utility swap. Zero bundle impact.
+
+**Runtime — not yet captured on host.** The devcontainer can't run Lighthouse (per "Tooling in place" above), so LCP/INP for `/` are still pending a host-Chrome session. The natural cells to fill:
+
+| Metric | Reading | Band |
+|---|---:|---|
+| INP (intensity refetch + canvas chroma swap) | _pending host capture_ | _expected: well under 200 ms; chroma threading is `intensityRef` mutation only, no rAF restart_ |
+| LCP (heading + first bento row) | _pending host capture_ | _expected: < 2.5 s; AmbientHero is `pointer-events-none -z-10`, doesn't gate LCP element_ |
+| CLS | _pending host capture_ | _expected: 0; hero is absolute-positioned with explicit height_ |
+
+**APCA contrast — worst-case validation pending.** The worst-case combo is dusk palette (`oklch(0.42-0.52, 0.18, 350)` magenta + `oklch(0.42, 0.15, 320)`) × `intensity = 1.0` (chroma multiplier 1.3×) under full-motion. Tile foreground is `--card-foreground` (`oklch(0.985 0 0)` in dark mode) against `bg-card/65` blended with the ambient swirl. Eyeballed clean in dev; awaiting APCA capture against the live `dusk` route (visit `/?hour=20`).
+
+**Validation to-do for next host-Chrome session.** `pnpm --filter @vyoh/web dev`, visit `/?perf&hour=20` (forces dusk palette), let the canvas drift settle, capture LCP/INP/CLS via the in-app PerfOverlay. Sample the bento against the high-chroma quadrants and verify text remains crisp. Capture an APCA reading on a representative tile body (`.text-foreground/90` over `bg-card/65 + ambient`).
+
 ## Routes that exist (for Lighthouse coverage)
 
 - `/` — landing
