@@ -1,5 +1,5 @@
 import { useReducedMotion } from "motion/react";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState } from "react";
 
 export type TimeOfDay = "dawn" | "day" | "dusk" | "night";
 
@@ -119,15 +119,20 @@ function isLowPower(): boolean {
 
 const AmbientHeroCanvas = lazy(() => import("./ambient-hero-canvas"));
 
-function StaticLayer({ palette }: { palette: AmbientPalette }) {
+function StaticLayer({
+  palette,
+  fadedOut,
+}: { palette: AmbientPalette; fadedOut: boolean }) {
   return (
     <div
-      className="absolute inset-0"
+      data-ambient-static
+      className="absolute inset-0 transition-opacity duration-200 ease-out"
       style={{
         backgroundImage: palette.layers.map(layerToCssGradient).join(", "),
         backgroundBlendMode: "screen",
         maskImage: VIGNETTE_MASK,
         WebkitMaskImage: VIGNETTE_MASK,
+        opacity: fadedOut ? 0 : 1,
       }}
     />
   );
@@ -138,6 +143,7 @@ export function AmbientHero({ hour }: { hour?: number }) {
   const resolved = hour ?? hourFromSearchParams() ?? currentBrusselsHour();
   const palette = paletteForHour(resolved);
   const shouldAnimate = reducedMotion === false && !isLowPower();
+  const [canvasReady, setCanvasReady] = useState(false);
   return (
     <div
       aria-hidden
@@ -145,10 +151,13 @@ export function AmbientHero({ hour }: { hour?: number }) {
       data-time-of-day={palette.timeOfDay}
       className="pointer-events-none absolute left-1/2 -top-6 -z-10 h-[calc(70vh+1.5rem)] w-screen -translate-x-1/2 overflow-hidden"
     >
-      <StaticLayer palette={palette} />
+      <StaticLayer palette={palette} fadedOut={shouldAnimate && canvasReady} />
       {shouldAnimate && (
         <Suspense fallback={null}>
-          <AmbientHeroCanvas layers={palette.layers} />
+          <AmbientHeroCanvas
+            layers={palette.layers}
+            onFirstFrame={() => setCanvasReady(true)}
+          />
         </Suspense>
       )}
     </div>

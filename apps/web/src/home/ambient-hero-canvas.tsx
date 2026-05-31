@@ -13,10 +13,14 @@ function layerColor(layer: GradientLayer, alpha: number): string {
 
 interface Props {
   layers: readonly GradientLayer[];
+  onFirstFrame?: () => void;
 }
 
-export default function AmbientHeroCanvas({ layers }: Props) {
+export default function AmbientHeroCanvas({ layers, onFirstFrame }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const firstFrameRef = useRef(false);
+  const onFirstFrameRef = useRef(onFirstFrame);
+  onFirstFrameRef.current = onFirstFrame;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -63,6 +67,10 @@ export default function AmbientHeroCanvas({ layers }: Props) {
           ctx.fillRect(0, 0, cssWidth, cssHeight);
         }
         ctx.globalCompositeOperation = "source-over";
+        if (!firstFrameRef.current) {
+          firstFrameRef.current = true;
+          onFirstFrameRef.current?.();
+        }
       }
       if (visible && mounted) {
         rafId = requestAnimationFrame(draw);

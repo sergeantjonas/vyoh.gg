@@ -148,4 +148,39 @@ describe("AmbientHero", () => {
       expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
     });
   });
+
+  it("keeps the static layer visible until the canvas reports first frame", async () => {
+    mockUseReducedMotion.mockReturnValue(false);
+    const { container } = render(<AmbientHero hour={12} />);
+    await waitFor(() => {
+      expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
+    });
+    const staticLayer = container.querySelector(
+      "[data-ambient-static]"
+    ) as HTMLElement | null;
+    expect(staticLayer).not.toBeNull();
+    // happy-dom returns null from getContext('2d'), so the canvas effect bails
+    // before the rAF loop and onFirstFrame never fires — static stays opaque.
+    expect(staticLayer?.style.opacity).toBe("1");
+  });
+
+  it("fades the static layer when the canvas reports first frame", async () => {
+    vi.resetModules();
+    vi.doMock("./ambient-hero-canvas", () => ({
+      default: ({ onFirstFrame }: { onFirstFrame?: () => void }) => {
+        onFirstFrame?.();
+        return <div data-ambient-canvas />;
+      },
+    }));
+    const { AmbientHero: HotAmbientHero } = await import("./ambient-hero");
+    mockUseReducedMotion.mockReturnValue(false);
+    const { container } = render(<HotAmbientHero hour={12} />);
+    await waitFor(() => {
+      const staticLayer = container.querySelector(
+        "[data-ambient-static]"
+      ) as HTMLElement | null;
+      expect(staticLayer?.style.opacity).toBe("0");
+    });
+    vi.doUnmock("./ambient-hero-canvas");
+  });
 });
