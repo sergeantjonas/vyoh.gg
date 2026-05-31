@@ -1,6 +1,6 @@
 # Project hygiene audit — 2026-05-31
 
-**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). Deferred (independent sessions): D1–D4 below remain open.
+**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). D3 followed same-day (`c8d4023`). Deferred: D1, D2, D4 below remain open.
 
 Second-round structural/duplication audit, ~13 days after [project-hygiene-2026-05-18.md](project-hygiene-2026-05-18.md). Ran as a four-Explore fan-out (web structure, api structure, cross-package duplication, readability/generalization). **Headline:** boundaries and conventions remain disciplined; the new drift is concentrated in time/queue/playtime formatters that re-fragmented since F1, plus a clean generalization opportunity in Steam fact-chips.
 
@@ -226,23 +226,9 @@ Each item below needs its own session because the scope or risk doesn't fit the 
 
 **Status:** investigation-first; no commitment until the read happens.
 
-### D3 — `match-detail-view.tsx` standby split
+### D3 — `match-detail-view.tsx` standby split — **shipped `c8d4023`**
 
-**Scope:** [apps/web/src/lol/matches/match-detail-view.tsx](../../../apps/web/src/lol/matches/match-detail-view.tsx) (1009L). Houses three exported tab components (`MatchRecapTab`, `MatchYourGameTab`, `MatchTimelineTab`).
-
-**Trigger:** when the next match-detail tab arc lands (e.g. the deferred MD2 owner-data catalog full rune page panel from [match-depth-roadmap.md](../lol/match-depth-roadmap.md)), or when readability degrades below the current spot-check rating.
-
-**Likely split:**
-- `match-detail-recap-tab.tsx`
-- `match-detail-your-game-tab.tsx`
-- `match-detail-timeline-tab.tsx`
-- `match-detail-view.tsx` — thin shell with tab routing only.
-
-**Risk:** shared state between tabs (scroll position, hover state) would need to lift into the shell or a context. Inventory shared state before splitting.
-
-**Estimated size:** 1 chunk.
-
-**Status:** standby — split only if a new tab is being added or readability becomes a blocker.
+Landed shape: three tabs each in their own file (`match-detail-recap-tab.tsx` ~880L, `match-detail-your-game-tab.tsx` ~112L, `match-detail-timeline-tab.tsx` ~31L). `ChartFallback` extracted to `match-detail-shared.tsx` since both Your-game and Timeline tabs lazy-load Recharts charts behind a Suspense boundary with the same placeholder. `match-detail-view.tsx` is now a 3-line barrel re-export, so the 18 existing tests + 3 route files import unchanged. No shared mutable state across tabs turned up — `recapSeen` is recap-local, scroll state is `mainScrollRef`-anchored, hover state is per-component. The pre-split caution about lifting shared state didn't materialize.
 
 ### D4 — API response DTOs as shared types
 
