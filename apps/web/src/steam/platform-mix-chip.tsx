@@ -1,6 +1,7 @@
 import { formatPercent } from "@vyoh/shared";
 import type { SteamPlatform, SteamPlatformMix } from "@vyoh/shared";
 import { FactCard } from "./_shared/fact-card";
+import { FactCardData } from "./_shared/fact-card-data";
 import { useSteamPlatformMix } from "./use-platform-mix";
 
 const PLATFORM_LABEL: Record<SteamPlatform, string> = {
@@ -38,51 +39,40 @@ function secondaryBreakdown(data: SteamPlatformMix): string {
 }
 
 export function PlatformMixChip() {
-  const { data, isPending, isError } = useSteamPlatformMix();
-
-  if (isPending) {
-    return <FactCard title="Platforms" verdict="Loading platform mix…" empty />;
-  }
-
-  if (isError || !data) {
-    return (
-      <FactCard
-        title="Platforms"
-        verdict="Platform mix is unavailable right now."
-        empty
-      />
-    );
-  }
-
-  if (data.totalMinutes === 0 || data.dominantPlatform === null) {
-    return (
-      <FactCard
-        title="Platforms"
-        verdict="No per-OS playtime has been reported yet."
-        prescription="Steam only reports per-platform minutes once a game has been launched on that OS."
-        empty
-      />
-    );
-  }
-
-  const totalHours = Math.round(data.totalMinutes / 60);
-  const dominantMinutesByPlatform: Record<SteamPlatform, number> = {
-    windows: data.windowsMinutes,
-    mac: data.macMinutes,
-    linux: data.linuxMinutes,
-    deck: data.deckMinutes,
-  };
-  const dominantMinutes = dominantMinutesByPlatform[data.dominantPlatform];
-  const dominantShare = shareOf(dominantMinutes, data.totalMinutes);
-  const verdict = `${PLATFORM_LABEL[data.dominantPlatform]} accounts for ${dominantShare} of all tracked playtime.`;
+  const query = useSteamPlatformMix();
 
   return (
-    <FactCard
+    <FactCardData
+      query={query}
       title="Platforms"
-      metric={totalHours}
-      metricLabel={{ singular: "hour", plural: "hours" }}
-      verdict={verdict}
-      prescription={secondaryBreakdown(data)}
-    />
+      pendingLabel="Loading platform mix…"
+      errorLabel="Platform mix is unavailable right now."
+      emptyLabel="No per-OS playtime has been reported yet."
+      emptyPrescription="Steam only reports per-platform minutes once a game has been launched on that OS."
+      isEmpty={(data) => data.totalMinutes === 0 || data.dominantPlatform === null}
+    >
+      {(data) => {
+        if (data.dominantPlatform === null) return null;
+        const totalHours = Math.round(data.totalMinutes / 60);
+        const dominantMinutesByPlatform: Record<SteamPlatform, number> = {
+          windows: data.windowsMinutes,
+          mac: data.macMinutes,
+          linux: data.linuxMinutes,
+          deck: data.deckMinutes,
+        };
+        const dominantMinutes = dominantMinutesByPlatform[data.dominantPlatform];
+        const dominantShare = shareOf(dominantMinutes, data.totalMinutes);
+        const verdict = `${PLATFORM_LABEL[data.dominantPlatform]} accounts for ${dominantShare} of all tracked playtime.`;
+        return (
+          <FactCard
+            title="Platforms"
+            metric={totalHours}
+            metricLabel={{ singular: "hour", plural: "hours" }}
+            verdict={verdict}
+            prescription={secondaryBreakdown(data)}
+          />
+        );
+      }}
+    </FactCardData>
   );
 }
