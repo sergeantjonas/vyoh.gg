@@ -16,10 +16,11 @@ describe("LandingHeading", () => {
     const { container } = renderHeading();
     const h1s = container.querySelectorAll("h1");
     expect(h1s.length).toBe(1);
-    // Two-line editorial composition — the bold lead clause and the lighter
-    // subordinate clause both belong to the same h1 for a11y.
+    // Three-line editorial composition — subject + active claim + open
+    // growth clause all belong to the same h1 for a11y.
     expect(h1s[0]?.textContent).toContain("A self-portrait,");
-    expect(h1s[0]?.textContent).toContain("in League and Steam.");
+    expect(h1s[0]?.textContent).toContain("forged in League of Legends, Steam,");
+    expect(h1s[0]?.textContent).toContain("and whatever I plug in next.");
   });
 
   it("renders the vyoh.gg eyebrow above the headline", () => {

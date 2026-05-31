@@ -19,12 +19,15 @@ export function LandingHeading() {
 
   return (
     <m.header
-      className="flex flex-col items-center gap-6 text-center"
+      className="flex flex-col items-center gap-4 text-center"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <OrbMark className="size-44 sm:size-56" entranceDelay={reducedMotion ? 0 : 0.9} />
+      <OrbMark
+        className="size-44 sm:size-56 lg:size-72"
+        entranceDelay={reducedMotion ? 0 : 0.5}
+      />
       <m.p
         className="text-xs uppercase tracking-[0.24em] text-muted-foreground/80"
         {...(reducedMotion
@@ -38,11 +41,15 @@ export function LandingHeading() {
       </m.p>
       <EditorialHeading
         delegated
-        magnitude="large"
-        className="font-[720] text-[clamp(3.25rem,8.5vw,7rem)] leading-[0.98] -tracking-[0.03em]"
-        lineClassName={[undefined, MUTED_LINE_CLASS]}
+        magnitude="medium"
+        className="font-[680] text-[clamp(2rem,5.5vw,3.75rem)] leading-[1.05] -tracking-[0.02em]"
+        lineClassName={[undefined, undefined, MUTED_LINE_CLASS]}
       >
-        {["A self-portrait,", "in League and Steam."]}
+        {[
+          "A self-portrait,",
+          "forged in League of Legends, Steam,",
+          "and whatever I plug in next.",
+        ]}
       </EditorialHeading>
     </m.header>
   );
