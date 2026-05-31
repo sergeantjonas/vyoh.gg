@@ -393,6 +393,47 @@ body {
   }
 }
 
+/* ─── Orb mark halo echo pulse ──────────────────────────────────────────── */
+/* A fourth halo dedicated to a periodic bloom — like an Ahri Q recast tick. */
+/* Sits invisible for most of the cycle, blooms briefly toward magenta with  */
+/* a slight scale-up, then expands further while fading to invisible. The    */
+/* bloom decelerates (ease-out) so the wave reads as energy radiating out    */
+/* rather than a blink. Separate element instead of layering onto an         */
+/* existing halo: both would animate `scale:` and clobber each other.        */
+
+.orb-halo-echo {
+  position: absolute;
+  inset: -28%;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle,
+    rgba(244, 114, 182, 0.5) 0%,
+    rgba(125, 211, 252, 0.22) 45%,
+    rgba(56, 118, 255, 0) 70%
+  );
+  filter: blur(28px);
+  opacity: 0;
+  --orb-wander-amp: 0.6;
+  animation: orb-halo-echo 9s ease-out infinite, orb-wander 16s ease-in-out infinite;
+  will-change: opacity, scale, translate;
+}
+@keyframes orb-halo-echo {
+  0%,
+  65% {
+    opacity: 0;
+    scale: 0.92;
+  }
+  80% {
+    opacity: 0.55;
+    scale: 1.18;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.4;
+  }
+}
+
 /* ─── Orb mark image rotation ───────────────────────────────────────────── */
 /* The orb SVG has an internal galaxy-swirl. A 90s linear rotation makes the */
 /* magic feel internal rather than purely decorative-around-it. Uses the     */
@@ -602,6 +643,7 @@ body {
   /* `.orb-image` rotation also halts — the static `filter: blur()`         */
   /* fallback on the halo classes keeps blur intact without the hue cycle.  */
   .orb-halo,
+  .orb-halo-echo,
   .orb-wisps,
   .orb-sparkle,
   .orb-sparkle-dot,
@@ -610,6 +652,7 @@ body {
   .orb-image {
     animation: none;
   }
+  /* Echo is invisible at rest by design — no static fallback to apply. */
   /* Embers default to opacity:0 in the flicker keyframe — with the
      animation halted they'd vanish entirely. Pin a resting opacity so
      the orb still reads as adorned under reduced-motion.                */

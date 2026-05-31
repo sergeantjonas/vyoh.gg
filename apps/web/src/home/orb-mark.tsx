@@ -200,6 +200,7 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
       <div aria-hidden="true" className="orb-halo orb-halo-outer" />
       <div aria-hidden="true" className="orb-halo orb-halo-inner" />
       <div aria-hidden="true" className="orb-halo orb-halo-core" />
+      <div aria-hidden="true" className="orb-halo-echo" />
       <img
         src={ORB_SRC}
         alt="vyoh orb"
