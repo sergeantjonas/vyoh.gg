@@ -9,36 +9,39 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
   dawn: {
     timeOfDay: "dawn",
     gradients: [
-      "radial-gradient(circle 820px at 12% 28%, oklch(0.78 0.16 45 / 0.50) 0%, transparent 60%)",
-      "radial-gradient(circle 900px at 80% 22%, oklch(0.66 0.11 235 / 0.42) 0%, transparent 65%)",
-      "radial-gradient(circle 720px at 55% 88%, oklch(0.82 0.13 60 / 0.36) 0%, transparent 55%)",
+      "radial-gradient(circle 900px at 22% 30%, oklch(0.72 0.11 45 / 0.32) 0%, transparent 70%)",
+      "radial-gradient(circle 1000px at 78% 26%, oklch(0.62 0.08 235 / 0.28) 0%, transparent 72%)",
+      "radial-gradient(circle 800px at 55% 88%, oklch(0.78 0.09 60 / 0.22) 0%, transparent 65%)",
     ],
   },
   day: {
     timeOfDay: "day",
     gradients: [
-      "radial-gradient(circle 860px at 16% 22%, oklch(0.78 0.14 230 / 0.42) 0%, transparent 60%)",
-      "radial-gradient(circle 920px at 84% 32%, oklch(0.92 0.07 90 / 0.36) 0%, transparent 65%)",
-      "radial-gradient(circle 760px at 50% 88%, oklch(0.70 0.12 200 / 0.32) 0%, transparent 55%)",
+      "radial-gradient(circle 940px at 22% 26%, oklch(0.74 0.10 230 / 0.28) 0%, transparent 70%)",
+      "radial-gradient(circle 1000px at 80% 32%, oklch(0.88 0.05 90 / 0.22) 0%, transparent 72%)",
+      "radial-gradient(circle 820px at 50% 88%, oklch(0.66 0.08 200 / 0.20) 0%, transparent 65%)",
     ],
   },
   dusk: {
     timeOfDay: "dusk",
     gradients: [
-      "radial-gradient(circle 860px at 14% 28%, oklch(0.56 0.26 350 / 0.52) 0%, transparent 60%)",
-      "radial-gradient(circle 920px at 84% 22%, oklch(0.72 0.21 65 / 0.48) 0%, transparent 65%)",
-      "radial-gradient(circle 720px at 55% 90%, oklch(0.46 0.21 320 / 0.42) 0%, transparent 55%)",
+      "radial-gradient(circle 940px at 20% 30%, oklch(0.52 0.18 350 / 0.34) 0%, transparent 70%)",
+      "radial-gradient(circle 1000px at 80% 24%, oklch(0.66 0.14 65 / 0.30) 0%, transparent 72%)",
+      "radial-gradient(circle 800px at 55% 90%, oklch(0.42 0.15 320 / 0.26) 0%, transparent 65%)",
     ],
   },
   night: {
     timeOfDay: "night",
     gradients: [
-      "radial-gradient(circle 820px at 14% 26%, oklch(0.36 0.19 280 / 0.55) 0%, transparent 60%)",
-      "radial-gradient(circle 920px at 84% 38%, oklch(0.44 0.22 305 / 0.48) 0%, transparent 65%)",
-      "radial-gradient(circle 720px at 50% 90%, oklch(0.52 0.20 240 / 0.38) 0%, transparent 55%)",
+      "radial-gradient(circle 900px at 22% 28%, oklch(0.34 0.14 280 / 0.38) 0%, transparent 70%)",
+      "radial-gradient(circle 1000px at 80% 36%, oklch(0.42 0.16 305 / 0.32) 0%, transparent 72%)",
+      "radial-gradient(circle 800px at 50% 90%, oklch(0.48 0.14 240 / 0.24) 0%, transparent 65%)",
     ],
   },
 };
+
+const VIGNETTE_MASK =
+  "radial-gradient(ellipse 65% 55% at 50% 38%, black 0%, black 35%, transparent 92%)";
 
 export function timeOfDayForHour(hour: number): TimeOfDay {
   if (hour >= 5 && hour < 8) return "dawn";
@@ -72,16 +75,17 @@ export function AmbientHero({ hour }: { hour?: number }) {
       aria-hidden
       data-ambient-hero
       data-time-of-day={palette.timeOfDay}
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh] overflow-hidden"
+      className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[70vh] w-screen -translate-x-1/2 overflow-hidden"
     >
       <div
         className="absolute inset-0"
         style={{
           backgroundImage: palette.gradients.join(", "),
           backgroundBlendMode: "screen",
+          maskImage: VIGNETTE_MASK,
+          WebkitMaskImage: VIGNETTE_MASK,
         }}
       />
-      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-b from-transparent to-background" />
     </div>
   );
 }
