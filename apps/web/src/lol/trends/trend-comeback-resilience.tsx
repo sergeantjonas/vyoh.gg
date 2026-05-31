@@ -1,5 +1,5 @@
 // Baseline: fixed-reference — your behind-5k WR vs a fixed POPULATION_BEHIND_WR (~30%).
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 

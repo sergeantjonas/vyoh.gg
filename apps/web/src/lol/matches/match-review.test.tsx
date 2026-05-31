@@ -1,10 +1,10 @@
 import {
-  MatchReviewView,
   buildHighlightChips,
   getLaningVerdict,
   getLateVerdict,
   getMidVerdict,
-} from "@/lol/matches/match-review-view";
+} from "@/lol/matches/match-review-logic";
+import { MatchReviewView } from "@/lol/matches/match-review-view";
 import {
   buildNarrativeSentences,
   getCCSentence,

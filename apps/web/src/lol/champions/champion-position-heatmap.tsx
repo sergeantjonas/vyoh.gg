@@ -1,5 +1,5 @@
 import { mapIconUrl } from "@/lol/_shared/assets/champion-icon";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";

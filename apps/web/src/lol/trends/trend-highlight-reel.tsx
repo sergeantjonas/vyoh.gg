@@ -1,6 +1,6 @@
 // Baseline: personal — your own clutch-moment counts over the current trends
 // window. No external floor; the verdict frames the raw counts as a narrative.
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { useNarrativeWindow } from "@/lol/trends/use-narrative-window";
 import { type LolAccount, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";

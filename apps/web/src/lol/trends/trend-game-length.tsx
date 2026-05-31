@@ -1,8 +1,8 @@
 // Baseline: personal — your WR bucketed by game length.
 import { cn } from "@/lib/utils";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { GameLengthBucket } from "@/lol/profile/use-habits-stats";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 

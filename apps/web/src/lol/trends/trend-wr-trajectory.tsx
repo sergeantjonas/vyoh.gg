@@ -1,5 +1,5 @@
 // Baseline: personal — rolling WR within the current window compared to your prior window's mean.
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 

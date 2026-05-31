@@ -1,7 +1,7 @@
 // Baseline: personal — your deaths bucketed by lane opponent; no external comparison.
 import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";

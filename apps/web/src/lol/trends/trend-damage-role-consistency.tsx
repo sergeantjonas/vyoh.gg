@@ -5,7 +5,7 @@ import {
   aggregateByRole,
   primaryRole,
 } from "@/lol/_shared/analytics/role-baselines";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
 

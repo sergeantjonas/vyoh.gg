@@ -1,5 +1,5 @@
 // Baseline: personal — your death-timing histogram; peak window is internal to your data, no external floor.
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";

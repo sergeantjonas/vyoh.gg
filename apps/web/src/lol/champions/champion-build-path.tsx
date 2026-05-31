@@ -1,8 +1,8 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { useChampionBuildFlow } from "@/lol/champions/use-champion-build-flow";
 import { useItems } from "@/lol/matches/use-items";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ChampionBuildFlowEntry } from "@vyoh/shared";
 import { useMemo } from "react";

@@ -1,5 +1,5 @@
 // Baseline: personal — your first-blood-game WR vs your overall WR (NOT a role-population baseline).
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 

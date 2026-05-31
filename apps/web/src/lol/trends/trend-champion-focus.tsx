@@ -1,6 +1,6 @@
 // Baseline: personal — top-3 share of your own games; focus prescription vs your pool composition.
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { Link } from "@tanstack/react-router";
 import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";

@@ -1,7 +1,7 @@
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 // Baseline: personal — your hour-of-week WR; tooltip compares cell WR to your overall.
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
 import type { HourDayStat } from "@/lol/profile/use-habits-stats";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import type { CSSProperties } from "react";

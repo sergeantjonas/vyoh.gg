@@ -1,6 +1,6 @@
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 // Baseline: personal — your WR after a win vs your WR after a loss.
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
 import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 

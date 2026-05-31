@@ -1,6 +1,6 @@
 // Baseline: personal — your WR by game-position-within-session.
 import { cn } from "@/lib/utils";
-import { ConclusionCard } from "@/lol/trends/_shared/conclusion-card";
+import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
