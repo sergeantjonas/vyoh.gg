@@ -28,7 +28,7 @@ function HomePage() {
   const { data: activity } = useHomeActivityIntensity();
   return (
     <div className="relative flex flex-col">
-      <section className="relative flex min-h-dvh items-center justify-start pt-[12dvh]">
+      <section className="relative flex min-h-dvh items-start justify-center pt-[12dvh]">
         <AmbientHero intensity={activity?.intensity} />
         <LandingHeading />
         <HeroScrollHint />
