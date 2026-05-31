@@ -1,6 +1,21 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AmbientHero, paletteForHour, timeOfDayForHour } from "./ambient-hero";
+
+vi.mock("motion/react", async () => {
+  const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
+  return { ...actual, useReducedMotion: vi.fn() };
+});
+const { useReducedMotion } = await import("motion/react");
+const mockUseReducedMotion = vi.mocked(useReducedMotion);
+
+beforeEach(() => {
+  mockUseReducedMotion.mockReturnValue(null);
+});
+
+afterEach(() => {
+  mockUseReducedMotion.mockReset();
+});
 
 describe("timeOfDayForHour", () => {
   it("buckets night for 0–4 and 22–23", () => {
@@ -28,12 +43,14 @@ describe("timeOfDayForHour", () => {
 });
 
 describe("paletteForHour", () => {
-  it("returns three radial-gradient layers per time-of-day", () => {
+  it("returns three gradient layers per time-of-day", () => {
     for (const hour of [3, 6, 12, 20]) {
       const palette = paletteForHour(hour);
-      expect(palette.gradients).toHaveLength(3);
-      for (const g of palette.gradients) {
-        expect(g).toMatch(/^radial-gradient\(/);
+      expect(palette.layers).toHaveLength(3);
+      for (const layer of palette.layers) {
+        expect(layer.lch).toHaveLength(3);
+        expect(layer.alpha).toBeGreaterThan(0);
+        expect(layer.alpha).toBeLessThanOrEqual(1);
       }
     }
   });
@@ -62,7 +79,6 @@ describe("AmbientHero", () => {
     ) as HTMLElement | null;
     expect(layer).not.toBeNull();
     expect(layer?.style.backgroundBlendMode).toBe("screen");
-    // Three layered radial-gradients joined by comma.
     expect(layer?.style.backgroundImage.match(/radial-gradient/g)).toHaveLength(3);
   });
 
@@ -109,5 +125,27 @@ describe("AmbientHero", () => {
         writable: true,
       });
     }
+  });
+
+  it("does not mount the canvas when reduced motion is preferred", async () => {
+    mockUseReducedMotion.mockReturnValue(true);
+    const { container } = render(<AmbientHero hour={12} />);
+    // Give Suspense a tick to resolve — canvas should still not appear.
+    await Promise.resolve();
+    expect(container.querySelector("[data-ambient-canvas]")).toBeNull();
+  });
+
+  it("does not mount the canvas before reduced-motion preference resolves", () => {
+    mockUseReducedMotion.mockReturnValue(null);
+    const { container } = render(<AmbientHero hour={12} />);
+    expect(container.querySelector("[data-ambient-canvas]")).toBeNull();
+  });
+
+  it("mounts the canvas when motion is allowed", async () => {
+    mockUseReducedMotion.mockReturnValue(false);
+    const { container } = render(<AmbientHero hour={12} />);
+    await waitFor(() => {
+      expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
+    });
   });
 });
