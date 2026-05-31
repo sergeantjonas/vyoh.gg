@@ -72,7 +72,10 @@ const WISPS: Wisp[] = [
     opacityDuration: 11,
     breathDuration: 9,
   },
-  // Mid counter-rotator — medium pace, ghosts in and out
+  // Mid counter-rotator — medium pace, ghosts in and out. Magenta-tinted to
+  // split the wisp family between two Ahri-palette colours: the outer + small
+  // wisps stay cyan/ice, this middle one chases counter-rotationally in pink,
+  // so the orb reads as "two spirits orbiting" rather than monochrome smoke.
   {
     startAngle: 195,
     arcLength: 90,
@@ -80,8 +83,8 @@ const WISPS: Wisp[] = [
     thickness: 5,
     duration: 38,
     reverse: true,
-    brightColor: "rgba(125,211,252,0.4)",
-    fadeColor: "rgba(125,211,252,0)",
+    brightColor: "rgba(244,114,182,0.4)",
+    fadeColor: "rgba(244,114,182,0)",
     opacityMin: 0.25,
     opacityMax: 0.85,
     opacityDuration: 7,
@@ -146,7 +149,7 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
         src={ORB_SRC}
         alt="vyoh orb"
         draggable={false}
-        className="relative size-full"
+        className="orb-image relative size-full"
       />
       <svg
         className="pointer-events-none absolute inset-0 size-full overflow-visible"

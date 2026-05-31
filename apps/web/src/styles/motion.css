@@ -290,27 +290,45 @@ body {
   mix-blend-mode: screen;
   will-change: opacity, transform;
 }
+/* Each halo has two animations: a "breathing" loop (opacity + scale) and a
+   shared "hue duality" loop (filter hue-rotate, breathing between cyan-leaning
+   and magenta-leaning). The hue loop uses CSS vars for amplitude and a
+   per-halo negative animation-delay for phase offset, so the three layers
+   never peak in the same colour at the same moment. Static `filter:` falls
+   back cleanly under reduced-motion (animations disabled, blur stays). */
+
 .orb-halo-outer {
+  --halo-blur: 40px;
+  --halo-hue-from: -10deg;
+  --halo-hue-to: 55deg;
   inset: -32%;
   background: radial-gradient(
     circle,
     rgba(56, 118, 255, 0.7) 0%,
     rgba(56, 118, 255, 0) 65%
   );
-  filter: blur(40px);
-  animation: orb-halo-outer 4.5s ease-in-out infinite;
+  filter: blur(var(--halo-blur));
+  animation: orb-halo-outer 4.5s ease-in-out infinite, orb-halo-hue 11s ease-in-out
+    infinite;
 }
 .orb-halo-inner {
+  --halo-blur: 24px;
+  --halo-hue-from: 0deg;
+  --halo-hue-to: 20deg;
   inset: -14%;
   background: radial-gradient(
     circle,
     rgba(125, 211, 252, 0.65) 0%,
     rgba(125, 211, 252, 0) 60%
   );
-  filter: blur(24px);
-  animation: orb-halo-inner 6s ease-in-out infinite;
+  filter: blur(var(--halo-blur));
+  animation: orb-halo-inner 6s ease-in-out infinite, orb-halo-hue 11s -3.7s ease-in-out
+    infinite;
 }
 .orb-halo-core {
+  --halo-blur: 16px;
+  --halo-hue-from: -15deg;
+  --halo-hue-to: 40deg;
   inset: 30%;
   background: radial-gradient(
     circle,
@@ -318,8 +336,19 @@ body {
     rgba(56, 118, 255, 0.18) 40%,
     rgba(56, 118, 255, 0) 62%
   );
-  filter: blur(16px);
-  animation: orb-halo-core 5.2s ease-in-out infinite;
+  filter: blur(var(--halo-blur));
+  animation: orb-halo-core 5.2s ease-in-out infinite, orb-halo-hue 11s -7.3s ease-in-out
+    infinite;
+}
+
+@keyframes orb-halo-hue {
+  0%,
+  100% {
+    filter: blur(var(--halo-blur)) hue-rotate(var(--halo-hue-from));
+  }
+  50% {
+    filter: blur(var(--halo-blur)) hue-rotate(var(--halo-hue-to));
+  }
 }
 
 @keyframes orb-halo-outer {
@@ -353,6 +382,22 @@ body {
   50% {
     opacity: 0.2;
     transform: scale(1.04);
+  }
+}
+
+/* ─── Orb mark image rotation ───────────────────────────────────────────── */
+/* The orb SVG has an internal galaxy-swirl. A 90s linear rotation makes the */
+/* magic feel internal rather than purely decorative-around-it. Uses the     */
+/* individual `rotate:` transform property, so it composes cleanly with any  */
+/* future `translate:` animation on the same element (e.g. orb-wander).      */
+
+.orb-image {
+  animation: orb-image-rotate 90s linear infinite;
+  will-change: rotate;
+}
+@keyframes orb-image-rotate {
+  to {
+    rotate: 360deg;
   }
 }
 
@@ -453,9 +498,12 @@ body {
 
   /* Orb mark: stop the halo/sparkle loops and freeze each layer at a       */
   /* resting state that mirrors the prior Motion useReducedMotion branch.   */
+  /* `.orb-image` rotation also halts — the static `filter: blur()`         */
+  /* fallback on the halo classes keeps blur intact without the hue cycle.  */
   .orb-halo,
   .orb-sparkle,
-  .orb-sparkle-dot {
+  .orb-sparkle-dot,
+  .orb-image {
     animation: none;
   }
   .orb-halo-outer {
