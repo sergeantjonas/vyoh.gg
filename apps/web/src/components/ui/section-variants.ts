@@ -1,11 +1,13 @@
 import type { Variants } from "motion/react";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-const CHILD_DURATION = 0.55;
+const CHILD_DURATION = 0.5;
 
-export const SECTION_STAGGER = 0.09;
-export const SECTION_DELAY = 0.04;
+export const SECTION_STAGGER = 0.07;
+export const SECTION_DELAY = 0.03;
 export const SECTION_REDUCED_FADE_DURATION = 0.15;
+
+export const SECTION_CHILD_WILL_CHANGE = "transform, opacity, filter";
 
 export const sectionContainerVariants: Variants = {
   hidden: {},
@@ -25,22 +27,23 @@ export const sectionReducedContainerVariants: Variants = {
   },
 };
 
-function child(y: number): Variants {
+function child(y: number, blur: number): Variants {
   return {
-    hidden: { opacity: 0, y },
+    hidden: { opacity: 0, y, filter: `blur(${blur}px)` },
     visible: {
       opacity: 1,
       y: 0,
+      filter: "blur(0px)",
       transition: { duration: CHILD_DURATION, ease: EASE },
     },
   };
 }
 
 export const sectionChildVariants = {
-  eyebrow: child(8),
-  headline: child(20),
-  meta: child(10),
-  body: child(14),
+  eyebrow: child(6, 4),
+  headline: child(14, 8),
+  meta: child(8, 5),
+  body: child(10, 6),
 } as const;
 
 export type SectionChildRole = keyof typeof sectionChildVariants;

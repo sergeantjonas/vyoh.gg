@@ -8,11 +8,11 @@ type EditorialHeadingMagnitude = "small" | "medium" | "large";
 
 const MAGNITUDE: Record<
   EditorialHeadingMagnitude,
-  { y: number; stagger: number; duration: number }
+  { y: number; stagger: number; duration: number; blur: number }
 > = {
-  small: { y: 8, stagger: 0.03, duration: 0.4 },
-  medium: { y: 14, stagger: 0.05, duration: 0.5 },
-  large: { y: 20, stagger: 0.06, duration: 0.55 },
+  small: { y: 6, stagger: 0.025, duration: 0.4, blur: 4 },
+  medium: { y: 10, stagger: 0.04, duration: 0.45, blur: 6 },
+  large: { y: 14, stagger: 0.05, duration: 0.5, blur: 8 },
 };
 
 const REDUCED_FADE_DURATION = 0.15;
@@ -86,10 +86,11 @@ function EditorialHeading({
     visible: { transition: { staggerChildren: spec.stagger } },
   };
   const wordVariants: Variants = {
-    hidden: { opacity: 0, y: spec.y },
+    hidden: { opacity: 0, y: spec.y, filter: `blur(${spec.blur}px)` },
     visible: {
       opacity: 1,
       y: 0,
+      filter: "blur(0px)",
       transition: { duration: spec.duration, ease: EASE },
     },
   };
@@ -121,6 +122,7 @@ function EditorialHeading({
                 key={`w-${tokenIdx}`}
                 variants={wordVariants}
                 className="inline-block"
+                style={{ willChange: "transform, opacity, filter" }}
                 data-slot="editorial-word"
               >
                 {token}

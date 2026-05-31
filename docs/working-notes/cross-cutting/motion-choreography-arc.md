@@ -51,9 +51,10 @@ Hard requirement, not a soft preference. Per [reduced-motion-replacements.md](re
 
 ### Performance contract
 
-- Transforms (`translateY`, `scale`) + opacity only — never `filter`, `width`, or `height` during entrance.
-- `will-change` ephemeral via motion's defaults; not pinned.
-- Stagger intervals tuned to land entire headline within 500ms on first visit (no "still entering after a second" lag).
+- Transforms (`translateY`, `scale`) + opacity + a small `filter: blur()` (≤8px radius) for the Linear-style soft clear. No `width`/`height`/`backdrop-filter` during entrance.
+- `will-change: transform, opacity, filter` is **pinned** (inline `style`) on per-word spans inside `<EditorialHeading>` and on motion section children. Motion's auto-`will-change` is per-animation-frame and was insufficient — without pre-promotion, Firefox stutters as later words enter the cascade (sub-pixel anti-aliased text re-rasters when transformed without a pre-allocated layer). Linear's hero uses the same pin. Memory cost is bounded (a handful of heading-sized layers per page).
+- **No `text-shadow` on any element that participates in the entrance cascade.** `text-shadow` forces full text re-raster on every transform frame in Firefox and Chrome, even on elements with composite layers. The landing eyebrow's earlier two-layer drop+glow shadow was the prime jank source. If text needs contrast over a busy background, prefer a backdrop tile, gradient, or opaque text color over `text-shadow`.
+- Stagger intervals tuned to land entire headline within ~850ms on the hero (6-word 2-line headline at `large` magnitude). The earlier 500ms target was aspirational; for editorial register we accept ~700–900ms so word durations don't feel jolty. The cascade is intentionally tightened from M-1 placeholders (see open decision #1) to keep overlap low — too many simultaneously-tweening words competes for the frame budget even on Firefox.
 
 ---
 

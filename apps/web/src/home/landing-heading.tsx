@@ -2,6 +2,7 @@ import { m, useReducedMotion } from "motion/react";
 
 import { EditorialHeading } from "@/components/ui/editorial-heading";
 import {
+  SECTION_CHILD_WILL_CHANGE,
   sectionChildVariants,
   sectionContainerVariants,
   sectionReducedContainerVariants,
@@ -25,8 +26,13 @@ export function LandingHeading() {
     >
       <OrbMark className="size-44 sm:size-56" />
       <m.p
-        className="text-xs uppercase tracking-[0.24em] text-muted-foreground/80 [text-shadow:0_1px_2px_rgb(0_0_0_/_0.7),0_0_8px_rgb(0_0_0_/_0.5)]"
-        {...(reducedMotion ? {} : { variants: sectionChildVariants.eyebrow })}
+        className="text-xs uppercase tracking-[0.24em] text-muted-foreground/80"
+        {...(reducedMotion
+          ? {}
+          : {
+              variants: sectionChildVariants.eyebrow,
+              style: { willChange: SECTION_CHILD_WILL_CHANGE },
+            })}
       >
         vyoh.gg
       </m.p>
