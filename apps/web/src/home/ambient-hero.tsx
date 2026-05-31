@@ -177,7 +177,12 @@ export function AmbientHero({
       aria-hidden
       data-ambient-hero
       data-time-of-day={palette.timeOfDay}
-      className="pointer-events-none absolute -top-6 bottom-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden"
+      // -top-6 / -bottom-6 bleed the gradient into the wrapping div's p-6
+      // padding above and below the hero section, so AmbientHero covers the
+      // full visible viewport of <main> instead of leaving a transparent
+      // sliver at the bottom (where the section box ends but the wrapping
+      // div's bottom padding still occupies space inside main).
+      className="pointer-events-none absolute -top-6 -bottom-6 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden"
     >
       {shouldAnimate ? (
         <m.div

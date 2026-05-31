@@ -15,18 +15,19 @@ export function ScrollProgress() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Feature-detect both halves of what the CSS path actually needs:
-    // (1) scroll-driven animations themselves, AND (2) `timeline-scope` so the
-    // named `--main-scroll` timeline declared on <main> can reach this bar
-    // (which sits OUTSIDE <main>). Firefox ships #1 in stable while still
-    // missing #2 — checking only #1 made the JS fallback short-circuit on
-    // Firefox, then the named timeline never reached the element, leaving the
-    // bar stuck at 0% width. Both checks have to pass for the CSS path to
-    // actually work end-to-end.
+    // Force the JS fallback on Firefox unconditionally. Firefox now reports
+    // CSS.supports("animation-timeline: scroll()") AND
+    // CSS.supports("timeline-scope: --x") as true (parser-level), but the
+    // named `--main-scroll` timeline declared on <main> still doesn't reach
+    // this bar (which sits OUTSIDE <main>) — owner's contract is that this
+    // bar works in Firefox, so we don't rely on CSS feature-detection here.
+    // Chrome / Safari fall through to the early return and use the CSS path.
+    const isFirefox =
+      typeof navigator !== "undefined" && /Firefox\//.test(navigator.userAgent);
     if (
+      !isFirefox &&
       typeof CSS !== "undefined" &&
-      CSS.supports("animation-timeline: scroll()") &&
-      CSS.supports("timeline-scope: --x")
+      CSS.supports("animation-timeline: scroll()")
     ) {
       return;
     }
