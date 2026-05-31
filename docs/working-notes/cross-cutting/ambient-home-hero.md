@@ -109,18 +109,18 @@ This chunk alone is shippable as the floor — even without canvas, the visual w
 
 **Decision gate before Chunk 2** (per § Risks "Show owner the Chunk 1 static prototype before Chunk 2"): owner visual review of the palette tuning across all four time-of-day buckets. If the static read doesn't feel right, retune palettes before promoting to canvas — the Brussels-hour resolver and palette structure stay the same.
 
-### Chunk 2 — Canvas2D with rAF + activity intensity
+### Chunk 2 — Canvas2D with rAF + reduced-motion / low-power dispatcher — ✅ Landed 2026-05-31
 
-- Promote `ambient-hero.tsx` to a Canvas2D render.
-- Three radial-gradient draws per frame at slowly-drifting centers (Perlin noise drives the centers).
-- Pause on `visibilitychange`.
-- Read activity intensity (count of LoL matches in last 24h + Steam playtime today) via existing queries; pass as a `0–1` saturation modifier.
-- Tests: snapshot of the component renders the canvas element; perf-overlay snapshot (existing [perf-overlay.tsx](../../../apps/web/src/components/perf-overlay.tsx)) shows frame budget stays under target.
+- Promoted `ambient-hero.tsx` to a dispatcher that always paints the static CSS layer (SSR-safe, also the reduced-motion replacement) and conditionally mounts a lazy-loaded `ambient-hero-canvas.tsx` on top when motion is allowed.
+- New `ambient-hero-canvas.tsx`: Canvas2D with three radial-gradient draws per frame via `globalCompositeOperation = "screen"`, drifting centers via dual-sine (period 60s, amplitude ±5%, distinct phase per layer) — Perlin replaced by sine since the visual is pure ambient drift and sine carries it without a noise dependency. 33ms frame cap (~30fps). DPR-aware sizing via `ResizeObserver` and `setTransform`. `visibilitychange` listener pauses + resumes rAF.
+- Branch combines reduced-motion AND low-power gates (already covers Chunk 3's scope): `useReducedMotion() === false && !isLowPower()`. `isLowPower()` checks `navigator.connection.saveData` and `navigator.deviceMemory < 4`. Either flag → canvas never mounts; static layer alone carries the visual.
+- Palette refactored into a single numeric source (`GradientLayer[]` with `cx`, `cy`, `radius`, `lch: [L, C, H]`, `alpha`, `phase`) used by both static (via `layerToCssGradient` helper) and canvas. No duplication.
+- Tests: 17 in `ambient-hero.test.tsx` + `ambient-hero-canvas.test.tsx`. New: reduced-motion mocked-true → no canvas; reduced-motion null (SSR/pre-resolve) → no canvas; reduced-motion false → canvas mounts via lazy/Suspense (awaited with `waitFor`); canvas component standalone smoke + cleanup. Full suite 2003/2003 ✅.
+- **Deferred to follow-up:** activity-intensity reactivity — moved to Chunk 4 (Chunks 2 + 3 collapsed since the reduced-motion branch is the same control flow as the canvas-mount gate).
 
-### Chunk 3 — Reduced-motion + low-power fallback
+### Chunk 3 — Reduced-motion + low-power fallback — ✅ Landed 2026-05-31 (collapsed into Chunk 2)
 
-- Branch: if reduced-motion or low-power, render the Chunk 1 static CSS version inline; do not boot the canvas.
-- Test: reduced-motion media query mock returns static; rAF is never called.
+The dispatcher branch ships the static layer when either gate trips. Already covered above; this chunk had no separable scope once the canvas was lazy + behind a flag.
 
 ### Chunk 4 — Cursor parallax (subtle)
 
