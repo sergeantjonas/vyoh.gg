@@ -17,9 +17,9 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
   day: {
     timeOfDay: "day",
     gradients: [
-      "radial-gradient(circle 940px at 22% 26%, oklch(0.74 0.10 230 / 0.28) 0%, transparent 70%)",
-      "radial-gradient(circle 1000px at 80% 32%, oklch(0.88 0.05 90 / 0.22) 0%, transparent 72%)",
-      "radial-gradient(circle 820px at 50% 88%, oklch(0.66 0.08 200 / 0.20) 0%, transparent 65%)",
+      "radial-gradient(circle 940px at 22% 26%, oklch(0.72 0.15 225 / 0.34) 0%, transparent 70%)",
+      "radial-gradient(circle 1000px at 80% 30%, oklch(0.76 0.14 65 / 0.30) 0%, transparent 72%)",
+      "radial-gradient(circle 820px at 50% 88%, oklch(0.62 0.13 195 / 0.24) 0%, transparent 65%)",
     ],
   },
   dusk: {
@@ -41,7 +41,7 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
 };
 
 const VIGNETTE_MASK =
-  "radial-gradient(ellipse 65% 55% at 50% 38%, black 0%, black 35%, transparent 92%)";
+  "radial-gradient(ellipse 80% 65% at 50% 42%, black 0%, black 45%, transparent 96%)";
 
 export function timeOfDayForHour(hour: number): TimeOfDay {
   if (hour >= 5 && hour < 8) return "dawn";
@@ -75,7 +75,7 @@ export function AmbientHero({ hour }: { hour?: number }) {
       aria-hidden
       data-ambient-hero
       data-time-of-day={palette.timeOfDay}
-      className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[70vh] w-screen -translate-x-1/2 overflow-hidden"
+      className="pointer-events-none absolute left-1/2 -top-6 -z-10 h-[calc(70vh+1.5rem)] w-screen -translate-x-1/2 overflow-hidden"
     >
       <div
         className="absolute inset-0"
