@@ -25,7 +25,7 @@ export function LandingHeading() {
       animate="visible"
     >
       <OrbMark
-        className="size-48 sm:size-64 lg:size-80 xl:size-96"
+        className="size-40 sm:size-56 lg:size-72 xl:size-80"
         entranceDelay={reducedMotion ? 0 : 0.5}
       />
       <m.p

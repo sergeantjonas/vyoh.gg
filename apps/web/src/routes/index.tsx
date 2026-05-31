@@ -28,7 +28,12 @@ function HomePage() {
   const { data: activity } = useHomeActivityIntensity();
   return (
     <div className="relative flex flex-col">
-      <section className="relative flex min-h-dvh items-start justify-center pt-[12dvh]">
+      {/* Height = full viewport minus the chrome above <main> (sticky nav ~52px
+          + ScrollProgress hairline + the wrapping div's `p-6` top/bottom).
+          Without this, `min-h-dvh` exceeds main's clip and the chevron at
+          `bottom-8` lands below the fold. ~7rem is a generous offset; if the
+          nav grows, bump it. */}
+      <section className="relative flex min-h-[calc(100dvh-7rem)] items-start justify-center pt-[8dvh]">
         <AmbientHero intensity={activity?.intensity} />
         <LandingHeading />
         <HeroScrollHint />
