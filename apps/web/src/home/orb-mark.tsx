@@ -152,7 +152,7 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
         className="orb-image relative size-full"
       />
       <svg
-        className="pointer-events-none absolute inset-0 size-full overflow-visible"
+        className="orb-wisps pointer-events-none absolute inset-0 size-full overflow-visible"
         viewBox="0 0 100 100"
         preserveAspectRatio="xMidYMid meet"
         aria-hidden="true"

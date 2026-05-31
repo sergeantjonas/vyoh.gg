@@ -288,7 +288,13 @@ body {
   position: absolute;
   border-radius: 9999px;
   mix-blend-mode: screen;
-  will-change: opacity, transform;
+  /* Halos drag along with the orb image's wander at ~65% amplitude, so the
+     glow tugs after the orb instead of locking to it. Keyframes use `scale:`
+     and `translate:` individual properties so the halo's "breathing" scale,
+     hue-rotate filter swing, and wander translate all compose without any
+     of them clobbering each other via the `transform:` shorthand. */
+  --orb-wander-amp: 0.65;
+  will-change: opacity, scale, translate;
 }
 /* Each halo has two animations: a "breathing" loop (opacity + scale) and a
    shared "hue duality" loop (filter hue-rotate, breathing between cyan-leaning
@@ -309,7 +315,7 @@ body {
   );
   filter: blur(var(--halo-blur));
   animation: orb-halo-outer 4.5s ease-in-out infinite, orb-halo-hue 11s ease-in-out
-    infinite;
+    infinite, orb-wander 16s ease-in-out infinite;
 }
 .orb-halo-inner {
   --halo-blur: 24px;
@@ -322,8 +328,9 @@ body {
     rgba(125, 211, 252, 0) 60%
   );
   filter: blur(var(--halo-blur));
-  animation: orb-halo-inner 6s ease-in-out infinite, orb-halo-hue 11s -3.7s ease-in-out
-    infinite;
+  animation:
+    orb-halo-inner 6s ease-in-out infinite, orb-halo-hue 11s -3.7s ease-in-out
+    infinite, orb-wander 16s ease-in-out infinite;
 }
 .orb-halo-core {
   --halo-blur: 16px;
@@ -337,8 +344,9 @@ body {
     rgba(56, 118, 255, 0) 62%
   );
   filter: blur(var(--halo-blur));
-  animation: orb-halo-core 5.2s ease-in-out infinite, orb-halo-hue 11s -7.3s ease-in-out
-    infinite;
+  animation:
+    orb-halo-core 5.2s ease-in-out infinite, orb-halo-hue 11s -7.3s ease-in-out
+    infinite, orb-wander 16s ease-in-out infinite;
 }
 
 @keyframes orb-halo-hue {
@@ -355,33 +363,33 @@ body {
   0%,
   100% {
     opacity: 0.4;
-    transform: scale(1);
+    scale: 1;
   }
   50% {
     opacity: 0.7;
-    transform: scale(1.14);
+    scale: 1.14;
   }
 }
 @keyframes orb-halo-inner {
   0%,
   100% {
     opacity: 0.5;
-    transform: scale(1);
+    scale: 1;
   }
   50% {
     opacity: 0.75;
-    transform: scale(1.08);
+    scale: 1.08;
   }
 }
 @keyframes orb-halo-core {
   0%,
   100% {
     opacity: 0.09;
-    transform: scale(0.95);
+    scale: 0.95;
   }
   50% {
     opacity: 0.2;
-    transform: scale(1.04);
+    scale: 1.04;
   }
 }
 
@@ -392,12 +400,41 @@ body {
 /* future `translate:` animation on the same element (e.g. orb-wander).      */
 
 .orb-image {
-  animation: orb-image-rotate 90s linear infinite;
-  will-change: rotate;
+  /* Orb image leads the wander at full amplitude — the focal subject drifts
+     and every other layer follows at reduced amp, giving a parallax that
+     reads as "orb pulls its atmosphere with it." Rotation runs on the
+     `rotate:` individual property; wander runs on `translate:`; they compose
+     cleanly without touching `transform:` shorthand. */
+  --orb-wander-amp: 1;
+  animation: orb-image-rotate 90s linear infinite, orb-wander 16s ease-in-out infinite;
+  will-change: rotate, translate;
 }
 @keyframes orb-image-rotate {
   to {
     rotate: 360deg;
+  }
+}
+
+/* The wander itself: gentle 4-point figure-eight. Amplitudes are scaled by
+   the per-layer `--orb-wander-amp` so one keyframe drives orb / halo / wisp /
+   sparkle at different magnitudes — that differential is what produces the
+   parallax. Percentages refer to each element's own box, so the visual scale
+   is consistent across layers of different inset/size. */
+@keyframes orb-wander {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: calc(var(--orb-wander-amp, 0) * 3%) calc(var(--orb-wander-amp, 0) * -2%);
+  }
+  50% {
+    translate: calc(var(--orb-wander-amp, 0) * -1.5%)
+      calc(var(--orb-wander-amp, 0) * 2.5%);
+  }
+  75% {
+    translate: calc(var(--orb-wander-amp, 0) * -2.8%)
+      calc(var(--orb-wander-amp, 0) * -1.8%);
   }
 }
 
@@ -409,14 +446,28 @@ body {
 /* Was 12 m.divs running 12 independent Motion animations on the main        */
 /* thread; now zero JS per frame.                                            */
 
+/* SVG wisps wrapper — the whole `<svg>` translates with the orb at ~55% amp.
+   Its `userSpaceOnUse` filter and orbit paths move as one rigid layer, so the
+   smoke stays anchored to the orb instead of detaching when the orb wanders. */
+.orb-wisps {
+  --orb-wander-amp: 0.55;
+  animation: orb-wander 16s ease-in-out infinite;
+  will-change: translate;
+}
+
 .orb-sparkle {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Sparkles trail at the lowest amp — they orbit the orb's previous centre
+     with the most lag, which reads as orbital momentum. The orbit rotation
+     keyframe sets `rotate:` and the wander sets `translate:`; they compose. */
+  --orb-wander-amp: 0.3;
   rotate: var(--orb-sparkle-angle);
-  animation: orb-sparkle-orbit var(--orb-sparkle-orbit-duration) linear infinite;
+  animation: orb-sparkle-orbit var(--orb-sparkle-orbit-duration) linear infinite,
+    orb-wander 16s ease-in-out infinite;
   animation-direction: var(--orb-sparkle-direction, normal);
-  will-change: rotate;
+  will-change: rotate, translate;
 }
 .orb-sparkle-dot {
   position: absolute;
@@ -501,6 +552,7 @@ body {
   /* `.orb-image` rotation also halts — the static `filter: blur()`         */
   /* fallback on the halo classes keeps blur intact without the hue cycle.  */
   .orb-halo,
+  .orb-wisps,
   .orb-sparkle,
   .orb-sparkle-dot,
   .orb-image {
@@ -508,14 +560,14 @@ body {
   }
   .orb-halo-outer {
     opacity: 0.5;
-    transform: scale(1.05);
+    scale: 1.05;
   }
   .orb-halo-inner {
     opacity: 0.6;
-    transform: scale(1.02);
+    scale: 1.02;
   }
   .orb-halo-core {
     opacity: 0.14;
-    transform: scale(1);
+    scale: 1;
   }
 }
