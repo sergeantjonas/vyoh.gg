@@ -6,17 +6,21 @@ import { cn } from "@/lib/utils";
 type EditorialHeadingElement = "h1" | "h2" | "h3" | "h4";
 type EditorialHeadingMagnitude = "small" | "medium" | "large";
 
+// Block-level reveal: each heading (or each line of a multi-line heading)
+// animates as one unit on opacity + y + blur. No per-word stagger — Linear /
+// Resend register has just upward motion + blur clear, no left-to-right sweep.
 const MAGNITUDE: Record<
   EditorialHeadingMagnitude,
-  { y: number; stagger: number; duration: number; blur: number }
+  { y: number; duration: number; blur: number; lineStagger: number }
 > = {
-  small: { y: 6, stagger: 0.025, duration: 0.4, blur: 4 },
-  medium: { y: 10, stagger: 0.04, duration: 0.45, blur: 6 },
-  large: { y: 14, stagger: 0.08, duration: 0.85, blur: 8 },
+  small: { y: 6, duration: 0.5, blur: 4, lineStagger: 0.08 },
+  medium: { y: 10, duration: 0.65, blur: 6, lineStagger: 0.1 },
+  large: { y: 14, duration: 0.85, blur: 8, lineStagger: 0.12 },
 };
 
 const REDUCED_FADE_DURATION = 0.15;
 const EASE = [0.16, 1, 0.3, 1] as const;
+const HEADING_WILL_CHANGE = "transform, opacity, filter";
 
 type EditorialHeadingProps = {
   as?: EditorialHeadingElement;
@@ -29,10 +33,6 @@ type EditorialHeadingProps = {
   "aria-label"?: string;
   ref?: React.Ref<HTMLHeadingElement>;
 };
-
-function splitTokens(line: string): string[] {
-  return line.split(/(\s+)/).filter((s) => s.length > 0);
-}
 
 function EditorialHeading({
   as: Tag = "h1",
@@ -83,9 +83,9 @@ function EditorialHeading({
   const spec = MAGNITUDE[magnitude];
   const containerVariants: Variants = {
     hidden: {},
-    visible: { transition: { staggerChildren: spec.stagger } },
+    visible: { transition: { staggerChildren: spec.lineStagger } },
   };
-  const wordVariants: Variants = {
+  const lineVariants: Variants = {
     hidden: { opacity: 0, y: spec.y, filter: `blur(${spec.blur}px)` },
     visible: {
       opacity: 1,
@@ -110,26 +110,16 @@ function EditorialHeading({
       {...orchestrationProps}
     >
       {lines.map((line, lineIdx) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: static positional lines
-        <span key={lineIdx} className={lineClassFor(lineIdx)}>
-          {splitTokens(line).map((token, tokenIdx) =>
-            /^\s+$/.test(token) ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: positional whitespace token
-              <span key={`ws-${tokenIdx}`}>{token}</span>
-            ) : (
-              <m.span
-                // biome-ignore lint/suspicious/noArrayIndexKey: positional word token
-                key={`w-${tokenIdx}`}
-                variants={wordVariants}
-                className="inline-block"
-                style={{ willChange: "transform, opacity, filter" }}
-                data-slot="editorial-word"
-              >
-                {token}
-              </m.span>
-            )
-          )}
-        </span>
+        <m.span
+          // biome-ignore lint/suspicious/noArrayIndexKey: static positional lines
+          key={lineIdx}
+          variants={lineVariants}
+          className={lineClassFor(lineIdx)}
+          style={{ willChange: HEADING_WILL_CHANGE }}
+          data-slot="editorial-line"
+        >
+          {line}
+        </m.span>
       ))}
     </MotionTag>
   );

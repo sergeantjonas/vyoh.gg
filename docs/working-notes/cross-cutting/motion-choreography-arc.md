@@ -78,11 +78,16 @@ Hard requirement, not a soft preference. Per [reduced-motion-replacements.md](re
 
 ## Open decisions
 
-1. **Stagger magnitude defaults.** ~~Locked 2026-05-31 during M-3.~~ Re-tuned 2026-05-31 after owner review felt the hero "too fast, should feel deliberate." `<EditorialHeading>` ships three magnitudes, each `{ y, stagger, duration, blur }`:
-   - `small`: `{ 6, 0.025s, 0.4s, 4px }` — for inline accents (`<h3>` / `<h4>`).
-   - `medium`: `{ 10, 0.04s, 0.45s, 6px }` — default; section-level `<h2>` / `<h3>` headlines.
-   - `large`: `{ 14, 0.08s, 0.85s, 8px }` — hero / `<h1>` only.
-   The landing hero uses `large` with a 6-word 2-line headline, landing in ~1.25s — each word lingers entering, so it reads as a deliberate Linear/Resend-grade reveal rather than a snap-in. Earlier ~0.85s pacing read as too brisk for an editorial headline at this size. Tune again only if owner review flags drag, but bias toward keeping headlines slow — the per-word duration is where the "deliberate" feeling lives.
+1. **Reveal granularity + magnitude defaults.** ~~Locked 2026-05-31 during M-3.~~ Re-tuned twice on 2026-05-31:
+   - First re-tune slowed the per-word stagger after the hero felt brisk.
+   - Second re-tune dropped per-word stagger entirely after owner observed the hero had three competing motion vectors at once (left-to-right word sweep + upward Y + blur clear), versus Linear/Resend's "only upward + blur" register. `<EditorialHeading>` now does **block-level reveal per line** — each line animates as one unit on `opacity + y + blur`; multi-line headings get a small `lineStagger` between lines (zero for single-line). No word splitting.
+
+   Magnitudes ship as `{ y, duration, blur, lineStagger }`:
+   - `small`: `{ 6, 0.5s, 4px, 0.08s }` — inline accents (`<h3>` / `<h4>`).
+   - `medium`: `{ 10, 0.65s, 6px, 0.10s }` — default; section-level `<h2>` / `<h3>`.
+   - `large`: `{ 14, 0.85s, 8px, 0.12s }` — hero / `<h1>` only.
+
+   Landing hero: `large`, 2 lines. Line 1 lands at ~0.85s; line 2 at ~0.97s. Total ~1s, deliberate without dragging. The block reveal also cuts composite-layer count from ~12 per-word spans down to 2 per-line spans — frees frame budget that the per-word version was burning under Firefox during the cascade.
 2. **`whileInView` thresholds.** Default `amount: "some"` — fires when any pixel enters the viewport, not at 50%. Tune via `viewport={{ amount, margin }}`. To fire *earlier* than viewport entry, use a *positive* rootMargin-style string (e.g. `margin: "0px 0px 10% 0px"` extends the trigger box downward); a negative margin shrinks the box and delays firing. For long bento tiles / charts where the default `"some"` fires too eagerly on first pixel, switch to `amount: 0.25` or `amount: "all"` depending on the surface. Tune during M-5.
 3. **First-visit vs return-visit choreography.** Should the first-ever visit get extra theatre (longer durations, more drama)? Linear doesn't differentiate. Default: same vocabulary for both. Revisit only if owner review on first visit reads as "fine but I want more drama once."
 4. **Primitive home.** `apps/web/src/components/ui/` matches shadcn convention (other ui primitives live there). Confirm during M-1.
