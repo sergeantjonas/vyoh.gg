@@ -2,17 +2,29 @@ import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
-import { type RankEntry, formatPercent } from "@vyoh/shared";
+import {
+  QUEUE_TYPES,
+  RANKED_QUEUE_KEY_TO_ID,
+  RANKED_QUEUE_KEY_TO_TYPE,
+  type RankEntry,
+  formatPercent,
+} from "@vyoh/shared";
 import { Flame } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { TIER_COLOR, TIER_GLOW } from "./tier-colors";
 
+// Queue rendering uses the canonical compact labels from QUEUE_TYPES ("Ranked
+// Solo" / "Ranked Flex"), keyed by the League-V4 queueType string we get back
+// in RankEntry rows. The two RANKED_QUEUE_KEY maps from shared bridge the
+// queueType string back to the numeric queueId that QUEUE_TYPES is keyed on.
 const QUEUE_LABEL: Record<string, string> = {
-  RANKED_SOLO_5x5: "Ranked Solo",
-  RANKED_FLEX_SR: "Ranked Flex",
+  [RANKED_QUEUE_KEY_TO_TYPE.solo]:
+    QUEUE_TYPES[RANKED_QUEUE_KEY_TO_ID.solo] ?? "Ranked Solo",
+  [RANKED_QUEUE_KEY_TO_TYPE.flex]:
+    QUEUE_TYPES[RANKED_QUEUE_KEY_TO_ID.flex] ?? "Ranked Flex",
 };
 
-const QUEUE_ORDER = ["RANKED_SOLO_5x5", "RANKED_FLEX_SR"];
+const QUEUE_ORDER = [RANKED_QUEUE_KEY_TO_TYPE.solo, RANKED_QUEUE_KEY_TO_TYPE.flex];
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
 function tierLabel(entry: RankEntry): string {

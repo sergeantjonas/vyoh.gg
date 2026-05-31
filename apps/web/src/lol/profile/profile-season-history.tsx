@@ -5,6 +5,7 @@ import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { RANKED_QUEUE_KEY_LABEL, type RankedQueueKey } from "@vyoh/shared";
 import type { DetectedSeason } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
@@ -12,13 +13,6 @@ import { useMemo, useState } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
-
-type QueueKey = "solo" | "flex";
-
-const QUEUE_LABEL: Record<QueueKey, string> = {
-  solo: "Solo/Duo",
-  flex: "Flex",
-};
 
 const TIER_COLOR: Record<string, string> = {
   IRON: "text-slate-400",
@@ -63,9 +57,9 @@ function QueueTabs({
   onChange,
   available,
 }: {
-  value: QueueKey;
-  onChange: (v: QueueKey) => void;
-  available: Record<QueueKey, boolean>;
+  value: RankedQueueKey;
+  onChange: (v: RankedQueueKey) => void;
+  available: Record<RankedQueueKey, boolean>;
 }) {
   return (
     <div className="inline-flex rounded-md border bg-muted/40 p-0.5 text-xs">
@@ -86,7 +80,7 @@ function QueueTabs({
               disabled && "cursor-not-allowed opacity-40 hover:text-muted-foreground"
             )}
           >
-            {QUEUE_LABEL[q]}
+            {RANKED_QUEUE_KEY_LABEL[q]}
           </button>
         );
       })}
@@ -154,12 +148,12 @@ function SeasonRow({
 
 export function ProfileSeasonHistory({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
-  const [queue, setQueue] = useState<QueueKey>("solo");
+  const [queue, setQueue] = useState<RankedQueueKey>("solo");
   const reduced = useReducedMotion();
 
   const history = useRankHistory(account, "season");
 
-  const seasons = useMemo<Record<QueueKey, DetectedSeason[]>>(
+  const seasons = useMemo<Record<RankedQueueKey, DetectedSeason[]>>(
     () => ({
       solo: detectSeasons(history.data?.solo ?? []),
       flex: detectSeasons(history.data?.flex ?? []),
@@ -167,7 +161,7 @@ export function ProfileSeasonHistory({ accountSlug }: { accountSlug: string }) {
     [history.data]
   );
 
-  const available = useMemo<Record<QueueKey, boolean>>(
+  const available = useMemo<Record<RankedQueueKey, boolean>>(
     () => ({
       solo: seasons.solo.length > 0,
       flex: seasons.flex.length > 0,
@@ -175,7 +169,7 @@ export function ProfileSeasonHistory({ accountSlug }: { accountSlug: string }) {
     [seasons]
   );
 
-  const activeQueue: QueueKey = available[queue]
+  const activeQueue: RankedQueueKey = available[queue]
     ? queue
     : available.solo
       ? "solo"

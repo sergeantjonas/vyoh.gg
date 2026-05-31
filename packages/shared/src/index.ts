@@ -14,6 +14,17 @@ export {
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
 export {
+  QUEUE_TYPES,
+  RANKED_QUEUE_KEY_LABEL,
+  RANKED_QUEUE_KEY_TO_ID,
+  RANKED_QUEUE_KEY_TO_TYPE,
+  RANKED_QUEUE_KEYS,
+  RANKED_QUEUE_MAP,
+  queueLabel,
+  queueLabelExpanded,
+} from "./lol/queue-types.ts";
+export type { RankedQueueKey } from "./lol/queue-types.ts";
+export {
   computeHourDayStats,
   computeTiltStats,
   computeStreak,

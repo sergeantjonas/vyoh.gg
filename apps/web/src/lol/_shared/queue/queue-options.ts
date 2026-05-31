@@ -1,15 +1,20 @@
+import { QUEUE_TYPES } from "@vyoh/shared";
+
 export interface QueueOption {
   id: number | undefined;
   label: string;
 }
 
+// Curated subset of the canonical QUEUE_TYPES map — only the queues we
+// surface in the match-history filter UI. Order is roughly "most-played for
+// this owner first" rather than queue id. Pulling labels from the shared
+// canonical map keeps the dropdown in sync with the rest of the LoL surface.
+const FILTER_QUEUE_IDS: readonly number[] = [420, 440, 450, 490, 400, 1700, 1840];
+
 export const QUEUE_OPTIONS: readonly QueueOption[] = [
   { id: undefined, label: "All matches" },
-  { id: 420, label: "Ranked Solo" },
-  { id: 440, label: "Ranked Flex" },
-  { id: 450, label: "ARAM" },
-  { id: 490, label: "Quickplay" },
-  { id: 400, label: "Normal Draft" },
-  { id: 1700, label: "Arena" },
-  { id: 1840, label: "Swarm" },
+  ...FILTER_QUEUE_IDS.map((id) => ({
+    id,
+    label: QUEUE_TYPES[id] ?? `Queue ${id}`,
+  })),
 ];

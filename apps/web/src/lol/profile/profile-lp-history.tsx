@@ -14,6 +14,7 @@ import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
+import { RANKED_QUEUE_KEY_LABEL, type RankedQueueKey } from "@vyoh/shared";
 import type { RankHistoryPoint } from "@vyoh/shared";
 import { detectSeasons, formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
@@ -34,25 +35,18 @@ import {
   YAxis,
 } from "recharts";
 
-type QueueKey = "solo" | "flex";
-
-const QUEUE_LABEL: Record<QueueKey, string> = {
-  solo: "Solo/Duo",
-  flex: "Flex",
-};
-
 const RANGE_LABEL: Record<RangeKey, string> = {
   "30d": "30d",
   "90d": "90d",
   season: "Season",
 };
 
-const QUEUE_COLOR: Record<QueueKey, string> = {
+const QUEUE_COLOR: Record<RankedQueueKey, string> = {
   solo: "#34d399",
   flex: "#fbbf24",
 };
 
-const QUEUE_TYPE_FOR_BOUNDARIES: Record<QueueKey, string> = {
+const QUEUE_TYPE_FOR_BOUNDARIES: Record<RankedQueueKey, string> = {
   solo: "Ranked Solo",
   flex: "Ranked Flex",
 };
@@ -480,9 +474,9 @@ function QueueTabs({
   onChange,
   available,
 }: {
-  value: QueueKey;
-  onChange: (v: QueueKey) => void;
-  available: Record<QueueKey, boolean>;
+  value: RankedQueueKey;
+  onChange: (v: RankedQueueKey) => void;
+  available: Record<RankedQueueKey, boolean>;
 }) {
   return (
     <div className="inline-flex rounded-md border bg-muted/40 p-0.5 text-xs">
@@ -503,7 +497,7 @@ function QueueTabs({
               disabled && "cursor-not-allowed opacity-40 hover:text-muted-foreground"
             )}
           >
-            {QUEUE_LABEL[q]}
+            {RANKED_QUEUE_KEY_LABEL[q]}
           </button>
         );
       })}
@@ -671,7 +665,7 @@ function LpBrush({
 export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
   const [range, setRange] = useState<RangeKey>("90d");
-  const [queue, setQueue] = useState<QueueKey>("solo");
+  const [queue, setQueue] = useState<RankedQueueKey>("solo");
   const [brushDomain, setBrushDomain] = useState<[number, number] | null>(null);
   // visx <Brush> owns its internal selection rect; clearing our React state
   // alone leaves the visual box behind. Bumping this key forces a remount.
@@ -685,7 +679,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
 
   const history = useRankHistory(account, range);
 
-  const available = useMemo<Record<QueueKey, boolean>>(
+  const available = useMemo<Record<RankedQueueKey, boolean>>(
     () => ({
       solo: (history.data?.solo.length ?? 0) > 0,
       flex: (history.data?.flex.length ?? 0) > 0,
@@ -693,7 +687,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
     [history.data]
   );
 
-  const activeQueue: QueueKey = available[queue]
+  const activeQueue: RankedQueueKey = available[queue]
     ? queue
     : available.solo
       ? "solo"

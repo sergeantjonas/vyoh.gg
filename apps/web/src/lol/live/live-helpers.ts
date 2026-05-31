@@ -1,25 +1,5 @@
 import type { LiveGameParticipant, LolAccount } from "@vyoh/shared";
-
-const QUEUE_NAMES: Record<number, string> = {
-  0: "Custom",
-  400: "Normal Draft",
-  420: "Ranked Solo/Duo",
-  430: "Normal Blind",
-  440: "Ranked Flex",
-  450: "ARAM",
-  490: "Quickplay",
-  700: "Clash",
-  720: "ARAM Clash",
-  830: "Co-op vs AI",
-  840: "Co-op vs AI",
-  850: "Co-op vs AI",
-  900: "URF",
-  1020: "One for All",
-  1300: "Nexus Blitz",
-  1400: "Ultimate Spellbook",
-  1700: "Arena",
-  1900: "URF",
-};
+import { queueLabelExpanded } from "@vyoh/shared";
 
 const MAP_NAMES: Record<number, string> = {
   11: "Summoner's Rift",
@@ -29,7 +9,7 @@ const MAP_NAMES: Record<number, string> = {
 };
 
 export function queueLabel(queueId: number): string {
-  return QUEUE_NAMES[queueId] ?? `Queue ${queueId}`;
+  return queueLabelExpanded(queueId);
 }
 
 export function mapLabel(mapId: number): string {

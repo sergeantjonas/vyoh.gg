@@ -1,39 +1,6 @@
-const QUEUE_TYPES: Record<number, string> = {
-  400: "Normal Draft",
-  420: "Ranked Solo",
-  430: "Normal Blind",
-  440: "Ranked Flex",
-  450: "ARAM",
-  480: "Swiftplay",
-  490: "Quickplay",
-  700: "Clash",
-  720: "ARAM Clash",
-  830: "Co-op vs AI Intro",
-  840: "Co-op vs AI Beginner",
-  850: "Co-op vs AI Intermediate",
-  870: "Co-op vs AI Intro",
-  880: "Co-op vs AI Beginner",
-  890: "Co-op vs AI Intermediate",
-  900: "URF",
-  1020: "One for All",
-  1300: "Nexus Blitz",
-  1400: "Ultimate Spellbook",
-  1700: "Arena",
-  1710: "Arena",
-  1810: "Swarm",
-  1820: "Swarm",
-  1830: "Swarm",
-  1840: "Swarm",
-  1900: "URF",
-};
-
-export function queueTypeName(queueId: number): string {
-  return QUEUE_TYPES[queueId] ?? `Queue ${queueId}`;
-}
-
-// Maps Riot's numeric Match-V5 queueId to the League-V4 queueType string
-// used in RankSnapshot rows — bridges the two API representations.
-export const RANKED_QUEUE_MAP: Record<number, string> = {
-  420: "RANKED_SOLO_5x5",
-  440: "RANKED_FLEX_SR",
-};
+// Thin re-export layer for the api side. The canonical queue metadata lives
+// in @vyoh/shared so the web profile/live/library surfaces share one source
+// of truth (see docs/repo-conventions.md "Cross-package utilities" rule).
+// `queueTypeName` is preserved as an alias of `queueLabel` so existing
+// match-mapper / analytics / lol.service call sites stay untouched.
+export { RANKED_QUEUE_MAP, queueLabel as queueTypeName } from "@vyoh/shared";
