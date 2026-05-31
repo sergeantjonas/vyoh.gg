@@ -67,8 +67,16 @@ function currentBrusselsHour(): number {
   return Number.isFinite(parsed) ? parsed % 24 : 0;
 }
 
+function hourFromSearchParams(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("hour");
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 23 ? parsed : null;
+}
+
 export function AmbientHero({ hour }: { hour?: number }) {
-  const resolved = hour ?? currentBrusselsHour();
+  const resolved = hour ?? hourFromSearchParams() ?? currentBrusselsHour();
   const palette = paletteForHour(resolved);
   return (
     <div

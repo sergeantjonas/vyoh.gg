@@ -72,4 +72,42 @@ describe("AmbientHero", () => {
     const tod = root?.getAttribute("data-time-of-day");
     expect(["dawn", "day", "dusk", "night"]).toContain(tod);
   });
+
+  it("honours ?hour=N URL search param for palette preview", () => {
+    const original = window.location.search;
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, search: "?hour=19" },
+      writable: true,
+    });
+    try {
+      const { container } = render(<AmbientHero />);
+      expect(
+        container.querySelector("[data-ambient-hero]")?.getAttribute("data-time-of-day")
+      ).toBe("dusk");
+    } finally {
+      Object.defineProperty(window, "location", {
+        value: { ...window.location, search: original },
+        writable: true,
+      });
+    }
+  });
+
+  it("ignores invalid ?hour values", () => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, search: "?hour=99" },
+      writable: true,
+    });
+    try {
+      const { container } = render(<AmbientHero />);
+      const tod = container
+        .querySelector("[data-ambient-hero]")
+        ?.getAttribute("data-time-of-day");
+      expect(["dawn", "day", "dusk", "night"]).toContain(tod);
+    } finally {
+      Object.defineProperty(window, "location", {
+        value: { ...window.location, search: "" },
+        writable: true,
+      });
+    }
+  });
 });
