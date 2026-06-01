@@ -47,11 +47,19 @@ export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [
   },
 ];
 
+// Hardcoded featured Steam appid for the R-3 chapter. Promotes to algorithmic
+// selection in R-4 (`useChapters()` with recency-decayed scoring). Edit by
+// hand when you want to feature a different game on `/`. Defaults to the
+// most recently unlocked-against game while R-3 is the only Steam chapter
+// on the page; queries `/steam/achievements/recent?limit=1` to pick a
+// candidate when you're not sure what's fresh.
+export const STEAM_FEATURED_APPID = 2050650; // Resident Evil 4
+
 // Steam apps to never surface as a subject chapter, even if score qualifies.
 // Note: store API `type !== "game"` already filters most utilities
 // (Wallpaper Engine, 3DMark) — this list is for apps that ARE games but the
 // owner doesn't want surfaced on the portfolio. Lands populated in R-4.
-export const HIDDEN_APPIDS: readonly number[] = [];
+export const HIDDEN_APPIDS: readonly number[] = [1034140];
 
 // LoL queue ids to exclude from moment-chapter detection (custom games,
 // tutorials). Ranked / draft / aram / arena stay included. Lands populated

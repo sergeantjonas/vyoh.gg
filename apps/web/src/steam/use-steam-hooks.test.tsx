@@ -10,6 +10,7 @@ import { useSteamPlatformMix } from "./use-platform-mix";
 import { useSteamPlayerState } from "./use-player-state";
 import { useRecentUnlocks } from "./use-recent-unlocks";
 import { useSteamChronotype } from "./use-steam-chronotype";
+import { useSteamGameRecap } from "./use-steam-game-recap";
 import { useSteamSummary } from "./use-steam-summary";
 import { useSteamTags } from "./use-tags";
 import { useSteamWishlist } from "./use-wishlist";
@@ -89,6 +90,11 @@ const cases: Case[] = [
     name: "useSteamChronotype()",
     hook: () => useSteamChronotype(),
     url: "http://localhost:2010/steam/chronotype?count=500",
+  },
+  {
+    name: "useSteamGameRecap(367520)",
+    hook: () => useSteamGameRecap(367520),
+    url: "http://localhost:2010/steam/game/367520/recap",
   },
 ];
 
