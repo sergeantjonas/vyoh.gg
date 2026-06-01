@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
+import { mainScrollRef } from "@/lib/scroll-container";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
@@ -137,6 +138,51 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   );
   useAssetClaim(outerRef, claim);
 
+  // Polite one-shot nudge into the chapter pin. Once the chapter outer is
+  // 30% visible the user has committed to scrolling into it — smooth-scroll
+  // main so the chapter's top aligns with viewport top (pin start). Lands
+  // the user in a stable view where every band is on-screen, so per-band
+  // `whileInView` reveals trigger naturally. Same pattern as CSS scroll-
+  // snap, but driven by JS for finer control over the trigger threshold and
+  // a one-shot guarantee (scrolling back up doesn't re-yank).
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const el = outerRef.current;
+    if (!el) return;
+    const main = mainScrollRef.current;
+    let nudged = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.3 && !nudged) {
+            nudged = true;
+            // Compute the scroll position that aligns the chapter outer's
+            // top with the scroll container's top. main.scrollTo with smooth
+            // behavior respects user input — if the user actively scrolls
+            // mid-nudge, their input wins.
+            if (main) {
+              const target =
+                main.scrollTop +
+                el.getBoundingClientRect().top -
+                main.getBoundingClientRect().top;
+              main.scrollTo({ top: target, behavior: "smooth" });
+            } else {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      {
+        root: main ?? null,
+        threshold: 0.3,
+      }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const stats = useMemo(() => computeAhriStats(ahriMatches), [ahriMatches]);
   const winRate = ahriMatches.length > 0 ? stats.wins / ahriMatches.length : 0;
   const displayName = championName(CHAMPION_ALIAS);
@@ -162,19 +208,19 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         ariaLabel={eyebrow}
         pinClassName="items-center justify-start px-6 pt-[12dvh]"
       >
-        <ChapterReveal from={0} to={0.06} className={bandScrim}>
+        <ChapterReveal className={bandScrim}>
           <ChapterOpener>
-            <ChapterReveal from={0.04} to={0.14}>
+            <ChapterReveal delay={0.05}>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
                 {eyebrow}
               </p>
             </ChapterReveal>
-            <ChapterReveal from={0.1} to={0.22}>
+            <ChapterReveal delay={0.18}>
               <h2 className="text-5xl font-semibold leading-none text-foreground sm:text-6xl">
                 {displayName}
               </h2>
             </ChapterReveal>
-            <ChapterReveal from={0.18} to={0.3}>
+            <ChapterReveal delay={0.32}>
               <p className="text-base text-muted-foreground">
                 <CountUp to={ahriMatches.length} />{" "}
                 {ahriMatches.length === 1 ? "game" : "games"} tracked
@@ -184,15 +230,15 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           </ChapterOpener>
         </ChapterReveal>
 
-        <ChapterReveal from={0.25} to={0.32} className={bandScrim}>
+        <ChapterReveal className={bandScrim}>
           <ChapterDetail>
-            <ChapterReveal from={0.3} to={0.38}>
+            <ChapterReveal delay={0.05}>
               <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
                 Recent {displayName} games
               </h3>
             </ChapterReveal>
             {recent.length === 0 ? (
-              <ChapterReveal from={0.36} to={0.46}>
+              <ChapterReveal delay={0.15}>
                 <p className="text-sm text-muted-foreground">
                   No tracked {displayName} games yet.
                 </p>
@@ -200,14 +246,12 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             ) : (
               <ul className="flex flex-col gap-1">
                 {recent.map((m, i) => {
-                  // Rows stagger across 0.36 → 0.62 with a 0.04 lead between
-                  // each. Last row finishes by 0.62, before the stats band's
-                  // scrim starts at 0.55.
-                  const from = 0.36 + i * 0.04;
-                  const to = from + 0.08;
+                  // Each row staggers 80ms after the previous so the strip
+                  // cascades top-to-bottom as the detail band enters view.
+                  const delay = 0.15 + i * 0.08;
                   return (
                     <li key={m.matchId}>
-                      <ChapterReveal from={from} to={to}>
+                      <ChapterReveal delay={delay}>
                         <Link
                           to="/lol/$accountSlug/matches/$matchId"
                           params={{ accountSlug: account.slug, matchId: m.matchId }}
@@ -243,9 +287,9 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           </ChapterDetail>
         </ChapterReveal>
 
-        <ChapterReveal from={0.55} to={0.62} className={bandScrim}>
+        <ChapterReveal className={bandScrim}>
           <ChapterStats>
-            <ChapterReveal from={0.6} to={0.7}>
+            <ChapterReveal delay={0.05}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
@@ -255,7 +299,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
               </div>
             </ChapterReveal>
-            <ChapterReveal from={0.64} to={0.74}>
+            <ChapterReveal delay={0.15}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
@@ -265,7 +309,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
               </div>
             </ChapterReveal>
-            <ChapterReveal from={0.68} to={0.78}>
+            <ChapterReveal delay={0.25}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {stats.wins}-{stats.losses}
@@ -279,7 +323,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         </ChapterReveal>
 
         <ChapterCloser>
-          <ChapterReveal from={0.82} to={0.95}>
+          <ChapterReveal>
             <Link
               to="/lol/$accountSlug/champions/$championKey"
               params={{

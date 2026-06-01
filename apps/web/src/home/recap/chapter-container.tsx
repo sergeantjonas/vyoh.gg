@@ -1,7 +1,5 @@
 import { useReducedMotion } from "motion/react";
 import { type ReactNode, useRef } from "react";
-import { ChapterProgressContext } from "./chapter-context";
-import { useChapterRevealProgress } from "./use-chapter-reveal-progress";
 
 type Props = {
   /**
@@ -23,19 +21,19 @@ type Props = {
 const DEFAULT_PIN_VIEWPORTS = 2;
 
 /**
- * Sticky-pin wrapper for a recap chapter. The outer `<section>` is `pinViewports
- * × 100dvh` tall; its `position: sticky` child holds the viewport while the
- * chapter is in the pin window. Reveal progress is time-based: once the
- * chapter first intersects the viewport, a single MotionValue animates
- * 0 → 1 over a short window, published via `ChapterProgressContext` for band
- * primitives to consume. Scroll-coupled reveal turned out to make the chapter
- * feel "gated" — scrolling slowly would leave empty scrims visible while
- * content stayed hidden behind further scroll. Time-based commits the reveal
- * the moment the chapter enters view, regardless of subsequent scroll.
+ * Sticky-pin wrapper for a recap chapter. The outer `<section>` is
+ * `pinViewports × 100dvh` tall; its `position: sticky` child holds the
+ * viewport while the chapter is in the pin window. Pure layout primitive —
+ * reveal animations are owned by each band (via `ChapterReveal` /
+ * `whileInView`), not by the container. Earlier the container also
+ * published a chapter-scoped progress MotionValue, but a coordinated
+ * progress signal forced reveals to play even when the band's element was
+ * still off-screen. Per-band visibility-triggered reveals fix that by
+ * construction.
  *
- * Under reduced motion the pin collapses — outer height drops to `auto`, the
- * inner layer stops being sticky, and content stacks vertically with normal
- * page flow. Reveal progress jumps straight to 1.
+ * Under reduced motion the pin collapses — outer height drops to `auto`,
+ * the inner layer stops being sticky, and content stacks vertically with
+ * normal page flow.
  */
 export function ChapterContainer({
   pinViewports = DEFAULT_PIN_VIEWPORTS,
@@ -47,7 +45,6 @@ export function ChapterContainer({
 }: Props) {
   const ref = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
-  const progress = useChapterRevealProgress(ref);
 
   const outerStyle = reducedMotion
     ? undefined
@@ -60,19 +57,17 @@ export function ChapterContainer({
         .join(" ");
 
   return (
-    <ChapterProgressContext.Provider value={progress}>
-      <section
-        ref={ref}
-        data-chapter={slug}
-        data-pin={reducedMotion ? "off" : "on"}
-        aria-label={ariaLabel}
-        className={outerClass}
-        style={outerStyle}
-      >
-        <div data-chapter-pin className={pinClass}>
-          {children}
-        </div>
-      </section>
-    </ChapterProgressContext.Provider>
+    <section
+      ref={ref}
+      data-chapter={slug}
+      data-pin={reducedMotion ? "off" : "on"}
+      aria-label={ariaLabel}
+      className={outerClass}
+      style={outerStyle}
+    >
+      <div data-chapter-pin className={pinClass}>
+        {children}
+      </div>
+    </section>
   );
 }

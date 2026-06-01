@@ -1,5 +1,4 @@
 import { render } from "@testing-library/react";
-import { type MotionValue, useMotionValue } from "motion/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("motion/react", async () => {
@@ -11,24 +10,9 @@ vi.mock("motion/react", async () => {
 });
 
 import { useReducedMotion } from "motion/react";
-import { ChapterProgressContext } from "./chapter-context";
 import { ChapterReveal } from "./chapter-reveal";
 
 const useReducedMotionMock = vi.mocked(useReducedMotion);
-
-function ProgressHarness({
-  progress,
-  children,
-}: {
-  progress: MotionValue<number>;
-  children: React.ReactNode;
-}) {
-  return (
-    <ChapterProgressContext.Provider value={progress}>
-      {children}
-    </ChapterProgressContext.Provider>
-  );
-}
 
 beforeEach(() => {
   useReducedMotionMock.mockReturnValue(false);
@@ -39,90 +23,49 @@ afterEach(() => {
 });
 
 describe("ChapterReveal", () => {
-  it("hides content (opacity 0) before the reveal window starts", () => {
-    function Probe() {
-      const p = useMotionValue(0);
-      return (
-        <ProgressHarness progress={p}>
-          <ChapterReveal from={0.2} to={0.4}>
-            <span>hello</span>
-          </ChapterReveal>
-        </ProgressHarness>
-      );
-    }
-    const { container } = render(<Probe />);
-    const wrapper = container.querySelector("span")?.parentElement;
+  it("renders an m.div wrapper with initial hidden state before viewport entry", () => {
+    const { container } = render(
+      <ChapterReveal>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    expect(wrapper).toBeTruthy();
+    expect(wrapper?.tagName).toBe("DIV");
+    // Initial state: opacity 0, translateY at the rise offset. motion sets
+    // these inline via the `initial` prop.
     expect(wrapper?.style.opacity).toBe("0");
   });
 
-  it("shows content (opacity 1) when initial progress is past the reveal window", () => {
-    function Probe() {
-      const p = useMotionValue(0.5);
-      return (
-        <ProgressHarness progress={p}>
-          <ChapterReveal from={0.2} to={0.4}>
-            <span>hello</span>
-          </ChapterReveal>
-        </ProgressHarness>
-      );
-    }
-    const { container } = render(<Probe />);
-    const wrapper = container.querySelector("span")?.parentElement;
-    expect(wrapper?.style.opacity).toBe("1");
-  });
-
-  it("ramps opacity proportionally at the reveal window midpoint", () => {
-    function Probe() {
-      const p = useMotionValue(0.5);
-      return (
-        <ProgressHarness progress={p}>
-          <ChapterReveal from={0} to={1}>
-            <span>hello</span>
-          </ChapterReveal>
-        </ProgressHarness>
-      );
-    }
-    const { container } = render(<Probe />);
-    const wrapper = container.querySelector("span")?.parentElement;
-    expect(Number(wrapper?.style.opacity)).toBeCloseTo(0.5, 5);
-  });
-
-  it("renders the end-state plainly under reduced motion (no inline opacity/y)", () => {
+  it("renders the end-state plainly under reduced motion (no inline opacity, no motion wrapper)", () => {
     useReducedMotionMock.mockReturnValue(true);
-    function Probe() {
-      const p = useMotionValue(0);
-      return (
-        <ProgressHarness progress={p}>
-          <ChapterReveal from={0.2} to={0.4}>
-            <span data-testid="content">hello</span>
-          </ChapterReveal>
-        </ProgressHarness>
-      );
-    }
-    const { container } = render(<Probe />);
+    const { container } = render(
+      <ChapterReveal className="my-band">
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
     const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
-    // Under reduced motion the wrapper is a plain div without inline styles.
     expect(wrapper?.style.opacity).toBe("");
-    expect(wrapper?.tagName).toBe("DIV");
+    expect(wrapper?.className).toContain("my-band");
   });
 
-  it("falls back to end-state when used outside a ChapterContainer", () => {
+  it("forwards className to the motion wrapper", () => {
     const { container } = render(
-      <ChapterReveal from={0.2} to={0.4}>
-        <span>hello</span>
+      <ChapterReveal className="my-class">
+        <span data-testid="content">hello</span>
       </ChapterReveal>
     );
-    const wrapper = container.querySelector("span")?.parentElement;
-    expect(wrapper?.style.opacity).toBe("1");
-  });
-
-  it("applies className to the wrapper", () => {
-    const { container } = render(
-      <ChapterReveal from={0} to={1} className="my-class">
-        <span>hello</span>
-      </ChapterReveal>
-    );
-    const wrapper = container.querySelector("span")?.parentElement;
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
     expect(wrapper?.className).toContain("my-class");
+  });
+
+  it("accepts delay/duration/rise/amount props without runtime errors", () => {
+    expect(() =>
+      render(
+        <ChapterReveal delay={0.1} duration={1} rise={20} amount={0.5}>
+          <span>hello</span>
+        </ChapterReveal>
+      )
+    ).not.toThrow();
   });
 });

@@ -7,8 +7,14 @@ import type { MotionValue } from "motion/react";
 import { type RefObject, useMemo } from "react";
 
 type Args = {
-  /** Asset URL (champion splash, Steam library hero). */
-  image: string;
+  /**
+   * Asset URL (champion splash, Steam library hero). Optional so chapters
+   * can withhold the image until their reveal trigger fires, keeping the
+   * splash + content appearance synchronized. With no `image`, the claim
+   * still publishes palette + accent + intensity so the substrate tinting
+   * carries through the approach.
+   */
+  image?: string;
   /**
    * Palette that drives the atmosphere blend behind the asset. Source from
    * the asset's dominant color when available (R-2 / R-3); fall back to the
@@ -67,9 +73,9 @@ export function useAssetClaim(
   const claim = useMemo<AtmosphereClaim>(
     () => ({
       palette,
-      image,
       blurPx,
       intensity,
+      ...(image !== undefined ? { image } : {}),
       ...(bloomBlurPx !== undefined ? { bloomBlurPx } : {}),
       ...(accentHex !== undefined ? { accentHex } : {}),
     }),

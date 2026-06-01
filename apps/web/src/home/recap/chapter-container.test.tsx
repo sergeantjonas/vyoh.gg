@@ -1,8 +1,6 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mainScrollRef } from "@/lib/scroll-container";
-
 vi.mock("motion/react", async () => {
   const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
   return {
@@ -14,18 +12,16 @@ vi.mock("motion/react", async () => {
 import { useReducedMotion } from "motion/react";
 
 import { ChapterContainer } from "./chapter-container";
-import { ChapterProgressContext } from "./chapter-context";
 
 const useReducedMotionMock = vi.mocked(useReducedMotion);
 
 describe("ChapterContainer", () => {
   beforeEach(() => {
     useReducedMotionMock.mockReturnValue(false);
-    mainScrollRef.current = document.createElement("div");
   });
 
   afterEach(() => {
-    mainScrollRef.current = null;
+    useReducedMotionMock.mockReset();
   });
 
   it("renders its children inside the sticky pin wrapper", () => {
@@ -75,30 +71,5 @@ describe("ChapterContainer", () => {
     );
     const section = container.querySelector("section");
     expect(section?.getAttribute("aria-label")).toBe("Your Ahri");
-  });
-
-  it("publishes a MotionValue<number> on ChapterProgressContext", () => {
-    const slot: { mv: { get: () => number } | null } = { mv: null };
-    function Probe() {
-      return (
-        <ChapterProgressContext.Consumer>
-          {(value) => {
-            if (value) slot.mv = value as unknown as { get: () => number };
-            return null;
-          }}
-        </ChapterProgressContext.Consumer>
-      );
-    }
-    render(
-      <ChapterContainer>
-        <Probe />
-      </ChapterContainer>
-    );
-    expect(slot.mv).not.toBeNull();
-    if (!slot.mv) throw new Error("ChapterProgressContext did not provide a value");
-    // MotionValue exposes `.get()`; starting state is 0 (chapter not yet
-    // in pin window during tests where rects are zero-height).
-    expect(typeof slot.mv.get).toBe("function");
-    expect(slot.mv.get()).toBe(0);
   });
 });

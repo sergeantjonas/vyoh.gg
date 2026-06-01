@@ -6,10 +6,10 @@ import type { ReactNode } from "react";
 // without coupling to className internals.
 //
 // These are deliberately layout-only — no motion, no claim plumbing. The
-// pin-progress reveal happens inside each chapter's content (driven by
-// `useChapterProgressContext`); these primitives don't impose a specific
-// reveal shape so individual chapters (Ahri vs Steam game vs moment) can
-// choose what their opener / detail / stats / closer look like.
+// reveal is driven by `ChapterReveal` wrappers via motion's `whileInView`,
+// fired per-band as each band enters the viewport. Primitives don't impose
+// a specific reveal shape so individual chapters (Ahri vs Steam game vs
+// moment) can choose what their opener / detail / stats / closer look like.
 
 type Slot = "opener" | "detail" | "stats" | "closer";
 

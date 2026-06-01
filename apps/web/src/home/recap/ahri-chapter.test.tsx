@@ -35,11 +35,19 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/home/recap/use-asset-claim", () => ({
   useAssetClaim: vi.fn(),
 }));
-vi.mock("@/home/recap/use-chapter-reveal-progress", async () => {
-  const { useMotionValue } =
-    await vi.importActual<typeof import("motion/react")>("motion/react");
+// ChapterReveal in production uses motion's whileInView (IntersectionObserver),
+// which doesn't fire reliably in happy-dom. The mock renders children plainly
+// so band content is in the DOM and assertable.
+vi.mock("@/home/recap/chapter-reveal", async () => {
+  const React = await vi.importActual<typeof import("react")>("react");
   return {
-    useChapterRevealProgress: () => useMotionValue(0),
+    ChapterReveal: ({
+      children,
+      className,
+    }: {
+      children: React.ReactNode;
+      className?: string;
+    }) => React.createElement("div", { className }, children),
   };
 });
 vi.mock("@/home/recap/use-skin-rotation", async () => {
