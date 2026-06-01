@@ -113,7 +113,7 @@ const brusselsHourFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Brussels",
 });
 
-function currentBrusselsHour(): number {
+export function currentBrusselsHour(): number {
   const parts = brusselsHourFormatter.formatToParts(new Date());
   const hourPart = parts.find((p) => p.type === "hour");
   const parsed = Number(hourPart?.value ?? "0");

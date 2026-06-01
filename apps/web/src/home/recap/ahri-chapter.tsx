@@ -1,0 +1,202 @@
+import { CountUp } from "@/components/count-up";
+import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
+import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
+import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { useChampionName } from "@/lol/champions/use-champions";
+import { useMatches } from "@/lol/matches/use-matches";
+import { Link } from "@tanstack/react-router";
+import {
+  type LolAccount,
+  type MatchSummary,
+  excludeRemakes,
+  formatKda,
+} from "@vyoh/shared";
+import { useMemo, useRef } from "react";
+import {
+  ChapterCloser,
+  ChapterDetail,
+  ChapterOpener,
+  ChapterStats,
+} from "./chapter-bands";
+import { ChapterContainer } from "./chapter-container";
+import { useAssetClaim } from "./use-asset-claim";
+
+const CHAMPION_ALIAS = "Ahri";
+const RECENT_MATCHES_DISPLAY = 5;
+
+function kdaValue(m: MatchSummary): number {
+  if (m.deaths === 0) return m.kills + m.assists;
+  return (m.kills + m.assists) / m.deaths;
+}
+
+function formatRelative(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "just now";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+type AhriStats = { wins: number; losses: number; avgKda: number };
+
+function computeAhriStats(matches: readonly MatchSummary[]): AhriStats {
+  if (matches.length === 0) return { wins: 0, losses: 0, avgKda: 0 };
+  let wins = 0;
+  let totalKda = 0;
+  for (const m of matches) {
+    if (m.win) wins++;
+    totalKda += kdaValue(m);
+  }
+  return { wins, losses: matches.length - wins, avgKda: totalKda / matches.length };
+}
+
+/**
+ * First end-to-end recap chapter (R-2). Renders the Ahri subject inside a
+ * single sticky-pin window with four bands: opener, recent-detail strip,
+ * aggregate stats, and a closer link into the deep route.
+ *
+ * The chapter publishes its splash via `useAssetClaim` so the shared
+ * atmosphere layer paints it full-bleed with directional masking and the
+ * substrate tinting follows. Skin rotation across the pin window lands in
+ * R-2c; until then `AHRI_SKIN_ROTATION` stays single-entry and the chapter
+ * rests on the base splash for the full window.
+ */
+export function AhriChapter({ account }: { account: LolAccount }) {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const championName = useChampionName();
+  const patch = useDDragonVersion();
+  const query = useMatches(account);
+
+  const ahriMatches = useMemo(() => {
+    if (!query.data) return [] as readonly MatchSummary[];
+    const flat = query.data.pages.flat();
+    return excludeRemakes(flat).filter((m) => m.champion === CHAMPION_ALIAS);
+  }, [query.data]);
+
+  // The R-2c rotation hook will pick this off the array — for now we always
+  // rest on the first entry (Base). The chapter copy reveals the active skin
+  // name only when a non-Base entry is in play, so the placeholder reads
+  // cleanly until the rotation pipeline lands.
+  const activeSkin = AHRI_SKIN_ROTATION[0] ?? { name: "Base" };
+  const splashUrl = championBackdropSplashUrl(CHAMPION_ALIAS, patch);
+
+  const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
+  const claim = useMemo(() => ({ image: splashUrl, palette }), [splashUrl, palette]);
+  useAssetClaim(outerRef, claim);
+
+  const stats = useMemo(() => computeAhriStats(ahriMatches), [ahriMatches]);
+  const winRate = ahriMatches.length > 0 ? stats.wins / ahriMatches.length : 0;
+  const displayName = championName(CHAMPION_ALIAS);
+  const recent = ahriMatches.slice(0, RECENT_MATCHES_DISPLAY);
+  const eyebrow = `Your ${displayName}`;
+  const skinSubtitle = activeSkin.name === "Base" ? null : activeSkin.name;
+
+  return (
+    <div ref={outerRef} data-recap-chapter="ahri">
+      <ChapterContainer pinViewports={2} slug="ahri" ariaLabel={eyebrow}>
+        <ChapterOpener>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
+            {eyebrow}
+          </p>
+          <h2 className="text-5xl font-semibold leading-none text-foreground sm:text-6xl">
+            {displayName}
+          </h2>
+          <p className="text-base text-muted-foreground">
+            <CountUp to={ahriMatches.length} />{" "}
+            {ahriMatches.length === 1 ? "game" : "games"} tracked
+            {skinSubtitle ? ` · ${skinSubtitle}` : ""}
+          </p>
+        </ChapterOpener>
+
+        <ChapterDetail>
+          <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
+            Recent {displayName} games
+          </h3>
+          {recent.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No tracked {displayName} games yet.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {recent.map((m) => (
+                <li key={m.matchId}>
+                  <Link
+                    to="/lol/$accountSlug/matches/$matchId"
+                    params={{ accountSlug: account.slug, matchId: m.matchId }}
+                    className="flex items-center gap-3 rounded-md py-1 text-sm text-foreground/90 hover:text-foreground"
+                  >
+                    <ChampionSquareIcon
+                      championName={m.champion}
+                      alt={displayName}
+                      className="size-8 shrink-0 rounded ring-1 ring-border/50"
+                    />
+                    <span
+                      className={
+                        m.win
+                          ? "font-semibold text-emerald-300"
+                          : "font-semibold text-rose-300"
+                      }
+                    >
+                      {m.win ? "W" : "L"}
+                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {m.kills}/{m.deaths}/{m.assists}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {formatRelative(m.playedAt)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ChapterDetail>
+
+        <ChapterStats>
+          <div className="flex flex-col gap-1">
+            <span className="text-3xl font-semibold tabular-nums text-foreground">
+              {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
+            </span>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              Win rate
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-3xl font-semibold tabular-nums text-foreground">
+              {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
+            </span>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              Avg KDA
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-3xl font-semibold tabular-nums text-foreground">
+              {stats.wins}-{stats.losses}
+            </span>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              Record
+            </span>
+          </div>
+        </ChapterStats>
+
+        <ChapterCloser>
+          <Link
+            to="/lol/$accountSlug/champions/$championKey"
+            params={{
+              accountSlug: account.slug,
+              championKey: CHAMPION_ALIAS.toLowerCase(),
+            }}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-card/60"
+          >
+            View {displayName} deep stats →
+          </Link>
+        </ChapterCloser>
+      </ChapterContainer>
+    </div>
+  );
+}
