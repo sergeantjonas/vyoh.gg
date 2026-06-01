@@ -192,31 +192,41 @@ describe("AhriChapter", () => {
       }),
       matchFixture({ matchId: "EUW_4", champion: "Ahri", win: false, remake: true }),
     ]);
-    render(<AhriChapter account={account} />);
-    // 2 Ahri matches countable, 1W/1L → 50%
-    expect(screen.getByText("50%")).toBeTruthy();
-    expect(screen.getByText("1-1")).toBeTruthy();
-    // Lede metric: "2 games tracked"
-    expect(screen.getByText(/games tracked/)).toBeTruthy();
+    const { container } = render(<AhriChapter account={account} />);
+    // 2 Ahri matches countable, 1W/1L. Win-rate chip in the stats band
+    // displays 50%; the verdict prose also includes the value, so target
+    // the stats band specifically.
+    const stats = container.querySelector("[data-band='stats']");
+    expect(stats?.textContent).toContain("50%");
+    // Recent strip shows both Ahri rows (remake excluded).
+    const rows = container.querySelectorAll("[data-band='detail'] li");
+    expect(rows.length).toBe(2);
   });
 
-  it("renders an em-dash for win-rate and KDA when no Ahri matches exist", () => {
+  it("renders em-dash placeholders in every stat chip when no Ahri matches exist", () => {
     setMatches([
       matchFixture({ matchId: "EUW_1", champion: "Yasuo" }),
       matchFixture({ matchId: "EUW_2", champion: "Garen" }),
     ]);
-    render(<AhriChapter account={account} />);
-    const detail = screen.getByText("No tracked Ahri games yet.");
-    expect(detail).toBeTruthy();
-    // Win-rate cell and KDA cell both show em-dash. The record cell shows 0-0.
-    const dashes = screen.getAllByText("—");
-    expect(dashes.length).toBe(2);
-    expect(screen.getByText("0-0")).toBeTruthy();
+    const { container } = render(<AhriChapter account={account} />);
+    // Each of the three peak chips holds an em-dash zero-state.
+    const stats = container.querySelector("[data-band='stats']");
+    const dashes = stats?.querySelectorAll(":scope *");
+    const dashText = Array.from(dashes ?? []).filter(
+      (el) => el.textContent?.trim() === "—"
+    );
+    expect(dashText.length).toBe(3);
+    // Verdict prose carries the empty-state copy.
+    expect(container.textContent).toContain("No tracked Ahri games yet.");
   });
 
-  it("renders up to 5 recent Ahri matches in the detail strip", () => {
+  it("renders up to 5 recent Ahri matches in the detail strip, newest first", () => {
     const matches = Array.from({ length: 8 }, (_, i) =>
-      matchFixture({ matchId: `EUW_${i}`, champion: "Ahri" })
+      matchFixture({
+        matchId: `EUW_${i}`,
+        champion: "Ahri",
+        playedAt: new Date(2026, 4, 20 + i, 20, 0, 0).toISOString(),
+      })
     );
     setMatches(matches);
     const { container } = render(<AhriChapter account={account} />);
@@ -224,12 +234,61 @@ describe("AhriChapter", () => {
     expect(rows.length).toBe(5);
   });
 
-  it("uses the chapter's display name from useChampionName", () => {
+  it("renders the eyebrow as '{gameName}'s {displayName}' (subject-led voice)", () => {
     vi.mocked(useChampionName).mockReturnValue(() => "Ahri");
     setMatches([matchFixture({ matchId: "EUW_1" })]);
     render(<AhriChapter account={account} />);
-    expect(screen.getByText("Your Ahri")).toBeTruthy();
+    expect(screen.getByText("Vyoh's Ahri")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Ahri" })).toBeTruthy();
+  });
+
+  it("renders the signature-game card linking into the corresponding match detail", () => {
+    setMatches([
+      matchFixture({
+        matchId: "EUW_BEST",
+        champion: "Ahri",
+        kills: 17,
+        deaths: 2,
+        assists: 9,
+        win: true,
+        laneOpponent: {
+          puuid: "p",
+          championName: "Sylas",
+          gameName: "x",
+          tagLine: "y",
+        },
+      }),
+    ]);
+    const { container } = render(<AhriChapter account={account} />);
+    const detail = container.querySelector("[data-band='detail']");
+    expect(detail?.textContent).toContain("Signature game");
+    expect(detail?.textContent).toContain("17 / 2 / 9");
+    expect(detail?.textContent).toContain("Sylas");
+    // First detail-band link is the signature card → match detail route.
+    // The mock Link forwards `to` verbatim as an attribute; `params` is an
+    // object that stringifies to "[object Object]" which is the right
+    // signal that it was forwarded too.
+    const sigLink = detail?.querySelector("a");
+    expect(sigLink?.getAttribute("to")).toBe("/lol/$accountSlug/matches/$matchId");
+  });
+
+  it("renders the skin label as an ambient corner badge when a non-Base skin is active", () => {
+    // The default rotation mock is single-entry "Base" — flip it for this
+    // test only via the array-swap pattern used elsewhere in the file.
+    const rotation: { name: string; imageUrl?: string }[] = [{ name: "K/DA" }];
+    (AHRI_SKIN_ROTATION as unknown as { name: string; imageUrl?: string }[]).splice(
+      0,
+      AHRI_SKIN_ROTATION.length,
+      ...rotation
+    );
+    setMatches([matchFixture({ matchId: "EUW_1" })]);
+    const { container } = render(<AhriChapter account={account} />);
+    expect(container.textContent).toContain("K/DA");
+    (AHRI_SKIN_ROTATION as unknown as { name: string; imageUrl?: string }[]).splice(
+      0,
+      AHRI_SKIN_ROTATION.length,
+      { name: "Base" }
+    );
   });
 
   it("closer links to the champion deep route for the account slug", () => {
