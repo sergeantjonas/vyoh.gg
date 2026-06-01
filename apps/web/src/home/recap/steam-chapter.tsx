@@ -364,7 +364,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
         pinViewports={1}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        pinClassName="items-start justify-start px-6 pt-[3dvh] sm:px-10"
+        pinClassName="items-start justify-start px-6 pt-[1dvh] sm:px-10"
       >
         <div className="flex w-full flex-col">
           <ChapterOpener>
