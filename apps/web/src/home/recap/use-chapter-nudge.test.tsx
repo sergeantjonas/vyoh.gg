@@ -85,8 +85,7 @@ describe("useChapterNudge", () => {
     const { result } = renderHookWithRef();
     const io = observers[0];
     if (!io) throw new Error("IO not created");
-    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.2 }));
-    // No timer scheduled, no nudge flip.
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.3 }));
     act(() => {
       vi.advanceTimersByTime(1000);
     });
@@ -97,14 +96,12 @@ describe("useChapterNudge", () => {
     const { result } = renderHookWithRef();
     const io = observers[0];
     if (!io) throw new Error("IO not created");
-    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.5 }));
-    // Pre-settle: still false.
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.6 }));
     expect(result.current.nudged).toBe(false);
     act(() => {
       vi.advanceTimersByTime(499);
     });
     expect(result.current.nudged).toBe(false);
-    // After the settle window: nudge fires.
     act(() => {
       vi.advanceTimersByTime(1);
     });
@@ -115,15 +112,15 @@ describe("useChapterNudge", () => {
     renderHookWithRef();
     const io = observers[0];
     if (!io) throw new Error("IO not created");
-    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.5 }));
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.6 }));
     expect(io.disconnect).toHaveBeenCalled();
   });
 
   it("respects a caller-supplied triggerRatio override", () => {
-    const { result } = renderHookWithRef(0.1);
+    const { result } = renderHookWithRef(0.2);
     const io = observers[0];
     if (!io) throw new Error("IO not created");
-    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.15 }));
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.25 }));
     act(() => {
       vi.advanceTimersByTime(500);
     });

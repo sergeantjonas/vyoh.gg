@@ -3,22 +3,20 @@ import { type RefObject, useEffect, useState } from "react";
 import { mainScrollRef } from "@/lib/scroll-container";
 
 /**
- * Threshold (0–1) at which the chapter is considered "committed-to" by the
- * user — only then does the nudge fire. Earlier (0.08) was too eager: at
- * normal scroll velocity the user was past the trigger zone by the time
- * the smooth-scroll started, so the yank read as hostile to scroll input
- * instead of a polite landing. 0.35 fires when the chapter is meaningfully
- * onscreen but before its content's read; the smooth-scroll then completes
- * cleanly in the direction the user was already going (rather than
- * backward against their momentum).
+ * Threshold (0–1) at which the chapter snaps. Picked so the snap fires
+ * once the user has decisively landed *inside* the chapter (anywhere
+ * between top and bottom counts as "landed") — at which point the design
+ * intent is to flip the user to the chapter top regardless of where they
+ * arrived: book-page feel, every chapter a deliberate landing surface.
  *
- * Side benefit for adjacent chapters: with pinViewports=1 the previous
- * chapter unpins the moment its bottom hits viewport bottom, so a tight
- * threshold on the next chapter would fire while the previous is still
- * visible. 0.35 ensures the previous chapter is decisively out of view
- * before the next one yanks.
+ * 0.08 was too eager (fired mid-scroll, fought wheel velocity). 0.35
+ * was too late (user often missed the entire snap zone at speed, and
+ * when it did fire the backward yank from deep inside was disorienting).
+ * 0.5 fires when the chapter occupies half the viewport — the user is
+ * committedly looking at it, and the snap to align top reads as a
+ * page-turn into the cascade rather than a hostile yank.
  */
-const DEFAULT_TRIGGER_RATIO = 0.35;
+const DEFAULT_TRIGGER_RATIO = 0.5;
 
 /**
  * Milliseconds to wait after the smooth-scroll fires before flipping
@@ -33,13 +31,23 @@ type Options = {
 
 /**
  * Polite one-shot nudge into a chapter pin. Watches the referenced element
- * via IntersectionObserver and, when it crosses `triggerRatio` of visible
- * area, smooth-scrolls the chapter top into alignment with the viewport
- * top and then flips `nudged` after the settle window so the chapter's
- * reveal cascade starts from a stable view.
+ * via IntersectionObserver and, when its visible area crosses
+ * `triggerRatio`, smooth-scrolls the chapter top into alignment with the
+ * viewport top and then flips `nudged` after the settle window so the
+ * chapter's reveal cascade starts from a stable view.
+ *
+ * The snap always fires once the threshold is crossed — direction agnostic.
+ * Approach from above (chapter mostly below viewport) → scroll forward to
+ * land at top. Overshoot or scrolled-past (chapter top already above
+ * viewport top) → scroll backward to align. The book-page UX intent is
+ * that every chapter is a deliberate viewing surface; anywhere the user
+ * lands gets pulled to the canonical top so the cascade reads from beat
+ * one rather than mid-stream.
  *
  * One-shot: scrolling back up doesn't re-fire. Smooth-scroll respects the
- * user's active wheel/touch input mid-nudge (their scroll wins).
+ * user's active wheel/touch input mid-nudge — if they fight it, their
+ * scroll wins and `nudged` still flips on the settle so the cascade
+ * plays at whatever position they ended up at (no trap).
  *
  * Returns the `nudged` boolean; chapter bands gate their `ChapterReveal`
  * `active` prop on it.
