@@ -1,30 +1,35 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// `vi.mock` is hoisted — the factory must be self-contained (no
+// references to test-file top-level vars). Build the fake main here and
+// re-import it below via `mainScrollRef.current` so tests can mutate
+// scrollTop / read scrollTo calls.
+vi.mock("@/lib/scroll-container", () => ({
+  mainScrollRef: {
+    current: {
+      scrollTop: 0,
+      clientHeight: 800,
+      scrollTo: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      getBoundingClientRect: () => ({ top: 0, bottom: 800 }) as DOMRect,
+    },
+  },
+}));
+
+import { mainScrollRef } from "@/lib/scroll-container";
+
 import { NextChapterCaret } from "./next-chapter-caret";
 
-// Stub the scroll container. Each test rebuilds the chapter elements +
-// scroll geometry inside the stub before mounting the component, so the
-// IO/scroll-listener path inside the component sees a consistent root.
-const fakeMain: {
+const fakeMain = mainScrollRef.current as unknown as {
   scrollTop: number;
   clientHeight: number;
   scrollTo: ReturnType<typeof vi.fn>;
   addEventListener: ReturnType<typeof vi.fn>;
   removeEventListener: ReturnType<typeof vi.fn>;
   getBoundingClientRect: () => DOMRect;
-} = {
-  scrollTop: 0,
-  clientHeight: 800,
-  scrollTo: vi.fn(),
-  addEventListener: vi.fn(),
-  removeEventListener: vi.fn(),
-  getBoundingClientRect: () => ({ top: 0, bottom: 800 }) as DOMRect,
 };
-
-vi.mock("@/lib/scroll-container", () => ({
-  mainScrollRef: { current: fakeMain },
-}));
 
 // Synthesize chapter outer-divs with known geometry. `top` is the
 // boundingClientRect.top value (viewport-relative).

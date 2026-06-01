@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { mainScrollRef } from "@/lib/scroll-container";
 
+import { SHADOW_LABEL } from "./chapter-shadows";
+
 /**
  * Floating "advance to next chapter" affordance. Renders at viewport bottom
  * whenever the current scroll position has at least one
@@ -10,26 +12,33 @@ import { mainScrollRef } from "@/lib/scroll-container";
  *
  * Replaces the hero-only `HeroScrollHint`. The chapter primitive doesn't
  * own the caret — chapter components only need their existing
- * `data-recap-chapter` + new `data-chapter-label` attributes for the
- * caret to discover them. Decoupling navigation from chapter content
- * means moment chapters / future surfaces opt in for free.
+ * `data-recap-chapter` + `data-chapter-label` attributes for the caret to
+ * discover them.
  *
- * Discovery is DOM-based rather than via a React context registry — the
- * scroll listener runs hot, but `querySelectorAll` on a handful of
- * `[data-recap-chapter]` elements is cheap, and we avoid threading a
- * registry through every chapter mount.
+ * Discovery is DOM-based, not via a React context registry. Re-runs on:
+ *  - mount (initial)
+ *  - scroll (user moves through the page)
+ *  - resize (viewport changes affect target positions)
+ *  - DOM mutation (chapters mount asynchronously after their query hooks
+ *    resolve — e.g. AhriChapter waits on usePrimaryAccount, SteamChapter's
+ *    data-chapter-label updates from fallback to game name once
+ *    useSteamGameRecap resolves)
+ *
+ * The mutation path is what makes the caret correct at hero scrollTop=0
+ * when chapters lazy-mount: without it, the initial compute runs against
+ * an empty DOM and the caret either stays hidden or latches onto whatever
+ * chapter happened to mount first.
  */
 
 // Skip-to-next dead-zone in pixels. When the user is sitting near the top
 // of a chapter (just landed via nudge), the "next chapter" should be the
-// FOLLOWING one, not the current one. Pixel-distance guard rather than
-// percentage so it works the same across viewport sizes.
+// FOLLOWING one, not the current one.
 const SKIP_PAST_PX = 80;
 
 // Bob keyframes — mirrors HeroScrollHint's gentle downward drift so the
 // caret reads as ambient/breathing rather than alarming. No `as const`
 // because Motion's keyframe types reject readonly arrays.
-const BOB_KEYFRAMES = { y: [0, 6, 0] };
+const BOB_KEYFRAMES = { y: [0, 4, 0] };
 const BOB_TRANSITION = {
   duration: 2.2,
   repeat: Number.POSITIVE_INFINITY,
@@ -46,14 +55,11 @@ export function NextChapterCaret() {
   const reducedMotion = useReducedMotion();
   const [next, setNext] = useState<NextChapter | null>(null);
 
-  // Compute the next chapter from current scroll position. Runs on mount,
-  // on every scroll tick, and on resize. Cheap enough for hot-loop usage
-  // (handful of DOM elements, a few rect reads).
   useEffect(() => {
-    const main = mainScrollRef.current;
     if (typeof window === "undefined") return;
 
     function compute() {
+      const main = mainScrollRef.current;
       const chapters = Array.from(
         document.querySelectorAll<HTMLElement>("[data-recap-chapter]")
       );
@@ -61,14 +67,8 @@ export function NextChapterCaret() {
         setNext(null);
         return;
       }
-      const root = main;
-      const rootTop = root?.getBoundingClientRect().top ?? 0;
-      const rootScroll = root?.scrollTop ?? window.scrollY;
-      // Find the first chapter whose top is past the current scroll
-      // position by more than SKIP_PAST_PX. The dead-zone keeps the caret
-      // pointing FORWARD after a landing nudge — without it, sitting at
-      // the top of a chapter would have the caret point at the same
-      // chapter we're already on.
+      const rootTop = main?.getBoundingClientRect().top ?? 0;
+      const rootScroll = main?.scrollTop ?? window.scrollY;
       let candidate: NextChapter | null = null;
       for (const el of chapters) {
         const elTop = rootScroll + el.getBoundingClientRect().top - rootTop;
@@ -80,16 +80,47 @@ export function NextChapterCaret() {
           break;
         }
       }
-      setNext(candidate);
+      // Avoid pointless React renders when nothing changed — caret is
+      // re-computed on every scroll tick.
+      setNext((prev) => {
+        if (prev === null && candidate === null) return prev;
+        if (
+          prev !== null &&
+          candidate !== null &&
+          prev.top === candidate.top &&
+          prev.label === candidate.label
+        ) {
+          return prev;
+        }
+        return candidate;
+      });
     }
 
     compute();
-    const scrollTarget = main ?? window;
+    const scrollTarget = mainScrollRef.current ?? window;
     scrollTarget.addEventListener("scroll", compute, { passive: true });
     window.addEventListener("resize", compute, { passive: true });
+    // MutationObserver catches the two async-mount cases that initial
+    // compute + scroll/resize miss:
+    //   1. AhriChapter mounts after usePrimaryAccount resolves (chapter
+    //      appears in DOM after caret's first compute).
+    //   2. SteamChapter's data-chapter-label flips from fallback ("Steam
+    //      game 2050650") to the actual game name once useSteamGameRecap
+    //      resolves.
+    // Subtree + attribute filter is cheap — the document body's mutations
+    // outside the chapter region don't affect what we compute, and the
+    // observer only fires on the small set of mutations we care about.
+    const observer = new MutationObserver(compute);
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-chapter-label", "data-recap-chapter"],
+    });
     return () => {
       scrollTarget.removeEventListener("scroll", compute);
       window.removeEventListener("resize", compute);
+      observer.disconnect();
     };
   }, []);
 
@@ -110,35 +141,37 @@ export function NextChapterCaret() {
       onClick={handleClick}
       aria-label={`Scroll to ${next.label}`}
       data-slot="next-chapter-caret"
-      // Fixed (not absolute) so the caret rides the viewport across every
-      // chapter, not just the hero. bottom-4 keeps it below the typical
-      // chapter CTA position without overlapping. Backdrop scrim gives the
-      // chip enough contrast against any splash crop.
-      className="fixed inset-x-0 bottom-4 mx-auto z-40 flex w-fit cursor-pointer flex-col items-center gap-1 rounded-full bg-black/40 px-4 py-2 text-foreground/70 backdrop-blur-sm transition-colors hover:bg-black/55 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      // Bare typography on a fixed-bottom anchor — no pill, no backdrop.
+      // The text-shadow tier handles legibility against any backdrop the
+      // user happens to be over (bright splash, ambient hero, atmospheric
+      // bg). Matches the chapter editorial register; a pill background
+      // read as a UI module dropped on top of the magazine spread.
+      className="-translate-x-1/2 fixed bottom-5 left-1/2 z-40 flex cursor-pointer flex-col items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
     >
+      <span
+        className="text-[10px] font-medium uppercase tracking-[0.22em]"
+        style={{ textShadow: SHADOW_LABEL }}
+      >
+        {next.label}
+      </span>
       <m.svg
         viewBox="0 0 24 24"
         className="size-5"
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.75}
+        strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         role="presentation"
         focusable={false}
+        style={{
+          filter:
+            "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.55))",
+        }}
         {...(reducedMotion ? {} : { animate: BOB_KEYFRAMES, transition: BOB_TRANSITION })}
       >
         <path d="M6 9l6 6 6-6" />
       </m.svg>
-      <span
-        className="text-[10px] font-medium uppercase tracking-[0.2em]"
-        style={{
-          textShadow:
-            "0 1px 0 rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.55)",
-        }}
-      >
-        {next.label}
-      </span>
     </m.button>
   );
 }
