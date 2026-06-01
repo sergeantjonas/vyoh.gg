@@ -154,6 +154,26 @@ Implemented as:
 - `champion-card.tsx` inner splash div uses `.card-splash-breathe` class (replaced `group-hover:scale-105` CSS transition)
 - `@media (prefers-reduced-motion: reduce)` suppresses animation
 
+### Orb mark throw trails (explored, parked 2026-06-01)
+
+Status: explored and parked. Two implementations attempted, neither landed; the throw + arrival bloom alone is the shipped state.
+
+Goal: during the [`OrbMark`](../../../apps/web/src/home/orb-mark.tsx) entrance throw, paint a fading wake along the curve to evoke Ahri's Q (orb leaving and returning). The leader's `orb-entrance` keyframe traces a curved off-screen throw; trail elements run the same keyframe at positive `animation-delay` so each lags along the actual path.
+
+Attempt 1 — **orb-shaped `<img>` ghost copies** (4 ghosts, delays 0.05/0.10/0.15/0.20s, opacities 0.55/0.40/0.25/0.12, identical SVG, opacity fades to 0 at 100%). Verdict: visually noisy. The orb SVG has internal detail (multiple swirls, layered colours), and stacking four partially-transparent copies multiplies that detail rather than reading as motion blur.
+
+Attempt 2 — **abstract blurred glow blobs** (2 `<div>`s, radial-gradient pink → cyan → transparent, `filter: blur(14px)`, `mix-blend-mode: screen`, 50% size centered, opacities 0.65/0.32, delays 0.08/0.18s). Visually softer than attempt 1 but still didn't convince — the static-blob-following-a-path metaphor doesn't translate well from particle-system Q tails to a single-element wake.
+
+Reusable plumbing if revisited:
+- Trail keyframes follow the leader's curve naturally — same `transform:` values at each keystop. The Firefox engine-gate (shorter throw at scale 0.12) needs a parallel `*-firefox` keyframe.
+- `fill-mode: both` + `opacity: 0` final keyframe lets trails settle invisible — no unmount logic needed.
+- Trail elements must live OUTSIDE the entrance wrapper (siblings of it). Nested inside, the wrapper's translate multiplies with the trail's own translate and the trail ends up at 2× off-screen.
+
+Future paths to consider before another attempt:
+- Curved trail rendered as an SVG `<path>` that's stroke-dasharray animated — geometrically follows the curve as a continuous line, not discrete points along it. The path would need to mirror the keyframe waypoints.
+- Canvas-based particle trail emitting from the orb position. Heavier, but lets each particle have its own life cycle / drift independent of the orb's motion.
+- Drop the trail concept entirely — current shipped state (entrance + arrival bloom) is a clean visual moment that doesn't need wake.
+
 ### Logo ambient micro-animation
 
 Status: base theme-following shipped 2026-05-28 ([`607e708`](../../../) — `vyoh` wordmark + orb halo + orb body all follow `var(--theme-color)`); ambient micro-motion layer remains planned
