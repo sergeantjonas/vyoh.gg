@@ -397,15 +397,23 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
                 {skinLabel ? (
                   <>
+                    {/* Skin label hides below sm:. The auto-cycling
+                        rotation through long-named skins ("After Hours
+                        Spirit Blossom Springs") wraps the eyebrow row to
+                        a second line on narrow viewports, which shifts
+                        every subsequent band down each time the rotation
+                        ticks. On sm+ the row fits without wrapping; on
+                        smaller viewports the rotation still drives the
+                        backdrop, just without the label kicker. */}
                     <span
                       aria-hidden="true"
-                      className="text-foreground/40"
+                      className="hidden text-foreground/40 sm:inline"
                       style={{ textShadow: SHADOW_LABEL }}
                     >
                       ·
                     </span>
                     <span
-                      className="text-foreground/75"
+                      className="hidden text-foreground/75 sm:inline"
                       style={{ textShadow: SHADOW_LABEL }}
                     >
                       {skinLabel}
