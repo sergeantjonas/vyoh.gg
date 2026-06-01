@@ -53,4 +53,59 @@ describe("VerdictProse", () => {
     const { container } = render(<VerdictProse clauses={[]} className="my-verdict" />);
     expect(container.querySelector("p")?.className).toContain("my-verdict");
   });
+
+  // The CountUp primitive bypasses the motion pipeline in test mode and
+  // renders its final value immediately, so these assertions check the
+  // structural wiring (the value the consumer would see post-animation)
+  // rather than the per-frame tween.
+  it("animates integer number segments via CountUp using the raw value", () => {
+    const clauses: VerdictClause[] = [
+      [
+        { kind: "number", value: "76", raw: 76 },
+        { kind: "text", value: " games." },
+      ],
+    ];
+    const { container } = render(<VerdictProse clauses={clauses} />);
+    expect(container.textContent).toBe("76 games.");
+  });
+
+  it("preserves the percent suffix when animating a percentage segment", () => {
+    const clauses: VerdictClause[] = [
+      [
+        { kind: "number", value: "55%", raw: 55 },
+        { kind: "text", value: " win rate." },
+      ],
+    ];
+    const { container } = render(<VerdictProse clauses={clauses} />);
+    // The CountUp renders the digit; the suffix is rendered as a sibling
+    // so the integer can tween while the "%" stays static throughout.
+    expect(container.textContent).toBe("55% win rate.");
+  });
+
+  it("preserves decimal precision on a fractional number segment", () => {
+    const clauses: VerdictClause[] = [
+      [
+        { kind: "number", value: "3.22", raw: 3.22 },
+        { kind: "text", value: " avg KDA." },
+      ],
+    ];
+    const { container } = render(<VerdictProse clauses={clauses} />);
+    expect(container.textContent).toBe("3.22 avg KDA.");
+  });
+
+  it("falls back to a static render for compound number values like KDA scores", () => {
+    // The signature-game receipt emits `{ kind: "number", value: "24/7/14",
+    // raw: 24 }` — `raw` is just the kill count, so animating would silently
+    // collapse the segment to "24". The simple-number pattern below the
+    // VerdictProse switch detects the slash and renders the value verbatim.
+    const clauses: VerdictClause[] = [
+      [
+        { kind: "text", value: "Best night: " },
+        { kind: "number", value: "24/7/14", raw: 24 },
+        { kind: "text", value: "." },
+      ],
+    ];
+    const { container } = render(<VerdictProse clauses={clauses} />);
+    expect(container.textContent).toBe("Best night: 24/7/14.");
+  });
 });

@@ -492,6 +492,13 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                   WebkitTextStroke: STROKE_ACCENT,
                   textShadow: SHADOW_ACCENT,
                 }}
+                // Gate the count-up on the same chapter nudge that drives
+                // the band reveals. Delay = verdict-prose ChapterReveal
+                // delay (0.55s) + its duration (0.6s) + 0.1s settle so
+                // the numbers begin counting just after the prose has
+                // faded into place — not while it's still arriving.
+                numbersActive={nudged}
+                numbersDelay={1.25}
               />
             </ChapterReveal>
           </ChapterOpener>

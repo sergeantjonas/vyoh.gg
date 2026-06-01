@@ -2,6 +2,17 @@ import type { CSSProperties } from "react";
 
 import type { VerdictClause } from "@vyoh/shared";
 
+import { CountUp } from "@/components/count-up";
+
+/**
+ * Matches verdict-paragraph number values that are safe to animate as a
+ * single count-up — integer or decimal, with an optional percent suffix.
+ * Compound shapes like the signature-game KDA score ("24/7/14") fall
+ * through to a static render because counting "24" alone would change the
+ * surface meaning of the segment.
+ */
+const SIMPLE_NUMBER_PATTERN = /^(\d+(?:\.(\d+))?)(%?)$/;
+
 type Props = {
   clauses: VerdictClause[];
   className?: string;
@@ -18,6 +29,23 @@ type Props = {
    * stroke combo here that overrides the inherited shadow.
    */
   emphasisStyle?: CSSProperties;
+  /**
+   * Gates the count-up animation on `number` segments. Defaults to `true`
+   * so direct test/storybook renders behave statically. Subject chapters
+   * thread their `nudged` state here so numbers only count up once the
+   * chapter is actually pinned into view — otherwise the animation runs
+   * before the user can see it and the result reads as a static value.
+   */
+  numbersActive?: boolean;
+  /**
+   * Seconds to delay the count-up animation after `numbersActive` flips
+   * to `true`. Use to let the prose's own fade-in finish before the
+   * numbers start counting — otherwise the count-up and the entrance
+   * compete for attention. Typical value: the surrounding ChapterReveal
+   * delay + its duration + a small settle (~1.1–1.3s for the standard
+   * verdict-tier reveal).
+   */
+  numbersDelay?: number;
 };
 
 /**
@@ -41,7 +69,14 @@ type Props = {
  * Clauses join with a space — the JSX layer can split per-clause if a
  * chapter wants to cascade reveals at clause granularity later.
  */
-export function VerdictProse({ clauses, className, style, emphasisStyle }: Props) {
+export function VerdictProse({
+  clauses,
+  className,
+  style,
+  emphasisStyle,
+  numbersActive = true,
+  numbersDelay = 0,
+}: Props) {
   return (
     <p
       className={[
@@ -75,7 +110,31 @@ export function VerdictProse({ clauses, className, style, emphasisStyle }: Props
                     {seg.value}
                   </span>
                 );
-              case "number":
+              case "number": {
+                // Animate when the value is a simple number (integer /
+                // decimal / percentage). Compound shapes ("24/7/14")
+                // fall through to a static render — animating just the
+                // leading "24" would silently change what the segment
+                // displays.
+                const match = SIMPLE_NUMBER_PATTERN.exec(seg.value);
+                if (match) {
+                  const decimalDigits = match[2] ?? "";
+                  const suffix = match[3] ?? "";
+                  return (
+                    <span
+                      key={segKey}
+                      className="font-semibold tabular-nums text-foreground"
+                    >
+                      <CountUp
+                        to={seg.raw}
+                        decimals={decimalDigits.length}
+                        start={numbersActive}
+                        delay={numbersDelay}
+                      />
+                      {suffix}
+                    </span>
+                  );
+                }
                 return (
                   <span
                     key={segKey}
@@ -84,6 +143,7 @@ export function VerdictProse({ clauses, className, style, emphasisStyle }: Props
                     {seg.value}
                   </span>
                 );
+              }
               case "emphasis":
                 return (
                   <span
