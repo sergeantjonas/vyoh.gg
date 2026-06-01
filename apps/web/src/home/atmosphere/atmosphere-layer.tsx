@@ -24,6 +24,7 @@ type ResolvedAtmosphere = {
   backgroundImage: string;
   imageUrl: string | null;
   imageAlpha: number;
+  imageBlurPx: number;
   // Hue (oklch H, degrees) and intensity (0..1) published to consumers via
   // `--atmosphere-tint-h` / `--atmosphere-intensity`. The orb-mark halo reads
   // both for its "mood ring" behaviour (A-2a).
@@ -32,6 +33,10 @@ type ResolvedAtmosphere = {
 };
 
 const DEFAULT_TINT_H = 240;
+// Heavy-blur default preserves the original ambient claim look. Asset claims
+// (recap arc subject chapters) override to ~4–8px for recognizable splash /
+// hero art at the same surface.
+const DEFAULT_BLUR_PX = 80;
 
 function resolveAtmosphere(
   entries: Iterable<{ claim: AtmosphereClaim; weight: number }>
@@ -62,6 +67,9 @@ function resolveAtmosphere(
   // Image alpha scales with the dominant claim's contribution. A claim that's
   // half-weighted (band edges entering viewport) fades its image in to match.
   const imageAlpha = imageUrl ? Math.min(1, bestWeight) * intensity : 0;
+  // Per-claim blur: heavy-blur ambient claims keep the default; asset chapters
+  // pass a smaller value (~4–8px) to land recognizable splash / hero art.
+  const imageBlurPx = bestClaim.blurPx ?? DEFAULT_BLUR_PX;
   // Take hue from the dominant claim's *second* layer — its "accent." Layer[0]
   // is the largest radial and dominates the bg colour-impression; if we tint
   // the orb halo with the same hue, the halo loses contrast against the
@@ -71,7 +79,7 @@ function resolveAtmosphere(
   // halo pops against the bg by carrying the *other* colour in the palette.
   const accentH = bestClaim.palette.layers[1]?.lch[2];
   const tintH = accentH ?? bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
-  return { backgroundImage, imageUrl, imageAlpha, tintH, intensity };
+  return { backgroundImage, imageUrl, imageAlpha, imageBlurPx, tintH, intensity };
 }
 
 const LAYER_CLASS =
@@ -93,6 +101,7 @@ export function AtmosphereLayer({ claims }: Props) {
   const backgroundImage = useMotionValue<string>("none");
   const imageOpacity = useMotionValue<number>(0);
   const imageUrlVar = useMotionValue<string>("none");
+  const imageFilter = useMotionValue<string>(`blur(${DEFAULT_BLUR_PX}px) saturate(1.1)`);
   const entries = useMemo(() => Array.from(claims.values()), [claims]);
 
   const compute = useMemo(() => {
@@ -129,13 +138,14 @@ export function AtmosphereLayer({ claims }: Props) {
       backgroundImage.set(resolved.backgroundImage);
       imageUrlVar.set(resolved.imageUrl ? `url("${resolved.imageUrl}")` : "none");
       imageOpacity.set(resolved.imageAlpha);
+      imageFilter.set(`blur(${resolved.imageBlurPx}px) saturate(1.1)`);
       // Publish to consumers (orb-mark halo, future band chrome). Written to
       // `documentElement` so any descendant can `var(--atmosphere-tint-h)` —
       // no need for each consumer to drill a ref through context.
       root.setProperty("--atmosphere-tint-h", resolved.tintH.toFixed(2));
       root.setProperty("--atmosphere-intensity", resolved.intensity.toFixed(3));
     };
-  }, [compute, backgroundImage, imageOpacity, imageUrlVar]);
+  }, [compute, backgroundImage, imageOpacity, imageUrlVar, imageFilter]);
 
   // Manual scroll listener on `<main>` (the actual scroll container) instead
   // of motion/react's `useScroll({ container: mainScrollRef })` — `useScroll`
@@ -181,7 +191,7 @@ export function AtmosphereLayer({ claims }: Props) {
             backgroundImage: imageUrlVar,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(80px) saturate(1.1)",
+            filter: imageFilter,
             opacity: imageOpacity,
           }}
         />

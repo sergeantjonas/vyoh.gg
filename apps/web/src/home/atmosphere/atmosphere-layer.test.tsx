@@ -98,4 +98,31 @@ describe("resolveAtmosphere", () => {
     expect(resolved?.imageUrl).toBe("https://example.test/blur.jpg");
     expect(resolved?.imageAlpha).toBeCloseTo(0.4 * 0.5, 5);
   });
+
+  it("defaults to heavy blur when claim omits blurPx", () => {
+    const resolved = resolveAtmosphere([
+      {
+        claim: { palette, intensity: 0.5, image: "https://example.test/x.jpg" },
+        weight: 1,
+      },
+    ]);
+    // Default preserves the substrate's original ambient look — anything below
+    // ~32px starts to leak recognizable detail through the image layer.
+    expect(resolved?.imageBlurPx).toBe(80);
+  });
+
+  it("carries per-claim blur from the dominant claim through to the resolved atmosphere", () => {
+    const resolved = resolveAtmosphere([
+      {
+        claim: {
+          palette,
+          intensity: 0.8,
+          image: "https://example.test/splash.jpg",
+          blurPx: 4,
+        },
+        weight: 1,
+      },
+    ]);
+    expect(resolved?.imageBlurPx).toBe(4);
+  });
 });

@@ -8,7 +8,12 @@ import {
 } from "./use-atmosphere-claim";
 
 function claimsEqual(a: AtmosphereClaim, b: AtmosphereClaim): boolean {
-  return a.palette === b.palette && a.image === b.image && a.intensity === b.intensity;
+  return (
+    a.palette === b.palette &&
+    a.image === b.image &&
+    a.blurPx === b.blurPx &&
+    a.intensity === b.intensity
+  );
 }
 
 /**

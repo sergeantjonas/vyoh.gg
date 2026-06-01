@@ -1,13 +1,16 @@
 import type { AmbientPalette } from "@/home/ambient-hero";
 import { type RefObject, createContext, useContext, useEffect, useRef } from "react";
 
-// Atmosphere claim shape. Carries abstracted visual data only — palette
-// coordinates, optional heavily-blurred image URL, intensity scalar. See
-// ADR-2 in atmosphere-arc.md: recognizable per-band imagery lives on per-stream
-// routes, never on `/`.
+// Atmosphere claim shape. Carries palette coordinates, optional image URL,
+// per-claim blur, and intensity scalar. Heavy blur (default 80px) yields the
+// abstracted ambient look the substrate originally shipped with; light blur
+// (~4–8px) yields recognizable game/champion assets for the recap arc's
+// subject chapters — see self-portrait-recap-arc.md (ADR-2 retired, image
+// now meant for recognizable assets at directional-masked light blur).
 export type AtmosphereClaim = {
   palette: AmbientPalette;
   image?: string;
+  blurPx?: number;
   intensity: number;
 };
 
