@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/count-up";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -27,6 +28,7 @@ import {
 } from "./chapter-bands";
 import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
+import { parseAnimatableNumber } from "./parse-animatable-number";
 import { useAssetClaim } from "./use-asset-claim";
 import { useSkinRotation } from "./use-skin-rotation";
 import { VerdictProse } from "./verdict-prose";
@@ -209,6 +211,14 @@ function PeakChip({
   label: string;
   value: string;
 }) {
+  // Parse the pre-formatted display value (e.g. "55%", "3.22", "3 games")
+  // back into its numeric target so the chip can count up. Em-dash zero-
+  // state ("—") and anything else non-numeric returns null and falls
+  // through to a static render. Count-up fires after the chip's own
+  // ChapterReveal entrance has settled — reveal default duration is 0.6s,
+  // a small ~0.1s settle keeps the animation from competing with the
+  // fade+rise still in flight.
+  const parsed = parseAnimatableNumber(value);
   return (
     <ChapterReveal active={active} delay={delay}>
       <div className="flex flex-col gap-0.5">
@@ -216,7 +226,19 @@ function PeakChip({
           className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
           style={{ textShadow: SHADOW_BODY }}
         >
-          {value}
+          {parsed ? (
+            <>
+              <CountUp
+                to={parsed.raw}
+                decimals={parsed.decimals}
+                start={active}
+                delay={delay + 0.7}
+              />
+              {parsed.suffix}
+            </>
+          ) : (
+            value
+          )}
         </span>
         <span
           className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"

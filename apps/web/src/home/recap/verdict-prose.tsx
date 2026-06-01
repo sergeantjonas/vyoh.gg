@@ -4,14 +4,7 @@ import type { VerdictClause } from "@vyoh/shared";
 
 import { CountUp } from "@/components/count-up";
 
-/**
- * Matches verdict-paragraph number values that are safe to animate as a
- * single count-up — integer or decimal, with an optional percent suffix.
- * Compound shapes like the signature-game KDA score ("24/7/14") fall
- * through to a static render because counting "24" alone would change the
- * surface meaning of the segment.
- */
-const SIMPLE_NUMBER_PATTERN = /^(\d+(?:\.(\d+))?)(%?)$/;
+import { parseAnimatableNumber } from "./parse-animatable-number";
 
 type Props = {
   clauses: VerdictClause[];
@@ -112,14 +105,14 @@ export function VerdictProse({
                 );
               case "number": {
                 // Animate when the value is a simple number (integer /
-                // decimal / percentage). Compound shapes ("24/7/14")
-                // fall through to a static render — animating just the
-                // leading "24" would silently change what the segment
-                // displays.
-                const match = SIMPLE_NUMBER_PATTERN.exec(seg.value);
-                if (match) {
-                  const decimalDigits = match[2] ?? "";
-                  const suffix = match[3] ?? "";
+                // decimal / percentage / "N games"). Compound shapes
+                // ("24/7/14") fall through to a static render — animating
+                // just the leading "24" would silently change what the
+                // segment displays. The deriver-supplied `raw` is the
+                // authoritative number target; the parser only contributes
+                // decimal precision + suffix preservation.
+                const parsed = parseAnimatableNumber(seg.value);
+                if (parsed) {
                   return (
                     <span
                       key={segKey}
@@ -127,11 +120,11 @@ export function VerdictProse({
                     >
                       <CountUp
                         to={seg.raw}
-                        decimals={decimalDigits.length}
+                        decimals={parsed.decimals}
                         start={numbersActive}
                         delay={numbersDelay}
                       />
-                      {suffix}
+                      {parsed.suffix}
                     </span>
                   );
                 }
