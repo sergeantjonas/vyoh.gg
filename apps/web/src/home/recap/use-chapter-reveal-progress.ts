@@ -27,14 +27,16 @@ import { type RefObject, useEffect } from "react";
  * IntersectionObserver (older test envs): same fallback.
  */
 const DEFAULT_DURATION_MS = 1600;
-// Shrink the effective viewport bottom by 50% so the IO only fires once the
-// chapter has actually scrolled into view — not the instant its top edge
-// touches the viewport from below. Without this, a tall pinned chapter
-// (200vh outer) triggers as soon as its top crosses the viewport bottom by
-// 1px, and the 1.6s reveal animation runs out before the user actually
-// arrives at the chapter visually. With -50% bottom, the chapter must be at
-// least half-engaged (its top past the viewport midline) before triggering.
-const DEFAULT_ROOT_MARGIN = "0px 0px -50% 0px";
+// Effective root = top 10% of viewport (~10vh). The chapter's bands are
+// centered inside its 100vh sticky child via `items-center justify-center`,
+// so during pre-pin scroll the band center sits at `chapter.top + 50vh` —
+// they only enter the visible viewport once `chapter.top < ~50vh` and reach
+// near-center at `chapter.top < ~10vh`. With a looser margin (-50%) the IO
+// fired while the bands were still below the fold, so the first half of
+// the 1.6s reveal animation played off-screen. -90% defers the trigger
+// until the bands are in view (chapter is right at pin entry), so the
+// animation plays in the stable pin window with bands at viewport center.
+const DEFAULT_ROOT_MARGIN = "0px 0px -90% 0px";
 
 export function useChapterRevealProgress(
   ref: RefObject<HTMLElement | null>,
