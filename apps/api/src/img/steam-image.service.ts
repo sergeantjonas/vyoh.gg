@@ -76,6 +76,46 @@ export class SteamImageService {
     };
   }
 
+  // High-resolution variant of `hero` for full-bleed surfaces (the landing
+  // page's Steam subject chapter, the Steam profile backdrop's destination
+  // mount on wide viewports). Prefers `library_hero_2x.jpg` — Steam's 2x
+  // asset, typically 3840×1240 native — and clamps to 2560×… so we don't
+  // ship native bytes at every viewport. Falls through to the 1x hero if
+  // 2x is missing (publishers don't always upload it).
+  //
+  // Distinct from `hero` so library tiles, hovercards, and the game-detail
+  // page keep their 1280-wide bytes; chapter surfaces opt into the heavier
+  // payload by hitting this route explicitly.
+  async heroLarge(appid: number): Promise<Resolved> {
+    const row = await this.prisma.steamGameEnrichment.findUnique({
+      where: { appid },
+      select: {
+        libraryHero2xPath: true,
+        libraryHeroPath: true,
+        assetTimestamp: true,
+      },
+    });
+    // Two-tier fallback: hashed 2x → legacy 2x → hashed 1x → legacy 1x.
+    // composeAssetUrls handles tier 1+2; we concatenate the 1x fallback so
+    // the proxy keeps trying when a publisher only shipped the 1x asset.
+    const twoX = composeAssetUrls(
+      appid,
+      row?.libraryHero2xPath,
+      row?.assetTimestamp,
+      "library_hero_2x.jpg"
+    );
+    const oneX = composeAssetUrls(
+      appid,
+      row?.libraryHeroPath,
+      row?.assetTimestamp,
+      "library_hero.jpg"
+    );
+    return {
+      urls: [...twoX, ...oneX],
+      params: { width: 2560, quality: 90 },
+    };
+  }
+
   async logo(appid: number): Promise<Resolved> {
     const row = await this.prisma.steamGameEnrichment.findUnique({
       where: { appid },

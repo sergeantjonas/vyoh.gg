@@ -15,7 +15,7 @@ vi.mock("@/steam/use-steam-game-recap", () => ({
 vi.mock("@/steam/_shared/steam-image", () => ({
   steamAchievementIconUrl: (appid: number, apiName: string) =>
     `https://test/ach/${appid}/${apiName}.jpg`,
-  steamLibraryHeroUrl: (appid: number) => `https://test/hero/${appid}.webp`,
+  steamLibraryHeroLargeUrl: (appid: number) => `https://test/hero-large/${appid}.webp`,
   steamPageBackgroundUrl: (appid: number) => `https://test/bg/${appid}.webp`,
 }));
 vi.mock("@/home/recap/use-asset-claim", () => ({

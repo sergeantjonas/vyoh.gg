@@ -103,6 +103,43 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
     expect(resolved.params).toMatchObject({ width: 1280, quality: 85 });
   });
 
+  it("heroLarge prefers library_hero_2x and falls back to library_hero, at width 2560", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryHero2xPath: "deadbeef/library_hero_2x.jpg",
+      libraryHeroPath: "cafebabe/library_hero.jpg",
+      assetTimestamp: 1_715_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.heroLarge(440);
+    // Hashed 2x → legacy 2x → hashed 1x → legacy 1x — the proxy walks the
+    // chain so publishers without a 2x asset still resolve to the 1x.
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/deadbeef/library_hero_2x.jpg?t=1715000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero_2x.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/cafebabe/library_hero.jpg?t=1715000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
+    ]);
+    expect(resolved.params).toMatchObject({ width: 2560, quality: 90 });
+  });
+
+  it("heroLarge tolerates a missing 2x path by serving only the 1x chain", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryHero2xPath: null,
+      libraryHeroPath: null,
+      assetTimestamp: null,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.heroLarge(440);
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero_2x.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
+    ]);
+  });
+
   it("logo never emits a ?t= cache-buster even if enrichment has a timestamp", async () => {
     const prisma = makePrisma();
     prisma.steamGameEnrichment.findUnique.mockResolvedValue({

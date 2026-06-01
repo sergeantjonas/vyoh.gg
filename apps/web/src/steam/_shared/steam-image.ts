@@ -70,6 +70,21 @@ export function steamLibraryHeroUrl(
   return `${API_URL}/img/steam/hero/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
+// High-resolution variant — backed by Steam's `library_hero_2x.jpg` asset
+// served at width 2560. Use for full-bleed surfaces (the landing page's
+// Steam subject chapter) where the default 1280-wide hero visibly upscales.
+// Library tiles, hovercards, and the game-detail page stay on the
+// `steamLibraryHeroUrl` 1280-wide variant — the bytes are smaller and the
+// display sizes don't justify the heavier payload.
+export function steamLibraryHeroLargeUrl(
+  appid: number,
+  assetTimestamp?: number | bigint | null,
+  flipHero?: boolean
+): string {
+  const flip = flipHero ? "flip" : "noflip";
+  return `${API_URL}/img/steam/hero-large/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+}
+
 export function steamLibraryLogoUrl(
   appid: number,
   assetTimestamp?: number | bigint | null

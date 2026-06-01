@@ -4,6 +4,7 @@ import {
   steamAchievementIconUrl,
   steamCapsuleUrl,
   steamLibraryCapsuleUrl,
+  steamLibraryHeroLargeUrl,
   steamLibraryHeroUrl,
   steamLibraryLogoUrl,
   steamMicrotrailerPosterUrl,
@@ -54,6 +55,15 @@ describe("steam image url helpers", () => {
   it("encodes the flip segment when flipHero is true", () => {
     expect(steamLibraryHeroUrl(440, 1717000000n, true)).toBe(
       "http://localhost:2010/img/steam/hero/flip/440/1717000000.webp"
+    );
+  });
+
+  it("steamLibraryHeroLargeUrl routes to the high-resolution proxy path", () => {
+    expect(steamLibraryHeroLargeUrl(440, 1717000000n)).toBe(
+      "http://localhost:2010/img/steam/hero-large/noflip/440/1717000000.webp"
+    );
+    expect(steamLibraryHeroLargeUrl(440, 1717000000n, true)).toBe(
+      "http://localhost:2010/img/steam/hero-large/flip/440/1717000000.webp"
     );
   });
 

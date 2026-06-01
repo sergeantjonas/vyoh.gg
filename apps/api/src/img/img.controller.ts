@@ -379,6 +379,28 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
+  // High-resolution sibling of `/steam/hero/...`. Prefers `library_hero_2x.jpg`
+  // (Steam's 2x asset) and serves at width 2560 — for full-bleed surfaces
+  // like the landing page's Steam subject chapter where the 1280-wide hero
+  // visibly upscales at typical viewport widths.
+  @Get("steam/hero-large/:flip/:appid/:assetTimestamp.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async steamHeroLarge(
+    @Param("appid") appid: string,
+    @Param("flip") flip: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = await this.steam.heroLarge(id);
+    if (flip === "flip") resolved.params = { ...resolved.params, flop: true };
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
   // `:schemaVersion` segment exists purely as a browser cache key — the
   // proxy ignores it. Bumping it on the web side (steam-image.ts) forces
   // a re-fetch past any year-cached immutable bytes when the logo pipeline

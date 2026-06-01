@@ -14,7 +14,7 @@ import { STEAM_FEATURED_APPID } from "@/home/landing-config";
 import { mainScrollRef } from "@/lib/scroll-container";
 import {
   steamAchievementIconUrl,
-  steamLibraryHeroUrl,
+  steamLibraryHeroLargeUrl,
   steamPageBackgroundUrl,
 } from "@/steam/_shared/steam-image";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
@@ -278,7 +278,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
   const splashUrl = useMemo(() => {
     if (!recap) return null;
     return recap.hasLibraryHero
-      ? steamLibraryHeroUrl(recap.appid, recap.assetTimestamp, recap.flipHero)
+      ? steamLibraryHeroLargeUrl(recap.appid, recap.assetTimestamp, recap.flipHero)
       : steamPageBackgroundUrl(recap.appid, recap.assetTimestamp, recap.flipHero);
   }, [recap]);
 
