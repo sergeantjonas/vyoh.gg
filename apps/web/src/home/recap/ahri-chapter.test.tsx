@@ -29,6 +29,26 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/home/recap/use-asset-claim", () => ({
   useAssetClaim: vi.fn(),
 }));
+vi.mock("@/home/recap/use-chapter-progress", async () => {
+  const { useMotionValue } =
+    await vi.importActual<typeof import("motion/react")>("motion/react");
+  return {
+    useChapterProgress: () => useMotionValue(0),
+  };
+});
+vi.mock("@/home/recap/use-skin-rotation", async () => {
+  const { useMotionValue } =
+    await vi.importActual<typeof import("motion/react")>("motion/react");
+  return {
+    useSkinRotation: vi.fn(() => ({
+      activeIndex: 0,
+      bloomBlurPx: useMotionValue(0),
+    })),
+  };
+});
+vi.mock("@/home/landing-config", () => ({
+  AHRI_SKIN_ROTATION: [{ name: "Base" }],
+}));
 vi.mock("motion/react", async () => {
   const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
   return {
@@ -37,7 +57,10 @@ vi.mock("motion/react", async () => {
   };
 });
 
+import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
 import { useAssetClaim } from "@/home/recap/use-asset-claim";
+import { useSkinRotation } from "@/home/recap/use-skin-rotation";
+import { motionValue } from "motion/react";
 import { AhriChapter } from "./ahri-chapter";
 
 const account: LolAccount = {
@@ -193,5 +216,43 @@ describe("AhriChapter", () => {
     // The mocked Link forwards `to`, `params` as attributes — verify the
     // params object made it through verbatim.
     expect(link?.textContent).toContain("View Ahri deep stats");
+  });
+
+  it("forwards the rotation bloom MotionValue to the asset claim", () => {
+    setMatches([]);
+    const bloom = motionValue(0);
+    vi.mocked(useSkinRotation).mockReturnValueOnce({
+      activeIndex: 0,
+      bloomBlurPx: bloom,
+    });
+    render(<AhriChapter account={account} />);
+    const claim = vi.mocked(useAssetClaim).mock.calls.at(-1)?.[1];
+    expect(claim?.bloomBlurPx).toBe(bloom);
+  });
+
+  it("uses the active skin's imageUrl override when set, instead of the proxy base", () => {
+    setMatches([]);
+    // Pretend the rotation picked an entry at index 0 — and the array's entry
+    // there carries an override URL. The mock array is replaced via the
+    // `AHRI_SKIN_ROTATION` import (which the chapter reads at render time).
+    AHRI_SKIN_ROTATION.length === 1 && true; // touch to keep mock import live
+    const customRotation = [{ name: "K/DA", imageUrl: "https://test/kda.jpg" }];
+    // Mutate the mocked array reference so the chapter picks up the new entry
+    // on next render. The mock factory returns this same array on every
+    // module-load, so swapping in place is the simplest hand-off.
+    (AHRI_SKIN_ROTATION as unknown as { name: string; imageUrl?: string }[]).splice(
+      0,
+      AHRI_SKIN_ROTATION.length,
+      ...customRotation
+    );
+    render(<AhriChapter account={account} />);
+    const claim = vi.mocked(useAssetClaim).mock.calls.at(-1)?.[1];
+    expect(claim?.image).toBe("https://test/kda.jpg");
+    // Restore so other tests in the same file aren't affected.
+    (AHRI_SKIN_ROTATION as unknown as { name: string; imageUrl?: string }[]).splice(
+      0,
+      AHRI_SKIN_ROTATION.length,
+      { name: "Base" }
+    );
   });
 });

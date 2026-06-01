@@ -12,6 +12,11 @@ function claimsEqual(a: AtmosphereClaim, b: AtmosphereClaim): boolean {
     a.palette === b.palette &&
     a.image === b.image &&
     a.blurPx === b.blurPx &&
+    // Ref equality is correct here — bloomBlurPx is a stable MotionValue
+    // created once per chapter; the layer reads its current value each tick
+    // outside React's render cycle, so we don't want to dispatch state
+    // updates when its internal value changes.
+    a.bloomBlurPx === b.bloomBlurPx &&
     a.intensity === b.intensity
   );
 }

@@ -1,4 +1,5 @@
 import type { AmbientPalette } from "@/home/ambient-hero";
+import type { MotionValue } from "motion/react";
 import { type RefObject, createContext, useContext, useEffect, useRef } from "react";
 
 // Atmosphere claim shape. Carries palette coordinates, optional image URL,
@@ -7,10 +8,16 @@ import { type RefObject, createContext, useContext, useEffect, useRef } from "re
 // (~4–8px) yields recognizable game/champion assets for the recap arc's
 // subject chapters — see self-portrait-recap-arc.md (ADR-2 retired, image
 // now meant for recognizable assets at directional-masked light blur).
+//
+// `bloomBlurPx` is an optional MotionValue that adds to `blurPx` each scroll
+// tick — the layer reads `.get()` in its apply step so the bloom curve runs
+// outside React's render cycle. Drives the splash-rotation blur-bloom beat
+// (subject chapter skin rotation) without re-rendering on every frame.
 export type AtmosphereClaim = {
   palette: AmbientPalette;
   image?: string;
   blurPx?: number;
+  bloomBlurPx?: MotionValue<number>;
   intensity: number;
 };
 

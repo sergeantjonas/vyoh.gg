@@ -22,6 +22,8 @@ import {
 } from "./chapter-bands";
 import { ChapterContainer } from "./chapter-container";
 import { useAssetClaim } from "./use-asset-claim";
+import { useChapterProgress } from "./use-chapter-progress";
+import { useSkinRotation } from "./use-skin-rotation";
 
 const CHAMPION_ALIAS = "Ahri";
 const RECENT_MATCHES_DISPLAY = 5;
@@ -78,15 +80,26 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     return excludeRemakes(flat).filter((m) => m.champion === CHAMPION_ALIAS);
   }, [query.data]);
 
-  // The R-2c rotation hook will pick this off the array — for now we always
-  // rest on the first entry (Base). The chapter copy reveals the active skin
-  // name only when a non-Base entry is in play, so the placeholder reads
-  // cleanly until the rotation pipeline lands.
-  const activeSkin = AHRI_SKIN_ROTATION[0] ?? { name: "Base" };
-  const splashUrl = championBackdropSplashUrl(CHAMPION_ALIAS, patch);
+  // The chapter computes its own pin-window progress here (ChapterContainer
+  // publishes a parallel one via ChapterProgressContext, but consuming it
+  // from the chapter root would invert the tree). Both readings share the
+  // same scroll-listener pattern and yield identical values — costs an extra
+  // listener but keeps the data flow top-down.
+  const progress = useChapterProgress(outerRef);
+  const rotation = useSkinRotation(progress, AHRI_SKIN_ROTATION.length);
+  const activeSkin = AHRI_SKIN_ROTATION[rotation.activeIndex] ??
+    AHRI_SKIN_ROTATION[0] ?? { name: "Base" };
+  // `imageUrl` override wins when set; falls back to the proxy-served base
+  // splash. Once the image proxy gains skin-index support, this composes
+  // through it instead of a free-form override URL.
+  const splashUrl =
+    activeSkin.imageUrl ?? championBackdropSplashUrl(CHAMPION_ALIAS, patch);
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  const claim = useMemo(() => ({ image: splashUrl, palette }), [splashUrl, palette]);
+  const claim = useMemo(
+    () => ({ image: splashUrl, palette, bloomBlurPx: rotation.bloomBlurPx }),
+    [splashUrl, palette, rotation.bloomBlurPx]
+  );
   useAssetClaim(outerRef, claim);
 
   const stats = useMemo(() => computeAhriStats(ahriMatches), [ahriMatches]);

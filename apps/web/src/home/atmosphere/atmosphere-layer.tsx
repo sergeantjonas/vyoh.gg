@@ -69,7 +69,11 @@ function resolveAtmosphere(
   const imageAlpha = imageUrl ? Math.min(1, bestWeight) * intensity : 0;
   // Per-claim blur: heavy-blur ambient claims keep the default; asset chapters
   // pass a smaller value (~4–8px) to land recognizable splash / hero art.
-  const imageBlurPx = bestClaim.blurPx ?? DEFAULT_BLUR_PX;
+  // `bloomBlurPx` (optional MotionValue) adds to the base each tick — drives
+  // the splash-rotation blur-bloom beat without re-rendering on every frame.
+  const baseBlurPx = bestClaim.blurPx ?? DEFAULT_BLUR_PX;
+  const bloomBlurPx = bestClaim.bloomBlurPx?.get() ?? 0;
+  const imageBlurPx = baseBlurPx + bloomBlurPx;
   // Take hue from the dominant claim's *second* layer — its "accent." Layer[0]
   // is the largest radial and dominates the bg colour-impression; if we tint
   // the orb halo with the same hue, the halo loses contrast against the

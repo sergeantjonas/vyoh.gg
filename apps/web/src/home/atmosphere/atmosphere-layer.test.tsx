@@ -1,3 +1,4 @@
+import { motionValue } from "motion/react";
 import { describe, expect, it } from "vitest";
 import { __testing } from "./atmosphere-layer";
 import type { AtmosphereClaim } from "./use-atmosphere-claim";
@@ -124,5 +125,23 @@ describe("resolveAtmosphere", () => {
       },
     ]);
     expect(resolved?.imageBlurPx).toBe(4);
+  });
+
+  it("adds the bloom MotionValue to the base blur each tick", () => {
+    const bloom = motionValue(0);
+    const claim: AtmosphereClaim = {
+      palette,
+      intensity: 0.8,
+      image: "https://example.test/splash.jpg",
+      blurPx: 4,
+      bloomBlurPx: bloom,
+    };
+    expect(resolveAtmosphere([{ claim, weight: 1 }])?.imageBlurPx).toBe(4);
+    bloom.set(28);
+    // Subsequent resolves read the current MV value — drives the bloom curve
+    // without re-rendering the layer.
+    expect(resolveAtmosphere([{ claim, weight: 1 }])?.imageBlurPx).toBe(32);
+    bloom.set(0);
+    expect(resolveAtmosphere([{ claim, weight: 1 }])?.imageBlurPx).toBe(4);
   });
 });
