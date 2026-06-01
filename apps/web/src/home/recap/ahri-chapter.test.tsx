@@ -17,6 +17,10 @@ vi.mock("@/lol/_shared/patch/use-ddragon-version", () => ({
 vi.mock("@/lol/_shared/assets/champion-icon", () => ({
   championBackdropSplashUrl: (alias: string, patch: string) =>
     `https://test/img/${alias}/${patch}`,
+  // RoleIcon (rendered per recent-runs row) calls roleIconUrl() — stubbed
+  // out here so it returns a stable URL without hitting the image proxy
+  // resolver in the test environment.
+  roleIconUrl: (slug: string) => `https://test/role/${slug}.svg`,
 }));
 vi.mock("@/lol/_shared/assets/champion-theme", () => ({
   championTheme: (_alias: string) => ({
@@ -265,6 +269,13 @@ describe("AhriChapter", () => {
   });
 
   it("renders the signature-game card linking into the corresponding match detail", () => {
+    // Prior tests in this file pin useChampionName to a "Ahri"-returning
+    // stub to assert the masthead reads "Ahri". That state leaks across
+    // tests; pin identity here so `championName("Sylas")` returns "Sylas"
+    // and the opponent assertion below reflects the real render path
+    // (now that we filter opponent names through useChampionName to
+    // surface "Aurelion Sol" instead of the raw "AurelionSol" alias).
+    vi.mocked(useChampionName).mockReturnValue((alias: string) => alias);
     setMatches([
       matchFixture({
         matchId: "EUW_BEST",
@@ -294,7 +305,7 @@ describe("AhriChapter", () => {
     expect(sigLink?.getAttribute("to")).toBe("/lol/$accountSlug/matches/$matchId");
   });
 
-  it("renders the skin label as an ambient corner badge when a non-Base skin is active", () => {
+  it("renders the active skin name inline with the eyebrow when a non-Base skin is active", () => {
     // The default rotation mock is single-entry "Base" — flip it for this
     // test only via the array-swap pattern used elsewhere in the file.
     const rotation: { name: string; imageUrl?: string }[] = [{ name: "K/DA" }];

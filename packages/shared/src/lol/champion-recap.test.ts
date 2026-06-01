@@ -167,15 +167,55 @@ describe("deriveChampionRecap", () => {
     expect(recap.recentMatches[4]?.matchId).toBe("m3");
     // Remake skipped
     expect(recap.recentMatches.some((m) => m.matchId === "remake")).toBe(false);
-    // Slim shape — only the strip-display fields
+    // Slim shape — strip-display fields only. Adds opponent/position/
+    // duration over the original slim projection so the chapter can render
+    // each row as a mini-receipt instead of a bare KDA line. No timeline
+    // arrays, no challenges, no LP — the full MatchSummary still owns
+    // those for match-detail surfaces.
     expect(Object.keys(recap.recentMatches[0] ?? {}).sort()).toEqual([
       "assists",
       "deaths",
+      "durationSec",
       "kills",
       "matchId",
+      "opponentChampion",
       "playedAt",
+      "position",
       "win",
     ]);
+  });
+
+  it("forwards opponent / position / duration onto each recent-strip row", () => {
+    const matches: MatchSummary[] = [
+      fixture({
+        matchId: "withOpp",
+        durationSec: 1680,
+        teamPosition: "MIDDLE",
+        laneOpponent: {
+          puuid: "p",
+          championName: "LeBlanc",
+          gameName: "g",
+          tagLine: "t",
+        },
+      }),
+      fixture({
+        matchId: "noOpp",
+        durationSec: 1320,
+        teamPosition: "BOTTOM",
+        laneOpponent: null,
+        playedAt: "2026-05-29T20:00:00Z",
+      }),
+    ];
+    const recap = deriveChampionRecap("Ahri", matches, NOW);
+    const [first, second] = recap.recentMatches;
+    expect(first?.opponentChampion).toBe("LeBlanc");
+    expect(first?.position).toBe("MIDDLE");
+    expect(first?.durationSec).toBe(1680);
+    // `laneOpponent: null` from older or solo-queue mid-fill rows must
+    // map to `null` opponentChampion — render site can fall back gracefully
+    // rather than receiving an undefined and silently dropping the row text.
+    expect(second?.opponentChampion).toBeNull();
+    expect(second?.position).toBe("BOTTOM");
   });
 
   it("returns an empty recentMatches array when totalGames is 0", () => {

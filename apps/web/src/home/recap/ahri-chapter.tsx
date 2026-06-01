@@ -3,6 +3,11 @@ import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
+import {
+  RoleIcon,
+  type RolePosition,
+  isRolePosition,
+} from "@/lol/_shared/assets/role-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionRecap } from "@/lol/champions/use-champion-recap";
 import { useChampionName } from "@/lol/champions/use-champions";
@@ -50,11 +55,13 @@ const SHADOW_LABEL =
   "0 1px 0 rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.55)";
 // Accent-tinted labels (per-champion dominantHex) hide on splashes whose
 // chroma matches the accent — Spirit Blossom pinks, Risen Legend warm
-// gold, After Hours red. Hard inner + tight halo + soft outer, plus a
-// thin black stroke to separate the glyph from same-hue art.
-const SHADOW_ACCENT =
-  "0 1px 0 rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)";
-const STROKE_ACCENT = "0.4px rgba(0,0,0,0.85)";
+// gold, After Hours red. Red-on-red is hue collision (not brightness),
+// so shadow alone caps out. Paired with `paintOrder: "stroke"` at the
+// call sites, this stroke becomes a true outline (painted underneath
+// the fill so the fill stays at original glyph width). The shadow only
+// has to soften the outline's hard edge.
+const SHADOW_ACCENT = "0 1px 2px rgba(0,0,0,0.65), 0 0 6px rgba(0,0,0,0.55)";
+const STROKE_ACCENT = "1.25px rgba(0,0,0,0.92)";
 
 function formatRelative(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -99,58 +106,84 @@ function emptyRecapFor(alias: string, _displayName: string): ChampionRecap {
 }
 
 /**
- * Signature-game receipt card — the "one game that proves the verdict",
- * picked by the deriver as the highest-kills + tiebreaker performance.
- * Clickable into the full match detail. Layout: K/D/A as the primary read,
- * outcome + duration + opponent + recency as supporting metadata.
+ * Signature-game receipt — the "one game that proves the verdict", picked
+ * by the deriver as the highest-kills + tiebreaker performance. Rendered
+ * as an editorial beat, NOT a card: bare label + hero-large KDA + inline
+ * opponent + meta strip. The whole block is a single click target into the
+ * match detail; chrome would have made it read as a UI module dropped into
+ * the magazine spread, which the bare-wrapper chapter philosophy avoids.
  */
-function SignatureGameCard({
+function SignatureGameBlock({
   accountSlug,
   signature,
+  championName,
 }: {
   accountSlug: string;
   signature: NonNullable<ChampionRecap["signatureGame"]>;
+  /** `useChampionName()` filter — Riot aliases (`AurelionSol`, `JarvanIV`,
+   *  `MonkeyKing`) diverge from display names; render-site convention. */
+  championName: (alias: string) => string;
 }) {
   const minutes = Math.max(1, Math.round(signature.durationSec / 60));
   return (
     <Link
       to="/lol/$accountSlug/matches/$matchId"
       params={{ accountSlug, matchId: signature.matchId }}
-      // Card chrome refined for splash-readability: hairline border + soft
-      // top-down gradient instead of a flat 55% backdrop. The previous flat
-      // tint + `backdrop-blur-sm` was hitting splash chroma it didn't expect
-      // and read as a smudge over bright/cool art crops.
-      className="group flex cursor-pointer flex-col gap-1 rounded-xl border border-white/15 bg-gradient-to-b from-black/65 to-black/35 px-4 py-3 shadow-lg shadow-black/20 transition-colors hover:from-black/75 hover:to-black/50"
+      // Bare editorial block: no border, no backdrop. Negative inline-x
+      // margin + matching padding gives a hover band that reads as "row is
+      // active" without painting a permanent card edge against the splash.
+      // Dark hover (`bg-black/25`) reads calmer than a white lift on
+      // bright splash crops — matches the recent-runs row treatment below.
+      className="group -mx-3 flex cursor-pointer flex-col gap-2 rounded-md px-3 py-2 transition-colors hover:bg-black/25"
     >
-      <span className="text-[10px] uppercase tracking-[0.2em] text-foreground/55">
+      <span
+        className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+        style={{ textShadow: SHADOW_BODY }}
+      >
         Signature game
       </span>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span
+          className="text-4xl font-semibold tabular-nums text-foreground sm:text-5xl"
+          style={{ textShadow: SHADOW_MASTHEAD }}
+        >
           {signature.kills} / {signature.deaths} / {signature.assists}
         </span>
         {signature.opponentChampion ? (
-          <span className="text-sm text-foreground/75">
+          <span
+            className="text-base text-foreground/85 sm:text-lg"
+            style={{ textShadow: SHADOW_BODY }}
+          >
             vs{" "}
             <span className="font-medium italic text-foreground/95">
-              {signature.opponentChampion}
+              {championName(signature.opponentChampion)}
             </span>
           </span>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/55">
+      <div
+        // Bumped from text-foreground/70 + SHADOW_LABEL to /85 + SHADOW_BODY.
+        // Small text on a busy splash needs the heavier shadow to stay
+        // legible across both bright (Risen / Immortalized) and saturated
+        // (Spirit Blossom / After Hours) art crops.
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/85"
+        style={{ textShadow: SHADOW_BODY }}
+      >
         <span
           className={[
-            "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-            signature.win
-              ? "bg-emerald-400/20 text-emerald-300"
-              : "bg-rose-400/20 text-rose-300",
+            "font-semibold uppercase tracking-wide",
+            signature.win ? "text-emerald-300" : "text-rose-300",
           ].join(" ")}
         >
           {signature.win ? "Win" : "Loss"}
         </span>
+        <span aria-hidden="true" className="text-foreground/40">
+          ·
+        </span>
         <span className="tabular-nums">{minutes}m</span>
-        <span>·</span>
+        <span aria-hidden="true" className="text-foreground/40">
+          ·
+        </span>
         <span>{signature.daysAgo === 0 ? "today" : `${signature.daysAgo}d ago`}</span>
         <span className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
           open →
@@ -200,7 +233,7 @@ function PeakChip({
  * First end-to-end recap chapter (R-2). Renders the Ahri subject as an
  * editorial chapter inside a single sticky-pin window: subject-led
  * eyebrow + masthead + verdict paragraph at the top, signature-game
- * receipt + recent runs strip in the middle, peak chips backing the
+ * receipt + recent matches strip in the middle, peak chips backing the
  * verdict, and a deep-stats CTA. The splash is the canvas; band content
  * floats with a thin scrim only where copy actually sits.
  *
@@ -369,20 +402,6 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         ariaLabel={eyebrow}
         pinClassName="items-start justify-start px-6 pt-[10dvh] sm:px-10"
       >
-        {/* Skin badge: ambient corner label. Stays in the top-right of the
-            pinned viewport, doesn't compete with the title block. */}
-        {skinLabel ? (
-          <ChapterReveal
-            active={nudged}
-            delay={0.6}
-            className="pointer-events-none absolute right-6 top-[8dvh] z-10 sm:right-10"
-          >
-            <span className="rounded-full border border-border/40 bg-background/40 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-foreground/75 backdrop-blur-sm">
-              {skinLabel}
-            </span>
-          </ChapterReveal>
-        ) : null}
-
         {/* Chapter content fills the root container width (max-w-4xl from
             __root.tsx). Only the verdict prose itself ties off at editorial
             measure (~65ch via `max-w-prose` inside VerdictProse) so the
@@ -390,6 +409,13 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             stats stretch to the full container. */}
         <div className="flex w-full flex-col">
           <ChapterOpener>
+            {/* Eyebrow row: kicker label inline with the active-skin name.
+                Previously the skin sat as a pill absolutely positioned at
+                the container's right edge — but the splash extends past
+                that edge to the viewport bounds, so the pill looked
+                inset rather than anchored. Inlining makes it a kicker
+                qualifier; it now reads as part of the chapter's editorial
+                header instead of a floating UI chip. */}
             <ChapterReveal active={nudged} delay={0.05} blur={4}>
               <p
                 // Bumped from text-xs → text-sm: bigger glyphs amortize
@@ -397,14 +423,35 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 // against bright/warm splashes (Risen Legend, Immortalized).
                 // Slightly tighter tracking compensates so the eyebrow
                 // still feels like a kicker, not a heading.
-                className="text-sm font-medium uppercase tracking-[0.18em]"
-                style={{
-                  color: "var(--accent, currentColor)",
-                  textShadow: SHADOW_ACCENT,
-                  WebkitTextStroke: STROKE_ACCENT,
-                }}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]"
               >
-                {eyebrow}
+                <span
+                  style={{
+                    color: "var(--accent, currentColor)",
+                    paintOrder: "stroke",
+                    WebkitTextStroke: STROKE_ACCENT,
+                    textShadow: SHADOW_ACCENT,
+                  }}
+                >
+                  {eyebrow}
+                </span>
+                {skinLabel ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="text-foreground/40"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      ·
+                    </span>
+                    <span
+                      className="text-foreground/75"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      {skinLabel}
+                    </span>
+                  </>
+                ) : null}
               </p>
             </ChapterReveal>
             {/* Masthead + champion title sit on a single baseline —
@@ -441,8 +488,9 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 clauses={verdictClauses}
                 style={{ textShadow: SHADOW_BODY }}
                 emphasisStyle={{
-                  textShadow: SHADOW_ACCENT,
+                  paintOrder: "stroke",
                   WebkitTextStroke: STROKE_ACCENT,
+                  textShadow: SHADOW_ACCENT,
                 }}
               />
             </ChapterReveal>
@@ -451,7 +499,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           <ChapterDetail>
             {signature ? (
               <ChapterReveal active={nudged} delay={0.7}>
-                <SignatureGameCard accountSlug={account.slug} signature={signature} />
+                <SignatureGameBlock
+                  accountSlug={account.slug}
+                  signature={signature}
+                  championName={championName}
+                />
               </ChapterReveal>
             ) : null}
 
@@ -459,15 +511,20 @@ export function AhriChapter({ account }: { account: LolAccount }) {
               <div className="flex flex-col gap-2 pt-2">
                 <ChapterReveal active={nudged} delay={0.85}>
                   <h3
-                    className="text-[10px] uppercase tracking-[0.2em] text-foreground/65"
-                    style={{ textShadow: SHADOW_LABEL }}
+                    className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+                    style={{ textShadow: SHADOW_BODY }}
                   >
-                    Recent runs
+                    Recent matches
                   </h3>
                 </ChapterReveal>
                 <ul className="flex flex-col gap-0.5">
                   {recent.map((m, i) => {
                     const delay = 0.9 + i * 0.06;
+                    const minutes = Math.max(1, Math.round(m.durationSec / 60));
+                    const showRole = isRolePosition(m.position);
+                    const opponentName = m.opponentChampion
+                      ? championName(m.opponentChampion)
+                      : null;
                     return (
                       <li key={m.matchId}>
                         <ChapterReveal active={nudged} delay={delay}>
@@ -477,12 +534,14 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                               accountSlug: account.slug,
                               matchId: m.matchId,
                             }}
-                            // Hover affordance: a faint full-row band so the
-                            // user can tell which row their pointer is on
-                            // (the previous color-only hover wasn't visible
-                            // against the splash). `-mx-2 px-2` lets the
-                            // band extend past the row's natural padding.
-                            className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/90 transition-colors hover:bg-white/8 hover:text-foreground"
+                            // Hover affordance: a faint full-row dark band
+                            // so the user can tell which row their pointer
+                            // is on. `bg-black/25` over the splash reads
+                            // calmer than the previous `bg-white/8` lift
+                            // (white-on-bright-splash washed out). `-mx-2
+                            // px-2` lets the band extend past the row's
+                            // natural padding.
+                            className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/95 transition-colors hover:bg-black/25 hover:text-foreground"
                             style={{ textShadow: SHADOW_BODY }}
                           >
                             <span
@@ -496,11 +555,46 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                             >
                               {m.win ? "W" : "L"}
                             </span>
-                            <span className="font-mono text-xs tabular-nums text-foreground">
+                            <span className="w-16 shrink-0 font-mono text-xs tabular-nums text-foreground">
                               {m.kills}/{m.deaths}/{m.assists}
                             </span>
-                            <span className="ml-auto text-xs text-foreground/70 group-hover:text-foreground/90">
-                              {formatRelative(m.playedAt)}
+                            {/* Identity column — role icon + opponent. Role
+                                icon leads as a glyph "stamp" that aligns
+                                with the W/L pill and KDA on the left,
+                                giving the strip a clean vertical rhythm.
+                                `min-w-0 flex-1` on the truncate lets long
+                                champion names ("Aurelion Sol") collapse to
+                                ellipsis instead of overflowing — flex items
+                                default to min-width:auto (content size),
+                                which silently blocks truncation. */}
+                            <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground/85">
+                              {showRole ? (
+                                <RoleIcon
+                                  position={m.position as RolePosition}
+                                  className="size-3.5 shrink-0 opacity-85"
+                                />
+                              ) : null}
+                              {opponentName ? (
+                                <span className="min-w-0 flex-1 truncate">
+                                  vs{" "}
+                                  <span className="font-medium italic text-foreground/95">
+                                    {opponentName}
+                                  </span>
+                                </span>
+                              ) : null}
+                            </span>
+                            {/* Meta column — duration · days-ago. Both
+                                fields describe the same row from the same
+                                angle (how long, how long ago), so the dot
+                                belongs between them as a peer separator
+                                rather than stranded between opponent and
+                                duration. */}
+                            <span className="flex shrink-0 items-center gap-1.5 text-xs text-foreground/80 group-hover:text-foreground/95">
+                              <span className="tabular-nums">{minutes}m</span>
+                              <span aria-hidden="true" className="text-foreground/40">
+                                ·
+                              </span>
+                              <span>{formatRelative(m.playedAt)}</span>
                             </span>
                           </Link>
                         </ChapterReveal>

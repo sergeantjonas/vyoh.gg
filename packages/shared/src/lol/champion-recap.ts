@@ -22,8 +22,10 @@ export interface ChampionSignatureGame {
 
 /**
  * Slim projection of the N most-recent matches on this champion. Kept narrow
- * because the chapter only needs identity + W/L/score + recency — the full
- * MatchSummary shape would inflate the payload for no use.
+ * (no timeline arrays, no challenges) but still wide enough to render an
+ * editorial row: opponent matchup, position, duration give each row a story
+ * beyond the bare KDA box score. The full MatchSummary remains the
+ * authoritative shape for match-detail surfaces.
  */
 export interface ChampionRecentMatch {
   matchId: string;
@@ -32,6 +34,12 @@ export interface ChampionRecentMatch {
   deaths: number;
   assists: number;
   playedAt: string;
+  /** Game length in seconds; formatted to whole minutes at the render site. */
+  durationSec: number;
+  /** Raw teamPosition from Riot (TOP / JUNGLE / MIDDLE / BOTTOM / UTILITY). */
+  position: string;
+  /** Lane-opposing champion display name, or null when not solved. */
+  opponentChampion: string | null;
 }
 
 /** Max length of `recentMatches` returned by the deriver. */
@@ -199,6 +207,9 @@ export function deriveChampionRecap(
       deaths: m.deaths,
       assists: m.assists,
       playedAt: m.playedAt,
+      durationSec: m.durationSec,
+      position: m.teamPosition,
+      opponentChampion: m.laneOpponent?.championName ?? null,
     }));
 
   return {
