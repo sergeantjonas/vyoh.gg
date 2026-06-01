@@ -41,29 +41,16 @@ const CHAMPION_ALIAS = "Ahri";
 // (DDragon ships `title` per champion) and pass it through props.
 const CHAMPION_TITLE = "the Nine-Tailed Fox";
 
-// Text-shadow strategy: a hard zero-blur shadow underneath a softer
-// outer glow. The hard layer cuts the glyph edge from any background
-// (bright or dark) regardless of background chroma — soft blur alone
-// fades into bright splashes (Risen Legend gold, Immortalized sand)
-// because the halo's lightness matches the background. The outer glow
-// adds depth without taking on the readability load.
-//
-// Format per shadow: `[hard inner], [tight halo], [soft outer]`.
-const SHADOW_MASTHEAD =
-  "0 1px 0 rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.85), 0 2px 16px rgba(0,0,0,0.6)";
-const SHADOW_BODY =
-  "0 1px 0 rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.85), 0 1px 6px rgba(0,0,0,0.55)";
-const SHADOW_LABEL =
-  "0 1px 0 rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.55)";
-// Accent-tinted labels (per-champion dominantHex) hide on splashes whose
-// chroma matches the accent — Spirit Blossom pinks, Risen Legend warm
-// gold, After Hours red. Red-on-red is hue collision (not brightness),
-// so shadow alone caps out. Paired with `paintOrder: "stroke"` at the
-// call sites, this stroke becomes a true outline (painted underneath
-// the fill so the fill stays at original glyph width). The shadow only
-// has to soften the outline's hard edge.
-const SHADOW_ACCENT = "0 1px 2px rgba(0,0,0,0.65), 0 0 6px rgba(0,0,0,0.55)";
-const STROKE_ACCENT = "1.25px rgba(0,0,0,0.92)";
+// Shadow tier + accent stroke constants live in `chapter-shadows.ts` so
+// the Steam chapter (R-3) inherits the same readability strategy without
+// duplicating the tuning notes. The "why" lives in that module.
+import {
+  SHADOW_ACCENT,
+  SHADOW_BODY,
+  SHADOW_LABEL,
+  SHADOW_MASTHEAD,
+  STROKE_ACCENT,
+} from "./chapter-shadows";
 
 function formatRelative(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
