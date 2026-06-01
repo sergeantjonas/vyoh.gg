@@ -15,7 +15,7 @@ import {
   excludeRemakes,
   formatKda,
 } from "@vyoh/shared";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChapterCloser,
   ChapterDetail,
@@ -138,28 +138,32 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   );
   useAssetClaim(outerRef, claim);
 
-  // Polite one-shot nudge into the chapter pin. Once the chapter outer is
-  // 30% visible the user has committed to scrolling into it — smooth-scroll
-  // main so the chapter's top aligns with viewport top (pin start). Lands
-  // the user in a stable view where every band is on-screen, so per-band
-  // `whileInView` reveals trigger naturally. Same pattern as CSS scroll-
-  // snap, but driven by JS for finer control over the trigger threshold and
-  // a one-shot guarantee (scrolling back up doesn't re-yank).
+  // Polite one-shot nudge into the chapter pin. Triggers when the chapter
+  // outer is 8% visible — i.e. roughly when the opener band's top edge
+  // first enters the viewport from below. Smooth-scrolls main so the
+  // chapter top aligns with viewport top (pin start), then flips `nudged`
+  // ~500ms later (smooth-scroll settle window) to release the gated band
+  // reveals. Lands the user in a stable view first, then plays the reveal
+  // cascade from there — no animation runs during the approach scroll.
+  //
+  // One-shot: scrolling back up doesn't re-yank. Smooth-scroll respects
+  // active user input mid-nudge (their scroll wins).
+  const [nudged, setNudged] = useState(false);
   useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
+    if (typeof IntersectionObserver === "undefined") {
+      setNudged(true);
+      return;
+    }
     const el = outerRef.current;
     if (!el) return;
     const main = mainScrollRef.current;
-    let nudged = false;
+    let triggered = false;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.3 && !nudged) {
-            nudged = true;
-            // Compute the scroll position that aligns the chapter outer's
-            // top with the scroll container's top. main.scrollTo with smooth
-            // behavior respects user input — if the user actively scrolls
-            // mid-nudge, their input wins.
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.08 && !triggered) {
+            triggered = true;
             if (main) {
               const target =
                 main.scrollTop +
@@ -169,6 +173,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             } else {
               el.scrollIntoView({ behavior: "smooth", block: "start" });
             }
+            settleTimer = setTimeout(() => setNudged(true), 500);
             observer.disconnect();
             break;
           }
@@ -176,11 +181,14 @@ export function AhriChapter({ account }: { account: LolAccount }) {
       },
       {
         root: main ?? null,
-        threshold: 0.3,
+        threshold: 0.08,
       }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (settleTimer) clearTimeout(settleTimer);
+    };
   }, []);
 
   const stats = useMemo(() => computeAhriStats(ahriMatches), [ahriMatches]);
@@ -208,19 +216,19 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         ariaLabel={eyebrow}
         pinClassName="items-center justify-start px-6 pt-[12dvh]"
       >
-        <ChapterReveal className={bandScrim}>
+        <ChapterReveal active={nudged} className={bandScrim}>
           <ChapterOpener>
-            <ChapterReveal delay={0.05}>
+            <ChapterReveal active={nudged} delay={0.05}>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
                 {eyebrow}
               </p>
             </ChapterReveal>
-            <ChapterReveal delay={0.18}>
+            <ChapterReveal active={nudged} delay={0.18}>
               <h2 className="text-5xl font-semibold leading-none text-foreground sm:text-6xl">
                 {displayName}
               </h2>
             </ChapterReveal>
-            <ChapterReveal delay={0.32}>
+            <ChapterReveal active={nudged} delay={0.32}>
               <p className="text-base text-muted-foreground">
                 <CountUp to={ahriMatches.length} />{" "}
                 {ahriMatches.length === 1 ? "game" : "games"} tracked
@@ -230,15 +238,15 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           </ChapterOpener>
         </ChapterReveal>
 
-        <ChapterReveal className={bandScrim}>
+        <ChapterReveal active={nudged} delay={0.45} className={bandScrim}>
           <ChapterDetail>
-            <ChapterReveal delay={0.05}>
+            <ChapterReveal active={nudged} delay={0.5}>
               <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
                 Recent {displayName} games
               </h3>
             </ChapterReveal>
             {recent.length === 0 ? (
-              <ChapterReveal delay={0.15}>
+              <ChapterReveal active={nudged} delay={0.6}>
                 <p className="text-sm text-muted-foreground">
                   No tracked {displayName} games yet.
                 </p>
@@ -246,12 +254,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             ) : (
               <ul className="flex flex-col gap-1">
                 {recent.map((m, i) => {
-                  // Each row staggers 80ms after the previous so the strip
-                  // cascades top-to-bottom as the detail band enters view.
-                  const delay = 0.15 + i * 0.08;
+                  // Rows cascade after the detail header at 80ms apart.
+                  const delay = 0.6 + i * 0.08;
                   return (
                     <li key={m.matchId}>
-                      <ChapterReveal delay={delay}>
+                      <ChapterReveal active={nudged} delay={delay}>
                         <Link
                           to="/lol/$accountSlug/matches/$matchId"
                           params={{ accountSlug: account.slug, matchId: m.matchId }}
@@ -287,9 +294,9 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           </ChapterDetail>
         </ChapterReveal>
 
-        <ChapterReveal className={bandScrim}>
+        <ChapterReveal active={nudged} delay={1.1} className={bandScrim}>
           <ChapterStats>
-            <ChapterReveal delay={0.05}>
+            <ChapterReveal active={nudged} delay={1.15}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
@@ -299,7 +306,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
               </div>
             </ChapterReveal>
-            <ChapterReveal delay={0.15}>
+            <ChapterReveal active={nudged} delay={1.25}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
@@ -309,7 +316,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
               </div>
             </ChapterReveal>
-            <ChapterReveal delay={0.25}>
+            <ChapterReveal active={nudged} delay={1.35}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {stats.wins}-{stats.losses}
@@ -323,7 +330,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         </ChapterReveal>
 
         <ChapterCloser>
-          <ChapterReveal>
+          <ChapterReveal active={nudged} delay={1.55}>
             <Link
               to="/lol/$accountSlug/champions/$championKey"
               params={{

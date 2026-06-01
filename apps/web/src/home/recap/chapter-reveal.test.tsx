@@ -59,13 +59,23 @@ describe("ChapterReveal", () => {
     expect(wrapper?.className).toContain("my-class");
   });
 
-  it("accepts delay/duration/rise/amount props without runtime errors", () => {
+  it("accepts delay/duration/rise/active props without runtime errors", () => {
     expect(() =>
       render(
-        <ChapterReveal delay={0.1} duration={1} rise={20} amount={0.5}>
+        <ChapterReveal delay={0.1} duration={1} rise={20} active={true}>
           <span>hello</span>
         </ChapterReveal>
       )
     ).not.toThrow();
+  });
+
+  it("holds at the hidden state when active=false", () => {
+    const { container } = render(
+      <ChapterReveal active={false}>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    expect(wrapper?.style.opacity).toBe("0");
   });
 });
