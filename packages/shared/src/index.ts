@@ -74,6 +74,17 @@ export {
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";
 export type { ChampionBuildFlowEntry } from "./lol/champion-build-flow.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";
+export {
+  deriveChampionRecap,
+  verdictParagraph,
+  verdictPreview,
+} from "./lol/champion-recap.ts";
+export type {
+  ChampionRecap,
+  ChampionSignatureGame,
+  VerdictClause,
+  VerdictSegment,
+} from "./lol/champion-recap.ts";
 export type { Chronotype, ChronotypeHour } from "./lol/chronotype.ts";
 export type { Duo } from "./lol/duo.ts";
 export type { MatchBaseline, MatchBaselineState } from "./lol/match-baseline.ts";

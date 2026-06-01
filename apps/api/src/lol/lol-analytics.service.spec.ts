@@ -110,6 +110,121 @@ describe("LolAnalyticsService.getChampionExtras", () => {
   });
 });
 
+describe("LolAnalyticsService.getChampionRecap", () => {
+  function matchRow(
+    overrides: Partial<Record<string, unknown>> = {}
+  ): Record<string, unknown> {
+    return {
+      matchId: "EUW_1",
+      queueType: "RANKED_SOLO_5x5",
+      champion: "Ahri",
+      kills: 8,
+      deaths: 4,
+      assists: 7,
+      win: true,
+      durationSec: 1800,
+      playedAt: new Date("2026-05-30T20:00:00Z"),
+      remake: false,
+      teamPosition: "MIDDLE",
+      gameVersion: "26.9",
+      visionScore: 22,
+      damageShare: 0.27,
+      firstBloodKill: false,
+      hasTimeline: true,
+      csAt10: 70,
+      csAt15: 110,
+      goldAt10: 4000,
+      goldAt15: 6500,
+      teamGoldDiffAt15: 500,
+      teamGoldDiffSeries: [],
+      deathTimings: [],
+      deathXs: [],
+      deathYs: [],
+      killTimings: [],
+      killXs: [],
+      killYs: [],
+      laneOpponent: null,
+      ...overrides,
+    };
+  }
+
+  it("queries the champion alias case-insensitively and applies the 365-day window", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    await makeService(prisma, { resolveSummoner }).getChampionRecap(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(prisma.match.findMany).toHaveBeenCalledTimes(1);
+    const call = prisma.match.findMany.mock.calls[0]?.[0];
+    expect(call.where).toMatchObject({
+      puuid: "puuid-vyoh",
+      champion: { equals: "Ahri", mode: "insensitive" },
+    });
+    // Cutoff is `playedAt: { gte: Date }` — exact value is wall-clock-dependent,
+    // assert shape + that it is ~365 days back from now.
+    expect(call.where.playedAt.gte).toBeInstanceOf(Date);
+    const ageMs = Date.now() - (call.where.playedAt.gte as Date).getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    expect(ageDays).toBeGreaterThan(364);
+    expect(ageDays).toBeLessThan(366);
+  });
+
+  it("maps prisma rows to the shared deriver and returns the recap shape", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([
+      matchRow({
+        matchId: "best",
+        kills: 17,
+        deaths: 2,
+        assists: 9,
+        win: true,
+        laneOpponent: { championName: "Sylas", puuid: "x", gameName: "g", tagLine: "t" },
+      }),
+      matchRow({ matchId: "second", kills: 8, win: false }),
+      matchRow({ matchId: "remake", kills: 99, remake: true }),
+    ]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    const recap = await makeService(prisma, { resolveSummoner }).getChampionRecap(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    // Remake excluded — total = 2, not 3.
+    expect(recap.alias).toBe("Ahri");
+    expect(recap.totalGames).toBe(2);
+    expect(recap.signatureGame?.matchId).toBe("best");
+    expect(recap.signatureGame?.opponentChampion).toBe("Sylas");
+    expect(recap.peaks.highestKills).toBe(17);
+  });
+
+  it("returns the zero-state when the player has no stored matches on the champion", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    const recap = await makeService(prisma, { resolveSummoner }).getChampionRecap(
+      "euw1",
+      "Vyoh",
+      "Yone",
+      "Yone"
+    );
+
+    expect(recap.alias).toBe("Yone");
+    expect(recap.totalGames).toBe(0);
+    expect(recap.signatureGame).toBeNull();
+    expect(recap.winRate).toBeNull();
+  });
+});
+
 describe("LolAnalyticsService.getDuos", () => {
   function detail(
     participants: Array<{

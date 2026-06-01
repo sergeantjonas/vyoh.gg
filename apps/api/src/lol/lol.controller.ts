@@ -16,6 +16,7 @@ import type {
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionPair,
+  ChampionRecap,
   Chronotype,
   Duo,
   LiveMatch,
@@ -156,6 +157,13 @@ export class LolController {
       championKey,
       queue
     );
+  }
+
+  @Get("champions/:championKey/recap")
+  async getChampionRecap(
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto
+  ): Promise<ChampionRecap> {
+    return this.analytics.getChampionRecap(region, gameName, tagLine, championKey);
   }
 
   @Sse("matches/events")

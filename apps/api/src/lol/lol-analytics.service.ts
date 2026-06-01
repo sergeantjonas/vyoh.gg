@@ -3,11 +3,13 @@ import {
   type ChampionBuildFlowEntry,
   type ChampionExtras,
   type ChampionPair,
+  type ChampionRecap,
   type Chronotype,
   type Duo,
   type MatchSummary,
   type PregameCalibrationByQueue,
   computeCalibrationByQueue,
+  deriveChampionRecap,
   excludeRemakes,
   replayHistory,
 } from "@vyoh/shared";
@@ -20,6 +22,11 @@ import { queueTypeName } from "./queue-types";
 const EMPTY_CALIBRATION: PregameCalibrationByQueue = {};
 
 const DEFAULT_PREGAME_QUEUE_IDS = [420, 440, 400] as const;
+
+// Trailing window for the per-champion landing-chapter recap. 365 days
+// dodges the moving season-split boundary while staying "yearly at least"
+// per owner direction.
+const RECAP_WINDOW_DAYS = 365;
 
 @Injectable()
 export class LolAnalyticsService {
@@ -82,6 +89,74 @@ export class LolAnalyticsService {
       .map(([champion, s]) => ({ champion, games: s.games, wins: s.wins }));
 
     return { topItems, matchups };
+  }
+
+  /**
+   * Champion recap — aggregate "your X" verdict feeding the per-champion
+   * landing chapter. Reads the trailing 365-day window of stored matches on
+   * this champion and derives the recap server-side via the shared deriver.
+   *
+   * Window: rolling 365 days. The current LoL competitive season has split
+   * boundaries that move between years; a fixed-day window dodges that
+   * coupling and keeps the recap "yearly at least" as the owner asked.
+   */
+  async getChampionRecap(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    championKey: string
+  ): Promise<ChampionRecap> {
+    const summoner = await this.lol.resolveSummoner(region, gameName, tagLine);
+
+    const cutoff = new Date(Date.now() - RECAP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+    const rows = await this.prisma.match.findMany({
+      where: {
+        puuid: summoner.puuid,
+        champion: { equals: championKey, mode: "insensitive" },
+        playedAt: { gte: cutoff },
+      },
+      orderBy: { playedAt: "desc" },
+      select: {
+        matchId: true,
+        queueType: true,
+        champion: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        playedAt: true,
+        remake: true,
+        teamPosition: true,
+        gameVersion: true,
+        visionScore: true,
+        damageShare: true,
+        firstBloodKill: true,
+        hasTimeline: true,
+        csAt10: true,
+        csAt15: true,
+        goldAt10: true,
+        goldAt15: true,
+        teamGoldDiffAt15: true,
+        teamGoldDiffSeries: true,
+        deathTimings: true,
+        deathXs: true,
+        deathYs: true,
+        killTimings: true,
+        killXs: true,
+        killYs: true,
+        laneOpponent: true,
+      },
+    });
+
+    const matches: MatchSummary[] = rows.map(({ playedAt, laneOpponent, ...rest }) => ({
+      ...rest,
+      playedAt: playedAt.toISOString(),
+      laneOpponent: laneOpponent as MatchSummary["laneOpponent"],
+    }));
+
+    return deriveChampionRecap(championKey, matches);
   }
 
   // Duo / squad detection. Pure read against the existing MatchDetailCache —
