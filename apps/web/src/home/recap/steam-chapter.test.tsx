@@ -248,9 +248,12 @@ describe("SteamChapter", () => {
       isPending: false,
       isError: false,
     } as unknown as ReturnType<typeof useSteamGameRecap>);
-    const { container } = render(<SteamChapter />);
-    const links = container.querySelectorAll('a[href*="ss_"]');
-    expect(links).toHaveLength(4);
+    render(<SteamChapter />);
+    // The lightbox strip renders one trigger button per thumbnail; chapter
+    // caps the strip at 4. Filtered on the aria-label so we don't pick up
+    // the cta or other action buttons.
+    const triggers = screen.getAllByRole("button", { name: /Open screenshot/ });
+    expect(triggers).toHaveLength(4);
   });
 
   it("renders a CTA linking to the game-detail page", () => {

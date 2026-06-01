@@ -1,11 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { SteamGameRecap, SteamStandoutUnlock, SteamUnlock } from "@vyoh/shared";
-import {
-  formatPlaytime,
-  steamScreenshotFullUrl,
-  steamScreenshotThumbUrl,
-  verdictParagraphSteam,
-} from "@vyoh/shared";
+import { formatPlaytime, verdictParagraphSteam } from "@vyoh/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CountUp } from "@/components/count-up";
@@ -35,6 +30,7 @@ import {
   STROKE_ACCENT,
 } from "./chapter-shadows";
 import { parseAnimatableNumber } from "./parse-animatable-number";
+import { ScreenshotLightboxStrip } from "./screenshot-lightbox";
 import { useAssetClaim } from "./use-asset-claim";
 import { VerdictProse } from "./verdict-prose";
 
@@ -499,28 +495,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
           <ChapterCloser>
             {screenshots.length > 0 ? (
               <ChapterReveal active={nudged} delay={1.5}>
-                <ul className="flex flex-wrap items-center gap-2">
-                  {screenshots.map((s) => (
-                    <li key={s.filename}>
-                      <a
-                        href={steamScreenshotFullUrl(appid, s.filename)}
-                        target="_blank"
-                        rel="noreferrer"
-                        // Block-level thumbnail with a dark hover band that
-                        // matches every other click target in the chapter.
-                        // 600x338 is Steam's standard 16:9 preview size.
-                        className="group block overflow-hidden rounded-md ring-1 ring-white/15 transition-opacity hover:opacity-90"
-                      >
-                        <img
-                          src={steamScreenshotThumbUrl(appid, s.filename)}
-                          alt=""
-                          loading="lazy"
-                          className="h-20 w-auto"
-                        />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                <ScreenshotLightboxStrip appid={appid} screenshots={screenshots} />
               </ChapterReveal>
             ) : null}
             <ChapterReveal active={nudged} delay={1.55}>
