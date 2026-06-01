@@ -6,15 +6,10 @@ import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { useChampionRecap } from "@/lol/champions/use-champion-recap";
 import { useChampionName } from "@/lol/champions/use-champions";
-import { useMatches } from "@/lol/matches/use-matches";
 import { Link } from "@tanstack/react-router";
-import {
-  type LolAccount,
-  type MatchSummary,
-  excludeRemakes,
-  formatKda,
-} from "@vyoh/shared";
+import { type LolAccount, formatKda } from "@vyoh/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChapterCloser,
@@ -28,12 +23,6 @@ import { useAssetClaim } from "./use-asset-claim";
 import { useSkinRotation } from "./use-skin-rotation";
 
 const CHAMPION_ALIAS = "Ahri";
-const RECENT_MATCHES_DISPLAY = 5;
-
-function kdaValue(m: MatchSummary): number {
-  if (m.deaths === 0) return m.kills + m.assists;
-  return (m.kills + m.assists) / m.deaths;
-}
 
 function formatRelative(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -44,19 +33,6 @@ function formatRelative(iso: string): string {
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
   return `${days}d`;
-}
-
-type AhriStats = { wins: number; losses: number; avgKda: number };
-
-function computeAhriStats(matches: readonly MatchSummary[]): AhriStats {
-  if (matches.length === 0) return { wins: 0, losses: 0, avgKda: 0 };
-  let wins = 0;
-  let totalKda = 0;
-  for (const m of matches) {
-    if (m.win) wins++;
-    totalKda += kdaValue(m);
-  }
-  return { wins, losses: matches.length - wins, avgKda: totalKda / matches.length };
 }
 
 /**
@@ -74,13 +50,12 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
   const patch = useDDragonVersion();
-  const query = useMatches(account);
-
-  const ahriMatches = useMemo(() => {
-    if (!query.data) return [] as readonly MatchSummary[];
-    const flat = query.data.pages.flat();
-    return excludeRemakes(flat).filter((m) => m.champion === CHAMPION_ALIAS);
-  }, [query.data]);
+  // Server-derived recap over the trailing 365 days of stored Ahri matches.
+  // The hook returns a small typed aggregate (totals, peaks, signature game,
+  // recent strip) so the chapter no longer has to flatten + filter pages of
+  // mixed-champion match summaries on every render.
+  const recapQuery = useChampionRecap(account, CHAMPION_ALIAS);
+  const recap = recapQuery.data;
 
   // Auto-cycling rotation — timer-driven, not scroll-coupled. The earlier
   // progress-driven version mapped fast scrolls to rapid skin swaps, which
@@ -191,10 +166,16 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     };
   }, []);
 
-  const stats = useMemo(() => computeAhriStats(ahriMatches), [ahriMatches]);
-  const winRate = ahriMatches.length > 0 ? stats.wins / ahriMatches.length : 0;
+  // Recap may be `undefined` while loading or on error. Default to the
+  // zero-state shape so the chapter still renders its layout (with em-dashes
+  // and the empty-recent fallback) instead of unmounting.
+  const totalGames = recap?.totalGames ?? 0;
+  const wins = recap?.wins ?? 0;
+  const losses = recap?.losses ?? 0;
+  const winRate = recap?.winRate ?? 0;
+  const avgKda = recap?.avgKda ?? 0;
+  const recent = recap?.recentMatches ?? [];
   const displayName = championName(CHAMPION_ALIAS);
-  const recent = ahriMatches.slice(0, RECENT_MATCHES_DISPLAY);
   const eyebrow = `Your ${displayName}`;
   const skinSubtitle = activeSkin.name === "Base" ? null : activeSkin.name;
 
@@ -230,8 +211,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             </ChapterReveal>
             <ChapterReveal active={nudged} delay={0.32}>
               <p className="text-base text-muted-foreground">
-                <CountUp to={ahriMatches.length} />{" "}
-                {ahriMatches.length === 1 ? "game" : "games"} tracked
+                <CountUp to={totalGames} /> {totalGames === 1 ? "game" : "games"} tracked
                 {skinSubtitle ? ` · ${skinSubtitle}` : ""}
               </p>
             </ChapterReveal>
@@ -265,7 +245,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                           className="flex items-center gap-3 rounded-md py-1 text-sm text-foreground/90 hover:text-foreground"
                         >
                           <ChampionSquareIcon
-                            championName={m.champion}
+                            championName={CHAMPION_ALIAS}
                             alt={displayName}
                             className="size-8 shrink-0 rounded ring-1 ring-border/50"
                           />
@@ -299,7 +279,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             <ChapterReveal active={nudged} delay={1.15}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
-                  {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
+                  {totalGames > 0 ? `${Math.round(winRate * 100)}%` : "—"}
                 </span>
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">
                   Win rate
@@ -309,7 +289,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             <ChapterReveal active={nudged} delay={1.25}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
-                  {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
+                  {totalGames > 0 ? formatKda(avgKda) : "—"}
                 </span>
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">
                   Avg KDA
@@ -319,7 +299,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             <ChapterReveal active={nudged} delay={1.35}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
-                  {stats.wins}-{stats.losses}
+                  {wins}-{losses}
                 </span>
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">
                   Record

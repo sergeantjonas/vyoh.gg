@@ -20,6 +20,23 @@ export interface ChampionSignatureGame {
   daysAgo: number;
 }
 
+/**
+ * Slim projection of the N most-recent matches on this champion. Kept narrow
+ * because the chapter only needs identity + W/L/score + recency — the full
+ * MatchSummary shape would inflate the payload for no use.
+ */
+export interface ChampionRecentMatch {
+  matchId: string;
+  win: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+  playedAt: string;
+}
+
+/** Max length of `recentMatches` returned by the deriver. */
+export const CHAMPION_RECAP_RECENT_LIMIT = 5;
+
 export interface ChampionRecap {
   alias: string;
   totalGames: number;
@@ -30,6 +47,11 @@ export interface ChampionRecap {
   /** null when totalGames === 0; deaths floored to 1 per Riot convention */
   avgKda: number | null;
   signatureGame: ChampionSignatureGame | null;
+  /**
+   * Up to CHAMPION_RECAP_RECENT_LIMIT most-recent non-remake matches on this
+   * champion, newest first. Empty when totalGames === 0.
+   */
+  recentMatches: ChampionRecentMatch[];
   peaks: {
     /** Best single-game kill count, 0 when no games. */
     highestKills: number;
@@ -80,6 +102,7 @@ export function deriveChampionRecap(
       winRate: null,
       avgKda: null,
       signatureGame: null,
+      recentMatches: [],
       peaks: {
         highestKills: 0,
         highestDamageShare: 0,
@@ -167,6 +190,17 @@ export function deriveChampionRecap(
     }
   }
 
+  const recentMatches: ChampionRecentMatch[] = newestFirst
+    .slice(0, CHAMPION_RECAP_RECENT_LIMIT)
+    .map((m) => ({
+      matchId: m.matchId,
+      win: m.win,
+      kills: m.kills,
+      deaths: m.deaths,
+      assists: m.assists,
+      playedAt: m.playedAt,
+    }));
+
   return {
     alias,
     totalGames: total,
@@ -175,6 +209,7 @@ export function deriveChampionRecap(
     winRate,
     avgKda,
     signatureGame,
+    recentMatches,
     peaks: {
       highestKills,
       highestDamageShare,

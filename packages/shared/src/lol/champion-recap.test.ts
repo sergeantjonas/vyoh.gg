@@ -144,6 +144,44 @@ describe("deriveChampionRecap", () => {
     expect(recap.peaks.perfectKdaCount).toBe(1);
   });
 
+  it("populates recentMatches with up to 5 newest non-remake games, slim projection", () => {
+    const matches: MatchSummary[] = Array.from({ length: 8 }, (_, i) =>
+      fixture({
+        matchId: `m${i}`,
+        kills: 4 + i,
+        playedAt: new Date(2026, 4, 20 + i, 20, 0, 0).toISOString(),
+      })
+    );
+    // One remake mixed in must be excluded from the recent strip.
+    matches.push(
+      fixture({
+        matchId: "remake",
+        playedAt: new Date(2026, 4, 31, 20, 0, 0).toISOString(),
+        remake: true,
+      })
+    );
+    const recap = deriveChampionRecap("Ahri", matches, NOW);
+    expect(recap.recentMatches).toHaveLength(5);
+    // Newest first
+    expect(recap.recentMatches[0]?.matchId).toBe("m7");
+    expect(recap.recentMatches[4]?.matchId).toBe("m3");
+    // Remake skipped
+    expect(recap.recentMatches.some((m) => m.matchId === "remake")).toBe(false);
+    // Slim shape — only the strip-display fields
+    expect(Object.keys(recap.recentMatches[0] ?? {}).sort()).toEqual([
+      "assists",
+      "deaths",
+      "kills",
+      "matchId",
+      "playedAt",
+      "win",
+    ]);
+  });
+
+  it("returns an empty recentMatches array when totalGames is 0", () => {
+    expect(deriveChampionRecap("Ahri", [], NOW).recentMatches).toEqual([]);
+  });
+
   it("only averages gold-diff over matches with timeline data", () => {
     const matches: MatchSummary[] = [
       fixture({ matchId: "1", hasTimeline: true, teamGoldDiffAt15: 1000 }),

@@ -1,11 +1,13 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { useChampionRecap } from "@/lol/champions/use-champion-recap";
 import { useChampionName } from "@/lol/champions/use-champions";
-import { useMatches } from "@/lol/matches/use-matches";
 import { render, screen } from "@testing-library/react";
-import type { LolAccount, MatchSummary } from "@vyoh/shared";
+import { type LolAccount, type MatchSummary, deriveChampionRecap } from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lol/matches/use-matches", () => ({ useMatches: vi.fn() }));
+vi.mock("@/lol/champions/use-champion-recap", () => ({
+  useChampionRecap: vi.fn(),
+}));
 vi.mock("@/lol/champions/use-champions", () => ({
   useChampionName: vi.fn(() => (alias: string) => alias),
 }));
@@ -117,11 +119,19 @@ const matchFixture = (
   ...overrides,
 });
 
+/**
+ * Tests still author fixtures as MatchSummary[] (familiar shape) and the
+ * helper runs them through the real shared deriver before handing the recap
+ * to the mocked hook. Keeps every test honest about what data path produced
+ * the chapter state under assertion — if the deriver changes, the chapter
+ * tests change with it.
+ */
 function setMatches(matches: MatchSummary[]) {
-  vi.mocked(useMatches).mockReturnValue({
-    data: { pages: [matches] },
+  const recap = deriveChampionRecap("Ahri", matches, new Date("2026-06-01T12:00:00Z"));
+  vi.mocked(useChampionRecap).mockReturnValue({
+    data: recap,
     isPending: false,
-  } as unknown as ReturnType<typeof useMatches>);
+  } as unknown as ReturnType<typeof useChampionRecap>);
 }
 
 beforeEach(() => {
@@ -129,7 +139,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.mocked(useMatches).mockReset();
+  vi.mocked(useChampionRecap).mockReset();
   vi.mocked(useAssetClaim).mockClear();
   mainScrollRef.current = null;
 });

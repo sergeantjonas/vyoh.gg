@@ -204,6 +204,8 @@ describe("LolAnalyticsService.getChampionRecap", () => {
     expect(recap.signatureGame?.matchId).toBe("best");
     expect(recap.signatureGame?.opponentChampion).toBe("Sylas");
     expect(recap.peaks.highestKills).toBe(17);
+    // Recent strip carries the non-remake matches (newest first by playedAt).
+    expect(recap.recentMatches.map((m) => m.matchId)).toEqual(["best", "second"]);
   });
 
   it("returns the zero-state when the player has no stored matches on the champion", async () => {
