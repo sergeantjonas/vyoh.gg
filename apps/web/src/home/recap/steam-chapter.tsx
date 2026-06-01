@@ -127,6 +127,27 @@ function StandoutUnlockBlock({
         >
           {standout.displayName}
         </span>
+        {/* Description gives the achievement its narrative weight — "Bandit"
+            alone is opaque, "Steal 80% of the gold from a Merchant" tells the
+            visitor what was actually pulled off. Hidden achievements skip the
+            description: Steam's spoiler protection exists for a reason
+            (story-locked unlocks describe plot beats), and the chapter is
+            publicly readable so a visitor browsing the page shouldn't be
+            spoiled. Owner can always click through to the game-detail page
+            for the full unlocked-spoilers view. */}
+        {!standout.hidden && standout.description ? (
+          <p
+            // Description-line stays at text-sm even on larger viewports —
+            // sm:text-base added a line of vertical content that pushed
+            // the chapter's bottom band (screenshots + CTA) out of the
+            // 1-viewport pin. The description is supporting prose; the
+            // displayName above carries the editorial weight.
+            className="text-foreground/85 text-sm"
+            style={{ textShadow: SHADOW_BODY }}
+          >
+            {standout.description}
+          </p>
+        ) : null}
         <div
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/85"
           style={{ textShadow: SHADOW_BODY }}
@@ -343,7 +364,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
         pinViewports={1}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        pinClassName="items-start justify-start px-6 pt-[6dvh] sm:px-10"
+        pinClassName="items-start justify-start px-6 pt-[3dvh] sm:px-10"
       >
         <div className="flex w-full flex-col">
           <ChapterOpener>

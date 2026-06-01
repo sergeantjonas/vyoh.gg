@@ -212,6 +212,7 @@ describe("SteamChapter", () => {
     const standout = makeAchievement({
       apiName: "RARE",
       displayName: "Hollow Knight",
+      description: "Defeat the Hollow Knight without taking damage.",
       unlockedAt: "2026-05-25T00:00:00Z",
       globalPercent: 1.8,
     });
@@ -223,6 +224,33 @@ describe("SteamChapter", () => {
     render(<SteamChapter />);
     expect(screen.getByText("Rarest milestone")).toBeTruthy();
     expect(screen.getByText("1.8% have it")).toBeTruthy();
+    // Non-hidden achievements expose their description for editorial weight.
+    expect(
+      screen.getByText("Defeat the Hollow Knight without taking damage.")
+    ).toBeTruthy();
+  });
+
+  it("masks the description for hidden achievements (visitor spoiler safety)", () => {
+    const standout = makeAchievement({
+      apiName: "STORY",
+      displayName: "Pursuer",
+      description: "Defeat the final boss in under 4 hours.",
+      hidden: true,
+      unlockedAt: "2026-05-25T00:00:00Z",
+      globalPercent: 2.5,
+    });
+    vi.mocked(useSteamGameRecap).mockReturnValue({
+      data: recapFromFixtures(makeOwnedGame(), [standout]),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useSteamGameRecap>);
+    render(<SteamChapter />);
+    // Display name + meta still render (Steam's own client reveals these
+    // post-unlock); only the description is held back. "Pursuer" appears
+    // in both the standout block and the recent-unlocks strip — at least
+    // one is enough.
+    expect(screen.getAllByText("Pursuer").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Defeat the final boss in under 4 hours.")).toBeNull();
   });
 
   it("renders recent unlocks as a strip below the standout", () => {
