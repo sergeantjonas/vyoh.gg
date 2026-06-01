@@ -122,10 +122,17 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   const eyebrow = `Your ${displayName}`;
   const skinSubtitle = activeSkin.name === "Base" ? null : activeSkin.name;
 
+  // Band scrim — dark card with subtle local backdrop blur so copy stays
+  // readable against the lightly-blurred splash without darkening the whole
+  // image. `max-w-prose` keeps editorial measure ~65ch; `self-start` anchors
+  // each band on the left rather than stretching across the pin width.
+  const bandScrim =
+    "max-w-prose self-start rounded-xl border border-border/30 bg-background/55 px-6 backdrop-blur-sm";
+
   return (
     <div ref={outerRef} data-recap-chapter="ahri">
       <ChapterContainer pinViewports={2} slug="ahri" ariaLabel={eyebrow}>
-        <ChapterOpener>
+        <ChapterOpener className={bandScrim}>
           <ChapterReveal from={0} to={0.06}>
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
               {eyebrow}
@@ -145,7 +152,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           </ChapterReveal>
         </ChapterOpener>
 
-        <ChapterDetail>
+        <ChapterDetail className={bandScrim}>
           <ChapterReveal from={0.14} to={0.18}>
             <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
               Recent {displayName} games
@@ -202,7 +209,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           )}
         </ChapterDetail>
 
-        <ChapterStats>
+        <ChapterStats className={bandScrim}>
           <ChapterReveal from={0.32} to={0.38}>
             <div className="flex flex-col gap-1">
               <span className="text-3xl font-semibold tabular-nums text-foreground">

@@ -4,6 +4,8 @@
 // Edit by hand; commit the change. Promotes to an admin surface later only
 // if editing weekly becomes annoying.
 
+import { wikiFileIconUrl } from "@/lol/_shared/assets/champion-icon";
+
 export type AhriSkinEntry = {
   /** Display name for the skin (used as the lede chip while the chapter
    *  rests on that skin). "Base" renders the default-classic splash. */
@@ -18,14 +20,34 @@ export type AhriSkinEntry = {
   imageUrl?: string;
 };
 
-// Ahri-chapter splash rotation. The recap arc spec lands a 5-skin placeholder
-// (Base / K/DA / Spirit Blossom / Star Guardian / Elderwood), but per-skin
-// splash URLs need the image proxy's skin-index support — not in tree yet.
-// Until that ships, the rotation array stays single-entry; the chapter hook
-// reads its length and degrades to "no rotation" when it's 1. Adding entries
-// here lights up rotation immediately — supply `imageUrl` per entry for now,
-// migrate to a `skinNum` field once the proxy lands skin support.
-export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [{ name: "Base" }];
+// Ahri-chapter splash rotation. Each non-Base entry pulls its splash from
+// the wiki via the API image proxy (`wikiFileIconUrl` — same path used by
+// rich tooltip icons). Owner can extend by adding `{ name, imageUrl }`
+// pairs; rotation breakpoints and bloom transitions derive from the array
+// length, so adding a skin is one edit.
+export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [
+  { name: "Base" },
+  {
+    name: "Spirit Blossom",
+    imageUrl: wikiFileIconUrl("Ahri_SpiritBlossomSkin.jpg"),
+  },
+  {
+    name: "After Hours Spirit Blossom Springs",
+    imageUrl: wikiFileIconUrl("Ahri_AfterHoursSpiritBlossomSpringsSkin.jpg"),
+  },
+  {
+    name: "Immortalized Legend",
+    imageUrl: wikiFileIconUrl("Ahri_ImmortalizedLegendSkin.jpg"),
+  },
+  {
+    name: "Risen Legend",
+    imageUrl: wikiFileIconUrl("Ahri_RisenLegendSkin.jpg"),
+  },
+  {
+    name: "Midnight",
+    imageUrl: wikiFileIconUrl("Ahri_MidnightSkin.jpg"),
+  },
+];
 
 // Steam apps to never surface as a subject chapter, even if score qualifies.
 // Note: store API `type !== "game"` already filters most utilities

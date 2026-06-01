@@ -64,10 +64,10 @@ describe("useAssetClaim", () => {
       </AtmosphereContext.Provider>
     );
     const [, , claim] = setClaim.mock.calls[0] as [number, unknown, AtmosphereClaim];
-    // 6px is the subject-chapter target after ADR-2 retirement — light enough
-    // for the asset to remain recognizable, heavy enough to soften edges
-    // against the page chrome.
-    expect(claim.blurPx).toBe(6);
+    // 2px is barely-there blur — the splash reads as recognizable; per-band
+    // dark scrims (bg-background/55 + backdrop-blur-sm cards) handle text
+    // readability locally rather than blurring the whole image.
+    expect(claim.blurPx).toBe(2);
   });
 
   it("respects an explicit blurPx override", () => {
