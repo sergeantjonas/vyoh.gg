@@ -458,13 +458,6 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 >
                   {CHAMPION_TITLE}
                 </p>
-                <span
-                  aria-hidden="true"
-                  className="text-base text-foreground/60 opacity-0 transition-opacity group-hover/masthead:opacity-100 sm:text-lg"
-                  style={{ textShadow: SHADOW_LABEL }}
-                >
-                  →
-                </span>
               </Link>
             </ChapterReveal>
             <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">

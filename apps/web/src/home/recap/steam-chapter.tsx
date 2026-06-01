@@ -367,7 +367,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
         pinViewports={1}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        pinClassName="items-start justify-start px-6 pt-[4dvh] sm:px-10"
+        pinClassName="items-start justify-start px-6 pt-[3dvh] sm:px-10"
       >
         <div className="flex w-full flex-col">
           <ChapterOpener>
@@ -439,13 +439,6 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
                     {tagline}
                   </p>
                 ) : null}
-                <span
-                  aria-hidden="true"
-                  className="text-base text-foreground/60 opacity-0 transition-opacity group-hover/masthead:opacity-100 sm:text-lg"
-                  style={{ textShadow: SHADOW_LABEL }}
-                >
-                  →
-                </span>
               </Link>
             </ChapterReveal>
             {verdictClauses.length > 0 ? (

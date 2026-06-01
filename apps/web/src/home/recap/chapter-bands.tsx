@@ -22,6 +22,10 @@ function bandClassName(slot: Slot, extra?: string): string {
   // Editorial defaults: opener gets generous breathing room; detail rows
   // stack tight; stats live in a horizontal strip; closer is centered with
   // the page paragraph width so screenshots/trailers can frame against it.
+  // Internal vertical padding is the breathing room that makes the chapter
+  // read as editorial; stripping it (tried in an R-3 polish round) made
+  // bands collide and lost the magazine-spread quality. Override only
+  // where a specific chapter truly needs different spacing.
   const slotClass = {
     opener: "flex flex-col gap-3 pt-12 pb-6",
     detail: "flex flex-col gap-2 py-4",
