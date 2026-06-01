@@ -28,6 +28,20 @@ import { VerdictProse } from "./verdict-prose";
 
 const CHAMPION_ALIAS = "Ahri";
 
+// Hardcoded for the first per-champion chapter — the static bundle's
+// LolChampionDto doesn't carry the editorial title field yet. When R-3+
+// adds more per-subject chapters, promote this to the static pipeline
+// (DDragon ships `title` per champion) and pass it through props.
+const CHAMPION_TITLE = "the Nine-Tailed Fox";
+
+// Text-shadow strengths tuned against the Ahri splash family. Bright
+// splash crops (Spirit Blossom, Star Guardian) wash light text out where
+// it sits over rim-light highlights; a layered dark halo binds the glyph
+// edges without needing a card backdrop behind every text block.
+const SHADOW_MASTHEAD = "0 2px 12px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.45)";
+const SHADOW_BODY = "0 1px 4px rgba(0,0,0,0.55), 0 0 2px rgba(0,0,0,0.4)";
+const SHADOW_LABEL = "0 1px 3px rgba(0,0,0,0.6)";
+
 function formatRelative(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return "just now";
@@ -88,7 +102,11 @@ function SignatureGameCard({
     <Link
       to="/lol/$accountSlug/matches/$matchId"
       params={{ accountSlug, matchId: signature.matchId }}
-      className="group flex cursor-pointer flex-col gap-1 rounded-xl border border-border/40 bg-background/55 px-4 py-3 backdrop-blur-sm transition-colors hover:bg-background/70"
+      // Card chrome refined for splash-readability: hairline border + soft
+      // top-down gradient instead of a flat 55% backdrop. The previous flat
+      // tint + `backdrop-blur-sm` was hitting splash chroma it didn't expect
+      // and read as a smudge over bright/cool art crops.
+      className="group flex cursor-pointer flex-col gap-1 rounded-xl border border-white/15 bg-gradient-to-b from-black/65 to-black/35 px-4 py-3 shadow-lg shadow-black/20 transition-colors hover:from-black/75 hover:to-black/50"
     >
       <span className="text-[10px] uppercase tracking-[0.2em] text-foreground/55">
         Signature game
@@ -147,10 +165,16 @@ function PeakChip({
   return (
     <ChapterReveal active={active} delay={delay}>
       <div className="flex flex-col gap-0.5">
-        <span className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">
+        <span
+          className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+          style={{ textShadow: SHADOW_BODY }}
+        >
           {value}
         </span>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-foreground/55">
+        <span
+          className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+          style={{ textShadow: SHADOW_LABEL }}
+        >
           {label}
         </span>
       </div>
@@ -343,21 +367,41 @@ export function AhriChapter({ account }: { account: LolAccount }) {
 
         <div className="flex w-full max-w-2xl flex-col">
           <ChapterOpener>
-            <ChapterReveal active={nudged} delay={0.05}>
+            <ChapterReveal active={nudged} delay={0.05} blur={4}>
               <p
                 className="text-xs uppercase tracking-[0.2em]"
-                style={{ color: "var(--accent, currentColor)" }}
+                style={{
+                  color: "var(--accent, currentColor)",
+                  textShadow: SHADOW_LABEL,
+                }}
               >
                 {eyebrow}
               </p>
             </ChapterReveal>
-            <ChapterReveal active={nudged} delay={0.18}>
-              <h2 className="text-6xl font-semibold leading-none text-foreground sm:text-7xl">
+            {/* Masthead + title subtext animate together as the hero tier —
+                blur-up entrance matching the landing's editorial reveal so
+                the chapter doesn't read as just another fade-in section. */}
+            <ChapterReveal active={nudged} delay={0.18} blur={10}>
+              <h2
+                className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                style={{ textShadow: SHADOW_MASTHEAD }}
+              >
                 {displayName}
               </h2>
             </ChapterReveal>
-            <ChapterReveal active={nudged} delay={0.4} className="pt-2">
-              <VerdictProse clauses={verdictClauses} />
+            <ChapterReveal active={nudged} delay={0.3} blur={6}>
+              <p
+                className="text-sm italic text-foreground/80 sm:text-base"
+                style={{ textShadow: SHADOW_LABEL }}
+              >
+                {CHAMPION_TITLE}
+              </p>
+            </ChapterReveal>
+            <ChapterReveal active={nudged} delay={0.45} blur={6} className="pt-2">
+              <VerdictProse
+                clauses={verdictClauses}
+                style={{ textShadow: SHADOW_BODY }}
+              />
             </ChapterReveal>
           </ChapterOpener>
 
@@ -371,11 +415,14 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             {recent.length > 0 ? (
               <div className="flex flex-col gap-2 pt-2">
                 <ChapterReveal active={nudged} delay={0.85}>
-                  <h3 className="text-[10px] uppercase tracking-[0.2em] text-foreground/55">
+                  <h3
+                    className="text-[10px] uppercase tracking-[0.2em] text-foreground/65"
+                    style={{ textShadow: SHADOW_LABEL }}
+                  >
                     Recent runs
                   </h3>
                 </ChapterReveal>
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-0.5">
                   {recent.map((m, i) => {
                     const delay = 0.9 + i * 0.06;
                     return (
@@ -387,23 +434,29 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                               accountSlug: account.slug,
                               matchId: m.matchId,
                             }}
-                            className="group flex items-center gap-3 rounded-md py-1 text-sm text-foreground/85 transition-colors hover:text-foreground"
+                            // Hover affordance: a faint full-row band so the
+                            // user can tell which row their pointer is on
+                            // (the previous color-only hover wasn't visible
+                            // against the splash). `-mx-2 px-2` lets the
+                            // band extend past the row's natural padding.
+                            className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/90 transition-colors hover:bg-white/8 hover:text-foreground"
+                            style={{ textShadow: SHADOW_BODY }}
                           >
                             <span
                               aria-hidden="true"
                               className={[
                                 "inline-flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-bold",
                                 m.win
-                                  ? "bg-emerald-400/20 text-emerald-300"
-                                  : "bg-rose-400/20 text-rose-300",
+                                  ? "bg-emerald-400/25 text-emerald-200"
+                                  : "bg-rose-400/25 text-rose-200",
                               ].join(" ")}
                             >
                               {m.win ? "W" : "L"}
                             </span>
-                            <span className="font-mono text-xs tabular-nums text-foreground/95">
+                            <span className="font-mono text-xs tabular-nums text-foreground">
                               {m.kills}/{m.deaths}/{m.assists}
                             </span>
-                            <span className="ml-auto text-xs text-foreground/55 group-hover:text-foreground/75">
+                            <span className="ml-auto text-xs text-foreground/70 group-hover:text-foreground/90">
                               {formatRelative(m.playedAt)}
                             </span>
                           </Link>
@@ -449,7 +502,8 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                   accountSlug: account.slug,
                   championKey: CHAMPION_ALIAS.toLowerCase(),
                 }}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-card/60"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/15 bg-black/55 px-4 py-2 text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-colors hover:bg-black/70"
+                style={{ textShadow: SHADOW_LABEL }}
               >
                 View {displayName} deep stats →
               </Link>

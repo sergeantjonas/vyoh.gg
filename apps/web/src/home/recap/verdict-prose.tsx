@@ -1,8 +1,16 @@
+import type { CSSProperties } from "react";
+
 import type { VerdictClause } from "@vyoh/shared";
 
 type Props = {
   clauses: VerdictClause[];
   className?: string;
+  /**
+   * Inline style applied to the wrapping `<p>`. The common reason to pass
+   * this is `textShadow` — every chapter background is different so the
+   * shadow tuning lives at the call site rather than baked into the primitive.
+   */
+  style?: CSSProperties;
 };
 
 /**
@@ -26,7 +34,7 @@ type Props = {
  * Clauses join with a space — the JSX layer can split per-clause if a
  * chapter wants to cascade reveals at clause granularity later.
  */
-export function VerdictProse({ clauses, className }: Props) {
+export function VerdictProse({ clauses, className, style }: Props) {
   return (
     <p
       className={[
@@ -35,6 +43,7 @@ export function VerdictProse({ clauses, className }: Props) {
       ]
         .filter(Boolean)
         .join(" ")}
+      style={style}
     >
       {clauses.map((clause, ci) => (
         // Clauses are stable across renders for a given recap — the recap

@@ -242,6 +242,28 @@ describe("AhriChapter", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Ahri" })).toBeTruthy();
   });
 
+  it("renders the champion title subtext under the masthead", () => {
+    vi.mocked(useChampionName).mockReturnValue(() => "Ahri");
+    setMatches([matchFixture({ matchId: "EUW_1" })]);
+    render(<AhriChapter account={account} />);
+    // Editorial subtext sits below the headline. The masthead-tier reveal
+    // pairs the headline and the title; the title is hardcoded for this
+    // first per-champion chapter.
+    expect(screen.getByText("the Nine-Tailed Fox")).toBeTruthy();
+  });
+
+  it("recent-run rows carry the hover-band class so the pointer position is visible", () => {
+    setMatches([matchFixture({ matchId: "EUW_1" })]);
+    const { container } = render(<AhriChapter account={account} />);
+    const detailLinks = container.querySelectorAll("[data-band='detail'] li a");
+    // Each recent-run row links into the match detail; the row carries a
+    // `hover:bg-*` class so users can tell which row their pointer is on
+    // (the original color-only hover wasn't visible against the splash).
+    for (const link of detailLinks) {
+      expect(link.className).toMatch(/hover:bg-/);
+    }
+  });
+
   it("renders the signature-game card linking into the corresponding match detail", () => {
     setMatches([
       matchFixture({

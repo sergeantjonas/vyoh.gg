@@ -1,6 +1,11 @@
 import { type Transition, m, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
+// Same ease the landing hero uses for its editorial entrance reveal — keeps
+// the chapter's "hero" tier (masthead + lede) on the same motion language
+// as the page that immediately precedes it.
+const HERO_EASE = [0.16, 1, 0.3, 1] as const;
+
 type Props = {
   className?: string;
   children: ReactNode;
@@ -26,6 +31,15 @@ type Props = {
   duration?: number;
   /** Initial vertical offset in px — element rises from `rise` to 0 px. */
   rise?: number;
+  /**
+   * Optional blur radius in px for the entrance. When set, the element
+   * animates from `filter: blur({blur}px)` to `filter: blur(0)` alongside
+   * the standard fade+rise. Matches the landing hero's editorial reveal
+   * pattern (`sectionChildVariants` in `components/ui/section-variants.ts`).
+   * Reserve for "hero-tier" reveals — chapter masthead, lede paragraph —
+   * not every band, otherwise it loses its weight.
+   */
+  blur?: number;
 };
 
 /**
@@ -44,6 +58,7 @@ export function ChapterReveal({
   delay = 0,
   duration = 0.6,
   rise = 12,
+  blur,
 }: Props) {
   const reduced = useReducedMotion();
 
@@ -51,14 +66,33 @@ export function ChapterReveal({
     return <div className={className}>{children}</div>;
   }
 
-  const transition: Transition = { duration, ease: "easeOut", delay };
+  // Hero-tier reveals (with blur) get the editorial cubic-bezier the
+  // landing hero uses; the lighter fade+rise sticks with easeOut.
+  const transition: Transition = {
+    duration,
+    ease: blur !== undefined ? HERO_EASE : "easeOut",
+    delay,
+  };
+
+  const initial: Record<string, string | number> = { opacity: 0, y: rise };
+  const visible: Record<string, string | number> = { opacity: 1, y: 0 };
+  if (blur !== undefined) {
+    initial.filter = `blur(${blur}px)`;
+    visible.filter = "blur(0px)";
+  }
 
   return (
     <m.div
       className={className}
-      initial={{ opacity: 0, y: rise }}
-      animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: rise }}
+      initial={initial}
+      animate={active ? visible : initial}
       transition={transition}
+      // Hint the compositor for the blur+transform combo. Motion clears
+      // `will-change` after the animation completes per the recap arc's
+      // perf budget.
+      {...(blur !== undefined
+        ? { style: { willChange: "transform, opacity, filter" } }
+        : {})}
     >
       {children}
     </m.div>

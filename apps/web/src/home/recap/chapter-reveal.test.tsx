@@ -78,4 +78,26 @@ describe("ChapterReveal", () => {
     const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
     expect(wrapper?.style.opacity).toBe("0");
   });
+
+  it("applies a blur filter at the initial state when the blur prop is set (hero-tier reveal)", () => {
+    const { container } = render(
+      <ChapterReveal blur={8}>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    // Motion writes the initial state inline; `filter: blur(8px)` is the
+    // signature that the hero-tier entrance is active.
+    expect(wrapper?.style.filter).toContain("blur(8px)");
+  });
+
+  it("omits the blur filter when the blur prop is not set (default fade+rise)", () => {
+    const { container } = render(
+      <ChapterReveal>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    expect(wrapper?.style.filter ?? "").not.toContain("blur");
+  });
 });
