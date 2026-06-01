@@ -149,7 +149,13 @@ export function NextChapterCaret() {
       className="-translate-x-1/2 fixed bottom-5 left-1/2 z-40 flex cursor-pointer flex-col items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
     >
       <span
-        className="text-[10px] font-medium uppercase tracking-[0.22em]"
+        // `pl-[0.22em]` balances the trailing letter-spacing — without
+        // it, the text's bounding box extends 0.22em past the last
+        // glyph (trailing tracking), and flex items-center then centers
+        // the box, which visually shifts the glyphs left by ~half the
+        // tracking. Matching left padding restores symmetric visual
+        // centering against the chevron below.
+        className="pl-[0.22em] text-[10px] font-medium uppercase tracking-[0.22em]"
         style={{ textShadow: SHADOW_LABEL }}
       >
         {next.label}
