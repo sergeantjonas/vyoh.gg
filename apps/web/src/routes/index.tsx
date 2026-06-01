@@ -1,5 +1,6 @@
 import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { AmbientHero } from "@/home/ambient-hero";
+import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
 import { HeroScrollHint } from "@/home/hero-scroll-hint";
 import { LandingHeading } from "@/home/landing-heading";
 import { LandingSteamBand } from "@/home/landing-steam-band";
@@ -14,6 +15,7 @@ import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { createFileRoute } from "@tanstack/react-router";
+import { useRef } from "react";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -26,46 +28,55 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { account } = usePrimaryAccount();
   const { data: activity } = useHomeActivityIntensity();
+  // Hero-band ref is the proximity target for the hero's atmosphere claim. The
+  // atmosphere layer reads its bounding rect each scroll tick to weight the
+  // hero's contribution against any subsequent band's claim.
+  const heroRef = useRef<HTMLElement | null>(null);
   return (
-    <div className="relative flex flex-col">
-      {/* `--main-h` is written by <main>'s callback ref in __root.tsx (and kept
-          current by a ResizeObserver there) — its value is <main>'s actual
-          clientHeight, so subtracting 3rem (the wrapping div's `p-6` top+bottom
-          padding) gives the exact content-area height. The `100dvh` fallback
-          covers the impossible case where the var isn't set yet — pragmatic
-          over-cover rather than a precise approximation. */}
-      <section className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh]">
-        <AmbientHero intensity={activity?.intensity} />
-        <LandingHeading />
-        <HeroScrollHint />
-      </section>
-      <LandingSteamBand />
-      <BentoGrid>
-        <BentoTile width={2} height={2}>
-          <TileChronotype />
-        </BentoTile>
-        <BentoTile width={2}>
-          <TileSignatureGame account={account} />
-        </BentoTile>
-        <BentoTile width={2}>
-          <TileLastMatch account={account} />
-        </BentoTile>
-        <BentoTile width={2}>
-          <TileWeeklyTotals />
-        </BentoTile>
-        <BentoTile width={2} height={2}>
-          <TileDaySplit />
-        </BentoTile>
-        <BentoTile width={2}>
-          <TileSessionLengths />
-        </BentoTile>
-        <BentoTile>
-          <TileBuildBadge />
-        </BentoTile>
-        <BentoTile>
-          <TileDomainAge />
-        </BentoTile>
-      </BentoGrid>
-    </div>
+    <AtmosphereProvider>
+      <div className="relative flex flex-col">
+        {/* `--main-h` is written by <main>'s callback ref in __root.tsx (and kept
+            current by a ResizeObserver there) — its value is <main>'s actual
+            clientHeight, so subtracting 3rem (the wrapping div's `p-6` top+bottom
+            padding) gives the exact content-area height. The `100dvh` fallback
+            covers the impossible case where the var isn't set yet — pragmatic
+            over-cover rather than a precise approximation. */}
+        <section
+          ref={heroRef}
+          className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh]"
+        >
+          <AmbientHero bandRef={heroRef} intensity={activity?.intensity} />
+          <LandingHeading />
+          <HeroScrollHint />
+        </section>
+        <LandingSteamBand />
+        <BentoGrid>
+          <BentoTile width={2} height={2}>
+            <TileChronotype />
+          </BentoTile>
+          <BentoTile width={2}>
+            <TileSignatureGame account={account} />
+          </BentoTile>
+          <BentoTile width={2}>
+            <TileLastMatch account={account} />
+          </BentoTile>
+          <BentoTile width={2}>
+            <TileWeeklyTotals />
+          </BentoTile>
+          <BentoTile width={2} height={2}>
+            <TileDaySplit />
+          </BentoTile>
+          <BentoTile width={2}>
+            <TileSessionLengths />
+          </BentoTile>
+          <BentoTile>
+            <TileBuildBadge />
+          </BentoTile>
+          <BentoTile>
+            <TileDomainAge />
+          </BentoTile>
+        </BentoGrid>
+      </div>
+    </AtmosphereProvider>
   );
 }

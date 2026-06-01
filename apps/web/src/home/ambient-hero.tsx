@@ -1,6 +1,5 @@
-import { usePointerParallax } from "@/lib/use-pointer-parallax";
-import { m, useReducedMotion } from "motion/react";
-import AmbientHeroCanvas from "./ambient-hero-canvas";
+import { type RefObject, useMemo } from "react";
+import { useAtmosphereClaim } from "./atmosphere/use-atmosphere-claim";
 
 export type TimeOfDay = "dawn" | "day" | "dusk" | "night";
 
@@ -118,83 +117,34 @@ function hourFromSearchParams(): number | null {
   return Number.isInteger(parsed) && parsed >= 0 && parsed <= 23 ? parsed : null;
 }
 
-function isLowPower(): boolean {
-  if (typeof navigator === "undefined") return true;
-  const nav = navigator as Navigator & {
-    connection?: { saveData?: boolean };
-    deviceMemory?: number;
-  };
-  if (nav.connection?.saveData) return true;
-  if (typeof nav.deviceMemory === "number" && nav.deviceMemory < 4) return true;
-  return false;
-}
-
-function StaticLayer({
-  palette,
-  intensity,
-}: {
-  palette: AmbientPalette;
-  intensity: number;
-}) {
-  return (
-    <div
-      data-ambient-static
-      className="absolute inset-0"
-      style={{
-        backgroundImage: palette.layers
-          .map((layer) => layerToCssGradient(layer, intensity))
-          .join(", "),
-        backgroundBlendMode: "screen",
-        maskImage: VIGNETTE_MASK,
-        WebkitMaskImage: VIGNETTE_MASK,
-      }}
-    />
-  );
-}
-
+/**
+ * Registers the initial atmosphere claim for the landing page: time-of-day
+ * palette + activity intensity, scoped to the hero band. The shared
+ * `<AtmosphereLayer>` (mounted by `<AtmosphereProvider>` in routes/index.tsx)
+ * renders the actual visual; this component renders nothing on its own.
+ *
+ * The hero canvas drift (60s phase animation) and pointer parallax that the
+ * pre-arc AmbientHero rendered are intentionally not migrated here — both
+ * effects were polish-on-polish at amplitudes (0.05 / 14px) where loss is
+ * imperceptible, and re-adding them as a per-claim renderer mode is a
+ * polish-pass concern, not an A-2 concern.
+ */
 export function AmbientHero({
+  bandRef,
   hour,
   intensity,
 }: {
+  bandRef: RefObject<HTMLElement | null>;
   hour?: number | undefined;
   intensity?: number | undefined;
 }) {
-  const reducedMotion = useReducedMotion();
   const resolved = hour ?? hourFromSearchParams() ?? currentBrusselsHour();
   const palette = paletteForHour(resolved);
-  const shouldAnimate = reducedMotion === false && !isLowPower();
-  // Default to the average baseline so the palette matches the pre-reactivity
-  // look while the activity-intensity query is still loading. Reduced-motion
-  // always renders the baseline per the arc note's reduced-motion contract.
   const resolvedIntensity = intensity ?? 0.5;
-  const staticIntensity = shouldAnimate ? resolvedIntensity : 0.5;
-  // Larger maxOffset than the splash backdrop's bg track (6) — the gradients
-  // are blurry enough that smaller offsets read as no motion at all. Still
-  // subliminal at 14px against an ~95vh canvas.
-  const parallax = usePointerParallax({ maxOffset: 14 });
-  return (
-    <div
-      aria-hidden
-      data-ambient-hero
-      data-time-of-day={palette.timeOfDay}
-      // -top-6 / -bottom-6 bleed the gradient into the wrapping div's p-6
-      // padding above and below the hero section, so AmbientHero covers the
-      // full visible viewport of <main> instead of leaving a transparent
-      // sliver at the bottom (where the section box ends but the wrapping
-      // div's bottom padding still occupies space inside main).
-      className="pointer-events-none absolute -top-6 -bottom-6 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden"
-    >
-      {shouldAnimate ? (
-        <m.div
-          data-ambient-parallax
-          className="absolute inset-0"
-          style={{ x: parallax.x, y: parallax.y }}
-        >
-          <AmbientHeroCanvas layers={palette.layers} intensity={resolvedIntensity} />
-        </m.div>
-      ) : (
-        <StaticLayer palette={palette} intensity={staticIntensity} />
-      )}
-    </div>
+  const claim = useMemo(
+    () => ({ palette, intensity: resolvedIntensity }),
+    [palette, resolvedIntensity]
   );
+  useAtmosphereClaim(bandRef, claim);
+  return null;
 }

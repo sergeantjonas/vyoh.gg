@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useRef } from "react";
+import { describe, expect, it, vi } from "vitest";
 import {
   AmbientHero,
   intensityToChromaMultiplier,
@@ -8,20 +9,16 @@ import {
   timeOfDayForHour,
 } from "./ambient-hero";
 
-vi.mock("motion/react", async () => {
-  const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
-  return { ...actual, useReducedMotion: vi.fn() };
-});
-const { useReducedMotion } = await import("motion/react");
-const mockUseReducedMotion = vi.mocked(useReducedMotion);
+vi.mock("./atmosphere/use-atmosphere-claim", () => ({
+  useAtmosphereClaim: vi.fn(),
+}));
+const { useAtmosphereClaim } = await import("./atmosphere/use-atmosphere-claim");
+const mockUseAtmosphereClaim = vi.mocked(useAtmosphereClaim);
 
-beforeEach(() => {
-  mockUseReducedMotion.mockReturnValue(null);
-});
-
-afterEach(() => {
-  mockUseReducedMotion.mockReset();
-});
+function MountHero({ hour, intensity }: { hour?: number; intensity?: number }) {
+  const ref = useRef<HTMLElement | null>(null);
+  return <AmbientHero bandRef={ref} hour={hour} intensity={intensity} />;
+}
 
 describe("timeOfDayForHour", () => {
   it("buckets night for 0–4 and 22–23", () => {
@@ -70,42 +67,44 @@ describe("paletteForHour", () => {
 });
 
 describe("AmbientHero", () => {
-  it("renders an aria-hidden decorative layer with the resolved time-of-day", () => {
-    const { container } = render(<AmbientHero hour={20} />);
-    const root = container.querySelector("[data-ambient-hero]");
-    expect(root).not.toBeNull();
-    expect(root?.getAttribute("aria-hidden")).toBe("true");
-    expect(root?.getAttribute("data-time-of-day")).toBe("dusk");
+  it("renders nothing on its own — the atmosphere layer is the visible surface", () => {
+    mockUseAtmosphereClaim.mockClear();
+    const { container } = render(<MountHero hour={12} />);
+    expect(container.firstChild).toBeNull();
   });
 
-  it("composites the three radial gradients via background-blend-mode: screen", () => {
-    const { container } = render(<AmbientHero hour={3} />);
-    const layer = container.querySelector(
-      "[data-ambient-hero] > div"
-    ) as HTMLElement | null;
-    expect(layer).not.toBeNull();
-    expect(layer?.style.backgroundBlendMode).toBe("screen");
-    expect(layer?.style.backgroundImage.match(/radial-gradient/g)).toHaveLength(3);
+  it("registers an atmosphere claim with the palette for the resolved hour", () => {
+    mockUseAtmosphereClaim.mockClear();
+    render(<MountHero hour={20} />);
+    const [, claim] = mockUseAtmosphereClaim.mock.calls.at(-1) ?? [];
+    expect(claim?.palette.timeOfDay).toBe("dusk");
   });
 
-  it("falls through to the live Brussels clock when no hour is provided", () => {
-    const { container } = render(<AmbientHero />);
-    const root = container.querySelector("[data-ambient-hero]");
-    const tod = root?.getAttribute("data-time-of-day");
-    expect(["dawn", "day", "dusk", "night"]).toContain(tod);
+  it("defaults intensity to 0.5 when the prop is omitted", () => {
+    mockUseAtmosphereClaim.mockClear();
+    render(<MountHero hour={12} />);
+    const [, claim] = mockUseAtmosphereClaim.mock.calls.at(-1) ?? [];
+    expect(claim?.intensity).toBe(0.5);
   });
 
-  it("honours ?hour=N URL search param for palette preview", () => {
+  it("forwards an explicit intensity prop into the claim", () => {
+    mockUseAtmosphereClaim.mockClear();
+    render(<MountHero hour={12} intensity={0.9} />);
+    const [, claim] = mockUseAtmosphereClaim.mock.calls.at(-1) ?? [];
+    expect(claim?.intensity).toBe(0.9);
+  });
+
+  it("honours ?hour=N URL search param when no hour prop is provided", () => {
     const original = window.location.search;
     Object.defineProperty(window, "location", {
       value: { ...window.location, search: "?hour=19" },
       writable: true,
     });
+    mockUseAtmosphereClaim.mockClear();
     try {
-      const { container } = render(<AmbientHero />);
-      expect(
-        container.querySelector("[data-ambient-hero]")?.getAttribute("data-time-of-day")
-      ).toBe("dusk");
+      render(<MountHero />);
+      const [, claim] = mockUseAtmosphereClaim.mock.calls.at(-1) ?? [];
+      expect(claim?.palette.timeOfDay).toBe("dusk");
     } finally {
       Object.defineProperty(window, "location", {
         value: { ...window.location, search: original },
@@ -114,85 +113,22 @@ describe("AmbientHero", () => {
     }
   });
 
-  it("ignores invalid ?hour values", () => {
+  it("ignores invalid ?hour values and falls back to the live clock", () => {
     Object.defineProperty(window, "location", {
       value: { ...window.location, search: "?hour=99" },
       writable: true,
     });
+    mockUseAtmosphereClaim.mockClear();
     try {
-      const { container } = render(<AmbientHero />);
-      const tod = container
-        .querySelector("[data-ambient-hero]")
-        ?.getAttribute("data-time-of-day");
-      expect(["dawn", "day", "dusk", "night"]).toContain(tod);
+      render(<MountHero />);
+      const [, claim] = mockUseAtmosphereClaim.mock.calls.at(-1) ?? [];
+      expect(["dawn", "day", "dusk", "night"]).toContain(claim?.palette.timeOfDay);
     } finally {
       Object.defineProperty(window, "location", {
         value: { ...window.location, search: "" },
         writable: true,
       });
     }
-  });
-
-  it("renders only the static layer when reduced motion is preferred", () => {
-    mockUseReducedMotion.mockReturnValue(true);
-    const { container } = render(<AmbientHero hour={12} />);
-    expect(container.querySelector("[data-ambient-canvas]")).toBeNull();
-    expect(container.querySelector("[data-ambient-static]")).not.toBeNull();
-  });
-
-  it("renders only the static layer before reduced-motion preference resolves", () => {
-    mockUseReducedMotion.mockReturnValue(null);
-    const { container } = render(<AmbientHero hour={12} />);
-    expect(container.querySelector("[data-ambient-canvas]")).toBeNull();
-    expect(container.querySelector("[data-ambient-static]")).not.toBeNull();
-  });
-
-  it("renders only the canvas when motion is allowed", () => {
-    mockUseReducedMotion.mockReturnValue(false);
-    const { container } = render(<AmbientHero hour={12} />);
-    expect(container.querySelector("[data-ambient-canvas]")).not.toBeNull();
-    expect(container.querySelector("[data-ambient-static]")).toBeNull();
-  });
-
-  it("wraps the canvas in a cursor-aware parallax track when motion is allowed", () => {
-    mockUseReducedMotion.mockReturnValue(false);
-    const { container } = render(<AmbientHero hour={12} />);
-    const track = container.querySelector("[data-ambient-parallax]");
-    expect(track).not.toBeNull();
-    expect(track?.querySelector("[data-ambient-canvas]")).not.toBeNull();
-  });
-
-  it("omits the parallax track when reduced motion is preferred", () => {
-    mockUseReducedMotion.mockReturnValue(true);
-    const { container } = render(<AmbientHero hour={12} />);
-    expect(container.querySelector("[data-ambient-parallax]")).toBeNull();
-  });
-
-  it("renders the static layer at baseline chroma when reduced motion is on, regardless of intensity prop", () => {
-    mockUseReducedMotion.mockReturnValue(true);
-    const { container: a } = render(<AmbientHero hour={20} intensity={0} />);
-    const { container: b } = render(<AmbientHero hour={20} intensity={1} />);
-    const staticA = a.querySelector("[data-ambient-static]") as HTMLElement | null;
-    const staticB = b.querySelector("[data-ambient-static]") as HTMLElement | null;
-    expect(staticA?.style.backgroundImage).toBe(staticB?.style.backgroundImage);
-  });
-
-  it("forwards higher intensity into the static layer's gradient string when motion is allowed", () => {
-    mockUseReducedMotion.mockReturnValue(false);
-    // Skip the canvas path: pretend reduced-motion to render static, but
-    // verify the static path picks up the intensity prop. (The canvas path is
-    // exercised via direct ambient-hero-canvas tests.)
-    mockUseReducedMotion.mockReturnValue(true);
-    const baseline = render(<AmbientHero hour={20} intensity={0.5} />);
-    const vivid = render(<AmbientHero hour={20} intensity={1} />);
-    const baselineStyle = (
-      baseline.container.querySelector("[data-ambient-static]") as HTMLElement | null
-    )?.style.backgroundImage;
-    const vividStyle = (
-      vivid.container.querySelector("[data-ambient-static]") as HTMLElement | null
-    )?.style.backgroundImage;
-    // Reduced-motion clamps both to baseline 0.5 → identical strings.
-    expect(baselineStyle).toBe(vividStyle);
   });
 });
 
