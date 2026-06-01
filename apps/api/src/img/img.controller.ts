@@ -192,6 +192,28 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
+  // Wiki-served skin splash proxy — full-bleed transcode for recap chapter
+  // backgrounds. Same upstream as `wikiFile` but Sharp targets 1920px wide
+  // at quality 90 (vs 32px / 85 for the tooltip-icon route). Separate route
+  // segment keeps the cache key distinct so an icon and a splash for the
+  // same filename don't collide.
+  @Get("lol/wiki-splash/:filename.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async wikiSplash(
+    @Param("filename") filename: string,
+    @Res() res: Response
+  ): Promise<void> {
+    let resolved: ReturnType<LolImageService["wikiSplash"]>;
+    try {
+      resolved = this.lol.wikiSplash(filename);
+    } catch {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
   @Get("lol/rune/:keystoneId/:patch.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)

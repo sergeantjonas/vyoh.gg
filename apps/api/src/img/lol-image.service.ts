@@ -291,6 +291,23 @@ export class LolImageService {
     };
   }
 
+  // Wiki-served skin splashes — same upstream as `wikiFile` but transcoded
+  // for full-bleed chapter backdrops (recap arc subject chapters). Sharp
+  // caps at 1920 so retina display stays sharp without upscaling smaller
+  // upstream files; quality 90 keeps facial detail readable against the
+  // band scrims. Distinct from the `champion/.../splash` route, which
+  // pulls base-skin art from CDragon — wiki carries the per-skin filenames
+  // (`Ahri_SpiritBlossomSkin_HD.jpg` etc.) CDragon's per-alias paths can't.
+  wikiSplash(filename: string): Resolved {
+    if (!/^[A-Za-z0-9_.\-%']+$/.test(filename)) {
+      throw new Error(`invalid wiki splash filename ${filename}`);
+    }
+    return {
+      urls: [wikiFileUrl(filename)],
+      params: { width: 1920, quality: 90 },
+    };
+  }
+
   // Wiki primary with CDragon `game/assets/maps/info` fallback. CDragon's
   // per-map filename differs (SR uses `2dlevelminimap_npe_1.png`, HA uses the
   // bare `2dlevelminimap.png`) so the mapping is explicit.

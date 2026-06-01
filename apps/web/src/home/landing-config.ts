@@ -4,7 +4,7 @@
 // Edit by hand; commit the change. Promotes to an admin surface later only
 // if editing weekly becomes annoying.
 
-import { wikiFileIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { wikiSplashUrl } from "@/lol/_shared/assets/champion-icon";
 
 export type AhriSkinEntry = {
   /** Display name for the skin (used as the lede chip while the chapter
@@ -12,40 +12,38 @@ export type AhriSkinEntry = {
   name: string;
   /**
    * Optional splash URL override. When omitted the chapter falls back to
-   * the base Ahri backdrop served by the image proxy. Provide an explicit
-   * URL to wire a skin splash today — the image proxy will gain a skin-
-   * index segment in a later chunk, at which point this field can move to
-   * `skinNum` and the URL composition becomes proxy-routed.
+   * the base Ahri backdrop served by the image proxy. Use `wikiSplashUrl`
+   * for skin art — the dedicated wiki-splash proxy route transcodes at
+   * 1920px wide (vs 32px for the tooltip-icon route).
    */
   imageUrl?: string;
 };
 
-// Ahri-chapter splash rotation. Each non-Base entry pulls its splash from
-// the wiki via the API image proxy (`wikiFileIconUrl` — same path used by
-// rich tooltip icons). Owner can extend by adding `{ name, imageUrl }`
-// pairs; rotation breakpoints and bloom transitions derive from the array
-// length, so adding a skin is one edit.
+// Ahri-chapter splash rotation. Auto-cycles via `useSkinRotation` — each
+// entry holds for a few seconds, with a soft blur-bloom crossfade between
+// adjacent skins. Owner can extend by adding `{ name, imageUrl }` pairs;
+// the cycle picks them up automatically.
 export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [
   { name: "Base" },
   {
     name: "Spirit Blossom",
-    imageUrl: wikiFileIconUrl("Ahri_SpiritBlossomSkin.jpg"),
+    imageUrl: wikiSplashUrl("Ahri_SpiritBlossomSkin_HD.jpg"),
   },
   {
     name: "After Hours Spirit Blossom Springs",
-    imageUrl: wikiFileIconUrl("Ahri_AfterHoursSpiritBlossomSpringsSkin.jpg"),
+    imageUrl: wikiSplashUrl("Ahri_AfterHoursSpiritBlossomSpringsSkin_HD.jpg"),
   },
   {
     name: "Immortalized Legend",
-    imageUrl: wikiFileIconUrl("Ahri_ImmortalizedLegendSkin.jpg"),
+    imageUrl: wikiSplashUrl("Ahri_ImmortalizedLegendSkin_HD.jpg"),
   },
   {
     name: "Risen Legend",
-    imageUrl: wikiFileIconUrl("Ahri_RisenLegendSkin.jpg"),
+    imageUrl: wikiSplashUrl("Ahri_RisenLegendSkin_HD.jpg"),
   },
   {
     name: "Midnight",
-    imageUrl: wikiFileIconUrl("Ahri_MidnightSkin.jpg"),
+    imageUrl: wikiSplashUrl("Ahri_MidnightSkin_HD.jpg"),
   },
 ];
 

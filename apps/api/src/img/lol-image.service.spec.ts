@@ -491,6 +491,27 @@ describe("LolImageService.rune", () => {
   });
 });
 
+describe("LolImageService.wikiSplash", () => {
+  it("transcodes wiki splashes at 1920px wide quality 90 — full-bleed chapter use", () => {
+    const { service } = makeService();
+    const resolved = service.wikiSplash("Ahri_SpiritBlossomSkin_HD.jpg");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Ahri_SpiritBlossomSkin_HD.jpg",
+    ]);
+    expect(resolved.params).toEqual({ width: 1920, quality: 90 });
+  });
+
+  it("rejects filenames outside the wiki-safe slug set — keeps arbitrary paths off the proxy", () => {
+    const { service } = makeService();
+    expect(() => service.wikiSplash("../etc/passwd")).toThrow(
+      /invalid wiki splash filename/
+    );
+    expect(() => service.wikiSplash("file with space.jpg")).toThrow(
+      /invalid wiki splash filename/
+    );
+  });
+});
+
 describe("LolImageService.spell", () => {
   beforeEach(() => {
     vi.stubGlobal(

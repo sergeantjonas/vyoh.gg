@@ -24,7 +24,6 @@ import {
 import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import { useAssetClaim } from "./use-asset-claim";
-import { useChapterProgress } from "./use-chapter-progress";
 import { useSkinRotation } from "./use-skin-rotation";
 
 const CHAMPION_ALIAS = "Ahri";
@@ -82,13 +81,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     return excludeRemakes(flat).filter((m) => m.champion === CHAMPION_ALIAS);
   }, [query.data]);
 
-  // The chapter computes its own pin-window progress here (ChapterContainer
-  // publishes a parallel one via ChapterProgressContext, but consuming it
-  // from the chapter root would invert the tree). Both readings share the
-  // same scroll-listener pattern and yield identical values — costs an extra
-  // listener but keeps the data flow top-down.
-  const progress = useChapterProgress(outerRef);
-  const rotation = useSkinRotation(progress, AHRI_SKIN_ROTATION.length);
+  // Auto-cycling rotation — timer-driven, not scroll-coupled. The earlier
+  // progress-driven version mapped fast scrolls to rapid skin swaps, which
+  // read as chaotic instead of ambient. Auto-cycle keeps the background
+  // passive while scroll position drives only the reveal animations.
+  const rotation = useSkinRotation(AHRI_SKIN_ROTATION.length);
   const activeSkin = AHRI_SKIN_ROTATION[rotation.activeIndex] ??
     AHRI_SKIN_ROTATION[0] ?? { name: "Base" };
   // `imageUrl` override wins when set; falls back to the proxy-served base

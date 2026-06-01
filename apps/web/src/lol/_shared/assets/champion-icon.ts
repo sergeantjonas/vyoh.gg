@@ -115,6 +115,15 @@ export function wikiFileIconUrl(filename: string): string {
   return `${API_URL}/img/lol/wiki-file/${encodeURIComponent(filename)}.webp`;
 }
 
+// Wiki-served skin splash for full-bleed recap chapter backdrops. Same
+// upstream identity as `wikiFileIconUrl` but goes through a distinct proxy
+// route that transcodes to 1920×, quality 90 — the icon proxy hardcodes
+// 32px width for tooltip use. Caller passes the HD filename
+// (`Ahri_SpiritBlossomSkin_HD.jpg`).
+export function wikiSplashUrl(filename: string): string {
+  return `${API_URL}/img/lol/wiki-splash/${encodeURIComponent(filename)}.webp`;
+}
+
 // Extract the original filename from a wiki `action=parse` <img src>.
 // wiki.leagueoflegends.com serves files flat under `/en-us/images/<filename>`
 // — MediaWiki's hash-bucket layout is disabled there. Thumbnails are

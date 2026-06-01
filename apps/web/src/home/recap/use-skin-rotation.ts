@@ -1,83 +1,87 @@
-import { type MotionValue, useTransform } from "motion/react";
+import {
+  type MotionValue,
+  animate,
+  useMotionValue,
+  useReducedMotion,
+} from "motion/react";
 import { useEffect, useState } from "react";
 
 /**
- * Splash-rotation driver for subject chapters. Given the chapter's pin-window
- * progress (0..1) and the curated skin count, returns:
+ * Auto-cycling splash rotation for subject chapters. Each entry holds for
+ * `HOLD_MS`, then a soft blur-bloom crossfade swaps in the next skin —
+ * timer-driven, not scroll-coupled. Earlier the rotation rode pin progress
+ * directly, which meant fast scrolls cascaded through several skin swaps
+ * in quick succession (jarring). Time-based cycling stays passive: the
+ * background reads as ambient, the user's scroll position drives the
+ * reveal animations and nothing else.
  *
- *   - `activeIndex` — the index into the skin array currently on display.
- *     Changes only at integer breakpoints (`Math.floor(progress * N)`), so
- *     the chapter re-renders only at each transition — never per scroll tick.
- *   - `bloomBlurPx` — a `MotionValue<number>` peaking around each transition
- *     breakpoint. Drives the "ethereal blur moment" between concrete skin
- *     states (see self-portrait-recap-arc.md Subject chapter scroll-timeline,
- *     skin-rotation transition shape). 0 outside the bloom window, ramps up
- *     to `peakBlur` at the breakpoint, ramps back to 0 — symmetric triangle.
+ *   - `activeIndex` — the index currently on display, updated at the
+ *     midpoint of each crossfade (when the bloom peaks and the image is
+ *     temporarily unrecognizable). Cycles modulo `skinCount`.
+ *   - `bloomBlurPx` — a `MotionValue<number>` that animates 0 → peak → 0
+ *     across each transition. The atmosphere layer reads `.get()` each
+ *     tick outside React's render cycle.
  *
- * Single-entry skin lists degrade to "no rotation": `activeIndex` stays at 0
- * and `bloomBlurPx` is always 0. The landing-config seed lands with one entry
- * (Base), so the rotation infrastructure is wired but visually inert until
- * the curated list grows.
+ * Single-entry skin lists degrade to "no rotation": `activeIndex` stays at
+ * 0 and `bloomBlurPx` is always 0. Under `prefers-reduced-motion` the
+ * rotation pauses entirely on the first entry — no cycling, no bloom.
  */
-export const BLOOM_HALF_WINDOW = 0.05;
+export const HOLD_MS = 4500;
+export const FADE_HALF_MS = 400;
 export const BLOOM_PEAK_PX = 28;
-
-export function activeIndexAtProgress(progress: number, skinCount: number): number {
-  if (skinCount <= 1) return 0;
-  if (progress <= 0) return 0;
-  if (progress >= 1) return skinCount - 1;
-  return Math.min(skinCount - 1, Math.floor(progress * skinCount));
-}
-
-export function bloomBlurAtProgress(
-  progress: number,
-  skinCount: number,
-  halfWindow: number = BLOOM_HALF_WINDOW,
-  peakBlur: number = BLOOM_PEAK_PX
-): number {
-  if (skinCount <= 1) return 0;
-  for (let i = 1; i < skinCount; i++) {
-    const breakpoint = i / skinCount;
-    const distance = Math.abs(progress - breakpoint);
-    if (distance < halfWindow) {
-      const t = 1 - distance / halfWindow;
-      return t * peakBlur;
-    }
-  }
-  return 0;
-}
 
 export type SkinRotationState = {
   activeIndex: number;
   bloomBlurPx: MotionValue<number>;
 };
 
-export function useSkinRotation(
-  progress: MotionValue<number>,
-  skinCount: number
-): SkinRotationState {
-  // The bloom MotionValue derives from progress directly — no React state
-  // means no per-frame re-renders. The layer reads its `.get()` each tick.
-  const bloomBlurPx = useTransform(progress, (p) => bloomBlurAtProgress(p, skinCount));
-
-  const [activeIndex, setActiveIndex] = useState(() =>
-    activeIndexAtProgress(progress.get(), skinCount)
-  );
+export function useSkinRotation(skinCount: number): SkinRotationState {
+  const bloomBlurPx = useMotionValue(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
-    // Resync once on mount + skin-count change in case the initial state
-    // captured the wrong index (progress changed before the listener
-    // attached, or skinCount changed mid-life).
-    setActiveIndex((prev) => {
-      const next = activeIndexAtProgress(progress.get(), skinCount);
-      return prev === next ? prev : next;
-    });
-    const handle = (p: number) => {
-      const next = activeIndexAtProgress(p, skinCount);
-      setActiveIndex((prev) => (prev === next ? prev : next));
+    if (skinCount <= 1 || reduced) return;
+
+    let stopped = false;
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+    let bloomAnim: { stop: () => void } | null = null;
+
+    function cycle() {
+      if (stopped) return;
+      // Phase 1: blur ramps 0 → peak over FADE_HALF_MS.
+      bloomAnim = animate(bloomBlurPx, BLOOM_PEAK_PX, {
+        duration: FADE_HALF_MS / 1000,
+        ease: "easeInOut",
+      });
+      pendingTimer = setTimeout(() => {
+        if (stopped) return;
+        // Swap image at peak — neither splash is recognizable at this moment
+        // (per the recap arc's "ethereal blur" transition shape).
+        setActiveIndex((prev) => (prev + 1) % skinCount);
+        // Phase 2: blur ramps peak → 0 over FADE_HALF_MS, new splash resolves.
+        bloomAnim = animate(bloomBlurPx, 0, {
+          duration: FADE_HALF_MS / 1000,
+          ease: "easeInOut",
+        });
+        pendingTimer = setTimeout(() => {
+          if (stopped) return;
+          cycle();
+        }, HOLD_MS);
+      }, FADE_HALF_MS);
+    }
+
+    // Initial hold before the first transition lets the opening splash
+    // settle for a beat.
+    pendingTimer = setTimeout(cycle, HOLD_MS);
+
+    return () => {
+      stopped = true;
+      if (pendingTimer) clearTimeout(pendingTimer);
+      bloomAnim?.stop();
+      bloomBlurPx.set(0);
     };
-    return progress.on("change", handle);
-  }, [progress, skinCount]);
+  }, [skinCount, reduced, bloomBlurPx]);
 
   return { activeIndex, bloomBlurPx };
 }
