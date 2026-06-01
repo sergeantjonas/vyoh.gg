@@ -35,11 +35,11 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/home/recap/use-asset-claim", () => ({
   useAssetClaim: vi.fn(),
 }));
-vi.mock("@/home/recap/use-chapter-progress", async () => {
+vi.mock("@/home/recap/use-chapter-reveal-progress", async () => {
   const { useMotionValue } =
     await vi.importActual<typeof import("motion/react")>("motion/react");
   return {
-    useChapterProgress: () => useMotionValue(0),
+    useChapterRevealProgress: () => useMotionValue(0),
   };
 });
 vi.mock("@/home/recap/use-skin-rotation", async () => {

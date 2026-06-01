@@ -1,7 +1,7 @@
 import { useReducedMotion } from "motion/react";
 import { type ReactNode, useRef } from "react";
 import { ChapterProgressContext } from "./chapter-context";
-import { useChapterProgress } from "./use-chapter-progress";
+import { useChapterRevealProgress } from "./use-chapter-reveal-progress";
 
 type Props = {
   /**
@@ -25,13 +25,17 @@ const DEFAULT_PIN_VIEWPORTS = 2;
 /**
  * Sticky-pin wrapper for a recap chapter. The outer `<section>` is `pinViewports
  * × 100dvh` tall; its `position: sticky` child holds the viewport while the
- * chapter is in the pin window. Scroll progress through that window is
- * published via `ChapterProgressContext` for band primitives to consume.
+ * chapter is in the pin window. Reveal progress is time-based: once the
+ * chapter first intersects the viewport, a single MotionValue animates
+ * 0 → 1 over a short window, published via `ChapterProgressContext` for band
+ * primitives to consume. Scroll-coupled reveal turned out to make the chapter
+ * feel "gated" — scrolling slowly would leave empty scrims visible while
+ * content stayed hidden behind further scroll. Time-based commits the reveal
+ * the moment the chapter enters view, regardless of subsequent scroll.
  *
  * Under reduced motion the pin collapses — outer height drops to `auto`, the
  * inner layer stops being sticky, and content stacks vertically with normal
- * page flow. Bands still consume a frozen-at-0 progress MotionValue (their
- * reveal animations should themselves no-op under reduced motion).
+ * page flow. Reveal progress jumps straight to 1.
  */
 export function ChapterContainer({
   pinViewports = DEFAULT_PIN_VIEWPORTS,
@@ -43,7 +47,7 @@ export function ChapterContainer({
 }: Props) {
   const ref = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
-  const progress = useChapterProgress(ref);
+  const progress = useChapterRevealProgress(ref);
 
   const outerStyle = reducedMotion
     ? undefined

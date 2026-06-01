@@ -14,7 +14,6 @@ import {
   excludeRemakes,
   formatKda,
 } from "@vyoh/shared";
-import { m } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import {
   ChapterCloser,
@@ -25,7 +24,6 @@ import {
 import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import { useAssetClaim } from "./use-asset-claim";
-import { useChapterPinFade } from "./use-chapter-pin-fade";
 import { useSkinRotation } from "./use-skin-rotation";
 
 const CHAMPION_ALIAS = "Ahri";
@@ -147,19 +145,14 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   const skinSubtitle = activeSkin.name === "Base" ? null : activeSkin.name;
 
   // Band scrim — dark card with subtle local backdrop blur so copy stays
-  // readable against the now-sharp splash. `max-w-prose` keeps editorial
-  // measure ~65ch; `mx-auto` centers each band within the pin's centered
-  // flex container. The pin itself is given `items-center justify-center`
-  // via pinClassName so the chapter content sits in the viewport's middle
-  // rather than the top-left corner.
+  // readable against the now-sharp splash. Each band's scrim wrapper is
+  // itself a `ChapterReveal` so scrim opacity rides the same timed reveal
+  // MV as the inner content — no more "empty boxes" window where the chrome
+  // is faded in but the text is still gated on further scroll. `max-w-prose`
+  // keeps editorial measure ~65ch; the pin's `items-center justify-center`
+  // centers each band within the viewport.
   const bandScrim =
     "w-full max-w-prose rounded-xl border border-border/30 bg-background/55 px-6 backdrop-blur-sm";
-
-  // `pinFade` ramps 0 → 1 as the chapter approaches its pin start so chapter
-  // chrome (band scrims, borders, backdrop blur) doesn't peek into the hero
-  // viewport during the chapter's natural-flow position above pin.
-  const pinFade = useChapterPinFade(outerRef);
-  const bandStyle = { opacity: pinFade };
 
   return (
     <div ref={outerRef} data-recap-chapter="ahri">
@@ -169,19 +162,19 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         ariaLabel={eyebrow}
         pinClassName="items-center justify-center px-6"
       >
-        <m.div className={bandScrim} style={bandStyle}>
+        <ChapterReveal from={0} to={0.06} className={bandScrim}>
           <ChapterOpener>
-            <ChapterReveal from={0} to={0.06}>
+            <ChapterReveal from={0.04} to={0.14}>
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
                 {eyebrow}
               </p>
             </ChapterReveal>
-            <ChapterReveal from={0.04} to={0.1}>
+            <ChapterReveal from={0.1} to={0.22}>
               <h2 className="text-5xl font-semibold leading-none text-foreground sm:text-6xl">
                 {displayName}
               </h2>
             </ChapterReveal>
-            <ChapterReveal from={0.08} to={0.14}>
+            <ChapterReveal from={0.18} to={0.3}>
               <p className="text-base text-muted-foreground">
                 <CountUp to={ahriMatches.length} />{" "}
                 {ahriMatches.length === 1 ? "game" : "games"} tracked
@@ -189,17 +182,17 @@ export function AhriChapter({ account }: { account: LolAccount }) {
               </p>
             </ChapterReveal>
           </ChapterOpener>
-        </m.div>
+        </ChapterReveal>
 
-        <m.div className={bandScrim} style={bandStyle}>
+        <ChapterReveal from={0.25} to={0.32} className={bandScrim}>
           <ChapterDetail>
-            <ChapterReveal from={0.14} to={0.18}>
+            <ChapterReveal from={0.3} to={0.38}>
               <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
                 Recent {displayName} games
               </h3>
             </ChapterReveal>
             {recent.length === 0 ? (
-              <ChapterReveal from={0.18} to={0.24}>
+              <ChapterReveal from={0.36} to={0.46}>
                 <p className="text-sm text-muted-foreground">
                   No tracked {displayName} games yet.
                 </p>
@@ -207,11 +200,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             ) : (
               <ul className="flex flex-col gap-1">
                 {recent.map((m, i) => {
-                  // Rows reveal staggered across 0.18 → 0.32 with a 0.025 lead
-                  // between each. Last row finishes by 0.32, leaving headroom
-                  // before the stats band starts at 0.32.
-                  const from = 0.18 + i * 0.025;
-                  const to = from + 0.06;
+                  // Rows stagger across 0.36 → 0.62 with a 0.04 lead between
+                  // each. Last row finishes by 0.62, before the stats band's
+                  // scrim starts at 0.55.
+                  const from = 0.36 + i * 0.04;
+                  const to = from + 0.08;
                   return (
                     <li key={m.matchId}>
                       <ChapterReveal from={from} to={to}>
@@ -248,11 +241,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
               </ul>
             )}
           </ChapterDetail>
-        </m.div>
+        </ChapterReveal>
 
-        <m.div className={bandScrim} style={bandStyle}>
+        <ChapterReveal from={0.55} to={0.62} className={bandScrim}>
           <ChapterStats>
-            <ChapterReveal from={0.32} to={0.38}>
+            <ChapterReveal from={0.6} to={0.7}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
@@ -262,7 +255,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
               </div>
             </ChapterReveal>
-            <ChapterReveal from={0.35} to={0.41}>
+            <ChapterReveal from={0.64} to={0.74}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
@@ -272,7 +265,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 </span>
               </div>
             </ChapterReveal>
-            <ChapterReveal from={0.38} to={0.44}>
+            <ChapterReveal from={0.68} to={0.78}>
               <div className="flex flex-col gap-1">
                 <span className="text-3xl font-semibold tabular-nums text-foreground">
                   {stats.wins}-{stats.losses}
@@ -283,24 +276,22 @@ export function AhriChapter({ account }: { account: LolAccount }) {
               </div>
             </ChapterReveal>
           </ChapterStats>
-        </m.div>
+        </ChapterReveal>
 
-        <m.div style={bandStyle}>
-          <ChapterCloser>
-            <ChapterReveal from={0.5} to={0.58}>
-              <Link
-                to="/lol/$accountSlug/champions/$championKey"
-                params={{
-                  accountSlug: account.slug,
-                  championKey: CHAMPION_ALIAS.toLowerCase(),
-                }}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-card/60"
-              >
-                View {displayName} deep stats →
-              </Link>
-            </ChapterReveal>
-          </ChapterCloser>
-        </m.div>
+        <ChapterCloser>
+          <ChapterReveal from={0.82} to={0.95}>
+            <Link
+              to="/lol/$accountSlug/champions/$championKey"
+              params={{
+                accountSlug: account.slug,
+                championKey: CHAMPION_ALIAS.toLowerCase(),
+              }}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-card/60"
+            >
+              View {displayName} deep stats →
+            </Link>
+          </ChapterReveal>
+        </ChapterCloser>
       </ChapterContainer>
     </div>
   );
