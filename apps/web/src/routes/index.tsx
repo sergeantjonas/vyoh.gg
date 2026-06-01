@@ -4,6 +4,7 @@ import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
 import { HeroScrollHint } from "@/home/hero-scroll-hint";
 import { LandingHeading } from "@/home/landing-heading";
 import { LandingSteamBand } from "@/home/landing-steam-band";
+import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDaySplit } from "@/home/tile-day-split";
@@ -49,6 +50,11 @@ function HomePage() {
           <LandingHeading />
           <HeroScrollHint />
         </section>
+        {/* First recap chapter (R-2). The bento below still renders — it
+            retires in R-5 once the conclusion lands. Chapter only mounts
+            when a primary LoL account is configured (so anonymous /
+            visitors don't see a placeholder Ahri pin). */}
+        {account ? <AhriChapter account={account} /> : null}
         <LandingSteamBand />
         <BentoGrid>
           <BentoTile width={2} height={2}>
