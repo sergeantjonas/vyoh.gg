@@ -1,7 +1,7 @@
 import { isFirefox } from "@/lib/is-firefox";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "motion/react";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 const ORB_SRC = "/vyoh-orb-mark.svg";
 
@@ -123,8 +123,62 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
     if (reducedMotion) setEntranceDone(true);
   }, [reducedMotion]);
 
+  // Pointer-proximity magnetic pull: after entrance settles, the wrapper
+  // drifts toward the cursor by up to MAX_PULL px when within FALLOFF px.
+  // pointermove is throttled via rAF; the listener writes CSS vars on the
+  // wrapper and the CSS transition smooths the drift so the orb glides
+  // rather than tracking cursor jitter. The translate composes with the
+  // wander on children (different elements). Skipped on reduced-motion
+  // and during the entrance window so the throw isn't tugged mid-flight.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || reducedMotion || !entranceDone) return;
+
+    const FALLOFF = 400;
+    const MAX_PULL = 8;
+    let rafId: number | null = null;
+    let latestEvent: PointerEvent | null = null;
+
+    const update = () => {
+      rafId = null;
+      if (!latestEvent || !wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = latestEvent.clientX - cx;
+      const dy = latestEvent.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      const intensity = Math.max(0, 1 - dist / FALLOFF);
+      const dirX = dist > 0 ? dx / dist : 0;
+      const dirY = dist > 0 ? dy / dist : 0;
+      wrapper.style.setProperty(
+        "--orb-pointer-x",
+        `${(dirX * intensity * MAX_PULL).toFixed(2)}px`
+      );
+      wrapper.style.setProperty(
+        "--orb-pointer-y",
+        `${(dirY * intensity * MAX_PULL).toFixed(2)}px`
+      );
+    };
+
+    const onMove = (e: PointerEvent) => {
+      latestEvent = e;
+      if (rafId === null) rafId = requestAnimationFrame(update);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      wrapper.style.removeProperty("--orb-pointer-x");
+      wrapper.style.removeProperty("--orb-pointer-y");
+    };
+  }, [reducedMotion, entranceDone]);
+
   return (
     <div
+      ref={wrapperRef}
       className={cn(
         "relative aspect-square select-none",
         !reducedMotion && "orb-entrance",
@@ -134,6 +188,7 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
         // the long translate distance. Same pattern as the Safari VT bypass.
         !reducedMotion && isFirefox() && "orb-entrance-firefox",
         !reducedMotion && !entranceDone && "orb-children-paused",
+        !reducedMotion && entranceDone && "orb-pointer-attract",
         className
       )}
       style={
@@ -142,7 +197,16 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
           : ({ "--orb-entrance-delay": `${entranceDelay}s` } as CSSProperties)
       }
       onAnimationEnd={(e) => {
-        if (e.animationName === "orb-entrance") setEntranceDone(true);
+        // Match both the base and the Firefox-gated keyframe name — the
+        // engine swap renames the animation, and without checking both,
+        // Firefox would never flip `entranceDone` and the descendant
+        // animations would stay paused indefinitely.
+        if (
+          e.animationName === "orb-entrance" ||
+          e.animationName === "orb-entrance-firefox"
+        ) {
+          setEntranceDone(true);
+        }
       }}
     >
       {!reducedMotion && <div aria-hidden="true" className="orb-entrance-bloom" />}

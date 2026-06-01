@@ -345,6 +345,18 @@ body {
 .orb-entrance-firefox {
   animation-name: orb-entrance-firefox;
 }
+
+/* Pointer-proximity magnetic pull. Activates when entrance finishes and    */
+/* reduced-motion is off. JS writes `--orb-pointer-x` / `--orb-pointer-y`   */
+/* on the wrapper via rAF-throttled pointermove. The transition smooths    */
+/* the drift so the orb glides toward the cursor instead of jumping with   */
+/* every event. `translate:` individual property composes with the wander  */
+/* on children (separate elements) and with the entrance transform on the  */
+/* wrapper itself (transform shorthand applies after individual translate).*/
+.orb-pointer-attract {
+  translate: var(--orb-pointer-x, 0px) var(--orb-pointer-y, 0px);
+  transition: translate 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 @keyframes orb-entrance-firefox {
   0% {
     animation-timing-function: linear;
