@@ -43,6 +43,15 @@ type Args = {
    * static neutral token from index.css applies.
    */
   accentHex?: string;
+  /**
+   * Optional saliency anchor on the source image (0–100 integer percent),
+   * computed by the enrichment-side face detector. When both X and Y are
+   * provided, the atmosphere layer crops the image with `object-position:
+   * {x}% {y}%` so the focal subject stays visible under viewport-cover
+   * resizing. Either omitted → falls back to center crop.
+   */
+  subjectXPercent?: number | null;
+  subjectYPercent?: number | null;
   /** Intensity scalar, 0..1. Drives palette chroma and image alpha. */
   intensity?: number;
 };
@@ -67,9 +76,19 @@ export function useAssetClaim(
     blurPx = DEFAULT_BLUR_PX,
     bloomBlurPx,
     accentHex,
+    subjectXPercent,
+    subjectYPercent,
     intensity = DEFAULT_INTENSITY,
   }: Args
 ) {
+  // Compose the subject anchor as a CSS background-position string when
+  // both axes are provided. Either one missing → undefined, layer defaults
+  // to "center" (treats 50/50 and "no anchor" identically — matches the
+  // SteamSubjectAnchorService convention).
+  const subjectPosition =
+    subjectXPercent != null && subjectYPercent != null
+      ? `${subjectXPercent}% ${subjectYPercent}%`
+      : undefined;
   const claim = useMemo<AtmosphereClaim>(
     () => ({
       palette,
@@ -78,8 +97,9 @@ export function useAssetClaim(
       ...(image !== undefined ? { image } : {}),
       ...(bloomBlurPx !== undefined ? { bloomBlurPx } : {}),
       ...(accentHex !== undefined ? { accentHex } : {}),
+      ...(subjectPosition !== undefined ? { subjectPosition } : {}),
     }),
-    [palette, image, blurPx, intensity, bloomBlurPx, accentHex]
+    [palette, image, blurPx, intensity, bloomBlurPx, accentHex, subjectPosition]
   );
   useAtmosphereClaim(ref, claim);
 }

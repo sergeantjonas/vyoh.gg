@@ -57,6 +57,10 @@ type ResolvedAtmosphere = {
   // `null` outside of subject chapters — falls back to the static neutral
   // token in index.css.
   accentHex: string | null;
+  // CSS background-position for the image div. Defaults to "center" when no
+  // claim provides a subject anchor; subject chapters with face-detected
+  // anchors pass through "{x}% {y}%" so the focal point isn't sliced.
+  imagePosition: string;
 };
 
 const DEFAULT_TINT_H = 240;
@@ -111,6 +115,7 @@ function resolveAtmosphere(
   const accentH = bestClaim.palette.layers[1]?.lch[2];
   const tintH = accentH ?? bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
   const accentHex = bestClaim.accentHex ?? null;
+  const imagePosition = bestClaim.subjectPosition ?? "center";
   return {
     backgroundImage,
     imageUrl,
@@ -119,6 +124,7 @@ function resolveAtmosphere(
     tintH,
     intensity,
     accentHex,
+    imagePosition,
   };
 }
 
@@ -141,6 +147,7 @@ export function AtmosphereLayer({ claims }: Props) {
   const backgroundImage = useMotionValue<string>("none");
   const imageOpacity = useMotionValue<number>(0);
   const imageFilter = useMotionValue<string>(`blur(${DEFAULT_BLUR_PX}px) saturate(1.1)`);
+  const imagePosition = useMotionValue<string>("center");
   // Current dominant image URL — React state so `<AnimatePresence>` can drive
   // a proper alpha crossfade when the URL changes (skin rotation, claim
   // handoff). Updated from `apply()` only when the value actually changes to
@@ -194,6 +201,7 @@ export function AtmosphereLayer({ claims }: Props) {
       backgroundImage.set(resolved.backgroundImage);
       imageOpacity.set(resolved.imageAlpha);
       imageFilter.set(`blur(${resolved.imageBlurPx}px) saturate(1.1)`);
+      imagePosition.set(resolved.imagePosition);
       // Publish to consumers (orb-mark halo, future band chrome). Written to
       // `documentElement` so any descendant can `var(--atmosphere-tint-h)` —
       // no need for each consumer to drill a ref through context.
@@ -216,7 +224,7 @@ export function AtmosphereLayer({ claims }: Props) {
         setCurrentImageUrl(resolved.imageUrl);
       }
     };
-  }, [compute, backgroundImage, imageOpacity, imageFilter]);
+  }, [compute, backgroundImage, imageOpacity, imageFilter, imagePosition]);
 
   // Manual scroll listener on `<main>` (the actual scroll container) instead
   // of motion/react's `useScroll({ container: mainScrollRef })` — `useScroll`
@@ -280,7 +288,7 @@ export function AtmosphereLayer({ claims }: Props) {
                 style={{
                   backgroundImage: `url("${currentImageUrl}")`,
                   backgroundSize: "cover",
-                  backgroundPosition: "center",
+                  backgroundPosition: imagePosition,
                   filter: imageFilter,
                 }}
                 initial={{ opacity: 0 }}

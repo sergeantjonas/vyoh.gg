@@ -9,6 +9,7 @@ import { STEAM_FEATURED_APPID } from "@/home/landing-config";
 import {
   steamAchievementIconUrl,
   steamLibraryHeroLargeUrl,
+  steamLibraryLogoUrl,
   steamPageBackgroundUrl,
 } from "@/steam/_shared/steam-image";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
@@ -280,13 +281,22 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
   const accentHex = recap?.dominantHex ?? null;
+  // Subject anchor: face-detected focal point of `library_hero.jpg`. Passes
+  // through to the atmosphere layer's `object-position` so the focal subject
+  // (Leon's face on RE4, character portraits on similar art-direction)
+  // stays visible under viewport-cover instead of being sliced by the crop.
+  // Both null → atmosphere layer defaults to "center" (no-op equivalent).
+  const subjectXPercent = recap?.subjectXPercent ?? null;
+  const subjectYPercent = recap?.subjectYPercent ?? null;
   const claim = useMemo(
     () => ({
       ...(splashUrl !== null ? { image: splashUrl } : {}),
       palette,
       ...(accentHex !== null ? { accentHex } : {}),
+      subjectXPercent,
+      subjectYPercent,
     }),
-    [splashUrl, palette, accentHex]
+    [splashUrl, palette, accentHex, subjectXPercent, subjectYPercent]
   );
   useAssetClaim(outerRef, claim);
 
@@ -353,13 +363,36 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
               blur={16}
               rise={20}
             >
-              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <h2
-                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                  style={{ textShadow: SHADOW_MASTHEAD }}
-                >
-                  {name}
-                </h2>
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                {recap?.hasLogo ? (
+                  // Official Steam logo as the masthead — typically a
+                  // designed wordmark / brand mark that reads more
+                  // "editorial" than typographic name in helvetica-7xl.
+                  // `alt={name}` carries the accessible label (heading
+                  // role moves to the parent via `aria-label` on the
+                  // chapter section). Heavy drop-shadow filter mirrors
+                  // the SHADOW_MASTHEAD tier so the logo still cuts
+                  // cleanly against bright splash chroma — text-shadow
+                  // doesn't apply to img, so we use filter: drop-shadow.
+                  <img
+                    src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
+                    alt={name}
+                    className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
+                    style={{
+                      filter:
+                        "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
+                    }}
+                  />
+                ) : (
+                  // Typographic fallback — covers the ~5% of titles that
+                  // ship without a publisher logo.
+                  <h2
+                    className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                    style={{ textShadow: SHADOW_MASTHEAD }}
+                  >
+                    {name}
+                  </h2>
+                )}
                 {tagline ? (
                   <p
                     className="text-base italic text-foreground/80 sm:text-lg"

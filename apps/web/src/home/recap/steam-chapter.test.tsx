@@ -16,6 +16,7 @@ vi.mock("@/steam/_shared/steam-image", () => ({
   steamAchievementIconUrl: (appid: number, apiName: string) =>
     `https://test/ach/${appid}/${apiName}.jpg`,
   steamLibraryHeroLargeUrl: (appid: number) => `https://test/hero-large/${appid}.webp`,
+  steamLibraryLogoUrl: (appid: number) => `https://test/logo/${appid}.webp`,
   steamPageBackgroundUrl: (appid: number) => `https://test/bg/${appid}.webp`,
 }));
 vi.mock("@/home/recap/use-asset-claim", () => ({
@@ -165,12 +166,28 @@ afterEach(() => {
 });
 
 describe("SteamChapter", () => {
-  it("renders the masthead with the game name and tagline", () => {
+  it("renders the masthead with the logo + tagline when a logo exists", () => {
+    render(<SteamChapter />);
+    // Logo path: the official Steam logo replaces the typographic <h2>;
+    // game name moves to the img's alt attribute as the accessible label.
+    const logo = screen.getByAltText("Hollow Knight") as HTMLImageElement;
+    expect(logo.src).toContain("/logo/367520");
+    expect(screen.getByText(/Forge your own path in Hollow Knight!/)).toBeTruthy();
+    // Typographic fallback should NOT render alongside the logo.
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+  });
+
+  it("falls back to the typographic masthead when the game has no logo", () => {
+    vi.mocked(useSteamGameRecap).mockReturnValue({
+      data: recapFromFixtures(makeOwnedGame({ logoPath: null })),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useSteamGameRecap>);
     render(<SteamChapter />);
     expect(screen.getByRole("heading", { level: 2 }).textContent).toContain(
       "Hollow Knight"
     );
-    expect(screen.getByText(/Forge your own path in Hollow Knight!/)).toBeTruthy();
+    expect(screen.queryByAltText("Hollow Knight")).toBeNull();
   });
 
   it("renders the bucket-aware eyebrow kicker", () => {

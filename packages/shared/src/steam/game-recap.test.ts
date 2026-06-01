@@ -92,6 +92,9 @@ describe("deriveSteamGameRecap", () => {
       assetTimestamp: null,
       hasLibraryHero: false,
       flipHero: false,
+      subjectXPercent: null,
+      subjectYPercent: null,
+      hasLogo: false,
       dominantHex: null,
       shortDescription: null,
       playtimeForeverMinutes: 0,
@@ -121,12 +124,38 @@ describe("deriveSteamGameRecap", () => {
     expect(recap.assetTimestamp).toBe(12345);
     expect(recap.hasLibraryHero).toBe(true);
     expect(recap.flipHero).toBe(false);
+    expect(recap.subjectXPercent).toBe(50);
+    expect(recap.subjectYPercent).toBe(50);
+    expect(recap.hasLogo).toBe(true);
     expect(recap.dominantHex).toBe("#1a1a2e");
     expect(recap.shortDescription).toBe("Forge your own path in Hollow Knight!");
     expect(recap.playtimeForeverMinutes).toBe(2800);
     expect(recap.playtime2WeeksMinutes).toBe(360);
     expect(recap.recentPlaytimeMinutes).toEqual([0, 0, 30, 45, 90, 120, 75]);
     expect(recap.screenshots).toHaveLength(2);
+  });
+
+  it("forwards a non-default subject anchor for face-detected hero art", () => {
+    const recap = deriveSteamGameRecap(
+      367520,
+      makeOwnedGame({ subjectXPercent: 35, subjectYPercent: 28 }),
+      makeAchievements([]),
+      SCREENSHOTS,
+      NOW
+    );
+    expect(recap.subjectXPercent).toBe(35);
+    expect(recap.subjectYPercent).toBe(28);
+  });
+
+  it("flips hasLogo to false when the enrichment row is missing a logoPath", () => {
+    const recap = deriveSteamGameRecap(
+      367520,
+      makeOwnedGame({ logoPath: null }),
+      makeAchievements([]),
+      SCREENSHOTS,
+      NOW
+    );
+    expect(recap.hasLogo).toBe(false);
   });
 
   it("hides achievementsTotal when the schema is null", () => {

@@ -83,6 +83,18 @@ export interface SteamGameRecap {
   assetTimestamp: number | null;
   hasLibraryHero: boolean;
   flipHero: boolean;
+  // Saliency anchor on `library_hero.jpg` (0–100 integer percent), computed
+  // by the enrichment-side face detector. The chapter passes these through
+  // to the atmosphere claim → `object-position` on the backdrop, so the
+  // focal subject stays visible regardless of how the image is cropped at
+  // the viewport. Both null when the anchor hasn't been computed yet —
+  // renderer treats null and 50/50 identically (center crop).
+  subjectXPercent: number | null;
+  subjectYPercent: number | null;
+  // True when the enrichment row carries a `logoPath`. Drives the chapter's
+  // masthead choice: official Steam logo when `hasLogo`, typographic
+  // fallback when not (~5% of titles ship without one).
+  hasLogo: boolean;
   // Per-game dominant color (already in the owned-games enrichment pipeline).
   // Drives the chapter's `--accent` cascade — null when enrichment hasn't
   // covered this app yet.
@@ -144,6 +156,9 @@ export function deriveSteamGameRecap(
       assetTimestamp: null,
       hasLibraryHero: false,
       flipHero: false,
+      subjectXPercent: null,
+      subjectYPercent: null,
+      hasLogo: false,
       dominantHex: null,
       shortDescription: null,
       playtimeForeverMinutes: 0,
@@ -199,6 +214,9 @@ export function deriveSteamGameRecap(
     assetTimestamp: ownedGame.assetTimestamp,
     hasLibraryHero: ownedGame.libraryHeroPath !== null,
     flipHero: ownedGame.flipHero,
+    subjectXPercent: ownedGame.subjectXPercent,
+    subjectYPercent: ownedGame.subjectYPercent,
+    hasLogo: ownedGame.logoPath !== null,
     dominantHex: ownedGame.dominantHex,
     shortDescription: ownedGame.shortDescription,
     playtimeForeverMinutes: ownedGame.playtimeForeverMinutes,

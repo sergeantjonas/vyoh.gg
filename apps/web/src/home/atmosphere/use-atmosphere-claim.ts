@@ -26,6 +26,15 @@ export type AtmosphereClaim = {
    * neutral token declared in index.css.
    */
   accentHex?: string;
+  /**
+   * Optional CSS background-position value (e.g. `"40% 30%"`) applied to the
+   * image div when this claim is dominant. Lets per-claim saliency anchors
+   * keep the focal subject visible regardless of how the image is cropped
+   * at the viewport (a face slightly off-center in `library_hero.jpg`
+   * shouldn't get sliced when we render at viewport-cover). Defaults to
+   * `"center"` when omitted — generic centering matches the prior behavior.
+   */
+  subjectPosition?: string;
   intensity: number;
 };
 
