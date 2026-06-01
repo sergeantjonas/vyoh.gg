@@ -3,6 +3,57 @@ export interface LolAccount {
   gameName: string;
   tagLine: string;
   region: string;
+  // `accounts.json` doubles as the API's sync whitelist (test accounts pull
+  // real match data for parity checks) and as the recap arc's data source.
+  // These flags split the two roles without forking the list: anything the
+  // recap reads is `isOwner: true`; everything else still syncs and is
+  // available on `/lol/$accountSlug/...` for inspection.
+  //
+  // Default-deny: omit the flag → not an owner account → excluded from any
+  // surface that wants only the owner's data.
+  isOwner?: boolean;
+  // Exactly one owner account should carry `isPrimary: true`. Drives the
+  // Ahri subject chapter and any "main account" framing on `/`. Asserted at
+  // config load — see `assertAccountOwnerInvariants`.
+  isPrimary?: boolean;
+}
+
+export function isOwnerAccount(account: LolAccount): boolean {
+  return account.isOwner === true;
+}
+
+export function getOwnerAccounts<T extends LolAccount>(accounts: T[]): T[] {
+  return accounts.filter(isOwnerAccount);
+}
+
+export function getPrimaryAccount<T extends LolAccount>(accounts: T[]): T | null {
+  return accounts.find((a) => a.isPrimary === true) ?? null;
+}
+
+// Domain invariants for the owner/primary flags. Called at config load so a
+// malformed accounts.json fails fast instead of silently producing an empty
+// recap or a wrong-account "main" subject chapter.
+export function assertAccountOwnerInvariants(accounts: LolAccount[]): void {
+  const owners = accounts.filter(isOwnerAccount);
+  const primaries = accounts.filter((a) => a.isPrimary === true);
+  if (primaries.length > 1) {
+    const slugs = primaries.map((a) => a.slug).join(", ");
+    throw new Error(
+      `Multiple accounts flagged isPrimary: ${slugs}. Exactly one owner account may be primary.`
+    );
+  }
+  if (owners.length > 0 && primaries.length === 0) {
+    throw new Error(
+      "At least one owner account exists but none is flagged isPrimary. Exactly one owner account must be primary."
+    );
+  }
+  for (const p of primaries) {
+    if (!isOwnerAccount(p)) {
+      throw new Error(
+        `Account "${p.slug}" is flagged isPrimary without isOwner. Primary accounts must also be owner accounts.`
+      );
+    }
+  }
 }
 
 // Snapshot of the "current state" of a ranked account — written by the

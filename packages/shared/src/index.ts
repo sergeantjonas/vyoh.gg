@@ -65,6 +65,12 @@ export type {
   LolAccountSummary,
   LolAccountWithSummary,
 } from "./lol/account.ts";
+export {
+  assertAccountOwnerInvariants,
+  getOwnerAccounts,
+  getPrimaryAccount,
+  isOwnerAccount,
+} from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";
 export type { ChampionBuildFlowEntry } from "./lol/champion-build-flow.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";

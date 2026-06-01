@@ -52,6 +52,46 @@ describe("IdentityService", () => {
     expect(service.findBySlug("missing")).toBeUndefined();
   });
 
+  it("accepts a config with exactly one isOwner+isPrimary account alongside test data", () => {
+    expect(
+      () =>
+        new IdentityService(
+          {
+            lol: [
+              {
+                slug: "main",
+                gameName: "A",
+                tagLine: "1",
+                region: "euw1",
+                isOwner: true,
+                isPrimary: true,
+              },
+              { slug: "alt", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
+              { slug: "test", gameName: "C", tagLine: "3", region: "euw1" },
+            ],
+            steam: [],
+          },
+          stubPrisma()
+        )
+    ).not.toThrow();
+  });
+
+  it("throws when the config has owner accounts but no primary — recap would have no main subject", () => {
+    expect(
+      () =>
+        new IdentityService(
+          {
+            lol: [
+              { slug: "a", gameName: "A", tagLine: "1", region: "euw1", isOwner: true },
+              { slug: "b", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
+            ],
+            steam: [],
+          },
+          stubPrisma()
+        )
+    ).toThrow(/isPrimary/);
+  });
+
   it("throws on duplicate slugs", () => {
     expect(
       () =>

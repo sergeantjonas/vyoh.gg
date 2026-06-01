@@ -7,7 +7,11 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
-import type { LolAccount, LolAccountWithSummary } from "@vyoh/shared";
+import {
+  type LolAccount,
+  type LolAccountWithSummary,
+  assertAccountOwnerInvariants,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 export const ACCOUNTS_CONFIG = Symbol("ACCOUNTS_CONFIG");
@@ -28,6 +32,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService
   ) {
     this.assertUniqueSlugs(this.config);
+    assertAccountOwnerInvariants(this.config.lol);
   }
 
   onModuleInit(): void {
@@ -38,6 +43,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
         try {
           const next: AccountsConfig = JSON.parse(readFileSync(path, "utf-8"));
           this.assertUniqueSlugs(next);
+          assertAccountOwnerInvariants(next.lol);
           this.config = next;
           this.logger.log(`accounts.json reloaded — ${next.lol.length} LoL account(s)`);
         } catch (err) {

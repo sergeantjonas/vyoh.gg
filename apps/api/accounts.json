@@ -1,18 +1,33 @@
 {
   "lol": [
-    { "slug": "ahri", "gameName": "Vyoh", "tagLine": "Ahri", "region": "euw1" },
-    { "slug": "vyoh", "gameName": "Ahri", "tagLine": "Vyoh", "region": "euw1" },
+    {
+      "slug": "ahri",
+      "gameName": "Vyoh",
+      "tagLine": "Ahri",
+      "region": "euw1",
+      "isOwner": true,
+      "isPrimary": true
+    },
+    {
+      "slug": "vyoh",
+      "gameName": "Ahri",
+      "tagLine": "Vyoh",
+      "region": "euw1",
+      "isOwner": true
+    },
     {
       "slug": "9tails",
       "gameName": "Νine Tailed Fox",
       "tagLine": "EUW",
-      "region": "euw1"
+      "region": "euw1",
+      "isOwner": true
     },
     {
       "slug": "miyeon",
       "gameName": "Cho Miyeon Fan",
       "tagLine": "EUW",
-      "region": "euw1"
+      "region": "euw1",
+      "isOwner": true
     },
     { "slug": "tifa", "gameName": "TIFΑ", "tagLine": "7777", "region": "euw1" },
     { "slug": "tifa2", "gameName": "twtv tifa lol", "tagLine": "meow", "region": "euw1" },
