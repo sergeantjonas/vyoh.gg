@@ -39,14 +39,22 @@ export class SteamGameRecapService {
       throw new NotFoundException(`Steam app ${appid} is not in the tracked library.`);
     }
 
-    // Use the all-ages bucket — the mature bucket is gated behind a
-    // (future) owner opt-in and isn't appropriate for a public-facing
-    // landing-page subject chapter.
+    // Merge all-ages + mature screenshot buckets. The mature/all-ages
+    // split exists for the broader library surfaces where Steam's
+    // storefront default (mature hidden behind a toggle) applies; the
+    // chapter is owner-curated content (STEAM_FEATURED_APPID is hand-
+    // picked), so the owner's choice of game implies a deliberate
+    // intent to surface its art. Some games — typically 17+ horror or
+    // violent titles — ship 0 screenshots in the all-ages bucket, which
+    // left the chapter's screenshots strip empty. All-ages first, then
+    // mature, so the storefront-default ordering wins when both
+    // buckets are populated; chapter caps at 4 anyway.
+    const mergedScreenshots = [...screenshots.allAges, ...screenshots.mature];
     return deriveSteamGameRecap(
       appid,
       ownedGame,
       achievements,
-      screenshots.allAges,
+      mergedScreenshots,
       new Date()
     );
   }

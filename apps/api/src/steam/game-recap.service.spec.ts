@@ -117,7 +117,7 @@ describe("SteamGameRecapService.getGameRecap", () => {
     expect(achievements.getGameAchievements).toHaveBeenCalledWith(367520);
   });
 
-  it("uses only the all-ages screenshot bucket", async () => {
+  it("merges both screenshot buckets with all-ages first", async () => {
     const ownedGames = {
       getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([makeOwnedGame()])),
       getGameScreenshots: vi.fn().mockResolvedValue(makeScreenshots(2, 4)),
@@ -126,8 +126,24 @@ describe("SteamGameRecapService.getGameRecap", () => {
       getGameAchievements: vi.fn().mockResolvedValue(makeAchievements([])),
     };
     const recap = await makeService(ownedGames, achievements).getGameRecap(367520);
-    expect(recap.screenshots).toHaveLength(2);
+    expect(recap.screenshots).toHaveLength(6);
     expect(recap.screenshots[0]?.filename).toContain("ss_0");
+    expect(recap.screenshots[2]?.filename).toContain("mature_0");
+  });
+
+  it("surfaces mature screenshots when the all-ages bucket is empty", async () => {
+    const ownedGames = {
+      getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([makeOwnedGame()])),
+      getGameScreenshots: vi.fn().mockResolvedValue(makeScreenshots(0, 3)),
+    };
+    const achievements = {
+      getGameAchievements: vi.fn().mockResolvedValue(makeAchievements([])),
+    };
+    const recap = await makeService(ownedGames, achievements).getGameRecap(367520);
+    // Without the merge, 17+ titles with only mature screenshots showed
+    // an empty closer strip — this asserts the fallback.
+    expect(recap.screenshots).toHaveLength(3);
+    expect(recap.screenshots[0]?.filename).toContain("mature_0");
   });
 
   it("throws NotFoundException when the appid is not in the library", async () => {
