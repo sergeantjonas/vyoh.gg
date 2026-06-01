@@ -127,6 +127,23 @@ describe("resolveAtmosphere", () => {
     expect(resolved?.imageBlurPx).toBe(4);
   });
 
+  it("returns null accentHex by default — substrate-only claims fall back to the static accent token", () => {
+    const resolved = resolveAtmosphere([
+      { claim: { palette, intensity: 0.5 }, weight: 1 },
+    ]);
+    expect(resolved?.accentHex).toBeNull();
+  });
+
+  it("carries the dominant claim's accentHex through to the resolved atmosphere", () => {
+    const resolved = resolveAtmosphere([
+      {
+        claim: { palette, intensity: 0.8, accentHex: "#f04444" },
+        weight: 1,
+      },
+    ]);
+    expect(resolved?.accentHex).toBe("#f04444");
+  });
+
   it("adds the bloom MotionValue to the base blur each tick", () => {
     const bloom = motionValue(0);
     const claim: AtmosphereClaim = {

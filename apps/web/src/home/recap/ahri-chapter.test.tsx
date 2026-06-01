@@ -16,6 +16,12 @@ vi.mock("@/lol/_shared/assets/champion-icon", () => ({
   championBackdropSplashUrl: (alias: string, patch: string) =>
     `https://test/img/${alias}/${patch}`,
 }));
+vi.mock("@/lol/_shared/assets/champion-theme", () => ({
+  championTheme: (_alias: string) => ({
+    dominantHex: "#f04444",
+    blurhash: "test-hash",
+  }),
+}));
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
   ChampionSquareIcon: ({ championName }: { championName: string }) => (
     <span data-testid="champion-icon" data-name={championName} />
@@ -216,6 +222,13 @@ describe("AhriChapter", () => {
     // The mocked Link forwards `to`, `params` as attributes — verify the
     // params object made it through verbatim.
     expect(link?.textContent).toContain("View Ahri deep stats");
+  });
+
+  it("forwards the chapter's dominant accentHex to the asset claim", () => {
+    setMatches([]);
+    render(<AhriChapter account={account} />);
+    const claim = vi.mocked(useAssetClaim).mock.calls.at(-1)?.[1];
+    expect(claim?.accentHex).toBe("#f04444");
   });
 
   it("forwards the rotation bloom MotionValue to the asset claim", () => {

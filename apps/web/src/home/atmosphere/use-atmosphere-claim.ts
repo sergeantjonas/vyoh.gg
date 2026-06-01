@@ -18,6 +18,14 @@ export type AtmosphereClaim = {
   image?: string;
   blurPx?: number;
   bloomBlurPx?: MotionValue<number>;
+  /**
+   * Optional asset dominant color (any CSS color — hex, oklch, etc.). The
+   * layer publishes this as `--accent` on `documentElement` while the claim
+   * is the dominant one, parallel to `--atmosphere-tint-h`. Hero and
+   * conclusion regions leave it unset so `--accent` falls back to the static
+   * neutral token declared in index.css.
+   */
+  accentHex?: string;
   intensity: number;
 };
 

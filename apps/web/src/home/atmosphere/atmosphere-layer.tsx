@@ -30,6 +30,12 @@ type ResolvedAtmosphere = {
   // both for its "mood ring" behaviour (A-2a).
   tintH: number;
   intensity: number;
+  // Optional asset-dominant accent (CSS color string). When set, the layer
+  // publishes it as `--accent` on documentElement so per-chapter scrollbar /
+  // focus rings / sparklines / theme-color follow the active chapter's hue.
+  // `null` outside of subject chapters — falls back to the static neutral
+  // token in index.css.
+  accentHex: string | null;
 };
 
 const DEFAULT_TINT_H = 240;
@@ -83,7 +89,16 @@ function resolveAtmosphere(
   // halo pops against the bg by carrying the *other* colour in the palette.
   const accentH = bestClaim.palette.layers[1]?.lch[2];
   const tintH = accentH ?? bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
-  return { backgroundImage, imageUrl, imageAlpha, imageBlurPx, tintH, intensity };
+  const accentHex = bestClaim.accentHex ?? null;
+  return {
+    backgroundImage,
+    imageUrl,
+    imageAlpha,
+    imageBlurPx,
+    tintH,
+    intensity,
+    accentHex,
+  };
 }
 
 const LAYER_CLASS =
@@ -137,6 +152,7 @@ export function AtmosphereLayer({ claims }: Props) {
         imageOpacity.set(0);
         root.removeProperty("--atmosphere-tint-h");
         root.removeProperty("--atmosphere-intensity");
+        root.removeProperty("--accent");
         return;
       }
       backgroundImage.set(resolved.backgroundImage);
@@ -148,6 +164,15 @@ export function AtmosphereLayer({ claims }: Props) {
       // no need for each consumer to drill a ref through context.
       root.setProperty("--atmosphere-tint-h", resolved.tintH.toFixed(2));
       root.setProperty("--atmosphere-intensity", resolved.intensity.toFixed(3));
+      // `--accent` cascades from the dominant claim's asset color when
+      // present, falling back to the static neutral token in index.css.
+      // Tailwind's `--color-accent` chain (`bg-accent`, `text-accent`,
+      // scrollbar / focus-ring tokens) inherits from this.
+      if (resolved.accentHex) {
+        root.setProperty("--accent", resolved.accentHex);
+      } else {
+        root.removeProperty("--accent");
+      }
     };
   }, [compute, backgroundImage, imageOpacity, imageUrlVar, imageFilter]);
 
@@ -172,6 +197,7 @@ export function AtmosphereLayer({ claims }: Props) {
       const root = document.documentElement.style;
       root.removeProperty("--atmosphere-tint-h");
       root.removeProperty("--atmosphere-intensity");
+      root.removeProperty("--accent");
     };
   }, [apply]);
 

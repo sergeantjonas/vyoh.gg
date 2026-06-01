@@ -3,6 +3,7 @@ import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatches } from "@/lol/matches/use-matches";
@@ -96,9 +97,20 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     activeSkin.imageUrl ?? championBackdropSplashUrl(CHAMPION_ALIAS, patch);
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
+  // Per-chapter `--accent` cascade: the chapter's dominant champion-asset hex
+  // drives `--accent` while the chapter is in view. Layer publishes it from
+  // the dominant claim — falls back to the static neutral token outside any
+  // subject chapter. championTheme is the same colour pipeline /lol routes
+  // already use for `--theme-color`.
+  const accentHex = championTheme(CHAMPION_ALIAS).dominantHex;
   const claim = useMemo(
-    () => ({ image: splashUrl, palette, bloomBlurPx: rotation.bloomBlurPx }),
-    [splashUrl, palette, rotation.bloomBlurPx]
+    () => ({
+      image: splashUrl,
+      palette,
+      bloomBlurPx: rotation.bloomBlurPx,
+      accentHex,
+    }),
+    [splashUrl, palette, rotation.bloomBlurPx, accentHex]
   );
   useAssetClaim(outerRef, claim);
 

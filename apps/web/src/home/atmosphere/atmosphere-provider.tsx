@@ -17,6 +17,7 @@ function claimsEqual(a: AtmosphereClaim, b: AtmosphereClaim): boolean {
     // outside React's render cycle, so we don't want to dispatch state
     // updates when its internal value changes.
     a.bloomBlurPx === b.bloomBlurPx &&
+    a.accentHex === b.accentHex &&
     a.intensity === b.intensity
   );
 }

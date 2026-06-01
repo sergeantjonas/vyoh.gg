@@ -28,6 +28,13 @@ type Args = {
    * its apply step so the bloom curve runs outside React's render cycle.
    */
   bloomBlurPx?: MotionValue<number>;
+  /**
+   * Optional asset dominant color (CSS color string). Published as `--accent`
+   * on documentElement while this claim is dominant — drives the per-chapter
+   * accent cascade (R-2d). Hero / conclusion regions leave it unset so the
+   * static neutral token from index.css applies.
+   */
+  accentHex?: string;
   /** Intensity scalar, 0..1. Drives palette chroma and image alpha. */
   intensity?: number;
 };
@@ -51,6 +58,7 @@ export function useAssetClaim(
     palette,
     blurPx = DEFAULT_BLUR_PX,
     bloomBlurPx,
+    accentHex,
     intensity = DEFAULT_INTENSITY,
   }: Args
 ) {
@@ -61,8 +69,9 @@ export function useAssetClaim(
       blurPx,
       intensity,
       ...(bloomBlurPx !== undefined ? { bloomBlurPx } : {}),
+      ...(accentHex !== undefined ? { accentHex } : {}),
     }),
-    [palette, image, blurPx, intensity, bloomBlurPx]
+    [palette, image, blurPx, intensity, bloomBlurPx, accentHex]
   );
   useAtmosphereClaim(ref, claim);
 }
