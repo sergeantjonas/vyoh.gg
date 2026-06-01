@@ -294,48 +294,85 @@ body {
   /* "pause along the trail." Only the final 78%→100% settle keeps a       */
   /* decelerate ease so the bounce-to-rest still feels gentle.              */
   animation: orb-entrance 1.4s linear var(--orb-entrance-delay, 0s) backwards;
-  /* `filter` deliberately omitted from will-change: in several compositor */
-  /* paths, promoting it via will-change worsens filter transitions       */
-  /* because the layer is retained but blur recompute still runs CPU.     */
-  will-change: opacity, translate, scale;
+  /* Uses `transform:` shorthand rather than `translate:` + `scale:`        */
+  /* individual properties: on Firefox specifically, the shorthand sits on */
+  /* a more mature compositor path and avoids the per-frame stutter that  */
+  /* the individual properties produced at long throw distances on large  */
+  /* windows. `filter` is intentionally omitted from will-change because  */
+  /* promoting it can paradoxically worsen filter transitions.            */
+  will-change: opacity, transform;
 }
 @keyframes orb-entrance {
   0% {
     animation-timing-function: linear;
     opacity: 0;
-    translate: 60vw -45vh;
-    scale: 0.2;
+    transform: translate(60vw, -45vh) scale(0.2);
     filter: blur(8px);
   }
   22% {
     animation-timing-function: linear;
     opacity: 1;
   }
-  /* Mid-flight waypoint — orb dips below rest line while crossing right- */
-  /* of-center, so the trajectory reads as a kite-like swoop rather than  */
-  /* a slide. Blur lifts most of the way here so the heavy scale-up phase */
-  /* that follows isn't paying filter-recompute cost per frame.           */
   32% {
     animation-timing-function: linear;
-    translate: 24vw 6vh;
-    scale: 0.7;
+    transform: translate(24vw, 6vh) scale(0.7);
     filter: blur(3px);
   }
   52% {
     animation-timing-function: linear;
-    translate: -9% -2%;
-    scale: 1.18;
+    transform: translate(-9%, -2%) scale(1.18);
     filter: blur(0);
   }
   78% {
     animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 1);
-    translate: 0 0;
-    scale: 0.96;
+    transform: translate(0, 0) scale(0.96);
     filter: blur(0);
   }
   100% {
-    translate: 0 0;
-    scale: 1;
+    transform: translate(0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Firefox-specific entrance — applied alongside `.orb-entrance` via the     */
+/* `isFirefox()` engine gate. Only `animation-name` is overridden; duration, */
+/* easing, delay, fill-mode all cascade from the base `.orb-entrance` rule.  */
+/* The throw distance is roughly half (30vw vs 60vw), and the starting       */
+/* scale is smaller (0.12 vs 0.2) so size perception still reads as          */
+/* "distant" even though the position translate is shorter. The compositor   */
+/* cost — bounding-box tile coverage scaling with the translate reach — is   */
+/* what produced the visible stutter on big windows in Firefox specifically. */
+.orb-entrance-firefox {
+  animation-name: orb-entrance-firefox;
+}
+@keyframes orb-entrance-firefox {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+    transform: translate(30vw, -20vh) scale(0.12);
+    filter: blur(8px);
+  }
+  22% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  32% {
+    animation-timing-function: linear;
+    transform: translate(13vw, 4vh) scale(0.7);
+    filter: blur(3px);
+  }
+  52% {
+    animation-timing-function: linear;
+    transform: translate(-9%, -2%) scale(1.18);
+    filter: blur(0);
+  }
+  78% {
+    animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 1);
+    transform: translate(0, 0) scale(0.96);
+    filter: blur(0);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
     filter: blur(0);
   }
 }

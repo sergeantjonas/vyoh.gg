@@ -1,3 +1,4 @@
+import { isFirefox } from "@/lib/is-firefox";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "motion/react";
 import { type CSSProperties, useEffect, useState } from "react";
@@ -127,6 +128,11 @@ export function OrbMark({ className, entranceDelay = 0 }: OrbMarkProps) {
       className={cn(
         "relative aspect-square select-none",
         !reducedMotion && "orb-entrance",
+        // Firefox engine-gate: its compositor stutters on the full off-screen
+        // throw at large windows (bounding-box tile coverage scales with viewport).
+        // Swap to a shorter, scale-led entrance that reads as "distant" without
+        // the long translate distance. Same pattern as the Safari VT bypass.
+        !reducedMotion && isFirefox() && "orb-entrance-firefox",
         !reducedMotion && !entranceDone && "orb-children-paused",
         className
       )}
