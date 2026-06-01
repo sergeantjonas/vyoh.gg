@@ -22,6 +22,7 @@ import {
   ChapterStats,
 } from "./chapter-bands";
 import { ChapterContainer } from "./chapter-container";
+import { ChapterReveal } from "./chapter-reveal";
 import { useAssetClaim } from "./use-asset-claim";
 import { useChapterProgress } from "./use-chapter-progress";
 import { useSkinRotation } from "./use-skin-rotation";
@@ -125,101 +126,128 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     <div ref={outerRef} data-recap-chapter="ahri">
       <ChapterContainer pinViewports={2} slug="ahri" ariaLabel={eyebrow}>
         <ChapterOpener>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
-            {eyebrow}
-          </p>
-          <h2 className="text-5xl font-semibold leading-none text-foreground sm:text-6xl">
-            {displayName}
-          </h2>
-          <p className="text-base text-muted-foreground">
-            <CountUp to={ahriMatches.length} />{" "}
-            {ahriMatches.length === 1 ? "game" : "games"} tracked
-            {skinSubtitle ? ` · ${skinSubtitle}` : ""}
-          </p>
+          <ChapterReveal from={0} to={0.06}>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/80">
+              {eyebrow}
+            </p>
+          </ChapterReveal>
+          <ChapterReveal from={0.04} to={0.1}>
+            <h2 className="text-5xl font-semibold leading-none text-foreground sm:text-6xl">
+              {displayName}
+            </h2>
+          </ChapterReveal>
+          <ChapterReveal from={0.08} to={0.14}>
+            <p className="text-base text-muted-foreground">
+              <CountUp to={ahriMatches.length} />{" "}
+              {ahriMatches.length === 1 ? "game" : "games"} tracked
+              {skinSubtitle ? ` · ${skinSubtitle}` : ""}
+            </p>
+          </ChapterReveal>
         </ChapterOpener>
 
         <ChapterDetail>
-          <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-            Recent {displayName} games
-          </h3>
+          <ChapterReveal from={0.14} to={0.18}>
+            <h3 className="text-xs uppercase tracking-wide text-muted-foreground/70">
+              Recent {displayName} games
+            </h3>
+          </ChapterReveal>
           {recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No tracked {displayName} games yet.
-            </p>
+            <ChapterReveal from={0.18} to={0.24}>
+              <p className="text-sm text-muted-foreground">
+                No tracked {displayName} games yet.
+              </p>
+            </ChapterReveal>
           ) : (
             <ul className="flex flex-col gap-1">
-              {recent.map((m) => (
-                <li key={m.matchId}>
-                  <Link
-                    to="/lol/$accountSlug/matches/$matchId"
-                    params={{ accountSlug: account.slug, matchId: m.matchId }}
-                    className="flex items-center gap-3 rounded-md py-1 text-sm text-foreground/90 hover:text-foreground"
-                  >
-                    <ChampionSquareIcon
-                      championName={m.champion}
-                      alt={displayName}
-                      className="size-8 shrink-0 rounded ring-1 ring-border/50"
-                    />
-                    <span
-                      className={
-                        m.win
-                          ? "font-semibold text-emerald-300"
-                          : "font-semibold text-rose-300"
-                      }
-                    >
-                      {m.win ? "W" : "L"}
-                    </span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {m.kills}/{m.deaths}/{m.assists}
-                    </span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {formatRelative(m.playedAt)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {recent.map((m, i) => {
+                // Rows reveal staggered across 0.18 → 0.32 with a 0.025 lead
+                // between each. Last row finishes by 0.32, leaving headroom
+                // before the stats band starts at 0.32.
+                const from = 0.18 + i * 0.025;
+                const to = from + 0.06;
+                return (
+                  <li key={m.matchId}>
+                    <ChapterReveal from={from} to={to}>
+                      <Link
+                        to="/lol/$accountSlug/matches/$matchId"
+                        params={{ accountSlug: account.slug, matchId: m.matchId }}
+                        className="flex items-center gap-3 rounded-md py-1 text-sm text-foreground/90 hover:text-foreground"
+                      >
+                        <ChampionSquareIcon
+                          championName={m.champion}
+                          alt={displayName}
+                          className="size-8 shrink-0 rounded ring-1 ring-border/50"
+                        />
+                        <span
+                          className={
+                            m.win
+                              ? "font-semibold text-emerald-300"
+                              : "font-semibold text-rose-300"
+                          }
+                        >
+                          {m.win ? "W" : "L"}
+                        </span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {m.kills}/{m.deaths}/{m.assists}
+                        </span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {formatRelative(m.playedAt)}
+                        </span>
+                      </Link>
+                    </ChapterReveal>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </ChapterDetail>
 
         <ChapterStats>
-          <div className="flex flex-col gap-1">
-            <span className="text-3xl font-semibold tabular-nums text-foreground">
-              {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
-            </span>
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
-              Win rate
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-3xl font-semibold tabular-nums text-foreground">
-              {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
-            </span>
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
-              Avg KDA
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-3xl font-semibold tabular-nums text-foreground">
-              {stats.wins}-{stats.losses}
-            </span>
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">
-              Record
-            </span>
-          </div>
+          <ChapterReveal from={0.32} to={0.38}>
+            <div className="flex flex-col gap-1">
+              <span className="text-3xl font-semibold tabular-nums text-foreground">
+                {ahriMatches.length > 0 ? `${Math.round(winRate * 100)}%` : "—"}
+              </span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                Win rate
+              </span>
+            </div>
+          </ChapterReveal>
+          <ChapterReveal from={0.35} to={0.41}>
+            <div className="flex flex-col gap-1">
+              <span className="text-3xl font-semibold tabular-nums text-foreground">
+                {ahriMatches.length > 0 ? formatKda(stats.avgKda) : "—"}
+              </span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                Avg KDA
+              </span>
+            </div>
+          </ChapterReveal>
+          <ChapterReveal from={0.38} to={0.44}>
+            <div className="flex flex-col gap-1">
+              <span className="text-3xl font-semibold tabular-nums text-foreground">
+                {stats.wins}-{stats.losses}
+              </span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                Record
+              </span>
+            </div>
+          </ChapterReveal>
         </ChapterStats>
 
         <ChapterCloser>
-          <Link
-            to="/lol/$accountSlug/champions/$championKey"
-            params={{
-              accountSlug: account.slug,
-              championKey: CHAMPION_ALIAS.toLowerCase(),
-            }}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-card/60"
-          >
-            View {displayName} deep stats →
-          </Link>
+          <ChapterReveal from={0.5} to={0.58}>
+            <Link
+              to="/lol/$accountSlug/champions/$championKey"
+              params={{
+                accountSlug: account.slug,
+                championKey: CHAMPION_ALIAS.toLowerCase(),
+              }}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-card/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-card/60"
+            >
+              View {displayName} deep stats →
+            </Link>
+          </ChapterReveal>
         </ChapterCloser>
       </ChapterContainer>
     </div>
