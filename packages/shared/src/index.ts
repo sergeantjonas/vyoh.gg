@@ -193,6 +193,17 @@ export type {
 } from "./steam/achievements.ts";
 export type { SteamChronotype, SteamChronotypeHour } from "./steam/chronotype.ts";
 export type { GameUnlockTimeline } from "./steam/unlock-timeline.ts";
+export {
+  STEAM_RECAP_RECENT_UNLOCKS_LIMIT,
+  deriveSteamGameRecap,
+  verdictParagraphSteam,
+} from "./steam/game-recap.ts";
+export type {
+  SteamAgeBucket,
+  SteamGameRecap,
+  SteamStandoutUnlock,
+  SteamUnlock,
+} from "./steam/game-recap.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
 export type { HomeActivityIntensity } from "./home/activity-intensity.ts";
