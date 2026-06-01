@@ -41,6 +41,13 @@ const CHAMPION_TITLE = "the Nine-Tailed Fox";
 const SHADOW_MASTHEAD = "0 2px 12px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.45)";
 const SHADOW_BODY = "0 1px 4px rgba(0,0,0,0.55), 0 0 2px rgba(0,0,0,0.4)";
 const SHADOW_LABEL = "0 1px 3px rgba(0,0,0,0.6)";
+// Accent-tinted labels (per-champion dominantHex) hide on splashes whose
+// chroma matches the accent — Spirit Blossom pinks, Risen Legend warm
+// gold, After Hours red. Three-layer halo + thin black stroke separates
+// the glyph from same-hue art. Heavier than SHADOW_LABEL by design.
+const SHADOW_ACCENT =
+  "0 1px 2px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.95)";
+const STROKE_ACCENT = "0.4px rgba(0,0,0,0.85)";
 
 function formatRelative(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -346,7 +353,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   return (
     <div ref={outerRef} data-recap-chapter="ahri">
       <ChapterContainer
-        pinViewports={2}
+        // 1× — chapter fits one viewport, the original 2× pin was paying
+        // for stretched-across-scroll reveals that no longer exist.
+        // Future per-champion chapters with month-over-month trends or
+        // opponent galleries can re-up to 1.5–2 per-chapter if needed.
+        pinViewports={1}
         slug="ahri"
         ariaLabel={eyebrow}
         pinClassName="items-start justify-start px-6 pt-[10dvh] sm:px-10"
@@ -377,35 +388,50 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 className="text-xs uppercase tracking-[0.2em]"
                 style={{
                   color: "var(--accent, currentColor)",
-                  textShadow: SHADOW_LABEL,
+                  textShadow: SHADOW_ACCENT,
+                  WebkitTextStroke: STROKE_ACCENT,
                 }}
               >
                 {eyebrow}
               </p>
             </ChapterReveal>
-            {/* Masthead + title subtext animate together as the hero tier —
-                blur-up entrance matching the landing's editorial reveal so
-                the chapter doesn't read as just another fade-in section. */}
-            <ChapterReveal active={nudged} delay={0.18} blur={10}>
-              <h2
-                className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                style={{ textShadow: SHADOW_MASTHEAD }}
-              >
-                {displayName}
-              </h2>
+            {/* Masthead + champion title sit on a single baseline —
+                editorial chapter pattern ("Ahri _the Nine-Tailed Fox_")
+                instead of stacked title/subtitle. Wraps to two lines on
+                narrow viewports via `flex-wrap`. Single ChapterReveal so
+                the title rides the same hero blur-in as the name. Slower
+                duration + heavier blur give the moment more weight than
+                the surrounding reveals. */}
+            <ChapterReveal
+              active={nudged}
+              delay={0.18}
+              duration={1.1}
+              blur={16}
+              rise={20}
+            >
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <h2
+                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                  style={{ textShadow: SHADOW_MASTHEAD }}
+                >
+                  {displayName}
+                </h2>
+                <p
+                  className="text-base italic text-foreground/80 sm:text-lg"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  {CHAMPION_TITLE}
+                </p>
+              </div>
             </ChapterReveal>
-            <ChapterReveal active={nudged} delay={0.3} blur={6}>
-              <p
-                className="text-sm italic text-foreground/80 sm:text-base"
-                style={{ textShadow: SHADOW_LABEL }}
-              >
-                {CHAMPION_TITLE}
-              </p>
-            </ChapterReveal>
-            <ChapterReveal active={nudged} delay={0.45} blur={6} className="pt-2">
+            <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">
               <VerdictProse
                 clauses={verdictClauses}
                 style={{ textShadow: SHADOW_BODY }}
+                emphasisStyle={{
+                  textShadow: SHADOW_ACCENT,
+                  WebkitTextStroke: STROKE_ACCENT,
+                }}
               />
             </ChapterReveal>
           </ChapterOpener>

@@ -11,6 +11,13 @@ type Props = {
    * shadow tuning lives at the call site rather than baked into the primitive.
    */
   style?: CSSProperties;
+  /**
+   * Per-segment style override for `emphasis` segments (verdict adjectives
+   * like "AGGRESSIVE"). Emphasis sits on `var(--accent)`, which can collide
+   * with same-hue splash crops — the chapter passes a heavier shadow +
+   * stroke combo here that overrides the inherited shadow.
+   */
+  emphasisStyle?: CSSProperties;
 };
 
 /**
@@ -34,14 +41,18 @@ type Props = {
  * Clauses join with a space — the JSX layer can split per-clause if a
  * chapter wants to cascade reveals at clause granularity later.
  */
-export function VerdictProse({ clauses, className, style }: Props) {
+export function VerdictProse({ clauses, className, style, emphasisStyle }: Props) {
   return (
     <p
       className={[
         // `max-w-prose` ties the paragraph at ~65ch editorial measure even
         // when the surrounding chapter container is wider. Long-form reads
         // better at narrow measure than at the chapter's full width.
-        "max-w-prose text-balance text-base leading-relaxed text-foreground/90 sm:text-lg",
+        // `text-wrap-pretty` over `text-balance` — balance forces equal
+        // line lengths and produced awkward "Best [break] night" splits
+        // on short paragraphs; pretty optimizes for the natural break
+        // (no orphans/widows) and keeps phrase units intact.
+        "max-w-prose text-pretty text-base leading-relaxed text-foreground/90 sm:text-lg",
         className,
       ]
         .filter(Boolean)
@@ -78,7 +89,10 @@ export function VerdictProse({ clauses, className, style }: Props) {
                   <span
                     key={segKey}
                     className="font-semibold uppercase tracking-wide"
-                    style={{ color: "var(--accent, currentColor)" }}
+                    style={{
+                      color: "var(--accent, currentColor)",
+                      ...emphasisStyle,
+                    }}
                   >
                     {seg.value}
                   </span>
