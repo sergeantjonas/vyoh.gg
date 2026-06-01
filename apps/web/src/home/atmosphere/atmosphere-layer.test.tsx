@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { __testing } from "./atmosphere-layer";
 import type { AtmosphereClaim } from "./use-atmosphere-claim";
 
-const { proximityWeight, resolveAtmosphere } = __testing;
+const { intersectionWeight, resolveAtmosphere } = __testing;
 
 const palette: AtmosphereClaim["palette"] = {
   timeOfDay: "day",
@@ -13,21 +13,99 @@ const palette: AtmosphereClaim["palette"] = {
   ],
 };
 
-describe("proximityWeight", () => {
-  it("returns 0 for offscreen bands", () => {
-    expect(proximityWeight(-0.1)).toBe(0);
-    expect(proximityWeight(0)).toBe(0);
-    expect(proximityWeight(1)).toBe(0);
-    expect(proximityWeight(1.2)).toBe(0);
+describe("intersectionWeight", () => {
+  const containerTop = 0;
+  const containerHeight = 800;
+
+  it("returns 0 when the band is entirely above the viewport", () => {
+    expect(
+      intersectionWeight({
+        rectTop: -1000,
+        rectHeight: 500,
+        containerTop,
+        containerHeight,
+      })
+    ).toBe(0);
   });
 
-  it("peaks at viewport center", () => {
-    expect(proximityWeight(0.5)).toBe(1);
+  it("returns 0 when the band is entirely below the viewport", () => {
+    expect(
+      intersectionWeight({
+        rectTop: 1000,
+        rectHeight: 500,
+        containerTop,
+        containerHeight,
+      })
+    ).toBe(0);
   });
 
-  it("falls linearly toward the edges", () => {
-    expect(proximityWeight(0.25)).toBeCloseTo(0.5, 5);
-    expect(proximityWeight(0.75)).toBeCloseTo(0.5, 5);
+  it("returns 1 when a taller-than-viewport band fully covers the viewport (chapter pin)", () => {
+    // 2-viewport-tall pin sitting flush with viewport top — full coverage.
+    expect(
+      intersectionWeight({
+        rectTop: 0,
+        rectHeight: 1600,
+        containerTop,
+        containerHeight,
+      })
+    ).toBeCloseTo(1, 5);
+    // Mid-pin: outer top scrolled half a viewport above — still full coverage.
+    expect(
+      intersectionWeight({
+        rectTop: -400,
+        rectHeight: 1600,
+        containerTop,
+        containerHeight,
+      })
+    ).toBeCloseTo(1, 5);
+  });
+
+  it("returns 1 when a viewport-tall band sits exactly inside the viewport", () => {
+    expect(
+      intersectionWeight({
+        rectTop: 0,
+        rectHeight: 800,
+        containerTop,
+        containerHeight,
+      })
+    ).toBeCloseTo(1, 5);
+  });
+
+  it("ramps linearly as a viewport-tall band scrolls out the top", () => {
+    // Half the band scrolled above the viewport top → 50% overlap of a
+    // viewport-tall band → weight = 0.5.
+    expect(
+      intersectionWeight({
+        rectTop: -400,
+        rectHeight: 800,
+        containerTop,
+        containerHeight,
+      })
+    ).toBeCloseTo(0.5, 5);
+  });
+
+  it("ramps linearly for a band shorter than the viewport entering from below", () => {
+    // 400px band half-overlapping the bottom edge of an 800-tall viewport
+    // → overlap = 200, maxOverlap = min(400, 800) = 400 → weight = 0.5.
+    expect(
+      intersectionWeight({
+        rectTop: 600,
+        rectHeight: 400,
+        containerTop,
+        containerHeight,
+      })
+    ).toBeCloseTo(0.5, 5);
+  });
+
+  it("respects a non-zero containerTop offset (scroll container nested below the page top)", () => {
+    expect(
+      intersectionWeight({
+        rectTop: 100,
+        rectHeight: 800,
+        containerTop: 100,
+        containerHeight: 800,
+      })
+    ).toBeCloseTo(1, 5);
   });
 });
 

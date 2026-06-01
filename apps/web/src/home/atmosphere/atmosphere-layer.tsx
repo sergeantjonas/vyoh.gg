@@ -9,15 +9,36 @@ import { m, useMotionValue } from "motion/react";
 import { useEffect, useMemo } from "react";
 import type { AtmosphereClaim, AtmosphereClaimEntry } from "./use-atmosphere-claim";
 
-// Triangle weighting peaking at viewport-center: a band whose center sits at
-// 50% of the scroll-container height gets full weight (1.0); weight falls
-// linearly to 0 as the center approaches either edge. Bands fully offscreen
-// contribute nothing. Pairing the per-band ref's bounding rect with the
-// container height gives a stable progress signal that respects <main> as the
-// scroll container (mainScrollRef), not the window.
-function proximityWeight(centerProgress: number): number {
-  if (centerProgress <= 0 || centerProgress >= 1) return 0;
-  return Math.max(0, 1 - Math.abs(centerProgress - 0.5) * 2);
+// Viewport-intersection weight: 1.0 when the band fully covers the viewport
+// (or vice-versa for short bands), proportional otherwise. The earlier
+// triangle-proximity model peaked only when a band's center crossed the
+// viewport center — that worked for short tiles but failed for pinned recap
+// chapters: a 2-viewport-tall pin would only have its claim active for a
+// brief moment at mid-pin instead of the whole pin window. Intersection
+// peaks the moment the band fully overlaps the viewport and stays there
+// throughout the pin.
+//
+// Caps by `min(rectHeight, containerHeight)`: a band shorter than the
+// viewport can never cover more than its own height, a band taller than the
+// viewport can never cover more than the visible area — both cases hit
+// weight = 1 at full overlap.
+function intersectionWeight({
+  rectTop,
+  rectHeight,
+  containerTop,
+  containerHeight,
+}: {
+  rectTop: number;
+  rectHeight: number;
+  containerTop: number;
+  containerHeight: number;
+}): number {
+  if (containerHeight <= 0 || rectHeight <= 0) return 0;
+  const overlapTop = Math.max(rectTop, containerTop);
+  const overlapBottom = Math.min(rectTop + rectHeight, containerTop + containerHeight);
+  const overlap = Math.max(0, overlapBottom - overlapTop);
+  const maxOverlap = Math.min(rectHeight, containerHeight);
+  return overlap / maxOverlap;
 }
 
 type ResolvedAtmosphere = {
@@ -108,8 +129,8 @@ type Props = { claims: Map<number, AtmosphereClaimEntry> };
 
 /**
  * Renders the single shared atmosphere layer behind every band on `/`. Reads
- * active claims from `AtmosphereProvider`, weights each by viewport-center
- * proximity, and writes the blend onto inline styles each scroll tick via
+ * active claims from `AtmosphereProvider`, weights each by viewport-rect
+ * intersection, and writes the blend onto inline styles each scroll tick via
  * MotionValues — no React renders during scroll. Portaled to `document.body`
  * for parity with `BackdropPortal` (clean isolation from route content).
  *
@@ -130,15 +151,21 @@ export function AtmosphereLayer({ claims }: Props) {
       if (containerHeight <= 0 || entries.length === 0) {
         return null;
       }
+      const containerRect = container?.getBoundingClientRect();
+      const containerTop = containerRect?.top ?? 0;
       const weighted = entries.map((entry) => {
         const el = entry.ref.current;
         if (!el) return { claim: entry.claim, weight: 0 };
         const rect = el.getBoundingClientRect();
-        const containerRect = container?.getBoundingClientRect();
-        const containerTop = containerRect?.top ?? 0;
-        const center = rect.top - containerTop + rect.height / 2;
-        const progress = center / containerHeight;
-        return { claim: entry.claim, weight: proximityWeight(progress) };
+        return {
+          claim: entry.claim,
+          weight: intersectionWeight({
+            rectTop: rect.top,
+            rectHeight: rect.height,
+            containerTop,
+            containerHeight,
+          }),
+        };
       });
       return resolveAtmosphere(weighted);
     };
@@ -232,7 +259,7 @@ export function AtmosphereLayer({ claims }: Props) {
 
 // Re-exported for test convenience.
 export const __testing = {
-  proximityWeight,
+  intersectionWeight,
   resolveAtmosphere,
   intensityToChromaMultiplier,
 };
