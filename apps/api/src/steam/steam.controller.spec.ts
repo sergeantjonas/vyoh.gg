@@ -10,6 +10,7 @@ import type {
 } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import { SteamAchievementsService } from "./achievements.service";
+import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
 import { SteamChronotypeService } from "./steam-chronotype.service";
@@ -37,6 +38,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -72,6 +74,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -98,6 +101,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: { getLibrarySummary: stub } },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -127,6 +131,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: { getPlatformMix: stub } },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -154,6 +159,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: { getCatalog: stub } },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -181,6 +187,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getGameAchievements: stub } },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -202,6 +209,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getRecentUnlocks: stub } },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -232,6 +240,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -252,6 +261,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: { getOwnedGames: stub } },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -271,6 +281,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getCrossGameRarest: stub } },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -290,6 +301,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getLibraryCompletion: stub } },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -309,6 +321,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: { getUnlockTimeline: stub } },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
       ],
@@ -328,6 +341,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: { getChronotype: stub } },
       ],
@@ -335,6 +349,28 @@ describe("SteamController", () => {
     const controller = moduleRef.get(SteamController);
     await expect(controller.getChronotype(250)).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledWith(250);
+  });
+
+  it("delegates to SteamGameRecapService.getGameRecap for a given appid", async () => {
+    const payload = { appid: 367520, name: "Hollow Knight" } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: { getGameRecap: stub } },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getGameRecap(367520)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(367520);
   });
 
   it("translates a null player-state into a NotFoundException", async () => {
@@ -347,6 +383,7 @@ describe("SteamController", () => {
         { provide: SteamOwnedGamesService, useValue: {} },
         { provide: SteamTagService, useValue: {} },
         { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamChronotypeService, useValue: {} },
       ],

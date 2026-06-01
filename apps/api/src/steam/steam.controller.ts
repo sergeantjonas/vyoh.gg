@@ -12,6 +12,7 @@ import type {
   SteamChronotype,
   SteamGameAchievements,
   SteamGameDescription,
+  SteamGameRecap,
   SteamGameScreenshots,
   SteamLibraryCompletion,
   SteamLibrarySummary,
@@ -28,6 +29,7 @@ import {
   RECENT_UNLOCKS_DEFAULT_LIMIT,
   SteamAchievementsService,
 } from "./achievements.service";
+import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
 import { SteamChronotypeService } from "./steam-chronotype.service";
@@ -41,6 +43,7 @@ export class SteamController {
     private readonly ownedGames: SteamOwnedGamesService,
     private readonly tags: SteamTagService,
     private readonly achievements: SteamAchievementsService,
+    private readonly gameRecap: SteamGameRecapService,
     private readonly playerState: SteamPlayerStateService,
     private readonly chronotype: SteamChronotypeService
   ) {}
@@ -153,6 +156,17 @@ export class SteamController {
     @Param("appid", ParseIntPipe) appid: number
   ): Promise<GameUnlockTimeline> {
     return this.achievements.getUnlockTimeline(appid);
+  }
+
+  // Per-game landing-page recap — composes owned-game row + achievements +
+  // screenshots into the slim shape consumed by the Steam subject chapter.
+  // Throws NotFound when the appid isn't in the tracked library (vs returning
+  // a zero-state, which would mask a config mistake as honest empty-state).
+  @Get("game/:appid/recap")
+  async getGameRecap(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<SteamGameRecap> {
+    return this.gameRecap.getGameRecap(appid);
   }
 
   @Get("chronotype")

@@ -5,6 +5,7 @@ import { SteamAchievementsService } from "./achievements.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { FaceDetectionService } from "./face-detection.service";
+import { SteamGameRecapService } from "./game-recap.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
@@ -48,6 +49,7 @@ import { SteamTagService } from "./tag.service";
     SteamGlobalRarityService,
     SteamGlobalRarityPoller,
     SteamAchievementsService,
+    SteamGameRecapService,
     SteamTagService,
     SteamTagPoller,
     SteamSubjectAnchorService,
