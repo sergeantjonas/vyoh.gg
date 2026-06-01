@@ -17,17 +17,24 @@ export interface AmbientPalette {
   layers: readonly GradientLayer[];
 }
 
+// Layer[1] (the warm/cool *accent* opposite layer[0]) had cx ≈ 0.8 in the
+// original AmbientHero — fine in that vignetted box, but in the full-viewport
+// atmosphere layer it bleeds visibly into the right edge under the tightened
+// mask (e.g. an orange ear at right-edge during night). Pulling cx inward to
+// ~0.7 and dropping alpha ~25% keeps the accent present as a tint without
+// dominating the corner. Layer[1]'s hue is what the orb halo reads as its
+// tint colour — see atmosphere-layer.tsx::resolveAtmosphere.
 const PALETTES: Record<TimeOfDay, AmbientPalette> = {
   dawn: {
     timeOfDay: "dawn",
     layers: [
       { cx: 0.22, cy: 0.3, radius: 900, lch: [0.82, 0.15, 50], alpha: 0.36, phase: 0 },
       {
-        cx: 0.78,
+        cx: 0.68,
         cy: 0.26,
         radius: 1000,
         lch: [0.66, 0.12, 235],
-        alpha: 0.3,
+        alpha: 0.22,
         phase: 1.1,
       },
       { cx: 0.55, cy: 0.88, radius: 800, lch: [0.8, 0.13, 65], alpha: 0.3, phase: 2.3 },
@@ -37,7 +44,7 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
     timeOfDay: "day",
     layers: [
       { cx: 0.22, cy: 0.26, radius: 940, lch: [0.72, 0.15, 225], alpha: 0.34, phase: 0 },
-      { cx: 0.8, cy: 0.3, radius: 1000, lch: [0.76, 0.14, 65], alpha: 0.3, phase: 1.1 },
+      { cx: 0.7, cy: 0.3, radius: 1000, lch: [0.76, 0.14, 65], alpha: 0.22, phase: 1.1 },
       { cx: 0.5, cy: 0.88, radius: 820, lch: [0.62, 0.13, 195], alpha: 0.24, phase: 2.3 },
     ],
   },
@@ -45,7 +52,7 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
     timeOfDay: "dusk",
     layers: [
       { cx: 0.2, cy: 0.3, radius: 940, lch: [0.52, 0.18, 350], alpha: 0.34, phase: 0 },
-      { cx: 0.8, cy: 0.24, radius: 1000, lch: [0.66, 0.14, 65], alpha: 0.3, phase: 1.1 },
+      { cx: 0.7, cy: 0.24, radius: 1000, lch: [0.66, 0.14, 65], alpha: 0.22, phase: 1.1 },
       { cx: 0.55, cy: 0.9, radius: 800, lch: [0.42, 0.15, 320], alpha: 0.26, phase: 2.3 },
     ],
   },
@@ -54,11 +61,11 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
     layers: [
       { cx: 0.22, cy: 0.28, radius: 900, lch: [0.34, 0.14, 280], alpha: 0.38, phase: 0 },
       {
-        cx: 0.8,
+        cx: 0.7,
         cy: 0.36,
         radius: 1000,
         lch: [0.42, 0.16, 305],
-        alpha: 0.32,
+        alpha: 0.24,
         phase: 1.1,
       },
       { cx: 0.5, cy: 0.9, radius: 800, lch: [0.48, 0.14, 240], alpha: 0.24, phase: 2.3 },
@@ -66,8 +73,12 @@ const PALETTES: Record<TimeOfDay, AmbientPalette> = {
   },
 };
 
+// Tighter than the original AmbientHero mask (was 75% × 95% with a long
+// 35→100% fade). The atmosphere layer covers the full viewport without the
+// canvas drift that previously softened the bleed; a tighter ellipse keeps
+// the corners reliably dim so the bg-foreground contrast carries the band.
 export const VIGNETTE_MASK =
-  "radial-gradient(ellipse 75% 95% at 50% 45%, black 0%, black 35%, transparent 100%)";
+  "radial-gradient(ellipse 65% 90% at 50% 50%, black 0%, black 25%, transparent 100%)";
 
 export function timeOfDayForHour(hour: number): TimeOfDay {
   if (hour >= 5 && hour < 8) return "dawn";

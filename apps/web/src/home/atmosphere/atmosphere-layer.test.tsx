@@ -6,7 +6,10 @@ const { proximityWeight, resolveAtmosphere } = __testing;
 
 const palette: AtmosphereClaim["palette"] = {
   timeOfDay: "day",
-  layers: [{ cx: 0.5, cy: 0.5, radius: 800, lch: [0.7, 0.1, 200], alpha: 0.3, phase: 0 }],
+  layers: [
+    { cx: 0.5, cy: 0.5, radius: 800, lch: [0.7, 0.1, 200], alpha: 0.3, phase: 0 },
+    { cx: 0.7, cy: 0.3, radius: 600, lch: [0.6, 0.12, 60], alpha: 0.2, phase: 1 },
+  ],
 };
 
 describe("proximityWeight", () => {
@@ -44,7 +47,21 @@ describe("resolveAtmosphere", () => {
     expect(resolved?.imageUrl).toBeNull();
     expect(resolved?.imageAlpha).toBe(0);
     expect(resolved?.intensity).toBeCloseTo(0.8, 5);
-    // Tint hue is taken from the first palette layer's oklch H (200 here).
+    // Tint hue comes from the *second* palette layer (the accent) so the orb
+    // halo carries a complement of layer[0] and stays readable on the bg.
+    expect(resolved?.tintH).toBe(60);
+  });
+
+  it("falls back to layer[0]'s hue when the palette has no accent layer", () => {
+    const monoPalette: AtmosphereClaim["palette"] = {
+      timeOfDay: "day",
+      layers: [
+        { cx: 0.5, cy: 0.5, radius: 800, lch: [0.7, 0.1, 200], alpha: 0.3, phase: 0 },
+      ],
+    };
+    const resolved = resolveAtmosphere([
+      { claim: { palette: monoPalette, intensity: 0.5 }, weight: 1 },
+    ]);
     expect(resolved?.tintH).toBe(200);
   });
 

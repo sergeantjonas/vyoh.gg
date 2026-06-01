@@ -62,10 +62,15 @@ function resolveAtmosphere(
   // Image alpha scales with the dominant claim's contribution. A claim that's
   // half-weighted (band edges entering viewport) fades its image in to match.
   const imageAlpha = imageUrl ? Math.min(1, bestWeight) * intensity : 0;
-  // Take hue from the dominant claim's first layer — it's the layer carrying
-  // the most prominent radial gradient in the AmbientHero palette and reads as
-  // the band's "primary" colour. Consumers (orb halo) tint around this hue.
-  const tintH = bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
+  // Take hue from the dominant claim's *second* layer — its "accent." Layer[0]
+  // is the largest radial and dominates the bg colour-impression; if we tint
+  // the orb halo with the same hue, the halo loses contrast against the
+  // atmosphere bg (e.g. blue halo on blue day, purple halo on purple night).
+  // Layer[1] carries the palette's secondary accent (warm sun next to a cool
+  // sky, magenta tail next to a purple night) and reads as a complement — the
+  // halo pops against the bg by carrying the *other* colour in the palette.
+  const accentH = bestClaim.palette.layers[1]?.lch[2];
+  const tintH = accentH ?? bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
   return { backgroundImage, imageUrl, imageAlpha, tintH, intensity };
 }
 
