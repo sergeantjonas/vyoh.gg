@@ -160,7 +160,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         pinViewports={2}
         slug="ahri"
         ariaLabel={eyebrow}
-        pinClassName="items-center justify-center px-6"
+        pinClassName="items-center justify-start px-6 pt-[12dvh]"
       >
         <ChapterReveal from={0} to={0.06} className={bandScrim}>
           <ChapterOpener>

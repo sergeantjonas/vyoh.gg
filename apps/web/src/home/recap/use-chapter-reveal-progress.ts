@@ -27,16 +27,18 @@ import { type RefObject, useEffect } from "react";
  * IntersectionObserver (older test envs): same fallback.
  */
 const DEFAULT_DURATION_MS = 1600;
-// Effective root = top 10% of viewport (~10vh). The chapter's bands are
-// centered inside its 100vh sticky child via `items-center justify-center`,
-// so during pre-pin scroll the band center sits at `chapter.top + 50vh` —
-// they only enter the visible viewport once `chapter.top < ~50vh` and reach
-// near-center at `chapter.top < ~10vh`. With a looser margin (-50%) the IO
-// fired while the bands were still below the fold, so the first half of
-// the 1.6s reveal animation played off-screen. -90% defers the trigger
-// until the bands are in view (chapter is right at pin entry), so the
-// animation plays in the stable pin window with bands at viewport center.
-const DEFAULT_ROOT_MARGIN = "0px 0px -90% 0px";
+// Effective root = top 75% of viewport. Chapters render their bands near
+// the top of the sticky child (with a small top-padding for breathing
+// room), so the band stack's top edge enters the viewport once the
+// chapter outer's top is at ~75–80vh — i.e., the chapter has only just
+// started intersecting the viewport. -25% from the bottom triggers the
+// reveal at roughly that moment: bands are about to appear, the splash is
+// becoming dominant, and the animation runs as the bands rise into their
+// pinned position. Looser margins fire too early (splash with no content
+// for the rest of the approach); tighter margins fire too late (animation
+// completes before the user can see it). Chapters whose bands aren't at
+// the top of the pin should pass a custom rootMargin via options.
+const DEFAULT_ROOT_MARGIN = "0px 0px -25% 0px";
 
 export function useChapterRevealProgress(
   ref: RefObject<HTMLElement | null>,
