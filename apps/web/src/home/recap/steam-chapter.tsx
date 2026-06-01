@@ -364,7 +364,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
         pinViewports={1}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        pinClassName="items-start justify-start px-6 pt-[1dvh] sm:px-10"
+        pinClassName="items-start justify-start px-6 pt-[4dvh] sm:px-10"
       >
         <div className="flex w-full flex-col">
           <ChapterOpener>
@@ -389,17 +389,26 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
               blur={16}
               rise={20}
             >
-              <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              {/* Masthead-as-link: the chapter title IS the entry point
+                  to the game-detail page, magazine-style. Replaces the
+                  prior bottom-band CTA — frees vertical space (caret no
+                  longer collides with a closer button) and reads more
+                  editorial. Group-hover "→" mirrors the standout
+                  block's affordance. */}
+              <Link
+                to="/steam/game/$appid"
+                params={{ appid: String(appid) }}
+                className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
+              >
                 {recap?.hasLogo ? (
                   // Official Steam logo as the masthead — typically a
                   // designed wordmark / brand mark that reads more
                   // "editorial" than typographic name in helvetica-7xl.
-                  // `alt={name}` carries the accessible label (heading
-                  // role moves to the parent via `aria-label` on the
-                  // chapter section). Heavy drop-shadow filter mirrors
-                  // the SHADOW_MASTHEAD tier so the logo still cuts
-                  // cleanly against bright splash chroma — text-shadow
-                  // doesn't apply to img, so we use filter: drop-shadow.
+                  // `alt={name}` carries the accessible label. Heavy
+                  // drop-shadow filter mirrors the SHADOW_MASTHEAD tier
+                  // so the logo still cuts cleanly against bright splash
+                  // chroma — text-shadow doesn't apply to img, so we
+                  // use filter: drop-shadow.
                   <img
                     src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
                     alt={name}
@@ -427,7 +436,14 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
                     {tagline}
                   </p>
                 ) : null}
-              </div>
+                <span
+                  aria-hidden="true"
+                  className="text-base text-foreground/60 opacity-0 transition-opacity group-hover/masthead:opacity-100 sm:text-lg"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  →
+                </span>
+              </Link>
             </ChapterReveal>
             {verdictClauses.length > 0 ? (
               <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">
@@ -511,23 +527,13 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
             />
           </ChapterStats>
 
-          <ChapterCloser>
-            {screenshots.length > 0 ? (
+          {screenshots.length > 0 ? (
+            <ChapterCloser>
               <ChapterReveal active={nudged} delay={1.5}>
                 <ScreenshotLightboxStrip appid={appid} screenshots={screenshots} />
               </ChapterReveal>
-            ) : null}
-            <ChapterReveal active={nudged} delay={1.55}>
-              <Link
-                to="/steam/game/$appid"
-                params={{ appid: String(appid) }}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/15 bg-black/55 px-4 py-2 text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-colors hover:bg-black/70"
-                style={{ textShadow: SHADOW_LABEL }}
-              >
-                View {name || "game"} →
-              </Link>
-            </ChapterReveal>
-          </ChapterCloser>
+            </ChapterCloser>
+          ) : null}
         </div>
       </ChapterContainer>
     </div>

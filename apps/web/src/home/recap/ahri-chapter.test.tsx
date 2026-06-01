@@ -149,13 +149,15 @@ afterEach(() => {
 });
 
 describe("AhriChapter", () => {
-  it("renders all four chapter bands", () => {
+  it("renders opener/detail/stats bands (closer removed since CTA moved to title-as-link)", () => {
     setMatches([matchFixture({ matchId: "EUW_1" })]);
     const { container } = render(<AhriChapter account={account} />);
     expect(container.querySelector("[data-band='opener']")).toBeTruthy();
     expect(container.querySelector("[data-band='detail']")).toBeTruthy();
     expect(container.querySelector("[data-band='stats']")).toBeTruthy();
-    expect(container.querySelector("[data-band='closer']")).toBeTruthy();
+    // Closer band intentionally absent on Ahri — the masthead is the
+    // entry point to the deep-stats page (title-as-link pattern).
+    expect(container.querySelector("[data-band='closer']")).toBeNull();
   });
 
   it("registers an atmosphere claim with the Ahri backdrop splash URL", () => {
@@ -324,14 +326,17 @@ describe("AhriChapter", () => {
     );
   });
 
-  it("closer links to the champion deep route for the account slug", () => {
+  it("masthead links to the champion deep route for the account slug", () => {
     setMatches([]);
     const { container } = render(<AhriChapter account={account} />);
-    const link = container.querySelector("[data-band='closer'] a");
+    // Masthead-as-link: the chapter's <h2> sits inside the Link in the
+    // opener band. Query the opener band for the link that contains the
+    // heading.
+    const opener = container.querySelector("[data-band='opener']");
+    const link = opener?.querySelector("a");
     expect(link).toBeTruthy();
-    // The mocked Link forwards `to`, `params` as attributes — verify the
-    // params object made it through verbatim.
-    expect(link?.textContent).toContain("View Ahri deep stats");
+    expect(link?.getAttribute("to")).toBe("/lol/$accountSlug/champions/$championKey");
+    expect(link?.querySelector("h2")?.textContent).toContain("Ahri");
   });
 
   it("forwards the chapter's dominant accentHex to the asset claim", () => {

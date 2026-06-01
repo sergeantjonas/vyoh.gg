@@ -19,12 +19,7 @@ import {
   verdictParagraph,
 } from "@vyoh/shared";
 import { useEffect, useMemo, useRef } from "react";
-import {
-  ChapterCloser,
-  ChapterDetail,
-  ChapterOpener,
-  ChapterStats,
-} from "./chapter-bands";
+import { ChapterDetail, ChapterOpener, ChapterStats } from "./chapter-bands";
 import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import { parseAnimatableNumber } from "./parse-animatable-number";
@@ -436,7 +431,21 @@ export function AhriChapter({ account }: { account: LolAccount }) {
               blur={16}
               rise={20}
             >
-              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              {/* Masthead-as-link: the chapter title IS the entry point to
+                  the deep-stats page, magazine-style. Replaces the prior
+                  bottom-band CTA — frees vertical space (caret no longer
+                  collides with a closer button) and reads more editorial.
+                  Group-hover-revealed "→" mirrors the standout block's
+                  "open →" affordance so the interactivity is discoverable
+                  without painting a permanent button-chrome. */}
+              <Link
+                to="/lol/$accountSlug/champions/$championKey"
+                params={{
+                  accountSlug: account.slug,
+                  championKey: CHAMPION_ALIAS.toLowerCase(),
+                }}
+                className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
+              >
                 <h2
                   className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
                   style={{ textShadow: SHADOW_MASTHEAD }}
@@ -449,7 +458,14 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 >
                   {CHAMPION_TITLE}
                 </p>
-              </div>
+                <span
+                  aria-hidden="true"
+                  className="text-base text-foreground/60 opacity-0 transition-opacity group-hover/masthead:opacity-100 sm:text-lg"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  →
+                </span>
+              </Link>
             </ChapterReveal>
             <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">
               <VerdictProse
@@ -605,22 +621,6 @@ export function AhriChapter({ account }: { account: LolAccount }) {
               }
             />
           </ChapterStats>
-
-          <ChapterCloser>
-            <ChapterReveal active={nudged} delay={1.55}>
-              <Link
-                to="/lol/$accountSlug/champions/$championKey"
-                params={{
-                  accountSlug: account.slug,
-                  championKey: CHAMPION_ALIAS.toLowerCase(),
-                }}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/15 bg-black/55 px-4 py-2 text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-colors hover:bg-black/70"
-                style={{ textShadow: SHADOW_LABEL }}
-              >
-                View {displayName} deep stats →
-              </Link>
-            </ChapterReveal>
-          </ChapterCloser>
         </div>
       </ChapterContainer>
     </div>

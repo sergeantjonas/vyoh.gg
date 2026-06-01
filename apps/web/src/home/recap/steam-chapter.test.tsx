@@ -301,10 +301,17 @@ describe("SteamChapter", () => {
     expect(triggers).toHaveLength(4);
   });
 
-  it("renders a CTA linking to the game-detail page", () => {
-    render(<SteamChapter />);
-    const cta = screen.getByText(/View Hollow Knight/);
-    expect(cta).toBeTruthy();
+  it("masthead links to the game-detail page (title-as-link)", () => {
+    const { container } = render(<SteamChapter />);
+    // The masthead (logo img or h2 fallback) is wrapped in a Link in
+    // the opener band. The accessible name comes from the logo's alt
+    // attribute (or the h2 text), so the link is queryable by name.
+    const opener = container.querySelector("[data-band='opener']");
+    const link = opener?.querySelector("a");
+    expect(link).toBeTruthy();
+    expect(link?.getAttribute("to")).toBe("/steam/game/$appid");
+    // Logo image lives inside the link in the default fixture (hasLogo).
+    expect(link?.querySelector("img[alt='Hollow Knight']")).toBeTruthy();
   });
 
   it("renders verdict prose under the masthead", () => {
