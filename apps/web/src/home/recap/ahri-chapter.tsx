@@ -34,19 +34,26 @@ const CHAMPION_ALIAS = "Ahri";
 // (DDragon ships `title` per champion) and pass it through props.
 const CHAMPION_TITLE = "the Nine-Tailed Fox";
 
-// Text-shadow strengths tuned against the Ahri splash family. Bright
-// splash crops (Spirit Blossom, Star Guardian) wash light text out where
-// it sits over rim-light highlights; a layered dark halo binds the glyph
-// edges without needing a card backdrop behind every text block.
-const SHADOW_MASTHEAD = "0 2px 12px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.45)";
-const SHADOW_BODY = "0 1px 4px rgba(0,0,0,0.55), 0 0 2px rgba(0,0,0,0.4)";
-const SHADOW_LABEL = "0 1px 3px rgba(0,0,0,0.6)";
+// Text-shadow strategy: a hard zero-blur shadow underneath a softer
+// outer glow. The hard layer cuts the glyph edge from any background
+// (bright or dark) regardless of background chroma — soft blur alone
+// fades into bright splashes (Risen Legend gold, Immortalized sand)
+// because the halo's lightness matches the background. The outer glow
+// adds depth without taking on the readability load.
+//
+// Format per shadow: `[hard inner], [tight halo], [soft outer]`.
+const SHADOW_MASTHEAD =
+  "0 1px 0 rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.85), 0 2px 16px rgba(0,0,0,0.6)";
+const SHADOW_BODY =
+  "0 1px 0 rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.85), 0 1px 6px rgba(0,0,0,0.55)";
+const SHADOW_LABEL =
+  "0 1px 0 rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.55)";
 // Accent-tinted labels (per-champion dominantHex) hide on splashes whose
 // chroma matches the accent — Spirit Blossom pinks, Risen Legend warm
-// gold, After Hours red. Three-layer halo + thin black stroke separates
-// the glyph from same-hue art. Heavier than SHADOW_LABEL by design.
+// gold, After Hours red. Hard inner + tight halo + soft outer, plus a
+// thin black stroke to separate the glyph from same-hue art.
 const SHADOW_ACCENT =
-  "0 1px 2px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.95)";
+  "0 1px 0 rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)";
 const STROKE_ACCENT = "0.4px rgba(0,0,0,0.85)";
 
 function formatRelative(iso: string): string {
@@ -385,7 +392,12 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           <ChapterOpener>
             <ChapterReveal active={nudged} delay={0.05} blur={4}>
               <p
-                className="text-xs uppercase tracking-[0.2em]"
+                // Bumped from text-xs → text-sm: bigger glyphs amortize
+                // the shadow across more surface area and read better
+                // against bright/warm splashes (Risen Legend, Immortalized).
+                // Slightly tighter tracking compensates so the eyebrow
+                // still feels like a kicker, not a heading.
+                className="text-sm font-medium uppercase tracking-[0.18em]"
                 style={{
                   color: "var(--accent, currentColor)",
                   textShadow: SHADOW_ACCENT,
