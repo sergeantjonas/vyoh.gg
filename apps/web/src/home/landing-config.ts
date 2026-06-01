@@ -24,7 +24,7 @@ export type AhriSkinEntry = {
 // adjacent skins. Owner can extend by adding `{ name, imageUrl }` pairs;
 // the cycle picks them up automatically.
 export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [
-  { name: "Base" },
+  { name: "Base", imageUrl: wikiSplashUrl("Ahri_OriginalSkin_HD.jpg") },
   {
     name: "Spirit Blossom",
     imageUrl: wikiSplashUrl("Ahri_SpiritBlossomSkin_HD.jpg"),

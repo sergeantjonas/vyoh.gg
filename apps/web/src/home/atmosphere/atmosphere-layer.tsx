@@ -5,8 +5,8 @@ import {
   layerToCssGradient,
 } from "@/home/ambient-hero";
 import { mainScrollRef } from "@/lib/scroll-container";
-import { m, useMotionValue } from "motion/react";
-import { useEffect, useMemo } from "react";
+import { AnimatePresence, m, useMotionValue } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AtmosphereClaim, AtmosphereClaimEntry } from "./use-atmosphere-claim";
 
 // Viewport-intersection weight: 1.0 when the band fully covers the viewport
@@ -140,8 +140,13 @@ type Props = { claims: Map<number, AtmosphereClaimEntry> };
 export function AtmosphereLayer({ claims }: Props) {
   const backgroundImage = useMotionValue<string>("none");
   const imageOpacity = useMotionValue<number>(0);
-  const imageUrlVar = useMotionValue<string>("none");
   const imageFilter = useMotionValue<string>(`blur(${DEFAULT_BLUR_PX}px) saturate(1.1)`);
+  // Current dominant image URL — React state so `<AnimatePresence>` can drive
+  // a proper alpha crossfade when the URL changes (skin rotation, claim
+  // handoff). Updated from `apply()` only when the value actually changes to
+  // avoid re-rendering on every scroll tick.
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const lastUrlRef = useRef<string | null>(null);
   const entries = useMemo(() => Array.from(claims.values()), [claims]);
 
   const compute = useMemo(() => {
@@ -180,10 +185,13 @@ export function AtmosphereLayer({ claims }: Props) {
         root.removeProperty("--atmosphere-tint-h");
         root.removeProperty("--atmosphere-intensity");
         root.removeProperty("--accent");
+        if (lastUrlRef.current !== null) {
+          lastUrlRef.current = null;
+          setCurrentImageUrl(null);
+        }
         return;
       }
       backgroundImage.set(resolved.backgroundImage);
-      imageUrlVar.set(resolved.imageUrl ? `url("${resolved.imageUrl}")` : "none");
       imageOpacity.set(resolved.imageAlpha);
       imageFilter.set(`blur(${resolved.imageBlurPx}px) saturate(1.1)`);
       // Publish to consumers (orb-mark halo, future band chrome). Written to
@@ -200,8 +208,15 @@ export function AtmosphereLayer({ claims }: Props) {
       } else {
         root.removeProperty("--accent");
       }
+      // Crossfade-driven URL update — diff against a ref so we only setState
+      // when the URL actually changes (skin rotation, claim handoff), not
+      // on every scroll tick.
+      if (resolved.imageUrl !== lastUrlRef.current) {
+        lastUrlRef.current = resolved.imageUrl;
+        setCurrentImageUrl(resolved.imageUrl);
+      }
     };
-  }, [compute, backgroundImage, imageOpacity, imageUrlVar, imageFilter]);
+  }, [compute, backgroundImage, imageOpacity, imageFilter]);
 
   // Manual scroll listener on `<main>` (the actual scroll container) instead
   // of motion/react's `useScroll({ container: mainScrollRef })` — `useScroll`
@@ -215,9 +230,20 @@ export function AtmosphereLayer({ claims }: Props) {
     const onResize = () => apply();
     container.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });
+    // Subscribe to per-claim bloom MotionValue changes so the image filter
+    // follows the bloom curve frame-by-frame even when the user isn't
+    // scrolling. Without this, `apply()` only fires on scroll events — the
+    // bloom MV animates internally but its value is never read, so the
+    // filter "samples" the current bloom only when the user scrolls.
+    const unsubscribes: Array<() => void> = [];
+    for (const entry of entries) {
+      const mv = entry.claim.bloomBlurPx;
+      if (mv) unsubscribes.push(mv.on("change", apply));
+    }
     return () => {
       container.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      for (const u of unsubscribes) u();
       // Drop the published CSS vars when the layer unmounts so leaving `/`
       // doesn't leave a stale tint hue on documentElement for routes that
       // never claimed an atmosphere.
@@ -226,7 +252,7 @@ export function AtmosphereLayer({ claims }: Props) {
       root.removeProperty("--atmosphere-intensity");
       root.removeProperty("--accent");
     };
-  }, [apply]);
+  }, [apply, entries]);
 
   return (
     <BackdropPortal>
@@ -244,14 +270,27 @@ export function AtmosphereLayer({ claims }: Props) {
         <m.div
           data-atmosphere-image
           className="absolute inset-0"
-          style={{
-            backgroundImage: imageUrlVar,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: imageFilter,
-            opacity: imageOpacity,
-          }}
-        />
+          style={{ opacity: imageOpacity }}
+        >
+          <AnimatePresence>
+            {currentImageUrl && (
+              <m.div
+                key={currentImageUrl}
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url("${currentImageUrl}")`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  filter: imageFilter,
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+              />
+            )}
+          </AnimatePresence>
+        </m.div>
       </div>
     </BackdropPortal>
   );

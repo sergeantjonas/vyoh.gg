@@ -15,7 +15,7 @@ import {
   formatKda,
 } from "@vyoh/shared";
 import { m } from "motion/react";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   ChapterCloser,
   ChapterDetail,
@@ -97,6 +97,31 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     activeSkin.imageUrl ?? championBackdropSplashUrl(CHAMPION_ALIAS, patch);
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
+
+  // Splash prefetch. The base splash starts fetching on mount so it's ready
+  // by the time the chapter scrolls into view (no ambient-hero pop-through).
+  // Other rotation skins prefetch after a short delay so they don't compete
+  // with critical-path resources during initial page load — they only need
+  // to be in cache by the time the auto-cycle ticks to them (~5s in).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const baseUrl =
+      AHRI_SKIN_ROTATION[0]?.imageUrl ?? championBackdropSplashUrl(CHAMPION_ALIAS, patch);
+    const baseImg = new Image();
+    baseImg.src = baseUrl;
+    const others = AHRI_SKIN_ROTATION.slice(1)
+      .map((s) => s.imageUrl)
+      .filter((u): u is string => Boolean(u));
+    const timer = window.setTimeout(() => {
+      for (const url of others) {
+        const img = new Image();
+        img.src = url;
+      }
+    }, 800);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [patch]);
   // Per-chapter `--accent` cascade: the chapter's dominant champion-asset hex
   // drives `--accent` while the chapter is in view. Layer publishes it from
   // the dominant claim — falls back to the static neutral token outside any
