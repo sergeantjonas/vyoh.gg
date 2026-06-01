@@ -43,6 +43,9 @@ describe("resolveAtmosphere", () => {
     expect(resolved?.backgroundImage).toContain("radial-gradient");
     expect(resolved?.imageUrl).toBeNull();
     expect(resolved?.imageAlpha).toBe(0);
+    expect(resolved?.intensity).toBeCloseTo(0.8, 5);
+    // Tint hue is taken from the first palette layer's oklch H (200 here).
+    expect(resolved?.tintH).toBe(200);
   });
 
   it("blends intensity by weight while keeping the dominant claim's palette", () => {

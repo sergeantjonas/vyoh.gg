@@ -24,7 +24,14 @@ type ResolvedAtmosphere = {
   backgroundImage: string;
   imageUrl: string | null;
   imageAlpha: number;
+  // Hue (oklch H, degrees) and intensity (0..1) published to consumers via
+  // `--atmosphere-tint-h` / `--atmosphere-intensity`. The orb-mark halo reads
+  // both for its "mood ring" behaviour (A-2a).
+  tintH: number;
+  intensity: number;
 };
+
+const DEFAULT_TINT_H = 240;
 
 function resolveAtmosphere(
   entries: Iterable<{ claim: AtmosphereClaim; weight: number }>
@@ -55,7 +62,11 @@ function resolveAtmosphere(
   // Image alpha scales with the dominant claim's contribution. A claim that's
   // half-weighted (band edges entering viewport) fades its image in to match.
   const imageAlpha = imageUrl ? Math.min(1, bestWeight) * intensity : 0;
-  return { backgroundImage, imageUrl, imageAlpha };
+  // Take hue from the dominant claim's first layer — it's the layer carrying
+  // the most prominent radial gradient in the AmbientHero palette and reads as
+  // the band's "primary" colour. Consumers (orb halo) tint around this hue.
+  const tintH = bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
+  return { backgroundImage, imageUrl, imageAlpha, tintH, intensity };
 }
 
 const LAYER_CLASS =
@@ -103,13 +114,21 @@ export function AtmosphereLayer({ claims }: Props) {
   const apply = useMemo(() => {
     return () => {
       const resolved = compute();
+      const root = document.documentElement.style;
       if (!resolved) {
         imageOpacity.set(0);
+        root.removeProperty("--atmosphere-tint-h");
+        root.removeProperty("--atmosphere-intensity");
         return;
       }
       backgroundImage.set(resolved.backgroundImage);
       imageUrlVar.set(resolved.imageUrl ? `url("${resolved.imageUrl}")` : "none");
       imageOpacity.set(resolved.imageAlpha);
+      // Publish to consumers (orb-mark halo, future band chrome). Written to
+      // `documentElement` so any descendant can `var(--atmosphere-tint-h)` —
+      // no need for each consumer to drill a ref through context.
+      root.setProperty("--atmosphere-tint-h", resolved.tintH.toFixed(2));
+      root.setProperty("--atmosphere-intensity", resolved.intensity.toFixed(3));
     };
   }, [compute, backgroundImage, imageOpacity, imageUrlVar]);
 
@@ -128,6 +147,12 @@ export function AtmosphereLayer({ claims }: Props) {
     return () => {
       container.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      // Drop the published CSS vars when the layer unmounts so leaving `/`
+      // doesn't leave a stale tint hue on documentElement for routes that
+      // never claimed an atmosphere.
+      const root = document.documentElement.style;
+      root.removeProperty("--atmosphere-tint-h");
+      root.removeProperty("--atmosphere-intensity");
     };
   }, [apply]);
 
