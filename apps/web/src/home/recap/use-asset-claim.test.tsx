@@ -64,10 +64,11 @@ describe("useAssetClaim", () => {
       </AtmosphereContext.Provider>
     );
     const [, , claim] = setClaim.mock.calls[0] as [number, unknown, AtmosphereClaim];
-    // 2px is barely-there blur — the splash reads as recognizable; per-band
-    // dark scrims (bg-background/55 + backdrop-blur-sm cards) handle text
-    // readability locally rather than blurring the whole image.
-    expect(claim.blurPx).toBe(2);
+    // 0px = sharp asset. Per-band dark scrims (bg-background/55 +
+    // backdrop-blur-sm cards) handle text-area readability locally; blurring
+    // the whole image is a heavier visual that's only justified when there's
+    // no place to put a scrim.
+    expect(claim.blurPx).toBe(0);
   });
 
   it("respects an explicit blurPx override", () => {

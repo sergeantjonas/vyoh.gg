@@ -122,11 +122,13 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   const skinSubtitle = activeSkin.name === "Base" ? null : activeSkin.name;
 
   // Band scrim — dark card with subtle local backdrop blur so copy stays
-  // readable against the lightly-blurred splash without darkening the whole
-  // image. `max-w-prose` keeps editorial measure ~65ch; `self-start` anchors
-  // each band on the left rather than stretching across the pin width.
+  // readable against the now-sharp splash. `max-w-prose` keeps editorial
+  // measure ~65ch; `mx-auto` centers each band within the pin's centered
+  // flex container. The pin itself is given `items-center justify-center`
+  // via pinClassName so the chapter content sits in the viewport's middle
+  // rather than the top-left corner.
   const bandScrim =
-    "max-w-prose self-start rounded-xl border border-border/30 bg-background/55 px-6 backdrop-blur-sm";
+    "w-full max-w-prose rounded-xl border border-border/30 bg-background/55 px-6 backdrop-blur-sm";
 
   // `pinFade` ramps 0 → 1 as the chapter approaches its pin start so chapter
   // chrome (band scrims, borders, backdrop blur) doesn't peek into the hero
@@ -136,7 +138,12 @@ export function AhriChapter({ account }: { account: LolAccount }) {
 
   return (
     <div ref={outerRef} data-recap-chapter="ahri">
-      <ChapterContainer pinViewports={2} slug="ahri" ariaLabel={eyebrow}>
+      <ChapterContainer
+        pinViewports={2}
+        slug="ahri"
+        ariaLabel={eyebrow}
+        pinClassName="items-center justify-center px-6"
+      >
         <m.div className={bandScrim} style={bandStyle}>
           <ChapterOpener>
             <ChapterReveal from={0} to={0.06}>

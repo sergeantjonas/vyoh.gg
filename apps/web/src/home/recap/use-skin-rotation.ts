@@ -28,7 +28,11 @@ import { useEffect, useState } from "react";
  */
 export const HOLD_MS = 4500;
 export const FADE_HALF_MS = 400;
-export const BLOOM_PEAK_PX = 28;
+// Subtle "ethereal blur moment" between concrete skin states — at 10px the
+// transition reads as a soft pulse, not a "the splash broke" moment. Heavier
+// peaks (28+) feel like glitches when observed at the cadence the auto-cycle
+// runs at. Tune up only if the transition feels too hard.
+export const BLOOM_PEAK_PX = 10;
 
 export type SkinRotationState = {
   activeIndex: number;

@@ -17,10 +17,11 @@ type Args = {
    */
   palette: AmbientPalette;
   /**
-   * Blur radius (px). Default 2 — the asset reads as recognizable; per-band
-   * scrims (dark `bg-background/55` cards with `backdrop-blur-sm`) handle
-   * copy-area readability locally rather than blurring the whole image.
-   * Bump higher only when copy directly overlaps unprotected art.
+   * Blur radius (px). Default 0 — the asset reads sharp; per-band scrims
+   * (dark `bg-background/55` cards with `backdrop-blur-sm`) handle copy-area
+   * readability locally rather than blurring the whole image. Bump higher
+   * only when copy directly overlaps unprotected art and a local scrim
+   * isn't on the table.
    */
   blurPx?: number;
   /**
@@ -40,7 +41,7 @@ type Args = {
   intensity?: number;
 };
 
-const DEFAULT_BLUR_PX = 2;
+const DEFAULT_BLUR_PX = 0;
 const DEFAULT_INTENSITY = 0.9;
 
 /**
