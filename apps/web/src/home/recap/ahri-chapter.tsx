@@ -351,7 +351,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   );
 
   return (
-    <div ref={outerRef} data-recap-chapter="ahri">
+    <div ref={outerRef} data-recap-chapter="ahri" data-chapter-label={eyebrow}>
       <ChapterContainer
         // 1× — chapter fits one viewport, the original 2× pin was paying
         // for stretched-across-scroll reveals that no longer exist.

@@ -1,10 +1,10 @@
 import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { AmbientHero } from "@/home/ambient-hero";
 import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
-import { HeroScrollHint } from "@/home/hero-scroll-hint";
 import { LandingHeading } from "@/home/landing-heading";
 import { LandingSteamBand } from "@/home/landing-steam-band";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
+import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
@@ -49,8 +49,8 @@ function HomePage() {
         >
           <AmbientHero bandRef={heroRef} intensity={activity?.intensity} />
           <LandingHeading />
-          <HeroScrollHint />
         </section>
+        <NextChapterCaret />
         {/* First recap chapter (R-2). The bento below still renders — it
             retires in R-5 once the conclusion lands. Chapter only mounts
             when a primary LoL account is configured (so anonymous /

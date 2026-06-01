@@ -333,7 +333,12 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
   );
 
   return (
-    <div ref={outerRef} data-recap-chapter="steam" data-steam-appid={appid}>
+    <div
+      ref={outerRef}
+      data-recap-chapter="steam"
+      data-steam-appid={appid}
+      data-chapter-label={name || `Steam game ${appid}`}
+    >
       <ChapterContainer
         pinViewports={1}
         slug={`steam-${appid}`}
