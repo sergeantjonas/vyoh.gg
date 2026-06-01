@@ -38,7 +38,10 @@ export function VerdictProse({ clauses, className, style }: Props) {
   return (
     <p
       className={[
-        "text-balance text-base leading-relaxed text-foreground/90 sm:text-lg",
+        // `max-w-prose` ties the paragraph at ~65ch editorial measure even
+        // when the surrounding chapter container is wider. Long-form reads
+        // better at narrow measure than at the chapter's full width.
+        "max-w-prose text-balance text-base leading-relaxed text-foreground/90 sm:text-lg",
         className,
       ]
         .filter(Boolean)

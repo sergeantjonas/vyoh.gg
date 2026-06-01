@@ -365,7 +365,12 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           </ChapterReveal>
         ) : null}
 
-        <div className="flex w-full max-w-2xl flex-col">
+        {/* Chapter content fills the root container width (max-w-4xl from
+            __root.tsx). Only the verdict prose itself ties off at editorial
+            measure (~65ch via `max-w-prose` inside VerdictProse) so the
+            paragraph stays readable while signature card / runs strip /
+            stats stretch to the full container. */}
+        <div className="flex w-full flex-col">
           <ChapterOpener>
             <ChapterReveal active={nudged} delay={0.05} blur={4}>
               <p
