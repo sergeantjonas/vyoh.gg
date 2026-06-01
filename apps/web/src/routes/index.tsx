@@ -5,6 +5,7 @@ import { HeroScrollHint } from "@/home/hero-scroll-hint";
 import { LandingHeading } from "@/home/landing-heading";
 import { LandingSteamBand } from "@/home/landing-steam-band";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
+import { SteamChapter } from "@/home/recap/steam-chapter";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDaySplit } from "@/home/tile-day-split";
@@ -55,6 +56,10 @@ function HomePage() {
             when a primary LoL account is configured (so anonymous /
             visitors don't see a placeholder Ahri pin). */}
         {account ? <AhriChapter account={account} /> : null}
+        {/* Second recap chapter (R-3). Hardcoded to STEAM_FEATURED_APPID in
+            landing-config until R-4's `useChapters()` selection logic
+            picks Steam chapters by recency-decayed score. */}
+        <SteamChapter />
         <LandingSteamBand />
         <BentoGrid>
           <BentoTile width={2} height={2}>
