@@ -12,7 +12,8 @@ import { m, useReducedMotion, useScroll, useTransform } from "motion/react";
 // Lifecycle: opacity is driven by <main>'s scrollY. The chevron is at full
 // opacity at scrollTop=0 and clears by 80px of scroll — short enough that
 // the moment the user commits to scrolling, the hint dissolves rather than
-// trailing them through the rest of the page.
+// trailing them through the rest of the page. Pointer-events track the same
+// range so the button stops capturing clicks once it's visually gone.
 const FADE_RANGE_PX = 80;
 
 // Bob: small downward drift that returns. `ease: "easeInOut"` so the
@@ -34,13 +35,32 @@ export function HeroScrollHint() {
   // because the document body itself never scrolls in this app.
   const { scrollY } = useScroll({ container: mainScrollRef });
   const opacity = useTransform(scrollY, [0, FADE_RANGE_PX], [1, 0]);
+  // Mirror the opacity fade in pointerEvents so a faded-out chevron stops
+  // intercepting clicks over the bento tiles below it.
+  const pointerEvents = useTransform(scrollY, (v) =>
+    v < FADE_RANGE_PX ? "auto" : "none"
+  );
+
+  const handleClick = () => {
+    const main = mainScrollRef.current;
+    if (!main) return;
+    // Advance by one viewport — lands just past the hero's bottom edge into
+    // the first non-hero band. `scrollBy` rather than `scrollTo` so the jump
+    // composes with any in-flight scroll from another source.
+    main.scrollBy({
+      top: main.clientHeight,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  };
 
   return (
-    <m.div
-      aria-hidden="true"
+    <m.button
+      type="button"
+      onClick={handleClick}
+      aria-label="Scroll to next section"
       data-slot="hero-scroll-hint"
-      className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center text-foreground/40"
-      style={{ opacity }}
+      className="absolute inset-x-0 bottom-8 mx-auto flex w-fit cursor-pointer justify-center rounded-full p-2 text-foreground/40 transition-colors hover:text-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      style={{ opacity, pointerEvents }}
     >
       <m.svg
         viewBox="0 0 24 24"
@@ -56,6 +76,6 @@ export function HeroScrollHint() {
       >
         <path d="M6 9l6 6 6-6" />
       </m.svg>
-    </m.div>
+    </m.button>
   );
 }

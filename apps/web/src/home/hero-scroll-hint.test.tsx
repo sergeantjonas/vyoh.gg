@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -36,17 +36,50 @@ describe("HeroScrollHint", () => {
     expect(hint).toBeTruthy();
   });
 
-  it("marks the wrapper as decorative via aria-hidden so screen readers skip it", () => {
+  it("labels the button for screen readers since the chevron itself is decorative", () => {
     const { container } = render(<HeroScrollHint />);
     const hint = container.querySelector("[data-slot='hero-scroll-hint']");
-    expect(hint?.getAttribute("aria-hidden")).toBe("true");
+    expect(hint?.tagName).toBe("BUTTON");
+    expect(hint?.getAttribute("aria-label")).toBe("Scroll to next section");
   });
 
-  it("is positioned absolute + pointer-events-none so it floats over the hero without blocking interaction", () => {
+  it("is positioned absolute over the hero", () => {
     const { container } = render(<HeroScrollHint />);
     const hint = container.querySelector("[data-slot='hero-scroll-hint']");
     expect(hint?.className).toContain("absolute");
-    expect(hint?.className).toContain("pointer-events-none");
+  });
+
+  it("scrolls <main> down by one viewport on click", () => {
+    const main = document.createElement("div");
+    Object.defineProperty(main, "clientHeight", { value: 720, configurable: true });
+    const scrollBy = vi.fn();
+    main.scrollBy = scrollBy as unknown as Element["scrollBy"];
+    mainScrollRef.current = main;
+
+    const { container } = render(<HeroScrollHint />);
+    const hint = container.querySelector<HTMLButtonElement>(
+      "[data-slot='hero-scroll-hint']"
+    );
+    fireEvent.click(hint as HTMLButtonElement);
+
+    expect(scrollBy).toHaveBeenCalledWith({ top: 720, behavior: "smooth" });
+  });
+
+  it("uses behavior: auto when reduced motion is requested", () => {
+    useReducedMotionMock.mockReturnValue(true);
+    const main = document.createElement("div");
+    Object.defineProperty(main, "clientHeight", { value: 500, configurable: true });
+    const scrollBy = vi.fn();
+    main.scrollBy = scrollBy as unknown as Element["scrollBy"];
+    mainScrollRef.current = main;
+
+    const { container } = render(<HeroScrollHint />);
+    const hint = container.querySelector<HTMLButtonElement>(
+      "[data-slot='hero-scroll-hint']"
+    );
+    fireEvent.click(hint as HTMLButtonElement);
+
+    expect(scrollBy).toHaveBeenCalledWith({ top: 500, behavior: "auto" });
   });
 
   it("renders a chevron svg with role=presentation so AT does not announce it as an image", () => {
