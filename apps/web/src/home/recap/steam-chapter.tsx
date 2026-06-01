@@ -342,7 +342,10 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
   const eyebrow = recap?.ageBucket ? EYEBROW_FOR_BUCKET[recap.ageBucket] : "Steam";
   const standout = recap?.standoutUnlock ?? null;
   const recentUnlocks = recap?.recentUnlocks ?? [];
-  const screenshots = (recap?.screenshots ?? []).slice(0, 4);
+  // No cap — the lightbox strip uses horizontal overflow-scroll so all
+  // screenshots are reachable without forcing a multi-row layout that
+  // would push the chapter past 1-viewport pin.
+  const screenshots = recap?.screenshots ?? [];
   const completionPct = recap?.completionPct ?? null;
   const playtime2WeekMin = recap?.playtime2WeeksMinutes ?? null;
   const playtimeForeverMin = recap?.playtimeForeverMinutes ?? 0;

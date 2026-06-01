@@ -283,8 +283,8 @@ describe("SteamChapter", () => {
     expect(screen.getByText(/Unlocks|Rarest unlock/)).toBeTruthy();
   });
 
-  it("renders a screenshot strip with up to 4 thumbnails", () => {
-    const screenshots: SteamScreenshotEntry[] = Array.from({ length: 6 }, (_, i) => ({
+  it("renders all screenshots in the strip (horizontal scroll handles overflow)", () => {
+    const screenshots: SteamScreenshotEntry[] = Array.from({ length: 8 }, (_, i) => ({
       filename: `steam/apps/367520/ss_${i}.jpg`,
       ordinal: i,
     }));
@@ -294,11 +294,10 @@ describe("SteamChapter", () => {
       isError: false,
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     render(<SteamChapter />);
-    // The lightbox strip renders one trigger button per thumbnail; chapter
-    // caps the strip at 4. Filtered on the aria-label so we don't pick up
-    // the cta or other action buttons.
+    // No cap — strip renders every screenshot; overflow-x-auto handles
+    // visual containment within the 1-viewport pin.
     const triggers = screen.getAllByRole("button", { name: /Open screenshot/ });
-    expect(triggers).toHaveLength(4);
+    expect(triggers).toHaveLength(8);
   });
 
   it("masthead links to the game-detail page (title-as-link)", () => {

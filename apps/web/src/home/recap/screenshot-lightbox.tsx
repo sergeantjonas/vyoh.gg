@@ -68,9 +68,15 @@ export function ScreenshotLightboxStrip({
         if (!open) close();
       }}
     >
-      <ul className="flex flex-wrap items-center gap-2">
+      {/* Horizontally-scrollable strip — fits all screenshots regardless
+          of how many the game ships, without forcing a wrap that would
+          push the chapter past the 1-viewport pin. shrink-0 on each <li>
+          keeps thumbnails at their natural size. Native scrollbar hidden
+          via standard `scrollbar-width: none`; the peek of the next
+          thumbnail at the edge is the affordance that more exists. */}
+      <ul className="flex flex-nowrap items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {screenshots.map((s, i) => (
-          <li key={s.filename}>
+          <li key={s.filename} className="shrink-0">
             <button
               type="button"
               onClick={() => setOpenIndex(i)}
