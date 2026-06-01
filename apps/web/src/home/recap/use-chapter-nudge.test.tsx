@@ -1,0 +1,139 @@
+import { renderHook } from "@testing-library/react";
+import { type RefObject, act, useRef } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { useChapterNudge } from "./use-chapter-nudge";
+
+vi.mock("@/lib/scroll-container", () => ({
+  mainScrollRef: { current: null },
+}));
+
+type Observer = {
+  observe: ReturnType<typeof vi.fn>;
+  unobserve: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+  callback: IntersectionObserverCallback;
+  options: IntersectionObserverInit | undefined;
+  trigger: (entry: Partial<IntersectionObserverEntry>) => void;
+};
+
+const observers: Observer[] = [];
+
+class FakeIntersectionObserver implements Observer {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  callback: IntersectionObserverCallback;
+  options: IntersectionObserverInit | undefined;
+  constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+    this.callback = cb;
+    this.options = options;
+    observers.push(this);
+  }
+  trigger(entry: Partial<IntersectionObserverEntry>) {
+    this.callback(
+      [
+        {
+          isIntersecting: true,
+          intersectionRatio: 0,
+          ...entry,
+        } as IntersectionObserverEntry,
+      ],
+      this as unknown as IntersectionObserver
+    );
+  }
+}
+
+function renderHookWithRef(triggerRatio?: number) {
+  return renderHook(() => {
+    const ref = useRef<HTMLElement | null>(null);
+    // Attach a synthetic element so the observer has something to observe.
+    if (ref.current === null) {
+      const el = document.createElement("section");
+      Object.defineProperty(ref, "current", {
+        value: el,
+        writable: true,
+        configurable: true,
+      });
+    }
+    const nudged = useChapterNudge(
+      ref as RefObject<HTMLElement | null>,
+      triggerRatio !== undefined ? { triggerRatio } : {}
+    );
+    return { nudged };
+  });
+}
+
+beforeEach(() => {
+  observers.length = 0;
+  vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+describe("useChapterNudge", () => {
+  it("starts in the un-nudged state", () => {
+    const { result } = renderHookWithRef();
+    expect(result.current.nudged).toBe(false);
+  });
+
+  it("does NOT fire when intersection is below the default threshold", () => {
+    const { result } = renderHookWithRef();
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.2 }));
+    // No timer scheduled, no nudge flip.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.nudged).toBe(false);
+  });
+
+  it("flips nudged true after the settle window when intersection crosses the threshold", () => {
+    const { result } = renderHookWithRef();
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.5 }));
+    // Pre-settle: still false.
+    expect(result.current.nudged).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(499);
+    });
+    expect(result.current.nudged).toBe(false);
+    // After the settle window: nudge fires.
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.nudged).toBe(true);
+  });
+
+  it("disconnects the observer after firing — one-shot", () => {
+    renderHookWithRef();
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.5 }));
+    expect(io.disconnect).toHaveBeenCalled();
+  });
+
+  it("respects a caller-supplied triggerRatio override", () => {
+    const { result } = renderHookWithRef(0.1);
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.15 }));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(result.current.nudged).toBe(true);
+  });
+
+  it("passes the trigger ratio as the IO threshold so the browser only delivers entries near it", () => {
+    renderHookWithRef(0.5);
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    expect(io.options?.threshold).toBe(0.5);
+  });
+});

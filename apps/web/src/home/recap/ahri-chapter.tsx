@@ -1,7 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { AHRI_SKIN_ROTATION } from "@/home/landing-config";
-import { mainScrollRef } from "@/lib/scroll-container";
 import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import {
@@ -19,7 +18,7 @@ import {
   formatKda,
   verdictParagraph,
 } from "@vyoh/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   ChapterCloser,
   ChapterDetail,
@@ -30,6 +29,7 @@ import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { useAssetClaim } from "./use-asset-claim";
+import { useChapterNudge } from "./use-chapter-nudge";
 import { useSkinRotation } from "./use-skin-rotation";
 import { VerdictProse } from "./verdict-prose";
 
@@ -317,58 +317,9 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   );
   useAssetClaim(outerRef, claim);
 
-  // Polite one-shot nudge into the chapter pin. Triggers when the chapter
-  // outer is 8% visible — i.e. roughly when the opener band's top edge
-  // first enters the viewport from below. Smooth-scrolls main so the
-  // chapter top aligns with viewport top (pin start), then flips `nudged`
-  // ~500ms later (smooth-scroll settle window) to release the gated band
-  // reveals. Lands the user in a stable view first, then plays the reveal
-  // cascade from there — no animation runs during the approach scroll.
-  //
-  // One-shot: scrolling back up doesn't re-yank. Smooth-scroll respects
-  // active user input mid-nudge (their scroll wins).
-  const [nudged, setNudged] = useState(false);
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") {
-      setNudged(true);
-      return;
-    }
-    const el = outerRef.current;
-    if (!el) return;
-    const main = mainScrollRef.current;
-    let triggered = false;
-    let settleTimer: ReturnType<typeof setTimeout> | null = null;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.08 && !triggered) {
-            triggered = true;
-            if (main) {
-              const target =
-                main.scrollTop +
-                el.getBoundingClientRect().top -
-                main.getBoundingClientRect().top;
-              main.scrollTo({ top: target, behavior: "smooth" });
-            } else {
-              el.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-            settleTimer = setTimeout(() => setNudged(true), 500);
-            observer.disconnect();
-            break;
-          }
-        }
-      },
-      {
-        root: main ?? null,
-        threshold: 0.08,
-      }
-    );
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      if (settleTimer) clearTimeout(settleTimer);
-    };
-  }, []);
+  // Polite one-shot nudge into the chapter pin. See `useChapterNudge` for
+  // the threshold + settle tuning notes.
+  const nudged = useChapterNudge(outerRef);
 
   // Recap may be `undefined` while loading or on error. Default to a
   // zero-state shape so the chapter still renders its layout (em-dash
@@ -409,7 +360,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
         pinViewports={1}
         slug="ahri"
         ariaLabel={eyebrow}
-        pinClassName="items-start justify-start px-6 pt-[10dvh] sm:px-10"
+        pinClassName="items-start justify-start px-6 pt-[6dvh] sm:px-10"
       >
         {/* Chapter content fills the root container width (max-w-4xl from
             __root.tsx). Only the verdict prose itself ties off at editorial

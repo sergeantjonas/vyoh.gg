@@ -1,12 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import type { SteamGameRecap, SteamStandoutUnlock, SteamUnlock } from "@vyoh/shared";
 import { formatPlaytime, verdictParagraphSteam } from "@vyoh/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { CountUp } from "@/components/count-up";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { STEAM_FEATURED_APPID } from "@/home/landing-config";
-import { mainScrollRef } from "@/lib/scroll-container";
 import {
   steamAchievementIconUrl,
   steamLibraryHeroLargeUrl,
@@ -32,6 +31,7 @@ import {
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { ScreenshotLightboxStrip } from "./screenshot-lightbox";
 import { useAssetClaim } from "./use-asset-claim";
+import { useChapterNudge } from "./use-chapter-nudge";
 import { VerdictProse } from "./verdict-prose";
 
 // Bucket-aware kicker copy. Mirrors the arc note's "Steam framing" table —
@@ -299,49 +299,9 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
     img.src = splashUrl;
   }, [splashUrl]);
 
-  // Polite one-shot nudge into the chapter pin — same pattern as the Ahri
-  // chapter. Triggers when the chapter is 8% visible, smooth-scrolls main
-  // so the chapter top aligns with viewport top, then flips `nudged` ~500ms
-  // later (smooth-scroll settle) to release the gated band reveals.
-  const [nudged, setNudged] = useState(false);
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") {
-      setNudged(true);
-      return;
-    }
-    const el = outerRef.current;
-    if (!el) return;
-    const main = mainScrollRef.current;
-    let triggered = false;
-    let settleTimer: ReturnType<typeof setTimeout> | null = null;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.08 && !triggered) {
-            triggered = true;
-            if (main) {
-              const target =
-                main.scrollTop +
-                el.getBoundingClientRect().top -
-                main.getBoundingClientRect().top;
-              main.scrollTo({ top: target, behavior: "smooth" });
-            } else {
-              el.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-            settleTimer = setTimeout(() => setNudged(true), 500);
-            observer.disconnect();
-            break;
-          }
-        }
-      },
-      { root: main ?? null, threshold: 0.08 }
-    );
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      if (settleTimer) clearTimeout(settleTimer);
-    };
-  }, []);
+  // Polite one-shot nudge into the chapter pin — see `useChapterNudge` for
+  // the threshold + settle tuning notes.
+  const nudged = useChapterNudge(outerRef);
 
   // Defaults so the chapter layout always has *something* to render — the
   // empty-state copy line from verdictParagraphSteam handles the
@@ -368,7 +328,7 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
         pinViewports={1}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        pinClassName="items-start justify-start px-6 pt-[10dvh] sm:px-10"
+        pinClassName="items-start justify-start px-6 pt-[6dvh] sm:px-10"
       >
         <div className="flex w-full flex-col">
           <ChapterOpener>
