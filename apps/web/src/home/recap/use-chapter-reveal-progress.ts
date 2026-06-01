@@ -27,7 +27,14 @@ import { type RefObject, useEffect } from "react";
  * IntersectionObserver (older test envs): same fallback.
  */
 const DEFAULT_DURATION_MS = 1600;
-const DEFAULT_ROOT_MARGIN = "0px";
+// Shrink the effective viewport bottom by 50% so the IO only fires once the
+// chapter has actually scrolled into view — not the instant its top edge
+// touches the viewport from below. Without this, a tall pinned chapter
+// (200vh outer) triggers as soon as its top crosses the viewport bottom by
+// 1px, and the 1.6s reveal animation runs out before the user actually
+// arrives at the chapter visually. With -50% bottom, the chapter must be at
+// least half-engaged (its top past the viewport midline) before triggering.
+const DEFAULT_ROOT_MARGIN = "0px 0px -50% 0px";
 
 export function useChapterRevealProgress(
   ref: RefObject<HTMLElement | null>,
