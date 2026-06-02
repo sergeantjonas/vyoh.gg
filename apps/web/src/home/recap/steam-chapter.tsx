@@ -1,5 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import type { SteamGameRecap, SteamStandoutUnlock, SteamUnlock } from "@vyoh/shared";
+import type {
+  RecapChapterFraming,
+  SteamGameRecap,
+  SteamStandoutUnlock,
+  SteamUnlock,
+} from "@vyoh/shared";
 import { formatPlaytime, verdictParagraphSteam } from "@vyoh/shared";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -283,7 +288,13 @@ function PeakChip({
  * game, recent unlocks instead of recent matches, screenshot strip instead
  * of a CTA-only closer.
  */
-export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number } = {}) {
+export function SteamChapter({
+  appid = STEAM_FEATURED_APPID,
+  framing,
+}: {
+  appid?: number;
+  framing?: RecapChapterFraming | null;
+} = {}) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const recapQuery = useSteamGameRecap(appid);
   const recap = recapQuery.data;
@@ -337,9 +348,11 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
   // Defaults so the chapter layout always has *something* to render — the
   // empty-state copy line from verdictParagraphSteam handles the
   // never-played edge structurally without a separate unmount path.
-  const name = recap?.name ?? "";
+  const name = framing?.title ?? recap?.name ?? "";
   const tagline = useMemo(() => firstSentence(recap?.shortDescription ?? null), [recap]);
-  const eyebrow = recap?.ageBucket ? EYEBROW_FOR_BUCKET[recap.ageBucket] : "Steam";
+  const eyebrow =
+    framing?.eyebrow ??
+    (recap?.ageBucket ? EYEBROW_FOR_BUCKET[recap.ageBucket] : "Steam");
   const standout = recap?.standoutUnlock ?? null;
   const recentUnlocks = recap?.recentUnlocks ?? [];
   // No cap — the lightbox strip uses horizontal overflow-scroll so all

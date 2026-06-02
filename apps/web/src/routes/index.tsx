@@ -6,6 +6,7 @@ import { LandingSteamBand } from "@/home/landing-steam-band";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
+import { useChapters } from "@/home/recap/use-chapters";
 import { TileBuildBadge } from "@/home/tile-build-badge";
 import { TileChronotype } from "@/home/tile-chronotype";
 import { TileDaySplit } from "@/home/tile-day-split";
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { account } = usePrimaryAccount();
   const { data: activity } = useHomeActivityIntensity();
+  const { data: chapters } = useChapters();
   // Hero-band ref is the proximity target for the hero's atmosphere claim. The
   // atmosphere layer reads its bounding rect each scroll tick to weight the
   // hero's contribution against any subsequent band's claim.
@@ -56,10 +58,15 @@ function HomePage() {
             when a primary LoL account is configured (so anonymous /
             visitors don't see a placeholder Ahri pin). */}
         {account ? <AhriChapter account={account} /> : null}
-        {/* Second recap chapter (R-3). Hardcoded to STEAM_FEATURED_APPID in
-            landing-config until R-4's `useChapters()` selection logic
-            picks Steam chapters by recency-decayed score. */}
-        <SteamChapter />
+        {/* Algorithmic chapter stream (R-4). `useChapters()` ranks Steam
+            subjects by recency-decayed score; the Ahri anchor above is
+            structural and not part of this list. Non-`steam-subject` kinds
+            (LoL moments, Steam moments) land in R-6 / R-7. */}
+        {chapters?.map((c) =>
+          c.kind === "steam-subject" ? (
+            <SteamChapter key={c.slug} appid={c.appid} framing={c.framing} />
+          ) : null
+        )}
         <LandingSteamBand />
         <BentoGrid>
           <BentoTile width={2} height={2}>
