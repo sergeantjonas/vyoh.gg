@@ -73,22 +73,14 @@ describe("NextChapterCaret", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("flips to a back-to-top caret when the user is past the last chapter", () => {
+  it("renders nothing when the user is past the last chapter", () => {
+    // The global <ScrollToTop /> (bottom-right corner, fires above
+    // scrollTop > 500px) owns the return-to-hero affordance; the caret
+    // hides past the last chapter rather than duplicating it.
     mountChapters([{ label: "Ahri", topPx: -2000 }]);
     fakeMain.scrollTop = 5000;
     render(<NextChapterCaret />);
-    expect(screen.getByRole("button", { name: "Scroll back to top" })).toBeTruthy();
-    expect(screen.getByText("Top")).toBeTruthy();
-  });
-
-  it("scrolls the main container to 0 on click when in the back-to-top state", () => {
-    mountChapters([{ label: "Ahri", topPx: -2000 }]);
-    fakeMain.scrollTop = 5000;
-    render(<NextChapterCaret />);
-    fireEvent.click(screen.getByRole("button", { name: "Scroll back to top" }));
-    expect(fakeMain.scrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ top: 0, behavior: "smooth" })
-    );
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("renders the caret pointing at the first chapter when at the top of the page", () => {

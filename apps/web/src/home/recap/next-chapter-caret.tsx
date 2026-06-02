@@ -37,35 +37,29 @@ const SKIP_PAST_PX = 80;
 
 // Bob keyframes — mirrors HeroScrollHint's gentle downward drift so the
 // caret reads as ambient/breathing rather than alarming. No `as const`
-// because Motion's keyframe types reject readonly arrays. The top-state
-// caret bobs upward to match its chevron direction.
-const BOB_KEYFRAMES_DOWN = { y: [0, 4, 0] };
-const BOB_KEYFRAMES_UP = { y: [0, -4, 0] };
+// because Motion's keyframe types reject readonly arrays.
+const BOB_KEYFRAMES = { y: [0, 4, 0] };
 const BOB_TRANSITION = {
   duration: 2.2,
   repeat: Number.POSITIVE_INFINITY,
   ease: "easeInOut" as const,
 };
 
-// SVG paths for the two chevron orientations. Swapped via keyed remount
-// (see render below) so the state flip reads as a discrete page-turn
-// moment, mirroring how chapter labels already hard-swap as the user
-// crosses each chapter boundary.
-const CHEVRON_DOWN = "M6 9l6 6 6-6";
-const CHEVRON_UP = "M6 15l6-6 6 6";
-
-type CaretTarget =
-  | {
-      kind: "chapter";
-      /** Scroll target — absolute scrollTop where this chapter's outer top sits. */
-      top: number;
-      label: string;
-    }
-  | { kind: "top" };
+// Past the last chapter we hide the caret rather than flipping to a
+// back-to-top affordance — the global <ScrollToTop /> (bottom-right
+// corner, fires above scrollTop > 500px) already covers that intent.
+// A second back-to-top control at bottom-center would duplicate it and
+// blur the caret's editorial role of advancing the reader through
+// chapters.
+type NextChapter = {
+  /** Scroll target — absolute scrollTop where this chapter's outer top sits. */
+  top: number;
+  label: string;
+};
 
 export function NextChapterCaret() {
   const reducedMotion = useReducedMotion();
-  const [target, setTarget] = useState<CaretTarget | null>(null);
+  const [next, setNext] = useState<NextChapter | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -76,38 +70,29 @@ export function NextChapterCaret() {
         document.querySelectorAll<HTMLElement>("[data-recap-chapter]")
       );
       if (chapters.length === 0) {
-        setTarget(null);
+        setNext(null);
         return;
       }
       const rootTop = main?.getBoundingClientRect().top ?? 0;
       const rootScroll = main?.scrollTop ?? window.scrollY;
-      let candidate: CaretTarget | null = null;
+      let candidate: NextChapter | null = null;
       for (const el of chapters) {
         const elTop = rootScroll + el.getBoundingClientRect().top - rootTop;
         if (elTop > rootScroll + SKIP_PAST_PX) {
           candidate = {
-            kind: "chapter",
             top: elTop,
             label: el.dataset.chapterLabel ?? "Next",
           };
           break;
         }
       }
-      // Past the last chapter — flip to "back to top". The state still
-      // renders (vs. earlier `setNext(null)` which hid the caret), so
-      // the user always has a one-click way back to the hero from the
-      // post-chapter zone.
-      if (candidate === null) {
-        candidate = { kind: "top" };
-      }
       // Avoid pointless React renders when nothing changed — caret is
       // re-computed on every scroll tick.
-      setTarget((prev) => {
+      setNext((prev) => {
         if (prev === null && candidate === null) return prev;
-        if (prev?.kind === "top" && candidate?.kind === "top") return prev;
         if (
-          prev?.kind === "chapter" &&
-          candidate?.kind === "chapter" &&
+          prev !== null &&
+          candidate !== null &&
           prev.top === candidate.top &&
           prev.label === candidate.label
         ) {
@@ -147,27 +132,21 @@ export function NextChapterCaret() {
 
   const handleClick = useCallback(() => {
     const main = mainScrollRef.current;
-    if (!main || !target) return;
+    if (!main || !next) return;
     main.scrollTo({
-      top: target.kind === "chapter" ? target.top : 0,
+      top: next.top,
       behavior: reducedMotion ? "auto" : "smooth",
     });
-  }, [target, reducedMotion]);
+  }, [next, reducedMotion]);
 
-  if (!target) return null;
-
-  const isTop = target.kind === "top";
-  const label = isTop ? "Top" : target.label;
-  const bobKeyframes = isTop ? BOB_KEYFRAMES_UP : BOB_KEYFRAMES_DOWN;
-  const chevronPath = isTop ? CHEVRON_UP : CHEVRON_DOWN;
+  if (!next) return null;
 
   return (
     <m.button
       type="button"
       onClick={handleClick}
-      aria-label={isTop ? "Scroll back to top" : `Scroll to ${label}`}
+      aria-label={`Scroll to ${next.label}`}
       data-slot="next-chapter-caret"
-      data-caret-kind={target.kind}
       // Bare typography on a fixed-bottom anchor — no pill, no backdrop.
       // The text-shadow tier handles legibility against any backdrop the
       // user happens to be over (bright splash, ambient hero, atmospheric
@@ -175,19 +154,13 @@ export function NextChapterCaret() {
       // read as a UI module dropped on top of the magazine spread.
       className="-translate-x-1/2 fixed bottom-5 left-1/2 z-40 flex cursor-pointer flex-col items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
     >
-      {/* Inner content is keyed on caret kind so the chapter→top flip
-          remounts the label + chevron. Same hard-swap pattern the label
-          already uses when crossing chapter boundaries (Ahri → Silksong),
-          extended to cover the structural "no chapters ahead" state. */}
       <span
-        key={`label-${target.kind}`}
         className="text-[10px] font-medium uppercase tracking-[0.22em]"
         style={{ textShadow: SHADOW_LABEL }}
       >
-        {label}
+        {next.label}
       </span>
       <m.svg
-        key={`chevron-${target.kind}`}
         viewBox="0 0 24 24"
         className="size-5"
         fill="none"
@@ -201,9 +174,9 @@ export function NextChapterCaret() {
           filter:
             "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.55))",
         }}
-        {...(reducedMotion ? {} : { animate: bobKeyframes, transition: BOB_TRANSITION })}
+        {...(reducedMotion ? {} : { animate: BOB_KEYFRAMES, transition: BOB_TRANSITION })}
       >
-        <path d={chevronPath} />
+        <path d="M6 9l6 6 6-6" />
       </m.svg>
     </m.button>
   );
