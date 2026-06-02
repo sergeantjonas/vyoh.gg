@@ -1,8 +1,8 @@
 import { useMe } from "@/identity/use-me";
-import type { LolAccount } from "@vyoh/shared";
+import type { LolAccountWithSummary } from "@vyoh/shared";
 
 export function usePrimaryAccount(): {
-  account: LolAccount | undefined;
+  account: LolAccountWithSummary | undefined;
   isPending: boolean;
 } {
   const me = useMe();

@@ -5,6 +5,7 @@ import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
 import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
 import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
 import { LandingHeading } from "@/home/landing-heading";
+import { OwnerIdentityStrip } from "@/home/owner-identity-strip";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
@@ -56,7 +57,14 @@ function HomePage() {
           className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh] [scroll-snap-align:start]"
         >
           <AmbientHero bandRef={heroRef} intensity={activity?.intensity} />
-          <LandingHeading />
+          {/* Heading + attribution row stack vertically inside the hero's
+              row-axis flex parent. The strip sits below the editorial
+              heading as a quiet "by Vyoh#Ahri · rank" credit line and
+              doubles as a doorway into the primary profile. */}
+          <div className="flex flex-col items-center gap-8">
+            <LandingHeading />
+            <OwnerIdentityStrip />
+          </div>
         </section>
         <NextChapterCaret />
         {/* First recap chapter (R-2). Chapter only mounts when a primary LoL
