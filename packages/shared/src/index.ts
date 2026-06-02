@@ -231,6 +231,7 @@ export { ageBucketFromDaysSince, daysSinceIso } from "./home/age-bucket.ts";
 export type {
   LolHiatusReturnStats,
   LolKdaOutlierStats,
+  LolMarathonStats,
   LolMomentChapterDescriptor,
   LolMomentMatchStats,
   LolRankUpDelta,

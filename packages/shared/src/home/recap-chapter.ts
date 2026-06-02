@@ -105,6 +105,18 @@ export interface LolStreakStats {
 }
 
 /**
+ * Marathon-session framing carried on a `MARATHON` LoL moment chapter.
+ * `matchCount` is the number of ranked games inside the marathon window
+ * (≥6); `spanHours` is the elapsed hours between the first and last match
+ * of the session (≤12). The chapter narrates "N ranked games in one
+ * sitting, capped on Champ". Null on other momentTypes.
+ */
+export interface LolMarathonStats {
+  matchCount: number;
+  spanHours: number;
+}
+
+/**
  * LoL moment chapter — single-event narrative (rank-up, KDA outlier, off-meta
  * pick, streak, return-from-hiatus, etc.). Schema declared now so the
  * `/recap/chapters` contract is stable; emitted in R-6.
@@ -130,6 +142,7 @@ export interface LolMomentChapterDescriptor {
   kdaOutlier: LolKdaOutlierStats | null;
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
+  marathon: LolMarathonStats | null;
   framing: RecapChapterFraming | null;
 }
 

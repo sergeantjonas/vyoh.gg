@@ -3,6 +3,7 @@ import {
   type LolAccount,
   type LolHiatusReturnStats,
   type LolKdaOutlierStats,
+  type LolMarathonStats,
   type LolMomentChapterDescriptor,
   type LolMomentMatchStats,
   type LolRankUpDelta,
@@ -89,6 +90,7 @@ function momentCopy(args: {
   kdaOutlier: LolKdaOutlierStats | null;
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
+  marathon: LolMarathonStats | null;
   emblemYear: number;
 }): MomentCopy {
   const {
@@ -99,6 +101,7 @@ function momentCopy(args: {
     kdaOutlier,
     hiatusReturn,
     streak,
+    marathon,
     emblemYear,
   } = args;
 
@@ -127,6 +130,22 @@ function momentCopy(args: {
         <>
           Climbed from <Accent>{fromTitle}</Accent> to <Accent>{toTitle}</Accent>,
           championed by <Accent>{displayName}</Accent>.
+        </>
+      ),
+    };
+  }
+
+  if (momentType === "MARATHON" && marathon) {
+    return {
+      eyebrow: "Marathon",
+      mastheadText: displayName,
+      leadingVisual: null,
+      chapterLabel: `Marathon · ${displayName}`,
+      ariaLabel: `Marathon session on ${displayName}`,
+      body: (
+        <>
+          <Accent>{marathon.matchCount}</Accent> ranked games in one sitting, capped on{" "}
+          <Accent>{displayName}</Accent>.
         </>
       ),
     };
@@ -259,6 +278,7 @@ interface Props {
   kdaOutlier: LolKdaOutlierStats | null;
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
+  marathon: LolMarathonStats | null;
 }
 
 /**
@@ -287,6 +307,7 @@ export function LolMomentChapter({
   kdaOutlier,
   hiatusReturn,
   streak,
+  marathon,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
@@ -335,6 +356,7 @@ export function LolMomentChapter({
     kdaOutlier,
     hiatusReturn,
     streak,
+    marathon,
     emblemYear,
   });
   const whenLine = formatDaysSince(daysSince);

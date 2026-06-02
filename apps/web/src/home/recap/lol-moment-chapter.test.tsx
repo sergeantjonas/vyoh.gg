@@ -81,6 +81,7 @@ const baseProps = {
   kdaOutlier: null,
   hiatusReturn: null,
   streak: null,
+  marathon: null,
 };
 
 const rankUpDelta = {
@@ -104,6 +105,7 @@ const rankUpProps = {
   kdaOutlier: null,
   hiatusReturn: null,
   streak: null,
+  marathon: null,
 };
 
 const kdaOutlierStats = {
@@ -130,6 +132,7 @@ const kdaOutlierProps = {
   kdaOutlier: kdaOutlierStats,
   hiatusReturn: null,
   streak: null,
+  marathon: null,
 };
 
 const hiatusReturnProps = {
@@ -144,6 +147,7 @@ const hiatusReturnProps = {
   kdaOutlier: null,
   hiatusReturn: { gapDays: 35 },
   streak: null,
+  marathon: null,
 };
 
 const streakWinProps = {
@@ -158,6 +162,7 @@ const streakWinProps = {
   kdaOutlier: null,
   hiatusReturn: null,
   streak: { result: "W" as const, length: 5 },
+  marathon: null,
 };
 
 const streakLossProps = {
@@ -172,6 +177,22 @@ const streakLossProps = {
   kdaOutlier: null,
   hiatusReturn: null,
   streak: { result: "L" as const, length: 6 },
+  marathon: null,
+};
+
+const marathonProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_MAR_CAP",
+  daysSince: 0,
+  slug: "lol-moment-marathon-EUW_MAR_CAP",
+  momentType: "MARATHON" as const,
+  matchStats,
+  rankUp: null,
+  kdaOutlier: null,
+  hiatusReturn: null,
+  streak: null,
+  marathon: { matchCount: 7, spanHours: 4.5 },
 };
 
 beforeEach(() => {
@@ -449,6 +470,32 @@ describe("LolMomentChapter (STREAK)", () => {
   it("falls back to off-meta framing when streak is null (defensive)", () => {
     render(<LolMomentChapter {...streakWinProps} streak={null} />);
     expect(screen.queryByText("Hot streak")).toBeNull();
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
+  });
+});
+
+describe("LolMomentChapter (MARATHON)", () => {
+  it("renders the marathon eyebrow, champion masthead, and 'N games in one sitting' prose", () => {
+    render(<LolMomentChapter {...marathonProps} />);
+    expect(screen.getByText("Marathon")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Ahri");
+    const prose = screen
+      .getAllByText(/games in one sitting/i)[0]
+      ?.closest("p")?.textContent;
+    expect(prose).toMatch(/7\s*ranked games in one sitting/);
+    expect(prose).toMatch(/capped on\s*Ahri/);
+  });
+
+  it("exposes a Marathon chapter-label data attribute", () => {
+    const { container } = render(<LolMomentChapter {...marathonProps} />);
+    const el = container.querySelector("[data-recap-chapter]");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Marathon");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Ahri");
+  });
+
+  it("falls back to off-meta framing when marathon is null (defensive)", () => {
+    render(<LolMomentChapter {...marathonProps} marathon={null} />);
+    expect(screen.queryByText("Marathon")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });

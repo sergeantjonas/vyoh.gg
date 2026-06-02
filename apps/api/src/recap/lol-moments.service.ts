@@ -141,6 +141,37 @@ const STREAK_SIGNAL_FACTOR = 3;
  *  wasteful. 20 covers any plausible streak length and a buffer. */
 const STREAK_SCAN_LIMIT = 20;
 
+/** Lookback window for marathon-session detection. The marathon must have
+ *  happened recently to count as a current moment; older grinds aren't news. */
+const MARATHON_WINDOW_DAYS = 30;
+
+/** Maximum elapsed hours between the FIRST and LAST match of a marathon
+ *  cluster. 12h catches morning + evening play in the same day as one
+ *  session (which is editorially fine — "you played 8 games today" reads
+ *  as a marathon regardless of whether it was one continuous block or
+ *  two adjacent ones). Tightening to ~6h would split common evening
+ *  sessions; loosening past 24h would catch unrelated days. */
+const MARATHON_HOUR_SPAN = 12;
+
+/** Minimum match count inside the span to qualify. Owner's average ranked
+ *  game is ~25 min, so 6 matches ≈ 2.5h of actual play time — a real
+ *  session, not a couple of one-offs. Below 6, "you played some games"
+ *  isn't editorially distinct from a normal day. */
+const MARATHON_MIN_MATCHES = 6;
+
+/** Upper bound on marathon match count fed into the base signal. A 12-game
+ *  marathon and a 20-game marathon both read as "you really grinded today";
+ *  the curve flattens past this point. */
+const MARATHON_MATCH_CAP = 15;
+
+/** Per-match scaling for the marathon base signal. matchCount × factor →
+ *  baseSignal. Calibrated so a 6-marathon → 12 raw (clears floor at 0d,
+ *  marginal at 14d), 10 → 20, 15+ → 30. Modest by design — marathons are
+ *  notable but shouldn't dominate the chapter list. */
+const MARATHON_SIGNAL_FACTOR = 2;
+
+const HOUR_MS = 60 * 60 * 1000;
+
 function computeKda(kills: number, deaths: number, assists: number): number {
   return (kills + assists) / Math.max(1, deaths);
 }
@@ -171,14 +202,23 @@ export class LolMomentsService {
   ) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    const [offMeta, rankUps, kdaOutliers, hiatusReturns, streaks] = await Promise.all([
-      this.detectOffMetaPicks(now),
-      this.detectRankUps(now),
-      this.detectKdaOutliers(now),
-      this.detectReturnsFromHiatus(now),
-      this.detectStreaks(now),
-    ]);
-    return [...offMeta, ...rankUps, ...kdaOutliers, ...hiatusReturns, ...streaks];
+    const [offMeta, rankUps, kdaOutliers, hiatusReturns, streaks, marathons] =
+      await Promise.all([
+        this.detectOffMetaPicks(now),
+        this.detectRankUps(now),
+        this.detectKdaOutliers(now),
+        this.detectReturnsFromHiatus(now),
+        this.detectStreaks(now),
+        this.detectMarathons(now),
+      ]);
+    return [
+      ...offMeta,
+      ...rankUps,
+      ...kdaOutliers,
+      ...hiatusReturns,
+      ...streaks,
+      ...marathons,
+    ];
   }
 
   /**
@@ -713,6 +753,125 @@ export class LolMomentsService {
           queueType: head.queueType,
         },
         streak: { result, length },
+      },
+    ];
+  }
+
+  /**
+   * Detect a recent marathon-session — a cluster of ≥ 6 ranked matches
+   * inside a 12h span. Editorial framing: "you really grinded today",
+   * with the cap match (last in the cluster) as the visual subject.
+   *
+   * Algorithm:
+   *   1. Read all owner ranked matches in the 30d window, ordered ASC.
+   *   2. Sliding window: for each starting match `i`, extend `j` forward
+   *      while `matches[j].playedAt - matches[i].playedAt ≤ 12h`. The run
+   *      length `j - i + 1` is the marathon size starting at `i`.
+   *   3. Track the marathon with the LATEST end (most recent cap match).
+   *      If two runs tie by end time, prefer the larger count (more
+   *      impressive grind).
+   *   4. Emit if max count ≥ 6. baseSignal = matchCount × 2 capped at
+   *      15 matches → 30 raw max. Modest by design — marathons are
+   *      notable but shouldn't dominate over rank-ups or KDA peaks.
+   *
+   * Uses `orderBy: { playedAt: "asc" }` (vs KDA's desc) so the spec mock
+   * can discriminate marathon calls from KDA calls cleanly. Returns ≤ 1
+   * candidate per call.
+   */
+  async detectMarathons(now: Date): Promise<RecapCandidate[]> {
+    const ownerPuuids = await this.identity.getOwnerPuuids();
+    if (ownerPuuids.length === 0) return [];
+
+    const windowCutoff = new Date(now.getTime() - MARATHON_WINDOW_DAYS * DAY_MS);
+    const spanMs = MARATHON_HOUR_SPAN * HOUR_MS;
+
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: { in: ownerPuuids },
+        remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        playedAt: { gte: windowCutoff },
+      },
+      orderBy: { playedAt: "asc" },
+      select: {
+        matchId: true,
+        champion: true,
+        playedAt: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        queueType: true,
+      },
+    });
+
+    let bestStart = -1;
+    let bestEnd = -1;
+    let bestEndMs = Number.NEGATIVE_INFINITY;
+    let bestCount = 0;
+
+    for (let i = 0; i < matches.length; i++) {
+      let j = i;
+      const startMs = matches[i]?.playedAt.getTime();
+      if (startMs === undefined) continue;
+      while (
+        j + 1 < matches.length &&
+        (matches[j + 1]?.playedAt.getTime() ?? Number.MAX_SAFE_INTEGER) - startMs <=
+          spanMs
+      ) {
+        j++;
+      }
+      const count = j - i + 1;
+      if (count < MARATHON_MIN_MATCHES) continue;
+      const endMs = matches[j]?.playedAt.getTime();
+      if (endMs === undefined) continue;
+      // Most-recent-end wins; on tie, larger count wins.
+      if (endMs > bestEndMs || (endMs === bestEndMs && count > bestCount)) {
+        bestStart = i;
+        bestEnd = j;
+        bestEndMs = endMs;
+        bestCount = count;
+      }
+    }
+
+    if (bestStart < 0 || bestEnd < 0) return [];
+
+    const capMatch = matches[bestEnd];
+    const startMatch = matches[bestStart];
+    if (!capMatch || !startMatch) return [];
+
+    const spanHours = Math.max(
+      0,
+      Math.round(
+        ((capMatch.playedAt.getTime() - startMatch.playedAt.getTime()) / HOUR_MS) * 10
+      ) / 10
+    );
+    const daysSince = Math.max(
+      0,
+      Math.floor((now.getTime() - capMatch.playedAt.getTime()) / DAY_MS)
+    );
+    const cappedCount = Math.min(bestCount, MARATHON_MATCH_CAP);
+    const baseSignal = cappedCount * MARATHON_SIGNAL_FACTOR;
+
+    return [
+      {
+        kind: "lol-moment",
+        slug: `lol-moment-marathon-${capMatch.matchId}`,
+        momentType: "MARATHON",
+        baseSignal,
+        daysSince,
+        matchId: capMatch.matchId,
+        championAlias: capMatch.champion,
+        matchStats: {
+          kills: capMatch.kills,
+          deaths: capMatch.deaths,
+          assists: capMatch.assists,
+          win: capMatch.win,
+          durationSec: capMatch.durationSec,
+          queueType: capMatch.queueType,
+        },
+        marathon: { matchCount: bestCount, spanHours },
       },
     ];
   }

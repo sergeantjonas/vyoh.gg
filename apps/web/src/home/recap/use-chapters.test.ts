@@ -93,6 +93,7 @@ describe("applyDevLolMomentOverride", () => {
     kdaOutlier: null,
     hiatusReturn: null,
     streak: null,
+    marathon: null,
     framing: null,
   };
 

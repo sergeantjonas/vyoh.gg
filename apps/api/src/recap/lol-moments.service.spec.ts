@@ -49,17 +49,20 @@ function makeService(opts: {
   kdaRows?: KdaMatchRow[];
   hiatusRows?: KdaMatchRow[];
   streakRows?: KdaMatchRow[];
+  marathonRows?: KdaMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
   } as unknown as IdentityService;
-  // `findMany` is called by detectRankUps, detectKdaOutliers,
-  // detectReturnsFromHiatus, AND detectStreaks. They differ by call shape:
+  // `findMany` is called by FIVE detectors. They differ by call shape:
   //   - rank-up filters on `snapshotTier` (six snapshot columns non-null).
   //   - streak passes `take` (capped scan, no windowed where-filter).
-  //   - KDA filters on `playedAt` (30d window), no snapshotTier, no take.
-  //   - hiatus has none of the above (reads ALL owner ranked matches for
-  //     prev-match gap detection).
+  //   - marathon has `playedAt.gte` AND `orderBy.playedAt = "asc"` (sliding
+  //     window walks chronologically).
+  //   - KDA has `playedAt.gte` AND `orderBy.playedAt = "desc"` (highest
+  //     KDA pick scans newest-first).
+  //   - hiatus has none of the above filters (reads ALL owner ranked
+  //     matches for prev-match gap detection, ordered asc).
   // The mock routes each call to its fixture by inspecting the call shape.
   const findManyImpl = vi.fn().mockImplementation(
     (args: {
@@ -67,13 +70,16 @@ function makeService(opts: {
         snapshotTier?: { not: null } | null;
         playedAt?: { gte: Date };
       };
+      orderBy?: { playedAt?: "asc" | "desc" };
       take?: number;
     }) => {
       const hasSnapshotFilter = args.where?.snapshotTier !== undefined;
       const hasTake = args.take !== undefined;
       const hasWindowFilter = args.where?.playedAt !== undefined;
+      const isAsc = args.orderBy?.playedAt === "asc";
       if (hasSnapshotFilter) return Promise.resolve(opts.rankUpRows ?? []);
       if (hasTake) return Promise.resolve(opts.streakRows ?? []);
+      if (hasWindowFilter && isAsc) return Promise.resolve(opts.marathonRows ?? []);
       if (hasWindowFilter) return Promise.resolve(opts.kdaRows ?? []);
       return Promise.resolve(opts.hiatusRows ?? []);
     }
@@ -984,6 +990,165 @@ describe("LolMomentsService.detectStreaks", () => {
   });
 });
 
+function makeMarathonRow(opts: {
+  matchId?: string;
+  champion?: string;
+  playedAt: Date;
+  win?: boolean;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  durationSec?: number;
+  queueType?: string;
+}): KdaMatchRow {
+  return {
+    matchId: opts.matchId ?? `EUW_M_${opts.playedAt.getTime()}`,
+    champion: opts.champion ?? "Ahri",
+    playedAt: opts.playedAt,
+    kills: opts.kills ?? 6,
+    deaths: opts.deaths ?? 4,
+    assists: opts.assists ?? 8,
+    win: opts.win ?? true,
+    durationSec: opts.durationSec ?? 1800,
+    queueType: opts.queueType ?? "Ranked Solo",
+  };
+}
+
+describe("LolMomentsService.detectMarathons", () => {
+  it("returns no candidates when there are no owner puuids", async () => {
+    const { service, prisma } = makeService({ ownerPuuids: [] });
+    const result = await service.detectMarathons(NOW);
+    expect(result).toEqual([]);
+    expect(prisma.match.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns no candidates when no cluster reaches the minimum match count", async () => {
+    // 5 games over 12h (one short of threshold).
+    const rows = Array.from({ length: 5 }, (_, i) =>
+      makeMarathonRow({
+        matchId: `EUW_NO_${i}`,
+        playedAt: new Date(NOW.getTime() - (5 - i) * 2 * 60 * 60 * 1000),
+      })
+    );
+    const { service } = makeService({ marathonRows: rows });
+    const result = await service.detectMarathons(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns no candidates when 6 games are spread across more than 12 hours", async () => {
+    // 6 games over 30 hours → no 12h window holds them all.
+    const rows = Array.from({ length: 6 }, (_, i) =>
+      makeMarathonRow({
+        matchId: `EUW_SPREAD_${i}`,
+        playedAt: new Date(NOW.getTime() - (30 - 5 * i) * 60 * 60 * 1000),
+      })
+    );
+    const { service } = makeService({ marathonRows: rows });
+    const result = await service.detectMarathons(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("emits a MARATHON candidate for 6 games inside a 12h window", async () => {
+    // 6 games over ~5h, capped on Ahri.
+    const rows = [
+      makeMarathonRow({
+        matchId: "EUW_M0",
+        playedAt: new Date(NOW.getTime() - 5 * 60 * 60 * 1000),
+      }),
+      makeMarathonRow({
+        matchId: "EUW_M1",
+        playedAt: new Date(NOW.getTime() - 4 * 60 * 60 * 1000),
+      }),
+      makeMarathonRow({
+        matchId: "EUW_M2",
+        playedAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+      }),
+      makeMarathonRow({
+        matchId: "EUW_M3",
+        playedAt: new Date(NOW.getTime() - 2 * 60 * 60 * 1000),
+      }),
+      makeMarathonRow({
+        matchId: "EUW_M4",
+        playedAt: new Date(NOW.getTime() - 1 * 60 * 60 * 1000),
+      }),
+      makeMarathonRow({
+        matchId: "EUW_CAP",
+        champion: "Ahri",
+        playedAt: new Date(NOW.getTime() - 0.5 * 60 * 60 * 1000),
+      }),
+    ];
+    const { service } = makeService({ marathonRows: rows });
+    const result = await service.detectMarathons(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.momentType).toBe("MARATHON");
+    expect(c.matchId).toBe("EUW_CAP");
+    expect(c.championAlias).toBe("Ahri");
+    expect(c.slug).toBe("lol-moment-marathon-EUW_CAP");
+    expect(c.marathon?.matchCount).toBe(6);
+    expect(c.marathon?.spanHours).toBeCloseTo(4.5, 1);
+    expect(c.baseSignal).toBeCloseTo(12); // 6 × 2
+  });
+
+  it("picks the most recent marathon when multiple qualify in the window", async () => {
+    const earlier = Array.from({ length: 7 }, (_, i) =>
+      makeMarathonRow({
+        matchId: `EUW_OLD_${i}`,
+        playedAt: new Date(NOW.getTime() - (20 * 24 - i) * 60 * 60 * 1000),
+      })
+    );
+    const recent = Array.from({ length: 6 }, (_, i) =>
+      makeMarathonRow({
+        matchId: `EUW_NEW_${i}`,
+        playedAt: new Date(NOW.getTime() - (6 - i) * 60 * 60 * 1000),
+      })
+    );
+    const { service } = makeService({ marathonRows: [...earlier, ...recent] });
+    const result = await service.detectMarathons(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    // Recent cap match (NEW_5) is the freshest end.
+    expect(c.matchId).toBe("EUW_NEW_5");
+    expect(c.marathon?.matchCount).toBe(6);
+  });
+
+  it("caps the base signal at MARATHON_MATCH_CAP × factor", async () => {
+    // 20 games in a tight 11h window — count caps at 15, signal at 30.
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      makeMarathonRow({
+        matchId: `EUW_HUGE_${i}`,
+        playedAt: new Date(NOW.getTime() - (11 - i * 0.5) * 60 * 60 * 1000),
+      })
+    );
+    const { service } = makeService({ marathonRows: rows });
+    const result = await service.detectMarathons(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.marathon?.matchCount).toBe(20);
+    expect(c.baseSignal).toBeCloseTo(30);
+  });
+
+  it("orders the findMany scan ASC by playedAt (so the mock can discriminate vs KDA)", async () => {
+    const { service, prisma } = makeService({ marathonRows: [] });
+    await service.detectMarathons(NOW);
+    const calls = vi.mocked(prisma.match.findMany).mock.calls;
+    const marathonCall = calls.find((c) => {
+      const args = c[0] as {
+        where: { playedAt?: unknown };
+        orderBy?: { playedAt?: string };
+      };
+      return args.where?.playedAt !== undefined && args.orderBy?.playedAt === "asc";
+    });
+    expect(marathonCall).toBeTruthy();
+    const args = marathonCall?.[0] as { where: { queueType: { in: string[] } } };
+    expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+});
+
 describe("LolMomentsService.detectAll", () => {
   it("collects every detector's output into one candidate list", async () => {
     const { service } = makeService({
@@ -1032,9 +1197,15 @@ describe("LolMomentsService.detectAll", () => {
           win: true,
         })
       ),
+      marathonRows: Array.from({ length: 6 }, (_, i) =>
+        makeMarathonRow({
+          matchId: `EUW_MAR_${i}`,
+          playedAt: new Date(NOW.getTime() - (6 - i) * 60 * 60 * 1000),
+        })
+      ),
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(6);
     const momentTypes = result
       .filter((r) => r.kind === "lol-moment")
       .map((r) => (r.kind === "lol-moment" ? r.momentType : null));
@@ -1045,6 +1216,7 @@ describe("LolMomentsService.detectAll", () => {
         "KDA_OUTLIER",
         "RETURN_FROM_HIATUS",
         "STREAK_5W",
+        "MARATHON",
       ])
     );
   });

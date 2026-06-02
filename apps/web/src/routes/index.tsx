@@ -108,6 +108,7 @@ function HomePage() {
                 kdaOutlier={c.kdaOutlier}
                 hiatusReturn={c.hiatusReturn}
                 streak={c.streak}
+                marathon={c.marathon}
               />
             );
           }
