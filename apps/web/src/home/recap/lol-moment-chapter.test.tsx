@@ -12,6 +12,10 @@ vi.mock("@/lol/_shared/patch/use-ddragon-version", () => ({
 vi.mock("@/lol/_shared/assets/champion-icon", () => ({
   championHdSplashUrl: (alias: string, patch: string) =>
     `https://test/hd/${alias}/${patch}`,
+  rankEmblemUrl: (tier: string, year: number) => `https://test/emblem/${tier}/${year}`,
+}));
+vi.mock("@/lol/_shared/use-ranked-emblem-year", () => ({
+  useRankedEmblemYear: vi.fn(() => 2026),
 }));
 vi.mock("@/lol/_shared/assets/champion-theme", () => ({
   championTheme: (_alias: string) => ({
@@ -199,6 +203,20 @@ describe("LolMomentChapter (RANK_UP)", () => {
     expect(climbProse).toMatch(/Silver I/);
     expect(climbProse).toMatch(/Gold IV/);
     expect(climbProse).toMatch(/championed by\s*Ahri/);
+  });
+
+  it("renders the destination tier emblem inline with the masthead", () => {
+    const { container } = render(<LolMomentChapter {...rankUpProps} />);
+    const emblem = container.querySelector('img[src="https://test/emblem/GOLD/2026"]');
+    expect(emblem).toBeTruthy();
+    // Decorative — the masthead text already labels the tier, so the emblem
+    // shouldn't announce itself to screen readers.
+    expect(emblem?.getAttribute("alt")).toBe("");
+  });
+
+  it("does NOT render an emblem on OFF_META_PICK (text-only masthead)", () => {
+    const { container } = render(<LolMomentChapter {...baseProps} />);
+    expect(container.querySelector('img[src^="https://test/emblem/"]')).toBeNull();
   });
 
   it("formats apex tier masthead without a division suffix", () => {

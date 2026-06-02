@@ -10,9 +10,10 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
-import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import { championHdSplashUrl, rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useChampionName } from "@/lol/champions/use-champions";
 
 import { ChapterDetail, ChapterOpener } from "./chapter-bands";
@@ -62,6 +63,10 @@ function Accent({ children }: { children: ReactNode }) {
 interface MomentCopy {
   eyebrow: string;
   mastheadText: string;
+  /** Visual element rendered inline before the masthead text — RANK_UP uses
+   *  it to carry the destination tier emblem. Null when the momentType is
+   *  text-only (OFF_META_PICK, future text-heavy moment shapes). */
+  leadingVisual: ReactNode | null;
   chapterLabel: string;
   ariaLabel: string;
   body: ReactNode;
@@ -78,8 +83,9 @@ function momentCopy(args: {
   displayName: string;
   anchorDisplayName: string;
   rankUp: LolRankUpDelta | null;
+  emblemYear: number;
 }): MomentCopy {
-  const { momentType, displayName, anchorDisplayName, rankUp } = args;
+  const { momentType, displayName, anchorDisplayName, rankUp, emblemYear } = args;
 
   if (momentType === "RANK_UP" && rankUp) {
     const fromTitle = formatRankTitle(rankUp.fromTier, rankUp.fromRank);
@@ -87,6 +93,19 @@ function momentCopy(args: {
     return {
       eyebrow: "Rank up",
       mastheadText: toTitle,
+      // Destination-tier emblem sits inline before the masthead text. The
+      // emblem is decorative — the tier name is already in the masthead, so
+      // alt="" keeps SR users from hearing "Gold IV image, Gold IV". Sized
+      // proportional to the masthead (size-20 = 80px against text-6xl) so
+      // the icon reads as a peer to the headline, not as an inline glyph.
+      leadingVisual: (
+        <img
+          src={rankEmblemUrl(rankUp.toTier, emblemYear)}
+          alt=""
+          loading="eager"
+          className="size-20 shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-24"
+        />
+      ),
       chapterLabel: `Rank up · ${toTitle}`,
       ariaLabel: `Rank up: ${toTitle}`,
       body: (
@@ -101,6 +120,7 @@ function momentCopy(args: {
   return {
     eyebrow: "Off-meta pick",
     mastheadText: displayName,
+    leadingVisual: null,
     chapterLabel: `Off-meta · ${displayName}`,
     ariaLabel: `Off-meta pick: ${displayName}`,
     body: (
@@ -199,11 +219,13 @@ export function LolMomentChapter({
 
   const displayName = championName(championAlias);
   const anchorDisplayName = championName(ANCHOR_CHAMPION_ALIAS);
+  const emblemYear = useRankedEmblemYear();
   const copy = momentCopy({
     momentType,
     displayName,
     anchorDisplayName,
     rankUp,
+    emblemYear,
   });
   const whenLine = formatDaysSince(daysSince);
 
@@ -276,23 +298,34 @@ export function LolMomentChapter({
                   params={{ accountSlug: account.slug, matchId }}
                   className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
                 >
+                  {/* Inner row pairs the optional leading visual with the
+                      H2 along the visual center; the outer Link stays
+                      items-baseline so the trailing "open →" chip aligns
+                      to the H2's text baseline (correct for OFF_META_PICK
+                      where there's no leadingVisual). */}
+                  <span className="inline-flex items-center gap-x-4">
+                    {copy.leadingVisual}
+                    <h2
+                      className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                      style={{ textShadow: SHADOW_MASTHEAD }}
+                    >
+                      {copy.mastheadText}
+                    </h2>
+                  </span>
+                  <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
+                    open →
+                  </span>
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-x-4">
+                  {copy.leadingVisual}
                   <h2
                     className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
                     style={{ textShadow: SHADOW_MASTHEAD }}
                   >
                     {copy.mastheadText}
                   </h2>
-                  <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
-                    open →
-                  </span>
-                </Link>
-              ) : (
-                <h2
-                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                  style={{ textShadow: SHADOW_MASTHEAD }}
-                >
-                  {copy.mastheadText}
-                </h2>
+                </span>
               )}
             </ChapterReveal>
             <ChapterReveal active={nudged} delay={0.55} blur={6}>
