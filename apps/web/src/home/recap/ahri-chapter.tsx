@@ -23,7 +23,9 @@ import { ChapterDetail, ChapterOpener, ChapterStats } from "./chapter-bands";
 import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import { parseAnimatableNumber } from "./parse-animatable-number";
+import { preloadLinkAsImage } from "./preload-link";
 import { useAssetClaim } from "./use-asset-claim";
+import { useAssetPreload } from "./use-asset-preload";
 import { useChapterNudge } from "./use-chapter-nudge";
 import { useSkinRotation } from "./use-skin-rotation";
 import { VerdictProse } from "./verdict-prose";
@@ -282,30 +284,32 @@ export function AhriChapter({ account }: { account: LolAccount }) {
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
 
-  // Splash prefetch. The base splash starts fetching on mount so it's ready
-  // by the time the chapter scrolls into view (no ambient-hero pop-through).
-  // Other rotation skins prefetch after a short delay so they don't compete
-  // with critical-path resources during initial page load — they only need
-  // to be in cache by the time the auto-cycle ticks to them (~5s in).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const baseUrl =
-      AHRI_SKIN_ROTATION[0]?.imageUrl ?? championBackdropSplashUrl(CHAMPION_ALIAS, patch);
-    const baseImg = new Image();
-    baseImg.src = baseUrl;
-    const others = AHRI_SKIN_ROTATION.slice(1)
-      .map((s) => s.imageUrl)
-      .filter((u): u is string => Boolean(u));
-    const timer = window.setTimeout(() => {
-      for (const url of others) {
-        const img = new Image();
-        img.src = url;
-      }
-    }, 800);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [patch]);
+  // Critical-path: Ahri is the first chapter in the recap stream, so its
+  // base splash gets a `<link rel="preload">` the moment the URL is known.
+  // The link enters the browser's preload queue ahead of script-created
+  // `Image()` fetches, eliminating the snap-in flash that would otherwise
+  // appear if the chapter pinned before the asset was cached.
+  const baseSplashUrl = useMemo(
+    () =>
+      AHRI_SKIN_ROTATION[0]?.imageUrl ?? championBackdropSplashUrl(CHAMPION_ALIAS, patch),
+    [patch]
+  );
+  useEffect(() => preloadLinkAsImage(baseSplashUrl), [baseSplashUrl]);
+
+  // Rotation skins (positions 1+) are lazy — they only need to be in cache
+  // by the time the auto-cycle ticks to them (~5s in). `useAssetPreload`
+  // gates the fetch on viewport proximity so they don't contend with the
+  // critical-path base splash during initial page load. By the time the
+  // chapter approaches the viewport the user has decisively engaged with
+  // the page and the rotation will fire shortly after.
+  const rotationSkinUrls = useMemo(
+    () =>
+      AHRI_SKIN_ROTATION.slice(1)
+        .map((s) => s.imageUrl)
+        .filter((u): u is string => Boolean(u)),
+    []
+  );
+  useAssetPreload(outerRef, rotationSkinUrls);
   // Per-chapter `--accent` cascade: the chapter's dominant champion-asset hex
   // drives `--accent` while the chapter is in view. Layer publishes it from
   // the dominant claim — falls back to the static neutral token outside any

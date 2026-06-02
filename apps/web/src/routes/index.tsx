@@ -71,9 +71,18 @@ function HomePage() {
             subjects by recency-decayed score; the Ahri anchor above is
             structural and not part of this list. Non-`steam-subject` kinds
             (LoL moments, Steam moments) land in R-6 / R-7. */}
-        {chapters?.map((c) =>
+        {chapters?.map((c, index) =>
           c.kind === "steam-subject" ? (
-            <SteamChapter key={c.slug} appid={c.appid} framing={c.framing} />
+            <SteamChapter
+              key={c.slug}
+              appid={c.appid}
+              framing={c.framing}
+              // First algorithmic chapter (sits one past the Ahri anchor)
+              // is critical: its hero asset gets a `<link rel="preload">`
+              // injected so the bg snap-in isn't visible. Subsequent
+              // chapters gate their preload on viewport proximity. R-9.
+              priority={index === 0 ? "critical" : "lazy"}
+            />
           ) : null
         )}
         {/* Conclusion is split across two snap-aligned siblings, each

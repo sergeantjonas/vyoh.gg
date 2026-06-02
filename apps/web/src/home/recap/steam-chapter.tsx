@@ -35,8 +35,10 @@ import {
   STROKE_ACCENT,
 } from "./chapter-shadows";
 import { parseAnimatableNumber } from "./parse-animatable-number";
+import { preloadLinkAsImage } from "./preload-link";
 import { ScreenshotLightboxStrip } from "./screenshot-lightbox";
 import { useAssetClaim } from "./use-asset-claim";
+import { useAssetPreload } from "./use-asset-preload";
 import { useChapterNudge } from "./use-chapter-nudge";
 import { VerdictProse } from "./verdict-prose";
 
@@ -291,9 +293,18 @@ function PeakChip({
 export function SteamChapter({
   appid = STEAM_FEATURED_APPID,
   framing,
+  priority = "lazy",
 }: {
   appid?: number;
   framing?: RecapChapterFraming | null;
+  /**
+   * "critical" → splash gets a `<link rel="preload">` the moment its URL
+   * resolves, so the asset is in cache before the user scrolls into the
+   * chapter. Reserved for the first algorithmic chapter (one past the
+   * Ahri anchor) per the recap arc's R-9 budget. "lazy" (default) gates
+   * the preload on viewport proximity via `useAssetPreload`.
+   */
+  priority?: "critical" | "lazy";
 } = {}) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const recapQuery = useSteamGameRecap(appid);
@@ -332,14 +343,17 @@ export function SteamChapter({
   );
   useAssetClaim(outerRef, claim);
 
-  // Prefetch the splash so the asset is in cache by the time the chapter
-  // approaches the viewport — keeps the backdrop reveal a single paint
-  // rather than a load-then-paint flash.
+  // R-9 splash preload. Critical chapters (first algorithmic chapter, one
+  // past the Ahri anchor) inject `<link rel="preload">` the moment the URL
+  // resolves so the asset enters the browser's preload queue ahead of any
+  // script-created Image() fetches. Lazy chapters gate on viewport
+  // proximity via `useAssetPreload` so their assets don't compete with
+  // the critical-path hero during initial page load.
   useEffect(() => {
-    if (typeof window === "undefined" || splashUrl === null) return;
-    const img = new Image();
-    img.src = splashUrl;
-  }, [splashUrl]);
+    if (priority !== "critical") return;
+    return preloadLinkAsImage(splashUrl);
+  }, [priority, splashUrl]);
+  useAssetPreload(outerRef, priority === "lazy" ? [splashUrl] : []);
 
   // Polite one-shot nudge into the chapter pin — see `useChapterNudge` for
   // the threshold + settle tuning notes.
