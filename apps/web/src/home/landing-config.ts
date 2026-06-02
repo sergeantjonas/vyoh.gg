@@ -4,6 +4,8 @@
 // Edit by hand; commit the change. Promotes to an admin surface later only
 // if editing weekly becomes annoying.
 
+import type { LolMomentChapterDescriptor } from "@vyoh/shared";
+
 import { wikiSplashUrl } from "@/lol/_shared/assets/champion-icon";
 
 export type AhriSkinEntry = {
@@ -86,3 +88,13 @@ export const CHAPTER_COPY_OVERRIDES: Record<
   string,
   { eyebrow?: string; title?: string }
 > = {};
+
+// Dev override: when set, injects a synthetic LoL moment descriptor at the
+// front of the algorithmic chapter stream so the chapter's visual layout
+// can be reviewed even when the detector finds no real off-meta picks
+// (R-6's score floor + 30d window naturally excludes older off-meta picks).
+// Set to `null` outside active visual review — the detector handles
+// production. The matchId should point to a real owner match if you want
+// the masthead link to resolve; the championAlias picks the off-meta
+// splash for the silhouette dissolve.
+export const DEV_LOL_MOMENT_OVERRIDE: LolMomentChapterDescriptor | null = null;

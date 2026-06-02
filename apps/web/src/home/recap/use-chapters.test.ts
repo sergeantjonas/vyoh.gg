@@ -1,9 +1,29 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import type { RecapChapterDescriptor, RecapChaptersResponse } from "@vyoh/shared";
+import type {
+  LolMomentChapterDescriptor,
+  RecapChapterDescriptor,
+  RecapChaptersResponse,
+} from "@vyoh/shared";
 import { type ReactNode, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyChapterOverrides, applyChapterPin, useChapters } from "./use-chapters";
+
+// Mock landing-config so useChapters() runs against deterministic curator
+// values regardless of what the dev override is set to in the working tree.
+// The applyDevLolMomentOverride/applyChapterPin/applyChapterOverrides specs
+// below pass values directly, so they're unaffected by the mock.
+vi.mock("@/home/landing-config", () => ({
+  CHAPTER_COPY_OVERRIDES: {},
+  PINNED_CHAPTER: null,
+  DEV_LOL_MOMENT_OVERRIDE: null,
+}));
+
+import {
+  applyChapterOverrides,
+  applyChapterPin,
+  applyDevLolMomentOverride,
+  useChapters,
+} from "./use-chapters";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -53,6 +73,41 @@ describe("applyChapterOverrides", () => {
       "steam-42": { title: "New title" },
     });
     expect(result.framing).toEqual({ eyebrow: "OLD", title: "New title" });
+  });
+});
+
+describe("applyDevLolMomentOverride", () => {
+  const a = steamSubject({ slug: "steam-1", appid: 1 });
+  const b = steamSubject({ slug: "steam-2", appid: 2 });
+  const override: LolMomentChapterDescriptor = {
+    kind: "lol-moment",
+    slug: "lol-moment-off-meta-DEV",
+    momentType: "OFF_META_PICK",
+    score: 99,
+    daysSince: 3,
+    ageBucket: "current",
+    matchId: "EUW_1",
+    championAlias: "Renekton",
+    framing: null,
+  };
+
+  it("returns the input untouched when override is null", () => {
+    const list = [a, b];
+    expect(applyDevLolMomentOverride(list, null)).toBe(list);
+  });
+
+  it("prepends the override descriptor to the head of the list", () => {
+    expect(applyDevLolMomentOverride([a, b], override)).toEqual([override, a, b]);
+  });
+
+  it("drops a real descriptor whose slug collides with the override (override wins)", () => {
+    const realMoment: RecapChapterDescriptor = {
+      ...override,
+      championAlias: "Jhin",
+      matchId: "EUW_99",
+    };
+    const result = applyDevLolMomentOverride([realMoment, a], override);
+    expect(result).toEqual([override, a]);
   });
 });
 

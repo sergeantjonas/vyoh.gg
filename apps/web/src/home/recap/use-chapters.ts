@@ -1,7 +1,15 @@
-import { CHAPTER_COPY_OVERRIDES, PINNED_CHAPTER } from "@/home/landing-config";
+import {
+  CHAPTER_COPY_OVERRIDES,
+  DEV_LOL_MOMENT_OVERRIDE,
+  PINNED_CHAPTER,
+} from "@/home/landing-config";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
-import type { RecapChapterDescriptor, RecapChaptersResponse } from "@vyoh/shared";
+import type {
+  LolMomentChapterDescriptor,
+  RecapChapterDescriptor,
+  RecapChaptersResponse,
+} from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
 
@@ -34,6 +42,24 @@ export function applyChapterOverrides(
   const override = overrides[chapter.slug];
   if (!override) return chapter;
   return { ...chapter, framing: { ...chapter.framing, ...override } };
+}
+
+/**
+ * Apply `DEV_LOL_MOMENT_OVERRIDE`. Prepends a synthetic LoL-moment descriptor
+ * to the chapter list when set — dev-only knob for reviewing the moment
+ * chapter's visual layout in absence of a qualifying real candidate. Null
+ * override is a no-op (production behavior). Exported for direct testing.
+ */
+export function applyDevLolMomentOverride(
+  chapters: RecapChapterDescriptor[],
+  override: LolMomentChapterDescriptor | null
+): RecapChapterDescriptor[] {
+  if (!override) return chapters;
+  // Drop any descriptor whose slug collides with the override — keeps the
+  // override authoritative if the detector happens to surface the same
+  // moment naturally while the knob is set.
+  const filtered = chapters.filter((c) => c.slug !== override.slug);
+  return [override, ...filtered];
 }
 
 /**
@@ -70,9 +96,12 @@ export function useChapters() {
     queryKey: ["recap", "chapters"],
     queryFn: fetchChapters,
     select: (data) =>
-      applyChapterPin(
-        data.chapters.map((c) => applyChapterOverrides(c, CHAPTER_COPY_OVERRIDES)),
-        PINNED_CHAPTER
+      applyDevLolMomentOverride(
+        applyChapterPin(
+          data.chapters.map((c) => applyChapterOverrides(c, CHAPTER_COPY_OVERRIDES)),
+          PINNED_CHAPTER
+        ),
+        DEV_LOL_MOMENT_OVERRIDE
       ),
     staleTime: 30 * 60 * 1_000,
   });
