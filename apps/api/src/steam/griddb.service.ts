@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 const SGDB_BASE = "https://www.steamgriddb.com/api/v2";
 const FETCH_TIMEOUT_MS = 5_000;
@@ -8,6 +9,17 @@ const FETCH_TIMEOUT_MS = 5_000;
 // have. Most SGDB heroes are 1920×620 or 3840×1240 — the bimodal native sizes
 // match Steam's library asset spec.
 const MIN_HERO_WIDTH = 1920;
+
+// Cool-down window before we re-query SGDB for an appid we already checked.
+// Aligned with the monthly enrichment cron (`30 4 1 * *`): a manual mid-cycle
+// re-run of enrichment shouldn't re-spam SGDB for the same null-hero set, but
+// the next monthly tick should still pick up publishers who uploaded art.
+const SGDB_RECHECK_DAYS = 25;
+
+// Concurrent SGDB requests during a backfill pass. SGDB is a small community
+// service; keep this conservative even though the per-call rate limits are
+// generous on a Bearer-authed key.
+const SGDB_CONCURRENCY = 4;
 
 export interface SgdbHero {
   url: string;
@@ -50,13 +62,71 @@ export class SteamGridDbService {
   private readonly logger = new Logger(SteamGridDbService.name);
   private readonly apiKey: string | undefined;
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     this.apiKey = process.env.STEAM_GRIDDB_API_KEY;
     if (!this.apiKey) {
       this.logger.warn(
         "STEAM_GRIDDB_API_KEY missing — SteamGridDb fallback disabled, heroes for publishers without library_hero_2x.jpg will use 1x"
       );
     }
+  }
+
+  /**
+   * Backfill SGDB heroes for the supplied appids whose `libraryHero2xPath`
+   * is null and which haven't been SGDB-checked within `SGDB_RECHECK_DAYS`.
+   * Mirrors the shape of `SteamSubjectAnchorService.computeMissingAnchors` —
+   * called as a post-pass from the enrichment service after the main upserts
+   * land. Failure is non-fatal; the watermark is set even on null results so
+   * we don't re-query SGDB for the same null-hero set on a manual mid-cycle
+   * re-run of enrichment.
+   */
+  async backfillMissingHeroes(appids: number[]): Promise<number> {
+    if (appids.length === 0) return 0;
+    if (!this.apiKey) return 0;
+
+    const cutoff = new Date(Date.now() - SGDB_RECHECK_DAYS * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.steamGameEnrichment.findMany({
+      where: {
+        appid: { in: appids },
+        libraryHero2xPath: null,
+        OR: [{ sgdbEnrichedAt: null }, { sgdbEnrichedAt: { lt: cutoff } }],
+      },
+      select: { appid: true },
+    });
+    if (rows.length === 0) return 0;
+
+    const start = Date.now();
+    let updated = 0;
+    for (let i = 0; i < rows.length; i += SGDB_CONCURRENCY) {
+      const batch = rows.slice(i, i + SGDB_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(async (row) => ({
+          appid: row.appid,
+          hero: await this.findHero(row.appid),
+        }))
+      );
+      for (const { appid, hero } of results) {
+        // The watermark advances regardless of result — a null is a signal
+        // that we already checked, not "we haven't checked yet". Without
+        // this, every retry would re-query SGDB for the same null set.
+        await this.prisma.steamGameEnrichment.update({
+          where: { appid },
+          data: {
+            sgdbHeroUrl: hero?.url ?? null,
+            sgdbHeroWidth: hero?.width ?? null,
+            sgdbHeroHeight: hero?.height ?? null,
+            sgdbEnrichedAt: new Date(),
+          },
+        });
+        if (hero) updated += 1;
+      }
+    }
+
+    const duration = Date.now() - start;
+    this.logger.log(
+      `SteamGridDb backfill: ${updated}/${rows.length} apps got a hero in ${duration}ms`
+    );
+    return updated;
   }
 
   async findHero(appid: number): Promise<SgdbHero | null> {

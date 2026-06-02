@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentService } from "./enrichment.service";
+import type { SteamGridDbService } from "./griddb.service";
 import type { SteamPicsService } from "./pics.service";
 import type { SteamClientService } from "./steam-client.service";
 import type { SteamSubjectAnchorService } from "./subject-anchor.service";
@@ -24,17 +25,22 @@ function makeService(opts: {
   const anchors = {
     computeMissingAnchors: vi.fn().mockResolvedValue(0),
   };
+  const sgdb = {
+    backfillMissingHeroes: vi.fn().mockResolvedValue(0),
+  };
   return {
     service: new SteamEnrichmentService(
       prisma as unknown as PrismaService,
       client as unknown as SteamClientService,
       pics as unknown as SteamPicsService,
-      anchors as unknown as SteamSubjectAnchorService
+      anchors as unknown as SteamSubjectAnchorService,
+      sgdb as unknown as SteamGridDbService
     ),
     prisma,
     client,
     pics,
     anchors,
+    sgdb,
   };
 }
 
@@ -111,5 +117,20 @@ describe("SteamEnrichmentService.enrichApps", () => {
     const written = await service.enrichApps([42]);
     expect(written).toBe(0);
     expect(prisma.steamGameEnrichment.upsert).not.toHaveBeenCalled();
+  });
+
+  it("runs the SteamGridDb backfill pass with the same appid set after upserts", async () => {
+    const { service, sgdb } = makeService({
+      storeItems: [rawItem(42), rawItem(99)],
+    });
+    await service.enrichApps([42, 99]);
+    expect(sgdb.backfillMissingHeroes).toHaveBeenCalledWith([42, 99]);
+  });
+
+  it("does not abort the enrichment run when SteamGridDb backfill throws", async () => {
+    const { service, sgdb } = makeService({ storeItems: [rawItem(42)] });
+    sgdb.backfillMissingHeroes.mockRejectedValueOnce(new Error("sgdb down"));
+    const written = await service.enrichApps([42]);
+    expect(written).toBe(1);
   });
 });

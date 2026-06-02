@@ -7,6 +7,7 @@ import type {
   SteamScreenshotEntry,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamGridDbService } from "./griddb.service";
 import { SteamPicsService } from "./pics.service";
 import { SteamClientService } from "./steam-client.service";
 import { SteamSubjectAnchorService } from "./subject-anchor.service";
@@ -317,7 +318,8 @@ export class SteamEnrichmentService {
     private readonly prisma: PrismaService,
     private readonly client: SteamClientService,
     private readonly pics: SteamPicsService,
-    private readonly anchors: SteamSubjectAnchorService
+    private readonly anchors: SteamSubjectAnchorService,
+    private readonly sgdb: SteamGridDbService
   ) {}
 
   // Fetches IStoreBrowseService/GetItems for the supplied appids in batches
@@ -398,6 +400,17 @@ export class SteamEnrichmentService {
       await this.anchors.computeMissingAnchors(appids);
     } catch (err) {
       this.logger.warn(`subject-anchor pass failed: ${describeError(err)}`);
+    }
+
+    // SteamGridDb fallback for publishers that didn't ship a 2x hero asset.
+    // Same shape as the anchor pass: post-upsert, non-fatal, only touches
+    // rows the main enrichment couldn't resolve (`libraryHero2xPath IS NULL`).
+    // Bounded cooldown inside the service prevents a mid-cycle re-run from
+    // re-spamming SGDB for the same null-hero set.
+    try {
+      await this.sgdb.backfillMissingHeroes(appids);
+    } catch (err) {
+      this.logger.warn(`SteamGridDb backfill pass failed: ${describeError(err)}`);
     }
 
     return written;
