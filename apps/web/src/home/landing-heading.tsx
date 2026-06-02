@@ -29,17 +29,7 @@ export function LandingHeading() {
         entranceDelay={reducedMotion ? 0 : 0.7}
       />
       <m.p
-        // `pl-[0.12em]` softens — but doesn't fully cancel — the trailing
-        // letter-spacing. The bounding box extends 0.24em past the last
-        // glyph, and flex items-center centers the box. A full 0.24em
-        // pad geometrically centers the glyphs but reads visually
-        // *right*-of-center because the ".GG" tail carries more apparent
-        // mass than the leading "V"; half the tracking lands closer to
-        // optical center against the orb above and the editorial copy
-        // below. Distinct from the caret label's full pl-[0.22em] — that
-        // label has no surrounding visual weight on either side and
-        // benefits from strict geometric centering.
-        className="pl-[0.12em] text-xs uppercase tracking-[0.24em] text-muted-foreground/80"
+        className="text-xs uppercase tracking-[0.24em] text-muted-foreground/80"
         {...(reducedMotion
           ? {}
           : {
