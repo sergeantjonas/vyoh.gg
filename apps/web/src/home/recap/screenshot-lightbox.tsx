@@ -76,6 +76,24 @@ export function ScreenshotLightboxStrip({
     updateEdges();
   }, [screenshots.length, updateEdges]);
 
+  // Stagger-aware reveal gate for the edge chevrons. `edges.right` flips
+  // true the moment the strip mounts (the <li>s take up layout even at
+  // opacity 0), so the chevron would otherwise pop in long before any
+  // thumb fades in. We hold the chevron back until the last thumb's
+  // stagger has started — same `nudged` gate as the thumbs, with a
+  // matched delay. Resets to `false` if `nudged` flips back (chapter
+  // unmounts / scrolls out of pin) so the chevron re-stages on re-entry.
+  const [chevronReady, setChevronReady] = useState(false);
+  useEffect(() => {
+    if (!nudged) {
+      setChevronReady(false);
+      return;
+    }
+    const lastStaggerStartMs = (baseDelay + screenshots.length * 0.04) * 1000;
+    const id = setTimeout(() => setChevronReady(true), lastStaggerStartMs);
+    return () => clearTimeout(id);
+  }, [nudged, baseDelay, screenshots.length]);
+
   const close = useCallback(() => setOpenIndex(null), []);
   const step = useCallback(
     (delta: number) => {
@@ -198,8 +216,8 @@ export function ScreenshotLightboxStrip({
           }}
           className="-translate-y-1/2 absolute top-1/2 left-1 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white shadow-md backdrop-blur-sm transition-opacity duration-200 hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           style={{
-            opacity: edges.left ? 1 : 0,
-            pointerEvents: edges.left ? "auto" : "none",
+            opacity: chevronReady && edges.left ? 1 : 0,
+            pointerEvents: chevronReady && edges.left ? "auto" : "none",
           }}
         >
           <ChevronLeft className="size-4" />
@@ -215,8 +233,8 @@ export function ScreenshotLightboxStrip({
           }}
           className="-translate-y-1/2 absolute top-1/2 right-1 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white shadow-md backdrop-blur-sm transition-opacity duration-200 hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           style={{
-            opacity: edges.right ? 1 : 0,
-            pointerEvents: edges.right ? "auto" : "none",
+            opacity: chevronReady && edges.right ? 1 : 0,
+            pointerEvents: chevronReady && edges.right ? "auto" : "none",
           }}
         >
           <ChevronRight className="size-4" />
