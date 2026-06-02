@@ -4,6 +4,7 @@ import type { PrismaService } from "../prisma/prisma.service";
 import {
   HomeLifetimeTotalsService,
   type PlaytimeSnapshotRow,
+  countBacklog,
   sumLatestPlaytimeMinutes,
 } from "./home-lifetime-totals.service";
 
@@ -39,6 +40,38 @@ describe("sumLatestPlaytimeMinutes", () => {
   });
 });
 
+describe("countBacklog", () => {
+  it("returns zero/zero when nothing is owned", () => {
+    expect(countBacklog([], [])).toEqual({
+      steamGamesOwned: 0,
+      steamGamesUnplayed: 0,
+    });
+  });
+
+  it("counts an owned game with no snapshot as unplayed", () => {
+    expect(countBacklog([42], [])).toEqual({
+      steamGamesOwned: 1,
+      steamGamesUnplayed: 1,
+    });
+  });
+
+  it("counts an owned game whose latest snapshot is zero playtime as unplayed", () => {
+    const rows = [snap(10, "2025-01-01", 0), snap(20, "2025-01-01", 600)];
+    expect(countBacklog([10, 20], rows)).toEqual({
+      steamGamesOwned: 2,
+      steamGamesUnplayed: 1,
+    });
+  });
+
+  it("uses the latest snapshot per appid (an old zero snapshot doesn't mark a now-played game)", () => {
+    const rows = [snap(10, "2025-01-01", 0), snap(10, "2026-01-01", 120)];
+    expect(countBacklog([10], rows)).toEqual({
+      steamGamesOwned: 1,
+      steamGamesUnplayed: 0,
+    });
+  });
+});
+
 describe("HomeLifetimeTotalsService.getLifetimeTotals", () => {
   let lastPrisma: PrismaService;
   function makeService(opts: {
@@ -50,6 +83,7 @@ describe("HomeLifetimeTotalsService.getLifetimeTotals", () => {
     snapshots?: PlaytimeSnapshotRow[];
     unlockAggregate?: { _min: { unlockedAt: Date | null } };
     ownerPuuids?: string[];
+    ownedAppids?: number[];
   }) {
     const matchAggregate = opts.matchAggregate ?? {
       _count: 0,
@@ -65,6 +99,11 @@ describe("HomeLifetimeTotalsService.getLifetimeTotals", () => {
         findMany: vi.fn().mockResolvedValue(opts.snapshots ?? []),
       },
       steamPlayerUnlock: { aggregate: vi.fn().mockResolvedValue(unlockAggregate) },
+      steamOwnedGame: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue((opts.ownedAppids ?? []).map((appid) => ({ appid }))),
+      },
     } as unknown as PrismaService;
     const identity = {
       getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
@@ -82,7 +121,32 @@ describe("HomeLifetimeTotalsService.getLifetimeTotals", () => {
       steamMinutes: 0,
       oldestMatchAt: null,
       oldestUnlockAt: null,
+      steamGamesOwned: 0,
+      steamGamesUnplayed: 0,
     });
+  });
+
+  it("includes backlog counts from owned-games + snapshots", async () => {
+    const service = makeService({
+      ownedAppids: [10, 20, 30],
+      snapshots: [
+        snap(10, "2026-05-01", 1200),
+        // appid 20 latest is zero → unplayed
+        snap(20, "2026-05-01", 0),
+        // appid 30 missing snapshot entirely → unplayed
+      ],
+    });
+    const result = await service.getLifetimeTotals();
+    expect(result.steamGamesOwned).toBe(3);
+    expect(result.steamGamesUnplayed).toBe(2);
+  });
+
+  it("queries owned games filtered to currently-owned (removedAt: null)", async () => {
+    const service = makeService({});
+    await service.getLifetimeTotals();
+    expect(lastPrisma.steamOwnedGame.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { removedAt: null } })
+    );
   });
 
   it("rolls up alltime counts and converts durations to whole minutes", async () => {

@@ -47,20 +47,25 @@ export class HomeLifetimeTotalsService {
     // snapshot tables don't need a filter.
     const ownerPuuids = await this.identity.getOwnerPuuids();
 
-    const [matchAggregate, snapshotRows, unlockAggregate] = await Promise.all([
-      this.prisma.match.aggregate({
-        where: { remake: false, puuid: { in: ownerPuuids } },
-        _count: true,
-        _sum: { durationSec: true },
-        _min: { playedAt: true },
-      }),
-      this.prisma.steamPlaytimeSnapshot.findMany({
-        select: { appid: true, snapshotDate: true, playtimeForeverMinutes: true },
-      }),
-      this.prisma.steamPlayerUnlock.aggregate({
-        _min: { unlockedAt: true },
-      }),
-    ]);
+    const [matchAggregate, snapshotRows, unlockAggregate, ownedAppids] =
+      await Promise.all([
+        this.prisma.match.aggregate({
+          where: { remake: false, puuid: { in: ownerPuuids } },
+          _count: true,
+          _sum: { durationSec: true },
+          _min: { playedAt: true },
+        }),
+        this.prisma.steamPlaytimeSnapshot.findMany({
+          select: { appid: true, snapshotDate: true, playtimeForeverMinutes: true },
+        }),
+        this.prisma.steamPlayerUnlock.aggregate({
+          _min: { unlockedAt: true },
+        }),
+        this.prisma.steamOwnedGame.findMany({
+          where: { removedAt: null },
+          select: { appid: true },
+        }),
+      ]);
 
     const lolMatchCount = matchAggregate._count;
     const lolSeconds = matchAggregate._sum.durationSec ?? 0;
@@ -68,6 +73,10 @@ export class HomeLifetimeTotalsService {
     const steamMinutes = sumLatestPlaytimeMinutes(snapshotRows);
     const oldestMatchAt = matchAggregate._min.playedAt?.toISOString() ?? null;
     const oldestUnlockAt = unlockAggregate._min.unlockedAt?.toISOString() ?? null;
+    const { steamGamesOwned, steamGamesUnplayed } = countBacklog(
+      ownedAppids.map((g) => g.appid),
+      snapshotRows
+    );
 
     return {
       lolMatchCount,
@@ -75,6 +84,33 @@ export class HomeLifetimeTotalsService {
       steamMinutes,
       oldestMatchAt,
       oldestUnlockAt,
+      steamGamesOwned,
+      steamGamesUnplayed,
     };
   }
+}
+
+/**
+ * Count currently-owned games and how many of them are unplayed. "Unplayed"
+ * = the latest snapshot for that appid reports zero playtime, OR the game
+ * has no snapshot yet (newly added title between the last owned-games sync
+ * and the next playtime poll).
+ */
+export function countBacklog(
+  ownedAppids: number[],
+  snapshotRows: PlaytimeSnapshotRow[]
+): { steamGamesOwned: number; steamGamesUnplayed: number } {
+  const latestByAppid = new Map<number, PlaytimeSnapshotRow>();
+  for (const row of snapshotRows) {
+    const latest = latestByAppid.get(row.appid);
+    if (!latest || row.snapshotDate > latest.snapshotDate) {
+      latestByAppid.set(row.appid, row);
+    }
+  }
+  let unplayed = 0;
+  for (const appid of ownedAppids) {
+    const latest = latestByAppid.get(appid);
+    if (!latest || latest.playtimeForeverMinutes === 0) unplayed++;
+  }
+  return { steamGamesOwned: ownedAppids.length, steamGamesUnplayed: unplayed };
 }

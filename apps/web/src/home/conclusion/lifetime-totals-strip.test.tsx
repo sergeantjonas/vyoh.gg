@@ -22,6 +22,7 @@ describe("LifetimeTotalsStrip", () => {
     render(<LifetimeTotalsStrip />);
     expect(screen.getByText("LoL matches")).toBeTruthy();
     expect(screen.getByText("Steam time")).toBeTruthy();
+    expect(screen.getByText("Backlog")).toBeTruthy();
     expect(screen.getByText("Tracking since")).toBeTruthy();
     expect(screen.getByText("Since launch")).toBeTruthy();
   });
@@ -34,6 +35,8 @@ describe("LifetimeTotalsStrip", () => {
         steamMinutes: 12_300, // 205h
         oldestMatchAt: "2024-03-15T18:00:00.000Z",
         oldestUnlockAt: "2024-04-01T12:00:00.000Z",
+        steamGamesOwned: 504,
+        steamGamesUnplayed: 180,
       },
       isPending: false,
     });
@@ -43,6 +46,7 @@ describe("LifetimeTotalsStrip", () => {
     expect(screen.getByText("205h")).toBeTruthy();
     // Earliest of match (Mar 2024) vs unlock (Apr 2024).
     expect(screen.getByText("Mar 2024")).toBeTruthy();
+    expect(screen.getByText("180 / 504")).toBeTruthy();
   });
 
   it("uses earliest of match-or-unlock for the tracking-since date", () => {
@@ -53,6 +57,8 @@ describe("LifetimeTotalsStrip", () => {
         steamMinutes: 0,
         oldestMatchAt: "2025-08-01T00:00:00.000Z",
         oldestUnlockAt: "2024-12-15T00:00:00.000Z",
+        steamGamesOwned: 0,
+        steamGamesUnplayed: 0,
       },
       isPending: false,
     });
@@ -68,13 +74,15 @@ describe("LifetimeTotalsStrip", () => {
         steamMinutes: 0,
         oldestMatchAt: null,
         oldestUnlockAt: null,
+        steamGamesOwned: 0,
+        steamGamesUnplayed: 0,
       },
       isPending: false,
     });
     render(<LifetimeTotalsStrip />);
     expect(screen.getByText("Steam time")).toBeTruthy();
     expect(screen.getByText("2h")).toBeTruthy();
-    // Two dashes: one for Steam time, one for Tracking since.
-    expect(screen.getAllByText("—")).toHaveLength(2);
+    // Three dashes: Steam time, Backlog, Tracking since.
+    expect(screen.getAllByText("—")).toHaveLength(3);
   });
 });

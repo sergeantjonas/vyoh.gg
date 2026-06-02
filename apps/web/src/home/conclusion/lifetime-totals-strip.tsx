@@ -53,6 +53,13 @@ function formatSinceDate(iso: string | null): string {
   });
 }
 
+function formatBacklog(unplayed: number, owned: number): React.ReactNode {
+  // Zero owned = zero state (e.g. Steam not yet synced). Drop to a dash so
+  // we don't render "0 / 0" which reads as a real number.
+  if (owned === 0) return <span className="text-muted-foreground/70">—</span>;
+  return `${formatCompactInt(unplayed)} / ${formatCompactInt(owned)}`;
+}
+
 function pickEarliest(a: string | null, b: string | null): string | null {
   if (a === null) return b;
   if (b === null) return a;
@@ -89,6 +96,10 @@ export function LifetimeTotalsStrip() {
               }
             />
             <Chip
+              label="Backlog"
+              value={formatBacklog(data.steamGamesUnplayed, data.steamGamesOwned)}
+            />
+            <Chip
               label="Tracking since"
               value={formatSinceDate(
                 pickEarliest(data.oldestMatchAt, data.oldestUnlockAt)
@@ -100,6 +111,7 @@ export function LifetimeTotalsStrip() {
             <ChipPlaceholder label="LoL matches" />
             <ChipPlaceholder label="LoL time" />
             <ChipPlaceholder label="Steam time" />
+            <ChipPlaceholder label="Backlog" />
             <ChipPlaceholder label="Tracking since" />
           </>
         )}

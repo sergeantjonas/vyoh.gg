@@ -19,4 +19,8 @@ export interface HomeLifetimeTotals {
   oldestMatchAt: string | null;
   /** ISO date of the earliest tracked Steam unlock, or null if none yet. */
   oldestUnlockAt: string | null;
+  /** Steam currently-owned game count (excludes de-owned titles). */
+  steamGamesOwned: number;
+  /** Currently-owned games whose latest snapshot reports zero playtime. */
+  steamGamesUnplayed: number;
 }
