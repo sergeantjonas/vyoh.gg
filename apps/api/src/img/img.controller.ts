@@ -77,6 +77,7 @@ const CHAMPION_VARIANTS = new Set<ChampionVariant>([
   "card",
   "backdrop",
   "splash",
+  "hd",
 ]);
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
 const UI_ICONS = new Set<UiIconName>(UI_ICON_NAMES);
