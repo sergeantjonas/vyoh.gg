@@ -1,20 +1,15 @@
-import { BentoGrid, BentoTile } from "@/components/bento/bento-grid";
 import { AmbientHero } from "@/home/ambient-hero";
 import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
+import { EditorialCloser } from "@/home/conclusion/editorial-closer";
+import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
+import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
+import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
 import { LandingHeading } from "@/home/landing-heading";
 import { LandingSteamBand } from "@/home/landing-steam-band";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
 import { useChapters } from "@/home/recap/use-chapters";
-import { TileBuildBadge } from "@/home/tile-build-badge";
-import { TileChronotype } from "@/home/tile-chronotype";
-import { TileDaySplit } from "@/home/tile-day-split";
-import { TileDomainAge } from "@/home/tile-domain-age";
-import { TileLastMatch } from "@/home/tile-last-match";
-import { TileSessionLengths } from "@/home/tile-session-lengths";
-import { TileSignatureGame } from "@/home/tile-signature-game";
-import { TileWeeklyTotals } from "@/home/tile-weekly-totals";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { createFileRoute } from "@tanstack/react-router";
@@ -24,7 +19,7 @@ export const Route = createFileRoute("/")({
   component: HomePage,
   // Skip the global scope-fade in <RootLayout> for the landing mount — the
   // landing owns its own entrance via <LandingHeading>'s editorial cascade and
-  // <LandingSteamBand> / <BentoGrid>'s whileInView gates.
+  // <LandingSteamBand> / conclusion bands' whileInView gates.
   staticData: { ownsEntry: true },
 });
 
@@ -36,6 +31,14 @@ function HomePage() {
   // atmosphere layer reads its bounding rect each scroll tick to weight the
   // hero's contribution against any subsequent band's claim.
   const heroRef = useRef<HTMLElement | null>(null);
+  // Conclusion-band ref drives the back-to-painterly fade after the last
+  // chapter unpins. Mounted with a second `<AmbientHero>` claim (palette
+  // only, no image) — the atmosphere layer's proximity weighting will pick
+  // it over distant chapter claims once the user scrolls into the
+  // conclusion zone, so the asset-driven bg fades back to time-of-day
+  // painterly. AmbientHero is misnamed here but works for any palette-only
+  // claim; a future rename is fine but not load-bearing.
+  const conclusionRef = useRef<HTMLElement | null>(null);
   return (
     <AtmosphereProvider>
       <div className="relative flex flex-col">
@@ -57,10 +60,9 @@ function HomePage() {
           <LandingHeading />
         </section>
         <NextChapterCaret />
-        {/* First recap chapter (R-2). The bento below still renders — it
-            retires in R-5 once the conclusion lands. Chapter only mounts
-            when a primary LoL account is configured (so anonymous /
-            visitors don't see a placeholder Ahri pin). */}
+        {/* First recap chapter (R-2). Chapter only mounts when a primary LoL
+            account is configured (so anonymous visitors don't see a
+            placeholder Ahri pin). */}
         {account ? <AhriChapter account={account} /> : null}
         {/* Algorithmic chapter stream (R-4). `useChapters()` ranks Steam
             subjects by recency-decayed score; the Ahri anchor above is
@@ -75,39 +77,23 @@ function HomePage() {
             snap-align at the start of the post-chapter content, the
             browser's nearest-snap-target lookup would keep pulling the
             user back to the last chapter on every scroll-end. This wraps
-            the post-chapter zone (LandingSteamBand + bento) into a single
-            snap area aligned to its start, so leaving the chapters lands
-            cleanly at the top of the steam band and the bento scrolls
-            naturally below. */}
-        <div className="[scroll-snap-align:start]">
+            the post-chapter zone (LandingSteamBand + conclusion bands)
+            into a single snap area aligned to its start, so leaving the
+            chapters lands cleanly at the top of the steam band and the
+            conclusion scrolls naturally below. */}
+        <section ref={conclusionRef} className="[scroll-snap-align:start]">
+          {/* Reuses AmbientHero as a palette-only atmosphere claim scoped to
+              the conclusion ref — fades the bg back from asset-driven
+              (chapters) to painterly time-of-day once the user scrolls past
+              the last chapter. The hero's matching claim is now distant
+              enough by proximity that this one wins. */}
+          <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
           <LandingSteamBand />
-          <BentoGrid>
-            <BentoTile width={2} height={2}>
-              <TileChronotype />
-            </BentoTile>
-            <BentoTile width={2}>
-              <TileSignatureGame account={account} />
-            </BentoTile>
-            <BentoTile width={2}>
-              <TileLastMatch account={account} />
-            </BentoTile>
-            <BentoTile width={2}>
-              <TileWeeklyTotals />
-            </BentoTile>
-            <BentoTile width={2} height={2}>
-              <TileDaySplit />
-            </BentoTile>
-            <BentoTile width={2}>
-              <TileSessionLengths />
-            </BentoTile>
-            <BentoTile>
-              <TileBuildBadge />
-            </BentoTile>
-            <BentoTile>
-              <TileDomainAge />
-            </BentoTile>
-          </BentoGrid>
-        </div>
+          <ConclusionRhythmBand />
+          <LifetimeTotalsStrip />
+          <EditorialCloser />
+          <ConclusionFooterChips />
+        </section>
       </div>
     </AtmosphereProvider>
   );
