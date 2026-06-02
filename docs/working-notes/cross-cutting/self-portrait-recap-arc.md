@@ -331,6 +331,8 @@ Likely 1-2 commits. Re-tune cascade delays inside each beat so they don't try to
 
 **R-12. Editorial pass.** Full visual review against real data, tune blur values, mask shapes, beat timings, copy bucketing. Likely 2–3 polish commits. **Now happens after R-13/R-14 — the editorial tuning needs to land on the final beat model, not on a transitional layout.**
 
+**R-15. Conclusion multi-beat evaluation (post-R-13/R-14).** Landed an interim split during the brainstorm-candidate sweep (2026-06-02): conclusion section split into two snap-aligned siblings — `conclusion-recent` (rhythm + today + future now-playing) and `conclusion-alltime` (signature + lifetime + rank trajectory + closer + footer chips). Decision rejected option B (apply R-13's `ChapterBeats` primitive to the conclusion) at the time because R-13's primitive doesn't exist yet and sequencing it ahead of the actual Steam chapter retrofit would be plumbing-as-side-effect. **Re-evaluate after R-13 and R-14 ship.** The honest question to answer at re-eval: do the conclusion's pieces read as "lenses on one subject (me)" — in which case multi-beat fits and we promote — or as "heterogeneous collage" — in which case the two-snap split stays and we just keep the conclusion stable. If multi-beat wins, the alltime section is the obvious candidate for beat-progression (signature → totals → rank trajectory → closer), with footer chips remaining terminal below the pin. If the split stays, document why so the question doesn't return.
+
 ---
 
 ## Open decisions

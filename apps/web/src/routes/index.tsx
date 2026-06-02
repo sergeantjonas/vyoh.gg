@@ -74,23 +74,21 @@ function HomePage() {
             <SteamChapter key={c.slug} appid={c.appid} framing={c.framing} />
           ) : null
         )}
-        {/* Release point for the mandatory chapter-snap region. Without a
-            snap-align at the start of the post-chapter content, the
-            browser's nearest-snap-target lookup would keep pulling the
-            user back to the last chapter on every scroll-end. The
-            conclusion sits in a single snap area aligned to its start so
-            leaving the chapters lands cleanly at the top of the rhythm
-            band and the rest of the conclusion scrolls naturally below. */}
+        {/* Conclusion is split across two snap-aligned siblings so the
+            page reads as two viewport-paged closes rather than one tall
+            stack that overflows under the snap-paged flow above. Caret
+            threads through both via `data-recap-chapter`; AmbientHero's
+            palette-only claim is mounted on the recent section (its
+            bounding rect anchors atmosphere proximity for the whole
+            conclusion zone — the alltime section is close enough that
+            adding a second claim would just be redundant). See the recap
+            arc's R-15 chunk for the planned re-evaluation against R-13's
+            multi-beat primitive once that ships. */}
         <section
           ref={conclusionRef}
-          // Treated as the terminal "chapter" for `<NextChapterCaret>`
-          // discovery so the caret keeps pointing forward from the last
-          // Steam chapter to the conclusion (and then hides once the user
-          // is past this section). Without this, the caret disappears in
-          // the last chapter and the conclusion reads as undiscoverable.
-          data-recap-chapter="conclusion"
-          data-chapter-label="The picture"
-          // Small top padding gives the conclusion a visible opening beat
+          data-recap-chapter="conclusion-recent"
+          data-chapter-label="The week"
+          // Small top padding gives the section a visible opening beat
           // when the snap-align lands without parking a full chapter of
           // empty atmosphere above the rhythm band. Chapters use
           // `pinViewports={1}` + `scroll-snap-stop: always`, so at rest the
@@ -106,9 +104,14 @@ function HomePage() {
           <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
           <ConclusionRhythmBand />
           {/* Today pulse: zoomed in to "right now" — sits adjacent to the
-              weekly rhythm band as the second time-bucketed strip before
-              the signature → alltime close. */}
+              weekly rhythm band as the second time-bucketed strip. */}
           <TodayStrip />
+        </section>
+        <section
+          data-recap-chapter="conclusion-alltime"
+          data-chapter-label="Since launch"
+          className="pt-[5dvh] [scroll-snap-align:start]"
+        >
           {/* Author signature: introduces the alltime self-portrait. The
               orb opens the page; the named author signs into the alltime
               totals. */}
