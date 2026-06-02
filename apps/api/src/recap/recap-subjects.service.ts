@@ -4,6 +4,7 @@ import { ageBucketFromDaysSince, selectChapters } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamOwnedGamesService } from "../steam/owned-games.service";
+import { LolMomentsService } from "./lol-moments.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 
 /** Lifetime-hours threshold for the dormant fallback. A game must carry
@@ -44,12 +45,20 @@ const BRIEF_LAUNCH_2W_MINUTES = 30;
 export class RecapSubjectsService {
   constructor(
     private readonly ownedGames: SteamOwnedGamesService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly lolMoments: LolMomentsService
   ) {}
 
   async getChapters(now: Date = new Date()): Promise<RecapChapterDescriptor[]> {
-    const candidates = await this.collectSteamSubjectCandidates(now);
-    const active = selectChapters(candidates);
+    // Steam-subject candidates + LoL-moment candidates run in parallel —
+    // they hit different tables and have no inter-dependency. `selectChapters`
+    // handles per-kind capping + cross-kind ordering, so merging the lists
+    // raw before the selector is sufficient.
+    const [steamCandidates, lolMomentCandidates] = await Promise.all([
+      this.collectSteamSubjectCandidates(now),
+      this.lolMoments.detectAll(now),
+    ]);
+    const active = selectChapters([...steamCandidates, ...lolMomentCandidates]);
     if (active.length > 0) return active;
     // Dormant fallback: no game has cleared the recent-engagement floor in
     // the active path. Surface the most-recently-engaged games by lifetime

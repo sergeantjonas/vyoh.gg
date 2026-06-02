@@ -10,6 +10,7 @@ import { TodayStrip } from "@/home/conclusion/today-strip";
 import { LandingHeading } from "@/home/landing-heading";
 import { OwnerIdentityStrip } from "@/home/owner-identity-strip";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
+import { LolMomentChapter } from "@/home/recap/lol-moment-chapter";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
 import { useChapters } from "@/home/recap/use-chapters";
@@ -71,20 +72,43 @@ function HomePage() {
             subjects by recency-decayed score; the Ahri anchor above is
             structural and not part of this list. Non-`steam-subject` kinds
             (LoL moments, Steam moments) land in R-6 / R-7. */}
-        {chapters?.map((c, index) =>
-          c.kind === "steam-subject" ? (
-            <SteamChapter
-              key={c.slug}
-              appid={c.appid}
-              framing={c.framing}
-              // First algorithmic chapter (sits one past the Ahri anchor)
-              // is critical: its hero asset gets a `<link rel="preload">`
-              // injected so the bg snap-in isn't visible. Subsequent
-              // chapters gate their preload on viewport proximity. R-9.
-              priority={index === 0 ? "critical" : "lazy"}
-            />
-          ) : null
-        )}
+        {chapters?.map((c, index) => {
+          if (c.kind === "steam-subject") {
+            return (
+              <SteamChapter
+                key={c.slug}
+                appid={c.appid}
+                framing={c.framing}
+                // First algorithmic chapter (sits one past the Ahri anchor)
+                // is critical: its hero asset gets a `<link rel="preload">`
+                // injected so the bg snap-in isn't visible. Subsequent
+                // chapters gate their preload on viewport proximity. R-9.
+                priority={index === 0 ? "critical" : "lazy"}
+              />
+            );
+          }
+          // R-6 moment chapters require both a champion alias (the off-meta
+          // pick subject) and an owner LoL account (to deep-link the match
+          // detail + provide the slug for asset URL routing). When either is
+          // missing the descriptor is dropped quietly — the API can't
+          // produce one without these fields, but the discriminated union
+          // tolerates nullable shapes so we narrow here at the render seam.
+          if (c.kind === "lol-moment" && c.championAlias && account) {
+            return (
+              <LolMomentChapter
+                key={c.slug}
+                account={account}
+                championAlias={c.championAlias}
+                matchId={c.matchId}
+                daysSince={c.daysSince}
+                slug={c.slug}
+              />
+            );
+          }
+          // steam-moment lands in R-7; render nothing for now so the
+          // exhaustive switch is honest about unhandled kinds.
+          return null;
+        })}
         {/* Conclusion is split across two snap-aligned siblings, each
             claiming a full viewport so the page reads as two distinct
             paged closes rather than one tall stack. `scroll-snap-stop:

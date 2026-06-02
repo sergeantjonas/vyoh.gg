@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamOwnedGamesService } from "../steam/owned-games.service";
+import type { LolMomentsService } from "./lol-moments.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 import { RecapSubjectsService } from "./recap-subjects.service";
 
@@ -85,7 +86,12 @@ function makeService(
         ),
     },
   } as unknown as PrismaService;
-  return new RecapSubjectsService(ownedGames, prisma);
+  // LoL moments default to empty so the existing steam-subject specs stay
+  // focused — the cross-kind merge is covered by the dedicated test below.
+  const lolMoments = {
+    detectAll: vi.fn().mockResolvedValue([]),
+  } as unknown as LolMomentsService;
+  return new RecapSubjectsService(ownedGames, prisma, lolMoments);
 }
 
 describe("RecapSubjectsService.getChapters", () => {
@@ -469,6 +475,48 @@ describe("RecapSubjectsService.getChapters", () => {
       expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
         42,
       ]);
+    });
+  });
+
+  describe("LoL moment merge", () => {
+    it("emits a lol-moment descriptor when LolMomentsService returns an off-meta candidate", async () => {
+      // Active steam path is empty (no recent engagement), so the only
+      // candidate is the off-meta pick. Cross-kind ordering puts steam-
+      // subject first, then lol-moment, then steam-moment — with an empty
+      // steam slot the chapter list is just the LoL moment.
+      const ownedGames = {
+        getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([])),
+      } as unknown as SteamOwnedGamesService;
+      const prisma = {
+        steamPlayerUnlock: {
+          groupBy: vi.fn().mockResolvedValue([]),
+        },
+      } as unknown as PrismaService;
+      const lolMoments = {
+        detectAll: vi.fn().mockResolvedValue([
+          {
+            kind: "lol-moment",
+            slug: "lol-moment-off-meta-EUW_42",
+            momentType: "OFF_META_PICK",
+            baseSignal: 20,
+            daysSince: 2,
+            matchId: "EUW_42",
+            championAlias: "Renekton",
+            offMeta: true,
+          },
+        ]),
+      } as unknown as LolMomentsService;
+      const service = new RecapSubjectsService(ownedGames, prisma, lolMoments);
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters).toHaveLength(1);
+      const first = chapters[0];
+      expect(first?.kind).toBe("lol-moment");
+      if (first?.kind === "lol-moment") {
+        expect(first.momentType).toBe("OFF_META_PICK");
+        expect(first.matchId).toBe("EUW_42");
+        expect(first.championAlias).toBe("Renekton");
+      }
     });
   });
 });
