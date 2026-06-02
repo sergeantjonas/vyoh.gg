@@ -47,22 +47,32 @@ function makeService(opts: {
   offMetaMatch?: MatchRow | null;
   rankUpRows?: SnapshotMatchRow[];
   kdaRows?: KdaMatchRow[];
+  hiatusRows?: KdaMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
   } as unknown as IdentityService;
-  // `findMany` is called by BOTH detectRankUps and detectKdaOutliers. They
-  // differ by `where.snapshotTier` (only rank-up filters on it), so the
-  // mock discriminates by argument shape instead of forcing tests to choose
-  // one detector at a time.
-  const findManyImpl = vi
-    .fn()
-    .mockImplementation((args: { where: { snapshotTier?: { not: null } | null } }) => {
-      const isRankUpCall = args.where?.snapshotTier !== undefined;
-      return Promise.resolve(
-        isRankUpCall ? (opts.rankUpRows ?? []) : (opts.kdaRows ?? [])
-      );
-    });
+  // `findMany` is called by detectRankUps, detectKdaOutliers, AND
+  // detectReturnsFromHiatus. They differ by where-clause shape:
+  //   - rank-up filters on `snapshotTier` (six snapshot columns non-null).
+  //   - KDA filters on `playedAt` (30d window) but not snapshotTier.
+  //   - hiatus has neither (reads ALL owner ranked matches for prev-match
+  //     gap detection).
+  // The mock routes each call to its fixture by inspecting the where shape.
+  const findManyImpl = vi.fn().mockImplementation(
+    (args: {
+      where: {
+        snapshotTier?: { not: null } | null;
+        playedAt?: { gte: Date };
+      };
+    }) => {
+      const hasSnapshotFilter = args.where?.snapshotTier !== undefined;
+      const hasWindowFilter = args.where?.playedAt !== undefined;
+      if (hasSnapshotFilter) return Promise.resolve(opts.rankUpRows ?? []);
+      if (hasWindowFilter) return Promise.resolve(opts.kdaRows ?? []);
+      return Promise.resolve(opts.hiatusRows ?? []);
+    }
+  );
   const prisma = {
     match: {
       groupBy: vi.fn().mockResolvedValue(opts.championCounts ?? []),
@@ -606,6 +616,186 @@ describe("LolMomentsService.detectKdaOutliers", () => {
   });
 });
 
+function makeHiatusRow(opts: {
+  matchId?: string;
+  champion?: string;
+  playedAt: Date;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  win?: boolean;
+  durationSec?: number;
+  queueType?: string;
+}): KdaMatchRow {
+  return {
+    matchId: opts.matchId ?? `EUW_H_${opts.playedAt.getTime()}`,
+    champion: opts.champion ?? "Ahri",
+    playedAt: opts.playedAt,
+    kills: opts.kills ?? 5,
+    deaths: opts.deaths ?? 3,
+    assists: opts.assists ?? 7,
+    win: opts.win ?? true,
+    durationSec: opts.durationSec ?? 1820,
+    queueType: opts.queueType ?? "Ranked Solo",
+  };
+}
+
+describe("LolMomentsService.detectReturnsFromHiatus", () => {
+  it("returns no candidates when there are no owner puuids", async () => {
+    const { service, prisma } = makeService({ ownerPuuids: [] });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toEqual([]);
+    expect(prisma.match.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns no candidates when the owner has played daily (no gap ≥ threshold)", async () => {
+    // 6 games, each one day after the previous — biggest gap is 1d.
+    const dailyRows = Array.from({ length: 6 }, (_, i) =>
+      makeHiatusRow({
+        matchId: `EUW_DAILY_${i}`,
+        playedAt: new Date(NOW.getTime() - (6 - i) * 24 * 60 * 60 * 1000),
+      })
+    );
+    const { service } = makeService({ hiatusRows: dailyRows });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns no candidates when the gap exists but the return match is outside the recency window", async () => {
+    // Gap of 30d before a return that happened 45d ago — return match too old.
+    const { service } = makeService({
+      hiatusRows: [
+        makeHiatusRow({
+          matchId: "EUW_OLD",
+          playedAt: new Date(NOW.getTime() - 75 * 24 * 60 * 60 * 1000),
+        }),
+        makeHiatusRow({
+          matchId: "EUW_RETURN_OLD",
+          playedAt: new Date(NOW.getTime() - 45 * 24 * 60 * 60 * 1000),
+        }),
+      ],
+    });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("surfaces a return match with a gap above the threshold and within the recency window", async () => {
+    const prev = makeHiatusRow({
+      matchId: "EUW_PREV",
+      playedAt: new Date(NOW.getTime() - 35 * 24 * 60 * 60 * 1000),
+    });
+    const ret = makeHiatusRow({
+      matchId: "EUW_BACK",
+      champion: "Ahri",
+      playedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000),
+      kills: 8,
+      deaths: 3,
+      assists: 12,
+    });
+    const { service } = makeService({ hiatusRows: [prev, ret] });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") {
+      throw new Error("expected a lol-moment candidate");
+    }
+    expect(c.momentType).toBe("RETURN_FROM_HIATUS");
+    expect(c.matchId).toBe("EUW_BACK");
+    expect(c.championAlias).toBe("Ahri");
+    expect(c.slug).toBe("lol-moment-hiatus-return-EUW_BACK");
+    expect(c.daysSince).toBe(5);
+    // Gap: 35d - 5d = 30d. baseSignal = 30 × 0.4 = 12.
+    expect(c.hiatusReturn?.gapDays).toBe(30);
+    expect(c.baseSignal).toBeCloseTo(12);
+    expect(c.matchStats).toEqual({
+      kills: 8,
+      deaths: 3,
+      assists: 12,
+      win: true,
+      durationSec: 1820,
+      queueType: "Ranked Solo",
+    });
+  });
+
+  it("caps baseSignal magnitude at the gap-cap (≥90d break reads as max-strength)", async () => {
+    const ancient = makeHiatusRow({
+      matchId: "EUW_ANCIENT",
+      playedAt: new Date(NOW.getTime() - 250 * 24 * 60 * 60 * 1000),
+    });
+    const ret = makeHiatusRow({
+      matchId: "EUW_HUGE_RETURN",
+      playedAt: new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+    });
+    const { service } = makeService({ hiatusRows: [ancient, ret] });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    // Actual gap is ~248d but cap is 90d → baseSignal = 90 × 0.4 = 36.
+    expect(c.hiatusReturn?.gapDays).toBeGreaterThan(90);
+    expect(c.baseSignal).toBeCloseTo(36);
+  });
+
+  it("picks the freshest qualifying return when multiple hiatuses occurred in the window", async () => {
+    // Hiatus A: 30d gap, return 25d ago. Hiatus B: 14d gap, return 1d ago.
+    // Both qualify; B is the freshest framing.
+    const veryOld = makeHiatusRow({
+      matchId: "EUW_VERY_OLD",
+      playedAt: new Date(NOW.getTime() - 55 * 24 * 60 * 60 * 1000),
+    });
+    const firstReturn = makeHiatusRow({
+      matchId: "EUW_R1",
+      playedAt: new Date(NOW.getTime() - 25 * 24 * 60 * 60 * 1000),
+    });
+    const middle = makeHiatusRow({
+      matchId: "EUW_MID",
+      playedAt: new Date(NOW.getTime() - 15 * 24 * 60 * 60 * 1000),
+    });
+    const secondReturn = makeHiatusRow({
+      matchId: "EUW_R2",
+      playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+    });
+    const { service } = makeService({
+      hiatusRows: [veryOld, firstReturn, middle, secondReturn],
+    });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.matchId).toBe("EUW_R2");
+    expect(c.hiatusReturn?.gapDays).toBe(14);
+  });
+
+  it("returns no candidates when the only match has no prior reference (first-ever ranked game)", async () => {
+    const { service } = makeService({
+      hiatusRows: [
+        makeHiatusRow({
+          matchId: "EUW_FIRST",
+          playedAt: new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000),
+        }),
+      ],
+    });
+    const result = await service.detectReturnsFromHiatus(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("constrains the findMany scan to ranked queues only", async () => {
+    const { service, prisma } = makeService({ hiatusRows: [] });
+    await service.detectReturnsFromHiatus(NOW);
+    const calls = vi.mocked(prisma.match.findMany).mock.calls;
+    // hiatus is the only call lacking BOTH snapshotTier AND playedAt filters.
+    const hiatusCall = calls.find((c) => {
+      const w = (c[0] as { where: { snapshotTier?: unknown; playedAt?: unknown } }).where;
+      return w?.snapshotTier === undefined && w?.playedAt === undefined;
+    });
+    expect(hiatusCall).toBeTruthy();
+    const args = hiatusCall?.[0] as { where: { queueType: { in: string[] } } };
+    expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+});
+
 describe("LolMomentsService.detectAll", () => {
   it("collects every detector's output into one candidate list", async () => {
     const { service } = makeService({
@@ -637,14 +827,24 @@ describe("LolMomentsService.detectAll", () => {
         }),
         ...KDA_BASELINE_GAMES,
       ],
+      hiatusRows: [
+        makeHiatusRow({
+          matchId: "EUW_OLD_H",
+          playedAt: new Date(NOW.getTime() - 35 * 24 * 60 * 60 * 1000),
+        }),
+        makeHiatusRow({
+          matchId: "EUW_BACK_H",
+          playedAt: new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000),
+        }),
+      ],
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
     const momentTypes = result
       .filter((r) => r.kind === "lol-moment")
       .map((r) => (r.kind === "lol-moment" ? r.momentType : null));
     expect(new Set(momentTypes)).toEqual(
-      new Set(["OFF_META_PICK", "RANK_UP", "KDA_OUTLIER"])
+      new Set(["OFF_META_PICK", "RANK_UP", "KDA_OUTLIER", "RETURN_FROM_HIATUS"])
     );
   });
 });

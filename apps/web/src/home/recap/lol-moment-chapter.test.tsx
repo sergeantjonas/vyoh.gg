@@ -79,6 +79,7 @@ const baseProps = {
   matchStats,
   rankUp: null,
   kdaOutlier: null,
+  hiatusReturn: null,
 };
 
 const rankUpDelta = {
@@ -100,6 +101,7 @@ const rankUpProps = {
   matchStats,
   rankUp: rankUpDelta,
   kdaOutlier: null,
+  hiatusReturn: null,
 };
 
 const kdaOutlierStats = {
@@ -124,6 +126,20 @@ const kdaOutlierProps = {
   },
   rankUp: null,
   kdaOutlier: kdaOutlierStats,
+  hiatusReturn: null,
+};
+
+const hiatusReturnProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_BACK",
+  daysSince: 2,
+  slug: "lol-moment-hiatus-return-EUW_BACK",
+  momentType: "RETURN_FROM_HIATUS" as const,
+  matchStats,
+  rankUp: null,
+  kdaOutlier: null,
+  hiatusReturn: { gapDays: 35 },
 };
 
 beforeEach(() => {
@@ -288,7 +304,7 @@ describe("LolMomentChapter (KDA_OUTLIER)", () => {
     const prose = screen.getAllByText(/Posted a/i)[0]?.closest("p")?.textContent;
     expect(prose).toMatch(/13\.0\s*KDA/);
     expect(prose).toMatch(/Ahri/);
-    expect(prose).toMatch(/5\.2×\s*the 90-day baseline/);
+    expect(prose).toMatch(/5\.2×\s*the 30-day baseline/);
   });
 
   it("does NOT render a leading emblem for KDA_OUTLIER (text-only masthead)", () => {
@@ -318,8 +334,49 @@ describe("LolMomentChapter (KDA_OUTLIER)", () => {
     );
     const prose = screen.getAllByText(/Posted a/i)[0]?.closest("p")?.textContent;
     expect(prose).toMatch(/12\.5\s*KDA/);
-    // No "Nx the 90-day baseline" tail when the multiplier is undefined.
-    expect(prose).not.toMatch(/the 90-day baseline/);
+    // No "Nx the 30-day baseline" tail when the multiplier is undefined.
+    expect(prose).not.toMatch(/the 30-day baseline/);
+  });
+});
+
+describe("LolMomentChapter (RETURN_FROM_HIATUS)", () => {
+  it("renders the return eyebrow, champion masthead, and gap-away prose", () => {
+    render(<LolMomentChapter {...hiatusReturnProps} />);
+    expect(screen.getByText("Return")).toBeTruthy();
+    // Masthead is the champion; the return moment centerpiece is "you're
+    // back", with the champion as the visual subject.
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Ahri");
+    const prose = screen.getAllByText(/away from ranked/i)[0]?.closest("p")?.textContent;
+    // 35d → "A month" + "away from ranked, then back on Ahri."
+    expect(prose).toMatch(/A month\s*away from ranked/);
+    expect(prose).toMatch(/back on\s*Ahri/);
+  });
+
+  it.each([
+    [14, "2 weeks"],
+    [21, "3 weeks"],
+    [40, "A month"],
+    [55, "A month"],
+    [60, "2 months"],
+    [95, "3 months"],
+    [180, "6 months"],
+  ])("formats a %d-day gap as %s in the prose", (gap, label) => {
+    render(<LolMomentChapter {...hiatusReturnProps} hiatusReturn={{ gapDays: gap }} />);
+    const prose = screen.getAllByText(/away from ranked/i)[0]?.closest("p")?.textContent;
+    expect(prose).toContain(label);
+  });
+
+  it("exposes a Return chapter-label data attribute", () => {
+    const { container } = render(<LolMomentChapter {...hiatusReturnProps} />);
+    const el = container.querySelector("[data-recap-chapter]");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Return");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Ahri");
+  });
+
+  it("falls back to the off-meta framing when hiatusReturn is null (defensive)", () => {
+    render(<LolMomentChapter {...hiatusReturnProps} hiatusReturn={null} />);
+    expect(screen.queryByText("Return")).toBeNull();
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 

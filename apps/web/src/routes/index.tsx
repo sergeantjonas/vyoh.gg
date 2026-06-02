@@ -106,6 +106,7 @@ function HomePage() {
                 matchStats={c.matchStats}
                 rankUp={c.rankUp}
                 kdaOutlier={c.kdaOutlier}
+                hiatusReturn={c.hiatusReturn}
               />
             );
           }

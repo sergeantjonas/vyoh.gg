@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   type LolAccount,
+  type LolHiatusReturnStats,
   type LolKdaOutlierStats,
   type LolMomentChapterDescriptor,
   type LolMomentMatchStats,
@@ -85,10 +86,18 @@ function momentCopy(args: {
   anchorDisplayName: string;
   rankUp: LolRankUpDelta | null;
   kdaOutlier: LolKdaOutlierStats | null;
+  hiatusReturn: LolHiatusReturnStats | null;
   emblemYear: number;
 }): MomentCopy {
-  const { momentType, displayName, anchorDisplayName, rankUp, kdaOutlier, emblemYear } =
-    args;
+  const {
+    momentType,
+    displayName,
+    anchorDisplayName,
+    rankUp,
+    kdaOutlier,
+    hiatusReturn,
+    emblemYear,
+  } = args;
 
   if (momentType === "RANK_UP" && rankUp) {
     const fromTitle = formatRankTitle(rankUp.fromTier, rankUp.fromRank);
@@ -120,6 +129,26 @@ function momentCopy(args: {
     };
   }
 
+  if (momentType === "RETURN_FROM_HIATUS" && hiatusReturn) {
+    // Editorial gap formatting: short hiatuses read as days, long ones as
+    // weeks/months. Keeps the prose tight — "ninety days away" reads better
+    // than "90 days away" on the page.
+    const gapLabel = formatHiatusGap(hiatusReturn.gapDays);
+    return {
+      eyebrow: "Return",
+      mastheadText: displayName,
+      leadingVisual: null,
+      chapterLabel: `Return · ${displayName}`,
+      ariaLabel: `Return from hiatus on ${displayName}`,
+      body: (
+        <>
+          <Accent>{gapLabel}</Accent> away from ranked, then back on{" "}
+          <Accent>{displayName}</Accent>.
+        </>
+      ),
+    };
+  }
+
   if (momentType === "KDA_OUTLIER" && kdaOutlier) {
     // matchKda / baselineKda is the editorial multiplier. Guard against
     // baseline=0 (shouldn't happen — detector requires 8+ baseline games —
@@ -141,7 +170,7 @@ function momentCopy(args: {
           {factorLabel ? (
             <>
               {" "}
-              — <Accent>{factorLabel}</Accent> the 90-day baseline
+              — <Accent>{factorLabel}</Accent> the 30-day baseline
             </>
           ) : null}
           .
@@ -163,6 +192,20 @@ function momentCopy(args: {
       </>
     ),
   };
+}
+
+/** Editorial gap formatter for RETURN_FROM_HIATUS prose. Maps integer days
+ *  to a human-readable phrase: weeks for short hiatuses, months for long
+ *  ones. Threshold is HIATUS_THRESHOLD_DAYS (14d) on the detector side, so
+ *  this never receives < 14. */
+function formatHiatusGap(gapDays: number): string {
+  if (gapDays < 30) {
+    const weeks = Math.round(gapDays / 7);
+    return weeks === 1 ? "A week" : `${weeks} weeks`;
+  }
+  if (gapDays < 60) return "A month";
+  const months = Math.round(gapDays / 30);
+  return `${months} months`;
 }
 
 function formatDaysSince(daysSince: number): string {
@@ -189,6 +232,7 @@ interface Props {
   matchStats: LolMomentMatchStats | null;
   rankUp: LolRankUpDelta | null;
   kdaOutlier: LolKdaOutlierStats | null;
+  hiatusReturn: LolHiatusReturnStats | null;
 }
 
 /**
@@ -215,6 +259,7 @@ export function LolMomentChapter({
   matchStats,
   rankUp,
   kdaOutlier,
+  hiatusReturn,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
@@ -261,6 +306,7 @@ export function LolMomentChapter({
     anchorDisplayName,
     rankUp,
     kdaOutlier,
+    hiatusReturn,
     emblemYear,
   });
   const whenLine = formatDaysSince(daysSince);

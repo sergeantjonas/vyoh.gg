@@ -91,6 +91,7 @@ describe("applyDevLolMomentOverride", () => {
     matchStats: null,
     rankUp: null,
     kdaOutlier: null,
+    hiatusReturn: null,
     framing: null,
   };
 

@@ -83,6 +83,16 @@ export interface LolKdaOutlierStats {
 }
 
 /**
+ * Hiatus framing carried on a `RETURN_FROM_HIATUS` LoL moment chapter. The
+ * chapter narrates "X days away, then back on the rift on Champ"; `gapDays`
+ * is the integer number of days between the return match and the previous
+ * owner ranked match. Null on other momentTypes.
+ */
+export interface LolHiatusReturnStats {
+  gapDays: number;
+}
+
+/**
  * LoL moment chapter — single-event narrative (rank-up, KDA outlier, off-meta
  * pick, streak, return-from-hiatus, etc.). Schema declared now so the
  * `/recap/chapters` contract is stable; emitted in R-6.
@@ -106,6 +116,7 @@ export interface LolMomentChapterDescriptor {
   matchStats: LolMomentMatchStats | null;
   rankUp: LolRankUpDelta | null;
   kdaOutlier: LolKdaOutlierStats | null;
+  hiatusReturn: LolHiatusReturnStats | null;
   framing: RecapChapterFraming | null;
 }
 

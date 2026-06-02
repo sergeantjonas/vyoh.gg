@@ -54,13 +54,11 @@ const RANK_UP_TIER_SIGNAL = 35;
  *  the half-life boundary, and decays to ~5.5 at 28d. */
 const RANK_UP_DIVISION_SIGNAL = 22;
 
-/** Lookback window for KDA outlier detection. 90d matches the LoL peaks-chip
- *  framing ("this season") and gives a denser baseline than the 30d frame
- *  used by other moment detectors — KDA averages need more games than rank
- *  transitions to stabilise. Recency decay still suppresses ancient standouts
- *  through `recapScore`, so a 60d-old peak rarely outscores a fresh decent
- *  game. */
-const KDA_OUTLIER_WINDOW_DAYS = 90;
+/** Lookback window for KDA outlier detection — same 30d "this season" frame
+ *  used everywhere else in the moment family. The owner's recent baseline is
+ *  what makes an outlier an outlier; widening this would drown a hot streak
+ *  in a cold-season average. */
+const KDA_OUTLIER_WINDOW_DAYS = 30;
 
 /** Minimum number of ranked matches required before computing a baseline.
  *  Below this and "your average" isn't a real average — five games of "9 KDA"
@@ -87,6 +85,34 @@ const KDA_OUTLIER_ABSOLUTE_FLOOR = 6.0;
  *  KDA at 0d lands ≈ 36, clearly above an off-meta-pick-recency-boosted
  *  signal so a fresh standout wins over a fresh off-meta. */
 const KDA_OUTLIER_SIGNAL_FACTOR = 3;
+
+/** Minimum gap (days) between two ranked owner matches to count as a
+ *  "hiatus return". 14d is the threshold below which "a break" reads as
+ *  routine rest rather than an editorial moment. A 7d gap is just "took a
+ *  weekend off"; 14d+ starts feeling like "you stopped playing for a while
+ *  and came back". */
+const HIATUS_THRESHOLD_DAYS = 14;
+
+/** The return match must have happened within this many days for the
+ *  chapter to surface. A return from hiatus 60d ago is editorially stale —
+ *  the page is about *current* moments, and recency decay would drop it
+ *  anyway. 30d matches the other moment detectors' frame. */
+const HIATUS_RETURN_WINDOW_DAYS = 30;
+
+/** Upper bound on gap days fed into the base signal. Beyond this point the
+ *  story is "you came back from dormancy" regardless of exact duration —
+ *  a 6-month break and a 9-month break read about the same to the reader.
+ *  Caps `baseSignal` at HIATUS_GAP_CAP_DAYS × HIATUS_SIGNAL_FACTOR. */
+const HIATUS_GAP_CAP_DAYS = 90;
+
+/** Per-day scaling for the hiatus base signal. gapDays × factor → baseSignal
+ *  before decay. Calibrated so a 14d gap (just-qualifies) → 5.6 raw, a 30d
+ *  gap → 12, a 60d gap → 24, a 90d+ gap → 36 (capped). Editorial weight
+ *  scales with break length: short hiatus is a quiet beat, long hiatus is
+ *  a strong story. */
+const HIATUS_SIGNAL_FACTOR = 0.4;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function computeKda(kills: number, deaths: number, assists: number): number {
   return (kills + assists) / Math.max(1, deaths);
@@ -118,12 +144,13 @@ export class LolMomentsService {
   ) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    const [offMeta, rankUps, kdaOutliers] = await Promise.all([
+    const [offMeta, rankUps, kdaOutliers, hiatusReturns] = await Promise.all([
       this.detectOffMetaPicks(now),
       this.detectRankUps(now),
       this.detectKdaOutliers(now),
+      this.detectReturnsFromHiatus(now),
     ]);
-    return [...offMeta, ...rankUps, ...kdaOutliers];
+    return [...offMeta, ...rankUps, ...kdaOutliers, ...hiatusReturns];
   }
 
   /**
@@ -361,12 +388,12 @@ export class LolMomentsService {
 
   /**
    * Detect the owner's best recent KDA performance — a match whose
-   * `(kills + assists) / max(1, deaths)` clearly outshines their 90-day
+   * `(kills + assists) / max(1, deaths)` clearly outshines their 30-day
    * ranked baseline. The chapter framing leans on the multiplier ("4.2× the
-   * 90-day average"), so the baseline is part of the descriptor receipt.
+   * 30-day average"), so the baseline is part of the descriptor receipt.
    *
    * Algorithm:
-   *   1. Read every ranked match in the 90d window for the owner. If there
+   *   1. Read every ranked match in the 30d window for the owner. If there
    *      are fewer than `KDA_OUTLIER_BASELINE_MIN_MATCHES`, bail — without a
    *      baseline the multiplier is meaningless.
    *   2. Compute the mean KDA across that set as the baseline.
@@ -464,6 +491,107 @@ export class LolMomentsService {
           matchKda: bestKda,
           baselineKda,
         },
+      },
+    ];
+  }
+
+  /**
+   * Detect the owner's most recent return from a ranked-play hiatus — a
+   * match where the previous owner ranked game was ≥ HIATUS_THRESHOLD_DAYS
+   * earlier. Editorial framing: "X days away, then back on Champ".
+   *
+   * Algorithm:
+   *   1. Read every owner ranked match (all-time, ASC by playedAt). The
+   *      window restriction applies to the RETURN match, not the previous
+   *      match — a 6-month break followed by a fresh return is a story.
+   *   2. Walk consecutive pairs (prev, curr). If `curr.playedAt - prev.playedAt`
+   *      ≥ HIATUS_THRESHOLD_DAYS AND `curr.playedAt` is within
+   *      HIATUS_RETURN_WINDOW_DAYS of now, `curr` qualifies as a return.
+   *   3. Pick the most recent qualifying return — editorially, if the owner
+   *      came back twice in the window (multiple smaller hiatuses), the
+   *      freshest comeback is the strongest framing.
+   *   4. baseSignal scales linearly with gapDays up to HIATUS_GAP_CAP_DAYS,
+   *      then plateaus. A two-week break is a quiet beat; three months is
+   *      a strong one.
+   *
+   * Returns ≤1 candidate per call. The chapter shares the single-match
+   * structural template with OFF_META_PICK / KDA_OUTLIER (matchStats from
+   * the return match, championAlias drives the splash); the new
+   * `hiatusReturn: { gapDays }` field carries the receipt for the prose.
+   */
+  async detectReturnsFromHiatus(now: Date): Promise<RecapCandidate[]> {
+    const ownerPuuids = await this.identity.getOwnerPuuids();
+    if (ownerPuuids.length === 0) return [];
+
+    const returnCutoff = new Date(now.getTime() - HIATUS_RETURN_WINDOW_DAYS * DAY_MS);
+
+    // Fetch ALL owner ranked matches — the "previous match" reference can
+    // be arbitrarily old. We rely on `ownerPuuids` filter + the ranked-queue
+    // narrowing to keep the row count tractable (the owner has hundreds, not
+    // hundreds of thousands).
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: { in: ownerPuuids },
+        remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
+      },
+      orderBy: { playedAt: "asc" },
+      select: {
+        matchId: true,
+        champion: true,
+        playedAt: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        queueType: true,
+      },
+    });
+
+    // Walk consecutive pairs newest-last; keep the latest qualifying return.
+    let bestReturn: { match: (typeof matches)[number]; gapDays: number } | null = null;
+    for (let i = 1; i < matches.length; i++) {
+      const curr = matches[i];
+      const prev = matches[i - 1];
+      if (!curr || !prev) continue;
+      if (curr.playedAt < returnCutoff) continue;
+      const gapMs = curr.playedAt.getTime() - prev.playedAt.getTime();
+      const gapDays = Math.floor(gapMs / DAY_MS);
+      if (gapDays < HIATUS_THRESHOLD_DAYS) continue;
+      // ASC order means a later iteration with a qualifying gap is always
+      // the freshest return — keep overwriting until the loop ends.
+      bestReturn = { match: curr, gapDays };
+    }
+
+    if (bestReturn === null) return [];
+
+    const { match: m, gapDays } = bestReturn;
+    const daysSince = Math.max(
+      0,
+      Math.floor((now.getTime() - m.playedAt.getTime()) / DAY_MS)
+    );
+    const cappedGapDays = Math.min(gapDays, HIATUS_GAP_CAP_DAYS);
+    const baseSignal = cappedGapDays * HIATUS_SIGNAL_FACTOR;
+
+    return [
+      {
+        kind: "lol-moment",
+        slug: `lol-moment-hiatus-return-${m.matchId}`,
+        momentType: "RETURN_FROM_HIATUS",
+        baseSignal,
+        daysSince,
+        matchId: m.matchId,
+        championAlias: m.champion,
+        matchStats: {
+          kills: m.kills,
+          deaths: m.deaths,
+          assists: m.assists,
+          win: m.win,
+          durationSec: m.durationSec,
+          queueType: m.queueType,
+        },
+        hiatusReturn: { gapDays },
       },
     ];
   }
