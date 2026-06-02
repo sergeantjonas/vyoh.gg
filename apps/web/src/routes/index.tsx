@@ -105,6 +105,7 @@ function HomePage() {
                 momentType={c.momentType}
                 matchStats={c.matchStats}
                 rankUp={c.rankUp}
+                kdaOutlier={c.kdaOutlier}
               />
             );
           }

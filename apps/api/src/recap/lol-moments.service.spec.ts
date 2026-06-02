@@ -32,20 +32,42 @@ interface SnapshotMatchRow extends MatchRow {
   snapshotLpBefore: number | null;
 }
 
+interface KdaMatchRow extends MatchRow {
+  kills: number;
+  deaths: number;
+  assists: number;
+  win: boolean;
+  durationSec: number;
+  queueType: string;
+}
+
 function makeService(opts: {
   ownerPuuids?: string[];
   championCounts?: ChampionCountRow[];
   offMetaMatch?: MatchRow | null;
   rankUpRows?: SnapshotMatchRow[];
+  kdaRows?: KdaMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
   } as unknown as IdentityService;
+  // `findMany` is called by BOTH detectRankUps and detectKdaOutliers. They
+  // differ by `where.snapshotTier` (only rank-up filters on it), so the
+  // mock discriminates by argument shape instead of forcing tests to choose
+  // one detector at a time.
+  const findManyImpl = vi
+    .fn()
+    .mockImplementation((args: { where: { snapshotTier?: { not: null } | null } }) => {
+      const isRankUpCall = args.where?.snapshotTier !== undefined;
+      return Promise.resolve(
+        isRankUpCall ? (opts.rankUpRows ?? []) : (opts.kdaRows ?? [])
+      );
+    });
   const prisma = {
     match: {
       groupBy: vi.fn().mockResolvedValue(opts.championCounts ?? []),
       findFirst: vi.fn().mockResolvedValue(opts.offMetaMatch ?? null),
-      findMany: vi.fn().mockResolvedValue(opts.rankUpRows ?? []),
+      findMany: findManyImpl,
     },
   } as unknown as PrismaService;
   return {
@@ -401,6 +423,189 @@ describe("LolMomentsService.detectRankUps", () => {
   });
 });
 
+function makeKdaRow(opts: {
+  matchId?: string;
+  champion?: string;
+  playedAt?: Date;
+  kills: number;
+  deaths: number;
+  assists: number;
+  win?: boolean;
+  durationSec?: number;
+  queueType?: string;
+}): KdaMatchRow {
+  return {
+    matchId: opts.matchId ?? "EUW_KDA_1",
+    champion: opts.champion ?? "Ahri",
+    playedAt: opts.playedAt ?? new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+    kills: opts.kills,
+    deaths: opts.deaths,
+    assists: opts.assists,
+    win: opts.win ?? true,
+    durationSec: opts.durationSec ?? 1820,
+    queueType: opts.queueType ?? "Ranked Solo",
+  };
+}
+
+// 8 baseline games averaging ~2.0 KDA (the BASELINE_MIN_MATCHES floor) —
+// each test prepends its standout game so the standout's KDA dominates the
+// "best KDA" pick and the baseline stays around 2.0 with the new game folded
+// in. Keeps each test self-contained without re-deriving the average.
+const KDA_BASELINE_GAMES: KdaMatchRow[] = Array.from({ length: 8 }, (_, i) =>
+  makeKdaRow({
+    matchId: `EUW_BASE_${i}`,
+    playedAt: new Date(NOW.getTime() - (5 + i) * 24 * 60 * 60 * 1000),
+    kills: 4,
+    deaths: 4,
+    assists: 4,
+  })
+);
+
+describe("LolMomentsService.detectKdaOutliers", () => {
+  it("returns no candidates when there are no owner puuids", async () => {
+    const { service, prisma } = makeService({ ownerPuuids: [] });
+    const result = await service.detectKdaOutliers(NOW);
+    expect(result).toEqual([]);
+    expect(prisma.match.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns no candidates below the baseline-minimum sample size", async () => {
+    // Even a 30/0/30 game can't surface if the owner only has 5 ranked games
+    // in the window — there's no baseline to multiply against, and the
+    // "standout vs your average" framing breaks down.
+    const { service } = makeService({
+      kdaRows: [
+        makeKdaRow({ kills: 30, deaths: 0, assists: 30 }),
+        ...KDA_BASELINE_GAMES.slice(0, 4),
+      ],
+    });
+    const result = await service.detectKdaOutliers(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("surfaces the highest-KDA match when it clears both the ratio and absolute floor", async () => {
+    const standout = makeKdaRow({
+      matchId: "EUW_STAND",
+      champion: "Ahri",
+      playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+      kills: 12,
+      deaths: 2,
+      assists: 14,
+    });
+    const { service } = makeService({
+      kdaRows: [standout, ...KDA_BASELINE_GAMES],
+    });
+    const result = await service.detectKdaOutliers(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") {
+      throw new Error("expected a lol-moment candidate");
+    }
+    expect(c.momentType).toBe("KDA_OUTLIER");
+    expect(c.matchId).toBe("EUW_STAND");
+    expect(c.championAlias).toBe("Ahri");
+    expect(c.slug).toBe("lol-moment-kda-outlier-EUW_STAND");
+    expect(c.daysSince).toBe(1);
+    expect(c.kdaOutlier?.matchKda).toBeCloseTo(13.0, 1);
+    expect(c.kdaOutlier?.baselineKda).toBeGreaterThan(2.0);
+    expect(c.matchStats).toEqual({
+      kills: 12,
+      deaths: 2,
+      assists: 14,
+      win: true,
+      durationSec: 1820,
+      queueType: "Ranked Solo",
+    });
+  });
+
+  it("drops candidates that beat the ratio but fall below the absolute floor", async () => {
+    // Baseline of cold-streak games (1.5 KDA average); 3.0 KDA game is 2×
+    // the baseline but well under the 6.0 absolute floor — not a "standout".
+    const coldStreak = Array.from({ length: 8 }, (_, i) =>
+      makeKdaRow({
+        matchId: `EUW_COLD_${i}`,
+        playedAt: new Date(NOW.getTime() - (5 + i) * 24 * 60 * 60 * 1000),
+        kills: 2,
+        deaths: 4,
+        assists: 4,
+      })
+    );
+    const { service } = makeService({
+      kdaRows: [
+        makeKdaRow({ kills: 3, deaths: 2, assists: 3 }), // 3.0 KDA — clears ratio, fails absolute floor
+        ...coldStreak,
+      ],
+    });
+    const result = await service.detectKdaOutliers(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("drops candidates that clear the absolute floor but fall below the baseline ratio", async () => {
+    // Hot-streak baseline (5.0 KDA avg); a 6.5 KDA game clears the absolute
+    // floor but only 1.3× the baseline — not a standout vs. the owner's
+    // typical performance.
+    const hotStreak = Array.from({ length: 8 }, (_, i) =>
+      makeKdaRow({
+        matchId: `EUW_HOT_${i}`,
+        playedAt: new Date(NOW.getTime() - (5 + i) * 24 * 60 * 60 * 1000),
+        kills: 8,
+        deaths: 2,
+        assists: 2,
+      })
+    );
+    const { service } = makeService({
+      kdaRows: [
+        makeKdaRow({ kills: 6, deaths: 2, assists: 7 }), // 6.5 KDA — 1.3× the 5.0 baseline
+        ...hotStreak,
+      ],
+    });
+    const result = await service.detectKdaOutliers(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("picks the highest-KDA match across the window, not the most recent qualifying one", async () => {
+    const newerSmaller = makeKdaRow({
+      matchId: "EUW_NEWER",
+      playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+      kills: 8,
+      deaths: 2,
+      assists: 7,
+    });
+    const olderBigger = makeKdaRow({
+      matchId: "EUW_BIGGER",
+      playedAt: new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000),
+      kills: 15,
+      deaths: 1,
+      assists: 10,
+    });
+    const { service } = makeService({
+      kdaRows: [newerSmaller, olderBigger, ...KDA_BASELINE_GAMES],
+    });
+    const result = await service.detectKdaOutliers(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.matchId).toBe("EUW_BIGGER");
+  });
+
+  it("constrains the findMany scan to ranked queues only", async () => {
+    const { service, prisma } = makeService({ kdaRows: [] });
+    await service.detectKdaOutliers(NOW);
+    const calls = vi.mocked(prisma.match.findMany).mock.calls;
+    // findMany is shared with detectRankUps — pick the call that's the KDA
+    // detector (no snapshotTier filter).
+    const kdaCall = calls.find(
+      (c) =>
+        (c[0] as { where: { snapshotTier?: unknown } }).where?.snapshotTier === undefined
+    );
+    expect(kdaCall).toBeTruthy();
+    const args = kdaCall?.[0] as { where: { queueType: { in: string[] } } };
+    expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+});
+
 describe("LolMomentsService.detectAll", () => {
   it("collects every detector's output into one candidate list", async () => {
     const { service } = makeService({
@@ -422,12 +627,24 @@ describe("LolMomentsService.detectAll", () => {
           fromLp: 96,
         }),
       ],
+      kdaRows: [
+        makeKdaRow({
+          matchId: "EUW_STAND",
+          playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+          kills: 12,
+          deaths: 2,
+          assists: 14,
+        }),
+        ...KDA_BASELINE_GAMES,
+      ],
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(3);
     const momentTypes = result
       .filter((r) => r.kind === "lol-moment")
       .map((r) => (r.kind === "lol-moment" ? r.momentType : null));
-    expect(new Set(momentTypes)).toEqual(new Set(["OFF_META_PICK", "RANK_UP"]));
+    expect(new Set(momentTypes)).toEqual(
+      new Set(["OFF_META_PICK", "RANK_UP", "KDA_OUTLIER"])
+    );
   });
 });

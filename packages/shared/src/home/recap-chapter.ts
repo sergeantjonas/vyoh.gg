@@ -72,6 +72,17 @@ export interface LolRankUpDelta {
 }
 
 /**
+ * KDA outlier framing carried on a `KDA_OUTLIER` LoL moment chapter. The
+ * match's KDA is the headline number; `baselineKda` is the owner's 30-day
+ * ranked mean so the chapter can show the "Nx the average" multiplier. Both
+ * stored as floats; the chapter rounds for display. Null on other momentTypes.
+ */
+export interface LolKdaOutlierStats {
+  matchKda: number;
+  baselineKda: number;
+}
+
+/**
  * LoL moment chapter — single-event narrative (rank-up, KDA outlier, off-meta
  * pick, streak, return-from-hiatus, etc.). Schema declared now so the
  * `/recap/chapters` contract is stable; emitted in R-6.
@@ -94,6 +105,7 @@ export interface LolMomentChapterDescriptor {
   championAlias: string | null;
   matchStats: LolMomentMatchStats | null;
   rankUp: LolRankUpDelta | null;
+  kdaOutlier: LolKdaOutlierStats | null;
   framing: RecapChapterFraming | null;
 }
 

@@ -103,8 +103,7 @@ export function clipSessionMinutes(
 export class HomeActivityIntensityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getActivityIntensity(): Promise<HomeActivityIntensity> {
-    const now = new Date();
+  async getActivityIntensity(now: Date = new Date()): Promise<HomeActivityIntensity> {
     const dayStart = startOfLocalDay(now, TIME_ZONE);
     const last24h = new Date(now.getTime() - DAY_MS);
     const windowStart = dayStart < last24h ? dayStart : last24h;

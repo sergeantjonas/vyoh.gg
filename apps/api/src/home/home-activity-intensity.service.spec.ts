@@ -120,7 +120,10 @@ describe("HomeActivityIntensityService.getActivityIntensity", () => {
   }
 
   it("rolls up matches in last 24h and Steam minutes today into a 0..1 intensity", async () => {
-    const now = new Date();
+    // Pin `now` to mid-day Brussels so a 30-min-old session sits cleanly
+    // inside "today" — without pinning, runs around midnight Brussels
+    // straddle the day boundary and only the post-midnight slice counts.
+    const now = new Date("2026-06-02T12:00:00Z");
     const recent = new Date(now.getTime() - 60 * 60 * 1000); // 1h ago
     const sessionStart = new Date(now.getTime() - 30 * 60 * 1000); // 30m ago
     const service = makeService(
@@ -128,7 +131,7 @@ describe("HomeActivityIntensityService.getActivityIntensity", () => {
       [{ startedAt: sessionStart, endedAt: null }]
     );
 
-    const result = await service.getActivityIntensity();
+    const result = await service.getActivityIntensity(now);
 
     expect(result.lolMatches24h).toBe(3);
     // 30 min today → steamNorm = 0.25; lolNorm = 3/6 = 0.5 → max = 0.5

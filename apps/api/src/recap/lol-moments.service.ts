@@ -54,6 +54,42 @@ const RANK_UP_TIER_SIGNAL = 35;
  *  the half-life boundary, and decays to ~5.5 at 28d. */
 const RANK_UP_DIVISION_SIGNAL = 22;
 
+/** Lookback window for KDA outlier detection — same 30d "this season" frame
+ *  used everywhere else in the moment family. The owner's recent baseline is
+ *  what makes an outlier an outlier; widening this would drown a hot streak
+ *  in a cold-season average. */
+const KDA_OUTLIER_WINDOW_DAYS = 30;
+
+/** Minimum number of ranked matches required before computing a baseline.
+ *  Below this and "your average" isn't a real average — five games of "9 KDA"
+ *  averaged from one outlier doesn't tell us anything about typical perf.
+ *  8 strikes a balance: enough for a baseline, low enough that recently-active
+ *  accounts qualify after a week or two. */
+const KDA_OUTLIER_BASELINE_MIN_MATCHES = 8;
+
+/** Minimum ratio of match KDA to baseline KDA for a game to count as an
+ *  outlier. 1.8× means a player averaging 3.0 needs ≥5.4 KDA to surface;
+ *  a player averaging 5.0 needs ≥9.0. Tight enough that routine games don't
+ *  qualify, loose enough that a clearly good performance does. */
+const KDA_OUTLIER_RATIO = 1.8;
+
+/** Absolute KDA floor — independent of baseline — that an outlier must clear.
+ *  Prevents a player on a 1.5-KDA cold streak from getting a "standout" chapter
+ *  for a routine 3.0 game (1.5 × 1.8 = 2.7 — below this floor). 6.0 is the
+ *  shape of an editorially-real standout, not just a not-terrible game. */
+const KDA_OUTLIER_ABSOLUTE_FLOOR = 6.0;
+
+/** Per-KDA-unit scaling for the base signal. matchKda × factor → baseSignal
+ *  before recency decay. Calibrated so a 7 KDA match at 0d lands ≈ 21 raw
+ *  score — clears the floor (5) at the 14d half-life, sinks past ~30d. A 12
+ *  KDA at 0d lands ≈ 36, clearly above an off-meta-pick-recency-boosted
+ *  signal so a fresh standout wins over a fresh off-meta. */
+const KDA_OUTLIER_SIGNAL_FACTOR = 3;
+
+function computeKda(kills: number, deaths: number, assists: number): number {
+  return (kills + assists) / Math.max(1, deaths);
+}
+
 /** Queue types where champion pick is a deliberate signal under stakes.
  *  ARAM rolls champions randomly; Swarm/Arena/URF run modified rulesets that
  *  invite experimentation; Normal Draft is practice space where Ahri OTPs
@@ -80,11 +116,12 @@ export class LolMomentsService {
   ) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    const [offMeta, rankUps] = await Promise.all([
+    const [offMeta, rankUps, kdaOutliers] = await Promise.all([
       this.detectOffMetaPicks(now),
       this.detectRankUps(now),
+      this.detectKdaOutliers(now),
     ]);
-    return [...offMeta, ...rankUps];
+    return [...offMeta, ...rankUps, ...kdaOutliers];
   }
 
   /**
@@ -318,5 +355,114 @@ export class LolMomentsService {
     }
 
     return [];
+  }
+
+  /**
+   * Detect the owner's best recent KDA performance — a match whose
+   * `(kills + assists) / max(1, deaths)` clearly outshines their 30-day
+   * ranked baseline. The chapter framing leans on the multiplier ("4.2× the
+   * 30-day average"), so the baseline is part of the descriptor receipt.
+   *
+   * Algorithm:
+   *   1. Read every ranked match in the 30d window for the owner. If there
+   *      are fewer than `KDA_OUTLIER_BASELINE_MIN_MATCHES`, bail — without a
+   *      baseline the multiplier is meaningless.
+   *   2. Compute the mean KDA across that set as the baseline.
+   *   3. Pick the match with the HIGHEST KDA where
+   *        matchKda >= baseline × KDA_OUTLIER_RATIO
+   *        AND matchKda >= KDA_OUTLIER_ABSOLUTE_FLOOR.
+   *      Highest (not most recent) because the editorial story is "this was
+   *      your best game", not "your last decent game"; recency decay through
+   *      `recapScore` handles freshness on top of magnitude.
+   *   4. baseSignal scales linearly with matchKda × KDA_OUTLIER_SIGNAL_FACTOR
+   *      so a 7 KDA → ~21, a 12 KDA → ~36. Decay drops it below the floor
+   *      around 30d for typical magnitudes.
+   *
+   * Returns ≤1 candidate per call — multiple "standout" rows in one chapter
+   * stream would dilute the framing.
+   */
+  async detectKdaOutliers(now: Date): Promise<RecapCandidate[]> {
+    const ownerPuuids = await this.identity.getOwnerPuuids();
+    if (ownerPuuids.length === 0) return [];
+
+    const candidateCutoff = new Date(
+      now.getTime() - KDA_OUTLIER_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    const recent = await this.prisma.match.findMany({
+      where: {
+        puuid: { in: ownerPuuids },
+        playedAt: { gte: candidateCutoff },
+        remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
+      },
+      orderBy: { playedAt: "desc" },
+      select: {
+        matchId: true,
+        champion: true,
+        playedAt: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        queueType: true,
+      },
+    });
+
+    if (recent.length < KDA_OUTLIER_BASELINE_MIN_MATCHES) return [];
+
+    const baselineKda =
+      recent.reduce((sum, m) => sum + computeKda(m.kills, m.deaths, m.assists), 0) /
+      recent.length;
+
+    const threshold = Math.max(
+      baselineKda * KDA_OUTLIER_RATIO,
+      KDA_OUTLIER_ABSOLUTE_FLOOR
+    );
+
+    // Highest-KDA match in the window — tie-break by recency (newer wins)
+    // so two identical-KDA peaks favour the freshest framing.
+    let best: (typeof recent)[number] | null = null;
+    let bestKda = 0;
+    for (const m of recent) {
+      const kda = computeKda(m.kills, m.deaths, m.assists);
+      if (kda < threshold) continue;
+      if (best === null || kda > bestKda) {
+        best = m;
+        bestKda = kda;
+      }
+    }
+
+    if (best === null) return [];
+
+    const daysSince = Math.max(
+      0,
+      Math.floor((now.getTime() - best.playedAt.getTime()) / (24 * 60 * 60 * 1000))
+    );
+
+    return [
+      {
+        kind: "lol-moment",
+        slug: `lol-moment-kda-outlier-${best.matchId}`,
+        momentType: "KDA_OUTLIER",
+        baseSignal: bestKda * KDA_OUTLIER_SIGNAL_FACTOR,
+        daysSince,
+        matchId: best.matchId,
+        championAlias: best.champion,
+        matchStats: {
+          kills: best.kills,
+          deaths: best.deaths,
+          assists: best.assists,
+          win: best.win,
+          durationSec: best.durationSec,
+          queueType: best.queueType,
+        },
+        kdaOutlier: {
+          matchKda: bestKda,
+          baselineKda,
+        },
+      },
+    ];
   }
 }

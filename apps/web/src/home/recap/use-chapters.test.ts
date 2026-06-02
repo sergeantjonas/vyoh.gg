@@ -90,6 +90,7 @@ describe("applyDevLolMomentOverride", () => {
     championAlias: "Renekton",
     matchStats: null,
     rankUp: null,
+    kdaOutlier: null,
     framing: null,
   };
 

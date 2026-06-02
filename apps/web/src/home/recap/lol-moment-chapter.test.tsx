@@ -78,6 +78,7 @@ const baseProps = {
   momentType: "OFF_META_PICK" as const,
   matchStats,
   rankUp: null,
+  kdaOutlier: null,
 };
 
 const rankUpDelta = {
@@ -98,6 +99,31 @@ const rankUpProps = {
   momentType: "RANK_UP" as const,
   matchStats,
   rankUp: rankUpDelta,
+  kdaOutlier: null,
+};
+
+const kdaOutlierStats = {
+  matchKda: 13.0,
+  baselineKda: 2.5,
+};
+
+const kdaOutlierProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_KDA",
+  daysSince: 1,
+  slug: "lol-moment-kda-outlier-EUW_KDA",
+  momentType: "KDA_OUTLIER" as const,
+  matchStats: {
+    kills: 12,
+    deaths: 2,
+    assists: 14,
+    win: true,
+    durationSec: 1820,
+    queueType: "Ranked Solo",
+  },
+  rankUp: null,
+  kdaOutlier: kdaOutlierStats,
 };
 
 beforeEach(() => {
@@ -248,6 +274,52 @@ describe("LolMomentChapter (RANK_UP)", () => {
     render(<LolMomentChapter {...rankUpProps} rankUp={null} />);
     expect(screen.queryByText("Rank up")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
+  });
+});
+
+describe("LolMomentChapter (KDA_OUTLIER)", () => {
+  it("renders the standout eyebrow, champion masthead, and KDA + multiplier prose", () => {
+    render(<LolMomentChapter {...kdaOutlierProps} />);
+    expect(screen.getByText("Standout game")).toBeTruthy();
+    // Masthead is the champion (the performance is the centerpiece, not
+    // a rank), so the H2 is just the champion name.
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Ahri");
+    // Prose combines KDA (rounded to 1 decimal) + multiplier vs baseline.
+    const prose = screen.getAllByText(/Posted a/i)[0]?.closest("p")?.textContent;
+    expect(prose).toMatch(/13\.0\s*KDA/);
+    expect(prose).toMatch(/Ahri/);
+    expect(prose).toMatch(/5\.2×\s*the 30-day baseline/);
+  });
+
+  it("does NOT render a leading emblem for KDA_OUTLIER (text-only masthead)", () => {
+    const { container } = render(<LolMomentChapter {...kdaOutlierProps} />);
+    expect(container.querySelector('img[src^="https://test/emblem/"]')).toBeNull();
+  });
+
+  it("exposes a Standout chapter-label data attribute", () => {
+    const { container } = render(<LolMomentChapter {...kdaOutlierProps} />);
+    const el = container.querySelector("[data-recap-chapter]");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Standout");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Ahri");
+  });
+
+  it("falls back to the off-meta framing when kdaOutlier is null (defensive)", () => {
+    render(<LolMomentChapter {...kdaOutlierProps} kdaOutlier={null} />);
+    expect(screen.queryByText("Standout game")).toBeNull();
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
+  });
+
+  it("omits the multiplier clause when baseline is zero (degraded contract)", () => {
+    render(
+      <LolMomentChapter
+        {...kdaOutlierProps}
+        kdaOutlier={{ matchKda: 12.5, baselineKda: 0 }}
+      />
+    );
+    const prose = screen.getAllByText(/Posted a/i)[0]?.closest("p")?.textContent;
+    expect(prose).toMatch(/12\.5\s*KDA/);
+    // No "Nx the 30-day baseline" tail when the multiplier is undefined.
+    expect(prose).not.toMatch(/the 30-day baseline/);
   });
 });
 

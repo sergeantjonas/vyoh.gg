@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   type LolAccount,
+  type LolKdaOutlierStats,
   type LolMomentChapterDescriptor,
   type LolMomentMatchStats,
   type LolRankUpDelta,
@@ -83,9 +84,11 @@ function momentCopy(args: {
   displayName: string;
   anchorDisplayName: string;
   rankUp: LolRankUpDelta | null;
+  kdaOutlier: LolKdaOutlierStats | null;
   emblemYear: number;
 }): MomentCopy {
-  const { momentType, displayName, anchorDisplayName, rankUp, emblemYear } = args;
+  const { momentType, displayName, anchorDisplayName, rankUp, kdaOutlier, emblemYear } =
+    args;
 
   if (momentType === "RANK_UP" && rankUp) {
     const fromTitle = formatRankTitle(rankUp.fromTier, rankUp.fromRank);
@@ -112,6 +115,36 @@ function momentCopy(args: {
         <>
           Climbed from <Accent>{fromTitle}</Accent> to <Accent>{toTitle}</Accent>,
           championed by <Accent>{displayName}</Accent>.
+        </>
+      ),
+    };
+  }
+
+  if (momentType === "KDA_OUTLIER" && kdaOutlier) {
+    // matchKda / baselineKda is the editorial multiplier. Guard against
+    // baseline=0 (shouldn't happen — detector requires 8+ baseline games —
+    // but the chapter shouldn't show "Infinity×" if the contract is ever
+    // violated).
+    const factor =
+      kdaOutlier.baselineKda > 0 ? kdaOutlier.matchKda / kdaOutlier.baselineKda : null;
+    const matchKdaLabel = kdaOutlier.matchKda.toFixed(1);
+    const factorLabel = factor ? `${factor.toFixed(1)}×` : null;
+    return {
+      eyebrow: "Standout game",
+      mastheadText: displayName,
+      leadingVisual: null,
+      chapterLabel: `Standout · ${displayName}`,
+      ariaLabel: `Standout game on ${displayName}`,
+      body: (
+        <>
+          Posted a <Accent>{matchKdaLabel}</Accent> KDA on <Accent>{displayName}</Accent>
+          {factorLabel ? (
+            <>
+              {" "}
+              — <Accent>{factorLabel}</Accent> the 30-day baseline
+            </>
+          ) : null}
+          .
         </>
       ),
     };
@@ -155,6 +188,7 @@ interface Props {
   momentType: MomentType;
   matchStats: LolMomentMatchStats | null;
   rankUp: LolRankUpDelta | null;
+  kdaOutlier: LolKdaOutlierStats | null;
 }
 
 /**
@@ -180,6 +214,7 @@ export function LolMomentChapter({
   momentType,
   matchStats,
   rankUp,
+  kdaOutlier,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
@@ -225,6 +260,7 @@ export function LolMomentChapter({
     displayName,
     anchorDisplayName,
     rankUp,
+    kdaOutlier,
     emblemYear,
   });
   const whenLine = formatDaysSince(daysSince);
