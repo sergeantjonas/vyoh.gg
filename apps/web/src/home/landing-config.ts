@@ -56,9 +56,11 @@ export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [
 export const STEAM_FEATURED_APPID = 2050650; // Resident Evil 4
 
 // Steam apps to never surface as a subject chapter, even if score qualifies.
-// Note: store API `type !== "game"` already filters most utilities
-// (Wallpaper Engine, 3DMark) — this list is for apps that ARE games but the
-// owner doesn't want surfaced on the portfolio. Lands populated in R-4.
+// Non-game appTypes (tools, utilities — Wallpaper Engine, 3DMark) are
+// filtered server-side in `recap-subjects.service.ts` via the standard
+// `appType === null || appType === 0` rule shared with the library filter.
+// This list is for apps that ARE games but the owner doesn't want surfaced
+// on the portfolio. Mirrored server-side in `recap-curation.ts` — keep in sync.
 export const HIDDEN_APPIDS: readonly number[] = [1034140];
 
 // LoL queue ids to exclude from moment-chapter detection (custom games,

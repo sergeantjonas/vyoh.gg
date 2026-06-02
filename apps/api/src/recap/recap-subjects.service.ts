@@ -61,6 +61,11 @@ export class RecapSubjectsService {
     const candidates: RecapCandidate[] = [];
     for (const game of ownedGames.games) {
       if (RECAP_HIDDEN_APPIDS.has(game.appid)) continue;
+      // appType === 6 is tools/apps (Wallpaper Engine, 3DMark, RPG Maker,
+      // SteamVR utilities). null falls through as "game" — same convention
+      // as the library filter, correct for ~99% of newly-added rows in the
+      // window between owned-sync and enrichment.
+      if (game.appType !== null && game.appType !== 0) continue;
 
       const unlock = unlockByAppid.get(game.appid);
       const lastUnlockMs = unlock?.lastUnlockAt?.getTime() ?? null;

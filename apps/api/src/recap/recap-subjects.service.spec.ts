@@ -140,6 +140,40 @@ describe("RecapSubjectsService.getChapters", () => {
     ]);
   });
 
+  it("filters out non-game appTypes (tools, utilities)", async () => {
+    const service = makeService(
+      [
+        makeOwnedGame({
+          appid: 431960, // Wallpaper Engine shape
+          name: "Wallpaper Engine",
+          appType: 6,
+          playtimeForeverMinutes: 60 * 500, // huge — would dominate without the filter
+          rtimeLastPlayedAt: NOW.toISOString(),
+        }),
+        makeOwnedGame({
+          appid: 42,
+          name: "Actual Game",
+          appType: 0,
+          playtimeForeverMinutes: 60 * 20,
+          rtimeLastPlayedAt: NOW.toISOString(),
+        }),
+        makeOwnedGame({
+          appid: 99,
+          name: "Unenriched Game",
+          appType: null,
+          playtimeForeverMinutes: 60 * 10,
+          rtimeLastPlayedAt: NOW.toISOString(),
+        }),
+      ],
+      []
+    );
+
+    const chapters = await service.getChapters(NOW);
+    expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+      42, 99,
+    ]);
+  });
+
   it("skips games with no recency signal at all", async () => {
     const service = makeService(
       [
