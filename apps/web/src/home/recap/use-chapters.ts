@@ -45,21 +45,26 @@ export function applyChapterOverrides(
 }
 
 /**
- * Apply `DEV_LOL_MOMENT_OVERRIDE`. Prepends a synthetic LoL-moment descriptor
- * to the chapter list when set — dev-only knob for reviewing the moment
- * chapter's visual layout in absence of a qualifying real candidate. Null
- * override is a no-op (production behavior). Exported for direct testing.
+ * Apply `DEV_LOL_MOMENT_OVERRIDE`. Prepends one or more synthetic LoL-moment
+ * descriptors to the chapter list — dev-only knob for reviewing moment
+ * chapter visuals in absence of qualifying real candidates. Empty array is
+ * a no-op (production behavior). Exported for direct testing.
+ *
+ * Multi-slot shape exists so R-7's five LoL momentTypes can be eyeballed
+ * side-by-side without a per-type swap-and-refresh dance — populate one
+ * synthetic descriptor per type, refresh once, review all.
  */
 export function applyDevLolMomentOverride(
   chapters: RecapChapterDescriptor[],
-  override: LolMomentChapterDescriptor | null
+  overrides: readonly LolMomentChapterDescriptor[]
 ): RecapChapterDescriptor[] {
-  if (!override) return chapters;
-  // Drop any descriptor whose slug collides with the override — keeps the
-  // override authoritative if the detector happens to surface the same
+  if (overrides.length === 0) return chapters;
+  // Drop any real descriptor whose slug collides with an override — keeps
+  // the override authoritative if the detector happens to surface the same
   // moment naturally while the knob is set.
-  const filtered = chapters.filter((c) => c.slug !== override.slug);
-  return [override, ...filtered];
+  const overrideSlugs = new Set(overrides.map((o) => o.slug));
+  const filtered = chapters.filter((c) => !overrideSlugs.has(c.slug));
+  return [...overrides, ...filtered];
 }
 
 /**

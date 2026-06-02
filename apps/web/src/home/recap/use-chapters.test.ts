@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/home/landing-config", () => ({
   CHAPTER_COPY_OVERRIDES: {},
   PINNED_CHAPTER: null,
-  DEV_LOL_MOMENT_OVERRIDE: null,
+  DEV_LOL_MOMENT_OVERRIDE: [],
 }));
 
 import {
@@ -97,22 +97,36 @@ describe("applyDevLolMomentOverride", () => {
     framing: null,
   };
 
-  it("returns the input untouched when override is null", () => {
+  it("returns the input untouched when overrides is empty", () => {
     const list = [a, b];
-    expect(applyDevLolMomentOverride(list, null)).toBe(list);
+    expect(applyDevLolMomentOverride(list, [])).toBe(list);
   });
 
-  it("prepends the override descriptor to the head of the list", () => {
-    expect(applyDevLolMomentOverride([a, b], override)).toEqual([override, a, b]);
+  it("prepends a single override descriptor to the head of the list", () => {
+    expect(applyDevLolMomentOverride([a, b], [override])).toEqual([override, a, b]);
   });
 
-  it("drops a real descriptor whose slug collides with the override (override wins)", () => {
+  it("prepends multiple overrides in declared order, ahead of the algorithmic list", () => {
+    const second: LolMomentChapterDescriptor = {
+      ...override,
+      slug: "lol-moment-rank-up-DEV",
+      momentType: "RANK_UP",
+    };
+    expect(applyDevLolMomentOverride([a, b], [override, second])).toEqual([
+      override,
+      second,
+      a,
+      b,
+    ]);
+  });
+
+  it("drops a real descriptor whose slug collides with any override (override wins)", () => {
     const realMoment: RecapChapterDescriptor = {
       ...override,
       championAlias: "Jhin",
       matchId: "EUW_99",
     };
-    const result = applyDevLolMomentOverride([realMoment, a], override);
+    const result = applyDevLolMomentOverride([realMoment, a], [override]);
     expect(result).toEqual([override, a]);
   });
 });

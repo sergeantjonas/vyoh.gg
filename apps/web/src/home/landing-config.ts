@@ -89,12 +89,11 @@ export const CHAPTER_COPY_OVERRIDES: Record<
   { eyebrow?: string; title?: string }
 > = {};
 
-// Dev override: when set, injects a synthetic LoL moment descriptor at the
-// front of the algorithmic chapter stream so the chapter's visual layout
-// can be reviewed even when the detector finds no real off-meta picks
-// (R-6's score floor + 30d window naturally excludes older off-meta picks).
-// Set to `null` outside active visual review — the detector handles
+// Dev override: when populated, prepends synthetic LoL-moment descriptors at
+// the head of the algorithmic chapter stream so the chapter visuals can be
+// reviewed even when the detector finds no qualifying real candidates (most
+// moment detectors use a 30d window — owners on a quiet stretch surface
+// nothing). Set to `[]` outside active visual review — the detectors handle
 // production. The matchId should point to a real owner match if you want
-// the masthead link to resolve; the championAlias picks the off-meta
-// splash for the silhouette dissolve.
-export const DEV_LOL_MOMENT_OVERRIDE: LolMomentChapterDescriptor | null = null;
+// the masthead link to resolve; the championAlias picks the splash.
+export const DEV_LOL_MOMENT_OVERRIDE: readonly LolMomentChapterDescriptor[] = [];
