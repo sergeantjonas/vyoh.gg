@@ -240,6 +240,22 @@ model SteamGameEnrichment {
   // the same transform, so the view-transition morph stays continuous.
   flipHero             Boolean   @default(false)
   dominantHex          String?
+  // SteamGridDB fallback hero — populated when `libraryHero2xPath` is null
+  // (publisher didn't ship a 2x asset, e.g. RE3). SGDB hosts community-
+  // uploaded heroes typically 1920x620 or 3840x1240 native; we accept any
+  // width >= 1920 and prefer the highest-scored entry. The URL is the full
+  // absolute `cdn2.steamgriddb.com/hero/<hash>.<ext>` path — used directly
+  // by `fetchUpstreamChain` from the image proxy. Null when SGDB also has
+  // no usable entry (rare; SGDB community covers most titles) or the
+  // enrichment pass hasn't yet run.
+  sgdbHeroUrl          String?
+  sgdbHeroWidth        Int?
+  sgdbHeroHeight       Int?
+  // Cron-watermark: when SGDB was last *queried* for this appid, regardless
+  // of result. Lets the enrichment poller skip recently-checked games (the
+  // SGDB API has a per-key rate limit) while still retrying every monthly
+  // pass for publishers who later add a 2x asset upstream.
+  sgdbEnrichedAt       DateTime?
   enrichedAt           DateTime  @default(now())
 }
 

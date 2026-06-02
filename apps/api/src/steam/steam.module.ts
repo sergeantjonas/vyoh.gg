@@ -8,6 +8,7 @@ import { FaceDetectionService } from "./face-detection.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import { SteamGlobalRarityService } from "./global-rarity.service";
+import { SteamGridDbService } from "./griddb.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPicsService } from "./pics.service";
@@ -50,6 +51,7 @@ import { SteamTagService } from "./tag.service";
     SteamGlobalRarityPoller,
     SteamAchievementsService,
     SteamGameRecapService,
+    SteamGridDbService,
     SteamTagService,
     SteamTagPoller,
     SteamSubjectAnchorService,
@@ -67,6 +69,7 @@ import { SteamTagService } from "./tag.service";
     SteamPlayerUnlocksService,
     SteamGlobalRarityService,
     SteamAchievementsService,
+    SteamGridDbService,
     SteamTagService,
   ],
 })
