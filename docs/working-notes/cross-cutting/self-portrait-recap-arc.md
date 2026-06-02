@@ -296,7 +296,7 @@ Substrate (A-1 / A-2 / A-2a) already shipped from atmosphere arc — chapters bu
 
 **R-7. Moment chapter expansion.** Add `RANK_UP`, `MARATHON_SESSION`, `KDA_OUTLIER`, `STREAK_5W` / `STREAK_5L`, `RETURN_FROM_HIATUS`, `ACHIEVEMENT_CLUSTER`, `FIRST_TIME_GAME` detectors + signature beats. Each its own commit or pair of commits; not all need landing simultaneously.
 
-**R-8. Caret-clicks-advance-by-chapter.** Update hero scroll-hint to compute chapter boundaries from refs registered via the atmosphere provider; click scrolls to next chapter's pin-start (or pin-end if already in a pin). End-of-page state: caret flips to "back to top."
+**R-8. Caret-clicks-advance-by-chapter. ✅ SHIPPED 2026-06-02.** `NextChapterCaret` discovers chapters via `[data-recap-chapter]` DOM scan (no provider registry needed — scroll/resize/MutationObserver re-computes), click scrolls to next chapter's outer-top, dead-zone (`SKIP_PAST_PX = 80`) skips the current chapter when sitting inside its pin. End-of-page state ships as a discriminated `CaretTarget = { kind: "chapter" } | { kind: "top" }`: past the last chapter the label flips to "Top", chevron flips up with reversed bob, click scrolls to 0. Pin-end advance within a chapter is deferred to R-13 — there are no internal beats to advance through until the multi-beat retrofit lands. Commits: `43fee803` (chapter-snap CSS substrate), `a8d12aea` (back-to-top flip + tests).
 
 **R-9. Asset preloading.** Intersection-observer ahead-of-viewport (`rootMargin: 50%`) preload for chapter assets so the bg snap-in isn't visible. `<link rel="preload">` injection for first 2 chapters at app load.
 
