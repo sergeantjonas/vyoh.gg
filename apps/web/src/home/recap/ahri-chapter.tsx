@@ -256,11 +256,22 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   const recapQuery = useChampionRecap(account, CHAMPION_ALIAS);
   const recap = recapQuery.data;
 
+  // Polite one-shot nudge into the chapter pin. See `useChapterNudge` for
+  // the threshold + settle tuning notes. Declared here (above the rotation)
+  // so it can gate the splash rotation — otherwise the rotation timer
+  // starts on mount and can fire a swap mid-reveal-cascade as the user
+  // scrolls in.
+  const nudged = useChapterNudge(outerRef);
+
   // Auto-cycling rotation — timer-driven, not scroll-coupled. The earlier
   // progress-driven version mapped fast scrolls to rapid skin swaps, which
   // read as chaotic instead of ambient. Auto-cycle keeps the background
   // passive while scroll position drives only the reveal animations.
-  const rotation = useSkinRotation(AHRI_SKIN_ROTATION.length);
+  // Gated on `nudged` so the first swap can't land during the chapter's
+  // opening cascade — the user sees a stable base splash until they've
+  // landed inside the chapter, then the rotation begins after the
+  // standard `HOLD_MS` initial hold.
+  const rotation = useSkinRotation(AHRI_SKIN_ROTATION.length, nudged);
   const activeSkin = AHRI_SKIN_ROTATION[rotation.activeIndex] ??
     AHRI_SKIN_ROTATION[0] ?? { name: "Base" };
   // `imageUrl` override wins when set; falls back to the proxy-served base
@@ -311,10 +322,6 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     [splashUrl, palette, rotation.bloomBlurPx, accentHex]
   );
   useAssetClaim(outerRef, claim);
-
-  // Polite one-shot nudge into the chapter pin. See `useChapterNudge` for
-  // the threshold + settle tuning notes.
-  const nudged = useChapterNudge(outerRef);
 
   // Recap may be `undefined` while loading or on error. Default to a
   // zero-state shape so the chapter still renders its layout (em-dash

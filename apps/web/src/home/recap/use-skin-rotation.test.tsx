@@ -82,6 +82,32 @@ describe("useSkinRotation", () => {
     expect(result.current.bloomBlurPx.get()).toBe(0);
   });
 
+  it("does not start the timer while disabled — activeIndex stays at 0", () => {
+    const { result } = renderHook(() => useSkinRotation(4, false));
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS * 4);
+    });
+    expect(result.current.activeIndex).toBe(0);
+    expect(result.current.bloomBlurPx.get()).toBe(0);
+  });
+
+  it("begins cycling once enabled flips true after mount", () => {
+    let enabled = false;
+    const { result, rerender } = renderHook(() => useSkinRotation(4, enabled));
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS * 2);
+    });
+    expect(result.current.activeIndex).toBe(0);
+    // Flip the gate — the effect re-runs and the initial HOLD_MS hold
+    // begins from this moment, not from mount.
+    enabled = true;
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS + FADE_HALF_MS);
+    });
+    expect(result.current.activeIndex).toBe(1);
+  });
+
   it("clears the pending timer + resets bloom on unmount", () => {
     const { result, unmount } = renderHook(() => useSkinRotation(3));
     act(() => {

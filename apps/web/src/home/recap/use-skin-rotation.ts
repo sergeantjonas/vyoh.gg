@@ -25,6 +25,14 @@ import { useEffect, useState } from "react";
  * Single-entry skin lists degrade to "no rotation": `activeIndex` stays at
  * 0 and `bloomBlurPx` is always 0. Under `prefers-reduced-motion` the
  * rotation pauses entirely on the first entry — no cycling, no bloom.
+ *
+ * `enabled` (default `true`) gates the timer. Pass the chapter's `nudged`
+ * flag to defer rotation until after the user has actually landed inside
+ * the chapter — otherwise the timer starts on mount and can fire a swap
+ * mid-reveal-cascade as the user scrolls in, which reads as the splash
+ * randomly changing during the chapter's opening animation. The initial
+ * `HOLD_MS` (4.5s) gives the reveal cascade ample time to finish before
+ * the first swap fires.
  */
 export const HOLD_MS = 4500;
 export const FADE_HALF_MS = 400;
@@ -39,13 +47,13 @@ export type SkinRotationState = {
   bloomBlurPx: MotionValue<number>;
 };
 
-export function useSkinRotation(skinCount: number): SkinRotationState {
+export function useSkinRotation(skinCount: number, enabled = true): SkinRotationState {
   const bloomBlurPx = useMotionValue(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const reduced = useReducedMotion();
 
   useEffect(() => {
-    if (skinCount <= 1 || reduced) return;
+    if (skinCount <= 1 || reduced || !enabled) return;
 
     let stopped = false;
     let pendingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -85,7 +93,7 @@ export function useSkinRotation(skinCount: number): SkinRotationState {
       bloomAnim?.stop();
       bloomBlurPx.set(0);
     };
-  }, [skinCount, reduced, bloomBlurPx]);
+  }, [skinCount, reduced, enabled, bloomBlurPx]);
 
   return { activeIndex, bloomBlurPx };
 }
