@@ -647,26 +647,21 @@ body {
   }
 }
 
-/* The wander itself: gentle 4-point figure-eight. Amplitudes are scaled by
-   the per-layer `--orb-wander-amp` so one keyframe drives orb / halo / wisp /
-   sparkle at different magnitudes — that differential is what produces the
-   parallax. Percentages refer to each element's own box, so the visual scale
-   is consistent across layers of different inset/size. */
+/* The wander itself was a gentle 4-point figure-eight, scaled per layer via
+   `--orb-wander-amp` — orb at 1.0, embers 0.85, halos 0.65, halo-echo 0.6,
+   sparkles 0.3 — to give a parallax read. After the SVG viewBox fix that
+   centred the PNG focal point on the wrapper, the wander reads as
+   sideways drift rather than depth: the orb (correctly anchored now) is
+   the loudest layer in a parallax with no foreground to play against, so
+   the eye registers it as the orb being unable to sit still. Zeroed out
+   here — keyframes preserved so consumers (`.orb-image`, halos, sparkles,
+   embers) can keep referencing them, and re-enabling is a single-block
+   revert. If we ever want layered parallax back, tune amplitudes here
+   rather than restoring per-layer `--orb-wander-amp` overrides. */
 @keyframes orb-wander {
   0%,
   100% {
     translate: 0 0;
-  }
-  25% {
-    translate: calc(var(--orb-wander-amp, 0) * 3%) calc(var(--orb-wander-amp, 0) * -2%);
-  }
-  50% {
-    translate: calc(var(--orb-wander-amp, 0) * -1.5%)
-      calc(var(--orb-wander-amp, 0) * 2.5%);
-  }
-  75% {
-    translate: calc(var(--orb-wander-amp, 0) * -2.8%)
-      calc(var(--orb-wander-amp, 0) * -1.8%);
   }
 }
 
