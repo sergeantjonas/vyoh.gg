@@ -10,6 +10,10 @@ vi.mock("@/lib/scroll-container", () => ({
     current: {
       scrollTop: 0,
       clientHeight: 800,
+      // Default `scrollHeight` is very large so the "user has reached the
+      // bottom" guard in the caret stays inactive — individual tests that
+      // exercise that guard override it explicitly.
+      scrollHeight: 100_000,
       scrollTo: vi.fn(),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -25,6 +29,7 @@ import { NextChapterCaret } from "./next-chapter-caret";
 const fakeMain = mainScrollRef.current as unknown as {
   scrollTop: number;
   clientHeight: number;
+  scrollHeight: number;
   scrollTo: ReturnType<typeof vi.fn>;
   addEventListener: ReturnType<typeof vi.fn>;
   removeEventListener: ReturnType<typeof vi.fn>;
@@ -54,6 +59,7 @@ function mountChapters(specs: Array<{ label: string; topPx: number }>) {
 
 beforeEach(() => {
   fakeMain.scrollTop = 0;
+  fakeMain.scrollHeight = 100_000;
   fakeMain.scrollTo.mockClear();
   fakeMain.addEventListener.mockClear();
   fakeMain.removeEventListener.mockClear();
@@ -79,6 +85,19 @@ describe("NextChapterCaret", () => {
     // hides past the last chapter rather than duplicating it.
     mountChapters([{ label: "Ahri", topPx: -2000 }]);
     fakeMain.scrollTop = 5000;
+    render(<NextChapterCaret />);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("renders nothing when the page is scrolled to the bottom — even if a chapter is numerically ahead", () => {
+    // Regression for the short-conclusion case: when the terminal
+    // "chapter" (the conclusion section) is shorter than the viewport,
+    // its outer-top can stay 80+px below `scrollTop` even at
+    // max-scroll, which previously kept the caret pointing at it.
+    mountChapters([{ label: "The picture", topPx: 350 }]);
+    fakeMain.scrollTop = 1200;
+    fakeMain.clientHeight = 800;
+    fakeMain.scrollHeight = 2000; // max-scroll = 2000 - 800 = 1200 → at bottom
     render(<NextChapterCaret />);
     expect(screen.queryByRole("button")).toBeNull();
   });

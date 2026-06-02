@@ -22,16 +22,20 @@ function StripHeader({
   label: string;
   legend?: React.ReactNode;
 }) {
+  // The legend slot is always rendered (even when empty) so every strip
+  // header occupies the same vertical space. Without this, a strip
+  // without a legend has a shorter header and its `flex-1` bar area
+  // absorbs the extra height, making its bars visibly taller than the
+  // strips that do carry a legend — visible misalignment across the
+  // three columns.
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex h-4 items-center justify-between gap-2">
       <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
-      {legend ? (
-        <div className="flex items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground/70">
-          {legend}
-        </div>
-      ) : null}
+      <div className="flex items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+        {legend}
+      </div>
     </div>
   );
 }
@@ -306,10 +310,29 @@ function SessionsStrip() {
           <SessionBar key={bucket.label} bucket={bucket} maxCount={maxCount} />
         ))}
       </div>
+      <SessionAxis buckets={buckets} />
       <StripCaption>
         {shortShare} under 1h · {plural(lolSessionCount, "LoL session")} +{" "}
         {plural(steamSessionCount, "Steam session")}
       </StripCaption>
+    </div>
+  );
+}
+
+function SessionAxis({ buckets }: { buckets: HomeSessionLengthsBucket[] }) {
+  // Mirrors `HourAxis` structurally so the sessions strip ends up with the
+  // same row count as `WHEN` / `WHERE` (header / bars / axis / caption).
+  // Without this, per-bucket labels lived inside `SessionBar` as inline
+  // spans, so this strip had one fewer row — the `flex-1` bar area then
+  // absorbed the missing row's height, making its bars visibly taller
+  // than the other two columns.
+  return (
+    <div className="flex items-stretch gap-2 text-[10px] tabular-nums text-muted-foreground/60">
+      {buckets.map((bucket) => (
+        <span key={bucket.label} className="flex-1 text-center">
+          {bucket.label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -337,27 +360,22 @@ function SessionBar({
   return (
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger asChild>
-        <div className="flex flex-1 flex-col items-stretch gap-1.5">
-          <div className="flex flex-1 flex-col justify-end">
-            {total === 0 ? (
-              <div className="rounded-sm bg-muted/30" style={{ height: "2%" }} />
-            ) : (
-              <div
-                className="flex flex-col overflow-hidden rounded-sm"
-                style={{ height: `${Math.max(4, heightPct)}%` }}
-              >
-                {bucket.steamCount > 0 && (
-                  <div className="bg-amber-500/80" style={{ height: `${steamPct}%` }} />
-                )}
-                {bucket.lolCount > 0 && (
-                  <div className="bg-sky-500/80" style={{ height: `${lolPct}%` }} />
-                )}
-              </div>
-            )}
-          </div>
-          <span className="text-center text-[10px] tabular-nums text-muted-foreground/70">
-            {bucket.label}
-          </span>
+        <div className="flex flex-1 flex-col justify-end">
+          {total === 0 ? (
+            <div className="rounded-sm bg-muted/30" style={{ height: "2%" }} />
+          ) : (
+            <div
+              className="flex flex-col overflow-hidden rounded-sm"
+              style={{ height: `${Math.max(4, heightPct)}%` }}
+            >
+              {bucket.steamCount > 0 && (
+                <div className="bg-amber-500/80" style={{ height: `${steamPct}%` }} />
+              )}
+              {bucket.lolCount > 0 && (
+                <div className="bg-sky-500/80" style={{ height: `${lolPct}%` }} />
+              )}
+            </div>
+          )}
         </div>
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>

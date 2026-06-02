@@ -75,6 +75,23 @@ export function NextChapterCaret() {
       }
       const rootTop = main?.getBoundingClientRect().top ?? 0;
       const rootScroll = main?.scrollTop ?? window.scrollY;
+      // Hide the caret once the bottom of the page is in view — there's
+      // nothing further to advance to even if a chapter's outer-top is
+      // still numerically ahead of `rootScroll`. This happens when the
+      // last "chapter" (the conclusion) is shorter than the viewport: the
+      // user can scroll to max-scroll while the conclusion's top remains
+      // 80+px below `rootScroll`, which would otherwise keep the caret
+      // pointing at it.
+      const clientHeight = main?.clientHeight;
+      const scrollHeight = main?.scrollHeight;
+      if (
+        typeof clientHeight === "number" &&
+        typeof scrollHeight === "number" &&
+        rootScroll + clientHeight >= scrollHeight - 4
+      ) {
+        setNext(null);
+        return;
+      }
       let candidate: NextChapter | null = null;
       for (const el of chapters) {
         const elTop = rootScroll + el.getBoundingClientRect().top - rootTop;
