@@ -330,6 +330,15 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   // the owner *to* visitors, not to the owner herself. "VYOH'S AHRI" works
   // for both readings: the owner sees themselves, a visitor sees a portrait.
   const eyebrow = `${account.gameName}'s ${displayName}`;
+  // Caret label is decoupled from the chapter's own eyebrow header. The
+  // eyebrow ("VYOH'S AHRI") is the chapter's masthead — informative,
+  // declarative. The caret is a separate affordance pointing INTO the
+  // chapter and benefits from an editorial preposition register ("On
+  // Photography", "On Writing") that implies critical engagement with
+  // the subject rather than just naming it. Also lands at 7 characters
+  // when uppercased, matching the landing eyebrow ("VYOH.GG") so their
+  // left-edges read as aligned when stacked in the viewport.
+  const caretLabel = `On ${displayName}`;
   const skinLabel = activeSkin.name === "Base" ? null : activeSkin.name;
 
   // Verdict prose: structured segments from the shared deriver. The JSX
@@ -346,7 +355,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   );
 
   return (
-    <div ref={outerRef} data-recap-chapter="ahri" data-chapter-label={eyebrow}>
+    <div ref={outerRef} data-recap-chapter="ahri" data-chapter-label={caretLabel}>
       <ChapterContainer
         // 1× — chapter fits one viewport, the original 2× pin was paying
         // for stretched-across-scroll reveals that no longer exist.
