@@ -112,23 +112,16 @@ export class SteamImageService {
     );
     return {
       urls: [...twoX, ...oneX],
-      // `enlarge: true` overrides the default `withoutEnlargement` clamp so a
-      // publisher that shipped only a 1x asset (e.g. RE3: 1920×620 native, no
-      // 2x available — Capcom never uploaded one) still serves at 2560 wide,
-      // moving the upscale work from the browser to Sharp. Pairs with a
-      // `.sharpen()` pass to recover apparent crispness; sigma 1.2 is on the
-      // assertive side of the 0.5–1.5 range — needed to push enough new edge
-      // contrast that WebP encodes it as real detail (a mild sigma like 0.6
-      // produces a visually indistinguishable output because WebP correctly
-      // recognises the upscaled regions as information-poor and compresses
-      // them away). Above 1.5, smooth-gradient regions (sky in RE3's hero,
-      // bokeh in similar art) start to show visible halos.
-      params: {
-        width: 2560,
-        quality: 90,
-        enlarge: true,
-        sharpen: { sigma: 1.2 },
-      },
+      // Stays at default `withoutEnlargement: true` — Sharp returns the
+      // native source dimensions if smaller than 2560. We tried an `enlarge:
+      // true + sharpen({ sigma: 0.6–1.2 })` pass to recover apparent crispness
+      // for publishers without a 2x asset (RE3-shaped: 1920w-only). The bytes
+      // barely moved (158→179 KB at sigma 1.2 vs 158 KB at sigma 0.6) because
+      // the source is information-poor (dark JPEG hero art, minimal high-
+      // frequency content) and WebP correctly recognises upscaled regions as
+      // redundant. The `enlarge`/`sharpen` primitives are still wired into
+      // `transcodeToWebp` for any future route where the tradeoff is worth it.
+      params: { width: 2560, quality: 90 },
     };
   }
 
