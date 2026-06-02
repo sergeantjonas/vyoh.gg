@@ -101,11 +101,17 @@ function HomePage() {
               the last chapter. The hero's matching claim is now distant
               enough by proximity that this one wins. */}
           <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
+          {/* Author signature opens the shape section as "this is who; here
+              is how they play." Pairs with the trajectory's identity-
+              adjacent framing further down. The closer's "— Vyoh" sign-off
+              in the picture section continues to carry the identity beat
+              at page close, so the alltime section doesn't lose its
+              attribution. */}
+          <OwnerIdentityStrip />
           {/* Live-state pulse: lands above the rhythm band when the owner
               is in a LoL queue or has Steam reporting an active game.
-              Hides itself otherwise so the section opens with the rhythm
-              band. Reads through PresenceMounts' root-level pollers — no
-              extra network. */}
+              Hides itself otherwise. Reads through PresenceMounts' root-
+              level pollers — no extra network. */}
           <NowPlayingStrip />
           <ConclusionRhythmBand />
           {/* 30-day solo queue LP arc — sits between the longer-window
@@ -128,13 +134,9 @@ function HomePage() {
           data-chapter-label="The picture"
           className="flex min-h-[calc(var(--main-h,100dvh)-3rem)] flex-col [scroll-snap-align:start] [scroll-snap-stop:always]"
         >
-          {/* Upper region centers identity → trajectory → totals → closer in
-              the viewport; footer chips pin to the bottom as colophon. */}
+          {/* Upper region centers totals + closer in the viewport; footer
+              chips pin to the bottom as colophon. */}
           <div className="flex flex-1 flex-col items-stretch justify-center gap-2">
-            {/* Author signature: introduces the alltime self-portrait. The
-                orb opens the page; the named author signs into the alltime
-                totals. */}
-            <OwnerIdentityStrip />
             <LifetimeTotalsStrip />
             <EditorialCloser />
           </div>

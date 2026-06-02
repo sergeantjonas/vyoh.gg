@@ -2,8 +2,21 @@ import { CardTitle } from "@/components/ui/card-title";
 import { Sparkline } from "@/components/ui/sparkline";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
-import type { RankHistoryPoint } from "@vyoh/shared";
+import type { LolAccountWithSummary, RankHistoryPoint } from "@vyoh/shared";
 import { formatRank, normalizeLp } from "@vyoh/shared/lol/rank-history";
+
+// TEMP: trajectory points at Agurin's account so the strip has enough
+// snapshot history to render during dev review. The primary owner's
+// account is freshly tracked and currently sits below the 2-snapshot
+// floor. Revert to `usePrimaryAccount()` once primary has 30d of capture.
+const TEST_TRAJECTORY_ACCOUNT: LolAccountWithSummary = {
+  slug: "agurin",
+  gameName: "Agurin",
+  tagLine: "DND",
+  region: "euw1",
+  profileIconId: null,
+  summary: null,
+};
 
 interface Trajectory {
   series: number[];
@@ -40,7 +53,10 @@ function formatDelta(start: number, end: number): string {
  * and the 24h today strip.
  */
 export function RankTrajectoryStrip() {
-  const { account } = usePrimaryAccount();
+  // TEMP override: swap to TEST_TRAJECTORY_ACCOUNT for dev review.
+  // `usePrimaryAccount()` still resolves so the hook order stays stable.
+  usePrimaryAccount();
+  const account = TEST_TRAJECTORY_ACCOUNT;
   const query = useRankHistory(account, "30d");
   const trajectory = query.data ? buildTrajectory(query.data.solo) : null;
 
