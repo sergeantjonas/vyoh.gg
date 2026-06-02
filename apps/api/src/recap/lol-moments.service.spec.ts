@@ -133,6 +133,34 @@ describe("LolMomentsService.detectOffMetaPicks", () => {
     expect(findArgs.where.champion.notIn).not.toContain("Annie");
   });
 
+  it("constrains both the main-pool groupBy and the off-meta findFirst to ranked queues only", async () => {
+    // ARAM rolls champions; Normal Draft is practice. A "stepping off Ahri"
+    // moment must be a deliberate pick under stakes — ranked queues only.
+    const { service, prisma } = makeService({
+      championCounts: [{ champion: "Ahri", _count: { _all: 50 } }],
+      offMetaMatch: {
+        matchId: "EUW_1",
+        champion: "Renekton",
+        playedAt: NOW,
+      },
+    });
+    await service.detectOffMetaPicks(NOW);
+
+    const groupByArgs = vi.mocked(prisma.match.groupBy).mock.calls[0]?.[0] as {
+      where: { queueType: { in: string[] } };
+    };
+    expect(new Set(groupByArgs.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+
+    const findArgs = vi.mocked(prisma.match.findFirst).mock.calls[0]?.[0] as {
+      where: { queueType: { in: string[] } };
+    };
+    expect(new Set(findArgs.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+
   it("clamps daysSince to 0 when the match's playedAt is in the future (clock skew)", async () => {
     const { service } = makeService({
       championCounts: [{ champion: "Ahri", _count: { _all: 50 } }],

@@ -31,6 +31,15 @@ const OFF_META_WINDOW_DAYS = 30;
  *  Beyond ~ 35d, it sinks below the floor and the chapter quietly drops. */
 const OFF_META_BASE_SIGNAL = 20;
 
+/** Queue types where champion pick is a deliberate signal under stakes.
+ *  ARAM rolls champions randomly; Swarm/Arena/URF run modified rulesets that
+ *  invite experimentation; Normal Draft is practice space where Ahri OTPs
+ *  trying Lee Sin once isn't a "stepping off Ahri" moment. Restricting the
+ *  detector to ranked queues keeps the chapter framing honest — the off-meta
+ *  pick has to have been a real pick under real ELO consequences. Mirrors
+ *  the queueType strings emitted by `match-mapper.ts`. */
+const RANKED_QUEUE_TYPES = ["Ranked Solo", "Ranked Flex"] as const;
+
 /**
  * LoL moment detector for the landing-page recap chapter stream. R-6 ships
  * the OFF_META_PICK detector only; the service is structured so RANK_UP,
@@ -88,6 +97,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: mainPoolCutoff },
         remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
       },
       _count: { _all: true },
     });
@@ -105,6 +115,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: candidateCutoff },
         remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
         champion: { notIn: Array.from(mainPool) },
       },
       orderBy: { playedAt: "desc" },
