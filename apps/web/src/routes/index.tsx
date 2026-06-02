@@ -81,7 +81,17 @@ function HomePage() {
             into a single snap area aligned to its start, so leaving the
             chapters lands cleanly at the top of the steam band and the
             conclusion scrolls naturally below. */}
-        <section ref={conclusionRef} className="[scroll-snap-align:start]">
+        <section
+          ref={conclusionRef}
+          // Treated as the terminal "chapter" for `<NextChapterCaret>`
+          // discovery so the caret keeps pointing forward from the last
+          // Steam chapter to the conclusion (and then hides once the user
+          // is past this section). Without this, the caret disappears in
+          // the last chapter and the conclusion reads as undiscoverable.
+          data-recap-chapter="conclusion"
+          data-chapter-label="The picture"
+          className="[scroll-snap-align:start]"
+        >
           {/* Reuses AmbientHero as a palette-only atmosphere claim scoped to
               the conclusion ref — fades the bg back from asset-driven
               (chapters) to painterly time-of-day once the user scrolls past

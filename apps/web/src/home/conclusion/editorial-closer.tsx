@@ -10,7 +10,7 @@ export function EditorialCloser() {
         That's the picture. Built with React 19, NestJS, Postgres, and far too many Ahri
         games.
       </p>
-      <p className="text-sm text-muted-foreground">— Jonas</p>
+      <p className="text-sm text-muted-foreground">— Vyoh</p>
     </section>
   );
 }
