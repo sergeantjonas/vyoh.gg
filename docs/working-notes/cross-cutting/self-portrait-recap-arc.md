@@ -318,11 +318,14 @@ Substrate (A-1 / A-2 / A-2a) already shipped from atmosphere arc — chapters bu
 - **Spec doc revision (`subject-chapter-design-spec.md`).** The "one viewport pin, not two" rule changes to "one pin window per chapter, beat count drives pin length." Animation cascade table gets a per-beat extension: each beat has its own delay 0 reset when it becomes active. Add a "beat composition" section between "Editorial composition" and "Animation cascade". Add at least one rejected experiment from R-13 work (TBD during build).
 - **Tests:** `useBeatIndex` threshold math (transitions, boundaries, edge cases beat=0 / beat=N-1), `ChapterBeats` renders correct beat at progress=X, engine-gate fallback renders all beats stacked.
 
-**R-14. Ahri retrofit to multi-beat.** Once Steam is signed off in R-13, port Ahri:
+**R-14. Ahri retrofit to multi-beat.** Once Steam is signed off in R-13, port Ahri to three beats:
 1. Identity + verdict (current opener + verdict prose).
 2. Signature game + recent matches (current detail band).
 3. Peak chips + new LoL stats (top synergies, lane-phase win rate, rank trajectory).
-4. Skin gallery as an explicit beat — the current background-only rotation becomes a foreground gallery moment with skin name + rarity tier + first-acquired year. Foreground skin gallery is a small editorial upgrade enabled by the beat model; the background substrate rotation continues independently.
+
+**Background skin rotation stays exactly as is — no foreground skin treatment.** The rotation does real work as ambient texture (skins frame the chapter; Ahri is the subject), and pulling it foreground would turn aesthetic texture into demanded attention, fighting the chapter's central framing. An earlier draft of this chunk proposed a 4th "skin gallery" beat — rejected; documented in the spec doc's "Rejected experiments" section as part of R-14's landing.
+
+**Beat counts don't have to match across chapters.** Steam earns 4 beats because it has dense achievement + stats + screenshot data competing for room. Ahri is content-leaner and reads better at 3. If a future Ahri data source genuinely justifies a 4th beat, brainstorm content first; don't reach for "skin gallery" as filler.
 
 Likely 1-2 commits. Re-tune cascade delays inside each beat so they don't try to fire all at the prior R-2 timings against the new beat-onset moment.
 
