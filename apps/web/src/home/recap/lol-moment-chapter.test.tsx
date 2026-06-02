@@ -80,6 +80,7 @@ const baseProps = {
   rankUp: null,
   kdaOutlier: null,
   hiatusReturn: null,
+  streak: null,
 };
 
 const rankUpDelta = {
@@ -102,6 +103,7 @@ const rankUpProps = {
   rankUp: rankUpDelta,
   kdaOutlier: null,
   hiatusReturn: null,
+  streak: null,
 };
 
 const kdaOutlierStats = {
@@ -127,6 +129,7 @@ const kdaOutlierProps = {
   rankUp: null,
   kdaOutlier: kdaOutlierStats,
   hiatusReturn: null,
+  streak: null,
 };
 
 const hiatusReturnProps = {
@@ -140,6 +143,35 @@ const hiatusReturnProps = {
   rankUp: null,
   kdaOutlier: null,
   hiatusReturn: { gapDays: 35 },
+  streak: null,
+};
+
+const streakWinProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_HOT",
+  daysSince: 0,
+  slug: "lol-moment-streak-w-EUW_HOT",
+  momentType: "STREAK_5W" as const,
+  matchStats,
+  rankUp: null,
+  kdaOutlier: null,
+  hiatusReturn: null,
+  streak: { result: "W" as const, length: 5 },
+};
+
+const streakLossProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_COLD",
+  daysSince: 0,
+  slug: "lol-moment-streak-l-EUW_COLD",
+  momentType: "STREAK_5L" as const,
+  matchStats: { ...matchStats, win: false },
+  rankUp: null,
+  kdaOutlier: null,
+  hiatusReturn: null,
+  streak: { result: "L" as const, length: 6 },
 };
 
 beforeEach(() => {
@@ -376,6 +408,47 @@ describe("LolMomentChapter (RETURN_FROM_HIATUS)", () => {
   it("falls back to the off-meta framing when hiatusReturn is null (defensive)", () => {
     render(<LolMomentChapter {...hiatusReturnProps} hiatusReturn={null} />);
     expect(screen.queryByText("Return")).toBeNull();
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
+  });
+});
+
+describe("LolMomentChapter (STREAK)", () => {
+  it("renders the hot-streak eyebrow + 'N ranked wins in a row' prose for STREAK_5W", () => {
+    render(<LolMomentChapter {...streakWinProps} />);
+    expect(screen.getByText("Hot streak")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Ahri");
+    const prose = screen
+      .getAllByText(/ranked wins in a row/i)[0]
+      ?.closest("p")?.textContent;
+    expect(prose).toMatch(/5\s*ranked wins in a row/);
+    expect(prose).toMatch(/last on\s*Ahri/);
+  });
+
+  it("renders the cold-streak eyebrow + 'N ranked losses straight' prose for STREAK_5L", () => {
+    render(<LolMomentChapter {...streakLossProps} />);
+    expect(screen.getByText("Cold streak")).toBeTruthy();
+    const prose = screen
+      .getAllByText(/ranked losses straight/i)[0]
+      ?.closest("p")?.textContent;
+    expect(prose).toMatch(/6\s*ranked losses straight/);
+    expect(prose).toMatch(/last on\s*Ahri/);
+  });
+
+  it("exposes a Hot streak chapter-label data attribute", () => {
+    const { container } = render(<LolMomentChapter {...streakWinProps} />);
+    const el = container.querySelector("[data-recap-chapter]");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Hot streak");
+  });
+
+  it("exposes a Cold streak chapter-label data attribute", () => {
+    const { container } = render(<LolMomentChapter {...streakLossProps} />);
+    const el = container.querySelector("[data-recap-chapter]");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Cold streak");
+  });
+
+  it("falls back to off-meta framing when streak is null (defensive)", () => {
+    render(<LolMomentChapter {...streakWinProps} streak={null} />);
+    expect(screen.queryByText("Hot streak")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });

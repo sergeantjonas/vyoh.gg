@@ -20,6 +20,7 @@ import type {
   LolMomentChapterDescriptor,
   LolMomentMatchStats,
   LolRankUpDelta,
+  LolStreakStats,
   RecapChapterDescriptor,
   RecapChapterFraming,
   SteamMomentChapterDescriptor,
@@ -111,6 +112,7 @@ export type RecapCandidate =
       rankUp?: LolRankUpDelta | null;
       kdaOutlier?: LolKdaOutlierStats | null;
       hiatusReturn?: LolHiatusReturnStats | null;
+      streak?: LolStreakStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     }
@@ -165,6 +167,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
       rankUp: candidate.rankUp ?? null,
       kdaOutlier: candidate.kdaOutlier ?? null,
       hiatusReturn: candidate.hiatusReturn ?? null,
+      streak: candidate.streak ?? null,
       framing,
     };
   }

@@ -48,27 +48,32 @@ function makeService(opts: {
   rankUpRows?: SnapshotMatchRow[];
   kdaRows?: KdaMatchRow[];
   hiatusRows?: KdaMatchRow[];
+  streakRows?: KdaMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
   } as unknown as IdentityService;
-  // `findMany` is called by detectRankUps, detectKdaOutliers, AND
-  // detectReturnsFromHiatus. They differ by where-clause shape:
+  // `findMany` is called by detectRankUps, detectKdaOutliers,
+  // detectReturnsFromHiatus, AND detectStreaks. They differ by call shape:
   //   - rank-up filters on `snapshotTier` (six snapshot columns non-null).
-  //   - KDA filters on `playedAt` (30d window) but not snapshotTier.
-  //   - hiatus has neither (reads ALL owner ranked matches for prev-match
-  //     gap detection).
-  // The mock routes each call to its fixture by inspecting the where shape.
+  //   - streak passes `take` (capped scan, no windowed where-filter).
+  //   - KDA filters on `playedAt` (30d window), no snapshotTier, no take.
+  //   - hiatus has none of the above (reads ALL owner ranked matches for
+  //     prev-match gap detection).
+  // The mock routes each call to its fixture by inspecting the call shape.
   const findManyImpl = vi.fn().mockImplementation(
     (args: {
       where: {
         snapshotTier?: { not: null } | null;
         playedAt?: { gte: Date };
       };
+      take?: number;
     }) => {
       const hasSnapshotFilter = args.where?.snapshotTier !== undefined;
+      const hasTake = args.take !== undefined;
       const hasWindowFilter = args.where?.playedAt !== undefined;
       if (hasSnapshotFilter) return Promise.resolve(opts.rankUpRows ?? []);
+      if (hasTake) return Promise.resolve(opts.streakRows ?? []);
       if (hasWindowFilter) return Promise.resolve(opts.kdaRows ?? []);
       return Promise.resolve(opts.hiatusRows ?? []);
     }
@@ -796,6 +801,189 @@ describe("LolMomentsService.detectReturnsFromHiatus", () => {
   });
 });
 
+function makeStreakRow(opts: {
+  matchId?: string;
+  champion?: string;
+  playedAt: Date;
+  win: boolean;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  durationSec?: number;
+  queueType?: string;
+}): KdaMatchRow {
+  return {
+    matchId: opts.matchId ?? `EUW_S_${opts.playedAt.getTime()}`,
+    champion: opts.champion ?? "Ahri",
+    playedAt: opts.playedAt,
+    kills: opts.kills ?? 5,
+    deaths: opts.deaths ?? 3,
+    assists: opts.assists ?? 7,
+    win: opts.win,
+    durationSec: opts.durationSec ?? 1820,
+    queueType: opts.queueType ?? "Ranked Solo",
+  };
+}
+
+describe("LolMomentsService.detectStreaks", () => {
+  it("returns no candidates when there are no owner puuids", async () => {
+    const { service, prisma } = makeService({ ownerPuuids: [] });
+    const result = await service.detectStreaks(NOW);
+    expect(result).toEqual([]);
+    expect(prisma.match.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns no candidates when fewer than the minimum-length matches exist", async () => {
+    const rows = Array.from({ length: 4 }, (_, i) =>
+      makeStreakRow({
+        matchId: `EUW_FEW_${i}`,
+        playedAt: new Date(NOW.getTime() - i * 24 * 60 * 60 * 1000),
+        win: true,
+      })
+    );
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns no candidates when the head run is shorter than the minimum", async () => {
+    // 3 wins at head, then a loss → head run is 3, below 5.
+    const rows = [
+      makeStreakRow({
+        matchId: "EUW_W3",
+        playedAt: new Date(NOW.getTime() - 0 * 24 * 60 * 60 * 1000),
+        win: true,
+      }),
+      makeStreakRow({
+        matchId: "EUW_W2",
+        playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+        win: true,
+      }),
+      makeStreakRow({
+        matchId: "EUW_W1",
+        playedAt: new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+        win: true,
+      }),
+      makeStreakRow({
+        matchId: "EUW_BREAK",
+        playedAt: new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000),
+        win: false,
+      }),
+      makeStreakRow({
+        matchId: "EUW_OLDW",
+        playedAt: new Date(NOW.getTime() - 4 * 24 * 60 * 60 * 1000),
+        win: true,
+      }),
+    ];
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns no candidates when the head match is outside the recency window", async () => {
+    // 5-game win streak, but the most recent match is 45d ago.
+    const rows = Array.from({ length: 5 }, (_, i) =>
+      makeStreakRow({
+        matchId: `EUW_OLDW_${i}`,
+        playedAt: new Date(NOW.getTime() - (45 + i) * 24 * 60 * 60 * 1000),
+        win: true,
+      })
+    );
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("emits STREAK_5W when the head 5 matches are all wins", async () => {
+    const rows = Array.from({ length: 5 }, (_, i) =>
+      makeStreakRow({
+        matchId: `EUW_HOT_${i}`,
+        champion: i === 0 ? "Ahri" : "Lux",
+        playedAt: new Date(NOW.getTime() - i * 24 * 60 * 60 * 1000),
+        win: true,
+      })
+    );
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.momentType).toBe("STREAK_5W");
+    expect(c.matchId).toBe("EUW_HOT_0");
+    expect(c.championAlias).toBe("Ahri"); // head match's champion
+    expect(c.slug).toBe("lol-moment-streak-w-EUW_HOT_0");
+    expect(c.streak).toEqual({ result: "W", length: 5 });
+    expect(c.baseSignal).toBeCloseTo(15);
+  });
+
+  it("emits STREAK_5L when the head 5 matches are all losses", async () => {
+    const rows = Array.from({ length: 5 }, (_, i) =>
+      makeStreakRow({
+        matchId: `EUW_COLD_${i}`,
+        playedAt: new Date(NOW.getTime() - i * 24 * 60 * 60 * 1000),
+        win: false,
+      })
+    );
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.momentType).toBe("STREAK_5L");
+    expect(c.slug).toBe("lol-moment-streak-l-EUW_COLD_0");
+    expect(c.streak).toEqual({ result: "L", length: 5 });
+  });
+
+  it("counts the FULL run length when it exceeds the minimum (8 wins → length 8)", async () => {
+    const rows = Array.from({ length: 8 }, (_, i) =>
+      makeStreakRow({
+        matchId: `EUW_LONG_${i}`,
+        playedAt: new Date(NOW.getTime() - i * 24 * 60 * 60 * 1000),
+        win: true,
+      })
+    );
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.streak?.length).toBe(8);
+    expect(c.baseSignal).toBeCloseTo(24); // 8 × 3
+  });
+
+  it("caps the base signal at STREAK_LENGTH_CAP × factor", async () => {
+    // 18-game streak — length stays accurate, signal caps at 15 × 3 = 45.
+    const rows = Array.from({ length: 18 }, (_, i) =>
+      makeStreakRow({
+        matchId: `EUW_LR_${i}`,
+        playedAt: new Date(NOW.getTime() - i * 24 * 60 * 60 * 1000),
+        win: true,
+      })
+    );
+    const { service } = makeService({ streakRows: rows });
+    const result = await service.detectStreaks(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.streak?.length).toBeGreaterThan(15);
+    expect(c.baseSignal).toBeCloseTo(45);
+  });
+
+  it("passes `take` to findMany so the mock can discriminate vs KDA / hiatus calls", async () => {
+    const { service, prisma } = makeService({ streakRows: [] });
+    await service.detectStreaks(NOW);
+    const calls = vi.mocked(prisma.match.findMany).mock.calls;
+    const streakCall = calls.find((c) => (c[0] as { take?: number }).take !== undefined);
+    expect(streakCall).toBeTruthy();
+    const args = streakCall?.[0] as {
+      where: { queueType: { in: string[] } };
+      take: number;
+    };
+    expect(args.take).toBeGreaterThan(0);
+    expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+});
+
 describe("LolMomentsService.detectAll", () => {
   it("collects every detector's output into one candidate list", async () => {
     const { service } = makeService({
@@ -837,14 +1025,27 @@ describe("LolMomentsService.detectAll", () => {
           playedAt: new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000),
         }),
       ],
+      streakRows: Array.from({ length: 5 }, (_, i) =>
+        makeStreakRow({
+          matchId: `EUW_S_${i}`,
+          playedAt: new Date(NOW.getTime() - i * 24 * 60 * 60 * 1000),
+          win: true,
+        })
+      ),
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(5);
     const momentTypes = result
       .filter((r) => r.kind === "lol-moment")
       .map((r) => (r.kind === "lol-moment" ? r.momentType : null));
     expect(new Set(momentTypes)).toEqual(
-      new Set(["OFF_META_PICK", "RANK_UP", "KDA_OUTLIER", "RETURN_FROM_HIATUS"])
+      new Set([
+        "OFF_META_PICK",
+        "RANK_UP",
+        "KDA_OUTLIER",
+        "RETURN_FROM_HIATUS",
+        "STREAK_5W",
+      ])
     );
   });
 });

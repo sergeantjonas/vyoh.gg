@@ -93,6 +93,18 @@ export interface LolHiatusReturnStats {
 }
 
 /**
+ * Streak framing carried on a `STREAK_5W` / `STREAK_5L` LoL moment chapter.
+ * `length` is the run of consecutive same-result ranked matches starting
+ * from the most recent game (active or just-completed streak). The chapter
+ * shows "{length} wins/losses in a row, last on Champ". Null on other
+ * momentTypes.
+ */
+export interface LolStreakStats {
+  result: "W" | "L";
+  length: number;
+}
+
+/**
  * LoL moment chapter — single-event narrative (rank-up, KDA outlier, off-meta
  * pick, streak, return-from-hiatus, etc.). Schema declared now so the
  * `/recap/chapters` contract is stable; emitted in R-6.
@@ -117,6 +129,7 @@ export interface LolMomentChapterDescriptor {
   rankUp: LolRankUpDelta | null;
   kdaOutlier: LolKdaOutlierStats | null;
   hiatusReturn: LolHiatusReturnStats | null;
+  streak: LolStreakStats | null;
   framing: RecapChapterFraming | null;
 }
 

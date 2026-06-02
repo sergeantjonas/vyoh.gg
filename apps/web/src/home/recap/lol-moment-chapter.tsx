@@ -6,6 +6,7 @@ import {
   type LolMomentChapterDescriptor,
   type LolMomentMatchStats,
   type LolRankUpDelta,
+  type LolStreakStats,
   formatRankTitle,
 } from "@vyoh/shared";
 import type { ReactNode } from "react";
@@ -87,6 +88,7 @@ function momentCopy(args: {
   rankUp: LolRankUpDelta | null;
   kdaOutlier: LolKdaOutlierStats | null;
   hiatusReturn: LolHiatusReturnStats | null;
+  streak: LolStreakStats | null;
   emblemYear: number;
 }): MomentCopy {
   const {
@@ -96,6 +98,7 @@ function momentCopy(args: {
     rankUp,
     kdaOutlier,
     hiatusReturn,
+    streak,
     emblemYear,
   } = args;
 
@@ -124,6 +127,28 @@ function momentCopy(args: {
         <>
           Climbed from <Accent>{fromTitle}</Accent> to <Accent>{toTitle}</Accent>,
           championed by <Accent>{displayName}</Accent>.
+        </>
+      ),
+    };
+  }
+
+  if ((momentType === "STREAK_5W" || momentType === "STREAK_5L") && streak) {
+    const isHot = streak.result === "W";
+    return {
+      eyebrow: isHot ? "Hot streak" : "Cold streak",
+      mastheadText: displayName,
+      leadingVisual: null,
+      chapterLabel: `${isHot ? "Hot streak" : "Cold streak"} · ${displayName}`,
+      ariaLabel: `${isHot ? "Hot streak" : "Cold streak"} on ${displayName}`,
+      body: isHot ? (
+        <>
+          <Accent>{streak.length}</Accent> ranked wins in a row, last on{" "}
+          <Accent>{displayName}</Accent>.
+        </>
+      ) : (
+        <>
+          <Accent>{streak.length}</Accent> ranked losses straight, last on{" "}
+          <Accent>{displayName}</Accent>.
         </>
       ),
     };
@@ -233,6 +258,7 @@ interface Props {
   rankUp: LolRankUpDelta | null;
   kdaOutlier: LolKdaOutlierStats | null;
   hiatusReturn: LolHiatusReturnStats | null;
+  streak: LolStreakStats | null;
 }
 
 /**
@@ -260,6 +286,7 @@ export function LolMomentChapter({
   rankUp,
   kdaOutlier,
   hiatusReturn,
+  streak,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
@@ -307,6 +334,7 @@ export function LolMomentChapter({
     rankUp,
     kdaOutlier,
     hiatusReturn,
+    streak,
     emblemYear,
   });
   const whenLine = formatDaysSince(daysSince);

@@ -114,6 +114,33 @@ const HIATUS_SIGNAL_FACTOR = 0.4;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Lookback window for streak detection. The most recent match must fall
+ *  within this many days to count as an active/just-completed streak — a
+ *  5-win streak that ended 45d ago isn't current news. */
+const STREAK_WINDOW_DAYS = 30;
+
+/** Minimum consecutive same-result match count to qualify as a streak.
+ *  Five matches is the canonical "streak" in League — Riot's own
+ *  honor/hot-streak UI uses the same threshold. Below this, two or three
+ *  in a row reads as "you played well/poorly twice", not as a streak. */
+const STREAK_MIN_LENGTH = 5;
+
+/** Upper bound on streak length fed into the base signal. A 15-game streak
+ *  and a 25-game streak both read as "incredible run" — the curve flattens
+ *  past this point. */
+const STREAK_LENGTH_CAP = 15;
+
+/** Per-match scaling for the streak base signal. streakLength × factor →
+ *  baseSignal. Calibrated so a 5-streak → 15 raw (clears floor easily at
+ *  0d, marginal at 14d), 8-streak → 24, 15+ → 45 (max). */
+const STREAK_SIGNAL_FACTOR = 3;
+
+/** Number of recent ranked matches the streak detector reads. Capped because
+ *  we only need enough rows to identify the run at the head of the desc
+ *  order; pulling the entire match table for streak detection would be
+ *  wasteful. 20 covers any plausible streak length and a buffer. */
+const STREAK_SCAN_LIMIT = 20;
+
 function computeKda(kills: number, deaths: number, assists: number): number {
   return (kills + assists) / Math.max(1, deaths);
 }
@@ -144,13 +171,14 @@ export class LolMomentsService {
   ) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    const [offMeta, rankUps, kdaOutliers, hiatusReturns] = await Promise.all([
+    const [offMeta, rankUps, kdaOutliers, hiatusReturns, streaks] = await Promise.all([
       this.detectOffMetaPicks(now),
       this.detectRankUps(now),
       this.detectKdaOutliers(now),
       this.detectReturnsFromHiatus(now),
+      this.detectStreaks(now),
     ]);
-    return [...offMeta, ...rankUps, ...kdaOutliers, ...hiatusReturns];
+    return [...offMeta, ...rankUps, ...kdaOutliers, ...hiatusReturns, ...streaks];
   }
 
   /**
@@ -592,6 +620,99 @@ export class LolMomentsService {
           queueType: m.queueType,
         },
         hiatusReturn: { gapDays },
+      },
+    ];
+  }
+
+  /**
+   * Detect an active or just-completed ranked streak — a run of ≥ 5
+   * consecutive same-result matches at the head of the owner's recent
+   * ranked history. Active streak (still going) and just-completed streak
+   * (head match is the last of the run) both qualify — the framing is "you
+   * just had a streak", not necessarily "you're currently on one".
+   *
+   * Algorithm:
+   *   1. Read the top STREAK_SCAN_LIMIT ranked matches DESC by playedAt.
+   *      Bail if the head match is outside STREAK_WINDOW_DAYS (an old
+   *      streak isn't current news).
+   *   2. The head match's `win` value defines the streak direction. Walk
+   *      forward (older) and count consecutive same-result matches; stop at
+   *      the first opposite-result.
+   *   3. If length ≥ STREAK_MIN_LENGTH, emit a candidate with momentType
+   *      `STREAK_5W` or `STREAK_5L`. baseSignal scales linearly with length
+   *      up to STREAK_LENGTH_CAP, then plateaus.
+   *
+   * Returns ≤ 1 candidate per call. Multiple overlapping streak surfaces
+   * in one chapter list would crowd the bucket with near-duplicate framing.
+   * `take: STREAK_SCAN_LIMIT` on the findMany call also serves as the
+   * spec-mock discriminator (KDA + hiatus don't pass `take`).
+   */
+  async detectStreaks(now: Date): Promise<RecapCandidate[]> {
+    const ownerPuuids = await this.identity.getOwnerPuuids();
+    if (ownerPuuids.length === 0) return [];
+
+    const windowCutoff = new Date(now.getTime() - STREAK_WINDOW_DAYS * DAY_MS);
+
+    const recent = await this.prisma.match.findMany({
+      where: {
+        puuid: { in: ownerPuuids },
+        remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
+      },
+      orderBy: { playedAt: "desc" },
+      take: STREAK_SCAN_LIMIT,
+      select: {
+        matchId: true,
+        champion: true,
+        playedAt: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        queueType: true,
+      },
+    });
+
+    const head = recent[0];
+    if (!head) return [];
+    if (head.playedAt < windowCutoff) return [];
+
+    const headResult = head.win;
+    let length = 0;
+    for (const m of recent) {
+      if (m.win === headResult) length++;
+      else break;
+    }
+    if (length < STREAK_MIN_LENGTH) return [];
+
+    const daysSince = Math.max(
+      0,
+      Math.floor((now.getTime() - head.playedAt.getTime()) / DAY_MS)
+    );
+    const cappedLength = Math.min(length, STREAK_LENGTH_CAP);
+    const baseSignal = cappedLength * STREAK_SIGNAL_FACTOR;
+    const momentType = headResult ? "STREAK_5W" : "STREAK_5L";
+    const result: "W" | "L" = headResult ? "W" : "L";
+
+    return [
+      {
+        kind: "lol-moment",
+        slug: `lol-moment-streak-${result.toLowerCase()}-${head.matchId}`,
+        momentType,
+        baseSignal,
+        daysSince,
+        matchId: head.matchId,
+        championAlias: head.champion,
+        matchStats: {
+          kills: head.kills,
+          deaths: head.deaths,
+          assists: head.assists,
+          win: head.win,
+          durationSec: head.durationSec,
+          queueType: head.queueType,
+        },
+        streak: { result, length },
       },
     ];
   }

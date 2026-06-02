@@ -234,6 +234,7 @@ export type {
   LolMomentChapterDescriptor,
   LolMomentMatchStats,
   LolRankUpDelta,
+  LolStreakStats,
   RecapAgeBucket,
   RecapChapterDescriptor,
   RecapChapterFraming,

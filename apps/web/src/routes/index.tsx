@@ -107,6 +107,7 @@ function HomePage() {
                 rankUp={c.rankUp}
                 kdaOutlier={c.kdaOutlier}
                 hiatusReturn={c.hiatusReturn}
+                streak={c.streak}
               />
             );
           }
