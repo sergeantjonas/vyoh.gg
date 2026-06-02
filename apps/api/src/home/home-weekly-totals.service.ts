@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeWeeklyTotals } from "@vyoh/shared";
+import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const TIME_ZONE = "Europe/Brussels";
@@ -49,15 +50,24 @@ export function diffPlaytimeMinutes(
 
 @Injectable()
 export class HomeWeeklyTotalsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identity: IdentityService
+  ) {}
 
   async getWeeklyTotals(): Promise<HomeWeeklyTotals> {
     const weekEnd = new Date();
     const weekStart = new Date(weekEnd.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
+    // Owner-filtered — see HomeChronotypeService for rationale.
+    const ownerPuuids = await this.identity.getOwnerPuuids();
     const [matchRows, snapshotRows] = await Promise.all([
       this.prisma.match.findMany({
-        where: { remake: false, playedAt: { gte: weekStart } },
+        where: {
+          remake: false,
+          playedAt: { gte: weekStart },
+          puuid: { in: ownerPuuids },
+        },
         select: { durationSec: true },
       }),
       this.prisma.steamPlaytimeSnapshot.findMany({

@@ -5,7 +5,6 @@ import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
 import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
 import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
 import { LandingHeading } from "@/home/landing-heading";
-import { LandingSteamBand } from "@/home/landing-steam-band";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
@@ -19,7 +18,7 @@ export const Route = createFileRoute("/")({
   component: HomePage,
   // Skip the global scope-fade in <RootLayout> for the landing mount — the
   // landing owns its own entrance via <LandingHeading>'s editorial cascade and
-  // <LandingSteamBand> / conclusion bands' whileInView gates.
+  // the conclusion bands' whileInView gates.
   staticData: { ownsEntry: true },
 });
 
@@ -76,11 +75,10 @@ function HomePage() {
         {/* Release point for the mandatory chapter-snap region. Without a
             snap-align at the start of the post-chapter content, the
             browser's nearest-snap-target lookup would keep pulling the
-            user back to the last chapter on every scroll-end. This wraps
-            the post-chapter zone (LandingSteamBand + conclusion bands)
-            into a single snap area aligned to its start, so leaving the
-            chapters lands cleanly at the top of the steam band and the
-            conclusion scrolls naturally below. */}
+            user back to the last chapter on every scroll-end. The
+            conclusion sits in a single snap area aligned to its start so
+            leaving the chapters lands cleanly at the top of the rhythm
+            band and the rest of the conclusion scrolls naturally below. */}
         <section
           ref={conclusionRef}
           // Treated as the terminal "chapter" for `<NextChapterCaret>`
@@ -98,7 +96,6 @@ function HomePage() {
               the last chapter. The hero's matching claim is now distant
               enough by proximity that this one wins. */}
           <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
-          <LandingSteamBand />
           <ConclusionRhythmBand />
           <LifetimeTotalsStrip />
           <EditorialCloser />

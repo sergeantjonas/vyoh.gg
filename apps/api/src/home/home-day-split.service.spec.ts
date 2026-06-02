@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import {
   type DaySplitInterval,
@@ -143,15 +144,21 @@ describe("splitIntervalsByHour", () => {
 });
 
 describe("HomeDaySplitService.getDaySplit", () => {
+  let lastPrisma: PrismaService;
   function makeService(
     matches: { playedAt: Date; durationSec: number }[],
-    sessions: { startedAt: Date; endedAt: Date | null }[]
+    sessions: { startedAt: Date; endedAt: Date | null }[],
+    ownerPuuids: string[] = ["P_owner"]
   ) {
     const prisma = {
       match: { findMany: vi.fn().mockResolvedValue(matches) },
       steamPlaySession: { findMany: vi.fn().mockResolvedValue(sessions) },
     } as unknown as PrismaService;
-    return new HomeDaySplitService(prisma);
+    const identity = {
+      getOwnerPuuids: vi.fn().mockResolvedValue(ownerPuuids),
+    } as unknown as IdentityService;
+    lastPrisma = prisma;
+    return new HomeDaySplitService(prisma, identity);
   }
 
   it("returns 24 zero-valued hours when there is no activity", async () => {
@@ -207,5 +214,18 @@ describe("HomeDaySplitService.getDaySplit", () => {
     const result = await service.getDaySplit();
     expect(result.hours[20]?.lolMinutes).toBe(30);
     expect(result.hours[20]?.steamMinutes).toBe(20);
+  });
+
+  it("filters matches to the owner-resolved puuids returned by IdentityService", async () => {
+    const service = makeService([], [], ["P_A", "P_B"]);
+    await service.getDaySplit();
+    expect(lastPrisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          remake: false,
+          puuid: { in: ["P_A", "P_B"] },
+        }),
+      })
+    );
   });
 });

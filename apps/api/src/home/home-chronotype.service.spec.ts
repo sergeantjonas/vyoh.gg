@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import {
   HomeChronotypeService,
@@ -84,16 +85,23 @@ describe("mergePerStream", () => {
 });
 
 describe("HomeChronotypeService.getChronotype", () => {
-  function makeService(matches: { playedAt: Date }[], unlocks: { unlockedAt: Date }[]) {
+  function makeService(
+    matches: { playedAt: Date }[],
+    unlocks: { unlockedAt: Date }[],
+    ownerPuuids: string[] = ["P_owner"]
+  ) {
     const prisma = {
       match: { findMany: vi.fn().mockResolvedValue(matches) },
       steamPlayerUnlock: { findMany: vi.fn().mockResolvedValue(unlocks) },
     } as unknown as PrismaService;
-    return new HomeChronotypeService(prisma);
+    const identity = {
+      getOwnerPuuids: vi.fn().mockResolvedValue(ownerPuuids),
+    } as unknown as IdentityService;
+    return { service: new HomeChronotypeService(prisma, identity), prisma, identity };
   }
 
   it("returns 24 zeroed hours when there is no activity", async () => {
-    const service = makeService([], []);
+    const { service } = makeService([], []);
     const result = await service.getChronotype();
     expect(result.hours).toHaveLength(24);
     expect(result.totalLolCount).toBe(0);
@@ -102,7 +110,7 @@ describe("HomeChronotypeService.getChronotype", () => {
   });
 
   it("buckets matches and unlocks into the correct Brussels hour", async () => {
-    const service = makeService(
+    const { service } = makeService(
       [
         { playedAt: dateAtHour(20) },
         { playedAt: dateAtHour(20) },
@@ -116,5 +124,18 @@ describe("HomeChronotypeService.getChronotype", () => {
     expect(result.hours[20]).toEqual({ hour: 20, total: 3, lol: 2, steam: 1 });
     expect(result.hours[21]?.lol).toBe(1);
     expect(result.hours[22]?.steam).toBe(1);
+  });
+
+  it("filters matches to the owner-resolved puuids returned by IdentityService", async () => {
+    const { service, prisma } = makeService([], [], ["P_A", "P_B"]);
+    await service.getChronotype();
+    expect(prisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          remake: false,
+          puuid: { in: ["P_A", "P_B"] },
+        }),
+      })
+    );
   });
 });

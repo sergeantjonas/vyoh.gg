@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeChronotype, HomeChronotypeHour } from "@vyoh/shared";
+import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const TIME_ZONE = "Europe/Brussels";
@@ -46,12 +47,20 @@ export function mergePerStream(
 
 @Injectable()
 export class HomeChronotypeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identity: IdentityService
+  ) {}
 
   async getChronotype(count = 500): Promise<HomeChronotype> {
+    // Owner-filtered: "when I play" is a self-portrait surface; matches
+    // from non-owner accounts tracked in accounts.json (friends, pros)
+    // would pollute the hour bucketing. Steam unlocks already live under
+    // STEAM_OWNER_ID so no filter is needed there.
+    const ownerPuuids = await this.identity.getOwnerPuuids();
     const [matchRows, unlockRows] = await Promise.all([
       this.prisma.match.findMany({
-        where: { remake: false },
+        where: { remake: false, puuid: { in: ownerPuuids } },
         orderBy: { playedAt: "desc" },
         take: count,
         select: { playedAt: true },

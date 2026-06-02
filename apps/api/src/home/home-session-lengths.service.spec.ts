@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import {
   HomeSessionLengthsService,
@@ -124,15 +125,21 @@ describe("histogramSessionLengths", () => {
 });
 
 describe("HomeSessionLengthsService.getSessionLengths", () => {
+  let lastPrisma: PrismaService;
   function makeService(
     matches: { playedAt: Date; durationSec: number }[],
-    sessions: { startedAt: Date; endedAt: Date | null }[]
+    sessions: { startedAt: Date; endedAt: Date | null }[],
+    ownerPuuids: string[] = ["P_owner"]
   ) {
     const prisma = {
       match: { findMany: vi.fn().mockResolvedValue(matches) },
       steamPlaySession: { findMany: vi.fn().mockResolvedValue(sessions) },
     } as unknown as PrismaService;
-    return new HomeSessionLengthsService(prisma);
+    const identity = {
+      getOwnerPuuids: vi.fn().mockResolvedValue(ownerPuuids),
+    } as unknown as IdentityService;
+    lastPrisma = prisma;
+    return new HomeSessionLengthsService(prisma, identity);
   }
 
   it("returns five empty buckets when there is no activity", async () => {
@@ -183,5 +190,18 @@ describe("HomeSessionLengthsService.getSessionLengths", () => {
     );
     const result = await service.getSessionLengths();
     expect(result.steamSessionCount).toBe(0);
+  });
+
+  it("filters matches to the owner-resolved puuids returned by IdentityService", async () => {
+    const service = makeService([], [], ["P_A", "P_B"]);
+    await service.getSessionLengths();
+    expect(lastPrisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          remake: false,
+          puuid: { in: ["P_A", "P_B"] },
+        }),
+      })
+    );
   });
 });

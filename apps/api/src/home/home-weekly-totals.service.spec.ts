@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import {
   HomeWeeklyTotalsService,
@@ -93,15 +94,21 @@ describe("diffPlaytimeMinutes", () => {
 });
 
 describe("HomeWeeklyTotalsService.getWeeklyTotals", () => {
+  let lastPrisma: PrismaService;
   function makeService(
     matches: { durationSec: number }[],
-    snapshots: PlaytimeSnapshotRow[]
+    snapshots: PlaytimeSnapshotRow[],
+    ownerPuuids: string[] = ["P_owner"]
   ) {
     const prisma = {
       match: { findMany: vi.fn().mockResolvedValue(matches) },
       steamPlaytimeSnapshot: { findMany: vi.fn().mockResolvedValue(snapshots) },
     } as unknown as PrismaService;
-    return new HomeWeeklyTotalsService(prisma);
+    const identity = {
+      getOwnerPuuids: vi.fn().mockResolvedValue(ownerPuuids),
+    } as unknown as IdentityService;
+    lastPrisma = prisma;
+    return new HomeWeeklyTotalsService(prisma, identity);
   }
 
   it("rolls up match count, lol minutes, steam delta, and a total", async () => {
@@ -133,5 +140,18 @@ describe("HomeWeeklyTotalsService.getWeeklyTotals", () => {
     expect(result.lolMinutes).toBe(0);
     expect(result.steamMinutes).toBe(0);
     expect(result.totalMinutes).toBe(0);
+  });
+
+  it("filters matches to the owner-resolved puuids returned by IdentityService", async () => {
+    const service = makeService([], [], ["P_A", "P_B"]);
+    await service.getWeeklyTotals();
+    expect(lastPrisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          remake: false,
+          puuid: { in: ["P_A", "P_B"] },
+        }),
+      })
+    );
   });
 });

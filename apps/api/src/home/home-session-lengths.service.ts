@@ -4,6 +4,7 @@ import type {
   HomeSessionLengthsBucket,
   SessionLengthBucketLabel,
 } from "@vyoh/shared";
+import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const STITCH_GAP_MINUTES = 30;
@@ -120,12 +121,17 @@ export function histogramSessionLengths(
 
 @Injectable()
 export class HomeSessionLengthsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identity: IdentityService
+  ) {}
 
   async getSessionLengths(): Promise<HomeSessionLengths> {
+    // Owner-filtered — see HomeChronotypeService for rationale.
+    const ownerPuuids = await this.identity.getOwnerPuuids();
     const [matchRows, sessionRows] = await Promise.all([
       this.prisma.match.findMany({
-        where: { remake: false },
+        where: { remake: false, puuid: { in: ownerPuuids } },
         select: { playedAt: true, durationSec: true },
       }),
       this.prisma.steamPlaySession.findMany({

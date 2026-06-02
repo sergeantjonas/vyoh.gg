@@ -131,6 +131,38 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
     return this.config.steam;
   }
 
+  /**
+   * PUUIDs of LoL accounts flagged `isOwner: true` in `accounts.json`,
+   * resolved via the `Summoner` denorm. Used by self-portrait surfaces
+   * (the `/` conclusion bands: rhythm, lifetime totals) to filter LoL
+   * aggregations to the owner's own play history rather than every
+   * tracked account in the config. Other surfaces — recap, match list,
+   * champion stats — intentionally do NOT use this filter; they remain
+   * broad so non-owner accounts in the config (friends, pros) still
+   * surface their own pages and chapters.
+   *
+   * Returns `[]` when no owner accounts are configured, or when none of
+   * the configured owner accounts have resolved a `Summoner` row yet
+   * (matches will then resolve to no rows under `puuid: { in: [] }`,
+   * which is the correct degraded state — empty until the resolver
+   * catches up).
+   */
+  async getOwnerPuuids(): Promise<string[]> {
+    const ownerAccounts = this.config.lol.filter((a) => a.isOwner);
+    if (ownerAccounts.length === 0) return [];
+    const summoners = await this.prisma.summoner.findMany({
+      where: {
+        OR: ownerAccounts.map((a) => ({
+          gameName: { equals: a.gameName, mode: "insensitive" as const },
+          tagLine: { equals: a.tagLine, mode: "insensitive" as const },
+          region: { equals: a.region, mode: "insensitive" as const },
+        })),
+      },
+      select: { puuid: true },
+    });
+    return summoners.map((s) => s.puuid);
+  }
+
   findBySlug(slug: string): LolAccount | undefined {
     return this.config.lol.find((a) => a.slug.toLowerCase() === slug.toLowerCase());
   }

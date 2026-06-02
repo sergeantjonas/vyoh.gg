@@ -52,6 +52,47 @@ describe("IdentityService", () => {
     expect(service.findBySlug("missing")).toBeUndefined();
   });
 
+  it("getOwnerPuuids returns [] when no isOwner accounts are configured", async () => {
+    const noOwnerConfig: AccountsConfig = {
+      lol: [{ slug: "alt", gameName: "X", tagLine: "1", region: "euw1" }],
+      steam: [],
+    };
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { summoner: { findMany } } as unknown as PrismaService;
+    const service = new IdentityService(noOwnerConfig, prisma);
+    expect(await service.getOwnerPuuids()).toEqual([]);
+    // No Prisma round-trip when there are no owner accounts to look up.
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("getOwnerPuuids resolves Summoner.puuid for isOwner accounts only", async () => {
+    const ownerConfig: AccountsConfig = {
+      lol: [
+        {
+          slug: "main",
+          gameName: "Vyoh",
+          tagLine: "Ahri",
+          region: "euw1",
+          isOwner: true,
+          isPrimary: true,
+        },
+        { slug: "alt", gameName: "Vyoh", tagLine: "Alt", region: "euw1", isOwner: true },
+        // Non-owner — should NOT appear in the where clause.
+        { slug: "tifa", gameName: "TIFΑ", tagLine: "7777", region: "euw1" },
+      ],
+      steam: [],
+    };
+    const findMany = vi.fn().mockResolvedValue([{ puuid: "P_main" }, { puuid: "P_alt" }]);
+    const prisma = { summoner: { findMany } } as unknown as PrismaService;
+    const service = new IdentityService(ownerConfig, prisma);
+    const puuids = await service.getOwnerPuuids();
+    expect(puuids).toEqual(["P_main", "P_alt"]);
+    // Owner-only lookup — the OR clause should have exactly 2 entries, not 3.
+    expect(findMany).toHaveBeenCalledTimes(1);
+    const call = findMany.mock.calls[0]?.[0] as { where: { OR: unknown[] } };
+    expect(call.where.OR).toHaveLength(2);
+  });
+
   it("accepts a config with exactly one isOwner+isPrimary account alongside test data", () => {
     expect(
       () =>
