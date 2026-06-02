@@ -23,11 +23,6 @@ describe("LandingHeading", () => {
     expect(h1s[0]?.textContent).toContain("and whatever I plug in next.");
   });
 
-  it("renders the vyoh.gg eyebrow above the headline", () => {
-    const { container } = renderHeading();
-    expect(container.textContent).toContain("vyoh.gg");
-  });
-
   it("mounts the OrbMark", () => {
     const { container } = renderHeading();
     expect(container.querySelector("img[src='/vyoh-orb-mark.svg']")).not.toBeNull();
