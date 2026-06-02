@@ -76,27 +76,20 @@ function HomePage() {
             <SteamChapter key={c.slug} appid={c.appid} framing={c.framing} />
           ) : null
         )}
-        {/* Conclusion is split across two snap-aligned siblings so the
-            page reads as two viewport-paged closes rather than one tall
-            stack that overflows under the snap-paged flow above. Caret
-            threads through both via `data-recap-chapter`; AmbientHero's
-            palette-only claim is mounted on the recent section (its
-            bounding rect anchors atmosphere proximity for the whole
-            conclusion zone — the alltime section is close enough that
-            adding a second claim would just be redundant). See the recap
-            arc's R-15 chunk for the planned re-evaluation against R-13's
-            multi-beat primitive once that ships. */}
+        {/* Conclusion is split across two snap-aligned siblings, each
+            claiming a full viewport so the page reads as two distinct
+            paged closes rather than one tall stack. `scroll-snap-stop:
+            always` matches the chapter pattern above — every section is
+            an exhaustive stop. Caret threads through both via
+            `data-recap-chapter`; AmbientHero's palette-only claim is
+            mounted on the recent section. See the recap arc's R-15 chunk
+            for the planned re-evaluation against R-13's multi-beat
+            primitive once that ships. */}
         <section
           ref={conclusionRef}
           data-recap-chapter="conclusion-recent"
           data-chapter-label="The week"
-          // Small top padding gives the section a visible opening beat
-          // when the snap-align lands without parking a full chapter of
-          // empty atmosphere above the rhythm band. Chapters use
-          // `pinViewports={1}` + `scroll-snap-stop: always`, so at rest the
-          // previous chapter is fully off-screen above — the padding is for
-          // visual breathing during the transition, not bleed prevention.
-          className="pt-[5dvh] [scroll-snap-align:start]"
+          className="flex min-h-[calc(var(--main-h,100dvh)-3rem)] flex-col items-stretch justify-center gap-2 [scroll-snap-align:start] [scroll-snap-stop:always]"
         >
           {/* Reuses AmbientHero as a palette-only atmosphere claim scoped to
               the conclusion ref — fades the bg back from asset-driven
@@ -117,20 +110,30 @@ function HomePage() {
         </section>
         <section
           data-recap-chapter="conclusion-alltime"
-          data-chapter-label="Since launch"
-          className="pt-[5dvh] [scroll-snap-align:start]"
+          // Label avoids "Since launch" because the LifetimeTotalsStrip
+          // already uses that as its eyebrow inside this section, and the
+          // caret showing the same words two lines below the eyebrow read
+          // as a typo. "The picture" mirrors the editorial closer's
+          // sign-off ("That's the picture.") and frames the section as the
+          // page's final beat.
+          data-chapter-label="The picture"
+          className="flex min-h-[calc(var(--main-h,100dvh)-3rem)] flex-col [scroll-snap-align:start] [scroll-snap-stop:always]"
         >
-          {/* Author signature: introduces the alltime self-portrait. The
-              orb opens the page; the named author signs into the alltime
-              totals. */}
-          <OwnerIdentityStrip />
-          {/* 30-day solo queue LP arc — sits between the identity signature
-              and alltime totals as the "where the climb is going right now"
-              beat. Hides itself when the primary account has too little
-              snapshot history to draw. */}
-          <RankTrajectoryStrip />
-          <LifetimeTotalsStrip />
-          <EditorialCloser />
+          {/* Upper region centers identity → trajectory → totals → closer in
+              the viewport; footer chips pin to the bottom as colophon. */}
+          <div className="flex flex-1 flex-col items-stretch justify-center gap-2">
+            {/* Author signature: introduces the alltime self-portrait. The
+                orb opens the page; the named author signs into the alltime
+                totals. */}
+            <OwnerIdentityStrip />
+            {/* 30-day solo queue LP arc — sits between the identity
+                signature and alltime totals as the "where the climb is
+                going right now" beat. Hides itself when the primary
+                account has too little snapshot history to draw. */}
+            <RankTrajectoryStrip />
+            <LifetimeTotalsStrip />
+            <EditorialCloser />
+          </div>
           <ConclusionFooterChips />
         </section>
       </div>
