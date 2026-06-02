@@ -15,6 +15,16 @@ const DORMANT_LIFETIME_FLOOR_HOURS = 5;
 /** Same per-kind cap as the active path's steam-subject slot. */
 const DORMANT_CAP = 3;
 
+/** Below this 2w-playtime threshold, a recent `rtimeLastPlayedAt` is treated
+ *  as a brief launch (e.g. opened the app to check something) rather than
+ *  real engagement, and the dormant ranker falls back to the unlock signal
+ *  for `freshest`. Without this, a 3-minute Silksong launch outranks an
+ *  RE3 playthrough from 30 days ago in the dormant branch — the freshness
+ *  signal is technically truer for Silksong but doesn't represent real
+ *  engagement. 30 minutes is the rough threshold below which Steam will
+ *  show a duration like "3m" rather than a session-sized number. */
+const BRIEF_LAUNCH_2W_MINUTES = 30;
+
 /**
  * Steam-subject candidate enumeration for the landing-page recap chapter
  * stream. Reads owned games (already filtered to currently-owned via the
@@ -177,9 +187,18 @@ export class RecapSubjectsService {
       if (lifetimeHours < DORMANT_LIFETIME_FLOOR_HOURS) continue;
 
       const lastUnlockMs = lastUnlockByAppid.get(game.appid)?.getTime() ?? null;
-      const lastPlayedMs = game.rtimeLastPlayedAt
-        ? new Date(game.rtimeLastPlayedAt).getTime()
-        : null;
+      // Brief-launch floor: a non-zero but tiny 2w playtime (e.g. 3 minutes)
+      // means the game was opened recently but not actually played. Treat the
+      // `rtimeLastPlayedAt` signal as untrustworthy in this case and fall
+      // through to the unlock signal for `freshest`. If the user launched it
+      // for testing/checking, we don't want it crowding RE3/RE4 sessions
+      // that *were* real play but happened weeks ago.
+      const playtime2W = game.playtime2WeeksMinutes ?? 0;
+      const brieflyLaunched = playtime2W > 0 && playtime2W < BRIEF_LAUNCH_2W_MINUTES;
+      const lastPlayedMs =
+        !brieflyLaunched && game.rtimeLastPlayedAt
+          ? new Date(game.rtimeLastPlayedAt).getTime()
+          : null;
       const freshest =
         lastUnlockMs !== null && lastPlayedMs !== null
           ? Math.max(lastUnlockMs, lastPlayedMs)

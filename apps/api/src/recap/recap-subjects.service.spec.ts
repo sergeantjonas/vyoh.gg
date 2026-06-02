@@ -361,6 +361,44 @@ describe("RecapSubjectsService.getChapters", () => {
       ]);
     });
 
+    it("ignores brief-launch lastPlayed when ranking — a 3m relaunch must not outrank an older real session", async () => {
+      // Silksong-shaped: high lifetime, freshly *launched* (3m 2w playtime),
+      // but the last meaningful engagement (unlock) was months ago.
+      // RE3-shaped: high lifetime, last played ~30d ago for hours (zero 2w
+      // playtime since the 14d window has rolled past).
+      // Without the brief-launch floor, Silksong's freshly-bumped
+      // rtimeLastPlayedAt outranks RE3's 30d-old engagement. With the floor,
+      // Silksong's `freshest` falls back to its lastUnlockAt (200d ago) and
+      // RE3 wins on freshness.
+      const silksongUnlock = new Date(NOW.getTime() - 200 * 24 * 60 * 60 * 1000);
+      const re3LastPlayed = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1145360, // Silksong shape
+            name: "Silksong",
+            playtimeForeverMinutes: 60 * 67,
+            playtime2WeeksMinutes: 3, // 3m — brief relaunch
+            rtimeLastPlayedAt: NOW.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 952060, // RE3 shape
+            name: "Resident Evil 3",
+            playtimeForeverMinutes: 60 * 20,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: re3LastPlayed.toISOString(),
+          }),
+        ],
+        [{ appid: 1145360, _max: { unlockedAt: silksongUnlock } }],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        952060, 1145360,
+      ]);
+    });
+
     it("drops dormant candidates below the lifetime floor", async () => {
       // A briefly-launched-but-never-actually-played game must not surface
       // in the dormant branch — the lifetime floor is the gate that distinguishes
