@@ -289,4 +289,148 @@ describe("RecapSubjectsService.getChapters", () => {
     const chapters = await service.getChapters(NOW);
     expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([1]);
   });
+
+  describe("dormant fallback", () => {
+    it("surfaces the most-recently-engaged games when no game clears the active floor", async () => {
+      // Quiet period: zero 2w playtime across the library. Without the fallback
+      // the chapter list would be empty.
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Older",
+            playtimeForeverMinutes: 60 * 40,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 45 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Newer",
+            playtimeForeverMinutes: 60 * 25,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      // Sorted by freshest desc — Newer (20d ago) before Older (45d ago).
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        2, 1,
+      ]);
+      // Eyebrows reflect honest dormancy through ageBucket — "recent" for
+      // ≤30d, "season" for ≤90d.
+      expect(chapters[0]?.ageBucket).toBe("recent");
+      expect(chapters[1]?.ageBucket).toBe("season");
+    });
+
+    it("does not fire when at least one active candidate clears the floor", async () => {
+      // One active candidate above floor → dormant path skipped entirely.
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Active",
+            playtimeForeverMinutes: 60 * 25,
+            playtime2WeeksMinutes: 60 * 10,
+            rtimeLastPlayedAt: NOW.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Dormant",
+            playtimeForeverMinutes: 60 * 80, // larger lifetime
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 45 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        1,
+      ]);
+    });
+
+    it("drops dormant candidates below the lifetime floor", async () => {
+      // A briefly-launched-but-never-actually-played game must not surface
+      // in the dormant branch — the lifetime floor is the gate that distinguishes
+      // "engaged with at some point" from "opened the launcher once".
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Launcher Browse",
+            playtimeForeverMinutes: 60 * 0.5, // 30 minutes, below 5h floor
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 30 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters).toEqual([]);
+    });
+
+    it("respects appType + hidden-appid filters in the dormant branch", async () => {
+      const [hidden] = [...RECAP_HIDDEN_APPIDS];
+      if (hidden === undefined) {
+        throw new Error("test precondition: RECAP_HIDDEN_APPIDS must be non-empty");
+      }
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: hidden,
+            name: "Hidden",
+            appType: 0,
+            playtimeForeverMinutes: 60 * 500,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 999,
+            name: "Wallpaper Engine",
+            appType: 6,
+            playtimeForeverMinutes: 60 * 500,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 42,
+            name: "Eligible",
+            appType: 0,
+            playtimeForeverMinutes: 60 * 30,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 25 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        42,
+      ]);
+    });
+  });
 });

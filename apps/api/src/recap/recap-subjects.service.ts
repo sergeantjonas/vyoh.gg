@@ -1,10 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import type { RecapCandidate, RecapChapterDescriptor } from "@vyoh/shared";
-import { selectChapters } from "@vyoh/shared";
+import { ageBucketFromDaysSince, selectChapters } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamOwnedGamesService } from "../steam/owned-games.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
+
+/** Lifetime-hours threshold for the dormant fallback. A game must carry
+ *  meaningful historical engagement to surface in the no-recent-activity
+ *  branch — a one-time launcher browse or 30-minute demo shouldn't qualify.
+ *  5h is a casual-completion floor for most games. Tunable. */
+const DORMANT_LIFETIME_FLOOR_HOURS = 5;
+
+/** Same per-kind cap as the active path's steam-subject slot. */
+const DORMANT_CAP = 3;
 
 /**
  * Steam-subject candidate enumeration for the landing-page recap chapter
@@ -30,7 +39,20 @@ export class RecapSubjectsService {
 
   async getChapters(now: Date = new Date()): Promise<RecapChapterDescriptor[]> {
     const candidates = await this.collectSteamSubjectCandidates(now);
-    return selectChapters(candidates);
+    const active = selectChapters(candidates);
+    if (active.length > 0) return active;
+    // Dormant fallback: no game has cleared the recent-engagement floor in
+    // the active path. Surface the most-recently-engaged games by lifetime
+    // depth, no score floor, no decay — the bucket eyebrows derived from
+    // daysSince ("Recently into", "This season on", "Earlier this year")
+    // frame the result honestly, so a dormant Silksong from 30d ago reads
+    // as "Earlier this year on Silksong" rather than "Playing lately".
+    //
+    // This is the "you've been busy with life" branch — common for any owner
+    // with a job. Without it the algorithmic chapter list collapses to empty
+    // whenever there's been no 14d activity, and the landing page shows only
+    // the hardcoded Ahri anchor.
+    return this.collectDormantFallback(now);
   }
 
   private async collectSteamSubjectCandidates(now: Date): Promise<RecapCandidate[]> {
@@ -121,5 +143,79 @@ export class RecapSubjectsService {
       });
     }
     return candidates;
+  }
+
+  private async collectDormantFallback(now: Date): Promise<RecapChapterDescriptor[]> {
+    // Only the unfiltered lastUnlock groupBy is needed here — dormant
+    // ranking is by `freshest`, not by recent activity, so the 14d-window
+    // count is irrelevant.
+    const [ownedGames, lastUnlockRows] = await Promise.all([
+      this.ownedGames.getOwnedGames(),
+      this.prisma.steamPlayerUnlock.groupBy({
+        by: ["appid"],
+        _max: { unlockedAt: true },
+      }),
+    ]);
+
+    const lastUnlockByAppid = new Map<number, Date | null>(
+      lastUnlockRows.map((row) => [row.appid, row._max.unlockedAt ?? null])
+    );
+
+    const ranked: Array<{
+      appid: number;
+      name: string;
+      lifetimeHours: number;
+      freshest: number;
+      daysSince: number;
+    }> = [];
+
+    for (const game of ownedGames.games) {
+      if (RECAP_HIDDEN_APPIDS.has(game.appid)) continue;
+      if (game.appType !== null && game.appType !== 0) continue;
+
+      const lifetimeHours = game.playtimeForeverMinutes / 60;
+      if (lifetimeHours < DORMANT_LIFETIME_FLOOR_HOURS) continue;
+
+      const lastUnlockMs = lastUnlockByAppid.get(game.appid)?.getTime() ?? null;
+      const lastPlayedMs = game.rtimeLastPlayedAt
+        ? new Date(game.rtimeLastPlayedAt).getTime()
+        : null;
+      const freshest =
+        lastUnlockMs !== null && lastPlayedMs !== null
+          ? Math.max(lastUnlockMs, lastPlayedMs)
+          : (lastUnlockMs ?? lastPlayedMs);
+      if (freshest === null) continue;
+
+      const daysSince = Math.max(
+        0,
+        Math.floor((now.getTime() - freshest) / (1000 * 60 * 60 * 24))
+      );
+
+      ranked.push({
+        appid: game.appid,
+        name: game.name,
+        lifetimeHours,
+        freshest,
+        daysSince,
+      });
+    }
+
+    ranked.sort((a, b) => b.freshest - a.freshest);
+
+    return ranked
+      .slice(0, DORMANT_CAP)
+      .map(({ appid, name, lifetimeHours, daysSince }) => ({
+        kind: "steam-subject" as const,
+        slug: `steam-${appid}`,
+        appid,
+        name,
+        // `score` in dormant mode is the magnitude shown (lifetime hours), not
+        // the active-path's decayed engagement score. The web side displays
+        // ageBucket-driven eyebrows, not the raw number.
+        score: lifetimeHours,
+        daysSince,
+        ageBucket: ageBucketFromDaysSince(daysSince),
+        framing: null,
+      }));
   }
 }
