@@ -88,7 +88,11 @@ function HomePage() {
         <section
           ref={conclusionRef}
           data-recap-chapter="conclusion-recent"
-          data-chapter-label="The week"
+          // "The shape" covers the section's mix of live (now-playing) +
+          // rolling-24h (today) + longer-window aggregates (rhythm's
+          // event-per-hour and session-length samples). "The week" was
+          // wrong — the rhythm card doesn't bucket by week.
+          data-chapter-label="The shape"
           className="flex min-h-[calc(var(--main-h,100dvh)-3rem)] flex-col items-stretch justify-center gap-2 [scroll-snap-align:start] [scroll-snap-stop:always]"
         >
           {/* Reuses AmbientHero as a palette-only atmosphere claim scoped to
