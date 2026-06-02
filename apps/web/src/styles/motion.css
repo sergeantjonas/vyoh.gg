@@ -357,6 +357,7 @@ body {
   translate: var(--orb-pointer-x, 0px) var(--orb-pointer-y, 0px);
   transition: translate 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
 @keyframes orb-entrance-firefox {
   0% {
     animation-timing-function: linear;
@@ -625,18 +626,17 @@ body {
   }
 }
 
-/* ─── Orb mark image rotation ───────────────────────────────────────────── */
-/* The orb SVG has an internal galaxy-swirl. A 90s linear rotation makes the */
-/* magic feel internal rather than purely decorative-around-it. Uses the     */
-/* individual `rotate:` transform property, so it composes cleanly with any  */
-/* future `translate:` animation on the same element (e.g. orb-wander).      */
-
+/* ─── Orb mark image ────────────────────────────────────────────────────── */
+/* 90s slow rotation around the swirl. The original SVG viewBox positions  */
+/* the artwork's visual focal point (the bright swirl, not the PNG's      */
+/* geometric centre) at viewBox centre, which maps to the img element     */
+/* centre — so `transform-origin: center` lands the rotation pivot on the */
+/* swirl. Don't substitute the PNG geometric centre back in unless you    */
+/* also offset transform-origin to compensate, or the swirl wobbles.      */
+/* Wander remains keyframe-zeroed (parallax disabled); `--orb-wander-amp` */
+/* + the listed wander animation are preserved so re-enabling parallax is */
+/* a single-block edit on the keyframes. */
 .orb-image {
-  /* Orb image leads the wander at full amplitude — the focal subject drifts
-     and every other layer follows at reduced amp, giving a parallax that
-     reads as "orb pulls its atmosphere with it." Rotation runs on the
-     `rotate:` individual property; wander runs on `translate:`; they compose
-     cleanly without touching `transform:` shorthand. */
   --orb-wander-amp: 1;
   animation: orb-image-rotate 90s linear infinite, orb-wander 16s ease-in-out infinite;
   will-change: rotate, translate;
