@@ -4,6 +4,7 @@ import { EditorialCloser } from "@/home/conclusion/editorial-closer";
 import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
 import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
 import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
+import { TodayStrip } from "@/home/conclusion/today-strip";
 import { LandingHeading } from "@/home/landing-heading";
 import { OwnerIdentityStrip } from "@/home/owner-identity-strip";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
@@ -57,14 +58,7 @@ function HomePage() {
           className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh] [scroll-snap-align:start]"
         >
           <AmbientHero bandRef={heroRef} intensity={activity?.intensity} />
-          {/* Heading + attribution row stack vertically inside the hero's
-              row-axis flex parent. The strip sits below the editorial
-              heading as a quiet "by Vyoh#Ahri · rank" credit line and
-              doubles as a doorway into the primary profile. */}
-          <div className="flex flex-col items-center gap-8">
-            <LandingHeading />
-            <OwnerIdentityStrip />
-          </div>
+          <LandingHeading />
         </section>
         <NextChapterCaret />
         {/* First recap chapter (R-2). Chapter only mounts when a primary LoL
@@ -111,6 +105,14 @@ function HomePage() {
               enough by proximity that this one wins. */}
           <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
           <ConclusionRhythmBand />
+          {/* Today pulse: zoomed in to "right now" — sits adjacent to the
+              weekly rhythm band as the second time-bucketed strip before
+              the signature → alltime close. */}
+          <TodayStrip />
+          {/* Author signature: introduces the alltime self-portrait. The
+              orb opens the page; the named author signs into the alltime
+              totals. */}
+          <OwnerIdentityStrip />
           <LifetimeTotalsStrip />
           <EditorialCloser />
           <ConclusionFooterChips />

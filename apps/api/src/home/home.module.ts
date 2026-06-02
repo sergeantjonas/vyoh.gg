@@ -6,6 +6,7 @@ import { HomeDaySplitService } from "./home-day-split.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
 import { HomeLifetimeTotalsService } from "./home-lifetime-totals.service";
 import { HomeSessionLengthsService } from "./home-session-lengths.service";
+import { HomeTodayService } from "./home-today.service";
 import { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 import { HomeController } from "./home.controller";
 
@@ -20,6 +21,7 @@ import { HomeController } from "./home.controller";
     HomeSessionLengthsService,
     HomeActivityIntensityService,
     HomeLifetimeTotalsService,
+    HomeTodayService,
   ],
 })
 export class HomeModule {}

@@ -24,34 +24,36 @@ export function OwnerIdentityStrip() {
   const rank = account.summary?.rank ?? null;
 
   return (
-    <Link
-      to="/lol/$accountSlug"
-      params={{ accountSlug: account.slug }}
-      className="group flex items-center gap-3 rounded-full border bg-card/40 px-3 py-1.5 text-sm transition-colors hover:bg-card/70"
-    >
-      <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted/40">
-        {profileIconId != null ? (
-          <img
-            src={profileIconUrl(profileIconId, ddVersion)}
-            alt=""
-            className="size-7 object-cover"
-          />
-        ) : null}
-      </span>
-      <span className="flex items-baseline gap-1.5 tabular-nums">
-        <span className="font-medium text-foreground/90">{account.gameName}</span>
-        <span className="text-muted-foreground">#{account.tagLine}</span>
-      </span>
-      {rank ? (
-        <span className="flex items-center gap-1.5 border-l pl-3 text-xs text-muted-foreground">
-          <img
-            src={rankEmblemUrl(rank.tier, emblemYear)}
-            alt={rank.tier}
-            className="size-4 object-contain"
-          />
-          <span>{formatRank(rank.tier, rank.division, rank.leaguePoints)}</span>
+    <section className="flex justify-center px-6 py-4">
+      <Link
+        to="/lol/$accountSlug"
+        params={{ accountSlug: account.slug }}
+        className="group inline-flex items-center gap-3 rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-card/40"
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted/40">
+          {profileIconId != null ? (
+            <img
+              src={profileIconUrl(profileIconId, ddVersion)}
+              alt=""
+              className="size-7 object-cover"
+            />
+          ) : null}
         </span>
-      ) : null}
-    </Link>
+        <span className="flex items-baseline gap-1.5 tabular-nums">
+          <span className="font-medium text-foreground/90">{account.gameName}</span>
+          <span className="text-muted-foreground">#{account.tagLine}</span>
+        </span>
+        {rank ? (
+          <span className="flex items-center gap-1.5 border-l pl-3 text-xs text-muted-foreground">
+            <img
+              src={rankEmblemUrl(rank.tier, emblemYear)}
+              alt={rank.tier}
+              className="size-4 object-contain"
+            />
+            <span>{formatRank(rank.tier, rank.division, rank.leaguePoints)}</span>
+          </span>
+        ) : null}
+      </Link>
+    </section>
   );
 }

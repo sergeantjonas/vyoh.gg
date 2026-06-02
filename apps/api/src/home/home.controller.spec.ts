@@ -5,6 +5,7 @@ import type { HomeDaySplitService } from "./home-day-split.service";
 import type { HomeFirstPlayedService } from "./home-first-played.service";
 import type { HomeLifetimeTotalsService } from "./home-lifetime-totals.service";
 import type { HomeSessionLengthsService } from "./home-session-lengths.service";
+import type { HomeTodayService } from "./home-today.service";
 import type { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 import { HomeController } from "./home.controller";
 
@@ -30,6 +31,22 @@ function makeController() {
       steamMinutes: 0,
       oldestMatchAt: null,
       oldestUnlockAt: null,
+      steamGamesOwned: 0,
+      steamGamesUnplayed: 0,
+    }),
+  };
+  const today = {
+    getToday: vi.fn().mockResolvedValue({
+      lolMatches: 0,
+      lolWins: 0,
+      lolLosses: 0,
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      steamMinutes: 0,
+      achievementUnlocks: 0,
+      asOf: new Date().toISOString(),
+      timeZone: "Europe/Brussels",
     }),
   };
   return {
@@ -40,7 +57,8 @@ function makeController() {
       day as unknown as HomeDaySplitService,
       sessions as unknown as HomeSessionLengthsService,
       activity as unknown as HomeActivityIntensityService,
-      lifetime as unknown as HomeLifetimeTotalsService
+      lifetime as unknown as HomeLifetimeTotalsService,
+      today as unknown as HomeTodayService
     ),
     chronotype,
     weekly,
@@ -49,6 +67,7 @@ function makeController() {
     sessions,
     activity,
     lifetime,
+    today,
   };
 }
 
@@ -93,5 +112,11 @@ describe("HomeController", () => {
     const { controller, lifetime } = makeController();
     await controller.getLifetimeTotals();
     expect(lifetime.getLifetimeTotals).toHaveBeenCalled();
+  });
+
+  it("getToday delegates to the today service", async () => {
+    const { controller, today } = makeController();
+    await controller.getToday();
+    expect(today.getToday).toHaveBeenCalled();
   });
 });
