@@ -164,6 +164,37 @@ describe("transcodeToWebp", () => {
     expect(meta.width).toBe(8);
     expect(meta.height).toBe(8);
   });
+
+  it("clamps at native dimensions by default (no enlarge)", async () => {
+    // 4×4 source, request 16×16 — without enlarge the output must stay at 4×4.
+    const input = await makeRedPng();
+    const out = await transcodeToWebp(input, { width: 16, height: 16 });
+    const meta = await sharp(out).metadata();
+    expect(meta.width).toBe(4);
+    expect(meta.height).toBe(4);
+  });
+
+  it("upscales when enlarge: true is set", async () => {
+    // Same 4×4 source, request 16×16 with enlarge — output should reach 16×16.
+    const input = await makeRedPng();
+    const out = await transcodeToWebp(input, { width: 16, height: 16, enlarge: true });
+    const meta = await sharp(out).metadata();
+    expect(meta.width).toBe(16);
+    expect(meta.height).toBe(16);
+  });
+
+  it("applies sharpen when sharpen.sigma is set (round-trip)", async () => {
+    // Successful round-trip with sharpen is the assertion — Sharp returns a
+    // buffer regardless, but the sharpen step must execute without error.
+    const input = await makeRedPng();
+    const out = await transcodeToWebp(input, {
+      width: 16,
+      height: 16,
+      enlarge: true,
+      sharpen: { sigma: 0.6 },
+    });
+    expect(out.length).toBeGreaterThan(0);
+  });
 });
 
 describe("streamUpstream", () => {

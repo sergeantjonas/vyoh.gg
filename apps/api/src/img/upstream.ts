@@ -62,13 +62,38 @@ export interface TranscodeParams {
   // morph animates between two un-flipped frames, snapping to the
   // flipped DOM only after the animation ends.
   flop?: boolean;
+  // Permits Sharp to scale the source up to `width`/`height` when the
+  // source is smaller. Default behaviour (when `fit !== "cover"`) is to
+  // clamp at native dimensions so we never produce upscaled bytes. For
+  // hero-large-shaped routes — where the publisher may not have shipped
+  // a 2x asset (RE3-shaped: only 1920w available) and the chapter mounts
+  // full-bleed at 2560+ — owning the upscale here lets us pair it with a
+  // sharpening pass and keeps the browser doing 1:1 sampling.
+  enlarge?: boolean;
+  // Post-resize sharpening pass via Sharp `.sharpen({ sigma })`. Pairs with
+  // `enlarge` for asset shapes where the upscale is unavoidable. Sigma 0.5–0.8
+  // is the conservative range — recovers apparent crispness without the
+  // halo'd look of an over-sharpened web image. Apply only on `enlarge`
+  // routes — sharpening a downscale tends to crunch edges into noise.
+  sharpen?: { sigma: number };
 }
 
 export async function transcodeToWebp(
   input: Buffer,
   params: TranscodeParams = {}
 ): Promise<Buffer> {
-  const { width, height, fit, quality = 85, blur, extractTopHalf, trim, flop } = params;
+  const {
+    width,
+    height,
+    fit,
+    quality = 85,
+    blur,
+    extractTopHalf,
+    trim,
+    flop,
+    enlarge,
+    sharpen,
+  } = params;
   let pipeline = sharp(input);
   if (extractTopHalf) {
     const meta = await pipeline.metadata();
@@ -88,9 +113,10 @@ export async function transcodeToWebp(
       width,
       height,
       fit,
-      withoutEnlargement: fit !== "cover",
+      withoutEnlargement: !enlarge && fit !== "cover",
     });
   }
+  if (sharpen) pipeline = pipeline.sharpen({ sigma: sharpen.sigma });
   if (blur !== undefined) pipeline = pipeline.blur(blur);
   return pipeline.webp({ quality }).toBuffer();
 }

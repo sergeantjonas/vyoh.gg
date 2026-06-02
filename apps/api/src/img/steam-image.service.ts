@@ -112,7 +112,19 @@ export class SteamImageService {
     );
     return {
       urls: [...twoX, ...oneX],
-      params: { width: 2560, quality: 90 },
+      // `enlarge: true` overrides the default `withoutEnlargement` clamp so a
+      // publisher that shipped only a 1x asset (e.g. RE3: 1920×620 native, no
+      // 2x available — Capcom never uploaded one) still serves at 2560 wide,
+      // moving the upscale work from the browser to Sharp. Pairs with a mild
+      // `.sharpen()` pass to recover apparent crispness; sigma 0.6 is the
+      // conservative middle of the 0.5–0.8 range (above 0.8 the haloing
+      // becomes visible on smooth gradients in hero art).
+      params: {
+        width: 2560,
+        quality: 90,
+        enlarge: true,
+        sharpen: { sigma: 0.6 },
+      },
     };
   }
 
