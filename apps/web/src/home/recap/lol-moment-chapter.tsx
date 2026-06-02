@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import type { LolAccount } from "@vyoh/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { LolAccount, LolMomentMatchStats } from "@vyoh/shared";
+import { useEffect, useMemo, useRef } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
-import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
@@ -20,24 +20,17 @@ import {
 } from "./chapter-shadows";
 import { preloadLinkAsImage } from "./preload-link";
 import { useAssetClaim } from "./use-asset-claim";
-import { useAssetPreload } from "./use-asset-preload";
 import { useChapterNudge } from "./use-chapter-nudge";
 
-/** Anchor champion the chapter dissolves *away from* during the silhouette
- *  beat. Hardcoded to Ahri because R-6's framing — "the owner is an Ahri OTP;
- *  here's the off-meta moment" — is rooted in the same identity the Ahri
- *  anchor chapter establishes above. When R-7 generalises to other main
- *  champions (theoretically possible if the owner pivots), pull this from
- *  the same source `LolMomentsService.detectOffMetaPicks` uses for the main
- *  pool top-slot. */
+/** Champion the chapter sets as the editorial baseline ("you usually play X").
+ *  Used in the prose, not the visual — the chapter opens directly on the
+ *  off-meta champion's splash; the prose carries the "stepped off ANCHOR"
+ *  narrative. (Earlier R-6 draft tried an Ahri→other splash dissolve as the
+ *  signature beat; rejected after visual review — the chapter is about the
+ *  OFF-META champion, and opening on the anchor for ~800ms read as a delay
+ *  rather than a beat. The prose communicates the comparison without the
+ *  visual having to re-tell it.) */
 const ANCHOR_CHAMPION_ALIAS = "Ahri";
-
-/** Hold before the silhouette → reveal swap fires, in ms. Long enough that
- *  the chapter's opening cascade can finish first, short enough that the
- *  reveal still reads as the chapter's signature beat rather than an
- *  afterthought. Mirrors the 800ms initial-hold the Ahri skin-rotation uses
- *  before its first auto-cycle. */
-const REVEAL_HOLD_MS = 800;
 
 function formatDaysSince(daysSince: number): string {
   if (daysSince === 0) return "today";
@@ -48,28 +41,33 @@ function formatDaysSince(daysSince: number): string {
   return `${Math.round(daysSince / 30)} months ago`;
 }
 
+function formatDuration(durationSec: number): string {
+  const minutes = Math.max(1, Math.round(durationSec / 60));
+  return `${minutes}m`;
+}
+
 interface Props {
   account: LolAccount;
   championAlias: string;
   matchId: string | null;
   daysSince: number;
   slug: string;
+  matchStats: LolMomentMatchStats | null;
 }
 
 /**
  * First moment chapter (R-6). Renders the owner's most recent OFF_META_PICK
- * — a match where they played a champion outside their usual rotation. The
- * signature beat is a *silhouette dissolve*: the chapter opens with the
- * anchor champion's splash (Ahri, the OTP identity) as backdrop, holds
- * briefly after the user lands inside the chapter, then swaps to the
- * off-meta champion's splash. The atmosphere layer handles the visual
- * transition between the two image claims; this component just drives
- * the URL swap.
+ * — a match where they played a champion outside their usual rotation.
  *
- * Proof-of-pattern shape: one editorial beat, no stats panel, no detail
- * strip. R-7 expansion (RANK_UP, KDA_OUTLIER, STREAK, RETURN_FROM_HIATUS,
- * MARATHON) will compose its own per-momentType layouts — this chapter is
- * the structural template they share, not a primitive to extend in place.
+ * Visual: single full-bleed splash of the off-meta champion (HD via
+ * `championHeroSplashUrl`, 1280px). The splash is critical-preloaded via
+ * `<link rel="preload">` so the bg snap-in isn't visible when scrolled
+ * into. Editorial framing comes through the prose ("Stepped off Ahri for
+ * a one-off run on X") + the match-stat strip (KDA, W/L, duration, queue).
+ *
+ * Proof-of-pattern shape for R-7's RANK_UP / KDA_OUTLIER / STREAK /
+ * RETURN_FROM_HIATUS / MARATHON detectors — each will compose its own
+ * per-momentType layout, sharing this chapter's structural template.
  */
 export function LolMomentChapter({
   account,
@@ -77,51 +75,37 @@ export function LolMomentChapter({
   matchId,
   daysSince,
   slug,
+  matchStats,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
   const patch = useDDragonVersion();
   const nudged = useChapterNudge(outerRef);
 
-  // Silhouette dissolve: start on the anchor champion's splash, swap to the
-  // off-meta champion after the user has landed in the chapter and the
-  // opening cascade has settled. The atmosphere layer crossfades between
-  // image URLs naturally when the claim's `image` field changes.
-  const [revealed, setRevealed] = useState(false);
-  useEffect(() => {
-    if (!nudged) return;
-    const timer = window.setTimeout(() => setRevealed(true), REVEAL_HOLD_MS);
-    return () => window.clearTimeout(timer);
-  }, [nudged]);
-
-  const anchorSplashUrl = useMemo(
-    () => championBackdropSplashUrl(ANCHOR_CHAMPION_ALIAS, patch),
-    [patch]
-  );
-  const offMetaSplashUrl = useMemo(
-    () => championBackdropSplashUrl(championAlias, patch),
+  // HD wiki splash (1920px transcoded) via the proxy's `hd` variant. The
+  // `backdrop` variant the AhriChapter falls back to is 600px + pre-blurred,
+  // and the `splash` variant is 1280px in-game centered crop — both
+  // upsample visibly when the atmosphere layer renders them full-bleed for
+  // a single-pin chapter. The atmosphere layer applies its own per-claim
+  // blur on top, so passing a sharp source still yields an ambient
+  // backdrop — just one that holds up to the larger crop. Same upstream
+  // family (`{Name}_OriginalSkin_HD.jpg`) the Ahri-anchor chapter pins
+  // explicitly in `landing-config.ts`; this helper resolves it
+  // automatically for any champion alias.
+  const splashUrl = useMemo(
+    () => championHdSplashUrl(championAlias, patch),
     [championAlias, patch]
   );
-  const splashUrl = revealed ? offMetaSplashUrl : anchorSplashUrl;
 
-  // Off-meta moments are lazy by default — they sit below the Ahri anchor
-  // and at least one Steam subject in the typical chapter order. The
-  // anchor splash is already preloaded as critical-path by AhriChapter; the
-  // off-meta splash gates on viewport proximity so it doesn't compete
-  // during initial page load.
-  useAssetPreload(outerRef, [offMetaSplashUrl]);
-  // If for any reason this chapter ends up first (unlikely, but possible
-  // when LoL moments outrank every Steam subject), make sure the anchor
-  // splash is also link-preloaded — the Ahri chapter component would
-  // normally own that, but `routes/index.tsx` only mounts AhriChapter when
-  // a primary account is present, and this moment chapter is gated on the
-  // same prerequisite, so the duplicate `<link>` is harmless either way
-  // (preloadLinkAsImage is idempotent).
-  useEffect(() => preloadLinkAsImage(anchorSplashUrl), [anchorSplashUrl]);
+  // Critical-path preload: the chapter has exactly one hero asset, and it's
+  // the chapter's visual centerpiece. Inject `<link rel="preload">` the
+  // moment the URL is known so the asset is in cache before the user
+  // scrolls in. preloadLinkAsImage is idempotent so duplicating against
+  // the SteamChapter's critical preload (when the moment isn't first in
+  // the stream) costs nothing.
+  useEffect(() => preloadLinkAsImage(splashUrl), [splashUrl]);
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  // Accent picks up the OFF-META champion's theme color, not the anchor's —
-  // the moment is *about* the off-meta pick; the accent should match.
   const accentHex = championTheme(championAlias).dominantHex;
   const claim = useMemo(
     () => ({ image: splashUrl, palette, accentHex }),
@@ -161,6 +145,23 @@ export function LolMomentChapter({
                 >
                   {eyebrow}
                 </span>
+                {matchStats?.queueType ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="text-foreground/40"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      ·
+                    </span>
+                    <span
+                      className="text-foreground/75"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      {matchStats.queueType}
+                    </span>
+                  </>
+                ) : null}
                 <span
                   aria-hidden="true"
                   className="text-foreground/40"
@@ -205,8 +206,6 @@ export function LolMomentChapter({
                 </h2>
               )}
             </ChapterReveal>
-          </ChapterOpener>
-          <ChapterDetail>
             <ChapterReveal active={nudged} delay={0.55} blur={6}>
               <p
                 className="max-w-prose text-base text-foreground/85 sm:text-lg"
@@ -237,7 +236,44 @@ export function LolMomentChapter({
                 .
               </p>
             </ChapterReveal>
-          </ChapterDetail>
+          </ChapterOpener>
+          {matchStats ? (
+            <ChapterDetail>
+              <ChapterReveal active={nudged} delay={0.7}>
+                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                  {/* Result pill — W/L stays the loudest beat in the strip
+                      because it's the lede answer to "how did the off-meta
+                      run go?". `tabular-nums` shared with KDA so the row
+                      reads as a single tabular receipt. */}
+                  <span
+                    className={[
+                      "text-sm font-semibold uppercase tracking-[0.18em]",
+                      matchStats.win ? "text-emerald-300" : "text-rose-300",
+                    ].join(" ")}
+                    style={{ textShadow: SHADOW_ACCENT }}
+                  >
+                    {matchStats.win ? "Win" : "Loss"}
+                  </span>
+                  <span
+                    className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+                    style={{ textShadow: SHADOW_MASTHEAD }}
+                  >
+                    {matchStats.kills} / {matchStats.deaths} / {matchStats.assists}
+                  </span>
+                  <span
+                    className="text-sm text-foreground/80 tabular-nums"
+                    style={{ textShadow: SHADOW_BODY }}
+                  >
+                    {formatDuration(matchStats.durationSec)}
+                  </span>
+                </div>
+              </ChapterReveal>
+              {/* No `ChapterStats` band on OFF_META_PICK — R-7 moment types
+                  (KDA_OUTLIER, STREAK) will populate one with comparative
+                  chips (vs. average, lifetime peak). Off-meta itself doesn't
+                  have comparison data the chapter can stand on. */}
+            </ChapterDetail>
+          ) : null}
         </div>
       </ChapterContainer>
     </div>

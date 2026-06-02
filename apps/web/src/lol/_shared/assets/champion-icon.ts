@@ -21,7 +21,7 @@ export function normalizeChampionAlias(alias: string): string {
   return alias.startsWith(SWARM_PREFIX) ? alias.slice(SWARM_PREFIX.length) : alias;
 }
 
-export type ChampionVariant = "square" | "card" | "backdrop" | "splash";
+export type ChampionVariant = "square" | "card" | "backdrop" | "splash" | "hd";
 
 export function championIconUrl(
   alias: string,
@@ -49,6 +49,19 @@ export function championBackdropSplashUrl(alias: string, patch: string): string 
 // ambient washes, `splash` only where the splash is a foreground showpiece.
 export function championHeroSplashUrl(alias: string, patch: string): string {
   return championIconUrl(alias, "splash", patch);
+}
+
+// HD uncropped splash for recap chapter backdrops — wiki's
+// `{Name}_OriginalSkin_HD.jpg` transcoded at 1920px. Distinct from
+// `championHeroSplashUrl` (1280px centered in-game crop) because chapter
+// backdrops render full-bleed and a 1280px source upsamples visibly on
+// retina displays. Use this anywhere a champion's splash carries a chapter
+// full-bleed — moment chapters today, R-7 / future per-champion chapters
+// going forward. The Ahri anchor chapter pins per-skin filenames
+// explicitly in `landing-config.ts` because skin names can't be derived
+// from the alias alone (skin pattern varies per champion).
+export function championHdSplashUrl(alias: string, patch: string): string {
+  return championIconUrl(alias, "hd", patch);
 }
 
 export function itemIconUrl(itemId: number, patch: string): string {

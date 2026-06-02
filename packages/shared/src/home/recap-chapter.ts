@@ -39,6 +39,23 @@ export interface SteamSubjectChapterDescriptor {
 }
 
 /**
+ * Match-level stats carried on a LoL moment chapter — the receipt that backs
+ * the moment's editorial framing. Populated by the detector from the same
+ * `Match` row that drives `matchId`/`championAlias`, so no extra API call
+ * is needed on the web side. Null when the moment isn't backed by a single
+ * match (e.g. future RETURN_FROM_HIATUS or RANK_UP momentTypes that
+ * describe a state change rather than a specific game).
+ */
+export interface LolMomentMatchStats {
+  kills: number;
+  deaths: number;
+  assists: number;
+  win: boolean;
+  durationSec: number;
+  queueType: string;
+}
+
+/**
  * LoL moment chapter — single-event narrative (rank-up, KDA outlier, off-meta
  * pick, streak, return-from-hiatus, etc.). Schema declared now so the
  * `/recap/chapters` contract is stable; emitted in R-6.
@@ -59,6 +76,7 @@ export interface LolMomentChapterDescriptor {
   ageBucket: RecapAgeBucket;
   matchId: string | null;
   championAlias: string | null;
+  matchStats: LolMomentMatchStats | null;
   framing: RecapChapterFraming | null;
 }
 

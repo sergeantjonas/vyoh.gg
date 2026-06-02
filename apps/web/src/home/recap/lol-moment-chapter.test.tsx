@@ -10,8 +10,8 @@ vi.mock("@/lol/_shared/patch/use-ddragon-version", () => ({
   useDDragonVersion: vi.fn(() => "26.9"),
 }));
 vi.mock("@/lol/_shared/assets/champion-icon", () => ({
-  championBackdropSplashUrl: (alias: string, patch: string) =>
-    `https://test/img/${alias}/${patch}`,
+  championHdSplashUrl: (alias: string, patch: string) =>
+    `https://test/hd/${alias}/${patch}`,
 }));
 vi.mock("@/lol/_shared/assets/champion-theme", () => ({
   championTheme: (_alias: string) => ({
@@ -25,7 +25,6 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@/home/recap/use-asset-claim", () => ({ useAssetClaim: vi.fn() }));
-vi.mock("@/home/recap/use-asset-preload", () => ({ useAssetPreload: vi.fn() }));
 vi.mock("@/home/recap/preload-link", () => ({
   preloadLinkAsImage: vi.fn(() => () => {}),
 }));
@@ -46,8 +45,8 @@ vi.mock("motion/react", async () => {
   return { ...actual, useReducedMotion: vi.fn(() => false) };
 });
 
+import { preloadLinkAsImage } from "@/home/recap/preload-link";
 import { useAssetClaim } from "@/home/recap/use-asset-claim";
-import { useAssetPreload } from "@/home/recap/use-asset-preload";
 import { LolMomentChapter } from "./lol-moment-chapter";
 
 const account: LolAccount = {
@@ -57,12 +56,22 @@ const account: LolAccount = {
   tagLine: "EUW",
 };
 
+const matchStats = {
+  kills: 7,
+  deaths: 4,
+  assists: 11,
+  win: true,
+  durationSec: 1860,
+  queueType: "Ranked Solo",
+};
+
 const baseProps = {
   account,
   championAlias: "Renekton",
   matchId: "EUW_42",
   daysSince: 3,
   slug: "lol-moment-off-meta-EUW_42",
+  matchStats,
 };
 
 beforeEach(() => {
@@ -71,7 +80,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.mocked(useAssetClaim).mockClear();
-  vi.mocked(useAssetPreload).mockClear();
+  vi.mocked(preloadLinkAsImage).mockClear();
   mainScrollRef.current = null;
 });
 
@@ -106,15 +115,15 @@ describe("LolMomentChapter (OFF_META_PICK)", () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Renekton");
   });
 
-  it("starts on the anchor (Ahri) splash before the silhouette dissolve fires", () => {
+  it("opens on the off-meta champion's HD splash directly (no anchor silhouette)", () => {
     render(<LolMomentChapter {...baseProps} />);
-    // First claim call: image is the anchor splash, not the off-meta one.
-    // useChapterNudge stays false in happy-dom (no IO firing), so revealed
-    // never flips and the anchor remains the active backdrop.
+    // Chapter is ABOUT the off-meta champion; opening on Ahri for a 800ms
+    // hold would read as a delay rather than a beat. The earlier R-6
+    // silhouette-dissolve approach was dropped.
     const calls = vi.mocked(useAssetClaim).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
     const firstClaim = calls[0]?.[1];
-    expect(firstClaim?.image).toBe("https://test/img/Ahri/26.9");
+    expect(firstClaim?.image).toBe("https://test/hd/Renekton/26.9");
   });
 
   it("exposes the chapter slug + label via data attributes for the caret discovery scan", () => {
@@ -124,12 +133,35 @@ describe("LolMomentChapter (OFF_META_PICK)", () => {
     expect(el?.getAttribute("data-chapter-label")).toContain("Off-meta");
   });
 
-  it("preloads the off-meta champion splash via useAssetPreload (lazy by default)", () => {
+  it("injects a critical link[rel=preload] for the off-meta champion splash", () => {
     render(<LolMomentChapter {...baseProps} />);
-    const calls = vi.mocked(useAssetPreload).mock.calls;
-    expect(calls.length).toBeGreaterThan(0);
-    const urls = calls[0]?.[1];
-    expect(urls).toContain("https://test/img/Renekton/26.9");
+    // Single hero asset → link-preload at mount, not IO-gated. The chapter
+    // is its own preload-critical surface; same idempotent helper the
+    // Ahri-anchor and first-Steam-subject chapters use.
+    expect(preloadLinkAsImage).toHaveBeenCalledWith("https://test/hd/Renekton/26.9");
+  });
+
+  it("renders the W/L pill + KDA + duration when matchStats is provided", () => {
+    render(<LolMomentChapter {...baseProps} />);
+    expect(screen.getByText("Win")).toBeTruthy();
+    expect(screen.getByText("7 / 4 / 11")).toBeTruthy();
+    expect(screen.getByText("31m")).toBeTruthy();
+    // Queue label sits in the eyebrow row.
+    expect(screen.getByText("Ranked Solo")).toBeTruthy();
+  });
+
+  it("renders 'Loss' in rose when win=false", () => {
+    render(
+      <LolMomentChapter {...baseProps} matchStats={{ ...matchStats, win: false }} />
+    );
+    expect(screen.getByText("Loss")).toBeTruthy();
+  });
+
+  it("omits the match-stat strip entirely when matchStats is null", () => {
+    render(<LolMomentChapter {...baseProps} matchStats={null} />);
+    expect(screen.queryByText("Win")).toBeNull();
+    expect(screen.queryByText("Loss")).toBeNull();
+    expect(screen.queryByText("7 / 4 / 11")).toBeNull();
   });
 });
 

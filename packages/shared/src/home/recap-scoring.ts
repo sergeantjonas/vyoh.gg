@@ -14,6 +14,7 @@
 import { ageBucketFromDaysSince } from "./age-bucket.ts";
 import type {
   LolMomentChapterDescriptor,
+  LolMomentMatchStats,
   RecapChapterDescriptor,
   RecapChapterFraming,
   SteamMomentChapterDescriptor,
@@ -101,6 +102,7 @@ export type RecapCandidate =
       daysSince: number;
       matchId?: string | null;
       championAlias?: string | null;
+      matchStats?: LolMomentMatchStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     }
@@ -151,6 +153,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
       ageBucket,
       matchId: candidate.matchId ?? null,
       championAlias: candidate.championAlias ?? null,
+      matchStats: candidate.matchStats ?? null,
       framing,
     };
   }

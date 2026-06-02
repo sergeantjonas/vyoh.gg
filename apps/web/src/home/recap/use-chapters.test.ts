@@ -88,6 +88,7 @@ describe("applyDevLolMomentOverride", () => {
     ageBucket: "current",
     matchId: "EUW_1",
     championAlias: "Renekton",
+    matchStats: null,
     framing: null,
   };
 

@@ -69,6 +69,31 @@ export function wikiChampionCenteredUrl(championDisplayName: string): string {
   return `${WIKI_IMAGES}/${champ}_OriginalCentered.jpg`;
 }
 
+// HD uncropped base splash — wiki's `{Name}_OriginalSkin_HD.jpg`, the full
+// pre-card splash art at native upstream resolution. Sharper + wider than
+// `OriginalCentered` (which is the 1280×720 in-game splash crop), so it
+// reads cleanly when the atmosphere layer renders it full-bleed for recap
+// chapter backdrops. Used by the per-subject chapter machinery
+// (moment chapters, future per-champion chapters) where the champion is
+// determined at runtime — the Ahri anchor chapter still pins its rotation
+// list explicitly in `landing-config.ts` because the per-skin filenames
+// vary (e.g. `Ahri_SpiritBlossomSkin_HD.jpg`) and can't be derived from
+// the alias alone.
+export function wikiChampionOriginalSplashHdUrl(championDisplayName: string): string {
+  const champ = wikiImageSlug(wikiChampionPrefix(championDisplayName));
+  return `${WIKI_IMAGES}/${champ}_OriginalSkin_HD.jpg`;
+}
+
+// Non-HD original splash. Same uncropped composition as the HD file —
+// useful as a fallback when the wiki HD upload is missing for a champion.
+// Falling to the in-game centered crop (`OriginalCentered`) would change
+// the framing mid-chapter, which reads as a different image; the non-HD
+// original preserves the visual identity, just at lower resolution.
+export function wikiChampionOriginalSplashUrl(championDisplayName: string): string {
+  const champ = wikiImageSlug(wikiChampionPrefix(championDisplayName));
+  return `${WIKI_IMAGES}/${champ}_OriginalSkin.jpg`;
+}
+
 export function wikiAbilityIconUrl(
   championDisplayName: string,
   abilityDisplayName: string

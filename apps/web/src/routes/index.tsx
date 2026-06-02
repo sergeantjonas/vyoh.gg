@@ -102,6 +102,7 @@ function HomePage() {
                 matchId={c.matchId}
                 daysSince={c.daysSince}
                 slug={c.slug}
+                matchStats={c.matchStats}
               />
             );
           }

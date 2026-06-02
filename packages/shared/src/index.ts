@@ -224,6 +224,7 @@ export type {
 export { ageBucketFromDaysSince, daysSinceIso } from "./home/age-bucket.ts";
 export type {
   LolMomentChapterDescriptor,
+  LolMomentMatchStats,
   RecapAgeBucket,
   RecapChapterDescriptor,
   RecapChapterFraming,

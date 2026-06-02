@@ -119,7 +119,20 @@ export class LolMomentsService {
         champion: { notIn: Array.from(mainPool) },
       },
       orderBy: { playedAt: "desc" },
-      select: { matchId: true, champion: true, playedAt: true },
+      // Select the receipt fields the chapter renders — KDA + result + duration
+      // + queue. Pulling them from this same row avoids a second match-detail
+      // round-trip on the web side just to populate the moment stat strip.
+      select: {
+        matchId: true,
+        champion: true,
+        playedAt: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        queueType: true,
+      },
     });
     if (!offMetaMatch) return [];
 
@@ -139,6 +152,14 @@ export class LolMomentsService {
         daysSince,
         matchId: offMetaMatch.matchId,
         championAlias: offMetaMatch.champion,
+        matchStats: {
+          kills: offMetaMatch.kills,
+          deaths: offMetaMatch.deaths,
+          assists: offMetaMatch.assists,
+          win: offMetaMatch.win,
+          durationSec: offMetaMatch.durationSec,
+          queueType: offMetaMatch.queueType,
+        },
         offMeta: true,
       },
     ];

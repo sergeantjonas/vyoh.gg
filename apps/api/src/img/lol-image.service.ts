@@ -5,6 +5,8 @@ import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
   wikiChampionCenteredUrl,
+  wikiChampionOriginalSplashHdUrl,
+  wikiChampionOriginalSplashUrl,
   wikiChampionSquareUrl,
   wikiClassIconUrl,
   wikiEntryIconUrl,
@@ -62,7 +64,7 @@ function normalizeChampionAlias(alias: string): string {
   return alias.startsWith(SWARM_PREFIX) ? alias.slice(SWARM_PREFIX.length) : alias;
 }
 
-export type ChampionVariant = "square" | "card" | "backdrop" | "splash";
+export type ChampionVariant = "square" | "card" | "backdrop" | "splash" | "hd";
 
 export const UI_ICON_NAMES = ["gold", "minion", "ward", "attack"] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
@@ -187,6 +189,29 @@ export class LolImageService {
           ? [wikiChampionCenteredUrl(displayName), cdragonCentered]
           : [cdragonCentered];
         return { urls, params: { width: 1280, quality: 85 } };
+      }
+      case "hd": {
+        // Full-bleed HD splash for recap chapter backdrops — wiki's
+        // `{Name}_OriginalSkin_HD.jpg` at 1920px. Distinct from `splash`
+        // (1280px in-game centered crop) because chapter backdrops render
+        // the splash at viewport width and a 1280px source upsamples
+        // visibly on retina displays. Fallback chain preserves framing:
+        // HD wiki → non-HD wiki (same uncropped composition, smaller
+        // source) → CDragon centered (different crop, but guaranteed to
+        // resolve). The centered fallback only triggers when wiki misses
+        // entirely — for old champions whose `_HD` upload hasn't landed
+        // and whose `_OriginalSkin` is also gone, the in-game crop is
+        // still better than a blank atmosphere.
+        const displayName = await this.lookupDisplayName(alias);
+        const cdragonCentered = `${CDRAGON_CDN}/champion/${slug}/splash-art/centered`;
+        const urls = displayName
+          ? [
+              wikiChampionOriginalSplashHdUrl(displayName),
+              wikiChampionOriginalSplashUrl(displayName),
+              cdragonCentered,
+            ]
+          : [cdragonCentered];
+        return { urls, params: { width: 1920, quality: 90 } };
       }
     }
   }
