@@ -141,7 +141,7 @@ function momentCopy(args: {
           {factorLabel ? (
             <>
               {" "}
-              — <Accent>{factorLabel}</Accent> the 30-day baseline
+              — <Accent>{factorLabel}</Accent> the 90-day baseline
             </>
           ) : null}
           .

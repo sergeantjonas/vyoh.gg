@@ -54,11 +54,13 @@ const RANK_UP_TIER_SIGNAL = 35;
  *  the half-life boundary, and decays to ~5.5 at 28d. */
 const RANK_UP_DIVISION_SIGNAL = 22;
 
-/** Lookback window for KDA outlier detection — same 30d "this season" frame
- *  used everywhere else in the moment family. The owner's recent baseline is
- *  what makes an outlier an outlier; widening this would drown a hot streak
- *  in a cold-season average. */
-const KDA_OUTLIER_WINDOW_DAYS = 30;
+/** Lookback window for KDA outlier detection. 90d matches the LoL peaks-chip
+ *  framing ("this season") and gives a denser baseline than the 30d frame
+ *  used by other moment detectors — KDA averages need more games than rank
+ *  transitions to stabilise. Recency decay still suppresses ancient standouts
+ *  through `recapScore`, so a 60d-old peak rarely outscores a fresh decent
+ *  game. */
+const KDA_OUTLIER_WINDOW_DAYS = 90;
 
 /** Minimum number of ranked matches required before computing a baseline.
  *  Below this and "your average" isn't a real average — five games of "9 KDA"
@@ -359,12 +361,12 @@ export class LolMomentsService {
 
   /**
    * Detect the owner's best recent KDA performance — a match whose
-   * `(kills + assists) / max(1, deaths)` clearly outshines their 30-day
+   * `(kills + assists) / max(1, deaths)` clearly outshines their 90-day
    * ranked baseline. The chapter framing leans on the multiplier ("4.2× the
-   * 30-day average"), so the baseline is part of the descriptor receipt.
+   * 90-day average"), so the baseline is part of the descriptor receipt.
    *
    * Algorithm:
-   *   1. Read every ranked match in the 30d window for the owner. If there
+   *   1. Read every ranked match in the 90d window for the owner. If there
    *      are fewer than `KDA_OUTLIER_BASELINE_MIN_MATCHES`, bail — without a
    *      baseline the multiplier is meaningless.
    *   2. Compute the mean KDA across that set as the baseline.

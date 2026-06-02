@@ -133,7 +133,11 @@ describe("selectChapters", () => {
     });
   });
 
-  it("preserves the steam-subject → lol-moment → steam-moment ordering across kinds", () => {
+  it("preserves the lol-moment → steam-subject → steam-moment ordering across kinds", () => {
+    // Platform-clustered: Ahri anchor (rendered separately above) → lol-moment
+    // block → steam-subject block → steam-moment block. One LoL→Steam jump,
+    // no Steam→LoL→Steam thrashing — see the cross-kind ordering rationale
+    // in the file header.
     const result = selectChapters(
       [
         steamSubject({ appid: 1, baseSignal: 50, daysSince: 0 }),
@@ -156,8 +160,8 @@ describe("selectChapters", () => {
       { floor: 0 }
     );
     expect(result.map((r) => r.kind)).toEqual([
-      "steam-subject",
       "lol-moment",
+      "steam-subject",
       "steam-moment",
     ]);
   });

@@ -288,7 +288,7 @@ describe("LolMomentChapter (KDA_OUTLIER)", () => {
     const prose = screen.getAllByText(/Posted a/i)[0]?.closest("p")?.textContent;
     expect(prose).toMatch(/13\.0\s*KDA/);
     expect(prose).toMatch(/Ahri/);
-    expect(prose).toMatch(/5\.2×\s*the 30-day baseline/);
+    expect(prose).toMatch(/5\.2×\s*the 90-day baseline/);
   });
 
   it("does NOT render a leading emblem for KDA_OUTLIER (text-only masthead)", () => {
@@ -318,8 +318,8 @@ describe("LolMomentChapter (KDA_OUTLIER)", () => {
     );
     const prose = screen.getAllByText(/Posted a/i)[0]?.closest("p")?.textContent;
     expect(prose).toMatch(/12\.5\s*KDA/);
-    // No "Nx the 30-day baseline" tail when the multiplier is undefined.
-    expect(prose).not.toMatch(/the 30-day baseline/);
+    // No "Nx the 90-day baseline" tail when the multiplier is undefined.
+    expect(prose).not.toMatch(/the 90-day baseline/);
   });
 });
 

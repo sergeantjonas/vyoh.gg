@@ -259,34 +259,38 @@ describe("RecapSubjectsService.getChapters", () => {
     expect(chapters[0]?.ageBucket).toBe("current");
   });
 
-  it("ranks higher-score candidates first and caps at three", async () => {
-    const games = Array.from({ length: 5 }, (_, i) =>
+  it("ranks higher-score candidates first and caps at five", async () => {
+    const games = Array.from({ length: 7 }, (_, i) =>
       makeOwnedGame({
         appid: i + 1,
         name: `Game ${i + 1}`,
-        playtime2WeeksMinutes: 60 * (50 - i * 8), // 50h, 42h, 34h, 26h, 18h recent
+        playtime2WeeksMinutes: 60 * (50 - i * 6), // 50h, 44h, 38h, 32h, 26h, 20h, 14h
         rtimeLastPlayedAt: NOW.toISOString(),
       })
     );
     const service = makeService(games, []);
     const chapters = await service.getChapters(NOW);
-    expect(chapters).toHaveLength(3);
+    expect(chapters).toHaveLength(5);
     expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
-      1, 2, 3,
+      1, 2, 3, 4, 5,
     ]);
   });
 
   it("drops candidates below the score floor", async () => {
+    // appid 2: 1h recent (below floor), 60min lifetime (below the 5h dormant
+    // floor too) → dropped by BOTH the active branch and the dormant top-up.
     const service = makeService(
       [
         makeOwnedGame({
           appid: 1,
+          playtimeForeverMinutes: 60 * 20,
           playtime2WeeksMinutes: 60 * 20,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
         makeOwnedGame({
           appid: 2,
-          playtime2WeeksMinutes: 60 * 1, // 1h recent, no unlocks → floor drops it
+          playtimeForeverMinutes: 60, // 1h lifetime — below dormant floor (5h)
+          playtime2WeeksMinutes: 60, // 1h recent — below active floor
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
       ],
@@ -296,10 +300,11 @@ describe("RecapSubjectsService.getChapters", () => {
     expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([1]);
   });
 
-  describe("dormant fallback", () => {
+  describe("dormant top-up", () => {
     it("surfaces the most-recently-engaged games when no game clears the active floor", async () => {
-      // Quiet period: zero 2w playtime across the library. Without the fallback
-      // the chapter list would be empty.
+      // Quiet period: zero 2w playtime across the library. The top-up fills
+      // every slot from dormant lifetime ranking; without it the page would
+      // collapse to the Ahri anchor.
       const service = makeService(
         [
           makeOwnedGame({
@@ -336,8 +341,11 @@ describe("RecapSubjectsService.getChapters", () => {
       expect(chapters[1]?.ageBucket).toBe("season");
     });
 
-    it("does not fire when at least one active candidate clears the floor", async () => {
-      // One active candidate above floor → dormant path skipped entirely.
+    it("tops up the active block when active candidates leave Steam slots open", async () => {
+      // One active + one dormant. With the cap at 5, slack=4, so the dormant
+      // game fills a trailing slot. Active row sits first inside the Steam
+      // block; dormant row trails it. The reader sees "Playing lately on
+      // Active" → "Earlier this year on Dormant".
       const service = makeService(
         [
           makeOwnedGame({
@@ -363,8 +371,33 @@ describe("RecapSubjectsService.getChapters", () => {
 
       const chapters = await service.getChapters(NOW);
       expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
-        1,
+        1, 2,
       ]);
+    });
+
+    it("excludes appids already in the active block from the dormant top-up", async () => {
+      // The same appid can't legitimately appear twice in one render. Active
+      // wins the slot; dormant skips that appid even if it would otherwise
+      // rank high by lifetime.
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Both",
+            playtimeForeverMinutes: 60 * 100, // huge lifetime
+            playtime2WeeksMinutes: 60 * 10, // also active
+            rtimeLastPlayedAt: NOW.toISOString(),
+          }),
+        ],
+        [],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      // Surfaces exactly once.
+      expect(
+        chapters.filter((c) => c.kind === "steam-subject" && c.appid === 1)
+      ).toHaveLength(1);
     });
 
     it("ignores brief-launch lastPlayed when ranking — a 3m relaunch must not outrank an older real session", async () => {

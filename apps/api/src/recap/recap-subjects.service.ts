@@ -7,14 +7,18 @@ import { SteamOwnedGamesService } from "../steam/owned-games.service";
 import { LolMomentsService } from "./lol-moments.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 
-/** Lifetime-hours threshold for the dormant fallback. A game must carry
+/** Lifetime-hours threshold for the dormant top-up. A game must carry
  *  meaningful historical engagement to surface in the no-recent-activity
  *  branch — a one-time launcher browse or 30-minute demo shouldn't qualify.
  *  5h is a casual-completion floor for most games. Tunable. */
 const DORMANT_LIFETIME_FLOOR_HOURS = 5;
 
-/** Same per-kind cap as the active path's steam-subject slot. */
-const DORMANT_CAP = 3;
+/** Hard cap on Steam subjects in the rendered list, ACROSS the active +
+ *  dormant top-up streams. Mirrors `selectChapters`' `steamSubjectCap`
+ *  default (kept as a local constant rather than imported because that
+ *  default applies to the active branch only — dormant top-up consumes
+ *  whatever slack remains under the same total ceiling). */
+const STEAM_SUBJECT_HARD_CAP = 5;
 
 /** Below this 2w-playtime threshold, a recent `rtimeLastPlayedAt` is treated
  *  as a brief launch (e.g. opened the app to check something) rather than
@@ -59,19 +63,34 @@ export class RecapSubjectsService {
       this.lolMoments.detectAll(now),
     ]);
     const active = selectChapters([...steamCandidates, ...lolMomentCandidates]);
-    if (active.length > 0) return active;
-    // Dormant fallback: no game has cleared the recent-engagement floor in
-    // the active path. Surface the most-recently-engaged games by lifetime
-    // depth, no score floor, no decay — the bucket eyebrows derived from
-    // daysSince ("Recently into", "This season on", "Earlier this year")
-    // frame the result honestly, so a dormant Silksong from 30d ago reads
-    // as "Earlier this year on Silksong" rather than "Playing lately".
-    //
-    // This is the "you've been busy with life" branch — common for any owner
-    // with a job. Without it the algorithmic chapter list collapses to empty
-    // whenever there's been no 14d activity, and the landing page shows only
-    // the hardcoded Ahri anchor.
-    return this.collectDormantFallback(now);
+
+    // Dormant top-up. The active branch surfaces "Playing lately" games via
+    // the 14d-playtime + 14d-unlocks `baseSignal`, which means anything not
+    // touched in two weeks gets `baseSignal: 0` and never qualifies — even
+    // with hundreds of lifetime hours. Without a top-up the Steam block
+    // collapses to whatever's currently fresh, dry-spelling the page during
+    // life breaks. We fill remaining Steam slots from lifetime-ranked dormant
+    // candidates, framed as "Earlier this year on …" via the daysSince
+    // bucket eyebrows on the web side — same kind, different editorial
+    // register. Dormant rows sit AFTER active rows inside the Steam block so
+    // the reader sees the fresh-engagement story first.
+    const activeSteamSubjectAppids = new Set(
+      active.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
+    );
+    const steamSlack = STEAM_SUBJECT_HARD_CAP - activeSteamSubjectAppids.size;
+    const dormant =
+      steamSlack > 0
+        ? await this.collectDormantTopUp(now, steamSlack, activeSteamSubjectAppids)
+        : [];
+
+    // Recompose with the platform-clustered ordering:
+    //   lol-moment → steam-subject (active first, then dormant) → steam-moment.
+    // `selectChapters` already produced the kinds in that order; we just
+    // splice the dormant chapters in trailing the active steam-subjects.
+    const lolMoments = active.filter((c) => c.kind === "lol-moment");
+    const steamSubjects = active.filter((c) => c.kind === "steam-subject");
+    const steamMoments = active.filter((c) => c.kind === "steam-moment");
+    return [...lolMoments, ...steamSubjects, ...dormant, ...steamMoments];
   }
 
   private async collectSteamSubjectCandidates(now: Date): Promise<RecapCandidate[]> {
@@ -164,7 +183,20 @@ export class RecapSubjectsService {
     return candidates;
   }
 
-  private async collectDormantFallback(now: Date): Promise<RecapChapterDescriptor[]> {
+  /**
+   * Surface lifetime-ranked dormant games to top up the Steam-subject block
+   * when the active branch hasn't filled the cap. Excludes any appids already
+   * present in the active list so the same game can't appear twice with
+   * conflicting "Playing lately" vs "Earlier this year" framing. Returns
+   * `take` items max, ordered by `freshest` desc (most-recently-touched
+   * dormant first), with `daysSince` set so the web side's bucket eyebrows
+   * frame each row honestly.
+   */
+  private async collectDormantTopUp(
+    now: Date,
+    take: number,
+    excludeAppids: Set<number>
+  ): Promise<RecapChapterDescriptor[]> {
     // Only the unfiltered lastUnlock groupBy is needed here — dormant
     // ranking is by `freshest`, not by recent activity, so the 14d-window
     // count is irrelevant.
@@ -191,6 +223,10 @@ export class RecapSubjectsService {
     for (const game of ownedGames.games) {
       if (RECAP_HIDDEN_APPIDS.has(game.appid)) continue;
       if (game.appType !== null && game.appType !== 0) continue;
+      // Exclude appids already represented in the active block — the same
+      // game can't appear twice as both "Playing lately" and "Earlier this
+      // year on".
+      if (excludeAppids.has(game.appid)) continue;
 
       const lifetimeHours = game.playtimeForeverMinutes / 60;
       if (lifetimeHours < DORMANT_LIFETIME_FLOOR_HOURS) continue;
@@ -230,20 +266,18 @@ export class RecapSubjectsService {
 
     ranked.sort((a, b) => b.freshest - a.freshest);
 
-    return ranked
-      .slice(0, DORMANT_CAP)
-      .map(({ appid, name, lifetimeHours, daysSince }) => ({
-        kind: "steam-subject" as const,
-        slug: `steam-${appid}`,
-        appid,
-        name,
-        // `score` in dormant mode is the magnitude shown (lifetime hours), not
-        // the active-path's decayed engagement score. The web side displays
-        // ageBucket-driven eyebrows, not the raw number.
-        score: lifetimeHours,
-        daysSince,
-        ageBucket: ageBucketFromDaysSince(daysSince),
-        framing: null,
-      }));
+    return ranked.slice(0, take).map(({ appid, name, lifetimeHours, daysSince }) => ({
+      kind: "steam-subject" as const,
+      slug: `steam-${appid}`,
+      appid,
+      name,
+      // `score` in dormant mode is the magnitude shown (lifetime hours), not
+      // the active-path's decayed engagement score. The web side displays
+      // ageBucket-driven eyebrows, not the raw number.
+      score: lifetimeHours,
+      daysSince,
+      ageBucket: ageBucketFromDaysSince(daysSince),
+      framing: null,
+    }));
   }
 }

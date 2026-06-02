@@ -7,9 +7,11 @@
 // HALF_LIFE_DAYS = 14 means a candidate at 14 days carries half the weight
 // of a candidate today; at 28 days, a quarter. The selector ranks within
 // each kind (subject vs moment), then concatenates the kept-per-kind lists
-// in a fixed order — Steam subjects first (they're the "what am I playing"
-// chapter slot), then LoL moments, then Steam moments. The Ahri chapter
-// sits above this list as a structural anchor, hardcoded in `routes/index.tsx`.
+// in a fixed order: LoL moments → Steam subjects → Steam moments. That
+// platform-clusters the page (one LoL block right after the Ahri anchor,
+// then one Steam block), so the reader makes a single platform jump
+// instead of bouncing Steam → LoL → Steam. The Ahri chapter sits above
+// this list as a structural anchor, hardcoded in `routes/index.tsx`.
 
 import { ageBucketFromDaysSince } from "./age-bucket.ts";
 import type {
@@ -50,9 +52,9 @@ export interface RecapSelectionOptions {
 }
 
 const DEFAULT_OPTIONS: Required<RecapSelectionOptions> = {
-  steamSubjectCap: 3,
-  lolMomentCap: 3,
-  steamMomentCap: 2,
+  steamSubjectCap: 5,
+  lolMomentCap: 5,
+  steamMomentCap: 3,
   offMetaBoost: RECAP_OFF_META_BOOST,
   floor: RECAP_SCORE_FLOOR,
 };
@@ -180,7 +182,10 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
  * within a kind: descending score, then ascending daysSince as a tiebreak
  * (a fresher candidate wins when two scores collide — happens with the
  * decay math more than you'd guess at small baseSignal). Cross-kind order
- * is fixed: steam-subject → lol-moment → steam-moment.
+ * is fixed: lol-moment → steam-subject → steam-moment. That sequences the
+ * page as Ahri-anchor → LoL moments → Steam subjects → Steam moments —
+ * one platform block per kind, so the reader makes a single LoL→Steam
+ * transition instead of bouncing back and forth.
  */
 export function selectChapters(
   candidates: RecapCandidate[],
@@ -199,8 +204,8 @@ export function selectChapters(
     scored.filter((s) => s.candidate.kind === kind).slice(0, cap);
 
   return [
-    ...keep("steam-subject", opts.steamSubjectCap),
     ...keep("lol-moment", opts.lolMomentCap),
+    ...keep("steam-subject", opts.steamSubjectCap),
     ...keep("steam-moment", opts.steamMomentCap),
   ].map(toDescriptor);
 }
