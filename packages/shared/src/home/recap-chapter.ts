@@ -43,8 +43,8 @@ export interface SteamSubjectChapterDescriptor {
  * the moment's editorial framing. Populated by the detector from the same
  * `Match` row that drives `matchId`/`championAlias`, so no extra API call
  * is needed on the web side. Null when the moment isn't backed by a single
- * match (e.g. future RETURN_FROM_HIATUS or RANK_UP momentTypes that
- * describe a state change rather than a specific game).
+ * match (e.g. future STREAK or MARATHON momentTypes that describe a sequence
+ * rather than a specific game).
  */
 export interface LolMomentMatchStats {
   kills: number;
@@ -53,6 +53,22 @@ export interface LolMomentMatchStats {
   win: boolean;
   durationSec: number;
   queueType: string;
+}
+
+/**
+ * Rank transition carried on a `RANK_UP` LoL moment chapter — the before/after
+ * pair the detector reads off the match's snapshot columns. The transition is
+ * always strictly upward (`normalizeLp(to…) > normalizeLp(from…)`) AND involves
+ * a tier or division change — LP-only gains are not RANK_UP moments. Null on
+ * other momentTypes.
+ */
+export interface LolRankUpDelta {
+  fromTier: string;
+  fromRank: string;
+  fromLp: number;
+  toTier: string;
+  toRank: string;
+  toLp: number;
 }
 
 /**
@@ -77,6 +93,7 @@ export interface LolMomentChapterDescriptor {
   matchId: string | null;
   championAlias: string | null;
   matchStats: LolMomentMatchStats | null;
+  rankUp: LolRankUpDelta | null;
   framing: RecapChapterFraming | null;
 }
 

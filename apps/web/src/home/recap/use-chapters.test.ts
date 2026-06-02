@@ -89,6 +89,7 @@ describe("applyDevLolMomentOverride", () => {
     matchId: "EUW_1",
     championAlias: "Renekton",
     matchStats: null,
+    rankUp: null,
     framing: null,
   };
 

@@ -79,6 +79,19 @@ export function formatRank(tier: string, rank: string, leaguePoints: number): st
   return `${display} ${rank} ${leaguePoints}LP`;
 }
 
+/**
+ * Title-cased tier+division without LP suffix — for headers and editorial
+ * surfaces that want the rank name, not the live LP. Apex tiers (Master /
+ * Grandmaster / Challenger) omit the division because Riot's `rank` field is
+ * meaningless above Diamond (always "I", per the comment above `TIER_INDEX`).
+ */
+export function formatRankTitle(tier: string, rank: string): string {
+  const display = TIER_DISPLAY[tier.toUpperCase()] ?? tier;
+  const tierIndex = TIER_INDEX[tier.toUpperCase()] ?? 0;
+  if (tierIndex >= 7) return display;
+  return `${display} ${rank}`;
+}
+
 export interface RankHistoryPoint {
   capturedAt: string;
   queueId: string;

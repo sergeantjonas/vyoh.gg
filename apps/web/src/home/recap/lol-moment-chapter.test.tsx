@@ -71,7 +71,29 @@ const baseProps = {
   matchId: "EUW_42",
   daysSince: 3,
   slug: "lol-moment-off-meta-EUW_42",
+  momentType: "OFF_META_PICK" as const,
   matchStats,
+  rankUp: null,
+};
+
+const rankUpDelta = {
+  fromTier: "SILVER",
+  fromRank: "I",
+  fromLp: 96,
+  toTier: "GOLD",
+  toRank: "IV",
+  toLp: 15,
+};
+
+const rankUpProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_RU",
+  daysSince: 2,
+  slug: "lol-moment-rank-up-EUW_RU",
+  momentType: "RANK_UP" as const,
+  matchStats,
+  rankUp: rankUpDelta,
 };
 
 beforeEach(() => {
@@ -162,6 +184,52 @@ describe("LolMomentChapter (OFF_META_PICK)", () => {
     expect(screen.queryByText("Win")).toBeNull();
     expect(screen.queryByText("Loss")).toBeNull();
     expect(screen.queryByText("7 / 4 / 11")).toBeNull();
+  });
+});
+
+describe("LolMomentChapter (RANK_UP)", () => {
+  it("renders the rank-up eyebrow, destination-rank masthead, and 'climbed from … to …' prose", () => {
+    render(<LolMomentChapter {...rankUpProps} />);
+    expect(screen.getByText("Rank up")).toBeTruthy();
+    // Masthead shows the destination tier+rank without the LP suffix.
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Gold IV");
+    // Prose carries both endpoints + the championing champion. They split
+    // across spans, so scope by the prose paragraph's textContent.
+    const climbProse = screen.getAllByText(/Climbed from/i)[0]?.closest("p")?.textContent;
+    expect(climbProse).toMatch(/Silver I/);
+    expect(climbProse).toMatch(/Gold IV/);
+    expect(climbProse).toMatch(/championed by\s*Ahri/);
+  });
+
+  it("formats apex tier masthead without a division suffix", () => {
+    render(
+      <LolMomentChapter
+        {...rankUpProps}
+        rankUp={{
+          ...rankUpDelta,
+          toTier: "MASTER",
+          toRank: "I",
+          toLp: 50,
+        }}
+      />
+    );
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Master");
+  });
+
+  it("exposes a RANK_UP chapter-label data attribute", () => {
+    const { container } = render(<LolMomentChapter {...rankUpProps} />);
+    const el = container.querySelector("[data-recap-chapter]");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Rank up");
+    expect(el?.getAttribute("data-chapter-label")).toContain("Gold IV");
+  });
+
+  it("falls back to the off-meta framing when rankUp is null (defensive — descriptor invariant)", () => {
+    // The descriptor invariant is that momentType=RANK_UP always carries
+    // rankUp. If the contract ever ships a null pair, the chapter should
+    // degrade to off-meta copy rather than render a broken header.
+    render(<LolMomentChapter {...rankUpProps} rankUp={null} />);
+    expect(screen.queryByText("Rank up")).toBeNull();
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 

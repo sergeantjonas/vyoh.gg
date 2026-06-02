@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import type { LolAccount, LolMomentMatchStats } from "@vyoh/shared";
+import {
+  type LolAccount,
+  type LolMomentChapterDescriptor,
+  type LolMomentMatchStats,
+  type LolRankUpDelta,
+  formatRankTitle,
+} from "@vyoh/shared";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
@@ -23,7 +30,7 @@ import { useAssetClaim } from "./use-asset-claim";
 import { useChapterNudge } from "./use-chapter-nudge";
 
 /** Champion the chapter sets as the editorial baseline ("you usually play X").
- *  Used in the prose, not the visual — the chapter opens directly on the
+ *  Used in the OFF_META_PICK prose only — the chapter opens directly on the
  *  off-meta champion's splash; the prose carries the "stepped off ANCHOR"
  *  narrative. (Earlier R-6 draft tried an Ahri→other splash dissolve as the
  *  signature beat; rejected after visual review — the chapter is about the
@@ -31,6 +38,79 @@ import { useChapterNudge } from "./use-chapter-nudge";
  *  rather than a beat. The prose communicates the comparison without the
  *  visual having to re-tell it.) */
 const ANCHOR_CHAMPION_ALIAS = "Ahri";
+
+type MomentType = LolMomentChapterDescriptor["momentType"];
+
+/** Accent span shared between every momentType's prose — uppercase-italic,
+ *  paint-order outline against the splash backdrop. Extracted so each
+ *  momentType's editorial block can stay declarative. */
+function Accent({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="font-medium italic text-foreground/95"
+      style={{
+        paintOrder: "stroke",
+        WebkitTextStroke: STROKE_ACCENT,
+        textShadow: SHADOW_ACCENT,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+interface MomentCopy {
+  eyebrow: string;
+  mastheadText: string;
+  chapterLabel: string;
+  ariaLabel: string;
+  body: ReactNode;
+}
+
+/**
+ * Per-momentType editorial copy + masthead text. RANK_UP and OFF_META_PICK
+ * are the two implemented types; the remaining momentTypes fall through to
+ * the off-meta framing until their R-7 chunks land — keeps the chapter
+ * renderable while the detectors are added incrementally.
+ */
+function momentCopy(args: {
+  momentType: MomentType;
+  displayName: string;
+  anchorDisplayName: string;
+  rankUp: LolRankUpDelta | null;
+}): MomentCopy {
+  const { momentType, displayName, anchorDisplayName, rankUp } = args;
+
+  if (momentType === "RANK_UP" && rankUp) {
+    const fromTitle = formatRankTitle(rankUp.fromTier, rankUp.fromRank);
+    const toTitle = formatRankTitle(rankUp.toTier, rankUp.toRank);
+    return {
+      eyebrow: "Rank up",
+      mastheadText: toTitle,
+      chapterLabel: `Rank up · ${toTitle}`,
+      ariaLabel: `Rank up: ${toTitle}`,
+      body: (
+        <>
+          Climbed from <Accent>{fromTitle}</Accent> to <Accent>{toTitle}</Accent>,
+          championed by <Accent>{displayName}</Accent>.
+        </>
+      ),
+    };
+  }
+
+  return {
+    eyebrow: "Off-meta pick",
+    mastheadText: displayName,
+    chapterLabel: `Off-meta · ${displayName}`,
+    ariaLabel: `Off-meta pick: ${displayName}`,
+    body: (
+      <>
+        Stepped off <Accent>{anchorDisplayName}</Accent> for a one-off run on{" "}
+        <Accent>{displayName}</Accent>.
+      </>
+    ),
+  };
+}
 
 function formatDaysSince(daysSince: number): string {
   if (daysSince === 0) return "today";
@@ -52,7 +132,9 @@ interface Props {
   matchId: string | null;
   daysSince: number;
   slug: string;
+  momentType: MomentType;
   matchStats: LolMomentMatchStats | null;
+  rankUp: LolRankUpDelta | null;
 }
 
 /**
@@ -75,7 +157,9 @@ export function LolMomentChapter({
   matchId,
   daysSince,
   slug,
+  momentType,
   matchStats,
+  rankUp,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const championName = useChampionName();
@@ -115,20 +199,25 @@ export function LolMomentChapter({
 
   const displayName = championName(championAlias);
   const anchorDisplayName = championName(ANCHOR_CHAMPION_ALIAS);
-  const eyebrow = "Off-meta pick";
+  const copy = momentCopy({
+    momentType,
+    displayName,
+    anchorDisplayName,
+    rankUp,
+  });
   const whenLine = formatDaysSince(daysSince);
 
   return (
     <div
       ref={outerRef}
       data-recap-chapter={slug}
-      data-chapter-label={`Off-meta · ${displayName}`}
+      data-chapter-label={copy.chapterLabel}
       className="[scroll-snap-align:start] [scroll-snap-stop:always]"
     >
       <ChapterContainer
         pinViewports={1}
         slug={slug}
-        ariaLabel={`${eyebrow}: ${displayName}`}
+        ariaLabel={copy.ariaLabel}
         pinClassName="items-start justify-start px-6 pt-[6dvh] sm:px-10"
       >
         <div className="flex w-full flex-col">
@@ -143,7 +232,7 @@ export function LolMomentChapter({
                     textShadow: SHADOW_ACCENT,
                   }}
                 >
-                  {eyebrow}
+                  {copy.eyebrow}
                 </span>
                 {matchStats?.queueType ? (
                   <>
@@ -191,7 +280,7 @@ export function LolMomentChapter({
                     className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
                     style={{ textShadow: SHADOW_MASTHEAD }}
                   >
-                    {displayName}
+                    {copy.mastheadText}
                   </h2>
                   <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
                     open →
@@ -202,7 +291,7 @@ export function LolMomentChapter({
                   className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
                   style={{ textShadow: SHADOW_MASTHEAD }}
                 >
-                  {displayName}
+                  {copy.mastheadText}
                 </h2>
               )}
             </ChapterReveal>
@@ -211,29 +300,7 @@ export function LolMomentChapter({
                 className="max-w-prose text-base text-foreground/85 sm:text-lg"
                 style={{ textShadow: SHADOW_BODY }}
               >
-                Stepped off{" "}
-                <span
-                  className="font-medium italic text-foreground/95"
-                  style={{
-                    paintOrder: "stroke",
-                    WebkitTextStroke: STROKE_ACCENT,
-                    textShadow: SHADOW_ACCENT,
-                  }}
-                >
-                  {anchorDisplayName}
-                </span>{" "}
-                for a one-off run on{" "}
-                <span
-                  className="font-medium italic text-foreground/95"
-                  style={{
-                    paintOrder: "stroke",
-                    WebkitTextStroke: STROKE_ACCENT,
-                    textShadow: SHADOW_ACCENT,
-                  }}
-                >
-                  {displayName}
-                </span>
-                .
+                {copy.body}
               </p>
             </ChapterReveal>
           </ChapterOpener>

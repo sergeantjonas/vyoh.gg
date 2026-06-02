@@ -131,6 +131,12 @@ export type {
   RankHistoryPoint,
   RankHistoryResponse,
 } from "./lol/rank-history.ts";
+export {
+  formatRank,
+  formatRankTitle,
+  normalizeLp,
+  pickHigherRank,
+} from "./lol/rank-history.ts";
 export type { ChampionExtras, ItemStats, MatchupStats } from "./lol/champion-extras.ts";
 export type {
   LiveMatch,
@@ -225,6 +231,7 @@ export { ageBucketFromDaysSince, daysSinceIso } from "./home/age-bucket.ts";
 export type {
   LolMomentChapterDescriptor,
   LolMomentMatchStats,
+  LolRankUpDelta,
   RecapAgeBucket,
   RecapChapterDescriptor,
   RecapChapterFraming,

@@ -102,7 +102,9 @@ function HomePage() {
                 matchId={c.matchId}
                 daysSince={c.daysSince}
                 slug={c.slug}
+                momentType={c.momentType}
                 matchStats={c.matchStats}
+                rankUp={c.rankUp}
               />
             );
           }

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { RecapCandidate } from "@vyoh/shared";
+import { type RecapCandidate, normalizeLp } from "@vyoh/shared";
 
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -31,6 +31,29 @@ const OFF_META_WINDOW_DAYS = 30;
  *  Beyond ~ 35d, it sinks below the floor and the chapter quietly drops. */
 const OFF_META_BASE_SIGNAL = 20;
 
+/** Lookback window for rank-up candidates. Same 30d "this season" frame as
+ *  off-meta — a rank-up that happened two months ago isn't current news. */
+const RANK_UP_WINDOW_DAYS = 30;
+
+/** Maximum recent matches scanned when looking for a rank-up. The detector
+ *  walks ranked matches newest-first and picks the first one whose snapshot
+ *  pair crosses a tier or division boundary. 80 covers ~3 weeks of dense
+ *  ranked play; beyond that the daysSince decay sinks the signal anyway. */
+const RANK_UP_SCAN_LIMIT = 80;
+
+/** Base signal for a tier-change rank-up (e.g. Silver → Gold, or Master →
+ *  Grandmaster). Tier crossings are the headline rank events — they're the
+ *  ones a player frames a season around — so they earn a higher base signal
+ *  than division crossings (35 × 0.5^(14/14) ≈ 17, still well above the
+ *  floor at the half-life boundary). */
+const RANK_UP_TIER_SIGNAL = 35;
+
+/** Base signal for a division-change rank-up (e.g. Silver IV → Silver III).
+ *  Division crossings are routine inside a tier but still worth surfacing as
+ *  recent forward motion — 22 × 0.5^(14/14) = 11 stays above the floor at
+ *  the half-life boundary, and decays to ~5.5 at 28d. */
+const RANK_UP_DIVISION_SIGNAL = 22;
+
 /** Queue types where champion pick is a deliberate signal under stakes.
  *  ARAM rolls champions randomly; Swarm/Arena/URF run modified rulesets that
  *  invite experimentation; Normal Draft is practice space where Ahri OTPs
@@ -57,8 +80,11 @@ export class LolMomentsService {
   ) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    const offMeta = await this.detectOffMetaPicks(now);
-    return [...offMeta];
+    const [offMeta, rankUps] = await Promise.all([
+      this.detectOffMetaPicks(now),
+      this.detectRankUps(now),
+    ]);
+    return [...offMeta, ...rankUps];
   }
 
   /**
@@ -163,5 +189,134 @@ export class LolMomentsService {
         offMeta: true,
       },
     ];
+  }
+
+  /**
+   * Detect the owner's most recent tier or division climb. Walks ranked
+   * matches newest-first within the 30d window and returns the first whose
+   * snapshot pair crosses a tier-or-division boundary in the up direction.
+   * LP-only gains (same tier+division, higher LP) don't qualify — the chapter
+   * needs a meaningful "you climbed" framing, not a one-game LP twitch.
+   *
+   * Algorithm:
+   *   1. Read up to RANK_UP_SCAN_LIMIT recent ranked matches with both the
+   *      before- and after-snapshot fully populated (six non-null columns).
+   *   2. Walk newest-first; pick the first match where:
+   *        normalizeLp(toTier,toRank,toLp) > normalizeLp(fromTier,fromRank,fromLp)
+   *      AND (snapshotTier !== snapshotTierBefore
+   *           OR snapshotRank !== snapshotRankBefore).
+   *   3. Magnitude: tier-string change → RANK_UP_TIER_SIGNAL (loud); rank-only
+   *      change → RANK_UP_DIVISION_SIGNAL (quieter). Decay applies on top.
+   *
+   * Returns at most one candidate per call — the most recent climb is the
+   * editorially strongest moment, and multiple rank-up rows would crowd the
+   * lol-moment cap with near-duplicates.
+   */
+  async detectRankUps(now: Date): Promise<RecapCandidate[]> {
+    const ownerPuuids = await this.identity.getOwnerPuuids();
+    if (ownerPuuids.length === 0) return [];
+
+    const candidateCutoff = new Date(
+      now.getTime() - RANK_UP_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    const recent = await this.prisma.match.findMany({
+      where: {
+        puuid: { in: ownerPuuids },
+        playedAt: { gte: candidateCutoff },
+        remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        snapshotTier: { not: null },
+        snapshotRank: { not: null },
+        snapshotLp: { not: null },
+        snapshotTierBefore: { not: null },
+        snapshotRankBefore: { not: null },
+        snapshotLpBefore: { not: null },
+      },
+      orderBy: { playedAt: "desc" },
+      take: RANK_UP_SCAN_LIMIT,
+      select: {
+        matchId: true,
+        champion: true,
+        playedAt: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        win: true,
+        durationSec: true,
+        queueType: true,
+        snapshotTier: true,
+        snapshotRank: true,
+        snapshotLp: true,
+        snapshotTierBefore: true,
+        snapshotRankBefore: true,
+        snapshotLpBefore: true,
+      },
+    });
+
+    for (const m of recent) {
+      // Type narrowing — the where-clause filtered nulls but Prisma still
+      // types the columns as nullable. Bail safely if a null slips through.
+      const toTier = m.snapshotTier;
+      const toRank = m.snapshotRank;
+      const toLp = m.snapshotLp;
+      const fromTier = m.snapshotTierBefore;
+      const fromRank = m.snapshotRankBefore;
+      const fromLp = m.snapshotLpBefore;
+      if (
+        toTier === null ||
+        toRank === null ||
+        toLp === null ||
+        fromTier === null ||
+        fromRank === null ||
+        fromLp === null
+      ) {
+        continue;
+      }
+
+      const toScalar = normalizeLp(toTier, toRank, toLp);
+      const fromScalar = normalizeLp(fromTier, fromRank, fromLp);
+      if (toScalar <= fromScalar) continue;
+
+      const tierChanged = toTier !== fromTier;
+      const rankChanged = toRank !== fromRank;
+      if (!tierChanged && !rankChanged) continue;
+
+      const baseSignal = tierChanged ? RANK_UP_TIER_SIGNAL : RANK_UP_DIVISION_SIGNAL;
+      const daysSince = Math.max(
+        0,
+        Math.floor((now.getTime() - m.playedAt.getTime()) / (24 * 60 * 60 * 1000))
+      );
+
+      return [
+        {
+          kind: "lol-moment",
+          slug: `lol-moment-rank-up-${m.matchId}`,
+          momentType: "RANK_UP",
+          baseSignal,
+          daysSince,
+          matchId: m.matchId,
+          championAlias: m.champion,
+          matchStats: {
+            kills: m.kills,
+            deaths: m.deaths,
+            assists: m.assists,
+            win: m.win,
+            durationSec: m.durationSec,
+            queueType: m.queueType,
+          },
+          rankUp: {
+            fromTier,
+            fromRank,
+            fromLp,
+            toTier,
+            toRank,
+            toLp,
+          },
+        },
+      ];
+    }
+
+    return [];
   }
 }

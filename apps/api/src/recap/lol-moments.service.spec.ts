@@ -17,10 +17,26 @@ interface MatchRow {
   playedAt: Date;
 }
 
+interface SnapshotMatchRow extends MatchRow {
+  kills: number;
+  deaths: number;
+  assists: number;
+  win: boolean;
+  durationSec: number;
+  queueType: string;
+  snapshotTier: string | null;
+  snapshotRank: string | null;
+  snapshotLp: number | null;
+  snapshotTierBefore: string | null;
+  snapshotRankBefore: string | null;
+  snapshotLpBefore: number | null;
+}
+
 function makeService(opts: {
   ownerPuuids?: string[];
   championCounts?: ChampionCountRow[];
   offMetaMatch?: MatchRow | null;
+  rankUpRows?: SnapshotMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
@@ -29,6 +45,7 @@ function makeService(opts: {
     match: {
       groupBy: vi.fn().mockResolvedValue(opts.championCounts ?? []),
       findFirst: vi.fn().mockResolvedValue(opts.offMetaMatch ?? null),
+      findMany: vi.fn().mockResolvedValue(opts.rankUpRows ?? []),
     },
   } as unknown as PrismaService;
   return {
@@ -175,6 +192,215 @@ describe("LolMomentsService.detectOffMetaPicks", () => {
   });
 });
 
+function makeSnapshotRow(opts: {
+  matchId?: string;
+  champion?: string;
+  playedAt?: Date;
+  toTier: string;
+  toRank: string;
+  toLp: number;
+  fromTier: string;
+  fromRank: string;
+  fromLp: number;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  win?: boolean;
+  durationSec?: number;
+  queueType?: string;
+}): SnapshotMatchRow {
+  return {
+    matchId: opts.matchId ?? "EUW_RU_1",
+    champion: opts.champion ?? "Ahri",
+    playedAt: opts.playedAt ?? new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+    kills: opts.kills ?? 6,
+    deaths: opts.deaths ?? 3,
+    assists: opts.assists ?? 9,
+    win: opts.win ?? true,
+    durationSec: opts.durationSec ?? 1820,
+    queueType: opts.queueType ?? "Ranked Solo",
+    snapshotTier: opts.toTier,
+    snapshotRank: opts.toRank,
+    snapshotLp: opts.toLp,
+    snapshotTierBefore: opts.fromTier,
+    snapshotRankBefore: opts.fromRank,
+    snapshotLpBefore: opts.fromLp,
+  };
+}
+
+describe("LolMomentsService.detectRankUps", () => {
+  it("returns no candidates when there are no owner puuids", async () => {
+    const { service, prisma } = makeService({ ownerPuuids: [] });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toEqual([]);
+    expect(prisma.match.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns no candidates when no ranked matches have populated snapshots", async () => {
+    const { service } = makeService({ rankUpRows: [] });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("skips matches where only LP changed (same tier and division)", async () => {
+    const { service } = makeService({
+      rankUpRows: [
+        makeSnapshotRow({
+          toTier: "SILVER",
+          toRank: "II",
+          toLp: 80,
+          fromTier: "SILVER",
+          fromRank: "II",
+          fromLp: 60,
+        }),
+      ],
+    });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("skips matches where the rank dropped (demotion)", async () => {
+    const { service } = makeService({
+      rankUpRows: [
+        makeSnapshotRow({
+          toTier: "SILVER",
+          toRank: "III",
+          toLp: 75,
+          fromTier: "SILVER",
+          fromRank: "II",
+          fromLp: 20,
+        }),
+      ],
+    });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("emits a division-up candidate with the lower base signal", async () => {
+    const playedAt = new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const { service } = makeService({
+      rankUpRows: [
+        makeSnapshotRow({
+          matchId: "EUW_DIV",
+          champion: "Ahri",
+          playedAt,
+          toTier: "GOLD",
+          toRank: "III",
+          toLp: 10,
+          fromTier: "GOLD",
+          fromRank: "IV",
+          fromLp: 92,
+        }),
+      ],
+    });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") {
+      throw new Error("expected a lol-moment candidate");
+    }
+    expect(c.momentType).toBe("RANK_UP");
+    expect(c.matchId).toBe("EUW_DIV");
+    expect(c.championAlias).toBe("Ahri");
+    expect(c.slug).toBe("lol-moment-rank-up-EUW_DIV");
+    expect(c.daysSince).toBe(2);
+    expect(c.rankUp).toEqual({
+      fromTier: "GOLD",
+      fromRank: "IV",
+      fromLp: 92,
+      toTier: "GOLD",
+      toRank: "III",
+      toLp: 10,
+    });
+    expect(c.baseSignal).toBe(22);
+    // RANK_UP carries matchStats too — the climbing game's KDA/W/L is part of
+    // the chapter receipt strip, mirroring OFF_META_PICK's shape.
+    expect(c.matchStats).toEqual({
+      kills: 6,
+      deaths: 3,
+      assists: 9,
+      win: true,
+      durationSec: 1820,
+      queueType: "Ranked Solo",
+    });
+  });
+
+  it("emits a tier-up candidate with the higher base signal", async () => {
+    const { service } = makeService({
+      rankUpRows: [
+        makeSnapshotRow({
+          matchId: "EUW_TIER",
+          toTier: "GOLD",
+          toRank: "IV",
+          toLp: 15,
+          fromTier: "SILVER",
+          fromRank: "I",
+          fromLp: 96,
+        }),
+      ],
+    });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") {
+      throw new Error("expected a lol-moment candidate");
+    }
+    expect(c.baseSignal).toBe(35);
+    expect(c.rankUp?.toTier).toBe("GOLD");
+    expect(c.rankUp?.fromTier).toBe("SILVER");
+  });
+
+  it("picks the freshest qualifying climb when newer matches are LP-only", async () => {
+    const newer = makeSnapshotRow({
+      matchId: "EUW_LPONLY",
+      playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+      toTier: "PLATINUM",
+      toRank: "II",
+      toLp: 60,
+      fromTier: "PLATINUM",
+      fromRank: "II",
+      fromLp: 40,
+    });
+    const older = makeSnapshotRow({
+      matchId: "EUW_DIVPROMO",
+      playedAt: new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000),
+      toTier: "PLATINUM",
+      toRank: "II",
+      toLp: 12,
+      fromTier: "PLATINUM",
+      fromRank: "III",
+      fromLp: 95,
+    });
+    const { service } = makeService({ rankUpRows: [newer, older] });
+    const result = await service.detectRankUps(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.matchId).toBe("EUW_DIVPROMO");
+  });
+
+  it("constrains the findMany scan to ranked queues with both snapshots populated", async () => {
+    const { service, prisma } = makeService({
+      rankUpRows: [],
+    });
+    await service.detectRankUps(NOW);
+    const args = vi.mocked(prisma.match.findMany).mock.calls[0]?.[0] as {
+      where: {
+        queueType: { in: string[] };
+        snapshotTier: { not: null };
+        snapshotTierBefore: { not: null };
+      };
+      orderBy: { playedAt: "asc" | "desc" };
+    };
+    expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+    expect(args.where.snapshotTier).toEqual({ not: null });
+    expect(args.where.snapshotTierBefore).toEqual({ not: null });
+    expect(args.orderBy.playedAt).toBe("desc");
+  });
+});
+
 describe("LolMomentsService.detectAll", () => {
   it("collects every detector's output into one candidate list", async () => {
     const { service } = makeService({
@@ -184,9 +410,24 @@ describe("LolMomentsService.detectAll", () => {
         champion: "Renekton",
         playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
       },
+      rankUpRows: [
+        makeSnapshotRow({
+          matchId: "EUW_RU",
+          playedAt: new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+          toTier: "GOLD",
+          toRank: "IV",
+          toLp: 15,
+          fromTier: "SILVER",
+          fromRank: "I",
+          fromLp: 96,
+        }),
+      ],
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(1);
-    expect(result[0]?.kind).toBe("lol-moment");
+    expect(result).toHaveLength(2);
+    const momentTypes = result
+      .filter((r) => r.kind === "lol-moment")
+      .map((r) => (r.kind === "lol-moment" ? r.momentType : null));
+    expect(new Set(momentTypes)).toEqual(new Set(["OFF_META_PICK", "RANK_UP"]));
   });
 });
