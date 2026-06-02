@@ -3,6 +3,7 @@ import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
 import { EditorialCloser } from "@/home/conclusion/editorial-closer";
 import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
 import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
+import { RankTrajectoryStrip } from "@/home/conclusion/rank-trajectory-strip";
 import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
 import { TodayStrip } from "@/home/conclusion/today-strip";
 import { LandingHeading } from "@/home/landing-heading";
@@ -116,6 +117,11 @@ function HomePage() {
               orb opens the page; the named author signs into the alltime
               totals. */}
           <OwnerIdentityStrip />
+          {/* 30-day solo queue LP arc — sits between the identity signature
+              and alltime totals as the "where the climb is going right now"
+              beat. Hides itself when the primary account has too little
+              snapshot history to draw. */}
+          <RankTrajectoryStrip />
           <LifetimeTotalsStrip />
           <EditorialCloser />
           <ConclusionFooterChips />
