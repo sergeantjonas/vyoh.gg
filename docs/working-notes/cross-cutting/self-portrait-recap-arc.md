@@ -304,7 +304,29 @@ Substrate (A-1 / A-2 / A-2a) already shipped from atmosphere arc — chapters bu
 
 **R-11. Reduced-motion + Safari engine-gate.** Static chapter rendering path (no pins, no progress reveal, no skin rotation, no signature beats). Verify on real WebKit per [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) precedent.
 
-**R-12. Editorial pass.** Full visual review against real data, tune blur values, mask shapes, beat timings, copy bucketing. Likely 2–3 polish commits.
+**R-13. Multi-beat chapter model — Steam retrofit + new stats.** Chapter shifts from "single editorial moment in one viewport" to "multi-beat narrative pinned across N viewports". Scroll progress through the pin drives a beat index; prior beat animates out, next animates in. Solves the dense-content overflow case ([Silksong screenshot evidence](https://github.com/anthropics/claude-code/issues) — 5 unlocks + verdict + standout + stats + screenshots was already crowding the pin) and opens slots for stats that didn't fit the single-pin shape.
+
+- **New primitive `ChapterBeats` + `ChapterBeat`.** Slotted multi-beat container inside `ChapterContainer`. Beats stack absolutely inside the pin and crossfade based on `useBeatIndex(progress, beatCount)`. `ChapterContainer` accepts `beats={N}` and scales its outer height to `N × beatViewports × 100dvh` (default `beatViewports ~= 0.6` — felt-right starting point per the open decision below).
+- **Beat-scoped progress signal.** The signal that R-1 removed (because it fired band reveals while bands were off-screen) is re-introduced *scoped to the sticky child*. Now the bands are inside the pin and visibility is implied, so the original failure mode doesn't apply. `useChapterProgress` returns a MotionValue 0–1 through the pin window; `useBeatIndex` derives an integer index from it with transition zones (e.g. 0.0–0.2 = beat 0 fully shown, 0.2–0.25 = transition, 0.25–0.45 = beat 1 fully shown, etc.).
+- **Steam chapter beat structure (4 beats):**
+  1. **Identity + verdict** — eyebrow, masthead, tagline, verdict prose, standout milestone receipt.
+  2. **Recent unlocks** — current 5-row strip with breathing room, plus an unlocks-per-week sparkline as a header band.
+  3. **Stats deep-dive** — current `completion / 2-weeks / rarest` strip + new stats: average achievement rarity (median percentile), time-to-100% percentile (if completed), achievements-remaining ladder (if not), playtime trend (active / dormant / spike). Pulled from data we already have ([steam-api-unused-data.md](steam-api-unused-data.md) entries graduate here).
+  4. **Screenshots** — `ScreenshotLightboxStrip` larger and full-bleed inside the beat, behaves as a horizontal gallery rather than a teaser sliver.
+- **Steam chapter is the proof.** Retrofit Steam first; Ahri stays single-pin until R-14 to keep the comparison side-by-side during review.
+- **Engine-gate + reduced-motion fallback.** Both engines collapse to a vertical stack of all beats with no pin, no progress signal, no crossfade — the same "tail of stacked bands" shape they already produce in R-11. The pin model is the canonical experience; the static path is the accessible / engine-conservative substitute. No new code path here — `pinViewports={1}` collapse + bands rendered in document order already covers it.
+- **Spec doc revision (`subject-chapter-design-spec.md`).** The "one viewport pin, not two" rule changes to "one pin window per chapter, beat count drives pin length." Animation cascade table gets a per-beat extension: each beat has its own delay 0 reset when it becomes active. Add a "beat composition" section between "Editorial composition" and "Animation cascade". Add at least one rejected experiment from R-13 work (TBD during build).
+- **Tests:** `useBeatIndex` threshold math (transitions, boundaries, edge cases beat=0 / beat=N-1), `ChapterBeats` renders correct beat at progress=X, engine-gate fallback renders all beats stacked.
+
+**R-14. Ahri retrofit to multi-beat.** Once Steam is signed off in R-13, port Ahri:
+1. Identity + verdict (current opener + verdict prose).
+2. Signature game + recent matches (current detail band).
+3. Peak chips + new LoL stats (top synergies, lane-phase win rate, rank trajectory).
+4. Skin gallery as an explicit beat — the current background-only rotation becomes a foreground gallery moment with skin name + rarity tier + first-acquired year. Foreground skin gallery is a small editorial upgrade enabled by the beat model; the background substrate rotation continues independently.
+
+Likely 1-2 commits. Re-tune cascade delays inside each beat so they don't try to fire all at the prior R-2 timings against the new beat-onset moment.
+
+**R-12. Editorial pass.** Full visual review against real data, tune blur values, mask shapes, beat timings, copy bucketing. Likely 2–3 polish commits. **Now happens after R-13/R-14 — the editorial tuning needs to land on the final beat model, not on a transitional layout.**
 
 ---
 
@@ -325,6 +347,12 @@ Substrate (A-1 / A-2 / A-2a) already shipped from atmosphere arc — chapters bu
 7. **Trailer source.** Steam's `movies[]` field (store API) vs the existing microtrailer pipeline used in game-detail. Probably reuse pipeline. Settled during R-10.
 
 8. **Reduced-motion / Safari path UX.** Static stack of editorial cards is the plan, but worth eyeballing on real Safari before committing — the visual loss vs full path may be steep enough to warrant a middle ground (e.g. discrete-state transitions without scroll coupling).
+
+9. **R-13 pin distance per beat.** Starting guess: 60dvh of scroll per beat (so a 4-beat chapter is `4 × 0.6 × 100dvh = 240dvh` outer height, pinned across 240dvh of scroll). 100dvh per beat felt like a scroll-trap on paper — Apple's product pages skew closer to 50–70dvh per beat to feel like swipe pacing. 60dvh per beat keeps a 4-beat chapter inside `~2.4×` viewport scroll, comparable to two of the current single-pin chapters. Tunable per chapter via a `beatViewports` knob on `ChapterContainer`. Eyeball during the R-13 Steam build before settling.
+
+10. **R-13 stats picked to fill beat 3 — Steam.** Average achievement rarity, time-to-100% percentile, achievements-remaining ladder, playtime trend are the starting set. We may discover one or two read as filler under real data and want to swap. Confirmed during R-13.
+
+11. **Beat-crossfade vs slide.** Crossfade (fade + small translate) is the starting choice — matches the prior chapter-to-chapter crossfade vocabulary. A horizontal slide reads as a carousel, which would clash with the editorial framing. Settled during R-13 build.
 
 ---
 
