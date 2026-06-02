@@ -333,12 +333,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   // Caret label is decoupled from the chapter's own eyebrow header. The
   // eyebrow ("VYOH'S AHRI") is the chapter's masthead — informative,
   // declarative. The caret is a separate affordance pointing INTO the
-  // chapter and benefits from an editorial preposition register ("On
-  // Photography", "On Writing") that implies critical engagement with
-  // the subject rather than just naming it. Also lands at 7 characters
-  // when uppercased, matching the landing eyebrow ("VYOH.GG") so their
-  // left-edges read as aligned when stacked in the viewport.
-  const caretLabel = `On ${displayName}`;
+  // chapter and uses Ahri's own in-game quote — a teasing "follow me"
+  // line that doubles as a literal scroll prompt. Voice-led rather than
+  // descriptive, only works because the chapter that follows IS about
+  // her; per-champion chapters will need their own quote when added.
+  const caretLabel = "Try to keep up";
   const skinLabel = activeSkin.name === "Base" ? null : activeSkin.name;
 
   // Verdict prose: structured segments from the shared deriver. The JSX
