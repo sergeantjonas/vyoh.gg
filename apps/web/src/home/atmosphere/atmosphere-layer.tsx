@@ -147,12 +147,16 @@ export function AtmosphereLayer({ claims }: Props) {
   const backgroundImage = useMotionValue<string>("none");
   const imageOpacity = useMotionValue<number>(0);
   const imageFilter = useMotionValue<string>(`blur(${DEFAULT_BLUR_PX}px) saturate(1.1)`);
-  const imagePosition = useMotionValue<string>("center");
-  // Current dominant image URL — React state so `<AnimatePresence>` can drive
-  // a proper alpha crossfade when the URL changes (skin rotation, claim
-  // handoff). Updated from `apply()` only when the value actually changes to
-  // avoid re-rendering on every scroll tick.
-  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  // Current dominant image URL + the `background-position` it should render
+  // at, latched together. Used as a React state so `<AnimatePresence>` can
+  // drive a proper alpha crossfade when the URL changes (skin rotation,
+  // claim handoff). The position is captured at the moment the URL became
+  // dominant so the outgoing image's `background-position` doesn't snap to
+  // the incoming image's subject anchor mid-crossfade — which read as the
+  // backdrop sliding under the fade.
+  const [presented, setPresented] = useState<{ url: string; position: string } | null>(
+    null
+  );
   const lastUrlRef = useRef<string | null>(null);
   const entries = useMemo(() => Array.from(claims.values()), [claims]);
 
@@ -194,14 +198,13 @@ export function AtmosphereLayer({ claims }: Props) {
         root.removeProperty("--accent");
         if (lastUrlRef.current !== null) {
           lastUrlRef.current = null;
-          setCurrentImageUrl(null);
+          setPresented(null);
         }
         return;
       }
       backgroundImage.set(resolved.backgroundImage);
       imageOpacity.set(resolved.imageAlpha);
       imageFilter.set(`blur(${resolved.imageBlurPx}px) saturate(1.1)`);
-      imagePosition.set(resolved.imagePosition);
       // Publish to consumers (orb-mark halo, future band chrome). Written to
       // `documentElement` so any descendant can `var(--atmosphere-tint-h)` —
       // no need for each consumer to drill a ref through context.
@@ -218,13 +221,21 @@ export function AtmosphereLayer({ claims }: Props) {
       }
       // Crossfade-driven URL update — diff against a ref so we only setState
       // when the URL actually changes (skin rotation, claim handoff), not
-      // on every scroll tick.
+      // on every scroll tick. The `background-position` is latched here too,
+      // so the AnimatePresence child reads a static per-mount value rather
+      // than a shared MotionValue. Without this, the outgoing image would
+      // snap to the incoming chapter's subject anchor mid-crossfade, which
+      // reads as the backdrop sliding under the fade.
       if (resolved.imageUrl !== lastUrlRef.current) {
         lastUrlRef.current = resolved.imageUrl;
-        setCurrentImageUrl(resolved.imageUrl);
+        setPresented(
+          resolved.imageUrl
+            ? { url: resolved.imageUrl, position: resolved.imagePosition }
+            : null
+        );
       }
     };
-  }, [compute, backgroundImage, imageOpacity, imageFilter, imagePosition]);
+  }, [compute, backgroundImage, imageOpacity, imageFilter]);
 
   // Manual scroll listener on `<main>` (the actual scroll container) instead
   // of motion/react's `useScroll({ container: mainScrollRef })` — `useScroll`
@@ -281,14 +292,14 @@ export function AtmosphereLayer({ claims }: Props) {
           style={{ opacity: imageOpacity }}
         >
           <AnimatePresence>
-            {currentImageUrl && (
+            {presented && (
               <m.div
-                key={currentImageUrl}
+                key={presented.url}
                 className="absolute inset-0"
                 style={{
-                  backgroundImage: `url("${currentImageUrl}")`,
+                  backgroundImage: `url("${presented.url}")`,
                   backgroundSize: "cover",
-                  backgroundPosition: imagePosition,
+                  backgroundPosition: presented.position,
                   filter: imageFilter,
                 }}
                 initial={{ opacity: 0 }}
