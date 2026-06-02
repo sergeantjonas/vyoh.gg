@@ -525,9 +525,17 @@ export function SteamChapter({ appid = STEAM_FEATURED_APPID }: { appid?: number 
 
           {screenshots.length > 0 ? (
             <ChapterCloser>
-              <ChapterReveal active={nudged} delay={1.5}>
-                <ScreenshotLightboxStrip appid={appid} screenshots={screenshots} />
-              </ChapterReveal>
+              {/* Per-thumb cascade lives inside the strip so it can stagger the
+                  individual thumbnails (one block ChapterReveal landed them all
+                  at once, which felt thudding after the peak chips' triplet
+                  stagger). baseDelay 1.5 places the first thumb just after the
+                  last peak chip (1.39) settles. */}
+              <ScreenshotLightboxStrip
+                appid={appid}
+                screenshots={screenshots}
+                nudged={nudged}
+                baseDelay={1.5}
+              />
             </ChapterCloser>
           ) : null}
         </div>
