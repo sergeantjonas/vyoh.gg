@@ -88,7 +88,13 @@ function HomePage() {
           // the last chapter and the conclusion reads as undiscoverable.
           data-recap-chapter="conclusion"
           data-chapter-label="The picture"
-          className="[scroll-snap-align:start]"
+          // Top padding gives the conclusion a clear opening beat so the
+          // previous chapter's content doesn't visually bleed into the
+          // rhythm band when the snap-align lands. The retired
+          // LandingSteamBand previously provided this breathing room as a
+          // side effect; without it the rhythm band crowds the chapter
+          // exit. Tune the dvh value if the gap feels too generous.
+          className="pt-[12dvh] [scroll-snap-align:start]"
         >
           {/* Reuses AmbientHero as a palette-only atmosphere claim scoped to
               the conclusion ref — fades the bg back from asset-driven
