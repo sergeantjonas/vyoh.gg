@@ -3,6 +3,7 @@ import type { HomeActivityIntensityService } from "./home-activity-intensity.ser
 import type { HomeChronotypeService } from "./home-chronotype.service";
 import type { HomeDaySplitService } from "./home-day-split.service";
 import type { HomeFirstPlayedService } from "./home-first-played.service";
+import type { HomeLifetimeTotalsService } from "./home-lifetime-totals.service";
 import type { HomeSessionLengthsService } from "./home-session-lengths.service";
 import type { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 import { HomeController } from "./home.controller";
@@ -22,6 +23,15 @@ function makeController() {
       timeZone: "Europe/Brussels",
     }),
   };
+  const lifetime = {
+    getLifetimeTotals: vi.fn().mockResolvedValue({
+      lolMatchCount: 0,
+      lolMinutes: 0,
+      steamMinutes: 0,
+      oldestMatchAt: null,
+      oldestUnlockAt: null,
+    }),
+  };
   return {
     controller: new HomeController(
       chronotype as unknown as HomeChronotypeService,
@@ -29,7 +39,8 @@ function makeController() {
       first as unknown as HomeFirstPlayedService,
       day as unknown as HomeDaySplitService,
       sessions as unknown as HomeSessionLengthsService,
-      activity as unknown as HomeActivityIntensityService
+      activity as unknown as HomeActivityIntensityService,
+      lifetime as unknown as HomeLifetimeTotalsService
     ),
     chronotype,
     weekly,
@@ -37,6 +48,7 @@ function makeController() {
     day,
     sessions,
     activity,
+    lifetime,
   };
 }
 
@@ -75,5 +87,11 @@ describe("HomeController", () => {
     const { controller, activity } = makeController();
     await controller.getActivityIntensity();
     expect(activity.getActivityIntensity).toHaveBeenCalled();
+  });
+
+  it("getLifetimeTotals delegates to the lifetime-totals service", async () => {
+    const { controller, lifetime } = makeController();
+    await controller.getLifetimeTotals();
+    expect(lifetime.getLifetimeTotals).toHaveBeenCalled();
   });
 });

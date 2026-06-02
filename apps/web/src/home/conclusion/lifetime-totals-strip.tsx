@@ -1,9 +1,9 @@
-import { useHomeWeeklyTotals } from "@/home/use-home-weekly-totals";
+import { useHomeLifetimeTotals } from "@/home/use-home-lifetime-totals";
 import { formatHoursMinutes } from "@vyoh/shared";
 
 function Chip({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-md border bg-card/40 px-4 py-3 min-w-32">
+    <div className="flex min-w-32 flex-col items-center gap-1 rounded-md border bg-card/40 px-4 py-3">
       <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
@@ -20,53 +20,87 @@ function ChipPlaceholder({ label }: { label: string }) {
   );
 }
 
+function formatCompactInt(n: number): string {
+  // Compact alltime counts so a 5-digit match count doesn't break the chip
+  // shape. Below 10k stays exact; above 10k drops to "12.3k", "108k" form.
+  if (n < 10_000) return n.toLocaleString("en-GB");
+  if (n < 1_000_000) {
+    const k = n / 1000;
+    return `${k.toFixed(k < 100 ? 1 : 0)}k`;
+  }
+  const m = n / 1_000_000;
+  return `${m.toFixed(m < 100 ? 1 : 0)}M`;
+}
+
+function formatCompactHours(minutes: number): string {
+  // Alltime playtime is on the order of 1000s of hours — reading e.g.
+  // "1850h 14m" is noise. Round to whole hours above 100h, keep
+  // h+m for shorter spans.
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours >= 100) return `${formatCompactInt(hours)}h`;
+  return formatHoursMinutes(minutes);
+}
+
+function formatSinceDate(iso: string | null): string {
+  if (iso === null) return "—";
+  // Single-line "Jan 2024" — chip is too tight for a full date and the
+  // year/month is what carries the "how long has this been tracked"
+  // signal.
+  return new Date(iso).toLocaleDateString("en-GB", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function pickEarliest(a: string | null, b: string | null): string | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return new Date(a) <= new Date(b) ? a : b;
+}
+
 /**
- * Conclusion lifetime totals strip. The arc spec calls for "total LoL
- * matches, total Steam playtime, oldest tracked match date, oldest tracked
- * unlock date." Those alltime aggregates need a dedicated `/home/lifetime-
- * totals` endpoint that doesn't exist yet — landed as a follow-up to keep
- * R-5 from forking into API work. For now this strip surfaces the existing
- * weekly window absorbed from the retired `TileWeeklyTotals`, framed as
- * "the last seven days" so the framing reads honestly until the lifetime
- * aggregates land.
+ * Conclusion lifetime totals strip. Alltime self-portrait totals: LoL
+ * match count + playtime, Steam playtime, and the dates of the oldest
+ * tracked match / unlock. Owner-filtered server-side so non-owner
+ * accounts in `accounts.json` don't pollute the alltime numbers.
  */
 export function LifetimeTotalsStrip() {
-  const query = useHomeWeeklyTotals();
+  const query = useHomeLifetimeTotals();
   const data = query.data;
-  const endLabel = data
-    ? new Date(data.weekEnd).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-      })
-    : null;
   return (
     <section className="flex flex-col items-center gap-3 px-6 py-6 text-center">
       <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        {endLabel ? `The last seven days · ending ${endLabel}` : "The last seven days"}
+        Since launch
       </span>
       <div className="flex flex-wrap justify-center gap-3">
         {data ? (
           <>
-            <Chip label="LoL matches" value={data.lolMatchCount} />
-            <Chip label="LoL time" value={formatHoursMinutes(data.lolMinutes)} />
+            <Chip label="LoL matches" value={formatCompactInt(data.lolMatchCount)} />
+            <Chip label="LoL time" value={formatCompactHours(data.lolMinutes)} />
             <Chip
               label="Steam time"
               value={
                 data.steamMinutes > 0 ? (
-                  formatHoursMinutes(data.steamMinutes)
+                  formatCompactHours(data.steamMinutes)
                 ) : (
                   <span className="text-muted-foreground/70">—</span>
                 )
               }
             />
-            <Chip label="Total" value={formatHoursMinutes(data.totalMinutes)} />
+            <Chip
+              label="Tracking since"
+              value={formatSinceDate(
+                pickEarliest(data.oldestMatchAt, data.oldestUnlockAt)
+              )}
+            />
           </>
         ) : (
           <>
             <ChipPlaceholder label="LoL matches" />
             <ChipPlaceholder label="LoL time" />
             <ChipPlaceholder label="Steam time" />
-            <ChipPlaceholder label="Total" />
+            <ChipPlaceholder label="Tracking since" />
           </>
         )}
       </div>

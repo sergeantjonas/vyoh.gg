@@ -206,6 +206,7 @@ export type {
 } from "./steam/game-recap.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
+export type { HomeLifetimeTotals } from "./home/lifetime-totals.ts";
 export type { HomeActivityIntensity } from "./home/activity-intensity.ts";
 export type {
   HomeFirstPlayed,

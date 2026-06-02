@@ -4,6 +4,7 @@ import type {
   HomeChronotype,
   HomeDaySplit,
   HomeFirstPlayed,
+  HomeLifetimeTotals,
   HomeSessionLengths,
   HomeWeeklyTotals,
 } from "@vyoh/shared";
@@ -11,6 +12,7 @@ import { HomeActivityIntensityService } from "./home-activity-intensity.service"
 import { HomeChronotypeService } from "./home-chronotype.service";
 import { HomeDaySplitService } from "./home-day-split.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
+import { HomeLifetimeTotalsService } from "./home-lifetime-totals.service";
 import { HomeSessionLengthsService } from "./home-session-lengths.service";
 import { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 
@@ -22,7 +24,8 @@ export class HomeController {
     private readonly firstPlayed: HomeFirstPlayedService,
     private readonly daySplit: HomeDaySplitService,
     private readonly sessionLengths: HomeSessionLengthsService,
-    private readonly activityIntensity: HomeActivityIntensityService
+    private readonly activityIntensity: HomeActivityIntensityService,
+    private readonly lifetimeTotals: HomeLifetimeTotalsService
   ) {}
 
   @Get("chronotype")
@@ -55,5 +58,10 @@ export class HomeController {
   @Get("activity-intensity")
   async getActivityIntensity(): Promise<HomeActivityIntensity> {
     return this.activityIntensity.getActivityIntensity();
+  }
+
+  @Get("lifetime-totals")
+  async getLifetimeTotals(): Promise<HomeLifetimeTotals> {
+    return this.lifetimeTotals.getLifetimeTotals();
   }
 }
