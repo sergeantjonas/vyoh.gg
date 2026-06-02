@@ -130,6 +130,7 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
       libraryHero2xPath: null,
       libraryHeroPath: null,
       assetTimestamp: null,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 
@@ -138,6 +139,42 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero_2x.jpg",
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
     ]);
+  });
+
+  it("heroLarge prepends the SGDB hero URL when present (publisher 2x missing)", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryHero2xPath: null,
+      libraryHeroPath: "1xhash/library_hero.jpg",
+      assetTimestamp: 1_715_000_000n,
+      sgdbHeroUrl: "https://cdn2.steamgriddb.com/hero/203cb0.jpg",
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.heroLarge(440);
+    expect(resolved.urls[0]).toBe("https://cdn2.steamgriddb.com/hero/203cb0.jpg");
+    // 1x fallback chain stays intact behind it, so a 404 on SGDB still
+    // serves the publisher's 1x rather than breaking the route.
+    expect(resolved.urls).toContain(
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/1xhash/library_hero.jpg?t=1715000000"
+    );
+    expect(resolved.urls).toContain(
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg"
+    );
+  });
+
+  it("heroLarge omits SGDB from the chain when sgdbHeroUrl is null", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryHero2xPath: "deadbeef/library_hero_2x.jpg",
+      libraryHeroPath: "cafebabe/library_hero.jpg",
+      assetTimestamp: 1_715_000_000n,
+      sgdbHeroUrl: null,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.heroLarge(440);
+    expect(resolved.urls[0]).not.toContain("steamgriddb");
   });
 
   it("logo never emits a ?t= cache-buster even if enrichment has a timestamp", async () => {

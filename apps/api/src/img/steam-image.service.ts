@@ -83,6 +83,12 @@ export class SteamImageService {
   // ship native bytes at every viewport. Falls through to the 1x hero if
   // 2x is missing (publishers don't always upload it).
   //
+  // SteamGridDB community art is the first entry in the chain when present.
+  // SGDB only stores a URL when the publisher's `library_hero_2x.jpg` is
+  // missing (see SteamGridDbService.backfillMissingHeroes), so the two
+  // sources are mutually exclusive in practice — for games with a real 2x
+  // asset, `sgdbHeroUrl` is null and the chain behaves as before.
+  //
   // Distinct from `hero` so library tiles, hovercards, and the game-detail
   // page keep their 1280-wide bytes; chapter surfaces opt into the heavier
   // payload by hitting this route explicitly.
@@ -93,6 +99,7 @@ export class SteamImageService {
         libraryHero2xPath: true,
         libraryHeroPath: true,
         assetTimestamp: true,
+        sgdbHeroUrl: true,
       },
     });
     // Two-tier fallback: hashed 2x → legacy 2x → hashed 1x → legacy 1x.
@@ -110,8 +117,9 @@ export class SteamImageService {
       row?.assetTimestamp,
       "library_hero.jpg"
     );
+    const sgdb = row?.sgdbHeroUrl ? [row.sgdbHeroUrl] : [];
     return {
-      urls: [...twoX, ...oneX],
+      urls: [...sgdb, ...twoX, ...oneX],
       // Stays at default `withoutEnlargement: true` — Sharp returns the
       // native source dimensions if smaller than 2560. We tried an `enlarge:
       // true + sharpen({ sigma: 0.6–1.2 })` pass to recover apparent crispness
