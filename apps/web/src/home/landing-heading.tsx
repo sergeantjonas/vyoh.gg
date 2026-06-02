@@ -29,7 +29,12 @@ export function LandingHeading() {
         entranceDelay={reducedMotion ? 0 : 0.7}
       />
       <m.p
-        className="text-xs uppercase tracking-[0.24em] text-muted-foreground/80"
+        // `pl-[0.24em]` balances the trailing letter-spacing — without it
+        // the text's bounding box extends 0.24em past the last glyph, and
+        // flex items-center then centers the box, which visually shifts
+        // the glyphs left relative to the orb above and the editorial
+        // copy below. Matching left padding restores symmetric centering.
+        className="pl-[0.24em] text-xs uppercase tracking-[0.24em] text-muted-foreground/80"
         {...(reducedMotion
           ? {}
           : {
