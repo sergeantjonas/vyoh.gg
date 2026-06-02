@@ -358,11 +358,13 @@ export function AhriChapter({ account }: { account: LolAccount }) {
       ref={outerRef}
       data-recap-chapter="ahri"
       data-chapter-label={caretLabel}
-      // Native CSS snap point. Combined with `scroll-snap-type: y proximity`
-      // on <main>, the browser pulls the chapter top to viewport top
-      // whenever the user stops nearby — both directions, every traversal,
-      // no JS observer disconnect to manage.
-      className="[scroll-snap-align:start]"
+      // Native CSS snap point. Combined with `scroll-snap-type: y mandatory`
+      // on <main>, the browser pulls the chapter top to viewport top on
+      // every scroll-end, both directions. `scroll-snap-stop: always`
+      // prevents momentum scrolls from skipping past the chapter — the
+      // book-like page-turn feel needs both: mandatory makes the resting
+      // state clean, `stop: always` makes traversal exhaustive.
+      className="[scroll-snap-align:start] [scroll-snap-stop:always]"
     >
       <ChapterContainer
         // 1× — chapter fits one viewport, the original 2× pin was paying

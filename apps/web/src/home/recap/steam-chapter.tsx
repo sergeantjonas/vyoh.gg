@@ -375,11 +375,13 @@ export function SteamChapter({
       data-recap-chapter="steam"
       data-steam-appid={appid}
       data-chapter-label={name || `Steam game ${appid}`}
-      // Native CSS snap point. Combined with `scroll-snap-type: y proximity`
-      // on <main>, the browser pulls the chapter top to viewport top
-      // whenever the user stops nearby — both directions, every traversal,
-      // no JS observer disconnect to manage.
-      className="[scroll-snap-align:start]"
+      // Native CSS snap point. Combined with `scroll-snap-type: y mandatory`
+      // on <main>, the browser pulls the chapter top to viewport top on
+      // every scroll-end, both directions. `scroll-snap-stop: always`
+      // prevents momentum scrolls from skipping past the chapter — the
+      // book-like page-turn feel needs both: mandatory makes the resting
+      // state clean, `stop: always` makes traversal exhaustive.
+      className="[scroll-snap-align:start] [scroll-snap-stop:always]"
     >
       <ChapterContainer
         pinViewports={1}

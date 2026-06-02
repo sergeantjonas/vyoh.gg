@@ -47,7 +47,11 @@ function HomePage() {
             over-cover rather than a precise approximation. */}
         <section
           ref={heroRef}
-          className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh]"
+          // Hero is a snap target so the page has a clean home state under
+          // `scroll-snap-type: y mandatory`. Without it, the first chapter's
+          // snap-align would pull the viewport away from the hero on every
+          // scroll-end, making the landing un-restable.
+          className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh] [scroll-snap-align:start]"
         >
           <AmbientHero bandRef={heroRef} intensity={activity?.intensity} />
           <LandingHeading />
@@ -67,33 +71,43 @@ function HomePage() {
             <SteamChapter key={c.slug} appid={c.appid} framing={c.framing} />
           ) : null
         )}
-        <LandingSteamBand />
-        <BentoGrid>
-          <BentoTile width={2} height={2}>
-            <TileChronotype />
-          </BentoTile>
-          <BentoTile width={2}>
-            <TileSignatureGame account={account} />
-          </BentoTile>
-          <BentoTile width={2}>
-            <TileLastMatch account={account} />
-          </BentoTile>
-          <BentoTile width={2}>
-            <TileWeeklyTotals />
-          </BentoTile>
-          <BentoTile width={2} height={2}>
-            <TileDaySplit />
-          </BentoTile>
-          <BentoTile width={2}>
-            <TileSessionLengths />
-          </BentoTile>
-          <BentoTile>
-            <TileBuildBadge />
-          </BentoTile>
-          <BentoTile>
-            <TileDomainAge />
-          </BentoTile>
-        </BentoGrid>
+        {/* Release point for the mandatory chapter-snap region. Without a
+            snap-align at the start of the post-chapter content, the
+            browser's nearest-snap-target lookup would keep pulling the
+            user back to the last chapter on every scroll-end. This wraps
+            the post-chapter zone (LandingSteamBand + bento) into a single
+            snap area aligned to its start, so leaving the chapters lands
+            cleanly at the top of the steam band and the bento scrolls
+            naturally below. */}
+        <div className="[scroll-snap-align:start]">
+          <LandingSteamBand />
+          <BentoGrid>
+            <BentoTile width={2} height={2}>
+              <TileChronotype />
+            </BentoTile>
+            <BentoTile width={2}>
+              <TileSignatureGame account={account} />
+            </BentoTile>
+            <BentoTile width={2}>
+              <TileLastMatch account={account} />
+            </BentoTile>
+            <BentoTile width={2}>
+              <TileWeeklyTotals />
+            </BentoTile>
+            <BentoTile width={2} height={2}>
+              <TileDaySplit />
+            </BentoTile>
+            <BentoTile width={2}>
+              <TileSessionLengths />
+            </BentoTile>
+            <BentoTile>
+              <TileBuildBadge />
+            </BentoTile>
+            <BentoTile>
+              <TileDomainAge />
+            </BentoTile>
+          </BentoGrid>
+        </div>
       </div>
     </AtmosphereProvider>
   );

@@ -141,16 +141,20 @@ function RootLayout() {
                 }
               }}
               data-vt-main=""
-              // `scroll-snap-type: y proximity` delegates chapter snapping to
-              // the browser: a snap-align descendant pulls the viewport when
-              // the user stops nearby, in either direction, every time —
-              // replacing the JS-based one-shot snap that disconnected after
-              // first fire (no re-snap on backward / re-forward traversal).
-              // `proximity` (not `mandatory`) lets the user scroll freely
-              // past the hero and across sectionless content without feeling
-              // stuck. Only `[data-recap-chapter]` elements carry snap-align,
-              // so non-/ routes are unaffected — they have no snap points.
-              className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scroll-snap-type:y_proximity] [scrollbar-gutter:stable_both-edges]"
+              // `scroll-snap-type: y mandatory` delegates chapter snapping
+              // to the browser: every scroll-end resolves to the closest
+              // snap-align descendant, in either direction, every time.
+              // Combined with `scroll-snap-stop: always` on each chapter,
+              // momentum scrolls cannot skip past a chapter — the book-like
+              // page-turn feel relies on both. `proximity` (the previous
+              // mode) only snapped when the user happened to stop inside a
+              // narrow browser-defined zone, which left visible mid-chapter
+              // resting positions and let fast scrolls overshoot. The hero
+              // and the post-chapter release section both carry snap-align
+              // so the page has a clean home state and a clean exit. Only
+              // `/` mounts snap-align descendants, so non-/ routes are
+              // unaffected — they have no snap points to snap to.
+              className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scroll-snap-type:y_mandatory] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary
