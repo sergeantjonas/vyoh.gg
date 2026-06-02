@@ -354,7 +354,16 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   );
 
   return (
-    <div ref={outerRef} data-recap-chapter="ahri" data-chapter-label={caretLabel}>
+    <div
+      ref={outerRef}
+      data-recap-chapter="ahri"
+      data-chapter-label={caretLabel}
+      // Native CSS snap point. Combined with `scroll-snap-type: y proximity`
+      // on <main>, the browser pulls the chapter top to viewport top
+      // whenever the user stops nearby — both directions, every traversal,
+      // no JS observer disconnect to manage.
+      className="[scroll-snap-align:start]"
+    >
       <ChapterContainer
         // 1× — chapter fits one viewport, the original 2× pin was paying
         // for stretched-across-scroll reveals that no longer exist.

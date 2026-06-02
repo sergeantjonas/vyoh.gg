@@ -141,7 +141,16 @@ function RootLayout() {
                 }
               }}
               data-vt-main=""
-              className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
+              // `scroll-snap-type: y proximity` delegates chapter snapping to
+              // the browser: a snap-align descendant pulls the viewport when
+              // the user stops nearby, in either direction, every time —
+              // replacing the JS-based one-shot snap that disconnected after
+              // first fire (no re-snap on backward / re-forward traversal).
+              // `proximity` (not `mandatory`) lets the user scroll freely
+              // past the hero and across sectionless content without feeling
+              // stuck. Only `[data-recap-chapter]` elements carry snap-align,
+              // so non-/ routes are unaffected — they have no snap points.
+              className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scroll-snap-type:y_proximity] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary
