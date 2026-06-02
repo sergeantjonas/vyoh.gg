@@ -1,3 +1,4 @@
+import { CardTitle } from "@/components/ui/card-title";
 import { Sparkline } from "@/components/ui/sparkline";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
@@ -34,7 +35,9 @@ function formatDelta(start: number, end: number): string {
  * rather than introducing a home-scoped wrapper; identity is single-owner
  * so the per-account endpoint already returns only the data we want.
  * Hidden when the primary account has fewer than 2 solo snapshots in the
- * window (unranked / not enough history to draw a line).
+ * window (unranked / not enough history to draw a line). Lives in the
+ * "shape" section as the 30-day beat between the rolling rhythm samples
+ * and the 24h today strip.
  */
 export function RankTrajectoryStrip() {
   const { account } = usePrimaryAccount();
@@ -47,36 +50,54 @@ export function RankTrajectoryStrip() {
   const endLp = trajectory.series[trajectory.series.length - 1];
   if (startLp === undefined || endLp === undefined) return null;
 
+  const deltaString = formatDelta(startLp, endLp);
+  const startRank = formatRank(
+    trajectory.firstPoint.tier,
+    trajectory.firstPoint.rank,
+    trajectory.firstPoint.leaguePoints
+  );
+  const endRank = formatRank(
+    trajectory.lastPoint.tier,
+    trajectory.lastPoint.rank,
+    trajectory.lastPoint.leaguePoints
+  );
+
   return (
-    <section className="flex flex-col items-center gap-2 px-6 py-4 text-center">
-      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Last 30 days
-      </span>
-      <div className="flex items-center gap-3 rounded-md border bg-card/40 px-4 py-2">
-        <span className="text-xs text-muted-foreground">
-          {formatRank(
-            trajectory.firstPoint.tier,
-            trajectory.firstPoint.rank,
-            trajectory.firstPoint.leaguePoints
-          )}
-        </span>
+    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+      <header className="flex flex-col gap-1">
+        <CardTitle>Trajectory</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Solo queue · last 30 days ·{" "}
+          <span className="font-medium text-foreground/80 tabular-nums">
+            {deltaString}
+          </span>
+        </p>
+      </header>
+      <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            From
+          </span>
+          <span className="text-sm font-medium tabular-nums text-foreground/80">
+            {startRank}
+          </span>
+        </div>
         <Sparkline
           data={trajectory.series}
-          width={120}
-          height={24}
+          width={400}
+          height={48}
           strokeWidth={1.5}
+          className="h-12 flex-1"
           aria-label="30-day solo queue LP trajectory"
         />
-        <span className="text-xs font-medium text-foreground/90 tabular-nums">
-          {formatRank(
-            trajectory.lastPoint.tier,
-            trajectory.lastPoint.rank,
-            trajectory.lastPoint.leaguePoints
-          )}
-        </span>
-        <span className="border-l pl-3 text-xs font-medium text-muted-foreground tabular-nums">
-          {formatDelta(startLp, endLp)}
-        </span>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            To
+          </span>
+          <span className="text-sm font-semibold tabular-nums text-foreground/90">
+            {endRank}
+          </span>
+        </div>
       </div>
     </section>
   );

@@ -108,8 +108,13 @@ function HomePage() {
               extra network. */}
           <NowPlayingStrip />
           <ConclusionRhythmBand />
-          {/* Today pulse: zoomed in to "right now" — sits adjacent to the
-              weekly rhythm band as the second time-bucketed strip. */}
+          {/* 30-day solo queue LP arc — sits between the longer-window
+              rhythm samples and the 24h today strip as the mid-timescale
+              beat of the shape section. Hides itself when the primary
+              account has too little snapshot history to draw. */}
+          <RankTrajectoryStrip />
+          {/* Today pulse: zoomed in to "right now" — the narrowest
+              time-bucketed strip in the shape section. */}
           <TodayStrip />
         </section>
         <section
@@ -130,11 +135,6 @@ function HomePage() {
                 orb opens the page; the named author signs into the alltime
                 totals. */}
             <OwnerIdentityStrip />
-            {/* 30-day solo queue LP arc — sits between the identity
-                signature and alltime totals as the "where the climb is
-                going right now" beat. Hides itself when the primary
-                account has too little snapshot history to draw. */}
-            <RankTrajectoryStrip />
             <LifetimeTotalsStrip />
             <EditorialCloser />
           </div>

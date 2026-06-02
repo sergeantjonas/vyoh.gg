@@ -99,7 +99,9 @@ describe("RankTrajectoryStrip", () => {
     expect(screen.getByText("Gold I 17LP")).toBeTruthy();
     // Normalized: Gold II 50 → 50; Gold I 17 → 117 → delta +67 LP.
     expect(screen.getByText("+67 LP")).toBeTruthy();
-    expect(screen.getByText("Last 30 days")).toBeTruthy();
+    expect(screen.getByText("Trajectory")).toBeTruthy();
+    // Caption is split across the delta span — match by partial text.
+    expect(screen.getByText(/Solo queue . last 30 days/)).toBeTruthy();
   });
 
   it("sorts unordered snapshots chronologically before computing the delta", () => {
