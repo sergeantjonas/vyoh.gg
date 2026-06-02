@@ -68,5 +68,19 @@ export const HIDDEN_QUEUE_IDS: readonly number[] = [];
 
 // Pin one chapter to the top regardless of score. `null` = pure algorithmic
 // ordering once `useChapters()` lands in R-4. Set to a chapter slug (e.g.
-// "ahri") to override.
+// "steam-2050650") to override. The Ahri chapter is a structural anchor
+// rendered above this list and isn't part of the algorithmic stream, so
+// pinning it has no effect — pin a Steam or moment slug.
 export const PINNED_CHAPTER: string | null = null;
+
+// Curator copy overlay applied on top of the algorithmic descriptor.
+// `eyebrow` overrides the bucket-derived kicker ("Playing lately", "This
+// season on", …) for a chapter the owner wants framed differently
+// ("Featured", "Editor's pick"); `title` overrides the per-kind default
+// title (currently the game name for steam-subject). Keyed by chapter
+// `slug` — for Steam subjects that's `steam-{appid}`. Empty by default;
+// add entries as needed.
+export const CHAPTER_COPY_OVERRIDES: Record<
+  string,
+  { eyebrow?: string; title?: string }
+> = {};
