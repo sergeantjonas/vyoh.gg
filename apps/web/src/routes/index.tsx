@@ -3,6 +3,7 @@ import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
 import { EditorialCloser } from "@/home/conclusion/editorial-closer";
 import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
 import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
+import { NowPlayingStrip } from "@/home/conclusion/now-playing-strip";
 import { RankTrajectoryStrip } from "@/home/conclusion/rank-trajectory-strip";
 import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
 import { TodayStrip } from "@/home/conclusion/today-strip";
@@ -103,6 +104,12 @@ function HomePage() {
               the last chapter. The hero's matching claim is now distant
               enough by proximity that this one wins. */}
           <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
+          {/* Live-state pulse: lands above the rhythm band when the owner
+              is in a LoL queue or has Steam reporting an active game.
+              Hides itself otherwise so the section opens with the rhythm
+              band. Reads through PresenceMounts' root-level pollers — no
+              extra network. */}
+          <NowPlayingStrip />
           <ConclusionRhythmBand />
           {/* Today pulse: zoomed in to "right now" — sits adjacent to the
               weekly rhythm band as the second time-bucketed strip. */}
