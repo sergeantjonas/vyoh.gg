@@ -219,6 +219,27 @@ export type {
   HomeSessionLengthsBucket,
   SessionLengthBucketLabel,
 } from "./home/session-lengths.ts";
+export { ageBucketFromDaysSince, daysSinceIso } from "./home/age-bucket.ts";
+export type {
+  LolMomentChapterDescriptor,
+  RecapAgeBucket,
+  RecapChapterDescriptor,
+  RecapChapterFraming,
+  RecapChaptersResponse,
+  SteamMomentChapterDescriptor,
+  SteamSubjectChapterDescriptor,
+} from "./home/recap-chapter.ts";
+export {
+  RECAP_HALF_LIFE_DAYS,
+  RECAP_OFF_META_BOOST,
+  RECAP_SCORE_FLOOR,
+  recapScore,
+  selectChapters,
+} from "./home/recap-scoring.ts";
+export type {
+  RecapCandidate,
+  RecapSelectionOptions,
+} from "./home/recap-scoring.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,
