@@ -55,45 +55,52 @@ function makeOwnedGames(games: SteamOwnedGame[]): SteamOwnedGames {
   return { games, lastSyncedAt: NOW.toISOString() };
 }
 
-interface UnlockRow {
+interface LastUnlockRow {
   appid: number;
   _max: { unlockedAt: Date | null };
+}
+interface RecentUnlockRow {
+  appid: number;
   _count: { apiName: number };
 }
 
 function makeService(
   games: SteamOwnedGame[],
-  unlocks: UnlockRow[]
+  lastUnlockRows: LastUnlockRow[] = [],
+  recentUnlockRows: RecentUnlockRow[] = []
 ): RecapSubjectsService {
   const ownedGames = {
     getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames(games)),
   } as unknown as SteamOwnedGamesService;
+  // The service makes two distinct groupBy calls — one unfiltered for
+  // `_max(unlockedAt)` (drives `freshest` / daysSince), one filtered to the
+  // 14d window for `_count(apiName)` (drives baseSignal). Branch on the
+  // presence of `where` to route each call to its fixture.
   const prisma = {
     steamPlayerUnlock: {
-      groupBy: vi.fn().mockResolvedValue(unlocks),
+      groupBy: vi
+        .fn()
+        .mockImplementation((args: { where?: unknown }) =>
+          Promise.resolve(args.where ? recentUnlockRows : lastUnlockRows)
+        ),
     },
   } as unknown as PrismaService;
   return new RecapSubjectsService(ownedGames, prisma);
 }
 
 describe("RecapSubjectsService.getChapters", () => {
-  it("emits a steam-subject descriptor for a game with playtime and unlocks", async () => {
+  it("emits a steam-subject descriptor for a game with recent playtime and unlocks", async () => {
     const service = makeService(
       [
         makeOwnedGame({
           appid: 42,
           name: "Recent Hit",
-          playtimeForeverMinutes: 60 * 30, // 30h → baseSignal contribution 30
+          playtime2WeeksMinutes: 60 * 10, // 10h recent → baseSignal contribution 10
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
       ],
-      [
-        {
-          appid: 42,
-          _max: { unlockedAt: NOW },
-          _count: { apiName: 20 }, // +10 baseSignal contribution
-        },
-      ]
+      [{ appid: 42, _max: { unlockedAt: NOW } }],
+      [{ appid: 42, _count: { apiName: 12 } }] // +6 baseSignal contribution
     );
 
     const chapters = await service.getChapters(NOW);
@@ -105,10 +112,46 @@ describe("RecapSubjectsService.getChapters", () => {
       expect(first.slug).toBe("steam-42");
       expect(first.daysSince).toBe(0);
       expect(first.ageBucket).toBe("current");
-      // baseSignal = 30 + 20×0.5 = 40, no decay (days=0).
-      expect(first.score).toBeCloseTo(40);
+      // baseSignal = 10 + 12×0.5 = 16, no decay (days=0).
+      expect(first.score).toBeCloseTo(16);
       expect(first.framing).toBeNull();
     }
+  });
+
+  it("drops a high-lifetime game with negligible recent engagement", async () => {
+    // Regression: a brief re-launch of a high-lifetime game (67h Silksong
+    // opened for 3 min) was outranking an active recent playthrough (15h of
+    // RE2 the prior week) because baseSignal used lifetime playtime + lifetime
+    // unlock count. Now baseSignal is recent-only — Silksong's 3m drops
+    // below floor while RE2 lands as the active chapter.
+    const service = makeService(
+      [
+        makeOwnedGame({
+          appid: 42, // Silksong-shaped
+          name: "Silksong",
+          playtimeForeverMinutes: 60 * 67, // 67h lifetime
+          playtime2WeeksMinutes: 3, // 3 minutes recent
+          rtimeLastPlayedAt: NOW.toISOString(),
+        }),
+        makeOwnedGame({
+          appid: 99, // RE2-shaped
+          name: "Resident Evil 2",
+          playtimeForeverMinutes: 60 * 25,
+          playtime2WeeksMinutes: 60 * 15, // 15h recent
+          rtimeLastPlayedAt: new Date(
+            NOW.getTime() - 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+        }),
+      ],
+      [],
+      []
+    );
+
+    const chapters = await service.getChapters(NOW);
+    // Silksong falls below RECAP_SCORE_FLOOR (3/60 ≈ 0.05); only RE2 survives.
+    expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+      99,
+    ]);
   });
 
   it("filters out appids in the hidden list even when score would qualify", async () => {
@@ -121,13 +164,13 @@ describe("RecapSubjectsService.getChapters", () => {
         makeOwnedGame({
           appid: hidden,
           name: "Hidden",
-          playtimeForeverMinutes: 60 * 200,
+          playtime2WeeksMinutes: 60 * 200,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
         makeOwnedGame({
           appid: 99,
           name: "Visible",
-          playtimeForeverMinutes: 60 * 10,
+          playtime2WeeksMinutes: 60 * 10,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
       ],
@@ -147,21 +190,21 @@ describe("RecapSubjectsService.getChapters", () => {
           appid: 431960, // Wallpaper Engine shape
           name: "Wallpaper Engine",
           appType: 6,
-          playtimeForeverMinutes: 60 * 500, // huge — would dominate without the filter
+          playtime2WeeksMinutes: 60 * 500, // huge — would dominate without the filter
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
         makeOwnedGame({
           appid: 42,
           name: "Actual Game",
           appType: 0,
-          playtimeForeverMinutes: 60 * 20,
+          playtime2WeeksMinutes: 60 * 20,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
         makeOwnedGame({
           appid: 99,
           name: "Unenriched Game",
           appType: null,
-          playtimeForeverMinutes: 60 * 10,
+          playtime2WeeksMinutes: 60 * 10,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
       ],
@@ -190,21 +233,20 @@ describe("RecapSubjectsService.getChapters", () => {
   });
 
   it("uses the freshest signal — last unlock can win over older last-played", async () => {
+    // Steam's `rtimeLastPlayedAt` can lag the actual unlock stream — a
+    // recent unlock proves the game was just launched even if last-played
+    // hasn't refreshed. `playtime2WeeksMinutes` covers the same window as
+    // the recent unlock count, so it's set consistently here.
     const service = makeService(
       [
         makeOwnedGame({
           appid: 1,
-          playtimeForeverMinutes: 60 * 30,
+          playtime2WeeksMinutes: 60 * 5,
           rtimeLastPlayedAt: "2026-04-01T00:00:00Z", // ~62 days ago
         }),
       ],
-      [
-        {
-          appid: 1,
-          _max: { unlockedAt: new Date("2026-06-01T00:00:00Z") }, // ~1 day ago
-          _count: { apiName: 4 },
-        },
-      ]
+      [{ appid: 1, _max: { unlockedAt: new Date("2026-06-01T00:00:00Z") } }],
+      [{ appid: 1, _count: { apiName: 4 } }]
     );
     const chapters = await service.getChapters(NOW);
     expect(chapters).toHaveLength(1);
@@ -216,7 +258,7 @@ describe("RecapSubjectsService.getChapters", () => {
       makeOwnedGame({
         appid: i + 1,
         name: `Game ${i + 1}`,
-        playtimeForeverMinutes: 60 * (100 - i * 10), // 100h, 90h, 80h, 70h, 60h
+        playtime2WeeksMinutes: 60 * (50 - i * 8), // 50h, 42h, 34h, 26h, 18h recent
         rtimeLastPlayedAt: NOW.toISOString(),
       })
     );
@@ -233,12 +275,12 @@ describe("RecapSubjectsService.getChapters", () => {
       [
         makeOwnedGame({
           appid: 1,
-          playtimeForeverMinutes: 60 * 200,
+          playtime2WeeksMinutes: 60 * 20,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
         makeOwnedGame({
           appid: 2,
-          playtimeForeverMinutes: 60 * 1, // 1h, no unlocks → floor drops it
+          playtime2WeeksMinutes: 60 * 1, // 1h recent, no unlocks → floor drops it
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
       ],

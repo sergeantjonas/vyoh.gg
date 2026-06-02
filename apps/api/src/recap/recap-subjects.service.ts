@@ -34,28 +34,33 @@ export class RecapSubjectsService {
   }
 
   private async collectSteamSubjectCandidates(now: Date): Promise<RecapCandidate[]> {
-    // Three reads run in parallel — they touch independent tables, so
-    // serialising would only buy idle wall-clock.
-    const [ownedGames, unlockSignal] = await Promise.all([
+    // 14d cutoff for the recent-unlock count that feeds baseSignal. Matches
+    // the scoring half-life so a game has to be active *within* the decay
+    // window to score on unlock signal at all. The unfiltered groupBy still
+    // returns `_max(unlockedAt)` over all time — needed for the `freshest`
+    // computation that drives the daysSince decay (a game last unlocked 20d
+    // ago should still surface if it has recent playtime; its decay just
+    // anchors on the unlock date).
+    const recentUnlockCutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const [ownedGames, lastUnlockRows, recentUnlockRows] = await Promise.all([
       this.ownedGames.getOwnedGames(),
       this.prisma.steamPlayerUnlock.groupBy({
         by: ["appid"],
         _max: { unlockedAt: true },
+      }),
+      this.prisma.steamPlayerUnlock.groupBy({
+        by: ["appid"],
+        where: { unlockedAt: { gte: recentUnlockCutoff } },
         _count: { apiName: true },
       }),
     ]);
 
-    const unlockByAppid = new Map<
-      number,
-      { lastUnlockAt: Date | null; unlockCount: number }
-    >(
-      unlockSignal.map((row) => [
-        row.appid,
-        {
-          lastUnlockAt: row._max.unlockedAt ?? null,
-          unlockCount: row._count.apiName,
-        },
-      ])
+    const lastUnlockByAppid = new Map<number, Date | null>(
+      lastUnlockRows.map((row) => [row.appid, row._max.unlockedAt ?? null])
+    );
+    const recentUnlockCountByAppid = new Map<number, number>(
+      recentUnlockRows.map((row) => [row.appid, row._count.apiName])
     );
 
     const candidates: RecapCandidate[] = [];
@@ -67,8 +72,8 @@ export class RecapSubjectsService {
       // window between owned-sync and enrichment.
       if (game.appType !== null && game.appType !== 0) continue;
 
-      const unlock = unlockByAppid.get(game.appid);
-      const lastUnlockMs = unlock?.lastUnlockAt?.getTime() ?? null;
+      const lastUnlockAt = lastUnlockByAppid.get(game.appid) ?? null;
+      const lastUnlockMs = lastUnlockAt?.getTime() ?? null;
       const lastPlayedMs = game.rtimeLastPlayedAt
         ? new Date(game.rtimeLastPlayedAt).getTime()
         : null;
@@ -87,12 +92,24 @@ export class RecapSubjectsService {
         Math.floor((now.getTime() - freshest) / (1000 * 60 * 60 * 24))
       );
 
-      // base_signal per the arc note: playtime hours + 0.5 × unlock count.
-      // Unlocks are the *user's* unlocks (groupBy SteamPlayerUnlock), not
-      // the schema's total achievements — engagement, not catalogue depth.
-      const playtimeHours = game.playtimeForeverMinutes / 60;
-      const unlockCount = unlock?.unlockCount ?? 0;
-      const baseSignal = playtimeHours * 1.0 + unlockCount * 0.5;
+      // baseSignal models *recent engagement*, not historical depth. An
+      // earlier formulation used `playtimeForeverMinutes + lifetimeUnlocks
+      // × 0.5`; that let a brief re-launch of a high-lifetime game (e.g.
+      // 67h Silksong opened for 3 min) dominate over an active recent
+      // playthrough (RE2 played for hours that week). Steam's own 2-week
+      // playtime field + a 14d-filtered unlock count are precisely the
+      // "what are you actively engaging with" signal we want.
+      //
+      // Side effect: games not touched in 14d will mostly fall below floor.
+      // That's correct for a "Playing lately" recap — the bucket-based
+      // eyebrow ("This season on", "Earlier this year") becomes rare and
+      // fires only when a game has 8–14d-old freshest signal that still
+      // carries recent unlocks. If we later want broader-freshness coverage,
+      // it should be a separate chapter kind ("Greatest hits"-shaped), not a
+      // tweak to subject scoring.
+      const recentPlaytimeHours = (game.playtime2WeeksMinutes ?? 0) / 60;
+      const recentUnlockCount = recentUnlockCountByAppid.get(game.appid) ?? 0;
+      const baseSignal = recentPlaytimeHours * 1.0 + recentUnlockCount * 0.5;
 
       candidates.push({
         kind: "steam-subject",
