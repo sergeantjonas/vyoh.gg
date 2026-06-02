@@ -24,7 +24,7 @@ export function OwnerIdentityStrip() {
   const rank = account.summary?.rank ?? null;
 
   return (
-    <section className="flex justify-center px-6 py-4">
+    <section className="flex justify-center px-6 py-2">
       <Link
         to="/lol/$accountSlug"
         params={{ accountSlug: account.slug }}

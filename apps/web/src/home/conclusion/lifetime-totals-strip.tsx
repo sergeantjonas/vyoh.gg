@@ -76,7 +76,7 @@ export function LifetimeTotalsStrip() {
   const query = useHomeLifetimeTotals();
   const data = query.data;
   return (
-    <section className="flex flex-col items-center gap-3 px-6 py-6 text-center">
+    <section className="flex flex-col items-center gap-3 px-6 py-4 text-center">
       <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         Since launch
       </span>

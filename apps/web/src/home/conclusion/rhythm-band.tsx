@@ -98,7 +98,7 @@ function HoursStrip() {
   return (
     <div className="flex flex-col gap-3">
       <StripHeader label="When" />
-      <div className="flex h-28 items-stretch gap-0.5">
+      <div className="flex h-20 items-stretch gap-0.5">
         {hours.map((bucket) => (
           <HoursBar key={bucket.hour} bucket={bucket} maxCount={maxCount} />
         ))}
@@ -194,7 +194,7 @@ function StreamSplitStrip() {
   return (
     <div className="flex flex-col gap-3">
       <StripHeader label="Where" legend={<StreamLegend />} />
-      <div className="flex h-28 items-stretch gap-0.5">
+      <div className="flex h-20 items-stretch gap-0.5">
         {hours.map((bucket) => (
           <StreamSplitBar key={bucket.hour} bucket={bucket} maxMinutes={maxMinutes} />
         ))}
@@ -305,7 +305,7 @@ function SessionsStrip() {
   return (
     <div className="flex flex-col gap-3">
       <StripHeader label="How long" legend={<StreamLegend />} />
-      <div className="flex h-28 items-stretch gap-2">
+      <div className="flex h-20 items-stretch gap-2">
         {buckets.map((bucket) => (
           <SessionBar key={bucket.label} bucket={bucket} maxCount={maxCount} />
         ))}
@@ -401,7 +401,7 @@ function SessionBar({
  */
 export function ConclusionRhythmBand() {
   return (
-    <section className="flex flex-col gap-5 rounded-lg border bg-card/50 p-6">
+    <section className="flex flex-col gap-4 rounded-lg border bg-card/50 p-4">
       <header className="flex flex-col gap-1">
         <CardTitle>Rhythm</CardTitle>
         <p className="text-sm text-muted-foreground">
