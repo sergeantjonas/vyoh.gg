@@ -24,6 +24,7 @@ import type {
   LolStreakStats,
   RecapChapterDescriptor,
   RecapChapterFraming,
+  SteamAchievementClusterStats,
   SteamFirstTimeStats,
   SteamMomentChapterDescriptor,
 } from "./recap-chapter.ts";
@@ -128,6 +129,7 @@ export type RecapCandidate =
       baseSignal: number;
       daysSince: number;
       firstTime?: SteamFirstTimeStats | null;
+      cluster?: SteamAchievementClusterStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     };
@@ -187,6 +189,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
     appid: candidate.appid,
     name: candidate.name,
     firstTime: candidate.firstTime ?? null,
+    cluster: candidate.cluster ?? null,
     framing,
   };
 }

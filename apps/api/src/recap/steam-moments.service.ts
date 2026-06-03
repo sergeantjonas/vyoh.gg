@@ -37,6 +37,39 @@ const BOOTSTRAP_DAY_THRESHOLD = 4;
  *  outpace dormant subjects without crowding RANK_UP-class headlines. */
 const FIRST_TIME_SIGNAL_DIVISOR = 15;
 
+/** Recency window for the ACHIEVEMENT_CLUSTER detector. A cluster's cap
+ *  unlock must fall inside the last 30d for the moment to surface — same
+ *  "this season" frame the LoL moment detectors use. The selector's
+ *  recency decay sits on top, so older clusters within the window decay
+ *  below the floor by ~35d. */
+const CLUSTER_WINDOW_DAYS = 30;
+
+/** Sliding window span (hours) the cluster detector walks per appid. ≥
+ *  CLUSTER_MIN_UNLOCKS unlocks inside this span qualify. 24h is wide
+ *  enough to capture a "binge day" (start morning, finish night) and
+ *  narrow enough that "this is a real session run, not month-long
+ *  trickle". */
+const CLUSTER_WINDOW_HOURS = 24;
+
+/** Minimum unlocks for a cluster to qualify. 5 is the editorial threshold:
+ *  fewer reads as routine progress, more reads as "you really sat down
+ *  with this". Matches the arc-note design. */
+const CLUSTER_MIN_UNLOCKS = 5;
+
+/** Maximum unlock names carried on the descriptor for the chapter's
+ *  receipt strip. Bounded so the receipt doesn't crash a chapter when an
+ *  owner unlocks 30 in a single sitting; the chapter shows "and N more"
+ *  beyond this cap. */
+const CLUSTER_NAME_RECEIPT_CAP = 5;
+
+/** Per-unlock scaling for the cluster base signal. 5-unlock cluster lands
+ *  at 20 raw → clears floor (5) at the 14d half-life (~10). 10-unlock
+ *  cluster lands at 40 raw → strong signal at daysSince=0, still ~14 at
+ *  the half-life. Cap at CLUSTER_UNLOCK_CAP so a 30-unlock binge doesn't
+ *  dominate the chapter list over a fresh RANK_UP. */
+const CLUSTER_SIGNAL_FACTOR = 4;
+const CLUSTER_UNLOCK_CAP = 10;
+
 /**
  * Detectors that emit `steam-moment` candidates for the landing-page recap
  * stream. Shape mirrors `LolMomentsService` so the controller assembly and
@@ -51,7 +84,11 @@ export class SteamMomentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    return this.detectFirstTimeGames(now);
+    const [firstTime, clusters] = await Promise.all([
+      this.detectFirstTimeGames(now),
+      this.detectAchievementClusters(now),
+    ]);
+    return [...firstTime, ...clusters];
   }
 
   /**
@@ -193,6 +230,162 @@ export class SteamMomentsService {
         },
       });
     }
+    return candidates;
+  }
+
+  /**
+   * Detect the owner's densest recent achievement cluster — ≥5 unlocks on
+   * a single game inside a 24h window, capped within the last 30 days.
+   *
+   * Algorithm:
+   *   1. Load all `SteamPlayerUnlock` rows since `now - 30d`, joined with
+   *      the achievement schema for `displayName`. Group by appid.
+   *   2. Per appid, walk a sliding 24h window over unlocks ordered by
+   *      `unlockedAt` ascending. Track the window with the most unlocks;
+   *      ties prefer the most recent cap (later wins).
+   *   3. If that best window has ≥ CLUSTER_MIN_UNLOCKS unlocks AND the cap
+   *      is inside the recency window, emit one candidate. (The recency
+   *      filter pre-truncates the unlock pool; the cap-check guards
+   *      against clusters whose head spans into older data.)
+   *   4. Filter non-games (`appType !== 0/null`) + the curated hidden
+   *      appid list — same convention as FIRST_TIME_GAME.
+   *
+   * Emits at most one candidate per qualifying appid; the selector caps
+   * `steam-moment` total via the per-kind cap.
+   */
+  async detectAchievementClusters(now: Date): Promise<RecapCandidate[]> {
+    const cutoff = new Date(now.getTime() - CLUSTER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+    // Joined query so we get achievement displayName + game name + appType
+    // in one round-trip. Schema relations: SteamPlayerUnlock →
+    // SteamGameAchievement (composite key, FK) → SteamOwnedGame (appid).
+    // `enrichment` lookup separately because SteamGameEnrichment isn't
+    // FK-related to SteamOwnedGame (it covers wishlist titles too).
+    const unlocks = await this.prisma.steamPlayerUnlock.findMany({
+      where: { unlockedAt: { gte: cutoff } },
+      select: {
+        appid: true,
+        unlockedAt: true,
+        achievement: {
+          select: {
+            displayName: true,
+            game: { select: { name: true, removedAt: true } },
+          },
+        },
+      },
+      orderBy: { unlockedAt: "asc" },
+    });
+
+    if (unlocks.length === 0) return [];
+
+    const appids = [...new Set(unlocks.map((u) => u.appid))];
+    const enrichments = await this.prisma.steamGameEnrichment.findMany({
+      where: { appid: { in: appids } },
+      select: { appid: true, appType: true },
+    });
+    const appTypeByAppid = new Map(enrichments.map((e) => [e.appid, e.appType]));
+
+    // Group unlocks by appid; appids that fail the non-game / hidden /
+    // removed filter are dropped here so the sliding window doesn't waste
+    // cycles on them.
+    const groupedByAppid = new Map<
+      number,
+      Array<{
+        unlockedAt: Date;
+        displayName: string;
+        gameName: string;
+      }>
+    >();
+    for (const unlock of unlocks) {
+      if (RECAP_HIDDEN_APPIDS.has(unlock.appid)) continue;
+      const appType = appTypeByAppid.get(unlock.appid);
+      if (appType !== undefined && appType !== null && appType !== 0) continue;
+      if (unlock.achievement.game.removedAt !== null) continue;
+      const list = groupedByAppid.get(unlock.appid) ?? [];
+      list.push({
+        unlockedAt: unlock.unlockedAt,
+        displayName: unlock.achievement.displayName,
+        gameName: unlock.achievement.game.name,
+      });
+      groupedByAppid.set(unlock.appid, list);
+    }
+
+    const candidates: RecapCandidate[] = [];
+    for (const [appid, rows] of groupedByAppid) {
+      if (rows.length < CLUSTER_MIN_UNLOCKS) continue;
+
+      // Sliding-window pass. `rows` is already sorted ascending by
+      // `unlockedAt` because the source query is. For each potential right-
+      // edge `j`, advance left edge `i` while the span exceeds 24h. The
+      // window `[i..j]` is the largest cluster ending at row j.
+      const windowMs = CLUSTER_WINDOW_HOURS * 60 * 60 * 1000;
+      let bestStart = -1;
+      let bestEnd = -1;
+      let i = 0;
+      for (let j = 0; j < rows.length; j++) {
+        const jRow = rows[j];
+        if (!jRow) continue;
+        while (i <= j) {
+          const iRow = rows[i];
+          if (!iRow) {
+            i++;
+            continue;
+          }
+          if (jRow.unlockedAt.getTime() - iRow.unlockedAt.getTime() <= windowMs) break;
+          i++;
+        }
+        const size = j - i + 1;
+        const bestSize = bestStart < 0 ? 0 : bestEnd - bestStart + 1;
+        // Ties prefer the LATER cap — fresher clusters surface first when
+        // multiple equal-sized windows exist in the data. Recency decay
+        // already favours the latest anyway, but the explicit tiebreak
+        // keeps the receipt aligned with the score.
+        if (size > bestSize || (size === bestSize && j > bestEnd)) {
+          bestStart = i;
+          bestEnd = j;
+        }
+      }
+
+      if (bestStart < 0 || bestEnd - bestStart + 1 < CLUSTER_MIN_UNLOCKS) continue;
+      const clusterRows = rows.slice(bestStart, bestEnd + 1);
+      const startRow = clusterRows[0];
+      const endRow = clusterRows[clusterRows.length - 1];
+      if (!startRow || !endRow) continue;
+      // Cap must be inside the recency window — the pre-truncation at
+      // `cutoff` already enforces this on the source rows, but the assert
+      // keeps the contract honest under future changes.
+      if (endRow.unlockedAt < cutoff) continue;
+
+      const unlockCount = clusterRows.length;
+      const spanMs = endRow.unlockedAt.getTime() - startRow.unlockedAt.getTime();
+      const spanHours = Math.round((spanMs / (60 * 60 * 1000)) * 10) / 10;
+      const daysSince = Math.max(
+        0,
+        Math.floor((now.getTime() - endRow.unlockedAt.getTime()) / (1000 * 60 * 60 * 24))
+      );
+      const baseSignal =
+        Math.min(unlockCount, CLUSTER_UNLOCK_CAP) * CLUSTER_SIGNAL_FACTOR;
+      const unlockNames = clusterRows
+        .slice(0, CLUSTER_NAME_RECEIPT_CAP)
+        .map((r) => r.displayName);
+
+      candidates.push({
+        kind: "steam-moment",
+        slug: `steam-moment-cluster-${appid}`,
+        momentType: "ACHIEVEMENT_CLUSTER",
+        appid,
+        name: startRow.gameName,
+        baseSignal,
+        daysSince,
+        cluster: {
+          unlockCount,
+          spanHours,
+          capUnlockedAt: endRow.unlockedAt.toISOString(),
+          unlockNames,
+        },
+      });
+    }
+
     return candidates;
   }
 

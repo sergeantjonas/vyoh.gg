@@ -128,6 +128,7 @@ function HomePage() {
                 slug={c.slug}
                 momentType={c.momentType}
                 firstTime={c.firstTime}
+                cluster={c.cluster}
               />
             );
           }

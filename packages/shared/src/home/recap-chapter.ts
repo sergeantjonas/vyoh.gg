@@ -174,10 +174,38 @@ export interface SteamFirstTimeStats {
 }
 
 /**
+ * Achievement-cluster framing carried on an `ACHIEVEMENT_CLUSTER` Steam
+ * moment chapter. A "cluster" is ≥5 unlocks on one game inside a 24h
+ * window. The detector picks the densest qualifying window per appid;
+ * this descriptor carries the receipt the chapter renders:
+ *
+ *   - `unlockCount` — total unlocks inside the cluster's 24h window.
+ *   - `spanHours` — elapsed wall-clock hours from the first to last unlock
+ *     of the cluster (≤24). Tighter spans read as "session run"; wider
+ *     spans as "binge day".
+ *   - `capUnlockedAt` — ISO timestamp of the most recent unlock in the
+ *     cluster (the "cap"). Anchors the chapter's "when" line + drives the
+ *     decay score's recency anchor.
+ *   - `unlockNames` — up to 5 achievement display names from the cluster,
+ *     ordered by unlock time. Lets the chapter render an inline receipt
+ *     ("Survivor · Hunter · Marksman …") without a second roundtrip
+ *     through the achievement-schema query.
+ *
+ * Null on other momentTypes.
+ */
+export interface SteamAchievementClusterStats {
+  unlockCount: number;
+  spanHours: number;
+  capUnlockedAt: string;
+  unlockNames: string[];
+}
+
+/**
  * Steam moment chapter — single-event narrative (achievement cluster, first
- * play of a tracked game). `FIRST_TIME_GAME` ships in R-7f; ACHIEVEMENT_CLUSTER
- * lands in R-7g. `name` is the Steam display name carried inline so the chapter
- * can render the masthead without a second roundtrip through `useSteamGameRecap`.
+ * play of a tracked game). `FIRST_TIME_GAME` ships in R-7f;
+ * `ACHIEVEMENT_CLUSTER` ships in R-7g. `name` is the Steam display name
+ * carried inline so the chapter can render the masthead without a second
+ * roundtrip through `useSteamGameRecap`.
  */
 export interface SteamMomentChapterDescriptor {
   kind: "steam-moment";
@@ -189,6 +217,7 @@ export interface SteamMomentChapterDescriptor {
   appid: number;
   name: string;
   firstTime: SteamFirstTimeStats | null;
+  cluster: SteamAchievementClusterStats | null;
   framing: RecapChapterFraming | null;
 }
 

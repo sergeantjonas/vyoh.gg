@@ -22,6 +22,15 @@ interface PlaySessionRow {
   endedAt: Date | null;
 }
 
+interface UnlockRow {
+  appid: number;
+  unlockedAt: Date;
+  achievement: {
+    displayName: string;
+    game: { name: string; removedAt: Date | null };
+  };
+}
+
 function makeService(opts: {
   /** Rows returned by the `where: { firstSeenAt: { gte: cutoff } }` query. */
   eligibleGames?: OwnedGameRow[];
@@ -31,6 +40,11 @@ function makeService(opts: {
   allOwnedGames?: OwnedGameRow[];
   enrichments?: EnrichmentRow[];
   sessions?: PlaySessionRow[];
+  /** Rows returned by the `steamPlayerUnlock.findMany` query in the
+   *  achievement-cluster detector — joined unlock + achievement + game
+   *  shape. Source-order matches the cluster detector's `orderBy:
+   *  unlockedAt asc`, so callers should pass rows in ascending order. */
+  unlocks?: UnlockRow[];
 }) {
   const ownedFindMany = vi
     .fn()
@@ -51,8 +65,35 @@ function makeService(opts: {
     steamPlaySession: {
       findMany: vi.fn().mockResolvedValue(opts.sessions ?? []),
     },
+    steamPlayerUnlock: {
+      findMany: vi.fn().mockResolvedValue(opts.unlocks ?? []),
+    },
   } as unknown as PrismaService;
   return { service: new SteamMomentsService(prisma), prisma };
+}
+
+/** Build a synthetic unlock row anchored to the test NOW. `hoursBefore` is
+ *  the offset (positive = past) from NOW; `displayName` and `gameName`
+ *  default to short stand-ins. Lets specs declare clusters by relative
+ *  timestamps without ISO bookkeeping. */
+function unlockAt({
+  appid,
+  hoursBefore,
+  displayName = "Achievement",
+  gameName = "Game",
+  removedAt = null,
+}: {
+  appid: number;
+  hoursBefore: number;
+  displayName?: string;
+  gameName?: string;
+  removedAt?: Date | null;
+}): UnlockRow {
+  return {
+    appid,
+    unlockedAt: new Date(NOW.getTime() - hoursBefore * 60 * 60 * 1000),
+    achievement: { displayName, game: { name: gameName, removedAt } },
+  };
 }
 
 describe("SteamMomentsService.detectFirstTimeGames", () => {
@@ -297,14 +338,210 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
   });
 });
 
+describe("SteamMomentsService.detectAchievementClusters", () => {
+  it("returns no candidates when there are no unlocks in the window", async () => {
+    const { service } = makeService({ unlocks: [] });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns no candidates when an appid has fewer than 5 unlocks in any 24h window", async () => {
+    // 4 unlocks spread across 6h — close in time but below the threshold.
+    const { service } = makeService({
+      enrichments: [{ appid: 100, appType: 0 }],
+      unlocks: [
+        unlockAt({ appid: 100, hoursBefore: 6, displayName: "A" }),
+        unlockAt({ appid: 100, hoursBefore: 4, displayName: "B" }),
+        unlockAt({ appid: 100, hoursBefore: 2, displayName: "C" }),
+        unlockAt({ appid: 100, hoursBefore: 1, displayName: "D" }),
+      ],
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("surfaces a cluster when 5+ unlocks fall inside a 24h window", async () => {
+    // 5 unlocks across ~3.5h — tight cluster, well inside 24h.
+    const { service } = makeService({
+      enrichments: [{ appid: 100, appType: 0 }],
+      unlocks: [
+        unlockAt({ appid: 100, hoursBefore: 5, gameName: "Pragmata", displayName: "A" }),
+        unlockAt({ appid: 100, hoursBefore: 4, gameName: "Pragmata", displayName: "B" }),
+        unlockAt({ appid: 100, hoursBefore: 3, gameName: "Pragmata", displayName: "C" }),
+        unlockAt({ appid: 100, hoursBefore: 2, gameName: "Pragmata", displayName: "D" }),
+        unlockAt({
+          appid: 100,
+          hoursBefore: 1.5,
+          gameName: "Pragmata",
+          displayName: "E",
+        }),
+      ],
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.momentType).toBe("ACHIEVEMENT_CLUSTER");
+    expect(candidate.appid).toBe(100);
+    expect(candidate.name).toBe("Pragmata");
+    expect(candidate.slug).toBe("steam-moment-cluster-100");
+    expect(candidate.cluster?.unlockCount).toBe(5);
+    expect(candidate.cluster?.unlockNames).toEqual(["A", "B", "C", "D", "E"]);
+    // Span is 5h - 1.5h = 3.5h, rounded to 1 decimal.
+    expect(candidate.cluster?.spanHours).toBeCloseTo(3.5, 1);
+  });
+
+  it("drops unlocks spread beyond 24h apart from the cluster", async () => {
+    // 7 unlocks: 5 cluster + 2 outliers a week apart. Cluster qualifies on
+    // its 5; the outliers don't expand it.
+    const { service } = makeService({
+      enrichments: [{ appid: 100, appType: 0 }],
+      unlocks: [
+        unlockAt({ appid: 100, hoursBefore: 7 * 24, displayName: "Outlier-A" }),
+        unlockAt({ appid: 100, hoursBefore: 5, displayName: "A" }),
+        unlockAt({ appid: 100, hoursBefore: 4, displayName: "B" }),
+        unlockAt({ appid: 100, hoursBefore: 3, displayName: "C" }),
+        unlockAt({ appid: 100, hoursBefore: 2, displayName: "D" }),
+        unlockAt({ appid: 100, hoursBefore: 1, displayName: "E" }),
+        unlockAt({ appid: 100, hoursBefore: 0.1, displayName: "F" }),
+      ],
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    // Best window is the 6-row tail (A..F, all inside 5h). Outlier excluded.
+    expect(candidate.cluster?.unlockCount).toBe(6);
+  });
+
+  it("caps the unlockNames receipt at 5 names (the front of the cluster)", async () => {
+    // 8-unlock cluster; only the first 5 names ride along on the descriptor.
+    const { service } = makeService({
+      enrichments: [{ appid: 100, appType: 0 }],
+      unlocks: Array.from({ length: 8 }, (_, idx) =>
+        unlockAt({
+          appid: 100,
+          hoursBefore: 8 - idx, // 8,7,6,5,4,3,2,1 hours before NOW
+          displayName: `Unlock-${idx + 1}`,
+        })
+      ),
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.cluster?.unlockCount).toBe(8);
+    expect(candidate.cluster?.unlockNames).toHaveLength(5);
+    expect(candidate.cluster?.unlockNames).toEqual([
+      "Unlock-1",
+      "Unlock-2",
+      "Unlock-3",
+      "Unlock-4",
+      "Unlock-5",
+    ]);
+  });
+
+  it("excludes non-game appTypes (Wallpaper Engine, 3DMark, …)", async () => {
+    const { service } = makeService({
+      enrichments: [{ appid: 431960, appType: 6 }],
+      unlocks: Array.from({ length: 5 }, (_, idx) =>
+        unlockAt({ appid: 431960, hoursBefore: 5 - idx, displayName: `U-${idx}` })
+      ),
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("excludes appids whose owning game has been refunded (removedAt non-null)", async () => {
+    // 5 unlocks on a refunded game — the achievements survive in DB for
+    // historical accuracy but the game shouldn't surface as a moment.
+    const { service } = makeService({
+      enrichments: [{ appid: 200, appType: 0 }],
+      unlocks: Array.from({ length: 5 }, (_, idx) =>
+        unlockAt({
+          appid: 200,
+          hoursBefore: 5 - idx,
+          displayName: `U-${idx}`,
+          removedAt: new Date("2026-05-10T00:00:00Z"),
+        })
+      ),
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("picks the LATER cap when two equal-sized windows exist (recency tiebreak)", async () => {
+    // Two disjoint 5-unlock clusters: one ~20d ago, one fresh. Tiebreak
+    // prefers the fresh one — recency decay would surface it anyway, but
+    // the explicit tie-rule keeps the receipt aligned with the score.
+    const { service } = makeService({
+      enrichments: [{ appid: 100, appType: 0 }],
+      unlocks: [
+        // Older cluster, 20d ago
+        ...Array.from({ length: 5 }, (_, idx) =>
+          unlockAt({
+            appid: 100,
+            hoursBefore: 20 * 24 + (5 - idx),
+            displayName: `Old-${idx}`,
+          })
+        ),
+        // Recent cluster, today
+        ...Array.from({ length: 5 }, (_, idx) =>
+          unlockAt({ appid: 100, hoursBefore: 5 - idx, displayName: `New-${idx}` })
+        ),
+      ],
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.cluster?.unlockNames[0]).toBe("New-0");
+    expect(candidate.daysSince).toBe(0);
+  });
+
+  it("emits independent candidates for clusters on different appids", async () => {
+    const { service } = makeService({
+      enrichments: [
+        { appid: 100, appType: 0 },
+        { appid: 200, appType: 0 },
+      ],
+      unlocks: [
+        ...Array.from({ length: 5 }, (_, idx) =>
+          unlockAt({
+            appid: 100,
+            hoursBefore: 10 - idx,
+            displayName: `A-${idx}`,
+            gameName: "Game-A",
+          })
+        ),
+        ...Array.from({ length: 5 }, (_, idx) =>
+          unlockAt({
+            appid: 200,
+            hoursBefore: 5 - idx,
+            displayName: `B-${idx}`,
+            gameName: "Game-B",
+          })
+        ),
+      ],
+    });
+    const result = await service.detectAchievementClusters(NOW);
+    expect(result).toHaveLength(2);
+    const appids = new Set(result.map((c) => (c.kind === "steam-moment" ? c.appid : -1)));
+    expect(appids).toEqual(new Set([100, 200]));
+  });
+});
+
 describe("SteamMomentsService.detectAll", () => {
   it("aggregates from each per-momentType detector", async () => {
-    // For R-7f this is just FIRST_TIME_GAME, but the contract is the same
-    // shape `selectChapters` consumes, so the assembly seam stays honest.
+    // Verifies both detectors fan in: FIRST_TIME_GAME row + ACHIEVEMENT_
+    // CLUSTER row land in the same RecapCandidate[] result.
     const firstSeenAt = new Date("2026-05-28T10:00:00Z");
     const { service } = makeService({
       eligibleGames: [{ appid: 100, name: "Pragmata", firstSeenAt }],
-      enrichments: [{ appid: 100, appType: 0 }],
+      enrichments: [
+        { appid: 100, appType: 0 },
+        { appid: 200, appType: 0 },
+      ],
       sessions: [
         {
           appid: 100,
@@ -312,9 +549,20 @@ describe("SteamMomentsService.detectAll", () => {
           endedAt: new Date("2026-05-28T13:00:00Z"),
         },
       ],
+      unlocks: Array.from({ length: 5 }, (_, idx) =>
+        unlockAt({
+          appid: 200,
+          hoursBefore: 5 - idx,
+          displayName: `C-${idx}`,
+          gameName: "Game-Cluster",
+        })
+      ),
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(1);
-    expect(result[0]?.kind).toBe("steam-moment");
+    expect(result).toHaveLength(2);
+    const momentTypes = new Set(
+      result.map((c) => (c.kind === "steam-moment" ? c.momentType : null))
+    );
+    expect(momentTypes).toEqual(new Set(["FIRST_TIME_GAME", "ACHIEVEMENT_CLUSTER"]));
   });
 });

@@ -71,6 +71,7 @@ const baseProps = {
     addedAt: "2026-05-27T18:00:00.000Z",
     firstPlayedAt: "2026-05-30T20:00:00.000Z",
   },
+  cluster: null,
 };
 
 beforeEach(() => {
@@ -267,17 +268,91 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
   });
 });
 
-describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER placeholder)", () => {
-  it("falls back to the cluster-shaped eyebrow until R-7g lands the cluster detector", () => {
-    render(
-      <SteamMomentChapter
-        {...baseProps}
-        slug="steam-moment-cluster-2050650"
-        momentType="ACHIEVEMENT_CLUSTER"
-        firstTime={null}
-      />
-    );
+describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
+  const clusterProps = {
+    ...baseProps,
+    slug: "steam-moment-cluster-2050650",
+    momentType: "ACHIEVEMENT_CLUSTER" as const,
+    firstTime: null,
+    cluster: {
+      unlockCount: 6,
+      spanHours: 3.5,
+      capUnlockedAt: "2026-05-30T20:00:00.000Z",
+      unlockNames: ["Survivor", "Hunter", "Marksman", "Tactician", "Veteran"],
+    },
+  };
+
+  it("renders the cluster eyebrow + masthead", () => {
+    render(<SteamMomentChapter {...clusterProps} />);
     expect(screen.getByText("Recent run on")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
+  });
+
+  it("renders the cluster receipt with count + span + unlock names list", () => {
+    render(<SteamMomentChapter {...clusterProps} />);
+    // 6 unlocks → "6 unlocks", spanHours 3.5 → "across 3.5h"
+    expect(screen.getByText(/6 unlocks/i)).toBeTruthy();
+    expect(screen.getByText(/across 3\.5h/i)).toBeTruthy();
+    // Unlock names list joins with separators; one of the names should render.
+    expect(screen.getByText(/Survivor/)).toBeTruthy();
+    expect(screen.getByText(/Marksman/)).toBeTruthy();
+  });
+
+  it("renders 'and N more' when the cluster has more unlocks than names carried on the descriptor", () => {
+    render(
+      <SteamMomentChapter
+        {...clusterProps}
+        cluster={{
+          ...clusterProps.cluster,
+          unlockCount: 12,
+        }}
+      />
+    );
+    // 12 unlocks − 5 names = 7 more
+    expect(screen.getByText(/and 7 more/i)).toBeTruthy();
+  });
+
+  it("prose branches on span: ≤2h reads as 'back-to-back'", () => {
+    render(
+      <SteamMomentChapter
+        {...clusterProps}
+        cluster={{ ...clusterProps.cluster, spanHours: 1.5 }}
+      />
+    );
+    expect(screen.getByText(/back-to-back/i)).toBeTruthy();
+  });
+
+  it("prose branches on span: 2–8h reads as 'made an afternoon of it'", () => {
+    render(
+      <SteamMomentChapter
+        {...clusterProps}
+        cluster={{ ...clusterProps.cluster, spanHours: 5.0 }}
+      />
+    );
+    expect(screen.getByText(/made an afternoon of it/i)).toBeTruthy();
+  });
+
+  it("prose branches on span: >8h reads as 'binged it across the day'", () => {
+    render(
+      <SteamMomentChapter
+        {...clusterProps}
+        cluster={{ ...clusterProps.cluster, spanHours: 18.0 }}
+      />
+    );
+    expect(screen.getByText(/binged it across the day/i)).toBeTruthy();
+  });
+
+  it("falls back to the cluster-shaped eyebrow even when cluster stats are null (defensive)", () => {
+    render(<SteamMomentChapter {...clusterProps} cluster={null} />);
+    expect(screen.getByText("Recent run on")).toBeTruthy();
+    // Receipt block is gone; prose body renders the bare fallback.
+    expect(screen.queryByText(/unlocks/i)).toBeNull();
+  });
+
+  it("exposes a 'Recent run' chapter-label data attribute", () => {
+    const { container } = render(<SteamMomentChapter {...clusterProps} />);
+    expect(
+      container.querySelector("[data-recap-chapter]")?.getAttribute("data-chapter-label")
+    ).toBe("Recent run");
   });
 });

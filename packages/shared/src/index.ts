@@ -240,6 +240,7 @@ export type {
   RecapChapterDescriptor,
   RecapChapterFraming,
   RecapChaptersResponse,
+  SteamAchievementClusterStats,
   SteamFirstTimeStats,
   SteamMomentChapterDescriptor,
   SteamSubjectChapterDescriptor,

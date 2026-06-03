@@ -1,5 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import type { SteamFirstTimeStats, SteamMomentChapterDescriptor } from "@vyoh/shared";
+import type {
+  SteamAchievementClusterStats,
+  SteamFirstTimeStats,
+  SteamMomentChapterDescriptor,
+} from "@vyoh/shared";
 import { formatPlaytime } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
@@ -61,8 +65,9 @@ function momentCopy(args: {
   momentType: MomentType;
   name: string;
   firstTime: SteamFirstTimeStats | null;
+  cluster: SteamAchievementClusterStats | null;
 }): MomentCopy {
-  const { momentType, name, firstTime } = args;
+  const { momentType, name, firstTime, cluster } = args;
   if (momentType === "FIRST_TIME_GAME") {
     const playLine = firstTime ? formatPlaytime(firstTime.windowPlayMinutes) : null;
     return {
@@ -73,19 +78,17 @@ function momentCopy(args: {
       body: firstTimeBody({ firstTime, playLine }),
     };
   }
-  // ACHIEVEMENT_CLUSTER placeholder until R-7g lands the cluster detector
-  // + cluster-shaped editorial. Keeps the discriminated union exhaustive
-  // so a future moment type doesn't render an empty masthead.
+  // ACHIEVEMENT_CLUSTER — the cluster receipt is the chapter's narrative
+  // seed. Three editorial registers based on span: tight reads as a
+  // session run, half-day reads as an afternoon, full day reads as a
+  // binge. `unlockCount` and `spanHours` drive the prose; the receipt
+  // strip below carries the unlock-name list.
   return {
     eyebrow: "Recent run on",
     mastheadText: name,
     chapterLabel: "Recent run",
-    ariaLabel: `Recent run on ${name}`,
-    body: (
-      <>
-        Stretch of achievements stacked up on <Accent>{name}</Accent>.
-      </>
-    ),
+    ariaLabel: `Recent achievement run on ${name}`,
+    body: clusterBody({ cluster }),
   };
 }
 
@@ -163,6 +166,62 @@ function firstTimeBody({
   );
 }
 
+/**
+ * Compose the ACHIEVEMENT_CLUSTER prose body. Three editorial registers
+ * branch on the cluster's `spanHours` — a tight run reads as "back-to-back
+ * sit-down", an afternoon spread reads as "made an afternoon of it", a
+ * full-day spread reads as "binged it across the day". `unlockCount` is
+ * the loudest beat in every variant; the receipt strip below carries the
+ * unlock-name list.
+ */
+function clusterBody({
+  cluster,
+}: {
+  cluster: SteamAchievementClusterStats | null;
+}): ReactNode {
+  if (!cluster) {
+    return <>Stretch of achievements stacked up.</>;
+  }
+  const tight = cluster.spanHours <= 2;
+  const halfDay = cluster.spanHours > 2 && cluster.spanHours <= 8;
+  const countSpan = (
+    <>
+      <Accent>{cluster.unlockCount} achievements</Accent>
+    </>
+  );
+  if (tight) {
+    return (
+      <>
+        {countSpan} unlocked back-to-back in{" "}
+        <Accent>{formatSpanHours(cluster.spanHours)}</Accent>.
+      </>
+    );
+  }
+  if (halfDay) {
+    return (
+      <>
+        Made an afternoon of it — {countSpan} in{" "}
+        <Accent>{formatSpanHours(cluster.spanHours)}</Accent>.
+      </>
+    );
+  }
+  return (
+    <>
+      Binged it across the day — {countSpan} over{" "}
+      <Accent>{formatSpanHours(cluster.spanHours)}</Accent>.
+    </>
+  );
+}
+
+/** "3.5h" / "45m" — a compact span label for the cluster prose. Sub-hour
+ *  spans round to whole minutes; ≥1h shows a single decimal. Pair-printed
+ *  with the unlock count, so a tight beat doesn't drown under a verbose
+ *  duration. */
+function formatSpanHours(spanHours: number): string {
+  if (spanHours < 1) return `${Math.max(1, Math.round(spanHours * 60))}m`;
+  return `${spanHours.toFixed(1).replace(/\.0$/, "")}h`;
+}
+
 /** "May 27"-shaped short date. Uses en-US locale for the abbreviated month
  *  name; the day is bare (no leading zero) to match editorial register. */
 function formatShortDate(iso: string): string {
@@ -206,6 +265,7 @@ interface Props {
   slug: string;
   momentType: MomentType;
   firstTime: SteamFirstTimeStats | null;
+  cluster: SteamAchievementClusterStats | null;
 }
 
 /**
@@ -231,6 +291,7 @@ export function SteamMomentChapter({
   slug,
   momentType,
   firstTime,
+  cluster,
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
 
@@ -275,7 +336,7 @@ export function SteamMomentChapter({
   useAssetClaim(outerRef, claim);
 
   const nudged = useChapterNudge(outerRef);
-  const copy = momentCopy({ momentType, name, firstTime });
+  const copy = momentCopy({ momentType, name, firstTime, cluster });
   const whenLine = formatDaysSince(daysSince);
   // Derived session-shape numbers for the receipt strip. We expose both the
   // session count and the average to give the reader a sense of session
@@ -440,6 +501,51 @@ export function SteamMomentChapter({
                         first sit-down {formatPlaytime(firstTime.firstSessionMinutes)}
                       </span>
                     </>
+                  ) : null}
+                </div>
+              </ChapterReveal>
+            </ChapterDetail>
+          ) : null}
+          {cluster ? (
+            <ChapterDetail>
+              <ChapterReveal active={nudged} delay={0.7}>
+                {/* Cluster receipt: count + span are the loudest beats, the
+                    unlock-name list is the editorial proof — the reader sees
+                    the actual achievements that fell in the run. Truncates
+                    beyond the descriptor's name-cap with "and N more"; R-7h
+                    polish can replace this with an icon grid leadingVisual. */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
+                    <span
+                      className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+                      style={{ textShadow: SHADOW_MASTHEAD }}
+                    >
+                      {cluster.unlockCount} unlocks
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="text-foreground/40"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      ·
+                    </span>
+                    <span
+                      className="text-sm tabular-nums text-foreground/80"
+                      style={{ textShadow: SHADOW_BODY }}
+                    >
+                      across {formatSpanHours(cluster.spanHours)}
+                    </span>
+                  </div>
+                  {cluster.unlockNames.length > 0 ? (
+                    <p
+                      className="max-w-prose text-sm italic text-foreground/70"
+                      style={{ textShadow: SHADOW_BODY }}
+                    >
+                      {cluster.unlockNames.join(" · ")}
+                      {cluster.unlockCount > cluster.unlockNames.length
+                        ? ` · and ${cluster.unlockCount - cluster.unlockNames.length} more`
+                        : null}
+                    </p>
                   ) : null}
                 </div>
               </ChapterReveal>
