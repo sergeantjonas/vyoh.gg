@@ -66,18 +66,21 @@ describe("ChapterBeat", () => {
     expect(inner?.className).toContain("pt-[22vh]");
   });
 
-  it("renders the inner motion wrapper with neutral exit state on mount (opacity 1, no translate)", () => {
+  it("renders the inner motion wrapper with neutral exit state on mount (opacity 1, no blur)", () => {
     const { container } = render(
       <ChapterBeat index={0}>
         <div data-testid="content">content</div>
       </ChapterBeat>
     );
     const inner = container.querySelector("[data-beat-content]") as HTMLElement | null;
-    // Motion writes the initial MotionValue (0) inline. y maps to
-    // translateY at the linear midpoint between [0,1] → [0,-72] — at
-    // progress=0 the translate is 0 and opacity stays at 1.
+    // Exit is a focus shift, not a position shift. At progress=0 opacity
+    // stays at 1 and filter resolves to blur(0px) — both the asserted
+    // neutral state. Critically, there is NO transform: the beat content
+    // does NOT move faster than the section's natural scroll, which is
+    // what made the earlier translate-based exit read as "scroll harder".
     expect(inner?.style.opacity).toBe("1");
-    expect(inner?.style.transform ?? "").not.toContain("translateY(-");
+    expect(inner?.style.filter).toContain("blur(0px)");
+    expect(inner?.style.transform ?? "").not.toContain("translateY");
   });
 
   it("threads the beat's nudge state into a render-prop child", () => {

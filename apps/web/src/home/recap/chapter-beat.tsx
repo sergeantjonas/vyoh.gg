@@ -26,16 +26,21 @@ type Props = {
   children: ReactNode | BeatRenderProp;
 };
 
-// Upward translate the inner content reaches at full exit (progress = 1).
-// Subtle accel — beat content moves up ~5rem faster than the natural scroll
-// of the section, which is enough to feel "pulled out" without divorcing
-// from the snap motion itself.
-const EXIT_TRANSLATE_PX = -72;
+// Blur radius the inner content reaches at full exit (progress = 1). The
+// exit is a focus shift, not a position shift — content stays put in the
+// flow and goes optically out of focus as the reader scrolls past. An
+// upward translate was tried first but read as "the scroll just got
+// faster"; defocus + fade reads as a genuine editorial exit gesture
+// distinct from the natural scroll-up of the section itself.
+const EXIT_BLUR_PX = 10;
 
 // Opacity hits 0 well before the natural scroll-off completes — content is
 // visually gone by ~55% through the exit, so the next beat snaps into a
-// clean slate instead of crowding the outgoing beat.
+// clean slate instead of crowding the outgoing beat. Blur saturates a touch
+// later so the defocus arc reads through the full fade rather than ending
+// abruptly when opacity zeroes out.
 const EXIT_FADE_END = 0.55;
+const EXIT_BLUR_END = 0.7;
 
 /**
  * One beat in a stacked-beat chapter (R-13 final architecture). A viewport-
@@ -71,8 +76,12 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
   const nudged = useChapterNudge(ref);
 
   const exitProgress = useMotionValue(0);
-  const exitY = useTransform(exitProgress, [0, 1], [0, EXIT_TRANSLATE_PX]);
   const exitOpacity = useTransform(exitProgress, [0, EXIT_FADE_END], [1, 0]);
+  const exitBlur = useTransform(
+    exitProgress,
+    [0, EXIT_BLUR_END],
+    ["blur(0px)", `blur(${EXIT_BLUR_PX}px)`]
+  );
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -119,7 +128,11 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
         <m.div
           data-beat-content=""
           className={[layoutClass, "h-full w-full"].filter(Boolean).join(" ")}
-          style={{ y: exitY, opacity: exitOpacity, willChange: "transform, opacity" }}
+          style={{
+            opacity: exitOpacity,
+            filter: exitBlur,
+            willChange: "opacity, filter",
+          }}
         >
           {body}
         </m.div>
