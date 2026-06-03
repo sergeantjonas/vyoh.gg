@@ -75,11 +75,18 @@ function ChapterGroupImpl(
 ) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const entering = useChapterNudge(sectionRef);
-  // Exiting: flips true once the chapter's last beat is more than ~70%
-  // visible. The threshold is high enough that the title card stays put
-  // while the user is still arriving at the last beat, but low enough
-  // that the card has time to fade before the next chapter's title card
-  // arrives at the viewport top.
+  // Exiting: flips true when the reader is scrolling past the chapter's
+  // last beat into the next chapter, NOT while they're snapped on it.
+  // The condition combines two signals on the last beat:
+  //   - boundingClientRect.top < 0  → reader has scrolled past the beat's
+  //     top edge (rules out "approaching from above").
+  //   - intersectionRatio < 0.95   → the beat is no longer (almost) fully
+  //     in view (rules out "snapped to beat" which sits at ratio 1).
+  // Pairing the two means the flip happens only during the actual swap
+  // window. Threshold-only logic (e.g. ratio > 0.7) flipped twice on a
+  // forward scroll — once on entry to the beat, once on exit — which
+  // caused the title card to fade out then fade back in during the
+  // chapter swap.
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
@@ -94,9 +101,9 @@ function ChapterGroupImpl(
       (entries) => {
         const entry = entries[0];
         if (!entry) return;
-        setExiting(entry.intersectionRatio > 0.7);
+        setExiting(entry.boundingClientRect.top < 0 && entry.intersectionRatio < 0.95);
       },
-      { threshold: [0, 0.5, 0.7, 0.85, 1] }
+      { threshold: [0, 0.5, 0.75, 0.9, 0.95, 1] }
     );
     observer.observe(lastBeat);
     return () => observer.disconnect();

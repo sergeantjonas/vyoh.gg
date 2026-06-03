@@ -493,16 +493,14 @@ export function SteamChapter({
     [recap]
   );
 
-  // Shared layout class for every beat. justify-start with pt-[42vh] gives
+  // Shared layout class for every beat. justify-start with pt-[30vh] gives
   // every beat the same content baseline — content starts at a consistent
   // vertical position regardless of how tall the beat's content is. The
-  // prior justify-center floated short content (verdict, chips) lower in
-  // the viewport and tall content (standout + unlock list) higher, which
-  // read as "alignment all over the place" across beats. pt-[42vh] clears
-  // the persistent title card (sticky eyebrow + masthead + tagline) with
-  // some breathing room.
+  // title card itself is ~25vh (pt-12/16 + eyebrow + masthead), so
+  // pt-[30vh] sm:pt-[34vh] clears it with breathing room without burying
+  // content low in the viewport.
   const BEAT_LAYOUT =
-    "flex flex-col items-start justify-start px-6 pt-[42vh] sm:px-10 sm:pt-[46vh]";
+    "flex flex-col items-start justify-start px-6 pt-[30vh] sm:px-10 sm:pt-[34vh]";
 
   return (
     <div
