@@ -517,6 +517,84 @@ describe("LolMomentChapter daysSince formatting", () => {
   });
 });
 
+describe("LolMomentChapter per-type receipt (R-7h.3)", () => {
+  // Each sequence/standout type leads its receipt strip with the type's
+  // load-bearing number (count, gap, KDA), not the bare W/L + K/D/A strip
+  // designed for single-match moments. The source match's K/D/A rides
+  // along as the second-register substat — editorial proof, not lede.
+
+  it("OFF_META_PICK keeps the default W/L + K/D/A + duration receipt", () => {
+    render(<LolMomentChapter {...baseProps} />);
+    expect(screen.getByText("Win")).toBeTruthy();
+    expect(screen.getByText("7 / 4 / 11")).toBeTruthy();
+    expect(screen.getByText("31m")).toBeTruthy();
+  });
+
+  it("RANK_UP keeps the default W/L + K/D/A + duration receipt", () => {
+    render(<LolMomentChapter {...rankUpProps} />);
+    expect(screen.getByText("Win")).toBeTruthy();
+    expect(screen.getByText("7 / 4 / 11")).toBeTruthy();
+  });
+
+  it("KDA_OUTLIER leads with matchKda as headline + multiplier substat", () => {
+    render(<LolMomentChapter {...kdaOutlierProps} />);
+    // matchKda 13.0 → "13.0" appears in both prose AND receipt headline,
+    // so assert count instead of singular presence. "KDA" label + "5.2×
+    // baseline" substat are receipt-only.
+    expect(screen.getAllByText("13.0").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("KDA")).toBeTruthy();
+    expect(screen.getByText(/5\.2× baseline/)).toBeTruthy();
+    // No W/L pill — superseded by the headline KDA register.
+    expect(screen.queryByText("Win")).toBeNull();
+  });
+
+  it("STREAK_5W leads with length + 'in a row' + substat", () => {
+    render(<LolMomentChapter {...streakWinProps} />);
+    // length 5 appears in prose ("5 ranked wins…") AND in receipt headline.
+    expect(screen.getAllByText("5").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("in a row")).toBeTruthy();
+    // Substat shows compact W · K/D/A.
+    expect(screen.getByText(/W · 7\/4\/11/)).toBeTruthy();
+  });
+
+  it("STREAK_5L leads with length + 'straight' + substat", () => {
+    render(<LolMomentChapter {...streakLossProps} />);
+    expect(screen.getAllByText("6").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("straight")).toBeTruthy();
+    expect(screen.getByText(/L · 7\/4\/11/)).toBeTruthy();
+  });
+
+  it("MARATHON leads with matchCount + spanHours label", () => {
+    render(<LolMomentChapter {...marathonProps} />);
+    // matchCount 7 appears in prose ("7 ranked games…") AND headline.
+    expect(screen.getAllByText("7").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/games across 4\.5h/)).toBeTruthy();
+  });
+
+  it("RETURN_FROM_HIATUS leads with gap label + 'quiet'", () => {
+    render(<LolMomentChapter {...hiatusReturnProps} />);
+    // gapDays 35 → formatHiatusGap produces "5 weeks" (35/7) or "A month"
+    // (30-59). Just assert "quiet" landed; gap label format is covered by
+    // the existing daysSince + gap-formatting tests.
+    expect(screen.getByText("quiet")).toBeTruthy();
+  });
+
+  it("omits the receipt entirely when matchStats is null on a default-receipt type", () => {
+    // OFF_META_PICK with no matchStats → no receipt block.
+    render(<LolMomentChapter {...baseProps} matchStats={null} />);
+    expect(screen.queryByText("Win")).toBeNull();
+    expect(screen.queryByText("7 / 4 / 11")).toBeNull();
+  });
+
+  it("custom-shape receipts still render when matchStats is null (the substat just drops)", () => {
+    // KDA_OUTLIER without matchStats still has kdaOutlier → renders the
+    // headline + label, but the substat row is gone.
+    render(<LolMomentChapter {...kdaOutlierProps} matchStats={null} />);
+    expect(screen.getAllByText("13.0").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("KDA")).toBeTruthy();
+  });
+});
+
 describe("LolMomentChapter per-type leadingVisual (R-7h.2)", () => {
   // Each non-text-only momentType gets a recognisable inline visual paired
   // with the masthead — at-a-glance silhouette before the prose lands.

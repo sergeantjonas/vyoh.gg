@@ -84,6 +84,108 @@ interface MomentCopy {
   chapterLabel: string;
   ariaLabel: string;
   body: ReactNode;
+  /** Per-momentType receipt strip rendered below the prose. R-7h.3
+   *  customises the shape per type so a sequence moment (STREAK, MARATHON)
+   *  doesn't fall back to the W/L + KDA + duration strip designed for
+   *  single-match moments. Null when the source descriptor has no
+   *  matchStats and the type doesn't have its own receipt data. */
+  receipt: ReactNode | null;
+}
+
+/** Default receipt — W/L pill + K/D/A + duration. Used by OFF_META_PICK
+ *  and RANK_UP, where the single-match perf is the natural editorial
+ *  receipt. Other momentTypes build their own receipt-shapes per R-7h.3. */
+function matchStatsReceipt({ matchStats }: { matchStats: LolMomentMatchStats }) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+      <span
+        className={[
+          "text-sm font-semibold uppercase tracking-[0.18em]",
+          matchStats.win ? "text-emerald-300" : "text-rose-300",
+        ].join(" ")}
+        style={{ textShadow: SHADOW_ACCENT }}
+      >
+        {matchStats.win ? "Win" : "Loss"}
+      </span>
+      <span
+        className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+        style={{ textShadow: SHADOW_MASTHEAD }}
+      >
+        {matchStats.kills} / {matchStats.deaths} / {matchStats.assists}
+      </span>
+      <span
+        className="text-sm tabular-nums text-foreground/80"
+        style={{ textShadow: SHADOW_BODY }}
+      >
+        {formatDuration(matchStats.durationSec)}
+      </span>
+    </div>
+  );
+}
+
+/** Compact sub-stat: the source match's W/L + K/D/A in smaller type. Used
+ *  by sequence-shaped receipts (STREAK, MARATHON, RETURN) where the lede
+ *  number is the sequence beat (count, gap) and the match is editorial
+ *  proof in the second register. */
+function matchStatsSubstat({ matchStats }: { matchStats: LolMomentMatchStats }) {
+  return (
+    <span
+      className={[
+        "text-sm tabular-nums",
+        matchStats.win ? "text-emerald-300/90" : "text-rose-300/90",
+      ].join(" ")}
+      style={{ textShadow: SHADOW_BODY }}
+    >
+      {matchStats.win ? "W" : "L"} · {matchStats.kills}/{matchStats.deaths}/
+      {matchStats.assists}
+    </span>
+  );
+}
+
+/** Headline-number receipt — big tabular value paired with a label, with
+ *  optional sub-stats. Shared by STREAK, MARATHON, RETURN, KDA_OUTLIER so
+ *  each sequence/standout moment reads with the same editorial register
+ *  (lede number + label + optional substat row) without duplicating
+ *  styling per branch. */
+function headlineReceipt({
+  value,
+  label,
+  accentClass,
+  substats,
+}: {
+  value: string;
+  label: string;
+  accentClass: string;
+  substats?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 sm:gap-x-6">
+      <span
+        className={`text-4xl font-semibold tabular-nums ${accentClass} sm:text-5xl`}
+        style={{ textShadow: SHADOW_MASTHEAD }}
+      >
+        {value}
+      </span>
+      <span
+        className="text-sm uppercase tracking-[0.18em] text-foreground/75"
+        style={{ textShadow: SHADOW_LABEL }}
+      >
+        {label}
+      </span>
+      {substats ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="text-foreground/40"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
+            ·
+          </span>
+          {substats}
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -101,6 +203,7 @@ function momentCopy(args: {
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
+  matchStats: LolMomentMatchStats | null;
   emblemYear: number;
   accentClass: string;
 }): MomentCopy {
@@ -113,12 +216,14 @@ function momentCopy(args: {
     hiatusReturn,
     streak,
     marathon,
+    matchStats,
     emblemYear,
     accentClass,
   } = args;
   const A = ({ children }: { children: ReactNode }) => (
     <Accent className={accentClass}>{children}</Accent>
   );
+  const defaultReceipt = matchStats ? matchStatsReceipt({ matchStats }) : null;
 
   if (momentType === "RANK_UP" && rankUp) {
     const fromTitle = formatRankTitle(rankUp.fromTier, rankUp.fromRank);
@@ -147,6 +252,7 @@ function momentCopy(args: {
           <A>{displayName}</A>.
         </>
       ),
+      receipt: defaultReceipt,
     };
   }
 
@@ -172,6 +278,16 @@ function momentCopy(args: {
           <A>{displayName}</A>.
         </>
       ),
+      // Marathon receipt leads with matchCount (the chapter's load-bearing
+      // number); span hours follows as the duration label. Cap match's
+      // K/D/A rides along as the substat — "this is what the last sitting
+      // looked like".
+      receipt: headlineReceipt({
+        value: String(marathon.matchCount),
+        label: `games across ${marathon.spanHours}h`,
+        accentClass,
+        substats: matchStats ? matchStatsSubstat({ matchStats }) : undefined,
+      }),
     };
   }
 
@@ -217,6 +333,16 @@ function momentCopy(args: {
           <A>{streak.length}</A> ranked losses straight, last on <A>{displayName}</A>.
         </>
       ),
+      // Streak receipt: the count is the lede; "in a row" / "straight" the
+      // editorial label. The head match's K/D/A rides along as substat —
+      // the chapter narrates the run, but the last game gives the reader
+      // a concrete shape for "what just happened".
+      receipt: headlineReceipt({
+        value: String(streak.length),
+        label: isHot ? "in a row" : "straight",
+        accentClass,
+        substats: matchStats ? matchStatsSubstat({ matchStats }) : undefined,
+      }),
     };
   }
 
@@ -245,6 +371,15 @@ function momentCopy(args: {
           <A>{gapLabel}</A> away from ranked, then back on <A>{displayName}</A>.
         </>
       ),
+      // Return receipt: gap is the lede ("Three months / 35 days"), "quiet"
+      // the label. Return-match K/D/A rides along as substat — what the
+      // first game back looked like.
+      receipt: headlineReceipt({
+        value: gapLabel,
+        label: "quiet",
+        accentClass,
+        substats: matchStats ? matchStatsSubstat({ matchStats }) : undefined,
+      }),
     };
   }
 
@@ -284,6 +419,22 @@ function momentCopy(args: {
           .
         </>
       ),
+      // Standout receipt: the standout KDA is the lede, "KDA" labels it, the
+      // multiplier rides along ("5.2× baseline"). The raw K/D/A is implicit
+      // in the prose so it doesn't repeat in the substat row.
+      receipt: headlineReceipt({
+        value: matchKdaLabel,
+        label: "KDA",
+        accentClass,
+        substats: factorLabel ? (
+          <span
+            className="text-sm tabular-nums text-foreground/75"
+            style={{ textShadow: SHADOW_BODY }}
+          >
+            {factorLabel} baseline
+          </span>
+        ) : undefined,
+      }),
     };
   }
 
@@ -298,6 +449,7 @@ function momentCopy(args: {
         Stepped off <A>{anchorDisplayName}</A> for a one-off run on <A>{displayName}</A>.
       </>
     ),
+    receipt: defaultReceipt,
   };
 }
 
@@ -424,6 +576,7 @@ export function LolMomentChapter({
     hiatusReturn,
     streak,
     marathon,
+    matchStats,
     emblemYear,
     accentClass,
   });
@@ -537,41 +690,18 @@ export function LolMomentChapter({
               </p>
             </ChapterReveal>
           </ChapterOpener>
-          {matchStats ? (
+          {copy.receipt ? (
             <ChapterDetail>
               <ChapterReveal active={nudged} delay={0.7}>
-                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                  {/* Result pill — W/L stays the loudest beat in the strip
-                      because it's the lede answer to "how did the off-meta
-                      run go?". `tabular-nums` shared with KDA so the row
-                      reads as a single tabular receipt. */}
-                  <span
-                    className={[
-                      "text-sm font-semibold uppercase tracking-[0.18em]",
-                      matchStats.win ? "text-emerald-300" : "text-rose-300",
-                    ].join(" ")}
-                    style={{ textShadow: SHADOW_ACCENT }}
-                  >
-                    {matchStats.win ? "Win" : "Loss"}
-                  </span>
-                  <span
-                    className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
-                    style={{ textShadow: SHADOW_MASTHEAD }}
-                  >
-                    {matchStats.kills} / {matchStats.deaths} / {matchStats.assists}
-                  </span>
-                  <span
-                    className="text-sm text-foreground/80 tabular-nums"
-                    style={{ textShadow: SHADOW_BODY }}
-                  >
-                    {formatDuration(matchStats.durationSec)}
-                  </span>
-                </div>
+                {/* Per-momentType receipt shape, built inside `momentCopy()`.
+                    OFF_META_PICK + RANK_UP fall back to the original W/L +
+                    K/D/A + duration strip; KDA_OUTLIER / STREAK / MARATHON /
+                    RETURN each lead with their own headline number (matchKda,
+                    streak length, match count, gap) and ride the source
+                    match's K/D/A along as a substat. See R-7h.3 in the arc
+                    note. */}
+                {copy.receipt}
               </ChapterReveal>
-              {/* No `ChapterStats` band on OFF_META_PICK — R-7 moment types
-                  (KDA_OUTLIER, STREAK) will populate one with comparative
-                  chips (vs. average, lifetime peak). Off-meta itself doesn't
-                  have comparison data the chapter can stand on. */}
             </ChapterDetail>
           ) : null}
         </div>
