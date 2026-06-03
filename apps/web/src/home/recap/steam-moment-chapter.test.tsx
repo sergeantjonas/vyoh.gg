@@ -64,7 +64,13 @@ const baseProps = {
   daysSince: 3,
   slug: "steam-moment-first-2050650",
   momentType: "FIRST_TIME_GAME" as const,
-  firstTime: { windowPlayMinutes: 150, sessionCount: 3 },
+  firstTime: {
+    windowPlayMinutes: 150,
+    sessionCount: 3,
+    firstSessionMinutes: 60,
+    addedAt: "2026-05-27T18:00:00.000Z",
+    firstPlayedAt: "2026-05-30T20:00:00.000Z",
+  },
 };
 
 beforeEach(() => {
@@ -106,11 +112,88 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
     expect(screen.getByText(/^avg /i)).toBeTruthy();
   });
 
+  it("renders the 'first sit-down' beat in the receipt when sessionCount > 1", () => {
+    render(<SteamMomentChapter {...baseProps} />);
+    // baseProps: firstSessionMinutes: 60 → "first sit-down 1h"
+    expect(screen.getByText(/first sit-down/i)).toBeTruthy();
+  });
+
+  it("omits the 'first sit-down' beat when sessionCount is exactly one (collapses to total)", () => {
+    render(
+      <SteamMomentChapter
+        {...baseProps}
+        firstTime={{
+          windowPlayMinutes: 120,
+          sessionCount: 1,
+          firstSessionMinutes: 120,
+          addedAt: "2026-05-30T18:00:00.000Z",
+          firstPlayedAt: "2026-05-30T19:00:00.000Z",
+        }}
+      />
+    );
+    expect(screen.queryByText(/first sit-down/i)).toBeNull();
+  });
+
+  it("prose branches on the added-vs-played gap: same-day reads as 'dove right in'", () => {
+    render(
+      <SteamMomentChapter
+        {...baseProps}
+        firstTime={{
+          windowPlayMinutes: 150,
+          sessionCount: 2,
+          firstSessionMinutes: 90,
+          addedAt: "2026-05-30T10:00:00.000Z",
+          firstPlayedAt: "2026-05-30T19:00:00.000Z",
+        }}
+      />
+    );
+    expect(screen.getByText(/dove right in/i)).toBeTruthy();
+  });
+
+  it("prose branches on a 1–13 day gap: pairs added + first-launched dates", () => {
+    render(
+      <SteamMomentChapter
+        {...baseProps}
+        firstTime={{
+          windowPlayMinutes: 150,
+          sessionCount: 2,
+          firstSessionMinutes: 60,
+          addedAt: "2026-05-27T18:00:00.000Z",
+          firstPlayedAt: "2026-05-30T20:00:00.000Z",
+        }}
+      />
+    );
+    expect(screen.getByText(/^Added/)).toBeTruthy();
+    expect(screen.getByText(/first launched/i)).toBeTruthy();
+  });
+
+  it("prose branches on a 14+ day backlog gap: reads as 'sat in the library'", () => {
+    render(
+      <SteamMomentChapter
+        {...baseProps}
+        firstTime={{
+          windowPlayMinutes: 200,
+          sessionCount: 3,
+          firstSessionMinutes: 60,
+          addedAt: "2026-04-10T18:00:00.000Z",
+          firstPlayedAt: "2026-05-30T20:00:00.000Z",
+        }}
+      />
+    );
+    expect(screen.getByText(/sat in the library/i)).toBeTruthy();
+  });
+
   it("renders the singular '1 session' label and omits the avg when sessionCount is exactly one", () => {
     render(
       <SteamMomentChapter
         {...baseProps}
-        firstTime={{ windowPlayMinutes: 120, sessionCount: 1 }}
+        firstTime={{
+          windowPlayMinutes: 120,
+          sessionCount: 1,
+          firstSessionMinutes: 120,
+          addedAt: "2026-05-30T18:00:00.000Z",
+          firstPlayedAt: "2026-05-30T19:00:00.000Z",
+        }}
       />
     );
     expect(screen.getByText("1 session")).toBeTruthy();

@@ -611,7 +611,13 @@ describe("RecapSubjectsService.getChapters", () => {
             name: "Resident Evil 4",
             baseSignal: 10,
             daysSince: 3,
-            firstTime: { windowPlayMinutes: 150, sessionCount: 3 },
+            firstTime: {
+              windowPlayMinutes: 150,
+              sessionCount: 3,
+              firstSessionMinutes: 60,
+              addedAt: "2026-05-30T10:00:00.000Z",
+              firstPlayedAt: "2026-05-30T12:00:00.000Z",
+            },
           },
         ]),
       } as unknown as SteamMomentsService;
@@ -656,7 +662,13 @@ describe("RecapSubjectsService.getChapters", () => {
             name: "Resident Evil 4",
             baseSignal: 10,
             daysSince: 3,
-            firstTime: { windowPlayMinutes: 150, sessionCount: 3 },
+            firstTime: {
+              windowPlayMinutes: 150,
+              sessionCount: 3,
+              firstSessionMinutes: 60,
+              addedAt: "2026-05-30T10:00:00.000Z",
+              firstPlayedAt: "2026-05-30T12:00:00.000Z",
+            },
           },
         ]),
       } as unknown as SteamMomentsService;

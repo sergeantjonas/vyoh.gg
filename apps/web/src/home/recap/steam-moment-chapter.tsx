@@ -70,13 +70,7 @@ function momentCopy(args: {
       mastheadText: name,
       chapterLabel: "First time",
       ariaLabel: `First time playing ${name}`,
-      body: playLine ? (
-        <>
-          Just picked this one up — already <Accent>{playLine}</Accent> in.
-        </>
-      ) : (
-        <>Just picked this one up.</>
-      ),
+      body: firstTimeBody({ firstTime, playLine }),
     };
   }
   // ACHIEVEMENT_CLUSTER placeholder until R-7g lands the cluster detector
@@ -93,6 +87,92 @@ function momentCopy(args: {
       </>
     ),
   };
+}
+
+/**
+ * Compose the FIRST_TIME_GAME prose body. Three editorial registers branch
+ * on the gap between when the game was added to the library and when the
+ * owner first launched it — same-day reads as "instant interest", a few
+ * days apart reads as "made time for it after picking it up", a long gap
+ * reads as "finally beat the backlog". The receipt strip below carries the
+ * pacing receipt (sessions + avg + first sit-down); this paragraph carries
+ * the narrative seed.
+ */
+function firstTimeBody({
+  firstTime,
+  playLine,
+}: {
+  firstTime: SteamFirstTimeStats | null;
+  playLine: string | null;
+}): ReactNode {
+  if (!firstTime) {
+    return playLine ? (
+      <>
+        Just picked this one up — already <Accent>{playLine}</Accent> in.
+      </>
+    ) : (
+      <>Just picked this one up.</>
+    );
+  }
+  const addedMs = Date.parse(firstTime.addedAt);
+  const playedMs = Date.parse(firstTime.firstPlayedAt);
+  const gapDays =
+    Number.isFinite(addedMs) && Number.isFinite(playedMs)
+      ? Math.max(0, Math.floor((playedMs - addedMs) / 86_400_000))
+      : 0;
+  const sameDay = gapDays === 0;
+  const longGap = gapDays >= 14;
+  const playedLabel = formatShortDate(firstTime.firstPlayedAt);
+  const addedLabel = formatShortDate(firstTime.addedAt);
+
+  if (sameDay) {
+    return playLine ? (
+      <>
+        Picked it up <Accent>{playedLabel}</Accent> and dove right in — already{" "}
+        <Accent>{playLine}</Accent> in.
+      </>
+    ) : (
+      <>
+        Picked it up <Accent>{playedLabel}</Accent> and dove right in.
+      </>
+    );
+  }
+  if (longGap) {
+    return playLine ? (
+      <>
+        Sat in the library for a while; first launched it <Accent>{playedLabel}</Accent> —
+        already <Accent>{playLine}</Accent> in.
+      </>
+    ) : (
+      <>
+        Sat in the library for a while; first launched it <Accent>{playedLabel}</Accent>.
+      </>
+    );
+  }
+  // 1–13 day gap: pair both dates so the gap reads as a chosen pause, not
+  // dormancy. "Added Mon, first played Thu" frames it as a real beat.
+  return playLine ? (
+    <>
+      Added <Accent>{addedLabel}</Accent>, first launched <Accent>{playedLabel}</Accent> —
+      already <Accent>{playLine}</Accent> in.
+    </>
+  ) : (
+    <>
+      Added <Accent>{addedLabel}</Accent>, first launched <Accent>{playedLabel}</Accent>.
+    </>
+  );
+}
+
+/** "May 27"-shaped short date. Uses en-US locale for the abbreviated month
+ *  name; the day is bare (no leading zero) to match editorial register. */
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "Europe/Brussels",
+  });
 }
 
 function formatDaysSince(daysSince: number): string {
@@ -341,6 +421,23 @@ export function SteamMomentChapter({
                         style={{ textShadow: SHADOW_BODY }}
                       >
                         avg {formatPlaytime(avgSessionMinutes)}
+                      </span>
+                    </>
+                  ) : null}
+                  {firstTime.sessionCount > 1 && firstTime.firstSessionMinutes > 0 ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="text-foreground/40"
+                        style={{ textShadow: SHADOW_LABEL }}
+                      >
+                        ·
+                      </span>
+                      <span
+                        className="text-sm tabular-nums text-foreground/70"
+                        style={{ textShadow: SHADOW_BODY }}
+                      >
+                        first sit-down {formatPlaytime(firstTime.firstSessionMinutes)}
                       </span>
                     </>
                   ) : null}

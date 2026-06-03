@@ -133,6 +133,13 @@ export class SteamMomentsService {
 
     const playMinutesByAppid = new Map<number, number>();
     const sessionCountByAppid = new Map<number, number>();
+    // Track the EARLIEST post-firstSeenAt session per appid — its start
+    // time becomes `firstPlayedAt` (the "when you first actually launched
+    // it" half of the chapter's added-vs-played pair) and its duration
+    // becomes `firstSessionMinutes` (the receipt's "first sit-down" beat).
+    // Both are receipts the chapter renders verbatim; the detector pays
+    // the iteration cost once.
+    const firstSessionByAppid = new Map<number, { startedAt: Date; minutes: number }>();
     const firstSeenByAppid = new Map(candidatePool.map((g) => [g.appid, g.firstSeenAt]));
     for (const session of sessions) {
       if (!session.endedAt) continue;
@@ -147,12 +154,21 @@ export class SteamMomentsService {
         session.appid,
         (sessionCountByAppid.get(session.appid) ?? 0) + 1
       );
+      const earliest = firstSessionByAppid.get(session.appid);
+      if (!earliest || session.startedAt < earliest.startedAt) {
+        firstSessionByAppid.set(session.appid, { startedAt: session.startedAt, minutes });
+      }
     }
 
     const candidates: RecapCandidate[] = [];
     for (const game of candidatePool) {
       const minutes = playMinutesByAppid.get(game.appid) ?? 0;
       if (minutes < FIRST_TIME_MIN_PLAY_MINUTES) continue;
+      // The first-session record is guaranteed by construction if `minutes`
+      // is non-zero (we only sum sessions that also update the record), but
+      // we narrow defensively so the type stays honest under future refactors.
+      const firstSession = firstSessionByAppid.get(game.appid);
+      if (!firstSession) continue;
 
       const daysSince = Math.max(
         0,
@@ -171,6 +187,9 @@ export class SteamMomentsService {
         firstTime: {
           windowPlayMinutes: Math.round(minutes),
           sessionCount: sessionCountByAppid.get(game.appid) ?? 0,
+          firstSessionMinutes: Math.round(firstSession.minutes),
+          addedAt: game.firstSeenAt.toISOString(),
+          firstPlayedAt: firstSession.startedAt.toISOString(),
         },
       });
     }

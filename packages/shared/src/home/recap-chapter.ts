@@ -148,16 +148,29 @@ export interface LolMomentChapterDescriptor {
 
 /**
  * First-time framing carried on a `FIRST_TIME_GAME` Steam moment chapter.
- * `windowPlayMinutes` is the rounded total play duration accumulated since
- * the first session; `sessionCount` is the number of distinct sessions
- * (≥30-min closed rows) that contributed to it. Together they drive the
- * chapter's receipt strip ("3h across 4 sessions") and let the reader
- * distinguish "one long sit-down" from "kept coming back over a week".
+ *
+ *   - `windowPlayMinutes` / `sessionCount` — total play + number of distinct
+ *     closed sessions since the first launch. Drives the headline receipt
+ *     and lets the reader distinguish "one long sit-down" from "kept coming
+ *     back over a week".
+ *   - `firstSessionMinutes` — duration of the first session specifically.
+ *     Editorially: a 4h first sit-down reads as instant engagement; a 30m
+ *     first session followed by longer ones reads as "warmed up to it".
+ *     This stat is the sub-beat of the receipt strip.
+ *   - `addedAt` / `firstPlayedAt` — ISO date strings for "when we first saw
+ *     the game in your library" vs "when you first actually launched it".
+ *     The gap (or lack of one) is the chapter's narrative seed: same-day =
+ *     "dove right in", multi-day = "made time for it after picking it up",
+ *     long-gap = "backlog finally beaten".
+ *
  * Null on other momentTypes.
  */
 export interface SteamFirstTimeStats {
   windowPlayMinutes: number;
   sessionCount: number;
+  firstSessionMinutes: number;
+  addedAt: string;
+  firstPlayedAt: string;
 }
 
 /**

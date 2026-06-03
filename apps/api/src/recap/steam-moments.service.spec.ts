@@ -85,7 +85,13 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
       appid: 100,
       name: "Pragmata",
       slug: "steam-moment-first-100",
-      firstTime: { windowPlayMinutes: 150, sessionCount: 1 },
+      firstTime: {
+        windowPlayMinutes: 150,
+        sessionCount: 1,
+        firstSessionMinutes: 150,
+        addedAt: "2026-05-28T10:00:00.000Z",
+        firstPlayedAt: "2026-05-28T11:00:00.000Z",
+      },
     });
     expect(candidate?.daysSince).toBe(5);
     if (candidate?.kind === "steam-moment") {
@@ -124,10 +130,46 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
     const result = await service.detectFirstTimeGames(NOW);
     expect(result).toHaveLength(1);
     const [candidate] = result;
-    expect(candidate?.kind === "steam-moment" && candidate.firstTime).toEqual({
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.firstTime).toMatchObject({
       windowPlayMinutes: 240,
       sessionCount: 3,
     });
+  });
+
+  it("emits addedAt + firstPlayedAt + firstSessionMinutes — picks the earliest session start, not the longest", async () => {
+    // Game added Tue, played first on Thu — the chapter renders the
+    // (added → first played) pair as the narrative seed. firstSession*
+    // tracks the EARLIEST session by start time, even when a later session
+    // is longer. (Editorially: "your first sit-down was 90min" should mean
+    // what you actually did *first*, not your longest engagement.)
+    const addedAt = new Date("2026-05-26T10:00:00Z");
+    const earliestStart = new Date("2026-05-28T20:00:00Z");
+    const longestStart = new Date("2026-05-30T19:00:00Z");
+    const { service } = makeService({
+      eligibleGames: [{ appid: 120, name: "Pragmata", firstSeenAt: addedAt }],
+      allOwnedGames: [{ appid: 120, name: "Pragmata", firstSeenAt: addedAt }],
+      enrichments: [{ appid: 120, appType: 0 }],
+      sessions: [
+        {
+          appid: 120,
+          startedAt: longestStart,
+          endedAt: new Date("2026-05-30T22:30:00Z"), // 150 min — longest
+        },
+        {
+          appid: 120,
+          startedAt: earliestStart,
+          endedAt: new Date("2026-05-28T21:30:00Z"), // 90 min — earliest
+        },
+      ],
+    });
+    const result = await service.detectFirstTimeGames(NOW);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.firstTime?.addedAt).toBe(addedAt.toISOString());
+    expect(candidate.firstTime?.firstPlayedAt).toBe(earliestStart.toISOString());
+    expect(candidate.firstTime?.firstSessionMinutes).toBe(90);
   });
 
   it("drops a candidate whose total in-window playtime is below the 30 min floor", async () => {
