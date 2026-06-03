@@ -260,7 +260,12 @@ function PeakChip({
       (parsed.decimals > 0 ? 1 + parsed.decimals : 0)
     : 0;
   return (
-    <ChapterReveal active={active} delay={delay}>
+    // Scale-in pop + larger rise gives chips a "tile settling into place"
+    // character distinct from the prose-tier fade+rise the verdict and
+    // standout block use. scale=0.86 is below the conservative 0.92 floor
+    // because chips have no body text whose readability suffers from a
+    // bigger start-state.
+    <ChapterReveal active={active} delay={delay} scale={0.86} rise={24} duration={0.7}>
       <div className="flex flex-col gap-2 sm:gap-3">
         <span
           // text-5xl ≈ 48px, sm:text-6xl ≈ 60px. Sized down from the
@@ -571,7 +576,17 @@ export function SteamChapter({
           {(nudged) => (
             <ChapterOpener>
               {verdictClauses.length > 0 ? (
-                <ChapterReveal active={nudged} delay={0.05} blur={6}>
+                // Curtain-pull entrance: bigger rise + blur + longer
+                // duration than the band default. Verdict is the chapter's
+                // editorial opener — the reader's first content beat under
+                // the now-anchored masthead, so it gets the heaviest reveal.
+                <ChapterReveal
+                  active={nudged}
+                  delay={0.05}
+                  blur={8}
+                  rise={22}
+                  duration={0.9}
+                >
                   <VerdictProse
                     clauses={verdictClauses}
                     style={{ textShadow: SHADOW_BODY }}
@@ -595,7 +610,18 @@ export function SteamChapter({
             <>
               <ChapterDetail>
                 {standout ? (
-                  <ChapterReveal active={nudged} delay={0.05}>
+                  // Focal card lands from the left with a slight settle-in
+                  // pop. The standout achievement is the visual anchor of
+                  // beat 1; the directional entrance gives it weight and
+                  // distinguishes it from the cascade of recent unlocks
+                  // that follows from the opposite side.
+                  <ChapterReveal
+                    active={nudged}
+                    delay={0.05}
+                    slideX={-40}
+                    scale={0.96}
+                    duration={0.75}
+                  >
                     <StandoutUnlockBlock appid={appid} standout={standout} />
                   </ChapterReveal>
                 ) : null}
@@ -613,7 +639,15 @@ export function SteamChapter({
                     <ul className="flex flex-col gap-0.5">
                       {recentUnlocks.map((u, i) => (
                         <li key={u.apiName}>
-                          <ChapterReveal active={nudged} delay={0.25 + i * 0.06}>
+                          {/* Rows cascade in from the right opposite the
+                              standout block. Tighter stagger (0.045) than
+                              the prior 0.06 — reads as a feed pulling in,
+                              not a list being drawn one row at a time. */}
+                          <ChapterReveal
+                            active={nudged}
+                            delay={0.28 + i * 0.045}
+                            slideX={18}
+                          >
                             <RecentUnlockRow appid={appid} unlock={u} />
                           </ChapterReveal>
                         </li>
@@ -633,7 +667,7 @@ export function SteamChapter({
               <ChapterStats>
                 <PeakChip
                   active={nudged}
-                  delay={0.05}
+                  delay={0.08}
                   label="Completion"
                   value={
                     completionPct !== null ? `${Math.round(completionPct * 100)}%` : "—"
@@ -641,7 +675,7 @@ export function SteamChapter({
                 />
                 <PeakChip
                   active={nudged}
-                  delay={0.12}
+                  delay={0.22}
                   label="Two weeks"
                   value={
                     playtime2WeekMin !== null && playtime2WeekMin > 0
@@ -653,7 +687,7 @@ export function SteamChapter({
                 />
                 <PeakChip
                   active={nudged}
-                  delay={0.19}
+                  delay={0.36}
                   label={standoutGlobalPercent !== null ? "Rarest unlock" : "Unlocks"}
                   value={
                     standoutGlobalPercent !== null

@@ -100,4 +100,46 @@ describe("ChapterReveal", () => {
     const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
     expect(wrapper?.style.filter ?? "").not.toContain("blur");
   });
+
+  it("applies a horizontal translate at the initial state when slideX is set", () => {
+    const { container } = render(
+      <ChapterReveal slideX={-40}>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    // Motion writes the inline transform with translateX(-40px) when x is
+    // in the initial state. The signed value selects entrance direction.
+    expect(wrapper?.style.transform).toContain("translateX(-40px)");
+  });
+
+  it("applies a uniform scale at the initial state when scale is set", () => {
+    const { container } = render(
+      <ChapterReveal scale={0.86}>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    expect(wrapper?.style.transform).toContain("scale(0.86)");
+  });
+
+  it("hints the compositor via will-change when a transform-heavy prop is set", () => {
+    const { container } = render(
+      <ChapterReveal slideX={20}>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    expect(wrapper?.style.willChange).toContain("transform");
+  });
+
+  it("does not set will-change for the plain fade+rise entrance", () => {
+    const { container } = render(
+      <ChapterReveal>
+        <span data-testid="content">hello</span>
+      </ChapterReveal>
+    );
+    const wrapper = container.querySelector("[data-testid='content']")?.parentElement;
+    expect(wrapper?.style.willChange ?? "").toBe("");
+  });
 });
