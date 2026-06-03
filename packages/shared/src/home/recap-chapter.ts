@@ -147,8 +147,20 @@ export interface LolMomentChapterDescriptor {
 }
 
 /**
+ * First-time framing carried on a `FIRST_TIME_GAME` Steam moment chapter.
+ * `windowPlayMinutes` is the rounded total play duration accumulated since
+ * the first session (within the recency window) — the receipt for "this
+ * isn't just a click-and-quit launch". Null on other momentTypes.
+ */
+export interface SteamFirstTimeStats {
+  windowPlayMinutes: number;
+}
+
+/**
  * Steam moment chapter — single-event narrative (achievement cluster, first
- * play of a tracked game). Emitted in R-7.
+ * play of a tracked game). `FIRST_TIME_GAME` ships in R-7f; ACHIEVEMENT_CLUSTER
+ * lands in R-7g. `name` is the Steam display name carried inline so the chapter
+ * can render the masthead without a second roundtrip through `useSteamGameRecap`.
  */
 export interface SteamMomentChapterDescriptor {
   kind: "steam-moment";
@@ -158,6 +170,8 @@ export interface SteamMomentChapterDescriptor {
   daysSince: number;
   ageBucket: RecapAgeBucket;
   appid: number;
+  name: string;
+  firstTime: SteamFirstTimeStats | null;
   framing: RecapChapterFraming | null;
 }
 

@@ -240,6 +240,7 @@ export type {
   RecapChapterDescriptor,
   RecapChapterFraming,
   RecapChaptersResponse,
+  SteamFirstTimeStats,
   SteamMomentChapterDescriptor,
   SteamSubjectChapterDescriptor,
 } from "./home/recap-chapter.ts";

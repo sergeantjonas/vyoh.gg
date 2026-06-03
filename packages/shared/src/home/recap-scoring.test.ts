@@ -153,6 +153,7 @@ describe("selectChapters", () => {
           slug: "moment-cluster",
           momentType: "ACHIEVEMENT_CLUSTER",
           appid: 99,
+          name: "Game 99",
           baseSignal: 70,
           daysSince: 0,
         },

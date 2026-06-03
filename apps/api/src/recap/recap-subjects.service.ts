@@ -6,6 +6,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SteamOwnedGamesService } from "../steam/owned-games.service";
 import { LolMomentsService } from "./lol-moments.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
+import { SteamMomentsService } from "./steam-moments.service";
 
 /** Lifetime-hours threshold for the dormant top-up. A game must carry
  *  meaningful historical engagement to surface in the no-recent-activity
@@ -50,19 +51,27 @@ export class RecapSubjectsService {
   constructor(
     private readonly ownedGames: SteamOwnedGamesService,
     private readonly prisma: PrismaService,
-    private readonly lolMoments: LolMomentsService
+    private readonly lolMoments: LolMomentsService,
+    private readonly steamMoments: SteamMomentsService
   ) {}
 
   async getChapters(now: Date = new Date()): Promise<RecapChapterDescriptor[]> {
-    // Steam-subject candidates + LoL-moment candidates run in parallel —
-    // they hit different tables and have no inter-dependency. `selectChapters`
-    // handles per-kind capping + cross-kind ordering, so merging the lists
-    // raw before the selector is sufficient.
-    const [steamCandidates, lolMomentCandidates] = await Promise.all([
-      this.collectSteamSubjectCandidates(now),
-      this.lolMoments.detectAll(now),
+    // Steam-subject + LoL-moment + Steam-moment candidates run in parallel —
+    // they hit different tables (Steam playtime snapshots, LoL match
+    // history, Steam owned-games + sessions) and have no inter-dependency.
+    // `selectChapters` handles per-kind capping + cross-kind ordering, so
+    // merging the lists raw before the selector is sufficient.
+    const [steamCandidates, lolMomentCandidates, steamMomentCandidates] =
+      await Promise.all([
+        this.collectSteamSubjectCandidates(now),
+        this.lolMoments.detectAll(now),
+        this.steamMoments.detectAll(now),
+      ]);
+    const active = selectChapters([
+      ...steamCandidates,
+      ...lolMomentCandidates,
+      ...steamMomentCandidates,
     ]);
-    const active = selectChapters([...steamCandidates, ...lolMomentCandidates]);
 
     // Dormant top-up. The active branch surfaces "Playing lately" games via
     // the 14d-playtime + 14d-unlocks `baseSignal`, which means anything not

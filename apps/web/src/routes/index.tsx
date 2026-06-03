@@ -13,6 +13,7 @@ import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { LolMomentChapter } from "@/home/recap/lol-moment-chapter";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
+import { SteamMomentChapter } from "@/home/recap/steam-moment-chapter";
 import { useChapters } from "@/home/recap/use-chapters";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
@@ -112,8 +113,24 @@ function HomePage() {
               />
             );
           }
-          // steam-moment lands in R-7; render nothing for now so the
-          // exhaustive switch is honest about unhandled kinds.
+          // R-7f steam-moment chapter — FIRST_TIME_GAME ships now,
+          // ACHIEVEMENT_CLUSTER lands in R-7g (placeholder branch inside
+          // the component until then). Descriptor carries `name` inline so
+          // the chapter doesn't need a `useSteamGameRecap` roundtrip; the
+          // hero URL is a deterministic appid-keyed proxy path.
+          if (c.kind === "steam-moment") {
+            return (
+              <SteamMomentChapter
+                key={c.slug}
+                appid={c.appid}
+                name={c.name}
+                daysSince={c.daysSince}
+                slug={c.slug}
+                momentType={c.momentType}
+                firstTime={c.firstTime}
+              />
+            );
+          }
           return null;
         })}
         {/* Conclusion is split across two snap-aligned siblings, each

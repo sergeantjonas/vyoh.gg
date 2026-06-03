@@ -6,6 +6,7 @@ import type { SteamOwnedGamesService } from "../steam/owned-games.service";
 import type { LolMomentsService } from "./lol-moments.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 import { RecapSubjectsService } from "./recap-subjects.service";
+import type { SteamMomentsService } from "./steam-moments.service";
 
 const NOW = new Date("2026-06-02T12:00:00Z");
 
@@ -86,12 +87,16 @@ function makeService(
         ),
     },
   } as unknown as PrismaService;
-  // LoL moments default to empty so the existing steam-subject specs stay
-  // focused — the cross-kind merge is covered by the dedicated test below.
+  // LoL + Steam moment services default to empty so the existing steam-
+  // subject specs stay focused — the cross-kind merge is covered by the
+  // dedicated test below.
   const lolMoments = {
     detectAll: vi.fn().mockResolvedValue([]),
   } as unknown as LolMomentsService;
-  return new RecapSubjectsService(ownedGames, prisma, lolMoments);
+  const steamMoments = {
+    detectAll: vi.fn().mockResolvedValue([]),
+  } as unknown as SteamMomentsService;
+  return new RecapSubjectsService(ownedGames, prisma, lolMoments, steamMoments);
 }
 
 describe("RecapSubjectsService.getChapters", () => {
@@ -539,7 +544,15 @@ describe("RecapSubjectsService.getChapters", () => {
           },
         ]),
       } as unknown as LolMomentsService;
-      const service = new RecapSubjectsService(ownedGames, prisma, lolMoments);
+      const steamMoments = {
+        detectAll: vi.fn().mockResolvedValue([]),
+      } as unknown as SteamMomentsService;
+      const service = new RecapSubjectsService(
+        ownedGames,
+        prisma,
+        lolMoments,
+        steamMoments
+      );
 
       const chapters = await service.getChapters(NOW);
       expect(chapters).toHaveLength(1);
@@ -549,6 +562,56 @@ describe("RecapSubjectsService.getChapters", () => {
         expect(first.momentType).toBe("OFF_META_PICK");
         expect(first.matchId).toBe("EUW_42");
         expect(first.championAlias).toBe("Renekton");
+      }
+    });
+  });
+
+  describe("Steam moment merge", () => {
+    it("emits a steam-moment descriptor when SteamMomentsService returns a first-time candidate", async () => {
+      // Active steam-subject path empty; lol moments empty; only the
+      // steam-moment fires. Verifies the third feed-source plumbs through
+      // `selectChapters` and lands as `steam-moment` in the final list.
+      const ownedGames = {
+        getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([])),
+      } as unknown as SteamOwnedGamesService;
+      const prisma = {
+        steamPlayerUnlock: {
+          groupBy: vi.fn().mockResolvedValue([]),
+        },
+      } as unknown as PrismaService;
+      const lolMoments = {
+        detectAll: vi.fn().mockResolvedValue([]),
+      } as unknown as LolMomentsService;
+      const steamMoments = {
+        detectAll: vi.fn().mockResolvedValue([
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-first-2050650",
+            momentType: "FIRST_TIME_GAME",
+            appid: 2050650,
+            name: "Resident Evil 4",
+            baseSignal: 10,
+            daysSince: 3,
+            firstTime: { windowPlayMinutes: 150 },
+          },
+        ]),
+      } as unknown as SteamMomentsService;
+      const service = new RecapSubjectsService(
+        ownedGames,
+        prisma,
+        lolMoments,
+        steamMoments
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters).toHaveLength(1);
+      const first = chapters[0];
+      expect(first?.kind).toBe("steam-moment");
+      if (first?.kind === "steam-moment") {
+        expect(first.momentType).toBe("FIRST_TIME_GAME");
+        expect(first.appid).toBe(2050650);
+        expect(first.name).toBe("Resident Evil 4");
+        expect(first.firstTime?.windowPlayMinutes).toBe(150);
       }
     });
   });
