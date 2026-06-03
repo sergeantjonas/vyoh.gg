@@ -357,44 +357,45 @@ describe("SteamChapter", () => {
     expect(screen.queryByText("Latest milestone")).toBeNull();
   });
 
-  it("declares itself as a 4-beat chapter (R-13 multi-beat substrate)", () => {
+  it("renders as a 4-beat stacked-section chapter (R-13 final architecture)", () => {
     const { container } = render(<SteamChapter />);
-    const section = container.querySelector("[data-chapter^='steam-']");
-    expect(section?.getAttribute("data-beats")).toBe("4");
+    const group = container.querySelector("[data-chapter-group]");
+    expect(group).toBeTruthy();
     const beats = container.querySelectorAll("[data-beat]");
     expect(beats.length).toBe(4);
+    // Each beat is its own scroll-snap section, not an absolutely-stacked
+    // overlay inside a sticky pin.
+    for (const beat of beats) {
+      expect(beat.tagName).toBe("SECTION");
+      expect(beat.className).toContain("scroll-snap-align:start");
+      expect(beat.className).toContain("scroll-snap-stop:always");
+    }
   });
 
-  it("renders the persistent identity strip with the game logo (hasLogo path)", () => {
+  it("renders the text-only identity overlay on beats 1+ (game name, no logo)", () => {
     const { container } = render(<SteamChapter />);
-    const strip = container.querySelector("[data-chapter-identity-strip]");
-    expect(strip).toBeTruthy();
-    // hasLogo path: strip uses the official Steam logo as the running header
-    // (with alt={name} as the accessible label).
-    const logo = strip?.querySelector("img");
-    expect(logo).toBeTruthy();
-    expect(logo?.getAttribute("alt")).toBe("Hollow Knight");
+    const overlays = container.querySelectorAll("[data-chapter-identity-overlay]");
+    // Overlays live on beats 1, 2, 3 (beat 0 has the masthead instead).
+    expect(overlays.length).toBe(3);
+    // Text-only: no img element, just the game name in tracking-wide caps.
+    for (const overlay of overlays) {
+      expect(overlay.querySelector("img")).toBeNull();
+      expect(overlay.textContent).toContain("Hollow Knight");
+    }
   });
 
-  it("falls back to the game name in the identity strip when no logo exists", () => {
+  it("identity overlay text adapts to the game name when no logo exists", () => {
     vi.mocked(useSteamGameRecap).mockReturnValue({
       data: recapFromFixtures(makeOwnedGame({ logoPath: null })),
       isPending: false,
       isError: false,
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     const { container } = render(<SteamChapter />);
-    const strip = container.querySelector("[data-chapter-identity-strip]");
-    expect(strip).toBeTruthy();
-    expect(strip?.querySelector("img")).toBeNull();
-    expect(strip?.textContent).toContain("Hollow Knight");
-  });
-
-  it("identity strip starts aria-hidden on beat 0 (big masthead lives there)", () => {
-    const { container } = render(<SteamChapter />);
-    const strip = container.querySelector("[data-chapter-identity-strip]");
-    // Default active beat is 0 (initial useState) → strip is hidden so the
-    // big editorial masthead doesn't compete with a second logo overlay.
-    expect(strip?.getAttribute("aria-hidden")).toBe("true");
+    // The overlay is text-only by design — there's no hasLogo branching;
+    // it always shows the game name in small-caps tracking.
+    const overlays = container.querySelectorAll("[data-chapter-identity-overlay]");
+    expect(overlays.length).toBe(3);
+    expect(overlays[0]?.textContent).toContain("Hollow Knight");
   });
 
   it("partitions bands across beats — opener in beat 0, detail in beat 1, stats in beat 2, closer in beat 3", () => {
