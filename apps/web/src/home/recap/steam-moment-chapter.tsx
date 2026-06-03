@@ -10,7 +10,10 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
-import { steamLibraryHeroLargeUrl } from "@/steam/_shared/steam-image";
+import {
+  steamLibraryHeroLargeUrl,
+  steamLibraryLogoUrl,
+} from "@/steam/_shared/steam-image";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 
 import { ChapterDetail, ChapterOpener } from "./chapter-bands";
@@ -459,12 +462,34 @@ export function SteamMomentChapter({
                     pattern. */}
                 <span className="inline-flex items-center gap-x-4">
                   {copy.leadingVisual}
-                  <h2
-                    className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                    style={{ textShadow: SHADOW_MASTHEAD }}
-                  >
-                    {copy.mastheadText}
-                  </h2>
+                  {recap?.hasLogo ? (
+                    // Official Steam logo as the masthead — typically a
+                    // designed wordmark that reads more "editorial" than the
+                    // typographic name in helvetica-7xl. Mirrors the heavy
+                    // SteamChapter masthead pattern; sized to peer with the
+                    // leadingVisual icon (max-h matches the icon's `sm:size-20`
+                    // band). `alt={name}` carries the accessible label since
+                    // the chapter eyebrow already says "First time on" /
+                    // "Recent run on". Heavy drop-shadow mirrors the
+                    // SHADOW_MASTHEAD tier — text-shadow doesn't apply to
+                    // <img>, so filter:drop-shadow handles it.
+                    <img
+                      src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
+                      alt={name}
+                      className="max-h-[10dvh] w-auto max-w-full object-contain sm:max-h-[14dvh]"
+                      style={{
+                        filter:
+                          "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
+                      }}
+                    />
+                  ) : (
+                    <h2
+                      className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                      style={{ textShadow: SHADOW_MASTHEAD }}
+                    >
+                      {copy.mastheadText}
+                    </h2>
+                  )}
                 </span>
                 <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
                   open →

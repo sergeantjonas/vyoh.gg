@@ -29,6 +29,7 @@ vi.mock("motion/react", async () => {
 });
 vi.mock("@/steam/_shared/steam-image", () => ({
   steamLibraryHeroLargeUrl: (appid: number) => `https://test/hero/${appid}`,
+  steamLibraryLogoUrl: (appid: number) => `https://test/logo/${appid}`,
 }));
 vi.mock("@/steam/use-steam-game-recap", () => ({
   useSteamGameRecap: vi.fn(),
@@ -45,6 +46,8 @@ function mockRecap(
     dominantHex: string;
     subjectXPercent: number;
     subjectYPercent: number;
+    hasLogo: boolean;
+    assetTimestamp: number;
   }> = {}
 ) {
   vi.mocked(useSteamGameRecap).mockReturnValue({
@@ -53,6 +56,8 @@ function mockRecap(
       dominantHex: null,
       subjectXPercent: null,
       subjectYPercent: null,
+      hasLogo: false,
+      assetTimestamp: null,
       ...overrides,
     },
   } as ReturnType<typeof useSteamGameRecap>);
@@ -354,6 +359,41 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
     expect(
       container.querySelector("[data-recap-chapter]")?.getAttribute("data-chapter-label")
     ).toBe("Recent run");
+  });
+});
+
+describe("SteamMomentChapter masthead logo", () => {
+  // Steam game logo image is used as the masthead when the recap query
+  // says `hasLogo: true` — same pattern as the heavy `SteamChapter`.
+  // Falls back to the typographic H2 with the descriptor's name when no
+  // logo is available.
+  it("renders the publisher logo <img> as the masthead when recap.hasLogo is true", () => {
+    mockRecap({ hasLogo: true, assetTimestamp: 99 });
+    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const logo = container.querySelector(
+      'img[src="https://test/logo/2050650"]'
+    ) as HTMLImageElement | null;
+    expect(logo).toBeTruthy();
+    // The logo carries the accessible label so SR users still hear the
+    // game name (the eyebrow already states the moment type).
+    expect(logo?.alt).toBe("Resident Evil 4");
+    // No typographic masthead alongside.
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+  });
+
+  it("falls back to the typographic H2 masthead when recap.hasLogo is false", () => {
+    mockRecap({ hasLogo: false });
+    render(<SteamMomentChapter {...baseProps} />);
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
+  });
+
+  it("falls back to the typographic H2 masthead when the recap query hasn't resolved yet", () => {
+    // `useSteamGameRecap` is mocked to default-undefined data via mockRecap()
+    // with no hasLogo override → hasLogo: false. Confirm the masthead is
+    // still typographic so the chapter renders before recap loads.
+    mockRecap();
+    render(<SteamMomentChapter {...baseProps} />);
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
   });
 });
 
