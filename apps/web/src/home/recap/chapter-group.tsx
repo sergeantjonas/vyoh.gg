@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { mainScrollRef } from "@/lib/scroll-container";
+
 import { useChapterNudge } from "./use-chapter-nudge";
 
 type Props = {
@@ -75,38 +77,43 @@ function ChapterGroupImpl(
 ) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const entering = useChapterNudge(sectionRef);
-  // Exiting: flips true when the reader is scrolling past the chapter's
-  // last beat into the next chapter, NOT while they're snapped on it.
-  // The condition combines two signals on the last beat:
-  //   - boundingClientRect.top < 0  → reader has scrolled past the beat's
-  //     top edge (rules out "approaching from above").
-  //   - intersectionRatio < 0.95   → the beat is no longer (almost) fully
-  //     in view (rules out "snapped to beat" which sits at ratio 1).
-  // Pairing the two means the flip happens only during the actual swap
-  // window. Threshold-only logic (e.g. ratio > 0.7) flipped twice on a
-  // forward scroll — once on entry to the beat, once on exit — which
-  // caused the title card to fade out then fade back in during the
-  // chapter swap.
+  // Exiting: position-based detection via a direct scroll listener on
+  // <main> (the actual scroll container). Flips true when the reader has
+  // scrolled past the last beat's top edge by more than a small buffer.
+  //
+  // History: a threshold-based IntersectionObserver (thresholds at
+  // 0.5/0.75/0.9/0.95/1) was unreliable on back-scroll — fast scrolls or
+  // snaps that settled between thresholds left the LAST fired callback
+  // with the old exiting=true state, and no further threshold crossings
+  // happened to re-evaluate at the snapped position. Manual scroll
+  // listener fires every scroll frame, computes the rect directly, and
+  // doesn't depend on threshold spacing.
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     if (!identity) return;
-    if (typeof IntersectionObserver === "undefined") return;
     const section = sectionRef.current;
     if (!section) return;
-    const beats = section.querySelectorAll("[data-beat]");
-    const lastBeat = beats[beats.length - 1];
-    if (!lastBeat) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        setExiting(entry.boundingClientRect.top < 0 && entry.intersectionRatio < 0.95);
-      },
-      { threshold: [0, 0.5, 0.75, 0.9, 0.95, 1] }
-    );
-    observer.observe(lastBeat);
-    return () => observer.disconnect();
+    const container: HTMLElement | Window = mainScrollRef.current ?? window;
+
+    const compute = () => {
+      const beats = section.querySelectorAll("[data-beat]");
+      const lastBeat = beats[beats.length - 1] as HTMLElement | undefined;
+      if (!lastBeat) return;
+      const top = lastBeat.getBoundingClientRect().top;
+      // -10px buffer: snap-precision can leave top at -1..-5px after
+      // settle even when the reader is "on" the last beat. Without the
+      // buffer the title card would flicker off briefly on snap-end.
+      setExiting(top < -10);
+    };
+
+    compute();
+    container.addEventListener("scroll", compute, { passive: true });
+    window.addEventListener("resize", compute, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", compute);
+      window.removeEventListener("resize", compute);
+    };
   }, [identity]);
 
   const presenceVisible = entering && !exiting;
