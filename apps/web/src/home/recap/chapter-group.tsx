@@ -1,4 +1,15 @@
-import { type ReactNode, type Ref, forwardRef } from "react";
+import {
+  type ReactNode,
+  type Ref,
+  createContext,
+  forwardRef,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import { useChapterNudge } from "./use-chapter-nudge";
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
@@ -14,14 +25,32 @@ type Props = {
    * so the reader perceives the chapter as one continuous editorial
    * unit with a fixed header rather than four independent pages.
    *
-   * Rendered ONCE at the group level rather than re-mounting per beat —
+   * Renders once at the group level rather than re-mounting per beat —
    * the title card is the chapter's constant under which content swaps,
    * which keeps the masthead visually anchored as the reader scrolls
    * and lets per-beat content animations go bolder.
+   *
+   * The slot's children can call `useChapterGroupNudge()` to drive their
+   * own entrance + exit animations off the chapter's overall presence
+   * state.
    */
   identity?: ReactNode;
   children: ReactNode;
 };
+
+/**
+ * Combined presence flag for a chapter — `true` while the chapter has
+ * been entered AND has not yet started exiting. Title cards use this to
+ * cascade in when the chapter is engaged and reverse out as it leaves,
+ * which avoids the "next chapter's title card pushes the old one out of
+ * the way" collision two adjacent stickies would otherwise produce at a
+ * chapter boundary.
+ */
+const ChapterGroupNudgeContext = createContext(false);
+
+export function useChapterGroupNudge(): boolean {
+  return useContext(ChapterGroupNudgeContext);
+}
 
 /**
  * Logical wrapper for a stacked-beat chapter (R-13 final architecture).
@@ -33,40 +62,82 @@ type Props = {
  * pin-based model.
  *
  * The `identity` slot, when present, renders sticky at the top of the
- * group and stays visible across every beat in the chapter. Beats are
- * expected to leave enough top padding for the title card to live above
- * their content without collision.
+ * group and is gated by the chapter's combined presence state: fades in
+ * when the section reaches the standard `useChapterNudge` threshold
+ * (entering), fades out when the chapter's last beat is mostly visible
+ * (exiting). The fade-out lets the next chapter's title card take the
+ * top-of-viewport slot cleanly instead of crowding against the current
+ * one during the boundary scroll.
  */
 function ChapterGroupImpl(
   { slug, ariaLabel, className, identity, children }: Props,
   ref: Ref<HTMLElement>
 ) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const entering = useChapterNudge(sectionRef);
+  // Exiting: flips true once the chapter's last beat is more than ~70%
+  // visible. The threshold is high enough that the title card stays put
+  // while the user is still arriving at the last beat, but low enough
+  // that the card has time to fade before the next chapter's title card
+  // arrives at the viewport top.
+  const [exiting, setExiting] = useState(false);
+
+  useEffect(() => {
+    if (!identity) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const section = sectionRef.current;
+    if (!section) return;
+    const beats = section.querySelectorAll("[data-beat]");
+    const lastBeat = beats[beats.length - 1];
+    if (!lastBeat) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        setExiting(entry.intersectionRatio > 0.7);
+      },
+      { threshold: [0, 0.5, 0.7, 0.85, 1] }
+    );
+    observer.observe(lastBeat);
+    return () => observer.disconnect();
+  }, [identity]);
+
+  const presenceVisible = entering && !exiting;
+
+  const assignRef = (node: HTMLElement | null) => {
+    sectionRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) (ref as { current: HTMLElement | null }).current = node;
+  };
+
   return (
-    <section
-      ref={ref}
-      data-chapter={slug}
-      data-chapter-group=""
-      aria-label={ariaLabel}
-      className={["relative w-full", className].filter(Boolean).join(" ")}
-    >
-      {identity ? (
-        // Absolute wrapper that spans the whole group gives the sticky
-        // child a sized containing block — sticky stays at viewport top
-        // while the group is in view, scrolls with the group at its top
-        // / bottom edges. `pointer-events: none` on the wrapper so the
-        // overlay layer doesn't intercept clicks on beat content; the
-        // identity itself re-enables `pointer-events: auto`.
-        <div
-          data-chapter-identity-mark=""
-          className="pointer-events-none absolute inset-0 z-10"
-        >
-          <div className="sticky top-0">
-            <div className="pointer-events-auto">{identity}</div>
+    <ChapterGroupNudgeContext.Provider value={presenceVisible}>
+      <section
+        ref={assignRef}
+        data-chapter={slug}
+        data-chapter-group=""
+        aria-label={ariaLabel}
+        className={["relative w-full", className].filter(Boolean).join(" ")}
+      >
+        {identity ? (
+          // Absolute wrapper that spans the whole group gives the sticky
+          // child a sized containing block — sticky stays at viewport top
+          // while the group is in view, scrolls with the group at its top
+          // / bottom edges. `pointer-events: none` on the wrapper so the
+          // overlay layer doesn't intercept clicks on beat content; the
+          // identity content itself re-enables `pointer-events: auto`.
+          <div
+            data-chapter-identity-mark=""
+            className="pointer-events-none absolute inset-0 z-10"
+          >
+            <div className="sticky top-0">
+              <div className="pointer-events-auto">{identity}</div>
+            </div>
           </div>
-        </div>
-      ) : null}
-      {children}
-    </section>
+        ) : null}
+        {children}
+      </section>
+    </ChapterGroupNudgeContext.Provider>
   );
 }
 

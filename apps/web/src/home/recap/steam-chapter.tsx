@@ -30,7 +30,7 @@ import {
   ChapterStats,
 } from "./chapter-bands";
 import { ChapterBeat } from "./chapter-beat";
-import { ChapterGroup } from "./chapter-group";
+import { ChapterGroup, useChapterGroupNudge } from "./chapter-group";
 import { ChapterReveal } from "./chapter-reveal";
 import {
   SHADOW_ACCENT,
@@ -309,66 +309,76 @@ function SteamChapterTitleCard({
   appid: number;
   assetTimestamp: number | null;
 }) {
+  // Reads the chapter's combined presence flag (entering && !exiting)
+  // from ChapterGroup. ChapterReveals cascade in when entering and
+  // reverse out as exiting flips true near the chapter's end, so the
+  // title card has its own exit moment before the next chapter's
+  // sticky title card arrives at the viewport top.
+  const nudged = useChapterGroupNudge();
   return (
     <div className="flex w-full flex-col items-start gap-3 px-6 pt-12 sm:px-10 sm:pt-16">
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
-        <span
-          style={{
-            color: "var(--accent, currentColor)",
-            paintOrder: "stroke",
-            WebkitTextStroke: STROKE_ACCENT,
-            textShadow: SHADOW_ACCENT,
-          }}
+      <ChapterReveal active={nudged} delay={0.05} blur={4}>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
+          <span
+            style={{
+              color: "var(--accent, currentColor)",
+              paintOrder: "stroke",
+              WebkitTextStroke: STROKE_ACCENT,
+              textShadow: SHADOW_ACCENT,
+            }}
+          >
+            {eyebrow}
+          </span>
+          {releaseChip ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="text-foreground/40"
+                style={{ textShadow: SHADOW_LABEL }}
+              >
+                ·
+              </span>
+              <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+                {releaseChip}
+              </span>
+            </>
+          ) : null}
+        </p>
+      </ChapterReveal>
+      <ChapterReveal active={nudged} delay={0.18} duration={1.1} blur={16} rise={20}>
+        <Link
+          to="/steam/game/$appid"
+          params={{ appid: String(appid) }}
+          className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
         >
-          {eyebrow}
-        </span>
-        {releaseChip ? (
-          <>
-            <span
-              aria-hidden="true"
-              className="text-foreground/40"
+          {hasLogo && assetTimestamp !== null ? (
+            <img
+              src={steamLibraryLogoUrl(appid, assetTimestamp)}
+              alt={name}
+              className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
+              style={{
+                filter:
+                  "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
+              }}
+            />
+          ) : (
+            <h2
+              className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+              style={{ textShadow: SHADOW_MASTHEAD }}
+            >
+              {name}
+            </h2>
+          )}
+          {tagline ? (
+            <p
+              className="text-base italic text-foreground/80 sm:text-lg"
               style={{ textShadow: SHADOW_LABEL }}
             >
-              ·
-            </span>
-            <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
-              {releaseChip}
-            </span>
-          </>
-        ) : null}
-      </p>
-      <Link
-        to="/steam/game/$appid"
-        params={{ appid: String(appid) }}
-        className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
-      >
-        {hasLogo && assetTimestamp !== null ? (
-          <img
-            src={steamLibraryLogoUrl(appid, assetTimestamp)}
-            alt={name}
-            className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
-            style={{
-              filter:
-                "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
-            }}
-          />
-        ) : (
-          <h2
-            className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-            style={{ textShadow: SHADOW_MASTHEAD }}
-          >
-            {name}
-          </h2>
-        )}
-        {tagline ? (
-          <p
-            className="text-base italic text-foreground/80 sm:text-lg"
-            style={{ textShadow: SHADOW_LABEL }}
-          >
-            {tagline}
-          </p>
-        ) : null}
-      </Link>
+              {tagline}
+            </p>
+          ) : null}
+        </Link>
+      </ChapterReveal>
     </div>
   );
 }
@@ -483,13 +493,16 @@ export function SteamChapter({
     [recap]
   );
 
-  // Shared layout class for every beat. pt-[38vh] sm:pt-[42vh] clears the
-  // persistent title card (sticky eyebrow + masthead + tagline that lives
-  // at the top of the chapter group). justify-center centers the beat
-  // content vertically in the remaining space below the title card so it
-  // commands the available area rather than hugging the top edge.
+  // Shared layout class for every beat. justify-start with pt-[42vh] gives
+  // every beat the same content baseline — content starts at a consistent
+  // vertical position regardless of how tall the beat's content is. The
+  // prior justify-center floated short content (verdict, chips) lower in
+  // the viewport and tall content (standout + unlock list) higher, which
+  // read as "alignment all over the place" across beats. pt-[42vh] clears
+  // the persistent title card (sticky eyebrow + masthead + tagline) with
+  // some breathing room.
   const BEAT_LAYOUT =
-    "flex flex-col items-start justify-center px-6 pt-[38vh] sm:px-10 sm:pt-[42vh]";
+    "flex flex-col items-start justify-start px-6 pt-[42vh] sm:px-10 sm:pt-[46vh]";
 
   return (
     <div
