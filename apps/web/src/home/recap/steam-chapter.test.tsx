@@ -168,10 +168,14 @@ afterEach(() => {
 
 describe("SteamChapter", () => {
   it("renders the masthead with the logo + tagline when a logo exists", () => {
-    render(<SteamChapter />);
+    const { container } = render(<SteamChapter />);
     // Logo path: the official Steam logo replaces the typographic <h2>;
     // game name moves to the img's alt attribute as the accessible label.
-    const logo = screen.getByAltText("Hollow Knight") as HTMLImageElement;
+    // Two img tags carry alt="Hollow Knight" (masthead + identity strip);
+    // scope to the opener band for the masthead-specific assertion.
+    const opener = container.querySelector("[data-band='opener']") as HTMLElement;
+    const logo = opener.querySelector("img[alt='Hollow Knight']") as HTMLImageElement;
+    expect(logo).toBeTruthy();
     expect(logo.src).toContain("/logo/367520");
     expect(screen.getByText(/Forge your own path in Hollow Knight!/)).toBeTruthy();
     // Typographic fallback should NOT render alongside the logo.
@@ -359,6 +363,38 @@ describe("SteamChapter", () => {
     expect(section?.getAttribute("data-beats")).toBe("4");
     const beats = container.querySelectorAll("[data-beat]");
     expect(beats.length).toBe(4);
+  });
+
+  it("renders the persistent identity strip with the game logo (hasLogo path)", () => {
+    const { container } = render(<SteamChapter />);
+    const strip = container.querySelector("[data-chapter-identity-strip]");
+    expect(strip).toBeTruthy();
+    // hasLogo path: strip uses the official Steam logo as the running header
+    // (with alt={name} as the accessible label).
+    const logo = strip?.querySelector("img");
+    expect(logo).toBeTruthy();
+    expect(logo?.getAttribute("alt")).toBe("Hollow Knight");
+  });
+
+  it("falls back to the game name in the identity strip when no logo exists", () => {
+    vi.mocked(useSteamGameRecap).mockReturnValue({
+      data: recapFromFixtures(makeOwnedGame({ logoPath: null })),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useSteamGameRecap>);
+    const { container } = render(<SteamChapter />);
+    const strip = container.querySelector("[data-chapter-identity-strip]");
+    expect(strip).toBeTruthy();
+    expect(strip?.querySelector("img")).toBeNull();
+    expect(strip?.textContent).toContain("Hollow Knight");
+  });
+
+  it("identity strip starts aria-hidden on beat 0 (big masthead lives there)", () => {
+    const { container } = render(<SteamChapter />);
+    const strip = container.querySelector("[data-chapter-identity-strip]");
+    // Default active beat is 0 (initial useState) → strip is hidden so the
+    // big editorial masthead doesn't compete with a second logo overlay.
+    expect(strip?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("partitions bands across beats — opener in beat 0, detail in beat 1, stats in beat 2, closer in beat 3", () => {

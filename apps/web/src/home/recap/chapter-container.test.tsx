@@ -116,4 +116,41 @@ describe("ChapterContainer", () => {
     // 3 × 0.6 → rounded to 1.8 to avoid floating-point noise in the calc().
     expect(section?.style.height).toBe("calc(1.8 * 100dvh)");
   });
+
+  it("emits one snap sentinel per beat at the correct dvh offset", () => {
+    const { container } = render(
+      <ChapterContainer beats={4} beatViewports={0.6}>
+        <div />
+      </ChapterContainer>
+    );
+    const sentinels = container.querySelectorAll("[data-beat-snap]");
+    expect(sentinels.length).toBe(4);
+    // happy-dom strips the inline `top: <n>dvh` (unknown unit), so the
+    // sentinel echoes its scroll offset to a data attribute too. The
+    // attribute is the assertable proxy; the production rendering uses
+    // the dvh-anchored inline style.
+    expect(sentinels[0]?.getAttribute("data-snap-top-dvh")).toBe("0");
+    expect(sentinels[1]?.getAttribute("data-snap-top-dvh")).toBe("60");
+    expect(sentinels[2]?.getAttribute("data-snap-top-dvh")).toBe("120");
+    expect(sentinels[3]?.getAttribute("data-snap-top-dvh")).toBe("180");
+  });
+
+  it("omits snap sentinels on single-pin chapters", () => {
+    const { container } = render(
+      <ChapterContainer>
+        <div />
+      </ChapterContainer>
+    );
+    expect(container.querySelectorAll("[data-beat-snap]").length).toBe(0);
+  });
+
+  it("omits snap sentinels under reduced motion (pin collapses, no scroll to snap)", () => {
+    useReducedMotionMock.mockReturnValue(true);
+    const { container } = render(
+      <ChapterContainer beats={4}>
+        <div />
+      </ChapterContainer>
+    );
+    expect(container.querySelectorAll("[data-beat-snap]").length).toBe(0);
+  });
 });

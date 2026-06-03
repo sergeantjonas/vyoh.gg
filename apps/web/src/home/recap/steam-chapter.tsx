@@ -42,6 +42,7 @@ import {
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { preloadLinkAsImage } from "./preload-link";
 import { SteamChapterCloserMedia } from "./steam-chapter-closer-media";
+import { SteamChapterIdentityStrip } from "./steam-chapter-identity-strip";
 import { useAssetClaim } from "./use-asset-claim";
 import { useAssetPreload } from "./use-asset-preload";
 import { useChapterNudge } from "./use-chapter-nudge";
@@ -404,6 +405,12 @@ export function SteamChapter({
         ariaLabel={name || `Steam game ${appid}`}
         pinClassName="items-start justify-start px-6 sm:px-10"
       >
+        <SteamChapterIdentityStrip
+          name={name}
+          hasLogo={recap?.hasLogo ?? false}
+          appid={appid}
+          assetTimestamp={recap?.assetTimestamp ?? null}
+        />
         <ChapterBeats>
           <SteamChapterBeats
             nudged={nudged}
