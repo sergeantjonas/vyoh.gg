@@ -348,7 +348,11 @@ function SteamChapterTitleCard({
     <motion.div
       initial={false}
       animate={{ opacity: nudged ? 1 : 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      // 0.2s is short enough that the title card fully fades in during a
+      // typical back-scroll pause on the last beat. The previous 0.4s
+      // hadn't completed when the reader continued to the next beat back,
+      // so the card visually "appeared" one beat later than the trigger.
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="flex w-full flex-col items-start gap-3 px-6 pt-12 sm:px-10 sm:pt-16"
     >
       <ChapterReveal active={hasEntered} delay={0.05} blur={4}>
