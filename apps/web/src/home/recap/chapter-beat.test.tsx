@@ -66,21 +66,24 @@ describe("ChapterBeat", () => {
     expect(inner?.className).toContain("pt-[22vh]");
   });
 
-  it("renders the inner motion wrapper with neutral exit state on mount (opacity 1, no blur)", () => {
+  it("renders the inner motion wrapper at the neutral exit state on mount (opacity 1, no blur, no transform)", () => {
     const { container } = render(
       <ChapterBeat index={0}>
         <div data-testid="content">content</div>
       </ChapterBeat>
     );
     const inner = container.querySelector("[data-beat-content]") as HTMLElement | null;
-    // Exit is a focus shift, not a position shift. At progress=0 opacity
-    // stays at 1 and filter resolves to blur(0px) — both the asserted
-    // neutral state. Critically, there is NO transform: the beat content
-    // does NOT move faster than the section's natural scroll, which is
-    // what made the earlier translate-based exit read as "scroll harder".
+    // Four exit axes layer to a clearly editorial recede — counter-translate
+    // (pins content to its viewport position during exit), opacity fade,
+    // scale shrink, blur defocus. At progress=0 (beat at viewport top) the
+    // motion stack collapses to neutral: motion writes the combined
+    // `transform` as `none` when all of y/scale are at identity, opacity=1,
+    // filter=blur(0px). The combined-transform assertion catches any
+    // accidental non-zero translateY/scale leaking through at rest.
     expect(inner?.style.opacity).toBe("1");
     expect(inner?.style.filter).toContain("blur(0px)");
-    expect(inner?.style.transform ?? "").not.toContain("translateY");
+    const transform = inner?.style.transform ?? "";
+    expect(transform === "" || transform === "none").toBe(true);
   });
 
   it("threads the beat's nudge state into a render-prop child", () => {
