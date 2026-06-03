@@ -1,6 +1,7 @@
 import {
   CHAPTER_COPY_OVERRIDES,
   DEV_LOL_MOMENT_OVERRIDE,
+  DEV_STEAM_MOMENT_OVERRIDE,
   PINNED_CHAPTER,
 } from "@/home/landing-config";
 import { HttpError } from "@/lib/http-error";
@@ -9,6 +10,7 @@ import type {
   LolMomentChapterDescriptor,
   RecapChapterDescriptor,
   RecapChaptersResponse,
+  SteamMomentChapterDescriptor,
 } from "@vyoh/shared";
 
 const API_URL = "http://localhost:2010";
@@ -68,6 +70,23 @@ export function applyDevLolMomentOverride(
 }
 
 /**
+ * Apply `DEV_STEAM_MOMENT_OVERRIDE`. Mirrors `applyDevLolMomentOverride`
+ * but operates on Steam-moment descriptors — prepends synthetic FIRST_TIME_
+ * GAME / ACHIEVEMENT_CLUSTER descriptors so the Steam moment chapter
+ * visuals can be reviewed without a qualifying real candidate. Empty array
+ * is a no-op (production behaviour).
+ */
+export function applyDevSteamMomentOverride(
+  chapters: RecapChapterDescriptor[],
+  overrides: readonly SteamMomentChapterDescriptor[]
+): RecapChapterDescriptor[] {
+  if (overrides.length === 0) return chapters;
+  const overrideSlugs = new Set(overrides.map((o) => o.slug));
+  const filtered = chapters.filter((c) => !overrideSlugs.has(c.slug));
+  return [...overrides, ...filtered];
+}
+
+/**
  * Apply `PINNED_CHAPTER`. Moves the matched slug to the head of the list;
  * leaves the rest in algorithmic order. Silently no-ops if the configured
  * slug isn't in the response — pinning a stale slug shouldn't break the
@@ -101,12 +120,15 @@ export function useChapters() {
     queryKey: ["recap", "chapters"],
     queryFn: fetchChapters,
     select: (data) =>
-      applyDevLolMomentOverride(
-        applyChapterPin(
-          data.chapters.map((c) => applyChapterOverrides(c, CHAPTER_COPY_OVERRIDES)),
-          PINNED_CHAPTER
+      applyDevSteamMomentOverride(
+        applyDevLolMomentOverride(
+          applyChapterPin(
+            data.chapters.map((c) => applyChapterOverrides(c, CHAPTER_COPY_OVERRIDES)),
+            PINNED_CHAPTER
+          ),
+          DEV_LOL_MOMENT_OVERRIDE
         ),
-        DEV_LOL_MOMENT_OVERRIDE
+        DEV_STEAM_MOMENT_OVERRIDE
       ),
     staleTime: 30 * 60 * 1_000,
   });

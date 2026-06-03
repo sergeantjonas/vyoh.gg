@@ -16,6 +16,7 @@ vi.mock("@/home/landing-config", () => ({
   CHAPTER_COPY_OVERRIDES: {},
   PINNED_CHAPTER: null,
   DEV_LOL_MOMENT_OVERRIDE: [],
+  DEV_STEAM_MOMENT_OVERRIDE: [],
 }));
 
 import {

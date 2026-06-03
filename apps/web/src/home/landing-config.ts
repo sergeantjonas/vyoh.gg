@@ -4,7 +4,10 @@
 // Edit by hand; commit the change. Promotes to an admin surface later only
 // if editing weekly becomes annoying.
 
-import type { LolMomentChapterDescriptor } from "@vyoh/shared";
+import type {
+  LolMomentChapterDescriptor,
+  SteamMomentChapterDescriptor,
+} from "@vyoh/shared";
 
 import { wikiSplashUrl } from "@/lol/_shared/assets/champion-icon";
 
@@ -97,3 +100,13 @@ export const CHAPTER_COPY_OVERRIDES: Record<
 // production. The matchId should point to a real owner match if you want
 // the masthead link to resolve; the championAlias picks the splash.
 export const DEV_LOL_MOMENT_OVERRIDE: readonly LolMomentChapterDescriptor[] = [];
+
+// Dev override: prepends synthetic Steam-moment descriptors at the head of
+// the algorithmic chapter stream so the FIRST_TIME_GAME / ACHIEVEMENT_CLUSTER
+// chapter visuals can be reviewed without a real qualifying candidate
+// (FIRST_TIME_GAME requires firstSeenAt within 30d + ≥30 min of post-add
+// session minutes — common to have zero matches on a stable library).
+// Same multi-slot shape as `DEV_LOL_MOMENT_OVERRIDE`; set to `[]` outside
+// active visual review. The `appid` should point to a real owned game so
+// the hero image resolves; `name` drives the masthead text.
+export const DEV_STEAM_MOMENT_OVERRIDE: readonly SteamMomentChapterDescriptor[] = [];
