@@ -1,5 +1,7 @@
-import { useReducedMotion } from "motion/react";
-import { type ReactNode, useRef } from "react";
+import { m, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { type ReactNode, useEffect, useRef } from "react";
+
+import { mainScrollRef } from "@/lib/scroll-container";
 
 import { useChapterNudge } from "./use-chapter-nudge";
 
@@ -13,7 +15,7 @@ type Props = {
   slug?: string;
   /** Optional ARIA label for the section. */
   ariaLabel?: string;
-  /** Layout className applied alongside the beat's structural classes. */
+  /** Layout className applied to the inner content wrapper. */
   className?: string;
   /**
    * Either static JSX or a function child receiving the beat's nudge state.
@@ -23,6 +25,17 @@ type Props = {
    */
   children: ReactNode | BeatRenderProp;
 };
+
+// Upward translate the inner content reaches at full exit (progress = 1).
+// Subtle accel — beat content moves up ~5rem faster than the natural scroll
+// of the section, which is enough to feel "pulled out" without divorcing
+// from the snap motion itself.
+const EXIT_TRANSLATE_PX = -72;
+
+// Opacity hits 0 well before the natural scroll-off completes — content is
+// visually gone by ~55% through the exit, so the next beat snaps into a
+// clean slate instead of crowding the outgoing beat.
+const EXIT_FADE_END = 0.55;
 
 /**
  * One beat in a stacked-beat chapter (R-13 final architecture). A viewport-
@@ -37,19 +50,58 @@ type Props = {
  * prop child — common case is `{(nudged) => <ChapterReveal active={nudged}
  * .../>...}`.
  *
+ * The beat's inner content layer is wrapped in an `m.div` whose `y` and
+ * `opacity` are bound to the beat's scroll progress out of view. As the
+ * reader scrolls past, content accelerates upward and fades to 0 — turning
+ * the transition from "old beat scrolls up, new beat scrolls up underneath
+ * it" into "old beat slides up and away, new beat enters the empty space".
+ * Uses a manual scroll listener driving a MotionValue rather than
+ * motion/react's `useScroll`, since `useScroll({ container: mainScrollRef })`
+ * throws when the container ref isn't hydrated (SSR / tests without `<main>`).
+ * Same pattern as `atmosphere-layer.tsx`.
+ *
  * Under reduced motion: snap behavior is preserved (it's navigation, not
- * animation), but the fixed `h-dvh` is dropped so content flows naturally
- * and the user can scroll without forced viewport-sized pages.
+ * animation), but the fixed `h-dvh` is dropped and the exit transform is
+ * skipped — content flows naturally and the user can scroll without forced
+ * viewport-sized pages.
  */
 export function ChapterBeat({ index, slug, ariaLabel, className, children }: Props) {
   const ref = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
   const nudged = useChapterNudge(ref);
 
-  const baseClass = reducedMotion
+  const exitProgress = useMotionValue(0);
+  const exitY = useTransform(exitProgress, [0, 1], [0, EXIT_TRANSLATE_PX]);
+  const exitOpacity = useTransform(exitProgress, [0, EXIT_FADE_END], [1, 0]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const el = ref.current;
+    if (!el) return;
+    const container: HTMLElement | Window = mainScrollRef.current ?? window;
+    const compute = () => {
+      const rect = el.getBoundingClientRect();
+      const h = rect.height || 1;
+      // top is 0 when beat top is pinned at viewport top, -h when beat
+      // bottom hits viewport top (fully scrolled past). Clamp to [0,1]
+      // so the transform is neutral while the beat is still settling in
+      // and saturates once it's fully past.
+      const p = Math.min(1, Math.max(0, -rect.top / h));
+      exitProgress.set(p);
+    };
+    compute();
+    container.addEventListener("scroll", compute, { passive: true });
+    window.addEventListener("resize", compute, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", compute);
+      window.removeEventListener("resize", compute);
+    };
+  }, [reducedMotion, exitProgress]);
+
+  const sectionClass = reducedMotion
     ? "relative w-full"
     : "relative h-dvh w-full overflow-hidden [scroll-snap-align:start] [scroll-snap-stop:always]";
-  const finalClass = [baseClass, className].filter(Boolean).join(" ");
+  const layoutClass = className;
 
   const body = typeof children === "function" ? children(nudged) : children;
 
@@ -59,9 +111,19 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
       data-beat={index}
       data-beat-slug={slug}
       aria-label={ariaLabel}
-      className={finalClass}
+      className={sectionClass}
     >
-      {body}
+      {reducedMotion ? (
+        <div className={layoutClass}>{body}</div>
+      ) : (
+        <m.div
+          data-beat-content=""
+          className={[layoutClass, "h-full w-full"].filter(Boolean).join(" ")}
+          style={{ y: exitY, opacity: exitOpacity, willChange: "transform, opacity" }}
+        >
+          {body}
+        </m.div>
+      )}
     </section>
   );
 }
