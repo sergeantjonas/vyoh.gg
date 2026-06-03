@@ -72,4 +72,48 @@ describe("ChapterContainer", () => {
     const section = container.querySelector("section");
     expect(section?.getAttribute("aria-label")).toBe("Your Ahri");
   });
+
+  it("scales outer height by beats × beatViewports when beats > 1", () => {
+    const { container } = render(
+      <ChapterContainer beats={4} beatViewports={0.6}>
+        <div />
+      </ChapterContainer>
+    );
+    const section = container.querySelector("section") as HTMLElement | null;
+    expect(section?.style.height).toBe("calc(2.4 * 100dvh)");
+    expect(section?.getAttribute("data-beats")).toBe("4");
+  });
+
+  it("omits the data-beats attribute on single-pin chapters (default beats=1)", () => {
+    const { container } = render(
+      <ChapterContainer>
+        <div />
+      </ChapterContainer>
+    );
+    const section = container.querySelector("section");
+    expect(section?.getAttribute("data-beats")).toBeNull();
+  });
+
+  it("multi-beat chapters still collapse under reduced motion", () => {
+    useReducedMotionMock.mockReturnValue(true);
+    const { container } = render(
+      <ChapterContainer beats={4} beatViewports={0.6}>
+        <div />
+      </ChapterContainer>
+    );
+    const section = container.querySelector("section") as HTMLElement | null;
+    expect(section?.style.height).toBe("");
+    expect(section?.getAttribute("data-pin")).toBe("off");
+  });
+
+  it("uses the default beatViewports when only beats is provided", () => {
+    const { container } = render(
+      <ChapterContainer beats={3}>
+        <div />
+      </ChapterContainer>
+    );
+    const section = container.querySelector("section") as HTMLElement | null;
+    // 3 × 0.6 → rounded to 1.8 to avoid floating-point noise in the calc().
+    expect(section?.style.height).toBe("calc(1.8 * 100dvh)");
+  });
 });
