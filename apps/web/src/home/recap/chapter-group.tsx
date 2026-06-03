@@ -1,5 +1,4 @@
-import { motion, useReducedMotion } from "motion/react";
-import { type ReactNode, type Ref, forwardRef, useEffect, useRef, useState } from "react";
+import { type ReactNode, type Ref, forwardRef } from "react";
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
@@ -8,17 +7,17 @@ type Props = {
   ariaLabel?: string;
   className?: string;
   /**
-   * Persistent chapter identity (logo, text mark, etc.) rendered sticky
-   * at the top of the chapter group. Visible across beats 1+; hidden
-   * over beat 0 (which typically owns its own editorial masthead). The
-   * transition between hidden and visible is the chapter's "title
-   * materialises" moment as the reader leaves the cover beat for the
-   * body beats.
+   * Persistent chapter title card rendered sticky at the top of the
+   * group. This is the chapter's editorial constant — typically the
+   * eyebrow + masthead + tagline that identify the chapter. Stays
+   * visible across every beat while beat content changes underneath,
+   * so the reader perceives the chapter as one continuous editorial
+   * unit with a fixed header rather than four independent pages.
    *
-   * Renders once at the group level rather than re-mounting inside every
-   * beat — the identity is the chapter's constant under which the beat
-   * content swaps, which lets per-beat content animations go bolder
-   * without fighting an animated header.
+   * Rendered ONCE at the group level rather than re-mounting per beat —
+   * the title card is the chapter's constant under which content swaps,
+   * which keeps the masthead visually anchored as the reader scrolls
+   * and lets per-beat content animations go bolder.
    */
   identity?: ReactNode;
   children: ReactNode;
@@ -34,56 +33,17 @@ type Props = {
  * pin-based model.
  *
  * The `identity` slot, when present, renders sticky at the top of the
- * group and is gated by an IntersectionObserver on beat 0: hidden while
- * beat 0 dominates the viewport, fades in once beat 0 is mostly scrolled
- * past. The identity then persists through every subsequent beat without
- * re-mounting, so the chapter reads as one continuous editorial unit
- * with a fixed header rather than four independent pages.
+ * group and stays visible across every beat in the chapter. Beats are
+ * expected to leave enough top padding for the title card to live above
+ * their content without collision.
  */
 function ChapterGroupImpl(
   { slug, ariaLabel, className, identity, children }: Props,
   ref: Ref<HTMLElement>
 ) {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const reducedMotion = useReducedMotion();
-  // Identity is hidden while beat 0 dominates the viewport. Flips true
-  // once beat 0's intersection ratio drops below 0.5 (the reader is on
-  // their way out of the cover beat).
-  const [identityVisible, setIdentityVisible] = useState(false);
-
-  useEffect(() => {
-    if (!identity) return;
-    if (typeof IntersectionObserver === "undefined") {
-      // SSR / test fallback — assume identity should be visible so it
-      // appears in the rendered DOM and aria tree.
-      setIdentityVisible(true);
-      return;
-    }
-    const target = sectionRef.current?.querySelector('[data-beat="0"]');
-    if (!target) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        setIdentityVisible(entry.intersectionRatio < 0.5);
-      },
-      // Granular thresholds so the callback fires steadily during the
-      // beat 0 → beat 1 transition rather than as one binary flip.
-      { threshold: [0, 0.25, 0.5, 0.75, 1] }
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [identity]);
-
-  const assignRef = (node: HTMLElement | null) => {
-    sectionRef.current = node;
-    if (typeof ref === "function") ref(node);
-    else if (ref) (ref as { current: HTMLElement | null }).current = node;
-  };
-
   return (
     <section
-      ref={assignRef}
+      ref={ref}
       data-chapter={slug}
       data-chapter-group=""
       aria-label={ariaLabel}
@@ -97,25 +57,11 @@ function ChapterGroupImpl(
         // overlay layer doesn't intercept clicks on beat content; the
         // identity itself re-enables `pointer-events: auto`.
         <div
-          aria-hidden={identityVisible ? undefined : true}
+          data-chapter-identity-mark=""
           className="pointer-events-none absolute inset-0 z-10"
         >
-          <div className="sticky top-0 px-6 pt-6 sm:px-10">
-            <motion.div
-              data-chapter-identity-mark=""
-              initial={false}
-              animate={{
-                opacity: identityVisible ? 1 : 0,
-                y: identityVisible ? 0 : -8,
-              }}
-              transition={{
-                duration: reducedMotion ? 0 : 0.5,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              style={{ pointerEvents: identityVisible ? "auto" : "none" }}
-            >
-              {identity}
-            </motion.div>
+          <div className="sticky top-0">
+            <div className="pointer-events-auto">{identity}</div>
           </div>
         </div>
       ) : null}

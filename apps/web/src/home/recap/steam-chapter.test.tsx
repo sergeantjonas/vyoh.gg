@@ -169,12 +169,14 @@ afterEach(() => {
 describe("SteamChapter", () => {
   it("renders the masthead with the logo + tagline when a logo exists", () => {
     const { container } = render(<SteamChapter />);
-    // Logo path: the official Steam logo replaces the typographic <h2>;
-    // game name moves to the img's alt attribute as the accessible label.
-    // Two img tags carry alt="Hollow Knight" (masthead + identity strip);
-    // scope to the opener band for the masthead-specific assertion.
-    const opener = container.querySelector("[data-band='opener']") as HTMLElement;
-    const logo = opener.querySelector("img[alt='Hollow Knight']") as HTMLImageElement;
+    // Logo path: the official Steam logo replaces the typographic <h2>.
+    // The masthead now lives in the persistent chapter title card
+    // (ChapterGroup's identity slot), not inside beat 0 — scope to the
+    // identity-mark wrapper for the masthead-specific assertion.
+    const titleCard = container.querySelector(
+      "[data-chapter-identity-mark]"
+    ) as HTMLElement;
+    const logo = titleCard.querySelector("img[alt='Hollow Knight']") as HTMLImageElement;
     expect(logo).toBeTruthy();
     expect(logo.src).toContain("/logo/367520");
     expect(screen.getByText(/Forge your own path in Hollow Knight!/)).toBeTruthy();
@@ -333,11 +335,12 @@ describe("SteamChapter", () => {
 
   it("masthead links to the game-detail page (title-as-link)", () => {
     const { container } = render(<SteamChapter />);
-    // The masthead (logo img or h2 fallback) is wrapped in a Link in
-    // the opener band. The accessible name comes from the logo's alt
-    // attribute (or the h2 text), so the link is queryable by name.
-    const opener = container.querySelector("[data-band='opener']");
-    const link = opener?.querySelector("a");
+    // The masthead (logo img or h2 fallback) is wrapped in a Link in the
+    // chapter title card (ChapterGroup's identity slot). The accessible
+    // name comes from the logo's alt attribute (or the h2 text), so the
+    // link is queryable by name.
+    const titleCard = container.querySelector("[data-chapter-identity-mark]");
+    const link = titleCard?.querySelector("a");
     expect(link).toBeTruthy();
     expect(link?.getAttribute("to")).toBe("/steam/game/$appid");
     // Logo image lives inside the link in the default fixture (hasLogo).

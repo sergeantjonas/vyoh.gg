@@ -281,44 +281,95 @@ function PeakChip({
 }
 
 /**
- * Persistent identity mark for the Steam chapter — official Steam logo
- * when one exists, fallback to game name in small-caps tracking when not.
- * Rendered inside `<ChapterIdentityOverlay>` on every non-masthead beat
- * so the chapter framing stays anchored. Logo size deliberately closer to
- * the masthead than the prior tiny strip to soften the shrink jolt
- * between beat 0 and beats 1+.
+ * Persistent title card for the Steam chapter — eyebrow + masthead +
+ * tagline rendered inside `<ChapterGroup>`'s `identity` slot. Sticks at
+ * the top of the chapter group and stays visible across every beat.
+ * Beat content lives in the area below.
+ *
+ * This is the chapter's editorial constant: when the reader scrolls
+ * from beat 0 (verdict) to beat 1 (recent moments), the masthead
+ * doesn't disappear or shrink — it stays anchored as the new content
+ * arrives underneath. The "one masthead, content changes around it"
+ * pattern owner specified.
  */
-function SteamIdentityMark({
+function SteamChapterTitleCard({
   name,
+  eyebrow,
+  releaseChip,
+  tagline,
   hasLogo,
   appid,
   assetTimestamp,
 }: {
   name: string;
+  eyebrow: string;
+  releaseChip: string | null;
+  tagline: string;
   hasLogo: boolean;
   appid: number;
   assetTimestamp: number | null;
 }) {
-  if (hasLogo && assetTimestamp !== null) {
-    return (
-      <img
-        src={steamLibraryLogoUrl(appid, assetTimestamp)}
-        alt={name}
-        className="h-12 w-auto max-w-[280px] object-contain opacity-95 sm:h-14"
-        style={{
-          filter:
-            "drop-shadow(0 1px 0 rgba(0,0,0,0.85)) drop-shadow(0 0 5px rgba(0,0,0,0.7))",
-        }}
-      />
-    );
-  }
   return (
-    <span
-      className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/85"
-      style={{ textShadow: SHADOW_LABEL }}
-    >
-      {name}
-    </span>
+    <div className="flex w-full flex-col items-start gap-3 px-6 pt-12 sm:px-10 sm:pt-16">
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
+        <span
+          style={{
+            color: "var(--accent, currentColor)",
+            paintOrder: "stroke",
+            WebkitTextStroke: STROKE_ACCENT,
+            textShadow: SHADOW_ACCENT,
+          }}
+        >
+          {eyebrow}
+        </span>
+        {releaseChip ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="text-foreground/40"
+              style={{ textShadow: SHADOW_LABEL }}
+            >
+              ·
+            </span>
+            <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+              {releaseChip}
+            </span>
+          </>
+        ) : null}
+      </p>
+      <Link
+        to="/steam/game/$appid"
+        params={{ appid: String(appid) }}
+        className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
+      >
+        {hasLogo && assetTimestamp !== null ? (
+          <img
+            src={steamLibraryLogoUrl(appid, assetTimestamp)}
+            alt={name}
+            className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
+            style={{
+              filter:
+                "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
+            }}
+          />
+        ) : (
+          <h2
+            className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+            style={{ textShadow: SHADOW_MASTHEAD }}
+          >
+            {name}
+          </h2>
+        )}
+        {tagline ? (
+          <p
+            className="text-base italic text-foreground/80 sm:text-lg"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
+            {tagline}
+          </p>
+        ) : null}
+      </Link>
+    </div>
   );
 }
 
@@ -432,13 +483,13 @@ export function SteamChapter({
     [recap]
   );
 
-  // Shared layout class for every beat. justify-center pulls content into
-  // the vertical middle of the viewport — the prior justify-start + pt-20
-  // hugged the top edge and left ~70% of the viewport empty. Centering
-  // makes each beat read as a deliberate composition rather than a small
-  // content block. Identity overlay is `position: absolute` so it doesn't
-  // interact with this flex flow.
-  const BEAT_LAYOUT = "flex flex-col items-start justify-center px-6 sm:px-10";
+  // Shared layout class for every beat. pt-[38vh] sm:pt-[42vh] clears the
+  // persistent title card (sticky eyebrow + masthead + tagline that lives
+  // at the top of the chapter group). justify-center centers the beat
+  // content vertically in the remaining space below the title card so it
+  // commands the available area rather than hugging the top edge.
+  const BEAT_LAYOUT =
+    "flex flex-col items-start justify-center px-6 pt-[38vh] sm:px-10 sm:pt-[42vh]";
 
   return (
     <div
@@ -451,108 +502,26 @@ export function SteamChapter({
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
         identity={
-          <SteamIdentityMark
+          <SteamChapterTitleCard
             name={name}
+            eyebrow={eyebrow}
+            releaseChip={releaseChip}
+            tagline={tagline}
             hasLogo={recap?.hasLogo ?? false}
             appid={appid}
             assetTimestamp={recap?.assetTimestamp ?? null}
           />
         }
       >
-        {/* Beat 0 — Identity (eyebrow + masthead + tagline + verdict).
-            ChapterGroup's identity slot is hidden while beat 0 is in view
-            so the masthead reads as the sole title; identity materialises
-            as the reader crosses into beat 1. */}
+        {/* Beat 0 — Verdict prose only. Eyebrow + masthead + tagline now
+            live in the chapter group's title card and persist across all
+            beats, so beat 0's body is the verdict that summarises the
+            game's standing. */}
         <ChapterBeat index={0} className={BEAT_LAYOUT}>
           {(nudged) => (
             <ChapterOpener>
-              <ChapterReveal active={nudged} delay={0.05} blur={4}>
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
-                  <span
-                    style={{
-                      color: "var(--accent, currentColor)",
-                      paintOrder: "stroke",
-                      WebkitTextStroke: STROKE_ACCENT,
-                      textShadow: SHADOW_ACCENT,
-                    }}
-                  >
-                    {eyebrow}
-                  </span>
-                  {releaseChip ? (
-                    <>
-                      <span
-                        aria-hidden="true"
-                        className="text-foreground/40"
-                        style={{ textShadow: SHADOW_LABEL }}
-                      >
-                        ·
-                      </span>
-                      <span
-                        className="text-foreground/75"
-                        style={{ textShadow: SHADOW_LABEL }}
-                      >
-                        {releaseChip}
-                      </span>
-                    </>
-                  ) : null}
-                </p>
-              </ChapterReveal>
-              <ChapterReveal
-                active={nudged}
-                delay={0.18}
-                duration={1.1}
-                blur={16}
-                rise={20}
-              >
-                {/* Masthead-as-link: the chapter title IS the entry point
-                    to the game-detail page, magazine-style. Replaces the
-                    prior bottom-band CTA — frees vertical space and reads
-                    more editorial. Group-hover "→" mirrors the standout
-                    block's affordance. */}
-                <Link
-                  to="/steam/game/$appid"
-                  params={{ appid: String(appid) }}
-                  className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
-                >
-                  {recap?.hasLogo ? (
-                    // Official Steam logo as the masthead — designed
-                    // wordmark / brand mark that reads more "editorial"
-                    // than helvetica-7xl. `alt={name}` carries the
-                    // accessible label. Heavy drop-shadow filter mirrors
-                    // the SHADOW_MASTHEAD tier so the logo still cuts
-                    // cleanly against bright splash chroma — text-shadow
-                    // doesn't apply to img, so filter: drop-shadow.
-                    <img
-                      src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
-                      alt={name}
-                      className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
-                      style={{
-                        filter:
-                          "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
-                      }}
-                    />
-                  ) : (
-                    // Typographic fallback — covers the ~5% of titles
-                    // that ship without a publisher logo.
-                    <h2
-                      className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                      style={{ textShadow: SHADOW_MASTHEAD }}
-                    >
-                      {name}
-                    </h2>
-                  )}
-                  {tagline ? (
-                    <p
-                      className="text-base italic text-foreground/80 sm:text-lg"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      {tagline}
-                    </p>
-                  ) : null}
-                </Link>
-              </ChapterReveal>
               {verdictClauses.length > 0 ? (
-                <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">
+                <ChapterReveal active={nudged} delay={0.05} blur={6}>
                   <VerdictProse
                     clauses={verdictClauses}
                     style={{ textShadow: SHADOW_BODY }}
@@ -562,7 +531,7 @@ export function SteamChapter({
                       textShadow: SHADOW_ACCENT,
                     }}
                     numbersActive={nudged}
-                    numbersDelay={1.25}
+                    numbersDelay={0.75}
                   />
                 </ChapterReveal>
               ) : null}
