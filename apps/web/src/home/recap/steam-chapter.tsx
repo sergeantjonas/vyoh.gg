@@ -263,10 +263,11 @@ function PeakChip({
     <ChapterReveal active={active} delay={delay}>
       <div className="flex flex-col gap-2 sm:gap-3">
         <span
-          // Hero-sized in the stacked-beat layout — beat 2 owns a full
-          // viewport, so the chips have room to command instead of
-          // hugging a corner. text-6xl ≈ 60px, sm:text-8xl ≈ 96px.
-          className="text-6xl font-semibold leading-none tabular-nums text-foreground sm:text-8xl"
+          // text-5xl ≈ 48px, sm:text-6xl ≈ 60px. Sized down from the
+          // earlier text-6xl/text-8xl after owner flagged the numbers as
+          // oversized AND the min-width count-up reservation made three
+          // chips at text-8xl wrap on common viewport widths.
+          className="text-5xl font-semibold leading-none tabular-nums text-foreground sm:text-6xl"
           style={{ textShadow: SHADOW_MASTHEAD }}
         >
           {parsed ? (
