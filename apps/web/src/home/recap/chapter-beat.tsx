@@ -98,15 +98,23 @@ const EXIT_BLUR_END = 0.72;
  */
 export function ChapterBeat({ index, slug, ariaLabel, className, children }: Props) {
   const ref = useRef<HTMLElement | null>(null);
+  // Inner-wrapper ref: needed because the counter-translate is applied via
+  // direct DOM mutation (`element.style.translate`) inside the scroll
+  // handler, NOT via a MotionValue + style.y. motion's MotionValue writes
+  // are scheduled to the next animation frame, which means each scroll
+  // tick paints the section's new position one frame BEFORE the counter-
+  // translate catches up — manifesting as a frame of residual motion per
+  // scroll event ("content still moves up slightly"). Setting
+  // `style.translate` synchronously to the scroll event eliminates that
+  // lag because the style write happens in the same frame as the scroll
+  // position change. Filter + opacity stay on MotionValues because their
+  // frame-of-lag is invisible — there's no positional reference to
+  // expose it.
+  const innerRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useReducedMotion();
   const nudged = useChapterNudge(ref);
 
   const exitProgress = useMotionValue(0);
-  // Counter-translate (in px): set to -rect.top during exit so the content
-  // stays visually pinned at its original viewport position while the
-  // section slides past. MotionValue is the raw px count; we publish it
-  // straight into `style.y`.
-  const exitCounterY = useMotionValue(0);
   // Hold-then-decay envelopes — content stays at 1/sharp for the first
   // ~18% of exit, then fades + defocuses through to the saturated value.
   // Three-point ranges with the hold breakpoint give a flat opening
@@ -131,7 +139,8 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
   useEffect(() => {
     if (reducedMotion) return;
     const el = ref.current;
-    if (!el) return;
+    const inner = innerRef.current;
+    if (!el || !inner) return;
     const container: HTMLElement | Window = mainScrollRef.current ?? window;
     const compute = () => {
       const rect = el.getBoundingClientRect();
@@ -145,11 +154,16 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
       exitProgress.set(p);
       // Counter-translate: ONLY during exit (top < 0). Translating the
       // content +(-top) px keeps its viewport-y position constant while
-      // the section's own translate scrolls it upward — net visual: the
-      // content stays where it was. Setting to 0 when the beat is still
-      // entering (top > 0) so the entrance reveal sees a neutral
-      // transform stack.
-      exitCounterY.set(top < 0 ? -top : 0);
+      // the section's own scroll moves it upward — net visual: the
+      // content stays where it was. Written directly to `style.translate`
+      // (the CSS shorthand, separate from motion's `style.filter` and
+      // `style.opacity` writes) so it lands in the same paint frame as
+      // the scroll event. Going through a MotionValue here would
+      // introduce one frame of lag — every scroll tick would paint with
+      // the old translate before motion's rAF batched the new one —
+      // which manifests as residual upward motion during the exit.
+      const counter = top < 0 ? -top : 0;
+      inner.style.translate = `0 ${counter}px`;
     };
     compute();
     container.addEventListener("scroll", compute, { passive: true });
@@ -158,7 +172,7 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
       container.removeEventListener("scroll", compute);
       window.removeEventListener("resize", compute);
     };
-  }, [reducedMotion, exitProgress, exitCounterY]);
+  }, [reducedMotion, exitProgress]);
 
   const sectionClass = reducedMotion
     ? "relative w-full"
@@ -179,13 +193,13 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
         <div className={layoutClass}>{body}</div>
       ) : (
         <m.div
+          ref={innerRef}
           data-beat-content=""
           className={[layoutClass, "h-full w-full"].filter(Boolean).join(" ")}
           style={{
-            y: exitCounterY,
             opacity: exitOpacity,
             filter: exitFilter,
-            willChange: "transform, opacity, filter",
+            willChange: "translate, opacity, filter",
           }}
         >
           {body}
