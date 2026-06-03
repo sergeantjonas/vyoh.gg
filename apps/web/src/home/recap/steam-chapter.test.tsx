@@ -320,12 +320,9 @@ describe("SteamChapter", () => {
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     render(<SteamChapter />);
     // No cap — strip renders every screenshot; overflow-x-auto handles
-    // visual containment within the multi-beat closer (beat 3). The strip
-    // lives inside beat 3 which starts inactive (aria-hidden) in tests
-    // since the default beat index is 0; `{ hidden: true }` opts the query
-    // into hidden subtrees so we can assert DOM presence regardless of
-    // active-beat state. The visual gating is covered by chapter-beats
-    // tests; this assertion is about content count, not visibility.
+    // visual containment within the closer beat. `{ hidden: true }` opts
+    // the query into hidden subtrees in case the testing environment
+    // marks any ancestor inert; this assertion is about content count.
     const triggers = screen.getAllByRole("button", {
       name: /Open screenshot/,
       hidden: true,
