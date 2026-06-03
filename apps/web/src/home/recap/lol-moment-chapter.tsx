@@ -10,6 +10,7 @@ import {
   type LolStreakStats,
   formatRankTitle,
 } from "@vyoh/shared";
+import { Clock, Hourglass, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -153,7 +154,16 @@ function momentCopy(args: {
     return {
       eyebrow: "Marathon",
       mastheadText: displayName,
-      leadingVisual: null,
+      // Clock evokes the marathon's "across hours, not games" shape without
+      // duplicating the matchCount/spanHours numbers in the prose. Sized
+      // and shadowed to match the RANK_UP emblem's visual weight.
+      leadingVisual: (
+        <Clock
+          aria-hidden="true"
+          className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+          strokeWidth={1.5}
+        />
+      ),
       chapterLabel: `Marathon · ${displayName}`,
       ariaLabel: `Marathon session on ${displayName}`,
       body: (
@@ -167,10 +177,35 @@ function momentCopy(args: {
 
   if ((momentType === "STREAK_5W" || momentType === "STREAK_5L") && streak) {
     const isHot = streak.result === "W";
+    // Pip row visualises the streak shape directly — one dot per game, all
+    // tinted by the streak result. Capped at PIP_RENDER_CAP so a 12+ streak
+    // doesn't blow up the layout; the actual count still appears in the
+    // prose ("12 ranked wins in a row"). Pre-built keyed entries so the
+    // streak result and position both contribute to the key (avoids
+    // index-as-key while keeping the render order stable).
+    const PIP_RENDER_CAP = 7;
+    const renderedPips = Math.min(streak.length, PIP_RENDER_CAP);
+    const pipKeys = Array.from(
+      { length: renderedPips },
+      (_, i) => `pip-${streak.result}-${i}`
+    );
     return {
       eyebrow: isHot ? "Hot streak" : "Cold streak",
       mastheadText: displayName,
-      leadingVisual: null,
+      leadingVisual: (
+        <div aria-hidden="true" className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {pipKeys.map((key) => (
+            <span
+              key={key}
+              className={[
+                "block size-3 rounded-full sm:size-4",
+                isHot ? "bg-emerald-300" : "bg-rose-300",
+                "shadow-[0_2px_8px_rgba(0,0,0,0.5)]",
+              ].join(" ")}
+            />
+          ))}
+        </div>
+      ),
       chapterLabel: `${isHot ? "Hot streak" : "Cold streak"} · ${displayName}`,
       ariaLabel: `${isHot ? "Hot streak" : "Cold streak"} on ${displayName}`,
       body: isHot ? (
@@ -193,7 +228,16 @@ function momentCopy(args: {
     return {
       eyebrow: "Return",
       mastheadText: displayName,
-      leadingVisual: null,
+      // Hourglass evokes "time away" — the chapter's narrative seed is the
+      // gap, not the return match itself. Sized + shadowed to match the
+      // emblem/clock pattern.
+      leadingVisual: (
+        <Hourglass
+          aria-hidden="true"
+          className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+          strokeWidth={1.5}
+        />
+      ),
       chapterLabel: `Return · ${displayName}`,
       ariaLabel: `Return from hiatus on ${displayName}`,
       body: (
@@ -216,7 +260,16 @@ function momentCopy(args: {
     return {
       eyebrow: "Standout game",
       mastheadText: displayName,
-      leadingVisual: null,
+      // Trophy evokes "peak performance" — the chapter is about this being
+      // the owner's best KDA in the window. Avoids duplicating the
+      // numeric multiplier already in the prose.
+      leadingVisual: (
+        <Trophy
+          aria-hidden="true"
+          className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+          strokeWidth={1.5}
+        />
+      ),
       chapterLabel: `Standout · ${displayName}`,
       ariaLabel: `Standout game on ${displayName}`,
       body: (

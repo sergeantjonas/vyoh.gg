@@ -517,6 +517,67 @@ describe("LolMomentChapter daysSince formatting", () => {
   });
 });
 
+describe("LolMomentChapter per-type leadingVisual (R-7h.2)", () => {
+  // Each non-text-only momentType gets a recognisable inline visual paired
+  // with the masthead — at-a-glance silhouette before the prose lands.
+  // We assert by lucide's emitted className signature (`lucide-{name}`) or
+  // by the pip-row's coloured-dot signature for streaks.
+  it("renders the destination tier emblem on RANK_UP (pre-R-7h.2; unchanged)", () => {
+    const { container } = render(<LolMomentChapter {...rankUpProps} />);
+    expect(container.querySelector("img[alt='']")).toBeTruthy();
+  });
+
+  it("renders a Trophy lucide icon as the leadingVisual on KDA_OUTLIER", () => {
+    const { container } = render(<LolMomentChapter {...kdaOutlierProps} />);
+    expect(container.querySelector(".lucide-trophy")).toBeTruthy();
+  });
+
+  it("renders an Hourglass lucide icon as the leadingVisual on RETURN_FROM_HIATUS", () => {
+    const { container } = render(<LolMomentChapter {...hiatusReturnProps} />);
+    expect(container.querySelector(".lucide-hourglass")).toBeTruthy();
+  });
+
+  it("renders a Clock lucide icon as the leadingVisual on MARATHON", () => {
+    const { container } = render(<LolMomentChapter {...marathonProps} />);
+    expect(container.querySelector(".lucide-clock")).toBeTruthy();
+  });
+
+  it("renders an emerald pip row as the leadingVisual on STREAK_5W", () => {
+    const { container } = render(<LolMomentChapter {...streakWinProps} />);
+    const pips = container.querySelectorAll(".bg-emerald-300.rounded-full");
+    // streakWinProps.streak.length = 5
+    expect(pips.length).toBe(5);
+    expect(container.querySelector(".bg-rose-300.rounded-full")).toBeNull();
+  });
+
+  it("renders a rose pip row as the leadingVisual on STREAK_5L", () => {
+    const { container } = render(<LolMomentChapter {...streakLossProps} />);
+    const pips = container.querySelectorAll(".bg-rose-300.rounded-full");
+    // streakLossProps.streak.length = 6
+    expect(pips.length).toBe(6);
+    expect(container.querySelector(".bg-emerald-300.rounded-full")).toBeNull();
+  });
+
+  it("caps the pip row at 7 dots for very long streaks (prose still carries the true count)", () => {
+    const longStreakProps = {
+      ...streakWinProps,
+      streak: { result: "W" as const, length: 12 },
+    };
+    const { container } = render(<LolMomentChapter {...longStreakProps} />);
+    const pips = container.querySelectorAll(".bg-emerald-300.rounded-full");
+    expect(pips.length).toBe(7);
+  });
+
+  it("renders no leadingVisual on OFF_META_PICK (the splash IS the visual)", () => {
+    const { container } = render(<LolMomentChapter {...baseProps} />);
+    expect(container.querySelector(".lucide-trophy")).toBeNull();
+    expect(container.querySelector(".lucide-clock")).toBeNull();
+    expect(container.querySelector(".lucide-hourglass")).toBeNull();
+    expect(container.querySelector(".bg-emerald-300.rounded-full")).toBeNull();
+    expect(container.querySelector(".bg-rose-300.rounded-full")).toBeNull();
+  });
+});
+
 describe("LolMomentChapter per-type accent (R-7h.1)", () => {
   // Per-momentType typographic accent — eyebrow + Accent spans pick up a
   // tailwind text-* class from `momentAccentClass`. The atmosphere backdrop

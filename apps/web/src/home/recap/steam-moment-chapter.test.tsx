@@ -357,6 +357,30 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
   });
 });
 
+describe("SteamMomentChapter per-type leadingVisual (R-7h.2)", () => {
+  it("renders a Sparkles lucide icon as the leadingVisual on FIRST_TIME_GAME", () => {
+    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    expect(container.querySelector(".lucide-sparkles")).toBeTruthy();
+  });
+
+  it("renders an Award lucide icon as the leadingVisual on ACHIEVEMENT_CLUSTER", () => {
+    const clusterProps = {
+      ...baseProps,
+      slug: "steam-moment-cluster-2050650",
+      momentType: "ACHIEVEMENT_CLUSTER" as const,
+      firstTime: null,
+      cluster: {
+        unlockCount: 6,
+        spanHours: 3.5,
+        capUnlockedAt: "2026-05-30T20:00:00.000Z",
+        unlockNames: ["Survivor", "Hunter"],
+      },
+    };
+    const { container } = render(<SteamMomentChapter {...clusterProps} />);
+    expect(container.querySelector(".lucide-award")).toBeTruthy();
+  });
+});
+
 describe("SteamMomentChapter per-type accent (R-7h.1)", () => {
   // Per-momentType typographic accent — FIRST_TIME_GAME picks teal-300,
   // ACHIEVEMENT_CLUSTER picks fuchsia-300. Atmosphere backdrop stays game-

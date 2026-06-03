@@ -5,6 +5,7 @@ import type {
   SteamMomentChapterDescriptor,
 } from "@vyoh/shared";
 import { formatPlaytime } from "@vyoh/shared";
+import { Award, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -32,6 +33,11 @@ type MomentType = SteamMomentChapterDescriptor["momentType"];
 interface MomentCopy {
   eyebrow: string;
   mastheadText: string;
+  /** Visual element rendered inline before the masthead text — gives each
+   *  momentType a recognisable silhouette before the prose lands (R-7h.2).
+   *  FIRST_TIME_GAME → Sparkles, ACHIEVEMENT_CLUSTER → Award. Null when the
+   *  momentType is text-only. */
+  leadingVisual: ReactNode | null;
   chapterLabel: string;
   ariaLabel: string;
   body: ReactNode;
@@ -83,6 +89,18 @@ function momentCopy(args: {
     return {
       eyebrow: "First time on",
       mastheadText: name,
+      // Sparkles glyph reads as "freshness / brand-new" without competing
+      // with the hero backdrop. Sized to match the masthead text-6xl;
+      // accent-coloured via the per-momentType class so it ties to the
+      // eyebrow signature. `aria-hidden` because the chapter eyebrow
+      // already states "First time on", so the SR reading isn't doubled.
+      leadingVisual: (
+        <Sparkles
+          aria-hidden="true"
+          className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+          strokeWidth={1.5}
+        />
+      ),
       chapterLabel: "First time",
       ariaLabel: `First time playing ${name}`,
       body: firstTimeBody({ firstTime, playLine, accentClass }),
@@ -96,6 +114,17 @@ function momentCopy(args: {
   return {
     eyebrow: "Recent run on",
     mastheadText: name,
+    // Award glyph evokes "achievement run" without committing to a specific
+    // unlock-icon grid (which would require an extra schema fetch). R-7h
+    // can later upgrade this to a mini-grid of cluster unlock icons once
+    // the descriptor carries iconUrls.
+    leadingVisual: (
+      <Award
+        aria-hidden="true"
+        className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+        strokeWidth={1.5}
+      />
+    ),
     chapterLabel: "Recent run",
     ariaLabel: `Recent achievement run on ${name}`,
     body: clusterBody({ cluster, accentClass }),
@@ -423,12 +452,20 @@ export function SteamMomentChapter({
                 params={{ appid: String(appid) }}
                 className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
               >
-                <h2
-                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                  style={{ textShadow: SHADOW_MASTHEAD }}
-                >
-                  {copy.mastheadText}
-                </h2>
+                {/* Inner row pairs the optional leading visual with the H2
+                    along the visual center; the outer Link stays items-
+                    baseline so the trailing "open →" chip aligns to the H2's
+                    text baseline. Mirrors the LoL moment chapter's masthead
+                    pattern. */}
+                <span className="inline-flex items-center gap-x-4">
+                  {copy.leadingVisual}
+                  <h2
+                    className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                    style={{ textShadow: SHADOW_MASTHEAD }}
+                  >
+                    {copy.mastheadText}
+                  </h2>
+                </span>
                 <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
                   open →
                 </span>
