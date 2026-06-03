@@ -32,31 +32,37 @@ type Props = {
   children: ReactNode | BeatRenderProp;
 };
 
-// Editorial recede on exit. Four axes layered so the gesture reads as
-// "content stayed in place and dissolved", not as "content scrolled off":
+// Editorial recede on exit. Two-axis dissolve with a hold-then-decay
+// envelope so the gesture reads as "content stayed in place and dissolved",
+// not as "content scrolled off" and not as "content shrank away":
 //
 // - counter-translate y: the inner content gets translated DOWN by the
-//   same number of pixels the section's been scrolled UP, which keeps the
-//   content visually pinned to its original viewport position while the
+//   same number of pixels the section's been scrolled UP, which keeps
+//   content visually pinned at its original viewport position while the
 //   section slides past underneath. WITHOUT this, the section's natural
-//   scroll-up motion dominates the visual; the blur/scale/opacity were
-//   playing but invisible because the content was already off-screen by
-//   the time they'd progressed enough to read.
-// - blur (0 → 24px): heavy defocus — content goes optically out of focus.
-// - scale (1 → 0.92): subtle shrink — content pulls back from the camera.
+//   scroll-up motion dominates the visual; the blur/opacity arc plays
+//   invisibly underneath because content has already scrolled off-screen
+//   by the time the arc has any signal strength.
+// - blur (0 → 24px): optical defocus.
 // - opacity (1 → 0): fade.
 //
-// Defocus/scale/opacity all saturate before the natural scroll-off
-// completes (fade by 40%, blur by 55%, scale by 60% of total exit) so
-// content is visibly gone well before the next beat snaps in. By that
-// point the counter-translate has done its job and the now-invisible
-// content can clip naturally against the section's `overflow-hidden` —
-// nothing visible is being clipped because opacity is already 0.
+// Hold window (~first 18% of exit) keeps both axes at neutral — content
+// stays sharp and at full opacity for the first beat of scroll-past, so
+// it reads as "this beat lingered briefly before dissolving" rather than
+// "it started fading the instant I scrolled". Then both axes ramp through
+// to their saturated values before the natural scroll-off clipping
+// boundary (~78% of exit, given pt-[22vh] inner padding against the
+// section's `overflow-hidden` clip rect).
+//
+// A scale axis (1 → 0.92) was tried but contributed a "shrinking from
+// center" perception of residual motion even though no position changed
+// — dropped. Blur is the cleaner editorial dissolve because it doesn't
+// imply any directional movement.
 const EXIT_BLUR_PX = 24;
-const EXIT_SCALE_MIN = 0.92;
-const EXIT_FADE_END = 0.5;
-const EXIT_BLUR_END = 0.6;
-const EXIT_SCALE_END = 0.6;
+const EXIT_FADE_HOLD = 0.18;
+const EXIT_FADE_END = 0.75;
+const EXIT_BLUR_HOLD = 0.15;
+const EXIT_BLUR_END = 0.72;
 
 /**
  * One beat in a stacked-beat chapter (R-13 final architecture). A viewport-
@@ -101,14 +107,25 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
   // section slides past. MotionValue is the raw px count; we publish it
   // straight into `style.y`.
   const exitCounterY = useMotionValue(0);
-  const exitOpacity = useTransform(exitProgress, [0, EXIT_FADE_END], [1, 0]);
-  const exitScale = useTransform(exitProgress, [0, EXIT_SCALE_END], [1, EXIT_SCALE_MIN]);
+  // Hold-then-decay envelopes — content stays at 1/sharp for the first
+  // ~18% of exit, then fades + defocuses through to the saturated value.
+  // Three-point ranges with the hold breakpoint give a flat opening
+  // followed by a single ease segment.
+  const exitOpacity = useTransform(
+    exitProgress,
+    [0, EXIT_FADE_HOLD, EXIT_FADE_END],
+    [1, 1, 0]
+  );
   // useMotionTemplate composes a string MotionValue from a numeric one —
   // the explicit-string version (`useTransform(p, [0,1], ["blur(0px)",
   // "blur(24px)"])`) is brittle across motion versions because the CSS
   // function-call format isn't interpolated reliably. Template form
   // outputs `blur(${px}px)` per frame from the numeric blurPx MV.
-  const exitBlurPx = useTransform(exitProgress, [0, EXIT_BLUR_END], [0, EXIT_BLUR_PX]);
+  const exitBlurPx = useTransform(
+    exitProgress,
+    [0, EXIT_BLUR_HOLD, EXIT_BLUR_END],
+    [0, 0, EXIT_BLUR_PX]
+  );
   const exitFilter = useMotionTemplate`blur(${exitBlurPx}px)`;
 
   useEffect(() => {
@@ -167,7 +184,6 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
           style={{
             y: exitCounterY,
             opacity: exitOpacity,
-            scale: exitScale,
             filter: exitFilter,
             willChange: "transform, opacity, filter",
           }}
