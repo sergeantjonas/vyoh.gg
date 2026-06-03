@@ -3,10 +3,18 @@ import { type RefObject, useEffect, useState } from "react";
 import { mainScrollRef } from "@/lib/scroll-container";
 
 /**
- * Threshold (0–1) at which the chapter's reveal cascade fires. Picked so
- * the cascade plays once the user has decisively landed *inside* the
- * chapter — anywhere between top and bottom counts as "landed". 0.5 fires
- * when the chapter occupies half the viewport.
+ * Threshold (0–1) at which the chapter's reveal cascade fires, expressed as
+ * a fraction of the VIEWPORT (not of the observed section). Picked so the
+ * cascade plays once the user has decisively landed *inside* the chapter —
+ * anywhere between top and bottom counts as "landed". 0.5 fires when the
+ * pin occupies half the viewport.
+ *
+ * For multi-beat chapters whose section is taller than the viewport (R-13),
+ * the raw IntersectionObserver ratio caps at `1 / sectionViewports` during
+ * the pin window (a 2.4× section can never have more than 1/2.4 ≈ 0.417 of
+ * itself visible). The hook scales the observer threshold down by that
+ * factor at observe-time so `triggerRatio` keeps its viewport-relative
+ * semantic regardless of section height.
  *
  * History: 0.08 was too eager (fired mid-scroll), 0.35 fired too late
  * (user often missed the trigger zone at speed). 0.5 reads as a
@@ -59,6 +67,17 @@ export function useChapterNudge(
     const el = ref.current;
     if (!el) return;
     const main = mainScrollRef.current;
+    // Scale the threshold by section height so triggerRatio remains
+    // viewport-relative across single-pin (1× viewport) and multi-beat
+    // (e.g. 2.4× viewport) sections. Falls back to the raw ratio when
+    // measurement isn't available (SSR-shaped DOM, happy-dom, etc.) —
+    // same behavior as before the multi-beat retrofit.
+    const viewportHeight = window.innerHeight || 0;
+    const sectionHeight = el.getBoundingClientRect().height || 0;
+    const sectionViewports =
+      viewportHeight > 0 && sectionHeight > 0 ? sectionHeight / viewportHeight : 1;
+    const observerThreshold =
+      sectionViewports > 1 ? Math.min(1, triggerRatio / sectionViewports) : triggerRatio;
     let triggered = false;
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new IntersectionObserver(
@@ -66,7 +85,7 @@ export function useChapterNudge(
         for (const entry of entries) {
           if (
             entry.isIntersecting &&
-            entry.intersectionRatio >= triggerRatio &&
+            entry.intersectionRatio >= observerThreshold &&
             !triggered
           ) {
             triggered = true;
@@ -76,7 +95,7 @@ export function useChapterNudge(
           }
         }
       },
-      { root: main ?? null, threshold: triggerRatio }
+      { root: main ?? null, threshold: observerThreshold }
     );
     observer.observe(el);
     return () => {

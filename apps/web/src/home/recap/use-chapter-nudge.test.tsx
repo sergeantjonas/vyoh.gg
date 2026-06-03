@@ -133,4 +133,67 @@ describe("useChapterNudge", () => {
     if (!io) throw new Error("IO not created");
     expect(io.options?.threshold).toBe(0.5);
   });
+
+  it("scales the threshold down for sections taller than the viewport (multi-beat)", () => {
+    // Simulate a 2.4× viewport section (4-beat × 0.6 beat-viewports). The
+    // viewport-relative triggerRatio (0.5 by default) must translate to an
+    // observer threshold of 0.5 / 2.4 so the IO can actually deliver an
+    // entry — the raw ratio caps at 1/2.4 throughout the pin window.
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    Object.defineProperty(window, "innerHeight", {
+      value: 800,
+      configurable: true,
+    });
+    HTMLElement.prototype.getBoundingClientRect = vi.fn(() => ({
+      height: 1920,
+      width: 1280,
+      top: 0,
+      left: 0,
+      right: 1280,
+      bottom: 1920,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })) as unknown as () => DOMRect;
+
+    renderHookWithRef();
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    expect(io.options?.threshold).toBeCloseTo(0.5 / 2.4, 4);
+
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  });
+
+  it("fires multi-beat nudge when intersection ratio crosses the scaled threshold", () => {
+    // Same 2.4× section; the observer should fire when intersection ratio
+    // reaches the scaled threshold (~0.21), which is the realistic max for
+    // a 2.4× section.
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    Object.defineProperty(window, "innerHeight", {
+      value: 800,
+      configurable: true,
+    });
+    HTMLElement.prototype.getBoundingClientRect = vi.fn(() => ({
+      height: 1920,
+      width: 1280,
+      top: 0,
+      left: 0,
+      right: 1280,
+      bottom: 1920,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })) as unknown as () => DOMRect;
+
+    const { result } = renderHookWithRef();
+    const io = observers[0];
+    if (!io) throw new Error("IO not created");
+    act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.25 }));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(result.current.nudged).toBe(true);
+
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  });
 });
