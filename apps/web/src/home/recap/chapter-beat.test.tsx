@@ -15,6 +15,8 @@ vi.mock("./use-chapter-nudge", () => ({
 
 import { useReducedMotion } from "motion/react";
 
+import { mainScrollRef } from "@/lib/scroll-container";
+
 import { ChapterBeat } from "./chapter-beat";
 import { useChapterNudge } from "./use-chapter-nudge";
 
@@ -25,11 +27,17 @@ describe("ChapterBeat", () => {
   beforeEach(() => {
     useReducedMotionMock.mockReturnValue(false);
     useChapterNudgeMock.mockReturnValue(true);
+    // motion's useScroll throws when its container ref isn't hydrated.
+    // Set the scroll container to a detached div so the hook can subscribe;
+    // happy-dom won't fire actual scroll events on it, but the hook
+    // initialises cleanly.
+    mainScrollRef.current = document.createElement("div");
   });
 
   afterEach(() => {
     useReducedMotionMock.mockReset();
     useChapterNudgeMock.mockReset();
+    mainScrollRef.current = null;
   });
 
   it("renders a viewport-tall snap-aligned section with the index and snap classes", () => {

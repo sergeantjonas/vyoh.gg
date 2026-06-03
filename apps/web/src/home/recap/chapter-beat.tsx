@@ -1,13 +1,22 @@
 import {
   m,
   useMotionTemplate,
-  useMotionValue,
+  useMotionValueEvent,
   useReducedMotion,
+  useScroll,
   useTransform,
 } from "motion/react";
 import { type ReactNode, useEffect, useRef } from "react";
 
+import { mainScrollRef } from "@/lib/scroll-container";
+
 import { useChapterNudge } from "./use-chapter-nudge";
+
+// motion's useScroll types require RefObject<HTMLElement>, but mainScrollRef
+// is RefObject<HTMLElement | null>. The widening is type-only — at runtime
+// motion handles the null .current case by deferring subscription until
+// the ref attaches.
+const containerRef = mainScrollRef as unknown as React.RefObject<HTMLElement>;
 
 /** Render-prop child: receives this beat's own nudge state. */
 export type BeatRenderProp = (nudged: boolean) => ReactNode;
@@ -107,7 +116,24 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
   const reducedMotion = useReducedMotion();
   const nudged = useChapterNudge(ref);
 
-  const exitProgress = useMotionValue(0);
+  // motion's useScroll subscribes to the browser's scroll-progress signal
+  // for `ref`'s position inside `container`. Unlike a JS getBoundingClientRect
+  // poll (which reads stale layout values during composited scrolling — the
+  // bug that made every prior approach fail), useScroll's MotionValue is
+  // synced with the same scroll subscriber the compositor uses. Translates
+  // applied off it land in the same frame as the scroll position change.
+  //
+  // `offset: ["start start", "end start"]` defines the progress window: 0
+  // when the beat's start (top) meets the container's start (top of <main>),
+  // 1 when the beat's end (bottom) meets the container's start. So progress
+  // is 0 at viewport top and 1 fully scrolled past — the same convention
+  // the prior rAF-driven code used, just sourced from a non-stale signal.
+  const { scrollYProgress: exitProgress } = useScroll({
+    target: ref,
+    container: containerRef,
+    offset: ["start start", "end start"],
+  });
+
   // Hold-then-decay envelopes — content stays at 1/sharp for the first
   // ~18% of exit, then fades + defocuses through to the saturated value.
   // Three-point ranges with the hold breakpoint give a flat opening
@@ -129,49 +155,38 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
   );
   const exitFilter = useMotionTemplate`blur(${exitBlurPx}px)`;
 
+  // Counter-translate written directly to `pin.style.transform` on every
+  // exitProgress change. motion's useScroll fires this callback in sync
+  // with the compositor's scroll signal — NOT batched and not stale —
+  // so the translate lands in the same paint frame as the scroll move.
+  useMotionValueEvent(exitProgress, "change", (p) => {
+    if (reducedMotion) return;
+    const el = ref.current;
+    const pin = pinRef.current;
+    if (!el || !pin) return;
+    const h = el.getBoundingClientRect().height || 1;
+    // Translate the pin wrapper DOWN by the same number of pixels the
+    // section has scrolled UP (p * h). At p=0 the section is at viewport
+    // top, no counter needed. At p=1 the section is fully scrolled past,
+    // counter = h. The pin holds inner content at its original viewport
+    // position throughout.
+    const counter = Math.max(0, p) * h;
+    pin.style.transform = `translateY(${counter}px)`;
+    pin.dataset.exitProgress = p.toFixed(3);
+    pin.dataset.exitCounter = String(Math.round(counter));
+  });
+
+  // Re-apply transform once on mount in case progress is non-zero by the
+  // time the effect runs (e.g. SPA back-nav landing mid-section).
   useEffect(() => {
     if (reducedMotion) return;
     const el = ref.current;
     const pin = pinRef.current;
     if (!el || !pin) return;
-
-    // rAF loop, not a scroll listener. Browsers don't deliver scroll
-    // events at frame rate during scroll-snap-driven smooth scrolls —
-    // they batch and deliver late, so a scroll-event-driven compute
-    // would snap to its final value AFTER the user has already seen
-    // most of the bulk scroll motion (verified by data-exit-top
-    // updating late). rAF runs on every paint frame, reads the current
-    // `getBoundingClientRect()` at the layout-finalised moment just
-    // before paint, and writes the counter-translate in the same
-    // frame as the section's new position is painted — so the visual
-    // pin is exact, frame-for-frame.
-    let rafId = 0;
-    const tick = () => {
-      const rect = el.getBoundingClientRect();
-      const h = rect.height || 1;
-      const top = rect.top;
-      // top is 0 when beat top is pinned at viewport top, -h when beat
-      // bottom hits viewport top (fully scrolled past). Clamp progress
-      // to [0,1] so the transforms are neutral while the beat is still
-      // settling in and saturate once it's fully past.
-      const p = Math.min(1, Math.max(0, -top / h));
-      exitProgress.set(p);
-      // Counter-translate ONLY during exit (top < 0). translateY(-top)
-      // moves the pin wrapper DOWN by exactly the number of px the
-      // section has scrolled UP, holding inner content at its original
-      // viewport position. Written directly to `style.transform` on the
-      // plain wrapper — not the motion component — so motion's transform
-      // writes can't compete.
-      const counter = top < 0 ? -top : 0;
-      pin.style.transform = `translateY(${counter}px)`;
-      // Debug attributes mirrored to the DOM so devtools inspector can
-      // verify the loop is firing and the math is right.
-      pin.dataset.exitTop = String(Math.round(top));
-      pin.dataset.exitCounter = String(Math.round(counter));
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    const h = el.getBoundingClientRect().height || 1;
+    const p = exitProgress.get();
+    const counter = Math.max(0, p) * h;
+    pin.style.transform = `translateY(${counter}px)`;
   }, [reducedMotion, exitProgress]);
 
   const sectionClass = reducedMotion
