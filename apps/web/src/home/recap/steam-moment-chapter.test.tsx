@@ -30,10 +30,33 @@ vi.mock("motion/react", async () => {
 vi.mock("@/steam/_shared/steam-image", () => ({
   steamLibraryHeroLargeUrl: (appid: number) => `https://test/hero/${appid}`,
 }));
+vi.mock("@/steam/use-steam-game-recap", () => ({
+  useSteamGameRecap: vi.fn(),
+}));
 
 import { preloadLinkAsImage } from "@/home/recap/preload-link";
 import { useAssetClaim } from "@/home/recap/use-asset-claim";
+import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 import { SteamMomentChapter } from "./steam-moment-chapter";
+
+function mockRecap(
+  overrides: Partial<{
+    shortDescription: string;
+    dominantHex: string;
+    subjectXPercent: number;
+    subjectYPercent: number;
+  }> = {}
+) {
+  vi.mocked(useSteamGameRecap).mockReturnValue({
+    data: {
+      shortDescription: null,
+      dominantHex: null,
+      subjectXPercent: null,
+      subjectYPercent: null,
+      ...overrides,
+    },
+  } as ReturnType<typeof useSteamGameRecap>);
+}
 
 const baseProps = {
   appid: 2050650,
@@ -41,16 +64,18 @@ const baseProps = {
   daysSince: 3,
   slug: "steam-moment-first-2050650",
   momentType: "FIRST_TIME_GAME" as const,
-  firstTime: { windowPlayMinutes: 150 },
+  firstTime: { windowPlayMinutes: 150, sessionCount: 3 },
 };
 
 beforeEach(() => {
   mainScrollRef.current = document.createElement("div");
+  mockRecap();
 });
 
 afterEach(() => {
   vi.mocked(useAssetClaim).mockClear();
   vi.mocked(preloadLinkAsImage).mockClear();
+  vi.mocked(useSteamGameRecap).mockReset();
   mainScrollRef.current = null;
 });
 
@@ -72,17 +97,72 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
     expect(link).toBeTruthy();
   });
 
-  it("renders the in-window playtime receipt when firstTime is provided", () => {
+  it("renders the session-shape receipt (total + count + avg) when firstTime is provided", () => {
     render(<SteamMomentChapter {...baseProps} />);
-    // The exact format ("2h 30m" vs "150m") comes from `formatPlaytime`; we
-    // just assert the surrounding "in the books" tag landed so the receipt
-    // strip is present without coupling to formatter tuning.
-    expect(screen.getByText(/in the books/i)).toBeTruthy();
+    // baseProps: 150 min across 3 sessions → "3h · 3 sessions · avg 1h"
+    // (formatPlaytime rounds 50min → "50m"). Assert the loadbearing labels
+    // without coupling tightly to playtime formatter tuning.
+    expect(screen.getByText(/3 sessions/i)).toBeTruthy();
+    expect(screen.getByText(/^avg /i)).toBeTruthy();
   });
 
-  it("omits the playtime receipt when firstTime is null (defensive — descriptor invariant)", () => {
+  it("renders the singular '1 session' label and omits the avg when sessionCount is exactly one", () => {
+    render(
+      <SteamMomentChapter
+        {...baseProps}
+        firstTime={{ windowPlayMinutes: 120, sessionCount: 1 }}
+      />
+    );
+    expect(screen.getByText("1 session")).toBeTruthy();
+    // Avg is editorial duplication of the total when sessionCount=1, so we
+    // suppress it.
+    expect(screen.queryByText(/^avg /i)).toBeNull();
+  });
+
+  it("omits the playtime receipt entirely when firstTime is null (defensive — descriptor invariant)", () => {
     render(<SteamMomentChapter {...baseProps} firstTime={null} />);
-    expect(screen.queryByText(/in the books/i)).toBeNull();
+    expect(screen.queryByText(/session/i)).toBeNull();
+  });
+
+  it("renders the tagline under the masthead when the recap query returns a shortDescription", () => {
+    mockRecap({
+      shortDescription:
+        "A reimagining of the survival horror classic.\r\n\r\nLeon S. Kennedy, six years after Raccoon City…",
+    });
+    render(<SteamMomentChapter {...baseProps} />);
+    // Only the first sentence is used; subsequent paragraphs / sentences
+    // are dropped so the masthead doesn't drown under marketing copy.
+    expect(
+      screen.getByText("A reimagining of the survival horror classic.")
+    ).toBeTruthy();
+    expect(screen.queryByText(/Leon S\. Kennedy/)).toBeNull();
+  });
+
+  it("omits the tagline block when the recap query has no shortDescription", () => {
+    // `mockRecap()` with no overrides leaves shortDescription as null —
+    // mirrors the "recap loaded but the game has no marketing blurb"
+    // case (rare but real for very old or unfinished titles).
+    mockRecap();
+    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    // Tagline is the only italic body under the masthead; assert it's gone
+    // by looking for the prose-body class signature.
+    const italicBodies = container.querySelectorAll("p.italic");
+    expect(italicBodies.length).toBe(0);
+  });
+
+  it("threads the recap's dominantHex into the atmosphere claim when available", () => {
+    mockRecap({ dominantHex: "#3aa57e" });
+    render(<SteamMomentChapter {...baseProps} />);
+    const call = vi.mocked(useAssetClaim).mock.calls[0];
+    expect(call?.[1]?.accentHex).toBe("#3aa57e");
+  });
+
+  it("threads the recap's subject anchor into the atmosphere claim", () => {
+    mockRecap({ subjectXPercent: 62, subjectYPercent: 41 });
+    render(<SteamMomentChapter {...baseProps} />);
+    const call = vi.mocked(useAssetClaim).mock.calls[0];
+    expect(call?.[1]?.subjectXPercent).toBe(62);
+    expect(call?.[1]?.subjectYPercent).toBe(41);
   });
 
   it("exposes the chapter slug + label via data attributes for the caret discovery scan", () => {

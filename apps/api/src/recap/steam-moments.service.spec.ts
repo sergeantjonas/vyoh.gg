@@ -85,13 +85,49 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
       appid: 100,
       name: "Pragmata",
       slug: "steam-moment-first-100",
-      firstTime: { windowPlayMinutes: 150 },
+      firstTime: { windowPlayMinutes: 150, sessionCount: 1 },
     });
     expect(candidate?.daysSince).toBe(5);
     if (candidate?.kind === "steam-moment") {
       // 150 / 15 = 10
       expect(candidate.baseSignal).toBeCloseTo(10);
     }
+  });
+
+  it("counts each post-firstSeenAt closed session toward the sessionCount receipt", async () => {
+    // Three distinct same-appid sessions spread across the window. Sums
+    // playtime as expected AND the receipt carries the session count so
+    // the chapter can render "Xh across N sessions".
+    const firstSeenAt = new Date("2026-05-26T10:00:00Z");
+    const { service } = makeService({
+      eligibleGames: [{ appid: 110, name: "Pragmata", firstSeenAt }],
+      allOwnedGames: [{ appid: 110, name: "Pragmata", firstSeenAt }],
+      enrichments: [{ appid: 110, appType: 0 }],
+      sessions: [
+        {
+          appid: 110,
+          startedAt: new Date("2026-05-26T11:00:00Z"),
+          endedAt: new Date("2026-05-26T12:30:00Z"), // 90 min
+        },
+        {
+          appid: 110,
+          startedAt: new Date("2026-05-29T20:00:00Z"),
+          endedAt: new Date("2026-05-29T21:00:00Z"), // 60 min
+        },
+        {
+          appid: 110,
+          startedAt: new Date("2026-06-01T19:00:00Z"),
+          endedAt: new Date("2026-06-01T20:30:00Z"), // 90 min
+        },
+      ],
+    });
+    const result = await service.detectFirstTimeGames(NOW);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    expect(candidate?.kind === "steam-moment" && candidate.firstTime).toEqual({
+      windowPlayMinutes: 240,
+      sessionCount: 3,
+    });
   });
 
   it("drops a candidate whose total in-window playtime is below the 30 min floor", async () => {

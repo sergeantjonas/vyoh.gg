@@ -149,11 +149,15 @@ export interface LolMomentChapterDescriptor {
 /**
  * First-time framing carried on a `FIRST_TIME_GAME` Steam moment chapter.
  * `windowPlayMinutes` is the rounded total play duration accumulated since
- * the first session (within the recency window) — the receipt for "this
- * isn't just a click-and-quit launch". Null on other momentTypes.
+ * the first session; `sessionCount` is the number of distinct sessions
+ * (≥30-min closed rows) that contributed to it. Together they drive the
+ * chapter's receipt strip ("3h across 4 sessions") and let the reader
+ * distinguish "one long sit-down" from "kept coming back over a week".
+ * Null on other momentTypes.
  */
 export interface SteamFirstTimeStats {
   windowPlayMinutes: number;
+  sessionCount: number;
 }
 
 /**

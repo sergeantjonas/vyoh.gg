@@ -132,6 +132,7 @@ export class SteamMomentsService {
     });
 
     const playMinutesByAppid = new Map<number, number>();
+    const sessionCountByAppid = new Map<number, number>();
     const firstSeenByAppid = new Map(candidatePool.map((g) => [g.appid, g.firstSeenAt]));
     for (const session of sessions) {
       if (!session.endedAt) continue;
@@ -141,6 +142,10 @@ export class SteamMomentsService {
       playMinutesByAppid.set(
         session.appid,
         (playMinutesByAppid.get(session.appid) ?? 0) + minutes
+      );
+      sessionCountByAppid.set(
+        session.appid,
+        (sessionCountByAppid.get(session.appid) ?? 0) + 1
       );
     }
 
@@ -163,7 +168,10 @@ export class SteamMomentsService {
         name: game.name,
         baseSignal,
         daysSince,
-        firstTime: { windowPlayMinutes: Math.round(minutes) },
+        firstTime: {
+          windowPlayMinutes: Math.round(minutes),
+          sessionCount: sessionCountByAppid.get(game.appid) ?? 0,
+        },
       });
     }
     return candidates;

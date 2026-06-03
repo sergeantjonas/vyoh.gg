@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { steamLibraryHeroLargeUrl } from "@/steam/_shared/steam-image";
+import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 
 import { ChapterDetail, ChapterOpener } from "./chapter-bands";
 import { ChapterContainer } from "./chapter-container";
@@ -103,6 +104,21 @@ function formatDaysSince(daysSince: number): string {
   return `${Math.round(daysSince / 30)} months ago`;
 }
 
+/**
+ * Extract the editorial subtitle from a Steam short description. The full
+ * blurb is multiple sentences separated by `\r\n\r\n` paragraphs — we want
+ * just the first sentence so the masthead doesn't drown under a marketing
+ * paragraph. Mirrors the helper in `steam-chapter.tsx`; deliberately
+ * duplicated to keep the moment chapter independent of the heavier
+ * subject-chapter module.
+ */
+function firstSentence(short: string | null | undefined): string {
+  if (!short) return "";
+  const para = short.split(/\r?\n\r?\n/)[0] ?? short;
+  const match = para.match(/^(.+?[.!?])(\s|$)/);
+  return (match?.[1] ?? para).trim();
+}
+
 interface Props {
   appid: number;
   name: string;
@@ -138,25 +154,59 @@ export function SteamMomentChapter({
 }: Props) {
   const outerRef = useRef<HTMLDivElement | null>(null);
 
-  // No `useSteamGameRecap` roundtrip — the descriptor already carries the
-  // display name, and the hero URL is a deterministic appid-keyed proxy
-  // path. Keeps the moment chapter independent of the heavier game-recap
-  // query that powers `SteamChapter`. Newly-added games (the population
-  // this chapter draws from) almost always have `library_hero.jpg`, so the
-  // ~9% pre-2019 long-tail fallback isn't load-bearing here. R-7h polish
-  // can add a page-background fallback chain if real owner data ever
-  // surfaces a first-time row missing the asset.
+  // Pull the same recap query the parallel SteamChapter uses — gives this
+  // chapter the game's accent (`dominantHex`), face anchor (`subject*Percent`)
+  // and short description (`firstSentence` becomes the tagline under the
+  // masthead). The query is cached against the rest of the app, so reads
+  // are free when the same appid is open elsewhere. We deliberately keep
+  // `name` from the descriptor over `recap.name` — the descriptor is
+  // authoritative and stays consistent even before the recap query
+  // resolves.
+  const recapQuery = useSteamGameRecap(appid);
+  const recap = recapQuery.data;
+  const tagline = useMemo(
+    () => firstSentence(recap?.shortDescription),
+    [recap?.shortDescription]
+  );
+
+  // Hero URL is the deterministic appid-keyed proxy path. Newly-added games
+  // (the population this chapter draws from) almost always have
+  // `library_hero.jpg`, so the ~9% pre-2019 long-tail fallback isn't load-
+  // bearing here. R-7h polish can add a page-background fallback chain if
+  // real owner data ever surfaces a first-time row missing the asset.
   const heroUrl = useMemo(() => steamLibraryHeroLargeUrl(appid), [appid]);
 
   useEffect(() => preloadLinkAsImage(heroUrl), [heroUrl]);
 
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  const claim = useMemo(() => ({ image: heroUrl, palette }), [heroUrl, palette]);
+  const accentHex = recap?.dominantHex ?? null;
+  const subjectXPercent = recap?.subjectXPercent ?? null;
+  const subjectYPercent = recap?.subjectYPercent ?? null;
+  const claim = useMemo(
+    () => ({
+      image: heroUrl,
+      palette,
+      ...(accentHex !== null ? { accentHex } : {}),
+      subjectXPercent,
+      subjectYPercent,
+    }),
+    [heroUrl, palette, accentHex, subjectXPercent, subjectYPercent]
+  );
   useAssetClaim(outerRef, claim);
 
   const nudged = useChapterNudge(outerRef);
   const copy = momentCopy({ momentType, name, firstTime });
   const whenLine = formatDaysSince(daysSince);
+  // Derived session-shape numbers for the receipt strip. We expose both the
+  // session count and the average to give the reader a sense of session
+  // *rhythm* — "3h across 4 sessions" reads as "kept coming back", while
+  // "3h across 1 session" reads as "one long sit-down". Avg falls back to
+  // total minutes when there's exactly one session (formatPlaytime handles
+  // the sub-hour formatting).
+  const avgSessionMinutes =
+    firstTime && firstTime.sessionCount > 0
+      ? Math.round(firstTime.windowPlayMinutes / firstTime.sessionCount)
+      : null;
 
   return (
     <div
@@ -220,6 +270,16 @@ export function SteamMomentChapter({
                 </span>
               </Link>
             </ChapterReveal>
+            {tagline ? (
+              <ChapterReveal active={nudged} delay={0.4} blur={6}>
+                <p
+                  className="max-w-prose text-base italic text-foreground/75 sm:text-lg"
+                  style={{ textShadow: SHADOW_BODY }}
+                >
+                  {tagline}
+                </p>
+              </ChapterReveal>
+            ) : null}
             <ChapterReveal active={nudged} delay={0.55} blur={6}>
               <p
                 className="max-w-prose text-base text-foreground/85 sm:text-lg"
@@ -232,23 +292,58 @@ export function SteamMomentChapter({
           {firstTime ? (
             <ChapterDetail>
               <ChapterReveal active={nudged} delay={0.7}>
-                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                  {/* Single-stat receipt — the "this isn't a click-and-quit
-                      launch" proof. R-7h will replace this with a per-type
-                      stat strip (cluster size for ACHIEVEMENT_CLUSTER,
-                      session-count breakdown for FIRST_TIME_GAME). */}
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
+                  {/* Multi-stat receipt: total minutes are the headline number
+                      (loudest beat — "this is real engagement, not a 3-min
+                      launch"), session count + average per session give the
+                      reader the *rhythm* of the play. "3h · 4 sessions"
+                      reads as "kept coming back this week", "3h · 1 session"
+                      reads as "one long sit-down". Both stories are good
+                      first-time framings; surfacing the breakdown lets the
+                      page distinguish them. R-7h polish layers per-type
+                      receipt shapes; this is the FIRST_TIME_GAME shape. */}
                   <span
                     className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
                     style={{ textShadow: SHADOW_MASTHEAD }}
                   >
                     {formatPlaytime(firstTime.windowPlayMinutes)}
                   </span>
-                  <span
-                    className="text-sm text-foreground/70"
-                    style={{ textShadow: SHADOW_BODY }}
-                  >
-                    in the books
-                  </span>
+                  {firstTime.sessionCount > 0 ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="text-foreground/40"
+                        style={{ textShadow: SHADOW_LABEL }}
+                      >
+                        ·
+                      </span>
+                      <span
+                        className="text-sm tabular-nums text-foreground/80"
+                        style={{ textShadow: SHADOW_BODY }}
+                      >
+                        {firstTime.sessionCount === 1
+                          ? "1 session"
+                          : `${firstTime.sessionCount} sessions`}
+                      </span>
+                    </>
+                  ) : null}
+                  {avgSessionMinutes !== null && firstTime.sessionCount > 1 ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="text-foreground/40"
+                        style={{ textShadow: SHADOW_LABEL }}
+                      >
+                        ·
+                      </span>
+                      <span
+                        className="text-sm tabular-nums text-foreground/70"
+                        style={{ textShadow: SHADOW_BODY }}
+                      >
+                        avg {formatPlaytime(avgSessionMinutes)}
+                      </span>
+                    </>
+                  ) : null}
                 </div>
               </ChapterReveal>
             </ChapterDetail>
