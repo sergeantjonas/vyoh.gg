@@ -314,8 +314,16 @@ describe("SteamChapter", () => {
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     render(<SteamChapter />);
     // No cap — strip renders every screenshot; overflow-x-auto handles
-    // visual containment within the 1-viewport pin.
-    const triggers = screen.getAllByRole("button", { name: /Open screenshot/ });
+    // visual containment within the multi-beat closer (beat 3). The strip
+    // lives inside beat 3 which starts inactive (aria-hidden) in tests
+    // since the default beat index is 0; `{ hidden: true }` opts the query
+    // into hidden subtrees so we can assert DOM presence regardless of
+    // active-beat state. The visual gating is covered by chapter-beats
+    // tests; this assertion is about content count, not visibility.
+    const triggers = screen.getAllByRole("button", {
+      name: /Open screenshot/,
+      hidden: true,
+    });
     expect(triggers).toHaveLength(8);
   });
 
@@ -343,5 +351,40 @@ describe("SteamChapter", () => {
     render(<SteamChapter />);
     expect(screen.queryByText("Rarest milestone")).toBeNull();
     expect(screen.queryByText("Latest milestone")).toBeNull();
+  });
+
+  it("declares itself as a 4-beat chapter (R-13 multi-beat substrate)", () => {
+    const { container } = render(<SteamChapter />);
+    const section = container.querySelector("[data-chapter^='steam-']");
+    expect(section?.getAttribute("data-beats")).toBe("4");
+    const beats = container.querySelectorAll("[data-beat]");
+    expect(beats.length).toBe(4);
+  });
+
+  it("partitions bands across beats — opener in beat 0, detail in beat 1, stats in beat 2, closer in beat 3", () => {
+    // Default fixture has unlocks (standout + recent), screenshots, and
+    // peak-chip data — so all four band types render and can be located.
+    const standout = makeAchievement({
+      apiName: "RARE",
+      displayName: "Hollow Knight",
+      description: "Defeat the Hollow Knight without taking damage.",
+      unlockedAt: "2026-05-25T00:00:00Z",
+      globalPercent: 1.8,
+    });
+    vi.mocked(useSteamGameRecap).mockReturnValue({
+      data: recapFromFixtures(makeOwnedGame(), [standout]),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useSteamGameRecap>);
+    const { container } = render(<SteamChapter />);
+    const beatOf = (selector: string): string | null =>
+      container
+        .querySelector(selector)
+        ?.closest("[data-beat]")
+        ?.getAttribute("data-beat") ?? null;
+    expect(beatOf("[data-band='opener']")).toBe("0");
+    expect(beatOf("[data-band='detail']")).toBe("1");
+    expect(beatOf("[data-band='stats']")).toBe("2");
+    expect(beatOf("[data-band='closer']")).toBe("3");
   });
 });

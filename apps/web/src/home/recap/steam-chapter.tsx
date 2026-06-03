@@ -29,6 +29,7 @@ import {
   ChapterOpener,
   ChapterStats,
 } from "./chapter-bands";
+import { ChapterBeat, ChapterBeats, useActiveBeat } from "./chapter-beats";
 import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import {
@@ -40,7 +41,7 @@ import {
 } from "./chapter-shadows";
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { preloadLinkAsImage } from "./preload-link";
-import { ScreenshotLightboxStrip } from "./screenshot-lightbox";
+import { SteamChapterCloserMedia } from "./steam-chapter-closer-media";
 import { useAssetClaim } from "./use-asset-claim";
 import { useAssetPreload } from "./use-asset-preload";
 import { useChapterNudge } from "./use-chapter-nudge";
@@ -377,16 +378,6 @@ export function SteamChapter({
     () => formatReleaseDateChip(recap?.releaseDate ?? null),
     [recap?.releaseDate]
   );
-  const standout = recap?.standoutUnlock ?? null;
-  const recentUnlocks = recap?.recentUnlocks ?? [];
-  // No cap — the lightbox strip uses horizontal overflow-scroll so all
-  // screenshots are reachable without forcing a multi-row layout that
-  // would push the chapter past 1-viewport pin.
-  const screenshots = recap?.screenshots ?? [];
-  const completionPct = recap?.completionPct ?? null;
-  const playtime2WeekMin = recap?.playtime2WeeksMinutes ?? null;
-  const playtimeForeverMin = recap?.playtimeForeverMinutes ?? 0;
-  const standoutGlobalPercent = standout?.globalPercent ?? null;
 
   const verdictClauses = useMemo(
     () => (recap ? verdictParagraphSteam(recap) : []),
@@ -408,199 +399,265 @@ export function SteamChapter({
       className="[scroll-snap-align:start] [scroll-snap-stop:always]"
     >
       <ChapterContainer
-        pinViewports={1}
+        beats={4}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
         pinClassName="items-start justify-start px-6 sm:px-10"
       >
-        <div className="flex w-full flex-col">
-          <ChapterOpener>
-            <ChapterReveal active={nudged} delay={0.05} blur={4}>
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
-                <span
-                  style={{
-                    color: "var(--accent, currentColor)",
-                    paintOrder: "stroke",
-                    WebkitTextStroke: STROKE_ACCENT,
-                    textShadow: SHADOW_ACCENT,
-                  }}
-                >
-                  {eyebrow}
-                </span>
-                {releaseChip ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="text-foreground/40"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      ·
-                    </span>
-                    <span
-                      className="text-foreground/75"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      {releaseChip}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            </ChapterReveal>
-            <ChapterReveal
-              active={nudged}
-              delay={0.18}
-              duration={1.1}
-              blur={16}
-              rise={20}
-            >
-              {/* Masthead-as-link: the chapter title IS the entry point
-                  to the game-detail page, magazine-style. Replaces the
-                  prior bottom-band CTA — frees vertical space (caret no
-                  longer collides with a closer button) and reads more
-                  editorial. Group-hover "→" mirrors the standout
-                  block's affordance. */}
-              <Link
-                to="/steam/game/$appid"
-                params={{ appid: String(appid) }}
-                className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
-              >
-                {recap?.hasLogo ? (
-                  // Official Steam logo as the masthead — typically a
-                  // designed wordmark / brand mark that reads more
-                  // "editorial" than typographic name in helvetica-7xl.
-                  // `alt={name}` carries the accessible label. Heavy
-                  // drop-shadow filter mirrors the SHADOW_MASTHEAD tier
-                  // so the logo still cuts cleanly against bright splash
-                  // chroma — text-shadow doesn't apply to img, so we
-                  // use filter: drop-shadow.
-                  <img
-                    src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
-                    alt={name}
-                    className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
-                    style={{
-                      filter:
-                        "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
-                    }}
-                  />
-                ) : (
-                  // Typographic fallback — covers the ~5% of titles that
-                  // ship without a publisher logo.
-                  <h2
-                    className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                    style={{ textShadow: SHADOW_MASTHEAD }}
-                  >
-                    {name}
-                  </h2>
-                )}
-                {tagline ? (
-                  <p
-                    className="text-base italic text-foreground/80 sm:text-lg"
-                    style={{ textShadow: SHADOW_LABEL }}
-                  >
-                    {tagline}
-                  </p>
-                ) : null}
-              </Link>
-            </ChapterReveal>
-            {verdictClauses.length > 0 ? (
-              <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">
-                <VerdictProse
-                  clauses={verdictClauses}
-                  style={{ textShadow: SHADOW_BODY }}
-                  emphasisStyle={{
-                    paintOrder: "stroke",
-                    WebkitTextStroke: STROKE_ACCENT,
-                    textShadow: SHADOW_ACCENT,
-                  }}
-                  numbersActive={nudged}
-                  numbersDelay={1.25}
-                />
-              </ChapterReveal>
-            ) : null}
-          </ChapterOpener>
-
-          <ChapterDetail>
-            {standout ? (
-              <ChapterReveal active={nudged} delay={0.7}>
-                <StandoutUnlockBlock appid={appid} standout={standout} />
-              </ChapterReveal>
-            ) : null}
-
-            {recentUnlocks.length > 0 ? (
-              <div className="flex flex-col gap-2 pt-2">
-                <ChapterReveal active={nudged} delay={0.85}>
-                  <h3
-                    className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
-                    style={{ textShadow: SHADOW_BODY }}
-                  >
-                    Recent unlocks
-                  </h3>
-                </ChapterReveal>
-                <ul className="flex flex-col gap-0.5">
-                  {recentUnlocks.map((u, i) => (
-                    <li key={u.apiName}>
-                      <ChapterReveal active={nudged} delay={0.9 + i * 0.06}>
-                        <RecentUnlockRow appid={appid} unlock={u} />
-                      </ChapterReveal>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </ChapterDetail>
-
-          <ChapterStats>
-            <PeakChip
-              active={nudged}
-              delay={1.25}
-              label="Completion"
-              value={completionPct !== null ? `${Math.round(completionPct * 100)}%` : "—"}
-            />
-            <PeakChip
-              active={nudged}
-              delay={1.32}
-              label="Two weeks"
-              value={
-                playtime2WeekMin !== null && playtime2WeekMin > 0
-                  ? formatPlaytime(playtime2WeekMin)
-                  : playtimeForeverMin > 0
-                    ? formatPlaytime(playtimeForeverMin)
-                    : "—"
-              }
-            />
-            <PeakChip
-              active={nudged}
-              delay={1.39}
-              label={standoutGlobalPercent !== null ? "Rarest unlock" : "Unlocks"}
-              value={
-                standoutGlobalPercent !== null
-                  ? standoutGlobalPercent < 10
-                    ? `${standoutGlobalPercent.toFixed(1)}%`
-                    : `${Math.round(standoutGlobalPercent)}%`
-                  : recap
-                    ? `${recap.achievementsUnlocked}`
-                    : "—"
-              }
-            />
-          </ChapterStats>
-
-          {screenshots.length > 0 ? (
-            <ChapterCloser>
-              {/* Per-thumb cascade lives inside the strip so it can stagger the
-                  individual thumbnails (one block ChapterReveal landed them all
-                  at once, which felt thudding after the peak chips' triplet
-                  stagger). baseDelay 1.5 places the first thumb just after the
-                  last peak chip (1.39) settles. */}
-              <ScreenshotLightboxStrip
-                appid={appid}
-                screenshots={screenshots}
-                nudged={nudged}
-                baseDelay={1.5}
-              />
-            </ChapterCloser>
-          ) : null}
-        </div>
+        <ChapterBeats>
+          <SteamChapterBeats
+            nudged={nudged}
+            appid={appid}
+            name={name}
+            eyebrow={eyebrow}
+            releaseChip={releaseChip}
+            tagline={tagline}
+            recap={recap}
+            verdictClauses={verdictClauses}
+          />
+        </ChapterBeats>
       </ChapterContainer>
     </div>
+  );
+}
+
+/**
+ * Beat-aware body of `SteamChapter`. Lives inside `<ChapterBeats>` so it
+ * can read the active-beat index via `useActiveBeat()` and gate each
+ * beat's reveal cascade on its own activation, rather than threading one
+ * chapter-wide `nudged` signal through every band. The four-beat
+ * partition mirrors the historical single-pin band stack:
+ *
+ *   0. Identity      — eyebrow + masthead/logo + tagline + verdict
+ *   1. Recent moments — standout unlock + recent-unlocks strip
+ *   2. Stats         — peak chips (R-13 chunk 3 adds new stats here)
+ *   3. Closer        — `<SteamChapterCloserMedia>` slot
+ *
+ * Reveal delays are reset per beat (≈ 0.05–0.25) — the prior cumulative
+ * 0.05 → 1.5 cascade was sized for a single pin where everything was
+ * visible at once. Under multi-beat, each beat earns its own cascade
+ * starting near zero when it becomes the active beat.
+ */
+function SteamChapterBeats({
+  nudged,
+  appid,
+  name,
+  eyebrow,
+  releaseChip,
+  tagline,
+  recap,
+  verdictClauses,
+}: {
+  nudged: boolean;
+  appid: number;
+  name: string;
+  eyebrow: string;
+  releaseChip: string | null;
+  tagline: string;
+  recap: SteamGameRecap | undefined;
+  verdictClauses: ReturnType<typeof verdictParagraphSteam>;
+}) {
+  const beatCtx = useActiveBeat();
+  const activeIndex = beatCtx?.active ?? 0;
+  const beat0Active = nudged && activeIndex === 0;
+  const beat1Active = nudged && activeIndex === 1;
+  const beat2Active = nudged && activeIndex === 2;
+  const beat3Active = nudged && activeIndex === 3;
+
+  const standout = recap?.standoutUnlock ?? null;
+  const recentUnlocks = recap?.recentUnlocks ?? [];
+  const screenshots = recap?.screenshots ?? [];
+  const completionPct = recap?.completionPct ?? null;
+  const playtime2WeekMin = recap?.playtime2WeeksMinutes ?? null;
+  const playtimeForeverMin = recap?.playtimeForeverMinutes ?? 0;
+  const standoutGlobalPercent = standout?.globalPercent ?? null;
+
+  return (
+    <>
+      <ChapterBeat index={0}>
+        <ChapterOpener>
+          <ChapterReveal active={beat0Active} delay={0.05} blur={4}>
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
+              <span
+                style={{
+                  color: "var(--accent, currentColor)",
+                  paintOrder: "stroke",
+                  WebkitTextStroke: STROKE_ACCENT,
+                  textShadow: SHADOW_ACCENT,
+                }}
+              >
+                {eyebrow}
+              </span>
+              {releaseChip ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="text-foreground/40"
+                    style={{ textShadow: SHADOW_LABEL }}
+                  >
+                    ·
+                  </span>
+                  <span
+                    className="text-foreground/75"
+                    style={{ textShadow: SHADOW_LABEL }}
+                  >
+                    {releaseChip}
+                  </span>
+                </>
+              ) : null}
+            </p>
+          </ChapterReveal>
+          <ChapterReveal
+            active={beat0Active}
+            delay={0.18}
+            duration={1.1}
+            blur={16}
+            rise={20}
+          >
+            {/* Masthead-as-link: the chapter title IS the entry point to
+                the game-detail page, magazine-style. Replaces the prior
+                bottom-band CTA — frees vertical space (caret no longer
+                collides with a closer button) and reads more editorial.
+                Group-hover "→" mirrors the standout block's affordance. */}
+            <Link
+              to="/steam/game/$appid"
+              params={{ appid: String(appid) }}
+              className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
+            >
+              {recap?.hasLogo ? (
+                // Official Steam logo as the masthead — typically a
+                // designed wordmark / brand mark that reads more
+                // "editorial" than typographic name in helvetica-7xl.
+                // `alt={name}` carries the accessible label. Heavy
+                // drop-shadow filter mirrors the SHADOW_MASTHEAD tier so
+                // the logo still cuts cleanly against bright splash
+                // chroma — text-shadow doesn't apply to img, so we use
+                // filter: drop-shadow.
+                <img
+                  src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
+                  alt={name}
+                  className="max-h-[14dvh] w-auto max-w-full object-contain sm:max-h-[18dvh]"
+                  style={{
+                    filter:
+                      "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
+                  }}
+                />
+              ) : (
+                // Typographic fallback — covers the ~5% of titles that
+                // ship without a publisher logo.
+                <h2
+                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                  style={{ textShadow: SHADOW_MASTHEAD }}
+                >
+                  {name}
+                </h2>
+              )}
+              {tagline ? (
+                <p
+                  className="text-base italic text-foreground/80 sm:text-lg"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  {tagline}
+                </p>
+              ) : null}
+            </Link>
+          </ChapterReveal>
+          {verdictClauses.length > 0 ? (
+            <ChapterReveal active={beat0Active} delay={0.55} blur={6} className="pt-2">
+              <VerdictProse
+                clauses={verdictClauses}
+                style={{ textShadow: SHADOW_BODY }}
+                emphasisStyle={{
+                  paintOrder: "stroke",
+                  WebkitTextStroke: STROKE_ACCENT,
+                  textShadow: SHADOW_ACCENT,
+                }}
+                numbersActive={beat0Active}
+                numbersDelay={1.25}
+              />
+            </ChapterReveal>
+          ) : null}
+        </ChapterOpener>
+      </ChapterBeat>
+
+      <ChapterBeat index={1}>
+        <ChapterDetail>
+          {standout ? (
+            <ChapterReveal active={beat1Active} delay={0.05}>
+              <StandoutUnlockBlock appid={appid} standout={standout} />
+            </ChapterReveal>
+          ) : null}
+
+          {recentUnlocks.length > 0 ? (
+            <div className="flex flex-col gap-2 pt-2">
+              <ChapterReveal active={beat1Active} delay={0.2}>
+                <h3
+                  className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+                  style={{ textShadow: SHADOW_BODY }}
+                >
+                  Recent unlocks
+                </h3>
+              </ChapterReveal>
+              <ul className="flex flex-col gap-0.5">
+                {recentUnlocks.map((u, i) => (
+                  <li key={u.apiName}>
+                    <ChapterReveal active={beat1Active} delay={0.25 + i * 0.06}>
+                      <RecentUnlockRow appid={appid} unlock={u} />
+                    </ChapterReveal>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </ChapterDetail>
+      </ChapterBeat>
+
+      <ChapterBeat index={2}>
+        <ChapterStats>
+          <PeakChip
+            active={beat2Active}
+            delay={0.05}
+            label="Completion"
+            value={completionPct !== null ? `${Math.round(completionPct * 100)}%` : "—"}
+          />
+          <PeakChip
+            active={beat2Active}
+            delay={0.12}
+            label="Two weeks"
+            value={
+              playtime2WeekMin !== null && playtime2WeekMin > 0
+                ? formatPlaytime(playtime2WeekMin)
+                : playtimeForeverMin > 0
+                  ? formatPlaytime(playtimeForeverMin)
+                  : "—"
+            }
+          />
+          <PeakChip
+            active={beat2Active}
+            delay={0.19}
+            label={standoutGlobalPercent !== null ? "Rarest unlock" : "Unlocks"}
+            value={
+              standoutGlobalPercent !== null
+                ? standoutGlobalPercent < 10
+                  ? `${standoutGlobalPercent.toFixed(1)}%`
+                  : `${Math.round(standoutGlobalPercent)}%`
+                : recap
+                  ? `${recap.achievementsUnlocked}`
+                  : "—"
+            }
+          />
+        </ChapterStats>
+      </ChapterBeat>
+
+      <ChapterBeat index={3}>
+        <ChapterCloser>
+          <SteamChapterCloserMedia
+            appid={appid}
+            screenshots={screenshots}
+            active={beat3Active}
+          />
+        </ChapterCloser>
+      </ChapterBeat>
+    </>
   );
 }
