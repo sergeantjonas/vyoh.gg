@@ -38,6 +38,10 @@ export function SteamChapterCloserMedia({
     <ScreenshotLightboxStrip
       appid={appid}
       screenshots={screenshots}
+      // Beat 3 owns its own viewport in the stacked-beat layout, so the
+      // strip's thumbs scale up from the prior in-pin h-20 default to
+      // claim the available space. h-32 ≈ 128px, sm:h-40 ≈ 160px.
+      thumbClassName="h-32 sm:h-40 w-auto"
       nudged={active}
       baseDelay={baseDelay}
     />

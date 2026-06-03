@@ -115,26 +115,27 @@ function StandoutUnlockBlock({
       to="/steam/game/$appid"
       params={{ appid: String(appid) }}
       search={{ ach: standout.apiName }}
-      // Bare editorial block per the Ahri chapter's SignatureGameBlock —
-      // no border, no backdrop. Negative inline-x margin + matching padding
-      // gives a hover band without painting a permanent card edge.
-      className="group -mx-3 flex cursor-pointer items-start gap-4 rounded-md px-3 py-2 transition-colors hover:bg-black/25"
+      // Bare editorial block — no border, no backdrop. Negative inline-x
+      // margin + matching padding gives a hover band without painting a
+      // permanent card edge. Larger sizes than the prior pin layout since
+      // the standout now owns its own viewport in beat 1.
+      className="group -mx-3 flex cursor-pointer items-start gap-5 rounded-md px-3 py-2 transition-colors hover:bg-black/25 sm:gap-6"
     >
       <img
         src={steamAchievementIconUrl(appid, standout.apiName)}
         alt=""
         loading="lazy"
-        className="size-16 shrink-0 rounded-md ring-1 ring-white/15"
+        className="size-20 shrink-0 rounded-md ring-1 ring-white/15 sm:size-24"
       />
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-2">
         <span
-          className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+          className="text-xs uppercase tracking-[0.2em] text-foreground/80 sm:text-sm"
           style={{ textShadow: SHADOW_BODY }}
         >
           {rarity !== null ? "Rarest milestone" : "Latest milestone"}
         </span>
         <span
-          className="text-2xl font-semibold leading-tight text-foreground sm:text-3xl"
+          className="text-3xl font-semibold leading-tight text-foreground sm:text-5xl"
           style={{ textShadow: SHADOW_MASTHEAD }}
         >
           {standout.displayName}
@@ -145,23 +146,17 @@ function StandoutUnlockBlock({
             description: Steam's spoiler protection exists for a reason
             (story-locked unlocks describe plot beats), and the chapter is
             publicly readable so a visitor browsing the page shouldn't be
-            spoiled. Owner can always click through to the game-detail page
-            for the full unlocked-spoilers view. */}
+            spoiled. */}
         {!standout.hidden && standout.description ? (
           <p
-            // Description-line stays at text-sm even on larger viewports —
-            // sm:text-base added a line of vertical content that pushed
-            // the chapter's bottom band (screenshots + CTA) out of the
-            // 1-viewport pin. The description is supporting prose; the
-            // displayName above carries the editorial weight.
-            className="text-foreground/85 text-sm"
+            className="text-base text-foreground/85 sm:text-lg"
             style={{ textShadow: SHADOW_BODY }}
           >
             {standout.description}
           </p>
         ) : null}
         <div
-          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/85"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-foreground/85 sm:text-base"
           style={{ textShadow: SHADOW_BODY }}
         >
           {rarityLabel ? (
@@ -253,10 +248,13 @@ function PeakChip({
   const parsed = parseAnimatableNumber(value);
   return (
     <ChapterReveal active={active} delay={delay}>
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-2 sm:gap-3">
         <span
-          className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
-          style={{ textShadow: SHADOW_BODY }}
+          // Hero-sized in the stacked-beat layout — beat 2 owns a full
+          // viewport, so the chips have room to command instead of
+          // hugging a corner. text-6xl ≈ 60px, sm:text-8xl ≈ 96px.
+          className="text-6xl font-semibold leading-none tabular-nums text-foreground sm:text-8xl"
+          style={{ textShadow: SHADOW_MASTHEAD }}
         >
           {parsed ? (
             <>
@@ -273,7 +271,7 @@ function PeakChip({
           )}
         </span>
         <span
-          className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+          className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/75 sm:text-sm"
           style={{ textShadow: SHADOW_LABEL }}
         >
           {label}
@@ -282,6 +280,54 @@ function PeakChip({
     </ChapterReveal>
   );
 }
+
+/**
+ * Persistent identity mark for the Steam chapter — official Steam logo
+ * when one exists, fallback to game name in small-caps tracking when not.
+ * Rendered inside `<ChapterIdentityOverlay>` on every non-masthead beat
+ * so the chapter framing stays anchored. Logo size deliberately closer to
+ * the masthead than the prior tiny strip to soften the shrink jolt
+ * between beat 0 and beats 1+.
+ */
+function SteamIdentityMark({
+  name,
+  hasLogo,
+  appid,
+  assetTimestamp,
+}: {
+  name: string;
+  hasLogo: boolean;
+  appid: number;
+  assetTimestamp: number | null;
+}) {
+  if (hasLogo && assetTimestamp !== null) {
+    return (
+      <img
+        src={steamLibraryLogoUrl(appid, assetTimestamp)}
+        alt={name}
+        className="h-12 w-auto max-w-[280px] object-contain opacity-95 sm:h-14"
+        style={{
+          filter:
+            "drop-shadow(0 1px 0 rgba(0,0,0,0.85)) drop-shadow(0 0 5px rgba(0,0,0,0.7))",
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/85"
+      style={{ textShadow: SHADOW_LABEL }}
+    >
+      {name}
+    </span>
+  );
+}
+
+/**
+ * Standout-unlock receipt scaled up for stacked-beat layout — beat 1 owns
+ * a full viewport, so the standout block becomes the hero. Larger icon,
+ * larger displayName, more breathing room.
+ */
 
 /**
  * Steam subject chapter (R-3). Second chapter type, hardcoded to the appid
@@ -387,12 +433,13 @@ export function SteamChapter({
     [recap]
   );
 
-  // Shared layout class for every beat — px from the previous pinClassName
-  // (kept identical so per-beat spacing matches the existing editorial
-  // rhythm), pt clears the identity overlay on beats 1+ (and adds breathing
-  // room above beat 0's masthead, which absorbs the shift fine).
-  const BEAT_LAYOUT =
-    "flex flex-col items-start justify-start px-6 pt-20 sm:px-10 sm:pt-24";
+  // Shared layout class for every beat. justify-center pulls content into
+  // the vertical middle of the viewport — the prior justify-start + pt-20
+  // hugged the top edge and left ~70% of the viewport empty. Centering
+  // makes each beat read as a deliberate composition rather than a small
+  // content block. Identity overlay is `position: absolute` so it doesn't
+  // interact with this flex flow.
+  const BEAT_LAYOUT = "flex flex-col items-start justify-center px-6 sm:px-10";
 
   return (
     <div
@@ -515,7 +562,14 @@ export function SteamChapter({
         <ChapterBeat index={1} className={BEAT_LAYOUT}>
           {(nudged) => (
             <>
-              <ChapterIdentityOverlay name={name} nudged={nudged} />
+              <ChapterIdentityOverlay nudged={nudged}>
+                <SteamIdentityMark
+                  name={name}
+                  hasLogo={recap?.hasLogo ?? false}
+                  appid={appid}
+                  assetTimestamp={recap?.assetTimestamp ?? null}
+                />
+              </ChapterIdentityOverlay>
               <ChapterDetail>
                 {standout ? (
                   <ChapterReveal active={nudged} delay={0.05}>
@@ -553,7 +607,14 @@ export function SteamChapter({
         <ChapterBeat index={2} className={BEAT_LAYOUT}>
           {(nudged) => (
             <>
-              <ChapterIdentityOverlay name={name} nudged={nudged} />
+              <ChapterIdentityOverlay nudged={nudged}>
+                <SteamIdentityMark
+                  name={name}
+                  hasLogo={recap?.hasLogo ?? false}
+                  appid={appid}
+                  assetTimestamp={recap?.assetTimestamp ?? null}
+                />
+              </ChapterIdentityOverlay>
               <ChapterStats>
                 <PeakChip
                   active={nudged}
@@ -599,7 +660,14 @@ export function SteamChapter({
         <ChapterBeat index={3} className={BEAT_LAYOUT}>
           {(nudged) => (
             <>
-              <ChapterIdentityOverlay name={name} nudged={nudged} />
+              <ChapterIdentityOverlay nudged={nudged}>
+                <SteamIdentityMark
+                  name={name}
+                  hasLogo={recap?.hasLogo ?? false}
+                  appid={appid}
+                  assetTimestamp={recap?.assetTimestamp ?? null}
+                />
+              </ChapterIdentityOverlay>
               <ChapterCloser>
                 <SteamChapterCloserMedia
                   appid={appid}

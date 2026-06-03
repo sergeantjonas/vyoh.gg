@@ -372,29 +372,31 @@ describe("SteamChapter", () => {
     }
   });
 
-  it("renders the text-only identity overlay on beats 1+ (game name, no logo)", () => {
+  it("renders the persistent identity overlay on beats 1+ with the Steam logo", () => {
     const { container } = render(<SteamChapter />);
     const overlays = container.querySelectorAll("[data-chapter-identity-overlay]");
     // Overlays live on beats 1, 2, 3 (beat 0 has the masthead instead).
     expect(overlays.length).toBe(3);
-    // Text-only: no img element, just the game name in tracking-wide caps.
+    // hasLogo path: each overlay uses the official Steam logo (alt={name}
+    // as the accessible label) rather than a text fallback.
     for (const overlay of overlays) {
-      expect(overlay.querySelector("img")).toBeNull();
-      expect(overlay.textContent).toContain("Hollow Knight");
+      const logo = overlay.querySelector("img");
+      expect(logo).toBeTruthy();
+      expect(logo?.getAttribute("alt")).toBe("Hollow Knight");
     }
   });
 
-  it("identity overlay text adapts to the game name when no logo exists", () => {
+  it("identity overlay falls back to game name in tracking-wide caps when no logo", () => {
     vi.mocked(useSteamGameRecap).mockReturnValue({
       data: recapFromFixtures(makeOwnedGame({ logoPath: null })),
       isPending: false,
       isError: false,
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     const { container } = render(<SteamChapter />);
-    // The overlay is text-only by design — there's no hasLogo branching;
-    // it always shows the game name in small-caps tracking.
     const overlays = container.querySelectorAll("[data-chapter-identity-overlay]");
     expect(overlays.length).toBe(3);
+    // No logo → text fallback (no img, just the game name).
+    expect(overlays[0]?.querySelector("img")).toBeNull();
     expect(overlays[0]?.textContent).toContain("Hollow Knight");
   });
 
