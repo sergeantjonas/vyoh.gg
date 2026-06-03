@@ -270,7 +270,7 @@ Same content, no scroll-coupled motion. Engine-gate detection lives in [`apps/we
 
 ### ADR-5: Trailer / video deferred to polish pass
 
-**New.** Original brainstorm mentioned teaser trailers as a chapter visual element. Video adds real weight (5–15 MB per chapter, autoplay policies, reduced-motion respect, mobile/data, a11y). MVP uses screenshots only (Steam's `screenshots[]` field — cheap, already API-available, no autoplay complexity). One Steam chapter type promotes to "screenshots + optional trailer" as a follow-up beat after the rest of the page is solid. Doing it earlier means a third of arc budget tuning video.
+**New.** Original brainstorm mentioned teaser trailers as a chapter visual element. Video adds real weight (5–15 MB per chapter, autoplay policies, reduced-motion respect, mobile/data, a11y). MVP uses screenshots only (Steam's `screenshots[]` field — cheap, already API-available, no autoplay complexity). One Steam chapter type promotes to "screenshots + optional trailer" as a follow-up beat after the rest of the page is solid. Doing it earlier means a third of arc budget tuning video. **Follow-up substrate:** the MVP shape now lives in R-13 chunk 2's `SteamChapterCloserMedia` slot; R-10 promotes the slot in place rather than touching beat-4 JSX.
 
 ### ADR-6: Hard-coded curation, not admin UI
 
@@ -327,7 +327,7 @@ Substrate (A-1 / A-2 / A-2a) already shipped from atmosphere arc — chapters bu
 
 **R-9. Asset preloading. ✅ SHIPPED 2026-06-02.** Two-tier preload: `<link rel="preload" as="image">` injection for critical-path chapter assets (Ahri base splash + first algorithmic Steam chapter's hero), `useAssetPreload` hook gates non-critical chapter assets behind IntersectionObserver `rootMargin: 50%` so they only fetch when the chapter approaches viewport. Replaces the prior unconditional `new Image()` preloads in `ahri-chapter.tsx` and `steam-chapter.tsx` that competed with critical-path resources during initial page load. Steam chapter accepts a `priority: "critical" | "lazy"` prop; `routes/index.tsx` passes `"critical"` to the first chapter in the algorithmic stream. Helpers and tests in `apps/web/src/home/recap/preload-link.{ts,test.ts}` and `use-asset-preload.{ts,test.tsx}` (`<link>` injection is idempotent + cleanup-aware; hook has SSR/no-IO fallback).
 
-**R-10. Trailer polish (ADR-5 promotion).** One Steam chapter shape gets an optional trailer in the closer band. Autoplay-on-pin, mute by default, reduced-motion-respecting, mobile-data-aware.
+**R-10. Trailer polish (ADR-5 promotion).** One Steam chapter shape gets an optional trailer in the closer band — landing in **beat 4** of the multi-beat layout (R-13). Autoplay keys on `useBeatIndex` going active for beat 4, not on pin-enter; pin-enter fires while the title is still being read, beat-active is the correct lifecycle. Pauses when the user scrubs past or back. Trailer renders via the `SteamChapterCloserMedia` slot introduced in R-13 chunk 2 (screenshots-only today, screenshots-or-trailer when R-10 lands), so R-10 swaps the slot's content rather than touching beat-4 JSX. Mute by default, reduced-motion-respecting, mobile-data-aware (Save-Data header + `connection.effectiveType`).
 
 **R-11. Reduced-motion + Safari engine-gate.** Static chapter rendering path (no pins, no progress reveal, no skin rotation, no signature beats). Verify on real WebKit per [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) precedent.
 
