@@ -372,32 +372,31 @@ describe("SteamChapter", () => {
     }
   });
 
-  it("renders the persistent identity overlay on beats 1+ with the Steam logo", () => {
+  it("renders a single chapter-level identity mark (not per-beat)", () => {
     const { container } = render(<SteamChapter />);
-    const overlays = container.querySelectorAll("[data-chapter-identity-overlay]");
-    // Overlays live on beats 1, 2, 3 (beat 0 has the masthead instead).
-    expect(overlays.length).toBe(3);
-    // hasLogo path: each overlay uses the official Steam logo (alt={name}
-    // as the accessible label) rather than a text fallback.
-    for (const overlay of overlays) {
-      const logo = overlay.querySelector("img");
-      expect(logo).toBeTruthy();
-      expect(logo?.getAttribute("alt")).toBe("Hollow Knight");
-    }
+    // The identity now lives sticky at the chapter group level, so there's
+    // exactly one mark element regardless of beat count. Per-beat overlay
+    // re-mounts are gone — the identity is the chapter's constant under
+    // which beat content swaps.
+    const marks = container.querySelectorAll("[data-chapter-identity-mark]");
+    expect(marks.length).toBe(1);
+    const logo = marks[0]?.querySelector("img");
+    expect(logo).toBeTruthy();
+    expect(logo?.getAttribute("alt")).toBe("Hollow Knight");
   });
 
-  it("identity overlay falls back to game name in tracking-wide caps when no logo", () => {
+  it("identity mark falls back to game name in tracking-wide caps when no logo", () => {
     vi.mocked(useSteamGameRecap).mockReturnValue({
       data: recapFromFixtures(makeOwnedGame({ logoPath: null })),
       isPending: false,
       isError: false,
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     const { container } = render(<SteamChapter />);
-    const overlays = container.querySelectorAll("[data-chapter-identity-overlay]");
-    expect(overlays.length).toBe(3);
+    const marks = container.querySelectorAll("[data-chapter-identity-mark]");
+    expect(marks.length).toBe(1);
     // No logo → text fallback (no img, just the game name).
-    expect(overlays[0]?.querySelector("img")).toBeNull();
-    expect(overlays[0]?.textContent).toContain("Hollow Knight");
+    expect(marks[0]?.querySelector("img")).toBeNull();
+    expect(marks[0]?.textContent).toContain("Hollow Knight");
   });
 
   it("partitions bands across beats — opener in beat 0, detail in beat 1, stats in beat 2, closer in beat 3", () => {

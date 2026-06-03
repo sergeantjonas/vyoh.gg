@@ -31,7 +31,6 @@ import {
 } from "./chapter-bands";
 import { ChapterBeat } from "./chapter-beat";
 import { ChapterGroup } from "./chapter-group";
-import { ChapterIdentityOverlay } from "./chapter-identity-overlay";
 import { ChapterReveal } from "./chapter-reveal";
 import {
   SHADOW_ACCENT,
@@ -448,9 +447,22 @@ export function SteamChapter({
       data-steam-appid={appid}
       data-chapter-label={name || `Steam game ${appid}`}
     >
-      <ChapterGroup slug={`steam-${appid}`} ariaLabel={name || `Steam game ${appid}`}>
+      <ChapterGroup
+        slug={`steam-${appid}`}
+        ariaLabel={name || `Steam game ${appid}`}
+        identity={
+          <SteamIdentityMark
+            name={name}
+            hasLogo={recap?.hasLogo ?? false}
+            appid={appid}
+            assetTimestamp={recap?.assetTimestamp ?? null}
+          />
+        }
+      >
         {/* Beat 0 — Identity (eyebrow + masthead + tagline + verdict).
-            Owns the big editorial masthead, so no identity overlay here. */}
+            ChapterGroup's identity slot is hidden while beat 0 is in view
+            so the masthead reads as the sole title; identity materialises
+            as the reader crosses into beat 1. */}
         <ChapterBeat index={0} className={BEAT_LAYOUT}>
           {(nudged) => (
             <ChapterOpener>
@@ -562,14 +574,6 @@ export function SteamChapter({
         <ChapterBeat index={1} className={BEAT_LAYOUT}>
           {(nudged) => (
             <>
-              <ChapterIdentityOverlay nudged={nudged}>
-                <SteamIdentityMark
-                  name={name}
-                  hasLogo={recap?.hasLogo ?? false}
-                  appid={appid}
-                  assetTimestamp={recap?.assetTimestamp ?? null}
-                />
-              </ChapterIdentityOverlay>
               <ChapterDetail>
                 {standout ? (
                   <ChapterReveal active={nudged} delay={0.05}>
@@ -607,14 +611,6 @@ export function SteamChapter({
         <ChapterBeat index={2} className={BEAT_LAYOUT}>
           {(nudged) => (
             <>
-              <ChapterIdentityOverlay nudged={nudged}>
-                <SteamIdentityMark
-                  name={name}
-                  hasLogo={recap?.hasLogo ?? false}
-                  appid={appid}
-                  assetTimestamp={recap?.assetTimestamp ?? null}
-                />
-              </ChapterIdentityOverlay>
               <ChapterStats>
                 <PeakChip
                   active={nudged}
@@ -660,14 +656,6 @@ export function SteamChapter({
         <ChapterBeat index={3} className={BEAT_LAYOUT}>
           {(nudged) => (
             <>
-              <ChapterIdentityOverlay nudged={nudged}>
-                <SteamIdentityMark
-                  name={name}
-                  hasLogo={recap?.hasLogo ?? false}
-                  appid={appid}
-                  assetTimestamp={recap?.assetTimestamp ?? null}
-                />
-              </ChapterIdentityOverlay>
               <ChapterCloser>
                 <SteamChapterCloserMedia
                   appid={appid}
