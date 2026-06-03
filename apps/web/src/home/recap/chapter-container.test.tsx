@@ -117,7 +117,15 @@ describe("ChapterContainer", () => {
     expect(section?.style.height).toBe("calc(1.8 * 100dvh)");
   });
 
-  it("emits one snap sentinel per beat at the correct dvh offset", () => {
+  it("emits one snap sentinel per beat aligned with discretiser transitions", () => {
+    // beats=4 × beatViewports=0.6 → section is 2.4× viewport tall, so the
+    // pin's scroll distance is 1.4× viewport (= 140dvh). The discretiser
+    // partitions that into 4 equal slices → step is 35dvh, sentinels at
+    // 0/35/70/105dvh. Naively placing sentinels at i × beatViewports
+    // × 100dvh (0/60/120/180) would overshoot, landing beat 2's snap
+    // inside beat 3's progress band. happy-dom strips the dvh from inline
+    // style.top, so the sentinel echoes its offset to a data attribute
+    // as the assertable proxy.
     const { container } = render(
       <ChapterContainer beats={4} beatViewports={0.6}>
         <div />
@@ -125,14 +133,10 @@ describe("ChapterContainer", () => {
     );
     const sentinels = container.querySelectorAll("[data-beat-snap]");
     expect(sentinels.length).toBe(4);
-    // happy-dom strips the inline `top: <n>dvh` (unknown unit), so the
-    // sentinel echoes its scroll offset to a data attribute too. The
-    // attribute is the assertable proxy; the production rendering uses
-    // the dvh-anchored inline style.
     expect(sentinels[0]?.getAttribute("data-snap-top-dvh")).toBe("0");
-    expect(sentinels[1]?.getAttribute("data-snap-top-dvh")).toBe("60");
-    expect(sentinels[2]?.getAttribute("data-snap-top-dvh")).toBe("120");
-    expect(sentinels[3]?.getAttribute("data-snap-top-dvh")).toBe("180");
+    expect(sentinels[1]?.getAttribute("data-snap-top-dvh")).toBe("35");
+    expect(sentinels[2]?.getAttribute("data-snap-top-dvh")).toBe("70");
+    expect(sentinels[3]?.getAttribute("data-snap-top-dvh")).toBe("105");
   });
 
   it("omits snap sentinels on single-pin chapters", () => {

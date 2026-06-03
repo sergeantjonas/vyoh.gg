@@ -120,31 +120,46 @@ export function ChapterContainer({
         style={outerStyle}
       >
         {/* Per-beat snap sentinels. One invisible row per beat, positioned
-            at the scroll offset where that beat starts. Combined with
-            <main>'s `scroll-snap-type: y mandatory`, each beat becomes a
-            settle point — wheel scrolls land on the nearest beat instead
-            of mid-beat, and PageDown traverses chapter → beat → beat →
+            at the scroll offset where the active-beat discretiser
+            transitions to that beat. Combined with <main>'s
+            `scroll-snap-type: y mandatory`, each beat becomes a settle
+            point — wheel scrolls land on the nearest beat instead of
+            mid-beat, and PageDown traverses chapter → beat → beat →
             next chapter instead of skipping the entire pin window.
             `scroll-snap-stop: always` is the same enforcement the outer
             chapter wrapper uses, applied to each internal beat so the
             user can't blast past a beat in one momentum scroll. Skipped
             under reduced motion (the pin collapses, so there's nothing
-            to snap to) and on single-pin chapters. */}
+            to snap to) and on single-pin chapters.
+
+            The discretiser partitions PROGRESS through the pin (scrolled
+            / scroll-distance) into `beats` equal slices. In scroll terms
+            that's `scrollDistance / beats` per beat, where
+            scrollDistance is `(beats × beatViewports - 1) × 100dvh` —
+            the section height minus one viewport. Sentinels positioned
+            naively at `i × beatViewports × 100dvh` overshoot: a 4-beat
+            chapter at 0.6 beatViewports has scrollDistance 140dvh and
+            steps of 35dvh, not the 60dvh the naive formula gives. */}
         {!reducedMotion && beats > 1
-          ? Array.from({ length: beats }, (_, i) => {
-              const topDvh = Math.round(i * beatViewports * 10000) / 100;
-              return (
-                <div
-                  // biome-ignore lint/suspicious/noArrayIndexKey: stable per-render position
-                  key={i}
-                  aria-hidden="true"
-                  data-beat-snap={i}
-                  data-snap-top-dvh={topDvh}
-                  className="pointer-events-none absolute left-0 right-0 h-px [scroll-snap-align:start] [scroll-snap-stop:always]"
-                  style={{ top: `${topDvh}dvh` }}
-                />
-              );
-            })
+          ? (() => {
+              const scrollDvh = (beats * beatViewports - 1) * 100;
+              if (scrollDvh <= 0) return null;
+              const stepDvh = scrollDvh / beats;
+              return Array.from({ length: beats }, (_, i) => {
+                const topDvh = Math.round(i * stepDvh * 100) / 100;
+                return (
+                  <div
+                    // biome-ignore lint/suspicious/noArrayIndexKey: stable per-render position
+                    key={i}
+                    aria-hidden="true"
+                    data-beat-snap={i}
+                    data-snap-top-dvh={topDvh}
+                    className="pointer-events-none absolute left-0 right-0 h-px [scroll-snap-align:start] [scroll-snap-stop:always]"
+                    style={{ top: `${topDvh}dvh` }}
+                  />
+                );
+              });
+            })()
           : null}
         <div data-chapter-pin className={pinClass}>
           {children}

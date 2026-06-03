@@ -403,7 +403,12 @@ export function SteamChapter({
         beats={4}
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        pinClassName="items-start justify-start px-6 sm:px-10"
+        // pt clears the persistent identity strip rendered at the top of
+        // the pin (~24px from top, ~32px tall = ~56px total). pt-20/24
+        // leaves comfortable breathing room and pushes beat 0's masthead
+        // down by a corresponding amount; the masthead is large enough
+        // to absorb that shift without losing editorial weight.
+        pinClassName="items-start justify-start px-6 pt-20 sm:px-10 sm:pt-24"
       >
         <SteamChapterIdentityStrip
           name={name}
