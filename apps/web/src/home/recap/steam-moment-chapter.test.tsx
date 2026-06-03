@@ -356,3 +356,32 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
     ).toBe("Recent run");
   });
 });
+
+describe("SteamMomentChapter per-type accent (R-7h.1)", () => {
+  // Per-momentType typographic accent — FIRST_TIME_GAME picks teal-300,
+  // ACHIEVEMENT_CLUSTER picks fuchsia-300. Atmosphere backdrop stays game-
+  // derived; this is the chapter's per-type colour signature.
+  it("applies FIRST_TIME_GAME eyebrow with text-teal-300", () => {
+    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");
+    expect(eyebrow?.className).toContain("text-teal-300");
+  });
+
+  it("applies ACHIEVEMENT_CLUSTER eyebrow with text-fuchsia-300", () => {
+    const clusterProps = {
+      ...baseProps,
+      slug: "steam-moment-cluster-2050650",
+      momentType: "ACHIEVEMENT_CLUSTER" as const,
+      firstTime: null,
+      cluster: {
+        unlockCount: 6,
+        spanHours: 3.5,
+        capUnlockedAt: "2026-05-30T20:00:00.000Z",
+        unlockNames: ["Survivor", "Hunter"],
+      },
+    };
+    const { container } = render(<SteamMomentChapter {...clusterProps} />);
+    const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");
+    expect(eyebrow?.className).toContain("text-fuchsia-300");
+  });
+});

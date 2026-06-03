@@ -30,6 +30,7 @@ import {
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
 } from "./chapter-shadows";
+import { momentAccentClass } from "./moment-accent";
 import { preloadLinkAsImage } from "./preload-link";
 import { useAssetClaim } from "./use-asset-claim";
 import { useChapterNudge } from "./use-chapter-nudge";
@@ -46,13 +47,21 @@ const ANCHOR_CHAMPION_ALIAS = "Ahri";
 
 type MomentType = LolMomentChapterDescriptor["momentType"];
 
-/** Accent span shared between every momentType's prose — uppercase-italic,
- *  paint-order outline against the splash backdrop. Extracted so each
- *  momentType's editorial block can stay declarative. */
-function Accent({ children }: { children: ReactNode }) {
+/** Accent span shared between every momentType's prose — paint-order outline
+ *  against the splash backdrop, italic for emphasis. `className` overrides
+ *  the default `text-foreground/95` colour so per-momentType accent tints
+ *  (R-7h.1) flow through every Accent call site without needing per-type
+ *  prose duplication. */
+function Accent({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <span
-      className="font-medium italic text-foreground/95"
+      className={`font-medium italic ${className ?? "text-foreground/95"}`}
       style={{
         paintOrder: "stroke",
         WebkitTextStroke: STROKE_ACCENT,
@@ -92,6 +101,7 @@ function momentCopy(args: {
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
   emblemYear: number;
+  accentClass: string;
 }): MomentCopy {
   const {
     momentType,
@@ -103,7 +113,11 @@ function momentCopy(args: {
     streak,
     marathon,
     emblemYear,
+    accentClass,
   } = args;
+  const A = ({ children }: { children: ReactNode }) => (
+    <Accent className={accentClass}>{children}</Accent>
+  );
 
   if (momentType === "RANK_UP" && rankUp) {
     const fromTitle = formatRankTitle(rankUp.fromTier, rankUp.fromRank);
@@ -128,8 +142,8 @@ function momentCopy(args: {
       ariaLabel: `Rank up: ${toTitle}`,
       body: (
         <>
-          Climbed from <Accent>{fromTitle}</Accent> to <Accent>{toTitle}</Accent>,
-          championed by <Accent>{displayName}</Accent>.
+          Climbed from <A>{fromTitle}</A> to <A>{toTitle}</A>, championed by{" "}
+          <A>{displayName}</A>.
         </>
       ),
     };
@@ -144,8 +158,8 @@ function momentCopy(args: {
       ariaLabel: `Marathon session on ${displayName}`,
       body: (
         <>
-          <Accent>{marathon.matchCount}</Accent> ranked games in one sitting, capped on{" "}
-          <Accent>{displayName}</Accent>.
+          <A>{marathon.matchCount}</A> ranked games in one sitting, capped on{" "}
+          <A>{displayName}</A>.
         </>
       ),
     };
@@ -161,13 +175,11 @@ function momentCopy(args: {
       ariaLabel: `${isHot ? "Hot streak" : "Cold streak"} on ${displayName}`,
       body: isHot ? (
         <>
-          <Accent>{streak.length}</Accent> ranked wins in a row, last on{" "}
-          <Accent>{displayName}</Accent>.
+          <A>{streak.length}</A> ranked wins in a row, last on <A>{displayName}</A>.
         </>
       ) : (
         <>
-          <Accent>{streak.length}</Accent> ranked losses straight, last on{" "}
-          <Accent>{displayName}</Accent>.
+          <A>{streak.length}</A> ranked losses straight, last on <A>{displayName}</A>.
         </>
       ),
     };
@@ -186,8 +198,7 @@ function momentCopy(args: {
       ariaLabel: `Return from hiatus on ${displayName}`,
       body: (
         <>
-          <Accent>{gapLabel}</Accent> away from ranked, then back on{" "}
-          <Accent>{displayName}</Accent>.
+          <A>{gapLabel}</A> away from ranked, then back on <A>{displayName}</A>.
         </>
       ),
     };
@@ -210,11 +221,11 @@ function momentCopy(args: {
       ariaLabel: `Standout game on ${displayName}`,
       body: (
         <>
-          Posted a <Accent>{matchKdaLabel}</Accent> KDA on <Accent>{displayName}</Accent>
+          Posted a <A>{matchKdaLabel}</A> KDA on <A>{displayName}</A>
           {factorLabel ? (
             <>
               {" "}
-              — <Accent>{factorLabel}</Accent> the 30-day baseline
+              — <A>{factorLabel}</A> the 30-day baseline
             </>
           ) : null}
           .
@@ -231,8 +242,7 @@ function momentCopy(args: {
     ariaLabel: `Off-meta pick: ${displayName}`,
     body: (
       <>
-        Stepped off <Accent>{anchorDisplayName}</Accent> for a one-off run on{" "}
-        <Accent>{displayName}</Accent>.
+        Stepped off <A>{anchorDisplayName}</A> for a one-off run on <A>{displayName}</A>.
       </>
     ),
   };
@@ -348,6 +358,10 @@ export function LolMomentChapter({
   const displayName = championName(championAlias);
   const anchorDisplayName = championName(ANCHOR_CHAMPION_ALIAS);
   const emblemYear = useRankedEmblemYear();
+  // Per-momentType typographic accent — drives both the eyebrow colour and
+  // every inline `<Accent>` span inside the prose. Atmosphere backdrop tint
+  // stays champion-derived; this is the chapter's per-type colour signature.
+  const accentClass = momentAccentClass(momentType);
   const copy = momentCopy({
     momentType,
     displayName,
@@ -358,6 +372,7 @@ export function LolMomentChapter({
     streak,
     marathon,
     emblemYear,
+    accentClass,
   });
   const whenLine = formatDaysSince(daysSince);
 
@@ -379,8 +394,8 @@ export function LolMomentChapter({
             <ChapterReveal active={nudged} delay={0.05} blur={4}>
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
                 <span
+                  className={accentClass}
                   style={{
-                    color: "var(--accent, currentColor)",
                     paintOrder: "stroke",
                     WebkitTextStroke: STROKE_ACCENT,
                     textShadow: SHADOW_ACCENT,

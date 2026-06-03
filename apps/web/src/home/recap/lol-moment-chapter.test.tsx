@@ -516,3 +516,26 @@ describe("LolMomentChapter daysSince formatting", () => {
     expect(screen.getByText(expected)).toBeTruthy();
   });
 });
+
+describe("LolMomentChapter per-type accent (R-7h.1)", () => {
+  // Per-momentType typographic accent — eyebrow + Accent spans pick up a
+  // tailwind text-* class from `momentAccentClass`. The atmosphere backdrop
+  // stays champion-derived; this lever is the chapter's per-type colour
+  // signature. We assert the eyebrow span carries the expected class, which
+  // implies the inline Accent spans do too (both pull from the same source).
+  it.each([
+    ["OFF_META_PICK" as const, baseProps, "text-sky-300"],
+    ["RANK_UP" as const, rankUpProps, "text-amber-300"],
+    ["KDA_OUTLIER" as const, kdaOutlierProps, "text-yellow-200"],
+    ["RETURN_FROM_HIATUS" as const, hiatusReturnProps, "text-violet-300"],
+    ["STREAK_5W" as const, streakWinProps, "text-emerald-300"],
+    ["STREAK_5L" as const, streakLossProps, "text-rose-300"],
+    ["MARATHON" as const, marathonProps, "text-orange-300"],
+  ])("applies %s eyebrow with class %s", (_label, props, expectedClass) => {
+    const { container } = render(<LolMomentChapter {...props} />);
+    // The eyebrow text matches the chapter's first uppercase-tracked span;
+    // find it by class signature and assert the accent class is part of it.
+    const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");
+    expect(eyebrow?.className).toContain(expectedClass);
+  });
+});

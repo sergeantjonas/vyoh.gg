@@ -22,6 +22,7 @@ import {
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
 } from "./chapter-shadows";
+import { momentAccentClass } from "./moment-accent";
 import { preloadLinkAsImage } from "./preload-link";
 import { useAssetClaim } from "./use-asset-claim";
 import { useChapterNudge } from "./use-chapter-nudge";
@@ -36,13 +37,21 @@ interface MomentCopy {
   body: ReactNode;
 }
 
-/** Accent span shared across momentType prose — uppercase-italic, paint-
- *  order outline against the hero backdrop. Matches the LoL moment chapter's
- *  Accent so both moment kinds read as one editorial family. */
-function Accent({ children }: { children: ReactNode }) {
+/** Accent span shared across momentType prose — paint-order outline against
+ *  the hero backdrop, italic for emphasis. `className` overrides the default
+ *  `text-foreground/95` colour so per-momentType accent tints (R-7h.1) flow
+ *  through every Accent call site. Matches the LoL moment chapter's Accent
+ *  so both moment kinds read as one editorial family. */
+function Accent({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <span
-      className="font-medium italic text-foreground/95"
+      className={`font-medium italic ${className ?? "text-foreground/95"}`}
       style={{
         paintOrder: "stroke",
         WebkitTextStroke: STROKE_ACCENT,
@@ -66,8 +75,9 @@ function momentCopy(args: {
   name: string;
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
+  accentClass: string;
 }): MomentCopy {
-  const { momentType, name, firstTime, cluster } = args;
+  const { momentType, name, firstTime, cluster, accentClass } = args;
   if (momentType === "FIRST_TIME_GAME") {
     const playLine = firstTime ? formatPlaytime(firstTime.windowPlayMinutes) : null;
     return {
@@ -75,7 +85,7 @@ function momentCopy(args: {
       mastheadText: name,
       chapterLabel: "First time",
       ariaLabel: `First time playing ${name}`,
-      body: firstTimeBody({ firstTime, playLine }),
+      body: firstTimeBody({ firstTime, playLine, accentClass }),
     };
   }
   // ACHIEVEMENT_CLUSTER — the cluster receipt is the chapter's narrative
@@ -88,7 +98,7 @@ function momentCopy(args: {
     mastheadText: name,
     chapterLabel: "Recent run",
     ariaLabel: `Recent achievement run on ${name}`,
-    body: clusterBody({ cluster }),
+    body: clusterBody({ cluster, accentClass }),
   };
 }
 
@@ -104,14 +114,19 @@ function momentCopy(args: {
 function firstTimeBody({
   firstTime,
   playLine,
+  accentClass,
 }: {
   firstTime: SteamFirstTimeStats | null;
   playLine: string | null;
+  accentClass: string;
 }): ReactNode {
+  const A = ({ children }: { children: ReactNode }) => (
+    <Accent className={accentClass}>{children}</Accent>
+  );
   if (!firstTime) {
     return playLine ? (
       <>
-        Just picked this one up — already <Accent>{playLine}</Accent> in.
+        Just picked this one up — already <A>{playLine}</A> in.
       </>
     ) : (
       <>Just picked this one up.</>
@@ -131,24 +146,24 @@ function firstTimeBody({
   if (sameDay) {
     return playLine ? (
       <>
-        Picked it up <Accent>{playedLabel}</Accent> and dove right in — already{" "}
-        <Accent>{playLine}</Accent> in.
+        Picked it up <A>{playedLabel}</A> and dove right in — already <A>{playLine}</A>{" "}
+        in.
       </>
     ) : (
       <>
-        Picked it up <Accent>{playedLabel}</Accent> and dove right in.
+        Picked it up <A>{playedLabel}</A> and dove right in.
       </>
     );
   }
   if (longGap) {
     return playLine ? (
       <>
-        Sat in the library for a while; first launched it <Accent>{playedLabel}</Accent> —
-        already <Accent>{playLine}</Accent> in.
+        Sat in the library for a while; first launched it <A>{playedLabel}</A> — already{" "}
+        <A>{playLine}</A> in.
       </>
     ) : (
       <>
-        Sat in the library for a while; first launched it <Accent>{playedLabel}</Accent>.
+        Sat in the library for a while; first launched it <A>{playedLabel}</A>.
       </>
     );
   }
@@ -156,12 +171,12 @@ function firstTimeBody({
   // dormancy. "Added Mon, first played Thu" frames it as a real beat.
   return playLine ? (
     <>
-      Added <Accent>{addedLabel}</Accent>, first launched <Accent>{playedLabel}</Accent> —
-      already <Accent>{playLine}</Accent> in.
+      Added <A>{addedLabel}</A>, first launched <A>{playedLabel}</A> — already{" "}
+      <A>{playLine}</A> in.
     </>
   ) : (
     <>
-      Added <Accent>{addedLabel}</Accent>, first launched <Accent>{playedLabel}</Accent>.
+      Added <A>{addedLabel}</A>, first launched <A>{playedLabel}</A>.
     </>
   );
 }
@@ -176,24 +191,28 @@ function firstTimeBody({
  */
 function clusterBody({
   cluster,
+  accentClass,
 }: {
   cluster: SteamAchievementClusterStats | null;
+  accentClass: string;
 }): ReactNode {
   if (!cluster) {
     return <>Stretch of achievements stacked up.</>;
   }
+  const A = ({ children }: { children: ReactNode }) => (
+    <Accent className={accentClass}>{children}</Accent>
+  );
   const tight = cluster.spanHours <= 2;
   const halfDay = cluster.spanHours > 2 && cluster.spanHours <= 8;
   const countSpan = (
     <>
-      <Accent>{cluster.unlockCount} achievements</Accent>
+      <A>{cluster.unlockCount} achievements</A>
     </>
   );
   if (tight) {
     return (
       <>
-        {countSpan} unlocked back-to-back in{" "}
-        <Accent>{formatSpanHours(cluster.spanHours)}</Accent>.
+        {countSpan} unlocked back-to-back in <A>{formatSpanHours(cluster.spanHours)}</A>.
       </>
     );
   }
@@ -201,14 +220,14 @@ function clusterBody({
     return (
       <>
         Made an afternoon of it — {countSpan} in{" "}
-        <Accent>{formatSpanHours(cluster.spanHours)}</Accent>.
+        <A>{formatSpanHours(cluster.spanHours)}</A>.
       </>
     );
   }
   return (
     <>
       Binged it across the day — {countSpan} over{" "}
-      <Accent>{formatSpanHours(cluster.spanHours)}</Accent>.
+      <A>{formatSpanHours(cluster.spanHours)}</A>.
     </>
   );
 }
@@ -336,7 +355,11 @@ export function SteamMomentChapter({
   useAssetClaim(outerRef, claim);
 
   const nudged = useChapterNudge(outerRef);
-  const copy = momentCopy({ momentType, name, firstTime, cluster });
+  // Per-momentType typographic accent — drives both the eyebrow colour and
+  // every inline `<Accent>` span inside the prose. Atmosphere backdrop tint
+  // stays game-derived; this is the chapter's per-type colour signature.
+  const accentClass = momentAccentClass(momentType);
+  const copy = momentCopy({ momentType, name, firstTime, cluster, accentClass });
   const whenLine = formatDaysSince(daysSince);
   // Derived session-shape numbers for the receipt strip. We expose both the
   // session count and the average to give the reader a sense of session
@@ -367,8 +390,8 @@ export function SteamMomentChapter({
             <ChapterReveal active={nudged} delay={0.05} blur={4}>
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
                 <span
+                  className={accentClass}
                   style={{
-                    color: "var(--accent, currentColor)",
                     paintOrder: "stroke",
                     WebkitTextStroke: STROKE_ACCENT,
                     textShadow: SHADOW_ACCENT,
