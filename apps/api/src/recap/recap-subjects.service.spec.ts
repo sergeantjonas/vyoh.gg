@@ -566,6 +566,70 @@ describe("RecapSubjectsService.getChapters", () => {
     });
   });
 
+  describe("Steam moment ↔ steam-subject dedup", () => {
+    it("suppresses the steam-subject row when the same appid surfaces as a steam-moment", async () => {
+      // A freshly-added game with hours of recent play would qualify for
+      // both: steam-subject ("Playing lately") AND steam-moment
+      // (FIRST_TIME_GAME). The moment is the more interesting framing —
+      // the dedup keeps it and drops the subject so the same appid doesn't
+      // appear in two adjacent chapters with conflicting registers.
+      const ownedGames = {
+        getOwnedGames: vi.fn().mockResolvedValue(
+          makeOwnedGames([
+            makeOwnedGame({
+              appid: 2050650,
+              name: "Resident Evil 4",
+              playtime2WeeksMinutes: 60 * 8, // 8h recent
+              rtimeLastPlayedAt: NOW.toISOString(),
+            }),
+          ])
+        ),
+      } as unknown as SteamOwnedGamesService;
+      const prisma = {
+        steamPlayerUnlock: {
+          groupBy: vi
+            .fn()
+            .mockImplementation((args: { where?: unknown }) =>
+              Promise.resolve(
+                args.where
+                  ? [{ appid: 2050650, _count: { apiName: 5 } }]
+                  : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
+              )
+            ),
+        },
+      } as unknown as PrismaService;
+      const lolMoments = {
+        detectAll: vi.fn().mockResolvedValue([]),
+      } as unknown as LolMomentsService;
+      const steamMoments = {
+        detectAll: vi.fn().mockResolvedValue([
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-first-2050650",
+            momentType: "FIRST_TIME_GAME",
+            appid: 2050650,
+            name: "Resident Evil 4",
+            baseSignal: 10,
+            daysSince: 3,
+            firstTime: { windowPlayMinutes: 150 },
+          },
+        ]),
+      } as unknown as SteamMomentsService;
+      const service = new RecapSubjectsService(
+        ownedGames,
+        prisma,
+        lolMoments,
+        steamMoments
+      );
+
+      const chapters = await service.getChapters(NOW);
+      // Only the steam-moment survives — the steam-subject for the same
+      // appid was dropped before scoring.
+      expect(chapters.filter((c) => c.kind === "steam-subject")).toHaveLength(0);
+      expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(1);
+    });
+  });
+
   describe("Steam moment merge", () => {
     it("emits a steam-moment descriptor when SteamMomentsService returns a first-time candidate", async () => {
       // Active steam-subject path empty; lol moments empty; only the

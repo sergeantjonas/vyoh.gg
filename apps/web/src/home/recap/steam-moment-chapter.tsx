@@ -69,18 +69,12 @@ function momentCopy(args: {
       mastheadText: name,
       chapterLabel: "First time",
       ariaLabel: `First time playing ${name}`,
-      body: (
+      body: playLine ? (
         <>
-          New addition to the library
-          {playLine ? (
-            <>
-              {" "}
-              — about <Accent>{playLine}</Accent> in
-            </>
-          ) : null}
-          {playLine ? " " : null}
-          {playLine ? "since picking it up." : "and just starting."}
+          Just picked this one up — already <Accent>{playLine}</Accent> in.
         </>
+      ) : (
+        <>Just picked this one up.</>
       ),
     };
   }

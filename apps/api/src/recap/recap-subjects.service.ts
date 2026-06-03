@@ -67,8 +67,27 @@ export class RecapSubjectsService {
         this.lolMoments.detectAll(now),
         this.steamMoments.detectAll(now),
       ]);
+
+    // Steam-moment ↔ steam-subject dedup. A freshly-added game with hours
+    // of recent play would otherwise fire as BOTH a FIRST_TIME_GAME moment
+    // AND a "Playing lately" steam-subject, surfacing the same appid in
+    // two adjacent chapters with conflicting editorial registers. The
+    // moment is the more interesting framing — drop the matching subject
+    // candidate (and any dormant top-up row, handled below) so each appid
+    // appears at most once across the Steam blocks. This runs PRE-
+    // selection so the steam-subject cap doesn't get burned on a row
+    // that's about to be dropped.
+    const steamMomentAppids = new Set(
+      steamMomentCandidates
+        .filter((c) => c.kind === "steam-moment")
+        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
+    );
+    const filteredSteamCandidates = steamCandidates.filter(
+      (c) => c.kind !== "steam-subject" || !steamMomentAppids.has(c.appid)
+    );
+
     const active = selectChapters([
-      ...steamCandidates,
+      ...filteredSteamCandidates,
       ...lolMomentCandidates,
       ...steamMomentCandidates,
     ]);
@@ -86,10 +105,16 @@ export class RecapSubjectsService {
     const activeSteamSubjectAppids = new Set(
       active.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
     );
+    // Dormant top-up exclusion needs both: already-active steam-subject
+    // appids (the canonical case) AND steam-moment appids (so a game that
+    // surfaced as a FIRST_TIME_GAME doesn't reappear lower down as a
+    // dormant "Earlier this year on…" row — same appid, three editorial
+    // registers in one page would read as a bug).
+    const excludeAppids = new Set([...activeSteamSubjectAppids, ...steamMomentAppids]);
     const steamSlack = STEAM_SUBJECT_HARD_CAP - activeSteamSubjectAppids.size;
     const dormant =
       steamSlack > 0
-        ? await this.collectDormantTopUp(now, steamSlack, activeSteamSubjectAppids)
+        ? await this.collectDormantTopUp(now, steamSlack, excludeAppids)
         : [];
 
     // Recompose with the platform-clustered ordering:
