@@ -10,7 +10,9 @@ import {
   formatReleaseDateChip,
   verdictParagraphSteam,
 } from "@vyoh/shared";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { motion } from "motion/react";
 
 import { CountUp } from "@/components/count-up";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
@@ -245,6 +247,18 @@ function PeakChip({
   value: string;
 }) {
   const parsed = parseAnimatableNumber(value);
+  // Reserve width for the count-up's FINAL digit count so the suffix
+  // doesn't get pushed around as digits grow during the animation. With
+  // tabular-nums each digit is the same width, but the total string
+  // width still grows by one column per added digit — "0" → "10" → "100"
+  // shifts the % sign right with each step. min-width: Nch (where N
+  // matches the final value's character count, including any decimal
+  // point) reserves a fixed-width box; right-align fills from the
+  // right so the rightmost digit + suffix stay anchored.
+  const reservedChars = parsed
+    ? String(Math.floor(parsed.raw)).length +
+      (parsed.decimals > 0 ? 1 + parsed.decimals : 0)
+    : 0;
   return (
     <ChapterReveal active={active} delay={delay}>
       <div className="flex flex-col gap-2 sm:gap-3">
@@ -257,12 +271,20 @@ function PeakChip({
         >
           {parsed ? (
             <>
-              <CountUp
-                to={parsed.raw}
-                decimals={parsed.decimals}
-                start={active}
-                delay={delay + 0.7}
-              />
+              <span
+                style={{
+                  display: "inline-block",
+                  minWidth: `${reservedChars}ch`,
+                  textAlign: "right",
+                }}
+              >
+                <CountUp
+                  to={parsed.raw}
+                  decimals={parsed.decimals}
+                  start={active}
+                  delay={delay + 0.7}
+                />
+              </span>
               {parsed.suffix}
             </>
           ) : (
@@ -309,15 +331,27 @@ function SteamChapterTitleCard({
   appid: number;
   assetTimestamp: number | null;
 }) {
-  // Reads the chapter's combined presence flag (entering && !exiting)
-  // from ChapterGroup. ChapterReveals cascade in when entering and
-  // reverse out as exiting flips true near the chapter's end, so the
-  // title card has its own exit moment before the next chapter's
-  // sticky title card arrives at the viewport top.
+  // Two layers of presence:
+  // - `nudged` (live): true while chapter is entered and not exiting.
+  //   Drives a fast outer opacity fade for exit + re-entry transitions.
+  // - `hasEntered` (one-shot): flips true the first time nudged goes
+  //   true, never resets. Drives the per-element ChapterReveal cascade
+  //   so the editorial blur-rise plays once at first entry and doesn't
+  //   re-run on every re-entry (which would lag behind a quick back-
+  //   scroll — the masthead reveal alone is 0.18+1.1=1.28s).
   const nudged = useChapterGroupNudge();
+  const [hasEntered, setHasEntered] = useState(false);
+  useEffect(() => {
+    if (nudged && !hasEntered) setHasEntered(true);
+  }, [nudged, hasEntered]);
   return (
-    <div className="flex w-full flex-col items-start gap-3 px-6 pt-12 sm:px-10 sm:pt-16">
-      <ChapterReveal active={nudged} delay={0.05} blur={4}>
+    <motion.div
+      initial={false}
+      animate={{ opacity: nudged ? 1 : 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="flex w-full flex-col items-start gap-3 px-6 pt-12 sm:px-10 sm:pt-16"
+    >
+      <ChapterReveal active={hasEntered} delay={0.05} blur={4}>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
           <span
             style={{
@@ -379,7 +413,7 @@ function SteamChapterTitleCard({
           ) : null}
         </Link>
       </ChapterReveal>
-    </div>
+    </motion.div>
   );
 }
 
