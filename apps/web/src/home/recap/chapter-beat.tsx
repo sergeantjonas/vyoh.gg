@@ -7,8 +7,6 @@ import {
 } from "motion/react";
 import { type ReactNode, useEffect, useRef } from "react";
 
-import { mainScrollRef } from "@/lib/scroll-container";
-
 import { useChapterNudge } from "./use-chapter-nudge";
 
 /** Render-prop child: receives this beat's own nudge state. */
@@ -136,8 +134,19 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
     const el = ref.current;
     const pin = pinRef.current;
     if (!el || !pin) return;
-    const container: HTMLElement | Window = mainScrollRef.current ?? window;
-    const compute = () => {
+
+    // rAF loop, not a scroll listener. Browsers don't deliver scroll
+    // events at frame rate during scroll-snap-driven smooth scrolls —
+    // they batch and deliver late, so a scroll-event-driven compute
+    // would snap to its final value AFTER the user has already seen
+    // most of the bulk scroll motion (verified by data-exit-top
+    // updating late). rAF runs on every paint frame, reads the current
+    // `getBoundingClientRect()` at the layout-finalised moment just
+    // before paint, and writes the counter-translate in the same
+    // frame as the section's new position is painted — so the visual
+    // pin is exact, frame-for-frame.
+    let rafId = 0;
+    const tick = () => {
       const rect = el.getBoundingClientRect();
       const h = rect.height || 1;
       const top = rect.top;
@@ -147,28 +156,22 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
       // settling in and saturate once it's fully past.
       const p = Math.min(1, Math.max(0, -top / h));
       exitProgress.set(p);
-      // Counter-translate: ONLY during exit (top < 0). translateY(-top)
+      // Counter-translate ONLY during exit (top < 0). translateY(-top)
       // moves the pin wrapper DOWN by exactly the number of px the
       // section has scrolled UP, holding inner content at its original
       // viewport position. Written directly to `style.transform` on the
-      // plain wrapper — not the motion component — so motion's own
-      // transform writes can't compete with it. Synchronous to the
-      // scroll event for zero MotionValue scheduling lag.
+      // plain wrapper — not the motion component — so motion's transform
+      // writes can't compete.
       const counter = top < 0 ? -top : 0;
       pin.style.transform = `translateY(${counter}px)`;
-      // Debug attribute mirrored to the DOM so devtools inspector can
-      // verify the listener is firing and the math is right. Cheap; can
-      // stay long-term as a useful breadcrumb.
+      // Debug attributes mirrored to the DOM so devtools inspector can
+      // verify the loop is firing and the math is right.
       pin.dataset.exitTop = String(Math.round(top));
       pin.dataset.exitCounter = String(Math.round(counter));
+      rafId = requestAnimationFrame(tick);
     };
-    compute();
-    container.addEventListener("scroll", compute, { passive: true });
-    window.addEventListener("resize", compute, { passive: true });
-    return () => {
-      container.removeEventListener("scroll", compute);
-      window.removeEventListener("resize", compute);
-    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [reducedMotion, exitProgress]);
 
   const sectionClass = reducedMotion
