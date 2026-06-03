@@ -98,19 +98,14 @@ const EXIT_BLUR_END = 0.72;
  */
 export function ChapterBeat({ index, slug, ariaLabel, className, children }: Props) {
   const ref = useRef<HTMLElement | null>(null);
-  // Inner-wrapper ref: needed because the counter-translate is applied via
-  // direct DOM mutation (`element.style.translate`) inside the scroll
-  // handler, NOT via a MotionValue + style.y. motion's MotionValue writes
-  // are scheduled to the next animation frame, which means each scroll
-  // tick paints the section's new position one frame BEFORE the counter-
-  // translate catches up — manifesting as a frame of residual motion per
-  // scroll event ("content still moves up slightly"). Setting
-  // `style.translate` synchronously to the scroll event eliminates that
-  // lag because the style write happens in the same frame as the scroll
-  // position change. Filter + opacity stay on MotionValues because their
-  // frame-of-lag is invisible — there's no positional reference to
-  // expose it.
-  const innerRef = useRef<HTMLDivElement | null>(null);
+  // Pin-wrapper ref. The counter-translate goes on a plain `<div>`, NOT
+  // on the inner motion component, so that motion's own writes to
+  // `style.transform` can't interfere with the pin. The motion component
+  // is a child of the pin wrapper and owns opacity/filter only. Writing
+  // counter-translate directly to the wrapper's `style.transform` inside
+  // the scroll handler keeps the pin synchronous with the scroll event —
+  // no MotionValue scheduling lag.
+  const pinRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useReducedMotion();
   const nudged = useChapterNudge(ref);
 
@@ -139,8 +134,8 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
   useEffect(() => {
     if (reducedMotion) return;
     const el = ref.current;
-    const inner = innerRef.current;
-    if (!el || !inner) return;
+    const pin = pinRef.current;
+    if (!el || !pin) return;
     const container: HTMLElement | Window = mainScrollRef.current ?? window;
     const compute = () => {
       const rect = el.getBoundingClientRect();
@@ -152,18 +147,20 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
       // settling in and saturate once it's fully past.
       const p = Math.min(1, Math.max(0, -top / h));
       exitProgress.set(p);
-      // Counter-translate: ONLY during exit (top < 0). Translating the
-      // content +(-top) px keeps its viewport-y position constant while
-      // the section's own scroll moves it upward — net visual: the
-      // content stays where it was. Written directly to `style.translate`
-      // (the CSS shorthand, separate from motion's `style.filter` and
-      // `style.opacity` writes) so it lands in the same paint frame as
-      // the scroll event. Going through a MotionValue here would
-      // introduce one frame of lag — every scroll tick would paint with
-      // the old translate before motion's rAF batched the new one —
-      // which manifests as residual upward motion during the exit.
+      // Counter-translate: ONLY during exit (top < 0). translateY(-top)
+      // moves the pin wrapper DOWN by exactly the number of px the
+      // section has scrolled UP, holding inner content at its original
+      // viewport position. Written directly to `style.transform` on the
+      // plain wrapper — not the motion component — so motion's own
+      // transform writes can't compete with it. Synchronous to the
+      // scroll event for zero MotionValue scheduling lag.
       const counter = top < 0 ? -top : 0;
-      inner.style.translate = `0 ${counter}px`;
+      pin.style.transform = `translateY(${counter}px)`;
+      // Debug attribute mirrored to the DOM so devtools inspector can
+      // verify the listener is firing and the math is right. Cheap; can
+      // stay long-term as a useful breadcrumb.
+      pin.dataset.exitTop = String(Math.round(top));
+      pin.dataset.exitCounter = String(Math.round(counter));
     };
     compute();
     container.addEventListener("scroll", compute, { passive: true });
@@ -192,18 +189,30 @@ export function ChapterBeat({ index, slug, ariaLabel, className, children }: Pro
       {reducedMotion ? (
         <div className={layoutClass}>{body}</div>
       ) : (
-        <m.div
-          ref={innerRef}
-          data-beat-content=""
-          className={[layoutClass, "h-full w-full"].filter(Boolean).join(" ")}
-          style={{
-            opacity: exitOpacity,
-            filter: exitFilter,
-            willChange: "translate, opacity, filter",
-          }}
+        // Two-layer wrapper. The outer plain `<div>` is the counter-
+        // translate target — written via direct DOM mutation in the
+        // scroll handler, so motion can't compete with it. The inner
+        // `m.div` owns opacity + filter via MotionValues. Layout
+        // className stays on the inner div so the flex-pt-22vh shape
+        // applies to the actual content area.
+        <div
+          ref={pinRef}
+          data-beat-pin=""
+          className="h-full w-full"
+          style={{ willChange: "transform" }}
         >
-          {body}
-        </m.div>
+          <m.div
+            data-beat-content=""
+            className={[layoutClass, "h-full w-full"].filter(Boolean).join(" ")}
+            style={{
+              opacity: exitOpacity,
+              filter: exitFilter,
+              willChange: "opacity, filter",
+            }}
+          >
+            {body}
+          </m.div>
+        </div>
       )}
     </section>
   );
