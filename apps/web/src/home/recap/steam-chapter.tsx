@@ -5,7 +5,11 @@ import type {
   SteamStandoutUnlock,
   SteamUnlock,
 } from "@vyoh/shared";
-import { formatPlaytime, verdictParagraphSteam } from "@vyoh/shared";
+import {
+  formatPlaytime,
+  formatReleaseDateChip,
+  verdictParagraphSteam,
+} from "@vyoh/shared";
 import { useEffect, useMemo, useRef } from "react";
 
 import { CountUp } from "@/components/count-up";
@@ -367,6 +371,12 @@ export function SteamChapter({
   const eyebrow =
     framing?.eyebrow ??
     (recap?.ageBucket ? EYEBROW_FOR_BUCKET[recap.ageBucket] : "Steam");
+  // Released-when chip — supplementary metadata next to the eyebrow. Pure
+  // string from the shared helper so the register matches across chapters.
+  const releaseChip = useMemo(
+    () => formatReleaseDateChip(recap?.releaseDate ?? null),
+    [recap?.releaseDate]
+  );
   const standout = recap?.standoutUnlock ?? null;
   const recentUnlocks = recap?.recentUnlocks ?? [];
   // No cap — the lightbox strip uses horizontal overflow-scroll so all
@@ -417,6 +427,23 @@ export function SteamChapter({
                 >
                   {eyebrow}
                 </span>
+                {releaseChip ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="text-foreground/40"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      ·
+                    </span>
+                    <span
+                      className="text-foreground/75"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      {releaseChip}
+                    </span>
+                  </>
+                ) : null}
               </p>
             </ChapterReveal>
             <ChapterReveal

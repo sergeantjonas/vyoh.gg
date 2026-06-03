@@ -45,6 +45,14 @@ export interface SteamOwnedGame {
   // Paired with the most recent unlock timestamp to surface a
   // "still launching, not progressing" verdict.
   rtimeLastPlayedAt: string | null;
+  // Steam storefront release date (`release.steam_release_date`), expressed
+  // as a date-only ISO string (`YYYY-MM-DD`). Null when enrichment hasn't
+  // resolved the row or the upstream release block was missing — common on
+  // demo/beta/internal apps and on titles where the enrichment cron hasn't
+  // reached them yet. Drives the chapter's release-date chip ("From 2023" /
+  // "Released last month") and is the source of truth for any "year of
+  // release" filtering on the library.
+  releaseDate: string | null;
   // One-line marketing blurb from `basic_info.short_description`. Surfaced
   // as a tooltip on the library card title and as a subtitle on the game
   // detail header. Null when the enrichment row is missing or the upstream

@@ -433,6 +433,7 @@ export class SteamOwnedGamesService {
         microtrailerPoster: true,
         microtrailerName: true,
         trailers: true,
+        releaseDate: true,
       },
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
@@ -494,6 +495,11 @@ export class SteamOwnedGamesService {
           trailers:
             e?.trailers != null ? (e.trailers as unknown as SteamGameTrailer[]) : null,
           recentPlaytimeMinutes: recentByAppid.get(r.appid) ?? [],
+          // Prisma's `@db.Date` column comes back as a JS Date pinned to UTC
+          // midnight. Date-only ISO string keeps the wire shape compact and
+          // sidesteps any timezone interpretation downstream (the chapter
+          // chip only cares about year/month, not local-clock midnight).
+          releaseDate: e?.releaseDate?.toISOString().slice(0, 10) ?? null,
         };
       }),
       lastSyncedAt: latest.snapshotDate.toISOString(),

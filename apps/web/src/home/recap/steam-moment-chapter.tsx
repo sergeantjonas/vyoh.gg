@@ -4,7 +4,7 @@ import type {
   SteamFirstTimeStats,
   SteamMomentChapterDescriptor,
 } from "@vyoh/shared";
-import { formatPlaytime } from "@vyoh/shared";
+import { formatPlaytime, formatReleaseDateChip } from "@vyoh/shared";
 import { Award, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
@@ -393,6 +393,14 @@ export function SteamMomentChapter({
   const accentClass = momentAccentClass(momentType);
   const copy = momentCopy({ momentType, name, firstTime, cluster, accentClass });
   const whenLine = formatDaysSince(daysSince);
+  // Released-when chip — shared helper keeps register consistent with the
+  // Steam subject chapter. Especially load-bearing on FIRST_TIME_GAME where
+  // "Released last month" pairs naturally with the "just picked it up"
+  // story; on ACHIEVEMENT_CLUSTER it's quieter metadata.
+  const releaseChip = useMemo(
+    () => formatReleaseDateChip(recap?.releaseDate ?? null),
+    [recap?.releaseDate]
+  );
   // Derived session-shape numbers for the receipt strip. We expose both the
   // session count and the average to give the reader a sense of session
   // *rhythm* — "3h across 4 sessions" reads as "kept coming back", while
@@ -441,6 +449,23 @@ export function SteamMomentChapter({
                 <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
                   {whenLine}
                 </span>
+                {releaseChip ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="text-foreground/40"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      ·
+                    </span>
+                    <span
+                      className="text-foreground/75"
+                      style={{ textShadow: SHADOW_LABEL }}
+                    >
+                      {releaseChip}
+                    </span>
+                  </>
+                ) : null}
               </p>
             </ChapterReveal>
             <ChapterReveal

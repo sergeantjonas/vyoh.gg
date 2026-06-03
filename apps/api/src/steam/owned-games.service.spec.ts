@@ -406,6 +406,10 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
             microtrailerMp4: "367520/2090056095/abc/microtrailer.mp4",
             microtrailerPoster: "367520/extras/launch_trailer_medium.jpg",
             microtrailerName: "Full Launch trailer",
+            // Prisma `@db.Date` columns deserialize to a JS Date pinned to
+            // UTC midnight; the projection slices the ISO down to YYYY-MM-DD
+            // so the wire shape stays compact and timezone-free.
+            releaseDate: new Date("2017-02-24T00:00:00.000Z"),
           },
         ]),
       },
@@ -452,6 +456,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
         microtrailerName: "Full Launch trailer",
         trailers: null,
         recentPlaytimeMinutes: [],
+        releaseDate: "2017-02-24",
       },
     ]);
   });

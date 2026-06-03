@@ -112,6 +112,12 @@ export interface SteamGameRecap {
   // Last client-reported launch (ISO). Null on titles the owner has never
   // started — drives the recency/dormancy story and the age bucket.
   lastPlayedAt: string | null;
+  // Steam storefront release date (`YYYY-MM-DD`). Null when the enrichment
+  // row hasn't been populated or the upstream omitted a release block. Used
+  // for the chapter's release-date chip — pure metadata, not part of any
+  // ageBucket / verdict computation (those key on owner activity, not
+  // calendar age of the title).
+  releaseDate: string | null;
   // Per-day playtime over the last up-to-30 days, oldest first. Drives the
   // sparkline band; empty when the game has fewer than two snapshots on file.
   recentPlaytimeMinutes: number[];
@@ -172,6 +178,7 @@ export function deriveSteamGameRecap(
       standoutUnlock: null,
       screenshots: [...screenshots],
       ageBucket: null,
+      releaseDate: null,
     };
   }
 
@@ -230,6 +237,7 @@ export function deriveSteamGameRecap(
     standoutUnlock,
     screenshots: [...screenshots],
     ageBucket,
+    releaseDate: ownedGame.releaseDate,
   };
 }
 
@@ -279,6 +287,41 @@ function pickStandoutUnlock(
     globalPercent: pick.globalPercent,
     daysAgo: Math.max(0, daysAgo),
   };
+}
+
+/**
+ * Format the release-date chip for a Steam chapter. Pure helper so the same
+ * register lands on both subject and moment chapters without rendering drift.
+ *
+ * Register table (matches the existing chapter vocabulary — "Released" prefix
+ * mirrors "Cleared" / "Currently in" verdicts so the chip reads as honest
+ * metadata, not marketing copy):
+ *   0–6 days   → "Released this week"
+ *   7–30 days  → "Released last month"
+ *   31–365 d   → "Released {Mon YYYY}"  (e.g. "Released Apr 2025")
+ *   ≥1 year    → "Released {YYYY}"      (e.g. "Released 2014")
+ *   future     → null (pre-purchase / pre-order edge case — skip the chip
+ *                rather than render a wrong-tense claim)
+ *
+ * Returns null when releaseDate is null so callers can render conditionally
+ * without re-deriving the falsy check.
+ */
+export function formatReleaseDateChip(
+  releaseDate: string | null,
+  now: Date = new Date()
+): string | null {
+  if (!releaseDate) return null;
+  const released = new Date(releaseDate);
+  if (Number.isNaN(released.getTime())) return null;
+  const days = Math.floor((now.getTime() - released.getTime()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return null;
+  if (days <= 6) return "Released this week";
+  if (days <= 30) return "Released last month";
+  if (days <= 365) {
+    const month = released.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+    return `Released ${month} ${released.getUTCFullYear()}`;
+  }
+  return `Released ${released.getUTCFullYear()}`;
 }
 
 function ageBucketFor(lastPlayedAt: string | null, now: Date): SteamAgeBucket | null {

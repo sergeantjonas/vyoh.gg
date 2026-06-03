@@ -5,6 +5,7 @@ import type { SteamAchievement, SteamGameAchievements } from "./achievements.ts"
 import {
   STEAM_RECAP_RECENT_UNLOCKS_LIMIT,
   deriveSteamGameRecap,
+  formatReleaseDateChip,
   verdictParagraphSteam,
 } from "./game-recap.ts";
 import type { SteamOwnedGame } from "./owned-games.ts";
@@ -51,6 +52,7 @@ function makeOwnedGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame 
     microtrailerName: null,
     trailers: null,
     recentPlaytimeMinutes: [0, 0, 30, 45, 90, 120, 75],
+    releaseDate: null,
     ...overrides,
   };
 }
@@ -108,6 +110,7 @@ describe("deriveSteamGameRecap", () => {
       standoutUnlock: null,
       screenshots: [],
       ageBucket: null,
+      releaseDate: null,
     });
   });
 
@@ -519,5 +522,43 @@ describe("verdictParagraphSteam", () => {
     const text = verdictPreview(verdictParagraphSteam(recap));
     expect(text).toContain("1 achievement left.");
     expect(text).not.toContain("achievements left");
+  });
+});
+
+describe("formatReleaseDateChip", () => {
+  // Anchor `now` to mid-month so the day-boundary cases (this week / last
+  // month) don't drift on month rollovers.
+  const NOW_CHIP = new Date("2026-06-15T12:00:00Z");
+
+  it("returns null when releaseDate is null", () => {
+    expect(formatReleaseDateChip(null, NOW_CHIP)).toBeNull();
+  });
+
+  it("returns null when releaseDate is in the future (pre-order edge case)", () => {
+    expect(formatReleaseDateChip("2026-07-01", NOW_CHIP)).toBeNull();
+  });
+
+  it("returns null on an unparseable date string", () => {
+    expect(formatReleaseDateChip("not-a-date", NOW_CHIP)).toBeNull();
+  });
+
+  it("reads as 'this week' for 0-6 days old", () => {
+    expect(formatReleaseDateChip("2026-06-15", NOW_CHIP)).toBe("Released this week");
+    expect(formatReleaseDateChip("2026-06-09", NOW_CHIP)).toBe("Released this week");
+  });
+
+  it("reads as 'last month' for 7-30 days old", () => {
+    expect(formatReleaseDateChip("2026-06-08", NOW_CHIP)).toBe("Released last month");
+    expect(formatReleaseDateChip("2026-05-16", NOW_CHIP)).toBe("Released last month");
+  });
+
+  it("reads as 'Released Mon YYYY' for 31-365 days old", () => {
+    expect(formatReleaseDateChip("2026-05-15", NOW_CHIP)).toBe("Released May 2026");
+    expect(formatReleaseDateChip("2025-09-20", NOW_CHIP)).toBe("Released Sep 2025");
+  });
+
+  it("reads as 'Released YYYY' for >1y old", () => {
+    expect(formatReleaseDateChip("2023-04-22", NOW_CHIP)).toBe("Released 2023");
+    expect(formatReleaseDateChip("2014-11-25", NOW_CHIP)).toBe("Released 2014");
   });
 });

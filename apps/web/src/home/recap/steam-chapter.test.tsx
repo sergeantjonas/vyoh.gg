@@ -96,6 +96,7 @@ function makeOwnedGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame 
     microtrailerName: null,
     trailers: null,
     recentPlaytimeMinutes: [],
+    releaseDate: null,
     ...overrides,
   };
 }
@@ -206,6 +207,24 @@ describe("SteamChapter", () => {
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     render(<SteamChapter />);
     expect(screen.getByText("Earlier this year")).toBeTruthy();
+  });
+
+  it("renders the release-date chip when the recap carries one", () => {
+    vi.mocked(useSteamGameRecap).mockReturnValue({
+      data: recapFromFixtures(makeOwnedGame({ releaseDate: "2014-11-25" })),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useSteamGameRecap>);
+    render(<SteamChapter />);
+    expect(screen.getByText("Released 2014")).toBeTruthy();
+  });
+
+  it("omits the release-date chip when the enrichment row has no date", () => {
+    // Default fixture has releaseDate: null; assert the chip never renders
+    // (matches against the shared helper's "Released" prefix so the bucket
+    // eyebrow's "Currently in" doesn't false-positive).
+    render(<SteamChapter />);
+    expect(screen.queryByText(/^Released /)).toBeNull();
   });
 
   it("renders the standout unlock receipt when one exists", () => {

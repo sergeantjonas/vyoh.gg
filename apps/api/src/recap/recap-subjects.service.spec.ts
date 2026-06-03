@@ -49,6 +49,7 @@ function makeOwnedGame(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame 
     microtrailerName: null,
     trailers: null,
     recentPlaytimeMinutes: [],
+    releaseDate: null,
     ...overrides,
   };
 }

@@ -202,6 +202,7 @@ export type { GameUnlockTimeline } from "./steam/unlock-timeline.ts";
 export {
   STEAM_RECAP_RECENT_UNLOCKS_LIMIT,
   deriveSteamGameRecap,
+  formatReleaseDateChip,
   verdictParagraphSteam,
 } from "./steam/game-recap.ts";
 export type {
