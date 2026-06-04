@@ -101,10 +101,18 @@ function ChapterGroupImpl(
       const lastBeat = beats[beats.length - 1] as HTMLElement | undefined;
       if (!lastBeat) return;
       const top = lastBeat.getBoundingClientRect().top;
-      // -10px buffer: snap-precision can leave top at -1..-5px after
-      // settle even when the reader is "on" the last beat. Without the
-      // buffer the title card would flicker off briefly on snap-end.
-      setExiting(top < -10);
+      // The chapter title should stay visible while the reader is still
+      // ON the last beat, including the full pin window of its 130dvh
+      // wrapper. A sticky inner (100dvh) inside a 130dvh wrapper pins
+      // for ~30dvh of scroll past snap before unpinning; the title only
+      // fades once we're past that pin window. Use 60% of the last
+      // beat's height as the buffer — comfortably past the unpin point,
+      // before the wrapper fully leaves the top of the viewport. The
+      // old -10 threshold pre-dated this architecture and flipped
+      // `exiting` true the moment the user scrolled a few px past snap,
+      // even while the beat content was still pinned and visible.
+      const buffer = lastBeat.clientHeight * 0.6;
+      setExiting(top < -buffer);
     };
 
     compute();

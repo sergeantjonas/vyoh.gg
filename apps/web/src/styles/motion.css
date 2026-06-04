@@ -228,6 +228,65 @@ body {
     animation-timeline: view(block);
     animation-range: entry 0% cover 30%;
   }
+
+  /* R-13 chapter-beat in-place dissolve. Drives opacity/blur/scale on the
+     sticky inner of each 130dvh beat wrapper across the entry + contain
+     ranges of its view-timeline so consecutive beats hand off without a
+     visible empty-viewport gap.
+
+     Named timeline: the wrapper hosts the view-timeline; the inner div
+     (`position: sticky`) references it by name. Without this indirection,
+     applying `animation-timeline: view()` to the sticky inner directly
+     would measure its pinned position, which stays constant while the
+     wrapper scrolls past — wrong.
+
+     Range math for a 130dvh wrapper in a 100dvh scrollport: per spec, for
+     a subject taller than its scrollport the `entry`/`contain`/`exit`
+     ranges measure 720px / 216px / 720px respectively at a 100dvh
+     viewport (= total cover 1656px). The `contain` phase IS the sticky
+     pin window — wrapper.top from 0 to -216 — which is where we want the
+     fade-out. Using `exit` would (incorrectly) start the fade AFTER the
+     inner unpinned, producing the "content scrolls instead of fading"
+     symptom; using `entry 0% contain 100%` runs the fade-in during slide-
+     up and the fade-out during pin, ending right where the next beat's
+     entry 0% begins — no gap, no double-occupancy.
+
+     Keyframe at 77% corresponds to entry 100% / contain 0% (= snap rest):
+     720 / (720 + 216) ≈ 77%. Below 77% is the fade-in over the full
+     entry; above is the fade-out over the full contain.
+
+     The `data-css-timeline` attribute is a JS-set opt-in (see
+     chapter-beat.tsx); Firefox lies about `@supports
+     (animation-timeline: view())` so we gate at the JS level via
+     `"ViewTimeline" in window` and only attach the attribute on engines
+     where the timeline actually progresses. Without the attribute the
+     CSS animation never applies — Motion's JS path runs instead. */
+  [data-beat-wrapper] {
+    view-timeline-name: --beat;
+    view-timeline-axis: block;
+  }
+  [data-beat-inner][data-css-timeline] {
+    animation: beat-dissolve 1ms linear both;
+    animation-timeline: --beat;
+    animation-range: entry 0% contain 100%;
+  }
+  @keyframes beat-dissolve {
+    0% {
+      opacity: 0;
+      filter: blur(8px);
+      transform: scale(0.985);
+    }
+    77% {
+      opacity: 1;
+      filter: blur(0px);
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      filter: blur(8px);
+      transform: scale(0.985);
+    }
+  }
 }
 
 /* ─── Overlay entry (Radix popper-positioned content) ───────────────────────

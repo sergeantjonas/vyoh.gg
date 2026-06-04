@@ -154,7 +154,14 @@ function RootLayout() {
               // so the page has a clean home state and a clean exit. Only
               // `/` mounts snap-align descendants, so non-/ routes are
               // unaffected — they have no snap points to snap to.
-              className="flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scroll-snap-type:y_mandatory] [scrollbar-gutter:stable_both-edges]"
+              // `relative` so Motion's `useScroll({ target, container })`
+              // walks the offsetParent chain correctly: descendants' offsetTop
+              // is measured against <main>, not against whatever non-static
+              // ancestor happens to be next up the tree. Without this, Motion
+              // logs "container has a non-static position" and the per-target
+              // scroll progress is computed in the wrong frame, breaking the
+              // counter-translate that pins beat content during exit-dissolve.
+              className="relative flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scroll-snap-type:y_mandatory] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary

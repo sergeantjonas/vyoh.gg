@@ -98,8 +98,10 @@ describe("useChapterNudge", () => {
     if (!io) throw new Error("IO not created");
     act(() => io.trigger({ isIntersecting: true, intersectionRatio: 0.6 }));
     expect(result.current.nudged).toBe(false);
+    // SETTLE_MS = 120 — tuned down from 500 for R-13 stacked-beat reveal
+    // continuity. The boundary check still asserts the contract.
     act(() => {
-      vi.advanceTimersByTime(499);
+      vi.advanceTimersByTime(119);
     });
     expect(result.current.nudged).toBe(false);
     act(() => {

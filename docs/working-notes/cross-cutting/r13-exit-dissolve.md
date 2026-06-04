@@ -6,7 +6,86 @@ Sub-note of [self-portrait-recap-arc.md](./self-portrait-recap-arc.md) R-13. Cap
 
 - 2026-06-02 — thrashing arc (8 commits chasing an in-place dissolve via JS counter-translate) reverted via `4d4b83cc`. `chapter-beat.tsx` byte-for-byte identical to b9a97b23 state. No exit animation currently — beats just scroll up with the snap.
 - 2026-06-04 — research landed (this note). Recommendation: **Lane 2 (Motion `useScroll` with `target` + `offset`)**.
-- Pending: spike commit per recommendation, then evaluate.
+- 2026-06-04 — Lane 2 attempted, found insufficient. Resolution shipped on **Lane 3 (sticky restructure)**, the lane this note originally rejected. See "Resolution 2026-06-04" section below for the audit trail.
+
+## Resolution v2 2026-06-04 (final)
+
+After shipping the sticky-based scroll-coupled approach below, the architecture was scrapped one more time in favor of the much simpler **IntersectionObserver-triggered Motion `animate()`** pattern. Owner's question that triggered the rethink: *"Is there a reason you are tying the opacity to the actual scrolling position? Why do you not consider just firing an actual animation once we hit a certain threshold?"* — and they were right. For a snap-paginated page-turn UX, scroll-coupling buys nothing visible while costing significant cross-engine complexity.
+
+**Final architecture:**
+
+```tsx
+const isInView = useInView(ref, { amount: 0.5, root: mainScrollRef });
+useEffect(() => {
+  if (reducedMotion) return;
+  if (isInView) {
+    if (hasBeenInViewRef.current) animate(opacity, 1, ...);  // re-entry
+    hasBeenInViewRef.current = true;
+  } else if (hasBeenInViewRef.current) {
+    animate(opacity, 0, ...);                                // exit
+    animate(blur, "blur(8px)", ...);
+    animate(scale, 0.985, ...);
+  }
+}, [isInView, ...]);
+```
+
+That's the whole exit-dissolve. No `useScroll`, no `useTransform`, no view-timeline, no CSS animation-timeline, no sticky, no counter-translate, no engine gate, no `containerReady` state, no `WRAPPER_DVH` constant, no `exit-dissolve.css`. Just IntersectionObserver + Motion's WAAPI-backed `animate()`.
+
+**Why this is correct where everything else wasn't:**
+
+- **Scroll-snap untouched.** `scroll-snap-align: start` + `scroll-snap-stop: always` works cleanly — there's nothing competing with the browser's snap algorithm. No transforms during scroll-snap to be optimized-away by Chrome/Safari's compositor; no sticky to flicker; no per-scroll-event JS to lag against Firefox.
+- **Cross-engine uniform.** IntersectionObserver and Motion `animate()` are universal. No `@supports`, no JS feature detection, no Firefox-vs-Chrome split.
+- **The "in-place" feel is visual, not structural.** With a 400ms fade running concurrent to the browser's ~300ms snap motion, content fades to invisible *during* the snap. The eye perceives it as a page-turn dissolve, not a scroll-off. Trying to literally pin content via sticky or counter-translate was solving a problem that wasn't actually a problem.
+- **Reversibility is free.** Motion's `animate()` cancels prior animations on the same value when a new one starts. Scrolling back into a previously-exited beat fires `animate(opacity, 1, ...)` and the value smoothly interpolates back regardless of where the prior animation was in its run.
+
+**Tuning knobs (single number each):**
+
+- `FADE_DURATION` (0.4s) — how long the fade takes
+- `FADE_AMOUNT` (0.5) — IO intersection threshold for "in view"; lower fires earlier
+- `FADE_EASE` ("easeOut") — curve
+
+**What's archived below in "Resolution v1":** the sticky-based architecture that came one step before this. Kept for the audit trail because the lessons from that attempt (Firefox lies about `CSS.supports("animation-timeline: view()")`, Chrome composites scroll-snap units and ignores per-descendant transforms, sticky+scroll-snap-stop:always interactions) are non-obvious and worth remembering.
+
+## Resolution v1 (archived) 2026-06-04
+
+**Lane 2 (Motion `useScroll` with counter-translate) failed in practice.** Worked on Firefox with minor bouncing (JS path lag against scroll events); on Chrome/Safari the transform was reported by `getComputedStyle` as the expected counter-translate value but had **zero visual effect** — the painted box still moved with the scroll. Diagnosed as a scroll-snap compositor optimization: Chrome/Safari composite the snap-aligned section + its descendants as a single unit during the snap interpolation, ignoring per-descendant transforms. Owner confirmed via direct DevTools inspection (transform value present in styles, element visually scrolling normally).
+
+**Final architecture: sticky-based pinning + scroll-driven CSS animation for the fade.**
+
+```
+<section h-[130dvh] snap-align:start snap-stop:always>    ← wrapper / snap unit
+  <div position:sticky top:0 h-dvh .beat-exit-dissolve>   ← pinned content
+    {body}
+  </div>
+</section>
+```
+
+- **Pinning is `position: sticky`** — universal browser support (Chrome 56+ / Safari 13+ / Firefox 32+), compositor-friendly, can't be optimized away by scroll-snap because it's layout, not transform. The "in place" comes from the browser's native sticky algorithm, not from any JS or transform.
+- **Fade is scroll-driven animation** on the sticky inner. CSS `animation-timeline: view()` on Chrome 115+ / Safari 26+ (compositor-thread, zero JS), Motion `useScroll` JS path on Firefox (no counter-translate, so no bouncing — Motion only drives `opacity`/`filter`/`scale` which compose cleanly with the sticky's pin).
+- **Snap feel preserved** — wrapper is snap-aligned, so PageDown / wheel-scroll still land on each beat boundary. Beat takes 130dvh of scroll instead of 100dvh; the extra 30dvh is the "scroll runway" during which sticky pins and the dissolve runs.
+
+### Why Lane 3 was wrongly rejected initially
+
+This note's original Lane 3 evaluation dismissed sticky restructure citing:
+
+1. **"Loses the carousel-page snap feel shipped in `844b0739`"** — *wrong assumption*. Snap-align on the **wrapper** preserves the feel; only the scroll runway changes (130dvh vs 100dvh per beat). PageDown still lands on each beat in turn.
+2. **"Sticky + mandatory snap interact poorly (Safari especially)"** — *outdated*. That was a pre-2022 Safari bug; current Safari 17+ handles `position: sticky` inside `scroll-snap-type: mandatory` containers cleanly. Carried-forward stale folklore.
+3. **"Big surgery — `ChapterBeat`, all chapter consumers, `useChapterNudge`, tests, scroll-restore"** — *true but overstated*. The refactor was contained to `ChapterBeat` + `chapter-beat.test.tsx` + adding `exit-dissolve.css`. Consumers (e.g. `steam-chapter.tsx`) didn't change because `className` now applies to the inner sticky instead of the outer wrapper — same semantic for layout/padding classes.
+
+The deeper mistake in this note: it framed the central problem as "compositor-thread scroll tracking" and built lane analysis around that. The actual central problem was **how to pin content during scroll**. Sticky is the native answer to pinning; compositor-thread tracking is secondary and only matters because Lane 2 picked a non-native pinning mechanism (transform). Once pinning is native, the fade animation has a much smaller risk surface (just opacity/filter, no counter-translate gymnastics).
+
+### Implementation links
+
+- [apps/web/src/home/recap/chapter-beat.tsx](../../apps/web/src/home/recap/chapter-beat.tsx) — sticky-based component
+- [apps/web/src/home/recap/exit-dissolve.css](../../apps/web/src/home/recap/exit-dissolve.css) — CSS animation-timeline keyframes + named view-timeline
+- [apps/web/src/home/recap/chapter-beat.test.tsx](../../apps/web/src/home/recap/chapter-beat.test.tsx) — tests adapted to inner-sticky structure
+
+### Lessons (carry forward)
+
+- **When debugging cross-engine perf issues, distinguish "tracking" from "pinning"**. They're different problems with different solutions. Tracking is "what scroll position are we at"; pinning is "where does content render". Don't conflate.
+- **`position: sticky` is the standard for in-place scroll effects.** Apple product pages, Linear, most editorial scroll storytelling sites use sticky. If you're considering counter-translate via JS, you're probably picking the wrong tool.
+- **`getComputedStyle` reporting a transform is not proof that the transform renders.** Scroll-snap composites may silently ignore per-descendant transforms. Verify with `getBoundingClientRect` (the rendered position) when the perception/computed-style mismatch is suspicious.
+- **Carry-forward folklore decays fast.** "Sticky + mandatory snap interacts poorly in Safari" was true in 2022. Re-validate browser-bug claims against current versions before architectural decisions hinge on them.
 
 ## Effect we're chasing
 

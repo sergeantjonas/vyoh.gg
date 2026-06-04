@@ -24,11 +24,17 @@ const DEFAULT_TRIGGER_RATIO = 0.5;
 
 /**
  * Milliseconds to wait after the threshold crosses before flipping
- * `nudged` true. Lines up with the browser's CSS scroll-snap settle
- * window (typical 300–500ms smooth-scroll duration) so the reveal
- * cascade starts from a stable viewport instead of mid-snap.
+ * `nudged` true. Originally 500ms (tuned to the CSS scroll-snap settle
+ * window) but R-13's stacked-beat model produced visible "dead air"
+ * between the outgoing beat's exit-dissolve completing (~end of the
+ * ~150ms snap) and the incoming beat's reveal starting — the gap was
+ * ~500ms of mostly-empty viewport. Dropped to 120ms so the incoming
+ * reveal overlaps with the back half of the outgoing dissolve rather
+ * than waiting for full snap-settle. Still long enough to absorb the
+ * tail of the snap interpolation; short enough that the transition
+ * reads as one continuous gesture.
  */
-const SETTLE_MS = 500;
+const SETTLE_MS = 120;
 
 type Options = {
   triggerRatio?: number;
