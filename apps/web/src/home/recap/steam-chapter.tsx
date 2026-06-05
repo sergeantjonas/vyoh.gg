@@ -709,7 +709,12 @@ export function SteamChapter({
         <ChapterMultiBeat
           slug={`steam-${appid}`}
           ariaLabel={name || `Steam game ${appid}`}
-          mastheadHeight="30vh"
+          // Steam title card (eyebrow + masthead + tagline) renders at
+          // ~38vh mobile / ~42vh desktop — match the legacy BEAT_LAYOUT
+          // padding the previous architecture used to clear it. `clamp`
+          // scales between the two so mobile doesn't over-reserve and
+          // desktop doesn't bleed.
+          mastheadHeight="clamp(38vh, calc(36vh + 4vw), 42vh)"
           identity={titleCard}
         >
           {beatBodies.map((body, index) => (

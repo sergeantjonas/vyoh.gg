@@ -141,7 +141,13 @@ function ChapterMultiBeatImpl(
           // only, no opaque fill, so transparent mastheads still work.
           <header
             data-chapter-masthead=""
-            className="sticky top-0 z-20 w-full"
+            // `overflow-hidden` clips any title-card content that would
+            // otherwise bleed below the reserved masthead height into
+            // the beat content area. The consumer should size
+            // `mastheadHeight` to match the title-card's actual footprint;
+            // overflow-hidden is the safety net so a too-small value
+            // can't cross-paint beats.
+            className="sticky top-0 z-20 w-full overflow-hidden"
             style={{ height: mastheadHeight }}
           >
             {identity}
