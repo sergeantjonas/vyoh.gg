@@ -33,6 +33,8 @@ async function probe(page, url, label) {
     const legacy = document.querySelector("[data-chapter-group]");
     const multi = document.querySelector("[data-chapter-multi-beat]");
     const masthead = document.querySelector("header[data-chapter-masthead]");
+    const stage = document.querySelector("[data-chapter-stage]");
+    const track = document.querySelector("[data-chapter-track]");
     const beats = Array.from(document.querySelectorAll("[data-beat]"));
     const sample = beats[0];
     return {
@@ -41,16 +43,16 @@ async function probe(page, url, label) {
       legacyBeatCount: legacy?.getAttribute("data-chapter-beat-count") ?? null,
       multiBeatCount: multi?.getAttribute("data-chapter-beat-count") ?? null,
       mastheadIsHeader: !!masthead,
-      mastheadIsSticky: masthead?.className.includes("sticky") ?? false,
+      stageIsSticky: stage?.className.includes("sticky") ?? false,
+      trackIsHorizontalFlex:
+        track?.className.includes("flex") && track?.className.includes("flex-row"),
       mastheadHeight: multi?.style.getPropertyValue("--masthead-h") ?? null,
+      sectionHeightPx: multi?.getBoundingClientRect().height ?? null,
       beatNodeCount: beats.length,
       sampleBeatClass: sample?.className ?? null,
-      sampleHasSnapAlign:
-        sample?.className.includes("scroll-snap-align:start") ?? false,
-      sampleHasSnapStop:
-        sample?.className.includes("scroll-snap-stop:always") ?? false,
-      sampleHasScrollMargin:
-        sample?.className.includes("scroll-margin-top:var(--masthead-h)") ?? false,
+      sampleIsViewportWide:
+        sample?.className.includes("w-screen") &&
+        sample?.className.includes("shrink-0"),
     };
   });
 
@@ -76,10 +78,9 @@ const multiOk =
   !multi?.legacyPresent &&
   multi?.multiBeatCount === "4" &&
   multi?.mastheadIsHeader &&
-  multi?.mastheadIsSticky &&
-  multi?.sampleHasSnapAlign &&
-  multi?.sampleHasSnapStop &&
-  multi?.sampleHasScrollMargin;
+  multi?.stageIsSticky &&
+  multi?.trackIsHorizontalFlex &&
+  multi?.sampleIsViewportWide;
 
 console.log(`Legacy path: ${legacyOk ? "✓ OK" : "✗ FAILED"}`);
 console.log(`Multi-beat path: ${multiOk ? "✓ OK" : "✗ FAILED"}`);

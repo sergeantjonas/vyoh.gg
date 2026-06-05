@@ -1,17 +1,21 @@
-import { useReducedMotion } from "motion/react";
+import { m, useReducedMotion, useScroll, useTransform } from "motion/react";
 import {
   type CSSProperties,
   Children,
   type ReactNode,
   type Ref,
+  type RefObject,
   forwardRef,
   isValidElement,
+  useEffect,
   useRef,
+  useState,
 } from "react";
+
+import { mainScrollRef } from "@/lib/scroll-container";
 
 import { ChapterGroupNudgeContext } from "./chapter-group";
 import { useChapterNudge } from "./use-chapter-nudge";
-import { useMainScrollSnapClaim } from "./use-main-scroll-snap";
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
@@ -20,53 +24,51 @@ type Props = {
   ariaLabel?: string;
   className?: string;
   /**
-   * Persistent chapter masthead rendered in normal flow at the top of
-   * the chapter, with `position: sticky; top: 0`. Stays anchored at the
-   * viewport top while the chapter is in view, releases when the next
-   * chapter takes over. Children of the slot can call
-   * `useChapterGroupNudge()` to drive their own entrance/exit animations
-   * off the chapter's overall presence state.
+   * Persistent chapter masthead rendered at the top of the pinned
+   * stage. Stays visible for the chapter's entire scroll length; beat
+   * content slides horizontally underneath it. The slot's children can
+   * call `useChapterGroupNudge()` to drive their own entrance/exit
+   * animations off the chapter's overall presence state.
    */
   identity?: ReactNode;
   /**
-   * Masthead height as a CSS length expression. Drives both the
-   * `<header>`'s `height` and the `--masthead-h` CSS variable that each
-   * child `<MultiBeat>` reads for its `scroll-margin-top` and its
-   * fixed-height calculation. Default `20vh`.
+   * Masthead height as a CSS length expression. Drives the masthead
+   * box's `height` and the `--masthead-h` CSS variable that the beat
+   * track reads to size itself. Default `20vh`.
    */
   mastheadHeight?: string;
   children: ReactNode;
 };
 
 /**
- * Chapter wrapper for the multi-beat architecture (replaces the shipped
- * sticky-stage cross-fade pattern in [chapter-group.tsx](./chapter-group.tsx)).
- *
- * Architecture summary:
- * - Renders `<section data-chapter>` containing a sticky `<header>` masthead
- *   in normal flow followed by `<MultiBeat>` children, also in normal flow.
- * - Each `<MultiBeat>` is a viewport-tall (minus masthead) snap stop with
- *   `scroll-snap-stop: always`, so wheel and trackpad cannot skip or get
- *   stuck between beats.
- * - The masthead is `position: sticky; top: 0`, opaque over the beat
- *   content area. Persists across every beat in the chapter; releases
- *   when the chapter section scrolls past viewport top.
- * - Each beat reads `--masthead-h` (published as inline style on this
- *   section) to compute its `scroll-margin-top` and height. Set
- *   `mastheadHeight` per chapter if the masthead size differs.
- *
- * What this replaces:
- * - Today's [chapter-group.tsx](./chapter-group.tsx) sticky-stage stacks all beats
- *   as absolutely-positioned layers cross-fading via scroll progress —
- *   structurally forces cross-fade and leaves users stranded between
- *   beats (no per-beat snap force).
- *
- * Full background, choreography toolkit, and prior-art audit in
+ * Horizontal-track multi-beat chapter (the Apple AirPods Pro / Stripe
+ * Sessions pattern). Replaces the snap-and-sticky multi-beat that fought
+ * the browser cross-engine; this design has no scroll-snap involvement
+ * at all. Full background in
  * [multi-beat-chapter-arc.md](../../../docs/working-notes/cross-cutting/multi-beat-chapter-arc.md).
  *
- * Under `prefers-reduced-motion`: collapses to a flat vertical stack —
- * masthead loses its stickiness and beats render in document flow with
- * natural height. Same content, no motion. Snap stays (it's navigation).
+ * Architecture:
+ * - Outer `<section>` is `beatCount * 100dvh` tall — that height is the
+ *   scroll runway Motion's `useScroll` measures progress against.
+ * - Inside, a `position: sticky; top: 0; height: 100dvh` stage pins for
+ *   the chapter's full vertical scroll length. The masthead lives at
+ *   the top of this stage and never moves.
+ * - Below the masthead, a horizontal track (`flex flex-row`) lays out
+ *   all beats side-by-side, each `w-screen`. The track's `x` transform
+ *   is driven by `useTransform(scrollYProgress, [0, 1], ["0vw", `-${(N-1)*100}vw`])`,
+ *   so each 100dvh of vertical scroll advances the track by 100vw.
+ * - Motion's `useScroll` runs on the native `ScrollTimeline` API on
+ *   Chrome 115+ / Safari 26+ (compositor thread, no per-frame JS) and
+ *   falls back to rAF on Firefox. Single source surface, all engines.
+ *
+ * No scroll-snap means no cross-engine fragility. The "between content
+ * piece" feel comes from Motion's smooth scroll-driven translate and
+ * per-beat reveal cascades fired by each `<MultiBeat>`'s `useInView`
+ * (the R-13 v2 IntersectionObserver + animate pattern).
+ *
+ * Under `prefers-reduced-motion`: collapses to a vertical stack —
+ * masthead in flow, beats below, no transforms, no pinning. Same
+ * content, no motion. Snap is not needed; the page is just a stack.
  */
 function ChapterMultiBeatImpl(
   { slug, ariaLabel, className, identity, mastheadHeight = "20vh", children }: Props,
@@ -76,15 +78,33 @@ function ChapterMultiBeatImpl(
   const reducedMotion = useReducedMotion();
   const entered = useChapterNudge(sectionRef);
 
-  // Claim `scroll-snap-type: y proximity` on `<main>` for the lifetime of
-  // this chapter. Without this, the `scroll-snap-align: start` /
-  // `scroll-snap-stop: always` classes on `<MultiBeat>` are inert — the
-  // spec requires snap-type on the scroll container. Ref-counted so
-  // multiple `<ChapterMultiBeat>` instances co-exist; original value
-  // restored when the last one unmounts.
-  useMainScrollSnapClaim();
-
   const beatCount = Children.toArray(children).filter(isValidElement).length;
+
+  // Motion's useScroll requires the container ref to be hydrated before
+  // it can attach scroll listeners — passing a null-ref container throws
+  // in dev. Gate the `container` option on a state flag that flips once
+  // mainScrollRef is attached. Without this, useScroll falls back to
+  // window scroll for the first render, which is fine in happy-dom
+  // (tests) where mainScrollRef never hydrates anyway.
+  const [containerReady, setContainerReady] = useState(() => !!mainScrollRef.current);
+  useEffect(() => {
+    if (!containerReady && mainScrollRef.current) setContainerReady(true);
+  }, [containerReady]);
+
+  const { scrollYProgress } = useScroll({
+    ...(containerReady
+      ? { container: mainScrollRef as unknown as RefObject<HTMLElement> }
+      : {}),
+    target: sectionRef,
+    offset: ["start start", "end end"],
+  });
+
+  // Translate the horizontal track from 0 to -(N-1)*100vw across the
+  // chapter's scroll length. At progress 0, beat 0 is at viewport x=0;
+  // at progress 1, beat N-1 is at viewport x=0. Each 100dvh of vertical
+  // scroll == 100vw of horizontal advance.
+  const trackEndVw = Math.max(0, (beatCount - 1) * 100);
+  const x = useTransform(scrollYProgress, [0, 1], ["0vw", `-${trackEndVw}vw`]);
 
   const assignRef = (node: HTMLElement | null) => {
     sectionRef.current = node;
@@ -92,8 +112,6 @@ function ChapterMultiBeatImpl(
     else if (ref) (ref as { current: HTMLElement | null }).current = node;
   };
 
-  // Publish --masthead-h as an inline custom property so child <MultiBeat>
-  // components can pick it up via CSS without a context handoff.
   const sectionStyle = { "--masthead-h": mastheadHeight } as CSSProperties;
 
   if (reducedMotion) {
@@ -130,30 +148,34 @@ function ChapterMultiBeatImpl(
         data-chapter={slug}
         data-chapter-multi-beat=""
         data-chapter-beat-count={beatCount}
-        style={sectionStyle}
+        style={{ ...sectionStyle, height: `${beatCount * 100}dvh` }}
         className={["relative w-full", className].filter(Boolean).join(" ")}
       >
-        {identity ? (
-          // Sticky masthead in normal flow. Anchors to top of viewport
-          // while chapter is in view; releases when chapter scrolls past.
-          // `z-20` keeps it above beat content. Consumer is responsible
-          // for the masthead's own background — the wrapper is structural
-          // only, no opaque fill, so transparent mastheads still work.
-          <header
-            data-chapter-masthead=""
-            // `overflow-hidden` clips any title-card content that would
-            // otherwise bleed below the reserved masthead height into
-            // the beat content area. The consumer should size
-            // `mastheadHeight` to match the title-card's actual footprint;
-            // overflow-hidden is the safety net so a too-small value
-            // can't cross-paint beats.
-            className="sticky top-0 z-20 w-full overflow-hidden"
-            style={{ height: mastheadHeight }}
+        <div
+          data-chapter-stage=""
+          className="sticky top-0 flex h-dvh w-full flex-col overflow-hidden"
+        >
+          {identity ? (
+            <header
+              data-chapter-masthead=""
+              // No background, no overflow clip: the consumer's identity
+              // content is the whole visual treatment. The masthead box
+              // just reserves vertical space above the beat track via
+              // its own height; the track lives below it in flex flow.
+              className="z-20 w-full shrink-0"
+              style={{ height: mastheadHeight }}
+            >
+              {identity}
+            </header>
+          ) : null}
+          <m.div
+            data-chapter-track=""
+            className="flex flex-1 flex-row will-change-transform"
+            style={{ x }}
           >
-            {identity}
-          </header>
-        ) : null}
-        {children}
+            {children}
+          </m.div>
+        </div>
       </section>
     </ChapterGroupNudgeContext.Provider>
   );

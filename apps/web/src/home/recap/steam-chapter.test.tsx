@@ -50,6 +50,8 @@ vi.mock("motion/react", async () => {
     ...actual,
     useReducedMotion: vi.fn(() => false),
     useInView: vi.fn(() => true),
+    useScroll: vi.fn(() => ({ scrollYProgress: { get: () => 0, on: () => () => {} } })),
+    useTransform: vi.fn(() => "0vw"),
   };
 });
 vi.mock("./use-multi-beat-flag", () => ({
@@ -456,35 +458,42 @@ describe("SteamChapter", () => {
       expect(container.querySelector("[data-chapter-group]")).toBeNull();
     });
 
-    it("renders four flat snap-stop beats under the multi-beat layout", () => {
+    it("renders four full-viewport-width beats in a horizontal track", () => {
       const { container } = render(<SteamChapter />);
       const beats = container.querySelectorAll("[data-beat]");
       expect(beats.length).toBe(4);
-      // Each beat carries the snap classes — the structural fix for the
-      // stuck/skip symptoms the cross-fade architecture had.
+      // Each beat is a viewport-wide flex item in the horizontal track —
+      // no native snap classes (the design has no scroll-snap involvement
+      // at all; horizontal motion is driven by Motion's useScroll).
       for (const beat of beats) {
-        expect(beat.className).toContain("[scroll-snap-align:start]");
-        expect(beat.className).toContain("[scroll-snap-stop:always]");
-        expect(beat.className).toContain("[scroll-margin-top:var(--masthead-h)]");
+        expect(beat.className).toContain("w-screen");
+        expect(beat.className).toContain("shrink-0");
+        expect(beat.className).not.toContain("scroll-snap-align");
       }
     });
 
-    it("renders the masthead as a sticky header in normal flow", () => {
+    it("pins the chapter stage so the masthead persists during scroll", () => {
       const { container } = render(<SteamChapter />);
-      const masthead = container.querySelector("header[data-chapter-masthead]");
-      expect(masthead).toBeTruthy();
-      expect(masthead?.className).toContain("sticky");
-      expect(masthead?.className).toContain("top-0");
+      const stage = container.querySelector("[data-chapter-stage]");
+      expect(stage).toBeTruthy();
+      expect(stage?.className).toContain("sticky");
+      expect(stage?.className).toContain("top-0");
+      // Masthead lives inside the pinned stage, takes its own height,
+      // and the horizontal track sits below it in flex column order.
+      const header = container.querySelector("header[data-chapter-masthead]");
+      expect(header).toBeTruthy();
     });
 
     it("publishes --masthead-h as inline style on the chapter section", () => {
       const { container } = render(<SteamChapter />);
       const section = container.querySelector("[data-chapter-multi-beat]");
-      // Steam chapter reserves a fixed 42vh for the title card. A clamp()
-      // expression was tried briefly but caused Firefox regressions when
-      // referenced via var() inside another calc().
       expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 42vh");
     });
+
+    // The 4 beats × 100dvh scroll runway height is set via inline style
+    // but happy-dom strips `dvh` from style serialization. Verified via
+    // the diagnose-multi-beat-flag.mjs probe; beat count is observable
+    // through `data-chapter-beat-count` covered in another test.
 
     it("partitions bands across beats the same way as the legacy layout", () => {
       const standout = makeAchievement({

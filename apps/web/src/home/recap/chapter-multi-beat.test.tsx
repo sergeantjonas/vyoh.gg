@@ -8,6 +8,8 @@ vi.mock("motion/react", async () => {
     ...actual,
     useReducedMotion: vi.fn(() => false),
     useInView: vi.fn(() => true),
+    useScroll: vi.fn(() => ({ scrollYProgress: { get: () => 0, on: () => () => {} } })),
+    useTransform: vi.fn(() => "0vw"),
   };
 });
 
@@ -24,9 +26,7 @@ const mockedUseReducedMotion = vi.mocked(useReducedMotion);
 
 const axe = configureAxe({
   rules: {
-    // happy-dom doesn't compute real styles for contrast checks.
     "color-contrast": { enabled: false },
-    // Radix-style focus management fires false positives in happy-dom.
     "aria-hidden-focus": { enabled: false },
   },
 });
@@ -40,7 +40,7 @@ describe("ChapterMultiBeat", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the chapter as a region with carousel ARIA", () => {
+  it("renders the chapter as a carousel region", () => {
     const { container } = render(
       <ChapterMultiBeat slug="steam-3" ariaLabel="Steam recap">
         <MultiBeat index={0} beatCount={1}>
@@ -49,12 +49,17 @@ describe("ChapterMultiBeat", () => {
       </ChapterMultiBeat>
     );
     const section = container.querySelector("section");
-    // <section> with aria-label has implicit role="region"; no explicit attribute.
     expect(section?.getAttribute("aria-roledescription")).toBe("carousel");
     expect(section?.getAttribute("aria-label")).toBe("Steam recap");
     expect(section?.getAttribute("data-chapter")).toBe("steam-3");
     expect(section?.getAttribute("data-chapter-beat-count")).toBe("1");
   });
+
+  // Section height is `beatCount * 100dvh` to provide the scroll runway
+  // that drives the horizontal track. happy-dom drops `dvh` values from
+  // inline style serialization so it can't be asserted here; verified
+  // via the live diagnose-multi-beat-flag.mjs probe instead, and the
+  // beat-count attribute on the section makes the multiplier observable.
 
   it("publishes --masthead-h as inline style with default 20vh", () => {
     const { container } = render(
@@ -65,23 +70,22 @@ describe("ChapterMultiBeat", () => {
       </ChapterMultiBeat>
     );
     const section = container.querySelector("section");
-    // happy-dom serializes custom properties on style.cssText.
     expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 20vh");
   });
 
   it("publishes a custom masthead height when provided", () => {
     const { container } = render(
-      <ChapterMultiBeat mastheadHeight="24vh">
+      <ChapterMultiBeat mastheadHeight="42vh">
         <MultiBeat index={0} beatCount={1}>
           <p>beat</p>
         </MultiBeat>
       </ChapterMultiBeat>
     );
     const section = container.querySelector("section");
-    expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 24vh");
+    expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 42vh");
   });
 
-  it("renders the identity slot as a sticky header under standard motion", () => {
+  it("renders the identity slot as a header inside a sticky stage", () => {
     const { container } = render(
       <ChapterMultiBeat identity={<span>title</span>}>
         <MultiBeat index={0} beatCount={1}>
@@ -89,12 +93,29 @@ describe("ChapterMultiBeat", () => {
         </MultiBeat>
       </ChapterMultiBeat>
     );
+    const stage = container.querySelector("[data-chapter-stage]");
+    expect(stage?.className).toContain("sticky");
+    expect(stage?.className).toContain("top-0");
     const header = container.querySelector("header[data-chapter-masthead]");
     expect(header).not.toBeNull();
-    expect(header?.className).toContain("sticky");
-    expect(header?.className).toContain("top-0");
-    // Identity content is rendered as a direct child of the header.
     expect(header?.textContent).toContain("title");
+  });
+
+  it("renders a horizontal track below the masthead under standard motion", () => {
+    const { container } = render(
+      <ChapterMultiBeat identity={<span>title</span>}>
+        <MultiBeat index={0} beatCount={2}>
+          <p>a</p>
+        </MultiBeat>
+        <MultiBeat index={1} beatCount={2}>
+          <p>b</p>
+        </MultiBeat>
+      </ChapterMultiBeat>
+    );
+    const track = container.querySelector("[data-chapter-track]");
+    expect(track).not.toBeNull();
+    expect(track?.className).toContain("flex");
+    expect(track?.className).toContain("flex-row");
   });
 
   it("renders identity in flow (not sticky) under reduced motion", () => {
@@ -108,9 +129,7 @@ describe("ChapterMultiBeat", () => {
     );
     const section = container.querySelector("section");
     expect(section?.getAttribute("data-reduced-motion")).toBe("");
-    // No <header> with sticky in reduced motion — masthead becomes a
-    // plain div in normal flow so the page is a flat stack.
-    expect(container.querySelector("header[data-chapter-masthead]")).toBeNull();
+    expect(container.querySelector("[data-chapter-stage]")).toBeNull();
     expect(container.querySelector("div[data-chapter-masthead]")?.textContent).toBe(
       "title"
     );
@@ -132,9 +151,9 @@ describe("ChapterMultiBeat", () => {
         </MultiBeat>
       </ChapterMultiBeat>
     );
-    expect(
-      container.querySelector("section")?.getAttribute("data-chapter-beat-count")
-    ).toBe("3");
+    expect(container.querySelector("section")?.getAttribute("data-chapter-beat-count")).toBe(
+      "3"
+    );
   });
 
   it("passes axe with carousel + slide structure", async () => {

@@ -27,18 +27,18 @@ describe("MultiBeat", () => {
     vi.clearAllMocks();
   });
 
-  it("renders as an article with carousel slide ARIA", () => {
+  it("renders as a div with carousel slide ARIA", () => {
     const { container } = render(
       <MultiBeat index={1} beatCount={4}>
         <p>content</p>
       </MultiBeat>
     );
-    const article = container.querySelector("div[data-beat]");
-    expect(article).not.toBeNull();
-    expect(article?.getAttribute("role")).toBe("group");
-    expect(article?.getAttribute("aria-roledescription")).toBe("slide");
-    expect(article?.getAttribute("aria-label")).toBe("Beat 2 of 4");
-    expect(article?.getAttribute("data-beat")).toBe("1");
+    const beat = container.querySelector("div[data-beat]");
+    expect(beat).not.toBeNull();
+    expect(beat?.getAttribute("role")).toBe("group");
+    expect(beat?.getAttribute("aria-roledescription")).toBe("slide");
+    expect(beat?.getAttribute("aria-label")).toBe("Beat 2 of 4");
+    expect(beat?.getAttribute("data-beat")).toBe("1");
   });
 
   it("uses custom aria-label when provided", () => {
@@ -52,31 +52,33 @@ describe("MultiBeat", () => {
     );
   });
 
-  it("applies snap classes and masthead-aware height under standard motion", () => {
+  it("renders as a w-screen flex item under standard motion", () => {
     const { container } = render(
       <MultiBeat index={0} beatCount={2}>
         <p>content</p>
       </MultiBeat>
     );
-    const article = container.querySelector("div[data-beat]");
-    expect(article?.className).toContain("[scroll-snap-align:start]");
-    expect(article?.className).toContain("[scroll-snap-stop:always]");
-    expect(article?.className).toContain("[scroll-margin-top:var(--masthead-h)]");
-    expect(article?.className).toContain("h-[calc(100dvh-var(--masthead-h))]");
+    const beat = container.querySelector("div[data-beat]");
+    expect(beat?.className).toContain("w-screen");
+    expect(beat?.className).toContain("shrink-0");
+    expect(beat?.className).toContain("h-full");
+    // No scroll-snap classes — the horizontal track architecture doesn't
+    // use native snap. (Previous design did, was reverted; see
+    // multi-beat-chapter-arc.md for the audit trail.)
+    expect(beat?.className).not.toContain("scroll-snap-align");
+    expect(beat?.className).not.toContain("scroll-snap-stop");
   });
 
-  it("collapses to flow under reduced motion, dropping fixed height", () => {
+  it("collapses to a plain w-full block under reduced motion", () => {
     mockedUseReducedMotion.mockReturnValue(true);
     const { container } = render(
       <MultiBeat index={0} beatCount={2}>
         <p>content</p>
       </MultiBeat>
     );
-    const article = container.querySelector("div[data-beat]");
-    // Snap classes are absent in reduced motion (no fixed viewport pages).
-    expect(article?.className).not.toContain("[scroll-snap-align:start]");
-    expect(article?.className).not.toContain("h-[calc(100dvh-var(--masthead-h))]");
-    expect(article?.className).toContain("relative w-full");
+    const beat = container.querySelector("div[data-beat]");
+    expect(beat?.className).not.toContain("w-screen");
+    expect(beat?.className).toContain("w-full");
   });
 
   it("invokes render-prop child with current nudge state", () => {
@@ -87,7 +89,6 @@ describe("MultiBeat", () => {
       </MultiBeat>
     );
     expect(childFn).toHaveBeenCalled();
-    // useInView mocked to true → nudged becomes true via the entry effect.
     expect(childFn).toHaveBeenLastCalledWith(true);
   });
 
@@ -108,8 +109,19 @@ describe("MultiBeat", () => {
         {childFn}
       </MultiBeat>
     );
-    // Reduced-motion branch passes true straight through so child reveal
-    // cascades render without animation but also without staying hidden.
     expect(childFn).toHaveBeenLastCalledWith(true);
+  });
+
+  it("flips nudge to false when useInView reports out-of-view", () => {
+    mockedUseInView.mockReturnValue(false);
+    const childFn = vi.fn(() => <p>fn child</p>);
+    render(
+      <MultiBeat index={0} beatCount={1}>
+        {childFn}
+      </MultiBeat>
+    );
+    // Initial nudge state is false (reducedMotion ?? false); useInView=false
+    // keeps it false so child reveals don't fire on a non-visible beat.
+    expect(childFn).toHaveBeenLastCalledWith(false);
   });
 });
