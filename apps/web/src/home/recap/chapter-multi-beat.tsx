@@ -11,6 +11,7 @@ import {
 
 import { ChapterGroupNudgeContext } from "./chapter-group";
 import { useChapterNudge } from "./use-chapter-nudge";
+import { useMainScrollSnapClaim } from "./use-main-scroll-snap";
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
@@ -74,6 +75,14 @@ function ChapterMultiBeatImpl(
   const sectionRef = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
   const entered = useChapterNudge(sectionRef);
+
+  // Claim `scroll-snap-type: y proximity` on `<main>` for the lifetime of
+  // this chapter. Without this, the `scroll-snap-align: start` /
+  // `scroll-snap-stop: always` classes on `<MultiBeat>` are inert — the
+  // spec requires snap-type on the scroll container. Ref-counted so
+  // multiple `<ChapterMultiBeat>` instances co-exist; original value
+  // restored when the last one unmounts.
+  useMainScrollSnapClaim();
 
   const beatCount = Children.toArray(children).filter(isValidElement).length;
 

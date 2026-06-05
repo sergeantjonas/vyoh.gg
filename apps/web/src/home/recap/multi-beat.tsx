@@ -67,9 +67,15 @@ export function MultiBeat({
 }: Props) {
   const ref = useRef<HTMLElement | null>(null);
   const reducedMotion = useReducedMotion();
+  // `amount: 0.3` (not 0.5) keeps the beat in its "entered" state until
+  // most of it has scrolled out of view, so the last beat doesn't fire
+  // its exit animation while the user is still reading it / scrolling
+  // toward the end of the chapter. With snap engaged this also gives the
+  // entering beat headroom to finish its entrance before the previous
+  // beat's exit completes — beats overlap in motion, not in opacity.
   const isInView = useInView(ref, {
     root: mainScrollRef as React.RefObject<Element>,
-    amount: 0.5,
+    amount: 0.3,
   });
 
   // hasBeenInView prevents the exit animation from firing on initial
