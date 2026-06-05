@@ -7,6 +7,7 @@ import {
   forwardRef,
   isValidElement,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -18,15 +19,21 @@ import { useChapterNudge } from "./use-chapter-nudge";
 
 const SCROLL_RUNWAY_MULTIPLIER = 2.5;
 
-// Fractions of the chapter's scroll progress where the horizontal track
-// starts moving (TRACK_START) and finishes its motion (TRACK_END). The
-// scroll outside this range is "dwell" — chapter is pinned but track
-// stays at its boundary position, holding the first or last beat in
-// view. Without these, beat 0 starts sliding off the moment the chapter
-// pins, and beat N-1 reaching position coincides with the chapter
-// unpinning — both reading as too sudden.
-const TRACK_START_PROGRESS = 0.15;
-const TRACK_END_PROGRESS = 0.85;
+// Dwell-and-transition scroll mapping. Each beat holds its position for
+// `DWELL_UNITS` of scroll units, then transitions to the next beat over
+// `TRANSITION_UNITS`. The 1:3 ratio gives each beat a brief "magnetic"
+// resting zone (≈0.7 viewport of scroll where natural rest = beat
+// centered) while keeping total motion-zone proportion close to the
+// pure-linear case — motion speed stays ≈the same as without dwells.
+//
+// History: a 2:1 ratio was tried first and felt too zippy in transitions
+// (only 27% of scroll went to motion, amplifying the speed 3×). Pure
+// linear (no dwells) was tried next, but then users naturally rested
+// mid-transition with content half-shown. 1:3 splits the difference —
+// dwells are short enough to keep transition speed close to linear,
+// but present so resting positions land on a beat by default.
+const DWELL_UNITS = 1;
+const TRANSITION_UNITS = 3;
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
@@ -113,17 +120,34 @@ function ChapterMultiBeatImpl(
   // transition piecewise mapping was tried but concentrated all motion
   // into ~27% of total scroll, making transitions feel ~2× amplified
   // vs scroll input.
-  const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
-  // Track motion runs from TRACK_START_PROGRESS to TRACK_END_PROGRESS.
-  // Motion's `useTransform` clamps inputs outside the input range, so
-  // for progress < TRACK_START the track stays at "0%" (beat 0 holds in
-  // view), and for progress > TRACK_END it stays at the final position
-  // (beat N-1 holds before the chapter unpins).
-  const x = useTransform(
-    scrollYProgress,
-    [TRACK_START_PROGRESS, TRACK_END_PROGRESS],
-    ["0%", `-${trackEndPct}%`]
-  );
+  // Piecewise mapping with DWELL+TRANSITION units. For N beats: each
+  // beat dwells for DWELL_UNITS, with TRANSITION_UNITS between beats.
+  // useTransform interpolates linearly between stops, so the doubled
+  // value at each beat (same value at dwell start + end) holds the
+  // track in place across that range.
+  const { stops, values } = useMemo(() => {
+    const s: number[] = [];
+    const v: string[] = [];
+    if (beatCount > 0) {
+      const totalUnits =
+        beatCount * DWELL_UNITS + Math.max(0, beatCount - 1) * TRANSITION_UNITS;
+      let cumulative = 0;
+      for (let i = 0; i < beatCount; i += 1) {
+        const beatPosition = `-${(i * 100) / beatCount}%`;
+        s.push(cumulative / totalUnits);
+        v.push(beatPosition);
+        cumulative += DWELL_UNITS;
+        s.push(cumulative / totalUnits);
+        v.push(beatPosition);
+        if (i < beatCount - 1) cumulative += TRANSITION_UNITS;
+      }
+    } else {
+      s.push(0, 1);
+      v.push("0%", "0%");
+    }
+    return { stops: s, values: v };
+  }, [beatCount]);
+  const x = useTransform(scrollYProgress, stops, values);
 
   // Programmatic snap on scroll-end was tried (commit history) and
   // removed: even using the native `scrollend` event for timing, the
