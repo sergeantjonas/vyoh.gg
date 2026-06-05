@@ -17,7 +17,7 @@ import { mainScrollRef } from "@/lib/scroll-container";
 import { ChapterGroupNudgeContext } from "./chapter-group";
 import { useChapterNudge } from "./use-chapter-nudge";
 
-const SCROLL_RUNWAY_MULTIPLIER = 1.6;
+const SCROLL_RUNWAY_MULTIPLIER = 2.5;
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
@@ -133,7 +133,6 @@ function ChapterMultiBeatImpl(
     const section = sectionRef.current;
     if (!main || !section) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
     let activeAnimation: ReturnType<typeof animate> | null = null;
 
     const snapToNearestBeat = () => {
@@ -173,16 +172,19 @@ function ChapterMultiBeatImpl(
       });
     };
 
-    const onScroll = () => {
+    // Use the native `scrollend` event (Chrome 114+/Safari 17.4+/Firefox
+    // 109+) which fires after the browser's own momentum has settled.
+    // Previously used a 150ms debounce on `scroll` events, which could
+    // fail during long momentum scrolls (each tail-end momentum tick
+    // reset the debounce, so snap never fired).
+    const onScrollEnd = () => {
       if (isAnimatingRef.current) return;
-      if (timer !== null) clearTimeout(timer);
-      timer = setTimeout(snapToNearestBeat, 150);
+      snapToNearestBeat();
     };
 
-    main.addEventListener("scroll", onScroll, { passive: true });
+    main.addEventListener("scrollend", onScrollEnd, { passive: true });
     return () => {
-      main.removeEventListener("scroll", onScroll);
-      if (timer !== null) clearTimeout(timer);
+      main.removeEventListener("scrollend", onScrollEnd);
       activeAnimation?.stop();
     };
   }, [beatCount, reducedMotion, beatPositions]);
