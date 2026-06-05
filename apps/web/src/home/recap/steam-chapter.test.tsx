@@ -458,17 +458,16 @@ describe("SteamChapter", () => {
       expect(container.querySelector("[data-chapter-group]")).toBeNull();
     });
 
-    it("renders four stage-width beats in a horizontal track", () => {
+    it("renders four 1/4-width beats in the expanded horizontal track", () => {
       const { container } = render(<SteamChapter />);
-      const beats = container.querySelectorAll("[data-beat]");
+      const beats = container.querySelectorAll<HTMLElement>("[data-beat]");
       expect(beats.length).toBe(4);
-      // Each beat is `w-full` of the parent track (visible stage width),
-      // not `w-screen` — required so the percent-of-track translate
-      // matches one beat per chapter scroll-segment regardless of how
-      // wide the user's viewport is. No native snap classes either; the
-      // architecture has no scroll-snap involvement.
+      // Each beat occupies 25% of the track. Track itself is sized to
+      // 400% of stage width by ChapterMultiBeat, so 25% × 400% = 100%
+      // of stage. Inline-styled because Tailwind arbitrary values can't
+      // interpolate beatCount.
       for (const beat of beats) {
-        expect(beat.className).toContain("w-full");
+        expect(beat.style.width).toBe("25%");
         expect(beat.className).toContain("shrink-0");
         expect(beat.className).not.toContain("w-screen");
         expect(beat.className).not.toContain("scroll-snap-align");

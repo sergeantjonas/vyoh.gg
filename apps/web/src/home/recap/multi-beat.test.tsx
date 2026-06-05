@@ -52,18 +52,19 @@ describe("MultiBeat", () => {
     );
   });
 
-  it("renders as a stage-width flex item under standard motion", () => {
+  it("renders as a 1/N-track-width flex item under standard motion", () => {
     const { container } = render(
-      <MultiBeat index={0} beatCount={2}>
+      <MultiBeat index={0} beatCount={4}>
         <p>content</p>
       </MultiBeat>
     );
-    const beat = container.querySelector("div[data-beat]");
-    // Beat is `w-full` of the parent track (== visible stage width) so
-    // the horizontal translate works resolution-independently. Was
-    // `w-screen` before; broke at viewports > the recap wrapper's
-    // max-width because beat overflowed the stage.
-    expect(beat?.className).toContain("w-full");
+    const beat = container.querySelector<HTMLElement>("div[data-beat]");
+    // Beat width is `100 / beatCount` % of the parent track (which is
+    // `beatCount × 100%` wide by the ChapterMultiBeat parent) — net
+    // result: each beat occupies one visible stage width regardless of
+    // viewport. Set via inline style because Tailwind arbitrary values
+    // can't interpolate beatCount.
+    expect(beat?.style.width).toBe("25%");
     expect(beat?.className).toContain("shrink-0");
     expect(beat?.className).toContain("h-full");
     expect(beat?.className).not.toContain("w-screen");
@@ -78,8 +79,11 @@ describe("MultiBeat", () => {
         <p>content</p>
       </MultiBeat>
     );
-    const beat = container.querySelector("div[data-beat]");
+    const beat = container.querySelector<HTMLElement>("div[data-beat]");
     expect(beat?.className).toContain("w-full");
+    // Reduced-motion path doesn't use the 1/N inline width — beats flow
+    // vertically as plain blocks.
+    expect(beat?.style.width).toBe("");
   });
 
   it("invokes render-prop child with current nudge state", () => {

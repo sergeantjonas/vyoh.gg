@@ -190,12 +190,17 @@ function ChapterMultiBeatImpl(
           ) : null}
           <m.div
             data-chapter-track=""
-            // Explicit height = main viewport - masthead. Same --main-h
-            // fallback to 100dvh so this works during initial render
-            // before the variable is published.
+            // Explicit `width: beatCount × 100%` makes the percentage
+            // translate map to actual beat advances. Without this, the
+            // track inherits its parent's width (one stage-width) and
+            // `-75%` translates by ~stage*0.75 px instead of 3×stage px.
+            // Each child `<MultiBeat>` sets `width: 100/beatCount%` so
+            // they each occupy 1/N of this expanded track == one stage
+            // width.
             className="flex flex-row will-change-transform"
             style={{
               x,
+              width: `${beatCount * 100}%`,
               height: "calc(var(--main-h, 100dvh) - var(--masthead-h))",
             }}
           >
