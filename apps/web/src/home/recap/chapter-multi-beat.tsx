@@ -97,42 +97,23 @@ function ChapterMultiBeatImpl(
     offset: ["start start", "end end"],
   });
 
-  // Dwell-and-transition scroll mapping: each beat holds its position
-  // for DWELL_UNITS of scroll progress, then transitions to the next
-  // beat over TRANSITION_UNITS. Without this, the horizontal track
-  // moves on every scroll tick, never giving the reader a moment to
-  // read a beat — the masthead pins, beat 0 appears, and starts
-  // sliding off before the eye even registers it.
+  // Linear scroll-to-horizontal mapping. Each scroll tick advances the
+  // track at the same rate as scroll — no dwell zones, no amplified
+  // transitions. The chapter feels evenly paced, not "sticky then zip".
+  // Reading time on each beat is provided by the snap effect below,
+  // which pulls the user onto the nearest beat after scroll input stops.
   //
-  // For N beats: 2:1 dwell-to-transition means each beat dwell is twice
-  // as long (in scroll units) as the transition between beats. For
-  // N=4 that's 4 dwells + 3 transitions = 11 units total; each dwell is
-  // 2/11 ≈ 18% of scroll, each transition 1/11 ≈ 9%.
-  const { stops, values } = useMemo(() => {
-    const s: number[] = [];
-    const v: string[] = [];
-    if (beatCount > 0) {
-      const DWELL_UNITS = 2;
-      const TRANSITION_UNITS = 1;
-      const totalUnits =
-        beatCount * DWELL_UNITS + Math.max(0, beatCount - 1) * TRANSITION_UNITS;
-      let cumulative = 0;
-      for (let i = 0; i < beatCount; i += 1) {
-        const beatPosition = `-${(i * 100) / beatCount}%`;
-        s.push(cumulative / totalUnits);
-        v.push(beatPosition);
-        cumulative += DWELL_UNITS;
-        s.push(cumulative / totalUnits);
-        v.push(beatPosition);
-        if (i < beatCount - 1) cumulative += TRANSITION_UNITS;
-      }
-    } else {
-      s.push(0, 1);
-      v.push("0%", "0%");
-    }
-    return { stops: s, values: v };
+  // Dwell-and-transition piecewise mapping was tried but concentrated
+  // all motion into ~27% of total scroll, making transitions feel ~2x
+  // amplified vs scroll input. Linear + snap reads as smoother.
+  const beatPositions = useMemo(() => {
+    // Progress positions where each beat is centered in the viewport.
+    // For N beats: [0, 1/(N-1), 2/(N-1), ..., 1].
+    if (beatCount <= 1) return [0];
+    return Array.from({ length: beatCount }, (_, i) => i / (beatCount - 1));
   }, [beatCount]);
-  const x = useTransform(scrollYProgress, stops, values);
+  const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
+  const x = useTransform(scrollYProgress, [0, 1], ["0%", `-${trackEndPct}%`]);
 
   // Programmatic snap-to-dwell on scroll-end. Without this, a Mac
   // trackpad flick with momentum carries the user past beats — they
@@ -155,7 +136,7 @@ function ChapterMultiBeatImpl(
     let timer: ReturnType<typeof setTimeout> | null = null;
     let activeAnimation: ReturnType<typeof animate> | null = null;
 
-    const snapIfBetweenBeats = () => {
+    const snapToNearestBeat = () => {
       if (isAnimatingRef.current) return;
       const sectionTop = section.offsetTop;
       const sectionHeight = section.offsetHeight;
@@ -165,44 +146,37 @@ function ChapterMultiBeatImpl(
       const currentScroll = main.scrollTop;
       // Outside the chapter's scroll runway — don't snap.
       if (currentScroll < sectionTop || currentScroll > sectionTop + runway) return;
+      // Find the nearest beat position (in progress units, then convert to scroll).
       const progress = (currentScroll - sectionTop) / runway;
-      // Find which zone (between stops[i] and stops[i+1]) progress is in.
-      for (let i = 0; i < stops.length - 1; i += 1) {
-        const lo = stops[i];
-        const hi = stops[i + 1];
-        if (lo === undefined || hi === undefined) continue;
-        if (progress < lo || progress > hi) continue;
-        // Dwell zones have equal start/end values; transition zones have
-        // different values (the track is interpolating between beats).
-        if (values[i] === values[i + 1]) return;
-        // Inside a transition zone — snap to the nearer end.
-        const loScroll = sectionTop + lo * runway;
-        const hiScroll = sectionTop + hi * runway;
-        const target =
-          Math.abs(currentScroll - loScroll) < Math.abs(currentScroll - hiScroll)
-            ? loScroll
-            : hiScroll;
-        if (Math.abs(currentScroll - target) < 2) return;
-        isAnimatingRef.current = true;
-        activeAnimation = animate(currentScroll, target, {
-          duration: 0.4,
-          ease: [0.16, 1, 0.3, 1],
-          onUpdate: (v) => {
-            main.scrollTop = v;
-          },
-          onComplete: () => {
-            isAnimatingRef.current = false;
-            activeAnimation = null;
-          },
-        });
-        return;
+      let nearestProgress = beatPositions[0] ?? 0;
+      let minDist = Math.abs(progress - nearestProgress);
+      for (const p of beatPositions) {
+        const d = Math.abs(progress - p);
+        if (d < minDist) {
+          minDist = d;
+          nearestProgress = p;
+        }
       }
+      const target = sectionTop + nearestProgress * runway;
+      if (Math.abs(currentScroll - target) < 2) return;
+      isAnimatingRef.current = true;
+      activeAnimation = animate(currentScroll, target, {
+        duration: 0.4,
+        ease: [0.16, 1, 0.3, 1],
+        onUpdate: (v) => {
+          main.scrollTop = v;
+        },
+        onComplete: () => {
+          isAnimatingRef.current = false;
+          activeAnimation = null;
+        },
+      });
     };
 
     const onScroll = () => {
       if (isAnimatingRef.current) return;
       if (timer !== null) clearTimeout(timer);
-      timer = setTimeout(snapIfBetweenBeats, 150);
+      timer = setTimeout(snapToNearestBeat, 150);
     };
 
     main.addEventListener("scroll", onScroll, { passive: true });
@@ -211,7 +185,7 @@ function ChapterMultiBeatImpl(
       if (timer !== null) clearTimeout(timer);
       activeAnimation?.stop();
     };
-  }, [beatCount, reducedMotion, stops, values]);
+  }, [beatCount, reducedMotion, beatPositions]);
 
   const assignRef = (node: HTMLElement | null) => {
     sectionRef.current = node;
