@@ -16,6 +16,8 @@ import { mainScrollRef } from "@/lib/scroll-container";
 import { ChapterGroupNudgeContext } from "./chapter-group";
 import { useChapterNudge } from "./use-chapter-nudge";
 
+const SCROLL_RUNWAY_MULTIPLIER = 1.6;
+
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
   slug?: string;
@@ -167,24 +169,29 @@ function ChapterMultiBeatImpl(
         data-chapter={slug}
         data-chapter-multi-beat=""
         data-chapter-beat-count={beatCount}
-        // Section height = beatCount × main viewport. Sized in
-        // `var(--main-h)` (published by __root.tsx as `<main>`'s actual
-        // clientHeight in px) rather than `dvh` because the nav strip
-        // above main makes main shorter than the window. With dvh, the
-        // sticky stage was taller than main's viewport and released
-        // before Motion's useScroll progress reached 1 — chapter slid
-        // up mid-beat 2 (i.e. mid horizontal-translate) instead of
-        // staying pinned through the last beat. Falls back to dvh when
-        // --main-h isn't set (e.g. during initial render / tests).
-        // Full-bleed escape from the recap's `max-w-4xl` wrapper: the
-        // horizontal track wants viewport width on larger screens so
-        // beats don't look cut off on the sides. `width: 100vw` extends
-        // to the viewport edge; `margin-left: calc(50% - 50vw)` pushes
-        // the left edge out to balance. `[overflow-x: clip]` on `<main>`
-        // (set in __root.tsx) prevents the escape from producing a
-        // horizontal page scrollbar.
+        // Section height = beatCount × SCROLL_RUNWAY_MULTIPLIER × main
+        // viewport. Sized in `var(--main-h)` (published by __root.tsx as
+        // `<main>`'s actual clientHeight in px) rather than `dvh`
+        // because the nav strip above main makes main shorter than the
+        // window. With dvh, the sticky stage was taller than main's
+        // viewport and released before Motion's useScroll progress
+        // reached 1.
+        //
+        // SCROLL_RUNWAY_MULTIPLIER (= 1.6) gives the chapter more total
+        // vertical scroll so each dwell + transition is substantial
+        // enough that a trackpad flick with momentum can't blow through
+        // a whole beat. With multiplier=1 (the natural beatCount×main-h
+        // section), one momentum swipe (~150vh) was enough to skip
+        // beats; at 1.6 each beat advance takes ~150vh so even a strong
+        // flick lands roughly on the next beat rather than past it.
+        //
+        // Full-bleed escape from the recap's `max-w-4xl` wrapper.
+        // `width: 100vw` extends to viewport edges; `margin-left:
+        // calc(50% - 50vw)` pulls the left edge out to balance.
+        // `[overflow-x: clip]` on `<main>` (set in __root.tsx) prevents
+        // a horizontal page scrollbar.
         style={{
-          height: `calc(${beatCount} * var(--main-h, 100dvh))`,
+          height: `calc(${beatCount * SCROLL_RUNWAY_MULTIPLIER} * var(--main-h, 100dvh))`,
           width: "100vw",
           marginLeft: "calc(50% - 50vw)",
         }}
