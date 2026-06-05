@@ -94,17 +94,39 @@ function ChapterMultiBeatImpl(
     offset: ["start start", "end end"],
   });
 
-  // Translate the horizontal track in percentages of the track itself —
-  // resolution-independent. Each beat is `w-full` of the stage, so the
-  // track's content width is `N × stage_width`. To bring beat i to the
-  // visible area we translate by `-(i / N) × 100%` of track width. End
-  // state at progress 1 is `-((N-1)/N) × 100%`, putting beat N-1 in
-  // view. (vw-based translation drifted out of sync above the recap
-  // wrapper's max-w-4xl breakpoint because the track is stage-width but
-  // vw is viewport-width — owner caught this with "content invisible at
-  // larger window sizes".)
-  const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", `-${trackEndPct}%`]);
+  // Dwell-and-transition scroll mapping: each beat holds its position
+  // for DWELL_UNITS of scroll progress, then transitions to the next
+  // beat over TRANSITION_UNITS. Without this, the horizontal track
+  // moves on every scroll tick, never giving the reader a moment to
+  // read a beat — the masthead pins, beat 0 appears, and starts
+  // sliding off before the eye even registers it.
+  //
+  // For N beats: 2:1 dwell-to-transition means each beat dwell is twice
+  // as long (in scroll units) as the transition between beats. For
+  // N=4 that's 4 dwells + 3 transitions = 11 units total; each dwell is
+  // 2/11 ≈ 18% of scroll, each transition 1/11 ≈ 9%.
+  const stops: number[] = [];
+  const values: string[] = [];
+  if (beatCount > 0) {
+    const DWELL_UNITS = 2;
+    const TRANSITION_UNITS = 1;
+    const totalUnits =
+      beatCount * DWELL_UNITS + Math.max(0, beatCount - 1) * TRANSITION_UNITS;
+    let cumulative = 0;
+    for (let i = 0; i < beatCount; i += 1) {
+      const beatPosition = `-${(i * 100) / beatCount}%`;
+      stops.push(cumulative / totalUnits);
+      values.push(beatPosition);
+      cumulative += DWELL_UNITS;
+      stops.push(cumulative / totalUnits);
+      values.push(beatPosition);
+      if (i < beatCount - 1) cumulative += TRANSITION_UNITS;
+    }
+  } else {
+    stops.push(0, 1);
+    values.push("0%", "0%");
+  }
+  const x = useTransform(scrollYProgress, stops, values);
 
   const assignRef = (node: HTMLElement | null) => {
     sectionRef.current = node;
