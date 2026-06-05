@@ -18,6 +18,14 @@ import { useChapterNudge } from "./use-chapter-nudge";
 
 const SCROLL_RUNWAY_MULTIPLIER = 2.5;
 
+// Fraction of the chapter's scroll progress where the horizontal track
+// has reached its final position (last beat in view). The remaining
+// progress (1 - this) is a "dwell" at the last beat — the chapter stays
+// pinned but the track doesn't move. Without this, beat N-1 reaching
+// position and the chapter starting to scroll up happen in the same
+// instant, which reads as too sudden.
+const TRACK_END_PROGRESS = 0.85;
+
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
   slug?: string;
@@ -104,7 +112,15 @@ function ChapterMultiBeatImpl(
   // into ~27% of total scroll, making transitions feel ~2× amplified
   // vs scroll input.
   const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", `-${trackEndPct}%`]);
+  // Track motion completes at TRACK_END_PROGRESS, leaving residual scroll
+  // (with track held at -trackEndPct%) before sticky releases at progress 1.
+  // Motion's `useTransform` clamps inputs outside the input range, so the
+  // track value stays at the end position from TRACK_END_PROGRESS to 1.
+  const x = useTransform(
+    scrollYProgress,
+    [0, TRACK_END_PROGRESS],
+    ["0%", `-${trackEndPct}%`]
+  );
 
   // Programmatic snap on scroll-end was tried (commit history) and
   // removed: even using the native `scrollend` event for timing, the
