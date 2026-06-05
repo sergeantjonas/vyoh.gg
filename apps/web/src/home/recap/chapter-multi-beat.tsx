@@ -25,9 +25,9 @@ const SCROLL_RUNWAY_MULTIPLIER = 2.3;
 // longer dwell so the chapter eases into the first beat from the
 // masthead-pin and lingers on the last beat before unpinning — both
 // boundaries previously read as too sudden.
-const DWELL_UNITS = 1;
-const EDGE_DWELL_UNITS = 2;
-const TRANSITION_UNITS = 3;
+const DWELL_UNITS = 2;
+const EDGE_DWELL_UNITS = 3;
+const TRANSITION_UNITS = 4;
 
 type Props = {
   /** Optional `data-chapter` slug for selectors / debugging. */
