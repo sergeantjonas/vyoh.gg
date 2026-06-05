@@ -1,4 +1,4 @@
-import { m, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { animate, m, useReducedMotion, useScroll, useTransform } from "motion/react";
 import {
   Children,
   type ReactNode,
@@ -7,6 +7,7 @@ import {
   forwardRef,
   isValidElement,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -107,28 +108,110 @@ function ChapterMultiBeatImpl(
   // as long (in scroll units) as the transition between beats. For
   // N=4 that's 4 dwells + 3 transitions = 11 units total; each dwell is
   // 2/11 ≈ 18% of scroll, each transition 1/11 ≈ 9%.
-  const stops: number[] = [];
-  const values: string[] = [];
-  if (beatCount > 0) {
-    const DWELL_UNITS = 2;
-    const TRANSITION_UNITS = 1;
-    const totalUnits =
-      beatCount * DWELL_UNITS + Math.max(0, beatCount - 1) * TRANSITION_UNITS;
-    let cumulative = 0;
-    for (let i = 0; i < beatCount; i += 1) {
-      const beatPosition = `-${(i * 100) / beatCount}%`;
-      stops.push(cumulative / totalUnits);
-      values.push(beatPosition);
-      cumulative += DWELL_UNITS;
-      stops.push(cumulative / totalUnits);
-      values.push(beatPosition);
-      if (i < beatCount - 1) cumulative += TRANSITION_UNITS;
+  const { stops, values } = useMemo(() => {
+    const s: number[] = [];
+    const v: string[] = [];
+    if (beatCount > 0) {
+      const DWELL_UNITS = 2;
+      const TRANSITION_UNITS = 1;
+      const totalUnits =
+        beatCount * DWELL_UNITS + Math.max(0, beatCount - 1) * TRANSITION_UNITS;
+      let cumulative = 0;
+      for (let i = 0; i < beatCount; i += 1) {
+        const beatPosition = `-${(i * 100) / beatCount}%`;
+        s.push(cumulative / totalUnits);
+        v.push(beatPosition);
+        cumulative += DWELL_UNITS;
+        s.push(cumulative / totalUnits);
+        v.push(beatPosition);
+        if (i < beatCount - 1) cumulative += TRANSITION_UNITS;
+      }
+    } else {
+      s.push(0, 1);
+      v.push("0%", "0%");
     }
-  } else {
-    stops.push(0, 1);
-    values.push("0%", "0%");
-  }
+    return { stops: s, values: v };
+  }, [beatCount]);
   const x = useTransform(scrollYProgress, stops, values);
+
+  // Programmatic snap-to-dwell on scroll-end. Without this, a Mac
+  // trackpad flick with momentum carries the user past beats — they
+  // end up resting in a transition zone with two beats half-visible.
+  // 150ms after scroll input stops, find which scroll zone the user
+  // landed in: if it's a dwell zone (`values[i] === values[i+1]`),
+  // do nothing (they're already on a beat); if it's a transition zone,
+  // animate scrollTop to the nearer dwell-zone end so they land on a
+  // readable beat. The snap animation suppresses its own scroll
+  // listener via `isAnimatingRef` so we don't re-trigger snapping
+  // mid-animation.
+  const isAnimatingRef = useRef(false);
+  useEffect(() => {
+    if (reducedMotion) return;
+    if (beatCount <= 1) return;
+    const main = mainScrollRef.current;
+    const section = sectionRef.current;
+    if (!main || !section) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let activeAnimation: ReturnType<typeof animate> | null = null;
+
+    const snapIfBetweenBeats = () => {
+      if (isAnimatingRef.current) return;
+      const sectionTop = section.offsetTop;
+      const sectionHeight = section.offsetHeight;
+      const stageHeight = main.clientHeight;
+      const runway = sectionHeight - stageHeight;
+      if (runway <= 0) return;
+      const currentScroll = main.scrollTop;
+      // Outside the chapter's scroll runway — don't snap.
+      if (currentScroll < sectionTop || currentScroll > sectionTop + runway) return;
+      const progress = (currentScroll - sectionTop) / runway;
+      // Find which zone (between stops[i] and stops[i+1]) progress is in.
+      for (let i = 0; i < stops.length - 1; i += 1) {
+        const lo = stops[i];
+        const hi = stops[i + 1];
+        if (lo === undefined || hi === undefined) continue;
+        if (progress < lo || progress > hi) continue;
+        // Dwell zones have equal start/end values; transition zones have
+        // different values (the track is interpolating between beats).
+        if (values[i] === values[i + 1]) return;
+        // Inside a transition zone — snap to the nearer end.
+        const loScroll = sectionTop + lo * runway;
+        const hiScroll = sectionTop + hi * runway;
+        const target =
+          Math.abs(currentScroll - loScroll) < Math.abs(currentScroll - hiScroll)
+            ? loScroll
+            : hiScroll;
+        if (Math.abs(currentScroll - target) < 2) return;
+        isAnimatingRef.current = true;
+        activeAnimation = animate(currentScroll, target, {
+          duration: 0.4,
+          ease: [0.16, 1, 0.3, 1],
+          onUpdate: (v) => {
+            main.scrollTop = v;
+          },
+          onComplete: () => {
+            isAnimatingRef.current = false;
+            activeAnimation = null;
+          },
+        });
+        return;
+      }
+    };
+
+    const onScroll = () => {
+      if (isAnimatingRef.current) return;
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(snapIfBetweenBeats, 150);
+    };
+
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      main.removeEventListener("scroll", onScroll);
+      if (timer !== null) clearTimeout(timer);
+      activeAnimation?.stop();
+    };
+  }, [beatCount, reducedMotion, stops, values]);
 
   const assignRef = (node: HTMLElement | null) => {
     sectionRef.current = node;
