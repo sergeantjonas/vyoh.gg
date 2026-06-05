@@ -49,11 +49,16 @@ vi.mock("motion/react", async () => {
   return {
     ...actual,
     useReducedMotion: vi.fn(() => false),
+    useInView: vi.fn(() => true),
   };
 });
+vi.mock("./use-multi-beat-flag", () => ({
+  useMultiBeatFlag: vi.fn(() => false),
+}));
 
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 import { SteamChapter } from "./steam-chapter";
+import { useMultiBeatFlag } from "./use-multi-beat-flag";
 
 const NOW = new Date("2026-06-01T12:00:00Z");
 
@@ -429,5 +434,79 @@ describe("SteamChapter", () => {
     expect(beatOf("[data-band='detail']")).toBe("1");
     expect(beatOf("[data-band='stats']")).toBe("2");
     expect(beatOf("[data-band='closer']")).toBe("3");
+  });
+
+  describe("multi-beat layout flag", () => {
+    beforeEach(() => {
+      vi.mocked(useMultiBeatFlag).mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      vi.mocked(useMultiBeatFlag).mockReturnValue(false);
+    });
+
+    it("renders the multi-beat chapter wrapper when the flag is on", () => {
+      const { container } = render(<SteamChapter />);
+      // The new architecture surfaces a different data attr — exclusive
+      // selector so the test fails if the wrong path renders.
+      const multiBeat = container.querySelector("[data-chapter-multi-beat]");
+      expect(multiBeat).toBeTruthy();
+      expect(multiBeat?.getAttribute("data-chapter-beat-count")).toBe("4");
+      // Legacy chapter group's stage attr must NOT also be present.
+      expect(container.querySelector("[data-chapter-group]")).toBeNull();
+    });
+
+    it("renders four flat snap-stop beats under the multi-beat layout", () => {
+      const { container } = render(<SteamChapter />);
+      const beats = container.querySelectorAll("[data-beat]");
+      expect(beats.length).toBe(4);
+      // Each beat carries the snap classes — the structural fix for the
+      // stuck/skip symptoms the cross-fade architecture had.
+      for (const beat of beats) {
+        expect(beat.className).toContain("[scroll-snap-align:start]");
+        expect(beat.className).toContain("[scroll-snap-stop:always]");
+        expect(beat.className).toContain("[scroll-margin-top:var(--masthead-h)]");
+      }
+    });
+
+    it("renders the masthead as a sticky header in normal flow", () => {
+      const { container } = render(<SteamChapter />);
+      const masthead = container.querySelector("header[data-chapter-masthead]");
+      expect(masthead).toBeTruthy();
+      expect(masthead?.className).toContain("sticky");
+      expect(masthead?.className).toContain("top-0");
+    });
+
+    it("publishes --masthead-h as inline style on the chapter section", () => {
+      const { container } = render(<SteamChapter />);
+      const section = container.querySelector("[data-chapter-multi-beat]");
+      // Steam chapter sets masthead height to 30vh to match the title card.
+      expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 30vh");
+    });
+
+    it("partitions bands across beats the same way as the legacy layout", () => {
+      const standout = makeAchievement({
+        apiName: "RARE",
+        displayName: "Hollow Knight",
+        description: "Defeat the Hollow Knight without taking damage.",
+        unlockedAt: "2026-05-25T00:00:00Z",
+        globalPercent: 1.8,
+      });
+      vi.mocked(useSteamGameRecap).mockReturnValue({
+        data: recapFromFixtures(makeOwnedGame(), [standout]),
+        isPending: false,
+        isError: false,
+      } as unknown as ReturnType<typeof useSteamGameRecap>);
+      const { container } = render(<SteamChapter />);
+      const beatOf = (selector: string): string | null =>
+        container
+          .querySelector(selector)
+          ?.closest("[data-beat]")
+          ?.getAttribute("data-beat") ?? null;
+      expect(beatOf("[data-band='opener']")).toBe("0");
+      expect(beatOf("[data-band='detail']")).toBe("1");
+      expect(beatOf("[data-band='stats']")).toBe("2");
+      expect(beatOf("[data-band='closer']")).toBe("3");
+    });
   });
 });

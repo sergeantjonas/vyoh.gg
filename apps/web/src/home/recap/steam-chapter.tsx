@@ -10,7 +10,7 @@ import {
   formatReleaseDateChip,
   verdictParagraphSteam,
 } from "@vyoh/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { motion } from "motion/react";
 
@@ -33,6 +33,7 @@ import {
 } from "./chapter-bands";
 import { ChapterBeat } from "./chapter-beat";
 import { ChapterGroup, useChapterGroupNudge } from "./chapter-group";
+import { ChapterMultiBeat } from "./chapter-multi-beat";
 import { ChapterReveal } from "./chapter-reveal";
 import {
   SHADOW_ACCENT,
@@ -41,11 +42,13 @@ import {
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
 } from "./chapter-shadows";
+import { MultiBeat } from "./multi-beat";
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { preloadLinkAsImage } from "./preload-link";
 import { SteamChapterCloserMedia } from "./steam-chapter-closer-media";
 import { useAssetClaim } from "./use-asset-claim";
 import { useAssetPreload } from "./use-asset-preload";
+import { useMultiBeatFlag } from "./use-multi-beat-flag";
 import { VerdictProse } from "./verdict-prose";
 
 // Bucket-aware kicker copy. Mirrors the arc note's "Steam framing" table —
@@ -543,6 +546,187 @@ export function SteamChapter({
   // the masthead at `top: 30vh`). Adding pt here would push content
   // further down on top of that offset.
   const BEAT_LAYOUT = "flex flex-col items-start justify-start px-6 sm:px-10";
+  const useMultiBeat = useMultiBeatFlag();
+
+  // Beat bodies extracted as render-prop functions so both the legacy
+  // ChapterGroup path and the multi-beat ChapterMultiBeat path can map
+  // over the same source without duplicating ~150 lines of JSX.
+  // Removing this temporary indirection: see chunk 4 of
+  // [multi-beat-chapter-arc.md](../../../docs/working-notes/cross-cutting/multi-beat-chapter-arc.md).
+  const beatBodies: Array<(nudged: boolean) => ReactNode> = [
+    // Beat 0 — Verdict prose only. Eyebrow + masthead + tagline live in
+    // the chapter group's title card and persist across all beats, so
+    // beat 0's body is the verdict that summarises the game's standing.
+    (nudged) => (
+      <ChapterOpener>
+        {verdictClauses.length > 0 ? (
+          // Curtain-pull entrance: bigger rise + blur + longer
+          // duration than the band default. Verdict is the chapter's
+          // editorial opener — the reader's first content beat under
+          // the now-anchored masthead, so it gets the heaviest reveal.
+          <ChapterReveal active={nudged} delay={0.05} blur={8} rise={22} duration={0.9}>
+            <VerdictProse
+              clauses={verdictClauses}
+              style={{ textShadow: SHADOW_BODY }}
+              emphasisStyle={{
+                paintOrder: "stroke",
+                WebkitTextStroke: STROKE_ACCENT,
+                textShadow: SHADOW_ACCENT,
+              }}
+              numbersActive={nudged}
+              numbersDelay={0.75}
+            />
+          </ChapterReveal>
+        ) : null}
+      </ChapterOpener>
+    ),
+
+    // Beat 1 — Recent moments (standout + recent unlocks).
+    (nudged) => (
+      <>
+        <ChapterDetail>
+          {standout ? (
+            // Focal card lands from the left with a slight settle-in
+            // pop. The standout achievement is the visual anchor of
+            // beat 1; the directional entrance gives it weight and
+            // distinguishes it from the cascade of recent unlocks
+            // that follows from the opposite side.
+            <ChapterReveal
+              active={nudged}
+              delay={0.05}
+              slideX={-40}
+              scale={0.96}
+              duration={0.75}
+            >
+              <StandoutUnlockBlock appid={appid} standout={standout} />
+            </ChapterReveal>
+          ) : null}
+
+          {recentUnlocks.length > 0 ? (
+            <div className="flex flex-col gap-2 pt-2">
+              <ChapterReveal active={nudged} delay={0.2}>
+                <h3
+                  className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+                  style={{ textShadow: SHADOW_BODY }}
+                >
+                  Recent unlocks
+                </h3>
+              </ChapterReveal>
+              <ul className="flex flex-col gap-0.5">
+                {recentUnlocks.map((u, i) => (
+                  <li key={u.apiName}>
+                    {/* Rows cascade in from the right opposite the
+                              standout block. Tighter stagger (0.045) than
+                              the prior 0.06 — reads as a feed pulling in,
+                              not a list being drawn one row at a time. */}
+                    <ChapterReveal active={nudged} delay={0.28 + i * 0.045} slideX={18}>
+                      <RecentUnlockRow appid={appid} unlock={u} />
+                    </ChapterReveal>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </ChapterDetail>
+      </>
+    ),
+
+    // Beat 2 — Stats (chunk 3 expands this with new stats).
+    (nudged) => (
+      <>
+        <ChapterStats>
+          <PeakChip
+            active={nudged}
+            delay={0.08}
+            label="Completion"
+            value={completionPct !== null ? `${Math.round(completionPct * 100)}%` : "—"}
+          />
+          <PeakChip
+            active={nudged}
+            delay={0.22}
+            label="Two weeks"
+            value={
+              playtime2WeekMin !== null && playtime2WeekMin > 0
+                ? formatPlaytime(playtime2WeekMin)
+                : playtimeForeverMin > 0
+                  ? formatPlaytime(playtimeForeverMin)
+                  : "—"
+            }
+          />
+          <PeakChip
+            active={nudged}
+            delay={0.36}
+            label={standoutGlobalPercent !== null ? "Rarest unlock" : "Unlocks"}
+            value={
+              standoutGlobalPercent !== null
+                ? standoutGlobalPercent < 10
+                  ? `${standoutGlobalPercent.toFixed(1)}%`
+                  : `${Math.round(standoutGlobalPercent)}%`
+                : recap
+                  ? `${recap.achievementsUnlocked}`
+                  : "—"
+            }
+          />
+        </ChapterStats>
+      </>
+    ),
+
+    // Beat 3 — Closer (SteamChapterCloserMedia slot; R-10 trailer
+    // substrate lands here).
+    (nudged) => (
+      <>
+        <ChapterCloser>
+          <SteamChapterCloserMedia
+            appid={appid}
+            screenshots={screenshots}
+            active={nudged}
+          />
+        </ChapterCloser>
+      </>
+    ),
+  ];
+
+  const titleCard = (
+    <SteamChapterTitleCard
+      name={name}
+      eyebrow={eyebrow}
+      releaseChip={releaseChip}
+      tagline={tagline}
+      hasLogo={recap?.hasLogo ?? false}
+      appid={appid}
+      assetTimestamp={recap?.assetTimestamp ?? null}
+    />
+  );
+
+  if (useMultiBeat) {
+    return (
+      <div
+        ref={outerRef}
+        data-recap-chapter="steam"
+        data-steam-appid={appid}
+        data-chapter-label={name || `Steam game ${appid}`}
+      >
+        <ChapterMultiBeat
+          slug={`steam-${appid}`}
+          ariaLabel={name || `Steam game ${appid}`}
+          mastheadHeight="30vh"
+          identity={titleCard}
+        >
+          {beatBodies.map((body, index) => (
+            <MultiBeat
+              // biome-ignore lint/suspicious/noArrayIndexKey: beat order is stable across renders
+              key={index}
+              index={index}
+              beatCount={beatBodies.length}
+              className={BEAT_LAYOUT}
+            >
+              {body}
+            </MultiBeat>
+          ))}
+        </ChapterMultiBeat>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -554,169 +738,14 @@ export function SteamChapter({
       <ChapterGroup
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
-        identity={
-          <SteamChapterTitleCard
-            name={name}
-            eyebrow={eyebrow}
-            releaseChip={releaseChip}
-            tagline={tagline}
-            hasLogo={recap?.hasLogo ?? false}
-            appid={appid}
-            assetTimestamp={recap?.assetTimestamp ?? null}
-          />
-        }
+        identity={titleCard}
       >
-        {/* Beat 0 — Verdict prose only. Eyebrow + masthead + tagline now
-            live in the chapter group's title card and persist across all
-            beats, so beat 0's body is the verdict that summarises the
-            game's standing. */}
-        <ChapterBeat index={0} className={BEAT_LAYOUT}>
-          {(nudged) => (
-            <ChapterOpener>
-              {verdictClauses.length > 0 ? (
-                // Curtain-pull entrance: bigger rise + blur + longer
-                // duration than the band default. Verdict is the chapter's
-                // editorial opener — the reader's first content beat under
-                // the now-anchored masthead, so it gets the heaviest reveal.
-                <ChapterReveal
-                  active={nudged}
-                  delay={0.05}
-                  blur={8}
-                  rise={22}
-                  duration={0.9}
-                >
-                  <VerdictProse
-                    clauses={verdictClauses}
-                    style={{ textShadow: SHADOW_BODY }}
-                    emphasisStyle={{
-                      paintOrder: "stroke",
-                      WebkitTextStroke: STROKE_ACCENT,
-                      textShadow: SHADOW_ACCENT,
-                    }}
-                    numbersActive={nudged}
-                    numbersDelay={0.75}
-                  />
-                </ChapterReveal>
-              ) : null}
-            </ChapterOpener>
-          )}
-        </ChapterBeat>
-
-        {/* Beat 1 — Recent moments (standout + recent unlocks). */}
-        <ChapterBeat index={1} className={BEAT_LAYOUT}>
-          {(nudged) => (
-            <>
-              <ChapterDetail>
-                {standout ? (
-                  // Focal card lands from the left with a slight settle-in
-                  // pop. The standout achievement is the visual anchor of
-                  // beat 1; the directional entrance gives it weight and
-                  // distinguishes it from the cascade of recent unlocks
-                  // that follows from the opposite side.
-                  <ChapterReveal
-                    active={nudged}
-                    delay={0.05}
-                    slideX={-40}
-                    scale={0.96}
-                    duration={0.75}
-                  >
-                    <StandoutUnlockBlock appid={appid} standout={standout} />
-                  </ChapterReveal>
-                ) : null}
-
-                {recentUnlocks.length > 0 ? (
-                  <div className="flex flex-col gap-2 pt-2">
-                    <ChapterReveal active={nudged} delay={0.2}>
-                      <h3
-                        className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
-                        style={{ textShadow: SHADOW_BODY }}
-                      >
-                        Recent unlocks
-                      </h3>
-                    </ChapterReveal>
-                    <ul className="flex flex-col gap-0.5">
-                      {recentUnlocks.map((u, i) => (
-                        <li key={u.apiName}>
-                          {/* Rows cascade in from the right opposite the
-                              standout block. Tighter stagger (0.045) than
-                              the prior 0.06 — reads as a feed pulling in,
-                              not a list being drawn one row at a time. */}
-                          <ChapterReveal
-                            active={nudged}
-                            delay={0.28 + i * 0.045}
-                            slideX={18}
-                          >
-                            <RecentUnlockRow appid={appid} unlock={u} />
-                          </ChapterReveal>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </ChapterDetail>
-            </>
-          )}
-        </ChapterBeat>
-
-        {/* Beat 2 — Stats (chunk 3 expands this with new stats). */}
-        <ChapterBeat index={2} className={BEAT_LAYOUT}>
-          {(nudged) => (
-            <>
-              <ChapterStats>
-                <PeakChip
-                  active={nudged}
-                  delay={0.08}
-                  label="Completion"
-                  value={
-                    completionPct !== null ? `${Math.round(completionPct * 100)}%` : "—"
-                  }
-                />
-                <PeakChip
-                  active={nudged}
-                  delay={0.22}
-                  label="Two weeks"
-                  value={
-                    playtime2WeekMin !== null && playtime2WeekMin > 0
-                      ? formatPlaytime(playtime2WeekMin)
-                      : playtimeForeverMin > 0
-                        ? formatPlaytime(playtimeForeverMin)
-                        : "—"
-                  }
-                />
-                <PeakChip
-                  active={nudged}
-                  delay={0.36}
-                  label={standoutGlobalPercent !== null ? "Rarest unlock" : "Unlocks"}
-                  value={
-                    standoutGlobalPercent !== null
-                      ? standoutGlobalPercent < 10
-                        ? `${standoutGlobalPercent.toFixed(1)}%`
-                        : `${Math.round(standoutGlobalPercent)}%`
-                      : recap
-                        ? `${recap.achievementsUnlocked}`
-                        : "—"
-                  }
-                />
-              </ChapterStats>
-            </>
-          )}
-        </ChapterBeat>
-
-        {/* Beat 3 — Closer (SteamChapterCloserMedia slot; R-10 trailer
-            substrate lands here). */}
-        <ChapterBeat index={3} className={BEAT_LAYOUT}>
-          {(nudged) => (
-            <>
-              <ChapterCloser>
-                <SteamChapterCloserMedia
-                  appid={appid}
-                  screenshots={screenshots}
-                  active={nudged}
-                />
-              </ChapterCloser>
-            </>
-          )}
-        </ChapterBeat>
+        {beatBodies.map((body, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: beat order is stable across renders
+          <ChapterBeat key={index} index={index} className={BEAT_LAYOUT}>
+            {body}
+          </ChapterBeat>
+        ))}
       </ChapterGroup>
     </div>
   );
