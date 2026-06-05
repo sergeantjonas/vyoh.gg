@@ -153,12 +153,25 @@ function ChapterMultiBeatImpl(
         data-chapter={slug}
         data-chapter-multi-beat=""
         data-chapter-beat-count={beatCount}
-        style={{ ...sectionStyle, height: `${beatCount * 100}dvh` }}
+        // Section height = beatCount × main viewport. Sized in
+        // `var(--main-h)` (published by __root.tsx as `<main>`'s actual
+        // clientHeight in px) rather than `dvh` because the nav strip
+        // above main makes main shorter than the window. With dvh, the
+        // sticky stage was taller than main's viewport and released
+        // before Motion's useScroll progress reached 1 — chapter slid
+        // up mid-beat 2 (i.e. mid horizontal-translate) instead of
+        // staying pinned through the last beat. Falls back to dvh when
+        // --main-h isn't set (e.g. during initial render / tests).
+        style={{
+          ...sectionStyle,
+          height: `calc(${beatCount} * var(--main-h, 100dvh))`,
+        }}
         className={["relative w-full", className].filter(Boolean).join(" ")}
       >
         <div
           data-chapter-stage=""
-          className="sticky top-0 h-dvh w-full overflow-hidden"
+          className="sticky top-0 w-full overflow-hidden"
+          style={{ height: "var(--main-h, 100dvh)" }}
         >
           {identity ? (
             <header
@@ -168,8 +181,7 @@ function ChapterMultiBeatImpl(
               // scale) that don't always fit inside `mastheadHeight`'s
               // 42vh box at larger viewports. Without clipping, the
               // overflow stacks z-order above the beat track and hides
-              // beat content entirely. Owner caught this when smaller
-              // window sizes made content reappear.
+              // beat content entirely.
               className="relative z-20 w-full overflow-hidden"
               style={{ height: mastheadHeight }}
             >
@@ -178,14 +190,14 @@ function ChapterMultiBeatImpl(
           ) : null}
           <m.div
             data-chapter-track=""
-            // Explicit height = 100dvh - masthead, not `flex-1`. Firefox
-            // had a circular height-resolution issue when the track was a
-            // flex item with `flex-1` and the beats inside used `h-full`
-            // (beats waiting for track height, track waiting for content
-            // size that depends on beats) — invisible content. Explicit
-            // sums of viewport units bypass the resolution dance.
-            className="flex h-[calc(100dvh-var(--masthead-h))] flex-row will-change-transform"
-            style={{ x }}
+            // Explicit height = main viewport - masthead. Same --main-h
+            // fallback to 100dvh so this works during initial render
+            // before the variable is published.
+            className="flex flex-row will-change-transform"
+            style={{
+              x,
+              height: "calc(var(--main-h, 100dvh) - var(--masthead-h))",
+            }}
           >
             {children}
           </m.div>
