@@ -42,7 +42,7 @@ type Props = {
   children: ReactNode;
 };
 
-const ChapterGroupNudgeContext = createContext(false);
+export const ChapterGroupNudgeContext = createContext(false);
 
 export function useChapterGroupNudge(): boolean {
   return useContext(ChapterGroupNudgeContext);
@@ -54,7 +54,7 @@ export function useChapterGroupNudge(): boolean {
  * cascade in the beat's children so each beat's editorial reveal plays
  * when it becomes dominant, not at chapter mount.
  */
-const ChapterBeatNudgeContext = createContext(false);
+export const ChapterBeatNudgeContext = createContext(false);
 
 export function useChapterBeatNudge(): boolean {
   return useContext(ChapterBeatNudgeContext);
