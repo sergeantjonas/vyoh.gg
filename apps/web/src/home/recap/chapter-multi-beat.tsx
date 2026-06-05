@@ -18,12 +18,14 @@ import { useChapterNudge } from "./use-chapter-nudge";
 
 const SCROLL_RUNWAY_MULTIPLIER = 2.5;
 
-// Fraction of the chapter's scroll progress where the horizontal track
-// has reached its final position (last beat in view). The remaining
-// progress (1 - this) is a "dwell" at the last beat — the chapter stays
-// pinned but the track doesn't move. Without this, beat N-1 reaching
-// position and the chapter starting to scroll up happen in the same
-// instant, which reads as too sudden.
+// Fractions of the chapter's scroll progress where the horizontal track
+// starts moving (TRACK_START) and finishes its motion (TRACK_END). The
+// scroll outside this range is "dwell" — chapter is pinned but track
+// stays at its boundary position, holding the first or last beat in
+// view. Without these, beat 0 starts sliding off the moment the chapter
+// pins, and beat N-1 reaching position coincides with the chapter
+// unpinning — both reading as too sudden.
+const TRACK_START_PROGRESS = 0.15;
 const TRACK_END_PROGRESS = 0.85;
 
 type Props = {
@@ -112,13 +114,14 @@ function ChapterMultiBeatImpl(
   // into ~27% of total scroll, making transitions feel ~2× amplified
   // vs scroll input.
   const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
-  // Track motion completes at TRACK_END_PROGRESS, leaving residual scroll
-  // (with track held at -trackEndPct%) before sticky releases at progress 1.
-  // Motion's `useTransform` clamps inputs outside the input range, so the
-  // track value stays at the end position from TRACK_END_PROGRESS to 1.
+  // Track motion runs from TRACK_START_PROGRESS to TRACK_END_PROGRESS.
+  // Motion's `useTransform` clamps inputs outside the input range, so
+  // for progress < TRACK_START the track stays at "0%" (beat 0 holds in
+  // view), and for progress > TRACK_END it stays at the final position
+  // (beat N-1 holds before the chapter unpins).
   const x = useTransform(
     scrollYProgress,
-    [0, TRACK_END_PROGRESS],
+    [TRACK_START_PROGRESS, TRACK_END_PROGRESS],
     ["0%", `-${trackEndPct}%`]
   );
 
