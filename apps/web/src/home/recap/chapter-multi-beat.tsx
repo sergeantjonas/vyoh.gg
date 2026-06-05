@@ -1,4 +1,4 @@
-import { animate, m, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { m, useReducedMotion, useScroll, useTransform } from "motion/react";
 import {
   Children,
   type ReactNode,
@@ -7,7 +7,6 @@ import {
   forwardRef,
   isValidElement,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -98,96 +97,27 @@ function ChapterMultiBeatImpl(
   });
 
   // Linear scroll-to-horizontal mapping. Each scroll tick advances the
-  // track at the same rate as scroll — no dwell zones, no amplified
-  // transitions. The chapter feels evenly paced, not "sticky then zip".
-  // Reading time on each beat is provided by the snap effect below,
-  // which pulls the user onto the nearest beat after scroll input stops.
-  //
-  // Dwell-and-transition piecewise mapping was tried but concentrated
-  // all motion into ~27% of total scroll, making transitions feel ~2x
-  // amplified vs scroll input. Linear + snap reads as smoother.
-  const beatPositions = useMemo(() => {
-    // Progress positions where each beat is centered in the viewport.
-    // For N beats: [0, 1/(N-1), 2/(N-1), ..., 1].
-    if (beatCount <= 1) return [0];
-    return Array.from({ length: beatCount }, (_, i) => i / (beatCount - 1));
-  }, [beatCount]);
+  // track proportionally to scroll input. Combined with
+  // SCROLL_RUNWAY_MULTIPLIER setting a slow ratio, the user can position
+  // by feel — no programmatic snap fighting their input. Dwell-and-
+  // transition piecewise mapping was tried but concentrated all motion
+  // into ~27% of total scroll, making transitions feel ~2× amplified
+  // vs scroll input.
   const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
   const x = useTransform(scrollYProgress, [0, 1], ["0%", `-${trackEndPct}%`]);
 
-  // Programmatic snap-to-dwell on scroll-end. Without this, a Mac
-  // trackpad flick with momentum carries the user past beats — they
-  // end up resting in a transition zone with two beats half-visible.
-  // 150ms after scroll input stops, find which scroll zone the user
-  // landed in: if it's a dwell zone (`values[i] === values[i+1]`),
-  // do nothing (they're already on a beat); if it's a transition zone,
-  // animate scrollTop to the nearer dwell-zone end so they land on a
-  // readable beat. The snap animation suppresses its own scroll
-  // listener via `isAnimatingRef` so we don't re-trigger snapping
-  // mid-animation.
-  const isAnimatingRef = useRef(false);
-  useEffect(() => {
-    if (reducedMotion) return;
-    if (beatCount <= 1) return;
-    const main = mainScrollRef.current;
-    const section = sectionRef.current;
-    if (!main || !section) return;
-
-    let activeAnimation: ReturnType<typeof animate> | null = null;
-
-    const snapToNearestBeat = () => {
-      if (isAnimatingRef.current) return;
-      const sectionTop = section.offsetTop;
-      const sectionHeight = section.offsetHeight;
-      const stageHeight = main.clientHeight;
-      const runway = sectionHeight - stageHeight;
-      if (runway <= 0) return;
-      const currentScroll = main.scrollTop;
-      // Outside the chapter's scroll runway — don't snap.
-      if (currentScroll < sectionTop || currentScroll > sectionTop + runway) return;
-      // Find the nearest beat position (in progress units, then convert to scroll).
-      const progress = (currentScroll - sectionTop) / runway;
-      let nearestProgress = beatPositions[0] ?? 0;
-      let minDist = Math.abs(progress - nearestProgress);
-      for (const p of beatPositions) {
-        const d = Math.abs(progress - p);
-        if (d < minDist) {
-          minDist = d;
-          nearestProgress = p;
-        }
-      }
-      const target = sectionTop + nearestProgress * runway;
-      if (Math.abs(currentScroll - target) < 2) return;
-      isAnimatingRef.current = true;
-      activeAnimation = animate(currentScroll, target, {
-        duration: 0.4,
-        ease: [0.16, 1, 0.3, 1],
-        onUpdate: (v) => {
-          main.scrollTop = v;
-        },
-        onComplete: () => {
-          isAnimatingRef.current = false;
-          activeAnimation = null;
-        },
-      });
-    };
-
-    // Use the native `scrollend` event (Chrome 114+/Safari 17.4+/Firefox
-    // 109+) which fires after the browser's own momentum has settled.
-    // Previously used a 150ms debounce on `scroll` events, which could
-    // fail during long momentum scrolls (each tail-end momentum tick
-    // reset the debounce, so snap never fired).
-    const onScrollEnd = () => {
-      if (isAnimatingRef.current) return;
-      snapToNearestBeat();
-    };
-
-    main.addEventListener("scrollend", onScrollEnd, { passive: true });
-    return () => {
-      main.removeEventListener("scrollend", onScrollEnd);
-      activeAnimation?.stop();
-    };
-  }, [beatCount, reducedMotion, beatPositions]);
+  // Programmatic snap on scroll-end was tried (commit history) and
+  // removed: even using the native `scrollend` event for timing, the
+  // snap animation fought continuous user scrolling on Mac trackpad.
+  // The user's scroll input would compete with our `scrollTop` writes
+  // mid-animation, producing a tug-of-war feel. The slow ratio set by
+  // SCROLL_RUNWAY_MULTIPLIER (2.5×) keeps each scroll tick proportional
+  // to user input so positioning by feel is workable without snap.
+  //
+  // If snap behavior becomes wanted later, it must gate on (a) no user
+  // input during a longer idle window (≥300ms after scrollend), and
+  // (b) cancel on the first wheel/touch event so the user immediately
+  // regains control of scroll position.
 
   const assignRef = (node: HTMLElement | null) => {
     sectionRef.current = node;
