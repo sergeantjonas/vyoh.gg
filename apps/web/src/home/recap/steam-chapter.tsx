@@ -709,12 +709,14 @@ export function SteamChapter({
         <ChapterMultiBeat
           slug={`steam-${appid}`}
           ariaLabel={name || `Steam game ${appid}`}
-          // Steam title card (eyebrow + masthead + tagline) renders at
-          // ~38vh mobile / ~42vh desktop — match the legacy BEAT_LAYOUT
-          // padding the previous architecture used to clear it. `clamp`
-          // scales between the two so mobile doesn't over-reserve and
-          // desktop doesn't bleed.
-          mastheadHeight="clamp(38vh, calc(36vh + 4vw), 42vh)"
+          // Steam title card (eyebrow + masthead + tagline) needs ~42vh
+          // to render its content without bleeding into beats. Using a
+          // fixed value rather than a clamp() — Firefox computed `calc()`
+          // wrapping a `clamp()` referenced via `var()` as a larger value
+          // than expected, producing too-small beats with multiple beats
+          // visible on one screen. Fixed 42vh trades a small unused strip
+          // on narrow viewports for cross-engine consistency.
+          mastheadHeight="42vh"
           identity={titleCard}
         >
           {beatBodies.map((body, index) => (

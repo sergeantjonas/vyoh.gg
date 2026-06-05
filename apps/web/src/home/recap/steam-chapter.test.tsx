@@ -480,12 +480,10 @@ describe("SteamChapter", () => {
     it("publishes --masthead-h as inline style on the chapter section", () => {
       const { container } = render(<SteamChapter />);
       const section = container.querySelector("[data-chapter-multi-beat]");
-      // Steam chapter sets masthead height to a clamp() between 38vh
-      // (mobile) and 42vh (desktop) so the title card's actual footprint
-      // (eyebrow + masthead + tagline) doesn't bleed into beats.
-      expect(section?.getAttribute("style") ?? "").toContain(
-        "--masthead-h: clamp(38vh, calc(36vh + 4vw), 42vh)"
-      );
+      // Steam chapter reserves a fixed 42vh for the title card. A clamp()
+      // expression was tried briefly but caused Firefox regressions when
+      // referenced via var() inside another calc().
+      expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 42vh");
     });
 
     it("partitions bands across beats the same way as the legacy layout", () => {
