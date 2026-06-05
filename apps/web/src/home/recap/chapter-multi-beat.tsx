@@ -158,11 +158,14 @@ function ChapterMultiBeatImpl(
           {identity ? (
             <header
               data-chapter-masthead=""
-              // No background, no overflow clip: the consumer's identity
-              // content is the whole visual treatment. The masthead box
-              // just reserves vertical space above the beat track via
-              // its own height; the track lives below it in normal flow.
-              className="relative z-20 w-full"
+              // `overflow-hidden` is load-bearing: the title-card content
+              // is sized with `vh`-relative units (logo width, type
+              // scale) that don't always fit inside `mastheadHeight`'s
+              // 42vh box at larger viewports. Without clipping, the
+              // overflow stacks z-order above the beat track and hides
+              // beat content entirely. Owner caught this when smaller
+              // window sizes made content reappear.
+              className="relative z-20 w-full overflow-hidden"
               style={{ height: mastheadHeight }}
             >
               {identity}
