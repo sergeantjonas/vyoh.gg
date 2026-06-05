@@ -153,7 +153,7 @@ function ChapterMultiBeatImpl(
       >
         <div
           data-chapter-stage=""
-          className="sticky top-0 flex h-dvh w-full flex-col overflow-hidden"
+          className="sticky top-0 h-dvh w-full overflow-hidden"
         >
           {identity ? (
             <header
@@ -161,8 +161,8 @@ function ChapterMultiBeatImpl(
               // No background, no overflow clip: the consumer's identity
               // content is the whole visual treatment. The masthead box
               // just reserves vertical space above the beat track via
-              // its own height; the track lives below it in flex flow.
-              className="z-20 w-full shrink-0"
+              // its own height; the track lives below it in normal flow.
+              className="relative z-20 w-full"
               style={{ height: mastheadHeight }}
             >
               {identity}
@@ -170,7 +170,13 @@ function ChapterMultiBeatImpl(
           ) : null}
           <m.div
             data-chapter-track=""
-            className="flex flex-1 flex-row will-change-transform"
+            // Explicit height = 100dvh - masthead, not `flex-1`. Firefox
+            // had a circular height-resolution issue when the track was a
+            // flex item with `flex-1` and the beats inside used `h-full`
+            // (beats waiting for track height, track waiting for content
+            // size that depends on beats) — invisible content. Explicit
+            // sums of viewport units bypass the resolution dance.
+            className="flex h-[calc(100dvh-var(--masthead-h))] flex-row will-change-transform"
             style={{ x }}
           >
             {children}
