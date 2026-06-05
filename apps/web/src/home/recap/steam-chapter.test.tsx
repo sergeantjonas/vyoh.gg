@@ -486,11 +486,7 @@ describe("SteamChapter", () => {
       expect(header).toBeTruthy();
     });
 
-    it("publishes --masthead-h as inline style on the chapter section", () => {
-      const { container } = render(<SteamChapter />);
-      const section = container.querySelector("[data-chapter-multi-beat]");
-      expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 42vh");
-    });
+    // Masthead now sizes to its content (no `--masthead-h` published).
 
     // The 4 beats × 100dvh scroll runway height is set via inline style
     // but happy-dom strips `dvh` from style serialization. Verified via

@@ -545,8 +545,16 @@ export function SteamChapter({
   // sticky stage (beats render in the absolute layer positioned below
   // the masthead at `top: 30vh`). Adding pt here would push content
   // further down on top of that offset.
-  const BEAT_LAYOUT = "flex flex-col items-start justify-start px-6 sm:px-10";
   const useMultiBeat = useMultiBeatFlag();
+  // In the multi-beat horizontal-track layout, each beat sits side-by-
+  // side rather than stacking vertically, so the band's default
+  // `pt-12` / `pb-12` "breathing room" (defined in chapter-bands.tsx)
+  // shows up as visible dead space between the masthead and the first
+  // line of beat content. Override the band paddings only for this
+  // layout — legacy still benefits from the original spacing.
+  const BEAT_LAYOUT = useMultiBeat
+    ? "flex flex-col items-start justify-start px-6 sm:px-10 [&>[data-band]]:!pt-0 [&>[data-band]]:!pb-0"
+    : "flex flex-col items-start justify-start px-6 sm:px-10";
 
   // Beat bodies extracted as render-prop functions so both the legacy
   // ChapterGroup path and the multi-beat ChapterMultiBeat path can map
@@ -709,14 +717,6 @@ export function SteamChapter({
         <ChapterMultiBeat
           slug={`steam-${appid}`}
           ariaLabel={name || `Steam game ${appid}`}
-          // Steam title card (eyebrow + masthead + tagline) needs ~42vh
-          // to render its content without bleeding into beats. Using a
-          // fixed value rather than a clamp() — Firefox computed `calc()`
-          // wrapping a `clamp()` referenced via `var()` as a larger value
-          // than expected, producing too-small beats with multiple beats
-          // visible on one screen. Fixed 42vh trades a small unused strip
-          // on narrow viewports for cross-engine consistency.
-          mastheadHeight="42vh"
           identity={titleCard}
         >
           {beatBodies.map((body, index) => (

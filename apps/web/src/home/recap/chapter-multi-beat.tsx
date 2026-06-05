@@ -1,6 +1,5 @@
 import { m, useReducedMotion, useScroll, useTransform } from "motion/react";
 import {
-  type CSSProperties,
   Children,
   type ReactNode,
   type Ref,
@@ -26,17 +25,13 @@ type Props = {
   /**
    * Persistent chapter masthead rendered at the top of the pinned
    * stage. Stays visible for the chapter's entire scroll length; beat
-   * content slides horizontally underneath it. The slot's children can
-   * call `useChapterGroupNudge()` to drive their own entrance/exit
-   * animations off the chapter's overall presence state.
+   * content slides horizontally underneath it. Sized to its content
+   * (no fixed height); the track fills the remaining stage height.
+   * The slot's children can call `useChapterGroupNudge()` to drive
+   * their own entrance/exit animations off the chapter's overall
+   * presence state.
    */
   identity?: ReactNode;
-  /**
-   * Masthead height as a CSS length expression. Drives the masthead
-   * box's `height` and the `--masthead-h` CSS variable that the beat
-   * track reads to size itself. Default `20vh`.
-   */
-  mastheadHeight?: string;
   children: ReactNode;
 };
 
@@ -71,7 +66,7 @@ type Props = {
  * content, no motion. Snap is not needed; the page is just a stack.
  */
 function ChapterMultiBeatImpl(
-  { slug, ariaLabel, className, identity, mastheadHeight = "20vh", children }: Props,
+  { slug, ariaLabel, className, identity, children }: Props,
   ref: Ref<HTMLElement>
 ) {
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -117,8 +112,6 @@ function ChapterMultiBeatImpl(
     else if (ref) (ref as { current: HTMLElement | null }).current = node;
   };
 
-  const sectionStyle = { "--masthead-h": mastheadHeight } as CSSProperties;
-
   if (reducedMotion) {
     return (
       <ChapterGroupNudgeContext.Provider value={entered}>
@@ -130,7 +123,6 @@ function ChapterMultiBeatImpl(
           data-chapter-multi-beat=""
           data-chapter-beat-count={beatCount}
           data-reduced-motion=""
-          style={sectionStyle}
           className={["relative w-full", className].filter(Boolean).join(" ")}
         >
           {identity ? (
@@ -162,47 +154,38 @@ function ChapterMultiBeatImpl(
         // up mid-beat 2 (i.e. mid horizontal-translate) instead of
         // staying pinned through the last beat. Falls back to dvh when
         // --main-h isn't set (e.g. during initial render / tests).
-        style={{
-          ...sectionStyle,
-          height: `calc(${beatCount} * var(--main-h, 100dvh))`,
-        }}
+        style={{ height: `calc(${beatCount} * var(--main-h, 100dvh))` }}
         className={["relative w-full", className].filter(Boolean).join(" ")}
       >
         <div
           data-chapter-stage=""
-          className="sticky top-0 w-full overflow-hidden"
+          // Flex column so the masthead sizes to its content and the
+          // track fills whatever's left. Avoids the empty-gap problem
+          // where a fixed `mastheadHeight` reserved more space than the
+          // title card actually rendered into — the leftover showed up
+          // as dead space between masthead and beat content.
+          className="sticky top-0 flex w-full flex-col overflow-hidden"
           style={{ height: "var(--main-h, 100dvh)" }}
         >
           {identity ? (
             <header
               data-chapter-masthead=""
-              // `overflow-hidden` is load-bearing: the title-card content
-              // is sized with `vh`-relative units (logo width, type
-              // scale) that don't always fit inside `mastheadHeight`'s
-              // 42vh box at larger viewports. Without clipping, the
-              // overflow stacks z-order above the beat track and hides
-              // beat content entirely.
-              className="relative z-20 w-full overflow-hidden"
-              style={{ height: mastheadHeight }}
+              className="relative z-20 w-full shrink-0 overflow-hidden"
             >
               {identity}
             </header>
           ) : null}
           <m.div
             data-chapter-track=""
-            // Explicit `width: beatCount × 100%` makes the percentage
-            // translate map to actual beat advances. Without this, the
-            // track inherits its parent's width (one stage-width) and
-            // `-75%` translates by ~stage*0.75 px instead of 3×stage px.
-            // Each child `<MultiBeat>` sets `width: 100/beatCount%` so
-            // they each occupy 1/N of this expanded track == one stage
-            // width.
-            className="flex flex-row will-change-transform"
-            style={{
-              x,
-              width: `${beatCount * 100}%`,
-              height: "calc(var(--main-h, 100dvh) - var(--masthead-h))",
-            }}
+            // `flex-1 min-h-0`: takes all remaining stage height after
+            // the masthead. `min-h-0` is required for the flex item to
+            // actually shrink — Firefox's default `min-height: auto`
+            // on flex items would otherwise let track height push
+            // upward into the masthead. Explicit width = beatCount ×
+            // 100% so the percentage translate maps to one beat per
+            // chapter scroll segment.
+            className="flex min-h-0 flex-1 flex-row will-change-transform"
+            style={{ x, width: `${beatCount * 100}%` }}
           >
             {children}
           </m.div>

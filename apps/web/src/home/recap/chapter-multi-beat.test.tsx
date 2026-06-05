@@ -61,29 +61,11 @@ describe("ChapterMultiBeat", () => {
   // via the live diagnose-multi-beat-flag.mjs probe instead, and the
   // beat-count attribute on the section makes the multiplier observable.
 
-  it("publishes --masthead-h as inline style with default 20vh", () => {
-    const { container } = render(
-      <ChapterMultiBeat>
-        <MultiBeat index={0} beatCount={1}>
-          <p>beat</p>
-        </MultiBeat>
-      </ChapterMultiBeat>
-    );
-    const section = container.querySelector("section");
-    expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 20vh");
-  });
-
-  it("publishes a custom masthead height when provided", () => {
-    const { container } = render(
-      <ChapterMultiBeat mastheadHeight="42vh">
-        <MultiBeat index={0} beatCount={1}>
-          <p>beat</p>
-        </MultiBeat>
-      </ChapterMultiBeat>
-    );
-    const section = container.querySelector("section");
-    expect(section?.getAttribute("style") ?? "").toContain("--masthead-h: 42vh");
-  });
+  // No `--masthead-h` published anymore — masthead sizes to its content
+  // via flex layout, track takes whatever's left via `flex-1 min-h-0`.
+  // The prior fixed-height approach reserved extra space when the title
+  // card was shorter than the reserved height, producing a visible gap
+  // between masthead and beat content.
 
   it("renders the identity slot as a header inside a sticky stage", () => {
     const { container } = render(
