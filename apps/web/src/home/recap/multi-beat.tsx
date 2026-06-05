@@ -99,7 +99,15 @@ export function MultiBeat({
         aria-label={label}
         data-beat={index}
         data-beat-slug={slug}
-        className={["relative h-full w-screen shrink-0 overflow-hidden", className]
+        // `w-full shrink-0`: each beat is exactly the visible stage's
+        // width (not `w-screen` = viewport width). At viewports where
+        // the recap wrapper's `max-w-4xl` constrains the stage below
+        // viewport width, `w-screen` made beats overflow the stage and
+        // the percent-of-viewport translate drifted out of sync with the
+        // visible area — content invisible above ~1440px viewport.
+        // `w-full` ties the beat to the stage so the track's percentage
+        // translate maps cleanly across all resolutions.
+        className={["relative h-full w-full shrink-0 overflow-hidden", className]
           .filter(Boolean)
           .join(" ")}
       >

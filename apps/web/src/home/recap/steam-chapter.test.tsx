@@ -458,16 +458,19 @@ describe("SteamChapter", () => {
       expect(container.querySelector("[data-chapter-group]")).toBeNull();
     });
 
-    it("renders four full-viewport-width beats in a horizontal track", () => {
+    it("renders four stage-width beats in a horizontal track", () => {
       const { container } = render(<SteamChapter />);
       const beats = container.querySelectorAll("[data-beat]");
       expect(beats.length).toBe(4);
-      // Each beat is a viewport-wide flex item in the horizontal track —
-      // no native snap classes (the design has no scroll-snap involvement
-      // at all; horizontal motion is driven by Motion's useScroll).
+      // Each beat is `w-full` of the parent track (visible stage width),
+      // not `w-screen` — required so the percent-of-track translate
+      // matches one beat per chapter scroll-segment regardless of how
+      // wide the user's viewport is. No native snap classes either; the
+      // architecture has no scroll-snap involvement.
       for (const beat of beats) {
-        expect(beat.className).toContain("w-screen");
+        expect(beat.className).toContain("w-full");
         expect(beat.className).toContain("shrink-0");
+        expect(beat.className).not.toContain("w-screen");
         expect(beat.className).not.toContain("scroll-snap-align");
       }
     });

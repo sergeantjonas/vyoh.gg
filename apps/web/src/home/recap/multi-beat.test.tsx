@@ -52,19 +52,21 @@ describe("MultiBeat", () => {
     );
   });
 
-  it("renders as a w-screen flex item under standard motion", () => {
+  it("renders as a stage-width flex item under standard motion", () => {
     const { container } = render(
       <MultiBeat index={0} beatCount={2}>
         <p>content</p>
       </MultiBeat>
     );
     const beat = container.querySelector("div[data-beat]");
-    expect(beat?.className).toContain("w-screen");
+    // Beat is `w-full` of the parent track (== visible stage width) so
+    // the horizontal translate works resolution-independently. Was
+    // `w-screen` before; broke at viewports > the recap wrapper's
+    // max-width because beat overflowed the stage.
+    expect(beat?.className).toContain("w-full");
     expect(beat?.className).toContain("shrink-0");
     expect(beat?.className).toContain("h-full");
-    // No scroll-snap classes — the horizontal track architecture doesn't
-    // use native snap. (Previous design did, was reverted; see
-    // multi-beat-chapter-arc.md for the audit trail.)
+    expect(beat?.className).not.toContain("w-screen");
     expect(beat?.className).not.toContain("scroll-snap-align");
     expect(beat?.className).not.toContain("scroll-snap-stop");
   });
@@ -77,7 +79,6 @@ describe("MultiBeat", () => {
       </MultiBeat>
     );
     const beat = container.querySelector("div[data-beat]");
-    expect(beat?.className).not.toContain("w-screen");
     expect(beat?.className).toContain("w-full");
   });
 

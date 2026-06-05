@@ -99,12 +99,17 @@ function ChapterMultiBeatImpl(
     offset: ["start start", "end end"],
   });
 
-  // Translate the horizontal track from 0 to -(N-1)*100vw across the
-  // chapter's scroll length. At progress 0, beat 0 is at viewport x=0;
-  // at progress 1, beat N-1 is at viewport x=0. Each 100dvh of vertical
-  // scroll == 100vw of horizontal advance.
-  const trackEndVw = Math.max(0, (beatCount - 1) * 100);
-  const x = useTransform(scrollYProgress, [0, 1], ["0vw", `-${trackEndVw}vw`]);
+  // Translate the horizontal track in percentages of the track itself —
+  // resolution-independent. Each beat is `w-full` of the stage, so the
+  // track's content width is `N × stage_width`. To bring beat i to the
+  // visible area we translate by `-(i / N) × 100%` of track width. End
+  // state at progress 1 is `-((N-1)/N) × 100%`, putting beat N-1 in
+  // view. (vw-based translation drifted out of sync above the recap
+  // wrapper's max-w-4xl breakpoint because the track is stage-width but
+  // vw is viewport-width — owner caught this with "content invisible at
+  // larger window sizes".)
+  const trackEndPct = beatCount > 0 ? ((beatCount - 1) * 100) / beatCount : 0;
+  const x = useTransform(scrollYProgress, [0, 1], ["0%", `-${trackEndPct}%`]);
 
   const assignRef = (node: HTMLElement | null) => {
     sectionRef.current = node;
