@@ -554,7 +554,7 @@ export function SteamChapter({
   // from the masthead without floating in dead space. Legacy path
   // unaffected.
   const BEAT_LAYOUT = useMultiBeat
-    ? "flex flex-col items-start justify-start px-6 sm:px-10 [&>[data-band]]:!pt-4 [&>[data-band]]:!pb-4"
+    ? "flex flex-col items-start justify-start px-6 sm:px-10 [&>[data-band]]:!pt-6 [&>[data-band]]:!pb-6"
     : "flex flex-col items-start justify-start px-6 sm:px-10";
 
   // Beat bodies extracted as render-prop functions so both the legacy
