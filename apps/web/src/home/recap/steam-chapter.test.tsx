@@ -357,18 +357,23 @@ describe("SteamChapter", () => {
     expect(screen.queryByText("Latest milestone")).toBeNull();
   });
 
-  it("renders as a 4-beat stacked-section chapter (R-13 final architecture)", () => {
+  it("renders as a 4-beat chapter under the sticky-stage architecture", () => {
     const { container } = render(<SteamChapter />);
     const group = container.querySelector("[data-chapter-group]");
     expect(group).toBeTruthy();
-    const beats = container.querySelectorAll("[data-beat]");
+    // The chapter announces its beat count so the stage geometry math
+    // (section height = (beatCount+1)*100dvh) is observable.
+    expect(group?.getAttribute("data-chapter-beat-count")).toBe("4");
+    // Each ChapterBeat renders a single [data-beat-body] wrapper.
+    const beats = container.querySelectorAll("[data-beat-body]");
     expect(beats.length).toBe(4);
-    // Each beat is its own scroll-snap section, not an absolutely-stacked
-    // overlay inside a sticky pin.
+    // No legacy scroll-snap or 130dvh wrapper geometry. Layout is owned
+    // by ChapterGroup's sticky stage; beats are absolute-positioned
+    // layers inside it.
     for (const beat of beats) {
-      expect(beat.tagName).toBe("SECTION");
-      expect(beat.className).toContain("scroll-snap-align:start");
-      expect(beat.className).toContain("scroll-snap-stop:always");
+      expect(beat.className).not.toContain("scroll-snap-align");
+      expect(beat.className).not.toContain("scroll-snap-stop");
+      expect(beat.className).not.toContain("h-[130dvh]");
     }
   });
 

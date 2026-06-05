@@ -141,27 +141,24 @@ function RootLayout() {
                 }
               }}
               data-vt-main=""
-              // `scroll-snap-type: y mandatory` delegates chapter snapping
-              // to the browser: every scroll-end resolves to the closest
-              // snap-align descendant, in either direction, every time.
-              // Combined with `scroll-snap-stop: always` on each chapter,
-              // momentum scrolls cannot skip past a chapter — the book-like
-              // page-turn feel relies on both. `proximity` (the previous
-              // mode) only snapped when the user happened to stop inside a
-              // narrow browser-defined zone, which left visible mid-chapter
-              // resting positions and let fast scrolls overshoot. The hero
-              // and the post-chapter release section both carry snap-align
-              // so the page has a clean home state and a clean exit. Only
-              // `/` mounts snap-align descendants, so non-/ routes are
-              // unaffected — they have no snap points to snap to.
               // `relative` so Motion's `useScroll({ target, container })`
               // walks the offsetParent chain correctly: descendants' offsetTop
               // is measured against <main>, not against whatever non-static
               // ancestor happens to be next up the tree. Without this, Motion
               // logs "container has a non-static position" and the per-target
-              // scroll progress is computed in the wrong frame, breaking the
-              // counter-translate that pins beat content during exit-dissolve.
-              className="relative flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scroll-snap-type:y_mandatory] [scrollbar-gutter:stable_both-edges]"
+              // scroll progress is computed in the wrong frame.
+              //
+              // No `scroll-snap-type` here — the recap migrated off mandatory
+              // snap (chunk 2 of the persistent-frame arc). Snap fought the
+              // mouse wheel, produced mid-snap dead zones, and forced every
+              // beat to be its own 100dvh pin scope; the persistent-frame
+              // pattern uses one sticky scope per chapter with normal-flow
+              // beat zones and a view-timeline-driven fade instead. Stale
+              // [scroll-snap-align] / [scroll-snap-stop] classes still live
+              // on a few chapters that have not been rewritten yet — they
+              // are inert without a snap-type on the container and get
+              // cleaned up alongside each chapter's own migration.
+              className="relative flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary
