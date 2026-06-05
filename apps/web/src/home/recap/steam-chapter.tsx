@@ -546,15 +546,14 @@ export function SteamChapter({
   // the masthead at `top: 30vh`). Adding pt here would push content
   // further down on top of that offset.
   const useMultiBeat = useMultiBeatFlag();
-  // In the multi-beat horizontal-track layout, beats sit side-by-side
-  // rather than stacking, so the band's default `pt-12` / `pb-12`
-  // "breathing room" (from chapter-bands.tsx, intended for stacked
-  // bands) reads as a huge gap against the masthead box above. Override
-  // to a smaller `pt-4` / `pb-4` so beat content has a touch of space
-  // from the masthead without floating in dead space. Legacy path
+  // Multi-beat path: beats are viewport-wide (full-bleed), so center the
+  // band content within each beat via a `max-w-4xl` reading column. Also
+  // override the band's default `pt-12`/`pb-12` "breathing room" (from
+  // chapter-bands.tsx, intended for stacked bands) to a tighter
+  // `pt-6`/`pb-6` since beats no longer stack vertically. Legacy path
   // unaffected.
   const BEAT_LAYOUT = useMultiBeat
-    ? "flex flex-col items-start justify-start px-6 sm:px-10 [&>[data-band]]:!pt-6 [&>[data-band]]:!pb-6"
+    ? "flex flex-col items-center justify-start px-6 sm:px-10 [&>[data-band]]:!max-w-4xl [&>[data-band]]:!pt-6 [&>[data-band]]:!pb-6"
     : "flex flex-col items-start justify-start px-6 sm:px-10";
 
   // Beat bodies extracted as render-prop functions so both the legacy

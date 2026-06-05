@@ -154,8 +154,19 @@ function ChapterMultiBeatImpl(
         // up mid-beat 2 (i.e. mid horizontal-translate) instead of
         // staying pinned through the last beat. Falls back to dvh when
         // --main-h isn't set (e.g. during initial render / tests).
-        style={{ height: `calc(${beatCount} * var(--main-h, 100dvh))` }}
-        className={["relative w-full", className].filter(Boolean).join(" ")}
+        // Full-bleed escape from the recap's `max-w-4xl` wrapper: the
+        // horizontal track wants viewport width on larger screens so
+        // beats don't look cut off on the sides. `width: 100vw` extends
+        // to the viewport edge; `margin-left: calc(50% - 50vw)` pushes
+        // the left edge out to balance. `[overflow-x: clip]` on `<main>`
+        // (set in __root.tsx) prevents the escape from producing a
+        // horizontal page scrollbar.
+        style={{
+          height: `calc(${beatCount} * var(--main-h, 100dvh))`,
+          width: "100vw",
+          marginLeft: "calc(50% - 50vw)",
+        }}
+        className={["relative", className].filter(Boolean).join(" ")}
       >
         <div
           data-chapter-stage=""
@@ -172,7 +183,12 @@ function ChapterMultiBeatImpl(
               data-chapter-masthead=""
               className="relative z-20 w-full shrink-0 overflow-hidden"
             >
-              {identity}
+              {/* Center the identity content within the full-bleed
+                  masthead via a `max-w-4xl` reading column. Without this
+                  wrapper the identity hugs the left edge of the viewport
+                  on larger screens (titled content stranded with empty
+                  space + backdrop on the right). */}
+              <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
             </header>
           ) : null}
           <m.div
