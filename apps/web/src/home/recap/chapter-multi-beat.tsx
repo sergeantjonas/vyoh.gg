@@ -21,18 +21,12 @@ const SCROLL_RUNWAY_MULTIPLIER = 2.5;
 
 // Dwell-and-transition scroll mapping. Each beat holds its position for
 // `DWELL_UNITS` of scroll units, then transitions to the next beat over
-// `TRANSITION_UNITS`. The 1:3 ratio gives each beat a brief "magnetic"
-// resting zone (≈0.7 viewport of scroll where natural rest = beat
-// centered) while keeping total motion-zone proportion close to the
-// pure-linear case — motion speed stays ≈the same as without dwells.
-//
-// History: a 2:1 ratio was tried first and felt too zippy in transitions
-// (only 27% of scroll went to motion, amplifying the speed 3×). Pure
-// linear (no dwells) was tried next, but then users naturally rested
-// mid-transition with content half-shown. 1:3 splits the difference —
-// dwells are short enough to keep transition speed close to linear,
-// but present so resting positions land on a beat by default.
+// `TRANSITION_UNITS`. First and last beats (`EDGE_DWELL_UNITS`) get a
+// longer dwell so the chapter eases into the first beat from the
+// masthead-pin and lingers on the last beat before unpinning — both
+// boundaries previously read as too sudden.
 const DWELL_UNITS = 1;
+const EDGE_DWELL_UNITS = 2;
 const TRANSITION_UNITS = 3;
 
 type Props = {
@@ -129,14 +123,20 @@ function ChapterMultiBeatImpl(
     const s: number[] = [];
     const v: string[] = [];
     if (beatCount > 0) {
+      const edgeCount = Math.min(beatCount, 2);
+      const middleCount = Math.max(0, beatCount - 2);
       const totalUnits =
-        beatCount * DWELL_UNITS + Math.max(0, beatCount - 1) * TRANSITION_UNITS;
+        edgeCount * EDGE_DWELL_UNITS +
+        middleCount * DWELL_UNITS +
+        Math.max(0, beatCount - 1) * TRANSITION_UNITS;
       let cumulative = 0;
       for (let i = 0; i < beatCount; i += 1) {
+        const isEdge = i === 0 || i === beatCount - 1;
+        const dwellUnits = isEdge ? EDGE_DWELL_UNITS : DWELL_UNITS;
         const beatPosition = `-${(i * 100) / beatCount}%`;
         s.push(cumulative / totalUnits);
         v.push(beatPosition);
-        cumulative += DWELL_UNITS;
+        cumulative += dwellUnits;
         s.push(cumulative / totalUnits);
         v.push(beatPosition);
         if (i < beatCount - 1) cumulative += TRANSITION_UNITS;
