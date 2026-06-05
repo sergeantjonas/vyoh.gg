@@ -17,7 +17,7 @@ import { mainScrollRef } from "@/lib/scroll-container";
 import { ChapterGroupNudgeContext } from "./chapter-group";
 import { useChapterNudge } from "./use-chapter-nudge";
 
-const SCROLL_RUNWAY_MULTIPLIER = 3;
+const SCROLL_RUNWAY_MULTIPLIER = 2.7;
 
 // Dwell-and-transition scroll mapping. Each beat holds its position for
 // `DWELL_UNITS` of scroll units, then transitions to the next beat over
