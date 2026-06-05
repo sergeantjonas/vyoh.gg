@@ -8,23 +8,19 @@ import { mainScrollRef } from "@/lib/scroll-container";
  * unmounts. Module-level ref count so multiple `<ChapterMultiBeat>` instances
  * on the same page (one per recap subject) co-exist cleanly.
  *
- * Why `proximity` and not `mandatory`: per [__root.tsx](../../routes/__root.tsx)
- * § "No `scroll-snap-type` here", the prior architecture removed mandatory snap
- * because it "fought the mouse wheel" and produced mid-snap dead zones.
- * Proximity only snaps when the user releases the scroll near a snap point —
- * doesn't interrupt active scrolling, doesn't trap mid-snap, but does close
- * the "user lifted off between two beats" gap that `scroll-snap-stop: always`
- * alone (the prior state) couldn't enforce because it required snap-type to
- * be set on the scroll container.
+ * `mandatory` rather than `proximity` because proximity left Firefox
+ * "vibrating" between candidate snap targets as the user scrolled (the
+ * algorithm couldn't decide which of two nearby points to favor and
+ * kept retargeting per scroll event). The prior arc's "snap fought the
+ * mouse wheel" complaint was about chapter-level mandatory snap on a
+ * different architecture; per-beat mandatory inside a sticky-headered
+ * chapter is decisive without being trappy because the snap points are
+ * spaced exactly one beat apart with no nearby ambiguity.
  *
- * The `scroll-snap-align: start` + `scroll-snap-stop: always` classes on each
- * `<MultiBeat>` are inert without this hook claiming snap-type. Without this
- * hook, beat snap is silently no-op cross-browser (Firefox surfaced this
- * first because its native scroll inertia is more linear than Chromium's;
- * Chromium's smooth scroll + spring deceleration disguised the missing snap
- * as "the wheel is snappy enough on its own").
+ * The `scroll-snap-align: start` + `scroll-snap-stop: always` classes on
+ * each `<MultiBeat>` are inert without this hook claiming snap-type.
  */
-const SNAP_VALUE = "y proximity" as const;
+const SNAP_VALUE = "y mandatory" as const;
 let activeClaims = 0;
 let originalSnapType: string | null = null;
 
