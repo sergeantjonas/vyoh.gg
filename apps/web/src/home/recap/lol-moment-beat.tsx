@@ -12,17 +12,12 @@ import {
 } from "@vyoh/shared";
 import { Clock, Hourglass, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef } from "react";
 
-import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
-import { championHdSplashUrl, rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
-import { championTheme } from "@/lol/_shared/assets/champion-theme";
-import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useChampionName } from "@/lol/champions/use-champions";
 
 import { ChapterDetail, ChapterOpener } from "./chapter-bands";
-import { ChapterContainer } from "./chapter-container";
 import { ChapterReveal } from "./chapter-reveal";
 import {
   SHADOW_ACCENT,
@@ -32,9 +27,6 @@ import {
   STROKE_ACCENT,
 } from "./chapter-shadows";
 import { momentAccentClass } from "./moment-accent";
-import { preloadLinkAsImage } from "./preload-link";
-import { useAssetClaim } from "./use-asset-claim";
-import { useChapterNudge } from "./use-chapter-nudge";
 
 /** Champion the chapter sets as the editorial baseline ("you usually play X").
  *  Used in the OFF_META_PICK prose only — the chapter opens directly on the
@@ -481,7 +473,7 @@ function formatDuration(durationSec: number): string {
   return `${minutes}m`;
 }
 
-interface Props {
+export interface LolMomentBeatProps {
   account: LolAccount;
   championAlias: string;
   matchId: string | null;
@@ -494,28 +486,37 @@ interface Props {
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
+  /** Per-beat active signal from the surrounding `<MultiBeat>`. Gates the
+   *  ChapterReveal cascade so the per-moment beat reveal fires when this
+   *  beat becomes focal, not at chapter entrance. */
+  nudged: boolean;
 }
 
 /**
- * First moment chapter (R-6). Renders the owner's most recent OFF_META_PICK
- * — a match where they played a champion outside their usual rotation.
+ * Single LoL moment rendered as a beat inside the LoL moments aggregator
+ * chapter (R-12.5). Built from the prior `LolMomentChapter` single-pin —
+ * lifts out the chapter wrapper (atmosphere claim, outer ref, sticky pin,
+ * splash preload) so each moment becomes a horizontal beat within one
+ * shared `ChapterMultiBeat`. The aggregator publishes the single
+ * atmosphere claim (anchor Ahri splash); each beat only owns its
+ * editorial content.
  *
- * Visual: single full-bleed splash of the off-meta champion (HD via
- * `championHeroSplashUrl`, 1280px). The splash is critical-preloaded via
- * `<link rel="preload">` so the bg snap-in isn't visible when scrolled
- * into. Editorial framing comes through the prose ("Stepped off Ahri for
- * a one-off run on X") + the match-stat strip (KDA, W/L, duration, queue).
+ * Per-moment-type copy / receipt / leading visual all flow through
+ * `momentCopy()` — the only behavioral seam between standalone-chapter
+ * and aggregator-beat presentation is *where* the reveal cascade is
+ * gated (chapter nudge vs. per-beat nudge) and what wraps the content.
  *
- * Proof-of-pattern shape for R-7's RANK_UP / KDA_OUTLIER / STREAK /
- * RETURN_FROM_HIATUS / MARATHON detectors — each will compose its own
- * per-momentType layout, sharing this chapter's structural template.
+ * The per-type momentTypes (RANK_UP, KDA_OUTLIER, STREAK_5W, STREAK_5L,
+ * RETURN_FROM_HIATUS, MARATHON, OFF_META_PICK) each pick their own
+ * eyebrow + masthead + leading visual + receipt; this function stays
+ * type-agnostic, rendering whichever shape `momentCopy()` returns.
  */
-export function LolMomentChapter({
+export function LolMomentBeat({
   account,
   championAlias,
   matchId,
   daysSince,
-  slug,
+  slug: _slug,
   momentType,
   matchStats,
   rankUp,
@@ -523,49 +524,16 @@ export function LolMomentChapter({
   hiatusReturn,
   streak,
   marathon,
-}: Props) {
-  const outerRef = useRef<HTMLDivElement | null>(null);
+  nudged,
+}: LolMomentBeatProps) {
   const championName = useChampionName();
-  const patch = useDDragonVersion();
-  const nudged = useChapterNudge(outerRef);
-
-  // HD wiki splash (1920px transcoded) via the proxy's `hd` variant. The
-  // `backdrop` variant the AhriChapter falls back to is 600px + pre-blurred,
-  // and the `splash` variant is 1280px in-game centered crop — both
-  // upsample visibly when the atmosphere layer renders them full-bleed for
-  // a single-pin chapter. The atmosphere layer applies its own per-claim
-  // blur on top, so passing a sharp source still yields an ambient
-  // backdrop — just one that holds up to the larger crop. Same upstream
-  // family (`{Name}_OriginalSkin_HD.jpg`) the Ahri-anchor chapter pins
-  // explicitly in `landing-config.ts`; this helper resolves it
-  // automatically for any champion alias.
-  const splashUrl = useMemo(
-    () => championHdSplashUrl(championAlias, patch),
-    [championAlias, patch]
-  );
-
-  // Critical-path preload: the chapter has exactly one hero asset, and it's
-  // the chapter's visual centerpiece. Inject `<link rel="preload">` the
-  // moment the URL is known so the asset is in cache before the user
-  // scrolls in. preloadLinkAsImage is idempotent so duplicating against
-  // the SteamChapter's critical preload (when the moment isn't first in
-  // the stream) costs nothing.
-  useEffect(() => preloadLinkAsImage(splashUrl), [splashUrl]);
-
-  const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  const accentHex = championTheme(championAlias).dominantHex;
-  const claim = useMemo(
-    () => ({ image: splashUrl, palette, accentHex }),
-    [splashUrl, palette, accentHex]
-  );
-  useAssetClaim(outerRef, claim);
-
   const displayName = championName(championAlias);
   const anchorDisplayName = championName(ANCHOR_CHAMPION_ALIAS);
   const emblemYear = useRankedEmblemYear();
-  // Per-momentType typographic accent — drives both the eyebrow colour and
-  // every inline `<Accent>` span inside the prose. Atmosphere backdrop tint
-  // stays champion-derived; this is the chapter's per-type colour signature.
+  // Per-momentType typographic accent — drives both the eyebrow colour
+  // and every inline `<Accent>` span inside the prose. Aggregator
+  // atmosphere accent is Ahri's dominant hex; this is the per-beat
+  // typographic signature that visually differentiates moment types.
   const accentClass = momentAccentClass(momentType);
   const copy = momentCopy({
     momentType,
@@ -583,49 +551,22 @@ export function LolMomentChapter({
   const whenLine = formatDaysSince(daysSince);
 
   return (
-    <div
-      ref={outerRef}
-      data-recap-chapter={slug}
-      data-chapter-label={copy.chapterLabel}
-      className="[scroll-snap-align:start] [scroll-snap-stop:always]"
-    >
-      <ChapterContainer
-        pinViewports={1}
-        slug={slug}
-        ariaLabel={copy.ariaLabel}
-        pinClassName="items-start justify-start px-6 pt-[6dvh] sm:px-10"
-      >
-        <div className="flex w-full flex-col">
-          <ChapterOpener>
-            <ChapterReveal active={nudged} delay={0.05} blur={4}>
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
-                <span
-                  className={accentClass}
-                  style={{
-                    paintOrder: "stroke",
-                    WebkitTextStroke: STROKE_ACCENT,
-                    textShadow: SHADOW_ACCENT,
-                  }}
-                >
-                  {copy.eyebrow}
-                </span>
-                {matchStats?.queueType ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="text-foreground/40"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      ·
-                    </span>
-                    <span
-                      className="text-foreground/75"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      {matchStats.queueType}
-                    </span>
-                  </>
-                ) : null}
+    <>
+      <ChapterOpener>
+        <ChapterReveal active={nudged} delay={0.05} blur={4}>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
+            <span
+              className={accentClass}
+              style={{
+                paintOrder: "stroke",
+                WebkitTextStroke: STROKE_ACCENT,
+                textShadow: SHADOW_ACCENT,
+              }}
+            >
+              {copy.eyebrow}
+            </span>
+            {matchStats?.queueType ? (
+              <>
                 <span
                   aria-hidden="true"
                   className="text-foreground/40"
@@ -634,78 +575,79 @@ export function LolMomentChapter({
                   ·
                 </span>
                 <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
-                  {whenLine}
+                  {matchStats.queueType}
                 </span>
-              </p>
-            </ChapterReveal>
-            <ChapterReveal
-              active={nudged}
-              delay={0.18}
-              duration={1.1}
-              blur={16}
-              rise={20}
+              </>
+            ) : null}
+            <span
+              aria-hidden="true"
+              className="text-foreground/40"
+              style={{ textShadow: SHADOW_LABEL }}
             >
-              {matchId ? (
-                <Link
-                  to="/lol/$accountSlug/matches/$matchId"
-                  params={{ accountSlug: account.slug, matchId }}
-                  className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
+              ·
+            </span>
+            <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+              {whenLine}
+            </span>
+          </p>
+        </ChapterReveal>
+        <ChapterReveal active={nudged} delay={0.18} duration={1.1} blur={16} rise={20}>
+          {matchId ? (
+            <Link
+              to="/lol/$accountSlug/matches/$matchId"
+              params={{ accountSlug: account.slug, matchId }}
+              className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
+            >
+              {/* Inner row pairs the optional leading visual with the
+                  H2 along the visual center; the outer Link stays
+                  items-baseline so the trailing "open →" chip aligns
+                  to the H2's text baseline (correct for OFF_META_PICK
+                  where there's no leadingVisual). */}
+              <span className="inline-flex items-center gap-x-4">
+                {copy.leadingVisual}
+                <h2
+                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                  style={{ textShadow: SHADOW_MASTHEAD }}
                 >
-                  {/* Inner row pairs the optional leading visual with the
-                      H2 along the visual center; the outer Link stays
-                      items-baseline so the trailing "open →" chip aligns
-                      to the H2's text baseline (correct for OFF_META_PICK
-                      where there's no leadingVisual). */}
-                  <span className="inline-flex items-center gap-x-4">
-                    {copy.leadingVisual}
-                    <h2
-                      className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                      style={{ textShadow: SHADOW_MASTHEAD }}
-                    >
-                      {copy.mastheadText}
-                    </h2>
-                  </span>
-                  <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
-                    open →
-                  </span>
-                </Link>
-              ) : (
-                <span className="inline-flex items-center gap-x-4">
-                  {copy.leadingVisual}
-                  <h2
-                    className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                    style={{ textShadow: SHADOW_MASTHEAD }}
-                  >
-                    {copy.mastheadText}
-                  </h2>
-                </span>
-              )}
-            </ChapterReveal>
-            <ChapterReveal active={nudged} delay={0.55} blur={6}>
-              <p
-                className="max-w-prose text-base text-foreground/85 sm:text-lg"
-                style={{ textShadow: SHADOW_BODY }}
+                  {copy.mastheadText}
+                </h2>
+              </span>
+              <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
+                open →
+              </span>
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-x-4">
+              {copy.leadingVisual}
+              <h2
+                className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                style={{ textShadow: SHADOW_MASTHEAD }}
               >
-                {copy.body}
-              </p>
-            </ChapterReveal>
-          </ChapterOpener>
-          {copy.receipt ? (
-            <ChapterDetail>
-              <ChapterReveal active={nudged} delay={0.7}>
-                {/* Per-momentType receipt shape, built inside `momentCopy()`.
-                    OFF_META_PICK + RANK_UP fall back to the original W/L +
-                    K/D/A + duration strip; KDA_OUTLIER / STREAK / MARATHON /
-                    RETURN each lead with their own headline number (matchKda,
-                    streak length, match count, gap) and ride the source
-                    match's K/D/A along as a substat. See R-7h.3 in the arc
-                    note. */}
-                {copy.receipt}
-              </ChapterReveal>
-            </ChapterDetail>
-          ) : null}
-        </div>
-      </ChapterContainer>
-    </div>
+                {copy.mastheadText}
+              </h2>
+            </span>
+          )}
+        </ChapterReveal>
+        <ChapterReveal active={nudged} delay={0.55} blur={6}>
+          <p
+            className="max-w-prose text-base text-foreground/85 sm:text-lg"
+            style={{ textShadow: SHADOW_BODY }}
+          >
+            {copy.body}
+          </p>
+        </ChapterReveal>
+      </ChapterOpener>
+      {copy.receipt ? (
+        <ChapterDetail>
+          <ChapterReveal active={nudged} delay={0.7}>
+            {/* Per-momentType receipt shape, built inside `momentCopy()`.
+                OFF_META_PICK + RANK_UP fall back to the original W/L +
+                K/D/A + duration strip; KDA_OUTLIER / STREAK / MARATHON /
+                RETURN each lead with their own headline number. */}
+            {copy.receipt}
+          </ChapterReveal>
+        </ChapterDetail>
+      ) : null}
+    </>
   );
 }

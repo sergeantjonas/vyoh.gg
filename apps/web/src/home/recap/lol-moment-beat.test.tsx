@@ -1,36 +1,20 @@
-import { mainScrollRef } from "@/lib/scroll-container";
 import { render, screen } from "@testing-library/react";
 import type { LolAccount } from "@vyoh/shared";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lol/champions/use-champions", () => ({
   useChampionName: vi.fn(() => (alias: string) => alias),
 }));
-vi.mock("@/lol/_shared/patch/use-ddragon-version", () => ({
-  useDDragonVersion: vi.fn(() => "26.9"),
-}));
 vi.mock("@/lol/_shared/assets/champion-icon", () => ({
-  championHdSplashUrl: (alias: string, patch: string) =>
-    `https://test/hd/${alias}/${patch}`,
   rankEmblemUrl: (tier: string, year: number) => `https://test/emblem/${tier}/${year}`,
 }));
 vi.mock("@/lol/_shared/use-ranked-emblem-year", () => ({
   useRankedEmblemYear: vi.fn(() => 2026),
 }));
-vi.mock("@/lol/_shared/assets/champion-theme", () => ({
-  championTheme: (_alias: string) => ({
-    dominantHex: "#f04444",
-    blurhash: "test-hash",
-  }),
-}));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
     <a {...props}>{children}</a>
   ),
-}));
-vi.mock("@/home/recap/use-asset-claim", () => ({ useAssetClaim: vi.fn() }));
-vi.mock("@/home/recap/preload-link", () => ({
-  preloadLinkAsImage: vi.fn(() => () => {}),
 }));
 vi.mock("@/home/recap/chapter-reveal", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
@@ -49,9 +33,7 @@ vi.mock("motion/react", async () => {
   return { ...actual, useReducedMotion: vi.fn(() => false) };
 });
 
-import { preloadLinkAsImage } from "@/home/recap/preload-link";
-import { useAssetClaim } from "@/home/recap/use-asset-claim";
-import { LolMomentChapter } from "./lol-moment-chapter";
+import { LolMomentBeat } from "./lol-moment-beat";
 
 const account: LolAccount = {
   slug: "vyoh",
@@ -82,6 +64,7 @@ const baseProps = {
   hiatusReturn: null,
   streak: null,
   marathon: null,
+  nudged: true,
 };
 
 const rankUpDelta = {
@@ -106,6 +89,7 @@ const rankUpProps = {
   hiatusReturn: null,
   streak: null,
   marathon: null,
+  nudged: true,
 };
 
 const kdaOutlierStats = {
@@ -133,6 +117,7 @@ const kdaOutlierProps = {
   hiatusReturn: null,
   streak: null,
   marathon: null,
+  nudged: true,
 };
 
 const hiatusReturnProps = {
@@ -148,6 +133,7 @@ const hiatusReturnProps = {
   hiatusReturn: { gapDays: 35 },
   streak: null,
   marathon: null,
+  nudged: true,
 };
 
 const streakWinProps = {
@@ -163,6 +149,7 @@ const streakWinProps = {
   hiatusReturn: null,
   streak: { result: "W" as const, length: 5 },
   marathon: null,
+  nudged: true,
 };
 
 const streakLossProps = {
@@ -178,6 +165,7 @@ const streakLossProps = {
   hiatusReturn: null,
   streak: { result: "L" as const, length: 6 },
   marathon: null,
+  nudged: true,
 };
 
 const marathonProps = {
@@ -193,21 +181,12 @@ const marathonProps = {
   hiatusReturn: null,
   streak: null,
   marathon: { matchCount: 7, spanHours: 4.5 },
+  nudged: true,
 };
 
-beforeEach(() => {
-  mainScrollRef.current = document.createElement("div");
-});
-
-afterEach(() => {
-  vi.mocked(useAssetClaim).mockClear();
-  vi.mocked(preloadLinkAsImage).mockClear();
-  mainScrollRef.current = null;
-});
-
-describe("LolMomentChapter (OFF_META_PICK)", () => {
+describe("LolMomentBeat (OFF_META_PICK)", () => {
   it("renders the off-meta-pick eyebrow, champion masthead, and 'stepped off' prose", () => {
-    render(<LolMomentChapter {...baseProps} />);
+    render(<LolMomentBeat {...baseProps} />);
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
     // Masthead is the H2; the off-meta champion name also appears in the
     // prose, so scope on the heading role rather than a bare text match.
@@ -218,52 +197,31 @@ describe("LolMomentChapter (OFF_META_PICK)", () => {
   });
 
   it("derives a human-readable when-line from daysSince", () => {
-    render(<LolMomentChapter {...baseProps} daysSince={0} />);
+    render(<LolMomentBeat {...baseProps} daysSince={0} />);
     expect(screen.getByText("today")).toBeTruthy();
   });
 
   it("links the masthead to the match-detail route when matchId is present", () => {
-    const { container } = render(<LolMomentChapter {...baseProps} />);
+    const { container } = render(<LolMomentBeat {...baseProps} />);
     const link = container.querySelector('a[to="/lol/$accountSlug/matches/$matchId"]');
     expect(link).toBeTruthy();
   });
 
   it("renders the masthead as plain text (no link) when matchId is null", () => {
-    const { container } = render(<LolMomentChapter {...baseProps} matchId={null} />);
+    const { container } = render(<LolMomentBeat {...baseProps} matchId={null} />);
     expect(
       container.querySelector('a[to="/lol/$accountSlug/matches/$matchId"]')
     ).toBeNull();
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Renekton");
   });
 
-  it("opens on the off-meta champion's HD splash directly (no anchor silhouette)", () => {
-    render(<LolMomentChapter {...baseProps} />);
-    // Chapter is ABOUT the off-meta champion; opening on Ahri for a 800ms
-    // hold would read as a delay rather than a beat. The earlier R-6
-    // silhouette-dissolve approach was dropped.
-    const calls = vi.mocked(useAssetClaim).mock.calls;
-    expect(calls.length).toBeGreaterThan(0);
-    const firstClaim = calls[0]?.[1];
-    expect(firstClaim?.image).toBe("https://test/hd/Renekton/26.9");
-  });
-
-  it("exposes the chapter slug + label via data attributes for the caret discovery scan", () => {
-    const { container } = render(<LolMomentChapter {...baseProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-recap-chapter")).toBe("lol-moment-off-meta-EUW_42");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Off-meta");
-  });
-
-  it("injects a critical link[rel=preload] for the off-meta champion splash", () => {
-    render(<LolMomentChapter {...baseProps} />);
-    // Single hero asset → link-preload at mount, not IO-gated. The chapter
-    // is its own preload-critical surface; same idempotent helper the
-    // Ahri-anchor and first-Steam-subject chapters use.
-    expect(preloadLinkAsImage).toHaveBeenCalledWith("https://test/hd/Renekton/26.9");
-  });
+  // Atmosphere claim + chapter-level data attributes + splash preload all
+  // moved to the LoL moments aggregator (R-12.5). LolMomentBeat is now the
+  // beat content only — no chapter wrapper, no atmosphere publication, no
+  // critical preload. Aggregator tests own those assertions.
 
   it("renders the W/L pill + KDA + duration when matchStats is provided", () => {
-    render(<LolMomentChapter {...baseProps} />);
+    render(<LolMomentBeat {...baseProps} />);
     expect(screen.getByText("Win")).toBeTruthy();
     expect(screen.getByText("7 / 4 / 11")).toBeTruthy();
     expect(screen.getByText("31m")).toBeTruthy();
@@ -272,23 +230,21 @@ describe("LolMomentChapter (OFF_META_PICK)", () => {
   });
 
   it("renders 'Loss' in rose when win=false", () => {
-    render(
-      <LolMomentChapter {...baseProps} matchStats={{ ...matchStats, win: false }} />
-    );
+    render(<LolMomentBeat {...baseProps} matchStats={{ ...matchStats, win: false }} />);
     expect(screen.getByText("Loss")).toBeTruthy();
   });
 
   it("omits the match-stat strip entirely when matchStats is null", () => {
-    render(<LolMomentChapter {...baseProps} matchStats={null} />);
+    render(<LolMomentBeat {...baseProps} matchStats={null} />);
     expect(screen.queryByText("Win")).toBeNull();
     expect(screen.queryByText("Loss")).toBeNull();
     expect(screen.queryByText("7 / 4 / 11")).toBeNull();
   });
 });
 
-describe("LolMomentChapter (RANK_UP)", () => {
+describe("LolMomentBeat (RANK_UP)", () => {
   it("renders the rank-up eyebrow, destination-rank masthead, and 'climbed from … to …' prose", () => {
-    render(<LolMomentChapter {...rankUpProps} />);
+    render(<LolMomentBeat {...rankUpProps} />);
     expect(screen.getByText("Rank up")).toBeTruthy();
     // Masthead shows the destination tier+rank without the LP suffix.
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Gold IV");
@@ -301,7 +257,7 @@ describe("LolMomentChapter (RANK_UP)", () => {
   });
 
   it("renders the destination tier emblem inline with the masthead", () => {
-    const { container } = render(<LolMomentChapter {...rankUpProps} />);
+    const { container } = render(<LolMomentBeat {...rankUpProps} />);
     const emblem = container.querySelector('img[src="https://test/emblem/GOLD/2026"]');
     expect(emblem).toBeTruthy();
     // Decorative — the masthead text already labels the tier, so the emblem
@@ -310,13 +266,13 @@ describe("LolMomentChapter (RANK_UP)", () => {
   });
 
   it("does NOT render an emblem on OFF_META_PICK (text-only masthead)", () => {
-    const { container } = render(<LolMomentChapter {...baseProps} />);
+    const { container } = render(<LolMomentBeat {...baseProps} />);
     expect(container.querySelector('img[src^="https://test/emblem/"]')).toBeNull();
   });
 
   it("formats apex tier masthead without a division suffix", () => {
     render(
-      <LolMomentChapter
+      <LolMomentBeat
         {...rankUpProps}
         rankUp={{
           ...rankUpDelta,
@@ -329,26 +285,19 @@ describe("LolMomentChapter (RANK_UP)", () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Master");
   });
 
-  it("exposes a RANK_UP chapter-label data attribute", () => {
-    const { container } = render(<LolMomentChapter {...rankUpProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Rank up");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Gold IV");
-  });
-
   it("falls back to the off-meta framing when rankUp is null (defensive — descriptor invariant)", () => {
     // The descriptor invariant is that momentType=RANK_UP always carries
     // rankUp. If the contract ever ships a null pair, the chapter should
     // degrade to off-meta copy rather than render a broken header.
-    render(<LolMomentChapter {...rankUpProps} rankUp={null} />);
+    render(<LolMomentBeat {...rankUpProps} rankUp={null} />);
     expect(screen.queryByText("Rank up")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 
-describe("LolMomentChapter (KDA_OUTLIER)", () => {
+describe("LolMomentBeat (KDA_OUTLIER)", () => {
   it("renders the standout eyebrow, champion masthead, and KDA + multiplier prose", () => {
-    render(<LolMomentChapter {...kdaOutlierProps} />);
+    render(<LolMomentBeat {...kdaOutlierProps} />);
     expect(screen.getByText("Standout game")).toBeTruthy();
     // Masthead is the champion (the performance is the centerpiece, not
     // a rank), so the H2 is just the champion name.
@@ -361,26 +310,19 @@ describe("LolMomentChapter (KDA_OUTLIER)", () => {
   });
 
   it("does NOT render a leading emblem for KDA_OUTLIER (text-only masthead)", () => {
-    const { container } = render(<LolMomentChapter {...kdaOutlierProps} />);
+    const { container } = render(<LolMomentBeat {...kdaOutlierProps} />);
     expect(container.querySelector('img[src^="https://test/emblem/"]')).toBeNull();
   });
 
-  it("exposes a Standout chapter-label data attribute", () => {
-    const { container } = render(<LolMomentChapter {...kdaOutlierProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Standout");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Ahri");
-  });
-
   it("falls back to the off-meta framing when kdaOutlier is null (defensive)", () => {
-    render(<LolMomentChapter {...kdaOutlierProps} kdaOutlier={null} />);
+    render(<LolMomentBeat {...kdaOutlierProps} kdaOutlier={null} />);
     expect(screen.queryByText("Standout game")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 
   it("omits the multiplier clause when baseline is zero (degraded contract)", () => {
     render(
-      <LolMomentChapter
+      <LolMomentBeat
         {...kdaOutlierProps}
         kdaOutlier={{ matchKda: 12.5, baselineKda: 0 }}
       />
@@ -392,9 +334,9 @@ describe("LolMomentChapter (KDA_OUTLIER)", () => {
   });
 });
 
-describe("LolMomentChapter (RETURN_FROM_HIATUS)", () => {
+describe("LolMomentBeat (RETURN_FROM_HIATUS)", () => {
   it("renders the return eyebrow, champion masthead, and gap-away prose", () => {
-    render(<LolMomentChapter {...hiatusReturnProps} />);
+    render(<LolMomentBeat {...hiatusReturnProps} />);
     expect(screen.getByText("Return")).toBeTruthy();
     // Masthead is the champion; the return moment centerpiece is "you're
     // back", with the champion as the visual subject.
@@ -414,28 +356,21 @@ describe("LolMomentChapter (RETURN_FROM_HIATUS)", () => {
     [95, "3 months"],
     [180, "6 months"],
   ])("formats a %d-day gap as %s in the prose", (gap, label) => {
-    render(<LolMomentChapter {...hiatusReturnProps} hiatusReturn={{ gapDays: gap }} />);
+    render(<LolMomentBeat {...hiatusReturnProps} hiatusReturn={{ gapDays: gap }} />);
     const prose = screen.getAllByText(/away from ranked/i)[0]?.closest("p")?.textContent;
     expect(prose).toContain(label);
   });
 
-  it("exposes a Return chapter-label data attribute", () => {
-    const { container } = render(<LolMomentChapter {...hiatusReturnProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Return");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Ahri");
-  });
-
   it("falls back to the off-meta framing when hiatusReturn is null (defensive)", () => {
-    render(<LolMomentChapter {...hiatusReturnProps} hiatusReturn={null} />);
+    render(<LolMomentBeat {...hiatusReturnProps} hiatusReturn={null} />);
     expect(screen.queryByText("Return")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 
-describe("LolMomentChapter (STREAK)", () => {
+describe("LolMomentBeat (STREAK)", () => {
   it("renders the hot-streak eyebrow + 'N ranked wins in a row' prose for STREAK_5W", () => {
-    render(<LolMomentChapter {...streakWinProps} />);
+    render(<LolMomentBeat {...streakWinProps} />);
     expect(screen.getByText("Hot streak")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Ahri");
     const prose = screen
@@ -446,7 +381,7 @@ describe("LolMomentChapter (STREAK)", () => {
   });
 
   it("renders the cold-streak eyebrow + 'N ranked losses straight' prose for STREAK_5L", () => {
-    render(<LolMomentChapter {...streakLossProps} />);
+    render(<LolMomentBeat {...streakLossProps} />);
     expect(screen.getByText("Cold streak")).toBeTruthy();
     const prose = screen
       .getAllByText(/ranked losses straight/i)[0]
@@ -455,28 +390,16 @@ describe("LolMomentChapter (STREAK)", () => {
     expect(prose).toMatch(/last on\s*Ahri/);
   });
 
-  it("exposes a Hot streak chapter-label data attribute", () => {
-    const { container } = render(<LolMomentChapter {...streakWinProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Hot streak");
-  });
-
-  it("exposes a Cold streak chapter-label data attribute", () => {
-    const { container } = render(<LolMomentChapter {...streakLossProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Cold streak");
-  });
-
   it("falls back to off-meta framing when streak is null (defensive)", () => {
-    render(<LolMomentChapter {...streakWinProps} streak={null} />);
+    render(<LolMomentBeat {...streakWinProps} streak={null} />);
     expect(screen.queryByText("Hot streak")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 
-describe("LolMomentChapter (MARATHON)", () => {
+describe("LolMomentBeat (MARATHON)", () => {
   it("renders the marathon eyebrow, champion masthead, and 'N games in one sitting' prose", () => {
-    render(<LolMomentChapter {...marathonProps} />);
+    render(<LolMomentBeat {...marathonProps} />);
     expect(screen.getByText("Marathon")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Ahri");
     const prose = screen
@@ -486,21 +409,14 @@ describe("LolMomentChapter (MARATHON)", () => {
     expect(prose).toMatch(/capped on\s*Ahri/);
   });
 
-  it("exposes a Marathon chapter-label data attribute", () => {
-    const { container } = render(<LolMomentChapter {...marathonProps} />);
-    const el = container.querySelector("[data-recap-chapter]");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Marathon");
-    expect(el?.getAttribute("data-chapter-label")).toContain("Ahri");
-  });
-
   it("falls back to off-meta framing when marathon is null (defensive)", () => {
-    render(<LolMomentChapter {...marathonProps} marathon={null} />);
+    render(<LolMomentBeat {...marathonProps} marathon={null} />);
     expect(screen.queryByText("Marathon")).toBeNull();
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 
-describe("LolMomentChapter daysSince formatting", () => {
+describe("LolMomentBeat daysSince formatting", () => {
   // Boundary cases via small render scans — keeps the formatter in lockstep
   // with the chapter so a regression in the helper surfaces as a chapter
   // test failure, not a quiet copy drift.
@@ -512,32 +428,32 @@ describe("LolMomentChapter daysSince formatting", () => {
     [20, "3 weeks ago"],
     [60, "2 months ago"],
   ])("renders daysSince=%d as %s", (days, expected) => {
-    render(<LolMomentChapter {...baseProps} daysSince={days} />);
+    render(<LolMomentBeat {...baseProps} daysSince={days} />);
     expect(screen.getByText(expected)).toBeTruthy();
   });
 });
 
-describe("LolMomentChapter per-type receipt (R-7h.3)", () => {
+describe("LolMomentBeat per-type receipt (R-7h.3)", () => {
   // Each sequence/standout type leads its receipt strip with the type's
   // load-bearing number (count, gap, KDA), not the bare W/L + K/D/A strip
   // designed for single-match moments. The source match's K/D/A rides
   // along as the second-register substat — editorial proof, not lede.
 
   it("OFF_META_PICK keeps the default W/L + K/D/A + duration receipt", () => {
-    render(<LolMomentChapter {...baseProps} />);
+    render(<LolMomentBeat {...baseProps} />);
     expect(screen.getByText("Win")).toBeTruthy();
     expect(screen.getByText("7 / 4 / 11")).toBeTruthy();
     expect(screen.getByText("31m")).toBeTruthy();
   });
 
   it("RANK_UP keeps the default W/L + K/D/A + duration receipt", () => {
-    render(<LolMomentChapter {...rankUpProps} />);
+    render(<LolMomentBeat {...rankUpProps} />);
     expect(screen.getByText("Win")).toBeTruthy();
     expect(screen.getByText("7 / 4 / 11")).toBeTruthy();
   });
 
   it("KDA_OUTLIER leads with matchKda as headline + multiplier substat", () => {
-    render(<LolMomentChapter {...kdaOutlierProps} />);
+    render(<LolMomentBeat {...kdaOutlierProps} />);
     // matchKda 13.0 → "13.0" appears in both prose AND receipt headline,
     // so assert count instead of singular presence. "KDA" label + "5.2×
     // baseline" substat are receipt-only.
@@ -549,7 +465,7 @@ describe("LolMomentChapter per-type receipt (R-7h.3)", () => {
   });
 
   it("STREAK_5W leads with length + 'in a row' + substat", () => {
-    render(<LolMomentChapter {...streakWinProps} />);
+    render(<LolMomentBeat {...streakWinProps} />);
     // length 5 appears in prose ("5 ranked wins…") AND in receipt headline.
     expect(screen.getAllByText("5").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("in a row")).toBeTruthy();
@@ -558,21 +474,21 @@ describe("LolMomentChapter per-type receipt (R-7h.3)", () => {
   });
 
   it("STREAK_5L leads with length + 'straight' + substat", () => {
-    render(<LolMomentChapter {...streakLossProps} />);
+    render(<LolMomentBeat {...streakLossProps} />);
     expect(screen.getAllByText("6").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("straight")).toBeTruthy();
     expect(screen.getByText(/L · 7\/4\/11/)).toBeTruthy();
   });
 
   it("MARATHON leads with matchCount + spanHours label", () => {
-    render(<LolMomentChapter {...marathonProps} />);
+    render(<LolMomentBeat {...marathonProps} />);
     // matchCount 7 appears in prose ("7 ranked games…") AND headline.
     expect(screen.getAllByText("7").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/games across 4\.5h/)).toBeTruthy();
   });
 
   it("RETURN_FROM_HIATUS leads with gap label + 'quiet'", () => {
-    render(<LolMomentChapter {...hiatusReturnProps} />);
+    render(<LolMomentBeat {...hiatusReturnProps} />);
     // gapDays 35 → formatHiatusGap produces "5 weeks" (35/7) or "A month"
     // (30-59). Just assert "quiet" landed; gap label format is covered by
     // the existing daysSince + gap-formatting tests.
@@ -581,7 +497,7 @@ describe("LolMomentChapter per-type receipt (R-7h.3)", () => {
 
   it("omits the receipt entirely when matchStats is null on a default-receipt type", () => {
     // OFF_META_PICK with no matchStats → no receipt block.
-    render(<LolMomentChapter {...baseProps} matchStats={null} />);
+    render(<LolMomentBeat {...baseProps} matchStats={null} />);
     expect(screen.queryByText("Win")).toBeNull();
     expect(screen.queryByText("7 / 4 / 11")).toBeNull();
   });
@@ -589,39 +505,39 @@ describe("LolMomentChapter per-type receipt (R-7h.3)", () => {
   it("custom-shape receipts still render when matchStats is null (the substat just drops)", () => {
     // KDA_OUTLIER without matchStats still has kdaOutlier → renders the
     // headline + label, but the substat row is gone.
-    render(<LolMomentChapter {...kdaOutlierProps} matchStats={null} />);
+    render(<LolMomentBeat {...kdaOutlierProps} matchStats={null} />);
     expect(screen.getAllByText("13.0").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("KDA")).toBeTruthy();
   });
 });
 
-describe("LolMomentChapter per-type leadingVisual (R-7h.2)", () => {
+describe("LolMomentBeat per-type leadingVisual (R-7h.2)", () => {
   // Each non-text-only momentType gets a recognisable inline visual paired
   // with the masthead — at-a-glance silhouette before the prose lands.
   // We assert by lucide's emitted className signature (`lucide-{name}`) or
   // by the pip-row's coloured-dot signature for streaks.
   it("renders the destination tier emblem on RANK_UP (pre-R-7h.2; unchanged)", () => {
-    const { container } = render(<LolMomentChapter {...rankUpProps} />);
+    const { container } = render(<LolMomentBeat {...rankUpProps} />);
     expect(container.querySelector("img[alt='']")).toBeTruthy();
   });
 
   it("renders a Trophy lucide icon as the leadingVisual on KDA_OUTLIER", () => {
-    const { container } = render(<LolMomentChapter {...kdaOutlierProps} />);
+    const { container } = render(<LolMomentBeat {...kdaOutlierProps} />);
     expect(container.querySelector(".lucide-trophy")).toBeTruthy();
   });
 
   it("renders an Hourglass lucide icon as the leadingVisual on RETURN_FROM_HIATUS", () => {
-    const { container } = render(<LolMomentChapter {...hiatusReturnProps} />);
+    const { container } = render(<LolMomentBeat {...hiatusReturnProps} />);
     expect(container.querySelector(".lucide-hourglass")).toBeTruthy();
   });
 
   it("renders a Clock lucide icon as the leadingVisual on MARATHON", () => {
-    const { container } = render(<LolMomentChapter {...marathonProps} />);
+    const { container } = render(<LolMomentBeat {...marathonProps} />);
     expect(container.querySelector(".lucide-clock")).toBeTruthy();
   });
 
   it("renders an emerald pip row as the leadingVisual on STREAK_5W", () => {
-    const { container } = render(<LolMomentChapter {...streakWinProps} />);
+    const { container } = render(<LolMomentBeat {...streakWinProps} />);
     const pips = container.querySelectorAll(".bg-emerald-300.rounded-full");
     // streakWinProps.streak.length = 5
     expect(pips.length).toBe(5);
@@ -629,7 +545,7 @@ describe("LolMomentChapter per-type leadingVisual (R-7h.2)", () => {
   });
 
   it("renders a rose pip row as the leadingVisual on STREAK_5L", () => {
-    const { container } = render(<LolMomentChapter {...streakLossProps} />);
+    const { container } = render(<LolMomentBeat {...streakLossProps} />);
     const pips = container.querySelectorAll(".bg-rose-300.rounded-full");
     // streakLossProps.streak.length = 6
     expect(pips.length).toBe(6);
@@ -641,13 +557,13 @@ describe("LolMomentChapter per-type leadingVisual (R-7h.2)", () => {
       ...streakWinProps,
       streak: { result: "W" as const, length: 12 },
     };
-    const { container } = render(<LolMomentChapter {...longStreakProps} />);
+    const { container } = render(<LolMomentBeat {...longStreakProps} />);
     const pips = container.querySelectorAll(".bg-emerald-300.rounded-full");
     expect(pips.length).toBe(7);
   });
 
   it("renders no leadingVisual on OFF_META_PICK (the splash IS the visual)", () => {
-    const { container } = render(<LolMomentChapter {...baseProps} />);
+    const { container } = render(<LolMomentBeat {...baseProps} />);
     expect(container.querySelector(".lucide-trophy")).toBeNull();
     expect(container.querySelector(".lucide-clock")).toBeNull();
     expect(container.querySelector(".lucide-hourglass")).toBeNull();
@@ -656,7 +572,7 @@ describe("LolMomentChapter per-type leadingVisual (R-7h.2)", () => {
   });
 });
 
-describe("LolMomentChapter per-type accent (R-7h.1)", () => {
+describe("LolMomentBeat per-type accent (R-7h.1)", () => {
   // Per-momentType typographic accent — eyebrow + Accent spans pick up a
   // tailwind text-* class from `momentAccentClass`. The atmosphere backdrop
   // stays champion-derived; this lever is the chapter's per-type colour
@@ -671,7 +587,7 @@ describe("LolMomentChapter per-type accent (R-7h.1)", () => {
     ["STREAK_5L" as const, streakLossProps, "text-rose-300"],
     ["MARATHON" as const, marathonProps, "text-orange-300"],
   ])("applies %s eyebrow with class %s", (_label, props, expectedClass) => {
-    const { container } = render(<LolMomentChapter {...props} />);
+    const { container } = render(<LolMomentBeat {...props} />);
     // The eyebrow text matches the chapter's first uppercase-tracked span;
     // find it by class signature and assert the accent class is part of it.
     const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");

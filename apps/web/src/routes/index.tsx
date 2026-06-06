@@ -10,7 +10,7 @@ import { TodayStrip } from "@/home/conclusion/today-strip";
 import { LandingHeading } from "@/home/landing-heading";
 import { OwnerIdentityStrip } from "@/home/owner-identity-strip";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
-import { LolMomentChapter } from "@/home/recap/lol-moment-chapter";
+import { LolMomentsAggregator } from "@/home/recap/lol-moments-aggregator";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
 import { SteamMomentChapter } from "@/home/recap/steam-moment-chapter";
@@ -69,10 +69,31 @@ function HomePage() {
             account is configured (so anonymous visitors don't see a
             placeholder Ahri pin). */}
         {account ? <AhriChapter account={account} /> : null}
+        {/* R-12.5: LoL moments are grouped into a single multi-beat
+            aggregator chapter ("Moments / where the routine cracked")
+            instead of being individually pinned on the landing stream.
+            The aggregator sits right after the Ahri subject so the LoL
+            block reads as one editorial unit, then Steam takes over.
+            Each detected moment (RANK_UP, KDA_OUTLIER, STREAK_5W/L,
+            RETURN_FROM_HIATUS, MARATHON, OFF_META_PICK) renders as a
+            beat inside; per-moment-type copy + accent + receipt still
+            flow through the `momentCopy()` helper that lol-moment-beat
+            owns. */}
+        {(() => {
+          const lolMoments =
+            chapters?.filter(
+              (c): c is typeof c & { kind: "lol-moment" } =>
+                c.kind === "lol-moment" && Boolean(c.championAlias)
+            ) ?? [];
+          return account && lolMoments.length > 0 ? (
+            <LolMomentsAggregator moments={lolMoments} account={account} />
+          ) : null;
+        })()}
         {/* Algorithmic chapter stream (R-4). `useChapters()` ranks Steam
             subjects by recency-decayed score; the Ahri anchor above is
-            structural and not part of this list. Non-`steam-subject` kinds
-            (LoL moments, Steam moments) land in R-6 / R-7. */}
+            structural and not part of this list. LoL moments are now
+            handled by the aggregator above; Steam moments stay
+            single-pin until R-12.6 groups them. */}
         {chapters?.map((c, index) => {
           if (c.kind === "steam-subject") {
             return (
@@ -85,31 +106,6 @@ function HomePage() {
                 // injected so the bg snap-in isn't visible. Subsequent
                 // chapters gate their preload on viewport proximity. R-9.
                 priority={index === 0 ? "critical" : "lazy"}
-              />
-            );
-          }
-          // R-6 moment chapters require both a champion alias (the off-meta
-          // pick subject) and an owner LoL account (to deep-link the match
-          // detail + provide the slug for asset URL routing). When either is
-          // missing the descriptor is dropped quietly — the API can't
-          // produce one without these fields, but the discriminated union
-          // tolerates nullable shapes so we narrow here at the render seam.
-          if (c.kind === "lol-moment" && c.championAlias && account) {
-            return (
-              <LolMomentChapter
-                key={c.slug}
-                account={account}
-                championAlias={c.championAlias}
-                matchId={c.matchId}
-                daysSince={c.daysSince}
-                slug={c.slug}
-                momentType={c.momentType}
-                matchStats={c.matchStats}
-                rankUp={c.rankUp}
-                kdaOutlier={c.kdaOutlier}
-                hiatusReturn={c.hiatusReturn}
-                streak={c.streak}
-                marathon={c.marathon}
               />
             );
           }
@@ -132,6 +128,7 @@ function HomePage() {
               />
             );
           }
+          // LoL moments handled by LolMomentsAggregator above.
           return null;
         })}
         {/* Conclusion is split across two snap-aligned siblings, each
