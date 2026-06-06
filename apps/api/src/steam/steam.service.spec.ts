@@ -1,12 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import { SteamClientService } from "./steam-client.service";
+import type { PrismaService } from "../prisma/prisma.service";
+import type { SteamClientService } from "./steam-client.service";
 import { SteamService } from "./steam.service";
 import type {
   SteamGetProfileItemsEquippedResponse,
   SteamPlayerRaw,
-  SteamStoreItemRaw,
+  SteamStoreItemFullRaw,
   SteamWishlistItemRaw,
 } from "./types";
+
+function makePrismaStub(): {
+  prisma: PrismaService;
+  upsert: ReturnType<typeof vi.fn>;
+} {
+  const upsert = vi.fn().mockResolvedValue(undefined);
+  const prisma = {
+    steamWishlistAsset: { upsert },
+  } as unknown as PrismaService;
+  return { prisma, upsert };
+}
 
 function makeService(
   player: SteamPlayerRaw | null,
@@ -20,24 +32,29 @@ function makeService(
     getSteamLevel: vi.fn().mockResolvedValue(level),
     getSteamLevelDistribution: vi.fn().mockResolvedValue(levelPercentile),
   } as unknown as SteamClientService;
-  return new SteamService(client);
+  return new SteamService(client, makePrismaStub().prisma);
 }
 
 interface WishlistClientStubs {
   getWishlist: ReturnType<typeof vi.fn>;
-  getStoreItems: ReturnType<typeof vi.fn>;
+  getStoreItemsFull: ReturnType<typeof vi.fn>;
 }
 
 function makeWishlistService(
   wishlist: SteamWishlistItemRaw[],
-  storeItems: SteamStoreItemRaw[]
-): { service: SteamService; stubs: WishlistClientStubs } {
+  storeItems: SteamStoreItemFullRaw[]
+): {
+  service: SteamService;
+  stubs: WishlistClientStubs;
+  upsert: ReturnType<typeof vi.fn>;
+} {
   const stubs: WishlistClientStubs = {
     getWishlist: vi.fn().mockResolvedValue(wishlist),
-    getStoreItems: vi.fn().mockResolvedValue(storeItems),
+    getStoreItemsFull: vi.fn().mockResolvedValue(storeItems),
   };
   const client = stubs as unknown as SteamClientService;
-  return { service: new SteamService(client), stubs };
+  const { prisma, upsert } = makePrismaStub();
+  return { service: new SteamService(client, prisma), stubs, upsert };
 }
 
 const basePlayer: SteamPlayerRaw = {
@@ -297,7 +314,7 @@ describe("SteamService.getOwnerWishlist", () => {
     await service.getOwnerWishlist();
 
     expect(stubs.getWishlist).toHaveBeenCalledOnce();
-    expect(stubs.getStoreItems).toHaveBeenCalledOnce();
+    expect(stubs.getStoreItemsFull).toHaveBeenCalledOnce();
   });
 
   it("refetches the wishlist once the TTL elapses", async () => {
@@ -322,6 +339,108 @@ describe("SteamService.getOwnerWishlist", () => {
 
     expect(stubs.getWishlist).toHaveBeenCalledTimes(2);
     // Names stay cached even when the wishlist refetches — name cache has its own TTL.
-    expect(stubs.getStoreItems).toHaveBeenCalledOnce();
+    expect(stubs.getStoreItemsFull).toHaveBeenCalledOnce();
+  });
+
+  it("upserts content-hashed asset paths into SteamWishlistAsset", async () => {
+    const { service, upsert } = makeWishlistService(
+      [{ appid: 214490, priority: 0, date_added: 1466884835 }],
+      [
+        {
+          appid: 214490,
+          success: 1,
+          name: "Alien: Isolation",
+          store_url_path: "app/214490/Alien_Isolation",
+          assets: {
+            asset_url_format: "steam/apps/214490/${FILENAME}?t=1709876543",
+            library_hero: "1eebc7e4e3/library_hero.jpg",
+            library_hero_2x: "1eebc7e4e3/library_hero_2x.jpg",
+            library_capsule: "1eebc7e4e3/library_600x900.jpg",
+            header: "1eebc7e4e3/header.jpg",
+          },
+        },
+      ]
+    );
+    await service.getOwnerWishlist();
+    expect(upsert).toHaveBeenCalledOnce();
+    const call = upsert.mock.calls[0]?.[0];
+    expect(call.where).toEqual({ appid: 214490 });
+    expect(call.create).toMatchObject({
+      appid: 214490,
+      assetUrlFormat: "steam/apps/214490/${FILENAME}?t=1709876543",
+      assetTimestamp: 1709876543n,
+      libraryHeroPath: "1eebc7e4e3/library_hero.jpg",
+      libraryHero2xPath: "1eebc7e4e3/library_hero_2x.jpg",
+      libraryCapsulePath: "1eebc7e4e3/library_600x900.jpg",
+      headerPath: "1eebc7e4e3/header.jpg",
+    });
+    expect(call.update).toMatchObject({
+      libraryHeroPath: "1eebc7e4e3/library_hero.jpg",
+      headerPath: "1eebc7e4e3/header.jpg",
+    });
+  });
+
+  // Townfall-shape: appid 1636440 carries a `header` asset hash but no
+  // `library_*` variants — the publisher only shipped header + capsules.
+  // The proxy chain in SteamImageService.hero needs to know the header
+  // hash so it can serve the cropped capsule fallback for the wishlist
+  // banner; null library fields stay null so the chain skips the legacy
+  // `library_hero.jpg` 404 and the SGDB chunk picks up the gap later.
+  it("upserts a header-only Townfall-shape with nulls for library_* fields", async () => {
+    const { service, upsert } = makeWishlistService(
+      [{ appid: 1636440, priority: 0, date_added: 1700000000 }],
+      [
+        {
+          appid: 1636440,
+          success: 1,
+          name: "Silent Hill: Townfall",
+          store_url_path: "app/1636440/Silent_Hill_Townfall",
+          release: { is_coming_soon: true },
+          assets: {
+            asset_url_format: "steam/apps/1636440/${FILENAME}?t=1709000000",
+            header: "0ed1cb4bc30631/header.jpg",
+          },
+        },
+      ]
+    );
+    await service.getOwnerWishlist();
+    const call = upsert.mock.calls[0]?.[0];
+    expect(call.create).toMatchObject({
+      appid: 1636440,
+      assetTimestamp: 1709000000n,
+      headerPath: "0ed1cb4bc30631/header.jpg",
+      libraryHeroPath: null,
+      libraryHero2xPath: null,
+      libraryCapsulePath: null,
+    });
+  });
+
+  it("skips the upsert when success !== 1 (unresolvable appid)", async () => {
+    const { service, upsert } = makeWishlistService(
+      [{ appid: 9999999, priority: 0, date_added: 1700000000 }],
+      [{ appid: 9999999, success: 0 }]
+    );
+    await service.getOwnerWishlist();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("leaves assetTimestamp null when asset_url_format has no `?t=` segment", async () => {
+    const { service, upsert } = makeWishlistService(
+      [{ appid: 214490, priority: 0, date_added: 1466884835 }],
+      [
+        {
+          appid: 214490,
+          success: 1,
+          name: "Alien: Isolation",
+          assets: {
+            asset_url_format: "steam/apps/214490/${FILENAME}",
+            header: "1eebc7e4e3/header.jpg",
+          },
+        },
+      ]
+    );
+    await service.getOwnerWishlist();
+    const call = upsert.mock.calls[0]?.[0];
+    expect(call.create.assetTimestamp).toBeNull();
   });
 });

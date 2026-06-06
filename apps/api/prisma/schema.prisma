@@ -259,6 +259,37 @@ model SteamGameEnrichment {
   enrichedAt           DateTime  @default(now())
 }
 
+// Per-asset paths for wishlist titles. Wishlist apps aren't owned, so the
+// owned-games sync + monthly enrichment cron (SteamGameEnrichment) never
+// touches them — but the wishlist row UI still needs the content-hashed
+// `library_hero` / `library_capsule` / `header` paths to render a real
+// banner. Without this, unreleased titles whose publishers only shipped
+// hashed assets (e.g. Silent Hill: Townfall, appid 1636440) miss every
+// legacy filename in the image proxy chain and fall through to the
+// generic `storepagebackground` ambient wash.
+//
+// Populated lazily by SteamService.resolveNames via
+// IStoreBrowseService/GetItems with `include_assets: true`; one row per
+// wishlist appid, no FK to SteamOwnedGame. Rows are refreshed when
+// `fetchedAt` is older than the wishlist-asset TTL. Kept as a separate
+// table rather than widening SteamGameEnrichment: the lifecycles are
+// disjoint (wishlist churns weekly, owned-games once on add), the column
+// set is far narrower (no review counts, no full description, no
+// trailers), and the join model on the proxy side stays clean (each
+// asset route walks `enrichment ∪ wishlistAsset` in that order).
+model SteamWishlistAsset {
+  appid                Int      @id
+  assetUrlFormat       String?
+  assetTimestamp       BigInt?
+  libraryCapsulePath   String?
+  libraryCapsule2xPath String?
+  libraryHeroPath      String?
+  libraryHero2xPath    String?
+  headerPath           String?
+  heroCapsulePath      String?
+  fetchedAt            DateTime @default(now())
+}
+
 // Per-game achievement schema from ISteamUserStats/GetSchemaForGame. Refreshed
 // monthly by SteamAchievementSchemaPoller. Games with no achievements (CS2,
 // demos, dedicated-launcher entries) leave no rows here — the meta sidecar's

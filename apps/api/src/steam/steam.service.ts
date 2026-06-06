@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { SteamSummary, SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
+import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 import type {
   SteamGetProfileItemsEquippedResponse,
   SteamPlayerRaw,
-  SteamStoreItemRaw,
+  SteamStoreItemFullRaw,
   SteamWishlistItemRaw,
 } from "./types";
 
@@ -61,7 +62,10 @@ export class SteamService {
   wishlistTtlMs: number = WISHLIST_TTL_MS;
   nameTtlMs: number = NAME_TTL_MS;
 
-  constructor(private readonly client: SteamClientService) {}
+  constructor(
+    private readonly client: SteamClientService,
+    private readonly prisma: PrismaService
+  ) {}
 
   async getOwnerSummary(): Promise<SteamSummary> {
     // Fetch player + equipped items + community level in parallel. Only the
@@ -162,11 +166,19 @@ export class SteamService {
 
     for (let i = 0; i < stale.length; i += STORE_ITEMS_BATCH) {
       const batch = stale.slice(i, i + STORE_ITEMS_BATCH);
-      const fetched = await this.client.getStoreItems(batch);
+      // `getStoreItemsFull` rather than `getStoreItems` so the response
+      // carries `assets.*` content-hashed paths alongside name/release.
+      // Same endpoint, same Bottleneck "store-items" reservoir — no extra
+      // rate-limit budget over the legacy minimal call. The asset paths
+      // land in `SteamWishlistAsset` so the image proxy can serve a
+      // proper hero/capsule for unreleased titles whose publishers only
+      // shipped hashed assets (e.g. appid 1636440 — Silent Hill: Townfall).
+      const fetched = await this.client.getStoreItemsFull(batch);
       const seen = new Set<number>();
       for (const row of fetched) {
         seen.add(row.appid);
         this.nameCache.set(row.appid, storeItemToCacheEntry(row, now));
+        await this.upsertWishlistAsset(row);
       }
       // GetItems silently omits unresolvable appids; cache the miss so we don't
       // retry every request until the TTL elapses.
@@ -190,9 +202,45 @@ export class SteamService {
     }
     return out;
   }
+
+  // Persist per-asset content-hashed paths for one wishlist row. Re-derives
+  // from the GetItemsFull payload on every fetch — the in-memory `nameCache`
+  // already throttles upstream calls to once per `NAME_TTL_MS` per appid, so
+  // we don't add a second DB-side TTL gate here. `success !== 1` rows are
+  // skipped (Steam silently rejects unresolvable appids — caller handles
+  // them as cache misses, not as upserts).
+  private async upsertWishlistAsset(row: SteamStoreItemFullRaw): Promise<void> {
+    if (row.success !== 1) return;
+    const assets = row.assets;
+    // `asset_url_format` is shaped like `"steam/apps/{appid}/${FILENAME}?t=1776125684"`.
+    // The `?t=` epoch is Steam's cache-buster; storing it lets the proxy
+    // emit cache keys that move with publisher art refreshes. Same parse
+    // shape as `projectEnrichment` in enrichment.service.ts.
+    let assetTimestamp: bigint | null = null;
+    if (assets?.asset_url_format) {
+      const match = assets.asset_url_format.match(/\?t=(\d+)/);
+      if (match?.[1]) assetTimestamp = BigInt(match[1]);
+    }
+    const data = {
+      assetUrlFormat: assets?.asset_url_format ?? null,
+      assetTimestamp,
+      libraryCapsulePath: assets?.library_capsule ?? null,
+      libraryCapsule2xPath: assets?.library_capsule_2x ?? null,
+      libraryHeroPath: assets?.library_hero ?? null,
+      libraryHero2xPath: assets?.library_hero_2x ?? null,
+      headerPath: assets?.header ?? null,
+      heroCapsulePath: assets?.hero_capsule ?? null,
+      fetchedAt: new Date(),
+    };
+    await this.prisma.steamWishlistAsset.upsert({
+      where: { appid: row.appid },
+      create: { appid: row.appid, ...data },
+      update: data,
+    });
+  }
 }
 
-function storeItemToCacheEntry(row: SteamStoreItemRaw, now: number): CachedName {
+function storeItemToCacheEntry(row: SteamStoreItemFullRaw, now: number): CachedName {
   const resolved = row.success === 1 && row.name ? row.name : null;
   // `steam_release_date` is absent for unreleased titles without a published
   // date, and zero on some legacy rows; both map to null. `is_coming_soon`
