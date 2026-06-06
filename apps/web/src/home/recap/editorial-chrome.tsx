@@ -121,14 +121,29 @@ export function EditorialChrome() {
   useEffect(() => {
     const TOP_PIN_TOLERANCE_PX = 64;
     const DOMINANT_FRACTION = 0.6;
+    // Bottom-side gate now reads the STAGE element's position rather than
+    // the section's bottom. Original gate (`section.bottom >= main.bottom`)
+    // was fragile on the LAST chapter: `-mb-6` on the conclusion makes
+    // section.bottom equal main.bottom almost exactly at maxScroll, and
+    // any subpixel rounding flips the gate off, hiding the indicator at
+    // the page bottom. The stage uses `position: sticky; top: 0`, so when
+    // pinned its `getBoundingClientRect().top` tracks `main.top` exactly;
+    // when sticky disengages on a Phase-3 exit, `stage.top` drops below
+    // `main.top`. This is the actual physical event we want to detect,
+    // and it has a much larger signal margin than the section-bottom
+    // approach (stage moves many pixels upward during Phase 3, not
+    // single-pixel boundaries at maxScroll).
+    const STAGE_UNPIN_TOLERANCE_PX = 4;
     let raf = 0;
     const tick = () => {
       const chrome = chromeRef.current;
       const main = mainScrollRef.current;
       if (chrome && main) {
         const section = chrome.closest<HTMLElement>("[data-chapter-multi-beat]");
-        if (section) {
+        const stage = section?.querySelector<HTMLElement>("[data-chapter-stage]");
+        if (section && stage) {
           const sectionRect = section.getBoundingClientRect();
+          const stageRect = stage.getBoundingClientRect();
           const mainRect = main.getBoundingClientRect();
           const topPinned = sectionRect.top <= mainRect.top + TOP_PIN_TOLERANCE_PX;
           // Pixel overlap between section and main, clamped to non-negative.
@@ -139,8 +154,10 @@ export function EditorialChrome() {
           );
           const mainHeight = mainRect.bottom - mainRect.top;
           const dominant = overlap >= mainHeight * DOMINANT_FRACTION;
-          const inPinRange =
-            (topPinned || dominant) && sectionRect.bottom >= mainRect.bottom;
+          // Stage stuck at main.top while sticky-pinned; rises (top goes
+          // negative relative to main.top) when sticky disengages.
+          const stagePinned = stageRect.top >= mainRect.top - STAGE_UNPIN_TOLERANCE_PX;
+          const inPinRange = (topPinned || dominant) && stagePinned;
           setChapterInViewport((prev) => (prev === inPinRange ? prev : inPinRange));
         }
       }
