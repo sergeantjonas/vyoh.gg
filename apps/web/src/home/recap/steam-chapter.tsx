@@ -581,10 +581,27 @@ export function SteamChapter({
       <ChapterOpener>
         {verdictClauses.length > 0 ? (
           <div className="flex w-full flex-col">
+            {/* Accent slash — magazine opener flourish above the prose.
+                Mirrors beat 3's closer slash, which sits below its
+                content with `from="right"`. Together the two slashes
+                bookend the chapter (top + bottom edges) with the same
+                primitive on opposite axes. `mb-3 sm:mb-4` keeps the
+                gap between slash and prose tight so the prose still
+                lands close to the masthead; delay 1.1s sequences the
+                slash AFTER the prose's blur-rise so it reads as an
+                editorial mark landing on already-readable copy, not
+                a decoration racing the headline. */}
+            <BeatAccentSlash
+              beatIndex={0}
+              delay={1.1}
+              className="mb-3 sm:mb-4"
+              width="14rem"
+            />
+
             {/* Verdict prose — curtain-pull entrance: bigger rise +
                 blur + longer duration than the band default. Lands
-                first; the slash arrives after it as an editorial
-                flourish on already-readable copy. */}
+                first; the slash draws above it once the text has
+                settled. */}
             <ChapterReveal active={nudged} delay={0.1} blur={8} rise={22} duration={0.9}>
               <VerdictProse
                 clauses={verdictClauses}
@@ -598,20 +615,6 @@ export function SteamChapter({
                 numbersDelay={0.95}
               />
             </ChapterReveal>
-
-            {/* Accent slash — magazine separator that lands AFTER the
-                prose has settled (delay = prose's reveal delay +
-                duration + a small breath). `mt-5` reserves the
-                editorial breathing between prose and mark. The slash
-                sits below the prose because beat 0 is anchored to the
-                top of the band; placing the mark below reads as a
-                "page-end" flourish rather than a competing headline. */}
-            <BeatAccentSlash
-              beatIndex={0}
-              delay={1.1}
-              className="mt-5 sm:mt-6"
-              width="14rem"
-            />
           </div>
         ) : null}
       </ChapterOpener>

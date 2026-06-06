@@ -50,11 +50,13 @@ const geom = await page.evaluate(() => {
 console.log("BEAT 0 GEOMETRY:", JSON.stringify(geom, null, 2));
 
 const failures = [];
-if (!geom.slashBelowProse)
-  failures.push("expected slash to sit below the prose, but it's above");
+if (geom.slashBelowProse)
+  failures.push(
+    "expected slash to sit above the prose (symmetry with beat 3's right-anchored closer slash), but it's below"
+  );
 if (geom.gapMastheadToProse !== null && geom.gapMastheadToProse > 120)
   failures.push(
-    `gap from masthead bottom to prose top is ${geom.gapMastheadToProse}px, expected ≤ 120 (band padding ~32 + a small breath)`
+    `gap from masthead bottom to prose top is ${geom.gapMastheadToProse}px, expected ≤ 120 (band padding ~32 + slash + mb-3 breath)`
   );
 
 if (failures.length > 0) {

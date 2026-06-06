@@ -27,9 +27,7 @@ await page.evaluate(() => {
 await page.waitForTimeout(2200);
 
 const geom = await page.evaluate(() => {
-  const beat3 = document.querySelector(
-    "[data-chapter-multi-beat] [data-beat='3']"
-  );
+  const beat3 = document.querySelector("[data-chapter-multi-beat] [data-beat='3']");
   const closer = beat3?.querySelector("[data-band='closer']");
   const slash = beat3?.querySelector("[data-beat-accent-slash]");
   const strip = closer?.querySelector("a, img");
@@ -48,12 +46,9 @@ const geom = await page.evaluate(() => {
     slashRight: slashRect?.right,
     slashTop: slashRect?.top,
     stripTop: stripRect?.top,
-    slashBelowStrip:
-      slashRect && stripRect ? slashRect.top > stripRect.bottom : null,
+    slashBelowStrip: slashRect && stripRect ? slashRect.top > stripRect.bottom : null,
     slashRightAligned:
-      slashRect && closerRect
-        ? Math.abs(slashRect.right - closerRect.right) < 80
-        : null,
+      slashRect && closerRect ? Math.abs(slashRect.right - closerRect.right) < 80 : null,
     slashTransform: slashStyle?.transform,
   };
 });
