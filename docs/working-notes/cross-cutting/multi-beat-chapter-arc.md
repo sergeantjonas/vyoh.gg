@@ -1,12 +1,16 @@
 # Multi-beat chapter architecture & choreography arc
 
-Architecture + design plan for fixing the multi-beat chapter experience. Replaces the shipped sticky-stage cross-fade direction (`0740849d`, 2026-06-05) which read as mushy, unread-able, with stuck/skip states. Sub-note of [self-portrait-recap-arc.md](./self-portrait-recap-arc.md). Sibling of [r13-exit-dissolve.md](./r13-exit-dissolve.md) and [subject-chapter-design-spec.md](./subject-chapter-design-spec.md) — read both for substrate and design vocabulary.
+Architecture + design plan for the multi-beat chapter experience. Replaces the shipped sticky-stage cross-fade (`0740849d`, 2026-06-05) which read as mushy and unread-able. Sub-note of [self-portrait-recap-arc.md](./self-portrait-recap-arc.md). Sibling of [r13-exit-dissolve.md](./r13-exit-dissolve.md) and [subject-chapter-design-spec.md](./subject-chapter-design-spec.md).
 
-Earlier title for this note was "Chapter horizontal-pinned scroll." That direction was researched and rejected mid-discussion. The horizontal-track design isn't what makes a chapter exciting; it's just a carrier with its own gotcha pile. The actual leverage is in **per-beat choreography against a clean snap-paged substrate.** Horizontal scroll discussion preserved in `git log` if needed; not duplicated here.
+**History of this note's recommendation:**
+- v1 (2026-06-05 morning) pitched a horizontal-scroll carrier — rejected mid-discussion as "not the leverage; choreography is."
+- v2 (2026-06-05 afternoon) pitched sticky masthead + flat snap-stop beats + IO+animate per beat — researched extensively, then *also* abandoned at implementation time when owner pointed out that prior multi-beat iterations had already tried that exact pattern (`b3711bcb` era) and it kept being walked back.
+- v3 (this note, 2026-06-06) describes what **actually shipped** in chunk 2: horizontal-track scroll-driven pin with dwell-and-transition mapping. The owner's original horizontal-track instinct was the right call; v2's snap-based pitch was wrong.
 
 ## Status
 
-- 2026-06-05 — research + design landed (this note). No code written. Recommended architecture: sticky chapter masthead in normal flow + flat snap-paged beats below + IntersectionObserver-triggered Motion `animate()` per beat. Standing rule: **all four Steam beats individually art-directed against the choreography toolkit; no shared template, no uniform fade.**
+- 2026-06-06 — **chunk 2 substrate shipped and tuned.** Steam chapter migrated to new primitives behind `?layout=multi-beat`. 50+ commits of architectural reshaping and tuning. Substrate now feels good per owner ("getting to a good spot"); ready for chunk 3 (art direction).
+- Next: chunk 3 art-direct each Steam beat against the choreography toolkit. Then unblock Ahri migration. Then remove the flag and delete the legacy `<ChapterGroup>`/`<ChapterBeat>`.
 
 ## The symptoms this arc is solving
 
@@ -23,211 +27,216 @@ Owner-reported on the shipped `0740849d` state (2026-06-05):
 
 These are *structural*, not polish. Recovering by tuning the cross-fade curves doesn't fix them; the medium has to change.
 
-## Recommended architecture
+## Recommended architecture (what shipped in chunk 2)
 
-```html
-<main scroll-snap-type: y mandatory; scroll-padding-top: var(--masthead-h)>
-  <section data-chapter>
-    <header data-masthead position: sticky; top: 0; height: var(--masthead-h)>
-      eyebrow + logo + chapter title
+```tsx
+// Outer section provides the scroll runway
+<section
+  data-chapter-multi-beat
+  style={{
+    height: `calc(${beatCount * SCROLL_RUNWAY_MULTIPLIER} * var(--main-h, 100dvh))`,
+    width: "100vw",
+    marginLeft: "calc(50% - 50vw)",  // full-bleed escape from max-w-4xl recap wrapper
+  }}
+>
+  {/* Sticky stage pins for the chapter's vertical scroll length */}
+  <div
+    data-chapter-stage
+    className="sticky top-0 flex w-full flex-col overflow-hidden"
+    style={{ height: "var(--main-h, 100dvh)" }}
+  >
+    {/* Masthead sized to its content via flex-col + shrink-0 */}
+    <header data-chapter-masthead className="relative z-20 w-full shrink-0 overflow-hidden">
+      <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
     </header>
-    <article data-beat scroll-snap-align: start; scroll-snap-stop: always;
-             height: 100vh; padding-top: var(--masthead-h)>
-      beat 0
-    </article>
-    <article data-beat ...>beat 1</article>
-    <article data-beat ...>beat 2</article>
-    <article data-beat ...>beat 3</article>
-  </section>
-  <!-- next chapter same shape -->
-</main>
+
+    {/* Horizontal track translated by useScroll-driven `x` */}
+    <motion.div
+      data-chapter-track
+      className="flex min-h-0 flex-1 flex-row will-change-transform"
+      style={{ x, width: `${beatCount * 100}%` }}
+    >
+      {children}  {/* each <MultiBeat> sets style={{ width: `${100 / beatCount}%` }} */}
+    </motion.div>
+  </div>
+</section>
 ```
 
-Two structural moves carry the weight:
+**Per-beat structure** (`<MultiBeat>`):
+- `w-full h-full shrink-0` flex item inside the track, content-sized inner div with consumer's `BEAT_LAYOUT` className applied.
+- `useInView` with `root: mainScrollRef`, `amount: 0.5` flips `nudged` true when the beat is the visible one. Drives child `<ChapterReveal>` cascades.
 
-1. **`scroll-padding-top` on the scroll container.** Tells the snap algorithm to offset every snap point by the masthead height. Masthead sticks at viewport top throughout the chapter; each beat snaps with its content top at the masthead boundary. No absolute positioning, no z-index gymnastics, no stacked layers — just normal document flow + sticky + snap-padding. This is what `scroll-padding-top` exists for.
+### Five load-bearing structural moves
 
-2. **Beats are flat siblings in normal flow.** The shipped architecture stacks all beats as absolutely-positioned layers inside one sticky stage, which structurally forces cross-fade as the only possible transition. Flat siblings with their own snap-stops are independently animatable and don't share viewport space, so the cross-fade medium isn't even possible.
+1. **`SCROLL_RUNWAY_MULTIPLIER` × `--main-h`** sizes section and stage. Sized to **`--main-h` (main's actual clientHeight, not dvh)** because `<main>` is shorter than the window — the page-level nav above main eats ~50px. Using dvh made the sticky stage taller than the visible scroll area, so sticky released before `useScroll` progress reached 1, which caused "chapter slides up mid-beat 2."
+2. **Stage uses `flex flex-col` with masthead `shrink-0` and track `flex-1 min-h-0`** so the masthead sizes to its content and the track fills the rest. A fixed `mastheadHeight` prop reserved too much space when the title card was shorter (visible gap between masthead bottom and beat content top). `min-h-0` is required on the flex-1 track for Firefox flex resolution.
+3. **Track has explicit `width: beatCount × 100%`** so the percentage translate maps to actual beat advances. Without this, the track inherits parent width (one stage-width) and `-75%` translates by 75% of one beat, not 3 beats. Each `<MultiBeat>` then takes `width: 100/beatCount%` — 1/N of the explicit track = exactly one stage width.
+4. **Full-bleed escape with `marginLeft: calc(50% - 50vw); width: 100vw`** breaks the section out of the recap wrapper's `max-w-4xl` constraint. Beats slide across the full viewport on larger screens. Content inside each beat is re-centered with a `max-w-4xl mx-auto` reading-column wrapper (avoiding content-leans-left at 1920+ viewports). `[overflow-x: clip]` on `<main>` (set in __root.tsx) prevents the escape from producing a horizontal page scrollbar.
+5. **`overflow-hidden` on the masthead `<header>`** clips title-card content that would otherwise bleed below the masthead box into the beat track area. Title-card content uses vh-relative units that don't fit a static box at all viewport sizes; clipping prevents the overlap visually.
 
-Per-beat motion: **IntersectionObserver fires Motion `animate()`** for that beat's distinct entry choreography. Not scroll-coupled. R-13 v2 documented this as "the whole exit-dissolve" but it never actually shipped — see "Note-vs-code gap" below. The pattern is correct; we just have to actually do it.
+### Scroll mechanics — the four tuning dials
 
-What carries forward from today's [chapter-group.tsx](../../apps/web/src/home/recap/chapter-group.tsx):
-- `useChapterNudge` for "chapter has entered viewport" — drives masthead reveal.
-- `useChapterGroupNudge` context — drives masthead's own animations off chapter presence.
-- `useChapterBeatNudge` context — drives per-beat entry cascade off the beat's own IO threshold.
-- `prefers-reduced-motion` branch collapsing to a flat vertical stack.
+The horizontal motion is driven by Motion's `useScroll({ target: sectionRef, container: mainScrollRef, offset: ["start start", "end end"] })`, mapped via a piecewise `useTransform`. Four constants in [chapter-multi-beat.tsx](../../apps/web/src/home/recap/chapter-multi-beat.tsx) tune the feel:
+
+| Constant | Current | What it tunes |
+|---|---|---|
+| `SCROLL_RUNWAY_MULTIPLIER` | 2.3 | Total chapter scroll length. Higher = chapter takes more scroll, motion is gentler per scroll unit. |
+| `DWELL_UNITS` | 2 | How long middle beats hold their position, in relative units. |
+| `EDGE_DWELL_UNITS` | 3 | How long first and last beats hold, in relative units. Higher than middles so the chapter eases in and lingers at the end. |
+| `TRANSITION_UNITS` | 4 | How long the motion between two beats takes, in relative units. |
+
+For N=4 beats: total = 2×3 + 2×2 + 3×4 = 22 units. Outer beats hold for 3/22 ≈ 14% of chapter scroll, middle beats for 2/22 ≈ 9%, each transition takes 4/22 ≈ 18%. Vert:horiz ratio ≈ 0.9 (gentle).
+
+Tuning rules of thumb:
+- Motion feels too fast → bump `SCROLL_RUNWAY_MULTIPLIER`.
+- Mouse scroll feels tedious → drop `SCROLL_RUNWAY_MULTIPLIER` (trades trackpad-skip resistance for tick efficiency).
+- Beat doesn't get enough reading time → bump that beat's dwell units (currently global; see "Future: per-beat dwell" below).
+- Transition feels zippy → bump `TRANSITION_UNITS` relative to dwells.
+
+### Cross-browser engagement decisions
+
+| Decision | Why |
+|---|---|
+| **No CSS scroll-snap anywhere** | We tried `scroll-snap-type: y mandatory` on `<main>` with snap-stop:always on beats. Firefox "vibrated" between candidate targets; Chrome had subtle composition bugs. The R-13 snap-compositor finding bites any architecture that mixes per-element translates with native snap on the same axis. |
+| **No programmatic snap on `scrollend`** | We tried this too. Even with `scrollend` (vs debounced `scroll`), the snap animation fought continuous Mac trackpad scrolling — `scrollTop` writes during animation competed with user input. The user's scroll input would tug back against our `animate()`. Removed entirely; replaced with dwell-and-transition mapping (which provides natural "magnetic" resting positions without any animation). |
+| **Linear-with-dwells `useTransform` mapping** | Each beat dwells for some scroll units (track stays still), then transitions move it to the next beat. Natural rest in dwell zones = beat centered. No snap fighting. Trade-off: total motion is in less scroll, so transitions are slightly amplified vs pure linear. Adjusted by tuning unit ratios. |
+| **Motion `useScroll` over GSAP / Lenis** | Motion v12 `useScroll` auto-selects native `ScrollTimeline` on Chrome 115+/Safari 26+ (compositor-thread, zero JS per frame), rAF fallback on Firefox. One code path, all engines. Lenis would hijack native scroll and break the entire scroll-position-drives-translate pattern. GSAP ScrollTrigger doesn't add anything over what `useScroll` already does for this pattern. |
+
+## Architectural pivots within chunk 2 (audit trail)
+
+The substrate iterated extensively this session. Each pivot was driven by a specific failure mode:
+
+| Commit | Direction | Why it changed |
+|---|---|---|
+| `bbe13728` | Original snap-based design (sticky masthead + flat snap-stop beats + IO+animate) | First implementation per v2 of this note. |
+| `91846fcb` | Added `scroll-snap-type: y proximity` on main | Discovered the snap classes were inert — scroll-snap-stop:always does nothing without snap-type set. |
+| `29cca7d9` | Switched proximity → mandatory | Firefox vibrating between proximity candidates. |
+| `9e59e359` | **Reshaped around horizontal track + Motion useScroll** | Owner pushed back: "carets handle navigation, Motion has this pattern built in." Snap pattern abandoned. |
+| `66345daf` | Explicit track height (not flex-1) | Firefox flex circular resolution made beats 0-height invisible. |
+| `5f0bc03b` | `overflow-hidden` on masthead | Title card content was bleeding below masthead height and covering beats. |
+| `1a9aeea7` | Beats `w-full` of explicit-width track (not `w-screen`) | Viewport-width beats overflowed the stage at viewports > recap's max-w-4xl. |
+| `820a8962` | Section + stage sized to `--main-h` (not `dvh`) | Sticky released mid-beat 2 because stage was taller than main's clientHeight. |
+| `d4742bc5` | Explicit track width `beatCount × 100%` | `-75%` translate was moving 75% of stage-width (≈one beat), not 3 beats. |
+| `d5bbbcc2` | Masthead sized to content via flex-col, band paddings overridden in BEAT_LAYOUT | Fixed mastheadHeight reserved too much space; band default `pt-12` added an extra 48px gap. |
+| `322e9cb1` | Centered content in max-w-4xl reading column inside full-bleed beats | Beats viewport-wide → text leaned to left edge with backdrop dominating right side. |
+| `9c47ce44` | Added programmatic snap-to-dwell on scrollend | Trackpad flicks ended mid-transition with two beats half-visible. |
+| `2942178d` | **Removed programmatic snap** | Snap fought continuous scroll on Mac trackpad. User explicitly: "this is causing it to fight the scrolling motion." |
+| `d8d8dc94` → `1f22024f` → `ad5b4249` | Iterated dwell-and-transition mapping ratios | First version had ~3× amplified transitions ("REALLY fast"); converged on 1:3 dwell:transition with end dwells, then dialed in. |
+| `c37b1de8` | Middle beats bumped to 2 units, edge beats to 3, transitions to 4 | Middle beats felt too short relative to edges (the difference was 2× by design but owner perceived it as "rushed" content). |
+
+The arc here is informative: **the snap-based architecture I researched and recommended in v2 of this note was wrong.** It re-hit the exact problems that drove every prior multi-beat iteration back to the drawing board. The horizontal-track design — which I initially pitched, was rejected, then revived by the owner — was actually the right answer. Future sessions reading this: trust the structural decisions in the "five load-bearing moves" above, and don't re-litigate them with another snap-based attempt.
 
 ## Choreography is the showcase (the load-bearing layer)
 
-The architecture is invisible plumbing. The reason previous iterations felt boring isn't structural — it's that every beat used uniform motion (fade, blur, scale; same on every beat). The choreography toolkit below has to be applied *with intent per beat*, not stamped from a template.
+The architecture is invisible plumbing. The reason previous iterations felt boring isn't structural — it's that every beat used uniform motion. The choreography toolkit below has to be applied *with intent per beat*, not stamped from a template.
 
 **Standing rule:** all four Steam beats are individually art-directed. None of them is allowed to be "fade in from below." If two beats end up looking like the same template with different content, the design hasn't landed.
 
 ### Toolkit (named primitives, mix-and-match per beat)
 
-1. **Layered parallax stack** (≥3 layers per beat). Background art (subject splash or hero), midground accent shape (geometric form in subject color), foreground copy. Each enters from a different vector with different timing and easing. Background drifts slow from one corner; foreground punches fast from another. Kills the "flat web page" feel.
-2. **Subject-as-camera-dolly.** The subject (champion splash, Steam hero capsule, achievement icon) *moves* during the beat — pan, scale, rotate slightly, parallax-shift on mouse. The subject is the focal point that text composes around, not a static portrait next to text. Apple AirPods move.
-3. **Typographic kinetics.** Numbers split into digits and tumble in. Headlines split by character/word and stagger with offset Y/X/rotate. Pull-quotes the size of the beat. Editorial scale (text *is* visual, not just label). Where the "magazine spread" feel comes from.
-4. **Mask reveals.** Content emerges from behind a moving mask — sweeping geometric shape, the subject's silhouette, an SVG path. Tactile and confident; replaces the boring fade with a "real" transition.
-5. **3D card transitions.** `transform-style: preserve-3d` + `perspective` on the parent. Outgoing beat rotates slightly on Y as it exits; incoming rotates in. Subtle (10-15deg), not gimmicky. Physical depth between snap stops.
-6. **Ambient loops as signature.** Each beat has one continuous low-amplitude loop — champion idle motion, Steam achievement icon pulse, KDA digits shimmer, particle drift. The "alive between snaps" anti-deadness move. Already partly in [subject-chapter-design-spec.md](./subject-chapter-design-spec.md).
-7. **Hard cuts with transition stings.** Instead of soft fade between beats, a brief transition element fires on snap-land — chromatic split frame, sweeping accent line, glitch flash for moment-chapters. Cinema, not webby ease-in-out.
-8. **Atmosphere pulse on snap-land.** Existing atmosphere system (tint hue, intensity) shifts color per beat. Already wired; can be more aggressive — bigger hue shifts, brighter intensity bursts on snap-land.
-9. **Editorial chrome.** "Beat 02 / 04" page marker, chapter symbol, small subject byline. Persistent magazine-spread chrome layer that animates with the masthead. Anchors the editorial frame.
-10. **Masthead is alive too.** Don't just pin a static logo. Eyebrow text counts chapter progress, accent line stretches across the masthead as the chapter loads, color tint picks up the active beat's accent. The "constant" pulses.
+1. **Layered parallax stack** (≥3 layers per beat). Background art (subject splash or hero), midground accent shape (geometric form in subject color), foreground copy. Each enters from a different vector with different timing and easing.
+2. **Subject-as-camera-dolly.** The subject (champion splash, Steam hero capsule, achievement icon) *moves* during the beat — pan, scale, rotate slightly, parallax-shift on mouse. Apple AirPods move.
+3. **Typographic kinetics.** Numbers split into digits and tumble in. Headlines split by character/word and stagger. Pull-quotes the size of the beat. Editorial scale.
+4. **Mask reveals.** Content emerges from behind a moving mask — sweeping geometric shape, the subject's silhouette, an SVG path. Tactile and confident.
+5. **Per-beat dwell weight (future, not yet implemented).** Each beat takes the same scroll time today regardless of content density. Heavy beats (verdict prose) and light beats (peak chips) get equal scroll. Owner perceives middle beats as rushed for that reason. A `dwellWeight` prop on `<MultiBeat>` summing into the track's piecewise mapping would let each beat opt into more or less scroll proportional to content. See "Future work" below.
+6. **Ambient loops as signature.** Each beat has one continuous low-amplitude loop. Prevents "frozen between snaps" deadness.
+7. **Hard cuts with transition stings.** Brief transition element fires on dwell-land — chromatic split, sweeping accent line, glitch flash for moment-chapters.
+8. **Atmosphere pulse.** Existing atmosphere system (tint hue, intensity) shifts per beat. Already wired; can be more aggressive.
+9. **Editorial chrome.** "Beat 02 / 04" page marker, chapter symbol, small subject byline. Persistent magazine-spread chrome.
+10. **Masthead is alive too.** Don't just pin a static logo. Eyebrow text counts chapter progress, accent line stretches as the chapter loads, color tint picks up the active beat's accent.
 
 ### How the toolkit gets used
 
-Each beat picks 4-6 primitives, deliberately. Per-beat choreography intent is design work and gets decided when the beat is being designed (with owner taste input), not pre-specified in this note. The point of the toolkit is that the primitives are *available* and the standing rule is that the choreography has to be art-directed beat-by-beat against them — not that this note dictates the design.
-
-### What "alive" looks like, mapped to the symptoms
-
-| Symptom | Toolkit primitive that addresses it |
-|---|---|
-| Fading doesn't land | Drop fade entirely. Use mask reveals, 3D card transitions, or hard cuts with stings. |
-| Content hard to read | Each beat fully opaque at snap stop; no overlap window. |
-| Stuck states | `scroll-snap-stop: always` physically blocks resting between beats. |
-| Skip content | Same — snap-stop blocks fast wheel from skipping. |
-| Doesn't land visually | Hard cuts + transition stings + atmosphere pulse on snap-land. Each beat reads as a distinct moment. |
-| Scroll without feeling | Every snap fires a beat-specific animation. Ambient loop runs continuously between snaps. No quiet runway. |
+Each beat picks 4-6 primitives, deliberately. Per-beat choreography intent is design work and gets decided when the beat is being designed (with owner taste input), not pre-specified in this note.
 
 ## Scope
 
-- **Steam chapter** (`apps/web/src/home/recap/steam-chapter.tsx`) — only multi-beat chapter currently using `<ChapterGroup>` + `<ChapterBeat>`. **Migrates first** to the new architecture; all four beats individually art-directed.
-- **Ahri chapter** (`apps/web/src/home/recap/ahri-chapter.tsx`) — currently single-pin via `ChapterContainer`. A chunk to migrate it to multi-beat exists in the parent arc and is **on pause until this architecture is proven**. Once the Steam migration ships and the architecture has owner approval, Ahri migration unblocks.
-- **Moment chapters** (`lol-moment-chapter.tsx`, `steam-moment-chapter.tsx`) — single-pin, not affected by this arc. Don't touch.
-- **`<ChapterContainer>` (single-pin model)** — remains in tree for Ahri/moment chapters; do not delete.
+- **Steam chapter** (`apps/web/src/home/recap/steam-chapter.tsx`) — only multi-beat chapter currently. Substrate migrated; choreography pending (chunk 3).
+- **Ahri chapter** (`apps/web/src/home/recap/ahri-chapter.tsx`) — currently single-pin via `ChapterContainer`. Ahri-multi-beat chunk is on pause until owner is confident in the new substrate. Now unblocked structurally; pending owner go-ahead.
+- **Moment chapters** (`lol-moment-chapter.tsx`, `steam-moment-chapter.tsx`) — single-pin, not affected by this arc.
+- **`<ChapterContainer>`** (single-pin model) — remains in tree for Ahri/moment chapters; do not delete.
 
-## What was tried before (full audit trail)
+## Cross-engine risk register (updated post-implementation)
 
-Reading the git log and prior notes carefully, almost every individual element of the recommended direction was on screen at some point. The combination wasn't.
-
-### `cb71cc67` (2026-06-03) — "stacked-beat chapter architecture, Steam migration (R-13 redo)"
-
-Introduced flat snap-aligned beats: each `<ChapterBeat>` was its own viewport-tall `<section>` with `scroll-snap-align:start; scroll-snap-stop:always`. Per-beat `useChapterNudge` keyed on visibility. **Structural shape matches this note's recommendation.** Replaced a pin-based multi-beat model that had a "release tail" asymmetry making the last beat feel skippable.
-
-### `771d3326` (2026-06-03) — "chapter-level sticky identity"
-
-Promoted the chapter identity (logo, title) to a sticky element at the `ChapterGroup` level. **Architecturally matches this note's masthead pattern.** Used an absolute wrapper with a sticky child + IntersectionObserver gating visibility against beat 0.
-
-### `43be88fc` (2026-06-03) — "one persistent title card, beat content swaps below"
-
-Refined the sticky identity to always-visible. Owner clarification recorded in the commit body: "treat the logo as the chapter's constant under which beat content swaps, rather than something that gets re-laid out per snap section." **Matches this note's design intent.**
-
-### `b3711bcb` (2026-06-04) — "r-13 exit-dissolve via css animation-timeline on chrome/safari"
-
-The peak prior state. Sticky chapter masthead + flat snap-stop beats + exit-dissolve animation on each beat. Two engine paths: CSS `animation-timeline: view()` on Chrome/Safari, Motion `useScroll` + `useTransform(opacity/blur/scale)` on Firefox. Beats wrapped in 130dvh outer + sticky 100dvh inner — the extra 30dvh was the "scroll runway" for the exit-dissolve animation.
-
-**Differences from this note's recommendation:**
-- 130dvh wrappers with sticky inner pin — adds a 30dvh "dead pin runway" per beat. **Suspected source of symptom 6** ("scroll without feeling anything") since the runway is dead time where only a subtle dissolve is playing.
-- Exit motion was scroll-coupled, not IO-triggered.
-- All beats used the same uniform exit animation. No bespoke per-beat character.
-
-### `0740849d` (2026-06-05) — "rewrite chapter-group as sticky stage with cross-fading beat layers" (today's shipped state)
-
-Threw out the flat snap-stop beats. Beats are now absolutely-positioned layers stacked in one sticky 100dvh stage, cross-fading via chapter-scoped scroll progress. Lost `scroll-snap-stop: always` per beat — directly explains symptoms 3 (stuck) and 4 (skip). **Why** the rewrite happened: not recorded. One-line commit message. Owner doesn't remember the specific blocker on `b3711bcb`.
-
-### Note-vs-code gap (important)
-
-[r13-exit-dissolve.md "Resolution v2"](./r13-exit-dissolve.md#L11) claims the IntersectionObserver + `animate()` pattern was shipped as the final clean answer ("That's the whole exit-dissolve" with a code snippet). **The git log contradicts this.** There is no commit between `b3711bcb` (scroll-coupled exit-dissolve) and `0740849d` (today's cross-fade rewrite). The IO + `animate()` resolution was written down as shipped but **was never actually shipped in code.** When future sessions read that note, they should know: the pattern is real, the resolution v2 narrative isn't.
-
-This note **explicitly recommends finally shipping the IO + `animate()` pattern** as the per-beat motion driver. It's still the right answer; it just has to actually be done.
-
-## Load-bearing unknown to investigate during spike
-
-**Why was `b3711bcb` abandoned?** Owner doesn't remember. The commit message of `0740849d` doesn't say. The structural shape of `b3711bcb` is close to this note's recommendation, so reproducing it risks re-hitting whatever the unknown blocker was. Two leading hypotheses:
-
-1. **The 130dvh pin runway felt dead** ("multiple scroll inputs, nothing happens"). This note's flat 100dvh beats eliminate the runway entirely — addresses this hypothesis directly.
-2. **The uniform scroll-coupled exit-dissolve felt mushy despite the snap structure.** This note's IO-triggered per-beat bespoke motion addresses this directly.
-
-If we re-hit some *third* blocker during the spike that explains the abandonment, document it here as a follow-up amendment.
-
-## Cross-engine risk register
-
-1. **R-13 snap-compositor optimization** ([r13-exit-dissolve.md:51](./r13-exit-dissolve.md)) — Chrome/Safari composite the snap-aligned section + its descendants as a single unit during snap interpolation, visually ignoring per-descendant transforms. **Doesn't apply to this design** because IO-triggered `animate()` fires *outside* the snap interpolation window (or composes with it, per R-13 v2's observation: "a 400ms fade running concurrent to the browser's snap motion, content fades to invisible during the snap"). Confirmed clean cross-engine in R-13 v2 testing.
-2. **iOS Safari `scroll-snap` momentum** — [WebKit 243582](https://bugs.webkit.org/show_bug.cgi?id=243582), open mid-2026. Momentum suppressed when snap active; swipes lock immediately on lift. Acceptable trade for snap-stop:always preventing skipping. Native to the design.
-3. **Firefox macOS trackpad + mandatory snap** — [bugzilla 1737820](https://bugzilla.mozilla.org/show_bug.cgi?id=1744289). Container can get stuck between snap points after short trackpad swipes. Mitigate with `scroll-snap-type: y proximity` on Firefox via `@-moz-document url-prefix(){}`. Engine-gate convention per [repo-conventions.md](../repo-conventions.md).
-4. **Sticky-stage measurement gotcha** — any `transform`, `overflow: hidden/auto/scroll`, or `filter` on an ancestor of the chapter section either creates a new containing block (cancels sticky) or interferes with snap. Audit ancestors of `<section data-chapter>` before committing — `__root.tsx`, `<main>` scroll container, recap shell.
-5. **Sticky masthead z-index over beat content** — beat content (parallax layers, subject art) must not bleed into the masthead's reserved area. `padding-top: var(--masthead-h)` on each beat reserves the space; visually the masthead sits opaque on top with its own z-index. Test that hero subject art is sized for the *visible* beat area (`100vh - masthead-h`), not the full 100vh of the snap container.
+1. **Firefox flex resolution with `h-full` children + `flex-1` parent** — fixed by giving the track explicit height (`commit 66345daf`). Don't reintroduce `flex-1` with `h-full` children inside.
+2. **`<main>` height ≠ window height** — there's a top nav strip. Sticky math uses `--main-h` (set in [__root.tsx:77](../../apps/web/src/routes/__root.tsx#L77) on `<main>` via JS as `main.clientHeight` in px). Anything sized in `dvh` for sticky-stage purposes will desynchronize from `useScroll`'s progress mapping. Fixed in `820a8962`.
+3. **Masthead overflow** — title card content using vh-relative units doesn't always fit a static height box. `overflow-hidden` on the `<header>` is load-bearing; without it, content bleeds over beats. Fixed in `5f0bc03b`.
+4. **Track width inheritance** — flex containers don't auto-size to overflowing content width. The track must have explicit `width: beatCount × 100%` for percentage translates to map to beat advances. Fixed in `d4742bc5`.
+5. **Beat width = stage width** — at viewports > 848px (recap wrapper's max-w-4xl), a beat using `w-screen` overflows the stage, breaking the percent-translate math. Beats must use `w-full` of the explicit-width track. Fixed in `1a9aeea7`.
+6. **Native CSS scroll-snap doesn't survive cross-engine** — Firefox vibrates, Chrome composition bugs, snap-stop:always inert without snap-type. Architecture went snap-free entirely.
+7. **Programmatic snap fights continuous scroll** — `animate(scrollTop, ...)` writes compete with user input on Mac trackpad. No programmatic snap. Architecture uses dwell-and-transition mapping for natural rest positions instead.
 
 ## A11y & reduced-motion
 
 Settled answers from [W3C WAI-ARIA APG Carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/):
 
-- Chapter `<section>`: `role="region"` + `aria-roledescription="carousel"` + `aria-label="<chapter name>"`.
-- Each `<article data-beat>`: `role="group"` + `aria-roledescription="slide"` + `aria-label="Beat N of M"`.
-- **Do not bind arrow keys** to step beats. APG reserves arrows for native scroll. Prev/next via dedicated controls (or `::scroll-button()` if/when added), not arrows.
-- Don't trap focus in invisible beats. Focusable inside a non-visible beat stays in tab order; on focus, scroll-into-view with `scroll-margin-top: var(--masthead-h)` for snap alignment.
+- Chapter `<section>`: `aria-roledescription="carousel"` + `aria-label="<chapter name>"` (no explicit `role="region"` — `<section>` with aria-label has implicit region role).
+- Each `<div data-beat>`: `role="group"` + `aria-roledescription="slide"` + `aria-label="Beat N of M"`.
+- **Do not bind arrow keys** to step beats. APG reserves arrows for native scroll.
 
-`prefers-reduced-motion`: collapse to a vertical stack with no snap, no parallax, no transforms — same content, no motion. The reduced-motion branch in today's `<ChapterGroup>` (chapter-group.tsx:126-154) is the right shape; keep it.
+`prefers-reduced-motion`: collapses to a vertical stack — masthead in flow, beats below, no transforms, no pinning. Same content, no motion. Already implemented in `<ChapterMultiBeat>`/`<MultiBeat>`.
 
-## Library decision
+## Library decision (confirmed)
 
 **Motion sufficient. No GSAP. No Lenis.**
 
-- Motion v12 `animate()` is WAAPI-backed, compositor-friendly, cancellation-on-reanimate native. Same primitive R-13 v2 advocates.
-- IntersectionObserver via Motion's `useInView` (already in stack) — provides `root: mainScrollRef` option so threshold-cross fires against `<main>`'s viewport.
-- GSAP ScrollTrigger: would only help if we needed declarative `snap` + timeline grammar. Native snap + IO+animate covers it.
-- Lenis: contraindicated per KB `03-motion.md` §3; would hijack native scroll and break the snap.
-- CSS `animation-timeline`: not needed for the carrier; beat motion is `animate()`, not scroll-coupled. May still earn its keep for the masthead's "alive" details (accent line stretches, eyebrow progress) as a Chrome/Safari progressive enhancement gated by `@supports`.
+- Motion v12 `useScroll` auto-selects native `ScrollTimeline` on Chrome 115+/Safari 26+, rAF fallback on Firefox.
+- `useInView` provides `root: mainScrollRef` option so per-beat nudge fires against `<main>`'s viewport.
+- GSAP ScrollTrigger: doesn't add anything over `useScroll` for this pattern.
+- Lenis: would hijack native scroll and break scroll-position-drives-translate.
+- Programmatic snap (any source): rejected because it fights user input.
 
-## Spike plan
+## Future work
 
-1. Branch from `main`. New `<ChapterMultiBeat>` + `<MultiBeat>` primitives in `apps/web/src/home/recap/` alongside today's `<ChapterGroup>` + `<ChapterBeat>` — leave the existing components in tree for instant rollback.
-2. Wire `scroll-padding-top` on `<main>` (or equivalent scroll container) via a CSS variable `--masthead-h`. Audit ancestors of recap section for transform/overflow/filter that would interfere.
-3. Implement the architecture: sticky masthead in flow + flat 100dvh snap-stop beats below + IO-triggered Motion `animate()` per beat. Reuse the existing nudge contexts (`useChapterGroupNudge`, `useChapterBeatNudge`).
-4. Migrate Steam chapter to the new primitives behind a feature flag (env var or `?layout=multi-beat-v2` query). Single chapter only.
-5. **Art-direct all four Steam beats** against the choreography toolkit. Beat-by-beat design intent decided live with owner input. No beat reuses another beat's choreography wholesale. Bespoke per-beat motion is the load-bearing labor — budget for it.
-6. Owner reviews on Chrome + Safari + Firefox. If any beat reads as boring, that's a design issue not an architecture issue; iterate on choreography, not the substrate.
-7. Once shipped and owner-approved: unblock the parked Ahri-multi-beat chunk in [self-portrait-recap-arc.md](./self-portrait-recap-arc.md). Migrate Ahri to multi-beat using the same architecture + a fresh choreography pass with champion-subject primitives.
-8. Once both chapters use the new architecture and the old `<ChapterGroup>` + `<ChapterBeat>` are unused: delete them in a separate cleanup chunk.
+These are documented in priority order; none blocks chunk 3.
 
-**Tests in the same commit** per [feedback_test_alongside_code]:
-- Reduced-motion renders flat vertical stack.
-- `IntersectionObserver` mock + `animate()` mock verify each beat fires its entry on cross threshold.
-- Axe scan against [apps/web/src/components/accessibility.test.tsx](../../apps/web/src/components/accessibility.test.tsx) — carousel ARIA structure passes.
-- Snap behavior testable via Playwright (already in stack from R-13 work) for cross-engine verification.
+1. **Count-up repositioning on beat 3 (peak chips)** — owner reported "does some odd repositioning because of the countup animation"; investigation deferred but probe script exists at [scripts/probe-countup-shift.mjs](../../scripts/probe-countup-shift.mjs).
+2. **Chunk 3: art-direct each Steam beat** against the choreography toolkit. The actual visual-impressiveness work.
+3. **Per-beat `dwellWeight` prop** to let editorial judgment set how much chapter scroll each beat consumes. Light beats (chips, screenshots) explicitly request less, heavy beats (prose) request more. Sum into the track's piecewise mapping in `ChapterMultiBeat`. Concretely: change `<MultiBeat>` to accept `dwellWeight?: number` (default 1), and have `ChapterMultiBeat` walk the children to collect their weights before computing stops.
+4. **Migrate Ahri chapter to multi-beat** — substrate is now ready. Run the same migration pattern as Steam (consumer-side change only).
+5. **Remove the `?layout=multi-beat` flag** once owner is confident in the new substrate. Delete legacy `<ChapterGroup>`/`<ChapterBeat>`. Single cleanup chunk.
+
+## Diagnostic scripts (committable)
+
+- [scripts/diagnose-multi-beat-flag.mjs](../../scripts/diagnose-multi-beat-flag.mjs) — verifies legacy vs multi-beat layout flag routing.
+- [scripts/screenshot-multi-beat.mjs](../../scripts/screenshot-multi-beat.mjs) — screenshots at a single viewport with geometry probe.
+- [scripts/screenshot-multi-beat-sizes.mjs](../../scripts/screenshot-multi-beat-sizes.mjs) — screenshots across MacBook viewport sizes (1440, 1728, 1920, 2560) to catch responsive issues.
+- [scripts/verify-sticky-runway.mjs](../../scripts/verify-sticky-runway.mjs) — scrolls through the chapter and verifies sticky stage stays pinned through all beats with correct track translates.
+- [scripts/probe-gap.mjs](../../scripts/probe-gap.mjs) — measures the rect chain inside a beat to find unexpected padding/margin gaps.
+- [scripts/probe-countup-shift.mjs](../../scripts/probe-countup-shift.mjs) — TODO: measures peak-chip layout shift during count-up animation.
 
 ## What this note replaces / doesn't
 
-- **Replaces** the assumption baked into the shipped `0740849d` (sticky stage + cross-fading beat layers). Beats stop being stacked layers; cross-fade is dropped as a transition medium entirely.
-- **Replaces** the earlier draft of this note that pitched a horizontal-scroll carrier. That direction was researched then rejected during owner discussion — the carrier doesn't determine excitement, the choreography does.
-- **Doesn't replace** [r13-exit-dissolve.md](./r13-exit-dissolve.md). That note's "Resolution v2" claim of shipped IO+animate is misleading (see "Note-vs-code gap"), but Lane 1/2/3 analysis and the snap-compositor finding remain load-bearing. Read it for the constraint, not the resolution.
-- **Doesn't replace** [subject-chapter-design-spec.md](./subject-chapter-design-spec.md). That spec defines design vocabulary for *within* a beat — primitives, animation cascade, hover patterns, per-subject hooks. This note is about the *carrier between beats* + the standing rule that every beat must be art-directed individually against that vocabulary.
+- **Replaces** the assumption baked into `0740849d` (sticky stage + cross-fading beat layers). Beats stop being stacked layers; cross-fade is dropped entirely.
+- **Replaces** the v2 recommendation of snap-based architecture. Native CSS scroll-snap and programmatic snap-to-dwell both failed cross-engine or fought user input.
+- **Doesn't replace** [r13-exit-dissolve.md](./r13-exit-dissolve.md). That note's snap-compositor finding still applies — *this design just doesn't trigger it* because there's no native snap.
+- **Doesn't replace** [subject-chapter-design-spec.md](./subject-chapter-design-spec.md). That spec defines design vocabulary *within* a beat — primitives, animation cascade, hover patterns. This note is about the *carrier between beats*.
 
 ## Sources
 
 ### Primary docs
 
-- [Motion: `animate()`](https://motion.dev/docs/animate) — imperative WAAPI-backed animation, cancellation-on-reanimate
+- [Motion: `useScroll`](https://motion.dev/docs/use-scroll) — scroll-driven motion values, auto-uses ScrollTimeline where available
 - [Motion: `useInView`](https://motion.dev/docs/use-in-view) — IntersectionObserver hook with `root` option
-- [MDN: scroll-padding-top](https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-padding-top) — snap-padding for sticky headers
-- [MDN: scroll-snap-stop](https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-stop) — Baseline Widely Available since July 2022
-- [W3C WAI-ARIA APG Carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/) — `region` + `group` + `slide` roles
-
-### Browser bug references
-
-- [WebKit 243582](https://bugs.webkit.org/show_bug.cgi?id=243582) — iOS scroll-snap momentum
-- [Bugzilla 1737820 / 1744289](https://bugzilla.mozilla.org/show_bug.cgi?id=1744289) — Firefox trackpad + mandatory snap
+- [Motion: `animate()`](https://motion.dev/docs/animate) — imperative WAAPI-backed animation (we tried using it for snap; doesn't fit this architecture)
+- [W3C WAI-ARIA APG Carousel pattern](https://www.w3.org/WAI/ARIA/apg/patterns/carousel/) — `role="group"` + `aria-roledescription="slide"` roles
 
 ### Local notes (load-bearing)
 
-- [r13-exit-dissolve.md](./r13-exit-dissolve.md) — Lane analysis; snap-compositor finding; flawed Resolution v2 narrative
+- [r13-exit-dissolve.md](./r13-exit-dissolve.md) — snap-compositor finding (still relevant as a constraint to avoid)
 - [subject-chapter-design-spec.md](./subject-chapter-design-spec.md) — design vocabulary inside a beat
 - [self-portrait-recap-arc.md](./self-portrait-recap-arc.md) — parent arc; contains the parked Ahri-multi-beat chunk
-- [repo-conventions.md § Gate engine-specific perf cliffs](../repo-conventions.md) — engine-gate convention for Firefox trackpad mitigation
+- [repo-conventions.md § Gate engine-specific perf cliffs](../repo-conventions.md)
 
 ### Local notes (referenced)
 
-- MEMORY `feedback_engine_gate_perf_cliffs` — bidirectional engine gate
 - MEMORY `feedback_scroll_driven_on_compositor_thread` — Motion as the right primitive
-- MEMORY `feedback_diff_working_sibling_first` — when porting between two analogous flows, diff the working one before theorizing
+- MEMORY `feedback_engine_gate_perf_cliffs` — bidirectional engine gate
 - MEMORY `project_subject_chapter_design_spec` — R-2 Ahri shipped 2026-06-01 as single-pin
 
-### Reference sites (visual ceiling for choreography intent)
+### Reference sites (visual ceiling for choreography intent — chunk 3 work)
 
 - [Apple AirPods Pro product pages](https://www.awwwards.com/inspiration/product-scroll-triggered-animation-apple-airpods-pro) — subject-as-camera-dolly per scene
 - [Cyd Stumpel Portfolio 2025](https://www.awwwards.com/sites/cyd-stumpel-portfolio-2025) — Awwwards SOTD; per-beat bespoke choreography
 - [Lusion v3](https://www.awwwards.com/inspiration/webgl-scroll-navigation-lusion) — Site of the Year 2024
 - [Active Theory V6](https://www.awwwards.com/sites/active-theory-v6) — on-snap entrance shimmer; per-beat character
-- [Stripe Sessions](https://stripe.com/sessions) annual recaps — typographic kinetics + atmosphere shifts per beat
