@@ -413,6 +413,115 @@ describe("AhriChapter", () => {
     });
   });
 
+  describe("beat-2 peaks caption", () => {
+    it("renders the peak-kills / peak-damage / lane-phase receipts in beat 2", () => {
+      // `hasTimeline: true` is what gates avgGoldDiffAt15 inclusion in the
+      // deriver (otherwise zero-gold-diff timelineless games would bias the
+      // mean down). Set on both fixtures so the lane-phase fact renders.
+      setMatches([
+        matchFixture({
+          matchId: "EUW_A",
+          champion: "Ahri",
+          kills: 12,
+          deaths: 1,
+          assists: 8,
+          damageShare: 0.4,
+          firstBloodKill: true,
+          teamGoldDiffAt15: 800,
+          hasTimeline: true,
+        }),
+        matchFixture({
+          matchId: "EUW_B",
+          champion: "Ahri",
+          kills: 6,
+          deaths: 3,
+          assists: 5,
+          damageShare: 0.3,
+          firstBloodKill: false,
+          teamGoldDiffAt15: 400,
+          hasTimeline: true,
+        }),
+      ]);
+      const { container } = render(<AhriChapter account={account} />);
+      // beat 2 holds the stats band; the peaks caption sits in beat 2's
+      // detail band immediately below the primary chips.
+      const beat2 = container.querySelector("[data-beat='2']");
+      expect(beat2).toBeTruthy();
+      const text = beat2?.textContent ?? "";
+      // highestKills = 12 → "Up to 12 kills"
+      expect(text).toContain("Up to");
+      expect(text).toContain("12 kills");
+      // highestDamageShare = 0.4 → "40%"
+      expect(text).toContain("40%");
+      expect(text).toContain("best damage share");
+      // aboveFiveKillsRate = 2/2 = 100% (both games above 5 kills)
+      expect(text).toContain("5+ kills in");
+      // firstBloodRate = 1/2 = 50%
+      expect(text).toContain("first blood");
+      // avgGoldDiffAt15 = (800 + 400)/2 = +600g lead at 15
+      expect(text).toContain("+600g");
+      expect(text).toContain("lead at 15");
+    });
+
+    it("suppresses peak facts whose source values are effectively zero", () => {
+      setMatches([
+        // No first blood, no damage share, low avg gold diff (sub-50g).
+        matchFixture({
+          matchId: "EUW_QUIET",
+          champion: "Ahri",
+          kills: 3,
+          deaths: 2,
+          assists: 7,
+          damageShare: 0,
+          firstBloodKill: false,
+          teamGoldDiffAt15: 20,
+        }),
+      ]);
+      const { container } = render(<AhriChapter account={account} />);
+      const text = container.textContent ?? "";
+      // Highest kills is still 3, so "Up to 3 kills" should render.
+      expect(text).toContain("Up to");
+      // But "best damage share" suppresses (highestDamageShare = 0).
+      expect(text).not.toContain("best damage share");
+      // First blood suppresses (rate = 0).
+      expect(text).not.toContain("first blood");
+      // Lane-phase suppresses (|avg| < 50g threshold).
+      expect(text).not.toContain("lead at 15");
+    });
+
+    it("renders the streak eyebrow above the peaks caption when a streak is active", () => {
+      // Two consecutive wins on Ahri → streak {type:'win', count: 2}
+      setMatches([
+        matchFixture({
+          matchId: "EUW_W1",
+          champion: "Ahri",
+          win: true,
+          playedAt: new Date("2026-05-30T10:00:00Z").toISOString(),
+        }),
+        matchFixture({
+          matchId: "EUW_W2",
+          champion: "Ahri",
+          win: true,
+          playedAt: new Date("2026-05-29T10:00:00Z").toISOString(),
+        }),
+      ]);
+      const { container } = render(<AhriChapter account={account} />);
+      const beat2 = container.querySelector("[data-beat='2']");
+      // Streak eyebrow renders as "W{N} streak" — case is uppercase via
+      // tracking-[0.22em] but happy-dom doesn't apply text-transform, so
+      // assert on the lowercase source text.
+      expect(beat2?.textContent ?? "").toContain("W2 streak");
+    });
+
+    it("suppresses the streak eyebrow when no streak exists (single-result history)", () => {
+      // One game → streak null (deriver returns null when count < 2).
+      setMatches([matchFixture({ matchId: "EUW_1", champion: "Ahri", win: true })]);
+      const { container } = render(<AhriChapter account={account} />);
+      const beat2 = container.querySelector("[data-beat='2']");
+      expect(beat2?.textContent ?? "").not.toContain("streak");
+    });
+  });
+
   it("forwards the chapter's dominant accentHex to the asset claim", () => {
     setMatches([]);
     render(<AhriChapter account={account} />);

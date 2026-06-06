@@ -51,6 +51,7 @@ import {
   SHADOW_LABEL,
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
+  STROKE_LABEL,
 } from "./chapter-shadows";
 
 function formatRelative(iso: string): string {
@@ -235,6 +236,159 @@ function PeakChip({
           {label}
         </span>
       </div>
+    </ChapterReveal>
+  );
+}
+
+/**
+ * Beat-2 receipts caption — italic prose line that surfaces the supporting
+ * peaks data that doesn't earn a primary chip slot. Mirrors Steam beat 2's
+ * `SecondaryStatsCaption`: a series of fact fragments joined by middle
+ * dots, each fact only rendering when its source value is meaningful.
+ *
+ * The five available peaks all play different roles:
+ * - `highestKills` / `highestDamageShare` — solo-carry peak receipts
+ * - `aboveFiveKillsRate` — kill-volume consistency over the corpus
+ * - `firstBloodRate` — early-aggression signature
+ * - `avgGoldDiffAt15` — lane-phase win signal (positive = ahead at 15)
+ *
+ * Rendered as one italic line that wraps as needed at smaller viewports —
+ * the prose register handles wrapping more gracefully than a chip strip
+ * would. Numbers are bold so the eye lands on the fact, not the
+ * connective tissue. Suppressed entirely when no fact passes the
+ * "meaningful" gate (totalGames === 0 zero-state).
+ */
+function PeaksCaption({
+  active,
+  delay,
+  peaks,
+}: {
+  active: boolean;
+  delay: number;
+  peaks: ChampionRecap["peaks"];
+}) {
+  const parts: ReactNode[] = [];
+  if (peaks.highestKills > 0) {
+    parts.push(
+      <>
+        Up to <strong className="text-foreground">{peaks.highestKills}</strong> kills
+      </>
+    );
+  }
+  if (peaks.highestDamageShare > 0) {
+    parts.push(
+      <>
+        <strong className="text-foreground">
+          {Math.round(peaks.highestDamageShare * 100)}%
+        </strong>{" "}
+        best damage share
+      </>
+    );
+  }
+  if (peaks.aboveFiveKillsRate > 0) {
+    parts.push(
+      <>
+        5+ kills in{" "}
+        <strong className="text-foreground">
+          {Math.round(peaks.aboveFiveKillsRate * 100)}%
+        </strong>{" "}
+        of runs
+      </>
+    );
+  }
+  if (peaks.firstBloodRate > 0) {
+    parts.push(
+      <>
+        first blood{" "}
+        <strong className="text-foreground">
+          {Math.round(peaks.firstBloodRate * 100)}%
+        </strong>
+      </>
+    );
+  }
+  if (Math.abs(peaks.avgGoldDiffAt15) >= 50) {
+    // Suppress sub-50g averages — that's noise inside the wider variance
+    // of any single game (a tick of jungle vs. an extra wave) and doesn't
+    // tell a clean lane-phase story on its own.
+    const sign = peaks.avgGoldDiffAt15 > 0 ? "+" : "";
+    parts.push(
+      <>
+        <strong className="text-foreground">
+          {sign}
+          {Math.round(peaks.avgGoldDiffAt15)}g
+        </strong>{" "}
+        lead at 15
+      </>
+    );
+  }
+  if (parts.length === 0) return null;
+  return (
+    <ChapterReveal active={active} delay={delay}>
+      <p
+        className="text-balance text-sm italic text-foreground/85 sm:text-base"
+        style={{
+          textShadow: SHADOW_BODY,
+        }}
+      >
+        {parts.map((part, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fact order is stable across renders
+          <span key={i}>
+            {i > 0 ? (
+              <span aria-hidden="true" className="px-2 text-foreground/40">
+                ·
+              </span>
+            ) : null}
+            {part}
+          </span>
+        ))}
+      </p>
+    </ChapterReveal>
+  );
+}
+
+/**
+ * Streak eyebrow — only rendered when the recent-state streak is long
+ * enough to be its own signal (the deriver returns `null` for counts < 2,
+ * so any non-null streak qualifies). Sits above the peaks caption in beat
+ * 2's detail band as the "right now" anchor to the otherwise career-
+ * shaped numbers below it. Color follows the chapter accent for wins,
+ * desaturated foreground for losses — wins are the celebratory case the
+ * accent token exists for.
+ */
+function StreakEyebrow({
+  active,
+  delay,
+  streak,
+}: {
+  active: boolean;
+  delay: number;
+  streak: NonNullable<ChampionRecap["streak"]>;
+}) {
+  const label = `${streak.type === "win" ? "W" : "L"}${streak.count} streak`;
+  const isWin = streak.type === "win";
+  return (
+    <ChapterReveal active={active} delay={delay} blur={4}>
+      <p className="text-xs font-medium uppercase tracking-[0.22em]">
+        <span
+          style={
+            isWin
+              ? {
+                  color: "var(--accent, currentColor)",
+                  paintOrder: "stroke",
+                  WebkitTextStroke: STROKE_LABEL,
+                  textShadow: SHADOW_ACCENT,
+                }
+              : {
+                  color: "rgb(255 255 255 / 0.65)",
+                  paintOrder: "stroke",
+                  WebkitTextStroke: STROKE_LABEL,
+                  textShadow: SHADOW_LABEL,
+                }
+          }
+        >
+          {label}
+        </span>
+      </p>
     </ChapterReveal>
   );
 }
@@ -665,10 +819,13 @@ export function AhriChapter({ account }: { account: LolAccount }) {
       </ChapterDetail>
     ),
 
-    // Beat 2 — Peak chips backing the verdict claim + mirror accent slash
-    // bookending beat 0's opener slash. The slash sits in a
-    // `ChapterDetail` band below the chips so the BEAT_LAYOUT max-w-4xl
-    // constraint still applies (slash aligns to the right edge of the
+    // Beat 2 — Peak chips backing the verdict claim, plus a receipts band
+    // surfacing the supporting peaks data (highest single-game kills /
+    // damage share, lane-phase gold lead, consistency rates) that doesn't
+    // earn a primary chip slot. Closes with a mirror accent slash
+    // bookending beat 0's opener slash. Eyebrow + caption + slash all sit
+    // in a `ChapterDetail` band so the BEAT_LAYOUT max-w-4xl + px
+    // constraints apply uniformly (slash aligns to the right edge of the
     // reading column, not the viewport).
     (nudged) => (
       <>
@@ -697,15 +854,29 @@ export function AhriChapter({ account }: { account: LolAccount }) {
           />
         </ChapterStats>
         <ChapterDetail>
+          {/* Streak eyebrow — "right now" anchor above the career-shaped
+              peaks caption. Suppressed when streak is null (< 2 in a row).
+              Delay lands just before the caption so the eyebrow + caption
+              read as a single editorial paragraph. */}
+          {recap?.streak ? (
+            <StreakEyebrow active={nudged} delay={0.42} streak={recap.streak} />
+          ) : null}
+          {/* Peaks caption — italic prose of receipts that back the chips
+              above. Suppresses individual facts whose source is
+              effectively zero (no games, no first bloods recorded, sub-
+              50g average lead). Delay lands after the chips' count-up
+              cascade (chip 3 entrance 0.36s + reveal 0.5s + small pause). */}
+          {recap ? (
+            <PeaksCaption active={nudged} delay={0.55} peaks={recap.peaks} />
+          ) : null}
           {/* Closer slash — `from="right"` draws right-to-left, mirroring
               beat 0's left-anchored slash. `self-end` aligns to the right
-              edge of the reading column. Delay lands after the last
-              chip's count-up settles (chip 3 entrance at 0.36s + reveal
-              duration 0.6s + count-up 0.7s + a small pause). */}
+              edge of the reading column. Delay lands after the caption
+              has settled. */}
           <BeatAccentSlash
             beatIndex={2}
             from="right"
-            delay={1.1}
+            delay={1.25}
             className="self-end"
             width="14rem"
           />
