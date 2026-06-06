@@ -65,6 +65,7 @@ const baseProps = {
   streak: null,
   marathon: null,
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -91,6 +92,7 @@ const rankUpProps = {
   streak: null,
   marathon: null,
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -120,6 +122,7 @@ const kdaOutlierProps = {
   streak: null,
   marathon: null,
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -137,6 +140,7 @@ const hiatusReturnProps = {
   streak: null,
   marathon: null,
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -154,6 +158,7 @@ const streakWinProps = {
   streak: { result: "W" as const, length: 5 },
   marathon: null,
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -171,6 +176,7 @@ const streakLossProps = {
   streak: { result: "L" as const, length: 6 },
   marathon: null,
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -188,6 +194,7 @@ const marathonProps = {
   streak: null,
   marathon: { matchCount: 7, spanHours: 4.5 },
   favoriteChampion: null,
+  lifetimePeak: null,
   nudged: true,
 };
 
@@ -209,6 +216,30 @@ const favoriteChampionProps = {
     winCount: 7,
     lossCount: 5,
     championAlias: "Lulu",
+  },
+  lifetimePeak: null,
+  nudged: true,
+};
+
+const lifetimePeakProps = {
+  account,
+  championAlias: "Ahri",
+  matchId: "EUW_PEAK",
+  daysSince: 0,
+  slug: "lol-moment-lifetime-peak-EMERALD-I-30",
+  momentType: "LIFETIME_PEAK_RANK" as const,
+  matchStats: null,
+  rankUp: null,
+  kdaOutlier: null,
+  hiatusReturn: null,
+  streak: null,
+  marathon: null,
+  favoriteChampion: null,
+  lifetimePeak: {
+    tier: "EMERALD",
+    rank: "I",
+    leaguePoints: 30,
+    achievedAt: "2024-08-15T14:23:00Z",
   },
   nudged: true,
 };
@@ -566,6 +597,48 @@ describe("LolMomentBeat (FAVORITE_CHAMPION_OF_PERIOD)", () => {
     // gates on `favoriteChampion` and falls into the OFF_META default,
     // which keeps the page renderable instead of throwing.
     render(<LolMomentBeat {...favoriteChampionProps} favoriteChampion={null} />);
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
+  });
+});
+
+describe("LolMomentBeat (LIFETIME_PEAK_RANK)", () => {
+  it("renders the looking-back eyebrow, peak-rank masthead, and retrospective prose with Season caption", () => {
+    render(<LolMomentBeat {...lifetimePeakProps} />);
+    expect(screen.getByText("Looking back")).toBeTruthy();
+    // Masthead is the formatted rank title (no LP shown — `formatRankTitle`
+    // strips the LP for the title format).
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Emerald I");
+    // Champion appears in the prose ("championed by Ahri").
+    expect(screen.getByText("Ahri")).toBeTruthy();
+    // Season caption derived from the achievedAt year.
+    expect(screen.getByText("Season 2024")).toBeTruthy();
+  });
+
+  it("omits the championed-by clause when championAlias is null (defensive — the descriptor allows null)", () => {
+    // Defensive guard: the api emits championAlias for LIFETIME_PEAK_RANK
+    // today (carried from the peak match), but the descriptor type
+    // allows null and the chapter should still render the rank masthead
+    // + retrospective prose without referencing a champion.
+    const { container } = render(
+      <LolMomentBeat {...lifetimePeakProps} championAlias="" />
+    );
+    expect(screen.getByText("Looking back")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Emerald I");
+    expect(container.textContent ?? "").not.toContain("championed by");
+  });
+
+  it("renders no per-match receipt — the chapter is a single-line retrospective marker", () => {
+    render(<LolMomentBeat {...lifetimePeakProps} />);
+    expect(screen.queryByText("Win")).toBeNull();
+    expect(screen.queryByText("KDA")).toBeNull();
+  });
+
+  it("falls through to the off-meta default body when lifetimePeak is null", () => {
+    // Defensive guard: if a LIFETIME_PEAK descriptor ever ships without
+    // its stats payload, the chapter still renders — the momentCopy
+    // branch gates on `lifetimePeak` and falls into the OFF_META
+    // default, which keeps the page renderable instead of throwing.
+    render(<LolMomentBeat {...lifetimePeakProps} lifetimePeak={null} />);
     expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });

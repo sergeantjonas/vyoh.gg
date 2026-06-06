@@ -234,6 +234,7 @@ export type {
   LolFavoriteChampionStats,
   LolHiatusReturnStats,
   LolKdaOutlierStats,
+  LolLifetimePeakStats,
   LolMarathonStats,
   LolMomentChapterDescriptor,
   LolMomentMatchStats,

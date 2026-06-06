@@ -231,6 +231,7 @@ export function LolMomentsAggregator({
           streak={m.streak}
           marathon={m.marathon}
           favoriteChampion={m.favoriteChampion}
+          lifetimePeak={m.lifetimePeak}
           nudged={nudged}
         />
       );

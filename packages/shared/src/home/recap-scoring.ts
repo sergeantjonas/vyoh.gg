@@ -18,6 +18,7 @@ import type {
   LolFavoriteChampionStats,
   LolHiatusReturnStats,
   LolKdaOutlierStats,
+  LolLifetimePeakStats,
   LolMarathonStats,
   LolMomentChapterDescriptor,
   LolMomentMatchStats,
@@ -119,6 +120,7 @@ export type RecapCandidate =
       streak?: LolStreakStats | null;
       marathon?: LolMarathonStats | null;
       favoriteChampion?: LolFavoriteChampionStats | null;
+      lifetimePeak?: LolLifetimePeakStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     }
@@ -179,6 +181,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
       streak: candidate.streak ?? null,
       marathon: candidate.marathon ?? null,
       favoriteChampion: candidate.favoriteChampion ?? null,
+      lifetimePeak: candidate.lifetimePeak ?? null,
       framing,
     };
   }

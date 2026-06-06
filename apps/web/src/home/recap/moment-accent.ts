@@ -50,6 +50,14 @@ export function momentAccentClass(momentType: MomentAccentType): string {
     // play; OFF_META is a single-game event, FAVORITE is the aggregate.
     case "FAVORITE_CHAMPION_OF_PERIOD":
       return "text-lime-300";
+    // R-7i Lane B retrospective top-up. Cool blue sets the
+    // "looking back" register apart from the warm-amber RANK_UP — both
+    // are about rank achievements, but RANK_UP is "you climbed
+    // recently" (warm, current) and LIFETIME_PEAK is "you peaked at
+    // some point" (cool, retrospective). The hue contrast carries the
+    // editorial distinction even before the eyebrow text registers.
+    case "LIFETIME_PEAK_RANK":
+      return "text-cyan-300";
     case "FIRST_TIME_GAME":
       return "text-teal-300";
     case "ACHIEVEMENT_CLUSTER":

@@ -4,6 +4,7 @@ import {
   type LolFavoriteChampionStats,
   type LolHiatusReturnStats,
   type LolKdaOutlierStats,
+  type LolLifetimePeakStats,
   type LolMarathonStats,
   type LolMomentChapterDescriptor,
   type LolMomentMatchStats,
@@ -197,6 +198,7 @@ function momentCopy(args: {
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
   favoriteChampion: LolFavoriteChampionStats | null;
+  lifetimePeak: LolLifetimePeakStats | null;
   matchStats: LolMomentMatchStats | null;
   emblemYear: number;
   accentClass: string;
@@ -211,6 +213,7 @@ function momentCopy(args: {
     streak,
     marathon,
     favoriteChampion,
+    lifetimePeak,
     matchStats,
     emblemYear,
     accentClass,
@@ -433,6 +436,60 @@ function momentCopy(args: {
     };
   }
 
+  if (momentType === "LIFETIME_PEAK_RANK" && lifetimePeak) {
+    const rankTitle = formatRankTitle(lifetimePeak.tier, lifetimePeak.rank);
+    // Year derived from the peak's ISO date — drives the "Season YYYY"
+    // caption that grounds the retrospective framing in time. Falls
+    // back to no caption if the date parses oddly (won't happen for
+    // an API-emitted ISO string, but the guard keeps the chapter
+    // resilient to data drift).
+    const peakDate = new Date(lifetimePeak.achievedAt);
+    const peakYear = Number.isFinite(peakDate.getTime())
+      ? peakDate.getUTCFullYear()
+      : null;
+    return {
+      eyebrow: "Looking back",
+      mastheadText: rankTitle,
+      // Tier emblem inline before the rank title — same composition as
+      // RANK_UP. The retrospective frame doesn't need a different visual
+      // shape; the eyebrow + cool-blue accent class (`text-cyan-300`)
+      // already carry the "looking back" register vs RANK_UP's warm
+      // "you just climbed" framing.
+      leadingVisual: (
+        <img
+          src={rankEmblemUrl(lifetimePeak.tier, emblemYear)}
+          alt=""
+          loading="eager"
+          className="size-20 shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-24"
+        />
+      ),
+      chapterLabel: `Looking back · ${rankTitle}`,
+      ariaLabel: `Lifetime peak: ${rankTitle}`,
+      body: (
+        <>
+          Lifetime peak — <A>{rankTitle}</A>
+          {displayName ? (
+            <>
+              , championed by <A>{displayName}</A>
+            </>
+          ) : null}
+          {peakYear !== null ? (
+            <>
+              {" "}
+              · <A>Season {peakYear}</A>
+            </>
+          ) : null}
+          .
+        </>
+      ),
+      // No receipt — the chapter is intentionally a single-line
+      // retrospective marker, not a stat receipt. The matchId link in
+      // the masthead carries the click-through to the actual peak game
+      // for users who want the detail.
+      receipt: null,
+    };
+  }
+
   if (momentType === "FAVORITE_CHAMPION_OF_PERIOD" && favoriteChampion) {
     const gameLabel = `${favoriteChampion.gameCount} games`;
     const wlLabel = `${favoriteChampion.winCount}-${favoriteChampion.lossCount}`;
@@ -534,6 +591,7 @@ export interface LolMomentBeatProps {
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
   favoriteChampion: LolFavoriteChampionStats | null;
+  lifetimePeak: LolLifetimePeakStats | null;
   /** Per-beat active signal from the surrounding `<MultiBeat>`. Gates the
    *  ChapterReveal cascade so the per-moment beat reveal fires when this
    *  beat becomes focal, not at chapter entrance. */
@@ -640,6 +698,7 @@ export function LolMomentBeat({
   streak,
   marathon,
   favoriteChampion,
+  lifetimePeak,
   nudged,
 }: LolMomentBeatProps) {
   const championName = useChampionName();
@@ -662,6 +721,7 @@ export function LolMomentBeat({
     streak,
     marathon,
     favoriteChampion,
+    lifetimePeak,
     matchStats,
     emblemYear,
     accentClass,

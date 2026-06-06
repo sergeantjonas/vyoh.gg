@@ -59,6 +59,14 @@ function makeService(opts: {
   favoriteWinCounts?: ChampionWinCountRow[];
   favoriteMostRecentMatch?: { playedAt: Date } | null;
   favoriteCandidateMatches?: KdaMatchRow[];
+  /** Fixture for `detectLifetimePeak` (R-7i Lane B). The peak detector
+   *  uses the same `snapshotTier: { not: null }` shape as the rank-up
+   *  detector but DOESN'T pass `take` (it reads all-time, not capped
+   *  scan). The dispatcher routes accordingly. When omitted, the
+   *  rank-up rows are reused — that's the realistic shape of a single
+   *  test run, since both detectors read the same snapshot rows in
+   *  production. */
+  lifetimePeakRows?: SnapshotMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
@@ -86,7 +94,14 @@ function makeService(opts: {
       const hasTake = args.take !== undefined;
       const hasWindowFilter = args.where?.playedAt !== undefined;
       const isAsc = args.orderBy?.playedAt === "asc";
-      if (hasSnapshotFilter) return Promise.resolve(opts.rankUpRows ?? []);
+      if (hasSnapshotFilter) {
+        // Both rank-up and lifetime-peak filter on snapshotTier.
+        // Distinguish on the presence of `take` — rank-up caps its
+        // scan with RANK_UP_SCAN_LIMIT; lifetime-peak reads the full
+        // career.
+        if (hasTake) return Promise.resolve(opts.rankUpRows ?? []);
+        return Promise.resolve(opts.lifetimePeakRows ?? opts.rankUpRows ?? []);
+      }
       if (hasTake) return Promise.resolve(opts.streakRows ?? []);
       if (hasWindowFilter && isAsc) return Promise.resolve(opts.marathonRows ?? []);
       if (hasWindowFilter) return Promise.resolve(opts.kdaRows ?? []);
@@ -1391,6 +1406,162 @@ describe("LolMomentsService.detectFavoriteChampions", () => {
   });
 });
 
+describe("LolMomentsService.detectLifetimePeak", () => {
+  function makePeakRow(opts: {
+    matchId: string;
+    tier: string;
+    rank: string;
+    lp: number;
+    daysAgo?: number;
+    champion?: string;
+  }): SnapshotMatchRow {
+    const playedAt = new Date(NOW.getTime() - (opts.daysAgo ?? 30) * 24 * 60 * 60 * 1000);
+    return {
+      matchId: opts.matchId,
+      champion: opts.champion ?? "Ahri",
+      playedAt,
+      kills: 5,
+      deaths: 3,
+      assists: 8,
+      win: true,
+      durationSec: 1800,
+      queueType: "Ranked Solo",
+      snapshotTier: opts.tier,
+      snapshotRank: opts.rank,
+      snapshotLp: opts.lp,
+      snapshotTierBefore: null,
+      snapshotRankBefore: null,
+      snapshotLpBefore: null,
+    };
+  }
+
+  it("returns empty when there are no owner puuids", async () => {
+    const { service } = makeService({ ownerPuuids: [] });
+    const result = await service.detectLifetimePeak(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty when the owner has no snapshot rows on file", async () => {
+    const { service } = makeService({ lifetimePeakRows: [] });
+    const result = await service.detectLifetimePeak(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("picks the highest normalized LP across all snapshots regardless of how old", async () => {
+    const { service } = makeService({
+      lifetimePeakRows: [
+        // Current row — Silver IV 50 LP, recent.
+        makePeakRow({
+          matchId: "EUW_RECENT",
+          tier: "SILVER",
+          rank: "IV",
+          lp: 50,
+          daysAgo: 5,
+        }),
+        // Year-old peak — Emerald I 30 LP. Should win even though it's
+        // way older; the retrospective register makes age irrelevant
+        // to ranking.
+        makePeakRow({
+          matchId: "EUW_PEAK",
+          tier: "EMERALD",
+          rank: "I",
+          lp: 30,
+          daysAgo: 365,
+          champion: "Ahri",
+        }),
+        // Middle row — Platinum II 80 LP, between the two by both
+        // dimensions.
+        makePeakRow({
+          matchId: "EUW_MID",
+          tier: "PLATINUM",
+          rank: "II",
+          lp: 80,
+          daysAgo: 90,
+        }),
+      ],
+    });
+    const result = await service.detectLifetimePeak(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.matchId).toBe("EUW_PEAK");
+    expect(c.lifetimePeak?.tier).toBe("EMERALD");
+    expect(c.lifetimePeak?.rank).toBe("I");
+    expect(c.lifetimePeak?.leaguePoints).toBe(30);
+    expect(c.championAlias).toBe("Ahri");
+  });
+
+  it("anchors daysSince at 0 regardless of when the peak was actually hit", async () => {
+    const { service } = makeService({
+      lifetimePeakRows: [
+        // Peak from 18 months ago. daysSince should still be 0 because
+        // the chapter is being SURFACED today; the prose carries the
+        // historical date via `lifetimePeak.achievedAt`.
+        makePeakRow({
+          matchId: "EUW_OLD_PEAK",
+          tier: "DIAMOND",
+          rank: "II",
+          lp: 75,
+          daysAgo: 540,
+        }),
+      ],
+    });
+    const result = await service.detectLifetimePeak(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.daysSince).toBe(0);
+  });
+
+  it("carries the peak match's playedAt as the `achievedAt` ISO string", async () => {
+    const peakDate = new Date("2024-08-15T14:23:00Z");
+    const { service } = makeService({
+      lifetimePeakRows: [
+        {
+          matchId: "EUW_TS",
+          champion: "Ahri",
+          playedAt: peakDate,
+          kills: 5,
+          deaths: 3,
+          assists: 8,
+          win: true,
+          durationSec: 1800,
+          queueType: "Ranked Solo",
+          snapshotTier: "GOLD",
+          snapshotRank: "I",
+          snapshotLp: 50,
+          snapshotTierBefore: null,
+          snapshotRankBefore: null,
+          snapshotLpBefore: null,
+        },
+      ],
+    });
+    const result = await service.detectLifetimePeak(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.lifetimePeak?.achievedAt).toBe(peakDate.toISOString());
+  });
+
+  it("queries findMany without `take` so the spec dispatcher can route it apart from rank-up's capped scan", async () => {
+    const { service, prisma } = makeService({ lifetimePeakRows: [] });
+    await service.detectLifetimePeak(NOW);
+    const calls = vi.mocked(prisma.match.findMany).mock.calls;
+    const peakCall = calls.find((c) => {
+      const args = c[0] as {
+        where: { snapshotTier?: unknown };
+        take?: number;
+      };
+      return args.where?.snapshotTier !== undefined && args.take === undefined;
+    });
+    expect(peakCall).toBeTruthy();
+    const args = peakCall?.[0] as {
+      where: { queueType: { in: readonly string[] } };
+    };
+    expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+});
+
 describe("LolMomentsService.detectAll", () => {
   it("collects every detector's output into one candidate list", async () => {
     const { service } = makeService({
@@ -1447,7 +1618,13 @@ describe("LolMomentsService.detectAll", () => {
       ),
     });
     const result = await service.detectAll(NOW);
-    expect(result).toHaveLength(6);
+    // Six event-tier detectors + LIFETIME_PEAK_RANK (R-7i Lane B
+    // always-on top-up). The peak detector reads from the same
+    // snapshot-filtered findMany as detectRankUps, so the mock's
+    // rankUp fixture also drives a peak candidate here — that's the
+    // expected reality of running both detectors against the same
+    // snapshot rows.
+    expect(result).toHaveLength(7);
     const momentTypes = result
       .filter((r) => r.kind === "lol-moment")
       .map((r) => (r.kind === "lol-moment" ? r.momentType : null));
@@ -1459,6 +1636,7 @@ describe("LolMomentsService.detectAll", () => {
         "RETURN_FROM_HIATUS",
         "STREAK_5W",
         "MARATHON",
+        "LIFETIME_PEAK_RANK",
       ])
     );
   });

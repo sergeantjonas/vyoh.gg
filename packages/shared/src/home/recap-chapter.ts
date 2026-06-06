@@ -117,6 +117,32 @@ export interface LolMarathonStats {
 }
 
 /**
+ * Lifetime-peak-rank framing carried on a `LIFETIME_PEAK_RANK` LoL
+ * moment chapter. R-7i Lane B retrospective detector — surfaces the
+ * owner's all-time peak rank regardless of whether they've played
+ * recently. Fills the LoL block during TRUE dry spells (no ranked play
+ * in 30d at all), where even the Lane A `FAVORITE_CHAMPION_OF_PERIOD`
+ * detector goes empty. Editorial register is explicitly retrospective
+ * ("Looking back —") so the reader doesn't read it as recent-moment
+ * energy.
+ *
+ *   - `tier` / `rank` / `leaguePoints` — the peak snapshot triple. Apex
+ *     tiers (Master+) drop the division in the displayed title.
+ *   - `achievedAt` — ISO date of the match where the peak was hit.
+ *     Drives the "Season YYYY" caption + the chapter's matchId link
+ *     (the chapter's `matchId` field points to that match for the
+ *     click-through).
+ *
+ * Null on other momentTypes.
+ */
+export interface LolLifetimePeakStats {
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  achievedAt: string;
+}
+
+/**
  * Favorite-champion-of-period framing carried on a
  * `FAVORITE_CHAMPION_OF_PERIOD` LoL moment chapter. R-7i Lane A filler
  * detector — fires whenever there's a champion the owner played heavily
@@ -156,7 +182,8 @@ export interface LolMomentChapterDescriptor {
     | "STREAK_5W"
     | "STREAK_5L"
     | "RETURN_FROM_HIATUS"
-    | "FAVORITE_CHAMPION_OF_PERIOD";
+    | "FAVORITE_CHAMPION_OF_PERIOD"
+    | "LIFETIME_PEAK_RANK";
   score: number;
   daysSince: number;
   ageBucket: RecapAgeBucket;
@@ -169,6 +196,7 @@ export interface LolMomentChapterDescriptor {
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
   favoriteChampion: LolFavoriteChampionStats | null;
+  lifetimePeak: LolLifetimePeakStats | null;
   framing: RecapChapterFraming | null;
 }
 
