@@ -208,6 +208,7 @@ export {
 export type {
   SteamAgeBucket,
   SteamGameRecap,
+  SteamPlaytimeTrend,
   SteamStandoutUnlock,
   SteamUnlock,
 } from "./steam/game-recap.ts";

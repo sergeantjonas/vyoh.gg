@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type {
   RecapChapterFraming,
   SteamGameRecap,
+  SteamPlaytimeTrend,
   SteamStandoutUnlock,
   SteamUnlock,
 } from "@vyoh/shared";
@@ -319,44 +320,71 @@ function PeakChip({
 }
 
 /**
- * Compact secondary-stats chip — sized down from PeakChip. Used on beat
- * 2 for the new lower-tier stats (median rarity, playtime trend,
- * days-to-completion) that complement the primary completion / 2-weeks
- * / rarest strip without competing with it. Visual hierarchy: primary
- * strip is text-5xl/6xl, secondary is text-2xl/3xl — readable as
- * "context numbers" not headlines.
+ * Single-line context caption that sits directly under the primary
+ * stats strip on beat 2. Replaces the earlier 3-chip secondary strip —
+ * 6 stat chips visually competed with the headline 3 instead of
+ * complementing them, and the smaller chips read as "more of the same"
+ * rather than as the supporting context they were meant to be.
+ *
+ * Format: bullet-separated facts ("Median rarity 70% · Dormant trend").
+ * Italic body register so the line reads as editorial caption, not as
+ * another stat tier. Only renders facts whose source value is non-null,
+ * and collapses to nothing when no facts qualify.
  */
-function SecondaryStatChip({
+function SecondaryStatsCaption({
   active,
-  delay,
-  label,
-  value,
+  medianRarity,
+  daysToCompletion,
+  playtimeTrend,
+  isCompleted,
 }: {
   active: boolean;
-  delay: number;
-  label: string;
-  value: string;
+  medianRarity: number | null;
+  daysToCompletion: number | null;
+  playtimeTrend: SteamPlaytimeTrend | null;
+  isCompleted: boolean;
 }) {
+  const parts: string[] = [];
+  if (medianRarity !== null) {
+    const label =
+      medianRarity < 10 ? `${medianRarity.toFixed(1)}%` : `${Math.round(medianRarity)}%`;
+    parts.push(`Median rarity ${label}`);
+  }
+  if (isCompleted && daysToCompletion !== null) {
+    parts.push(`Cleared in ${daysToCompletion}d`);
+  }
+  if (playtimeTrend !== null) {
+    const trendLabel =
+      playtimeTrend === "spike"
+        ? "Spiking"
+        : playtimeTrend === "active"
+          ? "Active"
+          : "Dormant";
+    parts.push(`${trendLabel} trend`);
+  }
+  if (parts.length === 0) return null;
   return (
-    <ChapterReveal active={active} delay={delay} scale={0.9} rise={16} duration={0.6}>
-      <div className="flex flex-col gap-1">
-        <span
-          className="text-2xl font-semibold leading-none tabular-nums text-foreground sm:text-3xl"
-          style={{ textShadow: SHADOW_MASTHEAD }}
-        >
-          {value}
-        </span>
-        <span
-          className="text-[10px] font-medium uppercase tracking-[0.25em] text-foreground/75 sm:text-[11px]"
-          style={{
-            textShadow: SHADOW_LABEL,
-            paintOrder: "stroke",
-            WebkitTextStroke: STROKE_LABEL,
-          }}
-        >
-          {label}
-        </span>
-      </div>
+    <ChapterReveal active={active} delay={0.5} scale={1} rise={10}>
+      <p
+        className="text-sm italic text-foreground/85 sm:text-base"
+        style={{
+          textShadow: SHADOW_BODY,
+          paintOrder: "stroke",
+          WebkitTextStroke: STROKE_LABEL,
+        }}
+      >
+        {parts.map((p, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: caption parts are positional and stable
+          <span key={i}>
+            {i > 0 ? (
+              <span aria-hidden="true" className="mx-2 text-foreground/45">
+                ·
+              </span>
+            ) : null}
+            <span className="not-italic tabular-nums">{p}</span>
+          </span>
+        ))}
+      </p>
     </ChapterReveal>
   );
 }
@@ -860,55 +888,22 @@ export function SteamChapter({
             spreading edge-to-edge. Each chip renders only when its
             source value is non-null; the row collapses entirely when
             no secondary stats are derivable. */}
-        {medianRarity !== null || playtimeTrend !== null || isCompleted ? (
-          <ChapterStats>
-            {medianRarity !== null ? (
-              <SecondaryStatChip
-                active={nudged}
-                delay={0.5}
-                label="Median rarity"
-                value={
-                  medianRarity < 10
-                    ? `${medianRarity.toFixed(1)}%`
-                    : `${Math.round(medianRarity)}%`
-                }
-              />
-            ) : null}
-            {isCompleted && daysToCompletion !== null ? (
-              <SecondaryStatChip
-                active={nudged}
-                delay={0.6}
-                label="Cleared in"
-                value={`${daysToCompletion}d`}
-              />
-            ) : null}
-            {playtimeTrend !== null ? (
-              <SecondaryStatChip
-                active={nudged}
-                delay={0.7}
-                label="Trend"
-                // Tier vocabulary: "Spiking" as a verb, "Active" /
-                // "Dormant" as states. Mirrors the age-bucket eyebrow's
-                // honest-recency register elsewhere in the chapter.
-                value={
-                  playtimeTrend === "spike"
-                    ? "Spiking"
-                    : playtimeTrend === "active"
-                      ? "Active"
-                      : "Dormant"
-                }
-              />
-            ) : null}
-          </ChapterStats>
-        ) : null}
-        {/* Next-rarest-to-clear ladder for incomplete games. Editorial
-            counterpart to "Cleared in Nd" — when the owner is still
-            chasing 100%, show the next mountain. Hidden on completed
-            games (the ladder is empty) and on schema-less / no-rarity
-            cases (the deriver returns []). */}
-        {!isCompleted && remainingRarest.length > 0 ? (
-          <RemainingRarestLadder appid={appid} active={nudged} items={remainingRarest} />
-        ) : null}
+        <ChapterDetail>
+          <SecondaryStatsCaption
+            active={nudged}
+            medianRarity={medianRarity}
+            daysToCompletion={daysToCompletion}
+            playtimeTrend={playtimeTrend}
+            isCompleted={isCompleted}
+          />
+          {!isCompleted && remainingRarest.length > 0 ? (
+            <RemainingRarestLadder
+              appid={appid}
+              active={nudged}
+              items={remainingRarest}
+            />
+          ) : null}
+        </ChapterDetail>
       </>
     ),
 
