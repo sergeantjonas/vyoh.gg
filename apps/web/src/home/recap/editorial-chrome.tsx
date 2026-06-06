@@ -81,29 +81,38 @@ export function EditorialChrome() {
     context ? pickActiveBeat(context.scrollYProgress.get(), context.beatRanges) : 0
   );
 
-  // Hard visibility gate via IntersectionObserver on the chapter
-  // section. The opacity-via-scrollYProgress fade alone wasn't enough
-  // on Safari — Motion's `useScroll` on WebKit (uses ScrollTimeline)
-  // doesn't reliably advance progress past 1 after the section exits,
-  // so the opacity-0 endpoint never fires and the chrome persists
-  // visually into the next chapter. IO is engine-stable and gives a
-  // definitive in/out-of-viewport signal regardless of how Motion
-  // reports scroll progress.
+  // Hard visibility gate via direct scroll listener + getBoundingClientRect.
+  // The opacity-via-scrollYProgress fade alone wasn't enough on Safari:
+  // Motion's `useScroll` on WebKit uses ScrollTimeline, which doesn't
+  // reliably advance progress past 1 after the section exits the
+  // viewport, so the opacity-0 endpoint never fires and the previous
+  // chapter's chrome persists visually into the next chapter.
+  //
+  // A direct scroll listener on the main scroll container, polling
+  // section.getBoundingClientRect() vs main's bounds on every tick, is
+  // the most engine-stable signal — doesn't depend on Motion or
+  // IntersectionObserver edge cases. Applied via inline `display: none`
+  // so the rule wins over any sticky/positioning conflict regardless
+  // of Tailwind class ordering.
   const [chapterInViewport, setChapterInViewport] = useState(true);
   useEffect(() => {
     const chrome = chromeRef.current;
     if (!chrome) return;
     const section = chrome.closest<HTMLElement>("[data-chapter-multi-beat]");
     if (!section) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry) setChapterInViewport(entry.isIntersecting);
-      },
-      { root: mainScrollRef.current, threshold: 0 }
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
+    const main = mainScrollRef.current;
+    if (!main) return;
+
+    const check = () => {
+      const sectionRect = section.getBoundingClientRect();
+      const mainRect = main.getBoundingClientRect();
+      const inView =
+        sectionRect.bottom > mainRect.top && sectionRect.top < mainRect.bottom;
+      setChapterInViewport((prev) => (prev === inView ? prev : inView));
+    };
+    check();
+    main.addEventListener("scroll", check, { passive: true });
+    return () => main.removeEventListener("scroll", check);
   }, []);
 
   // Local progress within the active beat's span [enterStart, exitEnd].
@@ -177,13 +186,13 @@ export function EditorialChrome() {
       // hard hide once the chapter exits viewport; opacity handles the
       // soft fade at the boundaries for engines that report progress
       // cleanly.
-      className={[
-        "pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10",
-        chapterInViewport ? "" : "hidden",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={{ opacity }}
+      className="pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10"
+      // Inline `display: none` when chapter is out of viewport wins
+      // over any CSS class ordering and engine-specific sticky quirks.
+      style={{
+        opacity,
+        display: chapterInViewport ? undefined : "none",
+      }}
     >
       <div
         // biome-ignore lint/a11y/useSemanticElements: <fieldset> is for form-control groups; this is a navigation button group
