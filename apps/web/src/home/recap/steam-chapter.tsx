@@ -581,14 +581,11 @@ export function SteamChapter({
       <ChapterOpener>
         {verdictClauses.length > 0 ? (
           <div className="flex w-full flex-col">
-            {/* Accent slash — magazine separator above the prose. */}
-            <BeatAccentSlash beatIndex={0} className="mb-5 sm:mb-6" width="14rem" />
-
             {/* Verdict prose — curtain-pull entrance: bigger rise +
-                blur + longer duration than the band default. Delay
-                bumped past the slash sweep so the slash lands first
-                and the prose flows in beneath it. */}
-            <ChapterReveal active={nudged} delay={0.25} blur={8} rise={22} duration={0.9}>
+                blur + longer duration than the band default. Lands
+                first; the slash arrives after it as an editorial
+                flourish on already-readable copy. */}
+            <ChapterReveal active={nudged} delay={0.1} blur={8} rise={22} duration={0.9}>
               <VerdictProse
                 clauses={verdictClauses}
                 style={{ textShadow: SHADOW_BODY }}
@@ -601,6 +598,20 @@ export function SteamChapter({
                 numbersDelay={0.95}
               />
             </ChapterReveal>
+
+            {/* Accent slash — magazine separator that lands AFTER the
+                prose has settled (delay = prose's reveal delay +
+                duration + a small breath). `mt-5` reserves the
+                editorial breathing between prose and mark. The slash
+                sits below the prose because beat 0 is anchored to the
+                top of the band; placing the mark below reads as a
+                "page-end" flourish rather than a competing headline. */}
+            <BeatAccentSlash
+              beatIndex={0}
+              delay={1.1}
+              className="mt-5 sm:mt-6"
+              width="14rem"
+            />
           </div>
         ) : null}
       </ChapterOpener>

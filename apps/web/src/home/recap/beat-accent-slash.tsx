@@ -20,6 +20,17 @@ type Props = {
    * exit direction — left-entering slashes drift right on exit.
    */
   from?: "left" | "right";
+  /**
+   * Seconds to wait after the beat is nudged before drawing the slash.
+   * Use to sequence the slash AFTER the beat's text content has settled
+   * into place — the slash reads as an editorial flourish landing on
+   * already-readable copy, not as a competing element animating over
+   * blurred / settling text. Typical value: (surrounding prose's
+   * ChapterReveal delay + duration + a small settle). Exit retraction
+   * is always immediate (no delay) so the slash doesn't linger when
+   * the beat scrolls out.
+   */
+  delay?: number;
   className?: string;
 };
 
@@ -68,6 +79,7 @@ export function BeatAccentSlash({
   thicknessPx = 2,
   skewDeg = -14,
   from = "left",
+  delay = 0,
   className,
 }: Props) {
   const nudged = useChapterBeatNudge();
@@ -78,22 +90,38 @@ export function BeatAccentSlash({
   // otherwise produce.
   const transformOrigin = from === "left" ? "left center" : "right center";
 
+  // Variants give asymmetric timing: entrance is delayed so the slash
+  // lands after the beat's text content has settled; exit is immediate
+  // so the slash doesn't linger when the beat scrolls out.
+  const variants = {
+    hidden: {
+      scaleX: 0,
+      opacity: 0,
+      transition: { duration: 0.3, ease: "easeIn" as const },
+    },
+    visible: {
+      scaleX: 1,
+      opacity: 1,
+      transition: {
+        scaleX: {
+          duration: 0.7,
+          delay,
+          ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+        },
+        opacity: { duration: 0.4, delay, ease: "easeOut" as const },
+      },
+    },
+  };
+
   return (
     <m.div
       data-beat-accent-slash=""
       aria-hidden="true"
       className={["pointer-events-none", className].filter(Boolean).join(" ")}
       style={{ width, transformOrigin }}
-      initial={{ scaleX: 0, opacity: 0 }}
-      animate={{ scaleX: nudged ? 1 : 0, opacity: nudged ? 1 : 0 }}
-      // Easing: a confident draw with a small "ease-out" tail so the
-      // slash arrives with weight, not a linear ramp. Duration tuned so
-      // the slash lands at roughly the same moment as the
-      // ChapterReveal prose cascade in steam-chapter beat 0 (~0.7s).
-      transition={{
-        scaleX: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
-        opacity: { duration: 0.4, ease: "easeOut" },
-      }}
+      initial="hidden"
+      animate={nudged ? "visible" : "hidden"}
+      variants={variants}
     >
       <div
         style={{
