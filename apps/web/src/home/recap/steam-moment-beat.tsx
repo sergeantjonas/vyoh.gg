@@ -331,6 +331,47 @@ export interface SteamMomentBeatProps {
  * release-date chip — those are per-game beat content, not atmosphere
  * claim inputs.
  */
+/**
+ * Per-momentType entrance shape — varies the masthead/body reveal cascade
+ * so the aggregator's stacked beats don't all read with the same cadence
+ * (R-12.7). FIRST_TIME_GAME gets a discovery/bloom register (heavier
+ * blur, slight scale entrance — the sparkle leading visual reads as
+ * "new!"), ACHIEVEMENT_CLUSTER gets a slower sustained reveal that
+ * matches the "across N hours" framing of the receipt.
+ */
+function entranceForType(momentType: MomentType) {
+  switch (momentType) {
+    case "FIRST_TIME_GAME":
+      return {
+        mastheadBlur: 20,
+        mastheadRise: 26,
+        mastheadDuration: 1.05,
+        mastheadScale: 0.94,
+        taglineDelay: 0.4,
+        bodyDelay: 0.6,
+        receiptDelay: 0.78,
+      };
+    case "ACHIEVEMENT_CLUSTER":
+      return {
+        mastheadBlur: 16,
+        mastheadRise: 22,
+        mastheadDuration: 1.3,
+        taglineDelay: 0.45,
+        bodyDelay: 0.7,
+        receiptDelay: 0.95,
+      };
+    default:
+      return {
+        mastheadBlur: 16,
+        mastheadRise: 20,
+        mastheadDuration: 1.1,
+        taglineDelay: 0.4,
+        bodyDelay: 0.55,
+        receiptDelay: 0.7,
+      };
+  }
+}
+
 export function SteamMomentBeat({
   appid,
   name,
@@ -354,6 +395,7 @@ export function SteamMomentBeat({
   const accentClass = momentAccentClass(momentType);
   const copy = momentCopy({ momentType, name, firstTime, cluster, accentClass });
   const whenLine = formatDaysSince(daysSince);
+  const entrance = entranceForType(momentType);
   const releaseChip = useMemo(
     () => formatReleaseDateChip(recap?.releaseDate ?? null),
     [recap?.releaseDate]
@@ -408,7 +450,16 @@ export function SteamMomentBeat({
               ) : null}
             </p>
           </ChapterReveal>
-          <ChapterReveal active={nudged} delay={0.18} duration={1.1} blur={16} rise={20}>
+          <ChapterReveal
+            active={nudged}
+            delay={0.18}
+            duration={entrance.mastheadDuration}
+            blur={entrance.mastheadBlur}
+            rise={entrance.mastheadRise}
+            {...(entrance.mastheadScale !== undefined
+              ? { scale: entrance.mastheadScale }
+              : {})}
+          >
             <Link
               to="/steam/game/$appid"
               params={{ appid: String(appid) }}
@@ -456,7 +507,7 @@ export function SteamMomentBeat({
             </Link>
           </ChapterReveal>
           {tagline ? (
-            <ChapterReveal active={nudged} delay={0.4} blur={6}>
+            <ChapterReveal active={nudged} delay={entrance.taglineDelay} blur={6}>
               <p
                 className="max-w-prose text-base italic text-foreground/75 sm:text-lg"
                 style={{ textShadow: SHADOW_BODY }}
@@ -465,7 +516,7 @@ export function SteamMomentBeat({
               </p>
             </ChapterReveal>
           ) : null}
-          <ChapterReveal active={nudged} delay={0.55} blur={6}>
+          <ChapterReveal active={nudged} delay={entrance.bodyDelay} blur={6}>
             <p
               className="max-w-prose text-base text-foreground/85 sm:text-lg"
               style={{ textShadow: SHADOW_BODY }}
@@ -476,7 +527,7 @@ export function SteamMomentBeat({
         </ChapterOpener>
         {firstTime ? (
           <ChapterDetail>
-            <ChapterReveal active={nudged} delay={0.7}>
+            <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
                 {/* Multi-stat receipt: total minutes are the headline number
                       (loudest beat — "this is real engagement, not a 3-min
@@ -552,7 +603,7 @@ export function SteamMomentBeat({
         ) : null}
         {cluster ? (
           <ChapterDetail>
-            <ChapterReveal active={nudged} delay={0.7}>
+            <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
               {/* Cluster receipt: count + span are the loudest beats, the
                     unlock-name list is the editorial proof — the reader sees
                     the actual achievements that fell in the run. Truncates

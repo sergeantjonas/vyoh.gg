@@ -511,6 +511,73 @@ export interface LolMomentBeatProps {
  * eyebrow + masthead + leading visual + receipt; this function stays
  * type-agnostic, rendering whichever shape `momentCopy()` returns.
  */
+/**
+ * Per-momentType entrance shape — varies the masthead/body reveal cascade
+ * so the aggregator's stacked beats don't all read with the same
+ * cadence (R-12.7). Type-agnostic defaults (RANK_UP-as-default) keep
+ * unfamiliar types pointing at the same shape AhriChapter and SteamChapter
+ * use; types with a distinctive editorial register override:
+ *
+ *  - RETURN_FROM_HIATUS — slow re-emergence from absence. Heavier initial
+ *    blur, longer duration, larger rise so the masthead "lifts out of the
+ *    quiet" rather than slamming in.
+ *  - MARATHON — sustained-activity register. Longer body delay so the
+ *    masthead breathes; the prose lands second after the count of
+ *    "{N} games" has time to register.
+ *  - KDA_OUTLIER — standout peak. Slight scale entrance + tighter
+ *    duration so the masthead reads as snap-to-frame.
+ *  - STREAK_5W / STREAK_5L — pip-row beat. Faster body delay so the W/L
+ *    pip cascade hooks the reader before the prose explanation lands.
+ *  - OFF_META_PICK + RANK_UP — defaults; the matter-of-fact framing fits
+ *    the standard blur-rise cascade.
+ */
+function entranceForType(momentType: MomentType) {
+  switch (momentType) {
+    case "RETURN_FROM_HIATUS":
+      return {
+        mastheadBlur: 22,
+        mastheadRise: 28,
+        mastheadDuration: 1.45,
+        bodyDelay: 0.75,
+        receiptDelay: 0.95,
+      };
+    case "MARATHON":
+      return {
+        mastheadBlur: 16,
+        mastheadRise: 24,
+        mastheadDuration: 1.2,
+        bodyDelay: 0.7,
+        receiptDelay: 0.9,
+      };
+    case "KDA_OUTLIER":
+      return {
+        mastheadBlur: 14,
+        mastheadRise: 20,
+        mastheadDuration: 0.95,
+        mastheadScale: 0.94,
+        bodyDelay: 0.5,
+        receiptDelay: 0.65,
+      };
+    case "STREAK_5W":
+    case "STREAK_5L":
+      return {
+        mastheadBlur: 14,
+        mastheadRise: 18,
+        mastheadDuration: 1.0,
+        bodyDelay: 0.45,
+        receiptDelay: 0.6,
+      };
+    default:
+      return {
+        mastheadBlur: 16,
+        mastheadRise: 20,
+        mastheadDuration: 1.1,
+        bodyDelay: 0.55,
+        receiptDelay: 0.7,
+      };
+  }
+}
+
 export function LolMomentBeat({
   account,
   championAlias,
@@ -530,6 +597,7 @@ export function LolMomentBeat({
   const displayName = championName(championAlias);
   const anchorDisplayName = championName(ANCHOR_CHAMPION_ALIAS);
   const emblemYear = useRankedEmblemYear();
+  const entrance = entranceForType(momentType);
   // Per-momentType typographic accent — drives both the eyebrow colour
   // and every inline `<Accent>` span inside the prose. Aggregator
   // atmosphere accent is Ahri's dominant hex; this is the per-beat
@@ -591,7 +659,16 @@ export function LolMomentBeat({
             </span>
           </p>
         </ChapterReveal>
-        <ChapterReveal active={nudged} delay={0.18} duration={1.1} blur={16} rise={20}>
+        <ChapterReveal
+          active={nudged}
+          delay={0.18}
+          duration={entrance.mastheadDuration}
+          blur={entrance.mastheadBlur}
+          rise={entrance.mastheadRise}
+          {...(entrance.mastheadScale !== undefined
+            ? { scale: entrance.mastheadScale }
+            : {})}
+        >
           {matchId ? (
             <Link
               to="/lol/$accountSlug/matches/$matchId"
@@ -628,7 +705,7 @@ export function LolMomentBeat({
             </span>
           )}
         </ChapterReveal>
-        <ChapterReveal active={nudged} delay={0.55} blur={6}>
+        <ChapterReveal active={nudged} delay={entrance.bodyDelay} blur={6}>
           <p
             className="max-w-prose text-base text-foreground/85 sm:text-lg"
             style={{ textShadow: SHADOW_BODY }}
@@ -639,7 +716,7 @@ export function LolMomentBeat({
       </ChapterOpener>
       {copy.receipt ? (
         <ChapterDetail>
-          <ChapterReveal active={nudged} delay={0.7}>
+          <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
             {/* Per-momentType receipt shape, built inside `momentCopy()`.
                 OFF_META_PICK + RANK_UP fall back to the original W/L +
                 K/D/A + duration strip; KDA_OUTLIER / STREAK / MARATHON /
