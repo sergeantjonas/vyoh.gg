@@ -22,13 +22,14 @@ describe("UnlocksPerWeekBand", () => {
     expect(container.querySelector("[data-unlocks-per-week-band]")).toBeNull();
   });
 
-  it("renders the band with both stroke and area paths for valid data", () => {
+  it("renders area fill + halo + accent stroke for valid data", () => {
     const { container } = render(<UnlocksPerWeekBand data={[0, 1, 3, 2, 5]} />);
     const band = container.querySelector("[data-unlocks-per-week-band]");
     expect(band).not.toBeNull();
     const paths = container.querySelectorAll("svg path");
-    // Two paths: area (filled) + stroke (line).
-    expect(paths.length).toBe(2);
+    // Three paths: area gradient fill + dark halo stroke (paint-order
+    // substitute for hue-collision readability) + accent stroke on top.
+    expect(paths.length).toBe(3);
     const areaPath = paths[0]?.getAttribute("d") ?? "";
     expect(areaPath.startsWith("M")).toBe(true);
     expect(areaPath.endsWith("Z")).toBe(true);

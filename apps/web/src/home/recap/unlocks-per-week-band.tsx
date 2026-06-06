@@ -1,5 +1,6 @@
 import { m } from "motion/react";
 import type * as React from "react";
+import { useEffect, useId, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -52,10 +53,25 @@ const VIEWBOX_HEIGHT = 24;
  */
 export function UnlocksPerWeekBand({
   data,
-  active = false,
+  active = true,
   className,
   ...rest
 }: UnlocksPerWeekBandProps) {
+  // Latch — once active flips true, stay drawn even if the parent toggles
+  // it false later (beat scrolled past). This prevents the line from
+  // un-drawing on backwards scroll, which reads as jittery. `useState`
+  // initial captures the initial active value so a standalone consumer
+  // (no chapter wrap) renders fully drawn immediately.
+  const [hasDrawn, setHasDrawn] = useState(active);
+  useEffect(() => {
+    if (active) setHasDrawn(true);
+  }, [active]);
+
+  // Stable per-instance ID for the gradient <defs> so multiple bands on
+  // one page don't share a gradient ID.
+  const reactId = useId();
+  const gradientId = `unlocks-per-week-band-gradient-${reactId}`;
+
   if (data.length < 2) return null;
 
   const max = Math.max(...data);
@@ -78,17 +94,10 @@ export function UnlocksPerWeekBand({
   const weeksLabel = data.length === 1 ? "1 week" : `${data.length} weeks`;
   const ariaLabel = `${total} unlock${total === 1 ? "" : "s"} across the last ${weeksLabel}, ${latest} this week`;
 
-  // Vertical gradient under the curve — accent at the peak, fading to
-  // transparent at the baseline. Reads as data weight at the top where the
-  // line is, not as a uniform tint. Same trick used in the LoL match-row
-  // gold-lead band (no chrome wrapper, fill carries the presence).
-  //
   // Color cascade: `--accent` is published per-chapter by the atmosphere
   // layer (per asset dominantHex — RE2 reads red, Hollow Knight blue/teal,
   // etc.). `--theme-strong` is the chronotype palette fallback, used only
   // when no claim is active (e.g. the band rendered outside a chapter).
-  const gradientId = "unlocks-per-week-band-gradient";
-
   return (
     <div
       data-unlocks-per-week-band=""
@@ -126,56 +135,77 @@ export function UnlocksPerWeekBand({
           {weeksLabel}
         </span>
       </div>
-      <svg
-        role="img"
-        aria-label={ariaLabel}
-        viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-        preserveAspectRatio="none"
-        className="block h-12 w-full"
-        // Drop-shadow on the SVG (not backdrop-filter) gives the stroke
-        // separation from busy splashes without a compositor layer that
-        // the beat-transition opacity tween fights. SVG filter renders
-        // once with the path, no per-frame composite cost.
-        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55))" }}
+      {/* Left-to-right wipe reveal — `<m.div>` animates a clip-path inset
+          that retracts from 100% on the right to 0% as the beat
+          activates. The reveal applies to BOTH the line and the gradient
+          fill uniformly, giving the band a "data wiping in" register
+          rather than a pure line-draw. The earlier path-length
+          implementation (Motion's `pathLength` on m.path) produced
+          dasharray ghosts on viewBox 100×24 stretched wide — clip-path
+          sidesteps the dash math entirely. Once `hasDrawn` flips true
+          on first activation, the wipe never retracts again
+          (backwards-scroll wouldn't un-draw the line). The transition
+          delay matches the surrounding ChapterReveal's container fade
+          so the wipe begins after the band's opacity has risen. */}
+      <m.div
+        className="w-full"
+        initial={{ clipPath: hasDrawn ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)" }}
+        animate={{ clipPath: hasDrawn ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)" }}
+        transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
       >
-        <title>{ariaLabel}</title>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop
-              offset="0%"
-              stopColor="var(--accent, var(--theme-strong))"
-              stopOpacity={0.55}
-            />
-            <stop
-              offset="100%"
-              stopColor="var(--accent, var(--theme-strong))"
-              stopOpacity={0.05}
-            />
-          </linearGradient>
-        </defs>
-        <path d={areaPath} fill={`url(#${gradientId})`} />
-        {/* The line draws on as the beat activates — left-to-right
-            pathLength animation reads as "data appearing", magazine
-            infographic register. The container's surrounding
-            ChapterReveal handles the opacity rise; this stroke
-            animation runs once on first activation with a delay tuned
-            so the line lands AFTER the band's container has settled.
-            Outside any chapter context (`active` defaults false), the
-            line renders at full length via initial=animate=1 — no
-            permanent half-drawn state when the band is used standalone. */}
-        <m.path
-          d={linePath}
-          fill="none"
-          stroke="var(--accent, var(--theme-strong))"
-          strokeWidth={1.75}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-          initial={{ pathLength: active ? 0 : 1 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 0.85, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
+        <svg
+          role="img"
+          aria-label={ariaLabel}
+          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+          preserveAspectRatio="none"
+          className="block h-12 w-full"
+          // Drop-shadow on the SVG (not backdrop-filter) gives the stroke
+          // separation from busy splashes without a compositor layer that
+          // the beat-transition opacity tween fights.
+          style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55))" }}
+        >
+          <title>{ariaLabel}</title>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="0%"
+                stopColor="var(--accent, var(--theme-strong))"
+                stopOpacity={0.55}
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--accent, var(--theme-strong))"
+                stopOpacity={0.05}
+              />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill={`url(#${gradientId})`} />
+          {/* Dark halo stroke painted UNDERNEATH the accent stroke — same
+              role as `paint-order: stroke` for SVG paths. Solves hue
+              collision on splashes whose dominantHex matches the accent
+              (Requiem's red logo blending the red sparkline into red
+              background). Slightly wider and dark; the colored stroke on
+              top inherits its full visual weight. */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke="rgba(0,0,0,0.55)"
+            strokeWidth={3.5}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="var(--accent, var(--theme-strong))"
+            strokeWidth={1.75}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </m.div>
     </div>
   );
 }
