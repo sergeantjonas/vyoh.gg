@@ -53,14 +53,12 @@ function pickActiveBeat(progress: number, ranges: BeatRange[]): number {
  * Renders nothing outside `<ChapterMultiBeatContext>`, so the same
  * component is safe to import without an extra mount-side guard.
  *
- * The chrome is positioned absolutely inside the stage (`overflow:
- * hidden` clips overflow). z-index 10 sits below the masthead's z-20
- * but above the track. Top-right corner — bottom-right is taken by the
- * global `ScrollToTop` button in `__root.tsx`, which would collide and
- * obscure the dot row. Top-right also reads as the opposite corner to
- * the left-aligned masthead reading column, which lands as a magazine
- * spread page-number annotation. `top-4 right-6` keeps it clear of the
- * page-level sticky nav (~52px at the top of `<main>`).
+ * The chrome is positioned absolutely inside the stage. z-index 10
+ * sits below the masthead's z-20 but above the track. Bottom-left
+ * corner — bottom-right is taken by the global `ScrollToTop` button
+ * in `__root.tsx`, and bottom-center is the `NextChapterCaret` click
+ * target. Bottom-left mirrors ScrollToTop on the opposite edge and
+ * doesn't compete with the masthead reading column for visual weight.
  */
 export function EditorialChrome() {
   const context = useContext(ChapterMultiBeatContext);
@@ -101,49 +99,57 @@ export function EditorialChrome() {
       data-editorial-chrome=""
       // pointer-events-none so the chrome never intercepts clicks on
       // beat content beneath it. The marker is purely decorative.
-      // Top-right anchors it opposite the masthead reading column;
-      // bottom-right is reserved for the global ScrollToTop button.
-      className="pointer-events-none absolute top-4 right-6 z-10 flex flex-col items-end gap-2 select-none sm:top-6 sm:right-10"
+      // Bottom-left mirrors the global ScrollToTop (bottom-right) on
+      // the opposite corner; bottom-center is the NextChapterCaret.
+      className="pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10"
     >
-      <ul aria-hidden="true" className="flex items-center gap-1.5">
-        {Array.from({ length: beatCount }, (_, i) => (
-          <li
-            // biome-ignore lint/suspicious/noArrayIndexKey: beat index is the stable identity here
-            key={i}
-            data-active={i === activeBeat ? "" : undefined}
-            // Active dot fills with accent; inactive ones are outlined at
-            // low opacity so they stay legible against bright splash
-            // crops without dominating. Smooth color transition (no
-            // motion required) makes the active flip read as a flicker
-            // rather than a jump.
-            className={[
-              "h-1.5 w-1.5 rounded-full border border-foreground/40 transition-colors duration-200",
-              i === activeBeat
-                ? "border-[var(--accent,currentColor)] bg-[var(--accent,currentColor)]"
-                : "bg-transparent",
-            ].join(" ")}
-          />
-        ))}
-      </ul>
-      <p
-        className="text-[10px] font-medium uppercase tracking-[0.3em] text-foreground/70"
-        // Mirror the editorial body shadow used elsewhere in the chapter
-        // so the chrome reads against any splash without a backdrop
-        // chip. Hardcoded inline since this file doesn't import the
-        // chapter shadows module.
-        style={{
-          textShadow:
-            "0 0 0 rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.7), 0 1px 8px rgba(0,0,0,0.5)",
-        }}
-      >
-        <span aria-hidden="true">Beat </span>
-        <span className="tabular-nums">{pad(activeBeat + 1)}</span>
-        <span className="text-foreground/40"> / </span>
-        <span className="tabular-nums text-foreground/40">{pad(beatCount)}</span>
-        <span className="sr-only">
-          Beat {activeBeat + 1} of {beatCount}
-        </span>
-      </p>
+      {/*
+        Small backdrop chip. The earlier text-shadow-only approach
+        rendered as a black smudge on bright splash crops (Pragmata)
+        because the white text fill at low opacity was invisible while
+        the shadow halos remained visible. A subtle chip with
+        backdrop-blur gives every splash a consistent dark base for the
+        chrome to render against, so the text+dots stay legible on
+        bright, dark, busy, and clean backgrounds alike. Sized small
+        enough that it reads as magazine-spread page chrome rather
+        than UI module.
+      */}
+      <div className="flex items-center gap-2 rounded-md bg-black/30 px-2.5 py-1 backdrop-blur-md">
+        <ul aria-hidden="true" className="flex items-center gap-1.5">
+          {Array.from({ length: beatCount }, (_, i) => (
+            <li
+              // biome-ignore lint/suspicious/noArrayIndexKey: beat index is the stable identity here
+              key={i}
+              data-active={i === activeBeat ? "" : undefined}
+              // Active dot fills with accent; inactive ones are outlined
+              // against the chip's dark backdrop so they stay legible
+              // without needing extra contrast tricks. Smooth color
+              // transition makes the active flip read as a flicker
+              // rather than a jump.
+              className={[
+                "h-1.5 w-1.5 rounded-full border border-white/55 transition-colors duration-200",
+                i === activeBeat
+                  ? "border-[var(--accent,currentColor)] bg-[var(--accent,currentColor)]"
+                  : "bg-transparent",
+              ].join(" ")}
+            />
+          ))}
+        </ul>
+        <p className="text-[10px] font-medium uppercase tracking-[0.25em] text-white/85">
+          {/*
+            Magazine-style page indicator — number only, no label.
+            "Beat" was internal developer vocabulary (unit of content
+            within a chapter); not the right register for the reader.
+            sr-only carries the readable phrase for assistive tech.
+          */}
+          <span className="tabular-nums">{pad(activeBeat + 1)}</span>
+          <span className="px-1 text-white/45">/</span>
+          <span className="tabular-nums text-white/55">{pad(beatCount)}</span>
+          <span className="sr-only">
+            Beat {activeBeat + 1} of {beatCount}
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
