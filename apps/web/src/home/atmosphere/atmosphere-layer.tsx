@@ -5,7 +5,7 @@ import {
   layerToCssGradient,
 } from "@/home/ambient-hero";
 import { mainScrollRef } from "@/lib/scroll-container";
-import { AnimatePresence, m, useMotionValue } from "motion/react";
+import { m, useMotionValue } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AtmosphereClaim, AtmosphereClaimEntry } from "./use-atmosphere-claim";
 
@@ -147,16 +147,29 @@ export function AtmosphereLayer({ claims }: Props) {
   const backgroundImage = useMotionValue<string>("none");
   const imageOpacity = useMotionValue<number>(0);
   const imageFilter = useMotionValue<string>(`blur(${DEFAULT_BLUR_PX}px) saturate(1.1)`);
-  // Current dominant image URL + the `background-position` it should render
-  // at, latched together. Used as a React state so `<AnimatePresence>` can
-  // drive a proper alpha crossfade when the URL changes (skin rotation,
-  // claim handoff). The position is captured at the moment the URL became
-  // dominant so the outgoing image's `background-position` doesn't snap to
-  // the incoming image's subject anchor mid-crossfade — which read as the
-  // backdrop sliding under the fade.
-  const [presented, setPresented] = useState<{ url: string; position: string } | null>(
-    null
-  );
+  // Two-layer image stack for URL crossfades (skin rotation, claim handoff).
+  // The bottom layer is the *current* image — always rendered at opacity 1.
+  // The top layer is the *incoming* image — opacity tweens 0 → 1 over the
+  // crossfade, then commits into the bottom when the entrance completes.
+  //
+  // Why two layers instead of `<AnimatePresence>` with `initial/exit`
+  // opacity: stacking two semi-transparent layers (exiting at α, entering
+  // at 1-α) inside a wrapper at opacity 0.9 exposes ~32.5% of the palette
+  // gradient mid-crossfade vs ~10% at rest — geometric composite math:
+  // outerOpacity * (oldAlpha + newAlpha * (1 - oldAlpha)) + (1 - outerOpacity)
+  // = 0.9 * (0.5 + 0.25) + 0.1 = 0.775, leaving 22.5% extra palette show-
+  // through. That show-through reads as the hero / first-page time-of-day
+  // palette flashing up between every rotation. The two-layer stack keeps
+  // the bottom at opacity 1 throughout, so the palette is never exposed
+  // beyond its at-rest ~10%.
+  //
+  // Each layer carries its own latched `background-position` so the outgoing
+  // image's subject anchor doesn't snap to the incoming claim's anchor
+  // mid-crossfade — that earlier read as the backdrop sliding under the fade.
+  const [layers, setLayers] = useState<{
+    bottom: { url: string; position: string } | null;
+    top: { url: string; position: string } | null;
+  }>({ bottom: null, top: null });
   const lastUrlRef = useRef<string | null>(null);
   const entries = useMemo(() => Array.from(claims.values()), [claims]);
 
@@ -198,7 +211,7 @@ export function AtmosphereLayer({ claims }: Props) {
         root.removeProperty("--accent");
         if (lastUrlRef.current !== null) {
           lastUrlRef.current = null;
-          setPresented(null);
+          setLayers({ bottom: null, top: null });
         }
         return;
       }
@@ -221,18 +234,32 @@ export function AtmosphereLayer({ claims }: Props) {
       }
       // Crossfade-driven URL update — diff against a ref so we only setState
       // when the URL actually changes (skin rotation, claim handoff), not
-      // on every scroll tick. The `background-position` is latched here too,
-      // so the AnimatePresence child reads a static per-mount value rather
-      // than a shared MotionValue. Without this, the outgoing image would
-      // snap to the incoming chapter's subject anchor mid-crossfade, which
-      // reads as the backdrop sliding under the fade.
+      // on every scroll tick. Each new URL goes onto the top layer and
+      // tweens 0 → 1; the entrance's `onAnimationComplete` then commits it
+      // into the bottom. If a new URL arrives while a top layer is still
+      // tweening in (unlikely at the rotation cadence, but possible at a
+      // claim handoff), the in-flight top is promoted to bottom first so
+      // the user never sees a snap back to the prior URL.
       if (resolved.imageUrl !== lastUrlRef.current) {
         lastUrlRef.current = resolved.imageUrl;
-        setPresented(
-          resolved.imageUrl
-            ? { url: resolved.imageUrl, position: resolved.imagePosition }
-            : null
-        );
+        if (!resolved.imageUrl) {
+          setLayers({ bottom: null, top: null });
+        } else {
+          const next = {
+            url: resolved.imageUrl,
+            position: resolved.imagePosition,
+          };
+          setLayers((prev) => {
+            if (prev.bottom === null) {
+              // First image since the layer mounted (or since the last
+              // null) — no crossfade, just paint it on the bottom.
+              return { bottom: next, top: null };
+            }
+            // Standard rotation case: bottom stays put, new URL takes
+            // the top slot. Promotes any in-flight top to bottom first.
+            return { bottom: prev.top ?? prev.bottom, top: next };
+          });
+        }
       }
     };
   }, [compute, backgroundImage, imageOpacity, imageFilter]);
@@ -291,24 +318,47 @@ export function AtmosphereLayer({ claims }: Props) {
           className="absolute inset-0"
           style={{ opacity: imageOpacity }}
         >
-          <AnimatePresence>
-            {presented && (
-              <m.div
-                key={presented.url}
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `url("${presented.url}")`,
-                  backgroundSize: "cover",
-                  backgroundPosition: presented.position,
-                  filter: imageFilter,
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-              />
-            )}
-          </AnimatePresence>
+          {layers.bottom && (
+            <m.div
+              data-atmosphere-image-bottom
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url("${layers.bottom.url}")`,
+                backgroundSize: "cover",
+                backgroundPosition: layers.bottom.position,
+                filter: imageFilter,
+              }}
+            />
+          )}
+          {layers.top && (
+            <m.div
+              // Keyed by URL so a fresh mount fires the entrance tween for
+              // each new URL — even if React would have otherwise reused
+              // the same DOM node.
+              key={layers.top.url}
+              data-atmosphere-image-top
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url("${layers.top.url}")`,
+                backgroundSize: "cover",
+                backgroundPosition: layers.top.position,
+                filter: imageFilter,
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeInOut" }}
+              onAnimationComplete={() => {
+                // Commit incoming → bottom. If a newer URL has already
+                // arrived (rare), `prev.top` will differ and we leave it
+                // alone — the next entrance complete will do this swap.
+                setLayers((prev) =>
+                  prev.top?.url === layers.top?.url
+                    ? { bottom: prev.top, top: null }
+                    : prev
+                );
+              }}
+            />
+          )}
         </m.div>
       </div>
     </BackdropPortal>
