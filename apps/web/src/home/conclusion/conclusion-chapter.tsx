@@ -164,7 +164,18 @@ function ConclusionMasthead() {
 export function ConclusionChapter() {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  const claim = useMemo<AtmosphereClaim>(() => ({ palette, intensity: 0.85 }), [palette]);
+  // Warm-amber accent — the conclusion's editorial "signature" tint.
+  // Without an explicit accentHex, the conclusion would either inherit
+  // a stale `--accent` from the prior chapter's claim (when proximity
+  // weighting was still warming up) or fall back to the static-default
+  // muted slate token (which reads as low-contrast purple on the dark
+  // palette-only backdrop). Closer / sign-off register asks for a warm
+  // tone, not the cool tones the chapter-subject accents tend to be.
+  const ACCENT_HEX = "#f0c878";
+  const claim = useMemo<AtmosphereClaim>(
+    () => ({ palette, intensity: 0.85, accentHex: ACCENT_HEX }),
+    [palette],
+  );
   useAssetClaim(outerRef, claim);
 
   const BEAT_LAYOUT =
