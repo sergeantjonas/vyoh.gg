@@ -407,129 +407,125 @@ export function SteamMomentBeat({
 
   return (
     <>
-      <div className="flex w-full flex-col">
-        <ChapterOpener>
-          <ChapterReveal active={nudged} delay={0.05} blur={4}>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
-              <span
-                className={accentClass}
-                style={{
-                  paintOrder: "stroke",
-                  WebkitTextStroke: STROKE_ACCENT,
-                  textShadow: SHADOW_ACCENT,
-                }}
-              >
-                {copy.eyebrow}
-              </span>
-              <span
-                aria-hidden="true"
-                className="text-foreground/40"
-                style={{ textShadow: SHADOW_LABEL }}
-              >
-                ·
-              </span>
-              <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
-                {whenLine}
-              </span>
-              {releaseChip ? (
-                <>
-                  <span
-                    aria-hidden="true"
-                    className="text-foreground/40"
-                    style={{ textShadow: SHADOW_LABEL }}
-                  >
-                    ·
-                  </span>
-                  <span
-                    className="text-foreground/75"
-                    style={{ textShadow: SHADOW_LABEL }}
-                  >
-                    {releaseChip}
-                  </span>
-                </>
-              ) : null}
-            </p>
-          </ChapterReveal>
-          <ChapterReveal
-            active={nudged}
-            delay={0.18}
-            duration={entrance.mastheadDuration}
-            blur={entrance.mastheadBlur}
-            rise={entrance.mastheadRise}
-            {...(entrance.mastheadScale !== undefined
-              ? { scale: entrance.mastheadScale }
-              : {})}
-          >
-            <Link
-              to="/steam/game/$appid"
-              params={{ appid: String(appid) }}
-              className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
+      <ChapterOpener>
+        <ChapterReveal active={nudged} delay={0.05} blur={4}>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
+            <span
+              className={accentClass}
+              style={{
+                paintOrder: "stroke",
+                WebkitTextStroke: STROKE_ACCENT,
+                textShadow: SHADOW_ACCENT,
+              }}
             >
-              {/* Inner row pairs the optional leading visual with the H2
+              {copy.eyebrow}
+            </span>
+            <span
+              aria-hidden="true"
+              className="text-foreground/40"
+              style={{ textShadow: SHADOW_LABEL }}
+            >
+              ·
+            </span>
+            <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+              {whenLine}
+            </span>
+            {releaseChip ? (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="text-foreground/40"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  ·
+                </span>
+                <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+                  {releaseChip}
+                </span>
+              </>
+            ) : null}
+          </p>
+        </ChapterReveal>
+        <ChapterReveal
+          active={nudged}
+          delay={0.18}
+          duration={entrance.mastheadDuration}
+          blur={entrance.mastheadBlur}
+          rise={entrance.mastheadRise}
+          {...(entrance.mastheadScale !== undefined
+            ? { scale: entrance.mastheadScale }
+            : {})}
+        >
+          <Link
+            to="/steam/game/$appid"
+            params={{ appid: String(appid) }}
+            className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
+          >
+            {/* Inner row pairs the optional leading visual with the H2
                     along the visual center; the outer Link stays items-
                     baseline so the trailing "open →" chip aligns to the H2's
                     text baseline. Mirrors the LoL moment chapter's masthead
                     pattern. */}
-              <span className="inline-flex items-center gap-x-4">
-                {copy.leadingVisual}
-                {recap?.hasLogo ? (
-                  // Official Steam logo as the masthead — typically a
-                  // designed wordmark that reads more "editorial" than the
-                  // typographic name in helvetica-7xl. Mirrors the heavy
-                  // SteamChapter masthead pattern; sized to peer with the
-                  // leadingVisual icon (max-h matches the icon's `sm:size-20`
-                  // band). `alt={name}` carries the accessible label since
-                  // the chapter eyebrow already says "First time on" /
-                  // "Recent run on". Heavy drop-shadow mirrors the
-                  // SHADOW_MASTHEAD tier — text-shadow doesn't apply to
-                  // <img>, so filter:drop-shadow handles it.
-                  <img
-                    src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
-                    alt={name}
-                    className="max-h-[10dvh] w-auto max-w-full object-contain sm:max-h-[14dvh]"
-                    style={{
-                      filter:
-                        "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
-                    }}
-                  />
-                ) : (
-                  <h2
-                    className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                    style={{ textShadow: SHADOW_MASTHEAD }}
-                  >
-                    {copy.mastheadText}
-                  </h2>
-                )}
-              </span>
-              <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
-                open →
-              </span>
-            </Link>
-          </ChapterReveal>
-          {tagline ? (
-            <ChapterReveal active={nudged} delay={entrance.taglineDelay} blur={6}>
-              <p
-                className="max-w-prose text-base italic text-foreground/75 sm:text-lg"
-                style={{ textShadow: SHADOW_BODY }}
-              >
-                {tagline}
-              </p>
-            </ChapterReveal>
-          ) : null}
-          <ChapterReveal active={nudged} delay={entrance.bodyDelay} blur={6}>
+            <span className="inline-flex items-center gap-x-4">
+              {copy.leadingVisual}
+              {recap?.hasLogo ? (
+                // Official Steam logo as the masthead — typically a
+                // designed wordmark that reads more "editorial" than the
+                // typographic name in helvetica-7xl. Mirrors the heavy
+                // SteamChapter masthead pattern; sized to peer with the
+                // leadingVisual icon (max-h matches the icon's `sm:size-20`
+                // band). `alt={name}` carries the accessible label since
+                // the chapter eyebrow already says "First time on" /
+                // "Recent run on". Heavy drop-shadow mirrors the
+                // SHADOW_MASTHEAD tier — text-shadow doesn't apply to
+                // <img>, so filter:drop-shadow handles it.
+                <img
+                  src={steamLibraryLogoUrl(appid, recap.assetTimestamp)}
+                  alt={name}
+                  className="max-h-[10dvh] w-auto max-w-full object-contain sm:max-h-[14dvh]"
+                  style={{
+                    filter:
+                      "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 6px rgba(0,0,0,0.85)) drop-shadow(0 2px 16px rgba(0,0,0,0.6))",
+                  }}
+                />
+              ) : (
+                <h2
+                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+                  style={{ textShadow: SHADOW_MASTHEAD }}
+                >
+                  {copy.mastheadText}
+                </h2>
+              )}
+            </span>
+            <span className="text-sm italic text-foreground/70 opacity-0 transition-opacity group-hover/masthead:opacity-100">
+              open →
+            </span>
+          </Link>
+        </ChapterReveal>
+        {tagline ? (
+          <ChapterReveal active={nudged} delay={entrance.taglineDelay} blur={6}>
             <p
-              className="max-w-prose text-base text-foreground/85 sm:text-lg"
+              className="max-w-prose text-base italic text-foreground/75 sm:text-lg"
               style={{ textShadow: SHADOW_BODY }}
             >
-              {copy.body}
+              {tagline}
             </p>
           </ChapterReveal>
-        </ChapterOpener>
-        {firstTime ? (
-          <ChapterDetail>
-            <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
-              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
-                {/* Multi-stat receipt: total minutes are the headline number
+        ) : null}
+        <ChapterReveal active={nudged} delay={entrance.bodyDelay} blur={6}>
+          <p
+            className="max-w-prose text-base text-foreground/85 sm:text-lg"
+            style={{ textShadow: SHADOW_BODY }}
+          >
+            {copy.body}
+          </p>
+        </ChapterReveal>
+      </ChapterOpener>
+      {firstTime ? (
+        <ChapterDetail>
+          <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
+              {/* Multi-stat receipt: total minutes are the headline number
                       (loudest beat — "this is real engagement, not a 3-min
                       launch"), session count + average per session give the
                       reader the *rhythm* of the play. "3h · 4 sessions"
@@ -538,85 +534,14 @@ export function SteamMomentBeat({
                       first-time framings; surfacing the breakdown lets the
                       page distinguish them. R-7h polish layers per-type
                       receipt shapes; this is the FIRST_TIME_GAME shape. */}
-                <span
-                  className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
-                  style={{ textShadow: SHADOW_MASTHEAD }}
-                >
-                  {formatPlaytime(firstTime.windowPlayMinutes)}
-                </span>
-                {firstTime.sessionCount > 0 ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="text-foreground/40"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      ·
-                    </span>
-                    <span
-                      className="text-sm tabular-nums text-foreground/80"
-                      style={{ textShadow: SHADOW_BODY }}
-                    >
-                      {firstTime.sessionCount === 1
-                        ? "1 session"
-                        : `${firstTime.sessionCount} sessions`}
-                    </span>
-                  </>
-                ) : null}
-                {avgSessionMinutes !== null && firstTime.sessionCount > 1 ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="text-foreground/40"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      ·
-                    </span>
-                    <span
-                      className="text-sm tabular-nums text-foreground/70"
-                      style={{ textShadow: SHADOW_BODY }}
-                    >
-                      avg {formatPlaytime(avgSessionMinutes)}
-                    </span>
-                  </>
-                ) : null}
-                {firstTime.sessionCount > 1 && firstTime.firstSessionMinutes > 0 ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="text-foreground/40"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      ·
-                    </span>
-                    <span
-                      className="text-sm tabular-nums text-foreground/70"
-                      style={{ textShadow: SHADOW_BODY }}
-                    >
-                      first sit-down {formatPlaytime(firstTime.firstSessionMinutes)}
-                    </span>
-                  </>
-                ) : null}
-              </div>
-            </ChapterReveal>
-          </ChapterDetail>
-        ) : null}
-        {cluster ? (
-          <ChapterDetail>
-            <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
-              {/* Cluster receipt: count + span are the loudest beats, the
-                    unlock-name list is the editorial proof — the reader sees
-                    the actual achievements that fell in the run. Truncates
-                    beyond the descriptor's name-cap with "and N more"; R-7h
-                    polish can replace this with an icon grid leadingVisual. */}
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
-                  <span
-                    className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
-                    style={{ textShadow: SHADOW_MASTHEAD }}
-                  >
-                    {cluster.unlockCount} unlocks
-                  </span>
+              <span
+                className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+                style={{ textShadow: SHADOW_MASTHEAD }}
+              >
+                {formatPlaytime(firstTime.windowPlayMinutes)}
+              </span>
+              {firstTime.sessionCount > 0 ? (
+                <>
                   <span
                     aria-hidden="true"
                     className="text-foreground/40"
@@ -628,25 +553,95 @@ export function SteamMomentBeat({
                     className="text-sm tabular-nums text-foreground/80"
                     style={{ textShadow: SHADOW_BODY }}
                   >
-                    across {formatSpanHours(cluster.spanHours)}
+                    {firstTime.sessionCount === 1
+                      ? "1 session"
+                      : `${firstTime.sessionCount} sessions`}
                   </span>
-                </div>
-                {cluster.unlockNames.length > 0 ? (
-                  <p
-                    className="max-w-prose text-sm italic text-foreground/70"
+                </>
+              ) : null}
+              {avgSessionMinutes !== null && firstTime.sessionCount > 1 ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="text-foreground/40"
+                    style={{ textShadow: SHADOW_LABEL }}
+                  >
+                    ·
+                  </span>
+                  <span
+                    className="text-sm tabular-nums text-foreground/70"
                     style={{ textShadow: SHADOW_BODY }}
                   >
-                    {cluster.unlockNames.join(" · ")}
-                    {cluster.unlockCount > cluster.unlockNames.length
-                      ? ` · and ${cluster.unlockCount - cluster.unlockNames.length} more`
-                      : null}
-                  </p>
-                ) : null}
+                    avg {formatPlaytime(avgSessionMinutes)}
+                  </span>
+                </>
+              ) : null}
+              {firstTime.sessionCount > 1 && firstTime.firstSessionMinutes > 0 ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="text-foreground/40"
+                    style={{ textShadow: SHADOW_LABEL }}
+                  >
+                    ·
+                  </span>
+                  <span
+                    className="text-sm tabular-nums text-foreground/70"
+                    style={{ textShadow: SHADOW_BODY }}
+                  >
+                    first sit-down {formatPlaytime(firstTime.firstSessionMinutes)}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          </ChapterReveal>
+        </ChapterDetail>
+      ) : null}
+      {cluster ? (
+        <ChapterDetail>
+          <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
+            {/* Cluster receipt: count + span are the loudest beats, the
+                    unlock-name list is the editorial proof — the reader sees
+                    the actual achievements that fell in the run. Truncates
+                    beyond the descriptor's name-cap with "and N more"; R-7h
+                    polish can replace this with an icon grid leadingVisual. */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
+                <span
+                  className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+                  style={{ textShadow: SHADOW_MASTHEAD }}
+                >
+                  {cluster.unlockCount} unlocks
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-foreground/40"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  ·
+                </span>
+                <span
+                  className="text-sm tabular-nums text-foreground/80"
+                  style={{ textShadow: SHADOW_BODY }}
+                >
+                  across {formatSpanHours(cluster.spanHours)}
+                </span>
               </div>
-            </ChapterReveal>
-          </ChapterDetail>
-        ) : null}
-      </div>
+              {cluster.unlockNames.length > 0 ? (
+                <p
+                  className="max-w-prose text-sm italic text-foreground/70"
+                  style={{ textShadow: SHADOW_BODY }}
+                >
+                  {cluster.unlockNames.join(" · ")}
+                  {cluster.unlockCount > cluster.unlockNames.length
+                    ? ` · and ${cluster.unlockCount - cluster.unlockNames.length} more`
+                    : null}
+                </p>
+              ) : null}
+            </div>
+          </ChapterReveal>
+        </ChapterDetail>
+      ) : null}
     </>
   );
 }
