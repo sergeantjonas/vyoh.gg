@@ -30,14 +30,49 @@ function composeAssetUrls(
 export class SteamImageService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Union lookup over `SteamGameEnrichment` (owned games) and
+  // `SteamWishlistAsset` (wishlist titles). Owned-games rows always win when
+  // both exist — the enrichment pipeline carries richer metadata (logo path
+  // via PICS, SGDB fallbacks) that wishlist sync doesn't fetch. The shape
+  // returned by both is structurally compatible for the per-asset fields the
+  // image proxy needs (every column on `SteamWishlistAsset` is a strict
+  // subset of `SteamGameEnrichment`). Centralising the union here keeps each
+  // route a one-liner and prevents per-route drift in the lookup order.
+  private async resolveAssetRow(appid: number): Promise<{
+    libraryCapsulePath: string | null;
+    libraryHeroPath: string | null;
+    libraryHero2xPath: string | null;
+    headerPath: string | null;
+    assetTimestamp: bigint | null;
+  } | null> {
+    const enrichment = await this.prisma.steamGameEnrichment.findUnique({
+      where: { appid },
+      select: {
+        libraryCapsulePath: true,
+        libraryHeroPath: true,
+        libraryHero2xPath: true,
+        headerPath: true,
+        assetTimestamp: true,
+      },
+    });
+    if (enrichment) return enrichment;
+    return this.prisma.steamWishlistAsset.findUnique({
+      where: { appid },
+      select: {
+        libraryCapsulePath: true,
+        libraryHeroPath: true,
+        libraryHero2xPath: true,
+        headerPath: true,
+        assetTimestamp: true,
+      },
+    });
+  }
+
   // 231×87 cover capsule. Sourced from `header.jpg` (460×215) and Sharp-
   // cropped to the canonical cover ratio. `libraryCapsule` is the separate
   // 600×900 portrait — different asset, different route.
   async capsule(appid: number): Promise<Resolved> {
-    const row = await this.prisma.steamGameEnrichment.findUnique({
-      where: { appid },
-      select: { headerPath: true, assetTimestamp: true },
-    });
+    const row = await this.resolveAssetRow(appid);
     return {
       urls: composeAssetUrls(appid, row?.headerPath, row?.assetTimestamp, "header.jpg"),
       params: { width: 231, height: 87, fit: "cover", quality: 85 },
@@ -45,10 +80,7 @@ export class SteamImageService {
   }
 
   async libraryCapsule(appid: number): Promise<Resolved> {
-    const row = await this.prisma.steamGameEnrichment.findUnique({
-      where: { appid },
-      select: { libraryCapsulePath: true, assetTimestamp: true },
-    });
+    const row = await this.resolveAssetRow(appid);
     return {
       urls: composeAssetUrls(
         appid,
@@ -61,18 +93,31 @@ export class SteamImageService {
   }
 
   async hero(appid: number): Promise<Resolved> {
-    const row = await this.prisma.steamGameEnrichment.findUnique({
-      where: { appid },
-      select: { libraryHeroPath: true, assetTimestamp: true },
-    });
+    const row = await this.resolveAssetRow(appid);
+    // Chain: hashed library_hero → legacy library_hero.jpg → hashed
+    // header.jpg → legacy header.jpg. The header tier covers wishlist
+    // titles whose publishers haven't shipped any library_* asset yet
+    // (Townfall-shape: header is the only canonical art). For owned
+    // games the legacy library_hero entry 200s first and the header
+    // tier is never reached, so this adds no upstream calls in the
+    // common path.
     return {
-      urls: composeAssetUrls(
-        appid,
-        row?.libraryHeroPath,
-        row?.assetTimestamp,
-        "library_hero.jpg"
-      ),
-      params: { width: 1280, quality: 85 },
+      urls: [
+        ...composeAssetUrls(
+          appid,
+          row?.libraryHeroPath,
+          row?.assetTimestamp,
+          "library_hero.jpg"
+        ),
+        ...composeAssetUrls(appid, row?.headerPath, row?.assetTimestamp, "header.jpg"),
+      ],
+      // `enlarge: true` lets Sharp upscale the 460-wide header source to
+      // 1280 when it's the only available banner. For 1920-wide
+      // library_hero sources the resize is still a downscale, so this
+      // flag is a no-op on the common path. No `fit: 'cover'` — header
+      // and hero have different aspect ratios (2.14:1 vs 3.1:1); the
+      // frontend's `object-cover` on the row img handles the crop.
+      params: { width: 1280, quality: 85, enlarge: true },
     };
   }
 
@@ -93,18 +138,21 @@ export class SteamImageService {
   // page keep their 1280-wide bytes; chapter surfaces opt into the heavier
   // payload by hitting this route explicitly.
   async heroLarge(appid: number): Promise<Resolved> {
-    const row = await this.prisma.steamGameEnrichment.findUnique({
-      where: { appid },
-      select: {
-        libraryHero2xPath: true,
-        libraryHeroPath: true,
-        assetTimestamp: true,
-        sgdbHeroUrl: true,
-      },
-    });
-    // Two-tier fallback: hashed 2x → legacy 2x → hashed 1x → legacy 1x.
-    // composeAssetUrls handles tier 1+2; we concatenate the 1x fallback so
-    // the proxy keeps trying when a publisher only shipped the 1x asset.
+    // `sgdbHeroUrl` only lives on SteamGameEnrichment (owned games run
+    // through the SGDB backfill cron; wishlist titles don't), so we fetch
+    // it separately rather than threading it through resolveAssetRow.
+    const [row, sgdbRow] = await Promise.all([
+      this.resolveAssetRow(appid),
+      this.prisma.steamGameEnrichment.findUnique({
+        where: { appid },
+        select: { sgdbHeroUrl: true },
+      }),
+    ]);
+    // Three-tier fallback: hashed 2x → legacy 2x → hashed 1x → legacy 1x
+    // → hashed header → legacy header.jpg. The header tier is for
+    // wishlist titles whose publishers only shipped the header asset
+    // (Townfall-shape); owned games 200 on the legacy 1x entry before
+    // reaching it.
     const twoX = composeAssetUrls(
       appid,
       row?.libraryHero2xPath,
@@ -117,9 +165,15 @@ export class SteamImageService {
       row?.assetTimestamp,
       "library_hero.jpg"
     );
-    const sgdb = row?.sgdbHeroUrl ? [row.sgdbHeroUrl] : [];
+    const header = composeAssetUrls(
+      appid,
+      row?.headerPath,
+      row?.assetTimestamp,
+      "header.jpg"
+    );
+    const sgdb = sgdbRow?.sgdbHeroUrl ? [sgdbRow.sgdbHeroUrl] : [];
     return {
-      urls: [...sgdb, ...twoX, ...oneX],
+      urls: [...sgdb, ...twoX, ...oneX, ...header],
       // Stays at default `withoutEnlargement: true` — Sharp returns the
       // native source dimensions if smaller than 2560. We tried an `enlarge:
       // true + sharpen({ sigma: 0.6–1.2 })` pass to recover apparent crispness

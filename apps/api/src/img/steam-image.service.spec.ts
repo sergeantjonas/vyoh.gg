@@ -6,6 +6,7 @@ import { SteamImageService } from "./steam-image.service";
 interface PrismaStubs {
   steamGameEnrichment: { findUnique: ReturnType<typeof vi.fn> };
   steamGameAchievement: { findUnique: ReturnType<typeof vi.fn> };
+  steamWishlistAsset: { findUnique: ReturnType<typeof vi.fn> };
 }
 
 function makePrisma(): PrismaStubs {
@@ -14,6 +15,9 @@ function makePrisma(): PrismaStubs {
       findUnique: vi.fn().mockResolvedValue(null),
     },
     steamGameAchievement: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+    steamWishlistAsset: {
       findUnique: vi.fn().mockResolvedValue(null),
     },
   };
@@ -108,18 +112,22 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
     prisma.steamGameEnrichment.findUnique.mockResolvedValue({
       libraryHero2xPath: "deadbeef/library_hero_2x.jpg",
       libraryHeroPath: "cafebabe/library_hero.jpg",
+      headerPath: null,
       assetTimestamp: 1_715_000_000n,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 
     const resolved = await service.heroLarge(440);
-    // Hashed 2x → legacy 2x → hashed 1x → legacy 1x — the proxy walks the
-    // chain so publishers without a 2x asset still resolve to the 1x.
+    // Hashed 2x → legacy 2x → hashed 1x → legacy 1x → legacy header — the
+    // proxy walks the chain so publishers without a 2x asset still resolve
+    // to the 1x, and the trailing header tier covers wishlist-shape rows.
     expect(resolved.urls).toEqual([
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/deadbeef/library_hero_2x.jpg?t=1715000000",
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero_2x.jpg",
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/cafebabe/library_hero.jpg?t=1715000000",
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/header.jpg",
     ]);
     expect(resolved.params).toMatchObject({ width: 2560, quality: 90 });
   });
@@ -129,6 +137,7 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
     prisma.steamGameEnrichment.findUnique.mockResolvedValue({
       libraryHero2xPath: null,
       libraryHeroPath: null,
+      headerPath: null,
       assetTimestamp: null,
       sgdbHeroUrl: null,
     });
@@ -138,6 +147,7 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
     expect(resolved.urls).toEqual([
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero_2x.jpg",
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/header.jpg",
     ]);
   });
 
@@ -190,6 +200,128 @@ describe("SteamImageService.libraryCapsule / hero / logo", () => {
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/logo.png",
     ]);
     expect(resolved.urls[0]).not.toContain("?t=");
+  });
+});
+
+describe("SteamImageService wishlist-asset fallback", () => {
+  // Townfall-shape: appid 1636440 has only a hashed header in the wishlist
+  // asset row — no library_hero, no 2x variant. Without the wishlist
+  // fallback the proxy's enrichment lookup returns null, the chain
+  // collapses to legacy URLs that all 404, and the frontend's onError
+  // handler shows the dim storepagebackground ambient wash instead of a
+  // real banner.
+
+  it("hero falls back to SteamWishlistAsset when enrichment row is absent", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue(null);
+    prisma.steamWishlistAsset.findUnique.mockResolvedValue({
+      libraryCapsulePath: null,
+      libraryHeroPath: null,
+      libraryHero2xPath: null,
+      headerPath: "0ed1cb4bc30631/header.jpg",
+      assetTimestamp: 1_709_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.hero(1636440);
+    // library_hero entries 404 (publisher never shipped library art) and
+    // the chain falls through to the hashed header, which 200s.
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/library_hero.jpg",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/0ed1cb4bc30631/header.jpg?t=1709000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/header.jpg",
+    ]);
+    // enlarge:true lets Sharp upscale the 460-wide header source to 1280.
+    expect(resolved.params).toMatchObject({
+      width: 1280,
+      quality: 85,
+      enlarge: true,
+    });
+  });
+
+  it("heroLarge falls back to SteamWishlistAsset when enrichment row is absent", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue(null);
+    prisma.steamWishlistAsset.findUnique.mockResolvedValue({
+      libraryCapsulePath: null,
+      libraryHeroPath: null,
+      libraryHero2xPath: null,
+      headerPath: "0ed1cb4bc30631/header.jpg",
+      assetTimestamp: 1_709_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.heroLarge(1636440);
+    expect(resolved.urls).toContain(
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/0ed1cb4bc30631/header.jpg?t=1709000000"
+    );
+    // No SGDB prepended — wishlist titles aren't run through SGDB backfill,
+    // so the chain starts at the 2x legacy entry.
+    expect(resolved.urls[0]).not.toContain("steamgriddb");
+  });
+
+  it("hero prefers SteamGameEnrichment over SteamWishlistAsset when both exist", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      libraryCapsulePath: null,
+      libraryHeroPath: "owned/library_hero.jpg",
+      libraryHero2xPath: null,
+      headerPath: "owned/header.jpg",
+      assetTimestamp: 1_715_000_000n,
+    });
+    prisma.steamWishlistAsset.findUnique.mockResolvedValue({
+      libraryCapsulePath: null,
+      libraryHeroPath: "wishlist/library_hero.jpg",
+      libraryHero2xPath: null,
+      headerPath: "wishlist/header.jpg",
+      assetTimestamp: 1_709_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.hero(440);
+    expect(resolved.urls[0]).toContain("owned/library_hero.jpg");
+    expect(resolved.urls.join("|")).not.toContain("wishlist/");
+    // Short-circuit semantics: when enrichment hits, the wishlist row
+    // isn't even queried (no extra DB round-trip on the common path).
+    expect(prisma.steamWishlistAsset.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("libraryCapsule falls back to SteamWishlistAsset when enrichment row is absent", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue(null);
+    prisma.steamWishlistAsset.findUnique.mockResolvedValue({
+      libraryCapsulePath: "wishhash/library_600x900.jpg",
+      libraryHeroPath: null,
+      libraryHero2xPath: null,
+      headerPath: null,
+      assetTimestamp: 1_709_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.libraryCapsule(1636440);
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/wishhash/library_600x900.jpg?t=1709000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/library_600x900.jpg",
+    ]);
+  });
+
+  it("capsule falls back to SteamWishlistAsset header when enrichment row is absent", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue(null);
+    prisma.steamWishlistAsset.findUnique.mockResolvedValue({
+      libraryCapsulePath: null,
+      libraryHeroPath: null,
+      libraryHero2xPath: null,
+      headerPath: "0ed1cb4bc30631/header.jpg",
+      assetTimestamp: 1_709_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.capsule(1636440);
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/0ed1cb4bc30631/header.jpg?t=1709000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/header.jpg",
+    ]);
   });
 });
 
