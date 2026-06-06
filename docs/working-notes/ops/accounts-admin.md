@@ -167,9 +167,9 @@ Files: docs + small UX polish. Lands once the pre-launch sweep is otherwise comp
 
 ---
 
-## Open questions for owner
+## Resolved decisions (2026-06-06)
 
-1. **Sequencing.** Plan assumes A (owner-auth chunk 1 first, then this arc). The alternative is C — bundle both into one pre-launch sweep. C is reviewable but heavy. Confirm A or override.
-2. **`SteamAccount.isOwner` default.** Plan assumes `true` to mirror today's implicit JSON semantics. Confirm.
-3. **Chunk 0 timing.** Stand the `home-first-played` fix up as an immediate standalone commit, or hold it until chunk 1 lands so the diff stays bundled? Plan assumes immediate.
-4. **Riot ID validation on add — strict?** Plan assumes hard-fail on account-v1 404 / Riot 5xx, with a retry hint in the error toast. The alternative is soft-warn-and-store (some Riot IDs are unstable across renames). Strict is safer and matches the rest of the API's posture.
+1. **Sequencing: A.** Owner-auth chunk 1 lands first (ships `OwnerGuard` dormant), then this arc's chunks 1–3. No temporary-gate window.
+2. **`SteamAccount.isOwner`: default `true`, no v1 UI affordance to flip it.** Owner has no immediate plan to track non-owner Steam libraries; the field is provisioned for shape-consistency with `LolAccount` so a future Steam-friend use case doesn't require a migration. Admin form may omit the field on the Steam add dialog; backend accepts it and defaults to `true` when missing.
+3. **Chunk 0: immediate standalone commit.** The `home-first-played` filter fix ships independently of the rest of the arc — could land next session and would still be a valid commit on its own.
+4. **Riot ID validation: strict.** Account-v1 404 hard-fails the POST with an inline error on the form. Riot 5xx surfaces a retry hint in the error toast; the row is not persisted. Matches the API's posture elsewhere.

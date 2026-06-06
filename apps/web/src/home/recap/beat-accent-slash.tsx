@@ -1,4 +1,5 @@
-import { m } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 
 import { useChapterBeatNudge } from "./chapter-nudge-contexts";
 
@@ -83,6 +84,24 @@ export function BeatAccentSlash({
   className,
 }: Props) {
   const nudged = useChapterBeatNudge();
+  const reducedMotion = useReducedMotion();
+  // Track which entry this is so re-entries (backscroll) can fire a brief
+  // "alive" pulse on the slash instead of the slash just sitting at its
+  // visible end-state after the first scaleX draw. Initial mount + first
+  // nudge is entryCount=1 (no pulse, the normal entrance variant carries
+  // the visual interest). Every subsequent nudged false→true transition
+  // increments the count → the keyed inner div remounts → its
+  // `initial`/`animate` pulse keyframes fire fresh. Saves having to
+  // imperatively orchestrate the pulse via useAnimate.
+  const prevNudgedRef = useRef(false);
+  const [entryCount, setEntryCount] = useState(0);
+  useEffect(() => {
+    if (nudged && !prevNudgedRef.current) {
+      setEntryCount((c) => c + 1);
+    }
+    prevNudgedRef.current = nudged;
+  }, [nudged]);
+  const isReentry = entryCount > 1;
 
   // Anchor edge: scaleX grows from `from`. We use a single
   // transform-origin for the lifecycle — the exit fade hides any visual
@@ -123,7 +142,22 @@ export function BeatAccentSlash({
       animate={nudged ? "visible" : "hidden"}
       variants={variants}
     >
-      <div
+      {/* Inner slash bar. On re-entry (entryCount > 1) the keyed remount
+          retriggers `initial`/`animate`, firing a brief opacity dip-and-
+          restore that reads as a "the slash noticed you came back"
+          pulse. First entry uses entryCount=1 → key=0 → `initial=false`
+          short-circuits, no remount pulse (the outer scaleX variant
+          carries the entrance). Reduced motion: skip the pulse, the
+          slash holds at opacity 1. */}
+      <m.div
+        key={isReentry && !reducedMotion ? entryCount : 0}
+        initial={isReentry && !reducedMotion ? { opacity: 1 } : false}
+        animate={isReentry && !reducedMotion ? { opacity: [1, 0.35, 1] } : { opacity: 1 }}
+        transition={{
+          duration: 0.55,
+          times: [0, 0.4, 1],
+          ease: "easeInOut",
+        }}
         style={{
           width: "100%",
           height: `${thicknessPx}px`,
