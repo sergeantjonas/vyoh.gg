@@ -26,7 +26,6 @@ import {
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 
 import { BeatAccentSlash } from "./beat-accent-slash";
-import { BeatParallaxLayer } from "./beat-parallax";
 import {
   ChapterCloser,
   ChapterDetail,
@@ -564,59 +563,31 @@ export function SteamChapter({
   // Removing this temporary indirection: see chunk 4 of
   // [multi-beat-chapter-arc.md](../../../docs/working-notes/cross-cutting/multi-beat-chapter-arc.md).
   const beatBodies: Array<(nudged: boolean) => ReactNode> = [
-    // Beat 0 — Verdict prose, layered editorial spread. Eyebrow +
-    // masthead + tagline live in the chapter title card; this beat's
-    // body composes three depth tiers per the choreography toolkit's
-    // "≥3 layers per beat" rule:
+    // Beat 0 — Verdict prose with editorial slash mark. The splash
+    // already carries its own atmospheric depth (rain, light, mood on
+    // the Steam hero), so beat 0 stays restrained: an accent slash
+    // sweep-in above the prose, then the prose itself with the R-2
+    // ChapterReveal blur+rise cascade. An earlier pass added a depth-1
+    // ambient radial wash for "≥3 layers" — pulled in the first review:
+    // the wash either washed out the splash (at higher opacity) or
+    // disappeared (at lower), with no comfortable middle. Same
+    // rejection the R-2 spec applied to "localized backdrop-filter
+    // behind accent text" and for the same reason.
     //
-    //   depth 1 (background): ambient accent wash, slow scale during
-    //     dwell — reads as the camera settling into focus.
-    //   depth 2 (midground): accent slash sweep-in mark — magazine
-    //     spread separator that lands as the prose arrives.
-    //   depth 3 (foreground): verdict prose itself, ChapterReveal
-    //     blur+rise cascade (the established R-2 entrance vocabulary).
-    //
-    // Under reduced motion / outside multi-beat context, useBeatProgress
-    // returns static end-states so the layered structure renders at rest
-    // without animation. Same content + no motion is the reduced-motion
-    // contract.
+    // Under reduced motion / outside multi-beat context, the slash
+    // renders at its in-place rest position without animation, and the
+    // ChapterReveal cascade fires statically.
     (nudged) => (
       <ChapterOpener>
         {verdictClauses.length > 0 ? (
-          <div className="relative w-full">
-            {/* Depth 1 — ambient accent wash. Inset extends past the
-                reading column so the gradient bleeds into the
-                full-bleed beat width on larger viewports without
-                pulling the focal halo off-center. */}
-            <div
-              className="pointer-events-none absolute inset-x-[-6rem] top-1/2 -z-10 h-[28rem] -translate-y-1/2 sm:inset-x-[-12rem]"
-              aria-hidden="true"
-            >
-              <BeatParallaxLayer
-                beatIndex={0}
-                depth={1}
-                scaleDelta={0.06}
-                className="h-full w-full"
-              >
-                <div
-                  className="h-full w-full opacity-25"
-                  style={{
-                    background:
-                      "radial-gradient(ellipse 70% 60% at center, var(--accent, currentColor) 0%, transparent 70%)",
-                  }}
-                />
-              </BeatParallaxLayer>
-            </div>
-
-            {/* Depth 2 — accent slash. Sits above the prose as a
-                magazine separator. `mb-5` reserves the editorial
-                breathing between mark and headline. */}
+          <div className="flex w-full flex-col">
+            {/* Accent slash — magazine separator above the prose. */}
             <BeatAccentSlash beatIndex={0} className="mb-5 sm:mb-6" width="14rem" />
 
-            {/* Depth 3 — verdict prose. Curtain-pull entrance: bigger
-                rise + blur + longer duration than the band default.
-                Delay bumped past the slash sweep so the slash lands
-                first and the prose flows in beneath it. */}
+            {/* Verdict prose — curtain-pull entrance: bigger rise +
+                blur + longer duration than the band default. Delay
+                bumped past the slash sweep so the slash lands first
+                and the prose flows in beneath it. */}
             <ChapterReveal active={nudged} delay={0.25} blur={8} rise={22} duration={0.9}>
               <VerdictProse
                 clauses={verdictClauses}

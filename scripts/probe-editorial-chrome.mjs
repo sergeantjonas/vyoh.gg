@@ -26,11 +26,19 @@ const probe = async () => {
     const text = chrome.textContent ?? "";
     const dots = Array.from(chrome.querySelectorAll("li"));
     const activeIdx = dots.findIndex((d) => d.hasAttribute("data-active"));
+    const rect = chrome.getBoundingClientRect();
+    // ScrollToTop button lives at bottom-right of <main> — verify the
+    // chrome is in the TOP half of the viewport so it can't collide.
+    const viewportH = window.innerHeight;
+    const inTopHalf = rect.top < viewportH / 2;
     return {
       mounted: true,
       text: text.trim(),
       dotCount: dots.length,
       activeIdx,
+      chromeTop: rect.top,
+      chromeRight: rect.right,
+      inTopHalf,
     };
   });
   return out;
@@ -90,6 +98,10 @@ if (mid.activeIdx <= initial.activeIdx)
 if (late.activeIdx <= mid.activeIdx)
   failures.push(
     `expected active to advance from ${mid.activeIdx} at 40% to >${mid.activeIdx} at 80%, got ${late.activeIdx}`
+  );
+if (initial.mounted && !initial.inTopHalf)
+  failures.push(
+    "chrome is NOT in top half of viewport — would collide with ScrollToTop button"
   );
 
 if (failures.length > 0) {

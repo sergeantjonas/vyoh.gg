@@ -55,10 +55,12 @@ function pickActiveBeat(progress: number, ranges: BeatRange[]): number {
  *
  * The chrome is positioned absolutely inside the stage (`overflow:
  * hidden` clips overflow). z-index 10 sits below the masthead's z-20
- * but above the track. Bottom-right corner is the classic magazine
- * page-number position; the right edge of a 100vw stage at 1440px+
- * viewports lives well outside the reading column so the marker never
- * collides with content.
+ * but above the track. Top-right corner — bottom-right is taken by the
+ * global `ScrollToTop` button in `__root.tsx`, which would collide and
+ * obscure the dot row. Top-right also reads as the opposite corner to
+ * the left-aligned masthead reading column, which lands as a magazine
+ * spread page-number annotation. `top-4 right-6` keeps it clear of the
+ * page-level sticky nav (~52px at the top of `<main>`).
  */
 export function EditorialChrome() {
   const context = useContext(ChapterMultiBeatContext);
@@ -99,7 +101,9 @@ export function EditorialChrome() {
       data-editorial-chrome=""
       // pointer-events-none so the chrome never intercepts clicks on
       // beat content beneath it. The marker is purely decorative.
-      className="pointer-events-none absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2 select-none sm:bottom-8 sm:right-10"
+      // Top-right anchors it opposite the masthead reading column;
+      // bottom-right is reserved for the global ScrollToTop button.
+      className="pointer-events-none absolute top-4 right-6 z-10 flex flex-col items-end gap-2 select-none sm:top-6 sm:right-10"
     >
       <ul aria-hidden="true" className="flex items-center gap-1.5">
         {Array.from({ length: beatCount }, (_, i) => (

@@ -115,6 +115,23 @@ export type BeatProgress = {
  * So consumers can `useTransform(progress, ...)` unconditionally without
  * checking for context — they just get static end-state values.
  */
+/**
+ * Edge beats have `enterStart === dwellStart` (first beat) or
+ * `dwellEnd === exitEnd` (last beat) because the chapter pin/unpin
+ * lands them directly at their rest position with no transition zone.
+ * Without a scroll runway, the enter/exit sweep happens instantaneously
+ * at pin moment and is visually invisible — there's no scroll motion
+ * to spread the animation across.
+ *
+ * We synthesize a transition range by carving the first / last
+ * EDGE_TRANSITION_FRACTION of the beat's dwell into the
+ * enter / exit progress. So a 14% dwell zone borrows ~18% of itself
+ * (~2.5% of chapter scroll) for the entrance sweep, leaving the rest
+ * for dwell. The borrowed fraction is felt as "the beat is settling
+ * in" rather than as a separate transition zone.
+ */
+const EDGE_TRANSITION_FRACTION = 0.18;
+
 export function useBeatProgress(beatIndex: number): BeatProgress {
   const context = useContext(ChapterMultiBeatContext);
   // Static fallback source for outside-context / reduced-motion. Always
@@ -130,13 +147,27 @@ export function useBeatProgress(beatIndex: number): BeatProgress {
     exitEnd: 1,
   };
 
+  // Resolve effective enter / exit stops. Edge beats with zero-length
+  // transition zones (first beat: enterStart===dwellStart, last beat:
+  // dwellEnd===exitEnd) borrow a fraction of their dwell so the
+  // transition animation has somewhere to play.
+  const dwellSpan = range.dwellEnd - range.dwellStart;
+  const isFirstBeatEdge = range.enterStart === range.dwellStart;
+  const isLastBeatEdge = range.dwellEnd === range.exitEnd;
+  const enterEnd = isFirstBeatEdge
+    ? range.dwellStart + dwellSpan * EDGE_TRANSITION_FRACTION
+    : range.dwellStart;
+  const exitStart = isLastBeatEdge
+    ? range.dwellEnd - dwellSpan * EDGE_TRANSITION_FRACTION
+    : range.dwellEnd;
+
   // In reduced-motion / outside-context mode, collapse each progress to
   // its dwell end-state by mapping the entire [0,1] source range to a
   // single constant. This keeps hooks unconditional while producing
   // motionless output.
   const enterStops: [number, number] = reducedMotion
     ? [0, 1]
-    : [range.enterStart, range.dwellStart];
+    : [range.enterStart, enterEnd];
   const enterValues: [number, number] = reducedMotion ? [1, 1] : [0, 1];
   const enterProgress = useTransform(source, enterStops, enterValues, {
     clamp: true,
@@ -150,9 +181,7 @@ export function useBeatProgress(beatIndex: number): BeatProgress {
     clamp: true,
   });
 
-  const exitStops: [number, number] = reducedMotion
-    ? [0, 1]
-    : [range.dwellEnd, range.exitEnd];
+  const exitStops: [number, number] = reducedMotion ? [0, 1] : [exitStart, range.exitEnd];
   const exitValues: [number, number] = reducedMotion ? [0, 0] : [0, 1];
   const exitProgress = useTransform(source, exitStops, exitValues, {
     clamp: true,

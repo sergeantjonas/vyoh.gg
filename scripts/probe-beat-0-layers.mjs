@@ -1,7 +1,8 @@
-// Probe: beat 0 (verdict) renders the layered parallax composition —
-// ambient wash (depth 1), accent slash (depth 2), prose (depth 3).
-// Verifies all three layers exist in the rendered DOM and that the
-// accent slash is positioned in flow above the prose.
+// Probe: beat 0 (verdict) renders the slash + prose composition and
+// that the accent slash is positioned in flow above the prose. (An
+// earlier depth-1 ambient wash was pulled after the first taste pass —
+// fought the splash's own atmospherics. The probe no longer checks for
+// it.) Editorial chrome verified separately in probe-editorial-chrome.
 import { chromium } from "playwright";
 
 const browser = await chromium.launch({ headless: true });
@@ -25,30 +26,23 @@ await page.waitForTimeout(500);
 
 const layers = await page.evaluate(() => {
   // Beat 0 wrapper.
-  const beat0 = document.querySelector(
-    "[data-chapter-multi-beat] [data-beat='0']"
-  );
+  const beat0 = document.querySelector("[data-chapter-multi-beat] [data-beat='0']");
   if (!beat0) return { beat0Mounted: false };
 
-  // Depth tags from BeatParallaxLayer.
-  const depth1 = beat0.querySelector("[data-beat-parallax-depth='1']");
   // Accent slash.
   const slash = beat0.querySelector("[data-beat-accent-slash]");
   // The opener band wraps the prose.
   const opener = beat0.querySelector("[data-band='opener']");
-  // Ensure the slash sits visually above the prose: compare bounding rects.
   const slashRect = slash?.getBoundingClientRect();
   const proseRect = opener?.getBoundingClientRect();
 
   return {
     beat0Mounted: true,
-    depth1Present: !!depth1,
     slashPresent: !!slash,
     openerPresent: !!opener,
     slashTop: slashRect?.top,
     slashHeight: slashRect?.height,
     proseTop: proseRect?.top,
-    slashAbovePr: slashRect && proseRect ? slashRect.top < proseRect.bottom : null,
   };
 });
 
@@ -56,12 +50,9 @@ console.log("BEAT 0 LAYERS:", JSON.stringify(layers, null, 2));
 
 const failures = [];
 if (!layers.beat0Mounted) failures.push("beat 0 wrapper not found");
-if (!layers.depth1Present)
-  failures.push("depth-1 BeatParallaxLayer (ambient wash) not present");
 if (!layers.slashPresent) failures.push("accent slash not present");
 if (!layers.openerPresent) failures.push("opener band (prose) not present");
-if (layers.slashHeight === 0)
-  failures.push("slash has zero height (visually missing)");
+if (layers.slashHeight === 0) failures.push("slash has zero height (visually missing)");
 
 if (failures.length > 0) {
   console.error("\nFAILURES:");

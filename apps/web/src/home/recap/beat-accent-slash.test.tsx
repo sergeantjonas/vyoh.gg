@@ -25,10 +25,10 @@ describe("BeatAccentSlash", () => {
     expect(slash?.getAttribute("aria-hidden")).toBe("true");
   });
 
-  it("renders inside the beat with no crash outside context", () => {
-    // Outside ChapterMultiBeatContext, useBeatProgress short-circuits
-    // to static values; the slash should still render at its rest
-    // position without throwing.
+  it("renders without crashing outside any chapter context", () => {
+    // Outside ChapterBeatNudgeContext, useChapterBeatNudge defaults to
+    // false, so the slash renders at scaleX=0 / opacity=0 (its initial
+    // state). Still mounts cleanly.
     const { container } = render(<BeatAccentSlash beatIndex={0} />);
     expect(container.querySelector("[data-beat-accent-slash]")).not.toBeNull();
   });

@@ -1,6 +1,6 @@
-import { m, useTransform } from "motion/react";
+import { m } from "motion/react";
 
-import { useBeatProgress } from "./use-beat-progress";
+import { useChapterBeatNudge } from "./chapter-group";
 
 type Props = {
   /** Beat this slash belongs to. Drives sweep timing via `useBeatProgress`. */
@@ -24,68 +24,76 @@ type Props = {
 };
 
 /**
- * Editorial accent slash — a short skewed bar that sweeps in from one
- * viewport edge as a beat enters, holds during dwell, and drifts off
- * toward the opposite edge on exit. Picks up the chapter's `--accent`
- * by default. Use as a magazine-spread separator above headlines or
- * between content blocks.
+ * Editorial accent slash — a short skewed bar that *draws itself in
+ * place* when its beat becomes the dominant one. Picks up the chapter's
+ * `--accent` by default. Use as a magazine-spread separator above
+ * headlines or between content blocks.
  *
- * This is the "mask reveal" primitive from the choreography toolkit
- * applied in decorative form — the slash itself is the moving mask,
- * even though it doesn't currently clip-path other content. (A future
- * variant could expose a `clip-path` mode that reveals children as the
- * slash sweeps; for now the decorative form lands the editorial weight
- * without the cross-engine cost of animated clip-paths.)
+ * Motion vocabulary: `scaleX(0)` → `scaleX(1)` anchored at the
+ * consumer-specified edge via `transform-origin`. The effect reads as
+ * ink being drawn along the slash's length — `from="left"` draws
+ * left → right, `from="right"` draws right → left. Triggered by the
+ * binary `useChapterBeatNudge()` signal (same trigger
+ * `<ChapterReveal>` uses for prose entrance), so the animation runs on
+ * time rather than coupled to scroll position.
+ *
+ * Why time-driven rather than scroll-coupled: the slash needs to appear
+ * in place when the beat becomes focal, regardless of whether the user
+ * has scrolled inside the beat yet. For an edge beat (first / last) the
+ * scroll-coupled approach has zero runway at the moment of pin and the
+ * slash would either be invisible (no scroll yet) or require the user to
+ * scroll past the beat boundary just to see the entrance. Time-driven
+ * animation runs once on nudge and stays settled. A horizontal-carousel
+ * chapter also has the user's scroll already mapped to track translation;
+ * a scroll-coupled slash sweep would cross the path of outgoing beats
+ * moving leftward, which reads as visual chaos.
  *
  * Layout: in-flow block by default. Consumer can absolutely position via
  * className. `aria-hidden` because the slash is purely decorative; the
  * editorial chrome handles the assistive text register.
  *
- * Motion vocabulary: a long enter sweep (0% → 100% of enterProgress),
- * still through dwell, then a quieter exit drift (0% → 40% of
- * exitProgress * end vector) so the slash doesn't dominate the
- * outgoing beat. Opacity fades up on enter and slightly down on exit
- * for a softer disappearance.
+ * Outer wrapper carries Motion's scaleX + opacity tween via the
+ * `animate` variant target with `transform-origin` set in CSS. Inner div
+ * carries the static CSS skew so the compositor doesn't fight a
+ * multi-transform string on one element.
  *
- * Reduced motion / outside-context: `useBeatProgress` returns static
- * end-state values, so the slash renders at its in-place rest position
- * without animation.
+ * Reduced motion / outside-context: `useChapterBeatNudge()` defaults to
+ * `false` outside a beat context, and Motion respects `prefers-reduced-
+ * motion` by collapsing transitions to instant — so the slash renders
+ * at its initial/animate end state without an animated transition.
  */
 export function BeatAccentSlash({
-  beatIndex,
+  beatIndex: _beatIndex,
   width = "14rem",
   thicknessPx = 2,
   skewDeg = -14,
   from = "left",
   className,
 }: Props) {
-  const { enterProgress, exitProgress } = useBeatProgress(beatIndex);
+  const nudged = useChapterBeatNudge();
 
-  // Enter from off-screen (`-110%` / `+110%`) → 0; exit drifts at
-  // reduced magnitude in the opposite direction so the slash doesn't
-  // get pulled fully off-screen mid-exit (would look like a glitch).
-  const startPercent = from === "left" ? -110 : 110;
-  const exitDriftPercent = from === "left" ? 28 : -28;
-  const xPercent = useTransform(
-    [enterProgress, exitProgress],
-    ([enter, exit]) =>
-      `${startPercent * (1 - (enter as number)) + exitDriftPercent * (exit as number)}%`
-  );
-
-  const opacity = useTransform([enterProgress, exitProgress], ([enter, exit]) =>
-    Math.max(0, Math.min(1, enter as number) - (exit as number) * 0.55)
-  );
+  // Anchor edge: scaleX grows from `from`. We use a single
+  // transform-origin for the lifecycle — the exit fade hides any visual
+  // asymmetry that anchoring entry and exit on the same side would
+  // otherwise produce.
+  const transformOrigin = from === "left" ? "left center" : "right center";
 
   return (
-    // Outer wrapper carries Motion's x/opacity; inner div carries the
-    // static CSS skew so the two transforms don't fight. Without the
-    // split, Motion's `style.x` (a CSS `transform: translateX(...)`)
-    // would overwrite the inner skew or vice-versa.
     <m.div
       data-beat-accent-slash=""
       aria-hidden="true"
-      className={["pointer-events-none origin-left", className].filter(Boolean).join(" ")}
-      style={{ x: xPercent, opacity, width }}
+      className={["pointer-events-none", className].filter(Boolean).join(" ")}
+      style={{ width, transformOrigin }}
+      initial={{ scaleX: 0, opacity: 0 }}
+      animate={{ scaleX: nudged ? 1 : 0, opacity: nudged ? 1 : 0 }}
+      // Easing: a confident draw with a small "ease-out" tail so the
+      // slash arrives with weight, not a linear ramp. Duration tuned so
+      // the slash lands at roughly the same moment as the
+      // ChapterReveal prose cascade in steam-chapter beat 0 (~0.7s).
+      transition={{
+        scaleX: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+        opacity: { duration: 0.4, ease: "easeOut" },
+      }}
     >
       <div
         style={{
