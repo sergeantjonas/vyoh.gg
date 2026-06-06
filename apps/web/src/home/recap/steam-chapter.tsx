@@ -707,18 +707,39 @@ export function SteamChapter({
       </>
     ),
 
-    // Beat 3 — Closer (SteamChapterCloserMedia slot; R-10 trailer
-    // substrate lands here).
+    // Beat 3 — Closer (SteamChapterCloserMedia slot + mirror accent
+    // slash). Closer is an edge beat (last in the chapter), so the
+    // composition mirrors beat 0's structure rotated 180°: the focal
+    // content (here, the screenshot strip) lands first, then the
+    // accent slash signs off the chapter from the RIGHT edge —
+    // mirroring beat 0's left-to-right slash. The mirroring signals
+    // "magazine spread close" in the same visual vocabulary as the
+    // opener without templating the two beats identically.
+    //
+    // R-10 trailer substrate also lands inside SteamChapterCloserMedia
+    // without touching this JSX.
     (nudged) => (
-      <>
-        <ChapterCloser>
+      <ChapterCloser>
+        <div className="flex w-full flex-col gap-5">
           <SteamChapterCloserMedia
             appid={appid}
             screenshots={screenshots}
             active={nudged}
           />
-        </ChapterCloser>
-      </>
+          {/* Mirror accent slash — `from="right"` draws right-to-left,
+              mirroring beat 0's left-anchored slash. `self-end` aligns
+              it to the right edge of the reading column. Delay tuned
+              to land after the screenshot strip's per-thumb stagger
+              settles (~5 thumbs at 0.08s stagger + 0.6s reveal). */}
+          <BeatAccentSlash
+            beatIndex={3}
+            from="right"
+            delay={1.1}
+            className="self-end"
+            width="14rem"
+          />
+        </div>
+      </ChapterCloser>
     ),
   ];
 
