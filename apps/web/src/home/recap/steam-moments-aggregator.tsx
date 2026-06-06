@@ -183,7 +183,11 @@ export function SteamMomentsAggregator({
     <div
       ref={outerRef}
       data-recap-chapter="steam-moments"
-      data-chapter-label="Steam highlights"
+      // Editorial voice — matches the masthead's "what stuck this
+      // season" framing rather than a flat "Steam highlights"
+      // descriptor. Voice-led caret label like the Ahri chapter's "Try
+      // to keep up" pattern.
+      data-chapter-label="What stuck"
     >
       <ChapterMultiBeat
         slug="steam-moments"

@@ -22,6 +22,17 @@ export function LandingHeading() {
       initial="hidden"
       animate="visible"
     >
+      {/* Magazine-style kicker line — orients the visitor before the
+          orb + heading do their editorial entrance. Tracked uppercase
+          register pairs with the eyebrow voice used throughout the
+          recap chapters ("VYOH'S AHRI", "STEAM · THIS SEASON"). Small
+          enough to feel like a margin marker rather than a heading.
+          The leading `·` is the kicker's visual anchor — magazine
+          spreads often open with a bullet that holds the section
+          identity. */}
+      <p className="font-medium text-[10px] text-muted-foreground/70 uppercase tracking-[0.3em] sm:text-xs">
+        Vyoh.gg <span aria-hidden="true">·</span> Living self-portrait
+      </p>
       <OrbMark
         className="size-40 sm:size-56 lg:size-72 xl:size-80"
         entranceDelay={reducedMotion ? 0 : 0.7}

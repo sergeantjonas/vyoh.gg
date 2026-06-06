@@ -245,7 +245,16 @@ export function LolMomentsAggregator({
   );
 
   return (
-    <div ref={outerRef} data-recap-chapter="lol-moments" data-chapter-label="LoL moments">
+    <div
+      ref={outerRef}
+      data-recap-chapter="lol-moments"
+      // Editorial voice — matches the masthead's "where the routine
+      // cracked" framing rather than a flat "LoL moments" descriptor.
+      // The caret displays this label when it jumps the user into this
+      // chapter, so it should read like a magazine spread title, not a
+      // section name.
+      data-chapter-label="Off the beaten path"
+    >
       <ChapterMultiBeat
         slug="lol-moments"
         ariaLabel={`${account.gameName}'s LoL moments`}
