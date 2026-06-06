@@ -855,3 +855,31 @@ body {
     scale: 1;
   }
 }
+
+/* Recap screenshot filmstrip marquee.
+ *
+ * The track contains two copies of the thumbnail list. Animating its
+ * transform from `0` to `-50%` of its own width slides the original copy
+ * off the left while bringing the duplicate into the visible position
+ * the original just left — at the end of one cycle (and the loop wrap
+ * back to 0) the duplicate is now where the original was, so the wrap
+ * is visually invisible. Compositor-thread translate3d only; no layout
+ * thrash.
+ *
+ * Speed (60s) is intentionally slow — the marquee is ambient B-roll
+ * lingering on the game, not a feed scrolling at reading pace. Faster
+ * cadences read as "the thumb is escaping me, click before it does."
+ *
+ * Pause is driven by inline `animationPlayState` from the React side
+ * (hover / focus-within / nudged-off), not a CSS `:hover` rule — the
+ * marquee also has to pause when the beat isn't active and a CSS-only
+ * pause can't see that React state.
+ */
+@keyframes recap-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}

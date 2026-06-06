@@ -5,17 +5,30 @@ import {
   steamScreenshotThumbUrl,
 } from "@vyoh/shared";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 
 /**
  * Chapter-closer screenshot strip with a Radix Dialog lightbox. Scoped to
- * the recap-chapter use case: a small horizontal row of 16:9 thumbnails
- * that open into a full-viewport viewer with prev/next + ESC + arrow-key
+ * the recap-chapter use case: a slow auto-drifting filmstrip marquee of
+ * 16:9 thumbnails plus a contact-sheet index label per frame, opening
+ * into a full-viewport viewer with prev/next + ESC + arrow-key
  * navigation. Mirrors the lightbox UX from
  * `apps/web/src/steam/game/game-screenshot-strip.tsx` but without the
  * weight that surface carries (carousel library, trailer multiplexing,
  * mature-content filter, autoplay video) — those belong to game-detail,
  * not to a per-chapter polish band.
+ *
+ * Why marquee instead of scrollable-with-chevrons: a user-driven scroll
+ * strip in the closer beat reads as "active UI to operate" when the
+ * beat's role is "lingering on the game" — ambient B-roll, not a media
+ * gallery. The slow drift turns the strip into atmosphere, not chrome.
+ * Hover / focus pause so click targets are stable when the user wants to
+ * engage; nudge gate keeps the drift off while the beat isn't active.
+ *
+ * Under `prefers-reduced-motion`: no drift, no duplication — the strip
+ * renders as a single static ul with `overflow-x: auto` for manual
+ * scroll. Same content, same lightbox, no animation.
  */
 export function ScreenshotLightboxStrip({
   appid,
@@ -37,62 +50,14 @@ export function ScreenshotLightboxStrip({
   baseDelay?: number;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  // Scroll-aware edge fades — only fade the side where content actually
-  // extends past the visible area. Symmetric masking faded the left edge
-  // at rest position, which read as ornamental (nothing was hidden behind
-  // the fade). Now: right-only at rest, both when scrolled into the
-  // middle, left-only at the end, neither when the strip fits.
-  const stripRef = useRef<HTMLUListElement>(null);
-  const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({
-    left: false,
-    right: false,
-  });
-  const updateEdges = useCallback(() => {
-    const ul = stripRef.current;
-    if (!ul) return;
-    const overflow = ul.scrollWidth - ul.clientWidth;
-    setEdges({
-      left: ul.scrollLeft > 4,
-      right: overflow > 4 && ul.scrollLeft < overflow - 4,
-    });
-  }, []);
-  useLayoutEffect(() => {
-    const ul = stripRef.current;
-    if (!ul) return;
-    updateEdges();
-    ul.addEventListener("scroll", updateEdges, { passive: true });
-    const ro = new ResizeObserver(updateEdges);
-    ro.observe(ul);
-    return () => {
-      ul.removeEventListener("scroll", updateEdges);
-      ro.disconnect();
-    };
-  }, [updateEdges]);
-  // Re-measure when the screenshot list changes — the ul's own box size
-  // doesn't change with content, so ResizeObserver won't catch this.
-  useEffect(() => {
-    if (screenshots.length === 0) return;
-    updateEdges();
-  }, [screenshots.length, updateEdges]);
-
-  // Stagger-aware reveal gate for the edge chevrons. `edges.right` flips
-  // true the moment the strip mounts (the <li>s take up layout even at
-  // opacity 0), so the chevron would otherwise pop in long before any
-  // thumb fades in. We hold the chevron back until the last thumb's
-  // stagger has started — same `nudged` gate as the thumbs, with a
-  // matched delay. Resets to `false` if `nudged` flips back (chapter
-  // unmounts / scrolls out of pin) so the chevron re-stages on re-entry.
-  const [chevronReady, setChevronReady] = useState(false);
-  useEffect(() => {
-    if (!nudged) {
-      setChevronReady(false);
-      return;
-    }
-    const lastStaggerStartMs = (baseDelay + screenshots.length * 0.04) * 1000;
-    const id = setTimeout(() => setChevronReady(true), lastStaggerStartMs);
-    return () => clearTimeout(id);
-  }, [nudged, baseDelay, screenshots.length]);
+  const reducedMotion = useReducedMotion();
+  // Pointer-tracked pause — flips true on hover / focus-within / pointer-
+  // down so click targets are stable when the user wants to engage with a
+  // thumbnail. Combined with `nudged` (off while beat isn't active) and
+  // `reducedMotion` (always off) to derive the actual animation play
+  // state. Pointer events (not mouseenter/leave) cover touch + mouse
+  // uniformly.
+  const [pointerPaused, setPointerPaused] = useState(false);
 
   const close = useCallback(() => setOpenIndex(null), []);
   const step = useCallback(
@@ -127,6 +92,52 @@ export function ScreenshotLightboxStrip({
   if (screenshots.length === 0) return null;
   const active = openIndex !== null ? screenshots[openIndex] : null;
 
+  // Resolved animation state — drift only when the beat is active AND the
+  // user isn't engaging AND reduced motion is off.
+  const driftRunning = !reducedMotion && nudged && !pointerPaused;
+
+  // Renders one thumb as a button. Used for both the visible original
+  // copy and the aria-hidden marquee duplicate (the duplicate's buttons
+  // get `tabIndex={-1}` + `aria-hidden` via the wrapping ul, so they're
+  // invisible to assistive tech and to test queries).
+  const renderThumb = (s: SteamScreenshotEntry, i: number) => {
+    const delay = baseDelay + i * 0.04;
+    const indexLabel = `S${String(i + 1).padStart(2, "0")}`;
+    const reveal: CSSProperties = {
+      opacity: nudged ? 1 : 0,
+      transform: nudged ? "translateY(0)" : "translateY(8px)",
+      transition: `opacity 600ms ease-out ${delay}s, transform 600ms ease-out ${delay}s`,
+    };
+    return (
+      <li key={s.filename} className="shrink-0 snap-start" style={reveal}>
+        <button
+          type="button"
+          onClick={() => setOpenIndex(i)}
+          aria-label={`Open screenshot ${i + 1} of ${screenshots.length}`}
+          className="group block cursor-pointer overflow-hidden rounded-md ring-1 ring-white/10 transition-[transform,box-shadow,filter] duration-200 ease-out hover:scale-[1.03] hover:shadow-lg hover:shadow-black/40 hover:brightness-110 hover:ring-2 hover:ring-[color:var(--accent,theme(colors.foreground))]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        >
+          <img
+            src={steamScreenshotThumbUrl(appid, s.filename)}
+            alt=""
+            loading="lazy"
+            className={thumbClassName}
+          />
+        </button>
+        {/* Contact-sheet index label — "S01", "S02"… reads as a printed
+            margin note on a magazine spread. `tabular-nums` so the label
+            width stays constant across frames, `text-foreground/60`
+            against the splash backdrop, drop-shadow for legibility. */}
+        <p
+          aria-hidden="true"
+          className="mt-1.5 text-center font-mono text-[10px] tabular-nums text-foreground/55 uppercase tracking-[0.18em]"
+          style={{ textShadow: "0 1px 2px rgba(0,0,0,0.7)" }}
+        >
+          {indexLabel}
+        </p>
+      </li>
+    );
+  };
+
   return (
     <DialogPrimitive.Root
       open={openIndex !== null}
@@ -134,111 +145,80 @@ export function ScreenshotLightboxStrip({
         if (!open) close();
       }}
     >
-      {/* Horizontally-scrollable strip — fits all screenshots regardless of
-          how many the game ships, without forcing a wrap that would push
-          the chapter past the 1-viewport pin. Native scrollbar hidden via
-          standard `scrollbar-width: none`. Scroll affordance is layered:
-          an ambient mask fade on the overflow side (subtle texture) plus
-          a chevron chip that fades in only when overflow exists in that
-          direction (explicit "more this way" + click target that scrolls
-          the strip ~75% of its width). Fade alone proved too subtle on
-          dark splash backgrounds — the chip is the load-bearing cue.
-          Snap-x lands a thumb cleanly when scrolling via touchpad or
-          touch. */}
-      <div className="relative">
-        <ul
-          ref={stripRef}
-          // px-3 + py-1 inset keeps the first/last thumbs' hover ring + scale
-          // + shadow-lg bloom (~10px blur) inside the scroll container's
-          // clip box. `scroll-px-3` mirrors the padding into the snap
-          // mechanism — without it, snap-start aligns the first thumb's
-          // edge with the *snap-port* start (the outer edge of the padding
-          // box), dragging scrollLeft to +12 to make that alignment work
-          // and eating the inset that was meant to protect the hover
-          // bloom. With scroll-padding matching, scrollLeft=0 IS the rest
-          // snap position. Proximity (not mandatory) so transient layout
-          // shifts from the entrance reveal don't re-snap mid-hover.
-          className="flex snap-x snap-proximity flex-nowrap items-center gap-2 overflow-x-auto scroll-px-3 px-3 py-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
-          style={(() => {
-            const left = edges.left ? "24px" : "0px";
-            const right = edges.right ? "24px" : "0px";
-            const mask = `linear-gradient(to right, transparent 0, black ${left}, black calc(100% - ${right}), transparent 100%)`;
-            return {
-              maskImage: mask,
-              WebkitMaskImage: mask,
-              transition: "mask-image 200ms ease, -webkit-mask-image 200ms ease",
-            };
-          })()}
-        >
-          {screenshots.map((s, i) => {
-            const delay = baseDelay + i * 0.04;
-            return (
-              <li
-                key={s.filename}
-                className="shrink-0 snap-start"
-                style={{
-                  opacity: nudged ? 1 : 0,
-                  transform: nudged ? "translateY(0)" : "translateY(8px)",
-                  transition: `opacity 600ms ease-out ${delay}s, transform 600ms ease-out ${delay}s`,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setOpenIndex(i)}
-                  aria-label={`Open screenshot ${i + 1} of ${screenshots.length}`}
-                  className="group block cursor-pointer overflow-hidden rounded-md ring-1 ring-white/10 transition-[transform,box-shadow,filter] duration-200 ease-out hover:scale-[1.03] hover:shadow-lg hover:shadow-black/40 hover:brightness-110 hover:ring-2 hover:ring-[color:var(--accent,theme(colors.foreground))]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      {/* Filmstrip wrapper. `relative + overflow-hidden` clips the
+          translated marquee track. `onPointer*` handlers pause the drift
+          when the user hovers / touches the strip so click targets are
+          stable. `onFocus`/`onBlur` cover keyboard-tab navigation
+          (focusing into a thumb pauses the drift; tabbing out resumes). */}
+      <div
+        className="relative overflow-hidden"
+        onPointerEnter={() => setPointerPaused(true)}
+        onPointerLeave={() => setPointerPaused(false)}
+        onPointerDown={() => setPointerPaused(true)}
+        onPointerUp={() => setPointerPaused(false)}
+        onFocus={() => setPointerPaused(true)}
+        onBlur={() => setPointerPaused(false)}
+      >
+        {reducedMotion ? (
+          // Reduced-motion fallback: single ul, manual horizontal scroll.
+          // Scrollbar hidden but standard touch/wheel/trackpad scrolling
+          // works. No duplication, no transform animation.
+          <ul className="flex snap-x snap-proximity flex-nowrap items-start gap-2 overflow-x-auto scroll-px-3 px-3 py-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            {screenshots.map(renderThumb)}
+          </ul>
+        ) : (
+          // Marquee track. Width is `w-max` so the two ul siblings lay
+          // side-by-side without flex-shrinking; the animation translates
+          // the whole track. `paused` inline style overrides the running
+          // baseline when `driftRunning` is false. Animation runs on the
+          // compositor thread via `translate3d`.
+          <div
+            data-screenshot-marquee=""
+            className="flex w-max items-start gap-2 px-3 py-1"
+            style={{
+              animation: "recap-marquee 60s linear infinite",
+              animationPlayState: driftRunning ? "running" : "paused",
+              willChange: "transform",
+            }}
+          >
+            <ul className="flex flex-nowrap items-start gap-2">
+              {screenshots.map(renderThumb)}
+            </ul>
+            {/* Aria-hidden duplicate — required for the seamless loop
+                (track translates by -50% of its width, the duplicate
+                lands where the original was). Aria-hidden + tabIndex=-1
+                on each clone button so AT and test queries see only the
+                original three buttons, not six. */}
+            <ul aria-hidden="true" className="flex flex-nowrap items-start gap-2">
+              {screenshots.map((s, i) => (
+                <li
+                  key={`clone-${s.filename}`}
+                  className="shrink-0"
+                  style={{ opacity: nudged ? 1 : 0 }}
                 >
-                  <img
-                    src={steamScreenshotThumbUrl(appid, s.filename)}
-                    alt=""
-                    loading="lazy"
-                    className={thumbClassName}
-                  />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {/* Edge chevron chips — explicit "more this way" affordance that
-            fades in only when overflow exists on that side. Clicking
-            scrolls the strip ~75% of its width. Pointer-events-none on
-            the wrapper container so the chips don't block hover on the
-            thumbs underneath; the chips themselves re-enable pointer
-            events. */}
-        <button
-          type="button"
-          aria-label="Scroll screenshots left"
-          tabIndex={edges.left ? 0 : -1}
-          onClick={() => {
-            const ul = stripRef.current;
-            if (!ul) return;
-            ul.scrollBy({ left: -Math.round(ul.clientWidth * 0.75), behavior: "smooth" });
-          }}
-          className="-translate-y-1/2 absolute top-1/2 left-1 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white shadow-md backdrop-blur-sm transition-opacity duration-200 hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-          style={{
-            opacity: chevronReady && edges.left ? 1 : 0,
-            pointerEvents: chevronReady && edges.left ? "auto" : "none",
-          }}
-        >
-          <ChevronLeft className="size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label="Scroll screenshots right"
-          tabIndex={edges.right ? 0 : -1}
-          onClick={() => {
-            const ul = stripRef.current;
-            if (!ul) return;
-            ul.scrollBy({ left: Math.round(ul.clientWidth * 0.75), behavior: "smooth" });
-          }}
-          className="-translate-y-1/2 absolute top-1/2 right-1 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white shadow-md backdrop-blur-sm transition-opacity duration-200 hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-          style={{
-            opacity: chevronReady && edges.right ? 1 : 0,
-            pointerEvents: chevronReady && edges.right ? "auto" : "none",
-          }}
-        >
-          <ChevronRight className="size-4" />
-        </button>
+                  <span
+                    aria-hidden="true"
+                    className="block overflow-hidden rounded-md ring-1 ring-white/10"
+                  >
+                    <img
+                      src={steamScreenshotThumbUrl(appid, s.filename)}
+                      alt=""
+                      loading="lazy"
+                      className={thumbClassName}
+                    />
+                  </span>
+                  <p
+                    aria-hidden="true"
+                    className="mt-1.5 text-center font-mono text-[10px] tabular-nums text-foreground/55 uppercase tracking-[0.18em]"
+                    style={{ textShadow: "0 1px 2px rgba(0,0,0,0.7)" }}
+                  >
+                    S{String(i + 1).padStart(2, "0")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <DialogPrimitive.Portal>
