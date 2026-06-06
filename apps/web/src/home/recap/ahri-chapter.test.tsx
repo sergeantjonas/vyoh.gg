@@ -329,14 +329,88 @@ describe("AhriChapter", () => {
   it("masthead links to the champion deep route for the account slug", () => {
     setMatches([]);
     const { container } = render(<AhriChapter account={account} />);
-    // Masthead-as-link: the chapter's <h2> sits inside the Link in the
-    // opener band. Query the opener band for the link that contains the
-    // heading.
-    const opener = container.querySelector("[data-band='opener']");
-    const link = opener?.querySelector("a");
+    // Post-R-14 the masthead lives sticky in `ChapterMultiBeat`'s
+    // identity slot (not inside beat 0), so the chapter title-as-link is
+    // queried via `[data-chapter-masthead]`. The slot wrapper is
+    // outside the beat bodies so it persists across the horizontal beat
+    // slide.
+    const masthead = container.querySelector("[data-chapter-masthead]");
+    const link = masthead?.querySelector("a");
     expect(link).toBeTruthy();
     expect(link?.getAttribute("to")).toBe("/lol/$accountSlug/champions/$championKey");
     expect(link?.querySelector("h2")?.textContent).toContain("Ahri");
+  });
+
+  describe("multi-beat layout", () => {
+    it("renders the multi-beat chapter wrapper with three beats", () => {
+      setMatches([matchFixture({ matchId: "EUW_1" })]);
+      const { container } = render(<AhriChapter account={account} />);
+      const multiBeat = container.querySelector("[data-chapter-multi-beat]");
+      expect(multiBeat).toBeTruthy();
+      // Ahri runs three beats (content-leaner than Steam's four); per
+      // the recap arc note, reaching for a fourth here would be filler.
+      expect(multiBeat?.getAttribute("data-chapter-beat-count")).toBe("3");
+    });
+
+    it("renders three 1/3-width beats in the horizontal track", () => {
+      setMatches([matchFixture({ matchId: "EUW_1" })]);
+      const { container } = render(<AhriChapter account={account} />);
+      const beats = container.querySelectorAll<HTMLElement>("[data-beat]");
+      expect(beats.length).toBe(3);
+      // Each beat occupies 1/3 of the track. Inline-styled because
+      // Tailwind arbitrary values can't interpolate beatCount.
+      for (const beat of beats) {
+        expect(beat.style.width).toBe(`${100 / 3}%`);
+        expect(beat.className).toContain("shrink-0");
+      }
+    });
+
+    it("pins the chapter stage so the masthead persists during scroll", () => {
+      setMatches([matchFixture({ matchId: "EUW_1" })]);
+      const { container } = render(<AhriChapter account={account} />);
+      const stage = container.querySelector("[data-chapter-stage]");
+      expect(stage).toBeTruthy();
+      expect(stage?.className).toContain("sticky");
+      expect(stage?.className).toContain("top-0");
+      const header = container.querySelector("header[data-chapter-masthead]");
+      expect(header).toBeTruthy();
+    });
+
+    it("renders a single chapter-level identity mark (not per-beat)", () => {
+      setMatches([matchFixture({ matchId: "EUW_1" })]);
+      const { container } = render(<AhriChapter account={account} />);
+      // The masthead lives sticky at the chapter group level — exactly
+      // one mark, not duplicated inside each beat. Per-beat
+      // identity re-mounts are exactly what `ChapterMultiBeat`'s
+      // identity slot exists to avoid.
+      const marks = container.querySelectorAll("[data-chapter-masthead]");
+      expect(marks.length).toBe(1);
+      expect(marks[0]?.querySelector("h2")?.textContent).toContain("Ahri");
+    });
+
+    it("partitions bands across beats: opener → 0, detail → 1, stats → 2", () => {
+      setMatches([
+        matchFixture({
+          matchId: "EUW_SIG",
+          champion: "Ahri",
+          kills: 17,
+          deaths: 2,
+          assists: 9,
+        }),
+      ]);
+      const { container } = render(<AhriChapter account={account} />);
+      const beatOf = (selector: string): string | null =>
+        container
+          .querySelector(selector)
+          ?.closest("[data-beat]")
+          ?.getAttribute("data-beat") ?? null;
+      expect(beatOf("[data-band='opener']")).toBe("0");
+      expect(beatOf("[data-band='detail']")).toBe("1");
+      expect(beatOf("[data-band='stats']")).toBe("2");
+      // No closer band — masthead is the deep-stats CTA via the identity
+      // slot (title-as-link pattern).
+      expect(container.querySelector("[data-band='closer']")).toBeNull();
+    });
   });
 
   it("forwards the chapter's dominant accentHex to the asset claim", () => {

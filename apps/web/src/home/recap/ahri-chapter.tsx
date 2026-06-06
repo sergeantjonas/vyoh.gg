@@ -18,10 +18,14 @@ import {
   formatKda,
   verdictParagraph,
 } from "@vyoh/shared";
-import { useEffect, useMemo, useRef } from "react";
+import { motion } from "motion/react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { BeatAccentSlash } from "./beat-accent-slash";
 import { ChapterDetail, ChapterOpener, ChapterStats } from "./chapter-bands";
-import { ChapterContainer } from "./chapter-container";
+import { ChapterMultiBeat } from "./chapter-multi-beat";
+import { useChapterGroupNudge } from "./chapter-nudge-contexts";
 import { ChapterReveal } from "./chapter-reveal";
+import { MultiBeat } from "./multi-beat";
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { preloadLinkAsImage } from "./preload-link";
 import { useAssetClaim } from "./use-asset-claim";
@@ -236,16 +240,133 @@ function PeakChip({
 }
 
 /**
- * First end-to-end recap chapter (R-2). Renders the Ahri subject as an
- * editorial chapter inside a single sticky-pin window: subject-led
- * eyebrow + masthead + verdict paragraph at the top, signature-game
- * receipt + recent matches strip in the middle, peak chips backing the
- * verdict, and a deep-stats CTA. The splash is the canvas; band content
- * floats with a thin scrim only where copy actually sits.
+ * Persistent chapter masthead — mirrors `SteamChapterTitleCard`. Lives in
+ * `ChapterMultiBeat`'s identity slot so the eyebrow + champion masthead
+ * stay visible across all three beats, while beat bodies slide
+ * horizontally underneath.
  *
- * The chapter publishes its splash via `useAssetClaim` so the shared
- * atmosphere layer paints it full-bleed; skin rotation cycles via
- * `useSkinRotation` independently of scroll.
+ * Two layers of presence (same pattern as Steam):
+ * - `nudged` (live, from `useChapterGroupNudge`) — drives a fast outer
+ *   opacity fade for exit + re-entry transitions.
+ * - `hasEntered` (one-shot) — flips true the first time `nudged` goes
+ *   true and never resets, so the editorial blur-rise cascade plays
+ *   exactly once on first chapter entry. A quick back-scroll re-fires the
+ *   outer opacity but not the per-element cascade — the masthead reveal
+ *   alone is 0.18s + 1.1s = 1.28s, longer than a typical back-scroll
+ *   pause; re-running it would lag behind the reader.
+ */
+function AhriChapterMasthead({
+  eyebrow,
+  skinLabel,
+  displayName,
+  accountSlug,
+}: {
+  eyebrow: string;
+  skinLabel: string | null;
+  displayName: string;
+  accountSlug: string;
+}) {
+  const nudged = useChapterGroupNudge();
+  const [hasEntered, setHasEntered] = useState(false);
+  useEffect(() => {
+    if (nudged && !hasEntered) setHasEntered(true);
+  }, [nudged, hasEntered]);
+  return (
+    <motion.div
+      initial={false}
+      animate={{ opacity: nudged ? 1 : 0 }}
+      // 0.2s outer fade for back/forward chapter transitions — matches the
+      // Steam title-card timing so the two chapter types feel coherent.
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className="flex w-full flex-col items-start gap-3 px-6 pt-12 sm:px-10 sm:pt-16"
+    >
+      <ChapterReveal active={hasEntered} delay={0.05} blur={4}>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]">
+          <span
+            style={{
+              color: "var(--accent, currentColor)",
+              paintOrder: "stroke",
+              WebkitTextStroke: STROKE_ACCENT,
+              textShadow: SHADOW_ACCENT,
+            }}
+          >
+            {eyebrow}
+          </span>
+          {skinLabel ? (
+            <>
+              {/* Skin label hides below sm:. Auto-cycling rotation through
+                  long-named skins ("After Hours Spirit Blossom Springs")
+                  wraps the eyebrow row to a second line on narrow
+                  viewports, which shifts every subsequent band each time
+                  the rotation ticks. On sm+ the row fits without
+                  wrapping; on smaller viewports the rotation still drives
+                  the backdrop, just without the label kicker. */}
+              <span
+                aria-hidden="true"
+                className="hidden text-foreground/40 sm:inline"
+                style={{ textShadow: SHADOW_LABEL }}
+              >
+                ·
+              </span>
+              <span
+                className="hidden text-foreground/75 sm:inline"
+                style={{ textShadow: SHADOW_LABEL }}
+              >
+                {skinLabel}
+              </span>
+            </>
+          ) : null}
+        </p>
+      </ChapterReveal>
+      <ChapterReveal active={hasEntered} delay={0.18} duration={1.1} blur={16} rise={20}>
+        {/* Masthead-as-link: the chapter title IS the entry point to the
+            deep-stats page, magazine-style. Group-hover affordance lives
+            in the deep-stats route's hover state; here the link wraps
+            the whole baseline. */}
+        <Link
+          to="/lol/$accountSlug/champions/$championKey"
+          params={{
+            accountSlug,
+            championKey: CHAMPION_ALIAS.toLowerCase(),
+          }}
+          className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
+        >
+          <h2
+            className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
+            style={{ textShadow: SHADOW_MASTHEAD }}
+          >
+            {displayName}
+          </h2>
+          <p
+            className="text-base italic text-foreground/80 sm:text-lg"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
+            {CHAMPION_TITLE}
+          </p>
+        </Link>
+      </ChapterReveal>
+    </motion.div>
+  );
+}
+
+/**
+ * Recap chapter for the LoL OTP (R-2 → R-14). Renders the Ahri subject as
+ * an editorial multi-beat chapter: a persistent masthead pins at the top
+ * of the chapter stage (eyebrow + champion title-as-link), and three
+ * beats slide in horizontally underneath as the user scrolls through the
+ * chapter:
+ * - Beat 0 — verdict prose with an opener accent slash kicker
+ * - Beat 1 — signature game + recent matches strip
+ * - Beat 2 — peak chips + closer accent slash
+ *
+ * The splash is the canvas; band content floats with editorial shadow
+ * tiers only where copy sits. The chapter publishes its splash via
+ * `useAssetClaim` so the shared atmosphere layer paints it full-bleed;
+ * skin rotation cycles via `useSkinRotation` independently of scroll, and
+ * the rotation gates on `useChapterNudge` so the first swap can't land
+ * during the chapter's opening cascade. Beat counts intentionally differ
+ * from Steam (4) because Ahri is content-leaner; reaching for a 4th beat
+ * would be filler.
  */
 export function AhriChapter({ account }: { account: LolAccount }) {
   const outerRef = useRef<HTMLDivElement | null>(null);
@@ -364,133 +485,36 @@ export function AhriChapter({ account }: { account: LolAccount }) {
     [recap, displayName]
   );
 
-  return (
-    <div
-      ref={outerRef}
-      data-recap-chapter="ahri"
-      data-chapter-label={caretLabel}
-      // Native CSS snap point. Combined with `scroll-snap-type: y mandatory`
-      // on <main>, the browser pulls the chapter top to viewport top on
-      // every scroll-end, both directions. `scroll-snap-stop: always`
-      // prevents momentum scrolls from skipping past the chapter — the
-      // book-like page-turn feel needs both: mandatory makes the resting
-      // state clean, `stop: always` makes traversal exhaustive.
-      className="[scroll-snap-align:start] [scroll-snap-stop:always]"
-    >
-      <ChapterContainer
-        // 1× — chapter fits one viewport, the original 2× pin was paying
-        // for stretched-across-scroll reveals that no longer exist.
-        // Future per-champion chapters with month-over-month trends or
-        // opponent galleries can re-up to 1.5–2 per-chapter if needed.
-        pinViewports={1}
-        slug="ahri"
-        ariaLabel={eyebrow}
-        pinClassName="items-start justify-start px-6 pt-[6dvh] sm:px-10"
-      >
-        {/* Chapter content fills the root container width (max-w-4xl from
-            __root.tsx). Only the verdict prose itself ties off at editorial
-            measure (~65ch via `max-w-prose` inside VerdictProse) so the
-            paragraph stays readable while signature card / runs strip /
-            stats stretch to the full container. */}
-        <div className="flex w-full flex-col">
-          <ChapterOpener>
-            {/* Eyebrow row: kicker label inline with the active-skin name.
-                Previously the skin sat as a pill absolutely positioned at
-                the container's right edge — but the splash extends past
-                that edge to the viewport bounds, so the pill looked
-                inset rather than anchored. Inlining makes it a kicker
-                qualifier; it now reads as part of the chapter's editorial
-                header instead of a floating UI chip. */}
-            <ChapterReveal active={nudged} delay={0.05} blur={4}>
-              <p
-                // Bumped from text-xs → text-sm: bigger glyphs amortize
-                // the shadow across more surface area and read better
-                // against bright/warm splashes (Risen Legend, Immortalized).
-                // Slightly tighter tracking compensates so the eyebrow
-                // still feels like a kicker, not a heading.
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium uppercase tracking-[0.18em]"
-              >
-                <span
-                  style={{
-                    color: "var(--accent, currentColor)",
-                    paintOrder: "stroke",
-                    WebkitTextStroke: STROKE_ACCENT,
-                    textShadow: SHADOW_ACCENT,
-                  }}
-                >
-                  {eyebrow}
-                </span>
-                {skinLabel ? (
-                  <>
-                    {/* Skin label hides below sm:. The auto-cycling
-                        rotation through long-named skins ("After Hours
-                        Spirit Blossom Springs") wraps the eyebrow row to
-                        a second line on narrow viewports, which shifts
-                        every subsequent band down each time the rotation
-                        ticks. On sm+ the row fits without wrapping; on
-                        smaller viewports the rotation still drives the
-                        backdrop, just without the label kicker. */}
-                    <span
-                      aria-hidden="true"
-                      className="hidden text-foreground/40 sm:inline"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      ·
-                    </span>
-                    <span
-                      className="hidden text-foreground/75 sm:inline"
-                      style={{ textShadow: SHADOW_LABEL }}
-                    >
-                      {skinLabel}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            </ChapterReveal>
-            {/* Masthead + champion title sit on a single baseline —
-                editorial chapter pattern ("Ahri _the Nine-Tailed Fox_")
-                instead of stacked title/subtitle. Wraps to two lines on
-                narrow viewports via `flex-wrap`. Single ChapterReveal so
-                the title rides the same hero blur-in as the name. Slower
-                duration + heavier blur give the moment more weight than
-                the surrounding reveals. */}
-            <ChapterReveal
-              active={nudged}
-              delay={0.18}
-              duration={1.1}
-              blur={16}
-              rise={20}
-            >
-              {/* Masthead-as-link: the chapter title IS the entry point to
-                  the deep-stats page, magazine-style. Replaces the prior
-                  bottom-band CTA — frees vertical space (caret no longer
-                  collides with a closer button) and reads more editorial.
-                  Group-hover-revealed "→" mirrors the standout block's
-                  "open →" affordance so the interactivity is discoverable
-                  without painting a permanent button-chrome. */}
-              <Link
-                to="/lol/$accountSlug/champions/$championKey"
-                params={{
-                  accountSlug: account.slug,
-                  championKey: CHAMPION_ALIAS.toLowerCase(),
-                }}
-                className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
-              >
-                <h2
-                  className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
-                  style={{ textShadow: SHADOW_MASTHEAD }}
-                >
-                  {displayName}
-                </h2>
-                <p
-                  className="text-base italic text-foreground/80 sm:text-lg"
-                  style={{ textShadow: SHADOW_LABEL }}
-                >
-                  {CHAMPION_TITLE}
-                </p>
-              </Link>
-            </ChapterReveal>
-            <ChapterReveal active={nudged} delay={0.55} blur={6} className="pt-2">
+  // Tighten band padding inside each beat. ChapterOpener/Detail/Stats
+  // default to vertical padding intended for stacked bands within one
+  // pinned viewport (R-2 single-pin layout). In a multi-beat track each
+  // beat IS one viewport and the bands no longer stack vertically, so
+  // the breathing-room defaults read as wasted space. Same idiom as the
+  // Steam chapter's `BEAT_LAYOUT`.
+  const BEAT_LAYOUT =
+    "flex flex-col items-center justify-start px-6 sm:px-10 [&>[data-band]]:!max-w-4xl [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
+
+  // Beat bodies as render-prop functions — `nudged` is per-beat active
+  // state from `<MultiBeat>` so each beat's reveal cascade fires when its
+  // beat becomes the focal viewport, not at chapter entrance.
+  const beatBodies: Array<(nudged: boolean) => ReactNode> = [
+    // Beat 0 — Verdict prose with opener accent slash. Mirrors Steam beat
+    // 0 exactly: editorial kicker slash draws in from the left (delay
+    // 0.05s, lands at ~0.75s), then the verdict prose blur-rises beneath
+    // it. The masthead lives in the identity slot above and is already
+    // settled by the time this beat becomes focal, so beat 0 only owns
+    // the verdict — no eyebrow / heading duplication.
+    (nudged) => (
+      <ChapterOpener>
+        {verdictClauses.length > 0 ? (
+          <div className="flex w-full flex-col">
+            <BeatAccentSlash
+              beatIndex={0}
+              delay={0.05}
+              className="mb-3 sm:mb-4"
+              width="14rem"
+            />
+            <ChapterReveal active={nudged} delay={0.8} blur={8} rise={22} duration={0.9}>
               <VerdictProse
                 clauses={verdictClauses}
                 style={{ textShadow: SHADOW_BODY }}
@@ -499,153 +523,214 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                   WebkitTextStroke: STROKE_ACCENT,
                   textShadow: SHADOW_ACCENT,
                 }}
-                // Gate the count-up on the same chapter nudge that drives
-                // the band reveals. Delay = verdict-prose ChapterReveal
-                // delay (0.55s) + its duration (0.6s) + 0.1s settle so
-                // the numbers begin counting just after the prose has
-                // faded into place — not while it's still arriving.
+                // Count-up fires after the prose ChapterReveal entrance
+                // (delay 0.8s + duration 0.9s + 0.15s settle = 1.85s).
+                // Matches Steam beat 0's timing.
                 numbersActive={nudged}
-                numbersDelay={1.25}
+                numbersDelay={1.85}
               />
             </ChapterReveal>
-          </ChapterOpener>
+          </div>
+        ) : null}
+      </ChapterOpener>
+    ),
 
-          <ChapterDetail>
-            {signature ? (
-              <ChapterReveal active={nudged} delay={0.7}>
-                <SignatureGameBlock
-                  accountSlug={account.slug}
-                  signature={signature}
-                  championName={championName}
-                />
-              </ChapterReveal>
-            ) : null}
+    // Beat 1 — Signature game + recent matches. Mirrors Steam beat 1's
+    // directional cascade: focal block lands from the LEFT (signature
+    // game as the visual anchor), recent rows cascade in from the RIGHT
+    // opposite the anchor, giving the beat a two-sided spread feel
+    // instead of a single column drop.
+    (nudged) => (
+      <ChapterDetail>
+        {signature ? (
+          <ChapterReveal
+            active={nudged}
+            delay={0.05}
+            slideX={-40}
+            scale={0.96}
+            duration={0.75}
+          >
+            <SignatureGameBlock
+              accountSlug={account.slug}
+              signature={signature}
+              championName={championName}
+            />
+          </ChapterReveal>
+        ) : null}
 
-            {recent.length > 0 ? (
-              <div className="flex flex-col gap-2 pt-2">
-                <ChapterReveal active={nudged} delay={0.85}>
-                  <h3
-                    className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
-                    style={{ textShadow: SHADOW_BODY }}
-                  >
-                    Recent matches
-                  </h3>
-                </ChapterReveal>
-                <ul className="flex flex-col gap-0.5">
-                  {recent.map((m, i) => {
-                    const delay = 0.9 + i * 0.06;
-                    const minutes = Math.max(1, Math.round(m.durationSec / 60));
-                    const showRole = isRolePosition(m.position);
-                    const opponentName = m.opponentChampion
-                      ? championName(m.opponentChampion)
-                      : null;
-                    return (
-                      <li key={m.matchId}>
-                        <ChapterReveal active={nudged} delay={delay}>
-                          <Link
-                            to="/lol/$accountSlug/matches/$matchId"
-                            params={{
-                              accountSlug: account.slug,
-                              matchId: m.matchId,
-                            }}
-                            // Hover affordance: a faint full-row dark band
-                            // so the user can tell which row their pointer
-                            // is on. `bg-black/25` over the splash reads
-                            // calmer than the previous `bg-white/8` lift
-                            // (white-on-bright-splash washed out). `-mx-2
-                            // px-2` lets the band extend past the row's
-                            // natural padding.
-                            className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/95 transition-colors hover:bg-black/25 hover:text-foreground"
-                            style={{ textShadow: SHADOW_BODY }}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className={[
-                                "inline-flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-bold",
-                                m.win
-                                  ? "bg-emerald-400/25 text-emerald-200"
-                                  : "bg-rose-400/25 text-rose-200",
-                              ].join(" ")}
-                            >
-                              {m.win ? "W" : "L"}
-                            </span>
-                            <span className="w-16 shrink-0 font-mono text-xs tabular-nums text-foreground">
-                              {m.kills}/{m.deaths}/{m.assists}
-                            </span>
-                            {/* Identity column — role icon + opponent. Role
-                                icon leads as a glyph "stamp" that aligns
-                                with the W/L pill and KDA on the left,
-                                giving the strip a clean vertical rhythm.
-                                `min-w-0 flex-1` on the truncate lets long
-                                champion names ("Aurelion Sol") collapse to
-                                ellipsis instead of overflowing — flex items
-                                default to min-width:auto (content size),
-                                which silently blocks truncation. */}
-                            <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground/85">
-                              {showRole ? (
-                                <RoleIcon
-                                  position={m.position as RolePosition}
-                                  className="size-3.5 shrink-0 opacity-85"
-                                />
-                              ) : null}
-                              {opponentName ? (
-                                <span className="min-w-0 flex-1 truncate">
-                                  vs{" "}
-                                  <span className="font-medium italic text-foreground/95">
-                                    {opponentName}
-                                  </span>
-                                </span>
-                              ) : null}
-                            </span>
-                            {/* Meta column — duration · days-ago. Both
-                                fields describe the same row from the same
-                                angle (how long, how long ago), so the dot
-                                belongs between them as a peer separator
-                                rather than stranded between opponent and
-                                duration. */}
-                            <span className="flex shrink-0 items-center gap-1.5 text-xs text-foreground/80 group-hover:text-foreground/95">
-                              <span className="tabular-nums">{minutes}m</span>
-                              <span aria-hidden="true" className="text-foreground/40">
-                                ·
+        {recent.length > 0 ? (
+          <div className="flex flex-col gap-2 pt-2">
+            <ChapterReveal active={nudged} delay={0.2}>
+              <h3
+                className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+                style={{ textShadow: SHADOW_BODY }}
+              >
+                Recent matches
+              </h3>
+            </ChapterReveal>
+            <ul className="flex flex-col gap-0.5">
+              {recent.map((m, i) => {
+                const delay = 0.28 + i * 0.045;
+                const minutes = Math.max(1, Math.round(m.durationSec / 60));
+                const showRole = isRolePosition(m.position);
+                const opponentName = m.opponentChampion
+                  ? championName(m.opponentChampion)
+                  : null;
+                return (
+                  <li key={m.matchId}>
+                    <ChapterReveal active={nudged} delay={delay} slideX={18}>
+                      <Link
+                        to="/lol/$accountSlug/matches/$matchId"
+                        params={{
+                          accountSlug: account.slug,
+                          matchId: m.matchId,
+                        }}
+                        // Hover affordance: a faint full-row dark band
+                        // so the user can tell which row their pointer
+                        // is on. `bg-black/25` over the splash reads
+                        // calmer than the previous `bg-white/8` lift
+                        // (white-on-bright-splash washed out). `-mx-2
+                        // px-2` lets the band extend past the row's
+                        // natural padding.
+                        className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/95 transition-colors hover:bg-black/25 hover:text-foreground"
+                        style={{ textShadow: SHADOW_BODY }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={[
+                            "inline-flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-bold",
+                            m.win
+                              ? "bg-emerald-400/25 text-emerald-200"
+                              : "bg-rose-400/25 text-rose-200",
+                          ].join(" ")}
+                        >
+                          {m.win ? "W" : "L"}
+                        </span>
+                        <span className="w-16 shrink-0 font-mono text-xs tabular-nums text-foreground">
+                          {m.kills}/{m.deaths}/{m.assists}
+                        </span>
+                        {/* Identity column — role icon + opponent. Role
+                            icon leads as a glyph "stamp" that aligns
+                            with the W/L pill and KDA on the left,
+                            giving the strip a clean vertical rhythm.
+                            `min-w-0 flex-1` on the truncate lets long
+                            champion names ("Aurelion Sol") collapse to
+                            ellipsis instead of overflowing — flex items
+                            default to min-width:auto (content size),
+                            which silently blocks truncation. */}
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground/85">
+                          {showRole ? (
+                            <RoleIcon
+                              position={m.position as RolePosition}
+                              className="size-3.5 shrink-0 opacity-85"
+                            />
+                          ) : null}
+                          {opponentName ? (
+                            <span className="min-w-0 flex-1 truncate">
+                              vs{" "}
+                              <span className="font-medium italic text-foreground/95">
+                                {opponentName}
                               </span>
-                              <span>{formatRelative(m.playedAt)}</span>
                             </span>
-                          </Link>
-                        </ChapterReveal>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
-          </ChapterDetail>
+                          ) : null}
+                        </span>
+                        {/* Meta column — duration · days-ago. Both
+                            fields describe the same row from the same
+                            angle (how long, how long ago), so the dot
+                            belongs between them as a peer separator
+                            rather than stranded between opponent and
+                            duration. */}
+                        <span className="flex shrink-0 items-center gap-1.5 text-xs text-foreground/80 group-hover:text-foreground/95">
+                          <span className="tabular-nums">{minutes}m</span>
+                          <span aria-hidden="true" className="text-foreground/40">
+                            ·
+                          </span>
+                          <span>{formatRelative(m.playedAt)}</span>
+                        </span>
+                      </Link>
+                    </ChapterReveal>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+      </ChapterDetail>
+    ),
 
-          <ChapterStats>
-            <PeakChip
-              active={nudged}
-              delay={1.25}
-              label="Win rate"
-              value={totalGames > 0 ? `${Math.round(winRate * 100)}%` : "—"}
-            />
-            <PeakChip
-              active={nudged}
-              delay={1.32}
-              label="Avg KDA"
-              value={totalGames > 0 ? formatKda(avgKda) : "—"}
-            />
-            <PeakChip
-              active={nudged}
-              delay={1.39}
-              label="Perfect KDA"
-              value={
-                totalGames > 0
-                  ? `${perfectKdaCount} ${perfectKdaCount === 1 ? "game" : "games"}`
-                  : "—"
-              }
-            />
-          </ChapterStats>
-        </div>
-      </ChapterContainer>
+    // Beat 2 — Peak chips backing the verdict claim + mirror accent slash
+    // bookending beat 0's opener slash. The slash sits in a
+    // `ChapterDetail` band below the chips so the BEAT_LAYOUT max-w-4xl
+    // constraint still applies (slash aligns to the right edge of the
+    // reading column, not the viewport).
+    (nudged) => (
+      <>
+        <ChapterStats>
+          <PeakChip
+            active={nudged}
+            delay={0.08}
+            label="Win rate"
+            value={totalGames > 0 ? `${Math.round(winRate * 100)}%` : "—"}
+          />
+          <PeakChip
+            active={nudged}
+            delay={0.22}
+            label="Avg KDA"
+            value={totalGames > 0 ? formatKda(avgKda) : "—"}
+          />
+          <PeakChip
+            active={nudged}
+            delay={0.36}
+            label="Perfect KDA"
+            value={
+              totalGames > 0
+                ? `${perfectKdaCount} ${perfectKdaCount === 1 ? "game" : "games"}`
+                : "—"
+            }
+          />
+        </ChapterStats>
+        <ChapterDetail>
+          {/* Closer slash — `from="right"` draws right-to-left, mirroring
+              beat 0's left-anchored slash. `self-end` aligns to the right
+              edge of the reading column. Delay lands after the last
+              chip's count-up settles (chip 3 entrance at 0.36s + reveal
+              duration 0.6s + count-up 0.7s + a small pause). */}
+          <BeatAccentSlash
+            beatIndex={2}
+            from="right"
+            delay={1.1}
+            className="self-end"
+            width="14rem"
+          />
+        </ChapterDetail>
+      </>
+    ),
+  ];
+
+  const masthead = (
+    <AhriChapterMasthead
+      eyebrow={eyebrow}
+      skinLabel={skinLabel}
+      displayName={displayName}
+      accountSlug={account.slug}
+    />
+  );
+
+  return (
+    <div ref={outerRef} data-recap-chapter="ahri" data-chapter-label={caretLabel}>
+      <ChapterMultiBeat slug="ahri" ariaLabel={eyebrow} identity={masthead}>
+        {beatBodies.map((body, index) => (
+          <MultiBeat
+            // biome-ignore lint/suspicious/noArrayIndexKey: beat order is stable across renders
+            key={index}
+            index={index}
+            beatCount={beatBodies.length}
+            className={BEAT_LAYOUT}
+          >
+            {body}
+          </MultiBeat>
+        ))}
+      </ChapterMultiBeat>
     </div>
   );
 }
