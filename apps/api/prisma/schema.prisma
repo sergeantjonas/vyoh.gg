@@ -278,7 +278,7 @@ model SteamGameEnrichment {
 // trailers), and the join model on the proxy side stays clean (each
 // asset route walks `enrichment ∪ wishlistAsset` in that order).
 model SteamWishlistAsset {
-  appid                Int      @id
+  appid                Int       @id
   assetUrlFormat       String?
   assetTimestamp       BigInt?
   libraryCapsulePath   String?
@@ -287,7 +287,20 @@ model SteamWishlistAsset {
   libraryHero2xPath    String?
   headerPath           String?
   heroCapsulePath      String?
-  fetchedAt            DateTime @default(now())
+  // SteamGridDB fallback hero — populated by the SGDB backfill script when
+  // `libraryHeroPath` is null (publisher hasn't shipped any modern library
+  // asset, e.g. Townfall — appid 1636440). Same shape and constraints as
+  // SteamGameEnrichment.sgdbHero*: full absolute CDN URL, width >= 1920,
+  // refreshed on the same `SGDB_RECHECK_DAYS` watermark. Read from the
+  // image proxy in `heroLarge` ahead of every other tier; for `hero` the
+  // header.jpg legacy entry already 200s before this would be reached, so
+  // the wishlist row's SGDB asset only meaningfully shows up on full-bleed
+  // surfaces.
+  sgdbHeroUrl          String?
+  sgdbHeroWidth        Int?
+  sgdbHeroHeight       Int?
+  sgdbEnrichedAt       DateTime?
+  fetchedAt            DateTime  @default(now())
 }
 
 // Per-game achievement schema from ISteamUserStats/GetSchemaForGame. Refreshed

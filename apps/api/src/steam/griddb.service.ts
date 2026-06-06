@@ -72,27 +72,48 @@ export class SteamGridDbService {
   }
 
   /**
-   * Backfill SGDB heroes for the supplied appids whose `libraryHero2xPath`
-   * is null and which haven't been SGDB-checked within `SGDB_RECHECK_DAYS`.
+   * Backfill SGDB heroes for the supplied appids whose publisher hero is
+   * missing and which haven't been SGDB-checked within `SGDB_RECHECK_DAYS`.
    * Mirrors the shape of `SteamSubjectAnchorService.computeMissingAnchors` —
    * called as a post-pass from the enrichment service after the main upserts
    * land. Failure is non-fatal; the watermark is set even on null results so
    * we don't re-query SGDB for the same null-hero set on a manual mid-cycle
    * re-run of enrichment.
+   *
+   * `target` switches the source table:
+   *   - "owned"    → `SteamGameEnrichment`, filters `libraryHero2xPath IS NULL`
+   *                  (only the 2x asset matters for the full-bleed surface).
+   *   - "wishlist" → `SteamWishlistAsset`, filters `libraryHeroPath IS NULL`
+   *                  (broader signal: wishlist publishers who skipped the
+   *                  entire modern library spec, e.g. Townfall — appid
+   *                  1636440 — fall here and SGDB is the only quality source).
    */
-  async backfillMissingHeroes(appids: number[]): Promise<number> {
+  async backfillMissingHeroes(
+    appids: number[],
+    target: "owned" | "wishlist" = "owned"
+  ): Promise<number> {
     if (appids.length === 0) return 0;
     if (!this.apiKey) return 0;
 
     const cutoff = new Date(Date.now() - SGDB_RECHECK_DAYS * 24 * 60 * 60 * 1000);
-    const rows = await this.prisma.steamGameEnrichment.findMany({
-      where: {
-        appid: { in: appids },
-        libraryHero2xPath: null,
-        OR: [{ sgdbEnrichedAt: null }, { sgdbEnrichedAt: { lt: cutoff } }],
-      },
-      select: { appid: true },
-    });
+    const rows =
+      target === "owned"
+        ? await this.prisma.steamGameEnrichment.findMany({
+            where: {
+              appid: { in: appids },
+              libraryHero2xPath: null,
+              OR: [{ sgdbEnrichedAt: null }, { sgdbEnrichedAt: { lt: cutoff } }],
+            },
+            select: { appid: true },
+          })
+        : await this.prisma.steamWishlistAsset.findMany({
+            where: {
+              appid: { in: appids },
+              libraryHeroPath: null,
+              OR: [{ sgdbEnrichedAt: null }, { sgdbEnrichedAt: { lt: cutoff } }],
+            },
+            select: { appid: true },
+          });
     if (rows.length === 0) return 0;
 
     const start = Date.now();
@@ -109,22 +130,24 @@ export class SteamGridDbService {
         // The watermark advances regardless of result — a null is a signal
         // that we already checked, not "we haven't checked yet". Without
         // this, every retry would re-query SGDB for the same null set.
-        await this.prisma.steamGameEnrichment.update({
-          where: { appid },
-          data: {
-            sgdbHeroUrl: hero?.url ?? null,
-            sgdbHeroWidth: hero?.width ?? null,
-            sgdbHeroHeight: hero?.height ?? null,
-            sgdbEnrichedAt: new Date(),
-          },
-        });
+        const data = {
+          sgdbHeroUrl: hero?.url ?? null,
+          sgdbHeroWidth: hero?.width ?? null,
+          sgdbHeroHeight: hero?.height ?? null,
+          sgdbEnrichedAt: new Date(),
+        };
+        if (target === "owned") {
+          await this.prisma.steamGameEnrichment.update({ where: { appid }, data });
+        } else {
+          await this.prisma.steamWishlistAsset.update({ where: { appid }, data });
+        }
         if (hero) updated += 1;
       }
     }
 
     const duration = Date.now() - start;
     this.logger.log(
-      `SteamGridDb backfill: ${updated}/${rows.length} apps got a hero in ${duration}ms`
+      `SteamGridDb backfill (${target}): ${updated}/${rows.length} apps got a hero in ${duration}ms`
     );
     return updated;
   }

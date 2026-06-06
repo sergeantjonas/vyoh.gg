@@ -28,15 +28,26 @@ async function main() {
     const prisma = app.get(PrismaService);
     const sgdb = app.get(SteamGridDbService);
 
-    const rows = await prisma.steamOwnedGame.findMany({
+    const ownedRows = await prisma.steamOwnedGame.findMany({
       where: { removedAt: null },
       select: { appid: true },
     });
-    const appids = rows.map((r) => r.appid);
+    const ownedAppids = ownedRows.map((r) => r.appid);
+    logger.log(`Running SGDB backfill across ${ownedAppids.length} owned appids.`);
+    const ownedUpdated = await sgdb.backfillMissingHeroes(ownedAppids, "owned");
+    logger.log(`Owned done. ${ownedUpdated} appids got a SteamGridDb hero.`);
 
-    logger.log(`Running SGDB backfill across ${appids.length} owned appids.`);
-    const updated = await sgdb.backfillMissingHeroes(appids);
-    logger.log(`Done. ${updated} appids got a SteamGridDb hero.`);
+    // Wishlist pass: SteamWishlistAsset is populated lazily by the on-demand
+    // wishlist sync (SteamService.resolveNames), so the row set here is
+    // whatever has been hit since the table was introduced. Same cool-down
+    // applies inside the service; a manual re-run mid-cycle is a no-op.
+    const wishlistRows = await prisma.steamWishlistAsset.findMany({
+      select: { appid: true },
+    });
+    const wishlistAppids = wishlistRows.map((r) => r.appid);
+    logger.log(`Running SGDB backfill across ${wishlistAppids.length} wishlist appids.`);
+    const wishlistUpdated = await sgdb.backfillMissingHeroes(wishlistAppids, "wishlist");
+    logger.log(`Wishlist done. ${wishlistUpdated} appids got a SteamGridDb hero.`);
   } finally {
     await app.close();
   }

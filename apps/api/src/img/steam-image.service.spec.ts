@@ -220,6 +220,7 @@ describe("SteamImageService wishlist-asset fallback", () => {
       libraryHero2xPath: null,
       headerPath: "0ed1cb4bc30631/header.jpg",
       assetTimestamp: 1_709_000_000n,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 
@@ -248,6 +249,7 @@ describe("SteamImageService wishlist-asset fallback", () => {
       libraryHero2xPath: null,
       headerPath: "0ed1cb4bc30631/header.jpg",
       assetTimestamp: 1_709_000_000n,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 
@@ -255,9 +257,26 @@ describe("SteamImageService wishlist-asset fallback", () => {
     expect(resolved.urls).toContain(
       "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/0ed1cb4bc30631/header.jpg?t=1709000000"
     );
-    // No SGDB prepended — wishlist titles aren't run through SGDB backfill,
-    // so the chain starts at the 2x legacy entry.
+    // SGDB not populated on this wishlist row, so the chain starts at the
+    // 2x legacy entry. Separate test covers the populated case below.
     expect(resolved.urls[0]).not.toContain("steamgriddb");
+  });
+
+  it("heroLarge prepends sgdbHeroUrl from the wishlist row when populated", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue(null);
+    prisma.steamWishlistAsset.findUnique.mockResolvedValue({
+      libraryCapsulePath: null,
+      libraryHeroPath: null,
+      libraryHero2xPath: null,
+      headerPath: "0ed1cb4bc30631/header.jpg",
+      assetTimestamp: 1_709_000_000n,
+      sgdbHeroUrl: "https://cdn2.steamgriddb.com/hero/1636440.jpg",
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.heroLarge(1636440);
+    expect(resolved.urls[0]).toBe("https://cdn2.steamgriddb.com/hero/1636440.jpg");
   });
 
   it("hero prefers SteamGameEnrichment over SteamWishlistAsset when both exist", async () => {
@@ -268,6 +287,7 @@ describe("SteamImageService wishlist-asset fallback", () => {
       libraryHero2xPath: null,
       headerPath: "owned/header.jpg",
       assetTimestamp: 1_715_000_000n,
+      sgdbHeroUrl: null,
     });
     prisma.steamWishlistAsset.findUnique.mockResolvedValue({
       libraryCapsulePath: null,
@@ -275,6 +295,7 @@ describe("SteamImageService wishlist-asset fallback", () => {
       libraryHero2xPath: null,
       headerPath: "wishlist/header.jpg",
       assetTimestamp: 1_709_000_000n,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 
@@ -295,6 +316,7 @@ describe("SteamImageService wishlist-asset fallback", () => {
       libraryHero2xPath: null,
       headerPath: null,
       assetTimestamp: 1_709_000_000n,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 
@@ -314,6 +336,7 @@ describe("SteamImageService wishlist-asset fallback", () => {
       libraryHero2xPath: null,
       headerPath: "0ed1cb4bc30631/header.jpg",
       assetTimestamp: 1_709_000_000n,
+      sgdbHeroUrl: null,
     });
     const service = makeService(prisma);
 

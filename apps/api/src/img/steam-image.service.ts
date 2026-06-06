@@ -33,17 +33,18 @@ export class SteamImageService {
   // Union lookup over `SteamGameEnrichment` (owned games) and
   // `SteamWishlistAsset` (wishlist titles). Owned-games rows always win when
   // both exist — the enrichment pipeline carries richer metadata (logo path
-  // via PICS, SGDB fallbacks) that wishlist sync doesn't fetch. The shape
-  // returned by both is structurally compatible for the per-asset fields the
-  // image proxy needs (every column on `SteamWishlistAsset` is a strict
-  // subset of `SteamGameEnrichment`). Centralising the union here keeps each
-  // route a one-liner and prevents per-route drift in the lookup order.
+  // via PICS) that wishlist sync doesn't fetch. The shape returned by both
+  // is structurally compatible for the per-asset fields the image proxy
+  // needs (every column on `SteamWishlistAsset` is a strict subset of
+  // `SteamGameEnrichment`). Centralising the union here keeps each route a
+  // one-liner and prevents per-route drift in the lookup order.
   private async resolveAssetRow(appid: number): Promise<{
     libraryCapsulePath: string | null;
     libraryHeroPath: string | null;
     libraryHero2xPath: string | null;
     headerPath: string | null;
     assetTimestamp: bigint | null;
+    sgdbHeroUrl: string | null;
   } | null> {
     const enrichment = await this.prisma.steamGameEnrichment.findUnique({
       where: { appid },
@@ -53,6 +54,7 @@ export class SteamImageService {
         libraryHero2xPath: true,
         headerPath: true,
         assetTimestamp: true,
+        sgdbHeroUrl: true,
       },
     });
     if (enrichment) return enrichment;
@@ -64,6 +66,7 @@ export class SteamImageService {
         libraryHero2xPath: true,
         headerPath: true,
         assetTimestamp: true,
+        sgdbHeroUrl: true,
       },
     });
   }
@@ -138,21 +141,14 @@ export class SteamImageService {
   // page keep their 1280-wide bytes; chapter surfaces opt into the heavier
   // payload by hitting this route explicitly.
   async heroLarge(appid: number): Promise<Resolved> {
-    // `sgdbHeroUrl` only lives on SteamGameEnrichment (owned games run
-    // through the SGDB backfill cron; wishlist titles don't), so we fetch
-    // it separately rather than threading it through resolveAssetRow.
-    const [row, sgdbRow] = await Promise.all([
-      this.resolveAssetRow(appid),
-      this.prisma.steamGameEnrichment.findUnique({
-        where: { appid },
-        select: { sgdbHeroUrl: true },
-      }),
-    ]);
-    // Three-tier fallback: hashed 2x → legacy 2x → hashed 1x → legacy 1x
-    // → hashed header → legacy header.jpg. The header tier is for
-    // wishlist titles whose publishers only shipped the header asset
-    // (Townfall-shape); owned games 200 on the legacy 1x entry before
-    // reaching it.
+    const row = await this.resolveAssetRow(appid);
+    // Three-tier fallback: SGDB community art → hashed 2x → legacy 2x →
+    // hashed 1x → legacy 1x → hashed header → legacy header.jpg. SGDB
+    // entries are populated by the backfill script (separate target for
+    // owned vs wishlist appids) and only land when the publisher's hero
+    // is missing. The header tier is for wishlist titles whose publishers
+    // only shipped the header asset (Townfall-shape); owned games 200 on
+    // the legacy 1x entry before reaching it.
     const twoX = composeAssetUrls(
       appid,
       row?.libraryHero2xPath,
@@ -171,7 +167,7 @@ export class SteamImageService {
       row?.assetTimestamp,
       "header.jpg"
     );
-    const sgdb = sgdbRow?.sgdbHeroUrl ? [sgdbRow.sgdbHeroUrl] : [];
+    const sgdb = row?.sgdbHeroUrl ? [row.sgdbHeroUrl] : [];
     return {
       urls: [...sgdb, ...twoX, ...oneX, ...header],
       // Stays at default `withoutEnlargement: true` — Sharp returns the

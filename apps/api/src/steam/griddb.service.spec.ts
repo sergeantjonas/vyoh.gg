@@ -235,13 +235,18 @@ function makePrismaWithRows(candidateRows: FakeRow[]): {
   prisma: PrismaService;
   findMany: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
+  wishlistFindMany: ReturnType<typeof vi.fn>;
+  wishlistUpdate: ReturnType<typeof vi.fn>;
 } {
   const findMany = vi.fn().mockResolvedValue(candidateRows);
   const update = vi.fn().mockResolvedValue({});
+  const wishlistFindMany = vi.fn().mockResolvedValue(candidateRows);
+  const wishlistUpdate = vi.fn().mockResolvedValue({});
   const prisma = {
     steamGameEnrichment: { findMany, update },
+    steamWishlistAsset: { findMany: wishlistFindMany, update: wishlistUpdate },
   } as unknown as PrismaService;
-  return { prisma, findMany, update };
+  return { prisma, findMany, update, wishlistFindMany, wishlistUpdate };
 }
 
 function heroResponse(appid: number, score = 10, width = 3840, height = 1240): Response {
@@ -357,5 +362,56 @@ describe("SteamGridDbService.backfillMissingHeroes", () => {
 
     expect(result).toBe(1);
     expect(update).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("SteamGridDbService.backfillMissingHeroes (wishlist target)", () => {
+  it("queries SteamWishlistAsset for libraryHeroPath=null when target=wishlist", async () => {
+    const { prisma, findMany, wishlistFindMany } = makePrismaWithRows([]);
+    const service = new SteamGridDbService(prisma);
+    await service.backfillMissingHeroes([1636440], "wishlist");
+    expect(findMany).not.toHaveBeenCalled();
+    expect(wishlistFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          appid: { in: [1636440] },
+          libraryHeroPath: null,
+          OR: expect.arrayContaining([
+            { sgdbEnrichedAt: null },
+            expect.objectContaining({
+              sgdbEnrichedAt: expect.objectContaining({ lt: expect.any(Date) }),
+            }),
+          ]),
+        }),
+      })
+    );
+  });
+
+  it("persists found hero to SteamWishlistAsset on the wishlist target", async () => {
+    const { prisma, update, wishlistUpdate } = makePrismaWithRows([{ appid: 1636440 }]);
+    vi.mocked(fetch).mockResolvedValue(heroResponse(1636440));
+
+    const service = new SteamGridDbService(prisma);
+    const result = await service.backfillMissingHeroes([1636440], "wishlist");
+
+    expect(result).toBe(1);
+    expect(update).not.toHaveBeenCalled();
+    expect(wishlistUpdate).toHaveBeenCalledWith({
+      where: { appid: 1636440 },
+      data: {
+        sgdbHeroUrl: "https://cdn2.steamgriddb.com/hero/1636440.jpg",
+        sgdbHeroWidth: 3840,
+        sgdbHeroHeight: 1240,
+        sgdbEnrichedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("defaults to the owned target when no target is passed", async () => {
+    const { prisma, findMany, wishlistFindMany } = makePrismaWithRows([]);
+    const service = new SteamGridDbService(prisma);
+    await service.backfillMissingHeroes([220]);
+    expect(findMany).toHaveBeenCalled();
+    expect(wishlistFindMany).not.toHaveBeenCalled();
   });
 });
