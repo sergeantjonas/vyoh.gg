@@ -201,6 +201,17 @@ export interface SteamGameRecap {
   // Raw screenshot entries for the closer rotator — chapter composes URLs
   // via `steamScreenshotFullUrl(appid, filename)`.
   screenshots: SteamScreenshotEntry[];
+  // R-10 trailer slot fields (carried verbatim from the per-game enrichment).
+  // The closer beat (`SteamChapterCloserMedia`) renders a looping microtrailer
+  // when `microtrailerWebm` is present, else falls back to the screenshots
+  // strip. Same fields the library hovercard already consumes — keeps the
+  // chapter on the existing microtrailer pipeline rather than introducing a
+  // parallel `movies[]` fetch (ADR-5 follow-up note). All four are null when
+  // the upstream omitted the trailer block.
+  microtrailerWebm: string | null;
+  microtrailerMp4: string | null;
+  microtrailerPoster: string | null;
+  microtrailerName: string | null;
   // Honest recency framing per the arc note: 0–7d → current, 8–30d → recent,
   // 31–90d → season, 91d+ → year. Null when lastPlayedAt is null.
   ageBucket: SteamAgeBucket | null;
@@ -249,6 +260,10 @@ export function deriveSteamGameRecap(
       playtimeTrend: null,
       standoutUnlock: null,
       screenshots: [...screenshots],
+      microtrailerWebm: null,
+      microtrailerMp4: null,
+      microtrailerPoster: null,
+      microtrailerName: null,
       ageBucket: null,
       releaseDate: null,
     };
@@ -322,6 +337,10 @@ export function deriveSteamGameRecap(
     playtimeTrend,
     standoutUnlock,
     screenshots: [...screenshots],
+    microtrailerWebm: ownedGame.microtrailerWebm,
+    microtrailerMp4: ownedGame.microtrailerMp4,
+    microtrailerPoster: ownedGame.microtrailerPoster,
+    microtrailerName: ownedGame.microtrailerName,
     ageBucket,
     releaseDate: ownedGame.releaseDate,
   };

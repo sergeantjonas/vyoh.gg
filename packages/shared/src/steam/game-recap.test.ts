@@ -115,6 +115,10 @@ describe("deriveSteamGameRecap", () => {
       playtimeTrend: null,
       standoutUnlock: null,
       screenshots: [],
+      microtrailerWebm: null,
+      microtrailerMp4: null,
+      microtrailerPoster: null,
+      microtrailerName: null,
       ageBucket: null,
       releaseDate: null,
     });

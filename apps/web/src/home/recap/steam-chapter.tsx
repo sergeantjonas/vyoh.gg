@@ -951,6 +951,10 @@ export function SteamChapter({
           <SteamChapterCloserMedia
             appid={appid}
             screenshots={screenshots}
+            microtrailerWebm={recap?.microtrailerWebm ?? null}
+            microtrailerMp4={recap?.microtrailerMp4 ?? null}
+            microtrailerPoster={recap?.microtrailerPoster ?? null}
+            microtrailerName={recap?.microtrailerName ?? null}
             active={nudged}
           />
           {/* Mirror accent slash — `from="right"` draws right-to-left,
