@@ -695,12 +695,16 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 numbersDelay={1.85}
                 // First-word kinetic: the verdict's hero word (first
                 // emphasis like "AGGRESSIVE", fallback to subject /
-                // first segment) scale-blurs in AFTER the ChapterReveal
-                // settles. Tuned to land just before the count-up cascade
-                // — opens the numbers' arrival rather than competing
-                // with the prose entrance (R-12.8).
+                // first segment) scale-blurs in CONCURRENTLY with the
+                // ChapterReveal so the lead word resolves first as the
+                // rest of the prose is still fading in. Kinetic duration
+                // (0.55s) is shorter than the parent's reveal (0.9s) so
+                // the lead lands sharp before the rest finishes — the
+                // reader's eye scans left-to-right onto an already-
+                // settled lead word, not a hole where the first word
+                // should be (R-12.8 fix after visual review).
                 firstWordKinetic={nudged}
-                firstWordKineticDelay={1.6}
+                firstWordKineticDelay={0.8}
               />
             </ChapterReveal>
           </div>

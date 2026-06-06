@@ -64,21 +64,25 @@ type Props = {
    */
   numbersDelay?: number;
   /**
-   * Gates the "first-word typographic kinetic" — a post-arrival pulse
+   * Gates the "first-word typographic kinetic" — a scale + blur entrance
    * on the verdict's editorial lead word (the first emphasis segment,
    * fallback subject, fallback first-segment-of-any-kind). Scales from
-   * 1.4 + blurs from 6px into a settled state, on top of whatever the
-   * surrounding ChapterReveal is doing. Default `false` so direct
-   * test/storybook renders stay static; subject chapters thread their
-   * `nudged` flag.
+   * 1.4 + blurs from 6px into the settled state OVER A SHORTER WINDOW
+   * than the surrounding ChapterReveal, so the lead word's transforms
+   * resolve while the rest of the prose is still fading in — the
+   * reader's left-to-right scan lands on an already-sharp lead word,
+   * not a hole where the first word should be. Default `false` so
+   * direct test/storybook renders stay static; subject chapters thread
+   * their `nudged` flag.
    */
   firstWordKinetic?: boolean;
   /**
    * Seconds to delay the first-word kinetic after `firstWordKinetic`
-   * flips to `true`. Tuned to land AFTER the surrounding ChapterReveal
-   * settles so the lead-word pop reads as a deliberate punch-out on
-   * already-readable prose, not a competing entrance. Typical value:
-   * `numbersDelay - 0.3` so the pulse opens the count-up cascade.
+   * flips to `true`. Tuned to match the surrounding ChapterReveal's
+   * delay (NOT its end-of-reveal) so the kinetic fires concurrently
+   * with the prose entrance. The kinetic's shorter 0.55s duration
+   * finishes during the parent's longer reveal window, landing the
+   * lead word first as the rest of the prose continues fading in.
    */
   firstWordKineticDelay?: number;
 };
