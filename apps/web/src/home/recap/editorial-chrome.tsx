@@ -81,23 +81,25 @@ export function EditorialChrome() {
     context ? pickActiveBeat(context.scrollYProgress.get(), context.beatRanges) : 0
   );
 
-  // Hard visibility gate via requestAnimationFrame polling. The
-  // opacity-via-scrollYProgress fade alone wasn't enough on Safari:
-  // Motion's `useScroll` on WebKit uses ScrollTimeline, which doesn't
-  // reliably advance progress past 1 after the section exits the
-  // viewport, so the opacity-0 endpoint never fires and the previous
-  // chapter's chrome persists into the next chapter. A scroll-event
-  // listener didn't fix it either on Safari (suggests the scroll
-  // events on `<main>` aren't firing in the cadence we need OR
-  // Safari's sticky stage is staying pinned at viewport-top even
-  // after the section exits).
+  // Hard visibility gate. The opacity-via-scrollYProgress fade and an
+  // "is section anywhere in viewport" check both failed: during the
+  // chapter's exit transition (sticky Phase 3, after the stage has
+  // bottomed-out), the section is still partially in viewport while
+  // its bottom edge drags the stage — and the chrome inside it —
+  // upward through the viewport. Owner confirmed this happens on
+  // Chrome AND Safari (Firefox unaffected; Firefox uses Motion's rAF
+  // fallback for useScroll which apparently doesn't reproduce this).
   //
-  // rAF polling is the nuclear option — runs every paint frame
-  // regardless of scroll-event delivery, and computes from raw
-  // getBoundingClientRect() against main's bounds, which is the
-  // single source of truth for "is the section in viewport." Applied
-  // via inline `display: none` so the rule wins over any sticky/
-  // positioning conflict regardless of CSS class ordering.
+  // Correct gate: chrome is visible ONLY while the section is in its
+  // STICKY-PIN range — section.top has reached or passed main.top
+  // AND section.bottom hasn't crossed above main.bottom yet. Outside
+  // that range (before pin: section is below viewport, OR after pin:
+  // section's bottom has scrolled above main.bottom = stage has
+  // bottomed-out + is scrolling upward), chrome hides.
+  //
+  // rAF polling reads positions every paint frame regardless of
+  // scroll-event delivery cadence; inline `display: none` wins over
+  // any CSS class ordering or engine sticky quirk.
   const [chapterInViewport, setChapterInViewport] = useState(true);
   useEffect(() => {
     let raf = 0;
@@ -109,9 +111,10 @@ export function EditorialChrome() {
         if (section) {
           const sectionRect = section.getBoundingClientRect();
           const mainRect = main.getBoundingClientRect();
-          const inView =
-            sectionRect.bottom > mainRect.top && sectionRect.top < mainRect.bottom;
-          setChapterInViewport((prev) => (prev === inView ? prev : inView));
+          // Inside the sticky-pin range only.
+          const inPinRange =
+            sectionRect.top <= mainRect.top && sectionRect.bottom >= mainRect.bottom;
+          setChapterInViewport((prev) => (prev === inPinRange ? prev : inPinRange));
         }
       }
       raf = requestAnimationFrame(tick);
