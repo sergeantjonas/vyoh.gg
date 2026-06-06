@@ -1,14 +1,7 @@
 import { AmbientHero } from "@/home/ambient-hero";
 import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
-import { EditorialCloser } from "@/home/conclusion/editorial-closer";
-import { ConclusionFooterChips } from "@/home/conclusion/footer-chips";
-import { LifetimeTotalsStrip } from "@/home/conclusion/lifetime-totals-strip";
-import { NowPlayingStrip } from "@/home/conclusion/now-playing-strip";
-import { RankTrajectoryStrip } from "@/home/conclusion/rank-trajectory-strip";
-import { ConclusionRhythmBand } from "@/home/conclusion/rhythm-band";
-import { TodayStrip } from "@/home/conclusion/today-strip";
+import { ConclusionChapter } from "@/home/conclusion/conclusion-chapter";
 import { LandingHeading } from "@/home/landing-heading";
-import { OwnerIdentityStrip } from "@/home/owner-identity-strip";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { LolMomentsAggregator } from "@/home/recap/lol-moments-aggregator";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
@@ -36,14 +29,12 @@ function HomePage() {
   // atmosphere layer reads its bounding rect each scroll tick to weight the
   // hero's contribution against any subsequent band's claim.
   const heroRef = useRef<HTMLElement | null>(null);
-  // Conclusion-band ref drives the back-to-painterly fade after the last
-  // chapter unpins. Mounted with a second `<AmbientHero>` claim (palette
-  // only, no image) — the atmosphere layer's proximity weighting will pick
-  // it over distant chapter claims once the user scrolls into the
-  // conclusion zone, so the asset-driven bg fades back to time-of-day
-  // painterly. AmbientHero is misnamed here but works for any palette-only
-  // claim; a future rename is fine but not load-bearing.
-  const conclusionRef = useRef<HTMLElement | null>(null);
+  // R-15: ConclusionChapter owns its own outerRef + palette-only
+  // atmosphere claim, so the prior `conclusionRef` + AmbientHero
+  // sibling claim are no longer needed at the route level. The
+  // chapter's own useAssetClaim publishes the palette-only blend that
+  // fades the bg back to time-of-day painterly once the user scrolls
+  // past the last asset-driven chapter.
   return (
     <AtmosphereProvider>
       <div className="relative flex flex-col">
@@ -128,72 +119,18 @@ function HomePage() {
             <SteamMomentsAggregator moments={steamMoments} />
           ) : null;
         })()}
-        {/* Conclusion is split across two snap-aligned siblings, each
-            claiming a full viewport so the page reads as two distinct
-            paged closes rather than one tall stack. `scroll-snap-stop:
-            always` matches the chapter pattern above — every section is
-            an exhaustive stop. Caret threads through both via
-            `data-recap-chapter`; AmbientHero's palette-only claim is
-            mounted on the recent section. See the recap arc's R-15 chunk
-            for the planned re-evaluation against R-13's multi-beat
-            primitive once that ships. */}
-        <section
-          ref={conclusionRef}
-          data-recap-chapter="conclusion-recent"
-          // "The shape" covers the section's mix of live (now-playing) +
-          // rolling-24h (today) + longer-window aggregates (rhythm's
-          // event-per-hour and session-length samples). "The week" was
-          // wrong — the rhythm card doesn't bucket by week.
-          data-chapter-label="The shape"
-          className="flex min-h-[calc(var(--main-h,100dvh)-3rem)] flex-col items-stretch justify-center gap-2 [scroll-snap-align:start] [scroll-snap-stop:always]"
-        >
-          {/* Reuses AmbientHero as a palette-only atmosphere claim scoped to
-              the conclusion ref — fades the bg back from asset-driven
-              (chapters) to painterly time-of-day once the user scrolls past
-              the last chapter. The hero's matching claim is now distant
-              enough by proximity that this one wins. */}
-          <AmbientHero bandRef={conclusionRef} intensity={activity?.intensity} />
-          {/* Author signature opens the shape section as "this is who; here
-              is how they play." Pairs with the trajectory's identity-
-              adjacent framing further down. The closer's "— Vyoh" sign-off
-              in the picture section continues to carry the identity beat
-              at page close, so the alltime section doesn't lose its
-              attribution. */}
-          <OwnerIdentityStrip />
-          {/* Live-state pulse: lands above the rhythm band when the owner
-              is in a LoL queue or has Steam reporting an active game.
-              Hides itself otherwise. Reads through PresenceMounts' root-
-              level pollers — no extra network. */}
-          <NowPlayingStrip />
-          <ConclusionRhythmBand />
-          {/* 30-day solo queue LP arc — sits between the longer-window
-              rhythm samples and the 24h today strip as the mid-timescale
-              beat of the shape section. Hides itself when the primary
-              account has too little snapshot history to draw. */}
-          <RankTrajectoryStrip />
-          {/* Today pulse: zoomed in to "right now" — the narrowest
-              time-bucketed strip in the shape section. */}
-          <TodayStrip />
-        </section>
-        <section
-          data-recap-chapter="conclusion-alltime"
-          // Label avoids "Since launch" because the LifetimeTotalsStrip
-          // already uses that as its eyebrow inside this section, and the
-          // caret showing the same words two lines below the eyebrow read
-          // as a typo. "The picture" mirrors the editorial closer's
-          // sign-off ("That's the picture.") and frames the section as the
-          // page's final beat.
-          data-chapter-label="The picture"
-          className="flex min-h-[calc(var(--main-h,100dvh)-3rem)] flex-col [scroll-snap-align:start] [scroll-snap-stop:always]"
-        >
-          {/* Upper region centers totals + closer in the viewport; footer
-              chips pin to the bottom as colophon. */}
-          <div className="flex flex-1 flex-col items-stretch justify-center gap-2">
-            <LifetimeTotalsStrip />
-            <EditorialCloser />
-          </div>
-          <ConclusionFooterChips />
-        </section>
+        {/* R-15: conclusion as a multi-beat SUBJECT chapter about the
+            owner. Closes the "subject portrait" arc that opens with
+            the Ahri chapter — page reads as
+            subject (Ahri) → moments → subjects (Steam) → moments → SUBJECT (you).
+            Replaces the prior two snap-aligned siblings
+            (conclusion-recent + conclusion-alltime) that pre-dated
+            R-13's multi-beat primitive. OwnerIdentityStrip is dropped —
+            the chapter masthead carries the owner identity now. The
+            atmosphere palette-only claim that AmbientHero used to mount
+            on conclusion-recent is also gone; ConclusionChapter
+            publishes its own palette-only claim via useAssetClaim. */}
+        <ConclusionChapter />
       </div>
     </AtmosphereProvider>
   );
