@@ -97,11 +97,25 @@ export function EditorialChrome() {
   // section's bottom has scrolled above main.bottom = stage has
   // bottomed-out + is scrolling upward), chrome hides.
   //
+  // TOP-side tolerance (TOP_PIN_TOLERANCE_PX): when the
+  // next-chapter caret lands the user at the chapter's outer-top, the
+  // page nav above main shrinks ~8px as scroll settles, leaving the
+  // section.top sitting a few pixels below main.top. With strict
+  // equality (`section.top <= main.top`), the gate returns false at
+  // landing and the chrome only appears after the user scrolls
+  // further (passed through the small landing gap). A small tolerance
+  // (~32px — wider than observable nav shrink, well below the half-
+  // viewport boundary that would false-positive into the next
+  // chapter) absorbs the landing offset, scroll-padding/snap-margin,
+  // and sub-pixel rounding without re-introducing the exit-side bug.
+  // BOTTOM side stays strict because that was the original bug.
+  //
   // rAF polling reads positions every paint frame regardless of
   // scroll-event delivery cadence; inline `display: none` wins over
   // any CSS class ordering or engine sticky quirk.
   const [chapterInViewport, setChapterInViewport] = useState(true);
   useEffect(() => {
+    const TOP_PIN_TOLERANCE_PX = 32;
     let raf = 0;
     const tick = () => {
       const chrome = chromeRef.current;
@@ -111,9 +125,9 @@ export function EditorialChrome() {
         if (section) {
           const sectionRect = section.getBoundingClientRect();
           const mainRect = main.getBoundingClientRect();
-          // Inside the sticky-pin range only.
           const inPinRange =
-            sectionRect.top <= mainRect.top && sectionRect.bottom >= mainRect.bottom;
+            sectionRect.top <= mainRect.top + TOP_PIN_TOLERANCE_PX &&
+            sectionRect.bottom >= mainRect.bottom;
           setChapterInViewport((prev) => (prev === inPinRange ? prev : inPinRange));
         }
       }
