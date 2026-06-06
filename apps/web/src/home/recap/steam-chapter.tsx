@@ -581,28 +581,28 @@ export function SteamChapter({
       <ChapterOpener>
         {verdictClauses.length > 0 ? (
           <div className="flex w-full flex-col">
-            {/* Accent slash — magazine opener flourish above the prose.
+            {/* Accent slash — magazine opener mark above the prose.
                 Mirrors beat 3's closer slash, which sits below its
-                content with `from="right"`. Together the two slashes
-                bookend the chapter (top + bottom edges) with the same
-                primitive on opposite axes. `mb-3 sm:mb-4` keeps the
-                gap between slash and prose tight so the prose still
-                lands close to the masthead; delay 1.1s sequences the
-                slash AFTER the prose's blur-rise so it reads as an
-                editorial mark landing on already-readable copy, not
-                a decoration racing the headline. */}
+                content with `from="right"`; together the two
+                slashes bookend the chapter. Animates FIRST as an
+                editorial kicker: the slash draws in (delay 0.05s),
+                lands at ~0.75s, then the prose blur-rise follows
+                beneath it. This sequencing matches its role — an
+                opener mark sets up the headline / body that
+                follows, the same way a magazine kicker line
+                precedes its lede. */}
             <BeatAccentSlash
               beatIndex={0}
-              delay={1.1}
+              delay={0.05}
               className="mb-3 sm:mb-4"
               width="14rem"
             />
 
             {/* Verdict prose — curtain-pull entrance: bigger rise +
-                blur + longer duration than the band default. Lands
-                first; the slash draws above it once the text has
-                settled. */}
-            <ChapterReveal active={nudged} delay={0.1} blur={8} rise={22} duration={0.9}>
+                blur + longer duration than the band default. Delay
+                bumped past the slash's draw so the prose lands
+                second, after the kicker has set the stage. */}
+            <ChapterReveal active={nudged} delay={0.8} blur={8} rise={22} duration={0.9}>
               <VerdictProse
                 clauses={verdictClauses}
                 style={{ textShadow: SHADOW_BODY }}
@@ -612,7 +612,7 @@ export function SteamChapter({
                   textShadow: SHADOW_ACCENT,
                 }}
                 numbersActive={nudged}
-                numbersDelay={0.95}
+                numbersDelay={1.85}
               />
             </ChapterReveal>
           </div>
