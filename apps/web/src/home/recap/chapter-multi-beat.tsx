@@ -14,7 +14,7 @@ import {
 
 import { mainScrollRef } from "@/lib/scroll-container";
 
-import { ChapterGroupNudgeContext } from "./chapter-group";
+import { ChapterGroupNudgeContext } from "./chapter-nudge-contexts";
 import { EditorialChrome } from "./editorial-chrome";
 import {
   ChapterMultiBeatContext,

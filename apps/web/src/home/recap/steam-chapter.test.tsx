@@ -54,13 +54,8 @@ vi.mock("motion/react", async () => {
     useTransform: vi.fn(() => "0vw"),
   };
 });
-vi.mock("./use-multi-beat-flag", () => ({
-  useMultiBeatFlag: vi.fn(() => false),
-}));
-
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 import { SteamChapter } from "./steam-chapter";
-import { useMultiBeatFlag } from "./use-multi-beat-flag";
 
 const NOW = new Date("2026-06-01T12:00:00Z");
 
@@ -177,12 +172,10 @@ describe("SteamChapter", () => {
   it("renders the masthead with the logo + tagline when a logo exists", () => {
     const { container } = render(<SteamChapter />);
     // Logo path: the official Steam logo replaces the typographic <h2>.
-    // The masthead now lives in the persistent chapter title card
-    // (ChapterGroup's identity slot), not inside beat 0 — scope to the
-    // identity-mark wrapper for the masthead-specific assertion.
-    const titleCard = container.querySelector(
-      "[data-chapter-identity-mark]"
-    ) as HTMLElement;
+    // The masthead lives in the persistent chapter title card
+    // (ChapterMultiBeat's identity slot), not inside beat 0 — scope to
+    // the identity-mark wrapper for the masthead-specific assertion.
+    const titleCard = container.querySelector("[data-chapter-masthead]") as HTMLElement;
     const logo = titleCard.querySelector("img[alt='Hollow Knight']") as HTMLImageElement;
     expect(logo).toBeTruthy();
     expect(logo.src).toContain("/logo/367520");
@@ -340,10 +333,10 @@ describe("SteamChapter", () => {
   it("masthead links to the game-detail page (title-as-link)", () => {
     const { container } = render(<SteamChapter />);
     // The masthead (logo img or h2 fallback) is wrapped in a Link in the
-    // chapter title card (ChapterGroup's identity slot). The accessible
+    // chapter title card (ChapterMultiBeat's identity slot). The accessible
     // name comes from the logo's alt attribute (or the h2 text), so the
     // link is queryable by name.
-    const titleCard = container.querySelector("[data-chapter-identity-mark]");
+    const titleCard = container.querySelector("[data-chapter-masthead]");
     const link = titleCard?.querySelector("a");
     expect(link).toBeTruthy();
     expect(link?.getAttribute("to")).toBe("/steam/game/$appid");
@@ -364,24 +357,13 @@ describe("SteamChapter", () => {
     expect(screen.queryByText("Latest milestone")).toBeNull();
   });
 
-  it("renders as a 4-beat chapter under the sticky-stage architecture", () => {
+  it("renders as a 4-beat chapter", () => {
     const { container } = render(<SteamChapter />);
-    const group = container.querySelector("[data-chapter-group]");
-    expect(group).toBeTruthy();
-    // The chapter announces its beat count so the stage geometry math
-    // (section height = (beatCount+1)*100dvh) is observable.
-    expect(group?.getAttribute("data-chapter-beat-count")).toBe("4");
-    // Each ChapterBeat renders a single [data-beat-body] wrapper.
-    const beats = container.querySelectorAll("[data-beat-body]");
+    const multiBeat = container.querySelector("[data-chapter-multi-beat]");
+    expect(multiBeat).toBeTruthy();
+    expect(multiBeat?.getAttribute("data-chapter-beat-count")).toBe("4");
+    const beats = container.querySelectorAll("[data-beat]");
     expect(beats.length).toBe(4);
-    // No legacy scroll-snap or 130dvh wrapper geometry. Layout is owned
-    // by ChapterGroup's sticky stage; beats are absolute-positioned
-    // layers inside it.
-    for (const beat of beats) {
-      expect(beat.className).not.toContain("scroll-snap-align");
-      expect(beat.className).not.toContain("scroll-snap-stop");
-      expect(beat.className).not.toContain("h-[130dvh]");
-    }
   });
 
   it("renders a single chapter-level identity mark (not per-beat)", () => {
@@ -390,7 +372,7 @@ describe("SteamChapter", () => {
     // exactly one mark element regardless of beat count. Per-beat overlay
     // re-mounts are gone — the identity is the chapter's constant under
     // which beat content swaps.
-    const marks = container.querySelectorAll("[data-chapter-identity-mark]");
+    const marks = container.querySelectorAll("[data-chapter-masthead]");
     expect(marks.length).toBe(1);
     const logo = marks[0]?.querySelector("img");
     expect(logo).toBeTruthy();
@@ -404,7 +386,7 @@ describe("SteamChapter", () => {
       isError: false,
     } as unknown as ReturnType<typeof useSteamGameRecap>);
     const { container } = render(<SteamChapter />);
-    const marks = container.querySelectorAll("[data-chapter-identity-mark]");
+    const marks = container.querySelectorAll("[data-chapter-masthead]");
     expect(marks.length).toBe(1);
     // No logo → text fallback (no img, just the game name).
     expect(marks[0]?.querySelector("img")).toBeNull();
@@ -438,24 +420,12 @@ describe("SteamChapter", () => {
     expect(beatOf("[data-band='closer']")).toBe("3");
   });
 
-  describe("multi-beat layout flag", () => {
-    beforeEach(() => {
-      vi.mocked(useMultiBeatFlag).mockReturnValue(true);
-    });
-
-    afterEach(() => {
-      vi.mocked(useMultiBeatFlag).mockReturnValue(false);
-    });
-
-    it("renders the multi-beat chapter wrapper when the flag is on", () => {
+  describe("multi-beat layout", () => {
+    it("renders the multi-beat chapter wrapper as the only layout", () => {
       const { container } = render(<SteamChapter />);
-      // The new architecture surfaces a different data attr — exclusive
-      // selector so the test fails if the wrong path renders.
       const multiBeat = container.querySelector("[data-chapter-multi-beat]");
       expect(multiBeat).toBeTruthy();
       expect(multiBeat?.getAttribute("data-chapter-beat-count")).toBe("4");
-      // Legacy chapter group's stage attr must NOT also be present.
-      expect(container.querySelector("[data-chapter-group]")).toBeNull();
     });
 
     it("renders four 1/4-width beats in the expanded horizontal track", () => {

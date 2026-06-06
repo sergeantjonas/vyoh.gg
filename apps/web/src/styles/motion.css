@@ -229,68 +229,12 @@ body {
     animation-range: entry 0% cover 30%;
   }
 
-  /* Sticky-stage chapter beat cross-fade.
-   *
-   * Architecture: each chapter section (`[data-chapter-group]`) is
-   * `(beatCount+1)*100dvh` tall and hosts a `position: sticky` stage at
-   * `top: 0; height: 100dvh`. Beats are absolutely-positioned layers
-   * inside the stage, stacked on top of each other below the masthead.
-   * As the user scrolls, the section's view-timeline progresses and
-   * each beat's opacity fades in/out across its assigned cover range.
-   *
-   * Per-beat range comes from CSS variables published inline on each
-   * `[data-beat-layer]`: `--beat-fade-start`, `--beat-fade-in-end`,
-   * `--beat-fade-out-start`, `--beat-fade-end`. The chapter group
-   * computes these so adjacent beats overlap slightly (cross-fade) and
-   * each beat's dominant moment aligns with one viewport of pinned
-   * sticky-stage scroll.
-   *
-   * `data-css-timeline` is a JS-set opt-in — Firefox lies about
-   * `@supports (animation-timeline: view())`, so we gate at the JS
-   * level via `"ViewTimeline" in window` (see has-view-timeline.ts) and
-   * only attach the attribute on engines where the timeline actually
-   * progresses. Without it, ChapterGroup's Motion fallback drives
-   * inline `style.opacity` directly.
-   *
-   * `animation-range` references the chapter section's view-timeline
-   * (assigned via `view-timeline-name: --chapter-stage` below) so the
-   * fade is keyed to the chapter's own scroll progress, not the beat
-   * layer's intersection (which is meaningless because the layer is
-   * pinned inside the sticky stage and doesn't intersect on its own). */
-  [data-chapter-group] {
-    view-timeline-name: --chapter-stage;
-    view-timeline-axis: block;
-  }
-  [data-beat-layer][data-css-timeline] {
-    opacity: 0;
-    animation: chapter-beat-cross-fade 1ms linear both;
-    animation-timeline: --chapter-stage;
-    animation-range: cover var(--beat-fade-start, 0%) cover var(--beat-fade-end, 100%);
-  }
-  @keyframes chapter-beat-cross-fade {
-    /* translateY adds directional motion so adjacent beats look like
-       they're moving past each other (incoming from below, outgoing
-       upward) rather than dissolving in place. Helps the brief overlap
-       window read as a transition rather than as stacked content,
-       especially important on scroll-back where the user expects to
-       see the previous content "return" not stack on top. */
-    0% {
-      opacity: 0;
-      transform: translateY(24px);
-    }
-    25% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    75% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-24px);
-    }
-  }
+  /* Sticky-stage beat cross-fade keyframes for the legacy
+     `<ChapterGroup>` primitive were removed in 3g cleanup (Steam moved
+     to `<ChapterMultiBeat>`, which uses Motion's per-beat reveal
+     cascade rather than CSS animation-timeline). Restore from
+     `git log -- src/styles/motion.css` if a future chapter type
+     wants the view-timeline-driven cross-fade pattern back. */
 }
 
 /* ─── Overlay entry (Radix popper-positioned content) ───────────────────────

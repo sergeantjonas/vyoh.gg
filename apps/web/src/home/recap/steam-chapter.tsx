@@ -33,9 +33,8 @@ import {
   ChapterOpener,
   ChapterStats,
 } from "./chapter-bands";
-import { ChapterBeat } from "./chapter-beat";
-import { ChapterGroup, useChapterGroupNudge } from "./chapter-group";
 import { ChapterMultiBeat } from "./chapter-multi-beat";
+import { useChapterGroupNudge } from "./chapter-nudge-contexts";
 import { ChapterReveal } from "./chapter-reveal";
 import {
   SHADOW_ACCENT,
@@ -52,7 +51,6 @@ import { SteamChapterCloserMedia } from "./steam-chapter-closer-media";
 import { UnlocksPerWeekBand } from "./unlocks-per-week-band";
 import { useAssetClaim } from "./use-asset-claim";
 import { useAssetPreload } from "./use-asset-preload";
-import { useMultiBeatFlag } from "./use-multi-beat-flag";
 import { VerdictProse } from "./verdict-prose";
 
 // Bucket-aware kicker copy. Mirrors the arc note's "Steam framing" table —
@@ -697,27 +695,17 @@ export function SteamChapter({
     [recap]
   );
 
-  // Layout class for each beat's content wrapper. Horizontal padding +
-  // flex direction only — vertical positioning is handled by ChapterGroup's
-  // sticky stage (beats render in the absolute layer positioned below
-  // the masthead at `top: 30vh`). Adding pt here would push content
-  // further down on top of that offset.
-  const useMultiBeat = useMultiBeatFlag();
-  // Multi-beat path: beats are viewport-wide (full-bleed), so center the
-  // band content within each beat via a `max-w-4xl` reading column. Also
-  // override the band's default `pt-12`/`pb-12` "breathing room" (from
-  // chapter-bands.tsx, intended for stacked bands) to a tighter
-  // `pt-6`/`pb-6` since beats no longer stack vertically. Legacy path
-  // unaffected.
-  const BEAT_LAYOUT = useMultiBeat
-    ? "flex flex-col items-center justify-start px-6 sm:px-10 [&>[data-band]]:!max-w-4xl [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6"
-    : "flex flex-col items-start justify-start px-6 sm:px-10";
+  // Beats are viewport-wide (full-bleed), so we center band content
+  // within each beat via a `max-w-4xl` reading column. Also override the
+  // band's default `pt-12`/`pb-12` "breathing room" (from chapter-bands.tsx,
+  // intended for stacked bands) to a tighter `pt-8`/`pb-6` since beats
+  // no longer stack vertically — they swap via the multi-beat track.
+  const BEAT_LAYOUT =
+    "flex flex-col items-center justify-start px-6 sm:px-10 [&>[data-band]]:!max-w-4xl [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
 
-  // Beat bodies extracted as render-prop functions so both the legacy
-  // ChapterGroup path and the multi-beat ChapterMultiBeat path can map
-  // over the same source without duplicating ~150 lines of JSX.
-  // Removing this temporary indirection: see chunk 4 of
-  // [multi-beat-chapter-arc.md](../../../docs/working-notes/cross-cutting/multi-beat-chapter-arc.md).
+  // Beat bodies as render-prop functions so the `nudged` flag (per-beat
+  // active state from `<MultiBeat>`) can be threaded into each body's
+  // ChapterReveal cascade. Mapped 1:1 onto `<MultiBeat>` children below.
   const beatBodies: Array<(nudged: boolean) => ReactNode> = [
     // Beat 0 — Verdict prose with editorial slash mark. The splash
     // already carries its own atmospheric depth (rain, light, mood on
@@ -955,35 +943,6 @@ export function SteamChapter({
     />
   );
 
-  if (useMultiBeat) {
-    return (
-      <div
-        ref={outerRef}
-        data-recap-chapter="steam"
-        data-steam-appid={appid}
-        data-chapter-label={name || `Steam game ${appid}`}
-      >
-        <ChapterMultiBeat
-          slug={`steam-${appid}`}
-          ariaLabel={name || `Steam game ${appid}`}
-          identity={titleCard}
-        >
-          {beatBodies.map((body, index) => (
-            <MultiBeat
-              // biome-ignore lint/suspicious/noArrayIndexKey: beat order is stable across renders
-              key={index}
-              index={index}
-              beatCount={beatBodies.length}
-              className={BEAT_LAYOUT}
-            >
-              {body}
-            </MultiBeat>
-          ))}
-        </ChapterMultiBeat>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={outerRef}
@@ -991,18 +950,23 @@ export function SteamChapter({
       data-steam-appid={appid}
       data-chapter-label={name || `Steam game ${appid}`}
     >
-      <ChapterGroup
+      <ChapterMultiBeat
         slug={`steam-${appid}`}
         ariaLabel={name || `Steam game ${appid}`}
         identity={titleCard}
       >
         {beatBodies.map((body, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: beat order is stable across renders
-          <ChapterBeat key={index} index={index} className={BEAT_LAYOUT}>
+          <MultiBeat
+            // biome-ignore lint/suspicious/noArrayIndexKey: beat order is stable across renders
+            key={index}
+            index={index}
+            beatCount={beatBodies.length}
+            className={BEAT_LAYOUT}
+          >
             {body}
-          </ChapterBeat>
+          </MultiBeat>
         ))}
-      </ChapterGroup>
+      </ChapterMultiBeat>
     </div>
   );
 }

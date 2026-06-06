@@ -1,6 +1,6 @@
 import { m } from "motion/react";
 
-import { useChapterBeatNudge } from "./chapter-group";
+import { useChapterBeatNudge } from "./chapter-nudge-contexts";
 
 type Props = {
   /** Beat this slash belongs to. Drives sweep timing via `useBeatProgress`. */

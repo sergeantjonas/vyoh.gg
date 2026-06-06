@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { mainScrollRef } from "@/lib/scroll-container";
 
-import { ChapterBeatNudgeContext } from "./chapter-group";
+import { ChapterBeatNudgeContext } from "./chapter-nudge-contexts";
 
 /** Render-prop child: receives this beat's own nudge state. */
 export type MultiBeatRenderProp = (nudged: boolean) => ReactNode;
