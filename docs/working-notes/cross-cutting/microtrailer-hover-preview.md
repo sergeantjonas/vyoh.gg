@@ -99,7 +99,7 @@ Per [feedback_engine_gate_perf_cliffs](./safari-vt-snapshot-cost.md) — Safari/
 - **Hardware video decode** — both WebKit and Blink hardware-decode H.264 reliably; AV1 hardware decode is Apple-Silicon-only on Safari (M1+), Linux WebKit and older Macs fall back to software. Use webm (likely VP9/AV1 inside) as the primary `<source>`, mp4/H.264 as the universal fallback in `<source>` order. Browser picks the first decodable.
 - **Composite-only crossfade** — `<video>` already paints onto its own GPU surface; the fade between hero and video is a CSS `opacity` transition on stacked elements, not a `filter` or `mix-blend-mode` operation. Keep both in the composite-only family.
 - **Hovercard lifecycle absorbs decoder cost** — the `<video>` only ever mounts inside an open hovercard, so the decoder is set up during deliberate hover rather than during library scroll. The earlier concern about Safari's snapshot cost during scroll + concurrent video decode is structurally gone.
-- **No interaction with VT.** The library-tile VT (existing single-element morph, shipped 2026-05-24, [view-transitions-rollout.md](./view-transitions-rollout.md)) does the hero/logo continuity into game-detail. Hovercard auto-closes before navigation, so no overlap.
+- **No interaction with VT.** The library-tile VT (existing single-element morph, shipped 2026-05-24, [view-transitions-rollout.md](../archive/view-transitions-rollout.md)) does the hero/logo continuity into game-detail. Hovercard auto-closes before navigation, so no overlap.
 
 If Safari still turns out to be a cliff (e.g. hover-decode-hover-decode burst across rapid hovers), apply the same `isWebKit()` gate as the Steam VT bypass — show the static poster on WebKit, full microtrailers on Blink/Gecko. Don't pre-emptively gate; measure first.
 
@@ -162,5 +162,5 @@ Shipping rung 1 first kept the data layer ([library-card-enrichment.md Chunk 0](
 - [motion-backlog.md](./motion-backlog.md) — cross-listed under High impact (steam library).
 - [safari-vt-snapshot-cost.md](./safari-vt-snapshot-cost.md) — engine-cliff handling pattern if Safari needs `isWebKit()` gate.
 - [reduced-motion-replacements.md](./reduced-motion-replacements.md) — owner of the per-surface reduced-motion audit; this arc registers its replacement variant there when shipped.
-- [view-transitions-rollout.md](./view-transitions-rollout.md) — existing tile VT; hovercard auto-closes pre-navigation.
+- [view-transitions-rollout.md](../archive/view-transitions-rollout.md) — existing tile VT; hovercard auto-closes pre-navigation.
 - [library-tile-hovercard.tsx](../../../apps/web/src/steam/library/library-tile-hovercard.tsx) — the integration site.

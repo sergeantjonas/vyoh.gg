@@ -36,7 +36,7 @@ After D4-1 shipped (full-viewport hero) and D4-2 attempted (Steam editorial band
 
 ## D4 chunk plan (active 2026-05-31)
 
-**D4-1. Full-viewport hero.** `AmbientHero` swells from 60vh strip to ~95vh full-bleed. `LandingHeading` lifts *inside* the hero, centered vertically, at editorial scale (extend [editorial-typography.md](editorial-typography.md) variable-font axes — currently shipped on match-detail / Profile heroes — to the landing display). Bento survives but starts below `100vh`, below the fold for the recruiter who doesn't scroll. Single session. Files: [routes/index.tsx](../../apps/web/src/routes/index.tsx), [home/landing-heading.tsx](../../apps/web/src/home/landing-heading.tsx), [home/ambient-hero.tsx](../../apps/web/src/home/ambient-hero.tsx) (height prop only).
+**D4-1. Full-viewport hero.** `AmbientHero` swells from 60vh strip to ~95vh full-bleed. `LandingHeading` lifts *inside* the hero, centered vertically, at editorial scale (extend [editorial-typography.md](../archive/editorial-typography.md) variable-font axes — currently shipped on match-detail / Profile heroes — to the landing display). Bento survives but starts below `100vh`, below the fold for the recruiter who doesn't scroll. Single session. Files: [routes/index.tsx](../../apps/web/src/routes/index.tsx), [home/landing-heading.tsx](../../apps/web/src/home/landing-heading.tsx), [home/ambient-hero.tsx](../../apps/web/src/home/ambient-hero.tsx) (height prop only).
 
 **D4-2. First editorial band: Steam signature.** ⚠️ Shipped 2026-05-31, then re-scoped same day. Initial ship: [LandingSteamBand](../../apps/web/src/home/landing-steam-band.tsx) rendered the most recent cross-game unlock as a full-bleed band — game hero backdrop (`steamLibraryHeroUrl`) with vignette + horizontal gradient mask, achievement icon, `text-3xl` headline, `Unlocked in {game} · {time-ago}` meta, deep-links to `/steam/game/$appid?ach=apiName`. Backed by `useRecentUnlocks(1)`. `TileFirstPlayed` (LoL) demoted in the same chunk to respect the per-stream-highlight cap. **Re-scope:** the full-bleed backdrop image created an irreducible seam between hero and band (see [atmosphere-arc.md](atmosphere-arc.md) brainstorm-preservation). Interim treatment 2026-05-31: strip the backdrop image, keep editorial copy + achievement icon. Atmosphere-arc A-3 reintroduces as claim-only band.
 
@@ -52,7 +52,7 @@ After D4-1 shipped (full-viewport hero) and D4-2 attempted (Steam editorial band
 
 Elevate the `/` synthesis surface from "small logo animation + a few synthesis tiles" into a deliberate first-impression showcase that does justice to the portfolio framing of the app. Most reviewers (recruiters, fellow engineers, casual visitors) will land here and never click deeper — currently the landing page does not reflect the craft visible inside the section routes.
 
-Sister notes: [ambient-home-hero](ambient-home-hero.md) (a planned component of this arc), [self-portrait-surfaces.md](self-portrait-surfaces.md) (the broader self-portrait direction), [nav-condensation-arc.md](nav-condensation-arc.md) (shipped 2026-05-31; landed cinematic Profile heroes on both LoL and Steam, which *widened* this arc's gap rather than closing it — see "Premise" below).
+Sister notes: [ambient-home-hero](ambient-home-hero.md) (a planned component of this arc), [self-portrait-surfaces.md](self-portrait-surfaces.md) (the broader self-portrait direction), [nav-condensation-arc.md](../archive/nav-condensation-arc.md) (shipped 2026-05-31; landed cinematic Profile heroes on both LoL and Steam, which *widened* this arc's gap rather than closing it — see "Premise" below).
 
 ---
 
@@ -62,7 +62,7 @@ The current `/` route shows a modest synthesis hero — `vyoh.gg` mark, a small 
 
 Two facts make this an unavoidable gap, both reinforced since this arc was first scoped:
 
-1. **The strongest showcase surfaces today live behind a Profile-tab click.** [nav-condensation-arc](nav-condensation-arc.md) shipped 2026-05-31 — cinematic Profile heroes on both `/lol/$account/profile` and `/steam/profile`, with M2 scroll-collapse and M2b cross-tab identity morphs. [player-portrait.md](../steam/player-portrait.md) shipped 13 evidence-backed trait cards on the same Profile tab. A recruiter scanning the portfolio rarely makes that click.
+1. **The strongest showcase surfaces today live behind a Profile-tab click.** [nav-condensation-arc](../archive/nav-condensation-arc.md) shipped 2026-05-31 — cinematic Profile heroes on both `/lol/$account/profile` and `/steam/profile`, with M2 scroll-collapse and M2b cross-tab identity morphs. [player-portrait.md](../steam/player-portrait.md) shipped 13 evidence-backed trait cards on the same Profile tab. A recruiter scanning the portfolio rarely makes that click.
 2. **`/` is currently the least-designed surface in the project, and the gap has widened.** Section routes have splash backdrops, cinematic Profile heroes, animated nav icons, layered chrome, accent cascade, view-transitions, virtualized lists, shadcn primitives, layoutId pills, the whole stack. `/` has a logo, a tagline, and nine bento tiles ([apps/web/src/routes/index.tsx](../../../apps/web/src/routes/index.tsx)). Every Tier-1/2 ship since 2026-05-24 (nav-condensation, accent-color Steam wiring, editorial-typography, page-composition, data-viz-densification, mount-and-overlay-motion, reduced-motion-replacements) has elevated the section routes; none has touched `/`.
 
 A dedicated arc closes that gap. The premise is **not** to dump per-stream content onto `/` (that violates the synthesis-only convention in [repo-conventions.md § per-stream routes](../../repo-conventions.md) and would muddy the IA). The premise is to make the synthesis surface itself a portfolio showcase — to use the cross-stream framing as the canvas for the strongest visual moves in the app.
@@ -77,7 +77,7 @@ This is exploratory. Concrete chunks should land once the design direction is ch
 - **Cross-stream synthesis hero.** "What am I doing right now" — picks the dominant live stream (in-game on LoL, playing on Steam, idle) and renders that as the headline. When live, the hero adapts: champion splash + match context, or game art + playtime. When idle, falls back to a curated synthesis ("Today: X hours across Y streams"). **Promoted 2026-05-31 to its own sibling note — see [landing-live-hero.md](landing-live-hero.md) for design alternatives (live-only / daily-dominant / hybrid), infrastructure to reuse (`LiveGamePollerService` + `SteamPlaySession` + `SplashProvider`), reduced-motion contract, and sequencing relative to [live-presence-chip.md](live-presence-chip.md).**
 - **Chronotype synthesis card.** Already alluded to in [repo-conventions.md § per-stream routes](../../repo-conventions.md) as a canonical synthesis surface: hour-bucketing across LoL + commit activity + Steam playtime. The cross-stream chronotype lives here, not on per-stream routes.
 - **Curated teaser fragments.** Per-stream "one curated highlight" allowed by the repo conventions — the strongest single fragment from each stream (e.g. most recent ranked win pip, most-played Steam game this week), each linking into the deep route. Resists turning into a per-stream feed; one fragment maximum.
-- **Editorial type treatment.** Large display-type identity / introduction. Extend the [editorial-typography](editorial-typography.md) variable-font axes (shipped 2026-05-27) to the landing display heading. Sets the visual register for the rest of the page.
+- **Editorial type treatment.** Large display-type identity / introduction. Extend the [editorial-typography](../archive/editorial-typography.md) variable-font axes (shipped 2026-05-27) to the landing display heading. Sets the visual register for the rest of the page.
 - **Subtle accent / theme cascade.** Pulls from [accent-color-system](accent-color-system.md) (Steam wiring shipped 2026-05-28, cascade fully wired). Time-of-day or live-stream-tinted ambient palette.
 - **First-visit choreography.** A deliberate entry sequence for the first arrival — hero unfolds, synthesis cards stagger in, accent system blooms. Subsequent visits get the static version (or a softened replay). Sets the tone for what kind of app this is.
 - **Subtle ambient surfaces beyond the hero.** Logo micro-animation (already in [motion-backlog § Logo ambient micro-animation](motion-backlog.md)), scroll-driven shell choreography (already shipped via [scroll-driven-shell](../archive/scroll-driven-shell.md)).
@@ -86,7 +86,7 @@ This is exploratory. Concrete chunks should land once the design direction is ch
 
 ## What this arc resolves
 
-- **The "showcase behind a click" question.** The cinematic Profile heroes shipped by [nav-condensation-arc](nav-condensation-arc.md) and the 13 trait cards shipped by [player-portrait.md](../steam/player-portrait.md) currently *only* reward dedicated visitors who click into a section's Profile tab. This arc rebalances by giving the scanner-on-`/` a first-impression worthy of the craft already on the deeper surfaces — landing handles first-impression work, the deeper surfaces handle dedicated-visitor work.
+- **The "showcase behind a click" question.** The cinematic Profile heroes shipped by [nav-condensation-arc](../archive/nav-condensation-arc.md) and the 13 trait cards shipped by [player-portrait.md](../steam/player-portrait.md) currently *only* reward dedicated visitors who click into a section's Profile tab. This arc rebalances by giving the scanner-on-`/` a first-impression worthy of the craft already on the deeper surfaces — landing handles first-impression work, the deeper surfaces handle dedicated-visitor work.
 - **The "/ is least-designed surface" gap.** Brings `/` up to the craft level of the section routes (which have moved further ahead since this arc was first scoped).
 - **The portfolio framing question.** A recruiter who lands on `/` and bounces gets the strongest visual moves in the app, not the least.
 
@@ -108,7 +108,7 @@ This is exploratory. Concrete chunks should land once the design direction is ch
 
 Prerequisites that were open in the original brainstorm are now met:
 
-- ✅ [nav-condensation-arc](nav-condensation-arc.md) shipped 2026-05-31 — the "showcase visibility" question is settled by giving Profile tabs the cinematic heroes; landing now needs to do its own first-impression work.
+- ✅ [nav-condensation-arc](../archive/nav-condensation-arc.md) shipped 2026-05-31 — the "showcase visibility" question is settled by giving Profile tabs the cinematic heroes; landing now needs to do its own first-impression work.
 - ✅ [accent-color-system](accent-color-system.md) Steam wiring shipped 2026-05-28 — the synthesis hero can pull from a fully-wired accent cascade today.
 
 Still-open sequencing consideration:
@@ -125,8 +125,8 @@ No hard prerequisite ordering; pick based on cadence and what's most exciting at
 - [ambient-home-hero.md](ambient-home-hero.md) — likely a chunk of this arc.
 - [landing-live-hero.md](landing-live-hero.md) — the "cross-stream synthesis hero" candidate, surfaced as its own design note.
 - [self-portrait-surfaces.md](self-portrait-surfaces.md) — broader self-portrait direction; this arc is the surface where self-portrait work lands publicly.
-- [editorial-typography.md](editorial-typography.md) — display-type treatment.
+- [editorial-typography.md](../archive/editorial-typography.md) — display-type treatment.
 - [accent-color-system.md](accent-color-system.md) — accent cascade powers ambient tinting.
-- [nav-condensation-arc.md](nav-condensation-arc.md) — resolves the showcase-visibility open decision.
+- [nav-condensation-arc.md](../archive/nav-condensation-arc.md) — resolves the showcase-visibility open decision.
 - [motion-backlog.md § Logo ambient micro-animation](motion-backlog.md) — logo treatment may be folded into this arc.
 - [repo-conventions.md § per-stream routes](../../repo-conventions.md) — the "/ is synthesis-only" convention this arc operates inside.

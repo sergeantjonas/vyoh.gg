@@ -74,7 +74,7 @@ Per [01-css-and-styling.md](~/.claude/knowledge/frontend-2026/01-css-and-styling
   - **Game (Steam)**: capsule art, last-played, total playtime, achievement %.
 - Card anchors to the focused row; follows arrow nav.
 - Card flips to the left side when the focused row is in the right half of the dialog.
-- Card has its own ~150ms entry transition (composes with [mount-and-overlay-motion.md](mount-and-overlay-motion.md) overlay patterns).
+- Card has its own ~150ms entry transition (composes with [mount-and-overlay-motion.md](../archive/mount-and-overlay-motion.md) overlay patterns).
 
 ### Steam library hover card scroll-tracking
 
@@ -201,11 +201,11 @@ Update [command-palette.md](command-palette.md) with a reference to this arc so 
 - **Polyfill size + impact.** ~10kB gz isn't trivial. Verify with bundle analysis that it stays out of the initial bundle (lazy import). Acceptable to ship to Firefox users only; not acceptable to inflate Chrome's bundle.
 - **Focus state vs hover state.** Palette result preview is **focus-driven** (arrow keys). Steam hover-card is **hover-driven**. These have different timing semantics — focus should anchor immediately; hover wants a 100–200ms delay. Different code paths.
 - **Virtualised result lists.** If the palette ever virtualises results, `anchor-name` must be applied to the actual rendered element (not a virtual placeholder). Coordinate with whatever virtualization happens then.
-- **Reduced-motion.** Anchor positioning itself is static; entry/exit transitions inherit from [mount-and-overlay-motion.md](mount-and-overlay-motion.md). No new motion concerns.
+- **Reduced-motion.** Anchor positioning itself is static; entry/exit transitions inherit from [mount-and-overlay-motion.md](../archive/mount-and-overlay-motion.md). No new motion concerns.
 - **iOS Safari fixed positioning.** Anchor-positioned overlays use `position: fixed` which has historical iOS Safari quirks (keyboard pushing content). Verify on iOS sim with on-screen keyboard active.
 
 ---
 
 ## Reduced motion
 
-Anchor positioning is layout, not motion. The entry/exit transitions for the preview card use the [mount-and-overlay-motion.md](mount-and-overlay-motion.md) overlay pattern, which is already reduced-motion-aware.
+Anchor positioning is layout, not motion. The entry/exit transitions for the preview card use the [mount-and-overlay-motion.md](../archive/mount-and-overlay-motion.md) overlay pattern, which is already reduced-motion-aware.

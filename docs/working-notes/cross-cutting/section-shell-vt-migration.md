@@ -1,6 +1,6 @@
 # SectionShell → View Transitions migration
 
-**Status:** Shipped 2026-05-24. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. The Motion `<AnimatePresence>` wrap around the route `<Outlet />` in [`section-shell.tsx`](../../../apps/web/src/_shared/section-layout/section-shell.tsx) has been replaced with native View Transitions for route-level navigation. Companion arc to [view-transitions-rollout](view-transitions-rollout.md). The original chunked plan + spike findings are preserved below for the audit trail.
+**Status:** Shipped 2026-05-24. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. The Motion `<AnimatePresence>` wrap around the route `<Outlet />` in [`section-shell.tsx`](../../../apps/web/src/_shared/section-layout/section-shell.tsx) has been replaced with native View Transitions for route-level navigation. Companion arc to [view-transitions-rollout](../archive/view-transitions-rollout.md). The original chunked plan + spike findings are preserved below for the audit trail.
 
 Read this when picking up VT polish work, when scoping a new section that wants per-element morphing, or when debugging a section-transition regression.
 
@@ -67,7 +67,7 @@ The Steam Profile page also surfaced as a structural outlier during the same arc
 
 Two forces push this now:
 
-1. **The AnimatePresence-around-Outlet pattern is structurally incompatible with per-element VT naming.** TanStack Router's `<Outlet />` always reads global router state, so during a section navigation both the exiting and entering `<m.div>` children of AnimatePresence render the destination route. When the destination component carries `view-transition-name`-bearing elements, the browser sees two elements with the same name at NEW-snapshot capture and rejects (`InvalidStateError: Multiple elements found`). We've worked around this twice now by coarsening `slideKey` so the AnimatePresence wrapper reuses the same m.div across list↔detail boundaries — see [view-transitions-rollout.md](view-transitions-rollout.md) §"Root cause" and §"Chunk 3 attempt". Each new section that wants VT element-pairing will need the same trick; that's accumulating debt.
+1. **The AnimatePresence-around-Outlet pattern is structurally incompatible with per-element VT naming.** TanStack Router's `<Outlet />` always reads global router state, so during a section navigation both the exiting and entering `<m.div>` children of AnimatePresence render the destination route. When the destination component carries `view-transition-name`-bearing elements, the browser sees two elements with the same name at NEW-snapshot capture and rejects (`InvalidStateError: Multiple elements found`). We've worked around this twice now by coarsening `slideKey` so the AnimatePresence wrapper reuses the same m.div across list↔detail boundaries — see [view-transitions-rollout.md](../archive/view-transitions-rollout.md) §"Root cause" and §"Chunk 3 attempt". Each new section that wants VT element-pairing will need the same trick; that's accumulating debt.
 
 2. **The 2026-aligned pattern is to use VT for route transitions and reserve AnimatePresence for component-level mount/unmount.** Per [03-motion.md §3 (View Transitions API) and §5.4 (when AnimatePresence vs ViewTransition)](~/.claude/knowledge/frontend-2026/03-motion.md), AnimatePresence is the right tool for list-item add/remove, popovers, toasts, modal mount — *component-scoped* lifecycle animations. Route-level transitions where "we're swapping the page" is the explicit intent are what VT was designed for. Astro's `ClientRouter`, Next 15+'s `experimental.viewTransition`, and TanStack Router's first-class `defaultViewTransition` config all point at the same convergence.
 
@@ -78,7 +78,7 @@ Two forces push this now:
 - **Not a removal of Motion.** Motion stays primary for everything component-level: tilt, sheen, hover springs, list-item add/remove (e.g. `AnimatePresence` on match-list rows for SSE inserts), modal mount/unmount, the existing `MORPH_SETTLE_MS` body-hold gate, `useReducedMotion` plumbing, and so on. The migration replaces *one* AnimatePresence (the SectionShell route-slide wrap), not all of them.
 - **Not a removal of the section slide effect.** The visual outcome should be the same: left/right slide between sections (Matches → Trends → Champions etc.) driven by direction. The implementation moves from Motion variants to CSS keyframes on `::view-transition-old/new`, scoped by transition `types`.
 - **Not a removal of the existing `slideKey` coarsening.** Those coarsenings can stay or be removed in a follow-up cleanup, depending on how the new transition mechanism handles list↔detail navigations. Default position: leave them in place during the migration and revisit at the end.
-- **Not a re-attempt at multi-element morph.** The Stage 2 multi-element refinement from VT rollout Chunk 3 is closed as abandoned (2026-05-24). Out of scope here; see [view-transitions-rollout.md § Closed: LoL multi-element morph refinement](view-transitions-rollout.md#closed-lol-multi-element-morph-refinement-2026-05-24).
+- **Not a re-attempt at multi-element morph.** The Stage 2 multi-element refinement from VT rollout Chunk 3 is closed as abandoned (2026-05-24). Out of scope here; see [view-transitions-rollout.md § Closed: LoL multi-element morph refinement](../archive/view-transitions-rollout.md#closed-lol-multi-element-morph-refinement-2026-05-24).
 
 ---
 
@@ -193,7 +193,7 @@ If they need to stay, document why in `$accountSlug.tsx` (replacing the current 
 
 The intent was to retry per-slot naming on match-row + match-hero (`match-${id}-icon`, `-kda`, `-chip`) once the AnimatePresence collision was gone, paired with a `ChampionCardChrome` restructure to fix the gradient-cutoff problem from the original Stage 2 attempt.
 
-Closed without shipping (2026-05-24). The architectural blocker is gone, but the restructure cost (four ChampionCardChrome consumers to re-validate against any change) plus the visual cascade from constraining the wrapper (right-third "naked", gradient straddling bounds) was judged not worth the visual delta. Single-element whole-card morphs read clean today; a future surface that already meets the "independently-positioned bounded layer" bar (per the Steam chunk-5-extension lesson) can do multi-element without the restructure, and that's where to spend the budget. See [view-transitions-rollout.md § Closed: LoL multi-element morph refinement](view-transitions-rollout.md#closed-lol-multi-element-morph-refinement-2026-05-24).
+Closed without shipping (2026-05-24). The architectural blocker is gone, but the restructure cost (four ChampionCardChrome consumers to re-validate against any change) plus the visual cascade from constraining the wrapper (right-third "naked", gradient straddling bounds) was judged not worth the visual delta. Single-element whole-card morphs read clean today; a future surface that already meets the "independently-positioned bounded layer" bar (per the Steam chunk-5-extension lesson) can do multi-element without the restructure, and that's where to spend the budget. See [view-transitions-rollout.md § Closed: LoL multi-element morph refinement](../archive/view-transitions-rollout.md#closed-lol-multi-element-morph-refinement-2026-05-24).
 
 ---
 
@@ -225,6 +225,6 @@ Possibly new:
 ## Related notes
 
 - [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — Safari-specific follow-up arc that landed the WebKit bypass + CSS-slide substitute for intra-Steam navs.
-- [view-transitions-rollout.md](view-transitions-rollout.md) — the parent arc. This migration unblocked any future per-element morph work; the LoL multi-element refinement that motivated it was closed as abandoned the same day.
+- [view-transitions-rollout.md](../archive/view-transitions-rollout.md) — the parent arc. This migration unblocked any future per-element morph work; the LoL multi-element refinement that motivated it was closed as abandoned the same day.
 - [elevation-arcs.md](elevation-arcs.md) — index of "elevate past boring app" arcs.
 - KB: [03-motion.md](~/.claude/knowledge/frontend-2026/03-motion.md) §3 (View Transitions API), §5.4 (List entry/exit with AnimatePresence and ViewTransition), §6.6 (View Transitions and reduced motion).

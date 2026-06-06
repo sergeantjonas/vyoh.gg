@@ -1,6 +1,6 @@
 # Steam ↔ LoL section parity
 
-**Status:** Items 1–6 shipped (1–5 on 2026-05-24, 6 on 2026-05-28). **One trigger-gated item added 2026-05-30: Steam nav account-showcase (BLOCKED — see "Deferred — trigger-gated" below).** Kept as the cross-section parity audit trail; consult before adding a new Steam surface that has a structural equivalent in LoL. Sibling to [view-transitions-rollout](view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md).
+**Status:** Items 1–6 shipped (1–5 on 2026-05-24, 6 on 2026-05-28). **One trigger-gated item added 2026-05-30: Steam nav account-showcase (BLOCKED — see "Deferred — trigger-gated" below).** Kept as the cross-section parity audit trail; consult before adding a new Steam surface that has a structural equivalent in LoL. Sibling to [view-transitions-rollout](../archive/view-transitions-rollout.md) and [section-shell-vt-migration](section-shell-vt-migration.md).
 
 Read this when picking up any Steam polish task, or before adding a new Steam surface that has a structural equivalent in LoL.
 
@@ -10,13 +10,13 @@ Read this when picking up any Steam polish task, or before adding a new Steam su
 
 LoL has been the rehearsal ground for most of the project's polish patterns: ref-counted backdrop, layered scroll-reset with skip-pairs, layout-mirroring skeletons with `motion.react` stagger, illustration-bearing empty states. Each of those has either no Steam equivalent or a degraded one. The drift isn't intentional — Steam shipped during the LoL polish arcs, not before, so it inherited the older patterns.
 
-The VT morph for Steam library → game-detail is already tracked in [view-transitions-rollout.md §"What's next" #1](view-transitions-rollout.md). This note covers the **four other** parity items the audit surfaced; they are independent of the VT work and can ship in any order.
+The VT morph for Steam library → game-detail is already tracked in [view-transitions-rollout.md §"What's next" #1](../archive/view-transitions-rollout.md). This note covers the **four other** parity items the audit surfaced; they are independent of the VT work and can ship in any order.
 
 ---
 
 ## What this is NOT
 
-- **Not a VT migration.** The Steam library → game-detail morph is its own arc — see [view-transitions-rollout.md](view-transitions-rollout.md). The items here are loading-state, scroll, and empty-state polish that don't depend on VT.
+- **Not a VT migration.** The Steam library → game-detail morph is its own arc — see [view-transitions-rollout.md](../archive/view-transitions-rollout.md). The items here are loading-state, scroll, and empty-state polish that don't depend on VT.
 - **Not a Steam feature arc.** No new data, no new routes. This is hygiene against `@docs/repo-conventions.md` and visual parity with shipped LoL patterns.
 - **Not a forced symmetry.** Champion theming, queue/role taxonomies, KDA/damage-profile cards are domain-specific to LoL and stay there. Per-game genre/tag UI for Steam is a separate question, not part of this note.
 
@@ -30,7 +30,7 @@ The VT morph for Steam library → game-detail is already tracked in [view-trans
 
 **What:** the nav-condensation arc chunk 1.5 turned the LoL topbar `AccountRow` into a showcase — bigger avatar, last-played-champion (`summary.lastPlayedChampionAlias`) splash-tint row background, and per-row open-stagger. The Steam parallel from the arc — a single rich identity card inside a Steam nav dropdown — was **deferred**, not built, because Steam is currently a plain `SimpleNavItem` link with no dropdown surface to host it.
 
-**Why deferred, not dropped:** a one-item "dropdown" is poor UX; the showcase card only earns its place once Steam has real nav to anchor it. Owner intent (2026-05-30): Steam nav has a lot of unexplored space and will grow — build the showcase variant *then*, mirroring whatever the LoL `AccountRow` showcase landed as. Cross-ref: nav-condensation-arc.md chunk 1.5.
+**Why deferred, not dropped:** a one-item "dropdown" is poor UX; the showcase card only earns its place once Steam has real nav to anchor it. Owner intent (2026-05-30): Steam nav has a lot of unexplored space and will grow — build the showcase variant *then*, mirroring whatever the LoL `AccountRow` showcase landed as. Cross-ref: [nav-condensation-arc.md](../archive/nav-condensation-arc.md) chunk 1.5.
 
 ---
 
@@ -126,7 +126,7 @@ The visual layer differs in every meaningful dimension (blurhash vs video, singl
 
 ### Item 5 — Tile-parity hover chrome on the library row (tilt + sheen + hovercard popout)
 
-The library tile has three hover behaviors the row was missing: (a) a CSS-only perspective tilt + shadow lift, (b) the Steam-style anchored sheen sweep via the registered `--sheen-extent` variable, and (c) the radix-hovercard popout showing recent screenshots + extended playtime stats. After the row redesign landed (the "Steam-native row" arc in [view-transitions-rollout.md](view-transitions-rollout.md)), the row has the visual weight + bounded card shape to host these — without it, a tilt on the original thin capsule-strip row would have looked silly.
+The library tile has three hover behaviors the row was missing: (a) a CSS-only perspective tilt + shadow lift, (b) the Steam-style anchored sheen sweep via the registered `--sheen-extent` variable, and (c) the radix-hovercard popout showing recent screenshots + extended playtime stats. After the row redesign landed (the "Steam-native row" arc in [view-transitions-rollout.md](../archive/view-transitions-rollout.md)), the row has the visual weight + bounded card shape to host these — without it, a tilt on the original thin capsule-strip row would have looked silly.
 
 **Shipped 2026-05-24.**
 
@@ -154,13 +154,13 @@ The library tile has three hover behaviors the row was missing: (a) a CSS-only p
 5. **Item 5** (tile-parity hover chrome) — *shipped 2026-05-24 (this commit), follows the row redesign.*
 6. **Item 6** (per-game accent color) — *shipped 2026-05-28, [`732a636`](../../../) + [`b6d272b`](../../../).*
 
-The Steam VT morph from [view-transitions-rollout.md](view-transitions-rollout.md) is independent of all four and can interleave in any order.
+The Steam VT morph from [view-transitions-rollout.md](../archive/view-transitions-rollout.md) is independent of all four and can interleave in any order.
 
 ---
 
 ## Related notes
 
-- [view-transitions-rollout.md](view-transitions-rollout.md) — Steam library → game-detail morph (own arc, not covered here).
+- [view-transitions-rollout.md](../archive/view-transitions-rollout.md) — Steam library → game-detail morph (own arc, not covered here).
 - [section-shell-vt-migration.md](section-shell-vt-migration.md) — shipped 2026-05-24; orthogonal to these items.
 - [elevation-arcs.md](elevation-arcs.md) — parent index.
 - [quick-wins.md](quick-wins.md) — Items 1 and 3 are quick-win-shaped; if not picked up as part of this note, surface them there.

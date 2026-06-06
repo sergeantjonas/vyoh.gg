@@ -114,7 +114,7 @@ The result: a soft golden-ish arc (tinted by route accent from [accent-color-sys
 
 ### Companion micro-affordance
 
-A tiny "↑ PB" superscript appears next to the number for 5 seconds, then fades, leaving just the number. Pattern reuses `<HeroLabel>` from [editorial-typography.md](editorial-typography.md) at a smaller size.
+A tiny "↑ PB" superscript appears next to the number for 5 seconds, then fades, leaving just the number. Pattern reuses `<HeroLabel>` from [editorial-typography.md](../archive/editorial-typography.md) at a smaller size.
 
 ---
 

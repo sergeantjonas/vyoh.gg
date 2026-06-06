@@ -87,7 +87,7 @@ Why SSE over WebSocket per [KB §SSE vs WebSocket decision shortcut](~/.claude/k
 
 - ~28px tall, fits nav rhythm.
 - Dot: 8px circle, color per state. Pulsing dots animate `scale(1) → scale(1.5)` over 1.4s, opacity `1 → 0`, infinite.
-- Text: editorial typography per [editorial-typography.md](editorial-typography.md) — uppercase tracked label for "Playing"/"Last seen" + emphatic name for the entity.
+- Text: editorial typography per [editorial-typography.md](../archive/editorial-typography.md) — uppercase tracked label for "Playing"/"Last seen" + emphatic name for the entity.
 - Truncates with ellipsis on narrow screens; full text in tooltip.
 - Updates animate text crossfade (existing AnimatePresence pattern).
 - Game time ticks once per second when live (the only second-resolution updating element in the chip).

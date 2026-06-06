@@ -16,13 +16,13 @@
 
 **Deferred:**
 - **Chunk 6 — Steam game detail wiring.** No Steam-side dominant-color pipeline exists. Two paths: (a) build-time palette extraction analogous to LoL's `champion-assets.json` (best long-term), (b) runtime canvas sampling of the hero image (cheaper, cross-origin gotchas). Defer until a Steam asset-prep arc lands. Steam routes currently render with the default `oklch(0.6 0.16 240)` accent. Tracked as [steam-lol-parity.md Item 6](steam-lol-parity.md#item-6--per-game-accent-color-on-steam-game-detail) — the parity tracker is the canonical owner.
-- **Chunk 5 — broader sweep.** Partially landed alongside [data-viz-densification.md](data-viz-densification.md) Part 1 (2026-05-27): the new `Sparkline` primitive defaults `stroke="var(--theme-strong)"`, and per-surface overrides pick role-appropriate tints (emerald/red on win-rate / gold-lead, tier color on LP delta, foreground/60 on Steam playtime). Recharts sparkline strokes therefore now belong to the theme cascade in spirit, even though they were implemented as inline SVG rather than Recharts.
+- **Chunk 5 — broader sweep.** Partially landed alongside [data-viz-densification.md](../archive/data-viz-densification.md) Part 1 (2026-05-27): the new `Sparkline` primitive defaults `stroke="var(--theme-strong)"`, and per-surface overrides pick role-appropriate tints (emerald/red on win-rate / gold-lead, tier color on LP delta, foreground/60 on Steam playtime). Recharts sparkline strokes therefore now belong to the theme cascade in spirit, even though they were implemented as inline SVG rather than Recharts.
 
   **Second wave landed 2026-05-28** — active-tab indicators (LoL nav, match-detail subnav, Steam nav), section progress hairline ([`scroll-progress.tsx`](../../../apps/web/src/components/scroll-progress.tsx)), TanStack-query fetch progress bar ([`fetch-progress.tsx`](../../../apps/web/src/components/fetch-progress.tsx)), and the top-nav wordmark + orb halo + orb body ([`nav.tsx`](../../../apps/web/src/components/nav.tsx), [`orb-glyph.tsx`](../../../apps/web/src/components/orb-glyph.tsx)) all now read `var(--theme-color)` directly. Orb body uses CSS `mask-mode: alpha` to flatten the brand PNG into a solid theme-coloured silhouette. Tab indicators carry a `lol-tab-pulse` halo + a periodic white glint sweep via `::after` (`@keyframes theme-bar-glint-sweep`). The arc landed flat-single-colour rather than gradient after iterating through ~7 gradient shapes — see commits `0e961bd` (nav + match-detail + section progress) and `607e708` (fetch progress + navbar wordmark + orb).
 
   **Per-site judgement still needed** for: scrollbar thumb tint (likely best left grey — colour-flipping on every nav reads as noise), focus ring `--ring` (would tint shadcn's primary ring across unthemed surfaces too — needs scoping), hover sheen on tiles. Re-pick these one-by-one.
 
-**Pickup path for the remaining Chunk 5 items:** [data-viz-densification.md](data-viz-densification.md) Parts 2 (`:has()` affordances) and 3 (OKLCH ambient hue drift) are the natural home — both already reference theme tokens (updated 2026-05-26 to use the `--theme-*` namespace). When those parts get picked up, the per-surface accent wiring lands incidentally.
+**Pickup path for the remaining Chunk 5 items:** [data-viz-densification.md](../archive/data-viz-densification.md) Parts 2 (`:has()` affordances) and 3 (OKLCH ambient hue drift) are the natural home — both already reference theme tokens (updated 2026-05-26 to use the `--theme-*` namespace). When those parts get picked up, the per-surface accent wiring lands incidentally.
 
 **Original 7-chunk plan retained below for context.**
 
@@ -30,7 +30,7 @@
 
 **Status (historical):** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 1. Promotes the existing per-champion "theme color" (currently used only for splash backdrop overlay tint) into a **full propagated accent token** (`--accent`, `--accent-fg`, `--accent-muted`, `--accent-strong`) that cascades to focus rings, scrollbar, sparklines, hover glow, and `<meta name="theme-color">` (so mobile browser chrome adopts the active entity's color).
 
-Read this before adding any visual that should "belong to" the current route/entity, and before scoping arcs that depend on `--accent` ([scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 4, [data-viz-densification.md](data-viz-densification.md), [editorial-typography.md](editorial-typography.md)).
+Read this before adding any visual that should "belong to" the current route/entity, and before scoping arcs that depend on `--accent` ([scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 4, [data-viz-densification.md](../archive/data-viz-densification.md), [editorial-typography.md](../archive/editorial-typography.md)).
 
 KB anchors: [01-css-and-styling.md §OKLCH is the new default working space](~/.claude/knowledge/frontend-2026/01-css-and-styling.md), [02-design-systems.md §Token tiers](~/.claude/knowledge/frontend-2026/02-design-systems.md).
 
@@ -131,7 +131,7 @@ After the token cascade lands, these consumers switch from hardcoded sky-blue / 
 | Scrollbar thumb | `apps/web/src/styles/globals.css` (verify selector) | `scrollbar-color: var(--accent-muted) transparent;` |
 | Recharts strokes | feature-level chart components | Pass `stroke="var(--accent)"` into `<Line>`, `<Area>`, `<ReferenceLine>` |
 | Section progress bar | from [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 4 | `background: var(--accent)` |
-| Sparklines | from [data-viz-densification.md](data-viz-densification.md) | `stroke="var(--accent)"` |
+| Sparklines | from [data-viz-densification.md](../archive/data-viz-densification.md) | `stroke="var(--accent)"` |
 | Hover sheen end-color | Steam library tile sheen | The registered `--sheen-extent` already drives extent; tint the end-color with `var(--accent)` |
 | Card-breathe glow | `apps/web/src/lol/_shared/ui/themed-card.tsx` (verify) | Replace hardcoded shadow color with `var(--accent-muted)` |
 | `<meta name="theme-color">` | mobile browser chrome | Written by `useAccentColor` hook |

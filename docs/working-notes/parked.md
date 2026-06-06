@@ -53,6 +53,11 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 - **Recharts → visx consolidation** — 77 kB lazy chunk; both libraries coexist by design (visx for non-stock viz, Recharts for stock cases). Not a "park then ship" — this is a deliberate co-existence. → [library-shortlist.md](cross-cutting/library-shortlist.md)
 - **~22 parked library evaluations** — alternative routers, data-table libs, animation libs, charting libs, etc. that were considered and set aside. Bundled here rather than enumerated; the shortlist note is the source of truth. → [library-shortlist.md](cross-cutting/library-shortlist.md)
 
+### Structural / hygiene
+
+- **LoL service trio god-class watch (D1)** — [`lol.service.ts`](../../apps/api/src/lol/lol.service.ts) (1026L), [`lol-static-sync.service.ts`](../../apps/api/src/lol/lol-static-sync.service.ts) (1031L), [`lol-analytics.service.ts`](../../apps/api/src/lol/lol-analytics.service.ts) (833L). Trigger: any new arc that would extend one of these past ~1250L (new analytics dimension, new static sync source, new core-service orchestration responsibility). Likely-splits sketched in the note. Standing watch — do NOT pre-emptively split. → [project-hygiene-2026-05-31.md § D1](cross-cutting/project-hygiene-2026-05-31.md)
+- **API response DTOs as shared types (D4)** — web infers types from runtime fetch responses today; API drift typechecks against stale assumptions until runtime. Trigger: sequence with TanStack Start migration (route loaders are the natural introduction point) *or* a real drift incident. Three approach options sketched (api export, shared mirror, runtime-schema codegen) — decide at session start. → [project-hygiene-2026-05-31.md § D4](cross-cutting/project-hygiene-2026-05-31.md)
+
 ### Case study / write-up tail
 
 - **Production-tier API key behaviour, per-account TTL self-healing, parallel-account fairness as a case-study angle** — third pass, gated on the underlying engineering becoming real concerns. → [case-study-topics.md](cross-cutting/case-study-topics.md)

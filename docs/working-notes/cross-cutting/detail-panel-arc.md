@@ -1,10 +1,10 @@
 # Detail panel arc
 
-**Status:** Planned — design draft from 2026-05-27 brainstorm. No code yet. Depends on [nav-condensation-arc.md § 1.1](nav-condensation-arc.md) inline-detail-tabs pattern landing first.
+**Status:** Planned — design draft from 2026-05-27 brainstorm. No code yet. Depends on [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md) inline-detail-tabs pattern landing first.
 
 Detail pages (match detail, champion detail, Steam game detail, future detail surfaces) move from full route-change page swaps to **full-width slide-over panels with URL-as-state**. The list stays mounted underneath with scroll, virtualizer offset, and filter state preserved; the panel slides in from the right with a row-to-content morph for click navigation, or appears in-place for cold deep-link arrivals.
 
-Sister notes: [view-transitions-rollout.md](view-transitions-rollout.md) (the morph reuses the project's existing VT primitive), [section-shell-vt-migration.md](section-shell-vt-migration.md) (shipped pattern that informed this design), [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) (engine-gate precedent for WebKit fallback).
+Sister notes: [view-transitions-rollout.md](../archive/view-transitions-rollout.md) (the morph reuses the project's existing VT primitive), [section-shell-vt-migration.md](section-shell-vt-migration.md) (shipped pattern that informed this design), [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) (engine-gate precedent for WebKit fallback).
 
 ---
 
@@ -30,7 +30,7 @@ A 70%-width side panel would let the list peek out as ambient context — visual
 
 Full-width panel keeps every other benefit of the pattern (list stays mounted, URL-as-state, fast close, morph) and only sacrifices the "list peeks out" affordance — which the content can't accommodate anyway.
 
-The breadcrumb at the top of the panel content (already established in [nav-condensation-arc.md § 1.1](nav-condensation-arc.md)) is the explicit "the list is behind this panel" signal that compensates.
+The breadcrumb at the top of the panel content (already established in [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md)) is the explicit "the list is behind this panel" signal that compensates.
 
 ---
 
@@ -80,7 +80,7 @@ Match-list and Steam library are both already virtualized ([library-shortlist.md
 
 ### Panel content structure
 
-Inherits from [nav-condensation-arc.md § 1.1](nav-condensation-arc.md):
+Inherits from [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md):
 
 - **Breadcrumb** at the top of the panel content as inline content (e.g. `← Matches · Match · 2026-05-25 vs Aatrox`). Not chrome.
 - **Detail tabs** (Recap / Your game / Timeline for match-detail; Overview / Achievements / Stats for Steam game-detail) as inline horizontal tab nav at the top of the panel content. Not sticky. They scroll away as the user reads.
@@ -98,7 +98,7 @@ The project already has strong primitives for this; no new dependencies should b
 |---|---|---|
 | Panel container + slide animation | Custom component using Motion (already in project) | Motion's `animate` + variants handle the slide cleanly. Compositor-only `transform` keeps WebKit happy. |
 | Panel accessibility (focus trap, ESC to close, scrim, aria-modal) | Shadcn `Sheet` (Radix Dialog with slide variant) as the headless primitive | Already shadcn/Radix-native at 103 import sites per [library-shortlist.md](library-shortlist.md). Use the dialog primitive's a11y guarantees but wire `open` to TanStack Router's URL state, not local component state. |
-| Row → panel-content morph | View Transitions API | Project's existing primitive per [view-transitions-rollout.md](view-transitions-rollout.md) (shipped 2026-05-24). Same `view-transition-name` pattern as the existing champion/match/Steam-library morphs. |
+| Row → panel-content morph | View Transitions API | Project's existing primitive per [view-transitions-rollout.md](../archive/view-transitions-rollout.md) (shipped 2026-05-24). Same `view-transition-name` pattern as the existing champion/match/Steam-library morphs. |
 | Share-URL toast | Sonner | Already shipped, wired into TanStack Query cache. Reuse for "URL copied to clipboard". |
 | Mobile drawer variant (future) | `vaul` (currently parked in [library-shortlist.md § vaul](library-shortlist.md)) | The shortlist already flags `vaul` for "mobile drawer for match detail." When this arc adds a mobile drawer variant, `vaul` is the natural fit. **Not in scope for the desktop-first ship.** |
 
@@ -124,7 +124,7 @@ The lead candidate. Establishes the pattern; later chunks copy it.
 - Cold-arrival flow: list + panel mount together, virtualizer scrolls to row, panel appears without morph or slide.
 - Entry-mode sentinel: router state `from: 'list'` set by row click; panel reads sentinel.
 - Share button in panel header → clipboard + Sonner toast.
-- Breadcrumb + inline detail-tabs already established by [nav-condensation-arc.md § 1.1](nav-condensation-arc.md); panel just renders them as content.
+- Breadcrumb + inline detail-tabs already established by [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md); panel just renders them as content.
 
 **Files in scope (estimated):**
 - New `apps/web/src/routes/lol/$accountSlug/matches/route.tsx` (layout with panel outlet).
@@ -201,8 +201,8 @@ Inherited from [elevation-arcs.md](elevation-arcs.md) and [motion-backlog.md](mo
 
 ## Cross-references
 
-- [nav-condensation-arc.md](nav-condensation-arc.md) — sibling arc; 1.1's inline-detail-tabs pattern is a prerequisite for the panel content shape.
-- [view-transitions-rollout.md](view-transitions-rollout.md) — provides the existing VT primitive that the row→panel morph reuses.
+- [nav-condensation-arc.md](../archive/nav-condensation-arc.md) — sibling arc; 1.1's inline-detail-tabs pattern is a prerequisite for the panel content shape.
+- [view-transitions-rollout.md](../archive/view-transitions-rollout.md) — provides the existing VT primitive that the row→panel morph reuses.
 - [section-shell-vt-migration.md](section-shell-vt-migration.md) — shipped pattern that established route-driven VT in the project.
 - [safari-vt-snapshot-cost.md](safari-vt-snapshot-cost.md) — engine-gate precedent if WebKit needs a non-morph fallback.
 - [microtrailer-hover-preview.md](microtrailer-hover-preview.md) — Steam library hover preview interacts with panel-open state; coordinate during 2.3.

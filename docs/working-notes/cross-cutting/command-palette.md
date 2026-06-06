@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Shipped 2026-05-18 — Phases A (nav chip), B (match search), C1–C3 (parser + chips), D1 (champion mode), E (recents persistence). D2 (cross-account scope) shipped 2026-05-18 as a companion-row pattern but was **superseded 2026-05-28 by the chord + hint pattern** in [command-palette-reorg.md](./command-palette-reorg.md) F1–F4; D2's original implementation is no longer in the tree. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
+**Status:** Shipped 2026-05-18 — Phases A (nav chip), B (match search), C1–C3 (parser + chips), D1 (champion mode), E (recents persistence). D2 (cross-account scope) shipped 2026-05-18 as a companion-row pattern but was **superseded 2026-05-28 by the chord + hint pattern** in [command-palette-reorg.md](../archive/command-palette-reorg.md) F1–F4; D2's original implementation is no longer in the tree. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
 
 ## Current state (Phases A+B shipped 2026-05-18)
 
@@ -191,7 +191,7 @@ Concrete cases:
 
 ## Lessons
 
-**Secondary actions on a row should be a chord + hint chip, not a sibling row.** Doubling rows pollutes the group they live in and reads as visual rhyme — the first hit of this was D2 (Accounts companion rows: `Search matches in <gameName>#<tagLine>` as a sibling to the account row). Each pair produces two near-identical rows at idle, so 4 accounts → 8 rows of visual noise. The fix (F1, 2026-05-28): one row per account, `⌘↵ matches` hint chip on the right, companion row visible only on non-empty input. The pattern generalises: whenever a row has a secondary navigation target, encode it as a modifier-key chord on the row, not a sibling item. → [command-palette-reorg.md](./command-palette-reorg.md) F1–F4.
+**Secondary actions on a row should be a chord + hint chip, not a sibling row.** Doubling rows pollutes the group they live in and reads as visual rhyme — the first hit of this was D2 (Accounts companion rows: `Search matches in <gameName>#<tagLine>` as a sibling to the account row). Each pair produces two near-identical rows at idle, so 4 accounts → 8 rows of visual noise. The fix (F1, 2026-05-28): one row per account, `⌘↵ matches` hint chip on the right, companion row visible only on non-empty input. The pattern generalises: whenever a row has a secondary navigation target, encode it as a modifier-key chord on the row, not a sibling item. → [command-palette-reorg.md](../archive/command-palette-reorg.md) F1–F4.
 
 **Suppress secondary affordances at idle; surface them only on intent signal.** The `Match history not loaded yet` + `Load matches` CTA pair (B) appeared on every fresh palette open even with no input, adding two rows of clutter for an action the user hadn't asked for. F2 (2026-05-28) gates the entire Matches group on `parsed.freeText || hasStructuredVerbs || cachedMatches.length > 0` — the affordance is still reachable the moment the user types, but doesn't monopolise idle space.
 

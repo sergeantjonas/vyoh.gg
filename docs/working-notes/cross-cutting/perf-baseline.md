@@ -96,7 +96,7 @@ In order of ROI:
 
 ## LoL identity scroll/nav morph (M2/M2b) — re-baseline 2026-05-30
 
-**Context.** Chunk 1.3a of the nav-condensation arc added the cinematic Profile hero, then M2 (the avatar + name collapse into the compact header strip via Motion `layoutId` on scroll) and M2b (the same identity *travels on navigation* — a hand-rolled `startViewTransition` that runs the section slide and the identity morph together; see [nav-condensation-arc.md](nav-condensation-arc.md) and [identity-morph-nav.ts](../../../apps/web/src/lol/profile/identity-morph-nav.ts)). Both run on `/lol/$accountSlug`, the highest-traffic route, so the morphs needed a host-Chrome re-baseline before being treated as perf-validated.
+**Context.** Chunk 1.3a of the nav-condensation arc added the cinematic Profile hero, then M2 (the avatar + name collapse into the compact header strip via Motion `layoutId` on scroll) and M2b (the same identity *travels on navigation* — a hand-rolled `startViewTransition` that runs the section slide and the identity morph together; see [nav-condensation-arc.md](../archive/nav-condensation-arc.md) and [identity-morph-nav.ts](../../../apps/web/src/lol/profile/identity-morph-nav.ts)). Both run on `/lol/$accountSlug`, the highest-traffic route, so the morphs needed a host-Chrome re-baseline before being treated as perf-validated.
 
 **Measured (host Chrome, owner machine, dev WEB-VITALS overlay via `?perf`, clicking through the LoL section tabs — the nav-morph path).**
 

@@ -134,5 +134,5 @@ Mechanism notes:
 
 - [section-shell-vt-migration.md](section-shell-vt-migration.md) — the parent arc that brought VT into the router.
 - [perf-baseline.md](perf-baseline.md) — Lighthouse / bundle / Vitals baselines.
-- [view-transitions-rollout.md](view-transitions-rollout.md) — original VT rollout sweep.
+- [view-transitions-rollout.md](../archive/view-transitions-rollout.md) — original VT rollout sweep.
 - KB: [03-motion.md §3 (View Transitions API)](~/.claude/knowledge/frontend-2026/03-motion.md).

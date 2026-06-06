@@ -21,7 +21,7 @@ Both are CSS-only and Newly Available in 2024 (`@starting-style`) and forever (C
 
 ## What this is NOT
 
-- **Not animating route changes.** Route transitions are owned by [view-transitions-rollout.md](view-transitions-rollout.md).
+- **Not animating route changes.** Route transitions are owned by [view-transitions-rollout.md](../archive/view-transitions-rollout.md).
 - **Not replacing Motion `AnimatePresence` for rich overlay content.** Command palette, hover cards with media, animated dialogs stay on Motion because they have orchestration (sequenced child animations, gestures, dismiss interactions). Plain Select/Popover/Dropdown surfaces move to CSS.
 - **Not infinite-scroll lazy entries.** Per-row entries on scroll are handled by `animation-timeline: view()` in [scroll-driven-shell.md](../archive/scroll-driven-shell.md) Chunk 5. This arc handles **the initial mount only**.
 

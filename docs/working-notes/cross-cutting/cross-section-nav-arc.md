@@ -17,7 +17,7 @@ Net effect on a cross-section click: 200ms full-viewport crossfade plus a per-ro
 
 ## What 1.1 also resolved by default
 
-The [nav-condensation-arc](nav-condensation-arc.md) ship (2026-05-31) retired three of this arc's original open decisions before they got to a prototype:
+The [nav-condensation-arc](../archive/nav-condensation-arc.md) ship (2026-05-31) retired three of this arc's original open decisions before they got to a prototype:
 
 1. **Seam-straddle avatar morph** — moot. Seam was dropped during 1.1; shipped `LolIdentity` is plain inline.
 2. **Identity caret handoff** — moot. Caret was dropped; section identity is static.
@@ -49,7 +49,7 @@ WebKit constraint to inherit: cross-section VT isn't engine-gated today (the Web
 ## Cross-references
 
 - [elevation-arcs.md](elevation-arcs.md) — flip this arc to ✅ closed-no-code 2026-05-31.
-- [nav-condensation-arc.md](nav-condensation-arc.md) — shipped prerequisite; resolved several of this arc's premises by default.
+- [nav-condensation-arc.md](../archive/nav-condensation-arc.md) — shipped prerequisite; resolved several of this arc's premises by default.
 - [section-shell-vt-migration.md](section-shell-vt-migration.md) — the existing body transition that turned out to already cover the chrome via the `root` group fade.
 - [view-transitions.css](../../apps/web/src/styles/view-transitions.css) and [navigation-type.ts](../../apps/web/src/lib/navigation-type.ts) — where the existing `cross-section` type and its 200ms crossfade live.
 - [accent-color-system.md](accent-color-system.md) — the per-route retint that composes with the crossfade.

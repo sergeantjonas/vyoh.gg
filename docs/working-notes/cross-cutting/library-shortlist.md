@@ -75,7 +75,7 @@ Potential use:
 
 - drop-in list mutation animations
 - useful when match-list filters land
-- candidate primitive for the list-mutation slot of [elevation-arcs.md → mount-and-overlay-motion](mount-and-overlay-motion.md); evaluate alongside View Transitions `match-element` once that arc lands
+- candidate primitive for the list-mutation slot of [elevation-arcs.md → mount-and-overlay-motion](../archive/mount-and-overlay-motion.md); evaluate alongside View Transitions `match-element` once that arc lands
 
 ### `@vibrant/core`
 

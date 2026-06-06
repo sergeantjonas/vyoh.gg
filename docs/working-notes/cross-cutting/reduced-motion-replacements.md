@@ -60,21 +60,21 @@ Convention: CSS-controllable animations should branch in CSS (cheaper, no React 
 ### 2. View Transitions API morphs
 
 **Animated**: snapshot-driven morph between route states.
-**Reduced**: `animation: none` on `::view-transition-group(*)` etc. The snapshot still freezes/swaps, but instantly. Per [view-transitions-rollout.md](view-transitions-rollout.md) Chunk 1.
+**Reduced**: `animation: none` on `::view-transition-group(*)` etc. The snapshot still freezes/swaps, but instantly. Per [view-transitions-rollout.md](../archive/view-transitions-rollout.md) Chunk 1.
 
 **Status**: planned via VT arc.
 
 ### 3. Mount stagger (tile/list cascades)
 
 **Animated**: 50ms-step opacity + translateY entry per item.
-**Reduced**: `animation: none`. Items appear simultaneously. Per [mount-and-overlay-motion.md](mount-and-overlay-motion.md).
+**Reduced**: `animation: none`. Items appear simultaneously. Per [mount-and-overlay-motion.md](../archive/mount-and-overlay-motion.md).
 
 **Note**: this is "replace" in form only — the cascade carried no semantic content; only delight. Acceptable per the principle. Document explicitly.
 
 ### 4. Overlay entry (Select/Popover/Dropdown via `@starting-style`)
 
 **Animated**: opacity + scale entry/exit.
-**Reduced**: `transition: none; transform: none`. Overlays still appear/disappear, instantly. Per [mount-and-overlay-motion.md](mount-and-overlay-motion.md).
+**Reduced**: `transition: none; transform: none`. Overlays still appear/disappear, instantly. Per [mount-and-overlay-motion.md](../archive/mount-and-overlay-motion.md).
 
 ### 5. Scroll-driven shell behaviors
 

@@ -60,5 +60,5 @@ We pull `GetOwnedGames` daily (04:00 Brussels poller) and use it for the library
 
 ## Cross-references
 
-- [nav-condensation-arc.md](nav-condensation-arc.md) — chunk 1.3a Steam portion (the hero this audit feeds).
+- [nav-condensation-arc.md](../archive/nav-condensation-arc.md) — chunk 1.3a Steam portion (the hero this audit feeds).
 - [steam-lol-parity.md](steam-lol-parity.md) — the broader Steam↔LoL parity audit trail.
