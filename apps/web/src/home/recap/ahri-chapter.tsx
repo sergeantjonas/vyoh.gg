@@ -306,30 +306,24 @@ function PeaksCaption({
       </>
     );
   }
-  if (Math.abs(peaks.avgGoldDiffAt15) >= 50) {
-    // Suppress sub-50g averages — that's noise inside the wider variance
-    // of any single game (a tick of jungle vs. an extra wave) and doesn't
-    // tell a clean lane-phase story on its own.
+  if (peaks.avgGoldDiffAt15 >= 50) {
+    // Positive lane-phase signal only. The peaks caption is the receipts
+    // band — facts that BACK the verdict, not facts about the corpus
+    // generally. Surfacing a deficit ("-966g at 15 on average") under a
+    // chapter titled "vyoh's Ahri" reads as undercutting the self-
+    // portrait, which is what this surface exists to be. If the lane-
+    // phase signal isn't a win, drop it; the verdict prose above already
+    // sets the honest tone for the chapter.
     //
-    // Sign-aware framing: positive = "lead", negative = "behind". The
-    // earlier formulation always said "lead" and prepended only `+` for
-    // positives, so a negative average rendered as "-966g lead at 15" —
-    // gibberish (a "lead" can't be negative). Use the absolute value as
-    // the headline number and let the surrounding word carry the sign.
-    const abs = Math.round(Math.abs(peaks.avgGoldDiffAt15));
-    if (peaks.avgGoldDiffAt15 > 0) {
-      parts.push(
-        <>
-          <strong className="text-foreground">+{abs}g</strong> lead at 15
-        </>
-      );
-    } else {
-      parts.push(
-        <>
-          <strong className="text-foreground">{abs}g</strong> behind at 15
-        </>
-      );
-    }
+    // Sub-50g averages also suppress — that's noise inside any single
+    // game's variance (a tick of jungle vs. an extra wave) and doesn't
+    // tell a clean story regardless of sign.
+    const lead = Math.round(peaks.avgGoldDiffAt15);
+    parts.push(
+      <>
+        <strong className="text-foreground">+{lead}g</strong> lead at 15
+      </>
+    );
   }
   if (parts.length === 0) return null;
   return (

@@ -463,10 +463,13 @@ describe("AhriChapter", () => {
       expect(text).toContain("lead at 15");
     });
 
-    it("frames a negative lane-phase average as 'behind' (not '-Ng lead')", () => {
+    it("suppresses the lane-phase fact entirely when the average is a deficit", () => {
       // Two laning losses with sustained gold deficits at 15 → negative
-      // avgGoldDiffAt15. The earlier formulation rendered "-Ng lead at
-      // 15" which read as gibberish (a lead can't be negative).
+      // avgGoldDiffAt15. The peaks caption is the receipts band that
+      // backs the verdict; surfacing a deficit reads as undercutting the
+      // self-portrait register, so a negative lane-phase signal is
+      // dropped from the caption entirely (the verdict prose above sets
+      // the honest tone — this band is for receipts, not corpus stats).
       setMatches([
         matchFixture({
           matchId: "EUW_DOWN_A",
@@ -483,13 +486,10 @@ describe("AhriChapter", () => {
       ]);
       const { container } = render(<AhriChapter account={account} />);
       const text = container.textContent ?? "";
-      // avg = (-800 + -400)/2 = -600 → "600g behind at 15"
-      expect(text).toContain("600g");
-      expect(text).toContain("behind at 15");
-      // Negative number sign never reaches the rendered string — the
-      // "behind" framing carries the sign.
-      expect(text).not.toContain("-600g");
-      expect(text).not.toContain("lead at 15");
+      // No lane-phase fact in either direction.
+      expect(text).not.toContain("at 15");
+      expect(text).not.toContain("lead");
+      expect(text).not.toContain("behind");
     });
 
     it("suppresses peak facts whose source values are effectively zero", () => {
