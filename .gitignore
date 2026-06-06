@@ -25,3 +25,11 @@ coverage/
 
 CLAUDE.md
 .claude/
+
+# One-shot Playwright verification artefacts from agent sessions.
+# Real infra in scripts/ (e.g. reset.sh, setup.sh) stays tracked.
+scripts/probe-*
+scripts/debug-*
+scripts/diagnose-*
+scripts/screenshot-*
+scripts/verify-*
