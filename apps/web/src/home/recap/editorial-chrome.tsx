@@ -114,7 +114,7 @@ export function EditorialChrome() {
         enough that it reads as magazine-spread page chrome rather
         than UI module.
       */}
-      <div className="flex items-center gap-2 rounded-md bg-black/30 px-2.5 py-1 backdrop-blur-md">
+      <div className="flex flex-col items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1.5 backdrop-blur-md">
         <ul aria-hidden="true" className="flex items-center gap-1.5">
           {Array.from({ length: beatCount }, (_, i) => (
             <li
