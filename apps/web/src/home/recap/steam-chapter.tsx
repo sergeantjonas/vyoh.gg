@@ -319,6 +319,122 @@ function PeakChip({
 }
 
 /**
+ * Compact secondary-stats chip — sized down from PeakChip. Used on beat
+ * 2 for the new lower-tier stats (median rarity, playtime trend,
+ * days-to-completion) that complement the primary completion / 2-weeks
+ * / rarest strip without competing with it. Visual hierarchy: primary
+ * strip is text-5xl/6xl, secondary is text-2xl/3xl — readable as
+ * "context numbers" not headlines.
+ */
+function SecondaryStatChip({
+  active,
+  delay,
+  label,
+  value,
+}: {
+  active: boolean;
+  delay: number;
+  label: string;
+  value: string;
+}) {
+  return (
+    <ChapterReveal active={active} delay={delay} scale={0.9} rise={16} duration={0.6}>
+      <div className="flex flex-col gap-1">
+        <span
+          className="text-2xl font-semibold leading-none tabular-nums text-foreground sm:text-3xl"
+          style={{ textShadow: SHADOW_MASTHEAD }}
+        >
+          {value}
+        </span>
+        <span
+          className="text-[10px] font-medium uppercase tracking-[0.25em] text-foreground/75 sm:text-[11px]"
+          style={{
+            textShadow: SHADOW_LABEL,
+            paintOrder: "stroke",
+            WebkitTextStroke: STROKE_LABEL,
+          }}
+        >
+          {label}
+        </span>
+      </div>
+    </ChapterReveal>
+  );
+}
+
+/**
+ * Top-3 still-locked rarest achievements for games that aren't yet
+ * 100%'d. Renders as a compact ladder mirroring the recent-unlocks row
+ * shape, but with a distinct "still locked" register (slightly desaturated
+ * icon ring, no relative date — "?% rarity" is the load-bearing column).
+ *
+ * Empty when the game is completed, schema-less, or has no locked
+ * achievements with known rarity. Beat-2 wire-up gates on `length > 0`
+ * before rendering the header.
+ */
+function RemainingRarestLadder({
+  appid,
+  active,
+  items,
+}: {
+  appid: number;
+  active: boolean;
+  items: SteamUnlock[];
+}) {
+  return (
+    <div className="flex flex-col gap-2 pt-2">
+      <ChapterReveal active={active} delay={0.5}>
+        <h3
+          className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
+          style={{
+            textShadow: SHADOW_BODY,
+            paintOrder: "stroke",
+            WebkitTextStroke: STROKE_LABEL,
+          }}
+        >
+          Next rarest to clear
+        </h3>
+      </ChapterReveal>
+      <ul className="flex flex-col gap-0.5">
+        {items.map((u, i) => (
+          <li key={u.apiName}>
+            <ChapterReveal active={active} delay={0.58 + i * 0.05} slideX={18}>
+              <Link
+                to="/steam/game/$appid"
+                params={{ appid: String(appid) }}
+                search={{ ach: u.apiName }}
+                className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/95 transition-colors hover:bg-black/25 hover:text-foreground"
+                style={{ textShadow: SHADOW_BODY }}
+              >
+                <img
+                  src={steamAchievementIconUrl(appid, u.apiName)}
+                  alt=""
+                  loading="lazy"
+                  // Desaturate ring to signal "not yet achieved" vs the
+                  // ringed-in achievement state on RecentUnlockRow.
+                  className="size-6 shrink-0 rounded ring-1 ring-white/8 opacity-80"
+                />
+                <span className="min-w-0 flex-1 truncate font-medium text-foreground/95">
+                  {u.displayName}
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5 text-xs text-foreground/80 group-hover:text-foreground/95">
+                  <span className="tabular-nums">
+                    {u.globalPercent !== null
+                      ? u.globalPercent < 10
+                        ? `${u.globalPercent.toFixed(1)}%`
+                        : `${Math.round(u.globalPercent)}%`
+                      : "—"}
+                  </span>
+                </span>
+              </Link>
+            </ChapterReveal>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * Persistent title card for the Steam chapter — eyebrow + masthead +
  * tagline rendered inside `<ChapterGroup>`'s `identity` slot. Sticks at
  * the top of the chapter group and stays visible across every beat.
@@ -542,6 +658,11 @@ export function SteamChapter({
   const playtime2WeekMin = recap?.playtime2WeeksMinutes ?? null;
   const playtimeForeverMin = recap?.playtimeForeverMinutes ?? 0;
   const standoutGlobalPercent = standout?.globalPercent ?? null;
+  const medianRarity = recap?.medianAchievementRarity ?? null;
+  const daysToCompletion = recap?.daysToCompletion ?? null;
+  const remainingRarest = recap?.remainingRarestUnlocks ?? [];
+  const playtimeTrend = recap?.playtimeTrend ?? null;
+  const isCompleted = completionPct !== null && completionPct >= 1;
 
   const verdictClauses = useMemo(
     () => (recap ? verdictParagraphSteam(recap) : []),
@@ -731,6 +852,61 @@ export function SteamChapter({
             }
           />
         </ChapterStats>
+        {/* Secondary stats strip — sized down so the primary completion /
+            two-weeks / rarest row reads as the headline. Each chip
+            renders only when its source value is non-null; the row
+            collapses to nothing when no secondary stats are derivable
+            (early-life games / no rarity data). */}
+        {medianRarity !== null || playtimeTrend !== null || isCompleted ? (
+          <div className="flex w-full flex-row items-end justify-around gap-6 pt-6 sm:gap-10">
+            {medianRarity !== null ? (
+              <SecondaryStatChip
+                active={nudged}
+                delay={0.5}
+                label="Median rarity"
+                value={
+                  medianRarity < 10
+                    ? `${medianRarity.toFixed(1)}%`
+                    : `${Math.round(medianRarity)}%`
+                }
+              />
+            ) : null}
+            {isCompleted && daysToCompletion !== null ? (
+              <SecondaryStatChip
+                active={nudged}
+                delay={0.6}
+                label="Cleared in"
+                value={`${daysToCompletion}d`}
+              />
+            ) : null}
+            {playtimeTrend !== null ? (
+              <SecondaryStatChip
+                active={nudged}
+                delay={0.7}
+                label="Trend"
+                // Tier vocabulary: lowercase honest-recency words like the
+                // age-bucket eyebrow elsewhere in the chapter. "Spike"
+                // reads as a verb ("Spiking"), "Active" / "Dormant" as
+                // states.
+                value={
+                  playtimeTrend === "spike"
+                    ? "Spiking"
+                    : playtimeTrend === "active"
+                      ? "Active"
+                      : "Dormant"
+                }
+              />
+            ) : null}
+          </div>
+        ) : null}
+        {/* Next-rarest-to-clear ladder for incomplete games. Editorial
+            counterpart to "Cleared in Nd" — when the owner is still
+            chasing 100%, show the next mountain. Hidden on completed
+            games (the ladder is empty) and on schema-less / no-rarity
+            cases (the deriver returns []). */}
+        {!isCompleted && remainingRarest.length > 0 ? (
+          <RemainingRarestLadder appid={appid} active={nudged} items={remainingRarest} />
+        ) : null}
       </>
     ),
 
