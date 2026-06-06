@@ -47,6 +47,7 @@ import { MultiBeat } from "./multi-beat";
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { preloadLinkAsImage } from "./preload-link";
 import { SteamChapterCloserMedia } from "./steam-chapter-closer-media";
+import { UnlocksPerWeekBand } from "./unlocks-per-week-band";
 import { useAssetClaim } from "./use-asset-claim";
 import { useAssetPreload } from "./use-asset-preload";
 import { useMultiBeatFlag } from "./use-multi-beat-flag";
@@ -530,6 +531,7 @@ export function SteamChapter({
   );
   const standout = recap?.standoutUnlock ?? null;
   const recentUnlocks = recap?.recentUnlocks ?? [];
+  const unlocksPerWeek = recap?.unlocksPerWeek ?? [];
   const screenshots = recap?.screenshots ?? [];
   const completionPct = recap?.completionPct ?? null;
   const playtime2WeekMin = recap?.playtime2WeeksMinutes ?? null;
@@ -643,6 +645,19 @@ export function SteamChapter({
 
           {recentUnlocks.length > 0 ? (
             <div className="flex flex-col gap-2 pt-2">
+              {/* Sparkline header band — unlocks-per-week trailing
+                  cadence (right-anchored at the current Brussels week,
+                  oldest-first, adaptive window up to 12 weeks). The
+                  band lands a hair before the "Recent unlocks" heading
+                  so the reader has scanned the trend by the time the
+                  feed rows start cascading in. Hidden entirely when
+                  the deriver returns fewer than 2 weeks of data — a
+                  single-point line has no shape. */}
+              {unlocksPerWeek.length >= 2 ? (
+                <ChapterReveal active={nudged} delay={0.16}>
+                  <UnlocksPerWeekBand data={unlocksPerWeek} />
+                </ChapterReveal>
+              ) : null}
               <ChapterReveal active={nudged} delay={0.2}>
                 <h3
                   className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
