@@ -126,7 +126,35 @@ describe("SteamChapterCloserMedia (R-10 trailer slot)", () => {
     expect(video.currentTime).toBe(0);
   });
 
-  it("falls back to the screenshot strip when no microtrailer exists", () => {
+  it("renders the trailer ABOVE the screenshot strip when both are available — they are complementary, not alternatives", () => {
+    render(
+      withMotion(
+        <SteamChapterCloserMedia
+          appid={2050650}
+          screenshots={screenshots}
+          microtrailerWebm={microtrailerWebm}
+          microtrailerMp4={microtrailerMp4}
+          microtrailerPoster={microtrailerPoster}
+          microtrailerName="Launch trailer"
+          active
+        />
+      )
+    );
+    // Both render. Verify ordering by comparing their positions in the
+    // rendered DOM (trailer first, screenshots second).
+    const video = screen.getByLabelText("Launch trailer");
+    const firstImg = document.querySelector('img[src*="cloudflare.steamstatic.com"]');
+    expect(video).toBeTruthy();
+    expect(firstImg).toBeTruthy();
+    // `compareDocumentPosition` returns DOCUMENT_POSITION_FOLLOWING (4)
+    // when the second argument follows the first in document order.
+    expect(
+      video.compareDocumentPosition(firstImg as Element) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("renders only the screenshot strip when no microtrailer exists", () => {
     render(
       withMotion(
         <SteamChapterCloserMedia
@@ -140,13 +168,13 @@ describe("SteamChapterCloserMedia (R-10 trailer slot)", () => {
         />
       )
     );
-    // Screenshot strip renders <img> elements with thumb URLs; no <video>.
+    // No <video>, screenshots present.
     expect(screen.queryByRole("video")).toBeNull();
     const imgs = document.querySelectorAll('img[src*="cloudflare.steamstatic.com"]');
     expect(imgs.length).toBeGreaterThan(0);
   });
 
-  it("falls back to the screenshot strip under reduced motion even when a trailer is available", () => {
+  it("suppresses the trailer under reduced motion but still renders the screenshot strip", () => {
     render(
       withMotion(
         <SteamChapterCloserMedia
@@ -161,10 +189,29 @@ describe("SteamChapterCloserMedia (R-10 trailer slot)", () => {
         "always"
       )
     );
-    // Trailer suppressed; screenshot fallback renders.
+    // Trailer suppressed; screenshot strip still renders.
     expect(screen.queryByLabelText("Launch trailer")).toBeNull();
     const imgs = document.querySelectorAll('img[src*="cloudflare.steamstatic.com"]');
     expect(imgs.length).toBeGreaterThan(0);
+  });
+
+  it("renders the trailer alone when screenshots are empty", () => {
+    render(
+      withMotion(
+        <SteamChapterCloserMedia
+          appid={2050650}
+          screenshots={[]}
+          microtrailerWebm={microtrailerWebm}
+          microtrailerMp4={microtrailerMp4}
+          microtrailerPoster={microtrailerPoster}
+          microtrailerName="Launch trailer"
+          active
+        />
+      )
+    );
+    expect(screen.getByLabelText("Launch trailer")).toBeTruthy();
+    const imgs = document.querySelectorAll('img[src*="cloudflare.steamstatic.com"]');
+    expect(imgs.length).toBe(0);
   });
 
   it("renders nothing when there is no trailer and no screenshots", () => {
@@ -184,7 +231,7 @@ describe("SteamChapterCloserMedia (R-10 trailer slot)", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("falls back to the screenshot strip on data-saver connections", () => {
+  it("suppresses the trailer on data-saver connections but still renders the screenshot strip", () => {
     // Mock Network Information API to indicate saveData. Restored by
     // afterEach via vi.restoreAllMocks.
     const originalConnection = (

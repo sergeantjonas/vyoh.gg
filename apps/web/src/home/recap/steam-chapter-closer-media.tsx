@@ -13,12 +13,16 @@ import { ScreenshotLightboxStrip } from "./screenshot-lightbox";
 /**
  * Swappable visual slot for the Steam subject chapter's closer beat.
  *
- * When a microtrailer is present and the environment allows motion +
- * isn't bandwidth-constrained, renders a looping silent video that
- * autoplays once the beat becomes active. Falls back to the existing
- * screenshot lightbox strip when:
- *   - the game has no microtrailer (most do; the upstream enrichment
- *     populates the field for a minority of titles), OR
+ * Composition: when a microtrailer is present and the environment
+ * allows motion + isn't bandwidth-constrained, renders the looping
+ * trailer ABOVE the screenshot lightbox strip — both visible together,
+ * the trailer carrying "this game in motion" and the screenshots
+ * carrying "moments worth lingering on" + the lightbox click-through.
+ * The two are complementary editorial slots, not alternatives.
+ *
+ * The trailer is suppressed (screenshots-only path) when:
+ *   - the game has no microtrailer (the upstream enrichment populates
+ *     the field for a minority of titles), OR
  *   - the user prefers reduced motion (a 6-second loop reads as motion
  *     even though no scroll-coupling is involved), OR
  *   - the connection's `saveData` flag is set or its `effectiveType`
@@ -58,14 +62,17 @@ export function SteamChapterCloserMedia({
   microtrailerName: string | null;
   /**
    * Beat-active signal from the multi-beat parent. Drives both the
-   * per-thumb stagger for the screenshot fallback AND microtrailer
+   * per-thumb stagger for the screenshot rotator AND microtrailer
    * autoplay — pin-enter fires while the chapter title is still being
    * read; beat-active is the correct moment to start playback so the
    * trailer doesn't burn its first half-second of motion while the user
    * is still reading prior beats.
    */
   active: boolean;
-  /** Seconds before the first thumb begins its reveal (fallback path). */
+  /** Seconds before the first thumb begins its reveal. When the trailer
+   *  renders above, the screenshot strip's reveal is nudged later by the
+   *  same delay-staircase so the two enter as a cascade rather than
+   *  simultaneously. */
   baseDelay?: number;
 }) {
   // `useReducedMotionConfig` (not `useReducedMotion`) so a parent
@@ -80,28 +87,34 @@ export function SteamChapterCloserMedia({
   const hasTrailer = trailerWebmUrl !== null;
   const dataAware = isDataSaver();
   const showTrailer = hasTrailer && !prefersReducedMotion && !dataAware;
+  const showScreenshots = screenshots.length > 0;
 
-  if (!showTrailer) {
-    // Fallback path — same shape as the pre-R-10 slot.
-    if (screenshots.length === 0) return null;
-    return (
-      <ScreenshotLightboxStrip
-        appid={appid}
-        screenshots={screenshots}
-        nudged={active}
-        baseDelay={baseDelay}
-      />
-    );
-  }
+  if (!showTrailer && !showScreenshots) return null;
 
   return (
-    <TrailerLoop
-      webmUrl={trailerWebmUrl ?? ""}
-      mp4Url={trailerMp4Url}
-      posterUrl={trailerPosterUrl}
-      name={microtrailerName}
-      active={active}
-    />
+    <div className="flex w-full flex-col gap-4">
+      {showTrailer ? (
+        <TrailerLoop
+          webmUrl={trailerWebmUrl ?? ""}
+          mp4Url={trailerMp4Url}
+          posterUrl={trailerPosterUrl}
+          name={microtrailerName}
+          active={active}
+        />
+      ) : null}
+      {showScreenshots ? (
+        <ScreenshotLightboxStrip
+          appid={appid}
+          screenshots={screenshots}
+          nudged={active}
+          // When the trailer renders above, shift the screenshot strip's
+          // per-thumb cascade later by ~0.25s so the trailer lands first
+          // and the strip follows — reads as a hero-then-supporting reveal
+          // instead of both elements arriving at once.
+          baseDelay={showTrailer ? baseDelay + 0.25 : baseDelay}
+        />
+      ) : null}
+    </div>
   );
 }
 
