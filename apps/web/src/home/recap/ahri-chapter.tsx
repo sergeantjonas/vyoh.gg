@@ -696,20 +696,32 @@ export function AhriChapter({ account }: { account: LolAccount }) {
       </ChapterOpener>
     ),
 
-    // Beat 1 — Signature game + recent matches. Mirrors Steam beat 1's
-    // directional cascade: focal block lands from the LEFT (signature
-    // game as the visual anchor), recent rows cascade in from the RIGHT
-    // opposite the anchor, giving the beat a two-sided spread feel
-    // instead of a single column drop.
+    // Beat 1 — Signature game + recent matches.
+    //
+    // Two-stage entrance instead of the templated slide-from-side cascade
+    // both Steam and Ahri shared pre-R-12. The signature game is the
+    // anchor — it gets a HERO-tier scale + blur entrance (scale 0.9 +
+    // blur 4, 0.85s duration, HERO_EASE) so it lands with weight, like a
+    // photo settling onto a magazine spread. The recent rows beneath
+    // cascade in via a softer **blur-dissolve** rather than a horizontal
+    // slide — opacity + slight rise + blur 3, no translateX. Reads as
+    // the list "materializing into place" rather than being shuffled in
+    // from off-page, which had become the most-tired chapter entrance
+    // pattern (per R-12 polish review).
     (nudged) => (
       <ChapterDetail>
         {signature ? (
           <ChapterReveal
             active={nudged}
             delay={0.05}
-            slideX={-40}
-            scale={0.96}
-            duration={0.75}
+            // Hero-tier entrance: drop the slideX in favor of scale +
+            // blur. The signature game block is the visual anchor, so
+            // landing weight comes from depth (blur clearing) + presence
+            // (scale resolving), not from horizontal motion.
+            scale={0.9}
+            blur={4}
+            rise={16}
+            duration={0.85}
           >
             <SignatureGameBlock
               accountSlug={account.slug}
@@ -731,7 +743,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
             </ChapterReveal>
             <ul className="flex flex-col gap-0.5">
               {recent.map((m, i) => {
-                const delay = 0.28 + i * 0.045;
+                const delay = 0.28 + i * 0.05;
                 const minutes = Math.max(1, Math.round(m.durationSec / 60));
                 const showRole = isRolePosition(m.position);
                 const opponentName = m.opponentChampion
@@ -739,7 +751,11 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                   : null;
                 return (
                   <li key={m.matchId}>
-                    <ChapterReveal active={nudged} delay={delay} slideX={18}>
+                    {/* Blur-dissolve cascade — rise + soft blur, no
+                        translateX. Replaces the prior slideX=18 horizontal
+                        cascade which read as templated against every
+                        other multi-beat row strip. */}
+                    <ChapterReveal active={nudged} delay={delay} rise={6} blur={3}>
                       <Link
                         to="/lol/$accountSlug/matches/$matchId"
                         params={{

@@ -749,11 +749,24 @@ export function SteamChapter({
               width="14rem"
             />
 
-            {/* Verdict prose — curtain-pull entrance: bigger rise +
-                blur + longer duration than the band default. Delay
-                bumped past the slash's draw so the prose lands
-                second, after the kicker has set the stage. */}
-            <ChapterReveal active={nudged} delay={0.8} blur={8} rise={22} duration={0.9}>
+            {/* Verdict prose — curtain-pull entrance, dialed up from
+                the Ahri verdict's settle. Steam game covers carry
+                stronger art-direction than champion splashes (the cover
+                IS the wrapper of the verdict), so the prose's entrance
+                leans into "page lifting into focus": bigger rise + a
+                touch of scale + slightly slower duration. Delay bumped
+                past the slash's draw so the prose lands second, after
+                the kicker has set the stage. Numbers delay matches the
+                duration extension so the count-up still arrives after
+                the prose has settled. */}
+            <ChapterReveal
+              active={nudged}
+              delay={0.8}
+              blur={10}
+              rise={32}
+              scale={0.96}
+              duration={1.05}
+            >
               <VerdictProse
                 clauses={verdictClauses}
                 style={{ textShadow: SHADOW_BODY }}
@@ -763,7 +776,7 @@ export function SteamChapter({
                   textShadow: SHADOW_ACCENT,
                 }}
                 numbersActive={nudged}
-                numbersDelay={1.85}
+                numbersDelay={2.0}
               />
             </ChapterReveal>
           </div>
@@ -823,10 +836,19 @@ export function SteamChapter({
                 {recentUnlocks.map((u, i) => (
                   <li key={u.apiName}>
                     {/* Rows cascade in from the right opposite the
-                              standout block. Tighter stagger (0.045) than
-                              the prior 0.06 — reads as a feed pulling in,
-                              not a list being drawn one row at a time. */}
-                    <ChapterReveal active={nudged} delay={0.28 + i * 0.045} slideX={18}>
+                        standout block. Tighter stagger (0.045) than
+                        the prior 0.06 — reads as a feed pulling in,
+                        not a list being drawn one row at a time. Small
+                        `scale=0.97` adds a "snap into place" character
+                        on top of the directional slide, differentiating
+                        Steam's row entrance from Ahri's now blur-only
+                        dissolve cascade (R-12.4 per-beat variety pass). */}
+                    <ChapterReveal
+                      active={nudged}
+                      delay={0.28 + i * 0.045}
+                      slideX={18}
+                      scale={0.97}
+                    >
                       <RecentUnlockRow appid={appid} unlock={u} />
                     </ChapterReveal>
                   </li>
