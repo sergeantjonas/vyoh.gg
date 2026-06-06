@@ -13,7 +13,7 @@ import { AhriChapter } from "@/home/recap/ahri-chapter";
 import { LolMomentsAggregator } from "@/home/recap/lol-moments-aggregator";
 import { NextChapterCaret } from "@/home/recap/next-chapter-caret";
 import { SteamChapter } from "@/home/recap/steam-chapter";
-import { SteamMomentChapter } from "@/home/recap/steam-moment-chapter";
+import { SteamMomentsAggregator } from "@/home/recap/steam-moments-aggregator";
 import { useChapters } from "@/home/recap/use-chapters";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
@@ -109,28 +109,25 @@ function HomePage() {
               />
             );
           }
-          // R-7f steam-moment chapter — FIRST_TIME_GAME ships now,
-          // ACHIEVEMENT_CLUSTER lands in R-7g (placeholder branch inside
-          // the component until then). Descriptor carries `name` inline so
-          // the chapter doesn't need a `useSteamGameRecap` roundtrip; the
-          // hero URL is a deterministic appid-keyed proxy path.
-          if (c.kind === "steam-moment") {
-            return (
-              <SteamMomentChapter
-                key={c.slug}
-                appid={c.appid}
-                name={c.name}
-                daysSince={c.daysSince}
-                slug={c.slug}
-                momentType={c.momentType}
-                firstTime={c.firstTime}
-                cluster={c.cluster}
-              />
-            );
-          }
-          // LoL moments handled by LolMomentsAggregator above.
+          // LoL + Steam moments handled by aggregator chapters (LoL above,
+          // Steam below). Drop steam-moment descriptors out of this loop.
           return null;
         })}
+        {/* R-12.6: Steam moments grouped into a single multi-beat
+            aggregator ("Highlights / what stuck this season"), sitting
+            after the steam-subject block to close the Steam half of the
+            page. Atmosphere is palette-only (no shared hero) — the
+            aggregator isn't "about" any one game; per-game identity
+            flows through each beat's masthead + leading visual + tagline. */}
+        {(() => {
+          const steamMoments =
+            chapters?.filter(
+              (c): c is typeof c & { kind: "steam-moment" } => c.kind === "steam-moment"
+            ) ?? [];
+          return steamMoments.length > 0 ? (
+            <SteamMomentsAggregator moments={steamMoments} />
+          ) : null;
+        })()}
         {/* Conclusion is split across two snap-aligned siblings, each
             claiming a full viewport so the page reads as two distinct
             paged closes rather than one tall stack. `scroll-snap-stop:

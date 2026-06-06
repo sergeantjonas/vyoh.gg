@@ -1,4 +1,3 @@
-import { mainScrollRef } from "@/lib/scroll-container";
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,10 +5,6 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
     <a {...props}>{children}</a>
   ),
-}));
-vi.mock("@/home/recap/use-asset-claim", () => ({ useAssetClaim: vi.fn() }));
-vi.mock("@/home/recap/preload-link", () => ({
-  preloadLinkAsImage: vi.fn(() => () => {}),
 }));
 vi.mock("@/home/recap/chapter-reveal", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
@@ -28,17 +23,14 @@ vi.mock("motion/react", async () => {
   return { ...actual, useReducedMotion: vi.fn(() => false) };
 });
 vi.mock("@/steam/_shared/steam-image", () => ({
-  steamLibraryHeroLargeUrl: (appid: number) => `https://test/hero/${appid}`,
   steamLibraryLogoUrl: (appid: number) => `https://test/logo/${appid}`,
 }));
 vi.mock("@/steam/use-steam-game-recap", () => ({
   useSteamGameRecap: vi.fn(),
 }));
 
-import { preloadLinkAsImage } from "@/home/recap/preload-link";
-import { useAssetClaim } from "@/home/recap/use-asset-claim";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
-import { SteamMomentChapter } from "./steam-moment-chapter";
+import { SteamMomentBeat } from "./steam-moment-beat";
 
 function mockRecap(
   overrides: Partial<{
@@ -77,40 +69,37 @@ const baseProps = {
     firstPlayedAt: "2026-05-30T20:00:00.000Z",
   },
   cluster: null,
+  nudged: true,
 };
 
 beforeEach(() => {
-  mainScrollRef.current = document.createElement("div");
   mockRecap();
 });
 
 afterEach(() => {
-  vi.mocked(useAssetClaim).mockClear();
-  vi.mocked(preloadLinkAsImage).mockClear();
   vi.mocked(useSteamGameRecap).mockReset();
-  mainScrollRef.current = null;
 });
 
-describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
+describe("SteamMomentBeat (FIRST_TIME_GAME)", () => {
   it("renders the first-time eyebrow and game-name masthead", () => {
-    render(<SteamMomentChapter {...baseProps} />);
+    render(<SteamMomentBeat {...baseProps} />);
     expect(screen.getByText("First time on")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
   });
 
   it("derives a human-readable when-line from daysSince", () => {
-    render(<SteamMomentChapter {...baseProps} daysSince={5} />);
+    render(<SteamMomentBeat {...baseProps} daysSince={5} />);
     expect(screen.getByText("5 days ago")).toBeTruthy();
   });
 
   it("links the masthead to the Steam game-detail route", () => {
-    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const { container } = render(<SteamMomentBeat {...baseProps} />);
     const link = container.querySelector('a[to="/steam/game/$appid"]');
     expect(link).toBeTruthy();
   });
 
   it("renders the session-shape receipt (total + count + avg) when firstTime is provided", () => {
-    render(<SteamMomentChapter {...baseProps} />);
+    render(<SteamMomentBeat {...baseProps} />);
     // baseProps: 150 min across 3 sessions → "3h · 3 sessions · avg 1h"
     // (formatPlaytime rounds 50min → "50m"). Assert the loadbearing labels
     // without coupling tightly to playtime formatter tuning.
@@ -119,14 +108,14 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
   });
 
   it("renders the 'first sit-down' beat in the receipt when sessionCount > 1", () => {
-    render(<SteamMomentChapter {...baseProps} />);
+    render(<SteamMomentBeat {...baseProps} />);
     // baseProps: firstSessionMinutes: 60 → "first sit-down 1h"
     expect(screen.getByText(/first sit-down/i)).toBeTruthy();
   });
 
   it("omits the 'first sit-down' beat when sessionCount is exactly one (collapses to total)", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...baseProps}
         firstTime={{
           windowPlayMinutes: 120,
@@ -142,7 +131,7 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
 
   it("prose branches on the added-vs-played gap: same-day reads as 'dove right in'", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...baseProps}
         firstTime={{
           windowPlayMinutes: 150,
@@ -158,7 +147,7 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
 
   it("prose branches on a 1–13 day gap: pairs added + first-launched dates", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...baseProps}
         firstTime={{
           windowPlayMinutes: 150,
@@ -175,7 +164,7 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
 
   it("prose branches on a 14+ day backlog gap: reads as 'sat in the library'", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...baseProps}
         firstTime={{
           windowPlayMinutes: 200,
@@ -191,7 +180,7 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
 
   it("renders the singular '1 session' label and omits the avg when sessionCount is exactly one", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...baseProps}
         firstTime={{
           windowPlayMinutes: 120,
@@ -209,7 +198,7 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
   });
 
   it("omits the playtime receipt entirely when firstTime is null (defensive — descriptor invariant)", () => {
-    render(<SteamMomentChapter {...baseProps} firstTime={null} />);
+    render(<SteamMomentBeat {...baseProps} firstTime={null} />);
     expect(screen.queryByText(/session/i)).toBeNull();
   });
 
@@ -218,7 +207,7 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
       shortDescription:
         "A reimagining of the survival horror classic.\r\n\r\nLeon S. Kennedy, six years after Raccoon City…",
     });
-    render(<SteamMomentChapter {...baseProps} />);
+    render(<SteamMomentBeat {...baseProps} />);
     // Only the first sentence is used; subsequent paragraphs / sentences
     // are dropped so the masthead doesn't drown under marketing copy.
     expect(
@@ -232,48 +221,21 @@ describe("SteamMomentChapter (FIRST_TIME_GAME)", () => {
     // mirrors the "recap loaded but the game has no marketing blurb"
     // case (rare but real for very old or unfinished titles).
     mockRecap();
-    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const { container } = render(<SteamMomentBeat {...baseProps} />);
     // Tagline is the only italic body under the masthead; assert it's gone
     // by looking for the prose-body class signature.
     const italicBodies = container.querySelectorAll("p.italic");
     expect(italicBodies.length).toBe(0);
   });
 
-  it("threads the recap's dominantHex into the atmosphere claim when available", () => {
-    mockRecap({ dominantHex: "#3aa57e" });
-    render(<SteamMomentChapter {...baseProps} />);
-    const call = vi.mocked(useAssetClaim).mock.calls[0];
-    expect(call?.[1]?.accentHex).toBe("#3aa57e");
-  });
-
-  it("threads the recap's subject anchor into the atmosphere claim", () => {
-    mockRecap({ subjectXPercent: 62, subjectYPercent: 41 });
-    render(<SteamMomentChapter {...baseProps} />);
-    const call = vi.mocked(useAssetClaim).mock.calls[0];
-    expect(call?.[1]?.subjectXPercent).toBe(62);
-    expect(call?.[1]?.subjectYPercent).toBe(41);
-  });
-
-  it("exposes the chapter slug + label via data attributes for the caret discovery scan", () => {
-    const { container } = render(<SteamMomentChapter {...baseProps} />);
-    const root = container.querySelector("[data-recap-chapter]");
-    expect(root?.getAttribute("data-recap-chapter")).toBe("steam-moment-first-2050650");
-    expect(root?.getAttribute("data-chapter-label")).toBe("First time");
-  });
-
-  it("injects a critical link[rel=preload] for the library hero asset", () => {
-    render(<SteamMomentChapter {...baseProps} />);
-    expect(preloadLinkAsImage).toHaveBeenCalledWith("https://test/hero/2050650");
-  });
-
-  it("publishes the hero asset as an atmosphere claim", () => {
-    render(<SteamMomentChapter {...baseProps} />);
-    const call = vi.mocked(useAssetClaim).mock.calls[0];
-    expect(call?.[1]?.image).toBe("https://test/hero/2050650");
-  });
+  // Atmosphere claim (dominantHex, subject anchor, hero image), critical
+  // hero preload, and chapter-level data attributes moved to the Steam
+  // moments aggregator (R-12.6). Steam moments aggregator uses palette-
+  // only atmosphere — no per-game hero — so the per-beat atmosphere
+  // wiring this section used to test is no longer applicable.
 });
 
-describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
+describe("SteamMomentBeat (ACHIEVEMENT_CLUSTER)", () => {
   const clusterProps = {
     ...baseProps,
     slug: "steam-moment-cluster-2050650",
@@ -288,13 +250,13 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
   };
 
   it("renders the cluster eyebrow + masthead", () => {
-    render(<SteamMomentChapter {...clusterProps} />);
+    render(<SteamMomentBeat {...clusterProps} />);
     expect(screen.getByText("Recent run on")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
   });
 
   it("renders the cluster receipt with count + span + unlock names list", () => {
-    render(<SteamMomentChapter {...clusterProps} />);
+    render(<SteamMomentBeat {...clusterProps} />);
     // 6 unlocks → "6 unlocks", spanHours 3.5 → "across 3.5h"
     expect(screen.getByText(/6 unlocks/i)).toBeTruthy();
     expect(screen.getByText(/across 3\.5h/i)).toBeTruthy();
@@ -305,7 +267,7 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
 
   it("renders 'and N more' when the cluster has more unlocks than names carried on the descriptor", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...clusterProps}
         cluster={{
           ...clusterProps.cluster,
@@ -319,7 +281,7 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
 
   it("prose branches on span: ≤2h reads as 'back-to-back'", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...clusterProps}
         cluster={{ ...clusterProps.cluster, spanHours: 1.5 }}
       />
@@ -329,7 +291,7 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
 
   it("prose branches on span: 2–8h reads as 'made an afternoon of it'", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...clusterProps}
         cluster={{ ...clusterProps.cluster, spanHours: 5.0 }}
       />
@@ -339,7 +301,7 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
 
   it("prose branches on span: >8h reads as 'binged it across the day'", () => {
     render(
-      <SteamMomentChapter
+      <SteamMomentBeat
         {...clusterProps}
         cluster={{ ...clusterProps.cluster, spanHours: 18.0 }}
       />
@@ -348,28 +310,21 @@ describe("SteamMomentChapter (ACHIEVEMENT_CLUSTER)", () => {
   });
 
   it("falls back to the cluster-shaped eyebrow even when cluster stats are null (defensive)", () => {
-    render(<SteamMomentChapter {...clusterProps} cluster={null} />);
+    render(<SteamMomentBeat {...clusterProps} cluster={null} />);
     expect(screen.getByText("Recent run on")).toBeTruthy();
     // Receipt block is gone; prose body renders the bare fallback.
     expect(screen.queryByText(/unlocks/i)).toBeNull();
   });
-
-  it("exposes a 'Recent run' chapter-label data attribute", () => {
-    const { container } = render(<SteamMomentChapter {...clusterProps} />);
-    expect(
-      container.querySelector("[data-recap-chapter]")?.getAttribute("data-chapter-label")
-    ).toBe("Recent run");
-  });
 });
 
-describe("SteamMomentChapter masthead logo", () => {
+describe("SteamMomentBeat masthead logo", () => {
   // Steam game logo image is used as the masthead when the recap query
   // says `hasLogo: true` — same pattern as the heavy `SteamChapter`.
   // Falls back to the typographic H2 with the descriptor's name when no
   // logo is available.
   it("renders the publisher logo <img> as the masthead when recap.hasLogo is true", () => {
     mockRecap({ hasLogo: true, assetTimestamp: 99 });
-    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const { container } = render(<SteamMomentBeat {...baseProps} />);
     const logo = container.querySelector(
       'img[src="https://test/logo/2050650"]'
     ) as HTMLImageElement | null;
@@ -383,7 +338,7 @@ describe("SteamMomentChapter masthead logo", () => {
 
   it("falls back to the typographic H2 masthead when recap.hasLogo is false", () => {
     mockRecap({ hasLogo: false });
-    render(<SteamMomentChapter {...baseProps} />);
+    render(<SteamMomentBeat {...baseProps} />);
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
   });
 
@@ -392,14 +347,14 @@ describe("SteamMomentChapter masthead logo", () => {
     // with no hasLogo override → hasLogo: false. Confirm the masthead is
     // still typographic so the chapter renders before recap loads.
     mockRecap();
-    render(<SteamMomentChapter {...baseProps} />);
+    render(<SteamMomentBeat {...baseProps} />);
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
   });
 });
 
-describe("SteamMomentChapter per-type leadingVisual (R-7h.2)", () => {
+describe("SteamMomentBeat per-type leadingVisual (R-7h.2)", () => {
   it("renders a Sparkles lucide icon as the leadingVisual on FIRST_TIME_GAME", () => {
-    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const { container } = render(<SteamMomentBeat {...baseProps} />);
     expect(container.querySelector(".lucide-sparkles")).toBeTruthy();
   });
 
@@ -416,17 +371,17 @@ describe("SteamMomentChapter per-type leadingVisual (R-7h.2)", () => {
         unlockNames: ["Survivor", "Hunter"],
       },
     };
-    const { container } = render(<SteamMomentChapter {...clusterProps} />);
+    const { container } = render(<SteamMomentBeat {...clusterProps} />);
     expect(container.querySelector(".lucide-award")).toBeTruthy();
   });
 });
 
-describe("SteamMomentChapter per-type accent (R-7h.1)", () => {
+describe("SteamMomentBeat per-type accent (R-7h.1)", () => {
   // Per-momentType typographic accent — FIRST_TIME_GAME picks teal-300,
   // ACHIEVEMENT_CLUSTER picks fuchsia-300. Atmosphere backdrop stays game-
   // derived; this is the chapter's per-type colour signature.
   it("applies FIRST_TIME_GAME eyebrow with text-teal-300", () => {
-    const { container } = render(<SteamMomentChapter {...baseProps} />);
+    const { container } = render(<SteamMomentBeat {...baseProps} />);
     const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");
     expect(eyebrow?.className).toContain("text-teal-300");
   });
@@ -444,7 +399,7 @@ describe("SteamMomentChapter per-type accent (R-7h.1)", () => {
         unlockNames: ["Survivor", "Hunter"],
       },
     };
-    const { container } = render(<SteamMomentChapter {...clusterProps} />);
+    const { container } = render(<SteamMomentBeat {...clusterProps} />);
     const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");
     expect(eyebrow?.className).toContain("text-fuchsia-300");
   });
