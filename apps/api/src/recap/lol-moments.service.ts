@@ -226,6 +226,14 @@ function computeKda(kills: number, deaths: number, assists: number): number {
  *  the queueType strings emitted by `match-mapper.ts`. */
 const RANKED_QUEUE_TYPES = ["Ranked Solo", "Ranked Flex"] as const;
 
+/** Riot's internal queueId strings, used on `RankSnapshot.queueId`
+ *  (not the editorial `Match.queueType` strings above). The two
+ *  vocabularies live on different tables — `Match.queueType` is the
+ *  display name emitted by `match-mapper.ts`, while `RankSnapshot.queueId`
+ *  is the raw Riot API value. R-7i Lane B's `detectLifetimePeak` reads
+ *  from `RankSnapshot`, so it needs these. */
+const RIOT_RANKED_QUEUE_IDS = ["RANKED_SOLO_5x5", "RANKED_FLEX_SR"] as const;
+
 /**
  * LoL moment detector for the landing-page recap chapter stream. R-6 ships
  * the OFF_META_PICK detector only; the service is structured so RANK_UP,
@@ -1083,80 +1091,82 @@ export class LolMomentsService {
   /**
    * Detect the owner's all-time peak ranked snapshot (R-7i Lane B —
    * retrospective top-up). Unlike every other detector in this service,
-   * this one is windowless — it reads ALL owner ranked snapshot rows
-   * and surfaces the highest tier+rank+LP ever achieved, regardless of
+   * this one is windowless — it reads ALL owner `RankSnapshot` rows
+   * and surfaces the highest tier+rank+LP ever recorded, regardless of
    * how long ago. Fires the always-on top-up that prevents the LoL
    * block from going empty during true dry spells (no ranked play in
    * 30d at all), where every other detector's 30d window stays empty.
    *
+   * **Source: `RankSnapshot` table, not `Match.snapshot*`.** The Match
+   * table's snapshot fields exist in the schema but aren't currently
+   * backfilled — they were intended for a per-match snapshot lift that
+   * never landed. `RankSnapshot` is the canonical rank tracking source:
+   * `MatchSyncService` calls `LolService.captureRankSnapshot()` after
+   * every ranked match completes, inserting one row per (puuid, queueId)
+   * shift. The same table powers the conclusion's rank-trajectory
+   * sparkline, so we know it's the authoritative source.
+   *
    * Algorithm:
-   *   1. Read all owner matches with a populated post-snapshot. No
-   *      window filter — the peak might be from months or years ago,
-   *      that's the whole point of the retrospective register.
-   *   2. Sort desc by `normalizeLp(tier, rank, lp)` (same scalar the
-   *      rank-up detector uses for tier+division ordering). Pick the
-   *      head row.
+   *   1. Read all owner `RankSnapshot` rows from the ranked-solo and
+   *      ranked-flex queues. Riot's queueId strings here are the API
+   *      values (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`), distinct from
+   *      the `Match.queueType` editorial strings used by the other
+   *      detectors.
+   *   2. Sort desc by `normalizeLp(tier, rank, lp)` and pick the head.
    *   3. Emit one candidate with `daysSince = 0` regardless of when
-   *      the peak was actually hit — the chapter is being SURFACED
-   *      today even though its CONTENT is retrospective. The actual
-   *      peak date lives on the `lifetimePeak.achievedAt` field so
-   *      the chapter prose can frame the year honestly ("Season
-   *      YYYY"). Anchoring on the real daysSince would let recency
-   *      decay sink the score below floor for any peak older than ~30d,
-   *      which is exactly the scenario the detector is supposed to
-   *      handle.
-   *   4. The candidate's `matchId` points at the peak match so the
-   *      chapter can deep-link to the match-detail page for the
-   *      click-through.
+   *      the peak was hit — the chapter is being SURFACED today even
+   *      though its CONTENT is retrospective. The actual peak date
+   *      lives on `lifetimePeak.achievedAt` so the prose can frame
+   *      the year honestly ("Season YYYY"). Anchoring on the real
+   *      daysSince would let recency decay sink the score below floor
+   *      for any peak older than ~30d, which is exactly the dry-spell
+   *      scenario the detector is supposed to handle.
+   *   4. Look up the most recent ranked Match (any age) to surface a
+   *      champion for the aggregator's splash backdrop and a matchId
+   *      for the chapter's click-through. `RankSnapshot` doesn't carry
+   *      either field, so we join on the page-side via the most-recent
+   *      ranked match. When no ranked matches exist at all,
+   *      `championAlias` falls back to `"Ahri"` so `routes/index.tsx`'s
+   *      `Boolean(c.championAlias)` filter still admits the chapter —
+   *      Ahri is the page's structural anchor so defaulting to it is
+   *      honest under "looking back" framing where there's no recent-
+   *      champion attribution to make.
    */
   async detectLifetimePeak(_now: Date): Promise<RecapCandidate[]> {
     const ownerPuuids = await this.identity.getOwnerPuuids();
     if (ownerPuuids.length === 0) return [];
 
-    const peakRows = await this.prisma.match.findMany({
-      where: {
-        puuid: { in: ownerPuuids },
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
-        snapshotTier: { not: null },
-        snapshotRank: { not: null },
-        snapshotLp: { not: null },
-      },
-      // Lifetime peak is, by definition, a small superset of snapshots
-      // — pulling all owner ranked rows with snapshots is bounded by
-      // the owner's career ranked count, not the candidate window. No
-      // `take` here because the windowed detectors already cap at
-      // RANK_UP_SCAN_LIMIT etc. for their own scopes; lifetime needs
-      // the full set.
-      select: {
-        matchId: true,
-        playedAt: true,
-        champion: true,
-        snapshotTier: true,
-        snapshotRank: true,
-        snapshotLp: true,
-      },
-    });
+    const [peakRows, anchorMatch] = await Promise.all([
+      this.prisma.rankSnapshot.findMany({
+        where: {
+          puuid: { in: ownerPuuids },
+          queueId: { in: [...RIOT_RANKED_QUEUE_IDS] },
+        },
+        select: {
+          tier: true,
+          rank: true,
+          leaguePoints: true,
+          capturedAt: true,
+        },
+      }),
+      this.prisma.match.findFirst({
+        where: {
+          puuid: { in: ownerPuuids },
+          queueType: { in: [...RANKED_QUEUE_TYPES] },
+        },
+        orderBy: { playedAt: "desc" },
+        select: { matchId: true, champion: true },
+      }),
+    ]);
     if (peakRows.length === 0) return [];
 
-    // Sort desc by normalized LP. Same scalar the rank-up detector
-    // uses, which gives consistent ordering across tier + division
-    // boundaries (Diamond IV > Platinum I, Master 0 LP > Diamond I 100 LP).
-    const sorted = [...peakRows]
-      .filter(
-        (
-          r
-        ): r is typeof r & {
-          snapshotTier: string;
-          snapshotRank: string;
-          snapshotLp: number;
-        } => r.snapshotTier !== null && r.snapshotRank !== null && r.snapshotLp !== null
-      )
-      .sort(
-        (a, b) =>
-          normalizeLp(b.snapshotTier, b.snapshotRank, b.snapshotLp) -
-          normalizeLp(a.snapshotTier, a.snapshotRank, a.snapshotLp)
-      );
-    const peak = sorted[0];
+    // Sort desc by normalized LP. Same scalar the rank-up detector uses
+    // (Diamond IV > Platinum I, Master 0 LP > Diamond I 100 LP).
+    const peak = [...peakRows].sort(
+      (a, b) =>
+        normalizeLp(b.tier, b.rank, b.leaguePoints) -
+        normalizeLp(a.tier, a.rank, a.leaguePoints)
+    )[0];
     if (!peak) return [];
 
     return [
@@ -1166,24 +1176,18 @@ export class LolMomentsService {
         // achieved later) produces a new slug — keeps the chapter
         // freshness signal honest if the cache layer ever ends up
         // caching by slug.
-        slug: `lol-moment-lifetime-peak-${peak.snapshotTier}-${peak.snapshotRank}-${peak.snapshotLp}`,
+        slug: `lol-moment-lifetime-peak-${peak.tier}-${peak.rank}-${peak.leaguePoints}`,
         momentType: "LIFETIME_PEAK_RANK",
         baseSignal: LIFETIME_PEAK_BASE_SIGNAL,
         daysSince: 0,
-        matchId: peak.matchId,
-        // Carry the peak match's champion so the aggregator can drive
-        // its splash backdrop and the chapter prose can name the champ
-        // ("Peaked on X" reads better than disconnected from a champion
-        // name). The masthead itself is the rank — `momentCopy` branches
-        // on `LIFETIME_PEAK_RANK` and reads `lifetimePeak.tier/rank/lp`
-        // for the headline, not championAlias.
-        championAlias: peak.champion,
+        matchId: anchorMatch?.matchId ?? null,
+        championAlias: anchorMatch?.champion ?? "Ahri",
         matchStats: null,
         lifetimePeak: {
-          tier: peak.snapshotTier,
-          rank: peak.snapshotRank,
-          leaguePoints: peak.snapshotLp,
-          achievedAt: peak.playedAt.toISOString(),
+          tier: peak.tier,
+          rank: peak.rank,
+          leaguePoints: peak.leaguePoints,
+          achievedAt: peak.capturedAt.toISOString(),
         },
       },
     ];
