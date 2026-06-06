@@ -255,7 +255,23 @@ export function ConclusionChapter() {
   ];
 
   return (
-    <div ref={outerRef} data-recap-chapter="conclusion" data-chapter-label="The picture">
+    <div
+      ref={outerRef}
+      data-recap-chapter="conclusion"
+      data-chapter-label="The picture"
+      // The route page (apps/web/src/routes/__root.tsx) wraps all chapter
+      // content in a `mx-auto max-w-4xl p-6` container. That p-6 includes
+      // 24px of BOTTOM padding, which leaves a 24px gap between the
+      // conclusion section's bottom and main's scrollable bottom edge.
+      // CSS sticky disengages from `top: 0` when the section's bottom
+      // approaches the viewport's bottom — and that 24px gap is exactly
+      // where the disengagement plays out as a visible ~24-30px content
+      // scroll-up at chapter exit. The `-mb-6` negative bottom margin
+      // pulls the section into the wrapper's bottom padding region so
+      // section.bottom coincides with main's scrollable bottom edge,
+      // keeping sticky pinned all the way to the page's natural end.
+      className="-mb-6"
+    >
       <ChapterMultiBeat
         slug="conclusion"
         ariaLabel="The picture"
