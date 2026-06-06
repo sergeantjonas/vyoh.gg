@@ -25,6 +25,8 @@ import {
 } from "@/steam/_shared/steam-image";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 
+import { BeatAccentSlash } from "./beat-accent-slash";
+import { BeatParallaxLayer } from "./beat-parallax";
 import {
   ChapterCloser,
   ChapterDetail,
@@ -562,29 +564,73 @@ export function SteamChapter({
   // Removing this temporary indirection: see chunk 4 of
   // [multi-beat-chapter-arc.md](../../../docs/working-notes/cross-cutting/multi-beat-chapter-arc.md).
   const beatBodies: Array<(nudged: boolean) => ReactNode> = [
-    // Beat 0 — Verdict prose only. Eyebrow + masthead + tagline live in
-    // the chapter group's title card and persist across all beats, so
-    // beat 0's body is the verdict that summarises the game's standing.
+    // Beat 0 — Verdict prose, layered editorial spread. Eyebrow +
+    // masthead + tagline live in the chapter title card; this beat's
+    // body composes three depth tiers per the choreography toolkit's
+    // "≥3 layers per beat" rule:
+    //
+    //   depth 1 (background): ambient accent wash, slow scale during
+    //     dwell — reads as the camera settling into focus.
+    //   depth 2 (midground): accent slash sweep-in mark — magazine
+    //     spread separator that lands as the prose arrives.
+    //   depth 3 (foreground): verdict prose itself, ChapterReveal
+    //     blur+rise cascade (the established R-2 entrance vocabulary).
+    //
+    // Under reduced motion / outside multi-beat context, useBeatProgress
+    // returns static end-states so the layered structure renders at rest
+    // without animation. Same content + no motion is the reduced-motion
+    // contract.
     (nudged) => (
       <ChapterOpener>
         {verdictClauses.length > 0 ? (
-          // Curtain-pull entrance: bigger rise + blur + longer
-          // duration than the band default. Verdict is the chapter's
-          // editorial opener — the reader's first content beat under
-          // the now-anchored masthead, so it gets the heaviest reveal.
-          <ChapterReveal active={nudged} delay={0.05} blur={8} rise={22} duration={0.9}>
-            <VerdictProse
-              clauses={verdictClauses}
-              style={{ textShadow: SHADOW_BODY }}
-              emphasisStyle={{
-                paintOrder: "stroke",
-                WebkitTextStroke: STROKE_ACCENT,
-                textShadow: SHADOW_ACCENT,
-              }}
-              numbersActive={nudged}
-              numbersDelay={0.75}
-            />
-          </ChapterReveal>
+          <div className="relative w-full">
+            {/* Depth 1 — ambient accent wash. Inset extends past the
+                reading column so the gradient bleeds into the
+                full-bleed beat width on larger viewports without
+                pulling the focal halo off-center. */}
+            <div
+              className="pointer-events-none absolute inset-x-[-6rem] top-1/2 -z-10 h-[28rem] -translate-y-1/2 sm:inset-x-[-12rem]"
+              aria-hidden="true"
+            >
+              <BeatParallaxLayer
+                beatIndex={0}
+                depth={1}
+                scaleDelta={0.06}
+                className="h-full w-full"
+              >
+                <div
+                  className="h-full w-full opacity-25"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse 70% 60% at center, var(--accent, currentColor) 0%, transparent 70%)",
+                  }}
+                />
+              </BeatParallaxLayer>
+            </div>
+
+            {/* Depth 2 — accent slash. Sits above the prose as a
+                magazine separator. `mb-5` reserves the editorial
+                breathing between mark and headline. */}
+            <BeatAccentSlash beatIndex={0} className="mb-5 sm:mb-6" width="14rem" />
+
+            {/* Depth 3 — verdict prose. Curtain-pull entrance: bigger
+                rise + blur + longer duration than the band default.
+                Delay bumped past the slash sweep so the slash lands
+                first and the prose flows in beneath it. */}
+            <ChapterReveal active={nudged} delay={0.25} blur={8} rise={22} duration={0.9}>
+              <VerdictProse
+                clauses={verdictClauses}
+                style={{ textShadow: SHADOW_BODY }}
+                emphasisStyle={{
+                  paintOrder: "stroke",
+                  WebkitTextStroke: STROKE_ACCENT,
+                  textShadow: SHADOW_ACCENT,
+                }}
+                numbersActive={nudged}
+                numbersDelay={0.95}
+              />
+            </ChapterReveal>
+          </div>
         ) : null}
       </ChapterOpener>
     ),

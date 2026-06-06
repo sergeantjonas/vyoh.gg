@@ -42,8 +42,7 @@ await page.evaluate(() => {
   if (!chapter) return;
   const main = document.querySelector("main");
   if (!main) return;
-  const top =
-    chapter.getBoundingClientRect().top + main.scrollTop;
+  const top = chapter.getBoundingClientRect().top + main.scrollTop;
   main.scrollTo({ top, behavior: "instant" });
 });
 await page.waitForTimeout(300);
