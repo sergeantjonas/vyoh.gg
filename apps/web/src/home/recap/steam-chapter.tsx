@@ -42,6 +42,7 @@ import {
   SHADOW_LABEL,
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
+  STROKE_LABEL,
 } from "./chapter-shadows";
 import { MultiBeat } from "./multi-beat";
 import { parseAnimatableNumber } from "./parse-animatable-number";
@@ -136,7 +137,11 @@ function StandoutUnlockBlock({
       <div className="flex min-w-0 flex-col gap-2">
         <span
           className="text-xs uppercase tracking-[0.2em] text-foreground/80 sm:text-sm"
-          style={{ textShadow: SHADOW_BODY }}
+          style={{
+            textShadow: SHADOW_BODY,
+            paintOrder: "stroke",
+            WebkitTextStroke: STROKE_LABEL,
+          }}
         >
           {rarity !== null ? "Rarest milestone" : "Latest milestone"}
         </span>
@@ -655,13 +660,17 @@ export function SteamChapter({
                   single-point line has no shape. */}
               {unlocksPerWeek.length >= 2 ? (
                 <ChapterReveal active={nudged} delay={0.16}>
-                  <UnlocksPerWeekBand data={unlocksPerWeek} />
+                  <UnlocksPerWeekBand data={unlocksPerWeek} active={nudged} />
                 </ChapterReveal>
               ) : null}
               <ChapterReveal active={nudged} delay={0.2}>
                 <h3
                   className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
-                  style={{ textShadow: SHADOW_BODY }}
+                  style={{
+                    textShadow: SHADOW_BODY,
+                    paintOrder: "stroke",
+                    WebkitTextStroke: STROKE_LABEL,
+                  }}
                 >
                   Recent unlocks
                 </h3>

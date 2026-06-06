@@ -1,8 +1,9 @@
+import { m } from "motion/react";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-import { SHADOW_LABEL } from "./chapter-shadows";
+import { SHADOW_LABEL, STROKE_LABEL } from "./chapter-shadows";
 
 interface UnlocksPerWeekBandProps extends Omit<React.ComponentProps<"div">, "children"> {
   /**
@@ -13,6 +14,13 @@ interface UnlocksPerWeekBandProps extends Omit<React.ComponentProps<"div">, "chi
    * unlock activity worth showing.
    */
   data: readonly number[];
+  /**
+   * When true, the line draws on (left-to-right pathLength animation).
+   * Default false — outside any chapter context the band renders static
+   * end-state. Wire to the beat's `nudged` flag in the chapter consumer
+   * so the line draws as the beat activates.
+   */
+  active?: boolean;
 }
 
 const VIEWBOX_WIDTH = 100;
@@ -44,6 +52,7 @@ const VIEWBOX_HEIGHT = 24;
  */
 export function UnlocksPerWeekBand({
   data,
+  active = false,
   className,
   ...rest
 }: UnlocksPerWeekBandProps) {
@@ -98,13 +107,21 @@ export function UnlocksPerWeekBand({
       <div className="flex items-baseline justify-between">
         <span
           className="text-[10px] uppercase tracking-[0.2em] text-foreground/90"
-          style={{ textShadow: SHADOW_LABEL }}
+          style={{
+            textShadow: SHADOW_LABEL,
+            paintOrder: "stroke",
+            WebkitTextStroke: STROKE_LABEL,
+          }}
         >
           Unlocks / wk
         </span>
         <span
           className="text-[10px] uppercase tracking-[0.2em] tabular-nums text-foreground/75"
-          style={{ textShadow: SHADOW_LABEL }}
+          style={{
+            textShadow: SHADOW_LABEL,
+            paintOrder: "stroke",
+            WebkitTextStroke: STROKE_LABEL,
+          }}
         >
           {weeksLabel}
         </span>
@@ -137,7 +154,16 @@ export function UnlocksPerWeekBand({
           </linearGradient>
         </defs>
         <path d={areaPath} fill={`url(#${gradientId})`} />
-        <path
+        {/* The line draws on as the beat activates — left-to-right
+            pathLength animation reads as "data appearing", magazine
+            infographic register. The container's surrounding
+            ChapterReveal handles the opacity rise; this stroke
+            animation runs once on first activation with a delay tuned
+            so the line lands AFTER the band's container has settled.
+            Outside any chapter context (`active` defaults false), the
+            line renders at full length via initial=animate=1 — no
+            permanent half-drawn state when the band is used standalone. */}
+        <m.path
           d={linePath}
           fill="none"
           stroke="var(--accent, var(--theme-strong))"
@@ -145,6 +171,9 @@ export function UnlocksPerWeekBand({
           strokeLinejoin="round"
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
+          initial={{ pathLength: active ? 0 : 1 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.85, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
         />
       </svg>
     </div>

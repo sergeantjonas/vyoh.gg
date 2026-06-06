@@ -32,3 +32,20 @@ export const SHADOW_LABEL =
  */
 export const SHADOW_ACCENT = "0 1px 2px rgba(0,0,0,0.65), 0 0 6px rgba(0,0,0,0.55)";
 export const STROKE_ACCENT = "1.25px rgba(0,0,0,0.92)";
+
+/**
+ * Body/label-tier text-stroke for legibility on bright splashes where the
+ * 3-layer shadow alone can't cut through (e.g. Pragmata's near-white left
+ * third, Lunar Supremacy's pale armor). Same role as `STROKE_ACCENT` but
+ * sized down for small uppercase labels and body copy — 0.75px on 10–14px
+ * text reads as an outline, not an inflation. Pair with `paintOrder:
+ * stroke` at the call site so the stroke paints UNDERNEATH the fill (the
+ * white glyph keeps its full character width; the stroke acts as a thin
+ * outline rather than swelling the letterform).
+ *
+ * When to apply: uppercase-tracked editorial labels (eyebrows, section
+ * headers, band labels) on chapters that may sit over bright/light
+ * splashes. Body prose can stick with `SHADOW_BODY` alone — the larger
+ * type already cuts through the shadow tier.
+ */
+export const STROKE_LABEL = "0.75px rgba(0,0,0,0.85)";
