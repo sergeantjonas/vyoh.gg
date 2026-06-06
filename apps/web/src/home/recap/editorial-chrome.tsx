@@ -1,4 +1,4 @@
-import { motionValue, useMotionValueEvent } from "motion/react";
+import { m, motionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { useContext, useState } from "react";
 
 import { type BeatRange, ChapterMultiBeatContext } from "./use-beat-progress";
@@ -84,6 +84,18 @@ export function EditorialChrome() {
     }
   );
 
+  // Chrome fades with the chapter's scroll progress so it doesn't
+  // persist into the next chapter as the sticky stage exits upward.
+  // Tight in/out at the boundaries (0 → 0.03 fade in, 0.97 → 1 fade
+  // out) — fully present during dwell, gone before another chapter
+  // takes over. Hook called unconditionally (rule-of-hooks); the
+  // value is ignored when we early-return below.
+  const opacity = useTransform(
+    context?.scrollYProgress ?? FALLBACK_PROGRESS,
+    [0, 0.03, 0.97, 1],
+    [0, 1, 1, 0]
+  );
+
   if (!context) return null;
   const { beatCount } = context;
   if (beatCount === 0) return null;
@@ -95,13 +107,19 @@ export function EditorialChrome() {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
 
   return (
-    <div
+    <m.div
       data-editorial-chrome=""
       // pointer-events-none so the chrome never intercepts clicks on
       // beat content beneath it. The marker is purely decorative.
       // Bottom-left mirrors the global ScrollToTop (bottom-right) on
       // the opposite corner; bottom-center is the NextChapterCaret.
       className="pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10"
+      // Fade with the chapter's scroll progress so the chrome doesn't
+      // persist into the next chapter as the sticky stage exits
+      // upward. Tight in/out at the boundaries (0 → 0.03 fade in,
+      // 0.97 → 1 fade out) so the chrome is fully present during
+      // dwell and disappears cleanly as another chapter takes over.
+      style={{ opacity }}
     >
       {/*
         Small backdrop chip. The earlier text-shadow-only approach
@@ -150,6 +168,6 @@ export function EditorialChrome() {
           </span>
         </p>
       </div>
-    </div>
+    </m.div>
   );
 }
