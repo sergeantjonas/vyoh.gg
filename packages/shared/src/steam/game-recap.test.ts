@@ -4,6 +4,7 @@ import { verdictPreview } from "../lol/champion-recap.ts";
 import type { SteamAchievement, SteamGameAchievements } from "./achievements.ts";
 import {
   STEAM_RECAP_RECENT_UNLOCKS_LIMIT,
+  STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT,
   deriveSteamGameRecap,
   formatReleaseDateChip,
   verdictParagraphSteam,
@@ -107,6 +108,7 @@ describe("deriveSteamGameRecap", () => {
       achievementsUnlocked: 0,
       completionPct: null,
       recentUnlocks: [],
+      unlocksPerWeek: [],
       standoutUnlock: null,
       screenshots: [],
       ageBucket: null,
@@ -214,6 +216,156 @@ describe("deriveSteamGameRecap", () => {
     expect(recap.recentUnlocks).toHaveLength(STEAM_RECAP_RECENT_UNLOCKS_LIMIT);
     expect(recap.recentUnlocks[0]?.apiName).toBe("ACH_7");
     expect(recap.recentUnlocks[4]?.apiName).toBe("ACH_3");
+  });
+
+  // `unlocksPerWeek` series. NOW is Mon 2026-06-01 12:00 UTC = Mon 14:00
+  // Brussels, so the current Brussels week anchor is itself Mon 2026-06-01.
+  // Week anchors used below:
+  //  0w  ago → Mon Jun 1
+  //  1w  ago → Mon May 25
+  //  3w  ago → Mon May 11
+  // 11w  ago → Mon Mar 16   (last in-window week, 12-entry max series)
+  // 12w  ago → Mon Mar  9   (out of window)
+  describe("unlocksPerWeek", () => {
+    it("returns empty when no achievements are unlocked", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([makeAchievement({ unlockedAt: null })]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.unlocksPerWeek).toEqual([]);
+    });
+
+    it("returns [count] when all unlocks fall in the current Brussels week", () => {
+      const achievements = [
+        makeAchievement({ apiName: "A", unlockedAt: "2026-06-01T10:00:00Z" }),
+        makeAchievement({ apiName: "B", unlockedAt: "2026-06-01T11:00:00Z" }),
+        makeAchievement({ apiName: "C", unlockedAt: "2026-06-01T08:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.unlocksPerWeek).toEqual([3]);
+    });
+
+    it("builds a right-anchored, oldest-first series with zero-filled gaps", () => {
+      const achievements = [
+        // 0w ago — 2 unlocks
+        makeAchievement({ apiName: "A", unlockedAt: "2026-06-01T10:00:00Z" }),
+        makeAchievement({ apiName: "B", unlockedAt: "2026-06-01T11:00:00Z" }),
+        // 1w ago — 1 unlock
+        makeAchievement({ apiName: "C", unlockedAt: "2026-05-26T10:00:00Z" }),
+        // 3w ago — 1 unlock (2w bucket is empty)
+        makeAchievement({ apiName: "D", unlockedAt: "2026-05-13T10:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      // Oldest first: [3w, 2w, 1w, 0w] = [1, 0, 1, 2]
+      expect(recap.unlocksPerWeek).toEqual([1, 0, 1, 2]);
+    });
+
+    it("buckets by Brussels calendar week, not UTC week", () => {
+      // 2026-05-31T22:00:00Z = Mon Jun 1 00:00 Brussels → 0w ago (same week as NOW).
+      // 2026-05-31T20:00:00Z = Sun May 31 22:00 Brussels → 1w ago.
+      const achievements = [
+        makeAchievement({ apiName: "BRUSSELS_MON", unlockedAt: "2026-05-31T22:00:00Z" }),
+        makeAchievement({ apiName: "BRUSSELS_SUN", unlockedAt: "2026-05-31T20:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      // Oldest first: [1w (Sun), 0w (Mon)] = [1, 1]
+      expect(recap.unlocksPerWeek).toEqual([1, 1]);
+    });
+
+    it("includes weeks across the spring DST transition", () => {
+      // 2026-03-28T12:00:00Z — Sat in CET (UTC+1) — week of Mar 23.
+      // 2026-03-30T12:00:00Z — Mon in CEST (UTC+2) — week of Mar 30 (DST started Sun Mar 29).
+      // Both within the 12-week window — Mar 23 = 10w ago, Mar 30 = 9w ago.
+      const achievements = [
+        makeAchievement({ apiName: "CET", unlockedAt: "2026-03-28T12:00:00Z" }),
+        makeAchievement({ apiName: "CEST", unlockedAt: "2026-03-30T12:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      // Oldest first across 10w..0w: 11 entries with CET at idx 0, CEST at idx 1.
+      expect(recap.unlocksPerWeek).toHaveLength(11);
+      expect(recap.unlocksPerWeek[0]).toBe(1);
+      expect(recap.unlocksPerWeek[1]).toBe(1);
+      expect(recap.unlocksPerWeek.slice(2)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    });
+
+    it("caps the series at the 12-week window when the oldest unlock is at the edge", () => {
+      const achievements = [
+        // 11w ago (in window, oldest possible) — Tue Mar 17
+        makeAchievement({ apiName: "OLD", unlockedAt: "2026-03-17T10:00:00Z" }),
+        // 0w ago
+        makeAchievement({ apiName: "NEW", unlockedAt: "2026-06-01T10:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.unlocksPerWeek).toHaveLength(STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT);
+      expect(recap.unlocksPerWeek[0]).toBe(1);
+      expect(recap.unlocksPerWeek[STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT - 1]).toBe(1);
+    });
+
+    it("excludes unlocks older than the window", () => {
+      const achievements = [
+        // 13w ago — Sunday Mar 8 → anchor Mar 2 → 13w. Out of window.
+        makeAchievement({ apiName: "ANCIENT", unlockedAt: "2026-03-08T20:00:00Z" }),
+        // 0w ago
+        makeAchievement({ apiName: "NEW", unlockedAt: "2026-06-01T10:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      // Only NEW contributes; series collapses to [1].
+      expect(recap.unlocksPerWeek).toEqual([1]);
+    });
+
+    it("returns empty when every unlock is older than the window", () => {
+      const achievements = [
+        makeAchievement({ apiName: "A", unlockedAt: "2025-12-01T10:00:00Z" }),
+        makeAchievement({ apiName: "B", unlockedAt: "2026-01-15T10:00:00Z" }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.unlocksPerWeek).toEqual([]);
+    });
   });
 
   it("picks the rarest unlock as the standout when rarity data exists", () => {

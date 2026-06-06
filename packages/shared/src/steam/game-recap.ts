@@ -34,6 +34,16 @@ export interface SteamStandoutUnlock extends SteamUnlock {
 /** Max length of `recentUnlocks` returned by the deriver. */
 export const STEAM_RECAP_RECENT_UNLOCKS_LIMIT = 5;
 
+/**
+ * Max length of `unlocksPerWeek` returned by the deriver. 12 weeks is the
+ * sparkline-band horizon — three months of trailing unlock cadence. Beyond
+ * that the visual reads as "history" rather than "what's happening lately."
+ * The window is right-anchored at the current Brussels week and adaptive
+ * on the left: a game with only 4 weeks of unlock history shows 4 columns,
+ * not 8 weeks of leading zeros.
+ */
+export const STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT = 12;
+
 /** Min 2-week playtime (minutes) to flag the chapter as currently-active. */
 const CURRENT_THRESHOLD_MIN = 300;
 /** Min lifetime playtime (minutes) to flag the chapter as engrossed-tier. */
@@ -130,6 +140,13 @@ export interface SteamGameRecap {
   /** 0..1 ratio; null when achievementsTotal is null/0. */
   completionPct: number | null;
   recentUnlocks: SteamUnlock[];
+  // Per-week unlock counts ending at the current Brussels calendar week,
+  // oldest first. Drives the beat-1 sparkline header band. Empty when the
+  // game has no unlocks in the last `STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT`
+  // weeks (the band gates on `length >= 2` to avoid a one-point line). The
+  // window is right-anchored and adaptive on the left — see
+  // `STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT` doc.
+  unlocksPerWeek: number[];
   standoutUnlock: SteamStandoutUnlock | null;
   // Raw screenshot entries for the closer rotator — chapter composes URLs
   // via `steamScreenshotFullUrl(appid, filename)`.
@@ -175,6 +192,7 @@ export function deriveSteamGameRecap(
       achievementsUnlocked: 0,
       completionPct: null,
       recentUnlocks: [],
+      unlocksPerWeek: [],
       standoutUnlock: null,
       screenshots: [...screenshots],
       ageBucket: null,
@@ -211,6 +229,7 @@ export function deriveSteamGameRecap(
     }));
 
   const standoutUnlock = pickStandoutUnlock(unlocked, now);
+  const unlocksPerWeek = buildUnlocksPerWeek(unlocked, now);
 
   const lastPlayedAt = ownedGame.rtimeLastPlayedAt;
   const ageBucket = ageBucketFor(lastPlayedAt, now);
@@ -234,6 +253,7 @@ export function deriveSteamGameRecap(
     achievementsUnlocked,
     completionPct,
     recentUnlocks,
+    unlocksPerWeek,
     standoutUnlock,
     screenshots: [...screenshots],
     ageBucket,
@@ -322,6 +342,95 @@ export function formatReleaseDateChip(
     return `Released ${month} ${released.getUTCFullYear()}`;
   }
   return `Released ${released.getUTCFullYear()}`;
+}
+
+/**
+ * Bucket an ISO timestamp into a Brussels-calendar-week anchor.
+ *
+ * Returns a UTC noon `Date` aligned to the Monday of the Brussels calendar
+ * week the timestamp falls into. Monday-anchor matches the broader project
+ * convention (`getDay()` remap to Mon=0..Sun=6 in `pregame-signals.ts` /
+ * `match-stats.ts`) and ISO 8601.
+ *
+ * Why noon-UTC: the anchor is used as the comparison key in
+ * `weeksBetween()`. Choosing noon (rather than midnight) puts the anchor
+ * safely inside the calendar day regardless of DST transitions — Brussels
+ * DST shifts happen at 02:00–03:00 local, so 12:00 UTC (= 13:00 or 14:00
+ * Brussels) is always inside the same calendar day on both sides of a
+ * transition. The day-arithmetic in `weeksBetween()` then collapses
+ * cleanly because every Monday anchor sits exactly 7 × 86_400_000 ms from
+ * the next.
+ */
+function brusselsWeekAnchor(date: Date): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Brussels",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const lookup = (type: string) => parts.find((p) => p.type === type)?.value ?? "0";
+  const year = Number(lookup("year"));
+  const month = Number(lookup("month"));
+  const day = Number(lookup("day"));
+  const calendarNoon = new Date(Date.UTC(year, month - 1, day, 12));
+  // getUTCDay: Sun=0..Sat=6 → remap to Mon=0..Sun=6 (project convention).
+  const weekdayMonZero = (calendarNoon.getUTCDay() + 6) % 7;
+  return new Date(calendarNoon.getTime() - weekdayMonZero * 86_400_000);
+}
+
+/** Whole weeks from `from` (inclusive) to `to` (inclusive), both Monday anchors. */
+function weeksBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / (7 * 86_400_000));
+}
+
+/**
+ * Build the per-week unlock-count series for the sparkline header band on
+ * beat 1. Right-anchored at the current Brussels week, oldest-first.
+ *
+ * Window is adaptive: the series starts at the oldest in-window unlock's
+ * week (at most `STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT - 1` weeks ago) and
+ * ends at the current week. So a game with unlocks only in the last 3
+ * weeks returns 3 entries; a game with sparse unlocks across the whole
+ * 12-week horizon returns 12. A game with zero unlocks in the last 12
+ * weeks (everything older) returns `[]` — the band gates on
+ * `length >= 2` at the consumer, so an empty array hides it.
+ *
+ * Why right-anchored: the rightmost bar is always "this week", which
+ * gives the reader a stable visual anchor across games. The leftmost
+ * bar is "first week of relevant activity", which makes the visual
+ * width itself meaningful — a wider sparkline reads as "they've been
+ * at this longer" than a narrower one.
+ */
+function buildUnlocksPerWeek(
+  unlocked: ReadonlyArray<{ unlockedAt: string | null }>,
+  now: Date
+): number[] {
+  if (unlocked.length === 0) return [];
+
+  const nowAnchor = brusselsWeekAnchor(now);
+  const maxWeeksAgo = STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT - 1;
+
+  // Aggregate counts keyed by `weeksAgo` (0 = this week, 1 = last week, …).
+  const counts = new Map<number, number>();
+  let oldestWeeksAgo = -1;
+  for (const a of unlocked) {
+    if (a.unlockedAt === null) continue;
+    const ts = new Date(a.unlockedAt);
+    if (Number.isNaN(ts.getTime())) continue;
+    const weeksAgo = weeksBetween(brusselsWeekAnchor(ts), nowAnchor);
+    if (weeksAgo < 0 || weeksAgo > maxWeeksAgo) continue;
+    counts.set(weeksAgo, (counts.get(weeksAgo) ?? 0) + 1);
+    if (weeksAgo > oldestWeeksAgo) oldestWeeksAgo = weeksAgo;
+  }
+
+  if (oldestWeeksAgo < 0) return [];
+
+  // Oldest first → reverse `weeksAgo` from [oldestWeeksAgo .. 0].
+  const series: number[] = [];
+  for (let w = oldestWeeksAgo; w >= 0; w -= 1) {
+    series.push(counts.get(w) ?? 0);
+  }
+  return series;
 }
 
 function ageBucketFor(lastPlayedAt: string | null, now: Date): SteamAgeBucket | null {
