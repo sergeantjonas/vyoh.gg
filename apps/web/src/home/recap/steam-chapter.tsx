@@ -777,15 +777,16 @@ export function SteamChapter({
                 }}
                 numbersActive={nudged}
                 numbersDelay={2.0}
-                // First-word kinetic (R-12.8) — lead-word scale+blur
-                // fires WITH the verdict's ChapterReveal so the lead
-                // word resolves while the rest of the prose is still
-                // fading in. The reader's left-to-right scan lands on
-                // an already-sharp lead word; the prior post-settle
-                // timing left a "missing first word" gap during the
-                // entrance.
+                // First-word kinetic (R-12.8) — lead-word shrink-blur
+                // starts ~0.2s into the parent ChapterReveal (delay
+                // 0.8 + 0.2 settle = 1.0) so the prose is partially
+                // visible by the time the kinetic begins. The lead
+                // word visibly shrinks from a bigger-blurrier state
+                // during the parent's settle — the decoupling makes
+                // the kinetic distinct from the rest of the prose's
+                // fade-in.
                 firstWordKinetic={nudged}
-                firstWordKineticDelay={0.8}
+                firstWordKineticDelay={1.0}
               />
             </ChapterReveal>
           </div>

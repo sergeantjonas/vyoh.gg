@@ -120,19 +120,31 @@ export function VerdictProse({
 }: Props) {
   const reduced = useReducedMotion();
   const hero = firstWordKinetic && !reduced ? findHeroSegment(clauses) : null;
-  /** Wrap the hero segment in a motion.span that scales + blurs + opacity-
-   *  fades from a pre-arrival state. Other segments pass through. The
-   *  motion span is `inline-block` so the transform doesn't collapse to
-   *  the inline parent's text baseline incorrectly under Safari. */
+  /** Wrap the hero segment in a motion.span that scales + blurs from a
+   *  bigger-and-blurrier initial state. NO opacity animation — the parent
+   *  ChapterReveal already governs visibility uniformly across the prose,
+   *  and adding an inner opacity multiplies against the parent's,
+   *  rendering the kinetic invisible (this was the user-reported bug after
+   *  the first concurrent timing attempt). The decoupling instead comes
+   *  from scale (1.6 → 1) and an extra blur layer (8px → 0) that compose
+   *  on top of the parent's filter — so the lead word is visibly LARGER
+   *  and BLURRIER than the rest while it settles, then snaps into place
+   *  shortly after the prose finishes fading in.
+   *
+   *  `inline-block` so the transform doesn't collapse to the inline
+   *  parent's text baseline incorrectly under Safari. `originX: 0.5,
+   *  originY: 0.7` keeps the scale anchored near the baseline so the
+   *  shrink doesn't bob the word vertically. */
   const renderSegment = (node: React.ReactNode, ci: number, si: number) => {
     if (hero?.clauseIdx === ci && hero?.segIdx === si) {
       return (
         <m.span
           className="inline-block"
-          initial={{ scale: 1.4, opacity: 0, filter: "blur(6px)" }}
-          animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+          style={{ originX: 0.5, originY: 0.7 }}
+          initial={{ scale: 1.6, filter: "blur(8px)" }}
+          animate={{ scale: 1, filter: "blur(0px)" }}
           transition={{
-            duration: 0.55,
+            duration: 0.8,
             ease: [0.16, 1, 0.3, 1],
             delay: firstWordKineticDelay,
           }}

@@ -693,18 +693,17 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 // Matches Steam beat 0's timing.
                 numbersActive={nudged}
                 numbersDelay={1.85}
-                // First-word kinetic: the verdict's hero word (first
-                // emphasis like "AGGRESSIVE", fallback to subject /
-                // first segment) scale-blurs in CONCURRENTLY with the
-                // ChapterReveal so the lead word resolves first as the
-                // rest of the prose is still fading in. Kinetic duration
-                // (0.55s) is shorter than the parent's reveal (0.9s) so
-                // the lead lands sharp before the rest finishes — the
-                // reader's eye scans left-to-right onto an already-
-                // settled lead word, not a hole where the first word
-                // should be (R-12.8 fix after visual review).
+                // First-word kinetic (R-12.8): the verdict's hero word
+                // (first emphasis like "AGGRESSIVE", fallback subject)
+                // shrink-blurs into the prose. Delay 1.0 starts the
+                // kinetic ~0.2s into the parent ChapterReveal (delay
+                // 0.8, duration 0.9) — by then the prose is partially
+                // visible, so the eye sees the lead word distinctly
+                // shrinking from a bigger-blurrier state to settle as
+                // the rest of the prose finishes fading in. Lands the
+                // word slightly after the parent settles.
                 firstWordKinetic={nudged}
-                firstWordKineticDelay={0.8}
+                firstWordKineticDelay={1.0}
               />
             </ChapterReveal>
           </div>
