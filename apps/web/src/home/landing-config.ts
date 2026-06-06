@@ -99,7 +99,163 @@ export const CHAPTER_COPY_OVERRIDES: Record<
 // nothing). Set to `[]` outside active visual review — the detectors handle
 // production. The matchId should point to a real owner match if you want
 // the masthead link to resolve; the championAlias picks the splash.
-export const DEV_LOL_MOMENT_OVERRIDE: readonly LolMomentChapterDescriptor[] = [];
+//
+// Currently populated (R-12 review) with one synthetic descriptor per
+// momentType so the LolMomentsAggregator beats can be reviewed end-to-end.
+// Empty it again after the visual sweep — the live detectors take over.
+export const DEV_LOL_MOMENT_OVERRIDE: readonly LolMomentChapterDescriptor[] = [
+  {
+    kind: "lol-moment",
+    slug: "dev-lol-rank-up",
+    momentType: "RANK_UP",
+    score: 1.5,
+    daysSince: 2,
+    ageBucket: "current",
+    matchId: "EUW1_DEV_RANK_UP",
+    championAlias: "Ahri",
+    matchStats: {
+      kills: 9,
+      deaths: 3,
+      assists: 12,
+      win: true,
+      durationSec: 1980,
+      queueType: "Ranked Solo",
+    },
+    rankUp: {
+      fromTier: "SILVER",
+      fromRank: "I",
+      fromLp: 96,
+      toTier: "GOLD",
+      toRank: "IV",
+      toLp: 15,
+    },
+    kdaOutlier: null,
+    hiatusReturn: null,
+    streak: null,
+    marathon: null,
+    framing: null,
+  },
+  {
+    kind: "lol-moment",
+    slug: "dev-lol-off-meta",
+    momentType: "OFF_META_PICK",
+    score: 1.3,
+    daysSince: 5,
+    ageBucket: "recent",
+    matchId: "EUW1_DEV_OFF_META",
+    championAlias: "Renekton",
+    matchStats: {
+      kills: 7,
+      deaths: 4,
+      assists: 11,
+      win: true,
+      durationSec: 1860,
+      queueType: "Ranked Solo",
+    },
+    rankUp: null,
+    kdaOutlier: null,
+    hiatusReturn: null,
+    streak: null,
+    marathon: null,
+    framing: null,
+  },
+  {
+    kind: "lol-moment",
+    slug: "dev-lol-kda-outlier",
+    momentType: "KDA_OUTLIER",
+    score: 1.4,
+    daysSince: 1,
+    ageBucket: "current",
+    matchId: "EUW1_DEV_KDA",
+    championAlias: "Ahri",
+    matchStats: {
+      kills: 13,
+      deaths: 2,
+      assists: 14,
+      win: true,
+      durationSec: 1740,
+      queueType: "Ranked Solo",
+    },
+    rankUp: null,
+    kdaOutlier: { matchKda: 13.5, baselineKda: 2.6 },
+    hiatusReturn: null,
+    streak: null,
+    marathon: null,
+    framing: null,
+  },
+  {
+    kind: "lol-moment",
+    slug: "dev-lol-streak-win",
+    momentType: "STREAK_5W",
+    score: 1.2,
+    daysSince: 0,
+    ageBucket: "current",
+    matchId: "EUW1_DEV_STREAK_W",
+    championAlias: "Ahri",
+    matchStats: {
+      kills: 8,
+      deaths: 2,
+      assists: 9,
+      win: true,
+      durationSec: 1920,
+      queueType: "Ranked Solo",
+    },
+    rankUp: null,
+    kdaOutlier: null,
+    hiatusReturn: null,
+    streak: { result: "W", length: 5 },
+    marathon: null,
+    framing: null,
+  },
+  {
+    kind: "lol-moment",
+    slug: "dev-lol-hiatus-return",
+    momentType: "RETURN_FROM_HIATUS",
+    score: 1.1,
+    daysSince: 3,
+    ageBucket: "recent",
+    matchId: "EUW1_DEV_RETURN",
+    championAlias: "Ahri",
+    matchStats: {
+      kills: 4,
+      deaths: 6,
+      assists: 8,
+      win: false,
+      durationSec: 2100,
+      queueType: "Ranked Solo",
+    },
+    rankUp: null,
+    kdaOutlier: null,
+    hiatusReturn: { gapDays: 42 },
+    streak: null,
+    marathon: null,
+    framing: null,
+  },
+  {
+    kind: "lol-moment",
+    slug: "dev-lol-marathon",
+    momentType: "MARATHON",
+    score: 1.0,
+    daysSince: 1,
+    ageBucket: "current",
+    matchId: "EUW1_DEV_MARATHON",
+    championAlias: "Ahri",
+    matchStats: {
+      kills: 11,
+      deaths: 5,
+      assists: 7,
+      win: true,
+      durationSec: 1860,
+      queueType: "Ranked Solo",
+    },
+    rankUp: null,
+    kdaOutlier: null,
+    hiatusReturn: null,
+    streak: null,
+    marathon: { matchCount: 7, spanHours: 4.5 },
+    framing: null,
+  },
+];
 
 // Dev override: prepends synthetic Steam-moment descriptors at the head of
 // the algorithmic chapter stream so the FIRST_TIME_GAME / ACHIEVEMENT_CLUSTER
@@ -109,4 +265,51 @@ export const DEV_LOL_MOMENT_OVERRIDE: readonly LolMomentChapterDescriptor[] = []
 // Same multi-slot shape as `DEV_LOL_MOMENT_OVERRIDE`; set to `[]` outside
 // active visual review. The `appid` should point to a real owned game so
 // the hero image resolves; `name` drives the masthead text.
-export const DEV_STEAM_MOMENT_OVERRIDE: readonly SteamMomentChapterDescriptor[] = [];
+//
+// Currently populated (R-12 review) with one of each momentType so the
+// SteamMomentsAggregator beats can be reviewed end-to-end.
+export const DEV_STEAM_MOMENT_OVERRIDE: readonly SteamMomentChapterDescriptor[] = [
+  {
+    kind: "steam-moment",
+    slug: "dev-steam-first-time",
+    momentType: "FIRST_TIME_GAME",
+    score: 1.2,
+    daysSince: 3,
+    ageBucket: "current",
+    appid: 2050650, // Resident Evil 4 — known owned, hero asset resolves
+    name: "Resident Evil 4",
+    firstTime: {
+      windowPlayMinutes: 240,
+      sessionCount: 3,
+      firstSessionMinutes: 90,
+      addedAt: "2026-05-25T18:00:00.000Z",
+      firstPlayedAt: "2026-05-28T20:00:00.000Z",
+    },
+    cluster: null,
+    framing: null,
+  },
+  {
+    kind: "steam-moment",
+    slug: "dev-steam-cluster",
+    momentType: "ACHIEVEMENT_CLUSTER",
+    score: 1.0,
+    daysSince: 5,
+    ageBucket: "recent",
+    appid: 367520, // Hollow Knight — known owned
+    name: "Hollow Knight",
+    firstTime: null,
+    cluster: {
+      unlockCount: 6,
+      spanHours: 3.5,
+      capUnlockedAt: "2026-05-30T20:00:00.000Z",
+      unlockNames: [
+        "Hunter",
+        "Survivor",
+        "Marksman",
+        "Pilgrim",
+        "Champion of Hallownest",
+      ],
+    },
+    framing: null,
+  },
+];
