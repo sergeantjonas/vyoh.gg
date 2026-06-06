@@ -97,25 +97,36 @@ export function EditorialChrome() {
   // section's bottom has scrolled above main.bottom = stage has
   // bottomed-out + is scrolling upward), chrome hides.
   //
-  // TOP-side tolerance (TOP_PIN_TOLERANCE_PX): when the
-  // next-chapter caret lands the user at the chapter's outer-top, the
-  // page nav above main shrinks ~8px as scroll settles, leaving the
-  // section.top sitting a few pixels below main.top. With strict
-  // equality (`section.top <= main.top`), the gate returns false at
-  // landing and the chrome only appears after the user scrolls
-  // further (passed through the small landing gap). A small tolerance
-  // (~32px — wider than observable nav shrink, well below the half-
-  // viewport boundary that would false-positive into the next
-  // chapter) absorbs the landing offset, scroll-padding/snap-margin,
-  // and sub-pixel rounding without re-introducing the exit-side bug.
-  // BOTTOM side stays strict because that was the original bug.
+  // TOP-side check uses two OR'd conditions:
+  //   (a) Strict-ish pin: section.top has reached or passed main.top
+  //       within TOP_PIN_TOLERANCE_PX. Covers the normal sticky-pinned
+  //       state.
+  //   (b) Dominance fallback: section occupies more than DOMINANT_FRACTION
+  //       of main's viewport height. Covers cases where engine-specific
+  //       geometry (Firefox in particular — owner reported the strict
+  //       pin condition failed after caret landing on Firefox, worked on
+  //       Chromium) leaves section.top slightly below the tolerance
+  //       boundary, even though the section IS visually dominating the
+  //       viewport. Whichever condition fires first wins.
+  //
+  // BOTTOM side stays strict (`section.bottom >= main.bottom`) because
+  // that was the original exit-persistence fix from this session — we
+  // hide the chrome the moment the section's bottom rises above main's
+  // bottom (sticky stage has bottomed out and is scrolling upward).
+  //
+  // Why the dominance fallback is safe (won't re-introduce exit
+  // persistence): during exit, section.bottom < main.bottom kicks in and
+  // hides the chrome regardless of how much of main the section still
+  // visually covers. The dominance check only takes effect on the
+  // TOP/entrance side because the bottom condition gates exit.
   //
   // rAF polling reads positions every paint frame regardless of
   // scroll-event delivery cadence; inline `display: none` wins over
   // any CSS class ordering or engine sticky quirk.
   const [chapterInViewport, setChapterInViewport] = useState(true);
   useEffect(() => {
-    const TOP_PIN_TOLERANCE_PX = 32;
+    const TOP_PIN_TOLERANCE_PX = 64;
+    const DOMINANT_FRACTION = 0.6;
     let raf = 0;
     const tick = () => {
       const chrome = chromeRef.current;
@@ -125,9 +136,17 @@ export function EditorialChrome() {
         if (section) {
           const sectionRect = section.getBoundingClientRect();
           const mainRect = main.getBoundingClientRect();
+          const topPinned = sectionRect.top <= mainRect.top + TOP_PIN_TOLERANCE_PX;
+          // Pixel overlap between section and main, clamped to non-negative.
+          const overlap = Math.max(
+            0,
+            Math.min(sectionRect.bottom, mainRect.bottom) -
+              Math.max(sectionRect.top, mainRect.top)
+          );
+          const mainHeight = mainRect.bottom - mainRect.top;
+          const dominant = overlap >= mainHeight * DOMINANT_FRACTION;
           const inPinRange =
-            sectionRect.top <= mainRect.top + TOP_PIN_TOLERANCE_PX &&
-            sectionRect.bottom >= mainRect.bottom;
+            (topPinned || dominant) && sectionRect.bottom >= mainRect.bottom;
           setChapterInViewport((prev) => (prev === inPinRange ? prev : inPinRange));
         }
       }
