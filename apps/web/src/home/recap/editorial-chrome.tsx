@@ -5,7 +5,7 @@ import {
   useMotionValueEvent,
   useTransform,
 } from "motion/react";
-import { Fragment, useContext, useRef, useState } from "react";
+import { Fragment, useContext, useEffect, useRef, useState } from "react";
 
 import { mainScrollRef } from "@/lib/scroll-container";
 
@@ -81,6 +81,31 @@ export function EditorialChrome() {
     context ? pickActiveBeat(context.scrollYProgress.get(), context.beatRanges) : 0
   );
 
+  // Hard visibility gate via IntersectionObserver on the chapter
+  // section. The opacity-via-scrollYProgress fade alone wasn't enough
+  // on Safari — Motion's `useScroll` on WebKit (uses ScrollTimeline)
+  // doesn't reliably advance progress past 1 after the section exits,
+  // so the opacity-0 endpoint never fires and the chrome persists
+  // visually into the next chapter. IO is engine-stable and gives a
+  // definitive in/out-of-viewport signal regardless of how Motion
+  // reports scroll progress.
+  const [chapterInViewport, setChapterInViewport] = useState(true);
+  useEffect(() => {
+    const chrome = chromeRef.current;
+    if (!chrome) return;
+    const section = chrome.closest<HTMLElement>("[data-chapter-multi-beat]");
+    if (!section) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry) setChapterInViewport(entry.isIntersecting);
+      },
+      { root: mainScrollRef.current, threshold: 0 }
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
   // Local progress within the active beat's span [enterStart, exitEnd].
   // Drives the connecting tail-line below the active number. Hand-set
   // via the change listener rather than a useTransform stop set — the
@@ -147,8 +172,17 @@ export function EditorialChrome() {
       data-editorial-chrome=""
       // Outer wrapper is `pointer-events-none` so static chrome doesn't
       // intercept clicks falling toward the beat content. The number
-      // buttons inside re-enable pointer events on themselves.
-      className="pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10"
+      // buttons inside re-enable pointer events on themselves. The
+      // IntersectionObserver-driven `hidden` class is the WebKit-safe
+      // hard hide once the chapter exits viewport; opacity handles the
+      // soft fade at the boundaries for engines that report progress
+      // cleanly.
+      className={[
+        "pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10",
+        chapterInViewport ? "" : "hidden",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={{ opacity }}
     >
       <div

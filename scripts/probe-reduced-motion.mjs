@@ -42,7 +42,9 @@ console.log("REDUCED-MOTION AUDIT:", JSON.stringify(audit, null, 2));
 
 const failures = [];
 if (!audit.hasReducedMotionAttr)
-  failures.push("expected data-reduced-motion attribute on chapter under reducedMotion=reduce");
+  failures.push(
+    "expected data-reduced-motion attribute on chapter under reducedMotion=reduce"
+  );
 if (audit.stagePresent)
   failures.push("sticky stage should NOT render under reduced motion (was present)");
 if (audit.trackPresent)
