@@ -12,6 +12,7 @@ import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
 
+import { BeatAccentSlash } from "../recap/beat-accent-slash";
 import { ChapterDetail, ChapterOpener, ChapterStats } from "../recap/chapter-bands";
 import { ChapterMultiBeat } from "../recap/chapter-multi-beat";
 import { useChapterGroupNudge } from "../recap/chapter-nudge-contexts";
@@ -218,38 +219,65 @@ export function ConclusionChapter() {
   const BEAT_LAYOUT =
     "flex flex-col items-center justify-start [&>[data-band]]:!max-w-4xl [&>[data-band]]:!w-full [&>[data-band]]:!px-6 sm:[&>[data-band]]:!px-10 [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
 
-  // Beat bodies — render-prop pattern so per-beat `nudged` (from
-  // <MultiBeat>) threads into the cascade if any beat needs it. The
-  // strips here are mostly self-contained; nudged isn't yet wired into
-  // each strip's internal reveals, polished in R-15.2.
+  // Beat bodies — per-beat `nudged` (from <MultiBeat>) threads each
+  // strip's entrance through `ChapterReveal` so content blur-rises in
+  // when the beat becomes focal, matching the Ahri / Steam chapter
+  // cascade vocabulary. The conclusion strips don't run their own
+  // entrance animations (no CountUp / Sparkline draw), so wrapping
+  // them top-level is the right granularity — nothing competes.
+  //
+  // Beat 0 also opens with a `BeatAccentSlash` from the left, mirroring
+  // the page's opening Ahri chapter (slash-left on beat 0). Beat 3
+  // deliberately omits its closing slash — `EditorialCloser` already
+  // performs the chapter-close typographic gesture, and stacking a
+  // slash on top would double-signal the sign-off.
   const beatBodies: Array<(nudged: boolean) => ReactNode> = [
     // Beat 0 — "How you play right now". Live presence + rhythm.
-    () => (
-      <>
-        <ChapterOpener>
+    (nudged) => (
+      <ChapterOpener>
+        <BeatAccentSlash
+          beatIndex={0}
+          delay={0.05}
+          className="self-center"
+          width="14rem"
+        />
+        <ChapterReveal active={nudged} delay={0.2}>
           <NowPlayingStrip />
+        </ChapterReveal>
+        <ChapterReveal active={nudged} delay={0.32} rise={16}>
           <ConclusionRhythmBand />
-        </ChapterOpener>
-      </>
+        </ChapterReveal>
+      </ChapterOpener>
     ),
     // Beat 1 — "Where you stand". 30-day rank trajectory + today pulse.
-    () => (
+    (nudged) => (
       <ChapterDetail>
-        <RankTrajectoryStrip />
-        <TodayStrip />
+        <ChapterReveal active={nudged} delay={0.05} rise={16}>
+          <RankTrajectoryStrip />
+        </ChapterReveal>
+        <ChapterReveal active={nudged} delay={0.18}>
+          <TodayStrip />
+        </ChapterReveal>
       </ChapterDetail>
     ),
     // Beat 2 — "What you've sustained". Lifetime totals strip.
-    () => (
+    (nudged) => (
       <ChapterStats>
-        <LifetimeTotalsStrip />
+        <ChapterReveal active={nudged} delay={0.05} rise={16}>
+          <LifetimeTotalsStrip />
+        </ChapterReveal>
       </ChapterStats>
     ),
-    // Beat 3 — Page's pause + sign-off + colophon.
-    () => (
+    // Beat 3 — Page's pause + sign-off + colophon. No closing slash:
+    // `EditorialCloser` already carries the chapter-close gesture.
+    (nudged) => (
       <ChapterDetail>
-        <EditorialCloser />
-        <ConclusionFooterChips />
+        <ChapterReveal active={nudged} delay={0.05} rise={16} blur={4}>
+          <EditorialCloser />
+        </ChapterReveal>
+        <ChapterReveal active={nudged} delay={0.22}>
+          <ConclusionFooterChips />
+        </ChapterReveal>
       </ChapterDetail>
     ),
   ];
@@ -276,16 +304,19 @@ export function ConclusionChapter() {
         slug="conclusion"
         ariaLabel="The picture"
         identity={<ConclusionMasthead />}
-        // Lower scroll runway (1.3 vs the 2.3 default) + zero edge dwell
-        // (vs the 3-unit default). The conclusion is the last chapter;
-        // no trackpad-flick-through-the-next-beat risk exists at the page
-        // end, so the generous default runway just produces post-arrival
-        // empty scroll where nothing changes. edgeDwellUnits=0 also
-        // removes the "linger before unpin" that makes sense on
-        // middle-of-page chapters but reads as wasted scroll at the page
-        // end (user flagged this during R-15.1 review).
+        // Lower scroll runway (1.3 vs the 2.3 default) — the conclusion
+        // is the last chapter, so the generous default runway just
+        // produces post-arrival empty scroll where nothing changes.
+        // Edge dwell stays at the default 3 units: zero-dwell was a
+        // mid-arc attempt to compensate for the visible content-slide
+        // at chapter exit, but `-mb-6` below is the actual fix for
+        // that. With edge dwell at zero, beat 0 starts translating
+        // horizontally the instant the chapter enters (no entrance
+        // buffer) and beat 3's pin-range gate (`section.bottom >=
+        // main.bottom` inside `editorial-chrome.tsx`) flips off
+        // immediately at scrollYProgress=1, hiding the beat indicator
+        // before the user has stopped scrolling.
         scrollRunwayMultiplier={1.3}
-        edgeDwellUnits={0}
       >
         {beatBodies.map((body, index) => (
           <MultiBeat
