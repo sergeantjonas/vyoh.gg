@@ -292,7 +292,7 @@ function PeaksCaption({
         <strong className="text-foreground">
           {Math.round(peaks.aboveFiveKillsRate * 100)}%
         </strong>{" "}
-        of runs
+        of games
       </>
     );
   }
