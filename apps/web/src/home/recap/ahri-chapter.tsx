@@ -310,16 +310,26 @@ function PeaksCaption({
     // Suppress sub-50g averages — that's noise inside the wider variance
     // of any single game (a tick of jungle vs. an extra wave) and doesn't
     // tell a clean lane-phase story on its own.
-    const sign = peaks.avgGoldDiffAt15 > 0 ? "+" : "";
-    parts.push(
-      <>
-        <strong className="text-foreground">
-          {sign}
-          {Math.round(peaks.avgGoldDiffAt15)}g
-        </strong>{" "}
-        lead at 15
-      </>
-    );
+    //
+    // Sign-aware framing: positive = "lead", negative = "behind". The
+    // earlier formulation always said "lead" and prepended only `+` for
+    // positives, so a negative average rendered as "-966g lead at 15" —
+    // gibberish (a "lead" can't be negative). Use the absolute value as
+    // the headline number and let the surrounding word carry the sign.
+    const abs = Math.round(Math.abs(peaks.avgGoldDiffAt15));
+    if (peaks.avgGoldDiffAt15 > 0) {
+      parts.push(
+        <>
+          <strong className="text-foreground">+{abs}g</strong> lead at 15
+        </>
+      );
+    } else {
+      parts.push(
+        <>
+          <strong className="text-foreground">{abs}g</strong> behind at 15
+        </>
+      );
+    }
   }
   if (parts.length === 0) return null;
   return (

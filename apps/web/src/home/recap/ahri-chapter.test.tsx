@@ -463,6 +463,35 @@ describe("AhriChapter", () => {
       expect(text).toContain("lead at 15");
     });
 
+    it("frames a negative lane-phase average as 'behind' (not '-Ng lead')", () => {
+      // Two laning losses with sustained gold deficits at 15 → negative
+      // avgGoldDiffAt15. The earlier formulation rendered "-Ng lead at
+      // 15" which read as gibberish (a lead can't be negative).
+      setMatches([
+        matchFixture({
+          matchId: "EUW_DOWN_A",
+          champion: "Ahri",
+          teamGoldDiffAt15: -800,
+          hasTimeline: true,
+        }),
+        matchFixture({
+          matchId: "EUW_DOWN_B",
+          champion: "Ahri",
+          teamGoldDiffAt15: -400,
+          hasTimeline: true,
+        }),
+      ]);
+      const { container } = render(<AhriChapter account={account} />);
+      const text = container.textContent ?? "";
+      // avg = (-800 + -400)/2 = -600 → "600g behind at 15"
+      expect(text).toContain("600g");
+      expect(text).toContain("behind at 15");
+      // Negative number sign never reaches the rendered string — the
+      // "behind" framing carries the sign.
+      expect(text).not.toContain("-600g");
+      expect(text).not.toContain("lead at 15");
+    });
+
     it("suppresses peak facts whose source values are effectively zero", () => {
       setMatches([
         // No first blood, no damage share, low avg gold diff (sub-50g).
