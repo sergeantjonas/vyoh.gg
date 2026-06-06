@@ -9,6 +9,7 @@ import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
+import { useSteamSummary } from "@/steam/use-steam-summary";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
 
 import { ChapterDetail, ChapterOpener, ChapterStats } from "../recap/chapter-bands";
@@ -47,6 +48,7 @@ import { TodayStrip } from "./today-strip";
  */
 function ConclusionMasthead() {
   const { account } = usePrimaryAccount();
+  const { data: steam } = useSteamSummary();
   const ddVersion = useDDragonVersion();
   const emblemYear = useRankedEmblemYear();
   const nudged = useChapterGroupNudge();
@@ -58,6 +60,8 @@ function ConclusionMasthead() {
   if (!account) return null;
   const profileIconId = account.profileIconId;
   const rank = account.summary?.rank ?? null;
+  const steamAvatar = steam?.avatarUrl ?? null;
+  const steamPersona = steam?.personaName ?? null;
 
   return (
     <motion.div
@@ -100,6 +104,20 @@ function ConclusionMasthead() {
               </span>
             </>
           ) : null}
+          {steamPersona ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="text-foreground/40"
+                style={{ textShadow: SHADOW_LABEL }}
+              >
+                ·
+              </span>
+              <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+                {steamPersona} on Steam
+              </span>
+            </>
+          ) : null}
         </p>
       </ChapterReveal>
       <ChapterReveal active={hasEntered} delay={0.18} duration={1.1} blur={16} rise={20}>
@@ -109,12 +127,31 @@ function ConclusionMasthead() {
           className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
         >
           <span className="inline-flex items-baseline gap-x-3">
-            {profileIconId != null ? (
-              <img
-                src={profileIconUrl(profileIconId, ddVersion)}
-                alt=""
-                className="size-12 self-center rounded-full object-cover ring-1 ring-white/15 sm:size-14"
-              />
+            {/* Dual-platform identity: LoL summoner icon stacked
+                slightly behind / left of the Steam avatar. Reads as
+                one owner across two platforms rather than two
+                separate accounts. -space-x style overlap brings the
+                avatars together; the Steam avatar sits forward
+                (z-index higher implicitly via DOM order) so it reads
+                as the "newer" platform addition. Falls back to
+                whichever single avatar is available. */}
+            {profileIconId != null || steamAvatar ? (
+              <span className="-space-x-3 flex shrink-0 items-center self-center">
+                {profileIconId != null ? (
+                  <img
+                    src={profileIconUrl(profileIconId, ddVersion)}
+                    alt=""
+                    className="size-12 rounded-full object-cover ring-2 ring-background/80 sm:size-14"
+                  />
+                ) : null}
+                {steamAvatar ? (
+                  <img
+                    src={steamAvatar}
+                    alt=""
+                    className="size-12 rounded-full object-cover ring-2 ring-background/80 sm:size-14"
+                  />
+                ) : null}
+              </span>
             ) : null}
             <h2
               className="text-6xl font-semibold leading-[0.95] text-foreground sm:text-7xl"
