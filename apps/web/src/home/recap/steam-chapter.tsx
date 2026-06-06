@@ -853,12 +853,15 @@ export function SteamChapter({
           />
         </ChapterStats>
         {/* Secondary stats strip — sized down so the primary completion /
-            two-weeks / rarest row reads as the headline. Each chip
-            renders only when its source value is non-null; the row
-            collapses to nothing when no secondary stats are derivable
-            (early-life games / no rarity data). */}
+            two-weeks / rarest row reads as the headline. Reuses
+            ChapterStats so the wrapper picks up the same band shape +
+            max-w-4xl reading-column constraint the primary strip uses;
+            the two strips stack as a coherent stats cluster rather than
+            spreading edge-to-edge. Each chip renders only when its
+            source value is non-null; the row collapses entirely when
+            no secondary stats are derivable. */}
         {medianRarity !== null || playtimeTrend !== null || isCompleted ? (
-          <div className="flex w-full flex-row items-end justify-around gap-6 pt-6 sm:gap-10">
+          <ChapterStats>
             {medianRarity !== null ? (
               <SecondaryStatChip
                 active={nudged}
@@ -884,10 +887,9 @@ export function SteamChapter({
                 active={nudged}
                 delay={0.7}
                 label="Trend"
-                // Tier vocabulary: lowercase honest-recency words like the
-                // age-bucket eyebrow elsewhere in the chapter. "Spike"
-                // reads as a verb ("Spiking"), "Active" / "Dormant" as
-                // states.
+                // Tier vocabulary: "Spiking" as a verb, "Active" /
+                // "Dormant" as states. Mirrors the age-bucket eyebrow's
+                // honest-recency register elsewhere in the chapter.
                 value={
                   playtimeTrend === "spike"
                     ? "Spiking"
@@ -897,7 +899,7 @@ export function SteamChapter({
                 }
               />
             ) : null}
-          </div>
+          </ChapterStats>
         ) : null}
         {/* Next-rarest-to-clear ladder for incomplete games. Editorial
             counterpart to "Cleared in Nd" — when the owner is still
