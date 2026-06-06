@@ -109,6 +109,10 @@ describe("deriveSteamGameRecap", () => {
       completionPct: null,
       recentUnlocks: [],
       unlocksPerWeek: [],
+      medianAchievementRarity: null,
+      daysToCompletion: null,
+      remainingRarestUnlocks: [],
+      playtimeTrend: null,
       standoutUnlock: null,
       screenshots: [],
       ageBucket: null,
@@ -479,6 +483,252 @@ describe("deriveSteamGameRecap", () => {
       NOW
     );
     expect(recap.ageBucket).toBeNull();
+  });
+
+  describe("medianAchievementRarity", () => {
+    it("returns null when no unlocked achievement has rarity data", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({
+            unlockedAt: "2026-05-01T00:00:00Z",
+            globalPercent: null,
+          }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.medianAchievementRarity).toBeNull();
+    });
+
+    it("returns the middle value for an odd-length series", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({ unlockedAt: "2026-05-01T00:00:00Z", globalPercent: 10 }),
+          makeAchievement({ unlockedAt: "2026-05-02T00:00:00Z", globalPercent: 50 }),
+          makeAchievement({ unlockedAt: "2026-05-03T00:00:00Z", globalPercent: 80 }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.medianAchievementRarity).toBe(50);
+    });
+
+    it("averages the two middle values for an even-length series", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({ unlockedAt: "2026-05-01T00:00:00Z", globalPercent: 20 }),
+          makeAchievement({ unlockedAt: "2026-05-02T00:00:00Z", globalPercent: 40 }),
+          makeAchievement({ unlockedAt: "2026-05-03T00:00:00Z", globalPercent: 60 }),
+          makeAchievement({ unlockedAt: "2026-05-04T00:00:00Z", globalPercent: 80 }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.medianAchievementRarity).toBe(50);
+    });
+
+    it("ignores locked achievements when computing the median", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({ unlockedAt: "2026-05-01T00:00:00Z", globalPercent: 30 }),
+          // Locked — should be excluded from the median, even though it has rarity.
+          makeAchievement({ unlockedAt: null, globalPercent: 90 }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.medianAchievementRarity).toBe(30);
+    });
+  });
+
+  describe("daysToCompletion", () => {
+    it("is null when the game is not 100%'d", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({
+            apiName: "A",
+            unlockedAt: "2026-05-01T00:00:00Z",
+          }),
+          makeAchievement({ apiName: "B", unlockedAt: null }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.daysToCompletion).toBeNull();
+    });
+
+    it("returns the day delta between first and last unlock when 100%'d", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({ apiName: "A", unlockedAt: "2026-04-01T00:00:00Z" }),
+          makeAchievement({ apiName: "B", unlockedAt: "2026-04-15T00:00:00Z" }),
+          makeAchievement({ apiName: "C", unlockedAt: "2026-04-30T00:00:00Z" }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.daysToCompletion).toBe(29);
+    });
+
+    it("is null when only one unlock has a timestamp (cleared-in-zero-days is editorial whiplash)", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({ apiName: "A", unlockedAt: "2026-04-30T00:00:00Z" }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.daysToCompletion).toBeNull();
+    });
+  });
+
+  describe("remainingRarestUnlocks", () => {
+    it("is empty when the game is 100%'d", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements([
+          makeAchievement({ apiName: "A", unlockedAt: "2026-05-01T00:00:00Z" }),
+        ]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.remainingRarestUnlocks).toEqual([]);
+    });
+
+    it("is empty when the game has no schema", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(null),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.remainingRarestUnlocks).toEqual([]);
+    });
+
+    it("returns top 3 LOCKED achievements ordered by rarity (lowest globalPercent first)", () => {
+      const achievements = [
+        makeAchievement({
+          apiName: "UNLOCKED",
+          unlockedAt: "2026-05-01T00:00:00Z",
+          globalPercent: 60,
+        }),
+        makeAchievement({
+          apiName: "COMMON_LOCKED",
+          unlockedAt: null,
+          globalPercent: 70,
+        }),
+        makeAchievement({ apiName: "RARE_LOCKED", unlockedAt: null, globalPercent: 3 }),
+        makeAchievement({ apiName: "MID_LOCKED", unlockedAt: null, globalPercent: 25 }),
+        makeAchievement({ apiName: "OTHER_LOCKED", unlockedAt: null, globalPercent: 40 }),
+        makeAchievement({ apiName: "NO_RARITY", unlockedAt: null, globalPercent: null }),
+      ];
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame(),
+        makeAchievements(achievements),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.remainingRarestUnlocks.map((u) => u.apiName)).toEqual([
+        "RARE_LOCKED",
+        "MID_LOCKED",
+        "OTHER_LOCKED",
+      ]);
+    });
+  });
+
+  describe("playtimeTrend", () => {
+    it("is null when there are no recent-playtime snapshots", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame({ recentPlaytimeMinutes: [] }),
+        makeAchievements([]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.playtimeTrend).toBeNull();
+    });
+
+    it("buckets a 30-day total above the active threshold as 'active'", () => {
+      // 30 days × 15 min each = 450 min total, no 7-day spike.
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame({
+          recentPlaytimeMinutes: Array.from({ length: 30 }, () => 15),
+        }),
+        makeAchievements([]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.playtimeTrend).toBe("active");
+    });
+
+    it("buckets a sub-300min 30-day total as 'dormant'", () => {
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame({
+          recentPlaytimeMinutes: [
+            0, 0, 0, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0,
+          ],
+        }),
+        makeAchievements([]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.playtimeTrend).toBe("dormant");
+    });
+
+    it("flips to 'spike' when last 7d daily avg is ≥ 2× prior 23d daily avg", () => {
+      // Prior 23d: 23 × 5 = 115 min total, daily avg 5. Last 7d: 7 × 60 = 420 min, daily avg 60.
+      // 60 ≥ 2 × 5 → spike.
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame({
+          recentPlaytimeMinutes: [
+            ...Array.from({ length: 23 }, () => 5),
+            ...Array.from({ length: 7 }, () => 60),
+          ],
+        }),
+        makeAchievements([]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.playtimeTrend).toBe("spike");
+    });
+
+    it("flips a fresh-start week into 'spike' when prior history is zero", () => {
+      // No prior activity, then last 7d totals ≥ 300 (active threshold).
+      const recap = deriveSteamGameRecap(
+        367520,
+        makeOwnedGame({
+          recentPlaytimeMinutes: [
+            ...Array.from({ length: 23 }, () => 0),
+            ...Array.from({ length: 7 }, () => 50),
+          ],
+        }),
+        makeAchievements([]),
+        SCREENSHOTS,
+        NOW
+      );
+      expect(recap.playtimeTrend).toBe("spike");
+    });
   });
 });
 

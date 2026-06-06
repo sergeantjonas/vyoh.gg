@@ -44,6 +44,35 @@ export const STEAM_RECAP_RECENT_UNLOCKS_LIMIT = 5;
  */
 export const STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT = 12;
 
+/** Max length of `remainingRarestUnlocks` returned by the deriver — the
+ * achievements-remaining ladder on beat 2. Three rows fits comfortably
+ * alongside the existing PeakChip strip without crowding the beat. */
+export const STEAM_RECAP_REMAINING_LIMIT = 3;
+
+/** Min minutes in the trailing 30d for the playtime trend to read as
+ * "active" (rather than "dormant"). Equivalent to ~10 min/day average. */
+const TREND_ACTIVE_MIN_MINUTES = 300;
+/** Multiplier above which a trailing-7d burst flips the trend from
+ * "active" to "spike". Last 7 days must be ≥ this × the prior 23-day
+ * daily average. */
+const TREND_SPIKE_MULTIPLIER = 2;
+
+/**
+ * Playtime trend bucket derived from `recentPlaytimeMinutes` (last 30
+ * days, oldest first). Drives the beat-2 trend chip on the Steam chapter:
+ *
+ *  - `spike`   — last 7d totals ≥ TREND_SPIKE_MULTIPLIER × prior 23-day
+ *                daily average (game is being binged right now)
+ *  - `active`  — total trailing-30d ≥ TREND_ACTIVE_MIN_MINUTES but no
+ *                7-day spike
+ *  - `dormant` — total trailing-30d < TREND_ACTIVE_MIN_MINUTES (game has
+ *                gone quiet)
+ *
+ * Null when the snapshot array is empty (no recent playtime data on
+ * file) — chapter hides the trend chip in that case.
+ */
+export type SteamPlaytimeTrend = "spike" | "active" | "dormant";
+
 /** Min 2-week playtime (minutes) to flag the chapter as currently-active. */
 const CURRENT_THRESHOLD_MIN = 300;
 /** Min lifetime playtime (minutes) to flag the chapter as engrossed-tier. */
@@ -147,6 +176,27 @@ export interface SteamGameRecap {
   // window is right-anchored and adaptive on the left — see
   // `STEAM_RECAP_UNLOCKS_PER_WEEK_LIMIT` doc.
   unlocksPerWeek: number[];
+  // Median `globalPercent` across UNLOCKED achievements (0–100). Null when
+  // no unlocked achievement has a known rarity value yet. Drives the beat-2
+  // "median rarity" chip — a one-number summary of how rare the owner's
+  // unlocks tend to be on this game, complementing the standout's single
+  // rarest unlock with the bulk distribution.
+  medianAchievementRarity: number | null;
+  // Days from first unlock to last unlock on this game. Non-null ONLY when
+  // `completionPct === 1` (game is 100%'d) AND both endpoints are known.
+  // Drives the beat-2 "cleared in N days" framing for completed games.
+  daysToCompletion: number | null;
+  // Achievements-remaining ladder for games not yet 100%'d — top
+  // `STEAM_RECAP_REMAINING_LIMIT` LOCKED achievements ordered by lowest
+  // `globalPercent` (rarest still to unlock first). Empty array when the
+  // game is 100%'d, schema-less, or has no remaining achievements with
+  // known rarity. Beat-2 renders the ladder for incomplete games as the
+  // editorial counterpart to `daysToCompletion` on completed ones.
+  remainingRarestUnlocks: SteamUnlock[];
+  // Playtime trend bucket — see `SteamPlaytimeTrend` doc. Null when the
+  // game has no recent-playtime snapshots on file (the trend chip hides
+  // when this is null).
+  playtimeTrend: SteamPlaytimeTrend | null;
   standoutUnlock: SteamStandoutUnlock | null;
   // Raw screenshot entries for the closer rotator — chapter composes URLs
   // via `steamScreenshotFullUrl(appid, filename)`.
@@ -193,6 +243,10 @@ export function deriveSteamGameRecap(
       completionPct: null,
       recentUnlocks: [],
       unlocksPerWeek: [],
+      medianAchievementRarity: null,
+      daysToCompletion: null,
+      remainingRarestUnlocks: [],
+      playtimeTrend: null,
       standoutUnlock: null,
       screenshots: [...screenshots],
       ageBucket: null,
@@ -230,6 +284,14 @@ export function deriveSteamGameRecap(
 
   const standoutUnlock = pickStandoutUnlock(unlocked, now);
   const unlocksPerWeek = buildUnlocksPerWeek(unlocked, now);
+  const medianAchievementRarity = computeMedianRarity(unlocked);
+  const daysToCompletion =
+    completionPct === COMPLETIONIST_THRESHOLD ? computeDaysToCompletion(unlocked) : null;
+  const remainingRarestUnlocks =
+    completionPct !== null && completionPct < COMPLETIONIST_THRESHOLD && schema !== null
+      ? pickRemainingRarest(schema)
+      : [];
+  const playtimeTrend = computePlaytimeTrend(ownedGame.recentPlaytimeMinutes);
 
   const lastPlayedAt = ownedGame.rtimeLastPlayedAt;
   const ageBucket = ageBucketFor(lastPlayedAt, now);
@@ -254,6 +316,10 @@ export function deriveSteamGameRecap(
     completionPct,
     recentUnlocks,
     unlocksPerWeek,
+    medianAchievementRarity,
+    daysToCompletion,
+    remainingRarestUnlocks,
+    playtimeTrend,
     standoutUnlock,
     screenshots: [...screenshots],
     ageBucket,
@@ -431,6 +497,128 @@ function buildUnlocksPerWeek(
     series.push(counts.get(w) ?? 0);
   }
   return series;
+}
+
+/**
+ * Median `globalPercent` across the unlocked-with-rarity subset of
+ * achievements. Two-element series returns the average (standard median
+ * convention). Returns null when fewer than 1 unlocked achievement has
+ * a known `globalPercent` — the beat-2 chip hides in that case rather
+ * than showing a misleading single-data-point median.
+ *
+ * Why median rather than mean: rarity distributions are heavily skewed
+ * — completionist players have most of their unlocks at the common end
+ * (50–80% rarity), with a long tail of rare ones. Mean overweights the
+ * tail and reads as "rarer than reality." Median reads as the
+ * mid-distribution unlock and is the honest editorial summary.
+ */
+function computeMedianRarity(
+  unlocked: ReadonlyArray<{ globalPercent: number | null }>
+): number | null {
+  const percents = unlocked
+    .map((a) => a.globalPercent)
+    .filter((p): p is number => p !== null);
+  if (percents.length === 0) return null;
+  percents.sort((a, b) => a - b);
+  const mid = Math.floor(percents.length / 2);
+  if (percents.length % 2 === 1) {
+    return percents[mid] ?? null;
+  }
+  const a = percents[mid - 1];
+  const b = percents[mid];
+  return a !== undefined && b !== undefined ? (a + b) / 2 : null;
+}
+
+/**
+ * Days from earliest unlock to latest unlock across the unlocked set.
+ * Used for the beat-2 "cleared in N days" framing when the game is
+ * 100%'d. Returns null when fewer than 2 unlocks have parseable
+ * timestamps — a "0 days" or "1 day" framing on a half-clear is
+ * editorial whiplash that misrepresents progress.
+ */
+function computeDaysToCompletion(
+  unlocked: ReadonlyArray<{ unlockedAt: string | null }>
+): number | null {
+  const stamps = unlocked
+    .map((a) => (a.unlockedAt ? new Date(a.unlockedAt).getTime() : Number.NaN))
+    .filter((t) => Number.isFinite(t));
+  if (stamps.length < 2) return null;
+  const min = Math.min(...stamps);
+  const max = Math.max(...stamps);
+  return Math.max(0, Math.floor((max - min) / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * Top `STEAM_RECAP_REMAINING_LIMIT` LOCKED achievements ordered by
+ * rarest-first (lowest `globalPercent`). Used for the beat-2
+ * achievements-remaining ladder on games that aren't yet 100%'d. Skips
+ * locked achievements without rarity data — they can't be ranked, and
+ * a "???" ladder reads as filler rather than editorial content.
+ */
+function pickRemainingRarest(
+  schema: ReadonlyArray<{
+    apiName: string;
+    displayName: string;
+    description: string;
+    hidden: boolean;
+    unlockedAt: string | null;
+    globalPercent: number | null;
+  }>
+): SteamUnlock[] {
+  return schema
+    .filter((a) => a.unlockedAt === null && a.globalPercent !== null)
+    .sort(
+      (a, b) =>
+        (a.globalPercent ?? Number.POSITIVE_INFINITY) -
+        (b.globalPercent ?? Number.POSITIVE_INFINITY)
+    )
+    .slice(0, STEAM_RECAP_REMAINING_LIMIT)
+    .map((a) => ({
+      apiName: a.apiName,
+      displayName: a.displayName,
+      description: a.description,
+      hidden: a.hidden,
+      // Locked achievements have no unlock timestamp; expose empty string
+      // so the consumer can treat absence with the same "no date" check
+      // as elsewhere. SteamUnlock requires a string here for shape
+      // consistency with the existing recent-unlocks contract.
+      unlockedAt: "",
+      globalPercent: a.globalPercent,
+    }));
+}
+
+/**
+ * Playtime trend bucket from the trailing-30-day snapshot array. Returns
+ * null when the array is empty (no recent activity data at all).
+ *
+ * Order of checks matters: a spike implies active engagement, so we
+ * test for spike before active. Dormant is the catch-all when total
+ * recent playtime is below the active threshold.
+ */
+function computePlaytimeTrend(
+  recentMinutes: readonly number[]
+): SteamPlaytimeTrend | null {
+  if (recentMinutes.length === 0) return null;
+  const total = recentMinutes.reduce((sum, m) => sum + m, 0);
+  // Need at least a 7-day tail to compute a spike; degrade gracefully on
+  // short arrays.
+  if (recentMinutes.length >= 7) {
+    const last7 = recentMinutes.slice(-7).reduce((sum, m) => sum + m, 0);
+    const priorDays = recentMinutes.length - 7;
+    const prior = recentMinutes.slice(0, priorDays).reduce((sum, m) => sum + m, 0);
+    const priorDailyAvg = priorDays > 0 ? prior / priorDays : 0;
+    const last7DailyAvg = last7 / 7;
+    if (priorDailyAvg > 0 && last7DailyAvg >= priorDailyAvg * TREND_SPIKE_MULTIPLIER) {
+      return "spike";
+    }
+    // Fresh-game case: no prior history, but the last 7 days have real
+    // playtime — read as a spike rather than steady-active. Editorial
+    // framing for "first weekend of a new title."
+    if (priorDailyAvg === 0 && last7 >= TREND_ACTIVE_MIN_MINUTES) {
+      return "spike";
+    }
+  }
+  return total >= TREND_ACTIVE_MIN_MINUTES ? "active" : "dormant";
 }
 
 function ageBucketFor(lastPlayedAt: string | null, now: Date): SteamAgeBucket | null {
