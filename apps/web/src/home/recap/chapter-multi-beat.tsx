@@ -295,33 +295,8 @@ function ChapterMultiBeatImpl(
                   masthead via a `max-w-4xl` reading column. Without this
                   wrapper the identity hugs the left edge of the viewport
                   on larger screens (titled content stranded with empty
-                  space + backdrop on the right). `relative` anchors the
-                  progress line below to the reading column. */}
-                <div className="relative mx-auto h-full w-full max-w-4xl">
-                  {identity}
-                  {/*
-                    Alive masthead — thin accent progress line at the
-                    bottom edge of the masthead's reading column,
-                    growing left → right with chapter scroll.
-                    Magazine-spread "where you are in this article"
-                    indicator. Picks up the chapter's `--accent` so each
-                    Steam game/champion gets its own tinted bar.
-                    Anchored INSIDE the max-w-4xl column rather than
-                    full-bleed so the line stays visually connected to
-                    the masthead text instead of floating over splash
-                    imagery on the right side. `mix-blend-screen` lifts
-                    the line above busy splash crops without a backdrop
-                    chip.
-                  */}
-                  <m.div
-                    data-chapter-masthead-progress=""
-                    aria-hidden="true"
-                    className="absolute right-0 bottom-0 left-0 h-px origin-left bg-[var(--accent,currentColor)] opacity-70 mix-blend-screen"
-                    style={{
-                      scaleX: useTransform(scrollYProgress, [0, 1], [0, 1]),
-                    }}
-                  />
-                </div>
+                  space + backdrop on the right). */}
+                <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
               </header>
             ) : null}
             <m.div
