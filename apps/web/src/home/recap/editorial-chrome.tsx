@@ -81,38 +81,43 @@ export function EditorialChrome() {
     context ? pickActiveBeat(context.scrollYProgress.get(), context.beatRanges) : 0
   );
 
-  // Hard visibility gate via direct scroll listener + getBoundingClientRect.
-  // The opacity-via-scrollYProgress fade alone wasn't enough on Safari:
+  // Hard visibility gate via requestAnimationFrame polling. The
+  // opacity-via-scrollYProgress fade alone wasn't enough on Safari:
   // Motion's `useScroll` on WebKit uses ScrollTimeline, which doesn't
   // reliably advance progress past 1 after the section exits the
   // viewport, so the opacity-0 endpoint never fires and the previous
-  // chapter's chrome persists visually into the next chapter.
+  // chapter's chrome persists into the next chapter. A scroll-event
+  // listener didn't fix it either on Safari (suggests the scroll
+  // events on `<main>` aren't firing in the cadence we need OR
+  // Safari's sticky stage is staying pinned at viewport-top even
+  // after the section exits).
   //
-  // A direct scroll listener on the main scroll container, polling
-  // section.getBoundingClientRect() vs main's bounds on every tick, is
-  // the most engine-stable signal — doesn't depend on Motion or
-  // IntersectionObserver edge cases. Applied via inline `display: none`
-  // so the rule wins over any sticky/positioning conflict regardless
-  // of Tailwind class ordering.
+  // rAF polling is the nuclear option — runs every paint frame
+  // regardless of scroll-event delivery, and computes from raw
+  // getBoundingClientRect() against main's bounds, which is the
+  // single source of truth for "is the section in viewport." Applied
+  // via inline `display: none` so the rule wins over any sticky/
+  // positioning conflict regardless of CSS class ordering.
   const [chapterInViewport, setChapterInViewport] = useState(true);
   useEffect(() => {
-    const chrome = chromeRef.current;
-    if (!chrome) return;
-    const section = chrome.closest<HTMLElement>("[data-chapter-multi-beat]");
-    if (!section) return;
-    const main = mainScrollRef.current;
-    if (!main) return;
-
-    const check = () => {
-      const sectionRect = section.getBoundingClientRect();
-      const mainRect = main.getBoundingClientRect();
-      const inView =
-        sectionRect.bottom > mainRect.top && sectionRect.top < mainRect.bottom;
-      setChapterInViewport((prev) => (prev === inView ? prev : inView));
+    let raf = 0;
+    const tick = () => {
+      const chrome = chromeRef.current;
+      const main = mainScrollRef.current;
+      if (chrome && main) {
+        const section = chrome.closest<HTMLElement>("[data-chapter-multi-beat]");
+        if (section) {
+          const sectionRect = section.getBoundingClientRect();
+          const mainRect = main.getBoundingClientRect();
+          const inView =
+            sectionRect.bottom > mainRect.top && sectionRect.top < mainRect.bottom;
+          setChapterInViewport((prev) => (prev === inView ? prev : inView));
+        }
+      }
+      raf = requestAnimationFrame(tick);
     };
-    check();
-    main.addEventListener("scroll", check, { passive: true });
-    return () => main.removeEventListener("scroll", check);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   // Local progress within the active beat's span [enterStart, exitEnd].
