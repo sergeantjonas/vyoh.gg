@@ -2,7 +2,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-import { SHADOW_BODY } from "./chapter-shadows";
+import { SHADOW_LABEL } from "./chapter-shadows";
 
 interface UnlocksPerWeekBandProps extends Omit<React.ComponentProps<"div">, "children"> {
   /**
@@ -69,22 +69,42 @@ export function UnlocksPerWeekBand({
   const weeksLabel = data.length === 1 ? "1 week" : `${data.length} weeks`;
   const ariaLabel = `${total} unlock${total === 1 ? "" : "s"} across the last ${weeksLabel}, ${latest} this week`;
 
+  // Vertical gradient under the curve — accent at the peak, fading to
+  // transparent at the baseline. Reads as data weight at the top where the
+  // line is, not as a uniform tint. Same trick used in the LoL match-row
+  // gold-lead band (no chrome wrapper, fill carries the presence).
+  //
+  // Color cascade: `--accent` is published per-chapter by the atmosphere
+  // layer (per asset dominantHex — RE2 reads red, Hollow Knight blue/teal,
+  // etc.). `--theme-strong` is the chronotype palette fallback, used only
+  // when no claim is active (e.g. the band rendered outside a chapter).
+  const gradientId = "unlocks-per-week-band-gradient";
+
   return (
     <div
       data-unlocks-per-week-band=""
-      className={cn("flex w-full flex-col gap-1", className)}
+      // No chrome wrapper — the band reads as editorial data (sparkline
+      // curve + filled area) sitting directly on the splash, in the same
+      // register as the standout milestone block above and the recent-
+      // unlocks list below. The earlier frosted chip pulled the band
+      // forward visually but introduced two problems: it isolated the
+      // band as "UI widget" between two chip-free editorial blocks, and
+      // backdrop-filter pops in/out as the beat transitions (compositor
+      // layer churn on opacity tween). Text-shadow + thicker stroke +
+      // gradient fill carry the contrast instead.
+      className={cn("flex w-full flex-col gap-1.5", className)}
       {...rest}
     >
       <div className="flex items-baseline justify-between">
         <span
-          className="text-[10px] uppercase tracking-[0.2em] text-foreground/80"
-          style={{ textShadow: SHADOW_BODY }}
+          className="text-[10px] uppercase tracking-[0.2em] text-foreground/90"
+          style={{ textShadow: SHADOW_LABEL }}
         >
           Unlocks / wk
         </span>
         <span
-          className="text-[10px] uppercase tracking-[0.2em] tabular-nums text-foreground/65"
-          style={{ textShadow: SHADOW_BODY }}
+          className="text-[10px] uppercase tracking-[0.2em] tabular-nums text-foreground/75"
+          style={{ textShadow: SHADOW_LABEL }}
         >
           {weeksLabel}
         </span>
@@ -94,15 +114,34 @@ export function UnlocksPerWeekBand({
         aria-label={ariaLabel}
         viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
         preserveAspectRatio="none"
-        className="block h-8 w-full"
+        className="block h-12 w-full"
+        // Drop-shadow on the SVG (not backdrop-filter) gives the stroke
+        // separation from busy splashes without a compositor layer that
+        // the beat-transition opacity tween fights. SVG filter renders
+        // once with the path, no per-frame composite cost.
+        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55))" }}
       >
         <title>{ariaLabel}</title>
-        <path d={areaPath} fill="var(--theme-strong)" fillOpacity={0.18} />
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop
+              offset="0%"
+              stopColor="var(--accent, var(--theme-strong))"
+              stopOpacity={0.55}
+            />
+            <stop
+              offset="100%"
+              stopColor="var(--accent, var(--theme-strong))"
+              stopOpacity={0.05}
+            />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill={`url(#${gradientId})`} />
         <path
           d={linePath}
           fill="none"
-          stroke="var(--theme-strong)"
-          strokeWidth={1}
+          stroke="var(--accent, var(--theme-strong))"
+          strokeWidth={1.75}
           strokeLinejoin="round"
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
