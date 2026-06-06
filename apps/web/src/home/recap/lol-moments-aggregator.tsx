@@ -230,6 +230,7 @@ export function LolMomentsAggregator({
           hiatusReturn={m.hiatusReturn}
           streak={m.streak}
           marathon={m.marathon}
+          favoriteChampion={m.favoriteChampion}
           nudged={nudged}
         />
       );

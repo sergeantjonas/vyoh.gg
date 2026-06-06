@@ -81,14 +81,17 @@ for (const browserType of [chromium, firefox]) {
   if (audit.stagePresent) failures.push("sticky stage should NOT render");
   if (audit.trackPresent) failures.push("horizontal track should NOT render");
   if (audit.chromePresent) failures.push("editorial chrome should NOT render");
-  if (!audit.slashPresent)
-    failures.push("slash should still render at static end-state");
+  if (!audit.slashPresent) failures.push("slash should still render at static end-state");
   if (audit.slashTransform && audit.slashTransform !== "none")
     failures.push(`slash should have transform=none, got ${audit.slashTransform}`);
   if (audit.hiddenBeats.length > 0)
-    failures.push(`beats display:none under reduced motion: ${audit.hiddenBeats.join(", ")}`);
+    failures.push(
+      `beats display:none under reduced motion: ${audit.hiddenBeats.join(", ")}`
+    );
   if (audit.emptyBeats.length > 0)
-    failures.push(`beats render empty under reduced motion: ${audit.emptyBeats.join(", ")}`);
+    failures.push(
+      `beats render empty under reduced motion: ${audit.emptyBeats.join(", ")}`
+    );
 
   if (failures.length > 0) {
     console.error(`✗ FAILURES on ${name}:`);

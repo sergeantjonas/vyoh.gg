@@ -117,6 +117,30 @@ export interface LolMarathonStats {
 }
 
 /**
+ * Favorite-champion-of-period framing carried on a
+ * `FAVORITE_CHAMPION_OF_PERIOD` LoL moment chapter. R-7i Lane A filler
+ * detector — fires whenever there's a champion the owner played heavily
+ * in the 30d window (≥5 games), even if no event-flavored moment fired.
+ * Fills the LoL block during dry spells where rank-ups / KDA outliers /
+ * streaks / marathons all stay silent but ranked play DID happen.
+ *
+ *   - `gameCount` — total ranked games on this champion in the window.
+ *   - `winCount` / `lossCount` — win/loss split (`winCount + lossCount =
+ *     gameCount`). Drives the receipt's WR%.
+ *   - `championAlias` — the champion's Riot alias; matches the descriptor's
+ *     top-level `championAlias` field. Carried here so the chapter receipt
+ *     can read it without falling back to the top-level for type-narrowing.
+ *
+ * Null on other momentTypes.
+ */
+export interface LolFavoriteChampionStats {
+  gameCount: number;
+  winCount: number;
+  lossCount: number;
+  championAlias: string;
+}
+
+/**
  * LoL moment chapter — single-event narrative (rank-up, KDA outlier, off-meta
  * pick, streak, return-from-hiatus, etc.). Schema declared now so the
  * `/recap/chapters` contract is stable; emitted in R-6.
@@ -131,7 +155,8 @@ export interface LolMomentChapterDescriptor {
     | "KDA_OUTLIER"
     | "STREAK_5W"
     | "STREAK_5L"
-    | "RETURN_FROM_HIATUS";
+    | "RETURN_FROM_HIATUS"
+    | "FAVORITE_CHAMPION_OF_PERIOD";
   score: number;
   daysSince: number;
   ageBucket: RecapAgeBucket;
@@ -143,6 +168,7 @@ export interface LolMomentChapterDescriptor {
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
+  favoriteChampion: LolFavoriteChampionStats | null;
   framing: RecapChapterFraming | null;
 }
 

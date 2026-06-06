@@ -170,6 +170,33 @@ const MARATHON_MATCH_CAP = 15;
  *  notable but shouldn't dominate the chapter list. */
 const MARATHON_SIGNAL_FACTOR = 2;
 
+/** Lookback window for the FAVORITE_CHAMPION_OF_PERIOD detector (R-7i Lane A).
+ *  Same 30d "this season" frame the other moments use. */
+const FAVORITE_WINDOW_DAYS = 30;
+
+/** Minimum games on the favorite champion in the window before the chapter
+ *  fires. Five games over 30 days is "consistent side-project" territory
+ *  (~once a week or two clustered sessions). Below this and the framing
+ *  "spent the month on X" is dishonest — it was a one-off. */
+const FAVORITE_MIN_GAMES = 5;
+
+/** Base signal for a favorite-champion-of-period candidate. R-7i filler tier
+ *  — calibrated to fill the LoL block during dry spells (no rank-up / KDA
+ *  outlier / streak / marathon / hiatus return) without dominating when
+ *  those event-flavored moments DO fire. Constant 10 raw clears the floor
+ *  (5) for ~14d after the most recent overall ranked match, then decays
+ *  below floor — by then "this month" framing is itself stale. */
+const FAVORITE_BASE_SIGNAL = 10;
+
+/** Structural anchor champion that's already the subject of the unconditional
+ *  Ahri chapter at the top of the page. Excluded from the FAVORITE candidate
+ *  pool because a "FAVORITE = Ahri" moment would duplicate the subject
+ *  chapter's framing. When Ahri tops the period, the detector picks #2
+ *  instead — editorially that becomes "side-project of the month, outside
+ *  Ahri". When no #2 clears the minimum-games threshold, the detector emits
+ *  nothing and the chapter quietly drops. */
+const FAVORITE_ANCHOR_CHAMPION = "Ahri";
+
 const HOUR_MS = 60 * 60 * 1000;
 
 function computeKda(kills: number, deaths: number, assists: number): number {
@@ -202,7 +229,7 @@ export class LolMomentsService {
   ) {}
 
   async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
-    const [offMeta, rankUps, kdaOutliers, hiatusReturns, streaks, marathons] =
+    const [offMeta, rankUps, kdaOutliers, hiatusReturns, streaks, marathons, favorites] =
       await Promise.all([
         this.detectOffMetaPicks(now),
         this.detectRankUps(now),
@@ -210,6 +237,7 @@ export class LolMomentsService {
         this.detectReturnsFromHiatus(now),
         this.detectStreaks(now),
         this.detectMarathons(now),
+        this.detectFavoriteChampions(now),
       ]);
     return [
       ...offMeta,
@@ -218,6 +246,7 @@ export class LolMomentsService {
       ...hiatusReturns,
       ...streaks,
       ...marathons,
+      ...favorites,
     ];
   }
 
@@ -872,6 +901,157 @@ export class LolMomentsService {
           queueType: capMatch.queueType,
         },
         marathon: { matchCount: bestCount, spanHours },
+      },
+    ];
+  }
+
+  /**
+   * Detect the owner's favorite champion in the last
+   * `FAVORITE_WINDOW_DAYS` (R-7i Lane A — LoL dry-spell top-up). Unlike
+   * the event-flavored detectors (rank-up, KDA outlier, streak,
+   * marathon, return-from-hiatus), this one fires whenever ranked play
+   * happened, regardless of whether any individual match or pair was
+   * outlier-worthy. Fills the LoL block during "quiet stretches" when
+   * the owner played but nothing crested the per-detector signal floor.
+   *
+   * Algorithm:
+   *   1. Group owner ranked matches in the window by champion, count games.
+   *   2. Sort desc by count. Exclude `FAVORITE_ANCHOR_CHAMPION` ("Ahri"
+   *      — already the unconditional subject chapter; a FAVORITE chapter
+   *      on the same champion would duplicate framing) and pick the top
+   *      eligible champion. When Ahri tops the period, the chapter
+   *      becomes the "side-project of the month, outside Ahri".
+   *   3. Require ≥ `FAVORITE_MIN_GAMES` (5) games on the chosen
+   *      champion. Below this and "spent the month on X" is dishonest;
+   *      the detector emits nothing.
+   *   4. daysSince anchors on the most recent overall ranked match in
+   *      the window (not just on the favorite champion) so the chapter
+   *      stays "this month" framed against whichever direction activity
+   *      took. Decays cleanly past ~14d with `FAVORITE_BASE_SIGNAL = 10`.
+   *   5. Receipt match: the highest-KDA match on the favorite champion
+   *      in the window — drives the matchId link + matchStats receipt
+   *      so the chapter has a concrete "best game" to point at.
+   *
+   * Returns at most one candidate.
+   */
+  async detectFavoriteChampions(now: Date): Promise<RecapCandidate[]> {
+    const ownerPuuids = await this.identity.getOwnerPuuids();
+    if (ownerPuuids.length === 0) return [];
+
+    const windowCutoff = new Date(
+      now.getTime() - FAVORITE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    const championCounts = await this.prisma.match.groupBy({
+      by: ["champion", "win"],
+      where: {
+        puuid: { in: ownerPuuids },
+        playedAt: { gte: windowCutoff },
+        remake: false,
+        queueType: { in: [...RANKED_QUEUE_TYPES] },
+      },
+      _count: { _all: true },
+    });
+    if (championCounts.length === 0) return [];
+
+    // Roll up per-champion totals + W/L from the groupBy rows. groupBy
+    // by champion+win gives us up to two rows per champion (one for the
+    // win=true partition, one for win=false), so a single reduce yields
+    // total + win + loss in one pass.
+    const totals = new Map<string, { games: number; wins: number; losses: number }>();
+    for (const row of championCounts) {
+      const entry = totals.get(row.champion) ?? { games: 0, wins: 0, losses: 0 };
+      entry.games += row._count._all;
+      if (row.win) entry.wins += row._count._all;
+      else entry.losses += row._count._all;
+      totals.set(row.champion, entry);
+    }
+
+    const ranked = Array.from(totals.entries())
+      .map(([champion, t]) => ({ champion, ...t }))
+      .sort((a, b) => b.games - a.games);
+
+    const favorite = ranked.find((r) => r.champion !== FAVORITE_ANCHOR_CHAMPION);
+    if (!favorite || favorite.games < FAVORITE_MIN_GAMES) return [];
+
+    // Two reads in parallel: the most recent OVERALL ranked match (drives
+    // daysSince — "this month" framing tracks the page's activity recency
+    // anchor, not a specific match on this champion) and the highest-KDA
+    // match on the favorite champion in the window (drives the receipt
+    // matchId + matchStats — the chapter's click-through anchor).
+    const [mostRecentRanked, candidateMatches] = await Promise.all([
+      this.prisma.match.findFirst({
+        where: {
+          puuid: { in: ownerPuuids },
+          playedAt: { gte: windowCutoff },
+          remake: false,
+          queueType: { in: [...RANKED_QUEUE_TYPES] },
+        },
+        orderBy: { playedAt: "desc" },
+        select: { playedAt: true },
+      }),
+      this.prisma.match.findMany({
+        where: {
+          puuid: { in: ownerPuuids },
+          playedAt: { gte: windowCutoff },
+          remake: false,
+          queueType: { in: [...RANKED_QUEUE_TYPES] },
+          champion: favorite.champion,
+        },
+        select: {
+          matchId: true,
+          champion: true,
+          kills: true,
+          deaths: true,
+          assists: true,
+          win: true,
+          durationSec: true,
+          queueType: true,
+        },
+      }),
+    ]);
+    if (!mostRecentRanked || candidateMatches.length === 0) return [];
+
+    // Highest-KDA match on the favorite champion — the chapter's
+    // editorial "best game of the month" anchor. KDA is a stable
+    // proxy for "highlight reel" inside the limited window. Guarded
+    // against undefined via the `candidateMatches.length === 0` check
+    // above (under `noUncheckedIndexedAccess`).
+    const bestMatch = candidateMatches
+      .map((m) => ({ ...m, kda: computeKda(m.kills, m.deaths, m.assists) }))
+      .sort((a, b) => b.kda - a.kda)[0];
+    if (!bestMatch) return [];
+
+    const daysSince = Math.max(
+      0,
+      Math.floor(
+        (now.getTime() - mostRecentRanked.playedAt.getTime()) / (24 * 60 * 60 * 1000)
+      )
+    );
+
+    return [
+      {
+        kind: "lol-moment",
+        slug: `lol-moment-favorite-${favorite.champion}-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`,
+        momentType: "FAVORITE_CHAMPION_OF_PERIOD",
+        baseSignal: FAVORITE_BASE_SIGNAL,
+        daysSince,
+        matchId: bestMatch.matchId,
+        championAlias: favorite.champion,
+        matchStats: {
+          kills: bestMatch.kills,
+          deaths: bestMatch.deaths,
+          assists: bestMatch.assists,
+          win: bestMatch.win,
+          durationSec: bestMatch.durationSec,
+          queueType: bestMatch.queueType,
+        },
+        favoriteChampion: {
+          gameCount: favorite.games,
+          winCount: favorite.wins,
+          lossCount: favorite.losses,
+          championAlias: favorite.champion,
+        },
       },
     ];
   }

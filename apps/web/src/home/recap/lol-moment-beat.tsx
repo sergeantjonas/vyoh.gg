@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   type LolAccount,
+  type LolFavoriteChampionStats,
   type LolHiatusReturnStats,
   type LolKdaOutlierStats,
   type LolMarathonStats,
@@ -195,6 +196,7 @@ function momentCopy(args: {
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
+  favoriteChampion: LolFavoriteChampionStats | null;
   matchStats: LolMomentMatchStats | null;
   emblemYear: number;
   accentClass: string;
@@ -208,6 +210,7 @@ function momentCopy(args: {
     hiatusReturn,
     streak,
     marathon,
+    favoriteChampion,
     matchStats,
     emblemYear,
     accentClass,
@@ -430,6 +433,50 @@ function momentCopy(args: {
     };
   }
 
+  if (momentType === "FAVORITE_CHAMPION_OF_PERIOD" && favoriteChampion) {
+    const gameLabel = `${favoriteChampion.gameCount} games`;
+    const wlLabel = `${favoriteChampion.winCount}-${favoriteChampion.lossCount}`;
+    return {
+      eyebrow: "Side-project",
+      mastheadText: displayName,
+      // Text-only — the chapter's signature is the framing ("outside of
+      // ANCHOR, this was the month's side-project"), not a per-type icon
+      // glyph. The R-7h leadingVisual lever was added so individual
+      // momentTypes could differentiate; FAVORITE's differentiation is
+      // editorial (it's an aggregate, not an event), so the masthead
+      // stands on its own without a glyph competing.
+      leadingVisual: null,
+      chapterLabel: `Side-project · ${displayName}`,
+      ariaLabel: `Side-project of the month: ${displayName}`,
+      body: (
+        <>
+          Outside of <A>{anchorDisplayName}</A>, <A>{displayName}</A> took{" "}
+          <A>{gameLabel}</A> this month — <A>{wlLabel}</A>.
+        </>
+      ),
+      // Headline receipt: gameCount as the lede, with W/L as the substat.
+      // Skips the default match-stats receipt because the FAVORITE chapter
+      // is fundamentally an AGGREGATE — "best game's K/D/A" would still be
+      // honest (the matchId points at it) but reads as smaller-frame than
+      // the aggregate the chapter is selling. The headline carries the
+      // aggregate; the matchId/link in the masthead carries the click-
+      // through to the best individual game.
+      receipt: headlineReceipt({
+        value: String(favoriteChampion.gameCount),
+        label: "Games",
+        accentClass,
+        substats: (
+          <span
+            className="text-sm tabular-nums text-foreground/75"
+            style={{ textShadow: SHADOW_BODY }}
+          >
+            {wlLabel} W/L
+          </span>
+        ),
+      }),
+    };
+  }
+
   return {
     eyebrow: "Off-meta pick",
     mastheadText: displayName,
@@ -486,6 +533,7 @@ export interface LolMomentBeatProps {
   hiatusReturn: LolHiatusReturnStats | null;
   streak: LolStreakStats | null;
   marathon: LolMarathonStats | null;
+  favoriteChampion: LolFavoriteChampionStats | null;
   /** Per-beat active signal from the surrounding `<MultiBeat>`. Gates the
    *  ChapterReveal cascade so the per-moment beat reveal fires when this
    *  beat becomes focal, not at chapter entrance. */
@@ -591,6 +639,7 @@ export function LolMomentBeat({
   hiatusReturn,
   streak,
   marathon,
+  favoriteChampion,
   nudged,
 }: LolMomentBeatProps) {
   const championName = useChampionName();
@@ -612,6 +661,7 @@ export function LolMomentBeat({
     hiatusReturn,
     streak,
     marathon,
+    favoriteChampion,
     matchStats,
     emblemYear,
     accentClass,

@@ -44,6 +44,12 @@ export function momentAccentClass(momentType: MomentAccentType): string {
       return "text-violet-300";
     case "OFF_META_PICK":
       return "text-sky-300";
+    // R-7i filler — sits in the same "side-step from the OTP" register as
+    // OFF_META_PICK but cooler (lime) so the two read as related but
+    // distinct in the chapter list. Both detectors are about non-Ahri
+    // play; OFF_META is a single-game event, FAVORITE is the aggregate.
+    case "FAVORITE_CHAMPION_OF_PERIOD":
+      return "text-lime-300";
     case "FIRST_TIME_GAME":
       return "text-teal-300";
     case "ACHIEVEMENT_CLUSTER":

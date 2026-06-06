@@ -95,6 +95,7 @@ describe("applyDevLolMomentOverride", () => {
     hiatusReturn: null,
     streak: null,
     marathon: null,
+    favoriteChampion: null,
     framing: null,
   };
 

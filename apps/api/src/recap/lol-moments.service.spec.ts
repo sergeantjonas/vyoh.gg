@@ -11,6 +11,12 @@ interface ChampionCountRow {
   _count: { _all: number };
 }
 
+interface ChampionWinCountRow {
+  champion: string;
+  win: boolean;
+  _count: { _all: number };
+}
+
 interface MatchRow {
   matchId: string;
   champion: string;
@@ -50,6 +56,9 @@ function makeService(opts: {
   hiatusRows?: KdaMatchRow[];
   streakRows?: KdaMatchRow[];
   marathonRows?: KdaMatchRow[];
+  favoriteWinCounts?: ChampionWinCountRow[];
+  favoriteMostRecentMatch?: { playedAt: Date } | null;
+  favoriteCandidateMatches?: KdaMatchRow[];
 }) {
   const identity = {
     getOwnerPuuids: vi.fn().mockResolvedValue(opts.ownerPuuids ?? ["P_owner"]),
@@ -86,9 +95,47 @@ function makeService(opts: {
   );
   const prisma = {
     match: {
-      groupBy: vi.fn().mockResolvedValue(opts.championCounts ?? []),
-      findFirst: vi.fn().mockResolvedValue(opts.offMetaMatch ?? null),
-      findMany: findManyImpl,
+      // groupBy routes by the `by` shape: off-meta groups by ["champion"]
+      // only (count games per champion). Favorite groups by ["champion",
+      // "win"] (gives wins/losses split per champion in one read).
+      groupBy: vi.fn().mockImplementation((args: { by: string[] }) => {
+        if (args.by?.includes("win")) {
+          return Promise.resolve(opts.favoriteWinCounts ?? []);
+        }
+        return Promise.resolve(opts.championCounts ?? []);
+      }),
+      // findFirst routes by the `where.champion` shape: off-meta passes
+      // `{ notIn: [...mainPool] }`. Favorite's "most recent ranked match"
+      // findFirst doesn't filter by champion at all. Tell them apart on
+      // champion-key presence.
+      findFirst: vi.fn().mockImplementation((args: { where: { champion?: unknown } }) => {
+        if (args.where?.champion !== undefined) {
+          return Promise.resolve(opts.offMetaMatch ?? null);
+        }
+        return Promise.resolve(opts.favoriteMostRecentMatch ?? null);
+      }),
+      // Favorite's findMany passes a single champion string under
+      // `where.champion` (vs off-meta's `notIn` array on findFirst).
+      // Route it before falling into the existing four-branch matrix
+      // that splits rank-up / streak / marathon / KDA / hiatus. Wrapped
+      // in `vi.fn()` so existing tests that inspect `mock.calls` still
+      // work after the dispatcher addition.
+      findMany: vi.fn().mockImplementation(
+        (args: {
+          where: {
+            snapshotTier?: { not: null } | null;
+            playedAt?: { gte: Date };
+            champion?: unknown;
+          };
+          orderBy?: { playedAt?: "asc" | "desc" };
+          take?: number;
+        }) => {
+          if (typeof args.where?.champion === "string") {
+            return Promise.resolve(opts.favoriteCandidateMatches ?? []);
+          }
+          return findManyImpl(args);
+        }
+      ),
     },
   } as unknown as PrismaService;
   return {
@@ -1144,6 +1191,201 @@ describe("LolMomentsService.detectMarathons", () => {
     expect(marathonCall).toBeTruthy();
     const args = marathonCall?.[0] as { where: { queueType: { in: string[] } } };
     expect(new Set(args.where.queueType.in)).toEqual(
+      new Set(["Ranked Solo", "Ranked Flex"])
+    );
+  });
+});
+
+describe("LolMomentsService.detectFavoriteChampions", () => {
+  function makeFavoriteMatch(opts: {
+    matchId: string;
+    champion: string;
+    kills?: number;
+    deaths?: number;
+    assists?: number;
+    win?: boolean;
+    durationSec?: number;
+  }): KdaMatchRow {
+    return {
+      matchId: opts.matchId,
+      champion: opts.champion,
+      playedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000),
+      kills: opts.kills ?? 6,
+      deaths: opts.deaths ?? 4,
+      assists: opts.assists ?? 9,
+      win: opts.win ?? true,
+      durationSec: opts.durationSec ?? 1820,
+      queueType: "Ranked Solo",
+    };
+  }
+
+  it("returns empty when no owner puuids resolved", async () => {
+    const { service } = makeService({ ownerPuuids: [] });
+    const result = await service.detectFavoriteChampions(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty when no champion counts in window", async () => {
+    const { service } = makeService({ favoriteWinCounts: [] });
+    const result = await service.detectFavoriteChampions(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("excludes Ahri and picks the next champion when Ahri tops the period", async () => {
+    const { service } = makeService({
+      favoriteWinCounts: [
+        // Ahri dominates total games but is the structural anchor and
+        // must be skipped — favorite is the next champion (Lulu).
+        { champion: "Ahri", win: true, _count: { _all: 25 } },
+        { champion: "Ahri", win: false, _count: { _all: 15 } },
+        { champion: "Lulu", win: true, _count: { _all: 7 } },
+        { champion: "Lulu", win: false, _count: { _all: 5 } },
+        { champion: "Renekton", win: true, _count: { _all: 2 } },
+      ],
+      favoriteMostRecentMatch: {
+        playedAt: new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+      },
+      favoriteCandidateMatches: [
+        makeFavoriteMatch({ matchId: "EUW_BEST", champion: "Lulu", kills: 12 }),
+      ],
+    });
+    const result = await service.detectFavoriteChampions(NOW);
+    expect(result).toHaveLength(1);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.championAlias).toBe("Lulu");
+    expect(c.favoriteChampion?.gameCount).toBe(12); // 7 + 5
+    expect(c.favoriteChampion?.winCount).toBe(7);
+    expect(c.favoriteChampion?.lossCount).toBe(5);
+    expect(c.momentType).toBe("FAVORITE_CHAMPION_OF_PERIOD");
+  });
+
+  it("returns empty when the eligible favorite is below FAVORITE_MIN_GAMES (5)", async () => {
+    const { service } = makeService({
+      favoriteWinCounts: [
+        // Top non-Ahri champ has only 4 games — not enough to claim
+        // "side-project of the month" honestly.
+        { champion: "Ahri", win: true, _count: { _all: 30 } },
+        { champion: "Lulu", win: true, _count: { _all: 3 } },
+        { champion: "Lulu", win: false, _count: { _all: 1 } },
+      ],
+    });
+    const result = await service.detectFavoriteChampions(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("picks the top non-Ahri champion when no Ahri play exists at all", async () => {
+    const { service } = makeService({
+      favoriteWinCounts: [
+        { champion: "Renekton", win: true, _count: { _all: 6 } },
+        { champion: "Renekton", win: false, _count: { _all: 4 } },
+        { champion: "Lulu", win: true, _count: { _all: 3 } },
+      ],
+      favoriteMostRecentMatch: {
+        playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+      favoriteCandidateMatches: [
+        makeFavoriteMatch({ matchId: "EUW_REN", champion: "Renekton" }),
+      ],
+    });
+    const result = await service.detectFavoriteChampions(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.championAlias).toBe("Renekton");
+    expect(c.favoriteChampion?.gameCount).toBe(10);
+  });
+
+  it("anchors daysSince on the most recent OVERALL ranked match, not just the favorite's last game", async () => {
+    // Most recent ranked match overall was 1 day ago (on Ahri, the
+    // anchor). The favorite is Lulu but their last Lulu game might be
+    // 10 days back. The chapter is "this month" framed against the
+    // page-level activity recency, not a single-champion timeline.
+    const { service } = makeService({
+      favoriteWinCounts: [
+        { champion: "Ahri", win: true, _count: { _all: 20 } },
+        { champion: "Lulu", win: true, _count: { _all: 5 } },
+        { champion: "Lulu", win: false, _count: { _all: 3 } },
+      ],
+      favoriteMostRecentMatch: {
+        playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+      favoriteCandidateMatches: [
+        makeFavoriteMatch({ matchId: "EUW_LULU", champion: "Lulu" }),
+      ],
+    });
+    const result = await service.detectFavoriteChampions(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.daysSince).toBe(1);
+  });
+
+  it("picks the highest-KDA match on the favorite champion as the matchId anchor", async () => {
+    const { service } = makeService({
+      favoriteWinCounts: [{ champion: "Lulu", win: true, _count: { _all: 5 } }],
+      favoriteMostRecentMatch: {
+        playedAt: new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+      favoriteCandidateMatches: [
+        // 5 / 6 / 4 → KDA ~1.5
+        makeFavoriteMatch({
+          matchId: "EUW_MID",
+          champion: "Lulu",
+          kills: 5,
+          deaths: 6,
+          assists: 4,
+        }),
+        // 12 / 2 / 14 → KDA 13
+        makeFavoriteMatch({
+          matchId: "EUW_BEST",
+          champion: "Lulu",
+          kills: 12,
+          deaths: 2,
+          assists: 14,
+        }),
+        // 3 / 8 / 2 → KDA ~0.625
+        makeFavoriteMatch({
+          matchId: "EUW_BAD",
+          champion: "Lulu",
+          kills: 3,
+          deaths: 8,
+          assists: 2,
+        }),
+      ],
+    });
+    const result = await service.detectFavoriteChampions(NOW);
+    const c = result[0];
+    if (!c || c.kind !== "lol-moment") throw new Error("expected lol-moment");
+    expect(c.matchId).toBe("EUW_BEST");
+    expect(c.matchStats?.kills).toBe(12);
+  });
+
+  it("returns empty when the most-recent ranked match query yields no rows (no ranked play in window)", async () => {
+    const { service } = makeService({
+      favoriteWinCounts: [{ champion: "Lulu", win: true, _count: { _all: 5 } }],
+      favoriteMostRecentMatch: null,
+      favoriteCandidateMatches: [],
+    });
+    const result = await service.detectFavoriteChampions(NOW);
+    expect(result).toEqual([]);
+  });
+
+  it("queries only ranked queues and excludes remakes", async () => {
+    const { service, prisma } = makeService({ favoriteWinCounts: [] });
+    await service.detectFavoriteChampions(NOW);
+    const groupByCalls = vi.mocked(prisma.match.groupBy).mock.calls;
+    const favoriteGroupBy = groupByCalls.find((c) => {
+      const args = c[0] as { by?: string[] };
+      return args.by?.includes("win") ?? false;
+    });
+    expect(favoriteGroupBy).toBeTruthy();
+    const args = favoriteGroupBy?.[0] as {
+      where: {
+        queueType?: { in: readonly string[] };
+        remake?: boolean;
+      };
+    };
+    expect(args.where.remake).toBe(false);
+    expect(new Set(args.where.queueType?.in ?? [])).toEqual(
       new Set(["Ranked Solo", "Ranked Flex"])
     );
   });

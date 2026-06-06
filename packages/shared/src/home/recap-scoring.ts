@@ -15,6 +15,7 @@
 
 import { ageBucketFromDaysSince } from "./age-bucket.ts";
 import type {
+  LolFavoriteChampionStats,
   LolHiatusReturnStats,
   LolKdaOutlierStats,
   LolMarathonStats,
@@ -117,6 +118,7 @@ export type RecapCandidate =
       hiatusReturn?: LolHiatusReturnStats | null;
       streak?: LolStreakStats | null;
       marathon?: LolMarathonStats | null;
+      favoriteChampion?: LolFavoriteChampionStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     }
@@ -176,6 +178,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
       hiatusReturn: candidate.hiatusReturn ?? null,
       streak: candidate.streak ?? null,
       marathon: candidate.marathon ?? null,
+      favoriteChampion: candidate.favoriteChampion ?? null,
       framing,
     };
   }

@@ -64,6 +64,7 @@ const baseProps = {
   hiatusReturn: null,
   streak: null,
   marathon: null,
+  favoriteChampion: null,
   nudged: true,
 };
 
@@ -89,6 +90,7 @@ const rankUpProps = {
   hiatusReturn: null,
   streak: null,
   marathon: null,
+  favoriteChampion: null,
   nudged: true,
 };
 
@@ -117,6 +119,7 @@ const kdaOutlierProps = {
   hiatusReturn: null,
   streak: null,
   marathon: null,
+  favoriteChampion: null,
   nudged: true,
 };
 
@@ -133,6 +136,7 @@ const hiatusReturnProps = {
   hiatusReturn: { gapDays: 35 },
   streak: null,
   marathon: null,
+  favoriteChampion: null,
   nudged: true,
 };
 
@@ -149,6 +153,7 @@ const streakWinProps = {
   hiatusReturn: null,
   streak: { result: "W" as const, length: 5 },
   marathon: null,
+  favoriteChampion: null,
   nudged: true,
 };
 
@@ -165,6 +170,7 @@ const streakLossProps = {
   hiatusReturn: null,
   streak: { result: "L" as const, length: 6 },
   marathon: null,
+  favoriteChampion: null,
   nudged: true,
 };
 
@@ -181,6 +187,29 @@ const marathonProps = {
   hiatusReturn: null,
   streak: null,
   marathon: { matchCount: 7, spanHours: 4.5 },
+  favoriteChampion: null,
+  nudged: true,
+};
+
+const favoriteChampionProps = {
+  account,
+  championAlias: "Lulu",
+  matchId: "EUW_BEST_LULU",
+  daysSince: 2,
+  slug: "lol-moment-favorite-Lulu-2026",
+  momentType: "FAVORITE_CHAMPION_OF_PERIOD" as const,
+  matchStats,
+  rankUp: null,
+  kdaOutlier: null,
+  hiatusReturn: null,
+  streak: null,
+  marathon: null,
+  favoriteChampion: {
+    gameCount: 12,
+    winCount: 7,
+    lossCount: 5,
+    championAlias: "Lulu",
+  },
   nudged: true,
 };
 
@@ -508,6 +537,36 @@ describe("LolMomentBeat per-type receipt (R-7h.3)", () => {
     render(<LolMomentBeat {...kdaOutlierProps} matchStats={null} />);
     expect(screen.getAllByText("13.0").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("KDA")).toBeTruthy();
+  });
+});
+
+describe("LolMomentBeat (FAVORITE_CHAMPION_OF_PERIOD)", () => {
+  it("renders the side-project eyebrow, champion masthead, and outside-of-anchor prose", () => {
+    render(<LolMomentBeat {...favoriteChampionProps} />);
+    expect(screen.getByText("Side-project")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Lulu");
+    // The prose references the anchor (Ahri) and the favorite (Lulu) — both
+    // appear once outside the masthead.
+    expect(screen.getByText("Ahri")).toBeTruthy();
+  });
+
+  it("leads the receipt with gameCount + W/L substat", () => {
+    render(<LolMomentBeat {...favoriteChampionProps} />);
+    // gameCount 12 appears in the receipt headline (as bare "12") and
+    // again in the prose as "12 games". Assert the headline number and
+    // the W/L substat — both are receipt-only and uniquely identifiable.
+    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("Games")).toBeTruthy();
+    expect(screen.getByText(/7-5 W\/L/)).toBeTruthy();
+  });
+
+  it("falls through to the off-meta default body when favoriteChampion is null", () => {
+    // Defensive guard: if a FAVORITE descriptor ever ships without its
+    // stats payload, the chapter still renders — the momentCopy branch
+    // gates on `favoriteChampion` and falls into the OFF_META default,
+    // which keeps the page renderable instead of throwing.
+    render(<LolMomentBeat {...favoriteChampionProps} favoriteChampion={null} />);
+    expect(screen.getByText("Off-meta pick")).toBeTruthy();
   });
 });
 

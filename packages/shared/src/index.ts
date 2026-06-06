@@ -231,6 +231,7 @@ export type {
 } from "./home/session-lengths.ts";
 export { ageBucketFromDaysSince, daysSinceIso } from "./home/age-bucket.ts";
 export type {
+  LolFavoriteChampionStats,
   LolHiatusReturnStats,
   LolKdaOutlierStats,
   LolMarathonStats,
