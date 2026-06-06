@@ -51,6 +51,14 @@ type Props = {
    * presence state.
    */
   identity?: ReactNode;
+  /**
+   * Optional side-effect node rendered inside the chapter's context
+   * provider but not counted toward `beatCount`. Aggregator chapters
+   * use this slot to mount `FocalBeatAtmosphereClaim` — that hook needs
+   * to read the multi-beat context (scrollYProgress) but isn't a beat
+   * itself. Renders no DOM but the consumer reads context here.
+   */
+  contextEffect?: ReactNode;
   children: ReactNode;
 };
 
@@ -85,7 +93,7 @@ type Props = {
  * content, no motion. Snap is not needed; the page is just a stack.
  */
 function ChapterMultiBeatImpl(
-  { slug, ariaLabel, className, identity, children }: Props,
+  { slug, ariaLabel, className, identity, contextEffect, children }: Props,
   ref: Ref<HTMLElement>
 ) {
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -211,6 +219,7 @@ function ChapterMultiBeatImpl(
                 {identity}
               </div>
             ) : null}
+            {contextEffect}
             {children}
             {/*
               Editorial chrome is intentionally omitted under reduced
@@ -299,6 +308,7 @@ function ChapterMultiBeatImpl(
                 <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
               </header>
             ) : null}
+            {contextEffect}
             <m.div
               data-chapter-track=""
               // `flex-1 min-h-0`: takes all remaining stage height after

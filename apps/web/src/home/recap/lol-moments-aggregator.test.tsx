@@ -11,8 +11,8 @@ vi.mock("@/lol/_shared/patch/use-ddragon-version", () => ({
   useDDragonVersion: vi.fn(() => "26.9"),
 }));
 vi.mock("@/lol/_shared/assets/champion-icon", () => ({
-  championBackdropSplashUrl: (alias: string, patch: string) =>
-    `https://test/backdrop/${alias}/${patch}`,
+  championHdSplashUrl: (alias: string, patch: string) =>
+    `https://test/hd/${alias}/${patch}`,
   rankEmblemUrl: (tier: string, year: number) => `https://test/emblem/${tier}/${year}`,
 }));
 vi.mock("@/lol/_shared/assets/champion-theme", () => ({
@@ -140,25 +140,32 @@ describe("LolMomentsAggregator", () => {
     expect(beats[1]?.textContent ?? "").toContain("Rank up");
   });
 
-  it("publishes a single atmosphere claim using the anchor Ahri backdrop splash", () => {
+  it("publishes the focal beat's HD champion splash as the atmosphere claim (Path B per R-12 followup)", () => {
     const moments = [
       makeMoment({ slug: "m-1", championAlias: "Renekton" }),
       makeMoment({ slug: "m-2", championAlias: "Lux", matchId: "EUW_LUX" }),
     ];
     render(<LolMomentsAggregator moments={moments} account={account} />);
-    // Aggregator publishes one claim, regardless of how many moments it
-    // holds — Path A (shared atmosphere) per the R-12 plan.
-    expect(useAssetClaim).toHaveBeenCalledTimes(1);
-    const claim = vi.mocked(useAssetClaim).mock.calls[0]?.[1];
-    expect(claim?.image).toBe("https://test/backdrop/Ahri/26.9");
-    expect(claim?.accentHex).toBe("#f04444");
+    // FocalBeatAtmosphereClaim publishes the focal-beat champion. At
+    // initial render focalIndex = 0 → Renekton's HD splash. The HD
+    // variant (1920px transcoded) replaces the prior backdrop variant
+    // (600px pre-blurred); user feedback: backdrop variant was "a
+    // blurry mess" since the atmosphere layer applies its own blur on
+    // top.
+    expect(useAssetClaim).toHaveBeenCalled();
+    const lastClaim = vi.mocked(useAssetClaim).mock.calls.at(-1)?.[1];
+    expect(lastClaim?.image).toBe("https://test/hd/Renekton/26.9");
+    expect(lastClaim?.accentHex).toBe("#f04444");
   });
 
-  it("preloads the anchor splash URL eagerly", () => {
+  it("preloads the first beat's HD splash eagerly", () => {
     render(
-      <LolMomentsAggregator moments={[makeMoment({ slug: "m-1" })]} account={account} />
+      <LolMomentsAggregator
+        moments={[makeMoment({ slug: "m-1", championAlias: "Renekton" })]}
+        account={account}
+      />
     );
-    expect(preloadLinkAsImage).toHaveBeenCalledWith("https://test/backdrop/Ahri/26.9");
+    expect(preloadLinkAsImage).toHaveBeenCalledWith("https://test/hd/Renekton/26.9");
   });
 
   it("renders the chapter masthead identity slot with subject-led voice", () => {

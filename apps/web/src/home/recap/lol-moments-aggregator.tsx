@@ -4,7 +4,8 @@ import { motion } from "motion/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
-import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import type { AtmosphereClaim } from "@/home/atmosphere/use-atmosphere-claim";
+import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 
@@ -20,8 +21,8 @@ import {
 import { LolMomentBeat } from "./lol-moment-beat";
 import { MultiBeat } from "./multi-beat";
 import { preloadLinkAsImage } from "./preload-link";
-import { useAssetClaim } from "./use-asset-claim";
 import { useAssetPreload } from "./use-asset-preload";
+import { FocalBeatAtmosphereClaim } from "./use-focal-beat-claim";
 
 /** Anchor champion alias — the chapter's atmosphere claim uses this splash
  *  as the shared backdrop across every beat. Pairs with the editorial
@@ -148,30 +149,50 @@ export function LolMomentsAggregator({
 }) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const patch = useDDragonVersion();
-  // Shared atmosphere claim: anchor Ahri splash, time-of-day palette,
-  // Ahri's dominant hex as the `--accent` cascade. The aggregator is
-  // editorially adjacent to the Ahri chapter (sits immediately after),
-  // and the splash continuity lets the two chapters read as one
-  // extended LoL block instead of distinct surfaces.
-  const splashUrl = useMemo(
-    () => championBackdropSplashUrl(ANCHOR_CHAMPION_ALIAS, patch),
-    [patch]
-  );
-  useEffect(() => preloadLinkAsImage(splashUrl), [splashUrl]);
-  // Rotation skins from the Ahri chapter cover the bulk of LoL traffic on
-  // `/`. The aggregator doesn't ALSO preload them — `useAssetPreload`
-  // handles them when the AhriChapter approaches viewport; that
-  // proximity also covers the aggregator's atmosphere swap window. The
-  // aggregator only nudges its own splash through the asset-preload
-  // hook to confirm cache residence as the visitor scrolls past Ahri.
-  useAssetPreload(outerRef, [splashUrl]);
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  const accentHex = championTheme(ANCHOR_CHAMPION_ALIAS).dominantHex;
-  const claim = useMemo(
-    () => ({ image: splashUrl, palette, accentHex }),
-    [splashUrl, palette, accentHex]
+  // Per-beat atmosphere claims: each beat publishes the focal moment's
+  // champion HD splash + dominantHex, so as the user scrolls between
+  // beats the backdrop crossfades from one champion to the next instead
+  // of holding the Ahri anchor across all of them. The HD variant
+  // (1920px transcoded) replaces the prior backdrop variant (600px,
+  // pre-blurred) — the atmosphere layer applies its own blur on top, so
+  // a sharp source still yields an ambient backdrop but one that holds
+  // up at full-bleed without visible upsampling artifacts.
+  //
+  // The focal beat's claim is selected by `FocalBeatAtmosphereClaim`
+  // (mounted as a child of `<ChapterMultiBeat>` so it can read the
+  // chapter's scrollYProgress). The atmosphere layer's two-layer image
+  // stack handles the smooth crossfade between consecutive focal beats —
+  // same code path that handles Ahri's skin rotation.
+  const beatClaims = useMemo<AtmosphereClaim[]>(
+    () =>
+      moments.map((m) => {
+        const alias = m.championAlias ?? ANCHOR_CHAMPION_ALIAS;
+        return {
+          image: championHdSplashUrl(alias, patch),
+          palette,
+          accentHex: championTheme(alias).dominantHex,
+          intensity: 0.9,
+        };
+      }),
+    [moments, patch, palette]
   );
-  useAssetClaim(outerRef, claim);
+  // Preload the first beat's splash up front so the visitor's first
+  // scroll into the chapter doesn't catch a network fetch. Subsequent
+  // beat splashes are handled by `useAssetPreload` below.
+  useEffect(() => {
+    const firstUrl = beatClaims[0]?.image;
+    if (firstUrl) preloadLinkAsImage(firstUrl);
+  }, [beatClaims]);
+  // Preload every beat's HD splash once the aggregator approaches the
+  // viewport. By the time the user reaches the chapter all moment
+  // backdrops are in cache and the focal-beat crossfade has no
+  // network-fetch hitch mid-transition.
+  const allUrls = useMemo(
+    () => beatClaims.map((c) => c.image).filter((u): u is string => Boolean(u)),
+    [beatClaims]
+  );
+  useAssetPreload(outerRef, allUrls);
 
   // Same BEAT_LAYOUT idiom as the subject chapters: max-w-4xl reading
   // column with px-6/sm:px-10 INSIDE the 4xl box so the band edges line
@@ -229,6 +250,9 @@ export function LolMomentsAggregator({
         slug="lol-moments"
         ariaLabel={`${account.gameName}'s LoL moments`}
         identity={masthead}
+        contextEffect={
+          <FocalBeatAtmosphereClaim outerRef={outerRef} claims={beatClaims} />
+        }
       >
         {beatBodies.map((body, index) => (
           <MultiBeat

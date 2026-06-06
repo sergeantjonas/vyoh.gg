@@ -4,6 +4,8 @@ import { motion } from "motion/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
+import type { AtmosphereClaim } from "@/home/atmosphere/use-atmosphere-claim";
+import { steamLibraryHeroLargeUrl } from "@/steam/_shared/steam-image";
 
 import { ChapterMultiBeat } from "./chapter-multi-beat";
 import { useChapterGroupNudge } from "./chapter-nudge-contexts";
@@ -15,8 +17,10 @@ import {
   STROKE_ACCENT,
 } from "./chapter-shadows";
 import { MultiBeat } from "./multi-beat";
+import { preloadLinkAsImage } from "./preload-link";
 import { SteamMomentBeat } from "./steam-moment-beat";
-import { useAssetClaim } from "./use-asset-claim";
+import { useAssetPreload } from "./use-asset-preload";
+import { FocalBeatAtmosphereClaim } from "./use-focal-beat-claim";
 
 /**
  * Aggregator masthead — same shape as `LolMomentsAggregatorMasthead` but
@@ -123,13 +127,35 @@ export function SteamMomentsAggregator({
   moments: SteamMomentChapterDescriptor[];
 }) {
   const outerRef = useRef<HTMLDivElement | null>(null);
-  // Palette-only claim — no image. The aggregator is not "about" any one
-  // game, so a hero crop would mislead. Time-of-day palette stays
-  // painterly across the chapter; per-game identity flows through beat
-  // content (masthead game name, tagline, leading-visual icon).
   const palette = useMemo(() => paletteForHour(currentBrusselsHour()), []);
-  const claim = useMemo(() => ({ palette }), [palette]);
-  useAssetClaim(outerRef, claim);
+  // Per-beat atmosphere: each beat publishes the focal game's library
+  // hero as the backdrop instead of holding palette-only across the
+  // whole chapter. Path A's palette-only framing was editorially correct
+  // ("the aggregator isn't about any one game") but visually the page
+  // dropped into a flat blank between subject chapters; per-beat hero
+  // crossfades anchor each beat in its game without the chapter
+  // claiming any single one as the headline. accentHex stays unset for
+  // now (would need per-game `useSteamGameRecap`'s `dominantHex`, which
+  // lives per-beat); the time-of-day palette still publishes via the
+  // claim's `palette` field so the tint stays painterly.
+  const beatClaims = useMemo<AtmosphereClaim[]>(
+    () =>
+      moments.map((m) => ({
+        image: steamLibraryHeroLargeUrl(m.appid),
+        palette,
+        intensity: 0.9,
+      })),
+    [moments, palette]
+  );
+  useEffect(() => {
+    const firstUrl = beatClaims[0]?.image;
+    if (firstUrl) preloadLinkAsImage(firstUrl);
+  }, [beatClaims]);
+  const allUrls = useMemo(
+    () => beatClaims.map((c) => c.image).filter((u): u is string => Boolean(u)),
+    [beatClaims]
+  );
+  useAssetPreload(outerRef, allUrls);
 
   const BEAT_LAYOUT =
     "flex flex-col items-center justify-start [&>[data-band]]:!max-w-4xl [&>[data-band]]:!w-full [&>[data-band]]:!px-6 sm:[&>[data-band]]:!px-10 [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
@@ -163,6 +189,9 @@ export function SteamMomentsAggregator({
         slug="steam-moments"
         ariaLabel="Steam highlights"
         identity={masthead}
+        contextEffect={
+          <FocalBeatAtmosphereClaim outerRef={outerRef} claims={beatClaims} />
+        }
       >
         {beatBodies.map((body, index) => (
           <MultiBeat

@@ -10,6 +10,10 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@/home/recap/use-asset-claim", () => ({ useAssetClaim: vi.fn() }));
+vi.mock("@/home/recap/use-asset-preload", () => ({ useAssetPreload: vi.fn() }));
+vi.mock("@/home/recap/preload-link", () => ({
+  preloadLinkAsImage: vi.fn(() => () => {}),
+}));
 vi.mock("@/home/recap/chapter-reveal", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
   return {
@@ -28,6 +32,7 @@ vi.mock("motion/react", async () => {
 });
 vi.mock("@/steam/_shared/steam-image", () => ({
   steamLibraryLogoUrl: (appid: number) => `https://test/logo/${appid}`,
+  steamLibraryHeroLargeUrl: (appid: number) => `https://test/hero/${appid}`,
 }));
 vi.mock("@/steam/use-steam-game-recap", () => ({
   useSteamGameRecap: vi.fn(() => ({
@@ -98,21 +103,20 @@ describe("SteamMomentsAggregator", () => {
     expect(beats[1]?.textContent ?? "").toContain("Game B");
   });
 
-  it("publishes a single palette-only atmosphere claim (no shared hero image)", () => {
+  it("publishes the focal beat's library hero as the atmosphere claim (per-beat backdrop)", () => {
     const moments = [
       makeMoment({ slug: "m-1", appid: 1 }),
       makeMoment({ slug: "m-2", appid: 2 }),
     ];
     render(<SteamMomentsAggregator moments={moments} />);
-    // Aggregator publishes one claim regardless of moment count.
-    expect(useAssetClaim).toHaveBeenCalledTimes(1);
-    const claim = vi.mocked(useAssetClaim).mock.calls[0]?.[1];
-    // Palette-only: no `image` key (the aggregator isn't "about" any one
-    // game, so painting a hero would mislead). Palette is still
-    // provided so the atmosphere layer has its blend source.
-    expect(claim).toBeDefined();
-    expect((claim as { image?: string }).image).toBeUndefined();
-    expect(claim?.palette).toBeDefined();
+    // FocalBeatAtmosphereClaim publishes the focal-beat game's library
+    // hero. At initial render focal=0 → first moment (appid=1). Replaces
+    // the earlier palette-only Path A claim — user feedback: with two
+    // beats the empty-palette transition window read as "broken".
+    expect(useAssetClaim).toHaveBeenCalled();
+    const lastClaim = vi.mocked(useAssetClaim).mock.calls.at(-1)?.[1];
+    expect(lastClaim?.image).toBe("https://test/hero/1");
+    expect(lastClaim?.palette).toBeDefined();
   });
 
   it("renders the chapter masthead identity slot with 'Steam · this season' + 'Highlights' framing", () => {
