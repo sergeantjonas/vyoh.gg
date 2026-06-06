@@ -276,7 +276,20 @@ function ChapterMultiBeatImpl(
             {identity ? (
               <header
                 data-chapter-masthead=""
-                className="relative z-20 w-full shrink-0 overflow-hidden"
+                // No `overflow-hidden` on the header. It was load-bearing
+                // when the masthead was a fixed-height box (chunk-2 commit
+                // 5f0bc03b protecting against vh-relative title content
+                // bleeding past a reserved box). The flex-col + shrink-0
+                // architecture (d5bbbcc2) sizes the masthead to its
+                // content, so the masthead structurally can't overflow
+                // its own bounds anymore. Keeping the clip would
+                // truncate the logo's drop-shadow halo (a 16px filter
+                // halo lands right at the masthead bottom when tagline
+                // sits inline with the logo — see RE4) and clip the
+                // ChapterReveal blur entrance for the same reason. The
+                // stage's own `overflow-hidden` still catches anything
+                // genuinely spilling into the chapter's outer bounds.
+                className="relative z-20 w-full shrink-0"
               >
                 {/* Center the identity content within the full-bleed
                   masthead via a `max-w-4xl` reading column. Without this

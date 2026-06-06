@@ -26,9 +26,7 @@ const geom = await page.evaluate(() => {
   const masthead = document.querySelector(
     "[data-chapter-multi-beat] header[data-chapter-masthead]"
   );
-  const beat0 = document.querySelector(
-    "[data-chapter-multi-beat] [data-beat='0']"
-  );
+  const beat0 = document.querySelector("[data-chapter-multi-beat] [data-beat='0']");
   const opener = beat0?.querySelector("[data-band='opener']");
   const prose = opener?.querySelector("p");
   const slash = beat0?.querySelector("[data-beat-accent-slash]");
@@ -43,7 +41,8 @@ const geom = await page.evaluate(() => {
     openerTop: openerRect?.top,
     proseTop: proseRect?.top,
     slashTop: slashRect?.top,
-    gapMastheadToProse: proseRect && mastheadRect ? proseRect.top - mastheadRect.bottom : null,
+    gapMastheadToProse:
+      proseRect && mastheadRect ? proseRect.top - mastheadRect.bottom : null,
     slashBelowProse: slashRect && proseRect ? slashRect.top > proseRect.bottom : null,
   };
 });
