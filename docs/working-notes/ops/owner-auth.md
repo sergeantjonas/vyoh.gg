@@ -121,7 +121,7 @@ Things that don't exist yet but will plausibly want the same guard. Cataloguing 
 - **Draft / preview surfaces** — render an unpublished `ConclusionCard` against live data without exposing it to visitors. Owner-only `?preview=true` toggle.
 - **Secret-rotation indicators** — surface "Riot key expires in N days" on the status page; owner sees the countdown, public visitors don't. (Read-only but sensitive — the *value* is what's gated, not an action.)
 - **Manual cache invalidation** — drop a specific cache key after debugging.
-- **Live-config edits** — edit the SteamID64 list, the LoL account roster, or polling intervals via UI rather than `accounts.json` git-commit. Cross-cutting with `IdentityService`'s hot-reload; out of scope for chunk 1 but worth keeping in view.
+- **Live-config edits — accounts roster** is now its own arc, planned 2026-06-06 in [accounts-admin.md](accounts-admin.md). Sequences after chunk 1 here (consumes `OwnerGuard`). Polling-interval toggles and per-integration enable/disable stay catalogued under this list.
 
 The pattern is the same in every case: a NestJS controller decorated with `@UseGuards(OwnerGuard)`, a React surface that renders disabled with a tooltip when `viewer.isOwner` is false.
 

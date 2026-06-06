@@ -1,10 +1,34 @@
+import { m, useReducedMotion } from "motion/react";
 import type { CSSProperties } from "react";
 
-import type { VerdictClause } from "@vyoh/shared";
+import type { VerdictClause, VerdictSegment } from "@vyoh/shared";
 
 import { CountUp } from "@/components/count-up";
 
 import { parseAnimatableNumber } from "./parse-animatable-number";
+
+/** Find the (clauseIdx, segIdx) of the segment that should carry the
+ *  first-word kinetic — the verdict's editorial "lead" word. Prefers the
+ *  first `emphasis` segment (verdict adjective like "AGGRESSIVE",
+ *  "SURGICAL") since those are already typographically heavyweight;
+ *  falls back to the first `subject` segment (champion name on Ahri /
+ *  game name on Steam) when no emphasis exists; falls back further to
+ *  the first segment of any kind so the kinetic never silently drops.
+ *  Returns `null` for an empty clauses array. */
+function findHeroSegment(
+  clauses: readonly VerdictClause[]
+): { clauseIdx: number; segIdx: number } | null {
+  const preferred: VerdictSegment["kind"][] = ["emphasis", "subject"];
+  for (const kind of preferred) {
+    for (let ci = 0; ci < clauses.length; ci += 1) {
+      const clause = clauses[ci] ?? [];
+      const idx = clause.findIndex((s) => s.kind === kind);
+      if (idx >= 0) return { clauseIdx: ci, segIdx: idx };
+    }
+  }
+  if (clauses[0]?.[0]) return { clauseIdx: 0, segIdx: 0 };
+  return null;
+}
 
 type Props = {
   clauses: VerdictClause[];
@@ -39,6 +63,24 @@ type Props = {
    * verdict-tier reveal).
    */
   numbersDelay?: number;
+  /**
+   * Gates the "first-word typographic kinetic" — a post-arrival pulse
+   * on the verdict's editorial lead word (the first emphasis segment,
+   * fallback subject, fallback first-segment-of-any-kind). Scales from
+   * 1.4 + blurs from 6px into a settled state, on top of whatever the
+   * surrounding ChapterReveal is doing. Default `false` so direct
+   * test/storybook renders stay static; subject chapters thread their
+   * `nudged` flag.
+   */
+  firstWordKinetic?: boolean;
+  /**
+   * Seconds to delay the first-word kinetic after `firstWordKinetic`
+   * flips to `true`. Tuned to land AFTER the surrounding ChapterReveal
+   * settles so the lead-word pop reads as a deliberate punch-out on
+   * already-readable prose, not a competing entrance. Typical value:
+   * `numbersDelay - 0.3` so the pulse opens the count-up cascade.
+   */
+  firstWordKineticDelay?: number;
 };
 
 /**
@@ -69,7 +111,34 @@ export function VerdictProse({
   emphasisStyle,
   numbersActive = true,
   numbersDelay = 0,
+  firstWordKinetic = false,
+  firstWordKineticDelay = 0,
 }: Props) {
+  const reduced = useReducedMotion();
+  const hero = firstWordKinetic && !reduced ? findHeroSegment(clauses) : null;
+  /** Wrap the hero segment in a motion.span that scales + blurs + opacity-
+   *  fades from a pre-arrival state. Other segments pass through. The
+   *  motion span is `inline-block` so the transform doesn't collapse to
+   *  the inline parent's text baseline incorrectly under Safari. */
+  const renderSegment = (node: React.ReactNode, ci: number, si: number) => {
+    if (hero?.clauseIdx === ci && hero?.segIdx === si) {
+      return (
+        <m.span
+          className="inline-block"
+          initial={{ scale: 1.4, opacity: 0, filter: "blur(6px)" }}
+          animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+          transition={{
+            duration: 0.55,
+            ease: [0.16, 1, 0.3, 1],
+            delay: firstWordKineticDelay,
+          }}
+        >
+          {node}
+        </m.span>
+      );
+    }
+    return node;
+  };
   return (
     <p
       className={[
@@ -100,7 +169,7 @@ export function VerdictProse({
               case "text":
                 return (
                   <span key={segKey} className="text-foreground/80">
-                    {seg.value}
+                    {renderSegment(seg.value, ci, si)}
                   </span>
                 );
               case "number": {
@@ -118,13 +187,19 @@ export function VerdictProse({
                       key={segKey}
                       className="font-semibold tabular-nums text-foreground"
                     >
-                      <CountUp
-                        to={seg.raw}
-                        decimals={parsed.decimals}
-                        start={numbersActive}
-                        delay={numbersDelay}
-                      />
-                      {parsed.suffix}
+                      {renderSegment(
+                        <>
+                          <CountUp
+                            to={seg.raw}
+                            decimals={parsed.decimals}
+                            start={numbersActive}
+                            delay={numbersDelay}
+                          />
+                          {parsed.suffix}
+                        </>,
+                        ci,
+                        si
+                      )}
                     </span>
                   );
                 }
@@ -133,7 +208,7 @@ export function VerdictProse({
                     key={segKey}
                     className="font-semibold tabular-nums text-foreground"
                   >
-                    {seg.value}
+                    {renderSegment(seg.value, ci, si)}
                   </span>
                 );
               }
@@ -147,19 +222,19 @@ export function VerdictProse({
                       ...emphasisStyle,
                     }}
                   >
-                    {seg.value}
+                    {renderSegment(seg.value, ci, si)}
                   </span>
                 );
               case "subject":
                 return (
                   <span key={segKey} className="font-semibold italic text-foreground">
-                    {seg.value}
+                    {renderSegment(seg.value, ci, si)}
                   </span>
                 );
               case "opponent":
                 return (
                   <span key={segKey} className="font-medium italic text-foreground/95">
-                    {seg.value}
+                    {renderSegment(seg.value, ci, si)}
                   </span>
                 );
             }

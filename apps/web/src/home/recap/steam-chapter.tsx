@@ -777,6 +777,11 @@ export function SteamChapter({
                 }}
                 numbersActive={nudged}
                 numbersDelay={2.0}
+                // First-word kinetic (R-12.8) — lead-word scale+blur
+                // pulse after the slower Steam verdict reveal settles
+                // (delay 0.8 + duration 1.05 + settle = 1.85s).
+                firstWordKinetic={nudged}
+                firstWordKineticDelay={1.75}
               />
             </ChapterReveal>
           </div>

@@ -33,6 +33,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 - **Owner auth (pre-deploy)** — GitHub OAuth + `OwnerGuard` to gate the three unguarded status POSTs and forward-looking admin surfaces (including the new status-page triggers below). Plan written 2026-05-14; deferred until pre-deploy sweep, not gated to Steam S2 finishing. → [owner-auth.md](ops/owner-auth.md)
 - **Status page admin surface** — (a) surface Steam sync status/progress alongside the existing LoL sync rows; (b) add manually-triggerable LoL sync actions (patch note fetch, future: backfills) as explicit buttons/endpoints in the status page. Gate both behind GitHub OAuth (depends on the owner-auth item above) before exposing. → [owner-auth.md](ops/owner-auth.md)
+- **Accounts admin (DB-backed roster)** — replace `apps/api/accounts.json` with `LolAccount` + `SteamAccount` Prisma tables; admin CRUD on the status page gated by `OwnerGuard`. Pairs with owner-auth (chunk 1 prerequisite). Bundles a Chunk 0 bug fix: `home-first-played` uses all-account filter when it should use owner-only. Plan written 2026-06-06. → [accounts-admin.md](ops/accounts-admin.md)
 - **API ValidationPipe V3** — V1 (global pipe) + V2 (GET param DTOs) shipped 2026-05-18; V3 covers POST/PUT/PATCH bodies and sequences with owner-auth. → [project-hygiene-2026-05-18.md § Chunked plan](cross-cutting/project-hygiene-2026-05-18.md#chunked-plan-2026-05-18)
 
 ## Adjacent maintenance (sub-session each)

@@ -693,6 +693,14 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                 // Matches Steam beat 0's timing.
                 numbersActive={nudged}
                 numbersDelay={1.85}
+                // First-word kinetic: the verdict's hero word (first
+                // emphasis like "AGGRESSIVE", fallback to subject /
+                // first segment) scale-blurs in AFTER the ChapterReveal
+                // settles. Tuned to land just before the count-up cascade
+                // — opens the numbers' arrival rather than competing
+                // with the prose entrance (R-12.8).
+                firstWordKinetic={nudged}
+                firstWordKineticDelay={1.6}
               />
             </ChapterReveal>
           </div>
