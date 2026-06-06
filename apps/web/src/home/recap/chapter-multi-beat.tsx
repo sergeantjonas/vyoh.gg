@@ -15,6 +15,12 @@ import {
 import { mainScrollRef } from "@/lib/scroll-container";
 
 import { ChapterGroupNudgeContext } from "./chapter-group";
+import { EditorialChrome } from "./editorial-chrome";
+import {
+  ChapterMultiBeatContext,
+  type ChapterMultiBeatContextValue,
+  computeBeatRanges,
+} from "./use-beat-progress";
 import { useChapterNudge } from "./use-chapter-nudge";
 
 const SCROLL_RUNWAY_MULTIPLIER = 2.3;
@@ -149,6 +155,24 @@ function ChapterMultiBeatImpl(
   }, [beatCount]);
   const x = useTransform(scrollYProgress, stops, values);
 
+  // Beat ranges derived from the same piecewise stops the track translate
+  // uses. Exposed via `ChapterMultiBeatContext` so beats can derive their
+  // own enter/dwell/exit progress via `useBeatProgress(index)` without
+  // each beat re-deriving the partitioning from scratch.
+  const beatRanges = useMemo(
+    () => computeBeatRanges(stops, beatCount),
+    [stops, beatCount]
+  );
+  const contextValue = useMemo<ChapterMultiBeatContextValue>(
+    () => ({
+      scrollYProgress,
+      beatCount,
+      beatRanges,
+      reducedMotion: reducedMotion ?? false,
+    }),
+    [scrollYProgress, beatCount, beatRanges, reducedMotion]
+  );
+
   // Programmatic snap on scroll-end was tried (commit history) and
   // removed: even using the native `scrollend` event for timing, the
   // snap animation fought continuous user scrolling on Mac trackpad.
@@ -171,6 +195,39 @@ function ChapterMultiBeatImpl(
   if (reducedMotion) {
     return (
       <ChapterGroupNudgeContext.Provider value={entered}>
+        <ChapterMultiBeatContext.Provider value={contextValue}>
+          <section
+            ref={assignRef}
+            aria-roledescription="carousel"
+            aria-label={ariaLabel}
+            data-chapter={slug}
+            data-chapter-multi-beat=""
+            data-chapter-beat-count={beatCount}
+            data-reduced-motion=""
+            className={["relative w-full", className].filter(Boolean).join(" ")}
+          >
+            {identity ? (
+              <div data-chapter-masthead="" className="w-full">
+                {identity}
+              </div>
+            ) : null}
+            {children}
+            {/*
+              Editorial chrome is intentionally omitted under reduced
+              motion — beats render as a static vertical stack, so a
+              "Beat 02 / 04" page marker that tracks scroll position
+              has no spatial referent. Same content + no motion is the
+              standing reduced-motion contract for this chapter.
+            */}
+          </section>
+        </ChapterMultiBeatContext.Provider>
+      </ChapterGroupNudgeContext.Provider>
+    );
+  }
+
+  return (
+    <ChapterGroupNudgeContext.Provider value={entered}>
+      <ChapterMultiBeatContext.Provider value={contextValue}>
         <section
           ref={assignRef}
           aria-roledescription="carousel"
@@ -178,96 +235,82 @@ function ChapterMultiBeatImpl(
           data-chapter={slug}
           data-chapter-multi-beat=""
           data-chapter-beat-count={beatCount}
-          data-reduced-motion=""
-          className={["relative w-full", className].filter(Boolean).join(" ")}
+          // Section height = beatCount × SCROLL_RUNWAY_MULTIPLIER × main
+          // viewport. Sized in `var(--main-h)` (published by __root.tsx as
+          // `<main>`'s actual clientHeight in px) rather than `dvh`
+          // because the nav strip above main makes main shorter than the
+          // window. With dvh, the sticky stage was taller than main's
+          // viewport and released before Motion's useScroll progress
+          // reached 1.
+          //
+          // SCROLL_RUNWAY_MULTIPLIER (= 1.6) gives the chapter more total
+          // vertical scroll so each dwell + transition is substantial
+          // enough that a trackpad flick with momentum can't blow through
+          // a whole beat. With multiplier=1 (the natural beatCount×main-h
+          // section), one momentum swipe (~150vh) was enough to skip
+          // beats; at 1.6 each beat advance takes ~150vh so even a strong
+          // flick lands roughly on the next beat rather than past it.
+          //
+          // Full-bleed escape from the recap's `max-w-4xl` wrapper.
+          // `width: 100vw` extends to viewport edges; `margin-left:
+          // calc(50% - 50vw)` pulls the left edge out to balance.
+          // `[overflow-x: clip]` on `<main>` (set in __root.tsx) prevents
+          // a horizontal page scrollbar.
+          style={{
+            height: `calc(${beatCount * SCROLL_RUNWAY_MULTIPLIER} * var(--main-h, 100dvh))`,
+            width: "100vw",
+            marginLeft: "calc(50% - 50vw)",
+          }}
+          className={["relative", className].filter(Boolean).join(" ")}
         >
-          {identity ? (
-            <div data-chapter-masthead="" className="w-full">
-              {identity}
-            </div>
-          ) : null}
-          {children}
-        </section>
-      </ChapterGroupNudgeContext.Provider>
-    );
-  }
-
-  return (
-    <ChapterGroupNudgeContext.Provider value={entered}>
-      <section
-        ref={assignRef}
-        aria-roledescription="carousel"
-        aria-label={ariaLabel}
-        data-chapter={slug}
-        data-chapter-multi-beat=""
-        data-chapter-beat-count={beatCount}
-        // Section height = beatCount × SCROLL_RUNWAY_MULTIPLIER × main
-        // viewport. Sized in `var(--main-h)` (published by __root.tsx as
-        // `<main>`'s actual clientHeight in px) rather than `dvh`
-        // because the nav strip above main makes main shorter than the
-        // window. With dvh, the sticky stage was taller than main's
-        // viewport and released before Motion's useScroll progress
-        // reached 1.
-        //
-        // SCROLL_RUNWAY_MULTIPLIER (= 1.6) gives the chapter more total
-        // vertical scroll so each dwell + transition is substantial
-        // enough that a trackpad flick with momentum can't blow through
-        // a whole beat. With multiplier=1 (the natural beatCount×main-h
-        // section), one momentum swipe (~150vh) was enough to skip
-        // beats; at 1.6 each beat advance takes ~150vh so even a strong
-        // flick lands roughly on the next beat rather than past it.
-        //
-        // Full-bleed escape from the recap's `max-w-4xl` wrapper.
-        // `width: 100vw` extends to viewport edges; `margin-left:
-        // calc(50% - 50vw)` pulls the left edge out to balance.
-        // `[overflow-x: clip]` on `<main>` (set in __root.tsx) prevents
-        // a horizontal page scrollbar.
-        style={{
-          height: `calc(${beatCount * SCROLL_RUNWAY_MULTIPLIER} * var(--main-h, 100dvh))`,
-          width: "100vw",
-          marginLeft: "calc(50% - 50vw)",
-        }}
-        className={["relative", className].filter(Boolean).join(" ")}
-      >
-        <div
-          data-chapter-stage=""
-          // Flex column so the masthead sizes to its content and the
-          // track fills whatever's left. Avoids the empty-gap problem
-          // where a fixed `mastheadHeight` reserved more space than the
-          // title card actually rendered into — the leftover showed up
-          // as dead space between masthead and beat content.
-          className="sticky top-0 flex w-full flex-col overflow-hidden"
-          style={{ height: "var(--main-h, 100dvh)" }}
-        >
-          {identity ? (
-            <header
-              data-chapter-masthead=""
-              className="relative z-20 w-full shrink-0 overflow-hidden"
-            >
-              {/* Center the identity content within the full-bleed
+          <div
+            data-chapter-stage=""
+            // Flex column so the masthead sizes to its content and the
+            // track fills whatever's left. Avoids the empty-gap problem
+            // where a fixed `mastheadHeight` reserved more space than the
+            // title card actually rendered into — the leftover showed up
+            // as dead space between masthead and beat content.
+            className="sticky top-0 flex w-full flex-col overflow-hidden"
+            style={{ height: "var(--main-h, 100dvh)" }}
+          >
+            {identity ? (
+              <header
+                data-chapter-masthead=""
+                className="relative z-20 w-full shrink-0 overflow-hidden"
+              >
+                {/* Center the identity content within the full-bleed
                   masthead via a `max-w-4xl` reading column. Without this
                   wrapper the identity hugs the left edge of the viewport
                   on larger screens (titled content stranded with empty
                   space + backdrop on the right). */}
-              <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
-            </header>
-          ) : null}
-          <m.div
-            data-chapter-track=""
-            // `flex-1 min-h-0`: takes all remaining stage height after
-            // the masthead. `min-h-0` is required for the flex item to
-            // actually shrink — Firefox's default `min-height: auto`
-            // on flex items would otherwise let track height push
-            // upward into the masthead. Explicit width = beatCount ×
-            // 100% so the percentage translate maps to one beat per
-            // chapter scroll segment.
-            className="flex min-h-0 flex-1 flex-row will-change-transform"
-            style={{ x, width: `${beatCount * 100}%` }}
-          >
-            {children}
-          </m.div>
-        </div>
-      </section>
+                <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
+              </header>
+            ) : null}
+            <m.div
+              data-chapter-track=""
+              // `flex-1 min-h-0`: takes all remaining stage height after
+              // the masthead. `min-h-0` is required for the flex item to
+              // actually shrink — Firefox's default `min-height: auto`
+              // on flex items would otherwise let track height push
+              // upward into the masthead. Explicit width = beatCount ×
+              // 100% so the percentage translate maps to one beat per
+              // chapter scroll segment.
+              className="flex min-h-0 flex-1 flex-row will-change-transform"
+              style={{ x, width: `${beatCount * 100}%` }}
+            >
+              {children}
+            </m.div>
+            {/*
+            Editorial chrome (Beat N / M page marker + dot indices) is
+            mounted once inside the stage. Lives in the absolute layer
+            so it stays anchored to the stage corner regardless of
+            beat content height; `pointer-events-none` on the chrome
+            keeps clicks falling through to the beat beneath.
+          */}
+            <EditorialChrome />
+          </div>
+        </section>
+      </ChapterMultiBeatContext.Provider>
     </ChapterGroupNudgeContext.Provider>
   );
 }

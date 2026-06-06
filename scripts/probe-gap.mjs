@@ -26,7 +26,9 @@ const geom = await page.evaluate(() => {
     chain.push({
       tag: el.tagName,
       classes: el.className?.slice?.(0, 80),
-      dataAttrs: Array.from(el.attributes).filter(a => a.name.startsWith("data-")).map(a => a.name),
+      dataAttrs: Array.from(el.attributes)
+        .filter((a) => a.name.startsWith("data-"))
+        .map((a) => a.name),
       top: r.top,
       height: r.height,
       computedPaddingTop: getComputedStyle(el).paddingTop,

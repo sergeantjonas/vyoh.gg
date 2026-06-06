@@ -69,8 +69,7 @@ const bounds = await page.evaluate(() => {
     sectionTopInMain,
     sectionHeight,
     mainClientHeight: main.clientHeight,
-    progressOneScroll:
-      sectionTopInMain + sectionHeight - main.clientHeight,
+    progressOneScroll: sectionTopInMain + sectionHeight - main.clientHeight,
   };
 });
 
@@ -96,9 +95,7 @@ async function scrollToStatsBeat() {
 // shape for rect sampling.
 async function detectStatsLayout() {
   return await page.evaluate(() => {
-    const band = document.querySelector(
-      "[data-chapter-multi-beat] [data-band='stats']"
-    );
+    const band = document.querySelector("[data-chapter-multi-beat] [data-band='stats']");
     if (!band) return { found: false };
     // Each PeakChip is wrapped by a ChapterReveal which renders a
     // motion.div. So the band's direct children are the reveal wrappers;
@@ -130,9 +127,7 @@ async function detectStatsLayout() {
 
 function snapshotRects() {
   return page.evaluate(() => {
-    const band = document.querySelector(
-      "[data-chapter-multi-beat] [data-band='stats']"
-    );
+    const band = document.querySelector("[data-chapter-multi-beat] [data-band='stats']");
     if (!band) return null;
     const chips = Array.from(band.children).map((wrap) => {
       const inner = wrap.querySelector(":scope > div");
@@ -210,9 +205,7 @@ for (let chipIdx = 0; chipIdx < baseline.chips.length; chipIdx += 1) {
       tMs: s.tMs,
       delta: delta(baseRect, s.snap.chips[chipIdx]?.[part]),
     }));
-    const validDeltas = deltas
-      .map((d) => d.delta)
-      .filter((d) => d !== null);
+    const validDeltas = deltas.map((d) => d.delta).filter((d) => d !== null);
     const maxLeft = maxAbs(validDeltas, "dLeft");
     const maxTop = maxAbs(validDeltas, "dTop");
     const maxWidth = maxAbs(validDeltas, "dWidth");

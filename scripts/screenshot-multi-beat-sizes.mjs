@@ -60,7 +60,11 @@ for (const size of SIZES) {
           y,
           tag: el?.tagName,
           className: el?.className?.slice?.(0, 80),
-          dataAttrs: el ? Array.from(el.attributes).filter((a) => a.name.startsWith("data-")).map((a) => a.name) : null,
+          dataAttrs: el
+            ? Array.from(el.attributes)
+                .filter((a) => a.name.startsWith("data-"))
+                .map((a) => a.name)
+            : null,
         };
       })(),
     };

@@ -20,7 +20,9 @@ const bounds = await page.evaluate(() => {
   const chapter = document.querySelector("[data-chapter-multi-beat]");
   if (!chapter || !main) return null;
   const sectionTopInMain =
-    chapter.getBoundingClientRect().top + main.scrollTop - main.getBoundingClientRect().top;
+    chapter.getBoundingClientRect().top +
+    main.scrollTop -
+    main.getBoundingClientRect().top;
   const sectionHeight = chapter.getBoundingClientRect().height;
   return {
     sectionTopInMain,
@@ -35,7 +37,8 @@ console.log("BOUNDS:", JSON.stringify(bounds, null, 2));
 
 const progressPoints = [0, 0.25, 0.5, 0.75, 0.99];
 for (const p of progressPoints) {
-  const targetScroll = bounds.sectionTopInMain + p * (bounds.progressOneScroll - bounds.sectionTopInMain);
+  const targetScroll =
+    bounds.sectionTopInMain + p * (bounds.progressOneScroll - bounds.sectionTopInMain);
   await page.evaluate((s) => {
     document.querySelector("main").scrollTo({ top: s, behavior: "instant" });
   }, targetScroll);

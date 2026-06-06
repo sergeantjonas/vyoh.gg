@@ -133,9 +133,9 @@ describe("ChapterMultiBeat", () => {
         </MultiBeat>
       </ChapterMultiBeat>
     );
-    expect(container.querySelector("section")?.getAttribute("data-chapter-beat-count")).toBe(
-      "3"
-    );
+    expect(
+      container.querySelector("section")?.getAttribute("data-chapter-beat-count")
+    ).toBe("3");
   });
 
   it("passes axe with carousel + slide structure", async () => {

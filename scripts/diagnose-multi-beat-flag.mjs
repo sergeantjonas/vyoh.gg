@@ -20,10 +20,9 @@ async function probe(page, url, label) {
   // Wait for the Steam chapter to mount — gated by data fetch.
   // Try both chapter wrapper attrs; whichever appears first is the active path.
   try {
-    await page.waitForSelector(
-      "[data-chapter-group], [data-chapter-multi-beat]",
-      { timeout: 8_000 }
-    );
+    await page.waitForSelector("[data-chapter-group], [data-chapter-multi-beat]", {
+      timeout: 8_000,
+    });
   } catch {
     console.log("✗ neither chapter wrapper appeared within 8s");
     return;
@@ -51,8 +50,7 @@ async function probe(page, url, label) {
       beatNodeCount: beats.length,
       sampleBeatClass: sample?.className ?? null,
       sampleIsViewportWide:
-        sample?.className.includes("w-screen") &&
-        sample?.className.includes("shrink-0"),
+        sample?.className.includes("w-screen") && sample?.className.includes("shrink-0"),
     };
   });
 

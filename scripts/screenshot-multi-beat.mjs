@@ -30,9 +30,7 @@ await page.screenshot({ path: "/tmp/multi-beat-chapter.png", fullPage: false });
 // Beat 3 snap point ≈ chapter top + 210vh; we want beat 3 active.
 await page.evaluate(() => {
   const main = document.querySelector("main");
-  const beat3 = document.querySelector(
-    "[data-chapter-multi-beat] [data-beat='3']"
-  );
+  const beat3 = document.querySelector("[data-chapter-multi-beat] [data-beat='3']");
   if (beat3) {
     const beat3Top = beat3.getBoundingClientRect().top + main.scrollTop;
     // Land at beat 3's content area accounting for the 30vh masthead.
