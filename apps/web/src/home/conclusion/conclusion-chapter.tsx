@@ -174,7 +174,7 @@ export function ConclusionChapter() {
   const ACCENT_HEX = "#f0c878";
   const claim = useMemo<AtmosphereClaim>(
     () => ({ palette, intensity: 0.85, accentHex: ACCENT_HEX }),
-    [palette],
+    [palette]
   );
   useAssetClaim(outerRef, claim);
 
@@ -223,6 +223,16 @@ export function ConclusionChapter() {
         slug="conclusion"
         ariaLabel="The picture"
         identity={<ConclusionMasthead />}
+        // Lower scroll runway (1.3 vs the 2.3 default) + zero edge dwell
+        // (vs the 3-unit default). The conclusion is the last chapter;
+        // no trackpad-flick-through-the-next-beat risk exists at the page
+        // end, so the generous default runway just produces post-arrival
+        // empty scroll where nothing changes. edgeDwellUnits=0 also
+        // removes the "linger before unpin" that makes sense on
+        // middle-of-page chapters but reads as wasted scroll at the page
+        // end (user flagged this during R-15.1 review).
+        scrollRunwayMultiplier={1.3}
+        edgeDwellUnits={0}
       >
         {beatBodies.map((body, index) => (
           <MultiBeat

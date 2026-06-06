@@ -59,6 +59,28 @@ type Props = {
    * itself. Renders no DOM but the consumer reads context here.
    */
   contextEffect?: ReactNode;
+  /**
+   * Per-chapter override for `SCROLL_RUNWAY_MULTIPLIER`. The default
+   * (2.3) is tuned for chapters in the middle of the page where a
+   * trackpad flick with momentum could otherwise blow through a beat;
+   * the generous runway makes each dwell + transition substantial enough
+   * to absorb momentum. Closing chapters (no chapter follows) don't
+   * benefit from the buffer — extra runway just produces post-beat
+   * scroll where nothing changes, which reads as "unnecessary scrolling
+   * at the end." Pass a lower value (~1.3–1.6) for chapters at the page
+   * end. Omit for in-page chapters.
+   */
+  scrollRunwayMultiplier?: number;
+  /**
+   * Per-chapter override for `EDGE_DWELL_UNITS` (default 3). Controls how
+   * many scroll-units the first and last beats dwell BEYOND a normal
+   * middle-beat dwell. The default 3 makes edge beats linger so the
+   * chapter eases into the first beat (after masthead pin) and lingers
+   * on the last beat before unpinning. For closing chapters where the
+   * last-beat lingering produces scroll-where-nothing-changes (the page
+   * ends after the chapter), pass 0 or 1 to tighten the exit.
+   */
+  edgeDwellUnits?: number;
   children: ReactNode;
 };
 
@@ -93,7 +115,16 @@ type Props = {
  * content, no motion. Snap is not needed; the page is just a stack.
  */
 function ChapterMultiBeatImpl(
-  { slug, ariaLabel, className, identity, contextEffect, children }: Props,
+  {
+    slug,
+    ariaLabel,
+    className,
+    identity,
+    contextEffect,
+    scrollRunwayMultiplier,
+    edgeDwellUnits,
+    children,
+  }: Props,
   ref: Ref<HTMLElement>
 ) {
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -136,17 +167,18 @@ function ChapterMultiBeatImpl(
   const { stops, values } = useMemo(() => {
     const s: number[] = [];
     const v: string[] = [];
+    const resolvedEdgeDwell = edgeDwellUnits ?? EDGE_DWELL_UNITS;
     if (beatCount > 0) {
       const edgeCount = Math.min(beatCount, 2);
       const middleCount = Math.max(0, beatCount - 2);
       const totalUnits =
-        edgeCount * EDGE_DWELL_UNITS +
+        edgeCount * resolvedEdgeDwell +
         middleCount * DWELL_UNITS +
         Math.max(0, beatCount - 1) * TRANSITION_UNITS;
       let cumulative = 0;
       for (let i = 0; i < beatCount; i += 1) {
         const isEdge = i === 0 || i === beatCount - 1;
-        const dwellUnits = isEdge ? EDGE_DWELL_UNITS : DWELL_UNITS;
+        const dwellUnits = isEdge ? resolvedEdgeDwell : DWELL_UNITS;
         const beatPosition = `-${(i * 100) / beatCount}%`;
         s.push(cumulative / totalUnits);
         v.push(beatPosition);
@@ -160,7 +192,7 @@ function ChapterMultiBeatImpl(
       v.push("0%", "0%");
     }
     return { stops: s, values: v };
-  }, [beatCount]);
+  }, [beatCount, edgeDwellUnits]);
   const x = useTransform(scrollYProgress, stops, values);
 
   // Beat ranges derived from the same piecewise stops the track translate
@@ -266,7 +298,7 @@ function ChapterMultiBeatImpl(
           // `[overflow-x: clip]` on `<main>` (set in __root.tsx) prevents
           // a horizontal page scrollbar.
           style={{
-            height: `calc(${beatCount * SCROLL_RUNWAY_MULTIPLIER} * var(--main-h, 100dvh))`,
+            height: `calc(${beatCount * (scrollRunwayMultiplier ?? SCROLL_RUNWAY_MULTIPLIER)} * var(--main-h, 100dvh))`,
             width: "100vw",
             marginLeft: "calc(50% - 50vw)",
           }}
