@@ -700,8 +700,15 @@ export function SteamChapter({
   // band's default `pt-12`/`pb-12` "breathing room" (from chapter-bands.tsx,
   // intended for stacked bands) to a tighter `pt-8`/`pb-6` since beats
   // no longer stack vertically — they swap via the multi-beat track.
+  //
+  // Horizontal padding lives *inside* the `max-w-4xl` band box, not on
+  // the outer flex wrapper, so the band's effective reading-column edges
+  // line up with the chapter masthead's 4xl box (which also carries its
+  // px inside the 4xl wrapper, see `ChapterMultiBeat`'s identity slot).
+  // Without this, beat content's reading column was 2 × px wider than
+  // the masthead — the title sat indented from the prose / chips below.
   const BEAT_LAYOUT =
-    "flex flex-col items-center justify-start px-6 sm:px-10 [&>[data-band]]:!max-w-4xl [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
+    "flex flex-col items-center justify-start [&>[data-band]]:!max-w-4xl [&>[data-band]]:!w-full [&>[data-band]]:!px-6 sm:[&>[data-band]]:!px-10 [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
 
   // Beat bodies as render-prop functions so the `nudged` flag (per-beat
   // active state from `<MultiBeat>`) can be threaded into each body's

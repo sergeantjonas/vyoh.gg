@@ -491,8 +491,15 @@ export function AhriChapter({ account }: { account: LolAccount }) {
   // beat IS one viewport and the bands no longer stack vertically, so
   // the breathing-room defaults read as wasted space. Same idiom as the
   // Steam chapter's `BEAT_LAYOUT`.
+  //
+  // Horizontal padding lives *inside* the `max-w-4xl` band box, not on
+  // the outer flex wrapper, so the band's effective reading-column edges
+  // line up with the chapter masthead's 4xl box (which also carries its
+  // px inside the 4xl wrapper, see `ChapterMultiBeat`'s identity slot).
+  // Without this, beat content's reading column was 2 × px wider than
+  // the masthead — the title sat indented from the verdict prose below.
   const BEAT_LAYOUT =
-    "flex flex-col items-center justify-start px-6 sm:px-10 [&>[data-band]]:!max-w-4xl [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
+    "flex flex-col items-center justify-start [&>[data-band]]:!max-w-4xl [&>[data-band]]:!w-full [&>[data-band]]:!px-6 sm:[&>[data-band]]:!px-10 [&>[data-band]]:!pt-8 [&>[data-band]]:!pb-6";
 
   // Beat bodies as render-prop functions — `nudged` is per-beat active
   // state from `<MultiBeat>` so each beat's reveal cascade fires when its
