@@ -1,10 +1,4 @@
-import {
-  m,
-  motionValue,
-  useMotionValue,
-  useMotionValueEvent,
-  useTransform,
-} from "motion/react";
+import { m, motionValue, useMotionValue, useMotionValueEvent } from "motion/react";
 import { Fragment, useContext, useEffect, useRef, useState } from "react";
 
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -181,14 +175,6 @@ export function EditorialChrome() {
     }
   );
 
-  // Chrome fades with the chapter's scroll progress so it doesn't
-  // persist into the next chapter as the sticky stage exits upward.
-  const opacity = useTransform(
-    context?.scrollYProgress ?? FALLBACK_PROGRESS,
-    [0, 0.03, 0.97, 1],
-    [0, 1, 1, 0]
-  );
-
   // Compute the main scrollTop that puts beat `i`'s dwell midpoint at
   // the chapter's pin position, then smooth-scroll there. Mirrors the
   // section/progress math Motion's `useScroll({ offset: ["start
@@ -222,16 +208,19 @@ export function EditorialChrome() {
       data-editorial-chrome=""
       // Outer wrapper is `pointer-events-none` so static chrome doesn't
       // intercept clicks falling toward the beat content. The number
-      // buttons inside re-enable pointer events on themselves. The
-      // IntersectionObserver-driven `hidden` class is the WebKit-safe
-      // hard hide once the chapter exits viewport; opacity handles the
-      // soft fade at the boundaries for engines that report progress
-      // cleanly.
+      // buttons inside re-enable pointer events on themselves.
+      //
+      // Visibility: the rAF-driven `chapterInViewport` state above
+      // controls show/hide. An earlier `scrollYProgress`-driven opacity
+      // fade ([0, 0.03, 0.97, 1] → [0, 1, 1, 0]) was removed because
+      // Motion's useScroll rAF fallback on Firefox doesn't update
+      // scrollYProgress from programmatic scrollTo until subsequent
+      // scroll events fire — caret-jumps left the chrome at opacity 0
+      // even though display:block was correctly set. The rAF gate alone
+      // is sufficient; the chrome appears immediately when the chapter
+      // is in its pin range and disappears the moment it isn't.
       className="pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10"
-      // Inline `display: none` when chapter is out of viewport wins
-      // over any CSS class ordering and engine-specific sticky quirks.
       style={{
-        opacity,
         display: chapterInViewport ? undefined : "none",
       }}
     >
