@@ -24,7 +24,7 @@ const probe = async () => {
     );
     if (!chrome) return { mounted: false };
     const text = chrome.textContent ?? "";
-    const dots = Array.from(chrome.querySelectorAll("li"));
+    const dots = Array.from(chrome.querySelectorAll('button[aria-label^="Go to beat"]'));
     const activeIdx = dots.findIndex((d) => d.hasAttribute("data-active"));
     const rect = chrome.getBoundingClientRect();
     // ScrollToTop lives bottom-right of <main>; NextChapterCaret is

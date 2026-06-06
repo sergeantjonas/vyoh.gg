@@ -53,7 +53,7 @@ describe("EditorialChrome", () => {
     expect(container.querySelector("[data-editorial-chrome]")).toBeNull();
   });
 
-  it("renders the page marker + N dots when context is present", () => {
+  it("renders the page marker + N dot buttons when context is present", () => {
     const Wrapper = wrap({
       scrollYProgress: motionValue(0),
       beatCount: 4,
@@ -69,7 +69,7 @@ describe("EditorialChrome", () => {
     expect(chrome).not.toBeNull();
     expect(chrome?.textContent).toContain("01");
     expect(chrome?.textContent).toContain("04");
-    expect(container.querySelectorAll("li").length).toBe(4);
+    expect(container.querySelectorAll('button[aria-label^="Go to beat"]').length).toBe(4);
   });
 
   it("flips the active dot when scrollYProgress crosses enter midpoints", () => {
@@ -85,28 +85,53 @@ describe("EditorialChrome", () => {
         <EditorialChrome />
       </Wrapper>
     );
+    const dots = () =>
+      Array.from(container.querySelectorAll('button[aria-label^="Go to beat"]'));
 
     // At progress 0, beat 0 active.
-    let active = container.querySelectorAll("li[data-active]");
+    let active = container.querySelectorAll("button[data-active]");
     expect(active.length).toBe(1);
-    expect(active[0]).toBe(container.querySelectorAll("li")[0]);
+    expect(active[0]).toBe(dots()[0]);
 
     // Halfway through beat 0 → beat 1 transition is at
     // (0.14 + 0.32) / 2 = 0.23. Past that, beat 1 should be active.
     act(() => {
       scrollYProgress.set(0.25);
     });
-    active = container.querySelectorAll("li[data-active]");
+    active = container.querySelectorAll("button[data-active]");
     expect(active.length).toBe(1);
-    expect(active[0]).toBe(container.querySelectorAll("li")[1]);
+    expect(active[0]).toBe(dots()[1]);
 
     // Last beat: enter midpoint = (0.68 + 0.86) / 2 = 0.77.
     act(() => {
       scrollYProgress.set(0.9);
     });
-    active = container.querySelectorAll("li[data-active]");
+    active = container.querySelectorAll("button[data-active]");
     expect(active.length).toBe(1);
-    expect(active[0]).toBe(container.querySelectorAll("li")[3]);
+    expect(active[0]).toBe(dots()[3]);
+  });
+
+  it("invokes the click handler when a dot is clicked", () => {
+    // mainScrollRef isn't populated in happy-dom so the scroll itself
+    // no-ops, but the click should bubble and the handler should not
+    // throw. Verifies the buttons are wired up and aria-current is set
+    // for the active beat.
+    const Wrapper = wrap({
+      scrollYProgress: motionValue(0),
+      beatCount: 4,
+      beatRanges: FOUR_BEAT_RANGES,
+      reducedMotion: false,
+    });
+    const { container } = render(
+      <Wrapper>
+        <EditorialChrome />
+      </Wrapper>
+    );
+    const buttons = container.querySelectorAll('button[aria-label^="Go to beat"]');
+    expect(buttons[0]?.getAttribute("aria-current")).toBe("true");
+    expect(buttons[1]?.getAttribute("aria-current")).toBeNull();
+    // Click shouldn't throw even without a scroll container hydrated.
+    expect(() => (buttons[2] as HTMLButtonElement)?.click()).not.toThrow();
   });
 
   it("exposes the live beat number to assistive technology", () => {

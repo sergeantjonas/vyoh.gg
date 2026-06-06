@@ -1,5 +1,7 @@
 import { m, motionValue, useMotionValueEvent, useTransform } from "motion/react";
-import { useContext, useState } from "react";
+import { useContext, useRef, useState } from "react";
+
+import { mainScrollRef } from "@/lib/scroll-container";
 
 import { type BeatRange, ChapterMultiBeatContext } from "./use-beat-progress";
 
@@ -62,6 +64,7 @@ function pickActiveBeat(progress: number, ranges: BeatRange[]): number {
  */
 export function EditorialChrome() {
   const context = useContext(ChapterMultiBeatContext);
+  const chromeRef = useRef<HTMLDivElement | null>(null);
   // Lazy init: pick active beat from the current scrollYProgress on
   // mount. Without this, the chrome lags one update behind on SPA
   // navigation or any mid-scroll mount until the next change event
@@ -69,6 +72,30 @@ export function EditorialChrome() {
   const [activeBeat, setActiveBeat] = useState(() =>
     context ? pickActiveBeat(context.scrollYProgress.get(), context.beatRanges) : 0
   );
+
+  // Compute the main scrollTop that puts beat `i`'s dwell midpoint at
+  // the chapter's pin position, then smooth-scroll there. Mirrors the
+  // section/progress math Motion's `useScroll({ offset: ["start
+  // start", "end end"] })` uses inside `<ChapterMultiBeat>`:
+  // progress = (scrollTop − sectionTopInMain) / (sectionHeight −
+  // mainHeight). Inverted to solve for scrollTop at the desired
+  // progress fraction.
+  const navigateToBeat = (beatIndex: number) => {
+    if (!context) return;
+    const range = context.beatRanges[beatIndex];
+    if (!range) return;
+    const chrome = chromeRef.current;
+    if (!chrome) return;
+    const chapterSection = chrome.closest<HTMLElement>("[data-chapter-multi-beat]");
+    const main = mainScrollRef.current;
+    if (!chapterSection || !main) return;
+    const sectionRect = chapterSection.getBoundingClientRect();
+    const sectionTopInMain = sectionRect.top + main.scrollTop;
+    const dwellMid = (range.dwellStart + range.dwellEnd) / 2;
+    const targetScroll =
+      sectionTopInMain + dwellMid * (sectionRect.height - main.clientHeight);
+    main.scrollTo({ top: targetScroll, behavior: "smooth" });
+  };
 
   useMotionValueEvent(
     // Always subscribe to a MotionValue so hooks fire unconditionally —
@@ -108,11 +135,14 @@ export function EditorialChrome() {
 
   return (
     <m.div
+      ref={chromeRef}
       data-editorial-chrome=""
-      // pointer-events-none so the chrome never intercepts clicks on
-      // beat content beneath it. The marker is purely decorative.
-      // Bottom-left mirrors the global ScrollToTop (bottom-right) on
-      // the opposite corner; bottom-center is the NextChapterCaret.
+      // Outer wrapper is `pointer-events-none` so static text doesn't
+      // intercept clicks falling toward the beat content. The dot
+      // buttons inside re-enable pointer events on themselves for
+      // navigation. Bottom-left mirrors the global ScrollToTop
+      // (bottom-right) on the opposite corner; bottom-center is the
+      // NextChapterCaret.
       className="pointer-events-none absolute bottom-4 left-6 z-10 select-none sm:bottom-6 sm:left-10"
       // Fade with the chapter's scroll progress so the chrome doesn't
       // persist into the next chapter as the sticky stage exits
@@ -133,26 +163,42 @@ export function EditorialChrome() {
         than UI module.
       */}
       <div className="flex flex-col items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1.5 backdrop-blur-md">
-        <ul aria-hidden="true" className="flex items-center gap-1.5">
+        {/*
+          Beat navigation. Each dot is a button that scrolls main to
+          put that beat's dwell midpoint at the chapter's pin position.
+          `role="group"` + a group label per W3C APG Carousel pattern.
+          No arrow-key handler — APG reserves arrow keys for native
+          scroll (per repo-conventions.md), and clicks already cover
+          direct beat access; tab order steps through the buttons.
+        */}
+        <div
+          // biome-ignore lint/a11y/useSemanticElements: <fieldset> is for form-control groups; this is a navigation button group
+          role="group"
+          aria-label="Beat navigation"
+          className="flex items-center gap-1.5"
+        >
           {Array.from({ length: beatCount }, (_, i) => (
-            <li
+            <button
               // biome-ignore lint/suspicious/noArrayIndexKey: beat index is the stable identity here
               key={i}
+              type="button"
               data-active={i === activeBeat ? "" : undefined}
-              // Active dot fills with accent; inactive ones are outlined
-              // against the chip's dark backdrop so they stay legible
-              // without needing extra contrast tricks. Smooth color
-              // transition makes the active flip read as a flicker
-              // rather than a jump.
+              aria-label={`Go to beat ${i + 1} of ${beatCount}`}
+              aria-current={i === activeBeat ? "true" : undefined}
+              onClick={() => navigateToBeat(i)}
+              // pointer-events-auto re-enables clicks on just the
+              // buttons (outer chrome wrapper is pointer-events-none).
+              // hover:scale + focus-visible ring give the dot a clear
+              // affordance without changing its rest-state weight.
               className={[
-                "h-1.5 w-1.5 rounded-full border border-white/55 transition-colors duration-200",
+                "pointer-events-auto h-1.5 w-1.5 cursor-pointer rounded-full border border-white/55 transition-all duration-200 hover:scale-150 focus-visible:scale-150 focus-visible:outline-2 focus-visible:outline-white/80 focus-visible:outline-offset-2",
                 i === activeBeat
                   ? "border-[var(--accent,currentColor)] bg-[var(--accent,currentColor)]"
-                  : "bg-transparent",
+                  : "bg-transparent hover:border-white/85",
               ].join(" ")}
             />
           ))}
-        </ul>
+        </div>
         <p className="text-[10px] font-medium uppercase tracking-[0.25em] text-white/85">
           {/*
             Magazine-style page indicator — number only, no label.
