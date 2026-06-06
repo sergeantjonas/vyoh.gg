@@ -67,15 +67,13 @@ const parseScaleX = (t) => {
 
 const failures = [];
 if (!atTop) failures.push("progress line not found");
-const top = atTop ? parseScaleX(atTop.transform) : NaN;
-const half = atHalf ? parseScaleX(atHalf.transform) : NaN;
-const end = atEnd ? parseScaleX(atEnd.transform) : NaN;
+const top = atTop ? parseScaleX(atTop.transform) : Number.NaN;
+const half = atHalf ? parseScaleX(atHalf.transform) : Number.NaN;
+const end = atEnd ? parseScaleX(atEnd.transform) : Number.NaN;
 console.log(`scaleX: top=${top}, half=${half}, end=${end}`);
 if (top > 0.1) failures.push(`scaleX at chapter top should be ~0, got ${top}`);
-if (half < 0.3 || half > 0.7)
-  failures.push(`scaleX at 50% should be ~0.5, got ${half}`);
-if (end < 0.85)
-  failures.push(`scaleX at 95% should approach 1, got ${end}`);
+if (half < 0.3 || half > 0.7) failures.push(`scaleX at 50% should be ~0.5, got ${half}`);
+if (end < 0.85) failures.push(`scaleX at 95% should approach 1, got ${end}`);
 
 // Line should sit AT the masthead's bottom edge.
 if (atTop && Math.abs(atTop.lineTop + atTop.lineHeight - atTop.headerBottom) > 2)
