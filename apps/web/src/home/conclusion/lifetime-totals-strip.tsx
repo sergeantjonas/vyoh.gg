@@ -1,14 +1,21 @@
+import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { useHomeLifetimeTotals } from "@/home/use-home-lifetime-totals";
 import { formatHoursMinutes } from "@vyoh/shared";
 
 function Chip({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex min-w-32 flex-col items-center gap-1 rounded-md border bg-card/40 px-4 py-3">
-      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-base font-semibold tabular-nums text-foreground/90">
+    <div className="flex min-w-28 flex-col items-center gap-1">
+      <span
+        className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+        style={{ textShadow: SHADOW_BODY }}
+      >
         {value}
+      </span>
+      <span
+        className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+        style={{ textShadow: SHADOW_LABEL }}
+      >
+        {label}
       </span>
     </div>
   );
@@ -76,11 +83,14 @@ export function LifetimeTotalsStrip() {
   const query = useHomeLifetimeTotals();
   const data = query.data;
   return (
-    <section className="flex flex-col items-center gap-3 px-6 py-4 text-center">
-      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+    <section className="flex flex-col items-center gap-4 text-center">
+      <span
+        className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+        style={{ textShadow: SHADOW_LABEL }}
+      >
         Since launch
       </span>
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
         {data ? (
           <>
             <Chip label="LoL matches" value={formatCompactInt(data.lolMatchCount)} />

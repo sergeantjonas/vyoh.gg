@@ -1,14 +1,21 @@
+import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { useHomeToday } from "@/home/use-home-today";
 import { formatHoursMinutes } from "@vyoh/shared";
 
 function Chip({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex min-w-32 flex-col items-center gap-1 rounded-md border bg-card/40 px-4 py-3">
-      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-base font-semibold tabular-nums text-foreground/90">
+    <div className="flex min-w-28 flex-col items-center gap-1">
+      <span
+        className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+        style={{ textShadow: SHADOW_BODY }}
+      >
         {value}
+      </span>
+      <span
+        className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+        style={{ textShadow: SHADOW_LABEL }}
+      >
+        {label}
       </span>
     </div>
   );
@@ -27,9 +34,9 @@ function Dash() {
 function formatMatches(count: number, wins: number, losses: number): React.ReactNode {
   if (count === 0) return <Dash />;
   return (
-    <span className="flex items-baseline gap-1.5">
+    <span className="inline-flex items-baseline gap-1.5">
       <span>{count}</span>
-      <span className="text-[10px] font-normal text-muted-foreground">
+      <span className="text-[11px] font-normal text-foreground/60">
         {wins}W {losses}L
       </span>
     </span>
@@ -66,11 +73,14 @@ export function TodayStrip() {
   const query = useHomeToday();
   const data = query.data;
   return (
-    <section className="flex flex-col items-center gap-3 px-6 py-4 text-center">
-      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+    <section className="flex flex-col items-center gap-4 text-center">
+      <span
+        className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+        style={{ textShadow: SHADOW_LABEL }}
+      >
         Last 24 hours
       </span>
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
         {data ? (
           <>
             <Chip

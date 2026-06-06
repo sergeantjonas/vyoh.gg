@@ -1,3 +1,4 @@
+import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { useSteamPlayerState } from "@/steam/use-player-state";
@@ -79,14 +80,25 @@ export function NowPlayingStrip() {
   if (!stream) return null;
 
   return (
-    <section className="flex justify-center px-6 py-3">
-      <div className="inline-flex items-center gap-2.5 rounded-full border bg-card/40 px-3 py-1.5 text-xs text-foreground/90">
+    <section className="flex justify-center">
+      <div className="inline-flex items-center gap-3 text-sm text-foreground/90">
         <StreamDot kind={stream.kind} />
-        <span className="font-medium uppercase tracking-[0.15em] text-muted-foreground">
+        <span
+          className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+          style={{ textShadow: SHADOW_LABEL }}
+        >
           Now playing
         </span>
-        <span className="font-medium">{stream.primary}</span>
-        <span className="border-l pl-2.5 text-muted-foreground tabular-nums">
+        <span className="font-medium" style={{ textShadow: SHADOW_BODY }}>
+          {stream.primary}
+        </span>
+        <span aria-hidden className="text-foreground/40">
+          ·
+        </span>
+        <span
+          className="text-foreground/65 tabular-nums"
+          style={{ textShadow: SHADOW_LABEL }}
+        >
           {stream.detail}
         </span>
       </div>

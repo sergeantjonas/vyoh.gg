@@ -1,5 +1,6 @@
-import { CardTitle } from "@/components/ui/card-title";
+import { SectionTitle } from "@/components/ui/section-title";
 import { Sparkline } from "@/components/ui/sparkline";
+import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import type { RankHistoryPoint } from "@vyoh/shared";
@@ -63,22 +64,31 @@ export function RankTrajectoryStrip() {
   );
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
-      <header className="flex flex-col gap-1">
-        <CardTitle>Trajectory</CardTitle>
-        <p className="text-sm text-muted-foreground">
+    <section className="flex flex-col gap-4">
+      <header className="flex flex-col items-center gap-1 text-center">
+        <SectionTitle style={{ textShadow: SHADOW_LABEL }}>Trajectory</SectionTitle>
+        <p className="text-sm text-foreground/65" style={{ textShadow: SHADOW_LABEL }}>
           Solo queue · last 30 days ·{" "}
-          <span className="font-medium text-foreground/80 tabular-nums">
+          <span
+            className="font-medium tabular-nums text-foreground/85"
+            style={{ textShadow: SHADOW_BODY }}
+          >
             {deltaString}
           </span>
         </p>
       </header>
       <div className="flex items-center gap-4">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <span
+            className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
             From
           </span>
-          <span className="text-sm font-medium tabular-nums text-foreground/80">
+          <span
+            className="text-sm font-medium tabular-nums text-foreground/85"
+            style={{ textShadow: SHADOW_BODY }}
+          >
             {startRank}
           </span>
         </div>
@@ -91,10 +101,16 @@ export function RankTrajectoryStrip() {
           aria-label="30-day solo queue LP trajectory"
         />
         <div className="flex flex-col items-end gap-0.5">
-          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <span
+            className="text-[10px] uppercase tracking-[0.2em] text-foreground/70"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
             To
           </span>
-          <span className="text-sm font-semibold tabular-nums text-foreground/90">
+          <span
+            className="text-sm font-semibold tabular-nums text-foreground"
+            style={{ textShadow: SHADOW_BODY }}
+          >
             {endRank}
           </span>
         </div>

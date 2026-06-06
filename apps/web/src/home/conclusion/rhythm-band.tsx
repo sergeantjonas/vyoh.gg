@@ -1,4 +1,5 @@
-import { CardTitle } from "@/components/ui/card-title";
+import { SectionTitle } from "@/components/ui/section-title";
+import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { useHomeChronotype } from "@/home/use-home-chronotype";
 import { useHomeDaySplit } from "@/home/use-home-day-split";
 import { useHomeSessionLengths } from "@/home/use-home-session-lengths";
@@ -394,17 +395,17 @@ function SessionBar({
 /**
  * Conclusion rhythm band — three orthogonal lenses on activity shape.
  * Absorbs the three bento tiles `TileChronotype`, `TileDaySplit`, and
- * `TileSessionLengths` into one editorial beat. The strips share a single
- * card shell rather than each carrying their own chrome — per the page-
- * composition convention (chrome belongs at the lowest level that visually
- * groups heterogeneous content), one editorial beat = one chromed wrapper.
+ * `TileSessionLengths` into one editorial beat. Bare-typography register
+ * matches the other multi-beat chapters (Ahri, Steam subjects); the band
+ * lives directly against the conclusion palette backdrop without card
+ * chrome.
  */
 export function ConclusionRhythmBand() {
   return (
-    <section className="flex flex-col gap-4 rounded-lg border bg-card/50 p-4">
-      <header className="flex flex-col gap-1">
-        <CardTitle>Rhythm</CardTitle>
-        <p className="text-sm text-muted-foreground">
+    <section className="flex flex-col gap-5">
+      <header className="flex flex-col items-center gap-1 text-center">
+        <SectionTitle style={{ textShadow: SHADOW_LABEL }}>Rhythm</SectionTitle>
+        <p className="text-sm text-foreground/65" style={{ textShadow: SHADOW_BODY }}>
           When events land, where the hours go, how long a sitting lasts.
         </p>
       </header>
