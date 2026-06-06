@@ -297,6 +297,27 @@ function ChapterMultiBeatImpl(
                   on larger screens (titled content stranded with empty
                   space + backdrop on the right). */}
                 <div className="mx-auto h-full w-full max-w-4xl">{identity}</div>
+                {/*
+                  Alive masthead — thin accent progress line at the
+                  bottom edge of the masthead, growing left → right
+                  with chapter scroll. Magazine-spread "where you are
+                  in this article" indicator. Picks up the chapter's
+                  `--accent` so each Steam game/champion gets its own
+                  tinted bar. Subtle opacity so it reads as ambient
+                  chrome rather than a UI module. `mix-blend-screen`
+                  lifts the line above busy splash crops without a
+                  backdrop chip — a thin line at high enough
+                  saturation against the splash reads as a tinted
+                  glow rather than a flat overlay.
+                */}
+                <m.div
+                  data-chapter-masthead-progress=""
+                  aria-hidden="true"
+                  className="absolute right-0 bottom-0 left-0 h-px origin-left bg-[var(--accent,currentColor)] opacity-70 mix-blend-screen"
+                  style={{
+                    scaleX: useTransform(scrollYProgress, [0, 1], [0, 1]),
+                  }}
+                />
               </header>
             ) : null}
             <m.div
