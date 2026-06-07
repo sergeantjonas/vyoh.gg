@@ -174,8 +174,12 @@ export function SlidePanel({
             >
               {/* Wrap header + stickyBelowHeader in a single sticky
                   container so the whole chrome moves together and the strip
-                  animates in without overlapping the tab nav. */}
-              <div className="sticky top-0 z-10">
+                  animates in without overlapping the tab nav.
+                  z-index must beat anything in the panel body that
+                  introduces its own stacking context — MatchHero is `z-30`
+                  for its rect-morph entrance, so a value above that is the
+                  floor here. */}
+              <div className="sticky top-0 z-40">
                 <div
                   data-panel-header=""
                   className={cn(
