@@ -144,7 +144,11 @@ function MatchDetailLayout() {
             }}
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
-            <MatchHero summary={heroSummary} lpDelta={lpDelta} />
+            <MatchHero
+              summary={heroSummary}
+              lpDelta={lpDelta}
+              accountSlug={accountSlug}
+            />
           </m.div>
         )}
       </div>

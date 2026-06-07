@@ -13,6 +13,8 @@ export {
   relativeTimeAgo,
 } from "./format.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
+export { isPersonalRecord } from "./lol/personal-records.ts";
+export type { PersonalRecordDirection } from "./lol/personal-records.ts";
 export { REMAKE_DURATION_S, isRemakeMatch } from "./lol/remake.ts";
 export {
   QUEUE_TYPES,

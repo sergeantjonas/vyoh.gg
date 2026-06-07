@@ -1,3 +1,4 @@
+import { PersonalRecord } from "@/components/personal-record";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
@@ -35,7 +36,16 @@ function LpBadge({ delta }: { delta: number }) {
 export function MatchHero({
   summary,
   lpDelta,
-}: { summary: MatchSummary; lpDelta?: number | undefined }) {
+  accountSlug,
+}: {
+  summary: MatchSummary;
+  lpDelta?: number | undefined;
+  // Optional — `MatchHero` is used both from the match-detail route (where
+  // we have the slug) and from list-card morph contexts that don't pass it.
+  // Without a slug we skip the personal-record wrap entirely; the duration
+  // still renders, just without the celebration affordance.
+  accountSlug?: string;
+}) {
   const championName = useChampionName();
   const { originRectRef, setOriginRect } = useActiveMatch();
   const reduced = useReducedMotion();
@@ -147,7 +157,19 @@ export function MatchHero({
             style={{ background: queueColor(summary.queueType) }}
           />
           <span>
-            {summary.queueType} · {formatDuration(summary.durationSec)} ·{" "}
+            {summary.queueType} ·{" "}
+            {accountSlug && summary.win && !summary.remake ? (
+              <PersonalRecord
+                storageKey={`lol:fastest-win-duration:${accountSlug}`}
+                value={summary.durationSec}
+                direction="lower-better"
+              >
+                {formatDuration(summary.durationSec)}
+              </PersonalRecord>
+            ) : (
+              formatDuration(summary.durationSec)
+            )}{" "}
+            ·{" "}
             {playedAt.toLocaleString(undefined, {
               dateStyle: "medium",
               timeStyle: "short",

@@ -38,6 +38,10 @@ interface LolIdentityHeroProps {
   // shared with the Steam hero's in-game state. The hero itself stays a pure
   // presentational component; the caller does the live-game query.
   inLiveGame?: boolean;
+  // Account slug for personal-record scoping on the LP cell inside the rank
+  // strip. Optional — without it the LP renders bare. Pre-existing tests
+  // that mount the hero without account context keep working.
+  accountSlug?: string;
 }
 
 // Cinematic identity hero for the Profile landing: the signature champion's
@@ -57,6 +61,7 @@ export function LolIdentityHero({
   splashChampion,
   lastMatch,
   inLiveGame = false,
+  accountSlug,
 }: LolIdentityHeroProps) {
   const ddVersion = useDDragonVersion();
   const championName = useChampionName();
@@ -273,6 +278,7 @@ export function LolIdentityHero({
         entries={rankEntries}
         recentLpByQueue={recentLpByQueue}
         compact={compact}
+        accountSlug={accountSlug}
       />
     </section>
   );

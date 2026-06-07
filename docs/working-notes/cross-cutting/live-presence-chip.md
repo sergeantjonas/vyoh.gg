@@ -1,6 +1,28 @@
 # Live presence chip
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. A small always-visible chip in the nav showing what the owner is doing **right now** across LoL + Steam (and future streams): "Playing Jinx · Mid · 14:32" / "In Cyberpunk 2077 · 2h 14m today" / "Last seen 2h ago — VEX won 7-2-12". Pushed via SSE; animates as it updates.
+**Status:** ✅ Shipped — **distributed implementation, not the unified nav chip the original spec described.** Live presence is in the app today across the surfaces below, but it was built per-surface rather than as a single nav-mounted chip with the 4-state vocabulary from the original spec. The remainder of this note is preserved as the original design draft — read it as historical context, not as outstanding work.
+
+What actually shipped (as of 2026-06-07):
+
+- **LoL `LiveGameChip`** ([apps/web/src/lol/_shared/account/live-game-chip.tsx](../../../apps/web/src/lol/_shared/account/live-game-chip.tsx)) — "In Game" pulsing chip on `lol/$accountSlug/index`, links to `/lol/$accountSlug/live`. Single state ("live"), no "just finished" / "last seen" decay.
+- **Steam now-playing** ([apps/web/src/home/conclusion/now-playing-strip.tsx](../../../apps/web/src/home/conclusion/now-playing-strip.tsx)) + **`SteamIdentityHero`** ([apps/web/src/steam/profile/steam-identity-hero.tsx](../../../apps/web/src/steam/profile/steam-identity-hero.tsx)) — surface Steam "currently playing" via `useSteamPlayerState`.
+- **SSE backend** — `GET /lol/summoners/.../live/events` with `useLiveGameEvents` ([apps/web/src/lol/matches/use-live-match.ts](../../../apps/web/src/lol/matches/use-live-match.ts)) hooked into the TanStack Query cache for push-driven invalidation; `useLiveGame` HTTP fetch with optional polling for non-viewed accounts.
+- **`PresenceMounts`** at root ([apps/web/src/lib/presence-mounts.tsx](../../../apps/web/src/lib/presence-mounts.tsx)) — keeps the live-game and Steam-player-state queries warm for *all* known accounts so the favicon dot reflects state regardless of which section the user is viewing. Polls at 60s rather than per-account SSE because >6 concurrent EventSources saturate Firefox's per-origin HTTP/1 connection cap.
+
+Gaps vs the original spec (not currently scoped — open if you decide to consolidate):
+
+- No single unified chip across LoL + Steam in the nav itself.
+- No "just finished" decay state or "last seen Xh ago" copy.
+- No Radix tooltip with richer live detail.
+- No `aria-live="polite"` announcement contract.
+
+If a future arc consolidates these into a unified nav chip, reopen this note. Until then, the design draft below is the closest thing to a spec for that consolidation.
+
+---
+
+**Original spec follows (historical):**
+
+A small always-visible chip in the nav showing what the owner is doing **right now** across LoL + Steam (and future streams): "Playing Jinx · Mid · 14:32" / "In Cyberpunk 2077 · 2h 14m today" / "Last seen 2h ago — VEX won 7-2-12". Pushed via SSE; animates as it updates.
 
 Read this before scoping any "live" UI surface; coordinate with the LoL `Live` route (already exists in some form per [vnext-ideas.md](vnext-ideas.md) "Live game minute pulse") and the Riot spectator endpoint.
 

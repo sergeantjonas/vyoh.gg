@@ -883,3 +883,81 @@ body {
     transform: translate3d(-50%, 0, 0);
   }
 }
+
+/* Personal-record flare.
+ *
+ * A subtle radial flare painted behind a stat the moment it surpasses
+ * its prior best. Fires once on the mount that detects the record,
+ * decays out, leaves the stat in its normal styling. Deliberately not
+ * confetti, not a toast, not a slot-win — the visual lives inside the
+ * stat cell and disappears.
+ *
+ * Composition: the React wrapper sets `data-record-fire="true"` on the
+ * `.pr-flare` span for ~1.8s. While the attribute is true, ::before
+ * fades in and rotates a quarter-turn via the registered
+ * `--pr-flare-progress` property. The attribute then flips back to
+ * "false" and the transition reverses out. `@starting-style` gives the
+ * fade-in a clean source state on the *first* attribute change rather
+ * than relying on an extra render to seed the transition.
+ *
+ * Tint is route-accent (var(--accent)) so it integrates with the
+ * accent-color-system arc per surface.
+ */
+.pr-flare {
+  position: relative;
+  isolation: isolate;
+}
+
+.pr-flare::before {
+  content: "";
+  position: absolute;
+  /* Modest extension past the wrapper — just enough to give the radial
+     gradient breathing room around an inline stat cell. Bigger insets
+     turn the flare into a lighthouse that swamps neighbour tiles; the
+     "calm exhale" the spec calls for needs containment, not radiation. */
+  inset: -40% -30%;
+  /* Radial-gradient (NOT conic) because at the typical stat-cell size
+     (~30x20px) a conic rotation is invisible — the rotation IS the
+     spec's signature motion, but it disappears at this scale and the
+     remaining color shows up as ugly off-axis blotches. Radial reads
+     as "warmth pooling behind the number" regardless of cell size.
+     Tint chain: --pr-flare-tint (caller override) → warm amber default.
+     Warm amber stays legible regardless of backdrop and matches the
+     KDA cell's own text-amber-400 cue.                                  */
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklch, var(--pr-flare-tint, #f59e0b) 45%, transparent) 0%,
+    color-mix(in oklch, var(--pr-flare-tint, #f59e0b) 25%, transparent) 35%,
+    transparent 75%
+  );
+  filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  transition: opacity 240ms ease-out;
+}
+
+.pr-flare[data-record-fire="true"]::before {
+  opacity: 1;
+}
+
+/* Seed the entry transition: at the first paint where data-record-fire
+ * flips true, the rule above resolves the destination state; this block
+ * resolves the source state for one frame so opacity actually animates
+ * from 0 instead of jumping straight to 1. Biome's CSS parser does not
+ * accept `@starting-style` nested under `@media`, so the reduced-motion
+ * variant below intentionally re-tunes the transition only.            */
+@starting-style {
+  .pr-flare[data-record-fire="true"]::before {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Slightly slower fade so reduced-motion users still register the
+     glow as a deliberate moment rather than a flicker. The information
+     is carried by the ↑ PB chip; this block only re-tunes the timing. */
+  .pr-flare[data-record-fire="true"]::before {
+    transition: opacity 400ms ease-out;
+  }
+}

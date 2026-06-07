@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
+import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
@@ -336,7 +337,14 @@ function ChampionDetailPage() {
                 </span>
                 <span>·</span>
                 <span className="text-amber-400">
-                  <CountUp to={detail.avgKda} decimals={2} /> KDA
+                  <PersonalRecord
+                    storageKey={`lol:champion-avg-kda:${alias.toLowerCase()}`}
+                    value={detail.avgKda}
+                    direction="higher-better"
+                  >
+                    <CountUp to={detail.avgKda} decimals={2} />
+                  </PersonalRecord>{" "}
+                  KDA
                 </span>
               </div>
               <WinRateBar winRate={detail.winRate} className="mt-2" />

@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { computeTrendSummary } from "@/lol/trends/trend-stats";
@@ -28,7 +29,7 @@ function StatItem({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function ProfileStatsBar() {
+export function ProfileStatsBar({ accountSlug }: { accountSlug: string }) {
   const { matches, isPending } = useMatchWindow();
 
   if (isPending || !matches || matches.length === 0) return null;
@@ -52,7 +53,13 @@ export function ProfileStatsBar() {
         <CountUp to={Math.round(s.winRate * 100)} />%
       </StatItem>
       <StatItem label="KDA">
-        <CountUp to={s.avgKda} decimals={2} />
+        <PersonalRecord
+          storageKey={`lol:profile-avg-kda:${accountSlug}`}
+          value={s.avgKda}
+          direction="higher-better"
+        >
+          <CountUp to={s.avgKda} decimals={2} />
+        </PersonalRecord>
       </StatItem>
       <StatItem label="Champs">
         <CountUp to={uniqueChamps} />

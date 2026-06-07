@@ -1,3 +1,4 @@
+import { PersonalRecord } from "@/components/personal-record";
 import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
@@ -42,12 +43,19 @@ function RankCell({
   label,
   compact,
   reduced,
+  accountSlug,
+  queueKey,
 }: {
   entry: RankEntry | undefined;
   recentLp: number[] | undefined;
   label: string;
   compact: boolean;
   reduced: boolean;
+  accountSlug: string;
+  // Per-queue scope so a solo-queue LP peak doesn't clobber the flex peak.
+  // Identifier is the short key ("solo" / "flex") not the API queueType
+  // string so the storageKey stays terse and the wire format is stable.
+  queueKey: "solo" | "flex";
 }) {
   const emblemYear = useRankedEmblemYear();
 
@@ -182,7 +190,20 @@ function RankCell({
           {tierLabel(entry)}
         </span>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-          <span className="tabular-nums">{entry.leaguePoints} LP</span>
+          <span className="tabular-nums">
+            {accountSlug ? (
+              <PersonalRecord
+                storageKey={`lol:peak-lp:${queueKey}:${accountSlug}`}
+                value={entry.leaguePoints}
+                direction="higher-better"
+              >
+                {entry.leaguePoints}
+              </PersonalRecord>
+            ) : (
+              entry.leaguePoints
+            )}{" "}
+            LP
+          </span>
           {recentLp && recentLp.length >= 5 && (
             <Sparkline
               data={recentLp}
@@ -226,13 +247,24 @@ export function HeroRankStrip({
   entries,
   recentLpByQueue,
   compact,
+  accountSlug,
 }: {
   entries: RankEntry[];
   recentLpByQueue?: Record<string, number[]> | undefined;
   compact: boolean;
+  // Optional so existing call sites without account context still render —
+  // when missing, the PersonalRecord wrap is skipped and LP renders bare.
+  accountSlug?: string | undefined;
 }) {
   const reduced = useReducedMotion();
   const byQueue = new Map(entries.map((e) => [e.queueId, e]));
+  // Map the QueueType string back to the short "solo"/"flex" key for the
+  // storage scope. Anchored on RANKED_QUEUE_KEY_TO_TYPE so it stays in sync
+  // with the shared queue-id constants instead of stringly-matching.
+  const queueIdToKey: Record<string, "solo" | "flex"> = {
+    [RANKED_QUEUE_KEY_TO_TYPE.solo]: "solo",
+    [RANKED_QUEUE_KEY_TO_TYPE.flex]: "flex",
+  };
 
   return (
     <m.div
@@ -249,6 +281,8 @@ export function HeroRankStrip({
           label={QUEUE_LABEL[queueId] ?? queueId}
           compact={compact}
           reduced={!!reduced}
+          accountSlug={accountSlug ?? ""}
+          queueKey={queueIdToKey[queueId] ?? "solo"}
         />
       ))}
     </m.div>

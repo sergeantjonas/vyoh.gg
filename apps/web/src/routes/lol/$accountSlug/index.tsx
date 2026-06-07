@@ -89,6 +89,7 @@ function ProfilePage() {
         splashChampion={signatureChampion}
         lastMatch={lastMatch}
         inLiveGame={inLiveGame}
+        accountSlug={accountSlug}
       />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePatchNotice accountSlug={accountSlug} />
@@ -103,7 +104,7 @@ function ProfilePage() {
       <ProfileSynergy accountSlug={accountSlug} />
       <ProfileQueueDistribution />
       <ProfileActivityCalendar accountSlug={accountSlug} />
-      <ProfileStatsBar />
+      <ProfileStatsBar accountSlug={accountSlug} />
       <ProfileMultikillStrip accountSlug={accountSlug} />
       {matches && matches.length > 0 && (
         <Link

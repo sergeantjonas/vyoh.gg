@@ -14,6 +14,7 @@ import {
   TowerIcon,
   VisionIcon,
 } from "@/components/game-icons";
+import { PersonalRecord } from "@/components/personal-record";
 import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -25,14 +26,20 @@ import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
-import type {
-  MatchDetail,
-  MatchTimelineProjection,
-  ParticipantDetail,
-  TeamSummary,
+import {
+  type MatchDetail,
+  type MatchTimelineProjection,
+  type ParticipantDetail,
+  RANKED_QUEUE_KEY_TO_TYPE,
+  type TeamSummary,
 } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { type ComponentType, useEffect, useState } from "react";
+
+const RANKED_QUEUE_TYPES = new Set([
+  RANKED_QUEUE_KEY_TO_TYPE.solo,
+  RANKED_QUEUE_KEY_TO_TYPE.flex,
+]);
 
 // Tracks which matchId recap tabs have already played their entry animations.
 // Cleared only on full page reload — tab switches within a session skip re-animating.
@@ -574,6 +581,8 @@ function ParticipantRow({
   badge,
   accountSlug,
   skipAnimation,
+  matchQueueType,
+  matchDurationSec,
 }: {
   p: ParticipantDetail;
   isMe?: boolean | undefined;
@@ -582,7 +591,16 @@ function ParticipantRow({
   badge?: { label: string; tip: string } | undefined;
   accountSlug: string;
   skipAnimation?: boolean | undefined;
+  matchQueueType: string;
+  matchDurationSec: number;
 }) {
+  // Personal-record gating: owner row only, ranked queues only, finite duration
+  // (avoid divide-by-zero on the cs/min normalisation). Off-meta queue types
+  // (ARAM, draft, custom) skip the wrap so a 400-CS ARAM cheese game can't
+  // overwrite the ranked record.
+  const csPerMin = matchDurationSec > 0 ? p.csTotal / (matchDurationSec / 60) : 0;
+  const showCsRecord =
+    isMe && RANKED_QUEUE_TYPES.has(matchQueueType) && Number.isFinite(csPerMin);
   const championName = useChampionName();
   const reduced = useReducedMotion();
   const displayName = championName(p.championName);
@@ -675,7 +693,17 @@ function ParticipantRow({
             <TooltipPrimitive.Trigger asChild>
               <span className="flex cursor-default items-center gap-0.5 text-muted-foreground">
                 <CsIcon className="size-3" />
-                {p.csTotal}
+                {showCsRecord ? (
+                  <PersonalRecord
+                    storageKey={`lol:match-cs-per-min:ranked:${accountSlug}`}
+                    value={csPerMin}
+                    direction="higher-better"
+                  >
+                    {p.csTotal}
+                  </PersonalRecord>
+                ) : (
+                  p.csTotal
+                )}
               </span>
             </TooltipPrimitive.Trigger>
             <TooltipPrimitive.Portal>
@@ -742,6 +770,8 @@ function TeamBlock({
   goldLead,
   accountSlug,
   skipAnimation,
+  matchQueueType,
+  matchDurationSec,
 }: {
   title: string;
   participants: ParticipantDetail[];
@@ -752,6 +782,8 @@ function TeamBlock({
   goldLead: number;
   accountSlug: string;
   skipAnimation?: boolean | undefined;
+  matchQueueType: string;
+  matchDurationSec: number;
 }) {
   const win = participants[0]?.win ?? false;
   return (
@@ -794,6 +826,8 @@ function TeamBlock({
             badge={badges.get(p.puuid)}
             accountSlug={accountSlug}
             skipAnimation={skipAnimation}
+            matchQueueType={matchQueueType}
+            matchDurationSec={matchDurationSec}
           />
         ))}
       </m.ul>
@@ -843,6 +877,8 @@ export function MatchRecapTab({
             goldLead={blueGold - redGold}
             accountSlug={accountSlug}
             skipAnimation={skip}
+            matchQueueType={detail.queueType}
+            matchDurationSec={detail.durationSec}
           />
         </m.div>
         <m.div
@@ -860,6 +896,8 @@ export function MatchRecapTab({
             goldLead={redGold - blueGold}
             accountSlug={accountSlug}
             skipAnimation={skip}
+            matchQueueType={detail.queueType}
+            matchDurationSec={detail.durationSec}
           />
         </m.div>
       </div>

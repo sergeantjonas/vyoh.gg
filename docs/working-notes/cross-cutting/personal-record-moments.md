@@ -1,6 +1,31 @@
 # Personal record moments
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. Subtle one-time visual celebration when an aggregated stat hits a new personal best — highest KDA on a champion, longest win streak, fastest game won, most CS/min, etc. Replaces the "loud" vocabulary (confetti, fireworks, slot-machine) with **a calm radial flare via CSS conic gradient + `@starting-style`** that fires once on detection, then fades into the new stat's normal styling.
+**Status:** Chunks 1–5 shipped 2026-06-07. Chunk 6 (server-side persistence) deferred — see below. Subtle one-time visual celebration when an aggregated stat hits a new personal best — highest KDA on a champion, fastest win, peak LP, best CS/min. Lands as **a calm radial-gradient warm-amber glow** (NOT the conic-rotation the spec originally called for — see "What shipped vs what the spec described" below) that fires once on detection, decays in ~1.8s, leaves the stat in its normal styling.
+
+**Shipped primitives:**
+- `isPersonalRecord(prior, next, direction)` in `@vyoh/shared` — pure function, NaN-safe, both directions, baseline-write rule.
+- `<PersonalRecord storageKey value direction>` in `apps/web/src/components/personal-record.tsx` — localStorage-backed, StrictMode-safe via a module-level `detectedThisPageLoad` Set, fires `data-record-fire="true"` for 1.8s + the "↑ PB" superscript chip for 5s.
+- `.pr-flare` rule in `apps/web/src/styles/motion.css` — radial-gradient warm-amber glow with `@starting-style` entry seed and a reduced-motion variant.
+
+**Shipped wirings (5 surfaces):**
+- Champion-detail KDA hero (`lol:champion-avg-kda:${alias}`, higher-better)
+- Profile KDA stats bar (`lol:profile-avg-kda:${slug}`, higher-better)
+- Match-detail fastest win — duration cell, win-only + non-remake gating (`lol:fastest-win-duration:${slug}`, lower-better)
+- Match-detail CS/min — owner row of recap tab, ranked queues only, rate-normalised to neutralise game-length bias (`lol:match-cs-per-min:ranked:${slug}`, higher-better)
+- Profile peak LP per queue — rank strip's LP cell, scoped per solo/flex (`lol:peak-lp:${queue}:${slug}`, higher-better)
+
+Storage prefix: `vyoh:pr:`.
+
+**What shipped vs what the spec described.** The original spec called for a conic-gradient that rotates a quarter-turn, tinted by `var(--accent)`. The conic-rotation read as visually invisible at typical stat-cell sizes (~30×20px inline number) — the rotation peaks at 0.25 turn but the colored arcs were 60° wide each, so at that cell size only an off-axis blotch was visible, not a rotation. Switched to a radial-gradient glow which reads as "warmth pooling behind the number" regardless of cell size. Default tint chain is `--pr-flare-tint → #f59e0b` (warm amber) — NOT `--theme-color` or `--accent`. Both of those defaults clashed routinely: `--theme-color` matched the splash backdrop the flare sits on (Ahri's #c8233e card on a red splash → red-on-red), `--accent` resolved to near-black in dark mode (dark-on-dark). Routes that want a different tint can publish their own `--pr-flare-tint`.
+
+**What's NOT shipped (Category-3 spec items):**
+- Trends "Best KDA period" — no headline number rendered; would need new aggregation + display.
+- Profile "Longest overall win streak" — current streak shown in `TrendStreak` but not the lifetime max.
+- Profile "Most games in a week" — not aggregated, not displayed.
+
+These are real surface gaps in the app's "lifetime peaks" coverage. Worth picking up when there's a reason to add a lifetime-peaks tile to the profile.
+
+**Chunk 6 (server-side persistence) deferred.** The spec assumed a `personal_records` table in [personal-baselines.md](../lol/personal-baselines.md) once that arc shipped its server layer. Personal-baselines is currently **parked** (PB1–PB3 shipped, PB4 parked 2026-05-20 waiting for 2–3 more PB-tiles to ship first) and does not contain a `personal_records` schema in its current plan. Chunk 6 is therefore doubly gated: personal-baselines has to unpark AND has to add the schema. localStorage-only is the shipped state. Single-device cross-session works perfectly; cross-device would need backend plumbing (Prisma migration, REST endpoint, sync hook, migration from localStorage on first server fetch) — ~3-4h of work that buys "your celebrations follow you across devices," which is not a current user pain point. Revisit when personal-baselines unparks.
 
 Read this before adding any new aggregation or "personal" stat that has the concept of "best ever." Coordinates with the [personal-baselines.md](../lol/personal-baselines.md) and [post-game-close-the-loop.md](../lol/post-game-close-the-loop.md) arcs.
 

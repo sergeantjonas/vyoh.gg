@@ -50,10 +50,10 @@ Hard guardrails inherited from [motion-backlog.md](motion-backlog.md):
 | [self-portrait-recap-arc](self-portrait-recap-arc.md) | Always-on Wrapped: `/` becomes a scroll-paced editorial recap of recent activity. Multi-band **chapters** (subject = Ahri + Steam games; moment = RANK_UP, OFF_META, MARATHON, etc.) over the shipped atmosphere substrate. Apple-style pin + progressive reveal per chapter; recency-decayed scoring with no fixed window. Retires ADR-2 (no-recognizable-imagery); ships hard-coded curation, deferred-trailer ADRs. | Active 2026-06-01. R-1 through R-12 planned; depends on atmosphere arc substrate (shipped). |
 | [speculation-rules-prefetch](speculation-rules-prefetch.md) | TanStack Query `prefetchQuery` on hover/touchstart for match rows, champion grid, Steam tiles/rows, and nav links; Speculation Rules `<script>` block gated on TanStack Start migration | ✅ Chunks 1–5 shipped 2026-05-28 (cheap manual-prefetch path). Chunk 6 (Speculation Rules API) stays gated on Start migration. |
 | [og-image-pipeline](og-image-pipeline.md) | Per-route OG images (Satori or Canvas at edge) for shareable match/champion deep-links; SEO + share-delight win | Planned |
-| [live-presence-chip](live-presence-chip.md) | "Currently playing Jinx" / "Last seen 2h ago" chip in nav; SSE-pushed from Riot spectator endpoint + Steam presence | Planned |
-| [personal-record-moments](personal-record-moments.md) | Subtle one-time visual moment when a stat hits a new PB (highest KDA on champion, longest win streak); replaces "loud" celebration vocabulary | Planned |
+| [live-presence-chip](live-presence-chip.md) | "Currently playing Jinx" / "Last seen 2h ago" chip in nav; SSE-pushed from Riot spectator endpoint + Steam presence | ✅ Shipped — distributed implementation, not the unified nav chip from the spec. LoL: `LiveGameChip` on the account index; Steam: `useSteamPlayerState` powering `NowPlayingStrip` + `SteamIdentityHero`; SSE backend `/lol/.../live/events` with `useLiveGameEvents`; `PresenceMounts` at root keeps queries warm + drives the favicon dot. |
+| [personal-record-moments](personal-record-moments.md) | Subtle one-time visual moment when a stat hits a new PB (highest KDA on champion, longest win streak); replaces "loud" celebration vocabulary | ✅ Chunks 1–5 shipped 2026-06-07. Helper + `<PersonalRecord>` + CSS flare + 5 wired surfaces (champion KDA, profile KDA, fastest win, ranked CS/min, peak LP per queue). Visual direction diverged from the conic-rotation spec — radial-amber glow at the cell level, warm-amber tint (not route accent), see the note. Chunk 6 (server-side persistence) deferred — gated on personal-baselines unparking AND adding a `personal_records` schema. |
 | [optional-ui-audio](optional-ui-audio.md) | Opt-in Web Audio toggle: subtle tick on palette open, soft chime on match-win render; off by default with persistent preference | Planned |
-| [pointer-parallax-splash](pointer-parallax-splash.md) | Cursor-aware parallax layer on splash backdrop (multi-plane: bg + character at different offsets); composes with existing Ken Burns | Planned |
+| [pointer-parallax-splash](pointer-parallax-splash.md) | Cursor-aware parallax layer on splash backdrop (multi-plane: bg + character at different offsets); composes with existing Ken Burns | ✅ Shipped 2026-05-31 (Chunks 1, 2, 4: `9308dd0` hook + tests, `ceb338d` two-plane integration, `0c7a11a` `(pointer: fine)` gate). Chunk 3 tuning skipped (defaults read cohesive); Chunk 5 background-removed plane separation stays deferred. |
 | [detail-panel-arc](detail-panel-arc.md) | Detail pages (match / champion / Steam game detail) become full-width slide-over panels with URL-as-state via TanStack parallel routes; list stays mounted, row→panel VT morph for click-from-list, virtualizer-scroll-to-row for cold deep-link arrivals | Planned |
 
 ---
@@ -64,11 +64,8 @@ Curated 2026-05-28 to remaining picks only — the original 1–15 ranking from 
 
 1. **motion-choreography-arc** / **atmosphere-arc** — the bold next move after landing-showcase-arc closed. Motion arc sequenced first (every atmosphere band inherits its vocabulary); atmosphere arc then lands the continuous shared-atmosphere-layer model that replaces the rejected per-band-backdrop direction.
 2. **og-image-pipeline** — once shareable URLs exist, OG cards convert; pairs with [self-portrait-surfaces.md](self-portrait-surfaces.md).
-3. **personal-record-moments** — emotional payoff; depends on PB detection landing first.
-4. **live-presence-chip** — depends on Riot spectator endpoint + Steam presence API plumbing.
-5. **pointer-parallax-splash** — small but distinctive; can ship any time on top of the shipped accent-color cascade.
-6. **detail-panel-arc** — biggest structural lift on this list; defer until the simpler arcs have absorbed their feedback.
-7. **optional-ui-audio** — bold; consider after the visual baseline lands so the audio doesn't carry the whole "wow".
+3. **detail-panel-arc** — biggest structural lift on this list; defer until the simpler arcs have absorbed their feedback.
+4. **optional-ui-audio** — bold; consider after the visual baseline lands so the audio doesn't carry the whole "wow".
 
 ---
 

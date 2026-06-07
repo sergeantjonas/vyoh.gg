@@ -52,7 +52,7 @@ function match(overrides: Partial<MatchSummary> = {}): MatchSummary {
 function renderBar() {
   return render(
     <MotionConfig reducedMotion="always">
-      <ProfileStatsBar />
+      <ProfileStatsBar accountSlug="ahri-na1" />
     </MotionConfig>
   );
 }
