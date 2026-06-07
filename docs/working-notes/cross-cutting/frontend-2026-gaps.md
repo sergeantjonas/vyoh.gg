@@ -12,7 +12,7 @@ Sister file: [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md) — tr
 
 Shipped in `chore: add static head baseline, robots.txt, sitemap.xml` (c6c3720). Added description, OG title/description/url, theme-color, canonical, twitter:card to [index.html](../../../apps/web/index.html); created `apps/web/public/robots.txt` (with sitemap pointer) and `apps/web/public/sitemap.xml` (4 routes). OG image deferred until a marquee surface exists — placeholder would have been worse than absence.
 
-**Follow-up — OG image (~10 min):** When a marquee surface is ready to screenshot (e.g. a polished `/` synthesis card, or a finished match-detail recap), capture a 1200×630 PNG to `apps/web/public/og.png` and add `<meta property="og:image" content="https://vyoh.gg/og.png" />` (plus `og:image:width`, `og:image:height`) to [index.html](../../../apps/web/index.html). Tracked in [open-work.md](../open-work.md) under Cross-cutting.
+**Follow-up — OG image — SHIPPED 2026-06-07 (different approach):** The static-screenshot path was replaced by the dynamic `/og/home.png` endpoint per [og-image-pipeline.md](og-image-pipeline.md). [index.html](../../../apps/web/index.html) now ships `<meta property="og:image">` + `og:image:width/height` + `twitter:image` pointing at the endpoint, all 1200×630. No committed PNG — every OG card renders dynamically per request.
 
 **Current state:** [apps/web/index.html](../../../apps/web/index.html) carries charset + viewport + favicon + `<title>vyoh.gg</title>`. Nothing else. No description, no OG tags, no theme-color, no canonical, no `robots.txt`, no `sitemap.xml`.
 
@@ -349,7 +349,9 @@ If the pilot lands cleanly, fan out in follow-up commits — one per route famil
 
 **Effort:** Pilot ~1h including the `queryOptions` refactor. Per-route fan-out ~20–30 min each. Total domain: ~3–4h split across 4–5 commits.
 
-### Gap 16 — Per-route `head()` exists at exactly one site, and it ships `http://localhost:2010` in production
+### Gap 16 — Per-route `head()` exists at exactly one site, and it ships `http://localhost:2010` in production — PARTIALLY SHIPPED 2026-06-07
+
+Fan-out half **shipped 2026-06-07** as part of [og-image-pipeline.md](og-image-pipeline.md) C1–C4: `head()` now exists on champion-detail, profile, and Steam game-detail in addition to match-detail. Each route ships per-route `title`, `description`, `og:title/description/image`, `twitter:card: summary_large_image`. The `localhost:2010` bug carries forward into the four new sites — still hosting-gated, see below.
 
 **Current state:** [apps/web/src/routes/__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders `<HeadContent />`, so per-route `head()` exports are already wired into the render pipeline — but only **one** route uses it: [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx:35-55](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L35-L55). And that one site has a production bug — line 31 hardcodes `const API_URL = "http://localhost:2010"`, so the `og:image` and `twitter:image` URLs shipped to social-preview crawlers in production are unreachable `localhost` URLs.
 
@@ -800,7 +802,9 @@ The portfolio's positioning logic flips the usual default. Most production sites
 
 **Effort:** ~10 min for the static cleanup; ~2h for the dynamic generator (separate arc).
 
-### Gap 31 — Per-route `head()` only on match-detail; every other route inherits the same `<title>vyoh.gg</title>` and root canonical
+### Gap 31 — Per-route `head()` only on match-detail; every other route inherits the same `<title>vyoh.gg</title>` and root canonical — MOSTLY SHIPPED 2026-06-07
+
+Items 1 (profile), 2 (champion), 3 (Steam game-detail) **shipped 2026-06-07** alongside [og-image-pipeline.md](og-image-pipeline.md) C1–C4 — each carries a per-route title (static fallback + `useEffect` enrichment of `document.title` for the slug-keyed routes, so the tab label reads `gameName#tagLine` / game name instead of the opaque URL segment), description, OG meta, and `twitter:card: summary_large_image`. Items 4 (`/` explicit head()) and 5 (`/status` noindex) remain open — both are independent ~10-min lifts; can ship in any order.
 
 **Current state:** `head:` exports exist on exactly one route — [routes/lol/$accountSlug/matches/$matchId.tsx:35-55](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L35-L55). Every other route renders the static `<title>vyoh.gg</title>` from [index.html:22](../../../apps/web/index.html#L22) and inherits `<link rel="canonical" href="https://vyoh.gg/">` regardless of the actual URL.
 
@@ -828,7 +832,9 @@ The practical impact:
 
 **Effort:** ~2h end-to-end for the five routes; can ship route-by-route. The single load-bearing decision is the absolute-URL builder helper — needs to be a shared utility so canonical/og:url strings stay consistent (see Round 5 Gap 16 localhost-bug for what happens when each call site reinvents the URL).
 
-### Gap 32 — Twitter card is `summary` (small thumbnail); should be `summary_large_image` once OG image lands
+### Gap 32 — Twitter card is `summary` (small thumbnail); should be `summary_large_image` once OG image lands — SHIPPED 2026-06-07
+
+Flipped to `summary_large_image` in [index.html](../../../apps/web/index.html) in the same commit that wired the dynamic `/og/home.png` baseline (per [og-image-pipeline.md](og-image-pipeline.md) C3). Every per-route `head()` added in C1–C4 also declares `twitter:card: summary_large_image`. `og:image:alt` not added — defer to a separate ~5-min sweep if any AI assistant reading proves it matters.
 
 **Current state:** [apps/web/index.html:21](../../../apps/web/index.html#L21) declares `<meta name="twitter:card" content="summary" />`. The `summary` card type renders a small square thumbnail (1:1, min 144px); `summary_large_image` renders the 1200×630 full-bleed card.
 
