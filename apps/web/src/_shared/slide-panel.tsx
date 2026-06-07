@@ -1,4 +1,3 @@
-import { isFirefox } from "@/lib/is-firefox";
 import { mainScrollRef } from "@/lib/scroll-container";
 import {
   ScrollContainerProvider,
@@ -33,6 +32,12 @@ interface SlidePanelProps {
    *  outside the panel's ScrollContainerProvider and would otherwise fall
    *  back to <main>, which is scroll-locked while the panel is open. */
   onScrollElReady?: ((el: HTMLElement | null) => void) | undefined;
+  /** Optional image URL for the panel chrome backdrop. Rendered as the
+   *  panel's background under a dark overlay so the panel reads as an
+   *  atmospheric surface (same splash energy as the global nav) instead
+   *  of flat bg-card. Detail panels pass the relevant champion / game
+   *  splash; surfaces without a natural backdrop omit it. */
+  chromeBackdropUrl?: string | null | undefined;
   children: ReactNode;
 }
 
@@ -47,6 +52,7 @@ export function SlidePanel({
   header,
   stickyBelowHeader,
   onScrollElReady,
+  chromeBackdropUrl,
   children,
 }: SlidePanelProps) {
   // Tracked so the scroll-container context can publish it to descendants
@@ -61,30 +67,11 @@ export function SlidePanel({
     onScrollElReady?.(el);
   };
   const reduced = useReducedMotion();
-  // Entrance: opacity fade only — NEVER a transform. Firefox (and to a
-  // lesser extent WebKit) suppresses `backdrop-filter` painting while an
-  // element is being transformed, which causes a jarring "pop" when the
-  // blur snaps in only after the slide settles. A pure opacity transition
-  // is a compositor-only effect that doesn't interfere with backdrop-filter,
-  // so the frosted chrome is alive from frame 1. View Transitions still
-  // own the row→hero morph on supporting browsers; rect-morph fallback
-  // handles the hero entrance on the rest.
+  // Entrance: opacity fade only — NEVER a transform on the panel chrome.
+  // (Earlier rounds tried `translateX` for a slide-in, but Firefox suppresses
+  // backdrop-filter during transform animations and any compositing perf
+  // wins were marginal; opacity-only is universally safe.)
   const animateIn = !skipSlideIn && !reduced;
-
-  // Firefox refuses to paint backdrop-filter reliably in this configuration
-  // — the result is that list rows behind the panel show crisply through
-  // the translucent chrome, defeating the whole frosted effect. Rather
-  // than chase a Firefox-specific workaround that may regress again later,
-  // engine-gate: Firefox gets a fully opaque `bg-card` surface (no blur,
-  // no bleed), Chromium/WebKit keep the translucent frosted look. Same
-  // precedent as the Safari VT bypass in lib/navigation-type.ts.
-  const ff = isFirefox();
-  const chromeClass = ff
-    ? "border-l border-white/10 bg-card shadow-2xl"
-    : "border-l border-white/10 bg-card/50 backdrop-blur-2xl shadow-2xl";
-  const headerChromeClass = ff
-    ? "flex items-center gap-2 border-b border-white/10 bg-card px-3 py-2 sm:px-4 sm:gap-3"
-    : "flex items-center gap-2 border-b border-white/10 bg-card/75 px-3 py-2 backdrop-blur-2xl sm:px-4 sm:gap-3";
 
   // Lock main scroll while open. With modal={false} (so the global + section
   // nav stay clickable) Radix doesn't manage body scroll for us, but the
@@ -126,14 +113,17 @@ export function SlidePanel({
       }}
     >
       <DialogPrimitive.Portal>
-        {/* No scrim. A scrim at z-30 sits over the SplashProvider backdrop
-            (rendered at -z-10), so the panel's backdrop-blur only ever picked
-            up the scrim's color — defeating the frosted effect entirely.
-            Without the scrim, the panel's translucent + blurred chrome
-            actually sees the splash + page content behind it, producing the
-            real frosted-glass appearance. Focus is preserved by the panel's
-            own lift (bg-card/65, border-l, shadow-2xl) plus the list-locked
-            scroll, not by dimming the surrounding page. */}
+        {/* Non-blocking scrim — dims the page behind the panel so visual
+            attention focuses on the panel content. pointer-events stay off
+            so the visible list on the left + the section nav above stay
+            clickable (modal={false} contract). Fades in with the panel. */}
+        <m.div
+          aria-hidden
+          initial={animateIn ? { opacity: 0 } : false}
+          animate={{ opacity: 1 }}
+          transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
+          className="pointer-events-none fixed inset-0 z-30 bg-black/45"
+        />
         <DialogPrimitive.Content
           aria-describedby={undefined}
           // Don't auto-focus the first focusable child — that would scroll the
@@ -152,15 +142,28 @@ export function SlidePanel({
               // out on the left as ambient context; clicking it closes.
               "fixed top-[var(--account-header-h,0px)] bottom-0 right-0 z-40",
               "w-full max-w-4xl",
-              // Frosted-glass chrome lives on the OUTER element only (no
-              // overflow on this layer — Firefox refuses backdrop-filter
-              // on scroll containers, so scroll is moved to the absolutely
-              // -positioned inner div). bg-card is one tier lifted from
-              // --background in theme tokens (oklch 0.205 vs 0.145) so the
-              // panel reads as a distinct surface either way; the frosted
-              // variant adds translucency + blur on Chromium/WebKit only.
-              chromeClass
+              // Solid bg-card base — earlier rounds tried bg-card/50 +
+              // backdrop-blur-2xl for a frosted look but the cost was
+              // uneven across engines (Firefox refused to paint backdrop-
+              // filter on scroll containers; WebKit hitched on the blur
+              // composite; even Chromium was marginal). When a
+              // `chromeBackdropUrl` is supplied, that image is layered
+              // under a dark gradient overlay below so the panel carries
+              // the same splash atmosphere as the global nav — no live
+              // backdrop-filter needed, the image is just baked into the
+              // panel's static background.
+              "border-l border-white/10 bg-card shadow-2xl"
             )}
+            {...(chromeBackdropUrl
+              ? {
+                  style: {
+                    backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.78) 40%, rgba(0,0,0,0.65) 100%), url(${chromeBackdropUrl})`,
+                    backgroundSize: "cover, cover",
+                    backgroundPosition: "center, center",
+                    backgroundRepeat: "no-repeat, no-repeat",
+                  },
+                }
+              : {})}
           >
             <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
             {/* Inner scroll surface — separate element so backdrop-filter
@@ -176,9 +179,7 @@ export function SlidePanel({
                 <div
                   data-panel-header=""
                   className={cn(
-                    // Header chrome — solid on Firefox, translucent +
-                    // blurred on browsers that paint backdrop-filter.
-                    headerChromeClass,
+                    "flex items-center gap-2 border-b border-white/10 bg-card px-3 py-2 sm:px-4 sm:gap-3",
                     // Narrow viewports: hide tab labels (SectionTabLink
                     // wraps them in [data-tab-label]) so four icon+label
                     // tabs + share + close still fit without horizontal

@@ -10,11 +10,15 @@ import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
-import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
+import {
+  championBackdropSplashUrl,
+  championClassIconUrl,
+} from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import {
@@ -162,6 +166,12 @@ function ChampionDetailPage() {
   );
   const championName = useChampionName();
   useSplashChampion(championKey);
+  // Render the champion's splash as the panel chrome backdrop (heavily
+  // darkened in CSS) so the panel carries the same splash atmosphere as
+  // the global nav — see slide-panel.tsx `chromeBackdropUrl` for the
+  // composition. Same approach as the match-detail panel.
+  const ddVersion = useDDragonVersion();
+  const chromeBackdropUrl = championBackdropSplashUrl(championKey, ddVersion);
 
   useEffect(() => {
     if (account) {
@@ -355,6 +365,7 @@ function ChampionDetailPage() {
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
       onScrollElReady={setPanelScrollEl}
+      chromeBackdropUrl={chromeBackdropUrl}
       header={panelHeader}
       stickyBelowHeader={
         <ChampionStickyStrip visible={stripVisible} championAlias={alias}>

@@ -7,8 +7,10 @@ import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
+import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
@@ -117,7 +119,22 @@ function MatchDetailPanel() {
         )
       : undefined;
 
-  useSplashChampion(myParticipant?.championName);
+  // Fall back to the row's cached champion (always present on warm row-click
+  // navs) so the splash claim never momentarily resolves to `undefined`
+  // while `detail` is loading. Without the fallback, the splash AnimatePresence
+  // would briefly un-mount the previous champion's backdrop and re-mount it
+  // again once detail.data resolves — reads as a 700ms flicker on top of
+  // the panel-open transition.
+  const splashChampion = myParticipant?.championName ?? cachedSummary?.champion;
+  useSplashChampion(splashChampion);
+  // Reuse the same champion splash as the panel chrome backdrop so the panel
+  // carries the same atmospheric energy as the global nav (which shows the
+  // splash through its frosted background). Heavily darkened in CSS so the
+  // panel content remains the dominant read.
+  const ddVersion = useDDragonVersion();
+  const chromeBackdropUrl = splashChampion
+    ? championBackdropSplashUrl(splashChampion, ddVersion)
+    : null;
 
   const heroSummary: MatchSummary | undefined =
     cachedSummary ??
@@ -196,6 +213,7 @@ function MatchDetailPanel() {
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
       onScrollElReady={setPanelScrollEl}
+      chromeBackdropUrl={chromeBackdropUrl}
       stickyBelowHeader={
         heroSummary ? (
           <ChampionStickyStrip
