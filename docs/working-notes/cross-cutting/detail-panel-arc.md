@@ -1,6 +1,6 @@
 # Detail panel arc
 
-**Status:** Planned — design draft from 2026-05-27 brainstorm. No code yet. Depends on [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md) inline-detail-tabs pattern landing first.
+**Status:** Active — Chunk 2.1 (LoL match-detail as slide-over panel) shipped 2026-06-07. Architecture established: `SlidePanel` primitive ([apps/web/src/_shared/slide-panel.tsx](../../../apps/web/src/_shared/slide-panel.tsx)), parent layout ([apps/web/src/routes/lol/$accountSlug/matches.tsx](../../../apps/web/src/routes/lol/$accountSlug/matches.tsx)) keeps list mounted across panel navigations, cold-arrival `scrollToIndex` via `useActiveMatch` sentinel coexists with the StrictMode-resilient pin loop. Existing row→hero VT morph + rect-morph fallback preserved untouched. Next: Chunk 2.2 (LoL champion-detail — cheap reuse of primitive). Depends on [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md) inline-detail-tabs pattern, already landed.
 
 Detail pages (match detail, champion detail, Steam game detail, future detail surfaces) move from full route-change page swaps to **full-width slide-over panels with URL-as-state**. The list stays mounted underneath with scroll, virtualizer offset, and filter state preserved; the panel slides in from the right with a row-to-content morph for click navigation, or appears in-place for cold deep-link arrivals.
 
@@ -113,7 +113,7 @@ The project already has strong primitives for this; no new dependencies should b
 
 Each chunk independently committable. Order is by candidate detail page; the architecture is established in chunk 1 and inherited by later chunks.
 
-### Chunk 2.1 — Match-detail as panel (LoL)
+### Chunk 2.1 — Match-detail as panel (LoL) ✅ SHIPPED 2026-06-07
 
 The lead candidate. Establishes the pattern; later chunks copy it.
 

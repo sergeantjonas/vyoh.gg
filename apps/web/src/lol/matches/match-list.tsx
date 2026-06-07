@@ -200,6 +200,23 @@ export function MatchList({
     seenCountRef.current = reveal;
   }, [reveal]);
 
+  // Cold-arrival scroll-to-row: on a direct deep-link to /matches/$id (no
+  // back-nav, no preceding row click) the $matchId panel sets activeMatch
+  // from the URL. Scroll the matching row into view exactly once. The
+  // back-nav restore path (restoredScrollY > 0) owns its own pin loop above
+  // and these two conditions are mutually exclusive.
+  const coldArrivalScrolledRef = useRef(false);
+  useEffect(() => {
+    if (coldArrivalScrolledRef.current) return;
+    if (restoredScrollY > 0) return;
+    if (scrollMargin === 0) return;
+    if (!activeMatch) return;
+    const idx = matches.findIndex((mm) => mm.matchId === activeMatch);
+    if (idx < 0) return;
+    coldArrivalScrolledRef.current = true;
+    virtualizer.scrollToIndex(idx, { align: "center" });
+  }, [activeMatch, matches, virtualizer, restoredScrollY, scrollMargin]);
+
   const lpDeltaMap = useMemo(() => computeLpDeltaMap(matches), [matches]);
 
   return (
