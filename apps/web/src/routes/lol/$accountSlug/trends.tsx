@@ -1,6 +1,7 @@
 import { DeferredMount } from "@/_shared/deferred-mount";
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/ui/section-title";
+import { routeMeta } from "@/lib/route-meta";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
 import { TrendComebackResilience } from "@/lol/trends/trend-comeback-resilience";
@@ -28,11 +29,16 @@ import { useTrendsWindows } from "@/lol/trends/use-trends-windows";
 import { createFileRoute } from "@tanstack/react-router";
 import { type LolAccount, type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/trends")({
   component: TrendsPage,
+  head: ({ params }) =>
+    routeMeta({
+      title: `Trends · ${params.accountSlug} · vyoh.gg`,
+      description: `League of Legends trends for ${params.accountSlug} on vyoh.gg.`,
+    }),
 });
 
 // Grid cell wrapper: handles scroll-reveal entrance + layout reflow.
@@ -258,6 +264,12 @@ function TrendsPage() {
   const account = useAccountFromSlug(accountSlug);
   const [rangeId, setRangeId] = useState<TrendsRangeId>("30d");
   const { current, previous, isPending, livePatch } = useTrendsWindows(rangeId, account);
+
+  useEffect(() => {
+    if (account) {
+      document.title = `Trends · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account]);
 
   const sortedTiles = useMemo(() => {
     const tiles = buildTiles(current, previous, accountSlug, account);

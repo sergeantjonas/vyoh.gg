@@ -1,3 +1,4 @@
+import { routeMeta } from "@/lib/route-meta";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
@@ -12,9 +13,15 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { excludeRemakes } from "@vyoh/shared";
 import { ChevronLeft } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/recap")({
   component: RecapPage,
+  head: ({ params }) =>
+    routeMeta({
+      title: `Recap · ${params.accountSlug} · vyoh.gg`,
+      description: `League of Legends recap for ${params.accountSlug} on vyoh.gg.`,
+    }),
 });
 
 function RecapPage() {
@@ -25,6 +32,12 @@ function RecapPage() {
   const { matches } = useSeriousMatches();
   const reduced = useReducedMotion();
   const playedCount = excludeRemakes(matches ?? []).length;
+
+  useEffect(() => {
+    if (account) {
+      document.title = `Recap · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account]);
 
   // Drive the splash + theme cascade from the champion-of-year pick so the
   // whole recap reads in that champion's tint — same selector as RecapChampion

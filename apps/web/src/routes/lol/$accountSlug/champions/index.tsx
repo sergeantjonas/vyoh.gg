@@ -1,4 +1,5 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
+import { routeMeta } from "@/lib/route-meta";
 import { cn } from "@/lib/utils";
 import { withReorderViewTransition } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -25,7 +26,7 @@ import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const TOOLTIP_CONTENT_CLASS =
   "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
@@ -41,6 +42,11 @@ export const Route = createFileRoute("/lol/$accountSlug/champions/")({
     const role = typeof raw === "string" && isRolePosition(raw) ? raw : undefined;
     return role !== undefined ? { role } : {};
   },
+  head: ({ params }) =>
+    routeMeta({
+      title: `Champions · ${params.accountSlug} · vyoh.gg`,
+      description: `League of Legends champion stats for ${params.accountSlug} on vyoh.gg.`,
+    }),
 });
 
 // Match the Champion detail page's window so navigating list → detail doesn't
@@ -100,6 +106,12 @@ function ChampionsPage() {
   const { role } = useSearch({ from: Route.fullPath });
   const navigate = useNavigate();
   const { data, isPending } = useCachedMatchesWindow(account, CHAMPIONS_FETCH_COUNT);
+
+  useEffect(() => {
+    if (account) {
+      document.title = `Champions · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account]);
 
   const matches = useMemo(() => {
     if (!data) return undefined;

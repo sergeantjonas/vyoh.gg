@@ -1,16 +1,22 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
+import { routeMeta } from "@/lib/route-meta";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { QueueFilter } from "@/lol/_shared/queue/queue-filter";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
 import { useCachedMatches } from "@/lol/matches/use-matches";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/")({
   component: MatchesPage,
+  head: ({ params }) =>
+    routeMeta({
+      title: `Matches · ${params.accountSlug} · vyoh.gg`,
+      description: `League of Legends match history for ${params.accountSlug} on vyoh.gg.`,
+    }),
 });
 
 function MatchesPage() {
@@ -20,6 +26,12 @@ function MatchesPage() {
   const matches = useCachedMatches(account, queue);
   const navigate = useNavigate();
   const queueIsFiltered = queue !== undefined;
+
+  useEffect(() => {
+    if (account) {
+      document.title = `Matches · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account]);
 
   const flat = useMemo(
     () => matches.data?.pages.flatMap((p) => p.matches) ?? [],

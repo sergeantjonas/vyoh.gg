@@ -1,4 +1,5 @@
 import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
+import { routeMeta } from "@/lib/route-meta";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
@@ -31,6 +32,11 @@ import {
 
 export const Route = createFileRoute("/lol/$accountSlug/live")({
   component: LivePage,
+  head: ({ params }) =>
+    routeMeta({
+      title: `Live · ${params.accountSlug} · vyoh.gg`,
+      description: `Live League of Legends match for ${params.accountSlug} on vyoh.gg.`,
+    }),
 });
 
 // ─── hooks ───────────────────────────────────────────────────────────────────
@@ -411,6 +417,12 @@ function LivePage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const { data, isPending } = useLiveGame(account);
+
+  useEffect(() => {
+    if (account) {
+      document.title = `Live · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account]);
 
   // Splash + theme cascade follows the owner's current champion in the live
   // game. Falls through to whatever claim the route lower in the tree had
