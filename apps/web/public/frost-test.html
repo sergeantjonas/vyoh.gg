@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frosted-glass pop diagnostic</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100vh; font-family: system-ui, sans-serif; color: #fff; }
+    body {
+      background-image:
+        linear-gradient(to right, rgba(0,0,0,0.6), rgba(0,0,0,0.4)),
+        url("http://localhost:2010/img/lol/champion/ahri/hd/16.11.1.webp");
+      background-size: cover;
+      background-position: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 { margin: 0 0 8px; font-size: 18px; }
+    p { margin: 0 0 16px; font-size: 13px; opacity: 0.85; }
+    button {
+      padding: 8px 14px; margin-right: 8px; cursor: pointer;
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+      font: inherit; font-size: 13px;
+    }
+    button:hover { background: rgba(255,255,255,0.18); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    /* This matches our app's bg-card/60 backdrop-blur-sm:
+       - oklch(0.205 0 0 / 0.6) = 60% of bg-card (dark gray)
+       - backdrop-filter: blur(8px) = backdrop-blur-sm
+       - border: matches our `border` class
+    */
+    .frosted {
+      background-color: oklch(0.205 0 0 / 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 16px;
+      min-height: 70px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 500;
+    }
+
+    .label { font-size: 11px; opacity: 0.7; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* CASE D: inside a fixed-positioned ancestor (like our panel chrome) */
+    .fixed-host {
+      position: fixed;
+      top: 24px; right: 24px; width: 320px;
+      padding: 16px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      z-index: 100;
+    }
+
+    /* CASE E: inside a portal (we'll createElement('div') and append to body via JS) */
+
+    .toggle-wrap { padding: 8px; border: 1px dashed rgba(255,255,255,0.3); border-radius: 8px; min-height: 100px; }
+  </style>
+</head>
+<body>
+  <h1>Frosted-glass pop diagnostic</h1>
+  <p>Compare cases A–E. Watch which ones pop in (start transparent, then frosted) and which paint frosted from the first frame.</p>
+
+  <div>
+    <button id="toggle">Toggle B, C, D, E (un-mount → re-mount)</button>
+    <button id="reload">Hard reload</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="label">A — always mounted (baseline; like css.glass)</div>
+      <div class="frosted">A: always-mounted frosted</div>
+    </div>
+
+    <div>
+      <div class="label">B — toggle-mounted via JS (DOM insertion)</div>
+      <div class="toggle-wrap" id="hostB"></div>
+    </div>
+
+    <div>
+      <div class="label">C — toggle-mounted inside a portal (appended to body)</div>
+      <div class="toggle-wrap"><em style="opacity:.6">(rendered into body, see top-left of viewport)</em></div>
+    </div>
+
+    <div>
+      <div class="label">D — toggle-mounted inside fixed-positioned ancestor</div>
+      <div class="toggle-wrap"><em style="opacity:.6">(see fixed box at top-right)</em></div>
+    </div>
+
+    <div>
+      <div class="label">E — toggle-mounted inside fixed-positioned PORTAL (closest to our Radix Dialog setup)</div>
+      <div class="toggle-wrap"><em style="opacity:.6">(rendered into body, fixed-positioned, see top-center)</em></div>
+    </div>
+  </div>
+
+  <!-- Always-mounted hosts for D + E -->
+  <div class="fixed-host" id="hostD">
+    <div class="label" style="margin-bottom:8px;">D host (fixed)</div>
+    <div id="hostDInner"></div>
+  </div>
+
+  <script>
+    const make = (label) => {
+      const el = document.createElement("div");
+      el.className = "frosted";
+      el.textContent = label;
+      return el;
+    };
+
+    // Portal hosts for C + E (always present in DOM, contents toggle)
+    const hostCPortal = document.createElement("div");
+    hostCPortal.style.cssText = "position:fixed; top:24px; left:24px; width:320px; padding:8px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:8px; z-index:100;";
+    hostCPortal.innerHTML = '<div class="label" style="margin-bottom:8px;">C portal (appended to body)</div><div id="hostCInner"></div>';
+    document.body.appendChild(hostCPortal);
+
+    const hostEPortal = document.createElement("div");
+    hostEPortal.style.cssText = "position:fixed; top:24px; left:50%; transform:translateX(-50%); width:320px; padding:8px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:8px; z-index:100;";
+    hostEPortal.innerHTML = '<div class="label" style="margin-bottom:8px;">E portal + fixed (Radix-Dialog-shaped)</div><div id="hostEInner"></div>';
+    document.body.appendChild(hostEPortal);
+
+    let mounted = false;
+    const toggle = () => {
+      mounted = !mounted;
+      const hostB = document.getElementById("hostB");
+      const hostC = document.getElementById("hostCInner");
+      const hostD = document.getElementById("hostDInner");
+      const hostE = document.getElementById("hostEInner");
+      [hostB, hostC, hostD, hostE].forEach((h) => { h.innerHTML = ""; });
+      if (mounted) {
+        hostB.appendChild(make("B: just-mounted frosted"));
+        hostC.appendChild(make("C: just-mounted in portal"));
+        hostD.appendChild(make("D: just-mounted in fixed"));
+        hostE.appendChild(make("E: just-mounted in fixed portal"));
+      }
+    };
+    document.getElementById("toggle").addEventListener("click", toggle);
+    document.getElementById("reload").addEventListener("click", () => window.location.reload());
+
+    // Auto-mount once on load so the initial state has frosted cards in B/C/D/E.
+    // Note: case A is ALREADY in the static HTML — present at first paint.
+    toggle();
+  </script>
+</body>
+</html>
