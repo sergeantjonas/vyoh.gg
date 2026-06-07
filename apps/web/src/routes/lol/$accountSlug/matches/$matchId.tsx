@@ -13,7 +13,9 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchDetailSkeleton } from "@/lol/matches/match-detail-skeleton";
 import {
+  MATCH_DETAIL_TABS,
   type MatchDetailTabId,
+  TAB_TO_ROUTE,
   activeMatchDetailTab,
 } from "@/lol/matches/match-detail-tabs";
 import { MatchHero } from "@/lol/matches/match-hero";
@@ -21,13 +23,14 @@ import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import {
+  Link,
   Outlet,
   createFileRoute,
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
 import { type MatchSummary, formatLpDelta } from "@vyoh/shared";
-import { Share2 } from "lucide-react";
+import { ChevronLeft, Share2 } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
@@ -80,8 +83,9 @@ function MatchDetailPanel() {
   const { activeMatch, setActiveMatch } = useActiveMatch();
 
   // Captured at first paint — if `activeMatch === matchId` at mount, the user
-  // clicked this row from the list (handler set it pre-navigate). Anything
-  // else (null, mismatched id) is a cold deep-link / refresh — skip the slide.
+  // clicked this row from the list (handler set it pre-navigate). Cold
+  // deep-link / refresh skips the slide so the panel just appears (per arc:
+  // "the panel just *is*, in its open state").
   const skipSlideInRef = useRef(activeMatch !== matchId);
 
   // Cold arrival: write activeMatch from the URL so match-list's
@@ -181,14 +185,48 @@ function MatchDetailPanel() {
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
       header={
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label="Copy link to this match"
-          className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Share2 className="size-4" />
-        </button>
+        <>
+          <Link
+            to="/lol/$accountSlug/matches"
+            params={{ accountSlug }}
+            search={(prev: { queue?: number; count?: number }) => prev}
+            className="inline-flex items-center gap-1 rounded px-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+            Matches
+          </Link>
+          <nav aria-label="Match detail tabs" className="flex items-center gap-1">
+            {MATCH_DETAIL_TABS.map(({ id, label, Icon }) => {
+              const active = id === tab;
+              return (
+                <Link
+                  key={id}
+                  to={TAB_TO_ROUTE[id]}
+                  params={{ accountSlug, matchId }}
+                  replace
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium uppercase tracking-wider transition-colors",
+                    active
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Copy link to this match"
+            className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Share2 className="size-4" />
+          </button>
+        </>
       }
     >
       <div className="flex flex-col gap-6 p-4">

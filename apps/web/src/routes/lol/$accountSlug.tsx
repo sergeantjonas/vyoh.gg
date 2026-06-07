@@ -18,20 +18,13 @@ import { type AccountSearch, validateAccountSearch } from "@/lol/account/account
 import {
   isInChampionsSubtree as isInChampionsSubtreeFn,
   isInMatchesSubtree as isInMatchesSubtreeFn,
-  isMatchDetail as isMatchDetailFn,
   isTabActive,
-  matchIdFromPath,
 } from "@/lol/account/account-tab-helpers";
-import { MatchesBreadcrumb } from "@/lol/account/matches-breadcrumb";
 import {
   ActiveChampionProvider,
   useActiveChampion,
 } from "@/lol/champions/active-champion-context";
 import { ActiveMatchProvider, useActiveMatch } from "@/lol/matches/active-match-context";
-import {
-  activeMatchDetailTab,
-  buildMatchDetailSectionTabs,
-} from "@/lol/matches/match-detail-tabs";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
 import { useLiveGame, useLiveGameEvents } from "@/lol/matches/use-live-match";
 import {
@@ -170,7 +163,6 @@ function AccountLayout() {
   // shows the plain strip identity unconditionally.
   const isProfileIndex =
     pathname === `/lol/${accountSlug}` || pathname === `/lol/${accountSlug}/`;
-  const isMatchDetail = isMatchDetailFn(pathname, accountSlug);
   // Saved-scroll/active-match state is only meaningful while we're inside
   // the matches subtree (list ↔ detail). Once the user navigates to Trends
   // or Champions, that state is stale — dropping it stops the back-nav
@@ -273,19 +265,12 @@ function AccountLayout() {
       }
     : undefined;
 
-  // Model 3: on a match-detail page the always-on section strip swaps its tab
-  // row from the section tabs (Profile/Matches/…) to the detail's own sub-tabs
-  // (Recap/Your game/Review/Timeline), and section scope collapses to a
-  // `‹ Matches` breadcrumb in the strip's leading slot — the standard
-  // master→detail idiom, so we never stack a second nav bar below this one.
-  const detailMatchId = isMatchDetail ? matchIdFromPath(pathname, accountSlug) : null;
-  const detailTabs: SectionTab[] = detailMatchId
-    ? buildMatchDetailSectionTabs({
-        accountSlug,
-        matchId: detailMatchId,
-        activeTabId: activeMatchDetailTab(pathname, detailMatchId),
-      })
-    : [];
+  // Detail-panel arc: when a match-detail panel is open, the sub-tabs
+  // (Recap/Your game/Review/Timeline) + the `‹ Matches` breadcrumb live INSIDE
+  // the panel header, not in the section strip. The strip stays at top-level
+  // (Profile/Matches/Champions/Trends/Live) at all times. The earlier Model 3
+  // swap-on-detail behavior is retired; the strip is no longer master→detail
+  // because the panel doesn't replace the section — it overlays it.
 
   if (!me.isPending && !me.isError && !account) {
     return <NotFound />;
@@ -319,30 +304,17 @@ function AccountLayout() {
                   isProfileIndex={isProfileIndex}
                 />
               }
-              leading={
-                detailMatchId ? (
-                  <MatchesBreadcrumb
-                    accountSlug={accountSlug}
-                    matchId={detailMatchId}
-                    sections={TABS}
-                  />
-                ) : undefined
-              }
               actions={
-                isMatchDetail ? undefined : (
-                  <div className="flex items-center gap-2">
-                    {/* The Matches subtree shows every queue (it's a browse
-                        surface), so the serious-queues preference has no
-                        effect there — hide the icon to avoid implying it does. */}
-                    {!isInMatchesSubtree && <SeriousQueuesSettings />}
-                    <RefreshAccountButton account={account} />
-                  </div>
-                )
+                <div className="flex items-center gap-2">
+                  {/* The Matches subtree shows every queue (it's a browse
+                      surface), so the serious-queues preference has no
+                      effect there — hide the icon to avoid implying it does. */}
+                  {!isInMatchesSubtree && <SeriousQueuesSettings />}
+                  <RefreshAccountButton account={account} />
+                </div>
               }
-              tabs={isMatchDetail ? detailTabs : lolSectionTabs}
-              tabIndicatorId={
-                isMatchDetail ? "match-detail-tab-indicator" : "lol-tab-indicator"
-              }
+              tabs={lolSectionTabs}
+              tabIndicatorId="lol-tab-indicator"
               live={lolLive}
             >
               <Outlet />

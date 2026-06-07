@@ -24,7 +24,6 @@ import {
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import { useActiveChampion } from "@/lol/champions/active-champion-context";
-import { ChampionBreadcrumb } from "@/lol/champions/champion-breadcrumb";
 import { ChampionBuildPath } from "@/lol/champions/champion-build-path";
 import { ChampionCardChrome } from "@/lol/champions/champion-card";
 import {
@@ -45,9 +44,9 @@ import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatKda, formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
-import { Share2 } from "lucide-react";
+import { ChevronLeft, Share2 } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -240,11 +239,9 @@ function ChampionDetailPage() {
   const navigate = useNavigate();
   const { activeChampion, setActiveChampion } = useActiveChampion();
 
-  // Captured at first paint — if `activeChampion === alias` at mount, the user
-  // clicked this row from the list (handler set it pre-navigate). Anything
-  // else (null, mismatched alias) is a cold deep-link / refresh — skip the
-  // slide so the panel appears in place behind the row→hero morph (or simply
-  // appears, on cold arrival where there's no row to morph from).
+  // Captured at first paint — if `activeChampion === alias` at mount, the
+  // user clicked this row from the list (handler set it pre-navigate). Cold
+  // deep-link / refresh skips the slide so the panel just appears.
   const skipSlideInRef = useRef(
     activeChampion?.toLowerCase() !== championKey.toLowerCase()
   );
@@ -276,15 +273,30 @@ function ChampionDetailPage() {
   };
 
   const panelTitle = `${championName(championKey)} · champion detail`;
-  const shareButton = (
-    <button
-      type="button"
-      onClick={handleShare}
-      aria-label="Copy link to this champion"
-      className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Share2 className="size-4" />
-    </button>
+  const panelHeader = (
+    <>
+      <Link
+        to="/lol/$accountSlug/champions"
+        params={{ accountSlug }}
+        search={(prev: Record<string, unknown>) => prev}
+        className="inline-flex items-center gap-1 rounded px-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" aria-hidden />
+        Champions
+      </Link>
+      <span className="text-sm font-medium text-foreground">
+        {championName(championKey)}
+      </span>
+      <div className="flex-1" />
+      <button
+        type="button"
+        onClick={handleShare}
+        aria-label="Copy link to this champion"
+        className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Share2 className="size-4" />
+      </button>
+    </>
   );
 
   // Champion-scoped matches must be derived BEFORE the early return — moving
@@ -308,10 +320,9 @@ function ChampionDetailPage() {
         onClose={handleClose}
         title={panelTitle}
         skipSlideIn={skipSlideInRef.current}
-        header={shareButton}
+        header={panelHeader}
       >
         <div className="flex flex-col gap-6 p-4">
-          <ChampionBreadcrumb accountSlug={accountSlug} championAlias={championKey} />
           <EmptyState
             illustration={<EmptyChampionIllustration />}
             title={`No matches on ${championName(championKey)} yet`}
@@ -348,10 +359,9 @@ function ChampionDetailPage() {
       onClose={handleClose}
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
-      header={shareButton}
+      header={panelHeader}
     >
       <div className="flex flex-col gap-6 p-4">
-        <ChampionBreadcrumb accountSlug={accountSlug} championAlias={alias} />
         {/* Hero — fades out when scrolled past header; stays in DOM so no layout shift */}
         <div ref={heroRef}>
           <m.div

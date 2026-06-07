@@ -2,12 +2,11 @@ import { SlidePanel } from "@/_shared/slide-panel";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { configureAxe } from "jest-axe";
-import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 function wrap(ui: ReactNode) {
-  return render(<MotionConfig reducedMotion="always">{ui}</MotionConfig>);
+  return render(ui);
 }
 
 // Same exemptions as accessibility.test.tsx — color-contrast needs real
