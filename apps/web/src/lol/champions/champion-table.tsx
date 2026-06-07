@@ -5,8 +5,12 @@ import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import { championClassIconUrl } from "@/lol/_shared/assets/champion-icon";
+import {
+  championClassIconUrl,
+  championHdSplashUrl,
+} from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import {
@@ -271,9 +275,16 @@ function ChampionTableRow({
   const alias = s.champion;
   const position = s.position;
   const queryClient = useQueryClient();
+  const ddVersion = useDDragonVersion();
   const account = useAccountFromSlug(accountSlug);
   const prefetch = useHoverPrefetch(() => {
     queryClient.prefetchQuery(championExtrasQueryOptions(account, alias));
+    // Preload the HD champion splash for the champion-detail panel chrome
+    // (see slide-panel.tsx `chromeBackdropUrl`). Without this, the splash
+    // only starts loading once the panel mounts and pops in visibly after
+    // the rest of the panel content lays out. Same pattern as match-row.
+    const img = new Image();
+    img.src = championHdSplashUrl(alias, ddVersion);
   });
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef. Mirrors match-row.

@@ -3,6 +3,8 @@ import { Sparkline } from "@/components/ui/sparkline";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import {
@@ -55,8 +57,17 @@ export function MatchRow({
   const reduced = useReducedMotion();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const ddVersion = useDDragonVersion();
   const prefetch = useHoverPrefetch(() => {
     queryClient.prefetchQuery(matchDetailQueryOptions(match.matchId));
+    // Preload the HD champion splash that the match-detail panel will use
+    // for its chrome backdrop. The panel chrome stretches to ~900×viewport
+    // so it uses the 1920px `hd` variant (separate cache key from the
+    // smaller `backdrop` variant used by the global SplashProvider). Without
+    // this prefetch the image only starts loading once the panel mounts,
+    // and pops in visibly after the rest of the panel content is laid out.
+    const img = new Image();
+    img.src = championHdSplashUrl(match.champion, ddVersion);
   });
   const cardRef = useRef<HTMLDivElement>(null);
   // Captured once on mount so StrictMode's double-invocation doesn't lose the

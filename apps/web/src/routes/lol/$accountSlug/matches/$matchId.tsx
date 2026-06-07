@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
-import { championBackdropSplashUrl } from "@/lol/_shared/assets/champion-icon";
+import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -127,13 +127,15 @@ function MatchDetailPanel() {
   // the panel-open transition.
   const splashChampion = myParticipant?.championName ?? cachedSummary?.champion;
   useSplashChampion(splashChampion);
-  // Reuse the same champion splash as the panel chrome backdrop so the panel
-  // carries the same atmospheric energy as the global nav (which shows the
-  // splash through its frosted background). Heavily darkened in CSS so the
-  // panel content remains the dominant read.
+  // Reuse the champion splash as the panel chrome backdrop so the panel
+  // carries the same atmospheric energy as the global nav. Use the HD
+  // variant (1920px wiki-served raw) rather than `backdrop` (smaller crop
+  // sized for thumbnail / ambient washes): the panel chrome stretches the
+  // image to ~900×full-viewport with no overlay blur to hide upsampling
+  // artifacts, so the smaller asset would visibly soft-pixel.
   const ddVersion = useDDragonVersion();
   const chromeBackdropUrl = splashChampion
-    ? championBackdropSplashUrl(splashChampion, ddVersion)
+    ? championHdSplashUrl(splashChampion, ddVersion)
     : null;
 
   const heroSummary: MatchSummary | undefined =
@@ -306,8 +308,16 @@ function MatchDetailPanel() {
         </div>
         {/* Sub-tabs live in the panel header (see `header` slot above);
             this body just renders the active tab's content. */}
+        {/* When `bodyReady` is true at first render (VT-supporting browsers,
+            the common case), match `initial` to `animate` so Motion runs
+            no transition. Animating opacity from 0.6→1 creates a stacking
+            context that suppresses `backdrop-filter` painting in EVERY
+            descendant for the duration — that's the visible "frosted
+            components are transparent first, then suddenly blurred" pop.
+            The rect-morph fallback path (Safari, etc.) still needs the
+            settle gate, so we animate only when `bodyReady` starts false. */}
         <m.div
-          initial={{ opacity: BODY_HOLD_OPACITY }}
+          initial={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
           animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="flex flex-col gap-6"

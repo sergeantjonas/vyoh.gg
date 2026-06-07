@@ -11,16 +11,16 @@ import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import {
-  championBackdropSplashUrl,
   championClassIconUrl,
+  championHdSplashUrl,
 } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
-import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import {
   filterToSerious,
   useSeriousQueues,
@@ -169,9 +169,11 @@ function ChampionDetailPage() {
   // Render the champion's splash as the panel chrome backdrop (heavily
   // darkened in CSS) so the panel carries the same splash atmosphere as
   // the global nav — see slide-panel.tsx `chromeBackdropUrl` for the
-  // composition. Same approach as the match-detail panel.
+  // composition. Use the HD variant (1920px wiki raw) — the panel stretches
+  // the image to ~900×full-viewport with no blur to hide upsampling, so the
+  // smaller `backdrop` variant would visibly soft-pixel.
   const ddVersion = useDDragonVersion();
-  const chromeBackdropUrl = championBackdropSplashUrl(championKey, ddVersion);
+  const chromeBackdropUrl = championHdSplashUrl(championKey, ddVersion);
 
   useEffect(() => {
     if (account) {
