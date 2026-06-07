@@ -1,3 +1,5 @@
+import { SlidePanel } from "@/_shared/slide-panel";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -30,8 +32,12 @@ function Frosted({ label }: { label: string }) {
   );
 }
 
+const SPLASH_URL = "http://localhost:2010/img/lol/champion/ahri/hd/16.11.1.webp";
+
 function FrostDiagnostic() {
   const [mounted, setMounted] = useState(true);
+  const [radixOpen, setRadixOpen] = useState(false);
+  const [slidePanelOpen, setSlidePanelOpen] = useState(false);
 
   return (
     <div style={BG_STYLE} className="p-6 text-white">
@@ -90,6 +96,63 @@ function FrostDiagnostic() {
               </div>
             )}
           </div>
+        </div>
+
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-wider opacity-70">
+            D — frosted card inside a raw Radix Dialog (no SlidePanel)
+          </div>
+          <button
+            type="button"
+            onClick={() => setRadixOpen((v) => !v)}
+            className="cursor-pointer rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
+          >
+            {radixOpen ? "Close" : "Open"} D (Radix Dialog)
+          </button>
+          <DialogPrimitive.Root
+            open={radixOpen}
+            modal={false}
+            onOpenChange={setRadixOpen}
+          >
+            <DialogPrimitive.Portal>
+              <DialogPrimitive.Content
+                aria-describedby={undefined}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/20 bg-black/70 p-4"
+              >
+                <DialogPrimitive.Title className="mb-3 text-sm font-medium">
+                  Radix Dialog
+                </DialogPrimitive.Title>
+                <Frosted label="D: frosted card inside Radix" />
+              </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+          </DialogPrimitive.Root>
+        </div>
+
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-wider opacity-70">
+            E — frosted card inside our actual SlidePanel (with chromeBackdropUrl)
+          </div>
+          <button
+            type="button"
+            onClick={() => setSlidePanelOpen((v) => !v)}
+            className="cursor-pointer rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
+          >
+            {slidePanelOpen ? "Close" : "Open"} E (SlidePanel)
+          </button>
+          <SlidePanel
+            open={slidePanelOpen}
+            onClose={() => setSlidePanelOpen(false)}
+            title="Frost diagnostic"
+            chromeBackdropUrl={SPLASH_URL}
+            header={<span className="text-sm">E header</span>}
+          >
+            <div className="flex flex-col gap-3 p-4">
+              <Frosted label="E.1: frosted inside SlidePanel" />
+              <Frosted label="E.2: another frosted inside SlidePanel" />
+              <Frosted label="E.3: and a third" />
+            </div>
+          </SlidePanel>
         </div>
       </div>
     </div>
