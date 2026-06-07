@@ -24,7 +24,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { excludeRemakes } from "@vyoh/shared";
 import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { ChevronRight } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 // API origin for the per-route OG image endpoint. Local rather than imported
 // so head() stays a leaf with no transitive deps on the initial-route graph.
@@ -34,8 +34,13 @@ export const Route = createFileRoute("/lol/$accountSlug/")({
   component: ProfilePage,
   head: ({ params }) => {
     const ogImage = `${API_URL}/og/profile/${params.accountSlug}.png`;
-    const title = `${params.accountSlug} · vyoh.gg`;
-    const description = `Profile for ${params.accountSlug} on vyoh.gg`;
+    // Static fallback used until `ProfilePage` enriches `document.title`
+    // with the resolved `gameName#tagLine` (see the useEffect below).
+    // Crawlers that never run the component still get a non-slug title.
+    // Mirrors the same pattern in the Steam game-detail route. The slug is
+    // an opaque URL identifier; LoL identity is always `gameName#tagLine`.
+    const title = "Profile · vyoh.gg";
+    const description = "LoL profile on vyoh.gg";
     return {
       meta: [
         { title },
@@ -58,6 +63,20 @@ export const Route = createFileRoute("/lol/$accountSlug/")({
 function ProfilePage() {
   const { accountSlug } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
+
+  // Tab title enrichment. The route's `head()` ships a static "Profile ·
+  // vyoh.gg" fallback so crawlers and pre-resolve loads aren't stuck on the
+  // opaque URL slug; once `useAccountFromSlug` resolves the LoL identity we
+  // swap to `gameName#tagLine` — the canonical LoL identity form, same as
+  // the OG card body. No restore-on-unmount — TanStack Router fires the
+  // next route's head() on navigation, which overwrites the title. Mirrors
+  // the same pattern used in the Steam game-detail route.
+  useEffect(() => {
+    if (account) {
+      document.title = `${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account]);
+
   const rank = useProfileRank(account);
   // Shared with LiveGameChip below — TanStack Query dedupes the in-flight
   // fetch, so this second read is free on the wire. Drives the hero avatar's

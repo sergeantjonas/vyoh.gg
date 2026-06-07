@@ -134,16 +134,19 @@ Hero art via Steam image proxy (SGDB-fallback chain already wired). Stats from t
 - Champion-detail route head() (`apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx`) emits the OG meta tags.
 - Tests: `og-card.spec.ts` (PNG header + canonical 1200×630 dims), `og.service.spec.ts` (404 path + sub-label composition), `og.controller.spec.ts` (delegation + alias DTO).
 
-### Chunk 2 — Profile OG ✅ shipped
+### Chunk 2 — Profile OG ✅ shipped (revised same day to splash-backed)
 
-- `renderProfileCard(data: ProfileCardData)`. Typographic layout (no splash); `gameName#tagLine` headline, rank line, three KPI tiles (WR / KDA / Games), region.
-- `GET /og/profile/:slug.png`. Identity via `IdentityService.findBySlug` → `gameName#tagLine` (decision #5). Rank from `LolService.getSummonerProfile` (solo preferred, apex tiers drop the division). KPIs computed from a 500-row cached-match window via `excludeRemakes` to honour the domain invariant.
-- Profile route head() (`apps/web/src/routes/lol/$accountSlug/index.tsx`) emits the meta tags.
-- Tests: rank composition (Platinum III · 47 LP), apex-tier division drop, null-rank path, KPI computation.
+- `renderProfileCard(data: ProfileCardData)`. Splash-backed layout: signature champion as full-bleed backdrop with bottom-darken gradient + bottom-anchored editorial block (gameName#tagLine, rank line, three KPI tiles, region). Falls back to a typographic-only layout when `splashUrls` is empty (no non-remake matches yet).
+- `GET /og/profile/:slug.png`. Identity via `IdentityService.findBySlug` → `gameName#tagLine` (decision #5). Rank from `LolService.getSummonerProfile` (solo preferred, apex tiers drop the division). KPIs + signature champion computed from a 500-row cached-match window via `excludeRemakes` + `selectChampionOfYear`.
+- `selectChampionOfYear` lifted from `apps/web/src/lol/recap/recap-champion.tsx` into `packages/shared/src/lol/champion-of-year.ts` so the OG card and the profile page's hero backdrop agree on the subject — a viewer who clicks through sees the same champion that was in the share preview.
+- Profile route head() (`apps/web/src/routes/lol/$accountSlug/index.tsx`) ships a static "Profile · vyoh.gg" fallback; a `useEffect` in `ProfilePage` enriches `document.title` with `${gameName}#${tagLine} · vyoh.gg` once the account resolves. The slug is an opaque URL identifier; LoL identity is always gameName#tagLine. Same pattern the Steam game-detail route uses.
+- Tests: rank composition (Platinum III · 47 LP), apex-tier division drop, null-rank path, KPI computation, signature-champion splash composition, empty-match-window fallback to empty splashUrls.
 
 ### Chunk 3 — Home OG ✅ shipped (closes [frontend-2026-gaps.md Gap 1](frontend-2026-gaps.md))
 
-- `renderHomeCard()`. Centered editorial composition: layered concentric-circle OrbMark glyph (Satori has no SVG primitive, so it's three stacked rounded divs), large wordmark, owner-curated tagline.
+- `renderHomeCard()`. Centered editorial composition: the actual OrbMark glyph (copied from `apps/web/public/vyoh-orb-mark.svg` into `apps/api/src/og/assets/`) wrapped in a soft radial halo, large wordmark, owner-curated tagline. The orb SVG is a PNG-in-SVG wrapper; `og-assets.ts` extracts the inner base64 PNG once at module load and embeds it as a Satori `<img>` data URL.
+- Web-side OrbGlyph uses CSS masks to retint with `--theme-color`. Satori has no mask-source equivalent, so the OG renders the orb with its native 3D shading — the loss of theme-color tinting is acceptable for a static home surface (no per-route accent to convey).
+- Build wiring: `apps/api/nest-cli.json` extends `assets` to include `og/assets/*.svg` alongside `og/fonts/*.ttf` so the SVG ships into `dist/` next to the compiled JS.
 - `GET /og/home.png`. No upstream calls — fully self-contained; rendered per request (decision #2) for endpoint-shape uniformity.
 - `apps/web/index.html` adds `<meta property="og:image">` + Twitter image referencing the home endpoint; `<meta name="twitter:card">` lifted from `summary` to `summary_large_image`.
 

@@ -1,5 +1,6 @@
 import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
+import { ORB_MARK_DATA_URL } from "./og-assets";
 import { fonts } from "./og-fonts";
 
 // Every OG card renders at the canonical OG aspect (1200×630). One constant so
@@ -50,6 +51,11 @@ export interface ProfileCardData {
   // when stats are missing (e.g. fresh accounts).
   kpis: Array<{ label: string; value: string }>;
   region: string;
+  // Splash URL chain for the signature champion (the same one driving the
+  // profile page's backdrop — `selectChampionOfYear`). Empty list when the
+  // account has zero non-remake matches; the card falls back to the muted
+  // typographic layout in that case.
+  splashUrls: string[];
 }
 
 export interface HomeCardData {
@@ -429,116 +435,113 @@ export async function renderChampionCard(data: ChampionCardData): Promise<Buffer
 }
 
 // -----------------------------------------------------------------------------
-// Profile card — typographic, no full-bleed splash. Account headline + rank
-// line up top, KPI strip across the middle, wordmark + region down low.
+// Profile card — splash-backed, mirroring the profile page's signature
+// backdrop. The splash is whichever champion `selectChampionOfYear` picks for
+// this account, so the OG and the destination page agree on the subject. The
+// editorial block (account label + rank line + KPI strip) sits bottom-anchored
+// over a vertical darken gradient. Falls back to a typographic-only layout
+// when the account has no matches (empty `splashUrls`).
 // -----------------------------------------------------------------------------
 
 export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> {
-  const card = e(
-    "div",
-    {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        position: "relative",
-        width: OG_WIDTH,
-        height: OG_HEIGHT,
-        // Slight warm gradient backdrop so the all-typography card has some
-        // body; oklch math happens client-side here (Satori doesn't compute
-        // color-mix), so we hand-tune the stops.
-        backgroundColor: "#0a0a0a",
-        backgroundImage:
-          "linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(10,10,10,1) 50%, rgba(245,158,11,0.06) 100%)",
-        color: "#f4f4f5",
-        fontFamily: "Geist",
-        padding: "96px 80px",
-        boxSizing: "border-box",
-        justifyContent: "space-between",
-      },
-    },
-    // Top block: account name + rank line.
-    e(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: 20 } },
-      wordmark(),
-      e(
-        "div",
-        {
-          style: {
-            display: "flex",
-            fontSize: 88,
-            fontWeight: 600,
-            lineHeight: 1.05,
-            letterSpacing: "-0.02em",
-            color: "#f4f4f5",
-          },
+  const splashDataUrl =
+    data.splashUrls.length > 0 ? await fetchAsDataUrl(data.splashUrls) : null;
+  const children: Array<Element | string | number> = [];
+
+  if (splashDataUrl) {
+    children.push(
+      e("img", {
+        src: splashDataUrl,
+        style: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: OG_WIDTH,
+          height: OG_HEIGHT,
+          objectFit: "cover",
+          objectPosition: "center top",
+          filter: "saturate(0.95)",
         },
-        data.accountLabel
-      ),
-      e(
-        "div",
-        {
-          style: {
-            display: "flex",
-            fontSize: 30,
-            color: data.rankLine ? "#a78bfa" : "#71717a",
-            letterSpacing: "0.04em",
-          },
+      }),
+      // Vertical bottom-darken: clears the splash up top, anchors the
+      // editorial block down below. Same gradient stops as the champion
+      // card so the two splash-backed surfaces share an aesthetic.
+      e("div", {
+        style: {
+          display: "flex",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: OG_WIDTH,
+          height: OG_HEIGHT,
+          backgroundImage:
+            "linear-gradient(to bottom, rgba(10,10,10,0.2) 0%, rgba(10,10,10,0) 30%, rgba(10,10,10,0.7) 70%, rgba(10,10,10,0.96) 100%)",
         },
-        data.rankLine ?? "Unranked"
-      )
-    ),
-    // KPI strip — evenly distributed across the bottom band. Each tile is a
-    // (value, label) pair; value sits on the editorial scale used elsewhere
-    // (KDA / win-rate / lifetime tiles).
+      })
+    );
+  }
+
+  // Wordmark anchored top-right; identical positioning to the champion card.
+  children.push(
     e(
       "div",
       {
         style: {
+          position: "absolute",
+          top: 48,
+          right: 64,
           display: "flex",
-          flexDirection: "row",
-          gap: 64,
-          alignItems: "flex-end",
-          justifyContent: "space-between",
         },
       },
-      ...data.kpis.map((kpi) =>
+      wordmark()
+    )
+  );
+
+  // Bottom editorial block — account label (huge), rank line, KPI row.
+  children.push(
+    e(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          left: 64,
+          right: 64,
+          bottom: 64,
+          display: "flex",
+          flexDirection: "column",
+          gap: 28,
+        },
+      },
+      e(
+        "div",
+        {
+          style: { display: "flex", flexDirection: "column", gap: 12 },
+        },
         e(
           "div",
           {
             style: {
               display: "flex",
-              flexDirection: "column",
-              gap: 4,
+              fontSize: 80,
+              fontWeight: 600,
+              lineHeight: 1,
+              letterSpacing: "-0.02em",
+              color: "#f4f4f5",
             },
           },
-          e(
-            "div",
-            {
-              style: {
-                display: "flex",
-                fontSize: 60,
-                fontWeight: 600,
-                fontVariantNumeric: "tabular-nums",
-                color: "#f4f4f5",
-                lineHeight: 1,
-              },
+          data.accountLabel
+        ),
+        e(
+          "div",
+          {
+            style: {
+              display: "flex",
+              fontSize: 28,
+              color: data.rankLine ? "#c4b5fd" : "#a1a1aa",
+              letterSpacing: "0.04em",
             },
-            kpi.value
-          ),
-          e(
-            "div",
-            {
-              style: {
-                display: "flex",
-                fontSize: 18,
-                color: "#a1a1aa",
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-              },
-            },
-            kpi.label
-          )
+          },
+          data.rankLine ?? "Unranked"
         )
       ),
       e(
@@ -546,15 +549,78 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
         {
           style: {
             display: "flex",
-            fontSize: 18,
-            color: "#71717a",
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
+            flexDirection: "row",
+            gap: 56,
+            alignItems: "flex-end",
+            justifyContent: "space-between",
           },
         },
-        data.region
+        ...data.kpis.map((kpi) =>
+          e(
+            "div",
+            {
+              style: { display: "flex", flexDirection: "column", gap: 4 },
+            },
+            e(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  fontSize: 48,
+                  fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
+                  color: "#f4f4f5",
+                  lineHeight: 1,
+                },
+              },
+              kpi.value
+            ),
+            e(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  fontSize: 16,
+                  color: "#d4d4d8",
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                },
+              },
+              kpi.label
+            )
+          )
+        ),
+        e(
+          "div",
+          {
+            style: {
+              display: "flex",
+              fontSize: 16,
+              color: "#a1a1aa",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+            },
+          },
+          data.region
+        )
       )
     )
+  );
+
+  const card = e(
+    "div",
+    {
+      style: {
+        display: "flex",
+        position: "relative",
+        width: OG_WIDTH,
+        height: OG_HEIGHT,
+        backgroundColor: "#0a0a0a",
+        color: "#f4f4f5",
+        fontFamily: "Geist",
+      },
+    },
+    ...children
   );
 
   return svgToPng(card);
@@ -567,6 +633,13 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
 // -----------------------------------------------------------------------------
 
 export async function renderHomeCard(data: HomeCardData): Promise<Buffer> {
+  // The orb glyph is a raster PNG wrapped in a thin SVG container; the data
+  // URL is extracted once at module load (see og-assets.ts). The web's
+  // OrbGlyph component uses CSS masks to retint it with --theme-color, but
+  // Satori has no mask-source equivalent — we render the orb with its native
+  // 3D shading instead. At OG resolution (320px) the 3D detail reads as
+  // intended; the loss of theme-color tinting is acceptable for a static
+  // home surface (the route has no per-entity accent to convey anyway).
   const card = e(
     "div",
     {
@@ -579,18 +652,15 @@ export async function renderHomeCard(data: HomeCardData): Promise<Buffer> {
         width: OG_WIDTH,
         height: OG_HEIGHT,
         backgroundColor: "#0a0a0a",
-        // Same warm-cool gradient signature as the profile card; ties the
-        // home OG to the site's editorial palette.
-        backgroundImage:
-          "linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(10,10,10,1) 50%, rgba(245,158,11,0.08) 100%)",
         color: "#f4f4f5",
         fontFamily: "Geist",
-        gap: 48,
+        gap: 56,
       },
     },
-    // OrbMark glyph — large concentric-circle composition rendered with three
-    // stacked divs (Satori has no SVG primitive). Layered halos mimic the
-    // orb's atmospheric character without pulling in an actual SVG asset.
+    // Radial halo behind the orb — same intent as the web component's
+    // animated theme-color aura, just static at OG dimensions. The blur
+    // hides the gradient stop transitions so the halo reads as a soft glow,
+    // not a flat ring.
     e(
       "div",
       {
@@ -598,36 +668,27 @@ export async function renderHomeCard(data: HomeCardData): Promise<Buffer> {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 240,
-          height: 240,
+          width: 480,
+          height: 480,
           position: "relative",
         },
       },
       e("div", {
         style: {
           position: "absolute",
-          width: 240,
-          height: 240,
-          borderRadius: 120,
-          backgroundColor: "rgba(124,58,237,0.18)",
+          width: 480,
+          height: 480,
+          borderRadius: 240,
+          backgroundImage:
+            "radial-gradient(circle, rgba(167,139,250,0.45) 0%, rgba(167,139,250,0.18) 40%, rgba(167,139,250,0) 70%)",
         },
       }),
-      e("div", {
+      e("img", {
+        src: ORB_MARK_DATA_URL,
         style: {
-          position: "absolute",
-          width: 180,
-          height: 180,
-          borderRadius: 90,
-          backgroundColor: "rgba(167,139,250,0.35)",
-        },
-      }),
-      e("div", {
-        style: {
-          position: "absolute",
-          width: 110,
-          height: 110,
-          borderRadius: 55,
-          backgroundColor: "#c4b5fd",
+          width: 320,
+          height: 320,
+          objectFit: "contain",
         },
       })
     ),

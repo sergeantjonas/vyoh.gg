@@ -99,6 +99,10 @@ export type {
   MatchNarrativeWindow,
 } from "./lol/match-narrative.ts";
 export type { MatchSummary } from "./lol/match.ts";
+export {
+  selectChampionOfYear,
+  type ChampionAggregate,
+} from "./lol/champion-of-year.ts";
 export type {
   ChampionPatchChangeKind,
   ChampionPatchChangeLine,

@@ -3,45 +3,19 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, formatKda, formatPercent } from "@vyoh/shared";
+import {
+  type MatchSummary,
+  formatKda,
+  formatPercent,
+  selectChampionOfYear,
+} from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
-interface ChampionAggregate {
-  champion: string;
-  games: number;
-  wins: number;
-  kills: number;
-  deaths: number;
-  assists: number;
-}
-
-export function selectChampionOfYear(matches: MatchSummary[]): ChampionAggregate | null {
-  const map = new Map<string, ChampionAggregate>();
-  for (const m of matches) {
-    if (m.remake) continue;
-    const prev = map.get(m.champion) ?? {
-      champion: m.champion,
-      games: 0,
-      wins: 0,
-      kills: 0,
-      deaths: 0,
-      assists: 0,
-    };
-    map.set(m.champion, {
-      ...prev,
-      games: prev.games + 1,
-      wins: prev.wins + (m.win ? 1 : 0),
-      kills: prev.kills + m.kills,
-      deaths: prev.deaths + m.deaths,
-      assists: prev.assists + m.assists,
-    });
-  }
-  const list = [...map.values()];
-  if (list.length === 0) return null;
-  list.sort((a, b) => b.games - a.games);
-  return list[0] ?? null;
-}
+// Re-exported so existing call sites (`selectChampionOfYear`) keep working
+// without churn. The canonical definition lives in `@vyoh/shared/lol` so the
+// API's OG service uses the same selection rule.
+export { selectChampionOfYear };
 
 export function RecapChampion({
   matches,

@@ -6,6 +6,7 @@ import {
   formatKda,
   formatPercent,
   formatPlaytimeFromSeconds,
+  selectChampionOfYear,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { LolImageService } from "../img/lol-image.service";
@@ -154,6 +155,16 @@ export class OgService {
     const totalA = real.reduce((sum, m) => sum + m.assists, 0);
     const kda = totalGames > 0 ? formatKda((totalK + totalA) / Math.max(1, totalD)) : "—";
 
+    // Signature-champion splash — same selector the profile page itself uses
+    // for the cinematic hero backdrop. Keeps the OG and the destination page
+    // visually aligned: a viewer who clicks through sees the same champion
+    // they saw in the share preview. Empty match window → empty URL list →
+    // the card falls back to its typographic-only layout.
+    const signature = selectChampionOfYear(matchesWindow.matches);
+    const splashUrls = signature
+      ? (await this.lolImage.champion(signature.champion, "hd")).urls
+      : [];
+
     return renderProfileCard({
       // gameName#tagLine per [og-image-pipeline.md decision #5].
       accountLabel: `${account.gameName}#${account.tagLine}`,
@@ -164,6 +175,7 @@ export class OgService {
         { label: "Games", value: totalGames.toString() },
       ],
       region: account.region.toUpperCase(),
+      splashUrls,
     });
   }
 

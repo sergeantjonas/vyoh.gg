@@ -312,7 +312,29 @@ describe("OgService.generateProfileCard", () => {
         { label: "Games", value: "3" },
       ],
       region: "EUW1",
+      // Signature champion of the (3 non-remake) matches is the single
+      // unique champion "Ahri" — the lolImage stub returns the wiki URL.
+      splashUrls: ["https://wiki.example/splash.jpg"],
     });
+  });
+
+  it("yields empty splashUrls when the account has no non-remake matches", async () => {
+    renderProfileCardMock.mockClear();
+    const service = makeService({
+      identity: { findBySlug: vi.fn().mockReturnValue(ACCOUNT) },
+      lol: {
+        getSummonerProfile: vi.fn().mockResolvedValue({
+          profileIconId: null,
+          summonerLevel: null,
+          rankEntries: [],
+        }),
+        getCachedMatches: vi.fn().mockResolvedValue({ matches: [], total: 0 }),
+      },
+    });
+    await service.generateProfileCard("vyoh-ahri");
+    expect(renderProfileCardMock).toHaveBeenCalledWith(
+      expect.objectContaining({ splashUrls: [] })
+    );
   });
 
   it("drops the division for apex tiers", async () => {

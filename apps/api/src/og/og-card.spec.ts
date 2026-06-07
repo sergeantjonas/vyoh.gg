@@ -159,22 +159,27 @@ describe("renderProfileCard", () => {
         { label: "Games", value: "214" },
       ],
       region: "EUW",
+      splashUrls: ["https://wiki.example/Ahri.jpg"],
     });
     expect(buf).toBeInstanceOf(Buffer);
     expect(buf.subarray(0, 4).toString("hex")).toBe("89504e47");
   });
 
-  it("renders an Unranked label path when rankLine is null", async () => {
-    // The card pivots on `rankLine === null` (color + label change) but should
-    // still produce a valid PNG; we just check the render completes without
-    // touching the URL fetch path (profile card has no splash).
+  it("renders the typographic-only fallback when splashUrls is empty", async () => {
+    // The card pivots on `splashUrls.length === 0` — no upstream fetch path is
+    // touched. Empty match window (fresh accounts) lands here cleanly instead
+    // of throwing on a missing-splash fetch.
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
     const buf = await renderProfileCard({
       accountLabel: "Vyoh#Ahri",
       rankLine: null,
       kpis: [],
       region: "EUW",
+      splashUrls: [],
     });
     expect(buf).toBeInstanceOf(Buffer);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
