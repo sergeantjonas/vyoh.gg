@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { routeMeta } from "@/lib/route-meta";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -36,27 +37,16 @@ const API_URL = "http://localhost:2010";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   component: MatchDetailLayout,
-  head: ({ params }) => {
-    const ogImage = `${API_URL}/og/match/${params.accountSlug}/${params.matchId}.png`;
-    const title = `Match ${params.matchId} · vyoh.gg`;
-    const description = `Match detail for ${params.accountSlug} on vyoh.gg`;
-    return {
-      meta: [
-        { title },
-        { name: "description", content: description },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-        { property: "og:image", content: ogImage },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
-        { property: "og:type", content: "article" },
-        { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: title },
-        { name: "twitter:description", content: description },
-        { name: "twitter:image", content: ogImage },
-      ],
-    };
-  },
+  // Static fallback drops the opaque matchId for a slug-scoped label; the
+  // component enriches to `{Champion} {win|loss|remake} · {gameName#tagLine}`
+  // once the match detail + account resolve.
+  head: ({ params }) =>
+    routeMeta({
+      title: `Match · ${params.accountSlug} · vyoh.gg`,
+      description: `Match detail for ${params.accountSlug} on vyoh.gg`,
+      ogImage: `${API_URL}/og/match/${params.accountSlug}/${params.matchId}.png`,
+      ogType: "article",
+    }),
 });
 
 // The detail sub-tabs (Recap/Your game/Review/Timeline) and the `‹ Matches`
@@ -132,6 +122,13 @@ function MatchDetailLayout() {
           laneOpponent: null,
         }
       : undefined);
+
+  useEffect(() => {
+    if (!account || !heroSummary) return;
+    const champion = championName(heroSummary.champion);
+    const result = heroSummary.remake ? "remake" : heroSummary.win ? "win" : "loss";
+    document.title = `${champion} ${result} · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+  }, [account, heroSummary, championName]);
 
   return (
     <div className="flex flex-col gap-6">

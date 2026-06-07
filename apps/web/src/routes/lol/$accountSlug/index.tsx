@@ -1,3 +1,4 @@
+import { routeMeta } from "@/lib/route-meta";
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
@@ -32,32 +33,18 @@ const API_URL = "http://localhost:2010";
 
 export const Route = createFileRoute("/lol/$accountSlug/")({
   component: ProfilePage,
-  head: ({ params }) => {
-    const ogImage = `${API_URL}/og/profile/${params.accountSlug}.png`;
-    // Static fallback used until `ProfilePage` enriches `document.title`
-    // with the resolved `gameName#tagLine` (see the useEffect below).
-    // Crawlers that never run the component still get a non-slug title.
-    // Mirrors the same pattern in the Steam game-detail route. The slug is
-    // an opaque URL identifier; LoL identity is always `gameName#tagLine`.
-    const title = "Profile · vyoh.gg";
-    const description = "LoL profile on vyoh.gg";
-    return {
-      meta: [
-        { title },
-        { name: "description", content: description },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-        { property: "og:image", content: ogImage },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
-        { property: "og:type", content: "profile" },
-        { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: title },
-        { name: "twitter:description", content: description },
-        { name: "twitter:image", content: ogImage },
-      ],
-    };
-  },
+  // Static fallback used until `ProfilePage` enriches `document.title`
+  // with the resolved `gameName#tagLine` (see the useEffect below).
+  // Crawlers that never run the component still get a non-slug title.
+  // Mirrors the same pattern in the Steam game-detail route. The slug is
+  // an opaque URL identifier; LoL identity is always `gameName#tagLine`.
+  head: ({ params }) =>
+    routeMeta({
+      title: "Profile · vyoh.gg",
+      description: "LoL profile on vyoh.gg",
+      ogImage: `${API_URL}/og/profile/${params.accountSlug}.png`,
+      ogType: "profile",
+    }),
 });
 
 function ProfilePage() {

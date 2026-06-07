@@ -1,3 +1,4 @@
+import { routeMeta } from "@/lib/route-meta";
 import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { CreditsLine } from "@/steam/_shared/credits-line";
@@ -42,30 +43,16 @@ export const Route = createFileRoute("/steam/game/$appid")({
   validateSearch: (search: Record<string, unknown>): SteamGameSearch => ({
     ach: typeof search.ach === "string" ? search.ach : undefined,
   }),
-  head: ({ params }) => {
-    const ogImage = `${API_URL}/og/steam-game/${params.appid}.png`;
-    // Static fallback used until `SteamGamePage` enriches `document.title`
-    // with the resolved game name (see `useEffect` below). Crawlers that
-    // never run the component still get a non-numeric title.
-    const title = "Steam · vyoh.gg";
-    const description = `Steam game detail (appid ${params.appid}) on vyoh.gg`;
-    return {
-      meta: [
-        { title },
-        { name: "description", content: description },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-        { property: "og:image", content: ogImage },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
-        { property: "og:type", content: "article" },
-        { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: title },
-        { name: "twitter:description", content: description },
-        { name: "twitter:image", content: ogImage },
-      ],
-    };
-  },
+  // Static fallback used until `SteamGamePage` enriches `document.title`
+  // with the resolved game name (see `useEffect` below). Crawlers that
+  // never run the component still get a non-numeric title.
+  head: ({ params }) =>
+    routeMeta({
+      title: "Steam · vyoh.gg",
+      description: `Steam game detail (appid ${params.appid}) on vyoh.gg`,
+      ogImage: `${API_URL}/og/steam-game/${params.appid}.png`,
+      ogType: "article",
+    }),
 });
 
 function SteamGamePage() {

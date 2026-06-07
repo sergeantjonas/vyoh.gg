@@ -3,6 +3,7 @@ import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state"
 import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { Sparkline } from "@/components/ui/sparkline";
+import { routeMeta } from "@/lib/route-meta";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -72,27 +73,16 @@ const API_URL = "http://localhost:2010";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")({
   component: ChampionDetailPage,
-  head: ({ params }) => {
-    const ogImage = `${API_URL}/og/champion/${params.championKey}.png`;
-    const title = `${params.championKey} · vyoh.gg`;
-    const description = `Champion detail for ${params.championKey} on vyoh.gg`;
-    return {
-      meta: [
-        { title },
-        { name: "description", content: description },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-        { property: "og:image", content: ogImage },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
-        { property: "og:type", content: "article" },
-        { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: title },
-        { name: "twitter:description", content: description },
-        { name: "twitter:image", content: ogImage },
-      ],
-    };
-  },
+  // Static fallback uses the raw alias (e.g. `JarvanIV`) — the component
+  // enriches to the display name (`Jarvan IV`) + canonical `gameName#tagLine`
+  // once useChampionName + useAccountFromSlug resolve.
+  head: ({ params }) =>
+    routeMeta({
+      title: `${params.championKey} · ${params.accountSlug} · vyoh.gg`,
+      description: `Champion detail for ${params.championKey} on vyoh.gg`,
+      ogImage: `${API_URL}/og/champion/${params.championKey}.png`,
+      ogType: "article",
+    }),
 });
 
 function DeltaTile({
@@ -169,6 +159,13 @@ function ChampionDetailPage() {
   );
   const championName = useChampionName();
   useSplashChampion(championKey);
+
+  useEffect(() => {
+    if (account) {
+      const display = championName(championKey);
+      document.title = `${display} · ${account.gameName}#${account.tagLine} · vyoh.gg`;
+    }
+  }, [account, championKey, championName]);
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
   const itemsData = useItems();
