@@ -101,7 +101,12 @@ function MatchDetailPanel() {
     return () => window.clearTimeout(id);
   }, []);
 
-  const [heroScrolledPast, heroRef] = useHeroScrolledPast();
+  // Captured below from SlidePanel.onScrollElReady so the hero-scroll
+  // detection observes the panel's own scroll container — the hook runs in
+  // this parent component, *above* SlidePanel's ScrollContainerProvider, so
+  // the context fallback to <main> wouldn't fire correctly here.
+  const [panelScrollEl, setPanelScrollEl] = useState<HTMLElement | null>(null);
+  const [heroScrolledPast, heroRef] = useHeroScrolledPast(panelScrollEl);
 
   const myParticipant =
     detail.data && account
@@ -190,6 +195,7 @@ function MatchDetailPanel() {
       onClose={handleClose}
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
+      onScrollElReady={setPanelScrollEl}
       stickyBelowHeader={
         heroSummary ? (
           <ChampionStickyStrip

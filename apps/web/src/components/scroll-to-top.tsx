@@ -1,4 +1,5 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { useDetailPanelOpen } from "@/lib/scroll-container-context";
 import { ArrowUp } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useState } from "react";
@@ -6,16 +7,22 @@ import { useEffect, useState } from "react";
 const SHOW_THRESHOLD_PX = 500;
 
 export function ScrollToTop() {
-  const [visible, setVisible] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  // While a detail panel is open: main scroll is locked, the button targets
+  // an immovable container, and it sits at a higher z than the panel which
+  // makes it bleed through. Hide unconditionally for the duration.
+  const panelOpen = useDetailPanelOpen();
 
   useEffect(() => {
     const container = mainScrollRef.current;
     if (!container) return;
-    const onScroll = () => setVisible(container.scrollTop > SHOW_THRESHOLD_PX);
+    const onScroll = () => setScrolled(container.scrollTop > SHOW_THRESHOLD_PX);
     onScroll();
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
   }, []);
+
+  const visible = scrolled && !panelOpen;
 
   return (
     <AnimatePresence>

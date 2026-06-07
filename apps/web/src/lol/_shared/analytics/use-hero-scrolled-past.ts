@@ -12,12 +12,21 @@ import { useEffect, useRef, useState } from "react";
  * mounts later than the hook itself — important for pages that early-return a
  * placeholder while data loads, then render the hero on a subsequent pass.
  */
-export function useHeroScrolledPast(): [boolean, (el: HTMLElement | null) => void] {
+export function useHeroScrolledPast(
+  // Optional explicit scroll container. Pass this when the hook is called
+  // OUTSIDE its target scroll container's React subtree — e.g. detail-panel
+  // parents that run the hook above SlidePanel's ScrollContainerProvider in
+  // render order and would otherwise resolve `useActiveScrollContainer` to
+  // <main>. Undefined / null falls back to the context (and ultimately
+  // <main>).
+  explicitScrollEl?: HTMLElement | null
+): [boolean, (el: HTMLElement | null) => void] {
   const [scrolledPast, setScrolledPast] = useState(false);
   const [heroEl, setHeroEl] = useState<HTMLElement | null>(null);
   const stateRef = useRef(false);
 
-  const scrollEl = useActiveScrollContainer();
+  const ctxScrollEl = useActiveScrollContainer();
+  const scrollEl = explicitScrollEl ?? ctxScrollEl;
 
   useEffect(() => {
     if (!scrollEl || !heroEl) return;

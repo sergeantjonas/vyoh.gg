@@ -222,7 +222,11 @@ function ChampionDetailPage() {
     [matches, detail?.champion, championKey]
   );
 
-  const [stripVisible, heroRef] = useHeroScrolledPast();
+  // See match-panel comment — useHeroScrolledPast runs above the panel's
+  // ScrollContainerProvider, so we capture the panel scroll el via callback
+  // and pass it explicitly.
+  const [panelScrollEl, setPanelScrollEl] = useState<HTMLElement | null>(null);
+  const [stripVisible, heroRef] = useHeroScrolledPast(panelScrollEl);
 
   // Body-settle gate — render the rest of the page at low opacity while the
   // hero morph runs so swapping in cached content mid-flight doesn't visually
@@ -350,6 +354,7 @@ function ChampionDetailPage() {
       onClose={handleClose}
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
+      onScrollElReady={setPanelScrollEl}
       header={panelHeader}
       stickyBelowHeader={
         <ChampionStickyStrip visible={stripVisible} championAlias={alias}>

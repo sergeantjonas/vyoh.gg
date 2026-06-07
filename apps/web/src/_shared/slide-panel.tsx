@@ -1,7 +1,9 @@
 import { mainScrollRef } from "@/lib/scroll-container";
-import { ScrollContainerProvider } from "@/lib/scroll-container-context";
+import {
+  ScrollContainerProvider,
+  registerOpenDetailPanel,
+} from "@/lib/scroll-container-context";
 import { cn } from "@/lib/utils";
-import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
@@ -13,7 +15,7 @@ interface SlidePanelProps {
   onClose: () => void;
   /** Accessible title for the dialog. Rendered sr-only by default. */
   title: string;
-  /** Skip the slide-in animation. Pass true for cold-arrival mounts so the
+  /** Skip the entrance fade. Pass true for cold-arrival mounts so the
    *  panel doesn't animate in on a direct deep-link visit (per the arc:
    *  "the panel just *is*, in its open state"). */
   skipSlideIn?: boolean | undefined;
@@ -24,6 +26,12 @@ interface SlidePanelProps {
    *  as the panel header. Used by detail panels to lift the champion sticky
    *  strip up under the panel nav once the user scrolls past the hero. */
   stickyBelowHeader?: ReactNode | undefined;
+  /** Receives the panel's scroll element once mounted. Detail panels use
+   *  this to pass the scroll container into hooks (`useHeroScrolledPast`)
+   *  that live in the panel's *parent* component — those hooks render
+   *  outside the panel's ScrollContainerProvider and would otherwise fall
+   *  back to <main>, which is scroll-locked while the panel is open. */
+  onScrollElReady?: ((el: HTMLElement | null) => void) | undefined;
   children: ReactNode;
 }
 
@@ -37,20 +45,30 @@ export function SlidePanel({
   skipSlideIn,
   header,
   stickyBelowHeader,
+  onScrollElReady,
   children,
 }: SlidePanelProps) {
   // Tracked so the scroll-container context can publish it to descendants
-  // (useScrollspy + useHeroScrolledPast switch from <main> to this element
-  // while the panel is mounted).
-  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+  // (useScrollspy switches from <main> to this element while the panel is
+  // mounted). Also forwarded to the parent via onScrollElReady so hooks
+  // called in the SlidePanel's parent (useHeroScrolledPast) can address the
+  // panel's scroll surface directly — they live above the context provider
+  // in render order so the context lookup wouldn't reach them.
+  const [scrollEl, setScrollElState] = useState<HTMLElement | null>(null);
+  const setScrollEl = (el: HTMLElement | null) => {
+    setScrollElState(el);
+    onScrollElReady?.(el);
+  };
   const reduced = useReducedMotion();
-  // View Transitions cross-fade the panel chrome automatically as part of the
-  // row→hero morph snapshot. Running our own translateX slide-in on top puts
-  // the panel offscreen at NEW-snapshot capture time, which makes VT pair the
-  // row with the hero's *offscreen-right* position — the morph appears to
-  // fly off-screen. Skip the slide whenever VT is taking over the entrance;
-  // we only run the Motion slide on the rect-morph fallback path (Safari).
-  const animateIn = !skipSlideIn && !reduced && !supportsViewTransitions();
+  // Entrance: opacity fade only — NEVER a transform. Firefox (and to a
+  // lesser extent WebKit) suppresses `backdrop-filter` painting while an
+  // element is being transformed, which causes a jarring "pop" when the
+  // blur snaps in only after the slide settles. A pure opacity transition
+  // is a compositor-only effect that doesn't interfere with backdrop-filter,
+  // so the frosted chrome is alive from frame 1. View Transitions still
+  // own the row→hero morph on supporting browsers; rect-morph fallback
+  // handles the hero entrance on the rest.
+  const animateIn = !skipSlideIn && !reduced;
 
   // Lock main scroll while open. With modal={false} (so the global + section
   // nav stay clickable) Radix doesn't manage body scroll for us, but the
@@ -70,6 +88,14 @@ export function SlidePanel({
     };
   }, [open]);
 
+  // Tell global overlays (ScrollToTop, etc.) that a panel is up so they can
+  // hide — they sit at higher z than the panel and target main scroll which
+  // we've just locked.
+  useEffect(() => {
+    if (!open) return;
+    return registerOpenDetailPanel();
+  }, [open]);
+
   return (
     <DialogPrimitive.Root
       open={open}
@@ -84,21 +110,14 @@ export function SlidePanel({
       }}
     >
       <DialogPrimitive.Portal>
-        {/* Non-blocking scrim — opaque enough that the panel reads as a
-            distinct surface in front of a dimmed page, but pointer-events
-            stay disabled so the visible list on the left + the section nav
-            above the panel remain clickable (modal={false} contract). */}
-        <m.div
-          aria-hidden
-          initial={animateIn ? { opacity: 0 } : false}
-          animate={{ opacity: 1 }}
-          transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
-          // Lighter scrim than a typical modal — the list peeking on the left
-          // is meant to read as legible ambient context, and the panel's
-          // backdrop-blur needs *some* color variation behind it to produce
-          // an actual frosted appearance rather than a uniform gray.
-          className="pointer-events-none fixed inset-0 z-30 bg-black/35"
-        />
+        {/* No scrim. A scrim at z-30 sits over the SplashProvider backdrop
+            (rendered at -z-10), so the panel's backdrop-blur only ever picked
+            up the scrim's color — defeating the frosted effect entirely.
+            Without the scrim, the panel's translucent + blurred chrome
+            actually sees the splash + page content behind it, producing the
+            real frosted-glass appearance. Focus is preserved by the panel's
+            own lift (bg-card/65, border-l, shadow-2xl) plus the list-locked
+            scroll, not by dimming the surrounding page. */}
         <DialogPrimitive.Content
           aria-describedby={undefined}
           // Don't auto-focus the first focusable child — that would scroll the
@@ -109,8 +128,8 @@ export function SlidePanel({
         >
           <m.div
             ref={setScrollEl}
-            initial={animateIn ? { x: "100%" } : false}
-            animate={{ x: 0 }}
+            initial={animateIn ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
             transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
             className={cn(
               // Right-aligned side panel constrained to the site content
@@ -118,16 +137,16 @@ export function SlidePanel({
               // out on the left as ambient context; clicking it closes.
               "fixed top-[var(--account-header-h,0px)] bottom-0 right-0 z-40",
               "flex w-full max-w-4xl flex-col overflow-y-auto",
-              // Frosted-glass chrome: translucent enough that match-card
-              // accent colors behind do bleed through the blur, but tinted
-              // toward `bg-card` (one tier lifted from `bg-background` in
-              // the theme tokens — oklch 0.205 vs 0.145) so the panel still
-              // reads as a distinct surface against the dimmed list.
-              // backdrop-blur-2xl (40px) is strong enough to dissolve the
-              // list rows into colored bands rather than recognisable shapes.
-              // A subtle bright top-edge highlight sells the "glass" feel.
-              "border-l border-white/10 bg-card/65 backdrop-blur-2xl shadow-2xl",
-              "will-change-transform"
+              // Frosted-glass chrome: heavily translucent so the splash
+              // backdrop and match-card themes behind bleed through the
+              // blur into the panel body, but tinted toward `bg-card` (one
+              // tier lifted from `bg-background` in the theme tokens —
+              // oklch 0.205 vs 0.145) so the panel still reads as a
+              // distinct surface. backdrop-blur-2xl (40px) dissolves
+              // recognisable content behind into a colored frost.
+              // `isolation: isolate` keeps the blur composite stable
+              // through child animations.
+              "border-l border-white/10 bg-card/50 backdrop-blur-2xl shadow-2xl isolate"
             )}
           >
             <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
