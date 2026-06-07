@@ -28,7 +28,13 @@ vi.mock("./og-fonts", () => ({
 }));
 
 import satori from "satori";
-import { renderMatchCard } from "./og-card";
+import {
+  renderChampionCard,
+  renderHomeCard,
+  renderMatchCard,
+  renderProfileCard,
+  renderSteamGameCard,
+} from "./og-card";
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -50,7 +56,7 @@ afterEach(() => {
 describe("renderMatchCard", () => {
   const baseData = {
     championName: "Ahri",
-    championAlias: "Ahri",
+    splashUrls: ["https://wiki.example/Ahri.jpg", "https://cdragon.example/ahri.jpg"],
     kills: 8,
     deaths: 3,
     assists: 12,
@@ -80,8 +86,29 @@ describe("renderMatchCard", () => {
     expect(satori).toHaveBeenCalled();
   });
 
-  it("throws when the splash fetch responds non-OK", async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response("nope", { status: 500 }));
+  it("falls through to the second URL when the first responds non-OK", async () => {
+    // Wiki blip → CDragon fallback — the same chain the proxy controller's
+    // `proxyWebp` follows. The card must walk the URL list before throwing.
+    const mock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("nope", { status: 500 }))
+      .mockResolvedValueOnce(
+        new Response(Buffer.from([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      );
+    vi.stubGlobal("fetch", mock);
+    const buf = await renderMatchCard(baseData);
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(mock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when every splash URL responds non-OK", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("nope", { status: 500 }))
+    );
     await expect(renderMatchCard(baseData)).rejects.toThrow(/HTTP 500/);
   });
 
@@ -93,6 +120,94 @@ describe("renderMatchCard", () => {
       })
     );
     const buf = await renderMatchCard(baseData);
+    expect(buf).toBeInstanceOf(Buffer);
+  });
+});
+
+describe("renderChampionCard", () => {
+  it("returns a Buffer with the PNG header bytes", async () => {
+    const buf = await renderChampionCard({
+      championName: "Jinx",
+      splashUrls: ["https://wiki.example/Jinx.jpg"],
+      subLabel: "Marksman",
+    });
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.subarray(0, 4).toString("hex")).toBe("89504e47");
+  });
+
+  it("invokes satori with the OG canonical dims", async () => {
+    await renderChampionCard({
+      championName: "Jinx",
+      splashUrls: ["https://wiki.example/Jinx.jpg"],
+      subLabel: "Marksman",
+    });
+    const call = vi.mocked(satori).mock.calls[0];
+    const options = call?.[1] as { width: number; height: number };
+    expect(options.width).toBe(1200);
+    expect(options.height).toBe(630);
+  });
+});
+
+describe("renderProfileCard", () => {
+  it("returns a Buffer with the PNG header bytes", async () => {
+    const buf = await renderProfileCard({
+      accountLabel: "Vyoh#Ahri",
+      rankLine: "Platinum III · 47 LP",
+      kpis: [
+        { label: "WR", value: "58%" },
+        { label: "KDA", value: "3.4" },
+        { label: "Games", value: "214" },
+      ],
+      region: "EUW",
+    });
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.subarray(0, 4).toString("hex")).toBe("89504e47");
+  });
+
+  it("renders an Unranked label path when rankLine is null", async () => {
+    // The card pivots on `rankLine === null` (color + label change) but should
+    // still produce a valid PNG; we just check the render completes without
+    // touching the URL fetch path (profile card has no splash).
+    const buf = await renderProfileCard({
+      accountLabel: "Vyoh#Ahri",
+      rankLine: null,
+      kpis: [],
+      region: "EUW",
+    });
+    expect(buf).toBeInstanceOf(Buffer);
+  });
+});
+
+describe("renderHomeCard", () => {
+  it("returns a Buffer with the PNG header bytes", async () => {
+    const buf = await renderHomeCard({
+      tagline: "A personal cross-stream gaming dashboard",
+    });
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.subarray(0, 4).toString("hex")).toBe("89504e47");
+  });
+});
+
+describe("renderSteamGameCard", () => {
+  const baseData = {
+    gameName: "Hades",
+    heroUrls: ["https://cdn.example/hero.jpg"],
+    shortDescription: "A rogue-like dungeon crawler from Supergiant.",
+    kpis: [
+      { label: "Playtime", value: "84h" },
+      { label: "Achievements", value: "62%" },
+      { label: "Last played", value: "2d ago" },
+    ],
+  };
+
+  it("returns a Buffer with the PNG header bytes", async () => {
+    const buf = await renderSteamGameCard(baseData);
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.subarray(0, 4).toString("hex")).toBe("89504e47");
+  });
+
+  it("renders without the blurb block when shortDescription is null", async () => {
+    const buf = await renderSteamGameCard({ ...baseData, shortDescription: null });
     expect(buf).toBeInstanceOf(Buffer);
   });
 });

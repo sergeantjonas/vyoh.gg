@@ -71,6 +71,7 @@ import { SteamTagService } from "./tag.service";
     SteamAchievementsService,
     SteamGridDbService,
     SteamTagService,
+    SteamGameRecapService,
   ],
 })
 export class SteamModule {}

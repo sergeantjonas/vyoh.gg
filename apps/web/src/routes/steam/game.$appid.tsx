@@ -33,11 +33,36 @@ interface SteamGameSearch {
   ach?: string | undefined;
 }
 
+// API origin for the per-route OG image endpoint. Local rather than imported
+// so head() stays a leaf with no transitive deps on the initial-route graph.
+const API_URL = "http://localhost:2010";
+
 export const Route = createFileRoute("/steam/game/$appid")({
   component: SteamGamePage,
   validateSearch: (search: Record<string, unknown>): SteamGameSearch => ({
     ach: typeof search.ach === "string" ? search.ach : undefined,
   }),
+  head: ({ params }) => {
+    const ogImage = `${API_URL}/og/steam-game/${params.appid}.png`;
+    const title = `Steam · ${params.appid} · vyoh.gg`;
+    const description = `Steam game detail (appid ${params.appid}) on vyoh.gg`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:image", content: ogImage },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { property: "og:type", content: "article" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: ogImage },
+      ],
+    };
+  },
 });
 
 function SteamGamePage() {

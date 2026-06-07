@@ -9,5 +9,9 @@ import { SteamImageService } from "./steam-image.service";
   imports: [SteamModule],
   controllers: [ImgController],
   providers: [LolImageService, SteamImageService, ImgPrewarmService],
+  // Exported so the OG service (and any future composing module) can resolve
+  // upstream asset URLs through the same wiki-primary + fallback chain the
+  // proxy controller uses — single source of truth for asset resolution.
+  exports: [LolImageService, SteamImageService],
 })
 export class ImgModule {}

@@ -1,6 +1,6 @@
 # Per-route OG image pipeline
 
-**Status:** Match endpoint shipped (initial pass landed before this arc was re-scoped; retrofitted to 1200×630 on 2026-06-07). Champion, Profile, Home, and Steam game endpoints remain. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. Generate per-entity Open Graph images for shareable deep-links. Returns SEO + share-delight + AI-crawler payoff. Pairs naturally with [self-portrait-surfaces.md](self-portrait-surfaces.md).
+**Status:** ✅ Shipped 2026-06-07. All four remaining templates (champion, profile, home, Steam game) landed in one session after C0's match-card retrofit. Owner share affordance (originally Chunk 6) stays out of scope. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. Generates per-entity Open Graph images for shareable deep-links. Returns SEO + share-delight + AI-crawler payoff.
 
 Read this when scoping or extending the OG arc; relates to [frontend-2026-gaps.md Gap 1](frontend-2026-gaps.md) (static head baseline) which Chunk 3 closes.
 
@@ -127,33 +127,32 @@ Hero art via Steam image proxy (SGDB-fallback chain already wired). Stats from t
 - ✅ Update `apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx` `head()`: `og:image:height: "400"` → `"630"`.
 - ✅ Refresh this note + elevation-arcs.md row.
 
-### Chunk 1 — Champion OG
+### Chunk 1 — Champion OG ✅ shipped
 
-- New rendering function `renderChampionCard(data: ChampionCardData)` in `og-card.ts` (or split into `og-cards/match.ts` + `og-cards/champion.ts` if `og-card.ts` grows past ~400 lines; pick at implementation time).
-- New endpoint `GET /og/lol/champion/:key.png` in `og.controller.ts`. Resolves champion identity (alias + title + classes) from the existing bundle service; fetches splash via the image proxy; renders.
-- Champion-detail route `head()` adds `og:image` + `og:image:width`/`height` + Twitter Card meta, same shape as the match route.
-- Test: endpoint returns a valid PNG; route head asserts the meta tags.
+- `renderChampionCard(data: ChampionCardData)` in `apps/api/src/og/og-card.ts`. Full-bleed splash + bottom-anchored champion name + class sub-label (modernClasses with roles fallback).
+- `GET /og/champion/:alias.png` in `og.controller.ts`. Champion identity resolved via `prisma.lolChampion.findFirst({ alias: { equals, mode: insensitive } })` so URL casing doesn't matter; splash URLs come from `LolImageService.champion(alias, "hd")`.
+- Champion-detail route head() (`apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx`) emits the OG meta tags.
+- Tests: `og-card.spec.ts` (PNG header + canonical 1200×630 dims), `og.service.spec.ts` (404 path + sub-label composition), `og.controller.spec.ts` (delegation + alias DTO).
 
-### Chunk 2 — Profile OG
+### Chunk 2 — Profile OG ✅ shipped
 
-- `renderProfileCard(data: ProfileCardData)`. Identity via `accounts.json` → `gameName#tagLine` (decision #4). Rank + KPI strip from existing profile aggregators.
-- New endpoint `GET /og/lol/:slug.png`.
-- Profile route `head()` adds the meta tags.
-- Test: endpoint returns a valid PNG; route head asserts the meta tags.
+- `renderProfileCard(data: ProfileCardData)`. Typographic layout (no splash); `gameName#tagLine` headline, rank line, three KPI tiles (WR / KDA / Games), region.
+- `GET /og/profile/:slug.png`. Identity via `IdentityService.findBySlug` → `gameName#tagLine` (decision #5). Rank from `LolService.getSummonerProfile` (solo preferred, apex tiers drop the division). KPIs computed from a 500-row cached-match window via `excludeRemakes` to honour the domain invariant.
+- Profile route head() (`apps/web/src/routes/lol/$accountSlug/index.tsx`) emits the meta tags.
+- Tests: rank composition (Platinum III · 47 LP), apex-tier division drop, null-rank path, KPI computation.
 
-### Chunk 3 — Home OG (closes [frontend-2026-gaps.md Gap 1](frontend-2026-gaps.md))
+### Chunk 3 — Home OG ✅ shipped (closes [frontend-2026-gaps.md Gap 1](frontend-2026-gaps.md))
 
-- `renderHomeCard()`. Static content; OrbMark glyph; tagline string.
-- New endpoint `GET /og/home.png`.
-- `apps/web/index.html` adds default `<meta property="og:image">` referencing the home endpoint, plus `og:title` + `og:description` baseline.
-- Test: endpoint returns a valid PNG; index.html head asserts the meta tags (via the existing accessibility-test harness or a dedicated head test).
+- `renderHomeCard()`. Centered editorial composition: layered concentric-circle OrbMark glyph (Satori has no SVG primitive, so it's three stacked rounded divs), large wordmark, owner-curated tagline.
+- `GET /og/home.png`. No upstream calls — fully self-contained; rendered per request (decision #2) for endpoint-shape uniformity.
+- `apps/web/index.html` adds `<meta property="og:image">` + Twitter image referencing the home endpoint; `<meta name="twitter:card">` lifted from `summary` to `summary_large_image`.
 
-### Chunk 4 — Steam game OG
+### Chunk 4 — Steam game OG ✅ shipped
 
-- `renderSteamGameCard(data)`. Hero via Steam image proxy. Stats from existing Steam game-detail service.
-- New endpoint `GET /og/steam/game/:appid.png`.
-- Steam game-detail route `head()` adds the meta tags.
-- Test: endpoint returns a valid PNG; route head asserts the meta tags.
+- `renderSteamGameCard(data: SteamGameCardData)`. Left hero (with Steam-blue accent strip) + right content panel: game name, short description (auto-hidden when null), three KPI tiles (Playtime / Completion / Recent).
+- `GET /og/steam-game/:appid.png`. Recap data from `SteamGameRecapService.getGameRecap(appid)` — the same aggregator the in-app game-detail page uses. Hero URLs from `SteamImageService.heroLarge(appid)` (SGDB + legacy fallback chain).
+- Steam game-detail route head() (`apps/web/src/routes/steam/game.$appid.tsx`) emits the meta tags.
+- Tests: hero URL composition, completion-pct fallback to em-dash for schema-less titles, NotFoundException propagation.
 
 ### Owner share affordance — out of scope for this arc
 
@@ -163,16 +162,20 @@ A "share" button on match-detail / champion-detail / profile that copies the URL
 
 ## Files in scope
 
-Modified:
-- `apps/api/src/og/og.controller.ts` — endpoint additions per chunk
-- `apps/api/src/og/og.service.ts` — service composition per template
-- `apps/api/src/og/og-card.ts` — `renderMatchCard` (existing, retrofitted) + new render functions per chunk (or split into multiple files if size grows)
-- `apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx` — head meta
-- `apps/web/src/routes/lol/$accountSlug/index.tsx` — head meta (profile)
-- `apps/web/src/routes/steam/game.$appid.tsx` — head meta
-- `apps/web/index.html` — default OG meta
+All shipped 2026-06-07:
+- `apps/api/src/og/og-card.ts` — extracted shared `fetchAsDataUrl(urls[])` + `wordmark()` + `svgToPng()`; added `renderChampionCard`, `renderProfileCard`, `renderHomeCard`, `renderSteamGameCard`. Match card consumes resolver-sourced `splashUrls` list.
+- `apps/api/src/og/og.controller.ts` — endpoints `/og/champion/:alias.png`, `/og/profile/:slug.png`, `/og/home.png`, `/og/steam-game/:appid.png`. Single `OG_CACHE_HEADER` constant.
+- `apps/api/src/og/og.service.ts` — DI for `LolImageService`, `SteamImageService`, `PrismaService`, `SteamGameRecapService`; one generator per template.
+- `apps/api/src/og/og-params.dto.ts` — `OgChampionAliasDto`, `OgSlugDto`, `OgSteamAppidDto` (existing `OgParamsDto` aliased to `OgMatchParamsDto`).
+- `apps/api/src/og/og.module.ts` — imports `ImgModule`, `PrismaModule`, `SteamModule`.
+- `apps/api/src/img/img.module.ts` — exports `LolImageService` + `SteamImageService`.
+- `apps/api/src/steam/steam.module.ts` — exports `SteamGameRecapService`.
+- `apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx` — `head()` meta.
+- `apps/web/src/routes/lol/$accountSlug/index.tsx` — `head()` meta (profile).
+- `apps/web/src/routes/steam/game.$appid.tsx` — `head()` meta.
+- `apps/web/index.html` — default OG meta + Twitter image; `twitter:card` lifted to `summary_large_image`.
 
-No new committed assets — Chunk 2's earlier `apps/web/public/og/home.png` commit is replaced by the dynamic Home endpoint.
+No new committed assets — every OG renders dynamically per request.
 
 ---
 

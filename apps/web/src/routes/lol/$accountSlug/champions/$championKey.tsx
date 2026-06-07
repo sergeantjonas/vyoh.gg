@@ -64,8 +64,35 @@ import {
 const MORPH_SETTLE_MS = 700;
 const BODY_HOLD_OPACITY = 0.6;
 
+// API origin for the per-route OG image endpoint. Matches the constant in
+// the match-detail route — kept local rather than imported so the head()
+// function stays a leaf with no transitive deps that would balloon the
+// initial-route-load graph.
+const API_URL = "http://localhost:2010";
+
 export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")({
   component: ChampionDetailPage,
+  head: ({ params }) => {
+    const ogImage = `${API_URL}/og/champion/${params.championKey}.png`;
+    const title = `${params.championKey} · vyoh.gg`;
+    const description = `Champion detail for ${params.championKey} on vyoh.gg`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:image", content: ogImage },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { property: "og:type", content: "article" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: ogImage },
+      ],
+    };
+  },
 });
 
 function DeltaTile({
