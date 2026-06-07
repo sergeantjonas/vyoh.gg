@@ -1,9 +1,10 @@
+import { mainScrollRef } from "@/lib/scroll-container";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 interface SlidePanelProps {
   open: boolean;
@@ -15,8 +16,8 @@ interface SlidePanelProps {
    *  panel doesn't animate in on a direct deep-link visit (per the arc:
    *  "the panel just *is*, in its open state"). */
   skipSlideIn?: boolean | undefined;
-  /** Optional header slot — sub-tab nav, share button, breadcrumb. Rendered
-   *  before the close button in the panel header. */
+  /** Optional header slot — sub-tab nav, share button. Rendered before the
+   *  close button in the panel header. */
   header?: ReactNode | undefined;
   children: ReactNode;
 }
@@ -41,6 +42,24 @@ export function SlidePanel({
   // we only run the Motion slide on the rect-morph fallback path (Safari).
   const animateIn = !skipSlideIn && !reduced && !supportsViewTransitions();
 
+  // Lock main scroll while open. With modal={false} (so the global + section
+  // nav stay clickable) Radix doesn't manage body scroll for us, but the
+  // panel-as-focused-surface convention (Linear, GitHub PR drawer, Slack
+  // thread pane) is to freeze the underlying page so the wheel/keyboard
+  // scrolls the panel rather than the list peeking behind it. Restore on
+  // close. Touch one element, not document.body — vyoh's scroll container
+  // is <main>, not the document.
+  useEffect(() => {
+    if (!open) return;
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const previous = el.style.overflow;
+    el.style.overflow = "hidden";
+    return () => {
+      el.style.overflow = previous;
+    };
+  }, [open]);
+
   return (
     <DialogPrimitive.Root
       open={open}
@@ -55,16 +74,16 @@ export function SlidePanel({
       }}
     >
       <DialogPrimitive.Portal>
-        {/* Non-blocking scrim — focuses attention on the panel without
-            stealing pointer events from the list peeking out on the left
-            (the click-on-list-to-close behavior depends on the list staying
-            interactive). The scrim sits below the panel content. */}
+        {/* Non-blocking scrim — opaque enough that the panel reads as a
+            distinct surface in front of a dimmed page, but pointer-events
+            stay disabled so the visible list on the left + the section nav
+            above the panel remain clickable (modal={false} contract). */}
         <m.div
           aria-hidden
           initial={animateIn ? { opacity: 0 } : false}
           animate={{ opacity: 1 }}
           transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
-          className="pointer-events-none fixed inset-0 z-30 bg-background/30 backdrop-brightness-75"
+          className="pointer-events-none fixed inset-0 z-30 bg-black/50"
         />
         <DialogPrimitive.Content
           aria-describedby={undefined}
@@ -84,19 +103,25 @@ export function SlidePanel({
               // out on the left as ambient context; clicking it closes.
               "fixed top-[var(--account-header-h,0px)] bottom-0 right-0 z-40",
               "flex w-full max-w-4xl flex-col overflow-y-auto",
-              // Frosted chrome — opaque black read as a dead window cut into
-              // the page; a translucent + blurred background reads as a panel
-              // floating over the list, which is what it is.
-              "border-l border-border/60 bg-background/85 backdrop-blur-xl shadow-2xl",
-              // Compositor-only transform — WebKit-safe (no filter / backdrop
-              // on the *transformed* element; backdrop-blur is fine here
-              // because the element is also the slide subject only on the
-              // non-VT path — Safari).
+              // bg-card is one tier above --background in the theme tokens
+              // (oklch 0.205 vs 0.145); combined with the dimmed scrim it
+              // reads as a lifted surface instead of "same black as page".
+              // Translucent + backdrop-blur so the list silhouette behind
+              // remains faintly readable as context.
+              "border-l border-border/60 bg-card/85 backdrop-blur-xl shadow-2xl",
               "will-change-transform"
             )}
           >
             <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
-            <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/60 bg-background/80 px-4 py-2 backdrop-blur-md">
+            <div
+              className={cn(
+                "sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-card/80 px-3 py-2 backdrop-blur-md sm:px-4 sm:gap-3",
+                // Narrow viewports: hide tab labels (SectionTabLink wraps them
+                // in [data-tab-label]) so four icon+label tabs + the share +
+                // close affordances still fit without horizontal scroll.
+                "[&_[data-tab-label]]:hidden md:[&_[data-tab-label]]:inline"
+              )}
+            >
               <div className="flex flex-1 items-center gap-1 overflow-x-auto">
                 {header}
               </div>

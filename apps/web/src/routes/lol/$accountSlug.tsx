@@ -179,8 +179,11 @@ function AccountLayout() {
   const championsPath = `/lol/${accountSlug}/champions`;
   const championsPathPrefix = `${championsPath}/`;
   useScrollResetOnNav(pathname, [
-    { fromPrefix: matchesPathPrefix, toExact: matchesPath },
-    { fromPrefix: championsPathPrefix, toExact: championsPath },
+    // Detail-panel open/close — list stays mounted under the panel; don't
+    // jerk the page to the top when the panel opens or closes, and don't
+    // reset while navigating between sub-tabs inside an open panel.
+    { listPath: matchesPath, detailPrefix: matchesPathPrefix },
+    { listPath: championsPath, detailPrefix: championsPathPrefix },
   ]);
 
   // Splash claim for the LoL section: top-played champion in the windowed

@@ -205,17 +205,27 @@ export function MatchList({
   // from the URL. Scroll the matching row into view exactly once. The
   // back-nav restore path (restoredScrollY > 0) owns its own pin loop above
   // and these two conditions are mutually exclusive.
+  // Cold-arrival only: if activeMatch was set at FIRST RENDER (URL
+  // deep-link → panel mounted → panel wrote activeMatch from the URL
+  // before this effect first ran), scroll the matching row into view once.
+  // Warm row-clicks ALSO set activeMatch (onPointerDown), but those fire
+  // after the list is already mounted at the user's chosen scroll position
+  // — re-centering then would yank the page to the row's centered position
+  // and feel like a scroll-to-top bug. Capturing the initial value pins
+  // this behavior to the cold path only.
+  const initialActiveMatchRef = useRef(activeMatch);
   const coldArrivalScrolledRef = useRef(false);
   useEffect(() => {
     if (coldArrivalScrolledRef.current) return;
+    if (!initialActiveMatchRef.current) return;
     if (restoredScrollY > 0) return;
     if (scrollMargin === 0) return;
-    if (!activeMatch) return;
-    const idx = matches.findIndex((mm) => mm.matchId === activeMatch);
+    const target = initialActiveMatchRef.current;
+    const idx = matches.findIndex((mm) => mm.matchId === target);
     if (idx < 0) return;
     coldArrivalScrolledRef.current = true;
     virtualizer.scrollToIndex(idx, { align: "center" });
-  }, [activeMatch, matches, virtualizer, restoredScrollY, scrollMargin]);
+  }, [matches, virtualizer, restoredScrollY, scrollMargin]);
 
   const lpDeltaMap = useMemo(() => computeLpDeltaMap(matches), [matches]);
 

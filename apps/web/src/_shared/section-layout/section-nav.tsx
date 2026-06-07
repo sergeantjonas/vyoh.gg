@@ -94,7 +94,11 @@ function SectionTabLink({
           )}
         />
       </m.span>
-      {tab.label}
+      {/* Wrapping the label in a span (instead of leaving it as a bare text
+          node) gives parent surfaces a CSS hook for responsive treatments —
+          e.g. the detail-panel header hides labels at narrow viewports so
+          four tabs + a close button still fit without horizontal scroll. */}
+      <span data-tab-label>{tab.label}</span>
       {tab.active && (
         <m.div
           layoutId={indicatorId}
