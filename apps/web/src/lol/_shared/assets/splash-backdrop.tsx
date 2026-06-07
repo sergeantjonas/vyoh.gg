@@ -1,6 +1,8 @@
 import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
 import { useThemeColor } from "@/lib/use-theme-color";
+import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
+import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { AnimatePresence, m } from "motion/react";
 import {
   type ReactNode,
@@ -81,6 +83,23 @@ export function SplashProvider({ children }: { children: ReactNode }) {
   // (account overview's most-played, match-detail's hero, champion detail
   // page, etc.) instead of each route having to wire its own useThemeColor.
   useThemeColor(champion ? championTheme(champion).dominantHex : null);
+
+  // Eagerly preload the HD champion splash variant while the smaller
+  // `backdrop` variant is being rendered behind the page. The HD splash is
+  // what detail panels use as their chrome backdrop — without this preload,
+  // it only starts loading when the panel mounts, and the image takes
+  // ~500ms to download/decode. During that window the panel chrome shows
+  // just bg-card solid, then the splash paints in and the bg-card/60
+  // frosted cards inside finally have content to blur — reading visually
+  // as the "card transparent first, then suddenly frosted" pop. Loading
+  // both variants in parallel here means the HD is already cached by the
+  // time the user clicks a row.
+  const ddVersion = useDDragonVersion();
+  useEffect(() => {
+    if (!champion) return;
+    const img = new Image();
+    img.src = championHdSplashUrl(champion, ddVersion);
+  }, [champion, ddVersion]);
 
   return (
     <SplashContext.Provider value={value}>

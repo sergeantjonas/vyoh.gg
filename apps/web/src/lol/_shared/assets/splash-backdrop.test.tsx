@@ -20,6 +20,11 @@ vi.mock("@/lol/_shared/assets/champion-icon", () => ({
   // Use inline data URL so happy-dom doesn't trigger a network fetch
   championBackdropSplashUrl: () =>
     "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
+  // HD variant preloaded by SplashProvider alongside the rendered backdrop
+  // so detail panels (which use HD for their chrome backdrop) hit a warm
+  // cache instead of a fresh network load.
+  championHdSplashUrl: () =>
+    "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
 }));
 
 // happy-dom returns null for canvas 2D context — stub it
