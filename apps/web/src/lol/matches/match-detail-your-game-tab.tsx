@@ -1,4 +1,4 @@
-import { mainScrollRef } from "@/lib/scroll-container";
+import { useActiveScrollContainer } from "@/lib/scroll-container-context";
 import { cn } from "@/lib/utils";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { MatchDamageProfile } from "@/lol/matches/match-damage-profile";
@@ -41,16 +41,16 @@ export function MatchYourGameTab({
 }) {
   const reduced = useReducedMotion();
   const { activeId: scrollspyId, refFor, navigateTo } = useScrollspy(YOUR_GAME_IDS);
+  const scrollEl = useActiveScrollContainer();
   const [showScrollspy, setShowScrollspy] = useState(false);
   useEffect(() => {
-    const scrollEl = mainScrollRef.current;
     if (!scrollEl) return;
     const check = () => setShowScrollspy(scrollEl.scrollHeight > scrollEl.clientHeight);
     requestAnimationFrame(check);
     const ro = new ResizeObserver(check);
     ro.observe(scrollEl);
     return () => ro.disconnect();
-  }, []);
+  }, [scrollEl]);
 
   return (
     <div className="flex gap-8">

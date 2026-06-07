@@ -1,10 +1,21 @@
-import { mainScrollRef } from "@/lib/scroll-container";
+import { useActiveScrollContainer } from "@/lib/scroll-container-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Threshold for "this section is now at the top." Prefer the most-local
+// sticky chrome above the scroll content:
+//   1. The champion sticky strip (rendered when scrolled past the hero)
+//   2. The detail-panel header (when in a panel context)
+//   3. The page-level account header (when scrolling <main>)
+// Falls back to a hard-coded estimate if none of the above are mounted.
 function getStickyThreshold(): number {
   const strip = document.querySelector("[data-champion-strip]");
   if (strip) {
     const rect = strip.getBoundingClientRect();
+    if (rect.height > 0) return rect.bottom;
+  }
+  const panelHeader = document.querySelector("[data-panel-header]") as HTMLElement | null;
+  if (panelHeader) {
+    const rect = panelHeader.getBoundingClientRect();
     if (rect.height > 0) return rect.bottom;
   }
   const header = document.querySelector("[data-account-header]") as HTMLElement | null;
@@ -29,6 +40,11 @@ export function useScrollspy(ids: readonly string[]): {
   const elsRef = useRef(new Map<string, HTMLElement>());
   const evaluateRef = useRef<(() => void) | null>(null);
 
+  // The active scroll container. <main> by default; switches to a detail
+  // panel's internal scroll element while a panel is open (the panel locks
+  // main scroll, so the surface that needs to scroll is the panel itself).
+  const scrollEl = useActiveScrollContainer();
+
   const refFor = useCallback(
     (id: string) => (el: HTMLElement | null) => {
       if (el) {
@@ -42,21 +58,22 @@ export function useScrollspy(ids: readonly string[]): {
     []
   );
 
-  const navigateTo = useCallback((id: string, smooth = true) => {
-    const el = elsRef.current.get(id);
-    const scrollEl = mainScrollRef.current;
-    if (!el || !scrollEl) return;
-    const threshold = getStickyThreshold();
-    const rect = el.getBoundingClientRect();
-    scrollEl.scrollTo({
-      top: scrollEl.scrollTop + rect.top - threshold,
-      behavior: smooth ? "smooth" : "auto",
-    });
-  }, []);
+  const navigateTo = useCallback(
+    (id: string, smooth = true) => {
+      const el = elsRef.current.get(id);
+      if (!el || !scrollEl) return;
+      const threshold = getStickyThreshold();
+      const rect = el.getBoundingClientRect();
+      scrollEl.scrollTo({
+        top: scrollEl.scrollTop + rect.top - threshold,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    },
+    [scrollEl]
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ids is a module constant; elsRef/activeRef/evaluateRef are stable
   useEffect(() => {
-    const scrollEl = mainScrollRef.current;
     if (!scrollEl) return;
 
     const evaluate = () => {
@@ -82,7 +99,7 @@ export function useScrollspy(ids: readonly string[]): {
       scrollEl.removeEventListener("scroll", evaluate);
       evaluateRef.current = null;
     };
-  }, []);
+  }, [scrollEl]);
 
   return { activeId, refFor, navigateTo };
 }

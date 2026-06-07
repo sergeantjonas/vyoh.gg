@@ -351,6 +351,25 @@ function ChampionDetailPage() {
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
       header={panelHeader}
+      stickyBelowHeader={
+        <ChampionStickyStrip visible={stripVisible} championAlias={alias}>
+          <div className="flex items-center gap-3">
+            <ChampionSquareIcon championName={alias} className="size-6 rounded-sm" />
+            <span className="text-sm font-medium">{championName(alias)}</span>
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
+              )}
+            >
+              {Math.round(detail.winRate * 100)}% WR
+            </span>
+            <span className="text-xs tabular-nums text-amber-400">
+              {formatKda(detail.avgKda)} KDA
+            </span>
+          </div>
+        </ChampionStickyStrip>
+      }
     >
       <div className="flex flex-col gap-6 p-4">
         {/* Hero — fades out when scrolled past header; stays in DOM so no layout shift */}
@@ -448,28 +467,6 @@ function ChampionDetailPage() {
             </ChampionHero>
           </m.div>
         </div>
-
-        <ChampionStickyStrip
-          visible={stripVisible}
-          top="var(--account-header-h)"
-          championAlias={alias}
-        >
-          <div className="flex items-center gap-3">
-            <ChampionSquareIcon championName={alias} className="size-6 rounded-sm" />
-            <span className="text-sm font-medium">{championName(alias)}</span>
-            <span
-              className={cn(
-                "text-xs tabular-nums",
-                detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
-              )}
-            >
-              {Math.round(detail.winRate * 100)}% WR
-            </span>
-            <span className="text-xs tabular-nums text-amber-400">
-              {formatKda(detail.avgKda)} KDA
-            </span>
-          </div>
-        </ChampionStickyStrip>
 
         <m.div
           initial={{ opacity: BODY_HOLD_OPACITY }}

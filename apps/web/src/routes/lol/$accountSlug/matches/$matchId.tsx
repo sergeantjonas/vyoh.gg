@@ -190,47 +190,10 @@ function MatchDetailPanel() {
       onClose={handleClose}
       title={panelTitle}
       skipSlideIn={skipSlideInRef.current}
-      header={
-        <>
-          <SectionTabRow
-            tabs={detailTabs}
-            indicatorId="match-detail-panel-tab-indicator"
-            prefersReducedMotion={reduced}
-          />
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={handleShare}
-            aria-label="Copy link to this match"
-            className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Share2 className="size-4" />
-          </button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-6 p-4">
-        <div ref={heroRef}>
-          {heroSummary && (
-            <m.div
-              animate={{
-                opacity: heroScrolledPast ? 0 : 1,
-                y: heroScrolledPast ? -8 : 0,
-              }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-            >
-              <MatchHero
-                summary={heroSummary}
-                lpDelta={lpDelta}
-                accountSlug={accountSlug}
-              />
-            </m.div>
-          )}
-        </div>
-        {heroSummary && (
+      stickyBelowHeader={
+        heroSummary ? (
           <ChampionStickyStrip
             visible={heroScrolledPast}
-            top="var(--account-header-h)"
             championAlias={heroSummary.champion}
           >
             <div className="flex items-center gap-3">
@@ -278,9 +241,47 @@ function MatchDetailPanel() {
               </span>
             </div>
           </ChampionStickyStrip>
-        )}
-        {/* Recap / Your game / Review / Timeline now live in the always-on
-            section strip (Model 3); this body is just the active tab's content. */}
+        ) : undefined
+      }
+      header={
+        <>
+          <SectionTabRow
+            tabs={detailTabs}
+            indicatorId="match-detail-panel-tab-indicator"
+            prefersReducedMotion={reduced}
+          />
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Copy link to this match"
+            className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Share2 className="size-4" />
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6 p-4">
+        <div ref={heroRef}>
+          {heroSummary && (
+            <m.div
+              animate={{
+                opacity: heroScrolledPast ? 0 : 1,
+                y: heroScrolledPast ? -8 : 0,
+              }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              <MatchHero
+                summary={heroSummary}
+                lpDelta={lpDelta}
+                accountSlug={accountSlug}
+              />
+            </m.div>
+          )}
+        </div>
+        {/* Sub-tabs live in the panel header (see `header` slot above);
+            this body just renders the active tab's content. */}
         <m.div
           initial={{ opacity: BODY_HOLD_OPACITY }}
           animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}

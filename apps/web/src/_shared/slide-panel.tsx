@@ -1,10 +1,11 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { ScrollContainerProvider } from "@/lib/scroll-container-context";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 interface SlidePanelProps {
   open: boolean;
@@ -19,6 +20,10 @@ interface SlidePanelProps {
   /** Optional header slot — sub-tab nav, share button. Rendered before the
    *  close button in the panel header. */
   header?: ReactNode | undefined;
+  /** Optional sticky secondary band rendered inside the same sticky wrapper
+   *  as the panel header. Used by detail panels to lift the champion sticky
+   *  strip up under the panel nav once the user scrolls past the hero. */
+  stickyBelowHeader?: ReactNode | undefined;
   children: ReactNode;
 }
 
@@ -31,8 +36,13 @@ export function SlidePanel({
   title,
   skipSlideIn,
   header,
+  stickyBelowHeader,
   children,
 }: SlidePanelProps) {
+  // Tracked so the scroll-container context can publish it to descendants
+  // (useScrollspy + useHeroScrolledPast switch from <main> to this element
+  // while the panel is mounted).
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   const reduced = useReducedMotion();
   // View Transitions cross-fade the panel chrome automatically as part of the
   // row→hero morph snapshot. Running our own translateX slide-in on top puts
@@ -83,7 +93,11 @@ export function SlidePanel({
           initial={animateIn ? { opacity: 0 } : false}
           animate={{ opacity: 1 }}
           transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
-          className="pointer-events-none fixed inset-0 z-30 bg-black/50"
+          // Lighter scrim than a typical modal — the list peeking on the left
+          // is meant to read as legible ambient context, and the panel's
+          // backdrop-blur needs *some* color variation behind it to produce
+          // an actual frosted appearance rather than a uniform gray.
+          className="pointer-events-none fixed inset-0 z-30 bg-black/35"
         />
         <DialogPrimitive.Content
           aria-describedby={undefined}
@@ -94,6 +108,7 @@ export function SlidePanel({
           asChild
         >
           <m.div
+            ref={setScrollEl}
             initial={animateIn ? { x: "100%" } : false}
             animate={{ x: 0 }}
             transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
@@ -103,36 +118,50 @@ export function SlidePanel({
               // out on the left as ambient context; clicking it closes.
               "fixed top-[var(--account-header-h,0px)] bottom-0 right-0 z-40",
               "flex w-full max-w-4xl flex-col overflow-y-auto",
-              // bg-card is one tier above --background in the theme tokens
-              // (oklch 0.205 vs 0.145); combined with the dimmed scrim it
-              // reads as a lifted surface instead of "same black as page".
-              // Translucent + backdrop-blur so the list silhouette behind
-              // remains faintly readable as context.
-              "border-l border-border/60 bg-card/85 backdrop-blur-xl shadow-2xl",
+              // Frosted-glass chrome: translucent enough that match-card
+              // accent colors behind do bleed through the blur, but tinted
+              // toward `bg-card` (one tier lifted from `bg-background` in
+              // the theme tokens — oklch 0.205 vs 0.145) so the panel still
+              // reads as a distinct surface against the dimmed list.
+              // backdrop-blur-2xl (40px) is strong enough to dissolve the
+              // list rows into colored bands rather than recognisable shapes.
+              // A subtle bright top-edge highlight sells the "glass" feel.
+              "border-l border-white/10 bg-card/65 backdrop-blur-2xl shadow-2xl",
               "will-change-transform"
             )}
           >
             <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
-            <div
-              className={cn(
-                "sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-card/80 px-3 py-2 backdrop-blur-md sm:px-4 sm:gap-3",
-                // Narrow viewports: hide tab labels (SectionTabLink wraps them
-                // in [data-tab-label]) so four icon+label tabs + the share +
-                // close affordances still fit without horizontal scroll.
-                "[&_[data-tab-label]]:hidden md:[&_[data-tab-label]]:inline"
-              )}
-            >
-              <div className="flex flex-1 items-center gap-1 overflow-x-auto">
-                {header}
-              </div>
-              <DialogPrimitive.Close
-                aria-label="Close panel"
-                className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            {/* Wrap header + stickyBelowHeader in a single sticky container
+                so the whole chrome moves together and the strip animates in
+                without overlapping the tab nav. */}
+            <div className="sticky top-0 z-10">
+              <div
+                data-panel-header=""
+                className={cn(
+                  // Header is slightly more opaque than the panel body so the
+                  // tab labels stay crisp over busy content behind the blur.
+                  "flex items-center gap-2 border-b border-white/10 bg-card/75 px-3 py-2 backdrop-blur-2xl sm:px-4 sm:gap-3",
+                  // Narrow viewports: hide tab labels (SectionTabLink wraps
+                  // them in [data-tab-label]) so four icon+label tabs + share
+                  // + close still fit without horizontal scroll.
+                  "[&_[data-tab-label]]:hidden md:[&_[data-tab-label]]:inline"
+                )}
               >
-                <X className="size-4" />
-              </DialogPrimitive.Close>
+                <div className="flex flex-1 items-center gap-1 overflow-x-auto">
+                  {header}
+                </div>
+                <DialogPrimitive.Close
+                  aria-label="Close panel"
+                  className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-4" />
+                </DialogPrimitive.Close>
+              </div>
+              {stickyBelowHeader}
             </div>
-            <div className="flex-1">{children}</div>
+            <ScrollContainerProvider el={scrollEl}>
+              <div className="flex-1">{children}</div>
+            </ScrollContainerProvider>
           </m.div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

@@ -1,28 +1,30 @@
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { AnimatePresence, type MotionStyle, m } from "motion/react";
 import type { ReactNode } from "react";
-import { createPortal } from "react-dom";
 
 /**
- * Compact strip pinned just below the account header. Appears when the user
- * has scrolled past a champion-themed hero. Rendered via portal so its
- * `position: fixed` and `backdrop-blur` escape any ancestor stacking-context
- * (e.g. the page-slide transition wrapper). Spans the true viewport width,
- * matching the header band above it — both sit under the scrollbar so the
- * left and right edges stay symmetric across <main>'s scrollbar-gutter reserve.
+ * Compact champion-themed strip that appears below the panel header once the
+ * user has scrolled past the hero. Rendered inline as a sibling of the panel
+ * header inside the panel's sticky chrome wrapper (see SlidePanel
+ * `stickyBelowHeader`) — it shares the panel's stacking context, sits at full
+ * panel width, and slides in/out cleanly without competing with the panel's
+ * scroll container or stealing fixed-position real estate from the page.
+ *
+ * Earlier versions rendered as a `position: fixed` portal to document.body
+ * with `top: var(--account-header-h)` so it landed below the page-level nav
+ * — that pre-dated the detail-panel arc, where the panel owns its own
+ * scroll container and its own sticky chrome.
  */
 export function ChampionStickyStrip({
   visible,
-  top,
   championAlias,
   children,
 }: {
   visible: boolean;
-  top: string | number;
   championAlias: string;
   children: ReactNode;
 }) {
-  return createPortal(
+  return (
     <AnimatePresence>
       {visible && (
         <m.div
@@ -35,23 +37,17 @@ export function ChampionStickyStrip({
           style={
             {
               "--theme-color": championTheme(championAlias).dominantHex,
-              top,
             } as MotionStyle
           }
-          className="fixed inset-x-0 z-40 bg-background/50 backdrop-blur-md"
+          className="relative border-b border-border/60 bg-card/80 backdrop-blur-md"
         >
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
           />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
-          />
-          <div className="relative mx-auto max-w-4xl px-6 py-2">{children}</div>
+          <div className="relative px-4 py-2">{children}</div>
         </m.div>
       )}
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
   );
 }

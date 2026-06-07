@@ -1,4 +1,4 @@
-import { mainScrollRef } from "@/lib/scroll-container";
+import { useActiveScrollContainer } from "@/lib/scroll-container-context";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -17,23 +17,30 @@ export function useHeroScrolledPast(): [boolean, (el: HTMLElement | null) => voi
   const [heroEl, setHeroEl] = useState<HTMLElement | null>(null);
   const stateRef = useRef(false);
 
+  const scrollEl = useActiveScrollContainer();
+
   useEffect(() => {
-    const scrollEl = mainScrollRef.current;
     if (!scrollEl || !heroEl) return;
 
     const onScroll = () => {
-      const headerEl = document.querySelector(
-        "[data-account-header]"
+      // Prefer the most-local sticky chrome above the hero — when in a detail
+      // panel, that's the panel header; on standalone pages, the account
+      // header. Falls back to a hard estimate if neither is mounted.
+      const panelHeader = document.querySelector(
+        "[data-panel-header]"
       ) as HTMLElement | null;
-      const headerBottom = headerEl?.getBoundingClientRect().bottom ?? 96;
+      const referenceEl =
+        panelHeader ??
+        (document.querySelector("[data-account-header]") as HTMLElement | null);
+      const referenceBottom = referenceEl?.getBoundingClientRect().bottom ?? 96;
       const heroRect = heroEl.getBoundingClientRect();
       const heroMid = heroRect.top + heroRect.height / 2;
       const current = stateRef.current;
 
-      if (!current && heroMid < headerBottom - 4) {
+      if (!current && heroMid < referenceBottom - 4) {
         stateRef.current = true;
         setScrolledPast(true);
-      } else if (current && heroMid >= headerBottom + 4) {
+      } else if (current && heroMid >= referenceBottom + 4) {
         stateRef.current = false;
         setScrolledPast(false);
       }
@@ -44,7 +51,7 @@ export function useHeroScrolledPast(): [boolean, (el: HTMLElement | null) => voi
 
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
     return () => scrollEl.removeEventListener("scroll", onScroll);
-  }, [heroEl]);
+  }, [heroEl, scrollEl]);
 
   return [scrolledPast, setHeroEl];
 }
