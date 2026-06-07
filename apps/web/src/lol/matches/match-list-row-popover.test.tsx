@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { MatchDetail } from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ActiveMatchProvider } from "./active-match-context";
 import { MatchListRowPopover } from "./match-list-row-popover";
 
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
@@ -38,9 +39,11 @@ function renderPopover(matchId = "EUW1_1") {
   return render(
     <QueryClientProvider client={makeClient()}>
       <TooltipPrimitive.Provider>
-        <MatchListRowPopover matchId={matchId} userChampion="Ahri">
-          <button type="button">child-card</button>
-        </MatchListRowPopover>
+        <ActiveMatchProvider>
+          <MatchListRowPopover matchId={matchId} userChampion="Ahri">
+            <button type="button">child-card</button>
+          </MatchListRowPopover>
+        </ActiveMatchProvider>
       </TooltipPrimitive.Provider>
     </QueryClientProvider>
   );

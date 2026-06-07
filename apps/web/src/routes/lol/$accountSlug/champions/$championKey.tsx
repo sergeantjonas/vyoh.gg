@@ -44,9 +44,9 @@ import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatKda, formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
-import { ChevronLeft, Share2 } from "lucide-react";
+import { Share2 } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -275,16 +275,7 @@ function ChampionDetailPage() {
   const panelTitle = `${championName(championKey)} · champion detail`;
   const panelHeader = (
     <>
-      <Link
-        to="/lol/$accountSlug/champions"
-        params={{ accountSlug }}
-        search={(prev: Record<string, unknown>) => prev}
-        className="inline-flex items-center gap-1 rounded px-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" aria-hidden />
-        Champions
-      </Link>
-      <span className="text-sm font-medium text-foreground">
+      <span className="text-sm font-medium uppercase tracking-wider text-foreground">
         {championName(championKey)}
       </span>
       <div className="flex-1" />

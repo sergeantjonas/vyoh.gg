@@ -1,6 +1,7 @@
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { useActiveMatch } from "@/lol/matches/active-match-context";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
@@ -86,13 +87,31 @@ export function MatchListRowPopover({
     staleTime: Number.POSITIVE_INFINITY,
   });
 
+  // Suppress the popover while a detail panel is open. The panel sits on top
+  // of the list and covers the row; surfacing a popover above the panel reads
+  // as a layering bug. `activeMatch` is set both when a row was clicked (the
+  // morph sentinel) and when the panel mounts on cold arrival, so it tracks
+  // panel-open state across both entry paths. CRITICAL: don't unwrap the
+  // Tooltip subtree when activeMatch flips — onPointerDown sets activeMatch
+  // synchronously, so unwrapping mid-click detaches the Link element before
+  // the click event fires. Keep the subtree mounted, force `open={false}`
+  // via a controlled-open prop on the root, and the popover stays
+  // suppressed without remounting the trigger.
+  const { activeMatch } = useActiveMatch();
+  const suppressed = !!activeMatch;
+
   if (!canHover) return <>{children}</>;
 
   const team100 = data?.participants.filter((p) => p.teamId === 100) ?? [];
   const team200 = data?.participants.filter((p) => p.teamId === 200) ?? [];
 
   return (
-    <TooltipPrimitive.Root delayDuration={400}>
+    <TooltipPrimitive.Root
+      delayDuration={400}
+      // When a detail panel is open, lock the popover closed without
+      // unmounting the trigger subtree (see comment above).
+      {...(suppressed ? { open: false } : {})}
+    >
       <TooltipPrimitive.Trigger asChild>
         <div onMouseEnter={() => setFetchEnabled(true)}>{children}</div>
       </TooltipPrimitive.Trigger>
