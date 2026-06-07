@@ -1,6 +1,6 @@
 # Detail panel arc
 
-**Status:** Active — Chunk 2.1 (LoL match-detail as slide-over panel) shipped 2026-06-07. Architecture established: `SlidePanel` primitive ([apps/web/src/_shared/slide-panel.tsx](../../../apps/web/src/_shared/slide-panel.tsx)), parent layout ([apps/web/src/routes/lol/$accountSlug/matches.tsx](../../../apps/web/src/routes/lol/$accountSlug/matches.tsx)) keeps list mounted across panel navigations, cold-arrival `scrollToIndex` via `useActiveMatch` sentinel coexists with the StrictMode-resilient pin loop. Existing row→hero VT morph + rect-morph fallback preserved untouched. Next: Chunk 2.2 (LoL champion-detail — cheap reuse of primitive). Depends on [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md) inline-detail-tabs pattern, already landed.
+**Status:** Active — Chunks 2.1 + 2.2 (LoL match-detail + champion-detail as slide-over panels) shipped 2026-06-07. Architecture: `SlidePanel` primitive ([apps/web/src/_shared/slide-panel.tsx](../../../apps/web/src/_shared/slide-panel.tsx)), parent layouts ([matches.tsx](../../../apps/web/src/routes/lol/$accountSlug/matches.tsx), [champions.tsx](../../../apps/web/src/routes/lol/$accountSlug/champions.tsx)) keep lists mounted across panel navigations, cold-arrival sentinel via `useActiveMatch` / `useActiveChampion` written from URL on panel mount so existing list scroll-restore + row decoration still fire. Existing row→hero VT morph + rect-morph fallback preserved untouched on both sections. Next: Chunk 2.3 (Steam game-detail — route restructure required). Depends on [nav-condensation-arc.md § 1.1](../archive/nav-condensation-arc.md) inline-detail-tabs pattern, already landed.
 
 Detail pages (match detail, champion detail, Steam game detail, future detail surfaces) move from full route-change page swaps to **full-width slide-over panels with URL-as-state**. The list stays mounted underneath with scroll, virtualizer offset, and filter state preserved; the panel slides in from the right with a row-to-content morph for click navigation, or appears in-place for cold deep-link arrivals.
 
@@ -141,13 +141,15 @@ The lead candidate. Establishes the pattern; later chunks copy it.
 - ESC closes panel (Radix Dialog a11y).
 - Axe scan on panel-open state.
 
-### Chunk 2.2 — Champion-detail as panel (LoL)
+### Chunk 2.2 — Champion-detail as panel (LoL) — ✅ SHIPPED 2026-06-07
 
 Same pattern, applied to champion detail.
 
-- Champion list → champion-detail panel.
-- Reuses the `SlidePanel` primitive from 2.1.
-- Champion-detail content (already exists) moves into panel shape.
+- Parent layout [champions.tsx](../../../apps/web/src/routes/lol/$accountSlug/champions.tsx) lifted from old `champions/index.tsx`; owns role filter + sort + aggregated stats + `ChampionTable`. `validateSearch` for `role` moved up to the parent so the search param is shared with the detail child.
+- `champions/index.tsx` is now a null stub.
+- `champions/$championKey.tsx` wraps its existing detail body in `<SlidePanel>` with share button → clipboard + toast, close → `/lol/$accountSlug/champions`, cold-arrival sentinel via `useActiveChampion().setActiveChampion(championKey)`, `skipSlideInRef` captured at mount so cold deep-links don't slide.
+- Existing row→hero VT morph + rect-morph fallback in `champion-table.tsx` preserved untouched. `restoredScrollY` pin loop + `setActiveChampion` pre-navigate also untouched.
+- No new tests beyond the SlidePanel primitive tests shipped in 2.1 — the restructure is purely compositional; existing `champion-table.test.tsx` + `active-champion-context.test.tsx` already cover the sentinel + scroll-restore wiring.
 
 ### Chunk 2.3 — Steam game-detail as panel
 

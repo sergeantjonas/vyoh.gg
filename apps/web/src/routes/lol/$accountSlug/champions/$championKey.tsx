@@ -1,9 +1,11 @@
+import { SlidePanel } from "@/_shared/slide-panel";
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
 import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { Sparkline } from "@/components/ui/sparkline";
 import { routeMeta } from "@/lib/route-meta";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -21,6 +23,7 @@ import {
 } from "@/lol/_shared/serious-queues/serious-queues";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
+import { useActiveChampion } from "@/lol/champions/active-champion-context";
 import { ChampionBreadcrumb } from "@/lol/champions/champion-breadcrumb";
 import { ChampionBuildPath } from "@/lol/champions/champion-build-path";
 import { ChampionCardChrome } from "@/lol/champions/champion-card";
@@ -42,10 +45,11 @@ import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatKda, formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
+import { Share2 } from "lucide-react";
 import { m } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Line,
   LineChart,
@@ -233,6 +237,56 @@ function ChampionDetailPage() {
     return () => window.clearTimeout(id);
   }, []);
 
+  const navigate = useNavigate();
+  const { activeChampion, setActiveChampion } = useActiveChampion();
+
+  // Captured at first paint — if `activeChampion === alias` at mount, the user
+  // clicked this row from the list (handler set it pre-navigate). Anything
+  // else (null, mismatched alias) is a cold deep-link / refresh — skip the
+  // slide so the panel appears in place behind the row→hero morph (or simply
+  // appears, on cold arrival where there's no row to morph from).
+  const skipSlideInRef = useRef(
+    activeChampion?.toLowerCase() !== championKey.toLowerCase()
+  );
+
+  // Cold arrival: write activeChampion from the URL so the list (mounted by
+  // the parent layout) can decorate the matching row as the morph target.
+  // Idempotent — re-renders bail when activeChampion already matches.
+  useEffect(() => {
+    if (activeChampion?.toLowerCase() !== championKey.toLowerCase()) {
+      setActiveChampion(championKey);
+    }
+  }, [activeChampion, championKey, setActiveChampion]);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    const clipboard = navigator.clipboard;
+    if (!clipboard) {
+      toastError("Clipboard isn't available in this browser");
+      return;
+    }
+    clipboard
+      .writeText(url)
+      .then(() => toastSuccess("Link copied to clipboard"))
+      .catch(() => toastError("Couldn't copy link"));
+  };
+
+  const handleClose = () => {
+    navigate({ to: "/lol/$accountSlug/champions", params: { accountSlug } });
+  };
+
+  const panelTitle = `${championName(championKey)} · champion detail`;
+  const shareButton = (
+    <button
+      type="button"
+      onClick={handleShare}
+      aria-label="Copy link to this champion"
+      className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Share2 className="size-4" />
+    </button>
+  );
+
   // Champion-scoped matches must be derived BEFORE the early return — moving
   // it below caused a hooks-count mismatch on first render once the page
   // started self-fetching (data === undefined → detail === null → early
@@ -249,14 +303,22 @@ function ChampionDetailPage() {
 
   if (!detail) {
     return (
-      <div className="flex flex-col gap-6">
-        <ChampionBreadcrumb accountSlug={accountSlug} championAlias={championKey} />
-        <EmptyState
-          illustration={<EmptyChampionIllustration />}
-          title={`No matches on ${championName(championKey)} yet`}
-          hint="Play a game with this champion — stats, items, and matchups appear here once data starts flowing."
-        />
-      </div>
+      <SlidePanel
+        open
+        onClose={handleClose}
+        title={panelTitle}
+        skipSlideIn={skipSlideInRef.current}
+        header={shareButton}
+      >
+        <div className="flex flex-col gap-6 p-4">
+          <ChampionBreadcrumb accountSlug={accountSlug} championAlias={championKey} />
+          <EmptyState
+            illustration={<EmptyChampionIllustration />}
+            title={`No matches on ${championName(championKey)} yet`}
+            hint="Play a game with this champion — stats, items, and matchups appear here once data starts flowing."
+          />
+        </div>
+      </SlidePanel>
     );
   }
 
@@ -281,460 +343,475 @@ function ChampionDetailPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <ChampionBreadcrumb accountSlug={accountSlug} championAlias={alias} />
-      {/* Hero — fades out when scrolled past header; stays in DOM so no layout shift */}
-      <div ref={heroRef}>
-        <m.div
-          animate={{ opacity: stripVisible ? 0 : 1, y: stripVisible ? -8 : 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-        >
-          <ChampionHero alias={alias}>
-            <ChampionCardChrome champion={alias} />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-5">
-              <div className="relative flex items-center gap-2">
-                <span className="text-2xl font-bold">{championName(alias)}</span>
-                <TooltipPrimitive.Root>
-                  <TooltipPrimitive.Trigger asChild>
-                    <span className="inline-flex">
-                      <RoleIcon
-                        position={detail.position}
-                        title={ROLE_LABEL[detail.position]}
-                        className="size-4 opacity-70"
-                      />
-                    </span>
-                  </TooltipPrimitive.Trigger>
-                  <TooltipPrimitive.Portal>
-                    <TooltipPrimitive.Content
-                      side="bottom"
-                      sideOffset={6}
-                      className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
-                    >
-                      Primary lane: {ROLE_LABEL[detail.position]}
-                    </TooltipPrimitive.Content>
-                  </TooltipPrimitive.Portal>
-                </TooltipPrimitive.Root>
-                {champMatches.length > 0 && (
-                  <ThisPatchBadge
-                    matches={champMatches}
-                    label="Last played"
-                    buildLabel="Last build"
-                  />
-                )}
-              </div>
-              {parentClassChips.length > 0 && (
-                <div className="relative mt-0.5 flex items-center gap-2 text-xs text-muted-foreground/70">
-                  {parentClassChips.map(({ slug, label }) => (
-                    <span
-                      key={`class:${slug}`}
-                      className="inline-flex items-center gap-1"
-                    >
-                      <img
-                        src={championClassIconUrl(slug)}
-                        alt=""
-                        aria-hidden={true}
-                        className="size-4 shrink-0"
-                        draggable={false}
-                      />
-                      {label}
-                    </span>
-                  ))}
-                  {subclassLabels.length > 0 && (
-                    <span className="text-muted-foreground/50">
-                      · {subclassLabels.join(" · ")}
-                    </span>
+    <SlidePanel
+      open
+      onClose={handleClose}
+      title={panelTitle}
+      skipSlideIn={skipSlideInRef.current}
+      header={shareButton}
+    >
+      <div className="flex flex-col gap-6 p-4">
+        <ChampionBreadcrumb accountSlug={accountSlug} championAlias={alias} />
+        {/* Hero — fades out when scrolled past header; stays in DOM so no layout shift */}
+        <div ref={heroRef}>
+          <m.div
+            animate={{ opacity: stripVisible ? 0 : 1, y: stripVisible ? -8 : 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <ChampionHero alias={alias}>
+              <ChampionCardChrome champion={alias} />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5">
+                <div className="relative flex items-center gap-2">
+                  <span className="text-2xl font-bold">{championName(alias)}</span>
+                  <TooltipPrimitive.Root>
+                    <TooltipPrimitive.Trigger asChild>
+                      <span className="inline-flex">
+                        <RoleIcon
+                          position={detail.position}
+                          title={ROLE_LABEL[detail.position]}
+                          className="size-4 opacity-70"
+                        />
+                      </span>
+                    </TooltipPrimitive.Trigger>
+                    <TooltipPrimitive.Portal>
+                      <TooltipPrimitive.Content
+                        side="bottom"
+                        sideOffset={6}
+                        className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                      >
+                        Primary lane: {ROLE_LABEL[detail.position]}
+                      </TooltipPrimitive.Content>
+                    </TooltipPrimitive.Portal>
+                  </TooltipPrimitive.Root>
+                  {champMatches.length > 0 && (
+                    <ThisPatchBadge
+                      matches={champMatches}
+                      label="Last played"
+                      buildLabel="Last build"
+                    />
                   )}
                 </div>
-              )}
-              <div className="relative mt-0.5 flex gap-3 text-sm text-muted-foreground">
-                <span>
-                  <CountUp to={detail.games} /> {detail.games === 1 ? "game" : "games"}
-                </span>
-                <span>·</span>
-                <span>{formatPlaytimeFromSeconds(detail.totalDurationSec)}</span>
-                <span>·</span>
-                <span
-                  className={detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"}
-                >
-                  <CountUp to={Math.round(detail.winRate * 100)} />% WR
-                </span>
-                <span>·</span>
-                <span className="text-amber-400">
-                  <PersonalRecord
-                    storageKey={`lol:champion-avg-kda:${alias.toLowerCase()}`}
-                    value={detail.avgKda}
-                    direction="higher-better"
-                  >
-                    <CountUp to={detail.avgKda} decimals={2} />
-                  </PersonalRecord>{" "}
-                  KDA
-                </span>
-              </div>
-              <WinRateBar winRate={detail.winRate} className="mt-2" />
-            </div>
-          </ChampionHero>
-        </m.div>
-      </div>
-
-      <ChampionStickyStrip
-        visible={stripVisible}
-        top="var(--account-header-h)"
-        championAlias={alias}
-      >
-        <div className="flex items-center gap-3">
-          <ChampionSquareIcon championName={alias} className="size-6 rounded-sm" />
-          <span className="text-sm font-medium">{championName(alias)}</span>
-          <span
-            className={cn(
-              "text-xs tabular-nums",
-              detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
-            )}
-          >
-            {Math.round(detail.winRate * 100)}% WR
-          </span>
-          <span className="text-xs tabular-nums text-amber-400">
-            {formatKda(detail.avgKda)} KDA
-          </span>
-        </div>
-      </ChampionStickyStrip>
-
-      <m.div
-        initial={{ opacity: BODY_HOLD_OPACITY }}
-        animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex flex-col gap-6"
-      >
-        {/* Per-game averages */}
-        <m.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          className="flex gap-4"
-        >
-          {(
-            [
-              ["K", detail.avgKills, "kills"],
-              ["D", detail.avgDeaths, "deaths"],
-              ["A", detail.avgAssists, "assists"],
-            ] as const
-          ).map(([label, val, key]) => {
-            // Last 10 games for this stat — matchHistory is oldest first.
-            const trend = detail.matchHistory.slice(-10).map((m) => m[key]);
-            return (
-              <div
-                key={label}
-                className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/50 py-3"
-              >
-                <HeroLabel>{label}</HeroLabel>
-                <HeroNumber size="md">
-                  <CountUp to={val} decimals={1} />
-                </HeroNumber>
-                {trend.length >= 2 && (
-                  <Sparkline
-                    data={trend}
-                    width={64}
-                    height={14}
-                    className="text-theme-strong/70"
-                    stroke="currentColor"
-                    aria-label={`${key} per game — last ${trend.length}`}
-                    tooltip={
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium capitalize">{key} per game</span>
-                        <span className="text-muted-foreground">
-                          last {trend.length} games
-                        </span>
-                        <span className="font-mono tabular-nums">
-                          {trend.join(" · ")}
-                        </span>
-                      </div>
-                    }
-                  />
+                {parentClassChips.length > 0 && (
+                  <div className="relative mt-0.5 flex items-center gap-2 text-xs text-muted-foreground/70">
+                    {parentClassChips.map(({ slug, label }) => (
+                      <span
+                        key={`class:${slug}`}
+                        className="inline-flex items-center gap-1"
+                      >
+                        <img
+                          src={championClassIconUrl(slug)}
+                          alt=""
+                          aria-hidden={true}
+                          className="size-4 shrink-0"
+                          draggable={false}
+                        />
+                        {label}
+                      </span>
+                    ))}
+                    {subclassLabels.length > 0 && (
+                      <span className="text-muted-foreground/50">
+                        · {subclassLabels.join(" · ")}
+                      </span>
+                    )}
+                  </div>
                 )}
+                <div className="relative mt-0.5 flex gap-3 text-sm text-muted-foreground">
+                  <span>
+                    <CountUp to={detail.games} /> {detail.games === 1 ? "game" : "games"}
+                  </span>
+                  <span>·</span>
+                  <span>{formatPlaytimeFromSeconds(detail.totalDurationSec)}</span>
+                  <span>·</span>
+                  <span
+                    className={
+                      detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
+                    }
+                  >
+                    <CountUp to={Math.round(detail.winRate * 100)} />% WR
+                  </span>
+                  <span>·</span>
+                  <span className="text-amber-400">
+                    <PersonalRecord
+                      storageKey={`lol:champion-avg-kda:${alias.toLowerCase()}`}
+                      value={detail.avgKda}
+                      direction="higher-better"
+                    >
+                      <CountUp to={detail.avgKda} decimals={2} />
+                    </PersonalRecord>{" "}
+                    KDA
+                  </span>
+                </div>
+                <WinRateBar winRate={detail.winRate} className="mt-2" />
               </div>
-            );
-          })}
-        </m.div>
+            </ChampionHero>
+          </m.div>
+        </div>
 
-        {/* Delta vs account average */}
-        {kdaDelta !== null && wrDelta !== null && (
-          <div className="flex gap-4">
-            <DeltaTile label="KDA" value={kdaDelta} format={formatKda} />
-            <DeltaTile label="Win Rate" value={wrDelta} format={formatPercent} />
+        <ChampionStickyStrip
+          visible={stripVisible}
+          top="var(--account-header-h)"
+          championAlias={alias}
+        >
+          <div className="flex items-center gap-3">
+            <ChampionSquareIcon championName={alias} className="size-6 rounded-sm" />
+            <span className="text-sm font-medium">{championName(alias)}</span>
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                detail.winRate >= 0.5 ? "text-emerald-400" : "text-red-400"
+              )}
+            >
+              {Math.round(detail.winRate * 100)}% WR
+            </span>
+            <span className="text-xs tabular-nums text-amber-400">
+              {formatKda(detail.avgKda)} KDA
+            </span>
           </div>
-        )}
+        </ChampionStickyStrip>
 
-        {/* Win rate trend sparkline — only meaningful with enough games */}
-        {series.length >= 5 && (
+        <m.div
+          initial={{ opacity: BODY_HOLD_OPACITY }}
+          animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="flex flex-col gap-6"
+        >
+          {/* Per-game averages */}
           <m.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.06 }}
-            className="flex flex-col gap-2"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            className="flex gap-4"
           >
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              Win Rate Trend
+            {(
+              [
+                ["K", detail.avgKills, "kills"],
+                ["D", detail.avgDeaths, "deaths"],
+                ["A", detail.avgAssists, "assists"],
+              ] as const
+            ).map(([label, val, key]) => {
+              // Last 10 games for this stat — matchHistory is oldest first.
+              const trend = detail.matchHistory.slice(-10).map((m) => m[key]);
+              return (
+                <div
+                  key={label}
+                  className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/50 py-3"
+                >
+                  <HeroLabel>{label}</HeroLabel>
+                  <HeroNumber size="md">
+                    <CountUp to={val} decimals={1} />
+                  </HeroNumber>
+                  {trend.length >= 2 && (
+                    <Sparkline
+                      data={trend}
+                      width={64}
+                      height={14}
+                      className="text-theme-strong/70"
+                      stroke="currentColor"
+                      aria-label={`${key} per game — last ${trend.length}`}
+                      tooltip={
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium capitalize">{key} per game</span>
+                          <span className="text-muted-foreground">
+                            last {trend.length} games
+                          </span>
+                          <span className="font-mono tabular-nums">
+                            {trend.join(" · ")}
+                          </span>
+                        </div>
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </m.div>
+
+          {/* Delta vs account average */}
+          {kdaDelta !== null && wrDelta !== null && (
+            <div className="flex gap-4">
+              <DeltaTile label="KDA" value={kdaDelta} format={formatKda} />
+              <DeltaTile label="Win Rate" value={wrDelta} format={formatPercent} />
             </div>
-            <div className="h-24 rounded-lg border bg-card/50 px-2 py-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={series}>
-                  {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
+          )}
+
+          {/* Win rate trend sparkline — only meaningful with enough games */}
+          {series.length >= 5 && (
+            <m.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.06 }}
+              className="flex flex-col gap-2"
+            >
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Win Rate Trend
+              </div>
+              <div className="h-24 rounded-lg border bg-card/50 px-2 py-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series}>
+                    {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
                     lands at the right fractional position between games.
                     Without this Recharts uses the array index as the X
                     domain (0-based) and our boundary's 1-based gameIndex
                     falls one game too far right. */}
-                  <XAxis
-                    dataKey="game"
-                    type="number"
-                    domain={["dataMin", "dataMax"]}
-                    hide
-                  />
-                  <ReferenceLine
-                    y={0.5}
-                    stroke="currentColor"
-                    strokeOpacity={0.15}
-                    strokeDasharray="3 3"
-                  />
-                  {championPatchBoundaries.map((b) => (
-                    <ReferenceLine
-                      key={`champ-patch-${b.fromPatch}-${b.toPatch}`}
-                      x={b.gameIndex}
-                      stroke="currentColor"
-                      strokeOpacity={0.45}
-                      strokeDasharray="2 3"
-                      ifOverflow="hidden"
-                      label={{
-                        value: b.toPatch,
-                        position: "insideTopRight",
-                        fill: "var(--muted-foreground)",
-                        fontSize: 10,
-                      }}
-                      className="text-muted-foreground"
+                    <XAxis
+                      dataKey="game"
+                      type="number"
+                      domain={["dataMin", "dataMax"]}
+                      hide
                     />
-                  ))}
-                  <Tooltip content={<WinRateTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="winRate"
-                    stroke={detail.winRate >= 0.5 ? "#34d399" : "#f87171"}
-                    strokeWidth={1.5}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </m.div>
-        )}
+                    <ReferenceLine
+                      y={0.5}
+                      stroke="currentColor"
+                      strokeOpacity={0.15}
+                      strokeDasharray="3 3"
+                    />
+                    {championPatchBoundaries.map((b) => (
+                      <ReferenceLine
+                        key={`champ-patch-${b.fromPatch}-${b.toPatch}`}
+                        x={b.gameIndex}
+                        stroke="currentColor"
+                        strokeOpacity={0.45}
+                        strokeDasharray="2 3"
+                        ifOverflow="hidden"
+                        label={{
+                          value: b.toPatch,
+                          position: "insideTopRight",
+                          fill: "var(--muted-foreground)",
+                          fontSize: 10,
+                        }}
+                        className="text-muted-foreground"
+                      />
+                    ))}
+                    <Tooltip content={<WinRateTooltip />} />
+                    <Line
+                      type="monotone"
+                      dataKey="winRate"
+                      stroke={detail.winRate >= 0.5 ? "#34d399" : "#f87171"}
+                      strokeWidth={1.5}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </m.div>
+          )}
 
-        {patchDrift && (
-          <div className="flex flex-col gap-1 rounded-lg border bg-card/40 px-3 py-2.5">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-              Time on this champion
+          {patchDrift && (
+            <div className="flex flex-col gap-1 rounded-lg border bg-card/40 px-3 py-2.5">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                Time on this champion
+              </div>
+              <div className="text-sm leading-snug text-foreground/90">
+                {patchDrift.direction === "up" ? "Up" : "Down"} on patch{" "}
+                {patchDrift.currentPatch} — {Math.round(patchDrift.currentShare * 100)}%
+                of your {patchDrift.currentTotalGames} games (vs{" "}
+                {Math.round(patchDrift.previousShare * 100)}% on{" "}
+                {patchDrift.previousPatch}
+                ).{" "}
+                <span className="text-muted-foreground/70">
+                  {patchDrift.currentChampGames} games this patch
+                </span>
+              </div>
             </div>
-            <div className="text-sm leading-snug text-foreground/90">
-              {patchDrift.direction === "up" ? "Up" : "Down"} on patch{" "}
-              {patchDrift.currentPatch} — {Math.round(patchDrift.currentShare * 100)}% of
-              your {patchDrift.currentTotalGames} games (vs{" "}
-              {Math.round(patchDrift.previousShare * 100)}% on {patchDrift.previousPatch}
-              ).{" "}
-              <span className="text-muted-foreground/70">
-                {patchDrift.currentChampGames} games this patch
-              </span>
-            </div>
-          </div>
-        )}
-        {/* Per-patch champion WR — feeds off the page's wider matches window so
+          )}
+          {/* Per-patch champion WR — feeds off the page's wider matches window so
           the strip's 6-patch tail and the hero summary are derived from the
           same dataset (was drifting when the strip self-fetched 2000 matches
           but the page used the bounded count selector). */}
-        <ChampionPatchHistory matches={champMatches} championAlias={alias} />
+          <ChampionPatchHistory matches={champMatches} championAlias={alias} />
 
-        {/* Top items */}
-        {extras.data && extras.data.topItems.length > 0 && (
-          <m.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
-            className="flex flex-col gap-2"
-          >
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              Most Built Items
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {extras.data.topItems.map(({ itemId, games, wins }) => {
-                const item = itemsData.data?.get(itemId);
-                const wr = wins / games;
-                return (
-                  <TooltipPrimitive.Root key={itemId} delayDuration={150}>
-                    <TooltipPrimitive.Trigger asChild>
-                      <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/50 p-2">
-                        {item ? (
-                          <ItemIcon
-                            iconUrl={item.iconUrl}
-                            alt={item.name}
-                            className="size-10 rounded"
-                          />
-                        ) : (
-                          <div className="size-10 rounded bg-muted/40" />
-                        )}
+          {/* Top items */}
+          {extras.data && extras.data.topItems.length > 0 && (
+            <m.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
+              className="flex flex-col gap-2"
+            >
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Most Built Items
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {extras.data.topItems.map(({ itemId, games, wins }) => {
+                  const item = itemsData.data?.get(itemId);
+                  const wr = wins / games;
+                  return (
+                    <TooltipPrimitive.Root key={itemId} delayDuration={150}>
+                      <TooltipPrimitive.Trigger asChild>
+                        <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/50 p-2">
+                          {item ? (
+                            <ItemIcon
+                              iconUrl={item.iconUrl}
+                              alt={item.name}
+                              className="size-10 rounded"
+                            />
+                          ) : (
+                            <div className="size-10 rounded bg-muted/40" />
+                          )}
+                          <div
+                            className={cn(
+                              "text-xs font-medium tabular-nums",
+                              wr >= 0.5 ? "text-emerald-400" : "text-red-400"
+                            )}
+                          >
+                            {Math.round(wr * 100)}%
+                          </div>
+                        </div>
+                      </TooltipPrimitive.Trigger>
+                      <TooltipPrimitive.Portal>
+                        <TooltipPrimitive.Content
+                          side="top"
+                          sideOffset={6}
+                          collisionPadding={8}
+                          className="pointer-events-none z-50 w-max max-w-64 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                        >
+                          <div className="flex items-start gap-3">
+                            {item && (
+                              <img
+                                src={item.iconUrl}
+                                alt=""
+                                aria-hidden="true"
+                                className="size-10 shrink-0 rounded-md bg-muted"
+                              />
+                            )}
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <div className="text-sm font-semibold leading-tight">
+                                {item?.name ?? `Item ${itemId}`}
+                              </div>
+                              {item?.priceTotal ? (
+                                <div className="font-mono text-xs text-amber-400">
+                                  {item.priceTotal}g
+                                </div>
+                              ) : null}
+                              <div className="text-xs text-muted-foreground">
+                                Built in {games} {games === 1 ? "game" : "games"} ·{" "}
+                                {Math.round(wr * 100)}% WR
+                              </div>
+                            </div>
+                          </div>
+                        </TooltipPrimitive.Content>
+                      </TooltipPrimitive.Portal>
+                    </TooltipPrimitive.Root>
+                  );
+                })}
+              </div>
+            </m.div>
+          )}
+
+          {/* Matchups */}
+          {sortedMatchups.length > 0 && (
+            <m.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Matchups
+                </div>
+                <div className="flex gap-1">
+                  {(["games", "best", "hardest"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setMatchupSort(s)}
+                      className={cn(
+                        "cursor-pointer rounded px-2 py-0.5 text-xs transition-colors",
+                        matchupSort === s
+                          ? "bg-foreground/10 text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {s === "games"
+                        ? "Most played"
+                        : s === "best"
+                          ? "Best WR"
+                          : "Hardest"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {weakestMatchup && (
+                <div
+                  className={cn(
+                    "flex flex-col gap-1 rounded-lg border px-3 py-2.5",
+                    weakestMatchup.deltaPP >= 15
+                      ? "border-rose-500/40 bg-rose-500/10"
+                      : "border-border bg-card/40"
+                  )}
+                >
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                    Weakest matchup
+                  </div>
+                  <div className="text-sm leading-snug text-foreground/90">
+                    vs {championName(weakestMatchup.champion)} —{" "}
+                    {Math.round(weakestMatchup.wr * 100)}% WR, {weakestMatchup.deltaPP}pp
+                    below your {Math.round(weakestMatchup.baselineWr * 100)}% baseline on
+                    this champion.{" "}
+                    <span className="text-muted-foreground/70">
+                      {weakestMatchup.games} games
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                {(matchupsExpanded ? sortedMatchups : sortedMatchups.slice(0, 8)).map(
+                  ({ champion, games, wins }) => {
+                    const wr = wins / games;
+                    return (
+                      <div
+                        key={champion}
+                        className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
+                      >
+                        <ChampionSquareIcon
+                          championName={champion}
+                          className="size-7 rounded-sm"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-medium">
+                            {championName(champion)}
+                          </div>
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            {wins}W {games - wins}L
+                          </div>
+                        </div>
                         <div
                           className={cn(
-                            "text-xs font-medium tabular-nums",
+                            "text-xs font-semibold tabular-nums",
                             wr >= 0.5 ? "text-emerald-400" : "text-red-400"
                           )}
                         >
                           {Math.round(wr * 100)}%
                         </div>
                       </div>
-                    </TooltipPrimitive.Trigger>
-                    <TooltipPrimitive.Portal>
-                      <TooltipPrimitive.Content
-                        side="top"
-                        sideOffset={6}
-                        collisionPadding={8}
-                        className="pointer-events-none z-50 w-max max-w-64 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-                      >
-                        <div className="flex items-start gap-3">
-                          {item && (
-                            <img
-                              src={item.iconUrl}
-                              alt=""
-                              aria-hidden="true"
-                              className="size-10 shrink-0 rounded-md bg-muted"
-                            />
-                          )}
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <div className="text-sm font-semibold leading-tight">
-                              {item?.name ?? `Item ${itemId}`}
-                            </div>
-                            {item?.priceTotal ? (
-                              <div className="font-mono text-xs text-amber-400">
-                                {item.priceTotal}g
-                              </div>
-                            ) : null}
-                            <div className="text-xs text-muted-foreground">
-                              Built in {games} {games === 1 ? "game" : "games"} ·{" "}
-                              {Math.round(wr * 100)}% WR
-                            </div>
-                          </div>
-                        </div>
-                      </TooltipPrimitive.Content>
-                    </TooltipPrimitive.Portal>
-                  </TooltipPrimitive.Root>
-                );
-              })}
-            </div>
-          </m.div>
-        )}
-
-        {/* Matchups */}
-        {sortedMatchups.length > 0 && (
-          <m.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
-            className="flex flex-col gap-2"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Matchups
-              </div>
-              <div className="flex gap-1">
-                {(["games", "best", "hardest"] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setMatchupSort(s)}
-                    className={cn(
-                      "cursor-pointer rounded px-2 py-0.5 text-xs transition-colors",
-                      matchupSort === s
-                        ? "bg-foreground/10 text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {s === "games" ? "Most played" : s === "best" ? "Best WR" : "Hardest"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {weakestMatchup && (
-              <div
-                className={cn(
-                  "flex flex-col gap-1 rounded-lg border px-3 py-2.5",
-                  weakestMatchup.deltaPP >= 15
-                    ? "border-rose-500/40 bg-rose-500/10"
-                    : "border-border bg-card/40"
+                    );
+                  }
                 )}
-              >
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                  Weakest matchup
-                </div>
-                <div className="text-sm leading-snug text-foreground/90">
-                  vs {championName(weakestMatchup.champion)} —{" "}
-                  {Math.round(weakestMatchup.wr * 100)}% WR, {weakestMatchup.deltaPP}pp
-                  below your {Math.round(weakestMatchup.baselineWr * 100)}% baseline on
-                  this champion.{" "}
-                  <span className="text-muted-foreground/70">
-                    {weakestMatchup.games} games
-                  </span>
-                </div>
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              {(matchupsExpanded ? sortedMatchups : sortedMatchups.slice(0, 8)).map(
-                ({ champion, games, wins }) => {
-                  const wr = wins / games;
-                  return (
-                    <div
-                      key={champion}
-                      className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
-                    >
-                      <ChampionSquareIcon
-                        championName={champion}
-                        className="size-7 rounded-sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-medium">
-                          {championName(champion)}
-                        </div>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          {wins}W {games - wins}L
-                        </div>
-                      </div>
-                      <div
-                        className={cn(
-                          "text-xs font-semibold tabular-nums",
-                          wr >= 0.5 ? "text-emerald-400" : "text-red-400"
-                        )}
-                      >
-                        {Math.round(wr * 100)}%
-                      </div>
-                    </div>
-                  );
-                }
+              {sortedMatchups.length > 8 && (
+                <button
+                  type="button"
+                  onClick={() => setMatchupsExpanded((v) => !v)}
+                  className="cursor-pointer self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {matchupsExpanded
+                    ? "Show less"
+                    : `Show all ${sortedMatchups.length} matchups`}
+                </button>
               )}
-            </div>
-            {sortedMatchups.length > 8 && (
-              <button
-                type="button"
-                onClick={() => setMatchupsExpanded((v) => !v)}
-                className="cursor-pointer self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {matchupsExpanded
-                  ? "Show less"
-                  : `Show all ${sortedMatchups.length} matchups`}
-              </button>
-            )}
-          </m.div>
-        )}
+            </m.div>
+          )}
 
-        <ChampionBuildPath accountSlug={accountSlug} championKey={championKey} />
-        <ChampionPositionHeatmap matches={champMatches} />
-        <TrendDeathMatchupHeatmap current={champMatches} />
-        <TrendTimeHeatmap current={champMatches} />
-        <TrendTiltIndicator current={champMatches} previous={[]} />
-      </m.div>
-    </div>
+          <ChampionBuildPath accountSlug={accountSlug} championKey={championKey} />
+          <ChampionPositionHeatmap matches={champMatches} />
+          <TrendDeathMatchupHeatmap current={champMatches} />
+          <TrendTimeHeatmap current={champMatches} />
+          <TrendTiltIndicator current={champMatches} previous={[]} />
+        </m.div>
+      </div>
+    </SlidePanel>
   );
 }

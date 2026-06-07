@@ -27,6 +27,7 @@ import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountS
 import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
 import { Route as LolAccountSlugMatchesRouteImport } from './routes/lol/$accountSlug/matches'
 import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
+import { Route as LolAccountSlugChampionsRouteImport } from './routes/lol/$accountSlug/champions'
 import { Route as LolAccountSlugMatchesIndexRouteImport } from './routes/lol/$accountSlug/matches/index'
 import { Route as LolAccountSlugChampionsIndexRouteImport } from './routes/lol/$accountSlug/champions/index'
 import { Route as LolAccountSlugMatchesMatchIdRouteImport } from './routes/lol/$accountSlug/matches/$matchId'
@@ -128,6 +129,11 @@ const LolAccountSlugLiveRoute = LolAccountSlugLiveRouteImport.update({
   path: '/live',
   getParentRoute: () => LolAccountSlugRoute,
 } as any)
+const LolAccountSlugChampionsRoute = LolAccountSlugChampionsRouteImport.update({
+  id: '/champions',
+  path: '/champions',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
 const LolAccountSlugMatchesIndexRoute =
   LolAccountSlugMatchesIndexRouteImport.update({
     id: '/',
@@ -136,9 +142,9 @@ const LolAccountSlugMatchesIndexRoute =
   } as any)
 const LolAccountSlugChampionsIndexRoute =
   LolAccountSlugChampionsIndexRouteImport.update({
-    id: '/champions/',
-    path: '/champions/',
-    getParentRoute: () => LolAccountSlugRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => LolAccountSlugChampionsRoute,
   } as any)
 const LolAccountSlugMatchesMatchIdRoute =
   LolAccountSlugMatchesMatchIdRouteImport.update({
@@ -148,9 +154,9 @@ const LolAccountSlugMatchesMatchIdRoute =
   } as any)
 const LolAccountSlugChampionsChampionKeyRoute =
   LolAccountSlugChampionsChampionKeyRouteImport.update({
-    id: '/champions/$championKey',
-    path: '/champions/$championKey',
-    getParentRoute: () => LolAccountSlugRoute,
+    id: '/$championKey',
+    path: '/$championKey',
+    getParentRoute: () => LolAccountSlugChampionsRoute,
   } as any)
 const LolAccountSlugMatchesMatchIdIndexRoute =
   LolAccountSlugMatchesMatchIdIndexRouteImport.update({
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/steam/wishlist': typeof SteamWishlistRoute
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
+  '/lol/$accountSlug/champions': typeof LolAccountSlugChampionsRouteWithChildren
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
   '/lol/$accountSlug/matches': typeof LolAccountSlugMatchesRouteWithChildren
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
@@ -248,6 +255,7 @@ export interface FileRoutesById {
   '/steam/wishlist': typeof SteamWishlistRoute
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
+  '/lol/$accountSlug/champions': typeof LolAccountSlugChampionsRouteWithChildren
   '/lol/$accountSlug/live': typeof LolAccountSlugLiveRoute
   '/lol/$accountSlug/matches': typeof LolAccountSlugMatchesRouteWithChildren
   '/lol/$accountSlug/recap': typeof LolAccountSlugRecapRoute
@@ -279,6 +287,7 @@ export interface FileRouteTypes {
     | '/steam/wishlist'
     | '/lol/'
     | '/steam/'
+    | '/lol/$accountSlug/champions'
     | '/lol/$accountSlug/live'
     | '/lol/$accountSlug/matches'
     | '/lol/$accountSlug/recap'
@@ -333,6 +342,7 @@ export interface FileRouteTypes {
     | '/steam/wishlist'
     | '/lol/'
     | '/steam/'
+    | '/lol/$accountSlug/champions'
     | '/lol/$accountSlug/live'
     | '/lol/$accountSlug/matches'
     | '/lol/$accountSlug/recap'
@@ -491,6 +501,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugLiveRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
+    '/lol/$accountSlug/champions': {
+      id: '/lol/$accountSlug/champions'
+      path: '/champions'
+      fullPath: '/lol/$accountSlug/champions'
+      preLoaderRoute: typeof LolAccountSlugChampionsRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
     '/lol/$accountSlug/matches/': {
       id: '/lol/$accountSlug/matches/'
       path: '/'
@@ -500,10 +517,10 @@ declare module '@tanstack/react-router' {
     }
     '/lol/$accountSlug/champions/': {
       id: '/lol/$accountSlug/champions/'
-      path: '/champions'
+      path: '/'
       fullPath: '/lol/$accountSlug/champions/'
       preLoaderRoute: typeof LolAccountSlugChampionsIndexRouteImport
-      parentRoute: typeof LolAccountSlugRoute
+      parentRoute: typeof LolAccountSlugChampionsRoute
     }
     '/lol/$accountSlug/matches/$matchId': {
       id: '/lol/$accountSlug/matches/$matchId'
@@ -514,10 +531,10 @@ declare module '@tanstack/react-router' {
     }
     '/lol/$accountSlug/champions/$championKey': {
       id: '/lol/$accountSlug/champions/$championKey'
-      path: '/champions/$championKey'
+      path: '/$championKey'
       fullPath: '/lol/$accountSlug/champions/$championKey'
       preLoaderRoute: typeof LolAccountSlugChampionsChampionKeyRouteImport
-      parentRoute: typeof LolAccountSlugRoute
+      parentRoute: typeof LolAccountSlugChampionsRoute
     }
     '/lol/$accountSlug/matches/$matchId/': {
       id: '/lol/$accountSlug/matches/$matchId/'
@@ -577,6 +594,23 @@ const SteamRouteChildren: SteamRouteChildren = {
 
 const SteamRouteWithChildren = SteamRoute._addFileChildren(SteamRouteChildren)
 
+interface LolAccountSlugChampionsRouteChildren {
+  LolAccountSlugChampionsChampionKeyRoute: typeof LolAccountSlugChampionsChampionKeyRoute
+  LolAccountSlugChampionsIndexRoute: typeof LolAccountSlugChampionsIndexRoute
+}
+
+const LolAccountSlugChampionsRouteChildren: LolAccountSlugChampionsRouteChildren =
+  {
+    LolAccountSlugChampionsChampionKeyRoute:
+      LolAccountSlugChampionsChampionKeyRoute,
+    LolAccountSlugChampionsIndexRoute: LolAccountSlugChampionsIndexRoute,
+  }
+
+const LolAccountSlugChampionsRouteWithChildren =
+  LolAccountSlugChampionsRoute._addFileChildren(
+    LolAccountSlugChampionsRouteChildren,
+  )
+
 interface LolAccountSlugMatchesMatchIdRouteChildren {
   LolAccountSlugMatchesMatchIdRecapRoute: typeof LolAccountSlugMatchesMatchIdRecapRoute
   LolAccountSlugMatchesMatchIdReviewRoute: typeof LolAccountSlugMatchesMatchIdReviewRoute
@@ -621,24 +655,21 @@ const LolAccountSlugMatchesRouteWithChildren =
   )
 
 interface LolAccountSlugRouteChildren {
+  LolAccountSlugChampionsRoute: typeof LolAccountSlugChampionsRouteWithChildren
   LolAccountSlugLiveRoute: typeof LolAccountSlugLiveRoute
   LolAccountSlugMatchesRoute: typeof LolAccountSlugMatchesRouteWithChildren
   LolAccountSlugRecapRoute: typeof LolAccountSlugRecapRoute
   LolAccountSlugTrendsRoute: typeof LolAccountSlugTrendsRoute
   LolAccountSlugIndexRoute: typeof LolAccountSlugIndexRoute
-  LolAccountSlugChampionsChampionKeyRoute: typeof LolAccountSlugChampionsChampionKeyRoute
-  LolAccountSlugChampionsIndexRoute: typeof LolAccountSlugChampionsIndexRoute
 }
 
 const LolAccountSlugRouteChildren: LolAccountSlugRouteChildren = {
+  LolAccountSlugChampionsRoute: LolAccountSlugChampionsRouteWithChildren,
   LolAccountSlugLiveRoute: LolAccountSlugLiveRoute,
   LolAccountSlugMatchesRoute: LolAccountSlugMatchesRouteWithChildren,
   LolAccountSlugRecapRoute: LolAccountSlugRecapRoute,
   LolAccountSlugTrendsRoute: LolAccountSlugTrendsRoute,
   LolAccountSlugIndexRoute: LolAccountSlugIndexRoute,
-  LolAccountSlugChampionsChampionKeyRoute:
-    LolAccountSlugChampionsChampionKeyRoute,
-  LolAccountSlugChampionsIndexRoute: LolAccountSlugChampionsIndexRoute,
 }
 
 const LolAccountSlugRouteWithChildren = LolAccountSlugRoute._addFileChildren(
