@@ -569,36 +569,3 @@ p {
   }
 }
 
-/* Firefox-only override for `backdrop-filter` on persistent containers.
-   Firefox's compositor lazy-allocates the backdrop-filter layer ~600ms
-   after the element mounts — during that window the container shows
-   crisp page content through its translucent bg-card/60 surface, then
-   the blur "pops in" once the layer is finally set up. We've tried:
-     - dropping every ancestor opacity/transform animation (necessary
-       and shipped — those WERE additional ancestors suppressing the
-       filter, but not the only cause)
-     - will-change: backdrop-filter on the cards (no effect in Firefox)
-     - transform: translateZ(0) to force own composited layer (no effect)
-     - waiting for ancestor settle (handled — but pop happens post-settle)
-   The remaining ~600ms delay is internal to Firefox's compositor and is
-   not addressable from app code. Engine-gate to a solid surface on
-   Firefox; Chromium / WebKit keep the frosted look (where backdrop-
-   filter is allocated eagerly enough to be invisible).
-
-   Targets: cards inside detail panels that use the `bg-card/60 ...
-   backdrop-blur-sm` idiom (stats strip, player rows, owner stats,
-   damage profile, spell casts, the detail-skeleton placeholders).
-   Tailwind 4 emits the literal class `bg-card/60` in the class attribute
-   so `[class~="bg-card/60"]` matches reliably; the `/` is just a
-   character in the class name, not an attribute-selector special.
-
-   Same precedent as the Safari VT engine-gate (lib/navigation-type.ts)
-   and the SlidePanel's own chrome (was engine-gated, now consistently
-   solid since the panel chrome covers a much larger area). */
-@supports (-moz-appearance: none) {
-  [class~="bg-card/60"][class~="backdrop-blur-sm"],
-  [class~="bg-card/80"][class~="backdrop-blur-md"] {
-    background-color: var(--card) !important;
-    backdrop-filter: none !important;
-  }
-}
