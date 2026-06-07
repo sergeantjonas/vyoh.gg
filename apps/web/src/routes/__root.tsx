@@ -107,6 +107,17 @@ function RootLayout() {
           <FetchProgress />
           <CommandPalette />
           <ScrollToTop />
+          {/* Pre-warms Firefox's backdrop-filter compositor pipeline.
+              A persistent invisible 1px element with backdrop-filter keeps
+              Firefox's blur-compositing path allocated, so subsequent
+              backdrop-filter elements (frosted cards inside detail panels)
+              paint immediately instead of suffering the >1s cold-pipeline
+              allocation delay specific to Firefox/MacOS. Chromium /
+              WebKit ignore this (cheap no-op). */}
+          <div
+            aria-hidden
+            className="pointer-events-none fixed left-0 top-0 size-px backdrop-blur-sm opacity-0"
+          />
           <ErrorBoundary>
             {perfEnabled && (
               <Suspense fallback={null}>
