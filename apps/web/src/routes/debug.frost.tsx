@@ -1,7 +1,7 @@
 import { SlidePanel } from "@/_shared/slide-panel";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Diagnostic route mirroring the static /frost-test.html cases A-E but
 // rendered via React + our Tailwind. If cases pop here that don't pop in
@@ -34,10 +34,24 @@ function Frosted({ label }: { label: string }) {
 
 const SPLASH_URL = "http://localhost:2010/img/lol/champion/ahri/hd/16.11.1.webp";
 
+// Mimics the body wrapper in $matchId.tsx — false initially, true after
+// MORPH_SETTLE_MS (700ms). When it flips, skeleton unmounts and real content
+// mounts. THIS is what the actual match panel does on Firefox (which
+// returns false from supportsViewTransitions()).
+function useDelayedReady(delayMs: number) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setReady(true), delayMs);
+    return () => window.clearTimeout(id);
+  }, [delayMs]);
+  return ready;
+}
+
 function FrostDiagnostic() {
   const [mounted, setMounted] = useState(true);
   const [radixOpen, setRadixOpen] = useState(false);
   const [slidePanelOpen, setSlidePanelOpen] = useState(false);
+  const [swapPanelOpen, setSwapPanelOpen] = useState(false);
 
   return (
     <div style={BG_STYLE} className="p-6 text-white">
@@ -154,7 +168,52 @@ function FrostDiagnostic() {
             </div>
           </SlidePanel>
         </div>
+
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-wider opacity-70">
+            F — SlidePanel that swaps SKELETON → real content at t=700ms (matches the
+            bodyReady gate in $matchId.tsx)
+          </div>
+          <button
+            type="button"
+            onClick={() => setSwapPanelOpen((v) => !v)}
+            className="cursor-pointer rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
+          >
+            {swapPanelOpen ? "Close" : "Open"} F (mount-swap)
+          </button>
+          {swapPanelOpen && (
+            <SlidePanel
+              open
+              onClose={() => setSwapPanelOpen(false)}
+              title="Frost diagnostic (mount-swap)"
+              chromeBackdropUrl={SPLASH_URL}
+              header={<span className="text-sm">F header</span>}
+            >
+              <SwapBody />
+            </SlidePanel>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function SwapBody() {
+  const ready = useDelayedReady(700);
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      {!ready ? (
+        <>
+          <Frosted label="F.1: SKELETON (replaces at t=700ms)" />
+          <Frosted label="F.2: SKELETON (replaces at t=700ms)" />
+        </>
+      ) : (
+        <>
+          <Frosted label="F.1: REAL content (just mounted at t=700ms)" />
+          <Frosted label="F.2: REAL content (just mounted at t=700ms)" />
+          <Frosted label="F.3: REAL content (just mounted at t=700ms)" />
+        </>
+      )}
     </div>
   );
 }
