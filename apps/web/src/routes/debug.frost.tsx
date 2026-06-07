@@ -1,6 +1,6 @@
 import { SlidePanel } from "@/_shared/slide-panel";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 // Diagnostic route mirroring the static /frost-test.html cases A-E but
@@ -55,6 +55,24 @@ function FrostDiagnostic() {
 
   return (
     <div style={BG_STYLE} className="p-6 text-white">
+      {/* Case G mirror — same fixed frosted band as /debug/frost-b. Watch
+          this during the link click below: if VT is the culprit, this band
+          loses its blur briefly when the route changes. */}
+      <div className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-card/60 px-6 py-3 backdrop-blur-md">
+        <span className="text-sm font-medium">
+          G — fixed always-mounted frosted band (mirrors top nav shape)
+        </span>
+      </div>
+
+      <div className="mt-16 mb-6">
+        <Link
+          to="/debug/frost-b"
+          className="inline-block cursor-pointer rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
+        >
+          → Navigate to /debug/frost-b (triggers VT — watch the band above)
+        </Link>
+      </div>
+
       <h1 className="mb-2 text-lg font-semibold">React-route frosted-glass diagnostic</h1>
       <p className="mb-4 text-sm opacity-80">
         Same cases as /frost-test.html but rendered via React + our Tailwind. If pops

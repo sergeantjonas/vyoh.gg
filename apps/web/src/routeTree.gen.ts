@@ -18,6 +18,7 @@ import { Route as SteamWishlistRouteImport } from './routes/steam/wishlist'
 import { Route as SteamLibraryRouteImport } from './routes/steam/library'
 import { Route as SteamAchievementsRouteImport } from './routes/steam/achievements'
 import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
+import { Route as DebugFrostBRouteImport } from './routes/debug.frost-b'
 import { Route as DebugFrostRouteImport } from './routes/debug.frost'
 import { Route as LolPatchesIndexRouteImport } from './routes/lol/patches/index'
 import { Route as LolAccountSlugIndexRouteImport } from './routes/lol/$accountSlug/index'
@@ -82,6 +83,11 @@ const SteamAchievementsRoute = SteamAchievementsRouteImport.update({
 const LolAccountSlugRoute = LolAccountSlugRouteImport.update({
   id: '/lol/$accountSlug',
   path: '/lol/$accountSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugFrostBRoute = DebugFrostBRouteImport.update({
+  id: '/debug/frost-b',
+  path: '/debug/frost-b',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugFrostRoute = DebugFrostRouteImport.update({
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/status': typeof StatusRoute
   '/steam': typeof SteamRouteWithChildren
   '/debug/frost': typeof DebugFrostRoute
+  '/debug/frost-b': typeof DebugFrostBRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/steam/achievements': typeof SteamAchievementsRoute
   '/steam/library': typeof SteamLibraryRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/status': typeof StatusRoute
   '/debug/frost': typeof DebugFrostRoute
+  '/debug/frost-b': typeof DebugFrostBRoute
   '/steam/achievements': typeof SteamAchievementsRoute
   '/steam/library': typeof SteamLibraryRoute
   '/steam/wishlist': typeof SteamWishlistRoute
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/status': typeof StatusRoute
   '/steam': typeof SteamRouteWithChildren
   '/debug/frost': typeof DebugFrostRoute
+  '/debug/frost-b': typeof DebugFrostBRoute
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/steam/achievements': typeof SteamAchievementsRoute
   '/steam/library': typeof SteamLibraryRoute
@@ -291,6 +300,7 @@ export interface FileRouteTypes {
     | '/status'
     | '/steam'
     | '/debug/frost'
+    | '/debug/frost-b'
     | '/lol/$accountSlug'
     | '/steam/achievements'
     | '/steam/library'
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/'
     | '/status'
     | '/debug/frost'
+    | '/debug/frost-b'
     | '/steam/achievements'
     | '/steam/library'
     | '/steam/wishlist'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/status'
     | '/steam'
     | '/debug/frost'
+    | '/debug/frost-b'
     | '/lol/$accountSlug'
     | '/steam/achievements'
     | '/steam/library'
@@ -380,6 +392,7 @@ export interface RootRouteChildren {
   StatusRoute: typeof StatusRoute
   SteamRoute: typeof SteamRouteWithChildren
   DebugFrostRoute: typeof DebugFrostRoute
+  DebugFrostBRoute: typeof DebugFrostBRoute
   LolAccountSlugRoute: typeof LolAccountSlugRouteWithChildren
   LolIndexRoute: typeof LolIndexRoute
   LolPatchesVersionRoute: typeof LolPatchesVersionRoute
@@ -449,6 +462,13 @@ declare module '@tanstack/react-router' {
       path: '/lol/$accountSlug'
       fullPath: '/lol/$accountSlug'
       preLoaderRoute: typeof LolAccountSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug/frost-b': {
+      id: '/debug/frost-b'
+      path: '/debug/frost-b'
+      fullPath: '/debug/frost-b'
+      preLoaderRoute: typeof DebugFrostBRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug/frost': {
@@ -701,6 +721,7 @@ const rootRouteChildren: RootRouteChildren = {
   StatusRoute: StatusRoute,
   SteamRoute: SteamRouteWithChildren,
   DebugFrostRoute: DebugFrostRoute,
+  DebugFrostBRoute: DebugFrostBRoute,
   LolAccountSlugRoute: LolAccountSlugRouteWithChildren,
   LolIndexRoute: LolIndexRoute,
   LolPatchesVersionRoute: LolPatchesVersionRoute,
