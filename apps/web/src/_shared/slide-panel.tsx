@@ -1,3 +1,4 @@
+import { isFirefox } from "@/lib/is-firefox";
 import { mainScrollRef } from "@/lib/scroll-container";
 import {
   ScrollContainerProvider,
@@ -70,6 +71,21 @@ export function SlidePanel({
   // handles the hero entrance on the rest.
   const animateIn = !skipSlideIn && !reduced;
 
+  // Firefox refuses to paint backdrop-filter reliably in this configuration
+  // — the result is that list rows behind the panel show crisply through
+  // the translucent chrome, defeating the whole frosted effect. Rather
+  // than chase a Firefox-specific workaround that may regress again later,
+  // engine-gate: Firefox gets a fully opaque `bg-card` surface (no blur,
+  // no bleed), Chromium/WebKit keep the translucent frosted look. Same
+  // precedent as the Safari VT bypass in lib/navigation-type.ts.
+  const ff = isFirefox();
+  const chromeClass = ff
+    ? "border-l border-white/10 bg-card shadow-2xl"
+    : "border-l border-white/10 bg-card/50 backdrop-blur-2xl shadow-2xl";
+  const headerChromeClass = ff
+    ? "flex items-center gap-2 border-b border-white/10 bg-card px-3 py-2 sm:px-4 sm:gap-3"
+    : "flex items-center gap-2 border-b border-white/10 bg-card/75 px-3 py-2 backdrop-blur-2xl sm:px-4 sm:gap-3";
+
   // Lock main scroll while open. With modal={false} (so the global + section
   // nav stay clickable) Radix doesn't manage body scroll for us, but the
   // panel-as-focused-surface convention (Linear, GitHub PR drawer, Slack
@@ -127,7 +143,6 @@ export function SlidePanel({
           asChild
         >
           <m.div
-            ref={setScrollEl}
             initial={animateIn ? { opacity: 0 } : false}
             animate={{ opacity: 1 }}
             transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
@@ -136,51 +151,57 @@ export function SlidePanel({
               // column (max-w-4xl matches nav.tsx + __root). The list peeks
               // out on the left as ambient context; clicking it closes.
               "fixed top-[var(--account-header-h,0px)] bottom-0 right-0 z-40",
-              "flex w-full max-w-4xl flex-col overflow-y-auto",
-              // Frosted-glass chrome: heavily translucent so the splash
-              // backdrop and match-card themes behind bleed through the
-              // blur into the panel body, but tinted toward `bg-card` (one
-              // tier lifted from `bg-background` in the theme tokens —
-              // oklch 0.205 vs 0.145) so the panel still reads as a
-              // distinct surface. backdrop-blur-2xl (40px) dissolves
-              // recognisable content behind into a colored frost.
-              // `isolation: isolate` keeps the blur composite stable
-              // through child animations.
-              "border-l border-white/10 bg-card/50 backdrop-blur-2xl shadow-2xl isolate"
+              "w-full max-w-4xl",
+              // Frosted-glass chrome lives on the OUTER element only (no
+              // overflow on this layer — Firefox refuses backdrop-filter
+              // on scroll containers, so scroll is moved to the absolutely
+              // -positioned inner div). bg-card is one tier lifted from
+              // --background in theme tokens (oklch 0.205 vs 0.145) so the
+              // panel reads as a distinct surface either way; the frosted
+              // variant adds translucency + blur on Chromium/WebKit only.
+              chromeClass
             )}
           >
             <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
-            {/* Wrap header + stickyBelowHeader in a single sticky container
-                so the whole chrome moves together and the strip animates in
-                without overlapping the tab nav. */}
-            <div className="sticky top-0 z-10">
-              <div
-                data-panel-header=""
-                className={cn(
-                  // Header is slightly more opaque than the panel body so the
-                  // tab labels stay crisp over busy content behind the blur.
-                  "flex items-center gap-2 border-b border-white/10 bg-card/75 px-3 py-2 backdrop-blur-2xl sm:px-4 sm:gap-3",
-                  // Narrow viewports: hide tab labels (SectionTabLink wraps
-                  // them in [data-tab-label]) so four icon+label tabs + share
-                  // + close still fit without horizontal scroll.
-                  "[&_[data-tab-label]]:hidden md:[&_[data-tab-label]]:inline"
-                )}
-              >
-                <div className="flex flex-1 items-center gap-1 overflow-x-auto">
-                  {header}
-                </div>
-                <DialogPrimitive.Close
-                  aria-label="Close panel"
-                  className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            {/* Inner scroll surface — separate element so backdrop-filter
+                on the outer chrome actually paints in Firefox. */}
+            <div
+              ref={setScrollEl}
+              className="absolute inset-0 flex flex-col overflow-y-auto"
+            >
+              {/* Wrap header + stickyBelowHeader in a single sticky
+                  container so the whole chrome moves together and the strip
+                  animates in without overlapping the tab nav. */}
+              <div className="sticky top-0 z-10">
+                <div
+                  data-panel-header=""
+                  className={cn(
+                    // Header chrome — solid on Firefox, translucent +
+                    // blurred on browsers that paint backdrop-filter.
+                    headerChromeClass,
+                    // Narrow viewports: hide tab labels (SectionTabLink
+                    // wraps them in [data-tab-label]) so four icon+label
+                    // tabs + share + close still fit without horizontal
+                    // scroll.
+                    "[&_[data-tab-label]]:hidden md:[&_[data-tab-label]]:inline"
+                  )}
                 >
-                  <X className="size-4" />
-                </DialogPrimitive.Close>
+                  <div className="flex flex-1 items-center gap-1 overflow-x-auto">
+                    {header}
+                  </div>
+                  <DialogPrimitive.Close
+                    aria-label="Close panel"
+                    className="cursor-pointer rounded-sm p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="size-4" />
+                  </DialogPrimitive.Close>
+                </div>
+                {stickyBelowHeader}
               </div>
-              {stickyBelowHeader}
+              <ScrollContainerProvider el={scrollEl}>
+                <div className="flex-1">{children}</div>
+              </ScrollContainerProvider>
             </div>
-            <ScrollContainerProvider el={scrollEl}>
-              <div className="flex-1">{children}</div>
-            </ScrollContainerProvider>
           </m.div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
