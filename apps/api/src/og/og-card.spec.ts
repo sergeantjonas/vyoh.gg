@@ -4,7 +4,7 @@ vi.mock("satori", () => ({
   default: vi
     .fn()
     .mockResolvedValue(
-      "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='400'/>"
+      "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'/>"
     ),
 }));
 

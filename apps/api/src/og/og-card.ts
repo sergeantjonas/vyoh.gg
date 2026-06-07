@@ -51,7 +51,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
         display: "flex",
         position: "relative",
         width: 1200,
-        height: 400,
+        height: 630,
         backgroundColor: "#0a0a0a",
         color: "#f4f4f5",
         fontFamily: "Geist",
@@ -64,7 +64,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
         top: 0,
         left: 0,
         width: 740,
-        height: 400,
+        height: 630,
         objectFit: "cover",
         objectPosition: "center top",
         filter: "saturate(0.9)",
@@ -77,7 +77,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
         top: 0,
         left: 0,
         width: 740,
-        height: 400,
+        height: 630,
         backgroundImage:
           "linear-gradient(to right, rgba(10,10,10,0.15) 0%, rgba(10,10,10,0.4) 60%, rgba(10,10,10,1) 100%)",
       },
@@ -102,10 +102,10 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
           right: 0,
           top: 0,
           width: 540,
-          height: 400,
+          height: 630,
           display: "flex",
           flexDirection: "column",
-          padding: "56px 64px",
+          padding: "88px 64px",
           boxSizing: "border-box",
           justifyContent: "space-between",
         },
@@ -213,7 +213,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
 
   const svg = await satori(card as never, {
     width: 1200,
-    height: 400,
+    height: 630,
     fonts: fonts.map((f) => ({
       name: f.name,
       data: f.data,
