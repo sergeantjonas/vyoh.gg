@@ -17,6 +17,7 @@ import {
   SHADOW_LABEL,
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
+  STROKE_LABEL,
 } from "./chapter-shadows";
 import { LolMomentBeat } from "./lol-moment-beat";
 import { MultiBeat } from "./multi-beat";
@@ -79,11 +80,22 @@ function LolMomentsAggregatorMasthead({
           <span
             aria-hidden="true"
             className="text-foreground/40"
-            style={{ textShadow: SHADOW_LABEL }}
+            style={{
+              paintOrder: "stroke",
+              WebkitTextStroke: STROKE_LABEL,
+              textShadow: SHADOW_LABEL,
+            }}
           >
             ·
           </span>
-          <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+          <span
+            className="text-foreground/75"
+            style={{
+              paintOrder: "stroke",
+              WebkitTextStroke: STROKE_LABEL,
+              textShadow: SHADOW_LABEL,
+            }}
+          >
             {momentCount === 1 ? "1 standout" : `${momentCount} standouts`}
           </span>
         </p>

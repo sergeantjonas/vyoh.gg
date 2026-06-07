@@ -15,4 +15,5 @@
  *  recency-decayed score qualifies. Mirror manually with the web list. */
 export const RECAP_HIDDEN_APPIDS: ReadonlySet<number> = new Set([
   1034140, // matches apps/web/src/home/landing-config.ts
+  1091500, // Cyberpunk 2077 — owner-curated hide from `/`
 ]);

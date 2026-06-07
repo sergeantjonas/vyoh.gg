@@ -15,6 +15,7 @@ import {
   SHADOW_LABEL,
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
+  STROKE_LABEL,
 } from "./chapter-shadows";
 import { MultiBeat } from "./multi-beat";
 import { preloadLinkAsImage } from "./preload-link";
@@ -65,11 +66,22 @@ function SteamMomentsAggregatorMasthead({
           <span
             aria-hidden="true"
             className="text-foreground/40"
-            style={{ textShadow: SHADOW_LABEL }}
+            style={{
+              paintOrder: "stroke",
+              WebkitTextStroke: STROKE_LABEL,
+              textShadow: SHADOW_LABEL,
+            }}
           >
             ·
           </span>
-          <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
+          <span
+            className="text-foreground/75"
+            style={{
+              paintOrder: "stroke",
+              WebkitTextStroke: STROKE_LABEL,
+              textShadow: SHADOW_LABEL,
+            }}
+          >
             {momentCount === 1 ? "1 highlight" : `${momentCount} highlights`}
           </span>
         </p>
@@ -134,15 +146,22 @@ export function SteamMomentsAggregator({
   // ("the aggregator isn't about any one game") but visually the page
   // dropped into a flat blank between subject chapters; per-beat hero
   // crossfades anchor each beat in its game without the chapter
-  // claiming any single one as the headline. accentHex stays unset for
-  // now (would need per-game `useSteamGameRecap`'s `dominantHex`, which
-  // lives per-beat); the time-of-day palette still publishes via the
-  // claim's `palette` field so the tint stays painterly.
+  // claiming any single one as the headline. The time-of-day palette
+  // still publishes via the claim's `palette` field so the tint stays
+  // painterly.
+  //
+  // `accentHex` is brand-coded to Steam's blue (#66c0f4) rather than a
+  // per-game dominant color: the aggregator masthead reads "Steam · this
+  // season" and benefits from a stable, recognizable accent that holds
+  // up on every backdrop (dark RE-style splashes left the prior
+  // currentColor fallback unreadable). Per-game accent would also fight
+  // the editorial framing — the chapter isn't about any single game.
   const beatClaims = useMemo<AtmosphereClaim[]>(
     () =>
       moments.map((m) => ({
         image: steamLibraryHeroLargeUrl(m.appid),
         palette,
+        accentHex: "#66c0f4",
         intensity: 0.9,
       })),
     [moments, palette]

@@ -66,7 +66,10 @@ export const STEAM_FEATURED_APPID = 2050650; // Resident Evil 4
 // `appType === null || appType === 0` rule shared with the library filter.
 // This list is for apps that ARE games but the owner doesn't want surfaced
 // on the portfolio. Mirrored server-side in `recap-curation.ts` — keep in sync.
-export const HIDDEN_APPIDS: readonly number[] = [1034140];
+export const HIDDEN_APPIDS: readonly number[] = [
+  1034140,
+  1091500, // Cyberpunk 2077 — high lifetime hours, but stale; don't feature on `/`
+];
 
 // LoL queue ids to exclude from moment-chapter detection (custom games,
 // tutorials). Ranked / draft / aram / arena stay included. Lands populated

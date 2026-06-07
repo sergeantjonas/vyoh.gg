@@ -27,7 +27,7 @@ import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { createFileRoute } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SteamGameSearch {
   ach?: string | undefined;
@@ -44,7 +44,10 @@ export const Route = createFileRoute("/steam/game/$appid")({
   }),
   head: ({ params }) => {
     const ogImage = `${API_URL}/og/steam-game/${params.appid}.png`;
-    const title = `Steam · ${params.appid} · vyoh.gg`;
+    // Static fallback used until `SteamGamePage` enriches `document.title`
+    // with the resolved game name (see `useEffect` below). Crawlers that
+    // never run the component still get a non-numeric title.
+    const title = "Steam · vyoh.gg";
     const description = `Steam game detail (appid ${params.appid}) on vyoh.gg`;
     return {
       meta: [
@@ -84,6 +87,17 @@ function SteamGamePage() {
     flipHero: game?.flipHero ?? false,
   });
   useThemeColor(game?.dominantHex ?? undefined);
+
+  // Tab title enrichment. The route's `head()` runs before the library
+  // query resolves, so it ships the static "Steam · vyoh.gg" fallback;
+  // once `useSteamOwnedGames` lands the game name we swap to it. No
+  // restore-on-unmount — TanStack Router fires the next route's head()
+  // on navigation, which overwrites the title naturally.
+  useEffect(() => {
+    if (game?.name) {
+      document.title = `${game.name} · vyoh.gg`;
+    }
+  }, [game?.name]);
 
   // Not every Steam game ships `library_hero.jpg` / `logo.png` — these are
   // part of the newer library-presentation asset set, missing on plenty of
