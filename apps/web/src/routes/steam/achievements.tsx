@@ -1,4 +1,5 @@
 import { EmptyAchievementsIllustration, EmptyState } from "@/components/empty-state";
+import { routeMeta } from "@/lib/route-meta";
 import { RecentUnlocksVirtual } from "@/steam/achievements/recent-unlocks-virtual";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -7,6 +8,11 @@ import { ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/steam/achievements")({
   component: AchievementsPage,
+  head: () =>
+    routeMeta({
+      title: "Achievements · Steam · vyoh.gg",
+      description: "Recent Steam achievement unlocks on vyoh.gg.",
+    }),
 });
 
 const FEED_LIMIT = 100;

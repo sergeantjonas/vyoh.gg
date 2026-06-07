@@ -10,6 +10,7 @@ import { SteamMomentsAggregator } from "@/home/recap/steam-moments-aggregator";
 import { useChapters } from "@/home/recap/use-chapters";
 import { useHomeActivityIntensity } from "@/home/use-home-activity-intensity";
 import { usePrimaryAccount } from "@/home/use-primary-account";
+import { routeMeta } from "@/lib/route-meta";
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef } from "react";
 
@@ -19,6 +20,13 @@ export const Route = createFileRoute("/")({
   // landing owns its own entrance via <LandingHeading>'s editorial cascade and
   // the conclusion bands' whileInView gates.
   staticData: { ownsEntry: true },
+  // Brand-only title on the landing; nested routes prefix their own scope.
+  head: () =>
+    routeMeta({
+      title: "vyoh.gg",
+      description:
+        "Personal cross-platform gaming dashboard — League of Legends and Steam, in one editorial recap.",
+    }),
 });
 
 function HomePage() {

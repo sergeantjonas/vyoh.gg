@@ -1,3 +1,4 @@
+import { routeMeta } from "@/lib/route-meta";
 import { CompletionistAxisCard } from "@/steam/achievements/completionist-axis-card";
 import { HundredPercentHall } from "@/steam/achievements/hundred-percent-hall";
 import { RarestSection } from "@/steam/achievements/rarest-section";
@@ -7,6 +8,12 @@ import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/steam/achievements_/signature")({
   component: SignaturePage,
+  head: () =>
+    routeMeta({
+      title: "Signature · Achievements · vyoh.gg",
+      description:
+        "Steam achievement signature — completion verdicts and rarest unlocks on vyoh.gg.",
+    }),
 });
 
 function SignaturePage() {

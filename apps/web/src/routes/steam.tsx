@@ -2,6 +2,7 @@ import type { SectionTab } from "@/_shared/section-layout/section-nav";
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { NotFound } from "@/components/not-found";
+import { routeMeta } from "@/lib/route-meta";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { SteamPreferences } from "@/steam/_shared/steam-preferences";
@@ -28,6 +29,11 @@ import { useEffect } from "react";
 export const Route = createFileRoute("/steam")({
   component: SteamLayout,
   notFoundComponent: NotFound,
+  head: () =>
+    routeMeta({
+      title: "Steam · vyoh.gg",
+      description: "Steam library, achievements, and wishlist on vyoh.gg.",
+    }),
 });
 
 const TABS = [

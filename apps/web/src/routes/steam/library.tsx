@@ -1,4 +1,5 @@
 import { EmptyLibraryIllustration, EmptyState } from "@/components/empty-state";
+import { routeMeta } from "@/lib/route-meta";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { withReorderViewTransition } from "@/lib/view-transition-nav";
 import { useActiveGame } from "@/steam/library/active-game-context";
@@ -21,6 +22,11 @@ const SETTLE_HOLD_MS = 800;
 
 export const Route = createFileRoute("/steam/library")({
   component: LibraryPage,
+  head: () =>
+    routeMeta({
+      title: "Library · Steam · vyoh.gg",
+      description: "Steam library browser on vyoh.gg.",
+    }),
 });
 
 function LibraryPage() {

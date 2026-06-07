@@ -1,9 +1,15 @@
 import { Loader } from "@/components/loader";
 import { useMe } from "@/identity/use-me";
+import { routeMeta } from "@/lib/route-meta";
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/lol/")({
   component: LolIndexPage,
+  head: () =>
+    routeMeta({
+      title: "League of Legends · vyoh.gg",
+      description: "League of Legends profile, matches, and champion stats on vyoh.gg.",
+    }),
 });
 
 function LolIndexPage() {

@@ -1,4 +1,5 @@
 import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
+import { routeMeta } from "@/lib/route-meta";
 import { cn } from "@/lib/utils";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
 import { useSteamWishlist } from "@/steam/use-wishlist";
@@ -28,6 +29,11 @@ export const Route = createFileRoute("/steam/wishlist")({
           : Number.NaN;
     return { appid: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined };
   },
+  head: () =>
+    routeMeta({
+      title: "Wishlist · Steam · vyoh.gg",
+      description: "Steam wishlist on vyoh.gg.",
+    }),
 });
 
 function WishlistPage() {
