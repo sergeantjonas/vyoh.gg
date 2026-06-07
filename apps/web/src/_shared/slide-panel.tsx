@@ -67,11 +67,13 @@ export function SlidePanel({
     onScrollElReady?.(el);
   };
   const reduced = useReducedMotion();
-  // Entrance: opacity fade only — NEVER a transform on the panel chrome.
-  // (Earlier rounds tried `translateX` for a slide-in, but Firefox suppresses
-  // backdrop-filter during transform animations and any compositing perf
-  // wins were marginal; opacity-only is universally safe.)
-  const animateIn = !skipSlideIn && !reduced;
+  // Only the scrim animates on entrance — the panel chrome itself NEVER
+  // animates opacity or transform. Both create a stacking context on the
+  // panel, which suppresses `backdrop-filter` painting on EVERY descendant
+  // for the duration of the animation. That's the "frosted cards are
+  // transparent first, then suddenly blurred" pop the user saw in Firefox.
+  // Cold deep-links + reduced-motion skip the scrim fade entirely.
+  const animateScrim = !skipSlideIn && !reduced;
 
   // Lock main scroll while open. With modal={false} (so the global + section
   // nav stay clickable) Radix doesn't manage body scroll for us, but the
@@ -119,7 +121,7 @@ export function SlidePanel({
             clickable (modal={false} contract). Fades in with the panel. */}
         <m.div
           aria-hidden
-          initial={animateIn ? { opacity: 0 } : false}
+          initial={animateScrim ? { opacity: 0 } : false}
           animate={{ opacity: 1 }}
           transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
           className="pointer-events-none fixed inset-0 z-30 bg-black/45"
@@ -133,9 +135,11 @@ export function SlidePanel({
           asChild
         >
           <m.div
-            initial={animateIn ? { opacity: 0 } : false}
-            animate={{ opacity: 1 }}
-            transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
+            // No initial/animate — panel chrome must never have opacity != 1
+            // on first paint or descendants' backdrop-filter will fail to
+            // render until the animation settles, producing the visible
+            // "frosted pop-in". The scrim handles the entrance signal.
+            initial={false}
             className={cn(
               // Right-aligned side panel constrained to the site content
               // column (max-w-4xl matches nav.tsx + __root). The list peeks
