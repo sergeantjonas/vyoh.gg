@@ -8,6 +8,9 @@ const TOOLTIP_CONTENT_CLASS =
 
 interface CompletionVerdictCardProps {
   appid: number;
+  // Forwarded to CardShell — true when rendered in-panel so the tile picks
+  // up the frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
 }
 
 // Verdict copy bands. Lifted from "what would I say to myself looking at
@@ -24,7 +27,10 @@ function verdictFor(unlocked: number, total: number, pct: number): string {
   return "Just getting started.";
 }
 
-export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
+export function CompletionVerdictCard({
+  appid,
+  frosted = false,
+}: CompletionVerdictCardProps) {
   // Same query key as AchievementPanel — TanStack Query dedupes the fetch,
   // so this self-contained data dependency costs nothing on the wire.
   const { data, isPending } = useGameAchievements(appid);
@@ -97,6 +103,7 @@ export function CompletionVerdictCard({ appid }: CompletionVerdictCardProps) {
       verdict={verdictFor(unlocked, total, pct)}
       evidence={evidence || undefined}
       empty={unlocked === 0 && total > 0}
+      frosted={frosted}
     />
   );
 }

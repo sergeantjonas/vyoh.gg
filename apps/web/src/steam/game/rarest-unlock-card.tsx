@@ -5,6 +5,9 @@ import { useGameAchievements } from "./use-game-achievements";
 
 interface RarestUnlockCardProps {
   appid: number;
+  // Forwarded to CardShell — true when rendered in-panel so the tile picks
+  // up the frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
 }
 
 function rarityQualifier(pct: number): string {
@@ -14,7 +17,7 @@ function rarityQualifier(pct: number): string {
   return "Common";
 }
 
-export function RarestUnlockCard({ appid }: RarestUnlockCardProps) {
+export function RarestUnlockCard({ appid, frosted = false }: RarestUnlockCardProps) {
   const { data, isPending } = useGameAchievements(appid);
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;
@@ -62,6 +65,7 @@ export function RarestUnlockCard({ appid }: RarestUnlockCardProps) {
           </p>
         </div>
       }
+      frosted={frosted}
     />
   );
 }

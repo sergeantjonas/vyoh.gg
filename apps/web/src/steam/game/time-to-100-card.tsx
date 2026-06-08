@@ -5,6 +5,9 @@ import { useGameAchievements } from "./use-game-achievements";
 
 interface TimeTo100CardProps {
   appid: number;
+  // Forwarded to CardShell — true when rendered in-panel so the tile picks
+  // up the frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
 }
 
 const DAY_MS = 86_400_000;
@@ -51,7 +54,7 @@ function computeVerdict(
   };
 }
 
-export function TimeTo100Card({ appid }: TimeTo100CardProps) {
+export function TimeTo100Card({ appid, frosted = false }: TimeTo100CardProps) {
   const { data, isPending } = useGameAchievements(appid);
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;
@@ -70,6 +73,7 @@ export function TimeTo100Card({ appid }: TimeTo100CardProps) {
         </span>
       }
       verdict={computed.verdict}
+      frosted={frosted}
     />
   );
 }

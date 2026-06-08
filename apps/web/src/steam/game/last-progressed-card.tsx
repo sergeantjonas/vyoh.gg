@@ -5,6 +5,9 @@ import { useGameAchievements } from "./use-game-achievements";
 
 interface LastProgressedCardProps {
   appid: number;
+  // Forwarded to CardShell — true when rendered in-panel so the tile picks
+  // up the frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
 }
 
 const DAY_MS = 86_400_000;
@@ -124,7 +127,10 @@ function computeVerdict({
   };
 }
 
-export function LastProgressedCard({ appid }: LastProgressedCardProps) {
+export function LastProgressedCard({
+  appid,
+  frosted = false,
+}: LastProgressedCardProps) {
   // Both queries share their cache keys with the existing consumers on the
   // page (library list, AchievementPanel), so this card adds no wire fetches.
   const owned = useSteamOwnedGames();
@@ -165,6 +171,7 @@ export function LastProgressedCard({ appid }: LastProgressedCardProps) {
         </span>
       }
       verdict={computed.verdict}
+      frosted={frosted}
     />
   );
 }

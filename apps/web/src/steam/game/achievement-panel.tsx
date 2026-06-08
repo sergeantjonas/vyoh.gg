@@ -28,9 +28,16 @@ function formatUnlockedDate(iso: string): string {
 interface AchievementPanelProps {
   appid: number;
   highlightTarget?: string | undefined;
+  // True when rendered in-panel so the section chrome picks up the frosted
+  // recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
 }
 
-export function AchievementPanel({ appid, highlightTarget }: AchievementPanelProps) {
+export function AchievementPanel({
+  appid,
+  highlightTarget,
+  frosted = false,
+}: AchievementPanelProps) {
   const { data, isPending, isError } = useGameAchievements(appid);
   const [expanded, setExpanded] = useState(false);
   // Per-row reveal state for hidden+locked rows. Steam's Web API returns the
@@ -85,7 +92,10 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
 
   if (isPending) {
     return (
-      <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+      <section className={cn(
+        "flex flex-col gap-3 rounded-lg border p-4",
+        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+      )}>
         <div className="flex items-baseline justify-between gap-4">
           <div className="h-3 w-32 animate-pulse rounded bg-muted" />
           <div className="h-3 w-20 animate-pulse rounded bg-muted" />
@@ -113,7 +123,10 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
   // added game before the schema poller has caught it.
   if (data.achievements.length === 0) {
     return (
-      <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+      <section className={cn(
+        "flex flex-col gap-3 rounded-lg border p-4",
+        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+      )}>
         <CardTitle as="h2">Achievements</CardTitle>
         <p className="text-sm text-muted-foreground">
           Schema is in flight. Unlocks land with the next sync.
@@ -150,7 +163,10 @@ export function AchievementPanel({ appid, highlightTarget }: AchievementPanelPro
   const remaining = filtered.length - PREVIEW_COUNT;
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+    <section className={cn(
+        "flex flex-col gap-3 rounded-lg border p-4",
+        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+      )}>
       <header className="flex items-baseline justify-between gap-4">
         <CardTitle as="h2">Achievements</CardTitle>
         <p className="text-xs tabular-nums text-muted-foreground">

@@ -1,4 +1,5 @@
 import { CardTitle } from "@/components/ui/card-title";
+import { cn } from "@/lib/utils";
 import { useGameUnlockTimeline } from "@/steam/game/use-game-unlock-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
@@ -106,7 +107,15 @@ function buildSparkline(
   return { points, linePath, areaPath };
 }
 
-export function GameUnlockTimeline({ appid }: { appid: number }) {
+export function GameUnlockTimeline({
+  appid,
+  frosted = false,
+}: {
+  appid: number;
+  // True when rendered in-panel so the section chrome picks up the
+  // frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
+}) {
   const query = useGameUnlockTimeline(appid);
   if (query.isPending || !query.data || query.data.unlocks.length === 0) return null;
 
@@ -122,7 +131,12 @@ export function GameUnlockTimeline({ appid }: { appid: number }) {
     achievementCount !== null && achievementCount > 0 && total >= achievementCount;
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-lg border px-4 py-4",
+        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <CardTitle>Unlock Timeline</CardTitle>
         {isComplete && (

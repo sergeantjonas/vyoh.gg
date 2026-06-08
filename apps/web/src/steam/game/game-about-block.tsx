@@ -1,4 +1,5 @@
 import { CardTitle } from "@/components/ui/card-title";
+import { cn } from "@/lib/utils";
 import { bbcodeToHtml, sanitizeRichHtml } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useMemo } from "react";
@@ -121,7 +122,15 @@ function useRenderedDescription(
 //   - loading: skeleton card with the same chrome (no layout shift)
 //   - error / empty (DLC / bundle / demo with no description): null (the
 //     entire card is hidden so an empty box doesn't reserve space)
-export function GameAboutBlock({ appid }: { appid: number }) {
+export function GameAboutBlock({
+  appid,
+  frosted = false,
+}: {
+  appid: number;
+  // True when rendered in-panel so the section chrome picks up the
+  // frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
+}) {
   const { data, isPending, isError } = useGameDescription(appid);
   const reduceMotion = useReducedMotion() === true;
   const html = useRenderedDescription(
@@ -132,7 +141,13 @@ export function GameAboutBlock({ appid }: { appid: number }) {
 
   if (isPending) {
     return (
-      <section aria-busy className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+      <section
+        aria-busy
+        className={cn(
+          "flex flex-col gap-3 rounded-lg border p-4",
+          frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+        )}
+      >
         <div className="h-3 w-28 animate-pulse rounded bg-muted" />
         <div className="h-4 w-full animate-pulse rounded bg-foreground/10" />
         <div className="h-4 w-5/6 animate-pulse rounded bg-foreground/10" />
@@ -149,7 +164,12 @@ export function GameAboutBlock({ appid }: { appid: number }) {
   // the two descriptions read as the same voice, just at different
   // detail levels.
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card/50 p-4">
+    <section
+      className={cn(
+        "flex flex-col gap-3 rounded-lg border p-4",
+        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+      )}
+    >
       <CardTitle as="h2">About this game</CardTitle>
       <div
         className="text-sm text-muted-foreground [&_h1]:mt-3 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground/85 [&_h1:first-child]:mt-0 [&_h2]:mt-3 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground/70 [&_h2:first-child]:mt-0 [&_h3]:mt-2 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground/85 [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded [&_li]:ml-5 [&_li]:list-disc [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:text-foreground/90 [&_ul]:my-2 [&_video]:my-2 [&_video]:h-auto [&_video]:max-w-full [&_video]:rounded"

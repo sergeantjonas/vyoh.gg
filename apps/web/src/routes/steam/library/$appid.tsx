@@ -276,25 +276,28 @@ function SteamGamePanel() {
         {game && (
           <section className="flex flex-col gap-4">
             <GameScreenshotStrip appid={appid} trailers={game?.trailers ?? null} />
-            <GameAboutBlock appid={appid} />
+            <GameAboutBlock appid={appid} frosted />
           </section>
         )}
 
         {/* Band 3 — Progress. Unlock timeline → 5-card verdict grid →
             per-achievement panel, in narrative order ("when did it happen"
             → "how complete is it" → "what's left"). Tight inner gap so the
-            three card layers read as one progress story. */}
+            three card layers read as one progress story. Every tile here
+            sits directly over the panel chrome's baked backdrop, so they
+            all opt into the frosted recipe (one level of glass — see
+            repo-conventions.md § Tile background). */}
         {game && (
           <section className="flex flex-col gap-4">
-            <GameUnlockTimeline appid={appid} />
+            <GameUnlockTimeline appid={appid} frosted />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <CompletionVerdictCard appid={appid} />
-              <TimeTo100Card appid={appid} />
-              <LastProgressedCard appid={appid} />
-              <RaritySignatureCard appid={appid} />
-              <RarestUnlockCard appid={appid} />
+              <CompletionVerdictCard appid={appid} frosted />
+              <TimeTo100Card appid={appid} frosted />
+              <LastProgressedCard appid={appid} frosted />
+              <RaritySignatureCard appid={appid} frosted />
+              <RarestUnlockCard appid={appid} frosted />
             </div>
-            <AchievementPanel appid={appid} highlightTarget={ach} />
+            <AchievementPanel appid={appid} highlightTarget={ach} frosted />
           </section>
         )}
       </div>

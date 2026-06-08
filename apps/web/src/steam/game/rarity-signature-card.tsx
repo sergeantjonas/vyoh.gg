@@ -7,6 +7,9 @@ const TOOLTIP_CONTENT_CLASS =
 
 interface RaritySignatureCardProps {
   appid: number;
+  // Forwarded to CardShell — true when rendered in-panel so the tile picks
+  // up the frosted recipe over the panel chrome's baked backdrop.
+  frosted?: boolean;
 }
 
 // Verdict bands by mean global-unlock percentage across the owner's unlocks.
@@ -22,7 +25,10 @@ function verdictFor(mean: number, sampleSize: number): string {
   return "Surface-level unlocks so far.";
 }
 
-export function RaritySignatureCard({ appid }: RaritySignatureCardProps) {
+export function RaritySignatureCard({
+  appid,
+  frosted = false,
+}: RaritySignatureCardProps) {
   const { data, isPending } = useGameAchievements(appid);
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;
@@ -64,6 +70,7 @@ export function RaritySignatureCard({ appid }: RaritySignatureCardProps) {
       }
       verdict={verdictFor(mean, sample.length)}
       empty={empty}
+      frosted={frosted}
     />
   );
 }
