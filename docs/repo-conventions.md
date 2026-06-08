@@ -166,6 +166,51 @@ The two reference surfaces in the app:
 
 **How to apply:** When adding a new section, look one level down before deciding. If the immediate children mostly carry `rounded-lg border bg-card/…` already, use a bare wrapper. If they're bare content blocks, use a chrome wrapper. If you find yourself wanting to wrap chrome around already-chromed children to "tie them together visually," the IA wants the *children* to share a single `SectionTitle` divider above the bare wrapper, not nested chrome. The compositional rule pairs with the [header primitive rule](#header-primitives-sectiontitle-vs-cardtitle--pick-by-chrome-not-by-content) above: chrome decision picks the wrapper, header primitive picks the title treatment, and they decide each other (chromed wrapper → `CardTitle`, bare wrapper → `SectionTitle`).
 
+### Tile background: one level of glass between background and content
+
+The core rule, before any table: **one level of glass between the underlying backdrop and the content it carries**. A tile is frosted when it sits *directly* over an unstructured backdrop (a champion splash, a Steam screenshot, the atmosphere layer). A tile nested *inside* another frosted (or image-backed) container stays solid. Glass is a boundary layer — you cross it once.
+
+This is the industry-aligned position: Apple HIG warns against nested materials, NN/g calls compound glass an anti-pattern, and the 2026 design-trend consensus is "use flat as the base; reserve glassmorphism for accent layers (overlays, modals, panel internals)". Scarcity is signal — frosting every surface makes frosting stop reading as elevation. The [[ancestor-opacity-suppresses-backdrop-filter]] memory and the WebKit perf cliffs both compound: more glass = more stacking contexts = bigger bug surface and higher composite cost.
+
+The mechanical question that lands you on the right recipe:
+
+> **"What's directly behind this tile?"** Splash / screenshot / atmosphere → frosted. Another tile or chromed wrapper → bare. Nothing visible (page-grounded content area) → bare default.
+
+That collapses to three observed tiers:
+
+| Tier | Recipe | When |
+|---|---|---|
+| **Frosted** | `bg-card/60 backdrop-blur-sm` + `border rounded-md/lg` | Tile faces an unstructured backdrop directly (panel internals over splash chrome, overlays over image content). |
+| **Transparent** (default) | `bg-card/50` + `border rounded-md/lg` | Tile sits in page-grounded content (LoL profile, Steam profile, Steam game-detail), or nested inside frosted/image-backed chrome. |
+| **Atmosphere overlay** | `bg-card/40` + low-opacity or no border | Tile sits directly over the atmosphere layer with no intermediate chrome (recap / landing chapters). Maximum bleed-through is intentional design (self-portrait recap arc). |
+
+Plus one **chrome** tier outside this system: `bg-card/80 backdrop-blur-md` for fixed-position UI overlapping scrolling content (`champion-sticky-strip`, `scroll-to-top` button). Heavier blur is load-bearing for legibility over moving content.
+
+Reference surfaces in-tree:
+
+- **Frosted** — LoL match-detail panel internals (`MatchSpellCasts`, `MatchDamageProfile`, `MatchOwnerStats`, recap pre-game tile, team-block player rows). LoL champion-detail panel internals (per-game averages, win-rate trend, top items, matchups, per-patch tiles, `ChampionBuildPath`, `ChampionPositionHeatmap`, `TrendDeathMatchupHeatmap`, `TrendTimeHeatmap`, `TrendTiltIndicator`). Each faces the panel's baked-splash chrome directly.
+- **Transparent** — Steam game-detail sections (`game-about-block`, `game-unlock-timeline`, `achievement-panel`), Steam profile chips, LoL profile sections (`profile-stats-bar`, `profile-now-playing`, `profile-multikill-strip`, `profile-season-history`), LoL Trends tab cards.
+- **Atmosphere overlay** — recap chapters (`recap-champion`, `recap-signature-game`, `recap-top-insight`, `recap-rank-arc`, `recap-most-improved`, `recap-duo-of-year`, `recap-patch-verdict`).
+
+**Don't nest glass.** The canonical case is `CardShell` (and its `ConclusionCard` / `FactCard` wrappers, [apps/web/src/components/card-shell.tsx](../apps/web/src/components/card-shell.tsx)) — used both in-panel and page-grounded. Don't change its default; instead pass `frosted={true}` at the in-panel call sites. The trend components (`TrendDeathMatchupHeatmap`, `TrendTimeHeatmap`, `TrendTiltIndicator`) accept a `frosted` prop for this exact reason: same component renders in champion-detail (in-panel → `frosted`) and the Trends tab (page-grounded → omit). Inside a frosted card, child tiles stay bare even if the design feels like "tile-within-tile" — that's the rule working as intended.
+
+**Why this beats "frost everywhere":**
+
+- Apple HIG / NN/g converge: glass works through *contrast* with solid surroundings. If every element is glass, nothing reads as glass.
+- `backdrop-filter` is expensive — offscreen capture + Gaussian blur on every paint. 6–8 frosted cards is fine on modern hardware; spreading across the whole app pushes WebKit toward chop and bloats composite memory.
+- Every `backdrop-filter` creates a stacking context. Stacking contexts can be silently suppressed by any ancestor with `opacity`/`filter`/`mix-blend-mode`. ([[ancestor-opacity-suppresses-backdrop-filter]] for the 2026-06-08 sweep that flushed 5+ instances of this.) Fewer frosted elements = smaller bug surface.
+
+**How to apply when adding new tiles:**
+
+1. Look at the immediate parent's backdrop. Image/splash/atmosphere directly behind → **frosted**. Already inside chromed container or page-grounded → **bare**.
+2. If you're inside a panel (Dialog overlay), default to frosted unless the tile is nested inside another frosted card.
+3. If the component renders in *both* in-panel and page-grounded contexts (any reusable trend / fact card), accept a `frosted?: boolean` prop and pass through to `CardShell`. Set at the call site.
+4. Retired opacity rungs (`bg-card/20`, `/30`, `/60` without blur, `/70`) — don't introduce new uses. Demote existing to `/50` or promote to frosted during your change.
+5. Solid `bg-card` (no opacity) stays for shell surfaces — primitives, skeleton placeholders, page chrome — where transparency is undesired and the surface should read as a fully-painted block.
+6. Tooltip / popover / dialog recipes (`bg-popover/85-95 + backdrop-blur-md`) are a separate system, portaled outside the tile hierarchy. Don't conflate.
+7. Honour `prefers-reduced-transparency: reduce` — the project-wide `@media` rule in [apps/web/src/index.css](../apps/web/src/index.css) drops `backdrop-filter` and promotes `bg-card/40-/60` to solid `bg-card` so glass effects don't ship to users who've opted out.
+8. Pairs with the [chrome composition rule](#page-composition-chrome-belongs-at-the-lowest-level-that-visually-groups-heterogeneous-content) above: chrome decision picks the wrapper, this rule picks the *tile recipe* for whatever sits inside.
+
 ### Gate engine-specific perf cliffs instead of chasing CSS parity
 
 When a feature performs well in Blink/Gecko but produces visible chop on WebKit (Safari/iOS), and you've exhausted reasonable in-CSS optimisations without closing the gap, **gate the feature on `isWebKit()` ([apps/web/src/lib/is-webkit.ts](../apps/web/src/lib/is-webkit.ts)) and ship a compositor-only substitute** for the engine that doesn't handle it well. Don't continue tuning CSS toward parity when the cost lives inside an engine code path no CSS property reaches (snapshot capture, filter pipeline, layer-tree management).
