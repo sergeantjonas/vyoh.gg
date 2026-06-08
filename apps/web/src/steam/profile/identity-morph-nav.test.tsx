@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// supportsViewTransitions is gated on the engine; force it on so the driver
-// runs its active path under happy-dom (which lacks startViewTransition).
+// supportsViewTransitions is gated on the engine; default it on so the VT
+// path tests exercise the active branch under happy-dom (which lacks the
+// real startViewTransition). The rect-FLIP fallback tests flip it per-test.
 vi.mock("@/lib/view-transition-nav", () => ({
-  supportsViewTransitions: () => true,
+  supportsViewTransitions: vi.fn(() => true),
 }));
 // isWebKit defaults to false (non-Safari path). Tests that exercise the
 // WebKit-bail flip the mock per-test.
@@ -19,6 +20,7 @@ vi.mock("@/lib/scroll-container", () => ({
 
 import { isWebKit } from "@/lib/is-webkit";
 import { getNavigationType } from "@/lib/navigation-type";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import {
   STEAM_IDENTITY_AVATAR_MORPH_ID,
   STEAM_IDENTITY_NAME_MORPH_ID,
@@ -27,6 +29,7 @@ import { runSteamIdentityMorphNav } from "./identity-morph-nav";
 
 const navType = vi.mocked(getNavigationType);
 const webKit = vi.mocked(isWebKit);
+const supportsVt = vi.mocked(supportsViewTransitions);
 
 type StartVT = (cb: () => Promise<void>) => {
   finished: Promise<void>;
@@ -76,6 +79,7 @@ beforeEach(() => {
   capturedCallback = null;
   navType.mockReturnValue(["slide-left"]);
   webKit.mockReturnValue(false);
+  supportsVt.mockReturnValue(true);
   document.body.innerHTML = "";
   document.body.dataset.vtShell = "off";
   stubStartViewTransition();
@@ -184,7 +188,7 @@ describe("runSteamIdentityMorphNav", () => {
     navType.mockReturnValue(false as unknown as Array<string>);
     const took = runSteamIdentityMorphNav({
       fromPathname: "/steam/library",
-      toPathname: "/steam/game/440",
+      toPathname: "/steam/library/440",
       toIsProfileIndex: false,
       navigate: vi.fn(async () => {}),
     });
@@ -216,5 +220,111 @@ describe("runSteamIdentityMorphNav", () => {
     });
     expect(took).toBe(false);
     expect(document.body.dataset.vtShell).toBe("off");
+  });
+
+  describe("rect-FLIP fallback (engine without View Transitions)", () => {
+    let originalAnimate: typeof HTMLElement.prototype.animate;
+    let animate: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      supportsVt.mockReturnValue(false);
+      // happy-dom doesn't implement Web Animations on HTMLElement; stub it
+      // so we can assert FLIP keyframes without a real animation.
+      originalAnimate = HTMLElement.prototype.animate;
+      animate = vi.fn();
+      HTMLElement.prototype.animate = animate as unknown as typeof originalAnimate;
+    });
+
+    afterEach(() => {
+      HTMLElement.prototype.animate = originalAnimate;
+    });
+
+    function stubRect(el: HTMLElement, rect: Partial<DOMRect>): void {
+      el.getBoundingClientRect = () =>
+        ({ left: 0, top: 0, width: 0, height: 0, ...rect }) as DOMRect;
+    }
+
+    it("takes over the nav and FLIP-animates the destination identity from the captured source rects", async () => {
+      const hero = mountIdentity(true);
+      stubRect(hero.avatar, { left: 50, top: 100, width: 64, height: 64 });
+      stubRect(hero.name, { left: 130, top: 110, width: 200, height: 32 });
+
+      let destAvatar: HTMLElement | null = null;
+      let destName: HTMLElement | null = null;
+      const navigate = vi.fn(async () => {
+        // Simulate route commit: hero unmounts, strip (outside main) mounts.
+        clearIdentity();
+        const strip = mountIdentity(false);
+        stubRect(strip.avatar, { left: 600, top: 20, width: 32, height: 32 });
+        stubRect(strip.name, { left: 640, top: 24, width: 100, height: 24 });
+        destAvatar = strip.avatar;
+        destName = strip.name;
+      });
+
+      const took = runSteamIdentityMorphNav({
+        fromPathname: "/steam",
+        toPathname: "/steam/library",
+        toIsProfileIndex: false,
+        navigate,
+      });
+
+      expect(took).toBe(true);
+      expect(document.body.dataset.vtShell).toBe("off");
+
+      // Flush navigate.then microtask, then the RAF inside the FLIP helper.
+      await Promise.resolve();
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+      expect(navigate).toHaveBeenCalledTimes(1);
+      expect(animate).toHaveBeenCalledTimes(2);
+
+      // Avatar keyframes: starts at the captured source rect (delta + scale
+      // from dest 32×32 back to source 64×64), ends at identity transform.
+      const avatarKeyframes = animate.mock.calls[0]?.[0] as
+        | Array<Record<string, unknown>>
+        | undefined;
+      expect(avatarKeyframes?.[0]?.transform).toBe(
+        "translate(-550px, 80px) scaleX(2) scaleY(2)"
+      );
+      expect(avatarKeyframes?.[1]?.transform).toBe("none");
+      const avatarOpts = animate.mock.calls[0]?.[1] as KeyframeAnimationOptions;
+      expect(avatarOpts.duration).toBe(350);
+
+      // Name keyframes: derived from the second source rect.
+      const nameKeyframes = animate.mock.calls[1]?.[0] as
+        | Array<Record<string, unknown>>
+        | undefined;
+      expect(nameKeyframes?.[0]?.transform).toBe(
+        "translate(-510px, 86px) scaleX(2) scaleY(1.3333333333333333)"
+      );
+
+      expect(destAvatar).not.toBeNull();
+      expect(destName).not.toBeNull();
+    });
+
+    it("declines a library↔detail nav even on Firefox (panel hero owns that morph)", () => {
+      mountIdentity(true);
+      const took = runSteamIdentityMorphNav({
+        fromPathname: "/steam/library",
+        toPathname: "/steam/library/440",
+        toIsProfileIndex: false,
+        navigate: vi.fn(async () => {}),
+      });
+      expect(took).toBe(false);
+      expect(animate).not.toHaveBeenCalled();
+    });
+
+    it("still early-bails on WebKit (Safari has its own slide; no rect-FLIP either)", () => {
+      webKit.mockReturnValue(true);
+      mountIdentity(true);
+      const took = runSteamIdentityMorphNav({
+        fromPathname: "/steam",
+        toPathname: "/steam/library",
+        toIsProfileIndex: false,
+        navigate: vi.fn(async () => {}),
+      });
+      expect(took).toBe(false);
+      expect(animate).not.toHaveBeenCalled();
+    });
   });
 });

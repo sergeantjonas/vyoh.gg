@@ -1,3 +1,4 @@
+import { runIdentityRectMorph } from "@/_shared/identity-morph-flip";
 import { isWebKit } from "@/lib/is-webkit";
 import { getNavigationType } from "@/lib/navigation-type";
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -15,22 +16,30 @@ import {
 // hero identity up into the header strip, and tab → Profile drops it back
 // into the hero.
 //
-// Shape mirrors the LoL driver exactly — same imperative pattern: name the
-// source `view-transition-name` synchronously so it's present at OLD-snapshot
-// capture, hand-roll a single `startViewTransition`, clear the source and
-// navigate inside the update callback, then name the freshly committed
-// destination so it's present at NEW-snapshot time. The `[data-identity-*]`
-// markers are guaranteed to identify exactly one owner at any moment (see
-// steam-identity-hero.tsx + routes/steam.tsx).
+// Two paths share this driver:
 //
-// One Steam-specific gate: bail on WebKit. Steam intra-section navs already
-// bypass router VT on Safari/iOS (navigation-type.ts) because WebKit's VT
-// snapshot capture is expensive on Steam-shaped DOM (every Library tile is
-// an isolate stacking context with shadow, Achievements has a virtualized
-// shadowed feed, etc.). Running a *second* hand-rolled VT here would re-
-// introduce the exact cost we paid the bypass to avoid. Letting WebKit fall
-// through to the existing `safari-slide-in-from-*` CSS substitute is the
-// honest outcome: no morph on Safari/iOS, plain slide instead.
+// 1. VT path (Chromium + Safari-with-VT): name the source
+//    `view-transition-name` synchronously so it's present at OLD-snapshot
+//    capture, hand-roll a single `startViewTransition`, clear the source
+//    and navigate inside the update callback, then name the freshly
+//    committed destination so it's present at NEW-snapshot time.
+//
+// 2. Rect-FLIP fallback (Firefox + anything else without
+//    `document.startViewTransition`): capture source rects pre-nav, fire
+//    the navigation, and on resolution FLIP-animate the destination avatar
+//    and name from those rects to their natural positions. Same mechanism
+//    as match-hero / library-row / game-panel-hero's row→panel FLIP. No
+//    body-level shell slide here (router VT is off on Firefox too), just
+//    the per-element morph so the identity still travels visibly.
+//
+// One Steam-specific gate stays in both paths: bail on WebKit. Steam intra-
+// section navs already bypass router VT on Safari/iOS (navigation-type.ts)
+// because WebKit's VT snapshot capture is expensive on Steam-shaped DOM
+// (every Library tile is an isolate stacking context with shadow,
+// Achievements has a virtualized shadowed feed, etc.). Running a *second*
+// hand-rolled VT or rect-FLIP here would re-introduce visible cost on the
+// engine we paid the bypass to avoid. Letting WebKit fall through to the
+// existing `safari-slide-in-from-*` CSS substitute is the honest outcome.
 
 type DocumentWithVT = Document & {
   startViewTransition?: (callback: () => Promise<void>) => {
@@ -58,6 +67,16 @@ function setIdentityNames(els: MarkedIdentity, on: boolean): void {
     els.name.style.viewTransitionName = on ? STEAM_IDENTITY_NAME_MORPH_ID : "";
 }
 
+// Sibling Steam library/$appid → tab navs are list↔detail pairs in the
+// classifier and shouldn't morph the identity even on Firefox (the panel
+// hero owns its own row→panel morph). Replicates the rule from
+// `navigation-type.ts`'s `isSteamLibraryPair` so the rect-FLIP path doesn't
+// depend on the VT-gated `getNavigationType`.
+function isSteamLibraryPair(from: string, to: string): boolean {
+  const inLib = (p: string) => p === "/steam/library" || p.startsWith("/steam/library/");
+  return inLib(from) && inLib(to);
+}
+
 export interface SteamIdentityMorphNavOptions {
   // Resolved pathnames, e.g. `/steam/library`.
   fromPathname: string;
@@ -80,25 +99,15 @@ export function runSteamIdentityMorphNav(opts: SteamIdentityMorphNavOptions): bo
   // WebKit early-bail — see the file-header comment. Falls through to the
   // existing Steam intra-section CSS slide (use-safari-slide-direction).
   if (isWebKit()) return false;
-  if (!supportsViewTransitions()) return false;
-  const doc = document as DocumentWithVT;
-  const start = doc.startViewTransition;
-  if (!start) return false;
 
-  const types = getNavigationType(
-    { pathname: opts.fromPathname },
-    { pathname: opts.toPathname }
-  );
-  const slideType =
-    Array.isArray(types) && types.includes("slide-left")
-      ? "slide-left"
-      : Array.isArray(types) && types.includes("slide-right")
-        ? "slide-right"
-        : null;
-  // Only sibling tab slides morph the identity; cross-section navs (LoL ↔
-  // Steam) and Library↔game-detail pairs (which return `false` from
-  // getNavigationType to skip router VT) are left to their own handlers.
-  if (!slideType) return false;
+  // Same-section gate + list↔detail exclusion. These checks duplicate the
+  // classification in `navigation-type.ts` so the rect-FLIP fallback can
+  // run on Firefox without depending on `getNavigationType` (which gates
+  // itself on VT support and returns false on Firefox).
+  if (!opts.toPathname.startsWith("/steam") || !opts.fromPathname.startsWith("/steam")) {
+    return false;
+  }
+  if (isSteamLibraryPair(opts.fromPathname, opts.toPathname)) return false;
 
   const source = readMarkedIdentity();
   if (!source.avatar && !source.name) return false;
@@ -112,32 +121,69 @@ export function runSteamIdentityMorphNav(opts: SteamIdentityMorphNavOptions): bo
     !!source.name?.closest("[data-vt-main]");
   if (!opts.toIsProfileIndex && !sourceIsHero) return false;
 
-  setIdentityNames(source, true);
-  // Drive the section slide ourselves (router VT is opted out on this nav).
-  document.body.dataset.vtShell = "on";
-  if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+  // Capture source rects synchronously — used by the rect-FLIP fallback.
+  // (VT path doesn't need them; the browser captures pixel snapshots.)
+  const sourceAvatarRect = source.avatar?.getBoundingClientRect() ?? null;
+  const sourceNameRect = source.name?.getBoundingClientRect() ?? null;
 
-  const transition = start.call(doc, async () => {
-    // Clear the source name before the destination mounts so the NEW snapshot
-    // never sees two elements sharing one name (the about-to-unmount source
-    // and the destination).
-    setIdentityNames(source, false);
-    await opts.navigate();
-    // Name the freshly committed destination identity so it's present when
-    // the browser captures the NEW snapshot (after this callback resolves).
-    // No rAF wait — see LoL driver's note: awaiting rAF inside the update
-    // callback deadlocks the transition.
-    setIdentityNames(readMarkedIdentity(), true);
-  });
+  const doc = document as DocumentWithVT;
+  const start = supportsViewTransitions() ? doc.startViewTransition : undefined;
 
-  transition?.types?.add(slideType);
-  void Promise.resolve(transition?.finished)
-    .catch(() => {})
-    .finally(() => {
-      document.body.dataset.vtShell = "off";
-      setIdentityNames(readMarkedIdentity(), false);
+  if (start) {
+    // VT path.
+    const types = getNavigationType(
+      { pathname: opts.fromPathname },
+      { pathname: opts.toPathname }
+    );
+    const slideType =
+      Array.isArray(types) && types.includes("slide-left")
+        ? "slide-left"
+        : Array.isArray(types) && types.includes("slide-right")
+          ? "slide-right"
+          : null;
+    if (!slideType) return false;
+
+    setIdentityNames(source, true);
+    // Drive the section slide ourselves (router VT is opted out on this nav).
+    document.body.dataset.vtShell = "on";
+    if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+
+    const transition = start.call(doc, async () => {
+      // Clear the source name before the destination mounts so the NEW
+      // snapshot never sees two elements sharing one name (the about-to-
+      // unmount source and the destination).
       setIdentityNames(source, false);
+      await opts.navigate();
+      // Name the freshly committed destination identity so it's present
+      // when the browser captures the NEW snapshot (after this callback
+      // resolves). No rAF wait — see LoL driver's note: awaiting rAF
+      // inside the update callback deadlocks the transition.
+      setIdentityNames(readMarkedIdentity(), true);
     });
 
+    transition?.types?.add(slideType);
+    void Promise.resolve(transition?.finished)
+      .catch(() => {})
+      .finally(() => {
+        document.body.dataset.vtShell = "off";
+        setIdentityNames(readMarkedIdentity(), false);
+        setIdentityNames(source, false);
+      });
+
+    return true;
+  }
+
+  // Rect-FLIP fallback (Firefox + any engine without VT). Fire the
+  // navigation, then FLIP the destination avatar + name from their pre-nav
+  // source positions. No body-level shell slide on Firefox either; this
+  // mirrors what the VT path does for the identity elements specifically
+  // and leaves the rest of the page to commit instantly.
+  if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+  runIdentityRectMorph({
+    sourceAvatarRect,
+    sourceNameRect,
+    navigate: opts.navigate,
+    readDest: readMarkedIdentity,
+  });
   return true;
 }

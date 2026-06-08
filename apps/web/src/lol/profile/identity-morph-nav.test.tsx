@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// supportsViewTransitions is gated on the engine; force it on so the driver
-// runs its active path under happy-dom (which lacks startViewTransition).
+// supportsViewTransitions is gated on the engine; default it on so the VT
+// path tests exercise the active branch under happy-dom (which lacks the
+// real startViewTransition). The rect-FLIP fallback tests flip it per-test.
 vi.mock("@/lib/view-transition-nav", () => ({
-  supportsViewTransitions: () => true,
+  supportsViewTransitions: vi.fn(() => true),
 }));
 vi.mock("@/lib/navigation-type", () => ({
   getNavigationType: vi.fn(() => ["slide-left"]),
@@ -13,10 +14,12 @@ vi.mock("@/lib/scroll-container", () => ({
 }));
 
 import { getNavigationType } from "@/lib/navigation-type";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { IDENTITY_AVATAR_MORPH_ID, IDENTITY_NAME_MORPH_ID } from "./identity-layout";
 import { runIdentityMorphNav } from "./identity-morph-nav";
 
 const navType = vi.mocked(getNavigationType);
+const supportsVt = vi.mocked(supportsViewTransitions);
 
 type StartVT = (cb: () => Promise<void>) => {
   finished: Promise<void>;
@@ -68,6 +71,7 @@ function clearIdentity(): void {
 beforeEach(() => {
   capturedCallback = null;
   navType.mockReturnValue(["slide-left"]);
+  supportsVt.mockReturnValue(true);
   document.body.innerHTML = "";
   document.body.dataset.vtShell = "off";
   stubStartViewTransition();
@@ -180,5 +184,74 @@ describe("runIdentityMorphNav", () => {
       navigate: vi.fn(async () => {}),
     });
     expect(took).toBe(false);
+  });
+
+  describe("rect-FLIP fallback (engine without View Transitions)", () => {
+    let originalAnimate: typeof HTMLElement.prototype.animate;
+    let animate: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      supportsVt.mockReturnValue(false);
+      originalAnimate = HTMLElement.prototype.animate;
+      animate = vi.fn();
+      HTMLElement.prototype.animate = animate as unknown as typeof originalAnimate;
+    });
+
+    afterEach(() => {
+      HTMLElement.prototype.animate = originalAnimate;
+    });
+
+    function stubRect(el: HTMLElement, rect: Partial<DOMRect>): void {
+      el.getBoundingClientRect = () =>
+        ({ left: 0, top: 0, width: 0, height: 0, ...rect }) as DOMRect;
+    }
+
+    it("takes over the nav and FLIP-animates the destination identity from the captured source rects", async () => {
+      const hero = mountIdentity(true);
+      stubRect(hero.avatar, { left: 50, top: 100, width: 64, height: 64 });
+      stubRect(hero.name, { left: 130, top: 110, width: 200, height: 32 });
+
+      const navigate = vi.fn(async () => {
+        clearIdentity();
+        const strip = mountIdentity(false);
+        stubRect(strip.avatar, { left: 600, top: 20, width: 32, height: 32 });
+        stubRect(strip.name, { left: 640, top: 24, width: 100, height: 24 });
+      });
+
+      const took = runIdentityMorphNav({
+        fromPathname: "/lol/vyoh-euw",
+        toPathname: "/lol/vyoh-euw/matches",
+        toIsProfileIndex: false,
+        navigate,
+      });
+
+      expect(took).toBe(true);
+      expect(document.body.dataset.vtShell).toBe("off");
+
+      await Promise.resolve();
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+      expect(navigate).toHaveBeenCalledTimes(1);
+      expect(animate).toHaveBeenCalledTimes(2);
+      const avatarKeyframes = animate.mock.calls[0]?.[0] as
+        | Array<Record<string, unknown>>
+        | undefined;
+      expect(avatarKeyframes?.[0]?.transform).toBe(
+        "translate(-550px, 80px) scaleX(2) scaleY(2)"
+      );
+      expect(avatarKeyframes?.[1]?.transform).toBe("none");
+    });
+
+    it("declines a list↔detail nav (match-list↔match-detail) on Firefox too", () => {
+      mountIdentity(true);
+      const took = runIdentityMorphNav({
+        fromPathname: "/lol/vyoh-euw/matches",
+        toPathname: "/lol/vyoh-euw/matches/EUW1_1",
+        toIsProfileIndex: false,
+        navigate: vi.fn(async () => {}),
+      });
+      expect(took).toBe(false);
+      expect(animate).not.toHaveBeenCalled();
+    });
   });
 });
