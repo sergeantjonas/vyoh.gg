@@ -177,9 +177,13 @@ function LibraryPage() {
               hint="Try clearing a tag or switching the played filter."
             />
           ) : layout === "tiles" ? (
-            <LibraryGridVirtual games={visible} />
+            <LibraryGridVirtual games={visible} restoredScrollY={restoredScrollY} />
           ) : (
-            <LibraryListVirtual games={visible} settled={settled} />
+            <LibraryListVirtual
+              games={visible}
+              settled={settled}
+              restoredScrollY={restoredScrollY}
+            />
           )}
         </>
       )}

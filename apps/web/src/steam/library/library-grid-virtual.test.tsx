@@ -79,7 +79,7 @@ function renderGrid(games: SteamOwnedGame[]) {
     <TooltipPrimitive.Provider>
       <QueryClientProvider client={client}>
         <ActiveGameProvider>
-          <LibraryGridVirtual games={games} />
+          <LibraryGridVirtual games={games} restoredScrollY={0} />
         </ActiveGameProvider>
       </QueryClientProvider>
     </TooltipPrimitive.Provider>

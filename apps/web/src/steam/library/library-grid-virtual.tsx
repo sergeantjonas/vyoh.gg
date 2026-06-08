@@ -1,6 +1,7 @@
 import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useActiveGame } from "@/steam/library/active-game-context";
 import { LibraryTile } from "@/steam/library/library-tile";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { SteamOwnedGame } from "@vyoh/shared";
@@ -35,7 +36,17 @@ function useLaneCount(): number {
   return 2;
 }
 
-export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
+export function LibraryGridVirtual({
+  games,
+  restoredScrollY,
+}: {
+  games: SteamOwnedGame[];
+  // Same role as LibraryListVirtual.restoredScrollY — gates the
+  // cold-arrival scrollToIndex so we don't fight the parent's back-nav
+  // restore.
+  restoredScrollY: number;
+}) {
+  const { activeGame } = useActiveGame();
   const parentRef = useRef<HTMLUListElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
   const lanes = useLaneCount();
@@ -68,6 +79,21 @@ export function LibraryGridVirtual({ games }: { games: SteamOwnedGame[] }) {
     lanes,
     getScrollElement: () => mainScrollRef.current,
   });
+
+  // Cold-arrival scroll-to-tile: see LibraryListVirtual for the rationale.
+  const initialActiveGameRef = useRef(activeGame);
+  const coldArrivalScrolledRef = useRef(false);
+  useEffect(() => {
+    if (coldArrivalScrolledRef.current) return;
+    if (initialActiveGameRef.current === null) return;
+    if (restoredScrollY > 0) return;
+    if (scrollMargin === 0) return;
+    const target = initialActiveGameRef.current;
+    const idx = games.findIndex((g) => g.appid === target);
+    if (idx < 0) return;
+    coldArrivalScrolledRef.current = true;
+    virtualizer.scrollToIndex(idx, { align: "center" });
+  }, [games, virtualizer, restoredScrollY, scrollMargin]);
 
   const items = virtualizer.getVirtualItems();
   const lanePct = 100 / lanes;

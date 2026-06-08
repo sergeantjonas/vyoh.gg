@@ -39,9 +39,15 @@ const MOUNT_STAGGER_LIMIT = 8;
 export function LibraryListVirtual({
   games,
   settled,
+  restoredScrollY,
 }: {
   games: SteamOwnedGame[];
   settled: boolean;
+  // Saved scroll position from a prior visit; >0 means we landed here via
+  // back-nav and the parent's pin loop owns the scroll restore. Used to
+  // gate the cold-arrival scrollToIndex below — we only auto-scroll to
+  // the active row when there's no saved position to restore to.
+  restoredScrollY: number;
 }) {
   const { activeGame } = useActiveGame();
   const parentRef = useRef<HTMLUListElement>(null);
@@ -83,6 +89,26 @@ export function LibraryListVirtual({
     overscan: 4,
     getScrollElement: () => mainScrollRef.current,
   });
+
+  // Cold-arrival scroll-to-row: on a direct deep-link to
+  // /steam/library/$appid (no preceding row click) the panel route writes
+  // activeGame from the URL, so by first paint here it's already set.
+  // Scroll the matching row into view exactly once. The back-nav restore
+  // path (restoredScrollY > 0) owns its own pin loop in the parent and
+  // these two conditions are mutually exclusive. Mirrors match-list.tsx.
+  const initialActiveGameRef = useRef(activeGame);
+  const coldArrivalScrolledRef = useRef(false);
+  useEffect(() => {
+    if (coldArrivalScrolledRef.current) return;
+    if (initialActiveGameRef.current === null) return;
+    if (restoredScrollY > 0) return;
+    if (scrollMargin === 0) return;
+    const target = initialActiveGameRef.current;
+    const idx = games.findIndex((g) => g.appid === target);
+    if (idx < 0) return;
+    coldArrivalScrolledRef.current = true;
+    virtualizer.scrollToIndex(idx, { align: "center" });
+  }, [games, virtualizer, restoredScrollY, scrollMargin]);
 
   const items = virtualizer.getVirtualItems();
 

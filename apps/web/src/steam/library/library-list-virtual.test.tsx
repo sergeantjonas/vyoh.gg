@@ -77,7 +77,7 @@ function renderList(
     <TooltipPrimitive.Provider>
       <QueryClientProvider client={client}>
         <ActiveGameProvider>
-          <LibraryListVirtual games={games} settled={settled} />
+          <LibraryListVirtual games={games} settled={settled} restoredScrollY={0} />
         </ActiveGameProvider>
       </QueryClientProvider>
     </TooltipPrimitive.Provider>

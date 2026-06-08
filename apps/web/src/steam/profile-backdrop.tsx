@@ -280,6 +280,10 @@ export function prefetchSteamGameBackdrop(
   if (prefetchedBackdrops.has(url)) return;
   prefetchedBackdrops.add(url);
   const img = new Image();
+  // High fetch priority — the bare default treats off-DOM Image preloads as
+  // low/medium, which defers the panel chrome backdrop behind less-critical
+  // assets. Mirrors the match-row + champion-table HD splash prefetch.
+  img.fetchPriority = "high";
   img.src = url;
 }
 
