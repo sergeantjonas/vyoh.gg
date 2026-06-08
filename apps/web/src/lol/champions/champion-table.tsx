@@ -11,6 +11,7 @@ import {
 } from "@/lol/_shared/assets/champion-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
+import { useSeriousQueues } from "@/lol/_shared/serious-queues/serious-queues";
 import { CardTilt } from "@/lol/_shared/ui/card-tilt";
 import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import {
@@ -277,13 +278,21 @@ function ChampionTableRow({
   const queryClient = useQueryClient();
   const ddVersion = useDDragonVersion();
   const account = useAccountFromSlug(accountSlug);
+  const { ids: seriousQueueIds } = useSeriousQueues();
+  const queueIds = useMemo(
+    () => [...seriousQueueIds].sort((a, b) => a - b),
+    [seriousQueueIds]
+  );
   const prefetch = useHoverPrefetch(() => {
-    queryClient.prefetchQuery(championExtrasQueryOptions(account, alias));
+    queryClient.prefetchQuery(championExtrasQueryOptions(account, alias, queueIds));
     // Preload the HD champion splash for the champion-detail panel chrome
     // (see slide-panel.tsx `chromeBackdropUrl`). Without this, the splash
     // only starts loading once the panel mounts and pops in visibly after
     // the rest of the panel content lays out. Same pattern as match-row.
     const img = new Image();
+    // High fetch priority — bare default deprioritises off-DOM Image preloads.
+    // Same upgrade in match-row + SplashProvider preload.
+    img.fetchPriority = "high";
     img.src = championHdSplashUrl(alias, ddVersion);
   });
   // Captured once on mount so StrictMode's double-invocation doesn't lose the

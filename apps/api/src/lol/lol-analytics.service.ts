@@ -49,16 +49,17 @@ export class LolAnalyticsService {
     gameName: string,
     tagLine: string,
     championKey: string,
-    queue?: number
+    queues?: readonly number[]
   ): Promise<ChampionExtras> {
     const summoner = await this.lol.resolveSummoner(region, gameName, tagLine);
 
+    const queueNames = queues && queues.length > 0 ? queues.map(queueTypeName) : null;
     const matches = await this.prisma.match.findMany({
       where: {
         puuid: summoner.puuid,
         champion: { equals: championKey, mode: "insensitive" },
         items: { isEmpty: false },
-        ...(queue !== undefined && { queueType: queueTypeName(queue) }),
+        ...(queueNames && { queueType: { in: queueNames } }),
       },
       select: { items: true, laneOpponent: true, win: true },
     });

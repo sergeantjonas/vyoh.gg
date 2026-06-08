@@ -1,4 +1,5 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -13,7 +14,9 @@ vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <SeriousQueuesProvider>{children}</SeriousQueuesProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -48,7 +51,7 @@ describe("useChampionExtras", () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toBe(
-      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/champions/ahri/stats"
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/champions/ahri/stats?queues=420%2C440"
     );
   });
 

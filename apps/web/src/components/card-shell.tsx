@@ -24,6 +24,14 @@ export interface CardShellProps {
   className?: string;
   /** When true, renders the verdict in muted style — use for insufficient-data empty states. */
   empty?: boolean;
+  /**
+   * Switch tile chrome to the frosted recipe (bg-card/60 + backdrop-blur-sm)
+   * for in-panel use, where the card faces a splash backdrop directly. The
+   * default (`false`) keeps the bare bg-card/50 recipe for page-grounded
+   * contexts (Steam profile chips, LoL Trends tab page, etc.). See the
+   * "One level of glass" rule in docs/repo-conventions.md.
+   */
+  frosted?: boolean;
 }
 
 export function CardShell({
@@ -34,12 +42,24 @@ export function CardShell({
   prescription,
   className,
   empty = false,
+  frosted = false,
 }: CardShellProps) {
   const reduced = useReducedMotion();
   return (
     <div
       className={cn(
-        "view-entry flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4",
+        "flex h-full flex-col gap-3 rounded-lg border px-4 py-4",
+        // `view-entry` is a scroll-driven opacity-0→1 entrance keyed on
+        // `animation-timeline: view(block)`. It's a nice polish in
+        // page-grounded contexts (LoL Trends tab, Steam profile chips) where
+        // each card fades in as the user scrolls it into view. In the panel
+        // context (frosted=true) the panel's own scroll container redefines
+        // entry/cover phases and the bottom-of-panel tiles land stuck at
+        // partial opacity — looks like a vignette / progressive-transparency
+        // gradient. See motion.css `.view-entry` and the 2026-06-08 vignette
+        // diagnosis.
+        !frosted && "view-entry",
+        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50",
         className
       )}
     >

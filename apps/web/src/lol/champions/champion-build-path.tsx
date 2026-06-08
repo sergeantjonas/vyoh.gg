@@ -179,9 +179,12 @@ function PathRow({
 export function ChampionBuildPath({
   accountSlug,
   championKey,
+  frosted = false,
 }: {
   accountSlug: string;
   championKey: string;
+  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  frosted?: boolean;
 }) {
   const account = useAccountFromSlug(accountSlug);
   const { data, isPending } = useChampionBuildFlow(account, championKey);
@@ -198,6 +201,7 @@ export function ChampionBuildPath({
         sampleSize={data.length}
         verdict={`Need ${MIN_ENTRIES}+ matches with timeline data to map your build flow on this champion.`}
         empty
+        frosted={frosted}
       />
     );
   }
@@ -229,6 +233,7 @@ export function ChampionBuildPath({
       sampleSize={data.length}
       verdict={verdict}
       verdictMarkdown={verdict}
+      frosted={frosted}
       evidence={
         <div className="flex flex-col gap-1.5">
           {topPaths.map((p) => (

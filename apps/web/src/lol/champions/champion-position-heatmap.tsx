@@ -240,7 +240,14 @@ function ModeToggle({
   );
 }
 
-export function ChampionPositionHeatmap({ matches }: { matches: MatchSummary[] }) {
+export function ChampionPositionHeatmap({
+  matches,
+  frosted = false,
+}: {
+  matches: MatchSummary[];
+  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  frosted?: boolean;
+}) {
   const [mode, setMode] = useState<Mode>("deaths");
   const stats = useMemo(() => collectStats(matches, mode), [matches, mode]);
 
@@ -251,6 +258,7 @@ export function ChampionPositionHeatmap({ matches }: { matches: MatchSummary[] }
         sampleSize={stats.matchesWithPosition}
         verdict={`Need ${MIN_MATCHES_WITH_POSITION}+ Rift matches with timeline data on this champion before a heatmap is meaningful.`}
         empty
+        frosted={frosted}
       />
     );
   }
@@ -264,6 +272,7 @@ export function ChampionPositionHeatmap({ matches }: { matches: MatchSummary[] }
       sampleSize={stats.matchesWithPosition}
       verdict={verdict}
       verdictMarkdown={verdict}
+      frosted={frosted}
       evidence={
         <div className="flex flex-col gap-3">
           <div className="flex justify-end">

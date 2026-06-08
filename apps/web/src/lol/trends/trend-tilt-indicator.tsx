@@ -60,9 +60,12 @@ function SplitBar({
 export function TrendTiltIndicator({
   current,
   previous: _previous,
+  frosted = false,
 }: {
   current: MatchSummary[];
   previous: MatchSummary[];
+  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  frosted?: boolean;
 }) {
   const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const stats = useMemo(() => {
@@ -77,6 +80,7 @@ export function TrendTiltIndicator({
         sampleSize={playedCount}
         verdict="Not enough games yet to detect tilt patterns."
         empty
+        frosted={frosted}
       />
     );
   }
@@ -89,6 +93,7 @@ export function TrendTiltIndicator({
         sampleSize={playedCount}
         verdict="Need 5+ games after a win and after a loss to detect tilt patterns."
         empty
+        frosted={frosted}
       />
     );
   }
@@ -115,6 +120,7 @@ export function TrendTiltIndicator({
       verdictMarkdown={verdict}
       prescription={prescription}
       prescriptionMarkdown={prescription}
+      frosted={frosted}
       evidence={
         <SplitBar
           afterWinWR={wrWin}

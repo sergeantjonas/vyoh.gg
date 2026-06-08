@@ -90,7 +90,7 @@ describe("LolAnalyticsService.getChampionExtras", () => {
     expect(result.topItems).toHaveLength(6);
   });
 
-  it("applies the queueType filter when a queue id is provided", async () => {
+  it("applies a queueType `in` filter when queue ids are provided", async () => {
     const prisma = makePrisma();
     prisma.match.findMany.mockResolvedValue([]);
     const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
@@ -100,13 +100,31 @@ describe("LolAnalyticsService.getChampionExtras", () => {
       "Vyoh",
       "Ahri",
       "Ahri",
-      420
+      [420, 440]
     );
     expect(prisma.match.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ queueType: "Ranked Solo" }),
+        where: expect.objectContaining({
+          queueType: { in: ["Ranked Solo", "Ranked Flex"] },
+        }),
       })
     );
+  });
+
+  it("omits the queueType filter when queue ids are empty or undefined", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri",
+      []
+    );
+    const call = prisma.match.findMany.mock.calls[0]?.[0];
+    expect(call?.where).not.toHaveProperty("queueType");
   });
 });
 

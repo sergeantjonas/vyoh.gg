@@ -97,7 +97,7 @@ function DeltaTile({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      className="flex flex-1 flex-col gap-1 rounded-lg border bg-card/50 p-4"
+      className="flex flex-1 flex-col gap-1 rounded-lg border bg-card/60 p-4 backdrop-blur-sm"
     >
       <HeroLabel>{label}</HeroLabel>
       <HeroNumber
@@ -143,9 +143,6 @@ const CHAMPION_DETAIL_FETCH_COUNT = 2000;
 
 function ChampionDetailPage() {
   const { accountSlug, championKey } = Route.useParams();
-  // Champion stats anchor to serious play (KDA/WR are performance reads).
-  // Items + matchups still pulled from all queues for v1 — laneOpponent is
-  // null on ARAM so matchups auto-filter; item noise from ARAM is mild.
   const account = useAccountFromSlug(accountSlug);
   const { ids } = useSeriousQueues();
   const { data } = useCachedMatchesWindow(account, CHAMPION_DETAIL_FETCH_COUNT);
@@ -473,10 +470,13 @@ function ChampionDetailPage() {
             match-detail), so the prior `bodyReady` gate was unnecessary on
             top of the dim and was removed alongside the wrapper. */}
         <div className="flex flex-col gap-6">
-          {/* Per-game averages */}
+          {/* Per-game averages. Y-only entrance — no opacity animation
+              because the tiles below are frosted (backdrop-blur-sm) and an
+              opacity-animating ancestor would suppress backdrop-filter on
+              entrance (see [[ancestor-opacity-suppresses-backdrop-filter]]). */}
           <m.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 6 }}
+            animate={{ y: 0 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
             className="flex gap-4"
           >
@@ -492,7 +492,7 @@ function ChampionDetailPage() {
               return (
                 <div
                   key={label}
-                  className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/50 py-3"
+                  className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border bg-card/60 py-3 backdrop-blur-sm"
                 >
                   <HeroLabel>{label}</HeroLabel>
                   <HeroNumber size="md">
@@ -535,15 +535,15 @@ function ChampionDetailPage() {
           {/* Win rate trend sparkline — only meaningful with enough games */}
           {series.length >= 5 && (
             <m.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.06 }}
               className="flex flex-col gap-2"
             >
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
                 Win Rate Trend
               </div>
-              <div className="h-24 rounded-lg border bg-card/50 px-2 py-3">
+              <div className="h-24 rounded-lg border bg-card/60 px-2 py-3 backdrop-blur-sm">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series}>
                     {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
@@ -596,7 +596,7 @@ function ChampionDetailPage() {
           )}
 
           {patchDrift && (
-            <div className="flex flex-col gap-1 rounded-lg border bg-card/40 px-3 py-2.5">
+            <div className="flex flex-col gap-1 rounded-lg border bg-card/60 px-3 py-2.5 backdrop-blur-sm">
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
                 Time on this champion
               </div>
@@ -622,8 +622,8 @@ function ChampionDetailPage() {
           {/* Top items */}
           {extras.data && extras.data.topItems.length > 0 && (
             <m.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
               className="flex flex-col gap-2"
             >
@@ -637,7 +637,7 @@ function ChampionDetailPage() {
                   return (
                     <TooltipPrimitive.Root key={itemId} delayDuration={150}>
                       <TooltipPrimitive.Trigger asChild>
-                        <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/50 p-2">
+                        <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/60 p-2 backdrop-blur-sm">
                           {item ? (
                             <ItemIcon
                               iconUrl={item.iconUrl}
@@ -700,8 +700,8 @@ function ChampionDetailPage() {
           {/* Matchups */}
           {sortedMatchups.length > 0 && (
             <m.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
               className="flex flex-col gap-2"
             >
@@ -734,10 +734,17 @@ function ChampionDetailPage() {
               {weakestMatchup && (
                 <div
                   className={cn(
-                    "flex flex-col gap-1 rounded-lg border px-3 py-2.5",
+                    "flex flex-col gap-1 rounded-lg border px-3 py-2.5 backdrop-blur-sm",
+                    // Warning emphasis must read MORE prominently than the
+                    // neighbouring bg-card/60 matchup grid tiles, not less.
+                    // bg-rose-500/10 was too transparent — the splash bled
+                    // through and the warning state looked weaker than the
+                    // calm tiles below. /20 gives the rose tint enough body
+                    // to occlude the backdrop while staying short of a
+                    // shouting alert-red.
                     weakestMatchup.deltaPP >= 15
-                      ? "border-rose-500/40 bg-rose-500/10"
-                      : "border-border bg-card/40"
+                      ? "border-rose-500/40 bg-rose-500/20"
+                      : "border-border bg-card/60"
                   )}
                 >
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
@@ -761,7 +768,7 @@ function ChampionDetailPage() {
                     return (
                       <div
                         key={champion}
-                        className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-2"
+                        className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-2 backdrop-blur-sm"
                       >
                         <ChampionSquareIcon
                           championName={champion}
@@ -802,11 +809,20 @@ function ChampionDetailPage() {
             </m.div>
           )}
 
-          <ChampionBuildPath accountSlug={accountSlug} championKey={championKey} />
-          <ChampionPositionHeatmap matches={champMatches} />
-          <TrendDeathMatchupHeatmap current={champMatches} />
-          <TrendTimeHeatmap current={champMatches} />
-          <TrendTiltIndicator current={champMatches} previous={[]} />
+          {/* All these tiles render through ConclusionCard → CardShell.
+              `frosted` is set because they sit inside the panel chrome,
+              facing the splash backdrop directly — "one level of glass"
+              rule (see docs/repo-conventions.md). The same components
+              rendered on the Trends tab page omit the prop and stay bare. */}
+          <ChampionBuildPath
+            accountSlug={accountSlug}
+            championKey={championKey}
+            frosted
+          />
+          <ChampionPositionHeatmap matches={champMatches} frosted />
+          <TrendDeathMatchupHeatmap current={champMatches} frosted />
+          <TrendTimeHeatmap current={champMatches} frosted />
+          <TrendTiltIndicator current={champMatches} previous={[]} frosted />
         </div>
       </div>
     </SlidePanel>

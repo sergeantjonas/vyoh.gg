@@ -137,7 +137,14 @@ function HeatmapGrid({
   );
 }
 
-export function TrendTimeHeatmap({ current }: { current: MatchSummary[] }) {
+export function TrendTimeHeatmap({
+  current,
+  frosted = false,
+}: {
+  current: MatchSummary[];
+  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  frosted?: boolean;
+}) {
   const playedCount = useMemo(() => excludeRemakes(current).length, [current]);
   const stats = useMemo(() => {
     if (current.length < 5) return null;
@@ -153,6 +160,7 @@ export function TrendTimeHeatmap({ current }: { current: MatchSummary[] }) {
         sampleSize={playedCount}
         verdict="Not enough games yet to build a time heatmap."
         empty
+        frosted={frosted}
       />
     );
   }
@@ -186,6 +194,7 @@ export function TrendTimeHeatmap({ current }: { current: MatchSummary[] }) {
       verdictMarkdown={verdict}
       prescription={prescription}
       prescriptionMarkdown={prescription}
+      frosted={frosted}
       evidence={<HeatmapGrid hourDay={hourDay} bestKey={bestKey} />}
     />
   );

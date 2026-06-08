@@ -91,8 +91,14 @@ export function ChampionPatchHistory({
               <TooltipPrimitive.Trigger asChild>
                 <div
                   className={cn(
-                    "flex flex-1 cursor-default flex-col gap-1 rounded-lg border bg-card/50 px-3 py-2 transition-colors",
-                    isCurrent && "border-foreground/25 bg-card"
+                    "flex flex-1 cursor-default flex-col gap-1 rounded-lg border bg-card/60 px-3 py-2 backdrop-blur-sm transition-colors",
+                    // Active-state emphasis stays within the frosted family —
+                    // bumping body opacity from /60 → /80 (not swapping to
+                    // solid) so the row reads as "one row of glass with one
+                    // heavier glass" rather than "glass row with one solid
+                    // breaking the recipe". See "one level of glass" in
+                    // docs/repo-conventions.md.
+                    isCurrent && "border-foreground/25 bg-card/80"
                   )}
                   aria-label={`Patch ${p.patch}: ${p.wins}-${p.losses} (${wrText} WR)`}
                 >

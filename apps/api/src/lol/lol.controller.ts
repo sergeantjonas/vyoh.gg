@@ -147,15 +147,20 @@ export class LolController {
   @Get("champions/:championKey/stats")
   async getChampionExtras(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
-    @Query("queue", new DefaultValuePipe(undefined), new ParseIntPipe({ optional: true }))
-    queue: number | undefined
+    @Query("queues") queuesRaw?: string
   ): Promise<ChampionExtras> {
+    const queues = queuesRaw
+      ? queuesRaw
+          .split(",")
+          .map((s) => Number.parseInt(s, 10))
+          .filter((n) => Number.isFinite(n))
+      : undefined;
     return this.analytics.getChampionExtras(
       region,
       gameName,
       tagLine,
       championKey,
-      queue
+      queues
     );
   }
 

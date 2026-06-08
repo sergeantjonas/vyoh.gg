@@ -226,7 +226,14 @@ function Heatmap({ rows, maxValue }: { rows: MatchupRow[]; maxValue: number }) {
   );
 }
 
-export function TrendDeathMatchupHeatmap({ current }: { current: MatchSummary[] }) {
+export function TrendDeathMatchupHeatmap({
+  current,
+  frosted = false,
+}: {
+  current: MatchSummary[];
+  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  frosted?: boolean;
+}) {
   const stats = useMemo(() => computeStats(current), [current]);
 
   if (stats.matchesWithProjection < MIN_MATCHES || stats.rows.length < 3) {
@@ -236,6 +243,7 @@ export function TrendDeathMatchupHeatmap({ current }: { current: MatchSummary[] 
         sampleSize={stats.matchesWithProjection}
         verdict={`Need ${MIN_MATCHES}+ matches with timeline data and at least 3 distinct lane opponents.`}
         empty
+        frosted={frosted}
       />
     );
   }
@@ -259,6 +267,7 @@ export function TrendDeathMatchupHeatmap({ current }: { current: MatchSummary[] 
       sampleSize={stats.matchesWithProjection}
       verdict={verdict}
       verdictMarkdown={verdict}
+      frosted={frosted}
       evidence={
         <div style={{ height: HEADER_H + stats.rows.length * ROW_H }}>
           <Heatmap rows={stats.rows} maxValue={stats.maxCellValue} />

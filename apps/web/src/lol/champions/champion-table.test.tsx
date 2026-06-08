@@ -1,4 +1,5 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -92,7 +93,9 @@ function renderTable(ui: ReactNode, queryClient: QueryClient = newQueryClient())
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="always">
         <TooltipPrimitive.Provider>
-          <ActiveChampionProvider>{ui}</ActiveChampionProvider>
+          <ActiveChampionProvider>
+            <SeriousQueuesProvider>{ui}</SeriousQueuesProvider>
+          </ActiveChampionProvider>
         </TooltipPrimitive.Provider>
       </MotionConfig>
     </QueryClientProvider>
@@ -213,8 +216,10 @@ describe("ChampionTable", () => {
           <MotionConfig reducedMotion="always">
             <TooltipPrimitive.Provider>
               <ActiveChampionProvider>
-                <ChampionTable stats={stats} sort="games" accountSlug="ahri" />
-                <ProbeConsumer />
+                <SeriousQueuesProvider>
+                  <ChampionTable stats={stats} sort="games" accountSlug="ahri" />
+                  <ProbeConsumer />
+                </SeriousQueuesProvider>
               </ActiveChampionProvider>
             </TooltipPrimitive.Provider>
           </MotionConfig>
@@ -258,7 +263,9 @@ describe("ChampionTable", () => {
           <MotionConfig reducedMotion="always">
             <TooltipPrimitive.Provider>
               <ActiveChampionProvider>
-                <TableWithSavedScroll stats={[stat()]} />
+                <SeriousQueuesProvider>
+                  <TableWithSavedScroll stats={[stat()]} />
+                </SeriousQueuesProvider>
               </ActiveChampionProvider>
             </TooltipPrimitive.Provider>
           </MotionConfig>
@@ -373,6 +380,7 @@ describe("ChampionTable", () => {
         "X",
         "EUW",
         "Ahri",
+        [420, 440],
       ]);
     });
 
