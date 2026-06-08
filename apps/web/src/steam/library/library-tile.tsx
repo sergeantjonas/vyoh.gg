@@ -85,7 +85,7 @@ export function LibraryTile({
       <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
         <HoverCardPrimitive.Trigger asChild>
           <Link
-            to="/steam/game/$appid"
+            to="/steam/library/$appid"
             params={{ appid: String(game.appid) }}
             onMouseEnter={() =>
               prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
@@ -138,7 +138,7 @@ export function LibraryTile({
                 // per-element morph. Nesting the two collides the snapshot
                 // pairs and breaks the forward morph.
                 await navigate({
-                  to: "/steam/game/$appid",
+                  to: "/steam/library/$appid",
                   params: { appid: String(game.appid) },
                   viewTransition: false,
                 });

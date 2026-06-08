@@ -128,7 +128,7 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
         target="_blank"
         rel="noreferrer"
         // External nav: no view-transition morph (the destination is the
-        // Steam store, not a /steam/game route). The whole row is the click
+        // Steam store, not a /steam/library route). The whole row is the click
         // target; the trailing icon is a visual external-link affordance.
         className={cn(
           "group/row block rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",

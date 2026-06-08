@@ -37,7 +37,7 @@ export function OwnedGamesChip() {
             }
             evidence={
               <Link
-                to="/steam/game/$appid"
+                to="/steam/library/$appid"
                 params={{ appid: String(top.appid) }}
                 className="text-sm text-foreground/70 underline-offset-2 hover:underline"
               >

@@ -94,7 +94,7 @@ describe("SteamMomentBeat (FIRST_TIME_GAME)", () => {
 
   it("links the masthead to the Steam game-detail route", () => {
     const { container } = render(<SteamMomentBeat {...baseProps} />);
-    const link = container.querySelector('a[to="/steam/game/$appid"]');
+    const link = container.querySelector('a[to="/steam/library/$appid"]');
     expect(link).toBeTruthy();
   });
 

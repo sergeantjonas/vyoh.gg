@@ -457,7 +457,7 @@ export function SteamMomentBeat({
             : {})}
         >
           <Link
-            to="/steam/game/$appid"
+            to="/steam/library/$appid"
             params={{ appid: String(appid) }}
             className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md transition-opacity hover:opacity-95"
           >

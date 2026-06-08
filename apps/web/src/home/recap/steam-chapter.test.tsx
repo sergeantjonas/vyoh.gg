@@ -339,7 +339,7 @@ describe("SteamChapter", () => {
     const titleCard = container.querySelector("[data-chapter-masthead]");
     const link = titleCard?.querySelector("a");
     expect(link).toBeTruthy();
-    expect(link?.getAttribute("to")).toBe("/steam/game/$appid");
+    expect(link?.getAttribute("to")).toBe("/steam/library/$appid");
     // Logo image lives inside the link in the default fixture (hasLogo).
     expect(link?.querySelector("img[alt='Hollow Knight']")).toBeTruthy();
   });

@@ -10,7 +10,7 @@ import { LibraryListVirtual } from "@/steam/library/library-list-virtual";
 import { LibrarySkeleton } from "@/steam/library/library-skeleton";
 import { useLibraryPrefs } from "@/steam/library/use-library-prefs";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
-import { createFileRoute } from "@tanstack/react-router";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // While the back-nav scroll-restore + hero/logo→row morph play out, dim
@@ -36,9 +36,9 @@ function LibraryPage() {
   const [query, setQuery] = useState("");
   const { readListScroll } = useActiveGame();
   // Snapshot the saved scrollTop once on mount. If we landed here via a
-  // back-nav from /steam/game/$appid, this is > 0 and drives both the
-  // synchronous scrollTo below and the settle dim. Otherwise we render
-  // settled at opacity 1 from the first paint.
+  // back-nav from /steam/library/$appid (panel close), this is > 0 and
+  // drives both the synchronous scrollTo below and the settle dim.
+  // Otherwise we render settled at opacity 1 from the first paint.
   const [restoredScrollY] = useState(() => readListScroll());
   const [settled, setSettled] = useState(() => restoredScrollY <= 0);
   const didInitialScrollRef = useRef(false);
@@ -183,6 +183,12 @@ function LibraryPage() {
           )}
         </>
       )}
+      {/* /steam/library/$appid renders into this Outlet wrapped in <SlidePanel>
+          (portaled out of the document flow). Keeping the list mounted across
+          panel open/close preserves the virtualizer offset, scroll position,
+          filter state, and useSteamOwnedGames cache — mirrors LoL matches.tsx
+          + match-detail panel. */}
+      <Outlet />
     </div>
   );
 }

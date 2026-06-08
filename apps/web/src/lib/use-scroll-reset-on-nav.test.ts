@@ -70,9 +70,9 @@ describe("useScrollResetOnNav", () => {
   });
 
   it("skips scroll when navigating from steam game detail back to library", () => {
-    const skips = [{ fromPrefix: "/steam/game/", toExact: "/steam/library" }];
+    const skips = [{ fromPrefix: "/steam/library/", toExact: "/steam/library" }];
     const { rerender } = renderHook(({ path }) => useScrollResetOnNav(path, skips), {
-      initialProps: { path: "/steam/game/440" },
+      initialProps: { path: "/steam/library/440" },
     });
     rerender({ path: "/steam/library" });
     expect(scrollToMock).not.toHaveBeenCalled();

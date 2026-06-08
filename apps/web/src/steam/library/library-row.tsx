@@ -72,7 +72,7 @@ export function LibraryRow({
   const savedOrigin = useRef<GameOrigin | null>(null);
 
   // Return animation: when this row is the destination of a back-nav from
-  // /steam/game/$appid, animate the hero (and logo, when present) from the
+  // /steam/library/$appid, animate the hero (and logo, when present) from the
   // captured detail-page rect to their natural row position. Mirrors
   // match-row's mount-only effect but runs two independent `el.animate()`
   // calls so the logo can morph from its own bottom-left detail-page
@@ -166,7 +166,7 @@ export function LibraryRow({
 
   const link = (
     <Link
-      to="/steam/game/$appid"
+      to="/steam/library/$appid"
       params={{ appid: String(game.appid) }}
       onMouseEnter={() =>
         prefetchSteamGameBackdrop(game.appid, game.assetTimestamp, game.flipHero)
@@ -184,6 +184,24 @@ export function LibraryRow({
         // resolves, and the active marker carries through forward + back.
         saveListScroll();
         setActiveGame(game.appid);
+        // Forward rect-morph fallback for engines without View Transitions
+        // (Firefox, Safari). Capture the row chrome rect here so the
+        // panel hero can FLIP from this rect to its natural panel
+        // position on mount. The VT path below owns its own snapshot
+        // via the per-element `view-transition-name`s; skip when VT is
+        // available so we don't write a stale origin.
+        if (supportsViewTransitions()) return;
+        const heroEl = heroRef.current;
+        const chromeEl = heroEl?.parentElement ?? null;
+        const heroRect = chromeEl?.getBoundingClientRect() ?? null;
+        if (!heroRect) return;
+        const logoRect = logoRef.current?.getBoundingClientRect() ?? null;
+        setOriginRect({
+          appid: game.appid,
+          heroRect,
+          logoRect,
+          direction: "forward",
+        });
       }}
       onClick={(e) => {
         // Apply `view-transition-name` to each available morph anchor
@@ -223,7 +241,7 @@ export function LibraryRow({
           // per-element morph. Nesting the two collides the snapshot
           // pairs and breaks the forward morph.
           await navigate({
-            to: "/steam/game/$appid",
+            to: "/steam/library/$appid",
             params: { appid: String(game.appid) },
             viewTransition: false,
           });

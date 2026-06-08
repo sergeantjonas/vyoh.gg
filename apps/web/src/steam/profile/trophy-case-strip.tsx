@@ -134,7 +134,7 @@ function TrophyTile({ entry }: { entry: TrophyEntry }) {
   return (
     <div className="w-[184px] shrink-0">
       <Link
-        to="/steam/game/$appid"
+        to="/steam/library/$appid"
         params={{ appid: String(unlock.appid) }}
         search={{ ach: unlock.apiName }}
         onMouseEnter={prefetch}

@@ -57,7 +57,7 @@ function RarestRow({ unlock }: { unlock: SteamRecentUnlock }) {
   return (
     <li>
       <Link
-        to="/steam/game/$appid"
+        to="/steam/library/$appid"
         params={{ appid: String(unlock.appid) }}
         search={{ ach: unlock.apiName }}
         className={

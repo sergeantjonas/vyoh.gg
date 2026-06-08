@@ -219,7 +219,7 @@ describe("LibraryTile view-transition wiring", () => {
     // so by the time we observe it after the event the style is empty.
     expect(morph.style.viewTransitionName).toBe("");
     expect(navigateMock).toHaveBeenCalledWith({
-      to: "/steam/game/$appid",
+      to: "/steam/library/$appid",
       params: { appid: "730" },
       viewTransition: false,
     });

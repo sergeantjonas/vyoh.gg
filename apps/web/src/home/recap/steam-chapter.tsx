@@ -118,7 +118,7 @@ function StandoutUnlockBlock({
       : null;
   return (
     <Link
-      to="/steam/game/$appid"
+      to="/steam/library/$appid"
       params={{ appid: String(appid) }}
       search={{ ach: standout.apiName }}
       // Bare editorial block — no border, no backdrop. Negative inline-x
@@ -208,7 +208,7 @@ function RecentUnlockRow({
       : null;
   return (
     <Link
-      to="/steam/game/$appid"
+      to="/steam/library/$appid"
       params={{ appid: String(appid) }}
       search={{ ach: unlock.apiName }}
       className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/95 transition-colors hover:bg-black/25 hover:text-foreground"
@@ -425,7 +425,7 @@ function RemainingRarestLadder({
           <li key={u.apiName}>
             <ChapterReveal active={active} delay={0.58 + i * 0.05} slideX={18}>
               <Link
-                to="/steam/game/$appid"
+                to="/steam/library/$appid"
                 params={{ appid: String(appid) }}
                 search={{ ach: u.apiName }}
                 className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-foreground/95 transition-colors hover:bg-black/25 hover:text-foreground"
@@ -543,7 +543,7 @@ function SteamChapterTitleCard({
       </ChapterReveal>
       <ChapterReveal active={nudged} delay={0.18} duration={1.1} blur={16} rise={20}>
         <Link
-          to="/steam/game/$appid"
+          to="/steam/library/$appid"
           params={{ appid: String(appid) }}
           className="group/masthead inline-flex w-fit cursor-pointer flex-wrap items-end gap-x-4 gap-y-2 rounded-md transition-opacity hover:opacity-95"
         >

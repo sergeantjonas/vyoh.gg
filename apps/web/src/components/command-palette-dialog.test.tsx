@@ -647,8 +647,8 @@ describe("CommandPaletteDialog", () => {
       expect(screen.getByRole("option", { name: /^Achievements$/ })).toBeTruthy();
     });
 
-    it("shows 'Game: Elden Ring' on /steam/game/1245620 when the owned-games cache is warm", () => {
-      pathnameRef.current = "/steam/game/1245620";
+    it("shows 'Game: Elden Ring' on /steam/library/1245620 when the owned-games cache is warm", () => {
+      pathnameRef.current = "/steam/library/1245620";
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       client.setQueryData(["steam", "owned-games"], {
         games: [
@@ -692,8 +692,8 @@ describe("CommandPaletteDialog", () => {
       expect(screen.getByRole("option", { name: /Game: Elden Ring/ })).toBeTruthy();
     });
 
-    it("shows 'Game' fallback on /steam/game/<appid> when the cache is empty", () => {
-      pathnameRef.current = "/steam/game/9999";
+    it("shows 'Game' fallback on /steam/library/<appid> when the cache is empty", () => {
+      pathnameRef.current = "/steam/library/9999";
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
       expect(screen.getByRole("option", { name: /^Game$/ })).toBeTruthy();
     });
@@ -841,14 +841,14 @@ describe("CommandPaletteDialog", () => {
       expect(screen.queryByRole("option", { name: /League of Legends/ })).toBeNull();
     });
 
-    it("selecting a Steam game navigates to /steam/game/<appid>", () => {
+    it("selecting a Steam game navigates to /steam/library/<appid>", () => {
       pathnameRef.current = "/steam/library";
       renderWithSteamCache();
       fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
         target: { value: "dev:from-software" },
       });
       fireEvent.click(screen.getByRole("option", { name: /Elden Ring/ }));
-      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/game/1245620" });
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/library/1245620" });
     });
 
     it("renders no Steam group when the cache is empty (cache-hit-before-fetch)", () => {

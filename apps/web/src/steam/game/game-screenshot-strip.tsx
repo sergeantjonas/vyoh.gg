@@ -77,7 +77,7 @@ function persistVolume(value: PersistedVolume): void {
   }
 }
 
-// Rotating screenshot carousel slotted on /steam/game/$appid between the
+// Rotating screenshot carousel slotted on /steam/library/$appid between the
 // playtime block and the verdict grid. Reads from the enrichment-backed
 // `useGameScreenshots` hook (Chunk 9b in library-card-enrichment.md) — the
 // same buckets the library-tile hovercard rotates over, so navigating from a
@@ -290,7 +290,7 @@ export function GameScreenshotStrip({
   }, [api]);
 
   // Snap back to the first frame when navigating between games. The component
-  // doesn't remount across /steam/game/$appid changes, so without this we'd
+  // doesn't remount across /steam/library/$appid changes, so without this we'd
   // open the new game on whatever index the previous one was paused at.
   // biome-ignore lint/correctness/useExhaustiveDependencies: appid is the trigger; body intentionally doesn't read it.
   useEffect(() => {

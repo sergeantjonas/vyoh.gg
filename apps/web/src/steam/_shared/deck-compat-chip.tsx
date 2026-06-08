@@ -31,7 +31,7 @@ export function DeckCompatChip({
 }: {
   tier: number | null;
   // "sm" sits inline with library-card meta. "md" pairs with the larger
-  // `/steam/game/$appid` header chrome (heavier border + text).
+  // `/steam/library/$appid` header chrome (heavier border + text).
   size?: "sm" | "md";
   className?: string;
 }) {

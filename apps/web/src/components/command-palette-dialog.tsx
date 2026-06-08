@@ -368,7 +368,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     (hasSteamStructuredVerbs || (parsed.freeText.length > 0 && steamGames.length > 0));
 
   const steamAppid = isSteamScope
-    ? (pathname.match(/^\/steam\/game\/([^/]+)/)?.[1] ?? null)
+    ? (pathname.match(/^\/steam\/library\/([^/]+)/)?.[1] ?? null)
     : null;
   const steamGameTitle = steamAppid
     ? (queryClient
@@ -429,7 +429,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                   value: `steam game ${steamAppid} ${steamGameTitle ?? ""}`.trim(),
                   icon: <Gamepad2 />,
                   label: steamGameTitle ? `Game: ${steamGameTitle}` : "Game",
-                  path: `/steam/game/${steamAppid}`,
+                  path: `/steam/library/${steamAppid}`,
                 },
               ]
             : []),
@@ -606,7 +606,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 value={`steam-game:${g.appid} steam ${g.name.toLowerCase()} ${g.appid}`}
                 onSelect={() =>
                   go({
-                    path: `/steam/game/${g.appid}`,
+                    path: `/steam/library/${g.appid}`,
                     label: g.name,
                     kind: "page",
                   })

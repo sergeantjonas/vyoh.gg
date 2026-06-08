@@ -12,8 +12,6 @@ function steamTabIndex(pathname: string): number {
   if (!pathname.startsWith("/steam/")) return -1;
   const rest = pathname.slice("/steam/".length);
   const seg = rest.split("/")[0] ?? "";
-  // /steam/game/* is a Library drill-in.
-  if (seg === "game") return STEAM_TAB_ORDER.indexOf("library");
   const idx = STEAM_TAB_ORDER.indexOf(seg as (typeof STEAM_TAB_ORDER)[number]);
   return idx === -1 ? -1 : idx;
 }

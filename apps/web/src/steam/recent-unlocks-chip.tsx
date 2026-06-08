@@ -44,7 +44,7 @@ export function RecentUnlocksChip() {
                 {unlocks.map((u) => (
                   <li key={`${u.appid}-${u.apiName}`}>
                     <Link
-                      to="/steam/game/$appid"
+                      to="/steam/library/$appid"
                       params={{ appid: String(u.appid) }}
                       search={{ ach: u.apiName }}
                       className="flex items-center gap-3 rounded-md p-2 -mx-2 transition-colors hover:bg-background/40"

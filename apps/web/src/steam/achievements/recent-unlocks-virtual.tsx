@@ -114,7 +114,7 @@ export function RecentUnlocksVirtual({ unlocks }: { unlocks: SteamRecentUnlock[]
             style={style}
           >
             <Link
-              to="/steam/game/$appid"
+              to="/steam/library/$appid"
               params={{ appid: String(u.appid) }}
               search={{ ach: u.apiName }}
               className="mb-2 flex items-start gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"

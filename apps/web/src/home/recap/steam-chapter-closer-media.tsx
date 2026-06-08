@@ -34,7 +34,7 @@ import { ScreenshotLightboxStrip } from "./screenshot-lightbox";
  * `movies[]` fetch — per the recap arc's ADR-5 follow-up note. The
  * microtrailer is editorially honest as a chapter closer: it's a
  * 6-second silent loop teaser, not a marketing-grade full trailer. The
- * masthead's click-through to `/steam/game/$appid` already opens the
+ * masthead's click-through to `/steam/library/$appid` already opens the
  * full trailer surface for users who want the longer cut.
  *
  * Autoplay lifecycle keys on the per-beat `active` prop (provided by

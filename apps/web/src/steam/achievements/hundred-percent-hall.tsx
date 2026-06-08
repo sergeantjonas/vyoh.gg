@@ -75,7 +75,7 @@ export function HundredPercentHall() {
         {entries.map((e) => (
           <li key={e.appid}>
             <Link
-              to="/steam/game/$appid"
+              to="/steam/library/$appid"
               params={{ appid: String(e.appid) }}
               className="group/tile block origin-top rounded-lg border border-border/40 bg-card/50 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.4)] transition-[box-shadow,transform,border-color,background-color] duration-500 ease-out hover:border-border hover:bg-card/80 hover:shadow-[0_24px_38px_-10px_rgba(0,0,0,0.7),0_12px_24px_-8px_rgba(255,255,255,0.15)] hover:transform-[perspective(700px)_rotateX(2deg)_rotateY(-3deg)_scale(1.02)]"
             >

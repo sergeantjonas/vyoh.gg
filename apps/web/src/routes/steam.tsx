@@ -24,7 +24,7 @@ import {
 } from "@tanstack/react-router";
 import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 export const Route = createFileRoute("/steam")({
   component: SteamLayout,
@@ -43,8 +43,6 @@ const TABS = [
     label: "Library",
     Icon: Library,
     exact: false,
-    // /steam/game/$appid is a Library drill-in but lives outside the /library/* subtree.
-    extraPrefixes: ["/steam/game"],
   },
   { to: "/steam/wishlist", label: "Wishlist", Icon: ListChecks, exact: false },
   { to: "/steam/achievements", label: "Achievements", Icon: Trophy, exact: false },
@@ -64,13 +62,21 @@ function SteamLayout() {
   const prefersReducedMotion = useReducedMotion();
 
   useScrollResetOnNav(pathname, [
-    { fromPrefix: "/steam/game/", toExact: "/steam/library" },
+    // Panel-aware: both directions (list↔panel + panel↔panel sub-nav) skip
+    // the top-reset because the list stays mounted under the panel. Mirrors
+    // the LoL matches and champions skip-pairs.
+    { listPath: "/steam/library", detailPrefix: "/steam/library/" },
   ]);
 
   const inLibrarySubtree =
-    pathname === "/steam/library" ||
-    pathname.startsWith("/steam/library/") ||
-    pathname.startsWith("/steam/game/");
+    pathname === "/steam/library" || pathname.startsWith("/steam/library/");
+
+  // Publish the section header's bottom y as `--account-header-h` so the
+  // detail-panel `SlidePanel` can dock under it (otherwise the panel covers
+  // the section tab strip). Same pattern as LoL's `$accountSlug.tsx`.
+  const onHeaderRect = useCallback((rect: DOMRect) => {
+    document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
+  }, []);
 
   const steamTabs: SectionTab[] = TABS.map((tab) => ({
     to: tab.to,
@@ -113,6 +119,7 @@ function SteamLayout() {
           tabs={steamTabs}
           tabIndicatorId="steam-tab-indicator"
           actions={<SteamPreferences />}
+          onHeaderRect={onHeaderRect}
         >
           {safariSlideDir ? (
             // `key` forces a fresh DOM element per pathname so the CSS
