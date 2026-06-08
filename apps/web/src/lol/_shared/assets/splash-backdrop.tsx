@@ -98,6 +98,14 @@ export function SplashProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!champion) return;
     const img = new Image();
+    // Bare `new Image()` requests default to "auto" fetch priority, which the
+    // browser treats as low/medium for off-DOM image preloads. The HD splash
+    // is the panel chrome's primary visual — bump to "high" so the network
+    // request races the rest of the page load instead of being deferred.
+    // Same upgrade applied at row-hover prefetch sites (match-row,
+    // champion-table) so the cached entry is already high-priority by the
+    // time the panel asks for it.
+    img.fetchPriority = "high";
     img.src = championHdSplashUrl(champion, ddVersion);
   }, [champion, ddVersion]);
 

@@ -67,6 +67,10 @@ export function MatchRow({
     // this prefetch the image only starts loading once the panel mounts,
     // and pops in visibly after the rest of the panel content is laid out.
     const img = new Image();
+    // High fetch priority — the bare default treats off-DOM Image preloads as
+    // low/medium, which defers the HD splash behind less-critical assets.
+    // Same upgrade in champion-table + SplashProvider preload.
+    img.fetchPriority = "high";
     img.src = championHdSplashUrl(match.champion, ddVersion);
   });
   const cardRef = useRef<HTMLDivElement>(null);
