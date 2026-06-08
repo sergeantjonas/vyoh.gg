@@ -143,7 +143,16 @@ function SteamGamePanel() {
       chromeBackdropUrl={chromeBackdropUrl}
       header={
         <>
-          <div className="flex-1" />
+          {/* Game name fills the header where LoL panels render their sub-tab
+              strip. Without it the header reads as empty chrome — the hero
+              banner inside the panel body still owns the wordmark, but the
+              sticky header has space to do useful work once the user scrolls
+              past the hero. truncate keeps long titles inside the flex track
+              when the share button slot is otherwise narrow. DialogPrimitive.
+              Title in SlidePanel still owns the accessible dialog name. */}
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+            {panelTitle}
+          </span>
           <button
             type="button"
             onClick={handleShare}
