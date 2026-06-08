@@ -1,3 +1,4 @@
+import { isFirefox } from "@/lib/is-firefox";
 import { isWebKit } from "@/lib/is-webkit";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
@@ -27,7 +28,36 @@ type DocumentWithVT = Document & {
 };
 
 export function supportsViewTransitions(): boolean {
-  return typeof document !== "undefined" && "startViewTransition" in document;
+  if (typeof document === "undefined") return false;
+  if (!("startViewTransition" in document)) return false;
+  // ── Firefox engine-gate ─────────────────────────────────────────────────
+  // Firefox's snapshot pipeline (used by both screenshots AND View
+  // Transitions) runs through an old non-WebRender codepath that does not
+  // capture `backdrop-filter` effects. During every VT — router-level OR
+  // hand-rolled per-element — the OLD/NEW snapshots are rendered without
+  // the backdrop blur, and the crossfade visibly de-frosts every
+  // backdrop-blur surface on the page (top nav, panel cards, etc.) until
+  // the live DOM repaints at the end. Reproduced and confirmed via
+  // `/debug/frost` case G in this repo.
+  //
+  //   Mozilla Bug 1657997 — "Screenshot doesn't capture backdrop-filter
+  //   effects" (NEW, unfixed in Firefox 143 / Nightly 2025-07-28)
+  //   https://bugzilla.mozilla.org/show_bug.cgi?id=1657997
+  //
+  // The trade we accepted (vyoh discussion 2026-06-08): drop ALL VT on
+  // Firefox in exchange for stable frosted surfaces. Concretely Firefox
+  // loses LoL section slides, cross-section fade, account-swap morph,
+  // identity-morph-nav animation, and Steam screenshot zoom. The row→hero
+  // morph still runs via the existing rect-morph fallback in match-row.tsx
+  // + match-hero.tsx (Web Animations API path triggered when supportsVT
+  // returns false). Same gate precedent as the WebKit Steam bypass in
+  // `lib/navigation-type.ts`.
+  //
+  // ── How to revert when Mozilla fixes Bug 1657997 ───────────────────────
+  // Delete the `if (isFirefox()) return false;` line below. Nothing else
+  // changes. All call sites already handle either branch.
+  if (isFirefox()) return false;
+  return true;
 }
 
 /**

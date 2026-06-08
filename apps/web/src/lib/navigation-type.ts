@@ -1,5 +1,6 @@
 import { isWebKit } from "@/lib/is-webkit";
 import { topLevelScope } from "@/lib/top-level-scope";
+import { supportsViewTransitions } from "@/lib/view-transition-nav";
 
 // Tab order mirrors the TABS arrays in
 //   apps/web/src/routes/lol/$accountSlug.tsx
@@ -79,6 +80,13 @@ export function getNavigationType(
 ): Array<string> | false {
   if (!from) return false;
   if (from.pathname === to.pathname) return false;
+  // Engine gate: when `supportsViewTransitions()` reports false, returning
+  // a non-false types array still triggers TanStack Router to call
+  // `document.startViewTransition` (which is what `supportsViewTransitions`
+  // checks). On Firefox the API exists but causes a flicker on every
+  // backdrop-filter surface (see view-transition-nav.ts for the full bug
+  // explanation). Skip router-level VT here too so the gate is uniform.
+  if (!supportsViewTransitions()) return false;
 
   const fromScope = topLevelScope(from.pathname);
   const toScope = topLevelScope(to.pathname);
