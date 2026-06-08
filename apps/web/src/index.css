@@ -257,6 +257,19 @@ p {
   transition: opacity 220ms ease-out;
 }
 
+/* Suppress the sibling dim during a view transition. On click-to-open-panel
+   the hovered row is the click target, so at OLD-snapshot capture every other
+   row is at opacity 0.65; at NEW-snapshot the panel has covered the list and
+   the mouse no longer hovers any row, so the rule un-applies and rows are
+   back at opacity 1. The root-pseudo crossfade then interpolates dim → bright
+   on every non-clicked row, reading as a page-wide flicker. Forcing the rows
+   to opacity 1 while a VT is active makes both snapshots match. */
+:root:active-view-transition .match-list .match-row:not(:hover),
+:root:active-view-transition .champion-list .themed-card-interactive:not(:hover),
+:root:active-view-transition .steam-library .library-tile:not(:hover) {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .match-list:has(.match-row:hover) .match-row:not(:hover),
   .champion-list:has(.themed-card-interactive:hover) .themed-card-interactive:not(:hover),

@@ -363,6 +363,11 @@ function ChampionTableRow({
       // scrolled behind the navbar bleed through during the morph.
       style={{ viewTransitionName: `champion-${alias}` }}
       data-list-item-vt
+      // Below-fold rows skip paint + layer-promotion until scrolled near the
+      // viewport. h-28 (row) + gap-3 (parent's gap) ≈ 124px intrinsic height;
+      // browser uses this as a placeholder so scroll stays smooth and the
+      // viewport-relative scroll position doesn't shift when rows materialise.
+      className="[content-visibility:auto] [contain-intrinsic-size:auto_124px]"
     >
       <CardTilt>
         <Link
@@ -422,7 +427,7 @@ function ChampionTableRow({
             const doc = document as Document & {
               startViewTransition?: (cb: () => Promise<void>) => unknown;
             };
-            doc.startViewTransition?.(async () => {
+            const transition = doc.startViewTransition?.(async () => {
               // OLD snapshot captured by now (sync inside startViewTransition).
               // Clear before any await so NEW snapshot doesn't see the source.
               if (cardRef.current) cardRef.current.style.viewTransitionName = "";
@@ -435,7 +440,14 @@ function ChampionTableRow({
                 params: { accountSlug, championKey: alias.toLowerCase() },
                 viewTransition: false,
               });
-            });
+            }) as { types?: Set<string> } | undefined;
+            // Tag with `intra-section` so view-transitions.css disables the
+            // default ::view-transition-old/new(root) animation. Without it,
+            // every pixel outside the named morph pair (the entire list area
+            // peeking out, plus the new panel content) gets a UA-default
+            // opacity crossfade, dimming the page-content area visibly mid-
+            // transition. Same type `withReorderViewTransition` uses.
+            transition?.types?.add("intra-section");
           }}
         >
           {/* Plain div, not m.div — Motion's layoutId morph would compete
