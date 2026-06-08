@@ -55,7 +55,17 @@ export function LibraryRow({
   const prefetch = useHoverPrefetch(() => {
     queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid));
   });
-  const { saveListScroll, setActiveGame, originRectRef, setOriginRect } = useActiveGame();
+  const { activeGame, saveListScroll, setActiveGame, originRectRef, setOriginRect } =
+    useActiveGame();
+  // Suppress the hovercard while a detail panel is open. The panel sits
+  // on top of the list; a popover surfacing above it reads as a layering
+  // bug. activeGame is set both when a row was clicked (the morph
+  // sentinel) and when the panel mounts on cold arrival, so it tracks
+  // panel-open state across both entry paths. Force open=false on the
+  // root instead of unwrapping the subtree — onPointerDown sets
+  // activeGame synchronously, and unwrapping mid-click detaches the
+  // Link before the click event fires. Mirrors match-list-row-popover.
+  const hovercardSuppressed = activeGame !== null;
   const reduced = useReducedMotion();
   const showHovercard = useMediaQuery(HOVERCARD_VIEWPORT_QUERY);
   // Two-element morph: hero img + logo img each carry a unique
@@ -316,7 +326,11 @@ export function LibraryRow({
       data-list-item-vt
       data-mount-stagger={mountStagger ? "" : undefined}
     >
-      <HoverCardPrimitive.Root openDelay={250} closeDelay={120}>
+      <HoverCardPrimitive.Root
+        openDelay={250}
+        closeDelay={120}
+        {...(hovercardSuppressed ? { open: false } : {})}
+      >
         <HoverCardPrimitive.Trigger asChild>{link}</HoverCardPrimitive.Trigger>
         <HoverCardPrimitive.Portal>
           <HoverCardPrimitive.Content

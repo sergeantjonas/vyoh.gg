@@ -49,7 +49,9 @@ export function LibraryTile({
   const [capsuleFailed, setCapsuleFailed] = useState(false);
   const [capsuleLoaded, setCapsuleLoaded] = useState(false);
   const navigate = useNavigate();
-  const { saveListScroll, setActiveGame } = useActiveGame();
+  const { activeGame, saveListScroll, setActiveGame } = useActiveGame();
+  // See LibraryRow for the rationale on this hovercard suppression.
+  const hovercardSuppressed = activeGame !== null;
   const queryClient = useQueryClient();
   const prefetch = useHoverPrefetch(() => {
     queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid));
@@ -82,7 +84,11 @@ export function LibraryTile({
       data-mount-stagger={mountStagger ? "" : undefined}
       className="library-tile group/tile"
     >
-      <HoverCardPrimitive.Root openDelay={200} closeDelay={100}>
+      <HoverCardPrimitive.Root
+        openDelay={200}
+        closeDelay={100}
+        {...(hovercardSuppressed ? { open: false } : {})}
+      >
         <HoverCardPrimitive.Trigger asChild>
           <Link
             to="/steam/library/$appid"
