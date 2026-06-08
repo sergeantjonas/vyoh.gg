@@ -163,26 +163,31 @@ export function SectionShell({
     return () => scrollEl.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Reset the scroll-driven states on every route transition. SectionShell
-  // is the section layout — it doesn't remount on tab nav, so without this
-  // the `compact` flag persists across pathname changes. The morph driver
-  // does set `scrollTop = 0` during the nav, which fires a scroll event,
-  // but the toggle's 400ms cooldown (above) can block the exit when the
-  // user scrolled into compact and immediately clicked the dropdown. The
-  // symptom: returning to Profile from a scrolled-other-tab leaves the
-  // hero identity faded (`compact && opacity-0` on the avatar/name) and
-  // the strip identity rendered, until the user manually scrolls to
-  // re-trigger the toggle. Resetting here is independent of the cooldown
-  // and matches the scroll-reset that `useScrollResetOnNav` already does
-  // in the section root — every nav lands at scrollTop=0, so the compact
-  // state should follow.
-  // `pathname` is intentionally the trigger — the effect body doesn't read
-  // it, it just re-fires whenever the route changes so the scroll-driven
-  // states reset.
+  // Sync the scroll-driven states to the current scrollTop on every route
+  // transition. SectionShell is the section layout — it doesn't remount on
+  // tab nav, so without this the `compact` flag persists across pathname
+  // changes; the in-line scroll listener has a 400ms cooldown that can
+  // block the cross-nav exit (user scrolled into compact and clicked a
+  // tab within the cooldown → strip stuck in compact on the destination
+  // until they scroll again).
+  //
+  // Reading `scrollTop` directly here — rather than unconditionally setting
+  // compact=false — keeps panel-open navs honest. List↔detail-panel pairs
+  // skip `useScrollResetOnNav`'s top-reset (the list stays mounted under
+  // the panel), so `scrollTop` carries over. Unconditionally collapsing
+  // would yank the strip from compact back to its full size the moment a
+  // detail panel opens. Tab navs still scroll-reset to 0 in the section
+  // root's `useScrollResetOnNav`, so this effect runs AFTER that reset and
+  // reads the post-reset position — compact correctly exits there too.
+  // `pathname` is the trigger; lastToggleRef reset clears the cooldown so
+  // subsequent scrolls can re-toggle freely.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
   useEffect(() => {
-    setCompact(false);
-    setBandOpaque(false);
+    const scrollEl = mainScrollRef.current;
+    const scrollTop = scrollEl?.scrollTop ?? 0;
+    if (scrollTop > 96) setCompact(true);
+    else if (scrollTop < 8) setCompact(false);
+    setBandOpaque(scrollTop > 16);
     lastToggleRef.current = 0;
   }, [pathname]);
 
