@@ -56,6 +56,10 @@ export function supportsViewTransitions(): boolean {
   // ── How to revert when Mozilla fixes Bug 1657997 ───────────────────────
   // Delete the `if (isFirefox()) return false;` line below. Nothing else
   // changes. All call sites already handle either branch.
+  //
+  // Verified still reproducing 2026-06-08 via case G probe (the now-deleted
+  // /debug/frost ↔ /debug/frost-b pair). If reverifying, hand-author a
+  // similar fixed-frosted-band + Link pair and watch the band during nav.
   if (isFirefox()) return false;
   return true;
 }
