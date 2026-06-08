@@ -350,10 +350,10 @@ function VerdictCard({ phase, verdict, tone }: PhaseVerdict) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-1.5 rounded-lg border p-3",
+        "flex flex-col gap-1.5 rounded-lg border p-3 backdrop-blur-sm",
         tone === "positive" && "border-emerald-500/20 bg-emerald-500/5",
         tone === "warning" && "border-red-500/20 bg-red-500/5",
-        tone === "neutral" && "border-border/50"
+        tone === "neutral" && "border-border/50 bg-card/60"
       )}
     >
       <span
@@ -575,7 +575,7 @@ function BaselineDeviationPanel({
             return (
               <div
                 key={tile.label}
-                className="flex flex-col gap-1 rounded-lg border border-border/50 bg-card/50 px-3 py-2.5"
+                className="flex flex-col gap-1 rounded-lg border border-border/50 bg-card/60 px-3 py-2.5 backdrop-blur-sm"
               >
                 <span className="text-xs text-muted-foreground">{tile.label}</span>
                 <div className="flex items-baseline gap-2">
@@ -733,9 +733,13 @@ export function MatchReviewView({
   }
 
   return (
+    // Y-only entrance — no opacity. Several descendants below carry
+    // `backdrop-blur-sm` (Baseline tiles, VerdictCards). Animating opacity
+    // on this ancestor would flatten the subtree and pop the frosted look.
+    // See [[ancestor-opacity-suppresses-backdrop-filter]].
     <m.div
-      initial={reduced ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={reduced ? false : { y: 8 }}
+      animate={{ y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="flex flex-col gap-6"
     >

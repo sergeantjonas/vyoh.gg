@@ -666,7 +666,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
         </div>
       )}
       {!isEmpty && points.length >= 4 && (
-        <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-card/30 px-2 py-1.5">
+        <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-card/50 px-2 py-1.5">
           <div className="flex items-center justify-between gap-2 px-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/60">
             <span>
               {brushDomain

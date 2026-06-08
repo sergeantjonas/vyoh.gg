@@ -194,8 +194,8 @@ function BuildRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-md border bg-card/50 px-3 py-2",
-        isMe && "border-foreground/30 bg-card/70"
+        "flex items-center gap-3 rounded-md border bg-card/60 px-3 py-2 backdrop-blur-sm",
+        isMe && "border-foreground/30 bg-card/80"
       )}
     >
       {/* participant label */}

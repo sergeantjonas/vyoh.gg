@@ -244,7 +244,7 @@ function PatchEntrySection({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="rounded-lg border bg-card/30">
+    <section className="rounded-lg border bg-card/50">
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
@@ -317,7 +317,7 @@ function ChampionRow({
   isMyChampion: boolean;
 }) {
   return (
-    <div className="flex gap-3 rounded-lg border bg-card/30 p-3">
+    <div className="flex gap-3 rounded-lg border bg-card/50 p-3">
       <ChampionSquareIcon
         championName={aliasFromName(group.champion)}
         alt={group.champion}

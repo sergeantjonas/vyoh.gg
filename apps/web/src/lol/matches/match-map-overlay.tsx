@@ -729,7 +729,7 @@ export default function MatchMapOverlay({
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[3fr_2fr]">
           {/* Map panel */}
           <TooltipPrimitive.Provider delayDuration={120}>
-            <div className="relative min-h-0 overflow-hidden rounded-md border bg-card/60">
+            <div className="relative min-h-0 overflow-hidden rounded-md border bg-card/50">
               {/* Both image and SVG use letterboxing (object-contain / xMidYMid meet)
                   so the dot coordinate space stays aligned with the map background
                   when the container is non-square. */}
@@ -771,7 +771,7 @@ export default function MatchMapOverlay({
           </TooltipPrimitive.Provider>
 
           {/* Feed panel */}
-          <div className="flex min-h-0 flex-col rounded-md border bg-card/60">
+          <div className="flex min-h-0 flex-col rounded-md border bg-card/50">
             <div className="border-b px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground/70">
               Events · {visibleEvents.length}
             </div>
