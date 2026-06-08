@@ -157,9 +157,31 @@ Same pattern, applied to champion detail.
 - Existing row→hero VT morph + rect-morph fallback in `champion-table.tsx` preserved untouched. `restoredScrollY` pin loop + `setActiveChampion` pre-navigate also untouched.
 - No new tests beyond the SlidePanel primitive tests shipped in 2.1 — the restructure is purely compositional; existing `champion-table.test.tsx` + `active-champion-context.test.tsx` already cover the sentinel + scroll-restore wiring.
 
-### Chunk 2.3 — Steam game-detail as panel
+### Chunk 2.3 — Steam game-detail as panel — ✅ SHIPPED 2026-06-09
 
-**Status:** Planned. Next active sub-arc. Inherits the architecture established in 2.1/2.2; the LoL frosted-tile + "one level of glass" convention ([docs/repo-conventions.md § Tile background](../../repo-conventions.md)) is in place and Steam tiles should pass `frosted` to their `CardShell` uses at the in-panel call sites.
+**Shipped commits (in landing order):**
+
+- `1a2a3d87` feat: convert steam game-detail to slide panel (2.3a + 2.3b bundled — restructure + SlidePanel wrap)
+- `12fb7d27` feat: rect-flip identity morph fallback for firefox (cross-cutting carry-over from the arc: Firefox no longer loses the Profile↔tab avatar morph; LoL + Steam drivers share `_shared/identity-morph-flip.ts`)
+- `25a429d4` feat: cold-arrival scroll-to-row + hd prefetch for steam panel (2.3c)
+- `c6ff89db` fix: suppress library hovercard while detail panel is open (2.3d)
+- `35bfa6cf` feat: frosted variant on steam panel-internal tiles (2.3f)
+
+**Deferred:** 2.3e — panel-route tests + Safari probe. Existing tests cover the routing, sentinel context, hover-gate, and identity-morph drivers (including the new rect-FLIP fallback). The new `GamePanelHero` component lacks a dedicated test; the morph mechanics were verified end-to-end with a Firefox Playwright probe (transform + Animation samples) but no automated test was added. Owner can request a follow-up commit if the panel hero needs unit coverage.
+
+**Hard-won lessons that fed the repo:**
+
+- Panel-internal `useLayoutEffect` belongs in a **child** component, not the parent. Radix `DialogPrimitive.Content` defers child mount through `@radix-ui/react-presence` even with `open=true`; a parent's mount-only effect runs before the panel children are in the DOM, leaving refs null. LoL's `MatchHero` is the established pattern; Steam now mirrors it via `GamePanelHero`. See the `12fb7d27` commit body for the analogous concern in the identity-morph drivers (effect lives in the helper module, not the parent route).
+- `getNavigationType` is VT-gated and returns false on Firefox. Anything that uses it for classification AND needs to run on Firefox (the rect-FLIP fallbacks here) needs to either bypass it or replicate the small section-specific guards inline.
+- `prefetchSteamGameBackdrop` was missing `fetchPriority="high"`; matched to the LoL pattern in 2.3c.
+
+**Original sub-chunks (now archived):** 2.3a (route restructure), 2.3b (SlidePanel wrap), 2.3c (library list integration), 2.3d (hover-preview gating), 2.3e (tests — deferred), 2.3f (one-level-of-glass).
+
+---
+
+#### Original plan (preserved for reference)
+
+Inherits the architecture established in 2.1/2.2; the LoL frosted-tile + "one level of glass" convention ([docs/repo-conventions.md § Tile background](../../repo-conventions.md)) is in place and Steam tiles should pass `frosted` to their `CardShell` uses at the in-panel call sites.
 
 **Premise:** Steam library row click → game-detail panel. Same `SlidePanel` primitive as the LoL chunks (right-aligned `max-w-4xl`, non-modal, library peeks out on the left as ambient context). Current state to migrate: [routes/steam/game.$appid.tsx](../../../apps/web/src/routes/steam/game.$appid.tsx) is a full route page with its own header/back chrome; library lives at [routes/steam/library.tsx](../../../apps/web/src/routes/steam/library.tsx) (virtualized, [library-list-virtual.tsx](../../../apps/web/src/steam/library/library-list-virtual.tsx) + [library-grid-virtual.tsx](../../../apps/web/src/steam/library/library-grid-virtual.tsx)).
 
