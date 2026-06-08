@@ -432,6 +432,45 @@ p {
   }
 }
 
+/* biome-ignore lint/correctness/noUnknownMediaFeatureName: prefers-reduced-transparency is a real Media Queries Level 5 feature (Safari 17+, Chrome 118+, awaiting Firefox); Biome's allowlist hasn't caught up. */
+@media (prefers-reduced-transparency: reduce) {
+  /* Honour the user a11y opt-out — drop every backdrop-filter effect and
+     promote translucent card/popover/background tiers to solid surfaces so
+     the result stays legible without the blur. The site uses three frosted
+     recipes (panel internals, popovers, top nav) and one heavier chrome
+     recipe (sticky strips). All four collapse to solid here. See the
+     "One level of glass" rule in docs/repo-conventions.md §Architecture and
+     the prefers-reduced-transparency row in
+     ~/.claude/knowledge/frontend-2026/09-accessibility.md. */
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  [class*="bg-card/40"],
+  [class*="bg-card/50"],
+  [class*="bg-card/60"],
+  [class*="bg-card/70"],
+  [class*="bg-card/80"] {
+    background-color: var(--card) !important;
+  }
+
+  [class*="bg-popover/85"],
+  [class*="bg-popover/90"],
+  [class*="bg-popover/95"] {
+    background-color: var(--popover) !important;
+  }
+
+  [class*="bg-background/20"],
+  [class*="bg-background/50"],
+  [class*="bg-background/60"],
+  [class*="bg-background/85"] {
+    background-color: var(--background) !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
