@@ -36,15 +36,15 @@ import { m, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 // Roughly the time the hero's layout-spring (stiffness 170, damping 30)
-// takes to settle. The body (skeleton, error, full detail view) renders
-// immediately at a low opacity so the page never looks empty, then
-// blooms to full once the morph is in place — prevents the mid-flight
-// pop when cached data is available immediately while still hinting at
-// what's coming. VT browsers skip the gate (OLD snapshot freezes the
-// previous DOM until NEW is captured, so there's nothing to pop into);
-// the rect-morph fallback still needs it.
+// takes to settle. The body gates on `bodyReady` (true immediately on
+// VT browsers — the OLD snapshot covers the swap; false → flips at
+// MORPH_SETTLE_MS on non-VT browsers, where the rect-morph fallback is
+// running) so the skeleton holds across the morph window even when the
+// query already has data cached, preventing a mid-flight content swap.
+// No opacity wrapper around the body — see the comment at the body
+// `<div className="flex flex-col gap-6">` below for the backdrop-filter
+// reason.
 const MORPH_SETTLE_MS = 700;
-const BODY_HOLD_OPACITY = 0.6;
 
 const API_URL = "http://localhost:2010";
 
@@ -307,21 +307,17 @@ function MatchDetailPanel() {
           )}
         </div>
         {/* Sub-tabs live in the panel header (see `header` slot above);
-            this body just renders the active tab's content. */}
-        {/* When `bodyReady` is true at first render (VT-supporting browsers,
-            the common case), match `initial` to `animate` so Motion runs
-            no transition. Animating opacity from 0.6→1 creates a stacking
-            context that suppresses `backdrop-filter` painting in EVERY
-            descendant for the duration — that's the visible "frosted
-            components are transparent first, then suddenly blurred" pop.
-            The rect-morph fallback path (Safari, etc.) still needs the
-            settle gate, so we animate only when `bodyReady` starts false. */}
-        <m.div
-          initial={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
-          animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex flex-col gap-6"
-        >
+            this body just renders the active tab's content. `bodyReady`
+            gates skeleton-vs-real so the morph window stays clean, but
+            there is intentionally NO opacity wrapper here: any opacity < 1
+            on an ancestor creates a group-opacity stacking context and
+            flattens descendants into a single raster buffer, which kills
+            every descendant `backdrop-filter` until the opacity reaches 1.
+            That was the "transparent first, then suddenly frosted" pop the
+            user reported. The skeleton swap below is enough visual cover
+            for the rect-morph fallback window on non-VT browsers; the dim
+            was redundant masking. */}
+        <div className="flex flex-col gap-6">
           {!bodyReady || detail.isPending ? (
             // Hold the skeleton until the morph is done even if the query
             // already has data cached — swapping to the full detail view
@@ -337,7 +333,7 @@ function MatchDetailPanel() {
           ) : detail.data ? (
             <Outlet />
           ) : null}
-        </m.div>
+        </div>
       </div>
     </SlidePanel>
   );

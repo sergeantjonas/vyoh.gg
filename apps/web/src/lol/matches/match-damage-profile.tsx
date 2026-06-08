@@ -4,9 +4,14 @@ import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
+// Y-only entrance — no opacity animation. The section body is a frosted
+// (bg-card/60 backdrop-blur-sm) card; animating opacity on this ancestor
+// would flatten the subtree into a single buffer and suppress the
+// backdrop-filter until opacity reaches 1, causing the "transparent first,
+// then suddenly frosted" pop. See [[ancestor-opacity-suppresses-backdrop-filter]].
 const springIn = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
+  initial: { y: 8 },
+  animate: { y: 0 },
   transition: { type: "spring", stiffness: 280, damping: 28, delay: 0.28 },
 } as const;
 

@@ -7,7 +7,6 @@ import { Sparkline } from "@/components/ui/sparkline";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import {
@@ -61,16 +60,6 @@ import {
   Tooltip,
   XAxis,
 } from "recharts";
-
-// Mirror of MORPH_SETTLE_MS in the match-detail layout — gates body content
-// behind the hero's layout-spring (stiffness 170, damping 30) settle time so
-// the rect-morph fallback finishes before the rest of the page fades in.
-// On VT-supporting browsers the gate is skipped entirely: the OLD snapshot
-// freezes the previous DOM until the NEW snapshot is ready, so the body
-// content has already painted by the time the user sees real DOM — keeping
-// the gate would just dim the page for ~380 ms after the morph finishes.
-const MORPH_SETTLE_MS = 700;
-const BODY_HOLD_OPACITY = 0.6;
 
 // API origin for the per-route OG image endpoint. Matches the constant in
 // the match-detail route — kept local rather than imported so the head()
@@ -239,18 +228,6 @@ function ChampionDetailPage() {
   // and pass it explicitly.
   const [panelScrollEl, setPanelScrollEl] = useState<HTMLElement | null>(null);
   const [stripVisible, heroRef] = useHeroScrolledPast(panelScrollEl);
-
-  // Body-settle gate — render the rest of the page at low opacity while the
-  // hero morph runs so swapping in cached content mid-flight doesn't visually
-  // pop. Mirrors match-detail layout. VT browsers paint the body behind the
-  // frozen OLD snapshot and skip the gate; the rect-morph fallback still
-  // needs it.
-  const [bodyReady, setBodyReady] = useState(() => supportsViewTransitions());
-  useEffect(() => {
-    if (supportsViewTransitions()) return;
-    const id = window.setTimeout(() => setBodyReady(true), MORPH_SETTLE_MS);
-    return () => window.clearTimeout(id);
-  }, []);
 
   const navigate = useNavigate();
   const { activeChampion, setActiveChampion } = useActiveChampion();
@@ -486,12 +463,16 @@ function ChampionDetailPage() {
           </m.div>
         </div>
 
-        <m.div
-          initial={{ opacity: BODY_HOLD_OPACITY }}
-          animate={{ opacity: bodyReady ? 1 : BODY_HOLD_OPACITY }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex flex-col gap-6"
-        >
+        {/* No opacity wrapper here — any opacity < 1 on an ancestor creates
+            a group-opacity stacking context and flattens descendants into a
+            single raster buffer, which kills every descendant
+            `backdrop-filter` until opacity reaches 1. That was the "frosted
+            components are transparent first, then suddenly blurred" pop on
+            the champion-detail panel. The body just renders content
+            directly — there's no skeleton-vs-real swap here (unlike
+            match-detail), so the prior `bodyReady` gate was unnecessary on
+            top of the dim and was removed alongside the wrapper. */}
+        <div className="flex flex-col gap-6">
           {/* Per-game averages */}
           <m.div
             initial={{ opacity: 0, y: 6 }}
@@ -826,7 +807,7 @@ function ChampionDetailPage() {
           <TrendDeathMatchupHeatmap current={champMatches} />
           <TrendTimeHeatmap current={champMatches} />
           <TrendTiltIndicator current={champMatches} previous={[]} />
-        </m.div>
+        </div>
       </div>
     </SlidePanel>
   );
