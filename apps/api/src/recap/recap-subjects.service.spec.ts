@@ -568,7 +568,7 @@ describe("RecapSubjectsService.getChapters", () => {
   });
 
   describe("Steam moment ↔ steam-subject dedup", () => {
-    it("suppresses the steam-subject row when the same appid surfaces as a steam-moment", async () => {
+    it("suppresses the steam-subject row when the same appid surfaces as a FIRST_TIME_GAME", async () => {
       // A freshly-added game with hours of recent play would qualify for
       // both: steam-subject ("Playing lately") AND steam-moment
       // (FIRST_TIME_GAME). The moment is the more interesting framing —
@@ -633,6 +633,73 @@ describe("RecapSubjectsService.getChapters", () => {
       // Only the steam-moment survives — the steam-subject for the same
       // appid was dropped before scoring.
       expect(chapters.filter((c) => c.kind === "steam-subject")).toHaveLength(0);
+      expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(1);
+    });
+
+    it("keeps the steam-subject row when the same appid surfaces only as an ACHIEVEMENT_CLUSTER", async () => {
+      // An ACHIEVEMENT_CLUSTER is a complementary fact ("you binged 5 in
+      // one sitting"), not a substitute framing for "Playing lately".
+      // Stripping the subject in that case sent the prominent chapter slot
+      // to a less-played game while the actually-active game only appeared
+      // as one of the small Highlights tiles — the bug this carve-out
+      // fixes. Both the subject AND the cluster moment should survive for
+      // the same appid.
+      const ownedGames = {
+        getOwnedGames: vi.fn().mockResolvedValue(
+          makeOwnedGames([
+            makeOwnedGame({
+              appid: 2050650,
+              name: "Resident Evil 4",
+              playtime2WeeksMinutes: 60 * 8,
+              rtimeLastPlayedAt: NOW.toISOString(),
+            }),
+          ])
+        ),
+      } as unknown as SteamOwnedGamesService;
+      const prisma = {
+        steamPlayerUnlock: {
+          groupBy: vi
+            .fn()
+            .mockImplementation((args: { where?: unknown }) =>
+              Promise.resolve(
+                args.where
+                  ? [{ appid: 2050650, _count: { apiName: 5 } }]
+                  : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
+              )
+            ),
+        },
+      } as unknown as PrismaService;
+      const lolMoments = {
+        detectAll: vi.fn().mockResolvedValue([]),
+      } as unknown as LolMomentsService;
+      const steamMoments = {
+        detectAll: vi.fn().mockResolvedValue([
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-cluster-2050650",
+            momentType: "ACHIEVEMENT_CLUSTER",
+            appid: 2050650,
+            name: "Resident Evil 4",
+            baseSignal: 20,
+            daysSince: 1,
+            cluster: {
+              unlockCount: 5,
+              spanHours: 6,
+              capUnlockedAt: NOW.toISOString(),
+              unlockNames: ["A", "B", "C", "D", "E"],
+            },
+          },
+        ]),
+      } as unknown as SteamMomentsService;
+      const service = new RecapSubjectsService(
+        ownedGames,
+        prisma,
+        lolMoments,
+        steamMoments
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.filter((c) => c.kind === "steam-subject")).toHaveLength(1);
       expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(1);
     });
   });

@@ -68,22 +68,31 @@ export class RecapSubjectsService {
         this.steamMoments.detectAll(now),
       ]);
 
-    // Steam-moment ↔ steam-subject dedup. A freshly-added game with hours
-    // of recent play would otherwise fire as BOTH a FIRST_TIME_GAME moment
-    // AND a "Playing lately" steam-subject, surfacing the same appid in
-    // two adjacent chapters with conflicting editorial registers. The
-    // moment is the more interesting framing — drop the matching subject
-    // candidate (and any dormant top-up row, handled below) so each appid
-    // appears at most once across the Steam blocks. This runs PRE-
-    // selection so the steam-subject cap doesn't get burned on a row
-    // that's about to be dropped.
-    const steamMomentAppids = new Set(
+    // Steam-moment ↔ steam-subject dedup, momentType-scoped. FIRST_TIME_GAME
+    // and "Playing lately" overlap by construction — a freshly-added game
+    // with hours of recent play would fire both, surfacing the same appid
+    // in two adjacent chapters with conflicting editorial registers, so the
+    // moment wins and the subject candidate is dropped. ACHIEVEMENT_CLUSTER
+    // is different: a binge day on a recently-played game is a COMPLEMENTARY
+    // fact ("you also unlocked 5 in one sitting"), not a substitute framing.
+    // Stripping the subject in that case sends the prominent chapter slot to
+    // a less-played game while the actually-active game only appears as one
+    // of up to 3 small Highlights tiles — which reads as a bug to anyone
+    // looking at the page. So narrow the dedup to FIRST_TIME_GAME only.
+    // Runs PRE-selection so the steam-subject cap doesn't get burned on a
+    // row that's about to be dropped.
+    const allSteamMomentAppids = new Set(
       steamMomentCandidates
         .filter((c) => c.kind === "steam-moment")
         .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
     );
+    const firstTimeMomentAppids = new Set(
+      steamMomentCandidates
+        .filter((c) => c.kind === "steam-moment" && c.momentType === "FIRST_TIME_GAME")
+        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
+    );
     const filteredSteamCandidates = steamCandidates.filter(
-      (c) => c.kind !== "steam-subject" || !steamMomentAppids.has(c.appid)
+      (c) => c.kind !== "steam-subject" || !firstTimeMomentAppids.has(c.appid)
     );
 
     const active = selectChapters([
@@ -105,12 +114,12 @@ export class RecapSubjectsService {
     const activeSteamSubjectAppids = new Set(
       active.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
     );
-    // Dormant top-up exclusion needs both: already-active steam-subject
-    // appids (the canonical case) AND steam-moment appids (so a game that
-    // surfaced as a FIRST_TIME_GAME doesn't reappear lower down as a
-    // dormant "Earlier this year on…" row — same appid, three editorial
-    // registers in one page would read as a bug).
-    const excludeAppids = new Set([...activeSteamSubjectAppids, ...steamMomentAppids]);
+    // Dormant top-up exclusion uses the FULL steam-moment set (both
+    // momentTypes), not just FIRST_TIME_GAME. A game with a recent
+    // ACHIEVEMENT_CLUSTER has very recent activity by definition, so it
+    // should never reappear lower down as a dormant "Earlier this year on…"
+    // row — that framing fights the cluster's "this week" register.
+    const excludeAppids = new Set([...activeSteamSubjectAppids, ...allSteamMomentAppids]);
     const steamSlack = STEAM_SUBJECT_HARD_CAP - activeSteamSubjectAppids.size;
     const dormant =
       steamSlack > 0
