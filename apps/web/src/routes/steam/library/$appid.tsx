@@ -21,7 +21,6 @@ import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
 import { TimeTo100Card } from "@/steam/game/time-to-100-card";
 import { useActiveGame } from "@/steam/library/active-game-context";
-import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatPlaytime } from "@vyoh/shared";
@@ -76,16 +75,17 @@ function SteamGamePanel() {
     if (activeGame !== appid) setActiveGame(appid);
   }, [activeGame, appid, setActiveGame]);
 
-  // Swap the page backdrop to this game's art while the user is on the
-  // detail panel; cleared on unmount so we fade back to the profile backdrop.
-  // Claim by appid as soon as we have it — the page-background URL only
-  // needs the appid (+ `assetTimestamp` as cache-buster, when enrichment has
-  // run) and we want the fade to start before the library snapshot resolves.
-  useSteamGameBackdrop({
-    appid,
-    assetTimestamp: game?.assetTimestamp ?? null,
-    flipHero: game?.flipHero ?? false,
-  });
+  // Page-backdrop claim intentionally NOT made from the panel — same fix
+  // pattern as $championKey.tsx + $matchId.tsx. Swapping the page backdrop
+  // for the duration of the panel triggers a backdrop transition (the
+  // SteamProfileBackdrop's crossfade) that adds compositor work during the
+  // panel's open/close. The panel's own hero image inside the panel chrome
+  // already shows the game art — the page backdrop changing on top of that
+  // is redundant. Trade: the page background stays on the animated profile
+  // background while the panel is open, instead of swapping to the game's
+  // baked-in art. The theme-color cascade still follows the game's dominant
+  // hue via `useThemeColor` directly, save/restoring on unmount so the
+  // parent claim returns cleanly.
   useThemeColor(game?.dominantHex ?? undefined);
 
   // Tab title enrichment. The route's `head()` runs before the library
@@ -146,7 +146,7 @@ function SteamGamePanel() {
           {/* Game name fills the header where LoL panels render their sub-tab
               strip. Without it the header reads as empty chrome — the hero
               banner inside the panel body still owns the wordmark, but the
-              sticky header has space to do useful work once the user scrolls
+              sticky header has space to do useful work as the user scrolls
               past the hero. truncate keeps long titles inside the flex track
               when the share button slot is otherwise narrow. DialogPrimitive.
               Title in SlidePanel still owns the accessible dialog name. */}

@@ -13,6 +13,13 @@ export function useThemeColor(color: string | null | undefined): void {
     const root = document.documentElement;
     const meta = document.querySelector<HTMLMetaElement>(META_SELECTOR);
     const previousMeta = meta?.content;
+    // Capture the inline --theme-color (NOT the computed value — we only
+    // want to restore an explicit prior override, not the CSS fallback in
+    // index.css). Restoring on unmount lets a panel call this hook to
+    // override the page's claimed theme color for its lifetime, and the
+    // previously-claimed color comes back when the panel closes — without
+    // forcing the parent claimant to re-run any effect.
+    const previousVar = root.style.getPropertyValue("--theme-color");
 
     if (color) {
       root.style.setProperty("--theme-color", color);
@@ -22,7 +29,11 @@ export function useThemeColor(color: string | null | undefined): void {
     }
 
     return () => {
-      root.style.removeProperty("--theme-color");
+      if (previousVar) {
+        root.style.setProperty("--theme-color", previousVar);
+      } else {
+        root.style.removeProperty("--theme-color");
+      }
       if (meta && previousMeta !== undefined) meta.content = previousMeta;
     };
   }, [color]);

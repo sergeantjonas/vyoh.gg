@@ -6,6 +6,7 @@ import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { Sparkline } from "@/components/ui/sparkline";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
+import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
@@ -14,9 +15,9 @@ import {
   championHdSplashUrl,
 } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
-import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -93,9 +94,15 @@ function DeltaTile({
   const isZero = Math.abs(value) < 0.005;
   const positive = value > 0;
   return (
+    // Y-only entrance — opacity-animating this frosted element would suppress
+    // its own backdrop-filter until opacity reaches 1 (the tile flattens into
+    // a single offscreen buffer while opacity < 1, killing the filter and
+    // making the tile read as black over the panel chrome before "popping"
+    // into the splash on settle). Same fix pattern as 8dde234d.
+    // See [[ancestor-opacity-suppresses-backdrop-filter]].
     <m.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ y: 6 }}
+      animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
       className="flex flex-1 flex-col gap-1 rounded-lg border bg-card/60 p-4 backdrop-blur-sm"
     >
@@ -151,7 +158,17 @@ function ChampionDetailPage() {
     [data, ids]
   );
   const championName = useChampionName();
-  useSplashChampion(championKey);
+  // SplashProvider splash claim intentionally NOT made from the panel — that
+  // would trigger SplashProvider's AnimatePresence crossfade (~700ms with
+  // nested bg/fg img opacity animations + drift transform) every open/close,
+  // which Chrome handles less well than Firefox at this panel's layer
+  // density. The panel's own `chromeBackdropUrl` (below) carries the HD
+  // splash as a baked-in background image on the panel chrome — no claim
+  // needed for that. The theme-color cascade is decoupled: we drive it via
+  // `useThemeColor` directly with the champion's dominant hue, which
+  // save/restores the prior root-style value on unmount so the parent
+  // claimant's theme returns cleanly when the panel closes.
+  useThemeColor(championTheme(championKey).dominantHex);
   // Render the champion's splash as the panel chrome backdrop (heavily
   // darkened in CSS) so the panel carries the same splash atmosphere as
   // the global nav — see slide-panel.tsx `chromeBackdropUrl` for the

@@ -67,9 +67,15 @@ export function ChampionPatchHistory({
   const currentPatch = visible[visible.length - 1]?.patch;
 
   return (
+    // Y-only entrance — the per-patch tiles below are frosted
+    // (bg-card/60 backdrop-blur-sm) and an opacity-animating ancestor flattens
+    // them into a single offscreen buffer until opacity reaches 1, suppressing
+    // every descendant backdrop-filter and making the strip read as black-ish
+    // before "popping" into the splash. Same fix pattern as 8dde234d.
+    // See [[ancestor-opacity-suppresses-backdrop-filter]].
     <m.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ y: 6 }}
+      animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.07 }}
       className="flex flex-col gap-2"
     >

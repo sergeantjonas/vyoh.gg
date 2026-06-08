@@ -3,13 +3,14 @@ import { SlidePanel } from "@/_shared/slide-panel";
 import { Button } from "@/components/ui/button";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
+import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
-import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
+import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { ChampionStickyStrip } from "@/lol/_shared/ui/champion-sticky-strip";
 import { useChampionName } from "@/lol/champions/use-champions";
@@ -126,7 +127,16 @@ function MatchDetailPanel() {
   // again once detail.data resolves — reads as a 700ms flicker on top of
   // the panel-open transition.
   const splashChampion = myParticipant?.championName ?? cachedSummary?.champion;
-  useSplashChampion(splashChampion);
+  // SplashProvider splash claim intentionally NOT made from the panel — see
+  // $championKey.tsx for the full rationale (SplashProvider's 700ms
+  // multi-layer AnimatePresence crossfade is expensive enough that Chrome
+  // visibly drops frames during the panel's open/close, and Firefox doesn't
+  // because its compositor handles it). The panel's own `chromeBackdropUrl`
+  // (below) carries the HD splash as a baked-in background image on the
+  // panel chrome — no claim needed for that. Theme cascade is preserved via
+  // `useThemeColor` directly so the global theme-color token follows the
+  // panel's hero champion while the panel is open.
+  useThemeColor(splashChampion ? championTheme(splashChampion).dominantHex : null);
   // Reuse the champion splash as the panel chrome backdrop so the panel
   // carries the same atmospheric energy as the global nav. Use the HD
   // variant (1920px wiki-served raw) rather than `backdrop` (smaller crop

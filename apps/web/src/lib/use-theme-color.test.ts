@@ -33,11 +33,26 @@ describe("useThemeColor", () => {
     expect(meta?.content).toBe("#ff8800");
   });
 
-  it("clears --theme-color on unmount", () => {
+  it("clears --theme-color on unmount when no prior inline value existed", () => {
     const { unmount } = renderHook(() => useThemeColor("#abc"));
     expect(document.documentElement.style.getPropertyValue("--theme-color")).toBe("#abc");
     unmount();
     expect(document.documentElement.style.getPropertyValue("--theme-color")).toBe("");
+  });
+
+  it("restores the previous --theme-color inline value on unmount", () => {
+    // Mimic an outer claimant (e.g. SplashProvider or a parent route) that
+    // already set the root-style override; the inner hook should put it
+    // back when it unmounts instead of leaving the variable empty.
+    document.documentElement.style.setProperty("--theme-color", "#aabbcc");
+    const { unmount } = renderHook(() => useThemeColor("#ddeeff"));
+    expect(document.documentElement.style.getPropertyValue("--theme-color")).toBe(
+      "#ddeeff"
+    );
+    unmount();
+    expect(document.documentElement.style.getPropertyValue("--theme-color")).toBe(
+      "#aabbcc"
+    );
   });
 
   it("restores the previous meta content on unmount", () => {
