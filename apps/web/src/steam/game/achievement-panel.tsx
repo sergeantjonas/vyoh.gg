@@ -92,10 +92,12 @@ export function AchievementPanel({
 
   if (isPending) {
     return (
-      <section className={cn(
-        "flex flex-col gap-3 rounded-lg border p-4",
-        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
-      )}>
+      <section
+        className={cn(
+          "flex flex-col gap-3 rounded-lg border p-4",
+          frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+        )}
+      >
         <div className="flex items-baseline justify-between gap-4">
           <div className="h-3 w-32 animate-pulse rounded bg-muted" />
           <div className="h-3 w-20 animate-pulse rounded bg-muted" />
@@ -123,10 +125,12 @@ export function AchievementPanel({
   // added game before the schema poller has caught it.
   if (data.achievements.length === 0) {
     return (
-      <section className={cn(
-        "flex flex-col gap-3 rounded-lg border p-4",
-        frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
-      )}>
+      <section
+        className={cn(
+          "flex flex-col gap-3 rounded-lg border p-4",
+          frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+        )}
+      >
         <CardTitle as="h2">Achievements</CardTitle>
         <p className="text-sm text-muted-foreground">
           Schema is in flight. Unlocks land with the next sync.
@@ -163,10 +167,12 @@ export function AchievementPanel({
   const remaining = filtered.length - PREVIEW_COUNT;
 
   return (
-    <section className={cn(
+    <section
+      className={cn(
         "flex flex-col gap-3 rounded-lg border p-4",
         frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
-      )}>
+      )}
+    >
       <header className="flex items-baseline justify-between gap-4">
         <CardTitle as="h2">Achievements</CardTitle>
         <p className="text-xs tabular-nums text-muted-foreground">

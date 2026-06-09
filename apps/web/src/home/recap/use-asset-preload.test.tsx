@@ -46,7 +46,6 @@ class FakeIntersectionObserver implements Observer {
 }
 
 class FakeImage {
-  // biome-ignore lint/suspicious/noExplicitAny: simple capture-on-assign stub
   set src(value: string) {
     createdImages.push({ src: value });
   }

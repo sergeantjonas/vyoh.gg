@@ -127,10 +127,7 @@ function computeVerdict({
   };
 }
 
-export function LastProgressedCard({
-  appid,
-  frosted = false,
-}: LastProgressedCardProps) {
+export function LastProgressedCard({ appid, frosted = false }: LastProgressedCardProps) {
   // Both queries share their cache keys with the existing consumers on the
   // page (library list, AchievementPanel), so this card adds no wire fetches.
   const owned = useSteamOwnedGames();
