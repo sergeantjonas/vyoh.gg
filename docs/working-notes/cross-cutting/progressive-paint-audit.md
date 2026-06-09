@@ -293,6 +293,23 @@ The 1734–1791 ms close-phase raster is not the panel internals re-rastering �
 4. **Chunk 4 (Steam panel + recap additive frosted passes)** — adds the visual identity to the two surfaces that don't have it yet, designed cost-aware from day one.
 5. **Chunks 1 + 5** — re-evaluate only if a regression surfaces; otherwise park.
 
+### Chunk 3 — Per-row layer-promotion sweep (attempted, hit a measurement floor)
+
+Targeted lol-champion-panel `03-panel-close` `rasterTaskTotalMs` (baseline 1734–1791 ms, the worst residual). Two cost-preserving levers were attempted on the row class composition. **Both regressed the metric — the chunk reaches a measurement floor without further architectural change.**
+
+**Attempt 1: drop `transformStyle: "preserve-3d"` from `CardTilt`.** Hypothesis: each row's 3D rendering context forces a per-row compositor layer, ~150 rows × layer cost. The card chrome has no nested 3D children, so dropping it should preserve the tilt visual (rotateX/Y still rotate the element as a unit). Result on 4-run panel-close median: layer count 5–6 → 13 consistently (+7), raster ~1750 ms → ~1980 ms (+13%). Reverted. Hypothesis was backwards: `preserve-3d` was helping by isolating the row's compositor state for clean teardown; without it, more layers persisted post-close.
+
+**Attempt 2: skip the router-default VT on close-nav (`viewTransition: false`).** Hypothesis from the raster-trace audit: layer 9 (the champion-list content layer, 222 unique tiles × ~8 raster passes = 3375 ms total raster) was being continuously re-painted because the router VT fires ~150 `::view-transition-group(champion-${alias})` morphs on close — each row's `m.li` carries an always-on `view-transition-name`, and on close-nav those names exist in both OLD and NEW snapshots, generating a snapshot pair per row even though positions are identical. The intra-section CSS rule already disables root + vt-main fade, so skipping VT entirely should preserve the visual exactly. Applied to all three panel routes (LoL champion, LoL match, Steam game). Result on 4-run panel-close median: raster ~1750 ms → ~1934 ms (+11%). Reverted. The router VT was actually load-bearing for Chrome's tile management — it retains snapshots and crossfades efficiently; without it, Chrome falls back to full re-rasterization of every newly-visible area, which costs more.
+
+**Findings (load-bearing for future panel work):**
+
+- **The router-default VT on panel-close is performance-positive, not negative.** Snapshot-based crossfade is cheaper than naked re-raster on the same surface area. Do not disable it. The intra-section CSS rule disables visible fade animation; the snapshot pairs themselves are kept for tile efficiency.
+- **`transformStyle: "preserve-3d"` on per-row tilt wrappers is performance-positive.** It isolates the row's compositor state and lets Chrome tear it down cleanly. Do not drop it as a perf measure on row-shaped components.
+- **The 1700–1900 ms panel-close raster is GPU work, not user-felt jank.** 0 dropped frames across every run, 0 long tasks. The metric measures cumulative GPU-thread raster cost spread across 4+ threads in a ~750 ms wall window — it surfaces energy/heat cost, not perceived smoothness. With the foundation chunks landed and per-row composition not yielding to further levers, this metric is at a measurement floor for the current architecture.
+- **Re-frame Chunk 3 as monitor-only.** Document the 1750 ms floor as the bar to beat; any future regression that pushes it past ~2200 ms (or introduces dropped frames) triggers a fresh investigation. Don't attempt further levers without new evidence of a load-bearing source.
+
+The trace-level audit that surfaced Layer 9 as the single dominant raster surface (3375 ms cumulative across 1750 events, ~93% of all raster time in the panel-close window) remains the most useful diagnostic shape — when a future panel scenario shows a similar single-layer dominance, repeat the trace inspection before reaching for class-composition levers.
+
 ### Post-foundation baseline run directories
 
 Latest probe runs covering each scenario (gitignored — local-only):
