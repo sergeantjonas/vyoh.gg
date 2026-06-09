@@ -96,3 +96,30 @@ Kept on disk for direct `--compare` references (gitignored — local-only):
 - `tools/perf-probe/runs/recap-chromium-2026-06-09_21-06-53-620Z/`
 
 If these get cleaned up, re-baseline with the same scenarios before declaring a delta on a follow-up chunk.
+
+## Chunk results
+
+### Chunk 0c — fetchpriority on above-fold hero splashes (2026-06-09, shipped)
+
+Added `fetchPriority="high"` to three above-fold hero image elements (the LCP candidates on routes that render them):
+
+- [apps/web/src/lol/profile/identity-hero.tsx:156-167](../../../apps/web/src/lol/profile/identity-hero.tsx#L156-L167) — LCP target on `/lol/$slug/`.
+- [apps/web/src/steam/profile/steam-identity-hero.tsx:159-170](../../../apps/web/src/steam/profile/steam-identity-hero.tsx#L159-L170) — LCP target on `/steam`.
+- [apps/web/src/steam/game/game-panel-hero.tsx:131-145](../../../apps/web/src/steam/game/game-panel-hero.tsx#L131-L145) — LCP target on `/steam/game/$appid` (also added `decoding="async"` which was missing).
+
+Skipped: rank emblems (size-14/16, too small to compete with hero splash), Steam stat-band logos (h-9, decorative), recap-champion + lol-moment-beat (below-fold on `/`, opacity 0.6 ambient styling — not real LCP candidates), `ChampionSplashLayer` images (intentionally `fetchPriority="low"` because they're 0.2-opacity ambient washes; the HD variant is preloaded via `new Image()` with `fetchPriority="high"` in `splash-backdrop.tsx`).
+
+**Measured impact on lol-overview (chromium):**
+
+| Metric | Baseline | After 0c | Δ |
+|---|--:|--:|--:|
+| FCP | 160 ms | 108 ms | **−52 ms (−33%)** |
+| LCP | 1692 ms | 1196 ms | **−496 ms (−29%)** |
+| Layers (01-load) | 50 | 38 | −12 |
+| Raster (01-load) | 72 ms | 58 ms | −14 ms |
+| Dropped frames | 0 | 0 | 0 |
+| Long tasks (01-load) | 4 | 2 | −2 |
+
+LCP moved firmly into Web Vitals "good" (<2500ms). Single-file diff per affected component — single-line `fetchPriority="high"` add (plus one `decoding="async"` add on game-panel-hero).
+
+**Other scenarios:** No regression on routes that don't render these heroes. The lol-champion-panel scenario showed +300ms LCP delta but the route renders only `<Outlet />` from the section root with no hero — pure run-to-run variance (panel-open phase variance is ~10× higher than other phases due to Motion exit + Suspense interleaving).

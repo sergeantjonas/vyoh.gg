@@ -161,6 +161,7 @@ export function SteamIdentityHero() {
                 alt=""
                 loading="eager"
                 decoding="async"
+                fetchPriority="high"
                 onLoad={() => setHeroLoaded(true)}
                 className={cn(
                   "size-full object-cover object-[60%_30%] transition-opacity duration-700",

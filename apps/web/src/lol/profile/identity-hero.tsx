@@ -158,6 +158,7 @@ export function LolIdentityHero({
                 alt=""
                 loading="eager"
                 decoding="async"
+                fetchPriority="high"
                 onLoad={() => setSplashLoaded(true)}
                 className={cn(
                   "size-full object-cover object-[72%_22%] transition-opacity duration-700",

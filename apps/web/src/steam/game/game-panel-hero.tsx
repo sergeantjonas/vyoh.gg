@@ -132,6 +132,8 @@ export function GamePanelHero({
           src={steamLibraryHeroUrl(appid, game?.assetTimestamp, game?.flipHero)}
           alt=""
           loading="eager"
+          decoding="async"
+          fetchPriority="high"
           onLoad={heroHandlers.onLoad}
           onError={heroHandlers.onError}
           className={cn(
