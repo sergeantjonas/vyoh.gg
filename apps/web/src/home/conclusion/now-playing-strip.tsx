@@ -1,9 +1,10 @@
 import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useLiveGame } from "@/lol/matches/use-live-match";
+import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamPlayerState } from "@/steam/use-player-state";
-import type { LiveMatch, SteamPlayerState } from "@vyoh/shared";
-import { queueLabel } from "@vyoh/shared";
+import type { LiveMatch, SteamOwnedGames, SteamPlayerState } from "@vyoh/shared";
+import { isSteamGameAppType, queueLabel } from "@vyoh/shared";
 
 // PresenceMounts already runs the live-game + steam-player-state pollers at
 // the root; we just READ those queries here. No `refetchIntervalMs` on
@@ -29,7 +30,8 @@ interface ResolvedStream {
 
 function resolveStream(
   liveGame: LiveMatch | null | undefined,
-  steam: SteamPlayerState | undefined
+  steam: SteamPlayerState | undefined,
+  owned: SteamOwnedGames | undefined
 ): ResolvedStream | null {
   if (liveGame) {
     return {
@@ -39,6 +41,11 @@ function resolveStream(
     };
   }
   if (steam?.currentGame) {
+    // Suppress non-game live apps (Wallpaper Engine, 3DMark) so the chip only
+    // ever reads on real game activity. Unmatched appids (family-share, demos)
+    // are assumed to be games — null appType falls under "game" by convention.
+    const ownedMatch = owned?.games?.find((g) => g.appid === steam.currentGame?.appid);
+    if (!isSteamGameAppType(ownedMatch?.appType ?? null)) return null;
     return {
       kind: "steam",
       primary: steam.currentGame.name,
@@ -75,7 +82,8 @@ export function NowPlayingStrip() {
   const { account } = usePrimaryAccount();
   const liveQuery = useLiveGame(account);
   const steamQuery = useSteamPlayerState();
-  const stream = resolveStream(liveQuery.data, steamQuery.data);
+  const ownedQuery = useSteamOwnedGames();
+  const stream = resolveStream(liveQuery.data, steamQuery.data, ownedQuery.data);
 
   if (!stream) return null;
 

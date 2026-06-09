@@ -148,6 +148,27 @@ describe("SteamIdentityHero", () => {
     expect(screen.getByText(/Now playing Team Fortress 2/)).toBeTruthy();
   });
 
+  it("suppresses the now-playing line when the live app is a utility (appType=6)", () => {
+    // Wallpaper Engine is appType=6 (Application). Looking up the live appid
+    // against owned-games should classify it as a non-game; the chip falls
+    // back to the persona-state presence line.
+    playerStateMock.mockReturnValue(
+      playerState({
+        personaState: "online",
+        currentGame: { appid: 431960, name: "Wallpaper Engine" },
+      })
+    );
+    summaryMock.mockReturnValue(summary({ personaState: "online" }));
+    ownedMock.mockReturnValue({
+      steamId: "76561198020053778",
+      games: [{ appid: 431960, name: "Wallpaper Engine", appType: 6 }],
+      fetchedAt: new Date().toISOString(),
+    } as unknown as SteamOwnedGames);
+    renderHero();
+    expect(screen.queryByText(/Now playing Wallpaper Engine/)).toBeNull();
+    expect(screen.getByText("Online")).toBeTruthy();
+  });
+
   it("uses the current game's hero art as the backdrop when in-game", () => {
     playerStateMock.mockReturnValue(
       playerState({ currentGame: { appid: 440, name: "Team Fortress 2" } })

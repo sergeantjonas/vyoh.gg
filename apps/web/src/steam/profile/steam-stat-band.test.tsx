@@ -178,4 +178,48 @@ describe("SteamStatBand", () => {
     render(<SteamStatBand />);
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
+
+  it("skips non-game utilities when picking the recently-played title", () => {
+    // Wallpaper Engine is the most-recently-launched owned app but appType=6
+    // (Application) — should not show up in the recently-played cell. Falls
+    // through to the next game (Balatro).
+    const oneHourAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString();
+    ownedMock.mockReturnValue({
+      steamId: "76561198020053778",
+      games: [
+        {
+          appid: 1,
+          name: "ELDEN RING NIGHTREIGN",
+          assetTimestamp: 99,
+          playtimeForeverMinutes: 26040,
+          playtime2WeeksMinutes: 480,
+          rtimeLastPlayedAt: twoDaysAgo,
+          appType: 0,
+        },
+        {
+          appid: 431960,
+          name: "Wallpaper Engine",
+          assetTimestamp: 55,
+          playtimeForeverMinutes: 600,
+          playtime2WeeksMinutes: 60,
+          rtimeLastPlayedAt: oneHourAgo,
+          appType: 6,
+        },
+        {
+          appid: 4,
+          name: "Balatro",
+          assetTimestamp: 77,
+          playtimeForeverMinutes: 480,
+          playtime2WeeksMinutes: 120,
+          rtimeLastPlayedAt: twoDaysAgo,
+          appType: 0,
+        },
+      ],
+      fetchedAt: "2026-05-30T00:00:00.000Z",
+    });
+    const { container } = render(<SteamStatBand />);
+    expect(container.querySelector('img[alt="Wallpaper Engine"]')).toBeNull();
+    expect(container.querySelector('img[alt="Balatro"]')).toBeTruthy();
+  });
 });

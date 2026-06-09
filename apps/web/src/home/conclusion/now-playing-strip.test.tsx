@@ -1,14 +1,21 @@
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useLiveGame } from "@/lol/matches/use-live-match";
+import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamPlayerState } from "@/steam/use-player-state";
 import { render, screen } from "@testing-library/react";
-import type { LiveMatch, LolAccountWithSummary, SteamPlayerState } from "@vyoh/shared";
+import type {
+  LiveMatch,
+  LolAccountWithSummary,
+  SteamOwnedGames,
+  SteamPlayerState,
+} from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NowPlayingStrip } from "./now-playing-strip";
 
 vi.mock("@/home/use-primary-account", () => ({ usePrimaryAccount: vi.fn() }));
 vi.mock("@/lol/matches/use-live-match", () => ({ useLiveGame: vi.fn() }));
 vi.mock("@/steam/use-player-state", () => ({ useSteamPlayerState: vi.fn() }));
+vi.mock("@/steam/use-owned-games", () => ({ useSteamOwnedGames: vi.fn() }));
 
 const account: LolAccountWithSummary = {
   slug: "ahri",
@@ -24,6 +31,7 @@ const account: LolAccountWithSummary = {
 function mockState(opts: {
   liveGame?: LiveMatch | null;
   steam?: SteamPlayerState;
+  owned?: SteamOwnedGames;
 }) {
   vi.mocked(usePrimaryAccount).mockReturnValue({ account, isPending: false });
   vi.mocked(useLiveGame).mockReturnValue({
@@ -32,6 +40,9 @@ function mockState(opts: {
   vi.mocked(useSteamPlayerState).mockReturnValue({
     data: opts.steam,
   } as unknown as ReturnType<typeof useSteamPlayerState>);
+  vi.mocked(useSteamOwnedGames).mockReturnValue({
+    data: opts.owned,
+  } as unknown as ReturnType<typeof useSteamOwnedGames>);
 }
 
 const liveGame: LiveMatch = {
@@ -69,6 +80,7 @@ afterEach(() => {
   vi.mocked(usePrimaryAccount).mockReset();
   vi.mocked(useLiveGame).mockReset();
   vi.mocked(useSteamPlayerState).mockReset();
+  vi.mocked(useSteamOwnedGames).mockReset();
 });
 
 describe("NowPlayingStrip", () => {
@@ -111,6 +123,25 @@ describe("NowPlayingStrip", () => {
 
   it("renders nothing when Steam reports null currentGame", () => {
     mockState({ steam: { ...steamPlaying, currentGame: null } });
+    const { container } = render(<NowPlayingStrip />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("suppresses the chip when the Steam current app is a utility (appType=6)", () => {
+    // Wallpaper Engine is appType=6 (Application), not a Game. The owned-games
+    // catalogue is the source of truth — looking up the live appid there lets
+    // us tell utilities apart from real game activity.
+    mockState({
+      steam: {
+        ...steamPlaying,
+        currentGame: { appid: 431960, name: "Wallpaper Engine" },
+      },
+      owned: {
+        steamId: "76561",
+        games: [{ appid: 431960, name: "Wallpaper Engine", appType: 6 }],
+        fetchedAt: "2026-06-09T00:00:00Z",
+      } as unknown as SteamOwnedGames,
+    });
     const { container } = render(<NowPlayingStrip />);
     expect(container.firstChild).toBeNull();
   });

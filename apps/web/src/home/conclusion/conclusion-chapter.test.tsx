@@ -63,6 +63,9 @@ vi.mock("@/lol/matches/use-live-match", () => ({
 vi.mock("@/steam/use-player-state", () => ({
   useSteamPlayerState: vi.fn(() => ({ data: undefined })),
 }));
+vi.mock("@/steam/use-owned-games", () => ({
+  useSteamOwnedGames: vi.fn(() => ({ data: undefined })),
+}));
 vi.mock("@/lol/profile/use-rank-history", () => ({
   useRankHistory: vi.fn(() => ({ data: undefined })),
 }));

@@ -4,7 +4,7 @@ import { steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamPlayerState } from "@/steam/use-player-state";
 import { useSteamSummary } from "@/steam/use-steam-summary";
-import { formatTimeAgo } from "@vyoh/shared";
+import { formatTimeAgo, isSteamGameAppType } from "@vyoh/shared";
 import {
   m,
   useMotionValue,
@@ -96,8 +96,17 @@ export function SteamIdentityHero() {
   // Backdrop subject: live current game wins; else the most-played owned title
   // (owned games arrive sorted by lifetime playtime descending, so [0] is the
   // defining game). Null until either resolves — the hero renders on the
-  // ambient backdrop alone in the meantime.
-  const liveGame = playerState?.currentGame ?? null;
+  // ambient backdrop alone in the meantime. Non-game live apps (Wallpaper
+  // Engine, 3DMark) are suppressed so "Now playing" and the hero subject only
+  // ever read on real game activity.
+  const rawLiveGame = playerState?.currentGame ?? null;
+  const liveOwnedMatch = rawLiveGame
+    ? (owned?.games?.find((g) => g.appid === rawLiveGame.appid) ?? null)
+    : null;
+  const liveGame =
+    rawLiveGame && isSteamGameAppType(liveOwnedMatch?.appType ?? null)
+      ? rawLiveGame
+      : null;
   const topGame = owned?.games?.[0] ?? null;
   const heroAppId = liveGame?.appid ?? topGame?.appid ?? null;
   // assetTimestamp only known for owned titles; the live game may not be owned

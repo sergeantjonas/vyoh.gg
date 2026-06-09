@@ -1,7 +1,7 @@
 import { steamLibraryLogoUrl } from "@/steam/_shared/steam-image";
 import { useSteamLibrarySummary } from "@/steam/use-library-summary";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
-import { formatPlaytime, formatTimeAgo } from "@vyoh/shared";
+import { formatPlaytime, formatTimeAgo, isSteamGameAppType } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 
@@ -229,10 +229,12 @@ export function SteamStatBand({ compact = false }: { compact?: boolean }) {
   // two game cells in the band carry independent signals. Falls through to
   // the most-recent-overall if the only recently-played title is also the
   // top-played one (a single-game library or a heavily focused player).
+  // Non-games (Wallpaper Engine, 3DMark) are excluded — the cell is for game
+  // activity, not utility launches.
   const recentGame = useMemo(() => {
     if (!owned?.games) return null;
     const played = owned.games
-      .filter((g) => g.rtimeLastPlayedAt != null)
+      .filter((g) => g.rtimeLastPlayedAt != null && isSteamGameAppType(g.appType))
       .sort(
         (a, b) =>
           // biome-ignore lint/style/noNonNullAssertion: filtered above

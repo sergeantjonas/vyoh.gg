@@ -164,3 +164,12 @@ export interface SteamOwnedGames {
   // poll has completed yet (first-deploy state).
   lastSyncedAt: string | null;
 }
+
+// Steam StoreItemType — 0 = Game, 6 = Application (Wallpaper Engine, 3DMark),
+// other values include Music/DLC. Unenriched rows (null/undefined) fall under
+// "game" so newly-added apps don't disappear from default views between the
+// owned-sync and enrichment. Used to keep utilities out of game-only surfaces
+// (recently-played cell, "Now playing" chips, hero backdrop subject).
+export function isSteamGameAppType(appType: number | null | undefined): boolean {
+  return appType == null || appType === 0;
+}
