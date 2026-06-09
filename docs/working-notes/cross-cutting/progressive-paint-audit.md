@@ -226,48 +226,72 @@ LCP variance on lol-overview: when the splash (~142K px²) wins LCP, it lands at
 
 ## Re-ranked Chunks 1–6 (after foundation)
 
-Original ordering assumed an unoptimised cold-load profile. With cold-load now half its original compositor cost, the priorities shift toward the residual hotspot (panel close-phase raster) and away from per-row optimisations on already-clean routes.
+Original ordering assumed an unoptimised cold-load profile. With cold-load now half its original compositor cost, the priorities shift toward the residual hotspot (panel-close raster on the LoL champion panel) and away from per-row optimisations on already-clean routes.
+
+**Standing rule for this queue:** improve the cost, don't strip the visual. Frosted tiles are part of the project's visual identity — especially on panels — and removing them is the last resort, not the first lever. For every cost reduction, exhaust the levers that preserve the aesthetic (lower blur radius, gate `backdrop-filter` to in-view via CV-auto, scope `will-change` to animation windows, merge layers via `contain: paint`, narrow transition targets, clear perpetual `will-change`) before proposing any visual change. If a specific subset eventually does demand a visual change, propose it with side-by-side screenshots and a per-tile cost number — never as a bulk delete. See [[feedback_perf_improvements_before_removals]] in auto-memory.
+
+### Re-baseline insight: where the panel-close raster cost actually lives
+
+The 1734–1791 ms close-phase raster is not the panel internals re-rastering — by close-phase those compositor layers are being *released*. The work is Chrome re-promoting and re-painting the **host route** (champion-table, ~150 rows) as it becomes visible again behind the receding panel. That reframes which chunk attacks which metric:
+
+- **Panel-open raster (709–929 ms)** is where panel-internal frosted-tile cost lives (Chunk 2).
+- **Panel-close raster (1734–1791 ms)** is where host-route per-row layer-promotion cost lives (Chunk 3).
+- Both metrics matter; both chunks land on the same scenario from different angles.
 
 ### Promoted (load-bearing)
 
-1. **Chunk 2 — Frosted-tile density audit (panel internals scope)**
-   - Why promoted: lol-champion-panel close-phase raster (1734–1791 ms) is the single worst metric on the new baseline. Panel internals still carry 20+ `bg-card/60 backdrop-blur-sm` tiles per detail panel (per-patch grid × 6, matchup grid × 8+, top items × variable, weakest-matchup chip, patch-drift chip). Each `backdrop-filter` promotes a compositor layer; the close-phase raster cost is paying for re-rastering all of them as the panel teardown drops back into the host route.
-   - Scope: LoL champion-detail panel internals + LoL match-detail panel internals. Drop frosted on small chips (drop `backdrop-blur-sm`, hold opacity-only `bg-card/50`); keep headline tiles (`DeltaTile`, win-rate trend, build path) frosted.
-   - Measurement: lol-champion-panel close-phase `rasterTaskTotalMs` is the target metric. Should fall measurably (~30%+) before declaring a win.
+1. **Chunk 3 — Per-row layer-promotion sweep on champion-table (host-route scope)**
+   - Why promoted: this is the chunk that actually attacks panel-close raster (the worst residual). `championCardBaseClassName` + `themed-card-interactive` carry `isolate` + `transition-[transform,border-color,box-shadow]` + Motion `m.li` wrappers — each promotes a compositor layer per row at rest, ×~150 rows. When the panel closes, every one of those layers re-promotes and re-rasterises.
+   - Levers (improvements, not removals — preserve hover lift, entrance choreography, rest-state visual):
+     - Clear Motion's perpetual `will-change` after entrance animation completes (`onAnimationComplete`).
+     - Narrow `transition-[transform,border-color,box-shadow]` → `transition-[border-color,box-shadow]` (the `hover:-translate-y-0.5` still applies instantly; only the eased transition on `transform` is removed, which doesn't change the rest-state visual).
+     - Audit `isolate` — only drop if no descendant uses positive `z-index` to escape the stacking context. Validate before changing.
+   - Measurement target: lol-champion-panel `03-panel-close` `rasterTaskTotalMs`. Aim for ~30%+ reduction.
 
-2. **Chunk 3 — Layer-promotion triggers on shared row classes (panel scope)**
-   - Why promoted: same surface, different angle. `championCardBaseClassName` + `themed-card-interactive` carry `isolate` + `transition-[transform,...]` + Motion `m.li` wrappers — each promotes layers even at rest. The champion-list (lol-champion-panel `01-load`) shows 65–68 layers on a list of ~150 rows; trimming per-row layer promotion compounds with Chunk 2 to drop the panel-close raster cost.
-   - Scope: audit `isolate` (is any descendant escaping the stacking context?), narrow `transition-[transform,border-color,box-shadow]` to just colour/shadow when the hover lift can stay un-transitioned, clear Motion's perpetual `will-change` after entrance animation completes.
+2. **Chunk 2 — Panel-internals frosted-tile cost reduction (NOT density reduction)**
+   - Why promoted: lol-champion-panel `02-panel-open` raster (709–929 ms) is the second-worst residual, and it's where the in-panel frosted tiles live. **Keep every frosted tile.** Reduce the per-tile composite cost instead.
+   - Levers (improvements, not removals):
+     - Lower the `backdrop-filter` blur radius where the visual still reads as glass (often `blur(4px)` reads identically to `blur(8px)` at the small chip scale).
+     - Wrap each frosted tile in `content-visibility: auto` so its `backdrop-filter` is gated to in-view, not always-on.
+     - Apply `contain: paint` to the tile container to confine its repaint region.
+     - Apply `isolate` where it confines a stacking context that's currently leaking layer-promotion upward.
+     - Clear `will-change: backdrop-filter` outside of animation windows (Motion / `motion-safe:` apply it during entrance; it should drop after).
+   - Visual change as last resort only: if a measured subset of small chips contributes disproportionate cost (per-tile raster sampling > 2× the headline tiles), propose a swap with side-by-side screenshots — not a bulk drop. Headline tiles (`DeltaTile`, win-rate trend, build path) and any tile sitting directly over splash chrome stay frosted regardless.
+   - Measurement target: lol-champion-panel `02-panel-open` `rasterTaskTotalMs`. Aim for ~30% reduction with the visual intact.
 
-### Reframed (smaller scope than originally written)
+### Expanded (additive passes, not parity audits)
 
-3. **Chunk 4 — Other panel/overlay surfaces (Steam panel parity)**
-   - Why reframed: the original framing was generic "audit any modal/drawer." With the LoL panel as the load-bearing case, this becomes specifically "apply the same Chunks 2+3 patterns to the Steam game-detail panel before they diverge." Steam panel didn't show pathological numbers in the foundation runs (the scenario is steam-library, not steam-game-detail) so this is preventive parity, not chase-the-fire.
+3. **Chunk 4 — Steam game-detail panel + recap chapters: additive frosted-tile passes**
+   - Why expanded: Steam game-detail panel and recap chapters **never got a frosted-tile pass**. Their tiles default to plain `bg-card/50` with no glass, which means they don't yet pay the per-tile composite cost — but they also don't carry the visual identity the LoL panels do. The original "Chunk 4 = Steam panel parity audit" framing missed that this is an *additive* design pass, not a density audit.
+   - Scope: design the frosting from scratch with the Chunk 2 cost-reduction levers baked in from the start (in-view gating via CV-auto, scoped `will-change`, contained repaint regions). Apply the same hierarchy that emerged on the LoL panels: headline tiles get the full glass treatment; small chips get a lighter blur or a non-frosted treatment that still reads as a tier marker. Recap chapter tiles use the atmosphere-overlay rung (`bg-card/40` + low blur) rather than panel-internal frosting because their backdrop is the atmosphere layer, not splash chrome.
+   - Measurement target: before/after probe runs on a new `steam-game-panel` scenario (add to `scenarios.ts`) and on `recap` scroll-bottom. Cold-load layer count should stay under the budget set by Chunk 6.
 
-### Moved up (no longer "after all chunks")
+### Moved up
 
 4. **Chunk 6 — Layer-count budget in [repo-conventions.md](../repo-conventions.md)**
-   - Why moved up: we now have enough data points across four scenarios to set a real budget. Encoding it as a convention rule prevents regressions to the pre-foundation state — cheap insurance, lands the foundation work as durable policy. Concrete draft based on observed numbers:
+   - Why moved up: we now have enough data points across four scenarios to set a real budget. Encoding it as a convention rule prevents regressions to the pre-foundation state, and provides the gate that Chunk 4's additive frosting work needs to stay within. Concrete draft based on observed numbers:
      - **Cold-load layers (01-load):** ≤ 30 for any new top-level route. lol-overview = 24, steam-library = 32, recap = 13. lol-champion-panel = 65 (route renders a list of ~150 rows — exception: list-shaped routes get layer-budget proportional to viewport-visible row count).
      - **Cold-load long tasks:** ≤ 2 across all scenarios. The foundation chunks brought lol-overview from 4 to 1; budget is "don't regress this."
      - **Scroll-bottom layer count:** no fixed budget (CV-auto timing makes the measurement window-dependent). Use dropped-frame count as the gate instead: any scroll phase with > 0 dropped frames triggers a perf review.
+     - **Panel-open raster:** ≤ 1000 ms (current: 709–929 ms; budget is "don't regress").
      - **Panel-close raster:** the load-bearing residual. Document the 1700 ms current value as the bar to beat, not the bar to hold.
 
 ### Deprioritised (not load-bearing now)
 
 5. **Chunk 1 — Long-list row-level content-visibility:auto**
    - Why deprioritised: section-level CV-auto from Chunk 0b is already doing the job at the level that matters. Scroll-bottom variance is timing-window, not user-felt — 0 dropped frames across every run. Row-level CV-auto would be additive but the residual savings are small relative to the implementation cost. Re-evaluate only if a future regression bumps scroll-phase dropped frames > 0.
+   - Caveat: Chunk 2's "wrap frosted tiles in CV-auto" lever is a related but different pattern — that's panel-scope tile gating, not list-row gating. They don't collapse into one chunk.
 
 6. **Chunk 5 — Other ambient-layer surfaces**
    - Why deprioritised: ambient `ChampionSplashLayer` no longer appears as the LCP target (the hero splash does, with `fetchPriority="high"`). It contributes ~3 layers to cold load. Steam profile backdrop and atmosphere layer didn't appear in any of the four scenarios' hot paths. Low-yield review; bundle into a maintenance pass when other work touches `_shared/backdrop/`.
 
 ## New order of attack
 
-1. **Chunk 2 (panel-internals frosted-tile audit)** — direct hit on the load-bearing residual.
-2. **Chunk 3 (panel-internals layer-promotion sweep)** — compounds with Chunk 2 on the same scenario.
-3. **Chunk 6 (layer-count budget)** — lands the foundation work as durable policy.
-4. **Chunk 4 (Steam panel parity)** — preventive, smaller scope than original framing.
-5. **Chunk 1 + 5** — re-evaluate only if a regression surfaces; otherwise park.
+1. **Chunk 3 (per-row layer-promotion on champion-table)** — direct hit on panel-close raster (the worst residual).
+2. **Chunk 2 (panel-internals frosted-tile cost reduction)** — direct hit on panel-open raster while keeping every frosted tile.
+3. **Chunk 6 (layer-count budget)** — lands the foundation as durable policy and gates Chunk 4 within budget.
+4. **Chunk 4 (Steam panel + recap additive frosted passes)** — adds the visual identity to the two surfaces that don't have it yet, designed cost-aware from day one.
+5. **Chunks 1 + 5** — re-evaluate only if a regression surfaces; otherwise park.
 
 ### Post-foundation baseline run directories
 
