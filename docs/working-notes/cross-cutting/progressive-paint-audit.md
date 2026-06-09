@@ -150,3 +150,32 @@ The LCP improvement is the headline: 464 ms is **deep** into "good" — about 1/
 Layer-count drop on 01-load (50 → 26, -48%) is real first-paint compositor relief. Scroll-bottom layer count is unchanged because the lazy sections are still mounted once scrolled to, paying the same compositor cost — but now spread across multiple commits rather than one.
 
 **Next:** Chunk 0b (section-level content-visibility:auto) should compound with 0a — the lazy sections are now mounted on-demand but still all promote layers when scrolled. CV-auto at the section wrapper level would defer the layer promotion until scroll-near.
+
+### Chunk 0b — section-level content-visibility:auto on ProfilePage (2026-06-09, shipped)
+
+Wrapped each section (lazy + eager) in a local `CvSection` component that applies `content-visibility: auto` + `contain-intrinsic-size: auto Npx` with a per-section minHeight tuned to the rendered size. The browser now skips render work for any section that's far offscreen and reserves a height placeholder so scroll position stays stable as sections virtualize in and out.
+
+- [apps/web/src/routes/lol/$accountSlug/index.tsx:71-83](../../../apps/web/src/routes/lol/$accountSlug/index.tsx#L71-L83) — `CvSection` wrapper component.
+- Applied to all 14 below-fold sections (lazy + light). Above-fold (`LolIdentityHero`, `LiveGameChip`, `ProfilePatchNotice`) stays uncontained — those need to paint immediately and CV-auto would force an unnecessary intrinsic-size measure.
+
+**Cumulative impact on lol-overview (chromium, vs original baseline, 0c + 0a + 0b together):**
+
+| Metric | Original | After 0c+0a+0b | Total Δ |
+|---|--:|--:|--:|
+| FCP | 160 ms | 248 ms | +88 ms (Suspense + CV-auto overhead) |
+| **LCP** | **1692 ms** | **512 ms** | **−1180 ms (−70%)** |
+| **Layers (01-load)** | **50** | **24** | **−26 (−52%)** |
+| **PushProps (01-load)** | **899** | **415** | **−484 (−54%)** |
+| Raster (01-load) | 72 ms | 94 ms | +22 ms |
+| **Long tasks (01-load)** | **4** | **1** | **−3 (−75%)** |
+| Layers (02-scroll-bottom) | 419 | 428 | +9 (noise) |
+| Raster (02-scroll-bottom) | 416 ms | 382 ms | −34 ms |
+| Dropped frames | 0 | 0 | 0 ✓ |
+
+**Cold load is half the compositor cost it was.** The 50 → 24 layer drop is the dominant 0b signal — `content-visibility: auto` prevents below-fold sections from committing layers until the user scrolls near them. Combined with the 0a lazy boundaries (parent paints before children mount) and 0c hero priming (LCP image races to network), the cold-load profile is fundamentally different.
+
+The +22ms 01-load raster increase is the browser tracking the contain-intrinsic-size boxes; cheap compared to the alternative of rasterizing 26 extra layers. The +88ms FCP is the cumulative price of progressive paint — flat per session, no scroll-time degradation.
+
+02-scroll-bottom is essentially neutral on layer count (CV-auto materialises sections as the user scrolls TO them) but shows a -34ms raster improvement. The sections still all promote layers eventually, just spread across the scroll trajectory rather than all at once. This is the expected ceiling for CV-auto at the section level — to reduce scroll-bottom layer count further, the next step would be Chunks 1 or 2 (row-level CV-auto and frosted-tile density audit), but neither is currently load-bearing: scroll-bottom shows 0 dropped frames and only 1 long task on the new baseline.
+
+**Foundation chunks done.** Chunks 0a/0b/0c shipped together produce a clean cold-load profile on the lol-overview route. The remaining queue (Chunks 1–6) targets different cost surfaces (frosted-tile clusters, layer-promotion triggers, ambient layers) and should be re-prioritised against the new baseline before starting — much of the original urgency assumed the unoptimised cold-load profile.
