@@ -33,3 +33,7 @@ scripts/debug-*
 scripts/diagnose-*
 scripts/screenshot-*
 scripts/verify-*
+
+# Perf-probe trace + screenshot output. Root-level so biome's useIgnoreFile
+# picks it up (biome only reads the root .gitignore, not nested ones).
+tools/perf-probe/runs/

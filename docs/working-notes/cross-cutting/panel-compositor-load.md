@@ -100,6 +100,54 @@ The panel arc is the diagnosis that surfaced the problem, but the underlying les
 
 This section is the audit queue, ranked by signal. Items are independent — each can be picked up alone.
 
+### Measurement protocol (applies to every chunk below)
+
+Every chunk in this audit is gated on a before/after measurement. The discipline isn't optional — the panel arc's load-bearing lesson was that hypothesis-without-measurement burned a session and a half on the wrong fix (`[[feedback_instrument_before_hypothesise]]`). Repeating that here would forfeit the entire point of doing this as an audit instead of intuition-driven cleanup.
+
+**Tooling.** Playwright 1.60 + Chromium (already in devDependencies) drives every measurement. Three artefacts per chunk:
+
+1. **Compositor metrics** via CDP `Tracing.start` with `disabled-by-default-cc.debug` + `devtools.timeline` categories. Extract: unique GPU layer count (open + close + steady state where relevant), `UpdateLayer` event count, `DroppedFrame` count, RasterTask total ms, Paint event count. Same shape as the panel-arc trace numbers in the table above.
+2. **Paint timing** via CDP `Performance.getMetrics` + `PerformanceObserver` for `first-paint`, `first-contentful-paint`, `largest-contentful-paint`, `long-animation-frame`. Recorded on cold-load and on each major interaction (route nav, panel open, tab switch).
+3. **Visual regression** via `page.screenshot()` at fixed viewport sizes (1440×900 desktop, 390×844 mobile) for: cold-load steady state, mid-transition frame (captured via CDP `Page.startScreencast` at 250ms window), and post-interaction steady state. Diffed pixel-by-pixel; any unintended drift gets flagged before the chunk lands.
+
+Builds the tool first (Chunk 0 below), then every subsequent chunk reuses it. The tool lives at `tools/perf-probe/` mirroring `tools/champion-assets/`'s workspace package shape.
+
+**Scenarios.** Each chunk targets a representative scenario set. Minimum baseline coverage:
+- `/lol/<slug>` (overview, dense list) — Chrome + Firefox
+- `/lol/<slug>/champions/<key>` (panel open, theme cascade) — Chrome
+- `/steam` (virtualised library, low layer count baseline) — Chrome
+- `/` (recap, atmosphere + multi-chapter) — Chrome + Firefox
+
+Add scenarios as a chunk requires.
+
+**No-regression bar.** A chunk ships only if all three artefacts show net-positive or net-neutral movement:
+- Compositor metrics: layer count down or equal; dropped frames down or equal.
+- Paint timing: FCP/LCP down or within ±5% (noise tolerance); no new long-animation-frame entries above 100ms.
+- Visual regression: pixel diff zero on steady states; mid-transition frame visually equivalent (subjective sign-off, the diff isn't expected to be pixel-zero mid-animation).
+
+Any chunk that fails one of these gets reverted and re-scoped, not papered over.
+
+### Paint scheduling / progressive mount (foundation)
+
+The original audit queue (below this section) is all about *what* commits to the compositor. This section is about *when* it commits. The two compound: a frosted tile that mounts when the user scrolls near it isn't paying any layer cost during initial paint, regardless of how many frosted layers it ultimately carries. Paint-scheduling wins are foundational because they shrink the universe the rest of the audit operates on.
+
+Current gaps observed before measurement (to be confirmed in Chunk 0):
+
+- **Route-level code splitting is uneven.** Some heavy modules (Recharts, Shaka player, command palette dialog body) are pulled into the critical-path bundle even when the active route doesn't need them. The LoL Trends tab pulls Recharts on every LoL route; the recap pulls every chapter's dependencies into the first commit.
+- **No Suspense priority bands.** Every component on a route mounts in a single React commit. There's no streaming hero-first → primary → below-fold split, even when the route has obvious banding (recap chapters, LoL profile season-history, Steam game-detail trophy case).
+- **`React.lazy` is used inconsistently.** Some heavy below-fold components are lazy (Shaka video player); many aren't (per-tab content, per-chapter content, detail-panel internals when the panel is closed).
+- **`content-visibility: auto` is currently applied at row level, not section level.** Row-level CV was the panel-arc fix for champion-table; the same property on whole below-fold sections (recap chapter 4, profile season-history when offscreen) would let Chrome skip both layout and paint until the user scrolls near.
+- **`fetchpriority` / `decoding="async"` discipline is partial.** Splash hero images are sometimes marked correctly (resolver outputs in some paths), sometimes not. Below-fold images don't systematically opt into `loading="lazy"` + `decoding="async"`.
+- **No idle-time mount strategy.** Non-interactive widgets (sparklines, in-card charts, atmosphere effects) mount synchronously in the first commit. `requestIdleCallback` / `startTransition`-based deferral would let the critical path complete first.
+
+**Chunks land in this order:**
+
+- **Chunk 0a** — `React.lazy` on the heaviest below-fold consumers. Targets: Trends tab (Recharts surface), recap chapters past chapter 1 (each chapter is a discrete `m.section`), match-detail tab content past the default tab, command palette dialog body (heavy on first open).
+- **Chunk 0b** — Section-level `content-visibility: auto` on below-fold *sections* (not just rows). Targets: recap chapters 4+, LoL profile season-history, Steam game-detail trophy case, achievement panel collapsed view.
+- **Chunk 0c** — `fetchpriority="high"` on hero/above-fold images, `decoding="async"` everywhere, `loading="lazy"` on confirmed below-fold images. Routed through `apps/web/src/lib/image-proxy*.ts` outputs so the policy is uniform.
+
+The not-during-panel-morph caveat from the original diagnosis still holds: deferred mount *inside* a panel during its open animation caused visible pop-in (false-lead #4 in the diagnosis). Paint-scheduling lazy mount is for *unmounted-at-route-entry* surfaces, not for in-flight animations.
+
 ### Long lists (highest expected win)
 
 `content-visibility: auto` + `contain-intrinsic-size` shipped on champion-table rows (close-phase layers dropped 233 → ~60 in the trace). Same pattern is worth applying anywhere a list renders dozens of items but only a handful are in the viewport. Each `m.li` typically carries 4-6 compositor layers (card + splash img + gradient overlay + sparkline SVG + maybe a tooltip portal); off-screen rows are pure waste on Chrome.
@@ -151,10 +199,14 @@ Beyond panels, several surfaces drive the page-wide visual via opacity / blend /
 - **Steam profile backdrop** — animated profile-background system (`profile-backdrop.tsx`). Already designed with care (ref-counted leasing, no fade on the game backdrop swap to avoid VT-race), but the *animated* default profile background is real continuous compositor work. Probably worth re-confirming the animation isn't running while panels are open.
 - **Atmosphere layer** — `AtmosphereProvider/Layer` on the recap arc. Multi-claim system already; check whether competing claims are doing extra crossfade work.
 
-### Tooling
+### Tooling (Chunk 0 — runs first)
 
-- **Perf-probe checked into the tree.** The Playwright + CDP `Tracing.start` script used for this diagnosis isn't committed. Worth a `tools/perf-probe.mjs` that takes a list of scenarios (URL, click selector, close selector) and emits layer-count + dropped-frame deltas. Could run as part of a "perf canary" workflow that flags regressions when layer counts cross a threshold. Not urgent — current panels are healthy after the fix — but the next regression of this shape would be much faster to catch.
-- **Layer-count budget in [repo-conventions.md](../repo-conventions.md).** Something like: "If a new surface adds more than ~50 GPU compositor layers in its initial commit, audit whether the chrome density is justified — Chrome's compositor may struggle even when individual surfaces look reasonable in isolation." The exact number is engine-specific and approximate, but having a budget makes the trade-off explicit when reviewing changes.
+Status upgraded from "not urgent" to **prerequisite for every other chunk in this queue**. The measurement protocol above gates each chunk on a before/after artefact; nothing else in this audit ships until the tool that produces those artefacts exists.
+
+- **`tools/perf-probe/`** — new workspace package mirroring `tools/champion-assets/`'s shape (private `@vyoh/tools-perf-probe`, `tsx`-driven). Exposes a CLI: `pnpm --filter @vyoh/tools-perf-probe probe -- --scenario <name> [--browser chromium|firefox] [--baseline|--compare]`. Each scenario is a `{ url, openSelector?, closeSelector?, screenshotMoments }` record from a single `scenarios.ts` file. Output goes to `tools/perf-probe/runs/<scenario>-<browser>-<timestamp>/` containing: `metrics.json` (layer counts, paint timings, dropped frames), `trace.json` (raw CDP trace for DevTools import), `screenshots/*.png` (per-moment captures), and `console.log` (browser console + network failures).
+  - Implementation: Playwright `chromium.launch()`, `context.newCDPSession()`, `Tracing.start` with `devtools.timeline` + `disabled-by-default-cc.debug` categories, `PerformanceObserver` injected via `page.addInitScript` for paint timing, scroll-and-screencast for mid-transition frames.
+  - Comparison mode: `--compare <baseline-run>` diffs latest metrics against a baseline run directory and writes a markdown report flagging movement that crosses the no-regression bar.
+- **Layer-count budget in [repo-conventions.md](../repo-conventions.md).** Lands in Chunk 6 once the probe has produced enough data points to calibrate the threshold. Initial draft: "A new surface added to the app should not push any of the baseline scenarios over their committed layer count by more than ~50. Run `pnpm --filter @vyoh/tools-perf-probe probe -- --compare` before any PR that adds layer-promoting CSS (`backdrop-filter`, `will-change`, `transform: translateZ(0)`, `isolate` with no descendant escape, `transition` targeting `transform`) or new motion components." The exact threshold is engine-specific and approximate, but having a budget makes the trade-off explicit when reviewing changes.
 
 ### What this *doesn't* require
 

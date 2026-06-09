@@ -1,0 +1,16 @@
+{
+  "name": "@vyoh/tools-perf-probe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "probe": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "playwright": "^1.60.0",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.3"
+  }
+}
