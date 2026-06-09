@@ -182,22 +182,14 @@ export class HomeFirstPlayedService {
   async getFirstPlayed(): Promise<HomeFirstPlayed> {
     const asOf = new Date();
 
-    // Pre-resolve which summoners back a configured account, so matches owned
-    // by orphan/seed puuids (no matching entry in accounts.json) don't compete
-    // for the first-played slot — they'd resolve to a null slug and render
-    // unlinked, which defeats the tile's purpose.
-    const configured = this.identity.getLolAccounts();
-    const resolvableSummoners = await this.prisma.summoner.findMany({
-      where: {
-        OR: configured.map((a) => ({
-          gameName: { equals: a.gameName, mode: "insensitive" },
-          tagLine: { equals: a.tagLine, mode: "insensitive" },
-          region: { equals: a.region, mode: "insensitive" },
-        })),
-      },
-      select: { puuid: true },
-    });
-    const resolvablePuuids = resolvableSummoners.map((s) => s.puuid);
+    // Restrict to the owner's own puuids. The first-played tile is a `/`
+    // self-portrait surface, so it must reflect the owner's play history —
+    // not every tracked account (friends/pros in accounts.json have their own
+    // pages and chapters). getOwnerPuuids() resolves isOwner accounts via the
+    // Summoner denorm and inherently excludes orphan/seed puuids (unresolved
+    // accounts return no row), so matches under those puuids never compete for
+    // the slot — they'd resolve to a null slug and render unlinked.
+    const resolvablePuuids = await this.identity.getOwnerPuuids();
 
     const [matchRows, snapshotRows] = await Promise.all([
       this.prisma.match.findMany({

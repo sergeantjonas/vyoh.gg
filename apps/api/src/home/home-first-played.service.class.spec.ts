@@ -22,6 +22,9 @@ function makeService(opts: {
   };
   const identity = {
     getLolAccounts: vi.fn().mockReturnValue(opts.accounts ?? []),
+    getOwnerPuuids: vi
+      .fn()
+      .mockResolvedValue((opts.resolvableSummoners ?? []).map((s) => s.puuid)),
   };
   return {
     service: new HomeFirstPlayedService(
