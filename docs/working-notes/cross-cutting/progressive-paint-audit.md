@@ -293,6 +293,36 @@ The 1734–1791 ms close-phase raster is not the panel internals re-rastering �
 4. **Chunk 4 (Steam panel + recap additive frosted passes)** — adds the visual identity to the two surfaces that don't have it yet, designed cost-aware from day one.
 5. **Chunks 1 + 5** — re-evaluate only if a regression surfaces; otherwise park.
 
+### Chunk 2 — Panel-internals CV-auto on the champion-detail panel (2026-06-10, shipped)
+
+Extracted the `CvSection` + `SectionPlaceholder` helpers from the foundation chunk 0b inline pattern to [apps/web/src/_shared/cv-section.tsx](../../../apps/web/src/_shared/cv-section.tsx) (second use → second-rule abstraction). Applied to below-fold sections of the LoL champion-detail panel ([apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx](../../../apps/web/src/routes/lol/$accountSlug/champions/$championKey.tsx)) — every frosted tile cluster below the hero + per-game averages now lives inside a `CvSection`. Above-fold sections (hero, per-game averages, DeltaTiles, Win Rate Trend) stay uncontained because they need to paint immediately on open.
+
+Working hypothesis going in was that `content-visibility: auto` only gates against the document viewport (which would make this a no-op for a panel scroll container that's itself in the viewport). The probe disproved that — Chrome's CV-auto IntersectionObserver actually uses the nearest scroll ancestor as the root, so panel-internal sections do gate against the panel's `overflow-y-auto` container. Worth confirming the next time a similar wrapping pattern is considered.
+
+**Visual preservation:** every frosted tile keeps `bg-card/60 backdrop-blur-sm` exactly as before. CV-auto just delays the layer-promotion for offscreen sections until the user scrolls them into view. Per the standing rule, this is a pure cost reduction with no visual change.
+
+**Measured impact on lol-champion-panel (chromium, 4-run sample vs post-foundation baseline):**
+
+| Metric | Baseline | After Chunk 2 | Δ |
+|---|--:|--:|--:|
+| 01-load layers | 65–68 | 69–79 (median 73) | +5–10 (mild regression, see below) |
+| 01-load raster | 91–132 ms | 98–242 ms (median ~165) | +30–50 ms |
+| **02-panel-open layers** | **40–44** | **34–38 (median 35)** | **−5 to −9 (~17%)** |
+| 02-panel-open raster | 709–929 ms (median ~819) | 399–1074 ms (median ~943) | similar (variance) |
+| 02-panel-open long tasks | 2–3 | 1–2 | −1 (run-to-run) |
+| **03-panel-close raster** | **1734–1791 ms** | **1504–1613 ms (median ~1578)** | **−~200 ms (~10%)** |
+| 03-panel-close layers | 5–6 | 5–14 (mostly 5) | flat (one outlier) |
+| Dropped frames | 0 | 0 | ✓ |
+
+**Reading the numbers:**
+
+- **Panel-open layer count is the headline win.** CV-auto is genuinely gating layer promotion for below-fold frosted tiles in the panel scroll container — the panel commits ~5–9 fewer layers at the open moment because the bottom half of the panel doesn't promote until scrolled to. This is the "improve cost, keep visual" lever working as intended.
+- **Panel-close raster improvement (~200 ms / ~10%) is the second-order effect** — with fewer total panel layers maintained, the close-phase tile management is cheaper. This recovers part of what Chunk 3 couldn't move.
+- **Panel-open raster is unchanged** (within variance). The above-fold tiles still rasterise at the same cost; CV-auto saves compositor management, not raster work for visible content. Expected.
+- **The 01-load regression is variance, not a real cost.** The champion-list route doesn't render the panel at cold-load (the outlet renders `() => null` until a champion is selected), so the CV-auto wrappers can't be paying for it. Confirmed by re-running on baseline (~70 layers, ~150 ms raster also seen).
+
+**Why this matters for future chunks:** the panel scroll container CV-auto pattern generalises. Chunk 4 (Steam game-detail panel + recap chapters: additive frosted-tile passes) should apply the same CV-auto wrapping from day one, so the new frosted tiles arrive with their cost already gated to in-view. The convention is now: any panel-internal frosted section more than ~one viewport below the panel header gets a `CvSection` wrapper with a per-section intrinsic-size estimate.
+
 ### Chunk 3 — Per-row layer-promotion sweep (attempted, hit a measurement floor)
 
 Targeted lol-champion-panel `03-panel-close` `rasterTaskTotalMs` (baseline 1734–1791 ms, the worst residual). Two cost-preserving levers were attempted on the row class composition. **Both regressed the metric — the chunk reaches a measurement floor without further architectural change.**

@@ -1,3 +1,4 @@
+import { CvSection, SectionPlaceholder } from "@/_shared/cv-section";
 import { routeMeta } from "@/lib/route-meta";
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -5,19 +6,13 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { LolIdentityHero } from "@/lol/profile/identity-hero";
-import { ProfileActivityCalendar } from "@/lol/profile/profile-activity-calendar";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
-import { ProfileLpHistory } from "@/lol/profile/profile-lp-history";
 import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
-import { ProfilePostGame } from "@/lol/profile/profile-post-game";
-import { ProfilePregameRitual } from "@/lol/profile/profile-pregame-ritual";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
-import { ProfileSeasonHistory } from "@/lol/profile/profile-season-history";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
-import { ProfileSynergy } from "@/lol/profile/profile-synergy";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
@@ -25,7 +20,43 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { excludeRemakes } from "@vyoh/shared";
 import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { ChevronRight } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { Suspense, lazy, useEffect, useMemo } from "react";
+
+// Heavy below-fold sections — Recharts, large render trees, or both. Splitting
+// them out of the eager profile-route chunk lets the above-fold hero + light
+// sections paint in the first commit while the heavy ones hydrate behind their
+// own bounded-height placeholders. Re-checked when the section list grows or
+// the probe shows a new section as a paint blocker.
+const ProfilePregameRitual = lazy(() =>
+  import("@/lol/profile/profile-pregame-ritual").then((m) => ({
+    default: m.ProfilePregameRitual,
+  }))
+);
+const ProfilePostGame = lazy(() =>
+  import("@/lol/profile/profile-post-game").then((m) => ({
+    default: m.ProfilePostGame,
+  }))
+);
+const ProfileLpHistory = lazy(() =>
+  import("@/lol/profile/profile-lp-history").then((m) => ({
+    default: m.ProfileLpHistory,
+  }))
+);
+const ProfileSeasonHistory = lazy(() =>
+  import("@/lol/profile/profile-season-history").then((m) => ({
+    default: m.ProfileSeasonHistory,
+  }))
+);
+const ProfileSynergy = lazy(() =>
+  import("@/lol/profile/profile-synergy").then((m) => ({
+    default: m.ProfileSynergy,
+  }))
+);
+const ProfileActivityCalendar = lazy(() =>
+  import("@/lol/profile/profile-activity-calendar").then((m) => ({
+    default: m.ProfileActivityCalendar,
+  }))
+);
 
 // API origin for the per-route OG image endpoint. Local rather than imported
 // so head() stays a leaf with no transitive deps on the initial-route graph.
@@ -124,19 +155,57 @@ function ProfilePage() {
       />
       <LiveGameChip accountSlug={accountSlug} />
       <ProfilePatchNotice accountSlug={accountSlug} />
-      <ProfilePregameRitual accountSlug={accountSlug} />
-      <ProfilePostGame accountSlug={accountSlug} />
-      <ProfileRecentForm accountSlug={accountSlug} />
-      <ProfileLpHistory accountSlug={accountSlug} />
-      <ProfileSeasonHistory accountSlug={accountSlug} />
-      <ProfileNowPlaying accountSlug={accountSlug} />
-      <ProfileRoleStrip />
-      <ProfileDuos accountSlug={accountSlug} />
-      <ProfileSynergy accountSlug={accountSlug} />
-      <ProfileQueueDistribution />
-      <ProfileActivityCalendar accountSlug={accountSlug} />
-      <ProfileStatsBar accountSlug={accountSlug} />
-      <ProfileMultikillStrip accountSlug={accountSlug} />
+      <CvSection minHeight={280}>
+        <Suspense fallback={<SectionPlaceholder minHeight={280} />}>
+          <ProfilePregameRitual accountSlug={accountSlug} />
+        </Suspense>
+      </CvSection>
+      <CvSection minHeight={240}>
+        <Suspense fallback={<SectionPlaceholder minHeight={240} />}>
+          <ProfilePostGame accountSlug={accountSlug} />
+        </Suspense>
+      </CvSection>
+      <CvSection minHeight={120}>
+        <ProfileRecentForm accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={420}>
+        <Suspense fallback={<SectionPlaceholder minHeight={420} />}>
+          <ProfileLpHistory accountSlug={accountSlug} />
+        </Suspense>
+      </CvSection>
+      <CvSection minHeight={200}>
+        <Suspense fallback={<SectionPlaceholder minHeight={200} />}>
+          <ProfileSeasonHistory accountSlug={accountSlug} />
+        </Suspense>
+      </CvSection>
+      <CvSection minHeight={160}>
+        <ProfileNowPlaying accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={140}>
+        <ProfileRoleStrip />
+      </CvSection>
+      <CvSection minHeight={160}>
+        <ProfileDuos accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={200}>
+        <Suspense fallback={<SectionPlaceholder minHeight={200} />}>
+          <ProfileSynergy accountSlug={accountSlug} />
+        </Suspense>
+      </CvSection>
+      <CvSection minHeight={120}>
+        <ProfileQueueDistribution />
+      </CvSection>
+      <CvSection minHeight={160}>
+        <Suspense fallback={<SectionPlaceholder minHeight={160} />}>
+          <ProfileActivityCalendar accountSlug={accountSlug} />
+        </Suspense>
+      </CvSection>
+      <CvSection minHeight={100}>
+        <ProfileStatsBar accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={100}>
+        <ProfileMultikillStrip accountSlug={accountSlug} />
+      </CvSection>
       {matches && matches.length > 0 && (
         <Link
           to="/lol/$accountSlug/recap"

@@ -1,3 +1,4 @@
+import { CvSection } from "@/_shared/cv-section";
 import { SlidePanel } from "@/_shared/slide-panel";
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
@@ -612,218 +613,235 @@ function ChampionDetailPage() {
             </m.div>
           )}
 
+          {/* Below-fold sections wrapped in CvSection so each block's
+              `backdrop-filter` layer-promotion is gated to scroll-near via
+              CV-auto. content-visibility:auto uses the nearest scroll
+              ancestor as the IntersectionObserver root, so panel sections
+              gate against the panel scroll container, not the document
+              viewport. Heights tuned to rendered size in the panel column
+              (~896px wide, ~850px scroll surface) — slight under-estimate
+              is fine, over-estimate would cause a visible gap when the
+              section finally paints. */}
           {patchDrift && (
-            <div className="flex flex-col gap-1 rounded-lg border bg-card/60 px-3 py-2.5 backdrop-blur-sm">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                Time on this champion
+            <CvSection minHeight={80}>
+              <div className="flex flex-col gap-1 rounded-lg border bg-card/60 px-3 py-2.5 backdrop-blur-sm">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                  Time on this champion
+                </div>
+                <div className="text-sm leading-snug text-foreground/90">
+                  {patchDrift.direction === "up" ? "Up" : "Down"} on patch{" "}
+                  {patchDrift.currentPatch} — {Math.round(patchDrift.currentShare * 100)}%
+                  of your {patchDrift.currentTotalGames} games (vs{" "}
+                  {Math.round(patchDrift.previousShare * 100)}% on{" "}
+                  {patchDrift.previousPatch}
+                  ).{" "}
+                  <span className="text-muted-foreground/70">
+                    {patchDrift.currentChampGames} games this patch
+                  </span>
+                </div>
               </div>
-              <div className="text-sm leading-snug text-foreground/90">
-                {patchDrift.direction === "up" ? "Up" : "Down"} on patch{" "}
-                {patchDrift.currentPatch} — {Math.round(patchDrift.currentShare * 100)}%
-                of your {patchDrift.currentTotalGames} games (vs{" "}
-                {Math.round(patchDrift.previousShare * 100)}% on{" "}
-                {patchDrift.previousPatch}
-                ).{" "}
-                <span className="text-muted-foreground/70">
-                  {patchDrift.currentChampGames} games this patch
-                </span>
-              </div>
-            </div>
+            </CvSection>
           )}
           {/* Per-patch champion WR — feeds off the page's wider matches window so
           the strip's 6-patch tail and the hero summary are derived from the
           same dataset (was drifting when the strip self-fetched 2000 matches
           but the page used the bounded count selector). */}
-          <ChampionPatchHistory matches={champMatches} championAlias={alias} />
+          <CvSection minHeight={140}>
+            <ChampionPatchHistory matches={champMatches} championAlias={alias} />
+          </CvSection>
 
           {/* Top items */}
           {extras.data && extras.data.topItems.length > 0 && (
-            <m.div
-              initial={{ y: 6 }}
-              animate={{ y: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
-              className="flex flex-col gap-2"
-            >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Most Built Items
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {extras.data.topItems.map(({ itemId, games, wins }) => {
-                  const item = itemsData.data?.get(itemId);
-                  const wr = wins / games;
-                  return (
-                    <TooltipPrimitive.Root key={itemId} delayDuration={150}>
-                      <TooltipPrimitive.Trigger asChild>
-                        <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/60 p-2 backdrop-blur-sm">
-                          {item ? (
-                            <ItemIcon
-                              iconUrl={item.iconUrl}
-                              alt={item.name}
-                              className="size-10 rounded"
-                            />
-                          ) : (
-                            <div className="size-10 rounded bg-muted/40" />
-                          )}
+            <CvSection minHeight={150}>
+              <m.div
+                initial={{ y: 6 }}
+                animate={{ y: 0 }}
+                transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
+                className="flex flex-col gap-2"
+              >
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Most Built Items
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {extras.data.topItems.map(({ itemId, games, wins }) => {
+                    const item = itemsData.data?.get(itemId);
+                    const wr = wins / games;
+                    return (
+                      <TooltipPrimitive.Root key={itemId} delayDuration={150}>
+                        <TooltipPrimitive.Trigger asChild>
+                          <div className="flex cursor-default flex-col items-center gap-1 rounded-lg border bg-card/60 p-2 backdrop-blur-sm">
+                            {item ? (
+                              <ItemIcon
+                                iconUrl={item.iconUrl}
+                                alt={item.name}
+                                className="size-10 rounded"
+                              />
+                            ) : (
+                              <div className="size-10 rounded bg-muted/40" />
+                            )}
+                            <div
+                              className={cn(
+                                "text-xs font-medium tabular-nums",
+                                wr >= 0.5 ? "text-emerald-400" : "text-red-400"
+                              )}
+                            >
+                              {Math.round(wr * 100)}%
+                            </div>
+                          </div>
+                        </TooltipPrimitive.Trigger>
+                        <TooltipPrimitive.Portal>
+                          <TooltipPrimitive.Content
+                            side="top"
+                            sideOffset={6}
+                            collisionPadding={8}
+                            className="pointer-events-none z-50 w-max max-w-64 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                          >
+                            <div className="flex items-start gap-3">
+                              {item && (
+                                <img
+                                  src={item.iconUrl}
+                                  alt=""
+                                  aria-hidden="true"
+                                  className="size-10 shrink-0 rounded-md bg-muted"
+                                />
+                              )}
+                              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <div className="text-sm font-semibold leading-tight">
+                                  {item?.name ?? `Item ${itemId}`}
+                                </div>
+                                {item?.priceTotal ? (
+                                  <div className="font-mono text-xs text-amber-400">
+                                    {item.priceTotal}g
+                                  </div>
+                                ) : null}
+                                <div className="text-xs text-muted-foreground">
+                                  Built in {games} {games === 1 ? "game" : "games"} ·{" "}
+                                  {Math.round(wr * 100)}% WR
+                                </div>
+                              </div>
+                            </div>
+                          </TooltipPrimitive.Content>
+                        </TooltipPrimitive.Portal>
+                      </TooltipPrimitive.Root>
+                    );
+                  })}
+                </div>
+              </m.div>
+            </CvSection>
+          )}
+
+          {/* Matchups */}
+          {sortedMatchups.length > 0 && (
+            <CvSection minHeight={340}>
+              <m.div
+                initial={{ y: 6 }}
+                animate={{ y: 0 }}
+                transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Matchups
+                  </div>
+                  <div className="flex gap-1">
+                    {(["games", "best", "hardest"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setMatchupSort(s)}
+                        className={cn(
+                          "cursor-pointer rounded px-2 py-0.5 text-xs transition-colors",
+                          matchupSort === s
+                            ? "bg-foreground/10 text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {s === "games"
+                          ? "Most played"
+                          : s === "best"
+                            ? "Best WR"
+                            : "Hardest"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {weakestMatchup && (
+                  <div
+                    className={cn(
+                      "flex flex-col gap-1 rounded-lg border px-3 py-2.5 backdrop-blur-sm",
+                      // Warning emphasis must read MORE prominently than the
+                      // neighbouring bg-card/60 matchup grid tiles, not less.
+                      // bg-rose-500/10 was too transparent — the splash bled
+                      // through and the warning state looked weaker than the
+                      // calm tiles below. /20 gives the rose tint enough body
+                      // to occlude the backdrop while staying short of a
+                      // shouting alert-red.
+                      weakestMatchup.deltaPP >= 15
+                        ? "border-rose-500/40 bg-rose-500/20"
+                        : "border-border bg-card/60"
+                    )}
+                  >
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                      Weakest matchup
+                    </div>
+                    <div className="text-sm leading-snug text-foreground/90">
+                      vs {championName(weakestMatchup.champion)} —{" "}
+                      {Math.round(weakestMatchup.wr * 100)}% WR, {weakestMatchup.deltaPP}
+                      pp below your {Math.round(weakestMatchup.baselineWr * 100)}%
+                      baseline on this champion.{" "}
+                      <span className="text-muted-foreground/70">
+                        {weakestMatchup.games} games
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  {(matchupsExpanded ? sortedMatchups : sortedMatchups.slice(0, 8)).map(
+                    ({ champion, games, wins }) => {
+                      const wr = wins / games;
+                      return (
+                        <div
+                          key={champion}
+                          className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-2 backdrop-blur-sm"
+                        >
+                          <ChampionSquareIcon
+                            championName={champion}
+                            className="size-7 rounded-sm"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-xs font-medium">
+                              {championName(champion)}
+                            </div>
+                            <div className="text-xs text-muted-foreground tabular-nums">
+                              {wins}W {games - wins}L
+                            </div>
+                          </div>
                           <div
                             className={cn(
-                              "text-xs font-medium tabular-nums",
+                              "text-xs font-semibold tabular-nums",
                               wr >= 0.5 ? "text-emerald-400" : "text-red-400"
                             )}
                           >
                             {Math.round(wr * 100)}%
                           </div>
                         </div>
-                      </TooltipPrimitive.Trigger>
-                      <TooltipPrimitive.Portal>
-                        <TooltipPrimitive.Content
-                          side="top"
-                          sideOffset={6}
-                          collisionPadding={8}
-                          className="pointer-events-none z-50 w-max max-w-64 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-                        >
-                          <div className="flex items-start gap-3">
-                            {item && (
-                              <img
-                                src={item.iconUrl}
-                                alt=""
-                                aria-hidden="true"
-                                className="size-10 shrink-0 rounded-md bg-muted"
-                              />
-                            )}
-                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                              <div className="text-sm font-semibold leading-tight">
-                                {item?.name ?? `Item ${itemId}`}
-                              </div>
-                              {item?.priceTotal ? (
-                                <div className="font-mono text-xs text-amber-400">
-                                  {item.priceTotal}g
-                                </div>
-                              ) : null}
-                              <div className="text-xs text-muted-foreground">
-                                Built in {games} {games === 1 ? "game" : "games"} ·{" "}
-                                {Math.round(wr * 100)}% WR
-                              </div>
-                            </div>
-                          </div>
-                        </TooltipPrimitive.Content>
-                      </TooltipPrimitive.Portal>
-                    </TooltipPrimitive.Root>
-                  );
-                })}
-              </div>
-            </m.div>
-          )}
-
-          {/* Matchups */}
-          {sortedMatchups.length > 0 && (
-            <m.div
-              initial={{ y: 6 }}
-              animate={{ y: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
-              className="flex flex-col gap-2"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Matchups
-                </div>
-                <div className="flex gap-1">
-                  {(["games", "best", "hardest"] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setMatchupSort(s)}
-                      className={cn(
-                        "cursor-pointer rounded px-2 py-0.5 text-xs transition-colors",
-                        matchupSort === s
-                          ? "bg-foreground/10 text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {s === "games"
-                        ? "Most played"
-                        : s === "best"
-                          ? "Best WR"
-                          : "Hardest"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {weakestMatchup && (
-                <div
-                  className={cn(
-                    "flex flex-col gap-1 rounded-lg border px-3 py-2.5 backdrop-blur-sm",
-                    // Warning emphasis must read MORE prominently than the
-                    // neighbouring bg-card/60 matchup grid tiles, not less.
-                    // bg-rose-500/10 was too transparent — the splash bled
-                    // through and the warning state looked weaker than the
-                    // calm tiles below. /20 gives the rose tint enough body
-                    // to occlude the backdrop while staying short of a
-                    // shouting alert-red.
-                    weakestMatchup.deltaPP >= 15
-                      ? "border-rose-500/40 bg-rose-500/20"
-                      : "border-border bg-card/60"
+                      );
+                    }
                   )}
-                >
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                    Weakest matchup
-                  </div>
-                  <div className="text-sm leading-snug text-foreground/90">
-                    vs {championName(weakestMatchup.champion)} —{" "}
-                    {Math.round(weakestMatchup.wr * 100)}% WR, {weakestMatchup.deltaPP}pp
-                    below your {Math.round(weakestMatchup.baselineWr * 100)}% baseline on
-                    this champion.{" "}
-                    <span className="text-muted-foreground/70">
-                      {weakestMatchup.games} games
-                    </span>
-                  </div>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                {(matchupsExpanded ? sortedMatchups : sortedMatchups.slice(0, 8)).map(
-                  ({ champion, games, wins }) => {
-                    const wr = wins / games;
-                    return (
-                      <div
-                        key={champion}
-                        className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-2 backdrop-blur-sm"
-                      >
-                        <ChampionSquareIcon
-                          championName={champion}
-                          className="size-7 rounded-sm"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-medium">
-                            {championName(champion)}
-                          </div>
-                          <div className="text-xs text-muted-foreground tabular-nums">
-                            {wins}W {games - wins}L
-                          </div>
-                        </div>
-                        <div
-                          className={cn(
-                            "text-xs font-semibold tabular-nums",
-                            wr >= 0.5 ? "text-emerald-400" : "text-red-400"
-                          )}
-                        >
-                          {Math.round(wr * 100)}%
-                        </div>
-                      </div>
-                    );
-                  }
+                {sortedMatchups.length > 8 && (
+                  <button
+                    type="button"
+                    onClick={() => setMatchupsExpanded((v) => !v)}
+                    className="cursor-pointer self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {matchupsExpanded
+                      ? "Show less"
+                      : `Show all ${sortedMatchups.length} matchups`}
+                  </button>
                 )}
-              </div>
-              {sortedMatchups.length > 8 && (
-                <button
-                  type="button"
-                  onClick={() => setMatchupsExpanded((v) => !v)}
-                  className="cursor-pointer self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {matchupsExpanded
-                    ? "Show less"
-                    : `Show all ${sortedMatchups.length} matchups`}
-                </button>
-              )}
-            </m.div>
+              </m.div>
+            </CvSection>
           )}
 
           {/* All these tiles render through ConclusionCard → CardShell.
@@ -831,15 +849,25 @@ function ChampionDetailPage() {
               facing the splash backdrop directly — "one level of glass"
               rule (see docs/repo-conventions.md). The same components
               rendered on the Trends tab page omit the prop and stay bare. */}
-          <ChampionBuildPath
-            accountSlug={accountSlug}
-            championKey={championKey}
-            frosted
-          />
-          <ChampionPositionHeatmap matches={champMatches} frosted />
-          <TrendDeathMatchupHeatmap current={champMatches} frosted />
-          <TrendTimeHeatmap current={champMatches} frosted />
-          <TrendTiltIndicator current={champMatches} previous={[]} frosted />
+          <CvSection minHeight={240}>
+            <ChampionBuildPath
+              accountSlug={accountSlug}
+              championKey={championKey}
+              frosted
+            />
+          </CvSection>
+          <CvSection minHeight={280}>
+            <ChampionPositionHeatmap matches={champMatches} frosted />
+          </CvSection>
+          <CvSection minHeight={280}>
+            <TrendDeathMatchupHeatmap current={champMatches} frosted />
+          </CvSection>
+          <CvSection minHeight={280}>
+            <TrendTimeHeatmap current={champMatches} frosted />
+          </CvSection>
+          <CvSection minHeight={200}>
+            <TrendTiltIndicator current={champMatches} previous={[]} frosted />
+          </CvSection>
         </div>
       </div>
     </SlidePanel>
