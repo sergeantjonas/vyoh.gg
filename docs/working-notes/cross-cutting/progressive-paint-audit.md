@@ -123,3 +123,30 @@ Skipped: rank emblems (size-14/16, too small to compete with hero splash), Steam
 LCP moved firmly into Web Vitals "good" (<2500ms). Single-file diff per affected component — single-line `fetchPriority="high"` add (plus one `decoding="async"` add on game-panel-hero).
 
 **Other scenarios:** No regression on routes that don't render these heroes. The lol-champion-panel scenario showed +300ms LCP delta but the route renders only `<Outlet />` from the section root with no hero — pure run-to-run variance (panel-open phase variance is ~10× higher than other phases due to Motion exit + Suspense interleaving).
+
+### Chunk 0a — React.lazy on heavy below-fold ProfilePage sections (2026-06-09, shipped)
+
+Scope shifted from the original "Trends tab / Recap chapters / heavy panel internals" target — those don't sit on a measured-baseline route. The active probe scenario is `/lol/$slug/` (lol-overview), which has 14+ section components rendering synchronously in a single commit. Six heavy below-fold sections lazy-loaded with `React.lazy` + bounded-height `<Suspense fallback>` placeholders. The light sections (recent-form, role-strip, duos, queue-distribution, stats-bar, multikill-strip — all < 120 lines) stay eager.
+
+- [apps/web/src/routes/lol/$accountSlug/index.tsx:30-65](../../../apps/web/src/routes/lol/$accountSlug/index.tsx#L30-L65) — lazy imports + `SectionPlaceholder`.
+- Lazy targets: `ProfilePregameRitual` (501 loc), `ProfilePostGame` (371 loc), `ProfileLpHistory` (697 loc — Recharts), `ProfileSeasonHistory` (259 loc), `ProfileSynergy` (266 loc), `ProfileActivityCalendar` (140 loc).
+- Placeholder strategy: empty `<div>` with `minHeight` tuned per section (160–420 px). Doesn't paint chrome the section doesn't own — no shimmer-shape mismatch when the real section swaps in.
+
+**Measured impact on lol-overview (chromium, vs original baseline, cumulative with 0c):**
+
+| Metric | Baseline | After 0c | After 0a+0c | Total Δ |
+|---|--:|--:|--:|--:|
+| FCP | 160 ms | 108 ms | 224 ms | **+64 ms (+40%)** |
+| LCP | **1692 ms** | 1196 ms | **464 ms** | **−1228 ms (−73%)** |
+| Layers (01-load) | 50 | 38 | 26 | −24 (−48%) |
+| PushProps (01-load) | 899 | 515 | 590 | −309 |
+| Dropped frames | 0 | 0 | 0 | 0 |
+| Long tasks (01-load) | 4 | 2 | 1 | −3 |
+
+The FCP regression (+64ms vs original, +116ms vs 0c-alone) is the cost of 6 Suspense boundaries in the dev build: each lazy() introduces a dynamic-import promise that Vite resolves over a per-chunk request. In a prod build these become real code-split chunks and FCP should recover (re-measure when running the prod build through the probe). At 224ms FCP is still well within Web Vitals "good" (<1.8s) and below any user-perceptible threshold.
+
+The LCP improvement is the headline: 464 ms is **deep** into "good" — about 1/4 the original. The combined effect (0c primes the hero splash; 0a removes 6 below-fold section render trees from the LCP-critical commit) compounds.
+
+Layer-count drop on 01-load (50 → 26, -48%) is real first-paint compositor relief. Scroll-bottom layer count is unchanged because the lazy sections are still mounted once scrolled to, paying the same compositor cost — but now spread across multiple commits rather than one.
+
+**Next:** Chunk 0b (section-level content-visibility:auto) should compound with 0a — the lazy sections are now mounted on-demand but still all promote layers when scrolled. CV-auto at the section wrapper level would defer the layer promotion until scroll-near.
