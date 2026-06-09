@@ -48,10 +48,12 @@ export const SCENARIOS: Scenario[] = [
   {
     name: "lol-champion-panel",
     // The panel is opened by clicking the first row in the champion table.
-    // We land on the overview first, then click the first champion-table row.
+    // We land on the champions list first, then click the first VT row link.
+    // No data-test attributes in production — selectors target real DOM.
+    // Close uses Radix DialogPrimitive.Close in _shared/slide-panel.tsx.
     path: `/lol/${OWNER_SLUG}/champions`,
-    openSelector: '[data-test="champion-row"]:first-of-type',
-    closeSelector: '[data-test="panel-close"]',
+    openSelector: '[data-list-item-vt] a[href*="/champions/"]',
+    closeSelector: '[aria-label="Close panel"]',
     screenshotMoments: [
       { name: "01-load", phase: "load", settleMs: 500 },
       { name: "02-panel-open", phase: "post-open", settleMs: 750 },

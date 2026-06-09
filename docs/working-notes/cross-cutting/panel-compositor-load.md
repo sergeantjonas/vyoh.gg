@@ -112,6 +112,8 @@ Every chunk in this audit is gated on a before/after measurement. The discipline
 
 Builds the tool first (Chunk 0 below), then every subsequent chunk reuses it. The tool lives at `tools/perf-probe/` mirroring `tools/champion-assets/`'s workspace package shape.
 
+**Tool + baseline shipped 2026-06-09** ([commit `9cf6772e`](#) — perf-probe), with the cross-scenario baseline numbers + ranked attack order written up in [progressive-paint-audit.md](progressive-paint-audit.md). **Read that doc before starting any 0a/0b/0c work** — the order ("0c first, then 0a, then 0b") is data-driven and beats intuition.
+
 **Scenarios.** Each chunk targets a representative scenario set. Minimum baseline coverage:
 - `/lol/<slug>` (overview, dense list) — Chrome + Firefox
 - `/lol/<slug>/champions/<key>` (panel open, theme cascade) — Chrome
