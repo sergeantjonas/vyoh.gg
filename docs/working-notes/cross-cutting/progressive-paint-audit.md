@@ -179,3 +179,103 @@ The +22ms 01-load raster increase is the browser tracking the contain-intrinsic-
 02-scroll-bottom is essentially neutral on layer count (CV-auto materialises sections as the user scrolls TO them) but shows a -34ms raster improvement. The sections still all promote layers eventually, just spread across the scroll trajectory rather than all at once. This is the expected ceiling for CV-auto at the section level — to reduce scroll-bottom layer count further, the next step would be Chunks 1 or 2 (row-level CV-auto and frosted-tile density audit), but neither is currently load-bearing: scroll-bottom shows 0 dropped frames and only 1 long task on the new baseline.
 
 **Foundation chunks done.** Chunks 0a/0b/0c shipped together produce a clean cold-load profile on the lol-overview route. The remaining queue (Chunks 1–6) targets different cost surfaces (frosted-tile clusters, layer-promotion triggers, ambient layers) and should be re-prioritised against the new baseline before starting — much of the original urgency assumed the unoptimised cold-load profile.
+
+## Post-foundation 4-scenario re-baseline (2026-06-09)
+
+Re-ran all four scenarios after `0c+0a+0b` to get fresh comparison numbers driving the re-ranking of Chunks 1–6. Multiple runs on lol-overview and lol-champion-panel to bracket variance (the LCP target shifts between the splash image and a smaller asset depending on network/CV timing; the scroll-bottom layer count varies wildly depending on whether CV-auto regions have promoted by the time the bottom-settle measurement lands).
+
+### Cold paint timings — chromium, 2–3 runs per scenario
+
+| Scenario | FCP | LCP (low) | LCP (high) | LAF count | LAF blocking total |
+|---|--:|--:|--:|--:|--:|
+| lol-overview         | 160–168 ms | **476 ms** | 1628 ms | 5–6 | 64–343 ms |
+| lol-champion-panel   | 164–172 ms |  616 ms |  992 ms | 4–6 | 273–294 ms |
+| steam-library        | 136 ms     |  568 ms |     —   | 2   | 67 ms |
+| recap                | 164 ms     |  384 ms |     —   | 6   | 73 ms |
+
+LCP variance on lol-overview: when the splash (~142K px²) wins LCP, it lands at 1.4–1.6s. When the rank crest / a smaller hero element wins, LCP lands at <500ms. Both are inside Web Vitals "good" — the 1.6s upper bound is well under the 2500ms threshold.
+
+### Compositor metrics per phase — chromium, latest run per scenario
+
+| Scenario | Phase | Layers | pushProps | Dropped | Raster | Long tasks |
+|---|---|--:|--:|--:|--:|--:|
+| lol-overview         | 01-load              |  **24** | **342** | 0 |  101 ms | 1 |
+| lol-overview         | 02-scroll-bottom     |  38–431 (CV-dep.) | 1011–5341 | 0 | 209–772 ms | 0–4 |
+| lol-champion-panel   | 01-load              |  65–68 | 659–674 | 0 |  99–110 ms | 2 |
+| lol-champion-panel   | 02-panel-open        |  42–44 | 1837–2866 | 0 | 709–929 ms | 2–3 |
+| lol-champion-panel   | 03-panel-close       |   5–6 | 130–322 | 0 | **1734–1791 ms** | 0 |
+| steam-library        | 01-load              |  32 | 390 | 0 | 100 ms | 2 |
+| steam-library        | 02-scroll-bottom     |  27 | 689 | 0 | 133 ms | 0 |
+| recap                | 01-load              |  13 | 145 | 0 | 145 ms | 2 |
+| recap                | 02-scroll-bottom     |  17 | 1801 | 0 |  81 ms | 1 |
+
+### What the re-baseline says about the original chunks
+
+**Three things changed materially:**
+
+1. **lol-overview cold-load is no longer the worst metric.** Layers 50 → 24, long tasks 4 → 1, LCP (worst case) 1692 → 1628 with the splash-wins case, 476 with the alt-LCP case. Chunks 1–3 targeting the LoL profile route have meaningfully diminished marginal returns.
+
+2. **lol-overview scroll-bottom is variable** (38–431 layers depending on whether CV-auto regions have promoted by measurement time). With 0 dropped frames and ≤4 long tasks across runs, this is *timing*-variance not user-felt jank. The 38-layer reads show CV-auto is doing what it should — the high reads are measurement-window artefacts. Not load-bearing without dropped-frame evidence.
+
+3. **lol-champion-panel close-phase raster stayed flat: 1641 → 1734–1791 ms.** Did not improve from the foundation chunks (those targeted /lol/$slug/, not /lol/$slug/champions/). This is the **new top number** — and matches the original panel-arc diagnosis exactly: close-phase work is dominated by host-route re-paint as the panel teardown releases its compositor layers. Chunks 2 (frosted-tile density) and 3 (layer-promotion triggers) on **panel internals specifically** remain load-bearing.
+
+**Quiet surfaces stayed quiet:**
+
+- **steam-library**: 32 → 27 layers, 100 ms raster, 67 ms LAF blocking. Already-virtualised library is doing its job; no chunk against it is load-bearing.
+- **recap**: 13 layers cold, 17 scroll-bottom, 145 ms raster. Atmosphere substrate is appropriately minimal. R-13 exit-dissolve work may shift this, but the current profile has no headroom problem.
+
+## Re-ranked Chunks 1–6 (after foundation)
+
+Original ordering assumed an unoptimised cold-load profile. With cold-load now half its original compositor cost, the priorities shift toward the residual hotspot (panel close-phase raster) and away from per-row optimisations on already-clean routes.
+
+### Promoted (load-bearing)
+
+1. **Chunk 2 — Frosted-tile density audit (panel internals scope)**
+   - Why promoted: lol-champion-panel close-phase raster (1734–1791 ms) is the single worst metric on the new baseline. Panel internals still carry 20+ `bg-card/60 backdrop-blur-sm` tiles per detail panel (per-patch grid × 6, matchup grid × 8+, top items × variable, weakest-matchup chip, patch-drift chip). Each `backdrop-filter` promotes a compositor layer; the close-phase raster cost is paying for re-rastering all of them as the panel teardown drops back into the host route.
+   - Scope: LoL champion-detail panel internals + LoL match-detail panel internals. Drop frosted on small chips (drop `backdrop-blur-sm`, hold opacity-only `bg-card/50`); keep headline tiles (`DeltaTile`, win-rate trend, build path) frosted.
+   - Measurement: lol-champion-panel close-phase `rasterTaskTotalMs` is the target metric. Should fall measurably (~30%+) before declaring a win.
+
+2. **Chunk 3 — Layer-promotion triggers on shared row classes (panel scope)**
+   - Why promoted: same surface, different angle. `championCardBaseClassName` + `themed-card-interactive` carry `isolate` + `transition-[transform,...]` + Motion `m.li` wrappers — each promotes layers even at rest. The champion-list (lol-champion-panel `01-load`) shows 65–68 layers on a list of ~150 rows; trimming per-row layer promotion compounds with Chunk 2 to drop the panel-close raster cost.
+   - Scope: audit `isolate` (is any descendant escaping the stacking context?), narrow `transition-[transform,border-color,box-shadow]` to just colour/shadow when the hover lift can stay un-transitioned, clear Motion's perpetual `will-change` after entrance animation completes.
+
+### Reframed (smaller scope than originally written)
+
+3. **Chunk 4 — Other panel/overlay surfaces (Steam panel parity)**
+   - Why reframed: the original framing was generic "audit any modal/drawer." With the LoL panel as the load-bearing case, this becomes specifically "apply the same Chunks 2+3 patterns to the Steam game-detail panel before they diverge." Steam panel didn't show pathological numbers in the foundation runs (the scenario is steam-library, not steam-game-detail) so this is preventive parity, not chase-the-fire.
+
+### Moved up (no longer "after all chunks")
+
+4. **Chunk 6 — Layer-count budget in [repo-conventions.md](../repo-conventions.md)**
+   - Why moved up: we now have enough data points across four scenarios to set a real budget. Encoding it as a convention rule prevents regressions to the pre-foundation state — cheap insurance, lands the foundation work as durable policy. Concrete draft based on observed numbers:
+     - **Cold-load layers (01-load):** ≤ 30 for any new top-level route. lol-overview = 24, steam-library = 32, recap = 13. lol-champion-panel = 65 (route renders a list of ~150 rows — exception: list-shaped routes get layer-budget proportional to viewport-visible row count).
+     - **Cold-load long tasks:** ≤ 2 across all scenarios. The foundation chunks brought lol-overview from 4 to 1; budget is "don't regress this."
+     - **Scroll-bottom layer count:** no fixed budget (CV-auto timing makes the measurement window-dependent). Use dropped-frame count as the gate instead: any scroll phase with > 0 dropped frames triggers a perf review.
+     - **Panel-close raster:** the load-bearing residual. Document the 1700 ms current value as the bar to beat, not the bar to hold.
+
+### Deprioritised (not load-bearing now)
+
+5. **Chunk 1 — Long-list row-level content-visibility:auto**
+   - Why deprioritised: section-level CV-auto from Chunk 0b is already doing the job at the level that matters. Scroll-bottom variance is timing-window, not user-felt — 0 dropped frames across every run. Row-level CV-auto would be additive but the residual savings are small relative to the implementation cost. Re-evaluate only if a future regression bumps scroll-phase dropped frames > 0.
+
+6. **Chunk 5 — Other ambient-layer surfaces**
+   - Why deprioritised: ambient `ChampionSplashLayer` no longer appears as the LCP target (the hero splash does, with `fetchPriority="high"`). It contributes ~3 layers to cold load. Steam profile backdrop and atmosphere layer didn't appear in any of the four scenarios' hot paths. Low-yield review; bundle into a maintenance pass when other work touches `_shared/backdrop/`.
+
+## New order of attack
+
+1. **Chunk 2 (panel-internals frosted-tile audit)** — direct hit on the load-bearing residual.
+2. **Chunk 3 (panel-internals layer-promotion sweep)** — compounds with Chunk 2 on the same scenario.
+3. **Chunk 6 (layer-count budget)** — lands the foundation work as durable policy.
+4. **Chunk 4 (Steam panel parity)** — preventive, smaller scope than original framing.
+5. **Chunk 1 + 5** — re-evaluate only if a regression surfaces; otherwise park.
+
+### Post-foundation baseline run directories
+
+Latest probe runs covering each scenario (gitignored — local-only):
+
+- `tools/perf-probe/runs/lol-overview-chromium-2026-06-09_21-31-55-909Z/`
+- `tools/perf-probe/runs/lol-champion-panel-chromium-2026-06-09_21-33-01-889Z/`
+- `tools/perf-probe/runs/steam-library-chromium-2026-06-09_21-30-27-271Z/`
+- `tools/perf-probe/runs/recap-chromium-2026-06-09_21-30-36-722Z/`
+
+Use as `--compare` baselines for Chunks 2/3 work targeting the LoL champion-panel scenario.
