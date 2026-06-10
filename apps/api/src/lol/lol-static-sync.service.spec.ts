@@ -690,8 +690,30 @@ return {
       .mockResolvedValueOnce(
         jsonResponse({
           data: {
-            MonkeyKing: { key: "62", name: "Wukong", tags: ["Fighter"] },
-            Aatrox: { key: "266", name: "Aatrox", tags: ["Fighter"] },
+            MonkeyKing: {
+              key: "62",
+              name: "Wukong",
+              tags: ["Fighter"],
+              passive: { image: { full: "MonkeyKing_Passive.png" } },
+              spells: [
+                { image: { full: "MonkeyKingNimbusStrike.png" } },
+                { image: { full: "MonkeyKingDecoy.png" } },
+                { image: { full: "MonkeyKingDoubleAttack.png" } },
+                { image: { full: "MonkeyKingSpinToWin.png" } },
+              ],
+            },
+            Aatrox: {
+              key: "266",
+              name: "Aatrox",
+              tags: ["Fighter"],
+              passive: { image: { full: "Aatrox_Passive.png" } },
+              spells: [
+                { image: { full: "AatroxQ.png" } },
+                { image: { full: "AatroxW.png" } },
+                { image: { full: "AatroxE.png" } },
+                { image: { full: "AatroxR.png" } },
+              ],
+            },
           },
         })
       )
@@ -733,6 +755,25 @@ return {
       alias: "Aatrox",
       id: 266,
       name: "Aatrox",
+    });
+
+    // Ability rows carry the DDragon image filename for the slot, so the
+    // proxy's 3rd-stage fallback can build a DDragon `/img/spell/*` URL.
+    const createCalls = prisma.lolChampionAbility.createMany.mock.calls.map(
+      ([c]) => c.data
+    );
+    const aatroxQ = createCalls
+      .flat()
+      .find(
+        (row: { championId: number; slot: string }) =>
+          row.championId === 266 && row.slot === "Q"
+      );
+    expect(aatroxQ).toMatchObject({
+      championId: 266,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "The Darkin Blade",
+      ddragonImageFile: "AatroxQ.png",
     });
   });
 

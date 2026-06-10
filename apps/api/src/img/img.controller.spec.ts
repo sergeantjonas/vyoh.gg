@@ -250,13 +250,13 @@ describe("ImgController happy paths", () => {
 describe("ImgController.ability", () => {
   it("returns 400 when championId is non-numeric", async () => {
     const res = makeRes();
-    await makeController().ability("abc", "Q", "1", res as never);
+    await makeController().ability("abc", "Q", "1", "26.10.1", res as never);
     expect(res._status).toBe(400);
   });
 
   it("returns 400 when abilityIndex is non-numeric", async () => {
     const res = makeRes();
-    await makeController().ability("103", "Q", "x", res as never);
+    await makeController().ability("103", "Q", "x", "26.10.1", res as never);
     expect(res._status).toBe(400);
   });
 
@@ -265,14 +265,14 @@ describe("ImgController.ability", () => {
       ability: vi.fn().mockRejectedValue(new Error("unknown ability 999/Q/0")),
     } as unknown as Partial<LolImageService>);
     const res = makeRes();
-    await controller.ability("999", "Q", "0", res as never);
+    await controller.ability("999", "Q", "0", "26.10.1", res as never);
     expect(res._status).toBe(404);
     expect(upstream.fetchUpstreamChain).not.toHaveBeenCalled();
   });
 
   it("proxies through fetchUpstreamChain + transcodeToWebp for a valid ability", async () => {
     const res = makeRes();
-    await makeController().ability("103", "Q", "1", res as never);
+    await makeController().ability("103", "Q", "1", "26.10.1", res as never);
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
     expect(upstream.transcodeToWebp).toHaveBeenCalled();
     expect(res.send).toHaveBeenCalled();

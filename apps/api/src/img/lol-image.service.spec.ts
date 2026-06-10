@@ -296,16 +296,17 @@ describe("LolImageService.uiIcon", () => {
 });
 
 describe("LolImageService.ability", () => {
-  it("returns wiki-first + CDragon fallback for a normal slot", async () => {
+  it("returns wiki-first + CDragon fallback for a normal slot (no DDragon stage when ddragonImageFile is null)", async () => {
     const { service, prisma } = makeService([], {
       championId: 103,
       slot: "Q",
       abilityIndex: 1,
       name: "Orb of Deception",
       iconWikiName: null,
+      ddragonImageFile: null,
       champion: { name: "Ahri", alias: "Ahri" },
     });
-    const resolved = await service.ability(103, "Q", 1);
+    const resolved = await service.ability(103, "Q", 1, "26.10.1");
     expect(resolved.urls).toEqual([
       "https://wiki.leagueoflegends.com/en-us/images/Ahri_Orb_of_Deception.png",
       "https://cdn.communitydragon.org/latest/champion/ahri/ability-icon/q",
@@ -319,24 +320,47 @@ describe("LolImageService.ability", () => {
     });
   });
 
-  it("lowercases Passive slot and compound alias for CDragon URL", async () => {
+  it("appends DDragon /img/spell as the 3rd-stage fallback when ddragonImageFile is present (Q/W/E/R)", async () => {
+    const { service } = makeService([], {
+      championId: 266,
+      slot: "Q",
+      abilityIndex: 0,
+      name: "The Darkin Blade",
+      iconWikiName: null,
+      ddragonImageFile: "AatroxQ.png",
+      champion: { name: "Aatrox", alias: "Aatrox" },
+    });
+    const resolved = await service.ability(266, "Q", 0, "26.10.1");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Aatrox_The_Darkin_Blade.png",
+      "https://cdn.communitydragon.org/latest/champion/aatrox/ability-icon/q",
+      "https://ddragon.leagueoflegends.com/cdn/26.10.1/img/spell/AatroxQ.png",
+    ]);
+  });
+
+  it("appends DDragon /img/passive for Passive slot (different DDragon path segment than spells)", async () => {
     const { service } = makeService([], {
       championId: 59,
       slot: "Passive",
       abilityIndex: 0,
       name: "Martial Cadence",
       iconWikiName: null,
+      ddragonImageFile: "JarvanIV_Passive.png",
       champion: { name: "Jarvan IV", alias: "JarvanIV" },
     });
-    const resolved = await service.ability(59, "Passive", 0);
-    expect(resolved.urls[1]).toBe(
-      "https://cdn.communitydragon.org/latest/champion/jarvaniv/ability-icon/passive"
-    );
+    const resolved = await service.ability(59, "Passive", 0, "26.10.1");
+    expect(resolved.urls).toEqual([
+      "https://wiki.leagueoflegends.com/en-us/images/Jarvan_IV_Martial_Cadence.png",
+      "https://cdn.communitydragon.org/latest/champion/jarvaniv/ability-icon/passive",
+      "https://ddragon.leagueoflegends.com/cdn/26.10.1/img/passive/JarvanIV_Passive.png",
+    ]);
   });
 
   it("throws when the ability row does not exist", async () => {
     const { service } = makeService([], null);
-    await expect(service.ability(999, "Q", 0)).rejects.toThrow(/unknown ability/);
+    await expect(service.ability(999, "Q", 0, "26.10.1")).rejects.toThrow(
+      /unknown ability/
+    );
   });
 });
 

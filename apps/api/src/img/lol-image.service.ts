@@ -273,16 +273,18 @@ export class LolImageService {
   }
 
   // Wiki-sourced ability icon, routed through the proxy so wiki blips don't
-  // blank the spell tooltips. `:patch` is a browser cache buster only — wiki
-  // URLs are stable, so the resolver ignores the param value. Throws when
-  // the row is missing so the controller can return 404; the bundle ships
-  // every ability row, so a miss here means an invalid request.
-  // Wiki-first with CDragon ability-icon fallback. CDragon serves
-  // `/champion/{slug}/ability-icon/{slot}` for all slots including Passive.
+  // blank the spell tooltips. Throws when the row is missing so the
+  // controller can return 404; the bundle ships every ability row, so a
+  // miss here means an invalid request.
+  // 3-stage chain: wiki primary → CDragon `/ability-icon/{slot}` fallback
+  // → DDragon `/img/(passive|spell)/{file}` fallback when the row has a
+  // `ddragonImageFile`. The DDragon stage requires `patch` for the CDN
+  // version segment; passive vs spell is picked off `slot`.
   async ability(
     championId: number,
     slot: string,
-    abilityIndex: number
+    abilityIndex: number,
+    patch: string
   ): Promise<Resolved> {
     const row = await this.prisma.lolChampionAbility.findUnique({
       where: { championId_slot_abilityIndex: { championId, slot, abilityIndex } },
@@ -293,10 +295,12 @@ export class LolImageService {
     }
     const slug = normalizeChampionAlias(row.champion.alias).toLowerCase();
     const cdragonUrl = `${CDRAGON_CDN}/champion/${slug}/ability-icon/${slot.toLowerCase()}`;
-    return {
-      urls: [wikiAbilityIconUrl(row.champion.name, row.name), cdragonUrl],
-      params: { width: 40, quality: 85 },
-    };
+    const urls: string[] = [wikiAbilityIconUrl(row.champion.name, row.name), cdragonUrl];
+    if (row.ddragonImageFile) {
+      const segment = slot === "Passive" ? "passive" : "spell";
+      urls.push(`${DDRAGON_CDN}/${patch}/img/${segment}/${row.ddragonImageFile}`);
+    }
+    return { urls, params: { width: 40, quality: 85 } };
   }
 
   // Generic wiki-file passthrough — the inline-icon path for rich tooltip

@@ -34,8 +34,45 @@ const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
 // Stormraider's Surge) is reflected within a day.
 const MISSING_CYCLES_BEFORE_RETIRED = 4;
 
-interface DdragonChampionListBody {
-  data: Record<string, { key: string; name: string; tags: string[] }>;
+// `championFull.json` is the per-champion detail blob keyed by alias. We
+// rely on `key/name/tags` (same as the lighter `champion.json`) plus the
+// `passive.image.full` + `spells[].image.full` filenames that DDragon uses
+// for its `/img/passive/*` and `/img/spell/*` CDN segments. Those filenames
+// power the 3rd-stage fallback in `LolImageService.ability()` when wiki +
+// CDragon both fail.
+interface DdragonChampionFullBody {
+  data: Record<
+    string,
+    {
+      key: string;
+      name: string;
+      tags: string[];
+      passive: { image: { full: string } };
+      spells: Array<{ image: { full: string } }>;
+    }
+  >;
+}
+
+// Per-champion mapping of wiki slot label → DDragon image filename.
+// `Passive` resolves to `passive.image.full`; `Q/W/E/R` resolve to the
+// 0-indexed `spells` array. Multi-variant slots (Karma W, Lee Sin W)
+// all share the same slot icon, so every `abilityIndex` in the same
+// slot receives the same filename.
+type DdragonAbilityImageMap = Map<string, string>;
+
+function buildDdragonAbilityImageMap(data: {
+  passive?: { image?: { full?: string | null } };
+  spells?: Array<{ image?: { full?: string | null } } | null | undefined>;
+}): DdragonAbilityImageMap {
+  const map = new Map<string, string>();
+  const passive = data.passive?.image?.full;
+  if (passive) map.set("Passive", passive);
+  const slots = ["Q", "W", "E", "R"] as const;
+  for (let i = 0; i < slots.length; i++) {
+    const file = data.spells?.[i]?.image?.full;
+    if (file) map.set(slots[i] as string, file);
+  }
+  return map;
 }
 
 interface DdragonSummonerSpellsBody {
@@ -268,9 +305,13 @@ export class LolStaticSyncService {
     ddragonVersion: string,
     patchVersion: string
   ): Promise<number> {
+    // `championFull.json` is a single ~3MB blob covering every champion's
+    // detail — strictly a superset of `champion.json`. We pay the larger
+    // payload once per cron tick in exchange for the per-ability DDragon
+    // image filenames needed by the 3rd-stage proxy fallback.
     const [listBody, championModule] = await Promise.all([
-      this.fetchDdragon<DdragonChampionListBody>(
-        `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion.json`
+      this.fetchDdragon<DdragonChampionFullBody>(
+        `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/championFull.json`
       ),
       this.fetchWikiModule("Module:ChampionData/data"),
     ]);
@@ -289,6 +330,7 @@ export class LolStaticSyncService {
       if (!Number.isFinite(championId)) continue;
       const name = data.name;
       const abilities = abilitiesByWikiName.get(name) ?? [];
+      const ddragonImageBySlot = buildDdragonAbilityImageMap(data);
       try {
         await this.upsertChampion(
           championId,
@@ -296,6 +338,7 @@ export class LolStaticSyncService {
           name,
           data.tags ?? [],
           abilities,
+          ddragonImageBySlot,
           patchVersion,
           now
         );
@@ -316,6 +359,7 @@ export class LolStaticSyncService {
     name: string,
     roles: string[],
     abilities: ReadonlyArray<{ slot: string; name: string }>,
+    ddragonImageBySlot: DdragonAbilityImageMap,
     patchVersion: string,
     now: Date
   ): Promise<void> {
@@ -351,6 +395,7 @@ export class LolStaticSyncService {
                 slot: a.slot,
                 abilityIndex,
                 name: a.name,
+                ddragonImageFile: ddragonImageBySlot.get(a.slot) ?? null,
               })),
             }),
           ]

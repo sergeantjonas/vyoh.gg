@@ -623,6 +623,11 @@ model LolChampionAbility {
   abilityIndex           Int      @default(0)
   name                   String
   iconWikiName           String?
+  // DDragon image filename (`AatroxQ.png`, `Aatrox_Passive.png`). Populated
+  // from `championFull.json` at sync time. Powers the 3rd-stage fallback
+  // in `LolImageService.ability()` when wiki + CDragon both fail. Slot
+  // decides which DDragon path segment (passive vs spell) at proxy time.
+  ddragonImageFile       String?
   descriptionWikitext    String?
   descriptionHtml        String?
   // Watermark for the lazy resolver — see ensureAbilityDescription. Null

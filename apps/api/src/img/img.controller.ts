@@ -154,6 +154,7 @@ export class ImgController {
     @Param("championId") championId: string,
     @Param("slot") slot: string,
     @Param("abilityIndex") abilityIndex: string,
+    @Param("patch") patch: string,
     @Res() res: Response
   ): Promise<void> {
     const cid = Number.parseInt(championId, 10);
@@ -164,7 +165,7 @@ export class ImgController {
     }
     let resolved: Awaited<ReturnType<LolImageService["ability"]>>;
     try {
-      resolved = await this.lol.ability(cid, slot, idx);
+      resolved = await this.lol.ability(cid, slot, idx, patch);
     } catch {
       res.status(HttpStatus.NOT_FOUND).send();
       return;
