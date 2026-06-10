@@ -228,6 +228,40 @@ When a feature performs well in Blink/Gecko but produces visible chop on WebKit 
 
 **Generalisation guidance:** the current `useSafariSlideDirection` hook hard-codes the Steam tab order. When a second section needs the same pattern, generalise — pass tab order as a parameter, lift the hook into `_shared`. Don't pre-emptively abstract before a second consumer exists ([per the "three similar lines is better than a premature abstraction" rule](#)).
 
+### Layer-count + paint budget per route scenario
+
+The compositor + paint baseline measured by [`tools/perf-probe`](../tools/perf-probe/) (chromium, 1440×900, dev server) defines a budget that any new surface added to the app must respect. The four currently baselined scenarios are `lol-overview`, `lol-champion-panel`, `steam-library`, and `recap`. Full numbers and the diagnostic trail live in [progressive-paint-audit.md](working-notes/cross-cutting/progressive-paint-audit.md).
+
+**Cold-load budget per route (01-load phase):**
+
+| Metric | Budget | Reference |
+|---|---|---|
+| Unique compositor layers | ≤ 30 | lol-overview = 24, steam-library = 32, recap = 13 |
+| `RasterTask` total | ≤ 200 ms | recap = 145 ms; lol-overview = 101 ms; steam-library = 100 ms |
+| Long tasks | ≤ 2 | foundation chunks brought lol-overview from 4 to 1 |
+
+List-shaped routes (champion-list, match-list, library-list) are an explicit exception — they render N rows where N is determined by data, so layer count scales with viewport-visible row count. Current example: lol-champion-panel `01-load` (the champion-list page, not the panel) = 65–68 layers at ~150 rows. Budget for a list-shaped route is "the cold layer count should be roughly `30 + ceil(visibleRows × 4)`" — i.e. the base budget plus a per-row contribution. If a new list-shaped route exceeds that estimate, audit per-row class composition before merging.
+
+**Interactive budget (panel-open / panel-close phases on panel-shaped routes):**
+
+| Metric | Budget | Reference |
+|---|---|---|
+| Panel-open `RasterTask` | ≤ 1000 ms | lol-champion-panel current 709–929 ms (post-chunk-2) |
+| Panel-close `RasterTask` | ≤ 2000 ms | lol-champion-panel current ~1500–1600 ms (post-chunk-2). This is a known floor — two cost-preserving levers were tried and reverted; the metric is GPU energy, not user-felt jank ([[feedback_panel_close_raster_floor]]). |
+| Dropped frames in any phase | **0** | hard gate — non-zero dropped frames triggers a perf review regardless of other metrics |
+
+**Scroll-bottom phase:**
+
+No fixed layer-count budget — `content-visibility: auto` materialisation timing makes the measurement window-dependent (the same code can read 38 or 431 layers across runs depending on whether CV-auto has finished promoting by capture). Use dropped-frame count and long-task count as the gates instead.
+
+**How to apply:**
+
+- Before adding a new top-level route or a new panel, decide which existing scenario it most resembles and run `pnpm --filter @vyoh/tools-perf-probe probe -- --scenario <name>` to baseline.
+- After landing the route, re-run the probe and compare against the budget above. A new surface that pushes a baseline scenario over its layer budget by more than ~50 layers, or any non-zero dropped-frame count, triggers a perf review before merge.
+- New surfaces that introduce layer-promoting CSS (`backdrop-filter`, `will-change`, `transform: translateZ(0)`, `isolate` with no descendant escape, `transition` targeting `transform`) or new Motion components should always re-probe.
+- The thresholds above are derived from observed numbers and are not fundamental limits. They are calibrated to "don't regress what we have" — if you make a measured improvement that lowers a budget, edit this table to reflect the new bar.
+- For panel-shaped surfaces, see also the [tile background convention](#tile-background-one-level-of-glass-between-background-and-content): panel-internal frosted tile clusters more than ~one viewport below the panel header should be wrapped in [`CvSection`](../apps/web/src/_shared/cv-section.tsx) so their `backdrop-filter` layer-promotion is gated to scroll-near. The scroll container — not the document viewport — is the IntersectionObserver root for CV-auto inside an `overflow-y-auto` panel; this was confirmed empirically in chunk 2 (see audit doc).
+
 ### Committed generated files must be documented here
 
 Generated files (codegen output, router manifests, OpenAPI clients, Prisma artefacts) default to gitignored. Commit a generated file only when there is a deliberate reason (e.g. zero-cold-start dev, diff-as-audit-log), and record that reason in this section so the next reviewer doesn't raise it as a defect.
