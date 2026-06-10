@@ -77,6 +77,15 @@ describe("wikiAbilityIconUrl", () => {
       `${BASE}/Nunu_Call_of_the_Freljord.png`
     );
   });
+
+  it("replaces `:` with `-` in ability names (wiki upload convention)", () => {
+    // Live wiki: `Orianna_Command-_Shockwave.png` (200, 4632 bytes); the
+    // `Orianna_Command:_Shockwave.png` form 404s. Same convention applies
+    // to every "Command: …" spell on Orianna.
+    expect(wikiAbilityIconUrl("Orianna", "Command: Shockwave")).toBe(
+      `${BASE}/Orianna_Command-_Shockwave.png`
+    );
+  });
 });
 
 describe("wikiMinimapUrl", () => {

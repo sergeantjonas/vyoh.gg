@@ -19,7 +19,10 @@ export function wikiFileUrl(filename: string): string {
 }
 
 function wikiImageSlug(name: string): string {
-  return name.replace(/ /g, "_").replace(/'/g, "%27");
+  // `:` in an ability/item name is replaced with `-` by the wiki's file
+  // upload convention (Orianna's "Command: Shockwave" → `Orianna_Command-_Shockwave.png`).
+  // Apply before the space-to-underscore step so "Foo: Bar" → "Foo-_Bar".
+  return name.replace(/:/g, "-").replace(/ /g, "_").replace(/'/g, "%27");
 }
 
 export function wikiEntryIconUrl(name: string, kind: "item" | "rune"): string {
