@@ -9,7 +9,7 @@ function line(overrides: Partial<Change> = {}): Change {
   return {
     ability: null,
     slot: null,
-    iconPath: null,
+    abilityIndex: null,
     changeType: "buff",
     changeText: "Damage increased",
     ...overrides,
@@ -61,6 +61,8 @@ describe("AbilityChangeList", () => {
   it("renders each change line with its glyph and text", () => {
     render(
       <AbilityChangeList
+        championId={103}
+        patch="26.10"
         changes={[
           line({ changeType: "buff", changeText: "Damage increased" }),
           line({ changeType: "nerf", changeText: "Cost increased" }),
@@ -76,11 +78,13 @@ describe("AbilityChangeList", () => {
   it("renders an ability label and slot chip for non-base groups", () => {
     render(
       <AbilityChangeList
+        championId={103}
+        patch="26.10"
         changes={[
           line({
             slot: "Q",
             ability: "Orb of Deception",
-            iconPath: "/q.png",
+            abilityIndex: 0,
             changeText: "Damage up",
           }),
         ]}
@@ -88,5 +92,44 @@ describe("AbilityChangeList", () => {
     );
     expect(screen.getByText("Q")).toBeTruthy();
     expect(screen.getByText("Orb of Deception")).toBeTruthy();
+  });
+
+  it("composes the proxy ability icon URL from (championId, slot, abilityIndex, patch)", () => {
+    const { container } = render(
+      <AbilityChangeList
+        championId={103}
+        patch="26.10"
+        changes={[
+          line({
+            slot: "Q",
+            ability: "Orb of Deception",
+            abilityIndex: 0,
+            changeText: "Damage up",
+          }),
+        ]}
+      />
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(
+      "http://localhost:2010/img/lol/ability/103/Q/0/26.10.webp"
+    );
+  });
+
+  it("renders no icon when championId is null", () => {
+    const { container } = render(
+      <AbilityChangeList
+        championId={null}
+        patch="26.10"
+        changes={[
+          line({
+            slot: "Q",
+            ability: "Orb of Deception",
+            abilityIndex: 0,
+            changeText: "Damage up",
+          }),
+        ]}
+      />
+    );
+    expect(container.querySelector("img")).toBeNull();
   });
 });

@@ -14,6 +14,10 @@ interface PatchPrismaStubs {
     deleteMany: ReturnType<typeof vi.fn>;
     createMany: ReturnType<typeof vi.fn>;
   };
+  lolChampion: { findMany: ReturnType<typeof vi.fn> };
+  lolChampionAbility: { findMany: ReturnType<typeof vi.fn> };
+  lolItem: { findMany: ReturnType<typeof vi.fn> };
+  lolPerk: { findMany: ReturnType<typeof vi.fn> };
   $transaction: ReturnType<typeof vi.fn>;
 }
 
@@ -30,6 +34,14 @@ function makePrisma(): PatchPrismaStubs {
       deleteMany: vi.fn(),
       createMany: vi.fn(),
     },
+    // Identity-resolution lookups: default to empty so the legacy tests
+    // (which assert no DB content for these tables) see null championId /
+    // abilityIndex / entityId on the wire. Tests that exercise the lookup
+    // override these per-test.
+    lolChampion: { findMany: vi.fn().mockResolvedValue([]) },
+    lolChampionAbility: { findMany: vi.fn().mockResolvedValue([]) },
+    lolItem: { findMany: vi.fn().mockResolvedValue([]) },
+    lolPerk: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn().mockResolvedValue([]),
   };
 }
@@ -119,14 +131,17 @@ describe("PatchService.getCurrentChanges", () => {
     expect(result.changes).toEqual([
       {
         champion: "Ahri",
+        championId: null,
         changes: [
           {
             ability: "Q",
+            abilityIndex: null,
             changeText: "Damage increased to 50 from 40.",
             changeType: "buff",
           },
           {
             ability: "Q",
+            abilityIndex: null,
             changeText: "Cooldown reduced to 7 from 8.",
             changeType: "buff",
           },
@@ -134,9 +149,11 @@ describe("PatchService.getCurrentChanges", () => {
       },
       {
         champion: "Lee Sin",
+        championId: null,
         changes: [
           {
             ability: "W",
+            abilityIndex: null,
             changeText: "Shield reduced to 60 from 70.",
             changeType: "nerf",
           },
@@ -404,7 +421,7 @@ describe("PatchService.syncVersion", () => {
     await expect(makeService(prisma).syncVersion("26.10")).rejects.toThrow(/no wikitext/);
   });
 
-  it("resolves champion ability slot + CDragon icon when fullDdragonVersion is given", async () => {
+  it("resolves champion ability slot from the wiki module when fullDdragonVersion is given", async () => {
     const wikitext =
       "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Orb of Deception|Ahri}}\n** Damage increased to 50 from 40.\n== Items ==\n;{{ii|Lich Bane}}\n* Movement speed increased to 6% from 4%.\n== Runes ==\n;{{ri|Phase Rush}}\n* Base damage reduced.\n";
 
@@ -478,29 +495,28 @@ describe("PatchService.syncVersion", () => {
     };
     const rows = createCall.data;
 
+    // Slot is still resolved at sync time (from the wiki skill module) so the
+    // read-side can join `(championId, slot, ability) → abilityIndex`.
     const ahri = rows.find((r) => r.subject === "Ahri");
     expect(ahri?.slot).toBe("Q");
-    expect(ahri?.iconPath).toBe(
-      "https://cdn.communitydragon.org/latest/champion/Ahri/ability-icon/q"
-    );
+    // iconPath is no longer persisted — identity (championId + abilityIndex
+    // / entityId) is resolved at read time and the web composes the proxy
+    // URL. The column is kept as a nullable legacy artefact.
+    expect(ahri?.iconPath).toBeNull();
 
     const lichBane = rows.find((r) => r.subject === "Lich Bane");
     expect(lichBane?.section).toBe("item");
-    expect(lichBane?.iconPath).toBe(
-      "https://wiki.leagueoflegends.com/en-us/images/Lich_Bane_item.png"
-    );
+    expect(lichBane?.iconPath).toBeNull();
 
     const phaseRush = rows.find((r) => r.subject === "Phase Rush");
     expect(phaseRush?.section).toBe("rune");
-    expect(phaseRush?.iconPath).toBe(
-      "https://wiki.leagueoflegends.com/en-us/images/Phase_Rush_rune.png"
-    );
+    expect(phaseRush?.iconPath).toBeNull();
   });
 
-  it("uses 'p' (not 'passive') for the CDragon Passive ability icon URL", async () => {
-    // Real bug surface: CDragon's icon path uses the short key `p` for
-    // passives, not the lowercase slot name. If the implementation accidentally
-    // collapsed to slot.toLowerCase() everywhere, Passive icons would 404.
+  it("persists the 'Passive' slot label for passive ability rows", async () => {
+    // Passive abilities resolve through the `skill_i` wiki module entry. The
+    // read-side join uses the slot label verbatim against
+    // `LolChampionAbility.slot`, which stores `"Passive"` (not `"P"`/`"p"`).
     const wikitext =
       "== Champions ==\n;{{ci|Ahri}}\n* {{ai|Essence Theft|Ahri}}\n** Heal increased to 4 from 3.\n";
     vi.stubGlobal(
@@ -559,9 +575,7 @@ describe("PatchService.syncVersion", () => {
     };
     const ahri = createCall.data.find((r) => r.subject === "Ahri");
     expect(ahri?.slot).toBe("Passive");
-    expect(ahri?.iconPath).toBe(
-      "https://cdn.communitydragon.org/latest/champion/Ahri/ability-icon/p"
-    );
+    expect(ahri?.iconPath).toBeNull();
   });
 
   it("falls back to stripping a trailing digit when the ability name has a wiki variant suffix", async () => {

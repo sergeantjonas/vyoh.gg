@@ -18,9 +18,12 @@ export interface ChampionPatchChangeLine {
   // "Passive". Null for base-stat rows, items, runes, or when the CDragon
   // lookup failed (ability name falls back to verbatim wiki name).
   slot: string | null;
-  // Full CDragon URL for the ability icon. Null for base-stat rows, items,
-  // runes, or when the CDragon lookup failed.
-  iconPath: string | null;
+  // Index inside (championId, slot) — matches the lazy `LolChampionAbility`
+  // composite key. Resolved at read time by joining (subject, slot, ability)
+  // against the ability table. Null for base-stat rows or when the lookup
+  // missed (no ability table coverage yet, ability name drift). Web composes
+  // the proxy URL via `abilityIconUrl(championId, slot, abilityIndex, patch)`.
+  abilityIndex: number | null;
   changeText: string;
   changeType: ChampionPatchChangeKind | null;
 }
@@ -30,6 +33,11 @@ export interface ChampionPatchChangeGroup {
   // resolve their Riot-internal aliases (e.g. "MonkeyKing") to wiki display
   // names before querying — see `useChampionName` on the web side.
   champion: string;
+  // Riot `championKey` (LolChampion.id), resolved by joining `champion` to
+  // `LolChampion.name` at read time. Null when the champion isn't in our
+  // static sync yet (newly-released champion before the next nightly cron).
+  // Required to compose the ability-icon proxy URL.
+  championId: number | null;
   changes: ChampionPatchChangeLine[];
 }
 
@@ -46,9 +54,11 @@ export interface PatchEntryChangeLine {
 export interface PatchEntryChangeGroup {
   // Wiki item or rune name verbatim (e.g. "Lich Bane", "Deathfire Touch").
   name: string;
-  // Full CDragon URL for the item/rune icon. Null when CDragon lookup failed
-  // or the entry is for a removed entity not present in either version's data.
-  iconUrl: string | null;
+  // `LolItem.id` / `LolPerk.id` resolved at read time. Null when the
+  // entity isn't in our static sync (removed item, new perk pre-DDragon
+  // refresh). Web composes the proxy URL via
+  // `itemIconUrl(entityId, patch)` / `runeIconUrl(entityId, patch)`.
+  entityId: number | null;
   changes: PatchEntryChangeLine[];
 }
 

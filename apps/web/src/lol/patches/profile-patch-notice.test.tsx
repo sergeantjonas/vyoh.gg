@@ -131,11 +131,12 @@ describe("ProfilePatchNotice", () => {
       changes: [
         {
           champion: "Ahri",
+          championId: 103,
           changes: [
             {
               ability: "Q",
               slot: "Q",
-              iconPath: null,
+              abilityIndex: 0,
               changeType: "buff",
               changeText: "Damage increased.",
             },
@@ -153,13 +154,13 @@ describe("ProfilePatchNotice", () => {
     const lines = Array.from({ length: 9 }, (_, i) => ({
       ability: "Q",
       slot: "Q",
-      iconPath: null,
+      abilityIndex: 0,
       changeType: "buff" as const,
       changeText: `line ${i + 1}`,
     }));
     mockChanges({
       patchVersion: "16.10.1",
-      changes: [{ champion: "Ahri", changes: lines }],
+      changes: [{ champion: "Ahri", championId: 103, changes: lines }],
     } as CurrentPatchChangesResponse);
     renderNotice();
     expect(screen.getByText("line 6")).toBeTruthy();
@@ -176,11 +177,12 @@ describe("ProfilePatchNotice", () => {
       changes: [
         {
           champion: "Ahri",
+          championId: 103,
           changes: [
             {
               ability: "Q",
               slot: "Q",
-              iconPath: null,
+              abilityIndex: 0,
               changeType: "buff",
               changeText: "Damage increased.",
             },

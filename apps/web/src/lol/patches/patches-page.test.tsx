@@ -133,7 +133,7 @@ describe("PatchesPage", () => {
               {
                 ability: "Q",
                 slot: "Q",
-                iconPath: null,
+                abilityIndex: 0,
                 changeType: "buff",
                 changeText: "Damage up",
               },
@@ -200,7 +200,7 @@ describe("PatchesPage", () => {
               {
                 ability: null,
                 slot: null,
-                iconPath: null,
+                abilityIndex: 0,
                 changeType: "buff",
                 changeText: "x",
               },
@@ -247,7 +247,7 @@ describe("PatchesPage", () => {
         items: [
           {
             name: "Trinity Force",
-            iconUrl: "/tf.png",
+            entityId: 3078,
             changes: [{ changeType: "buff", changeText: "AD up" }],
           },
         ],
@@ -274,7 +274,7 @@ describe("PatchesPage", () => {
         runes: [
           {
             name: "Conqueror",
-            iconUrl: "/conq.png",
+            entityId: 8010,
             changes: [{ changeType: "nerf", changeText: "Stacks tuned" }],
           },
         ],

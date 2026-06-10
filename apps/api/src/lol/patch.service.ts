@@ -8,13 +8,10 @@ import type {
   PatchEntryChangeGroup,
   PatchListEntry,
 } from "@vyoh/shared";
-import { wikiEntryIconUrl } from "../img/wiki-url-helpers";
 import { PrismaService } from "../prisma/prisma.service";
 import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch-parser";
 
 const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json";
-const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
-const CDRAGON_ICON_CDN = "https://cdn.communitydragon.org";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
 // Wiki etiquette: identify the bot and provide a contact URL.
 const USER_AGENT = "vyoh.gg/1.0 (+https://vyoh.gg) patch-notes-sync";
@@ -25,10 +22,6 @@ interface MediaWikiParseResponse {
     wikitext?: { "*"?: string };
   };
   error?: { code?: string; info?: string };
-}
-
-interface DdragonChampionListBody {
-  data: Record<string, { name: string }>;
 }
 
 interface WikiModuleResponse {
@@ -104,10 +97,7 @@ export class PatchService {
       );
       if (championNames.size > 0) {
         try {
-          const { slotMaps, iconByChampionSlot } = await this.fetchChampionAbilityData(
-            fullDdragonVersion,
-            championNames
-          );
+          const slotMaps = await this.fetchChampionSlotMaps(championNames);
           for (const change of changes) {
             if (
               change.section !== "champion" ||
@@ -116,13 +106,11 @@ export class PatchService {
             )
               continue;
             const slotMap = slotMaps.get(change.subject);
-            const iconMap = iconByChampionSlot.get(change.subject);
             const resolvedSlot =
               slotMap?.get(change.ability) ??
               slotMap?.get(change.ability.replace(/ \d+$/, "")) ??
               null;
             change.slot = resolvedSlot;
-            change.iconPath = resolvedSlot ? (iconMap?.get(resolvedSlot) ?? null) : null;
           }
         } catch (err) {
           this.logger.warn(
@@ -130,13 +118,6 @@ export class PatchService {
             err instanceof Error ? err.message : err
           );
         }
-      }
-    }
-    for (const change of changes) {
-      if (change.section === "item") {
-        change.iconPath = wikiEntryIconUrl(change.subject, "item");
-      } else if (change.section === "rune") {
-        change.iconPath = wikiEntryIconUrl(change.subject, "rune");
       }
     }
     await this.persist(truncatedVersion, changes, patchDate);
@@ -241,9 +222,10 @@ export class PatchService {
       },
       orderBy: [{ subject: "asc" }, { id: "asc" }],
     });
+    const { championIds, abilityIndexes } = await this.resolveChampionIdentities(rows);
     return {
       patchVersion: latest.version,
-      changes: groupChampionRows(rows),
+      changes: groupChampionRows(rows, championIds, abilityIndexes),
     };
   }
 
@@ -286,84 +268,105 @@ export class PatchService {
       else if (row.section === "item") items.push(row);
       else if (row.section === "rune") runes.push(row);
     }
+    const [{ championIds, abilityIndexes }, itemIds, perkIds] = await Promise.all([
+      this.resolveChampionIdentities(champions),
+      this.resolveEntityIds("item", items),
+      this.resolveEntityIds("rune", runes),
+    ]);
     return {
       patchVersion: version,
-      champions: groupChampionRows(champions),
-      items: groupEntryRows(items),
-      runes: groupEntryRows(runes),
+      champions: groupChampionRows(champions, championIds, abilityIndexes),
+      items: groupEntryRows(items, itemIds),
+      runes: groupEntryRows(runes, perkIds),
     };
   }
 
+  // Resolves the wire-side identity columns for champion-section rows:
+  // wiki subject → LolChampion.id, plus (championId, slot, ability name) →
+  // LolChampionAbility.abilityIndex. Both lookups miss silently — a brand-new
+  // champion or a renamed ability resolves to null and the web renders no
+  // icon rather than a broken one.
+  private async resolveChampionIdentities(
+    rows: ReadonlyArray<{ subject: string; ability: string | null; slot: string | null }>
+  ): Promise<{
+    championIds: Map<string, number>;
+    abilityIndexes: Map<string, number>;
+  }> {
+    const subjects = new Set<string>();
+    for (const row of rows) subjects.add(row.subject);
+    const championIds = new Map<string, number>();
+    if (subjects.size === 0) return { championIds, abilityIndexes: new Map() };
+    const champions = await this.prisma.lolChampion.findMany({
+      where: { name: { in: [...subjects] } },
+      select: { id: true, name: true },
+    });
+    for (const c of champions) championIds.set(c.name, c.id);
+
+    const championIdList = champions.map((c) => c.id);
+    const abilityIndexes = new Map<string, number>();
+    if (championIdList.length === 0) return { championIds, abilityIndexes };
+    const abilityRows = await this.prisma.lolChampionAbility.findMany({
+      where: { championId: { in: championIdList } },
+      select: { championId: true, slot: true, name: true, abilityIndex: true },
+    });
+    for (const a of abilityRows) {
+      abilityIndexes.set(abilityKey(a.championId, a.slot, a.name), a.abilityIndex);
+    }
+    return { championIds, abilityIndexes };
+  }
+
+  // Resolves wiki subject → LolItem.id / LolPerk.id by name. Misses go
+  // unrecorded — the wire's `entityId` stays null and the web renders no
+  // icon. Distinct names only, batched into one IN-clause.
+  private async resolveEntityIds(
+    kind: "item" | "rune",
+    rows: ReadonlyArray<{ subject: string }>
+  ): Promise<Map<string, number>> {
+    const subjects = new Set<string>();
+    for (const row of rows) subjects.add(row.subject);
+    const ids = new Map<string, number>();
+    if (subjects.size === 0) return ids;
+    const list =
+      kind === "item"
+        ? await this.prisma.lolItem.findMany({
+            where: { name: { in: [...subjects] } },
+            select: { id: true, name: true },
+          })
+        : await this.prisma.lolPerk.findMany({
+            where: { name: { in: [...subjects] } },
+            select: { id: true, name: true },
+          });
+    for (const r of list) ids.set(r.name, r.id);
+    return ids;
+  }
+
   // Fetches the wiki's canonical champion skill module (one request, all
-  // champions) plus the ddragon list for string IDs (needed for CDragon icon
-  // URLs). Returns slot maps (ability name → slot) and icon maps (slot →
-  // CDragon icon URL) keyed by wiki champion display name.
+  // champions) and returns slot maps (ability name → slot) keyed by wiki
+  // champion display name.
   //
   // The wiki module has every named ability variant under skill_q/w/e/r/i,
   // including empowered forms (Karma's "Renewal" under skill_w, Lee Sin's
   // "Iron Will" under skill_w, etc.) — this is the canonical source the patch
   // notes themselves come from. No heuristics needed.
-  private async fetchChampionAbilityData(
-    ddragonVersion: string,
+  private async fetchChampionSlotMaps(
     championNames: ReadonlySet<string>
-  ): Promise<{
-    slotMaps: Map<string, Map<string, string>>;
-    iconByChampionSlot: Map<string, Map<string, string>>;
-  }> {
-    const [listBody, skillModule] = await Promise.all([
-      fetch(`${DDRAGON_CDN}/${ddragonVersion}/data/en_US/champion.json`, {
-        headers: { "User-Agent": USER_AGENT },
-      }).then(async (r) => {
-        if (!r.ok) throw new Error(`ddragon champion list HTTP ${r.status}`);
-        return r.json() as Promise<DdragonChampionListBody>;
-      }),
-      fetch(
-        `${WIKI_API}?action=query&titles=Module:ChampionData/data&prop=revisions&rvprop=content&rvslots=main&format=json`,
-        { headers: { "User-Agent": USER_AGENT } }
-      ).then(async (r) => {
-        if (!r.ok) throw new Error(`wiki champion module HTTP ${r.status}`);
-        const body = (await r.json()) as WikiModuleResponse;
-        const page = Object.values(body.query?.pages ?? {})[0];
-        return page?.revisions?.[0]?.slots?.main?.["*"] ?? "";
-      }),
-    ]);
+  ): Promise<Map<string, Map<string, string>>> {
+    const res = await fetch(
+      `${WIKI_API}?action=query&titles=Module:ChampionData/data&prop=revisions&rvprop=content&rvslots=main&format=json`,
+      { headers: { "User-Agent": USER_AGENT } }
+    );
+    if (!res.ok) throw new Error(`wiki champion module HTTP ${res.status}`);
+    const body = (await res.json()) as WikiModuleResponse;
+    const page = Object.values(body.query?.pages ?? {})[0];
+    const skillModule = page?.revisions?.[0]?.slots?.main?.["*"] ?? "";
 
-    // ddragon string id (e.g. "MonkeyKing") indexed by display name ("Wukong")
-    // AND by string id itself ("MonkeyKing") so wiki names resolve correctly.
-    const toStringId = new Map<string, string>();
-    for (const [stringId, data] of Object.entries(listBody.data)) {
-      toStringId.set(data.name, stringId);
-      toStringId.set(stringId, stringId);
-    }
-
-    // Parse wiki module: skill_i→Passive, skill_q→Q, skill_w→W, skill_e→E, skill_r→R.
-    // Top-level champion blocks are indented with exactly 2 spaces.
     const wikiSlots = parseChampionSkillModule(skillModule);
-
     const slotMaps = new Map<string, Map<string, string>>();
-    const iconByChampionSlot = new Map<string, Map<string, string>>();
-
     for (const displayName of championNames) {
       const slotMap = wikiSlots.get(displayName);
-      if (!slotMap) continue;
-      slotMaps.set(displayName, slotMap);
-
-      const stringId = toStringId.get(displayName);
-      if (stringId) {
-        const iconMap = new Map<string, string>();
-        const uniqueSlots = [...new Set<string>(slotMap.values())];
-        for (const slot of uniqueSlots) {
-          const key = slot === "Passive" ? "p" : slot.toLowerCase();
-          iconMap.set(
-            slot,
-            `${CDRAGON_ICON_CDN}/latest/champion/${stringId}/ability-icon/${key}`
-          );
-        }
-        iconByChampionSlot.set(displayName, iconMap);
-      }
+      if (slotMap) slotMaps.set(displayName, slotMap);
     }
-
-    return { slotMaps, iconByChampionSlot };
+    return slotMaps;
   }
 
   // Atomic upsert: insert the PatchVersion row and all change rows in a
@@ -388,7 +391,10 @@ export class PatchService {
           subject: c.subject,
           ability: c.ability,
           slot: c.slot ?? null,
-          iconPath: c.iconPath ?? null,
+          // iconPath column is legacy — we now resolve identity → URL at
+          // read time (championId / abilityIndex / itemId / perkId). Left
+          // null on every new write; safe to drop in a future migration.
+          iconPath: null,
           changeText: c.changeText,
           changeType: c.changeType,
         })),
@@ -397,31 +403,49 @@ export class PatchService {
   }
 }
 
+// Composite key for the `(championId, slot, ability name) → abilityIndex`
+// lookup map. Slot can be null when the wiki module didn't carry the variant
+// (rare; resolves to a null abilityIndex which the web treats as "no icon").
+function abilityKey(championId: number, slot: string | null, name: string): string {
+  return `${championId} ${slot ?? ""} ${name}`;
+}
+
 // Group raw champion-section rows by subject (wiki champion name),
-// preserving DB order (already subject ASC, id ASC). The `changeType` cast
-// is safe: it's only ever written by the parser using the
+// preserving DB order (already subject ASC, id ASC). `championIds` and
+// `abilityIndexes` are pre-resolved by `resolveChampionIdentities`. The
+// `changeType` cast is safe: it's only ever written by the parser using the
 // ChampionPatchChangeKind union or null.
 function groupChampionRows(
   rows: ReadonlyArray<{
     subject: string;
     ability: string | null;
     slot: string | null;
-    iconPath: string | null;
     changeText: string;
     changeType: string | null;
-  }>
+  }>,
+  championIds: ReadonlyMap<string, number>,
+  abilityIndexes: ReadonlyMap<string, number>
 ): ChampionPatchChangeGroup[] {
   const groups = new Map<string, ChampionPatchChangeGroup>();
   for (const row of rows) {
     let group = groups.get(row.subject);
     if (!group) {
-      group = { champion: row.subject, changes: [] };
+      group = {
+        champion: row.subject,
+        championId: championIds.get(row.subject) ?? null,
+        changes: [],
+      };
       groups.set(row.subject, group);
     }
+    const championId = group.championId;
+    const abilityIndex =
+      championId !== null && row.ability && row.ability !== "Base"
+        ? (abilityIndexes.get(abilityKey(championId, row.slot, row.ability)) ?? null)
+        : null;
     group.changes.push({
       ability: row.ability,
       slot: row.slot,
-      iconPath: row.iconPath,
+      abilityIndex,
       changeText: row.changeText,
       changeType: row.changeType as ChampionPatchChangeKind | null,
     });
@@ -430,21 +454,25 @@ function groupChampionRows(
 }
 
 // Group item/rune rows by subject. No ability layer — items and runes are
-// flat, so each row turns into one PatchEntryChangeLine. iconPath is the same
-// for every row under a given subject (resolved per-subject at sync time).
+// flat, so each row turns into one PatchEntryChangeLine. `entityIds` is
+// pre-resolved by `resolveEntityIds`.
 function groupEntryRows(
   rows: ReadonlyArray<{
     subject: string;
-    iconPath: string | null;
     changeText: string;
     changeType: string | null;
-  }>
+  }>,
+  entityIds: ReadonlyMap<string, number>
 ): PatchEntryChangeGroup[] {
   const groups = new Map<string, PatchEntryChangeGroup>();
   for (const row of rows) {
     let group = groups.get(row.subject);
     if (!group) {
-      group = { name: row.subject, iconUrl: row.iconPath, changes: [] };
+      group = {
+        name: row.subject,
+        entityId: entityIds.get(row.subject) ?? null,
+        changes: [],
+      };
       groups.set(row.subject, group);
     }
     group.changes.push({

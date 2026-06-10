@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { itemIconUrl, runeIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import {
@@ -121,6 +122,8 @@ export function PatchesPage({
     return <PatchesEmpty />;
   }
 
+  const resolvedPatch: string = patchChanges.patchVersion;
+
   const onSelectVersion = (next: string) => {
     // Preserve `?as=` across version navigation so the personalized lens
     // survives picking a different patch. Newest patch routes to the bare
@@ -216,6 +219,7 @@ export function PatchesPage({
                   group={group}
                   aliasFromName={championAliasFromName}
                   isMyChampion={myChampions.has(group.champion)}
+                  patch={resolvedPatch}
                 />
               </li>
             );
@@ -224,10 +228,22 @@ export function PatchesPage({
       )}
 
       {items.length > 0 ? (
-        <PatchEntrySection title="Item changes" groups={items} iconShape="square" />
+        <PatchEntrySection
+          title="Item changes"
+          groups={items}
+          iconShape="square"
+          patch={resolvedPatch}
+          kind="item"
+        />
       ) : null}
       {runes.length > 0 ? (
-        <PatchEntrySection title="Rune changes" groups={runes} iconShape="circle" />
+        <PatchEntrySection
+          title="Rune changes"
+          groups={runes}
+          iconShape="circle"
+          patch={resolvedPatch}
+          kind="rune"
+        />
       ) : null}
     </div>
   );
@@ -237,10 +253,14 @@ function PatchEntrySection({
   title,
   groups,
   iconShape,
+  patch,
+  kind,
 }: {
   title: string;
   groups: PatchEntryChangeGroup[];
   iconShape: "square" | "circle";
+  patch: string;
+  kind: "item" | "rune";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -268,11 +288,17 @@ function PatchEntrySection({
       {open ? (
         <ul className="divide-y border-t">
           {groups.map((group) => {
+            const iconUrl =
+              group.entityId !== null
+                ? kind === "item"
+                  ? itemIconUrl(group.entityId, patch)
+                  : runeIconUrl(group.entityId, patch)
+                : null;
             return (
               <li key={group.name} className="flex gap-3 p-3">
-                {group.iconUrl ? (
+                {iconUrl ? (
                   <ItemIcon
-                    iconUrl={group.iconUrl}
+                    iconUrl={iconUrl}
                     alt={group.name}
                     className={cn(
                       "size-9 shrink-0",
@@ -311,10 +337,12 @@ function ChampionRow({
   group,
   aliasFromName,
   isMyChampion,
+  patch,
 }: {
   group: ChampionPatchChangeGroup;
   aliasFromName: (n: string) => string;
   isMyChampion: boolean;
+  patch: string;
 }) {
   return (
     <div className="flex gap-3 rounded-lg border bg-card/50 p-3">
@@ -335,7 +363,12 @@ function ChampionRow({
             </span>
           ) : null}
         </div>
-        <AbilityChangeList changes={group.changes} className="mt-1" />
+        <AbilityChangeList
+          changes={group.changes}
+          championId={group.championId}
+          patch={patch}
+          className="mt-1"
+        />
       </div>
     </div>
   );
