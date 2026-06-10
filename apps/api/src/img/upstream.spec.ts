@@ -152,8 +152,9 @@ describe("transcodeToWebp", () => {
     expect(out.length).toBeGreaterThan(0);
   });
 
-  it("crops the upper half before resizing when extractTopHalf is set", async () => {
-    // 8×16 sprite — extractTopHalf should clip to 8×8 before resize is applied.
+  it("crops the upper half when extractTopHalf is set on a clearly vertical sprite", async () => {
+    // 8×16 sprite (height > 1.5x width) — extractTopHalf should clip to 8×8
+    // before resize is applied. Mirrors CDragon's 52×112 `icon_minions.png`.
     const sprite = await sharp({
       create: { width: 8, height: 16, channels: 3, background: { r: 0, g: 200, b: 0 } },
     })
@@ -163,6 +164,21 @@ describe("transcodeToWebp", () => {
     const meta = await sharp(out).metadata();
     expect(meta.width).toBe(8);
     expect(meta.height).toBe(8);
+  });
+
+  it("leaves a square source untouched even with extractTopHalf set", async () => {
+    // Wiki's `Minion_icon.png` is 72×72; the chain shares one `params`
+    // for wiki primary + CDragon sprite fallback. Square sources must
+    // pass through, else the wiki icon gets sliced to its top half.
+    const square = await sharp({
+      create: { width: 12, height: 12, channels: 3, background: { r: 200, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer();
+    const out = await transcodeToWebp(square, { extractTopHalf: true });
+    const meta = await sharp(out).metadata();
+    expect(meta.width).toBe(12);
+    expect(meta.height).toBe(12);
   });
 
   it("clamps at native dimensions by default (no enlarge)", async () => {

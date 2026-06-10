@@ -96,8 +96,13 @@ export async function transcodeToWebp(
   } = params;
   let pipeline = sharp(input);
   if (extractTopHalf) {
+    // Crop only when the source is clearly a vertical sprite (height
+    // notably larger than width — e.g. CDragon's 52×112 `icon_minions.png`).
+    // The same `Resolved.params` shape covers the wiki primary (square
+    // `Minion_icon.png`, 72×72) and the CDragon fallback; cropping the
+    // wiki one mangles the icon to a horizontal slice, so gate on shape.
     const meta = await pipeline.metadata();
-    if (meta.width && meta.height) {
+    if (meta.width && meta.height && meta.height > meta.width * 1.5) {
       pipeline = sharp(input).extract({
         left: 0,
         top: 0,
