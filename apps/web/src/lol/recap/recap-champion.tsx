@@ -37,7 +37,7 @@ export function RecapChampion({
         whileInView={reduced ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6"
+        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Champion of the year
@@ -127,8 +127,14 @@ export function RecapChampion({
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  // Frosted tile: the parent m.section is intentionally transparent so the
+  // baked splash overlay (at -z-20 inside `isolate`) reads through the
+  // chapter. The stat tiles sit directly over that splash, so they take the
+  // panel-internal frosted recipe (`bg-card/60 backdrop-blur-sm`) to read as
+  // crisp glass data tiles on the splash backdrop. One level of glass holds
+  // because the parent section is bare, not frosted.
   return (
-    <div className="rounded-lg border border-border/50 bg-background/40 px-4 py-3">
+    <div className="rounded-lg border border-border/50 bg-card/60 px-4 py-3 backdrop-blur-sm">
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
         {label}
       </div>

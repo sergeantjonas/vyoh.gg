@@ -1,3 +1,4 @@
+import { CvSection } from "@/_shared/cv-section";
 import { routeMeta } from "@/lib/route-meta";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
@@ -74,13 +75,35 @@ function RecapPage() {
         </p>
       </m.header>
 
-      <RecapRankArc account={account} />
-      <RecapChampion matches={matches} accountSlug={accountSlug} />
-      <RecapMostImproved matches={matches} accountSlug={accountSlug} />
-      <RecapSignatureGame matches={matches} accountSlug={accountSlug} />
-      <RecapPatchVerdict matches={matches} />
-      <RecapDuoOfYear accountSlug={accountSlug} />
-      <RecapTopInsight matches={matches} />
+      {/* Rank arc + champion-of-year are above-fold on most viewports, but
+          CV-auto's contain-intrinsic-size also gates layer-promotion for the
+          new frosted recipe (`bg-card/60 backdrop-blur-sm`) on chapters that
+          ARE below the fold. Per-chapter heights are tuned to rendered size;
+          slight under-estimate is fine, over-estimate causes a visible gap
+          when the chapter paints in. Above-fold chapters stay wrapped too —
+          CV-auto is a no-op for in-view content but the wrapper unifies the
+          composition. */}
+      <CvSection minHeight={260}>
+        <RecapRankArc account={account} />
+      </CvSection>
+      <CvSection minHeight={360}>
+        <RecapChampion matches={matches} accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={240}>
+        <RecapMostImproved matches={matches} accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={220}>
+        <RecapSignatureGame matches={matches} accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={240}>
+        <RecapPatchVerdict matches={matches} />
+      </CvSection>
+      <CvSection minHeight={220}>
+        <RecapDuoOfYear accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={200}>
+        <RecapTopInsight matches={matches} />
+      </CvSection>
 
       <m.p
         initial={reduced ? false : { opacity: 0 }}

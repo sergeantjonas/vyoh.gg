@@ -76,7 +76,7 @@ export function RecapSignatureGame({
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, amount: 0.2 }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6"
+        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
         <m.h2
           {...childProps("eyebrow")}
@@ -107,7 +107,7 @@ export function RecapSignatureGame({
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.2 }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/40 p-6 sm:p-8"
+      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
       <m.h2
         {...childProps("eyebrow")}

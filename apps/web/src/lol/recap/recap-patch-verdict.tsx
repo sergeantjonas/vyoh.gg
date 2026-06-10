@@ -47,7 +47,7 @@ export function RecapPatchVerdict({ matches }: { matches: MatchSummary[] | undef
         whileInView={reduced ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6"
+        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Best and worst patch
@@ -67,7 +67,7 @@ export function RecapPatchVerdict({ matches }: { matches: MatchSummary[] | undef
       whileInView={reduced ? {} : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/40 p-6 sm:p-8"
+      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
       <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
         Best and worst patch
@@ -107,7 +107,7 @@ function PatchTile({
 }) {
   const accent = tone === "up" ? "text-emerald-500/90" : "text-rose-500/90";
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border/50 bg-background/40 px-4 py-3">
+    <div className="flex flex-col gap-1 rounded-lg border border-border/50 bg-card/50 px-4 py-3">
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
         {label}
       </div>

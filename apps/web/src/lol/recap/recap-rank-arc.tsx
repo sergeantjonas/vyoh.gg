@@ -67,7 +67,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
         whileInView={reduced ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6"
+        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Rank arc
@@ -92,7 +92,12 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
       whileInView={reduced ? {} : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/40 p-6 sm:p-8"
+      // Chapter wrapper carries the frosted recipe — it sits directly over
+      // the splash backdrop (the recap claims a champion splash via
+      // useSplashChampion in the route), so it's the boundary glass layer.
+      // Inner Stat tiles below stay bare (`bg-card/50`) per the one-level-of-
+      // glass rule, nested inside frosted chrome.
+      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
       <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
         Rank arc
@@ -105,7 +110,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {lpDelta !== null && (
-          <div className="rounded-lg border border-border/50 bg-background/30 px-4 py-3">
+          <div className="rounded-lg border border-border/50 bg-card/50 px-4 py-3">
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
               Net LP movement (Solo)
             </div>
@@ -120,7 +125,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
             </div>
           </div>
         )}
-        <div className="rounded-lg border border-border/50 bg-background/30 px-4 py-3">
+        <div className="rounded-lg border border-border/50 bg-card/50 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
             Tracked seasons
           </div>
