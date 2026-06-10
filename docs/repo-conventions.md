@@ -236,13 +236,16 @@ The compositor + paint baseline measured by [`tools/perf-probe`](../tools/perf-p
 
 **Cold-load budget per route (01-load phase):**
 
-| Metric | Budget | Reference |
-|---|---|---|
-| Unique compositor layers | ≤ 30 | lol-overview = 24, steam-library = 32, recap = 13 |
-| `RasterTask` total | ≤ 200 ms | recap = 145 ms; lol-overview = 101 ms; steam-library = 100 ms |
-| Long tasks | ≤ 2 | foundation chunks brought lol-overview from 4 to 1 |
+Budgets are per-route because the routes diverge in how much frosted/blur-cost they carry. The `RasterTask` floor on a frosted-heavy route (recap with 7 chapter wrappers carrying `bg-card/40 + backdrop-blur-md`) sits structurally above an un-frosted route's floor, even at the same compositor-layer count. The 2026-06-10 frosted-tile consistency pass moved the recap raster floor from 145 ms → ~245 ms by design — the cost bought the visible glass aesthetic the section explicitly wants.
 
-List-shaped routes (champion-list, match-list, library-list) are an explicit exception — they render N rows where N is determined by data, so layer count scales with viewport-visible row count. Current example: lol-champion-panel `01-load` (the champion-list page, not the panel) = 65–68 layers at ~150 rows. Budget for a list-shaped route is "the cold layer count should be roughly `30 + ceil(visibleRows × 4)`" — i.e. the base budget plus a per-row contribution. If a new list-shaped route exceeds that estimate, audit per-row class composition before merging.
+| Route | Layers | RasterTask | Long tasks | Notes |
+|---|---|---|---|---|
+| lol-overview | ≤ 30 | ≤ 150 ms | ≤ 2 | 24 layers / ~100 ms / 1–2 long tasks across 3-run bracket. Long-task count is noisy run-to-run; 2 is the median, 3 is hit. |
+| steam-library | ≤ 35 | ≤ 150 ms | ≤ 2 | 30 layers / 100 ms / 1 long task. |
+| recap | ≤ 20 | ≤ 300 ms | ≤ 3 | 13 layers / 208–275 ms median ~245 / 2–3 long tasks. Floor shifted up after 2026-06-10 frosted-chapter pass (was 145 ms / 1 long task). Frosted recipe is load-bearing aesthetic; cost reduction levers (lighter blur, CV-auto gating) walk back visible identity and are not recommended unless dropped-frame count goes non-zero. |
+| lol-champion-panel (list) | per `30 + ceil(visibleRows × 4)` | ≤ 200 ms | ≤ 2 | 64–68 layers at ~150 rows. List-shaped exception below. |
+
+List-shaped routes (champion-list, match-list, library-list) are an explicit exception — they render N rows where N is determined by data, so layer count scales with viewport-visible row count. Current example: lol-champion-panel `01-load` (the champion-list page, not the panel) = 64–68 layers at ~150 rows. Budget for a list-shaped route is "the cold layer count should be roughly `30 + ceil(visibleRows × 4)`" — i.e. the base budget plus a per-row contribution. If a new list-shaped route exceeds that estimate, audit per-row class composition before merging.
 
 **Interactive budget (panel-open / panel-close phases on panel-shaped routes):**
 
@@ -260,6 +263,8 @@ No fixed layer-count budget — `content-visibility: auto` materialisation timin
 
 - Before adding a new top-level route or a new panel, decide which existing scenario it most resembles and run `pnpm --filter @vyoh/tools-perf-probe probe -- --scenario <name>` to baseline.
 - After landing the route, re-run the probe and compare against the budget above. A new surface that pushes a baseline scenario over its layer budget by more than ~50 layers, or any non-zero dropped-frame count, triggers a perf review before merge.
+- Single-run probe numbers vary 10–20% on raster and ±2 on long-task count. Bracket with 3 runs before claiming a regression or improvement; only treat a delta as real if the median moves outside the budget. A non-zero dropped-frame count is the only single-run signal that needs no bracketing.
+- When a visual identity ask (frosted recipe, splash backdrop, new chapter motif) intentionally raises a route's raster floor, widen that route's budget row to reflect the new floor *in the same change* — don't leave a stale budget for the next reviewer to flag as a regression. Note the trigger in the row's Notes column so the cost is traceable to the decision that paid for it.
 - New surfaces that introduce layer-promoting CSS (`backdrop-filter`, `will-change`, `transform: translateZ(0)`, `isolate` with no descendant escape, `transition` targeting `transform`) or new Motion components should always re-probe.
 - The thresholds above are derived from observed numbers and are not fundamental limits. They are calibrated to "don't regress what we have" — if you make a measured improvement that lowers a budget, edit this table to reflect the new bar.
 - For panel-shaped surfaces, see also the [tile background convention](#tile-background-one-level-of-glass-between-background-and-content): panel-internal frosted tile clusters more than ~one viewport below the panel header should be wrapped in [`CvSection`](../apps/web/src/_shared/cv-section.tsx) so their `backdrop-filter` layer-promotion is gated to scroll-near. The scroll container — not the document viewport — is the IntersectionObserver root for CV-auto inside an `overflow-y-auto` panel; this was confirmed empirically in chunk 2 (see audit doc).
