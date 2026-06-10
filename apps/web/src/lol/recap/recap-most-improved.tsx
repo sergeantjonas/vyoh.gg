@@ -80,7 +80,7 @@ export function RecapMostImproved({
         whileInView={reduced ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6 backdrop-blur-md"
+        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Most improved
@@ -103,7 +103,7 @@ export function RecapMostImproved({
       whileInView={reduced ? {} : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/40 p-6 backdrop-blur-md sm:p-8"
+      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
       <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
         Most improved
