@@ -37,3 +37,14 @@ scripts/verify-*
 # Perf-probe trace + screenshot output. Root-level so biome's useIgnoreFile
 # picks it up (biome only reads the root .gitignore, not nested ones).
 tools/perf-probe/runs/
+
+# Force-track AI-tool config surfaces so a malicious postinstall that writes
+# one of these shows up in `git status` instead of staying invisible. Triggered
+# by the 2026-06-08 Hades campaign — see ~/.claude/CLAUDE.md "Supply-chain
+# hardening". Project CLAUDE.md / .claude/ stay ignored per the rules above.
+!.cursorrules
+!.cursor/
+!.windsurfrules
+!.aider.conf.yml
+!.github/copilot-instructions.md
+!.vscode/setup.mjs

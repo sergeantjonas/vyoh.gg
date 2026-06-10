@@ -27,5 +27,15 @@
     "concurrently": "^9.1.0",
     "playwright": "^1.60.0",
     "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "@prisma/engines",
+      "@swc/core",
+      "@tailwindcss/oxide",
+      "esbuild",
+      "prisma"
+    ]
   }
 }
