@@ -25,11 +25,14 @@ export interface CardShellProps {
   /** When true, renders the verdict in muted style — use for insufficient-data empty states. */
   empty?: boolean;
   /**
-   * Switch tile chrome to the frosted recipe (bg-card/60 + backdrop-blur-sm)
-   * for in-panel use, where the card faces a splash backdrop directly. The
-   * default (`false`) keeps the bare bg-card/50 recipe for page-grounded
-   * contexts (Steam profile chips, LoL Trends tab page, etc.). See the
-   * "One level of glass" rule in docs/repo-conventions.md.
+   * Switch tile chrome to the frosted recipe (bg-card/60 + backdrop-blur-sm).
+   * The default is `true` because every route that renders CardShell sits over
+   * either a champion splash (LoL Trends / champion-detail / profile chips),
+   * a Steam profile backdrop (Steam profile chips), or a baked panel splash
+   * (LoL champion-detail panel, LoL match-detail panel, Steam game-detail
+   * panel). Opt out (`frosted={false}`) only for surfaces with no backdrop
+   * behind them at all. See the "One level of glass" rule in
+   * docs/repo-conventions.md.
    */
   frosted?: boolean;
 }
@@ -42,7 +45,7 @@ export function CardShell({
   prescription,
   className,
   empty = false,
-  frosted = false,
+  frosted = true,
 }: CardShellProps) {
   const reduced = useReducedMotion();
   return (

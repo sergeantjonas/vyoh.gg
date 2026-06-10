@@ -179,11 +179,13 @@ function PathRow({
 export function ChampionBuildPath({
   accountSlug,
   championKey,
-  frosted = false,
+  frosted = true,
 }: {
   accountSlug: string;
   championKey: string;
-  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  /** Frosted recipe (`bg-card/60 + backdrop-blur-sm`). Defaults to true — every
+   *  current caller (champion-detail panel) sits over a splash backdrop.
+   *  See "one level of glass" in repo-conventions. */
   frosted?: boolean;
 }) {
   const account = useAccountFromSlug(accountSlug);

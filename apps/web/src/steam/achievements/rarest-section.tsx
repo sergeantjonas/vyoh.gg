@@ -63,7 +63,7 @@ function RarestRow({ unlock }: { unlock: SteamRecentUnlock }) {
         className={
           isAmber
             ? "flex items-start gap-4 rounded-lg border border-amber-400/30 bg-amber-500/[0.04] p-4 ring-1 ring-amber-400/10 transition-colors hover:border-amber-400/50 hover:bg-amber-500/[0.07]"
-            : "flex items-start gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
+            : "flex items-start gap-4 rounded-lg border border-border/40 bg-card/60 p-4 backdrop-blur-sm transition-colors hover:border-border hover:bg-card/80"
         }
       >
         <AchievementCardInner

@@ -60,11 +60,14 @@ function SplitBar({
 export function TrendTiltIndicator({
   current,
   previous: _previous,
-  frosted = false,
+  frosted = true,
 }: {
   current: MatchSummary[];
   previous: MatchSummary[];
-  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  /** Frosted recipe (`bg-card/60 + backdrop-blur-sm`). Defaults to true — both
+   *  the Trends tab page (over champion splash) and the champion-detail panel
+   *  sit over a backdrop. Pass `frosted={false}` only for surfaces without a
+   *  backdrop behind them. See "one level of glass" in repo-conventions. */
   frosted?: boolean;
 }) {
   const playedCount = useMemo(() => excludeRemakes(current).length, [current]);

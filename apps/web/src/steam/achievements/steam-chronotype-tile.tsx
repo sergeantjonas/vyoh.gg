@@ -7,7 +7,7 @@ const TOOLTIP_CONTENT_CLASS =
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/50 px-4 py-4">
+    <div className="flex h-full flex-col gap-3 rounded-lg border bg-card/60 px-4 py-4 backdrop-blur-sm">
       {children}
     </div>
   );

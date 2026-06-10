@@ -109,11 +109,12 @@ function buildSparkline(
 
 export function GameUnlockTimeline({
   appid,
-  frosted = false,
+  frosted = true,
 }: {
   appid: number;
-  // True when rendered in-panel so the section chrome picks up the
-  // frosted recipe over the panel chrome's baked backdrop.
+  // Frosted recipe (`bg-card/60 + backdrop-blur-sm`) for the section chrome.
+  // Defaults to true — every current caller (Steam game-detail panel) sits
+  // over a baked-splash backdrop.
   frosted?: boolean;
 }) {
   const query = useGameUnlockTimeline(appid);

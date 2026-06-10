@@ -67,7 +67,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
         whileInView={reduced ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
+        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6 backdrop-blur-md"
       >
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Rank arc
@@ -97,7 +97,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
       // useSplashChampion in the route), so it's the boundary glass layer.
       // Inner Stat tiles below stay bare (`bg-card/50`) per the one-level-of-
       // glass rule, nested inside frosted chrome.
-      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
+      className="flex flex-col gap-4 rounded-xl border bg-card/40 p-6 backdrop-blur-md sm:p-8"
     >
       <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
         Rank arc

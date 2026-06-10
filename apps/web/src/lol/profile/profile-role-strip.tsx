@@ -108,7 +108,7 @@ export function ProfileRoleStrip() {
           Mostly ARAM — role data limited.
         </p>
       ) : null}
-      <div className="grid grid-cols-5 gap-1 rounded-lg border bg-card/40 px-2 py-3">
+      <div className="grid grid-cols-5 gap-1 rounded-lg border bg-card/60 px-2 py-3 backdrop-blur-sm">
         {slots.map((slot) => (
           <Slot key={slot.position} slot={slot} anyPlayed={positioned > 0} />
         ))}

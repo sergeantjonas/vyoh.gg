@@ -29,7 +29,7 @@ function verdictFor(unlocked: number, total: number, pct: number): string {
 
 export function CompletionVerdictCard({
   appid,
-  frosted = false,
+  frosted = true,
 }: CompletionVerdictCardProps) {
   // Same query key as AchievementPanel — TanStack Query dedupes the fetch,
   // so this self-contained data dependency costs nothing on the wire.

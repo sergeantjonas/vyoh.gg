@@ -51,7 +51,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
             <m.div
               key={d.puuid}
               variants={rowVariants}
-              className="flex items-center gap-3 rounded-lg border bg-card/40 px-3 py-2"
+              className="flex items-center gap-3 rounded-lg border bg-card/60 px-3 py-2 backdrop-blur-sm"
             >
               <ChampionSquareIcon
                 championName={d.topChampion}

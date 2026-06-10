@@ -286,7 +286,7 @@ export function buildChampionSignal(
 }
 
 const VERDICT_TONE: Record<RitualSignal["tone"], string> = {
-  neutral: "border-border bg-card/40",
+  neutral: "border-border bg-card/60 backdrop-blur-sm",
   positive: "border-emerald-500/40 bg-emerald-500/10",
   warning: "border-rose-500/40 bg-rose-500/10",
 };

@@ -37,7 +37,7 @@ export function RecapChampion({
         whileInView={reduced ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
+        className="flex flex-col gap-3 rounded-xl border bg-card/40 p-6 backdrop-blur-md"
       >
         <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
           Champion of the year

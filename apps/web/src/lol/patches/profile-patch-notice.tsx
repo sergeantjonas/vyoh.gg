@@ -102,7 +102,7 @@ export function ProfilePatchNotice({ accountSlug }: { accountSlug: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-card/50 px-4 py-3">
+    <div className="flex flex-col gap-2 rounded-lg border bg-card/60 px-4 py-3 backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <Link
           to="/lol/patches"
@@ -142,6 +142,8 @@ export function ProfilePatchNotice({ accountSlug }: { accountSlug: string }) {
                   <div className="text-sm font-medium">{group.champion}</div>
                   <AbilityChangeList
                     changes={group.changes.slice(0, visibleCount)}
+                    championId={group.championId}
+                    patch={patchVersion}
                     className="mt-0.5"
                   />
                   {hiddenCount > 0 || isExpanded ? (

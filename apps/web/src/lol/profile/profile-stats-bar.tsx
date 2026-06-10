@@ -44,7 +44,7 @@ export function ProfileStatsBar({ accountSlug }: { accountSlug: string }) {
       initial="hidden"
       animate="show"
       variants={container}
-      className="flex divide-x divide-border rounded-lg border bg-card/50"
+      className="flex divide-x divide-border rounded-lg border bg-card/60 backdrop-blur-sm"
     >
       <StatItem label="Games">
         <CountUp to={s.games} />

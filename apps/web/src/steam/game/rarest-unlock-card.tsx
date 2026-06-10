@@ -17,7 +17,7 @@ function rarityQualifier(pct: number): string {
   return "Common";
 }
 
-export function RarestUnlockCard({ appid, frosted = false }: RarestUnlockCardProps) {
+export function RarestUnlockCard({ appid, frosted = true }: RarestUnlockCardProps) {
   const { data, isPending } = useGameAchievements(appid);
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;

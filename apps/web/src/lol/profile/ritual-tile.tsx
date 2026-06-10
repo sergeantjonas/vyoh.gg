@@ -23,7 +23,7 @@ export function SignalTile({ signal, index }: { signal: RitualSignal; index: num
       initial={reduced ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut", delay: reduced ? 0 : index * 0.05 }}
-      className="flex h-full flex-col gap-1 rounded-lg border bg-card/40 px-3 py-2.5"
+      className="flex h-full flex-col gap-1 rounded-lg border bg-card/60 px-3 py-2.5 backdrop-blur-sm"
     >
       <div className="flex items-center gap-2">
         <span className={`size-1.5 rounded-full ${TONE_DOT[signal.tone]}`} />

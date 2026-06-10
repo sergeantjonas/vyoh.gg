@@ -117,7 +117,7 @@ export function RecentUnlocksVirtual({ unlocks }: { unlocks: SteamRecentUnlock[]
               to="/steam/library/$appid"
               params={{ appid: String(u.appid) }}
               search={{ ach: u.apiName }}
-              className="mb-2 flex items-start gap-4 rounded-lg border border-border/40 bg-card/50 p-4 transition-colors hover:border-border hover:bg-card/80"
+              className="mb-2 flex items-start gap-4 rounded-lg border border-border/40 bg-card/60 p-4 backdrop-blur-sm transition-colors hover:border-border hover:bg-card/80"
             >
               <AchievementCardInner
                 appid={u.appid}

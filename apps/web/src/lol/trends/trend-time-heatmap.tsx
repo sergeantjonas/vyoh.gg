@@ -139,10 +139,12 @@ function HeatmapGrid({
 
 export function TrendTimeHeatmap({
   current,
-  frosted = false,
+  frosted = true,
 }: {
   current: MatchSummary[];
-  /** True when rendered inside a panel (champion-detail). See "one level of glass" in repo-conventions. */
+  /** Frosted recipe (`bg-card/60 + backdrop-blur-sm`). Defaults to true — the
+   *  Trends tab page and the champion-detail panel both sit over a backdrop.
+   *  See "one level of glass" in repo-conventions. */
   frosted?: boolean;
 }) {
   const playedCount = useMemo(() => excludeRemakes(current).length, [current]);

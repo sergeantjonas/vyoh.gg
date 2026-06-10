@@ -108,7 +108,7 @@ function SeasonRow({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: reduced ? 0 : index * 0.04 }}
       className={cn(
-        "flex items-center gap-3 rounded-md border bg-card/50 px-3 py-2.5",
+        "flex items-center gap-3 rounded-md border bg-card/60 px-3 py-2.5 backdrop-blur-sm",
         season.ongoing && "border-primary/30 bg-primary/5"
       )}
     >

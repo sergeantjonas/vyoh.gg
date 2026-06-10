@@ -54,7 +54,7 @@ function computeVerdict(
   };
 }
 
-export function TimeTo100Card({ appid, frosted = false }: TimeTo100CardProps) {
+export function TimeTo100Card({ appid, frosted = true }: TimeTo100CardProps) {
   const { data, isPending } = useGameAchievements(appid);
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;

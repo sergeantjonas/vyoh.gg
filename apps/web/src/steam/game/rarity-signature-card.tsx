@@ -25,10 +25,7 @@ function verdictFor(mean: number, sampleSize: number): string {
   return "Surface-level unlocks so far.";
 }
 
-export function RaritySignatureCard({
-  appid,
-  frosted = false,
-}: RaritySignatureCardProps) {
+export function RaritySignatureCard({ appid, frosted = true }: RaritySignatureCardProps) {
   const { data, isPending } = useGameAchievements(appid);
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;

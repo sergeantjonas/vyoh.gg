@@ -36,7 +36,7 @@ interface AchievementPanelProps {
 export function AchievementPanel({
   appid,
   highlightTarget,
-  frosted = false,
+  frosted = true,
 }: AchievementPanelProps) {
   const { data, isPending, isError } = useGameAchievements(appid);
   const [expanded, setExpanded] = useState(false);

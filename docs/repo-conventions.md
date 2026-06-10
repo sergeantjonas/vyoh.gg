@@ -168,31 +168,33 @@ The two reference surfaces in the app:
 
 ### Tile background: one level of glass between background and content
 
-The core rule, before any table: **one level of glass between the underlying backdrop and the content it carries**. A tile is frosted when it sits *directly* over an unstructured backdrop (a champion splash, a Steam screenshot, the atmosphere layer). A tile nested *inside* another frosted (or image-backed) container stays solid. Glass is a boundary layer — you cross it once.
+The core rule, before any table: **one level of glass between the underlying backdrop and the content it carries**. A tile is frosted when it sits *directly* over an unstructured backdrop (a champion splash, the Steam profile backdrop, a Steam screenshot, the atmosphere layer). A tile nested *inside* another frosted (or image-backed) container stays solid. Glass is a boundary layer — you cross it once.
 
-This is the industry-aligned position: Apple HIG warns against nested materials, NN/g calls compound glass an anti-pattern, and the 2026 design-trend consensus is "use flat as the base; reserve glassmorphism for accent layers (overlays, modals, panel internals)". Scarcity is signal — frosting every surface makes frosting stop reading as elevation. The [[ancestor-opacity-suppresses-backdrop-filter]] memory and the WebKit perf cliffs both compound: more glass = more stacking contexts = bigger bug surface and higher composite cost.
+The **2026-06-10 policy refinement** (this convention's evolution): every interactive route in vyoh sits over a backdrop. LoL routes (`/lol/$accountSlug/*`) inherit a champion splash claim from `SplashProvider`. Steam routes (`/steam/*`) inherit the Steam profile backdrop with the game-detail layer on top. The recap pages inherit splash + atmosphere. **Page-grounded "no backdrop" surfaces are the exception, not the default** — they're effectively limited to `/status` and similar utility routes. So the tile recipe default has flipped: when in doubt on a splash-backed page, frost it.
 
-The mechanical question that lands you on the right recipe:
+The mechanical question that lands you on the right recipe (unchanged in shape, defaults flipped):
 
-> **"What's directly behind this tile?"** Splash / screenshot / atmosphere → frosted. Another tile or chromed wrapper → bare. Nothing visible (page-grounded content area) → bare default.
+> **"What's directly behind this tile?"** Splash / screenshot / Steam backdrop / atmosphere → frosted. Another tile or chromed wrapper → bare. No backdrop at all (utility routes) → bare default.
 
 That collapses to three observed tiers:
 
 | Tier | Recipe | When |
 |---|---|---|
-| **Frosted** | `bg-card/60 backdrop-blur-sm` + `border rounded-md/lg` | Tile faces an unstructured backdrop directly (panel internals over splash chrome, overlays over image content). |
-| **Transparent** (default) | `bg-card/50` + `border rounded-md/lg` | Tile sits in page-grounded content (LoL profile, Steam profile, Steam game-detail), or nested inside frosted/image-backed chrome. |
-| **Atmosphere overlay** | `bg-card/40` + low-opacity or no border | Tile sits directly over the atmosphere layer with no intermediate chrome (recap / landing chapters). Maximum bleed-through is intentional design (self-portrait recap arc). |
+| **Frosted** (default for splash-backed routes) | `bg-card/60 backdrop-blur-sm` + `border rounded-md/lg` | Tile faces an unstructured backdrop directly (panel internals over splash chrome, LoL profile / Trends / champion-list cards over splash, Steam profile chips over Steam backdrop, achievement-page cards). |
+| **Transparent** | `bg-card/50` + `border rounded-md/lg` | Tile nested *inside* a frosted or image-backed container (inner stat tiles under a frosted chapter wrapper, inner tile rows inside a chart card). |
+| **Atmosphere overlay** | `bg-card/40` + `backdrop-blur-md` + low-opacity border | Tile sits directly over the atmosphere layer (LoL recap chapters, self-portrait home chapters). Heavier blur + lower opacity so the splash/atmosphere reads through more strongly than the panel-internal recipe. |
 
 Plus one **chrome** tier outside this system: `bg-card/80 backdrop-blur-md` for fixed-position UI overlapping scrolling content (`champion-sticky-strip`, `scroll-to-top` button). Heavier blur is load-bearing for legibility over moving content.
 
-Reference surfaces in-tree:
+Reference surfaces in-tree (post-2026-06-10 consistency pass):
 
-- **Frosted** — LoL match-detail panel internals (`MatchSpellCasts`, `MatchDamageProfile`, `MatchOwnerStats`, recap pre-game tile, team-block player rows). LoL champion-detail panel internals (per-game averages, win-rate trend, top items, matchups, per-patch tiles, `ChampionBuildPath`, `ChampionPositionHeatmap`, `TrendDeathMatchupHeatmap`, `TrendTimeHeatmap`, `TrendTiltIndicator`). Each faces the panel's baked-splash chrome directly.
-- **Transparent** — Steam game-detail sections (`game-about-block`, `game-unlock-timeline`, `achievement-panel`), Steam profile chips, LoL profile sections (`profile-stats-bar`, `profile-now-playing`, `profile-multikill-strip`, `profile-season-history`), LoL Trends tab cards.
-- **Atmosphere overlay** — recap chapters (`recap-champion`, `recap-signature-game`, `recap-top-insight`, `recap-rank-arc`, `recap-most-improved`, `recap-duo-of-year`, `recap-patch-verdict`).
+- **Frosted** — Almost every interactive surface in `/lol/$accountSlug/*` and `/steam/*`. Notable: LoL match-detail / champion-detail / Steam game-detail panel internals; LoL profile chips (`profile-stats-bar`, `profile-multikill-strip`, `profile-role-strip`, `profile-now-playing`, `profile-duos`, `profile-season-history`, `RitualTile` pre/post-game tiles, `ProfilePatchNotice`); LoL Trends tab cards (all 17 trend components default to frosted); LoL champion-detail panel internals; Steam profile chips (Trophy Case, Recent Unlocks, Wishlist, Library, Most Played, Platforms — all `FactCard`); Steam achievement-page cards (`steam-chronotype-tile`, `rarest-section`, `recent-unlocks-virtual`).
+- **Transparent** — Inner Stat tiles inside frosted outer wrappers (e.g. the 2-column Net LP / Tracked Seasons grid inside `RecapRankArc`, the inner PatchTiles in `RecapPatchVerdict`), inner tile rows inside chart cards.
+- **Atmosphere overlay** — LoL recap chapter outer wrappers (`recap-rank-arc`, `recap-champion` empty state, `recap-most-improved`, `recap-signature-game`, `recap-patch-verdict`, `recap-duo-of-year`, `recap-top-insight`) at `bg-card/40 backdrop-blur-md` over the splash backdrop. The `RecapChampion` outer stays transparent (no `bg-card`) when it has its own baked splash overlay; in that case the inner Stat tiles wear the frosted recipe instead.
 
-**Don't nest glass.** The canonical case is `CardShell` (and its `ConclusionCard` / `FactCard` wrappers, [apps/web/src/components/card-shell.tsx](../apps/web/src/components/card-shell.tsx)) — used both in-panel and page-grounded. Don't change its default; instead pass `frosted={true}` at the in-panel call sites. The trend components (`TrendDeathMatchupHeatmap`, `TrendTimeHeatmap`, `TrendTiltIndicator`) accept a `frosted` prop for this exact reason: same component renders in champion-detail (in-panel → `frosted`) and the Trends tab (page-grounded → omit). Inside a frosted card, child tiles stay bare even if the design feels like "tile-within-tile" — that's the rule working as intended.
+**Component default**: `CardShell.frosted` defaults to **`true`** ([apps/web/src/components/card-shell.tsx](../apps/web/src/components/card-shell.tsx)) — every consumer (`ConclusionCard`, `FactCard`) inherits the frosted recipe. The wrapper components that propagate `frosted` (`TrendDeathMatchupHeatmap`, `TrendTimeHeatmap`, `TrendTiltIndicator`, `ChampionBuildPath`, `ChampionPositionHeatmap`, every Steam `*Card` in `apps/web/src/steam/game/`) also default to `frosted = true`. Pass `frosted={false}` only at call sites that genuinely have no backdrop behind them. Inside a frosted card, child tiles stay bare even if the design feels like "tile-within-tile" — that's the one-level-of-glass rule working as intended.
+
+**Vignette diagnosis (2026-06-10):** `CardShell` adds a `view-entry` CSS class that runs a scroll-driven `animation-timeline: view(block)` opacity entrance. In page-grounded contexts it's a nice polish — each card fades in as it scrolls into view. But it ALSO suppresses opacity as the card nears the bottom of the viewport, reading as a vignette / progressive transparency on the page-end cards. The class is gated by `!frosted`, so flipping the default to `frosted=true` removes the vignette across every consumer at once. If a future surface needs the scroll-driven entrance without the bottom-fade, the right fix is to adjust `animation-range` in [motion.css](../apps/web/src/styles/motion.css) (currently `entry 0% cover 30%`), not to re-introduce the view-entry on splash-backed cards.
 
 **Why this beats "frost everywhere":**
 
