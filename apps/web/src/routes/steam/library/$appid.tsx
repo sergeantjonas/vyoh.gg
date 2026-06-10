@@ -1,3 +1,4 @@
+import { CvSection } from "@/_shared/cv-section";
 import { SlidePanel } from "@/_shared/slide-panel";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
@@ -281,11 +282,19 @@ function SteamGamePanel() {
             the visual interlude between the identity card's short summary
             and the longer prose — the eye doesn't pattern-match the
             inevitable content overlap between the two descriptions when
-            they're separated by a wide media block. */}
+            they're separated by a wide media block.
+
+            GameAboutBlock is the first frosted tile in the panel and sits
+            below the screenshot strip — typically below-fold on panel open
+            unless the viewport is very tall. CvSection gates its frosted
+            layer-promotion to scroll-near (same pattern as the LoL
+            champion-detail panel — chunk 2). */}
         {game && (
           <section className="flex flex-col gap-4">
             <GameScreenshotStrip appid={appid} trailers={game?.trailers ?? null} />
-            <GameAboutBlock appid={appid} frosted />
+            <CvSection minHeight={250}>
+              <GameAboutBlock appid={appid} frosted />
+            </CvSection>
           </section>
         )}
 
@@ -295,18 +304,26 @@ function SteamGamePanel() {
             three card layers read as one progress story. Every tile here
             sits directly over the panel chrome's baked backdrop, so they
             all opt into the frosted recipe (one level of glass — see
-            repo-conventions.md § Tile background). */}
+            repo-conventions.md § Tile background). All three blocks are
+            below-fold on panel open and wrapped in CvSection so their
+            `backdrop-filter` layer-promotion is gated to scroll-near. */}
         {game && (
           <section className="flex flex-col gap-4">
-            <GameUnlockTimeline appid={appid} frosted />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <CompletionVerdictCard appid={appid} frosted />
-              <TimeTo100Card appid={appid} frosted />
-              <LastProgressedCard appid={appid} frosted />
-              <RaritySignatureCard appid={appid} frosted />
-              <RarestUnlockCard appid={appid} frosted />
-            </div>
-            <AchievementPanel appid={appid} highlightTarget={ach} frosted />
+            <CvSection minHeight={220}>
+              <GameUnlockTimeline appid={appid} frosted />
+            </CvSection>
+            <CvSection minHeight={420}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <CompletionVerdictCard appid={appid} frosted />
+                <TimeTo100Card appid={appid} frosted />
+                <LastProgressedCard appid={appid} frosted />
+                <RaritySignatureCard appid={appid} frosted />
+                <RarestUnlockCard appid={appid} frosted />
+              </div>
+            </CvSection>
+            <CvSection minHeight={500}>
+              <AchievementPanel appid={appid} highlightTarget={ach} frosted />
+            </CvSection>
           </section>
         )}
       </div>

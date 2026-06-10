@@ -1,3 +1,4 @@
+import { CvSection } from "@/_shared/cv-section";
 import { useActiveScrollContainer } from "@/lib/scroll-container-context";
 import { cn } from "@/lib/utils";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
@@ -55,26 +56,45 @@ export function MatchYourGameTab({
   return (
     <div className="flex gap-8">
       <div className="flex min-w-0 flex-1 flex-col gap-6">
-        <div ref={refFor("build-order")}>
-          <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
-        </div>
-        <div ref={refFor("spell-casts")}>
-          <MatchSpellCasts detail={detail} myPuuid={myPuuid} />
-        </div>
-        <div ref={refFor("damage-profile")}>
-          <MatchDamageProfile detail={detail} myPuuid={myPuuid} />
-        </div>
-        <div ref={refFor("owner-stats")}>
-          <MatchOwnerStats detail={detail} myPuuid={myPuuid} />
-        </div>
-        <div ref={refFor("skill-order")}>
-          <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
-        </div>
-        <div ref={refFor("lane-phase")}>
-          <Suspense fallback={<ChartFallback />}>
-            <MatchLanePhase detail={detail} myPuuid={myPuuid} />
-          </Suspense>
-        </div>
+        {/* CvSection wrappers gate `backdrop-filter` layer-promotion on the
+            frosted internals of each section until they scroll into the
+            panel's viewport. The scrollspy refs live on the inner divs so
+            the IntersectionObserver still pins to the section content; the
+            CvSection just adds an outer contain-intrinsic-size placeholder
+            that shrinks to zero compositor work when offscreen. Same
+            pattern as the champion-detail panel (chunk 2). */}
+        <CvSection minHeight={150}>
+          <div ref={refFor("build-order")}>
+            <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+          </div>
+        </CvSection>
+        <CvSection minHeight={250}>
+          <div ref={refFor("spell-casts")}>
+            <MatchSpellCasts detail={detail} myPuuid={myPuuid} />
+          </div>
+        </CvSection>
+        <CvSection minHeight={280}>
+          <div ref={refFor("damage-profile")}>
+            <MatchDamageProfile detail={detail} myPuuid={myPuuid} />
+          </div>
+        </CvSection>
+        <CvSection minHeight={280}>
+          <div ref={refFor("owner-stats")}>
+            <MatchOwnerStats detail={detail} myPuuid={myPuuid} />
+          </div>
+        </CvSection>
+        <CvSection minHeight={250}>
+          <div ref={refFor("skill-order")}>
+            <MatchSkillOrder detail={detail} myPuuid={myPuuid} />
+          </div>
+        </CvSection>
+        <CvSection minHeight={320}>
+          <div ref={refFor("lane-phase")}>
+            <Suspense fallback={<ChartFallback />}>
+              <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+            </Suspense>
+          </div>
+        </CvSection>
       </div>
       {showScrollspy && (
         <aside
