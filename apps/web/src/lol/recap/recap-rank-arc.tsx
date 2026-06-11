@@ -1,4 +1,5 @@
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { type LolAccount, type RankHistoryPoint, formatLpDelta } from "@vyoh/shared";
 import {
@@ -69,9 +70,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-          Rank arc
-        </h2>
+        <ChapterLabel>Rank arc</ChapterLabel>
         <EmptyState
           illustration={<EmptyLpHistoryIllustration />}
           title="Not enough rank snapshots yet"
@@ -99,9 +98,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
       // glass rule, nested inside frosted chrome.
       className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Rank arc
-      </h2>
+      <ChapterLabel>Rank arc</ChapterLabel>
       <div className="flex flex-col gap-1">
         <p className="text-sm uppercase tracking-wide text-muted-foreground/60">
           Your peak

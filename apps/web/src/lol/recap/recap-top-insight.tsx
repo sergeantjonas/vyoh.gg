@@ -1,3 +1,4 @@
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
@@ -126,9 +127,7 @@ export function RecapTopInsight({ matches }: { matches: MatchSummary[] | undefin
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-          Headline insight
-        </h2>
+        <ChapterLabel>Headline insight</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Once you've played a few more games, the standout pattern will land here.
         </p>
@@ -145,9 +144,7 @@ export function RecapTopInsight({ matches }: { matches: MatchSummary[] | undefin
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
       className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Headline insight
-      </h2>
+      <ChapterLabel>Headline insight</ChapterLabel>
       <p className="text-2xl font-semibold leading-snug text-foreground sm:text-3xl">
         {insight.headline}
       </p>

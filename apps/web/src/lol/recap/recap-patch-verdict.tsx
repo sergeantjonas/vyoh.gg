@@ -1,4 +1,5 @@
 // Baseline: personal — per-patch WR from your own games; surfaces the best and worst patch with min-sample.
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { groupByPatch } from "@/lol/_shared/patch/patch-version";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
@@ -49,9 +50,7 @@ export function RecapPatchVerdict({ matches }: { matches: MatchSummary[] | undef
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-          Best and worst patch
-        </h2>
+        <ChapterLabel>Best and worst patch</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Once you've played at least 5 games on two or more patches, the best and worst
           patches land here.
@@ -69,9 +68,7 @@ export function RecapPatchVerdict({ matches }: { matches: MatchSummary[] | undef
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
       className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Best and worst patch
-      </h2>
+      <ChapterLabel>Best and worst patch</ChapterLabel>
       <div className="grid gap-3 sm:grid-cols-2">
         <PatchTile
           label="Best patch"

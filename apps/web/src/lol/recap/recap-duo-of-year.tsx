@@ -1,3 +1,4 @@
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 // Baseline: personal — top duo by shared games from your own match history; WR is within the duo's games only.
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -27,9 +28,7 @@ export function RecapDuoOfYear({ accountSlug }: { accountSlug: string }) {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-          Duo of the year
-        </h2>
+        <ChapterLabel>Duo of the year</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Once you've queued five or more games with the same teammate, your duo will land
           here.
@@ -50,9 +49,7 @@ export function RecapDuoOfYear({ accountSlug }: { accountSlug: string }) {
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
       className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Duo of the year
-      </h2>
+      <ChapterLabel>Duo of the year</ChapterLabel>
       <div className="flex items-center gap-4">
         <ChampionSquareIcon
           championName={top.topChampion}

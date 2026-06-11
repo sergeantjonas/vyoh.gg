@@ -1,3 +1,4 @@
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { AchievementCardInner } from "@/steam/_shared/achievement-card";
@@ -96,12 +97,12 @@ export function RecentUnlocksVirtual({ unlocks }: { unlocks: SteamRecentUnlock[]
               ref={virtualizer.measureElement}
               style={style}
             >
-              <h2 className="pt-2 pb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <ChapterLabel className="pt-2 pb-3">
                 {item.label}
-                <span className="ml-2 font-normal tabular-nums text-muted-foreground/60">
+                <span className="ml-2 tabular-nums text-muted-foreground/60">
                   {item.count}
                 </span>
-              </h2>
+              </ChapterLabel>
             </div>
           );
         }

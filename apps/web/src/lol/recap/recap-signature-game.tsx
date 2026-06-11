@@ -1,4 +1,5 @@
 // Baseline: personal — top KDA performance from your own games; tie-break favours wins, then biggest behind-at-15 comeback.
+import { CHAPTER_LABEL_CLASS } from "@/components/ui/chapter-label";
 import {
   sectionChildVariants,
   sectionContainerVariants,
@@ -78,10 +79,7 @@ export function RecapSignatureGame({
         viewport={{ once: true, amount: 0.2 }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <m.h2
-          {...childProps("eyebrow")}
-          className="text-xs uppercase tracking-wide text-muted-foreground/70"
-        >
+        <m.h2 {...childProps("eyebrow")} className={CHAPTER_LABEL_CLASS}>
           Signature game
         </m.h2>
         <m.p {...childProps("body")} className="text-base text-muted-foreground">
@@ -109,10 +107,7 @@ export function RecapSignatureGame({
       viewport={{ once: true, amount: 0.2 }}
       className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
-      <m.h2
-        {...childProps("eyebrow")}
-        className="text-xs uppercase tracking-wide text-muted-foreground/70"
-      >
+      <m.h2 {...childProps("eyebrow")} className={CHAPTER_LABEL_CLASS}>
         Signature game
       </m.h2>
       <m.div {...childProps("headline")}>

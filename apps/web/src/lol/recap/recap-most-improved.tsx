@@ -1,4 +1,5 @@
 // Baseline: personal — per-champion WR in the recent half of the window vs the older half.
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { Link } from "@tanstack/react-router";
@@ -82,9 +83,7 @@ export function RecapMostImproved({
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-          Most improved
-        </h2>
+        <ChapterLabel>Most improved</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Once a champion in your pool gains traction late in the window, that lift will
           land here.
@@ -105,9 +104,7 @@ export function RecapMostImproved({
       transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
       className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
     >
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Most improved
-      </h2>
+      <ChapterLabel>Most improved</ChapterLabel>
       <div className="flex items-center gap-4">
         <Link
           to="/lol/$accountSlug/champions/$championKey"

@@ -1,3 +1,4 @@
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { useSteamChronotype } from "@/steam/use-steam-chronotype";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -14,9 +15,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Empty({ verdict }: { verdict: string }) {
   return (
     <Shell>
-      <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
-        Chronotype
-      </h3>
+      <ChapterLabel as="h3">Chronotype</ChapterLabel>
       <p className="text-base font-semibold leading-snug text-muted-foreground/70">
         {verdict}
       </p>
@@ -78,9 +77,7 @@ export function SteamChronotypeTile() {
 
   return (
     <Shell>
-      <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
-        Chronotype
-      </h3>
+      <ChapterLabel as="h3">Chronotype</ChapterLabel>
       <p className="text-base font-semibold leading-snug text-foreground/90">
         When I unlock achievements.
       </p>

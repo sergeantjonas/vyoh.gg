@@ -1,3 +1,4 @@
+import { ChapterLabel } from "@/components/ui/chapter-label";
 import { championCardSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -39,9 +40,7 @@ export function RecapChampion({
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
       >
-        <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-          Champion of the year
-        </h2>
+        <ChapterLabel>Champion of the year</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Play a few games and your headline champion will appear here.
         </p>
@@ -93,9 +92,7 @@ export function RecapChampion({
             "linear-gradient(to right, black 0%, transparent 40%, transparent 100%)",
         }}
       />
-      <h2 className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        Champion of the year
-      </h2>
+      <ChapterLabel>Champion of the year</ChapterLabel>
       <div className="flex items-center gap-4">
         <Link
           to="/lol/$accountSlug/champions/$championKey"
