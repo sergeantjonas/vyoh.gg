@@ -23,6 +23,7 @@ import type {
   SteamSummary,
   SteamTagCatalog,
   SteamWishlist,
+  SteamWishlistHeroMeta,
 } from "@vyoh/shared";
 import {
   RAREST_UNLOCKS_DEFAULT_LIMIT,
@@ -35,6 +36,7 @@ import { SteamPlayerStateService } from "./player-state.service";
 import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
+import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 @Controller("steam")
 export class SteamController {
@@ -45,7 +47,8 @@ export class SteamController {
     private readonly achievements: SteamAchievementsService,
     private readonly gameRecap: SteamGameRecapService,
     private readonly playerState: SteamPlayerStateService,
-    private readonly chronotype: SteamChronotypeService
+    private readonly chronotype: SteamChronotypeService,
+    private readonly wishlistHero: SteamWishlistHeroService
   ) {}
 
   @Get("summary")
@@ -72,6 +75,20 @@ export class SteamController {
   @Get("wishlist")
   async getWishlist(): Promise<SteamWishlist> {
     return this.steam.getOwnerWishlist();
+  }
+
+  // On-read enrichment for the Upcoming view's imminent hero — accent,
+  // platforms, ESRB, and blurb for the nearest day-precise wishlist title.
+  // Carved out per-app (not folded into /wishlist) because the candidate is
+  // almost always unowned: it has no enrichment row, so its metadata is
+  // projected per request from a fresh GetItems(full) call + a Vibrant accent
+  // pass, then TTL-cached. NotFound (from the service) when the store page is
+  // unresolvable, which the web hook treats as "skip the hero".
+  @Get("wishlist/:appid/hero-meta")
+  async getWishlistHeroMeta(
+    @Param("appid", ParseIntPipe) appid: number
+  ): Promise<SteamWishlistHeroMeta> {
+    return this.wishlistHero.getHeroMeta(appid);
   }
 
   @Get("library-summary")

@@ -26,6 +26,7 @@ import { SteamService } from "./steam.service";
 import { SteamSubjectAnchorService } from "./subject-anchor.service";
 import { SteamTagPoller } from "./tag.poller";
 import { SteamTagService } from "./tag.service";
+import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 @Module({
   controllers: [SteamController],
@@ -56,6 +57,7 @@ import { SteamTagService } from "./tag.service";
     SteamTagPoller,
     SteamSubjectAnchorService,
     FaceDetectionService,
+    SteamWishlistHeroService,
   ],
   exports: [
     SteamService,

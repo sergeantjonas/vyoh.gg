@@ -103,7 +103,11 @@ function hexChroma(hex: string): number {
   return Math.max(r, g, b) - Math.min(r, g, b);
 }
 
-async function extractDominantHex(bytes: Buffer): Promise<string | null> {
+// Exported for the wishlist imminent-hero on-read accent path
+// (wishlist-hero.service.ts): wishlist titles have no enrichment row, so the
+// dominant colour is extracted per request from the same hero bytes this
+// service runs over during owned-game enrichment.
+export async function extractDominantHex(bytes: Buffer): Promise<string | null> {
   try {
     const palette = await Vibrant.from(bytes).getPalette();
     const swatches = Object.values(palette).filter(
@@ -117,7 +121,8 @@ async function extractDominantHex(bytes: Buffer): Promise<string | null> {
   }
 }
 
-function composeHeroUrls(
+// Exported for the wishlist imminent-hero accent path — see extractDominantHex.
+export function composeHeroUrls(
   appid: number,
   hashedPath: string | null,
   timestamp: bigint | null

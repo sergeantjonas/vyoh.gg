@@ -17,6 +17,7 @@ import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
+import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 describe("SteamController", () => {
   it("delegates to SteamService.getOwnerSummary", async () => {
@@ -41,6 +42,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -77,12 +79,46 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getWishlist()).resolves.toBe(wishlist);
     expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamWishlistHeroService.getHeroMeta with the parsed appid", async () => {
+    const meta = {
+      appid: 1904610,
+      dominantHex: "#8b1e1e",
+      shortDescription: "A bleak action RPG.",
+      steamDeckCompat: 3,
+      platformWindows: true,
+      platformMac: false,
+      platformLinux: false,
+      gameRating: null,
+      assetTimestamp: 1_776_125_684,
+    };
+    const stub = vi.fn().mockResolvedValue(meta);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: { getHeroMeta: stub } },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getWishlistHeroMeta(1904610)).resolves.toBe(meta);
+    expect(stub).toHaveBeenCalledWith(1904610);
   });
 
   it("delegates to SteamOwnedGamesService.getLibrarySummary", async () => {
@@ -104,6 +140,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -134,6 +171,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -162,6 +200,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -190,6 +229,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -212,6 +252,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -243,6 +284,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -264,6 +306,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
@@ -284,6 +327,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
@@ -304,6 +348,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
@@ -324,6 +369,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
@@ -344,6 +390,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: { getChronotype: stub } },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
@@ -365,6 +412,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: { getGameRecap: stub } },
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 
@@ -386,6 +434,7 @@ describe("SteamController", () => {
         { provide: SteamGameRecapService, useValue: {} },
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
       ],
     }).compile();
 

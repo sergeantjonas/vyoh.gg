@@ -1,3 +1,5 @@
+import type { SteamGameRating } from "./owned-games.ts";
+
 // Public-profile wishlist surface. Returned by GET /api/steam/wishlist.
 //
 // Backed by two Steam Web API calls: IWishlistService/GetWishlist (appid + date_added
@@ -78,4 +80,36 @@ export function classifyReleasePrecision(
     return "quarter";
   }
   return "day";
+}
+
+// On-read enrichment for the Upcoming view's imminent hero (chunk 4). Returned
+// by GET /api/steam/store/:appid/hero-meta. The wishlist payload carries none
+// of this — the imminent-hero candidates are unreleased and almost always
+// *unowned*, so they have no SteamGameEnrichment row. This shape is projected
+// per request from a fresh IStoreBrowseService/GetItems(full) call (+ a Vibrant
+// pass over the resolved hero art for the accent) and TTL-cached server-side.
+//
+// Field names mirror SteamOwnedGame so the game-detail platform-pill / ESRB-chip
+// renderers transfer 1:1. Every field is independently nullable — a brand-new
+// store page often has a hero but no rating block, or platforms but no blurb.
+export interface SteamWishlistHeroMeta {
+  appid: number;
+  // Accent extracted on read from the resolved hero art via Vibrant. Null when
+  // the hero was unreachable across the fallback chain or yielded no swatch.
+  // Computed per request (no enrichment row to read from), not persisted.
+  dominantHex: string | null;
+  // One-line store blurb (`basic_info.short_description`). Null when absent.
+  shortDescription: string | null;
+  // Steam Deck tier (0 Unknown / 1 Unsupported / 2 Playable / 3 Verified);
+  // renderer treats null and 0 identically (no chip). Mirrors SteamOwnedGame.
+  steamDeckCompat: number | null;
+  platformWindows: boolean | null;
+  platformMac: boolean | null;
+  platformLinux: boolean | null;
+  // Editorial rating block (ESRB / PEGI / USK / …). Null = no badge, never a
+  // maturity signal (AO titles routinely skip ESRB submission).
+  gameRating: SteamGameRating | null;
+  // Hero/backdrop cache-bust segment for the image proxy URLs; null → the
+  // proxy falls back to the `0` sentinel.
+  assetTimestamp: number | null;
 }

@@ -169,6 +169,7 @@ export {
   classifyReleasePrecision,
   type ReleasePrecision,
   type SteamWishlist,
+  type SteamWishlistHeroMeta,
   type SteamWishlistItem,
 } from "./steam/wishlist.ts";
 export type { SteamLibrarySummary } from "./steam/library-summary.ts";
