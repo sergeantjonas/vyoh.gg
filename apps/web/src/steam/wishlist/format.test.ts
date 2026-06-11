@@ -29,11 +29,26 @@ describe("formatWishlistDateAdded", () => {
 });
 
 describe("formatWishlistReleaseLabel", () => {
-  it("returns 'Coming <year>' for coming-soon items with a releaseDate", () => {
-    const secs = Math.floor(Date.UTC(2026, 5, 1) / 1000);
+  it("renders a day-precise date for coming-soon items (the diagnosed fix)", () => {
+    // Beast of Reincarnation — Aug 3, 2026. Previously collapsed to "Coming 2026".
+    const secs = 1_785_776_400;
     expect(
       formatWishlistReleaseLabel(item({ comingSoon: true, releaseDate: secs }))
-    ).toBe("Coming 2026");
+    ).toBe("Coming Aug 3, 2026");
+  });
+
+  it("renders 'Coming Q<n> <year>' for quarter-end placeholders", () => {
+    const secs = Math.floor(Date.UTC(2026, 8, 30) / 1000); // Sep 30 → Q3
+    expect(
+      formatWishlistReleaseLabel(item({ comingSoon: true, releaseDate: secs }))
+    ).toBe("Coming Q3 2026");
+  });
+
+  it("renders 'Coming <year>' for Dec 31 year placeholders", () => {
+    const secs = Math.floor(Date.UTC(2027, 11, 31) / 1000);
+    expect(
+      formatWishlistReleaseLabel(item({ comingSoon: true, releaseDate: secs }))
+    ).toBe("Coming 2027");
   });
 
   it("returns 'Coming soon' for coming-soon items without a releaseDate", () => {

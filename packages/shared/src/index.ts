@@ -165,7 +165,12 @@ export type {
   SteamPrivacyPrereqs,
   SteamSummary,
 } from "./steam/summary.ts";
-export type { SteamWishlist, SteamWishlistItem } from "./steam/wishlist.ts";
+export {
+  classifyReleasePrecision,
+  type ReleasePrecision,
+  type SteamWishlist,
+  type SteamWishlistItem,
+} from "./steam/wishlist.ts";
 export type { SteamLibrarySummary } from "./steam/library-summary.ts";
 export type { SteamPlatform, SteamPlatformMix } from "./steam/platform-mix.ts";
 export { isSteamGameAppType } from "./steam/owned-games.ts";
