@@ -6,6 +6,13 @@ import { WishlistUpcomingPanel } from "./wishlist-upcoming-panel";
 
 const { mockUseWishlist } = vi.hoisted(() => ({ mockUseWishlist: vi.fn() }));
 vi.mock("@/steam/use-wishlist", () => ({ useSteamWishlist: mockUseWishlist }));
+// Stub the hero — its backdrop lease + meta fetch are exercised in
+// imminent-hero.test.tsx; here we only assert the panel wires it in.
+vi.mock("@/steam/wishlist/upcoming/imminent-hero", () => ({
+  ImminentHero: ({ release }: { release: { item: { name: string | null } } }) => (
+    <div data-testid="imminent-hero">{release.item.name}</div>
+  ),
+}));
 
 function item(overrides: Partial<SteamWishlistItem>): SteamWishlistItem {
   return {
@@ -59,6 +66,27 @@ describe("WishlistUpcomingPanel", () => {
     });
     renderPanel();
     expect(screen.getByText("Nothing on the horizon")).toBeTruthy();
+  });
+
+  it("leads with the imminent hero when a day-precise release is near", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+    mockUseWishlist.mockReturnValue({
+      data: wishlist([
+        item({
+          appid: 7,
+          name: "Near Game",
+          comingSoon: true,
+          // Jun 25, 2026 — ~10 days out, day-precise (not a quarter/year placeholder).
+          releaseDate: Math.floor(Date.UTC(2026, 5, 25, 12, 0, 0) / 1000),
+        }),
+      ]),
+      isPending: false,
+      isError: false,
+    });
+    renderPanel();
+    expect(screen.getByTestId("imminent-hero").textContent).toBe("Near Game");
+    vi.useRealTimers();
   });
 
   it("renders bands without a calendar when there are no day-precise releases", () => {

@@ -1,6 +1,7 @@
 import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
 import { useSteamWishlist } from "@/steam/use-wishlist";
-import { groupUpcoming } from "@/steam/wishlist/upcoming/bucketing";
+import { groupUpcoming, pickImminentRelease } from "@/steam/wishlist/upcoming/bucketing";
+import { ImminentHero } from "@/steam/wishlist/upcoming/imminent-hero";
 import { QuarterBands } from "@/steam/wishlist/upcoming/quarter-bands";
 import { TbaPool } from "@/steam/wishlist/upcoming/tba-pool";
 import { UpcomingSkeleton } from "@/steam/wishlist/upcoming/upcoming-skeleton";
@@ -44,8 +45,14 @@ export function WishlistUpcomingPanel() {
     );
   }
 
+  // The imminent hero (§ Art direction) — nearest day-precise release inside
+  // the ~60-day horizon, or null. Skipped cleanly when nothing qualifies; the
+  // page then leads with the calendar, the documented hero-skip fallback.
+  const imminent = pickImminentRelease(buckets.dayReleases);
+
   return (
     <div className="flex flex-col gap-10">
+      {imminent ? <ImminentHero key={imminent.item.appid} release={imminent} /> : null}
       {/* Sparse-state rule (§ Month calendar): only render the calendar when
           there are day-precise releases to populate it — pickCalendarAnchor
           shifts the window to wherever they are, so it's never an empty grid.

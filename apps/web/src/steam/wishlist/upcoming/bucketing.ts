@@ -230,3 +230,24 @@ export function pickCalendarAnchor(
   }
   return { year: Math.floor(nearestFuture / 12), month: nearestFuture % 12, day: 1 };
 }
+
+// The imminent hero's candidate (chunk 4): the nearest *future* day-precise
+// release, but only when it's close enough to earn the cover-story treatment.
+// Past-but-still-wishlisted titles (the desaturated calendar ghosts) never
+// qualify — the hero is forward-looking. Returns null when nothing day-precise
+// lands inside the horizon, which is the documented hero-skip case (the page
+// then leads with the calendar). `daysUntil` is Brussels-today framed, so the
+// horizon comparison stays in the owner's civil frame.
+export const IMMINENT_HORIZON_DAYS = 60;
+
+export function pickImminentRelease(
+  dayReleases: DayRelease[],
+  horizonDays = IMMINENT_HORIZON_DAYS
+): DayRelease | null {
+  let best: DayRelease | null = null;
+  for (const release of dayReleases) {
+    if (release.isPast || release.daysUntil > horizonDays) continue;
+    if (best === null || release.daysUntil < best.daysUntil) best = release;
+  }
+  return best;
+}

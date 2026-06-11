@@ -8,6 +8,7 @@ import {
   daysUntilRelease,
   groupUpcoming,
   pickCalendarAnchor,
+  pickImminentRelease,
   utcCivilDate,
 } from "./bucketing";
 
@@ -164,5 +165,39 @@ describe("pickCalendarAnchor", () => {
   it("falls back to the current month when there are no future day-releases", () => {
     const releases = [dayRel(2026, 4, true)]; // only a past ghost
     expect(pickCalendarAnchor(releases, today)).toEqual({ year: 2026, month: 5, day: 1 });
+  });
+});
+
+describe("pickImminentRelease", () => {
+  function dayRel(appid: number, daysUntil: number, isPast = false): DayRelease {
+    return {
+      item: item({ appid, releaseDate: utcDay(2026, 7, 3) }),
+      date: { year: 2026, month: 7, day: 3 },
+      daysUntil,
+      isPast,
+    };
+  }
+
+  it("picks the nearest future day-release inside the horizon", () => {
+    const out = pickImminentRelease([dayRel(1, 53), dayRel(2, 12), dayRel(3, 40)]);
+    expect(out?.item.appid).toBe(2);
+  });
+
+  it("ignores past-but-still-wishlisted ghosts — the hero is forward-looking", () => {
+    const out = pickImminentRelease([dayRel(1, -3, true), dayRel(2, 20)]);
+    expect(out?.item.appid).toBe(2);
+  });
+
+  it("returns null when the nearest day-release is beyond the horizon", () => {
+    expect(pickImminentRelease([dayRel(1, 90), dayRel(2, 120)])).toBeNull();
+  });
+
+  it("honours a custom horizon", () => {
+    expect(pickImminentRelease([dayRel(1, 45)], 30)).toBeNull();
+    expect(pickImminentRelease([dayRel(1, 45)], 60)?.item.appid).toBe(1);
+  });
+
+  it("returns null for an empty day-release list", () => {
+    expect(pickImminentRelease([])).toBeNull();
   });
 });
