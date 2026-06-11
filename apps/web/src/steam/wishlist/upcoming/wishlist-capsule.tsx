@@ -10,10 +10,10 @@ interface WishlistCapsuleProps {
   // One-line release framing under the name in the hover card ("in 12 days",
   // "Q4 2026", "released 3 days ago"). Optional — bands that already carry a
   // band-level date label can omit it.
-  detail?: string;
+  detail?: string | undefined;
   // Desaturated "still wishlisted but the date slipped" treatment.
-  ghost?: boolean;
-  className?: string;
+  ghost?: boolean | undefined;
+  className?: string | undefined;
 }
 
 // The shared art-forward tile used by the calendar cells and the quarter/year
