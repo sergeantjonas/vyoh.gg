@@ -1,6 +1,6 @@
 # Panel compositor load on Chrome
 
-**Status:** First fix shipped 2026-06-09. Documents the diagnosis arc that surfaced the LoL champion / match detail panel's open/close glitches on Chrome, the architectural fix (decoupling backdrop claim from theme cascade), and the broader audit it implies for the rest of the app.
+**Status:** Reference — first fix shipped 2026-06-09; universal audit closed 2026-06-10 (foundation chunks 0a/0b/0c + load-bearing residuals 2 + 4 + 6 shipped, Chunk 3 monitor-only, Chunks 1 + 5 deprioritised). Documents the diagnosis arc that surfaced the LoL champion / match detail panel's open/close glitches on Chrome and the architectural fix (decoupling backdrop claim from theme cascade); the universal optimization pass it spun off is tracked end-to-end in [progressive-paint-audit.md](progressive-paint-audit.md), and the resulting paint-budget table lives in [repo-conventions.md § Layer-count + paint budget](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario).
 
 Read this when: a panel/overlay surface feels glitchy on Chrome but not Firefox, scoping perf work on any detail panel, considering adding a new `bg-card/* backdrop-blur-*` cluster, or evaluating whether a panel needs a page-wide backdrop claim.
 

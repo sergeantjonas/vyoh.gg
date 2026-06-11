@@ -287,11 +287,13 @@ The 1734–1791 ms close-phase raster is not the panel internals re-rastering �
 
 ## New order of attack
 
-1. **Chunk 3 (per-row layer-promotion on champion-table)** — direct hit on panel-close raster (the worst residual).
-2. **Chunk 2 (panel-internals frosted-tile cost reduction)** — direct hit on panel-open raster while keeping every frosted tile.
-3. **Chunk 6 (layer-count budget)** — lands the foundation as durable policy and gates Chunk 4 within budget.
-4. **Chunk 4 (Steam panel + recap additive frosted passes)** — adds the visual identity to the two surfaces that don't have it yet, designed cost-aware from day one.
-5. **Chunks 1 + 5** — re-evaluate only if a regression surfaces; otherwise park.
+1. ~~**Chunk 3 (per-row layer-promotion on champion-table)**~~ — hit a measurement floor 2026-06-09; reframed as monitor-only (see Chunk 3 result below). Two cost-preserving levers both regressed the metric; the 1700–1900 ms close-phase raster is GPU energy spread across 4+ threads, not user-felt jank (0 dropped frames). Bar to beat is documented; no further architectural levers remain without new evidence.
+2. ~~**Chunk 2 (panel-internals frosted-tile cost reduction)**~~ — shipped 2026-06-10 (see Chunk 2 result above). `CvSection` extracted to `_shared/`; below-fold panel sections gate `backdrop-filter` to in-view, dropping panel-open layer count ~17% and panel-close raster ~10%.
+3. ~~**Chunk 6 (layer-count budget)**~~ — shipped 2026-06-10 (see Chunk 6 result below). Per-route paint budget table encoded as convention in [repo-conventions.md](../repo-conventions.md) § "Layer-count + paint budget per route scenario".
+4. ~~**Chunk 4 (Steam panel + recap additive frosted passes)**~~ — shipped 2026-06-09/10 (see Chunk 4 result below). Steam game-detail panel internals + LoL recap chapter outers carry the frosted recipe; the atmosphere-overlay rung was retired in favour of standard frosted recipe.
+5. ~~**Chunks 1 + 5**~~ — remain deprioritised; re-evaluate only if a regression surfaces.
+
+**Arc state:** Universal audit closed 2026-06-10. Foundation chunks (0a/0b/0c) shipped; load-bearing residuals (2 + 4 + 6) shipped; Chunk 3 hit a measurement floor and is monitor-only; Chunks 1 + 5 stay deprioritised. The repo-conventions paint-budget table is now the live regression gate; perf-probe is the verification tool.
 
 ### Chunk 2 — Panel-internals CV-auto on the champion-detail panel (2026-06-10, shipped)
 
@@ -339,6 +341,32 @@ Targeted lol-champion-panel `03-panel-close` `rasterTaskTotalMs` (baseline 1734�
 - **Re-frame Chunk 3 as monitor-only.** Document the 1750 ms floor as the bar to beat; any future regression that pushes it past ~2200 ms (or introduces dropped frames) triggers a fresh investigation. Don't attempt further levers without new evidence of a load-bearing source.
 
 The trace-level audit that surfaced Layer 9 as the single dominant raster surface (3375 ms cumulative across 1750 events, ~93% of all raster time in the panel-close window) remains the most useful diagnostic shape — when a future panel scenario shows a similar single-layer dominance, repeat the trace inspection before reaching for class-composition levers.
+
+### Chunk 4 — Steam panel + recap additive frosted passes (2026-06-09 / 2026-06-10, shipped)
+
+Two surfaces that defaulted to plain `bg-card/50` got the frosted recipe applied, designed cost-aware from day one using the `CvSection` pattern from Chunk 2.
+
+- **Steam game-detail panel internals** — [35bfa6cf](#) (2026-06-09): `frosted` variant on every panel-internal card via `CardShell` / `FactCard` / `ConclusionCard` propagation. Panel scroll container CV-auto wrapping landed alongside (c4abba44, "perf: cv-auto on match-detail + steam game-detail panel below-fold sections"), so the new glass cost is gated to in-view from the start.
+- **LoL recap chapter outers** — [ebd89320](#) (2026-06-10): frosted pass on the seven chapter outers (`recap-rank-arc`, `recap-champion` empty state, `recap-most-improved`, `recap-signature-game`, `recap-patch-verdict`, `recap-duo-of-year`, `recap-top-insight`) + `recap-champion`'s populated-state inner stat tiles. The populated outer stays transparent when the champion baked-splash overlay is in play; inner tiles wear the frosted recipe instead (one-level-of-glass rule).
+- **Cross-app frosted-tile consistency pass** — [789871e1](#) (2026-06-10): every interactive surface on a splash-backed route gets the frosted recipe by default; `CardShell.frosted` default flipped to `true`; vignette fix as a side-effect (the `view-entry` scroll-driven opacity ramp is gated by `!frosted`, so flipping the default removes the bottom-of-viewport transparency artefact at the same time).
+- **Atmosphere-overlay tier retired** — [c0f711ec](#) (2026-06-10): the briefly-existed `bg-card/40 + backdrop-blur-md` rung for recap chapters was the only tile-shaped consumer of `backdrop-blur-md` in the entire app. Replaced with the standard frosted recipe (`bg-card/60 + backdrop-blur-sm`) so every tile in the app uses one blur intensity. Reads identically; cuts ~50 ms cold-load raster on `/`.
+
+**Visual identity vs cost trade-off:**
+
+- The 2026-06-10 pass intentionally raised the recap route's `RasterTask` floor from ~145 ms → ~245 ms (per-route paint budget table in repo-conventions.md updated in the same arc via [94198b0d](#) — "docs: per-route paint budget table (recap floor moved post-frosted pass)"). The ~100 ms delta is the irreducible cost of the chapter outers carrying the frosted recipe (vs the pre-pass `bg-card/40` with no blur), traded for the visible glass aesthetic the section wanted.
+- All seven chapter outers are CV-auto-gated in [recap.tsx](../../../apps/web/src/routes/lol/$accountSlug/recap.tsx); below-fold chapters do not raster at cold-load — the residual is paint cost spread across scroll, not concentrated at first paint.
+- Steam panel: no recorded regression on `panel-open` raster relative to the post-foundation baseline. CV-auto on below-fold sections kept the new glass cost gated to in-view.
+
+**Why this matters for future surfaces:** the additive pattern (CV-auto wrapping from day one, frosted default at the `CardShell` level, per-section intrinsic-size estimates) is now the standard for any new panel-style surface. The cost-aware design baked in from the start beats a later cleanup pass that would have to retrofit gating after the fact.
+
+### Chunk 6 — Layer-count + paint budget convention (2026-06-10, shipped)
+
+Encoded the four-scenario baseline (lol-overview / lol-champion-panel / steam-library / recap) as a per-route budget table in [repo-conventions.md](../repo-conventions.md) § "Layer-count + paint budget per route scenario".
+
+- **Convention added** — [dd4e477d](#) (2026-06-10): initial table with cold-load + interactive budgets, list-shaped-route exception, no-fixed-budget scroll-bottom phase, dropped-frames-is-hard-gate rule, and the "re-probe when adding layer-promoting CSS" guidance.
+- **Recap budget row updated** — [94198b0d](#) (2026-06-10): recap `RasterTask` floor moved from 145 → 220 ms post-frosted pass, with the trigger documented in the Notes column ("the cost bought the visible glass aesthetic the section explicitly wants").
+
+The budget table is now the live regression gate. `pnpm --filter @vyoh/tools-perf-probe probe` is the verification tool; any new surface that pushes a baseline scenario over its layer budget by more than ~50 layers, or any non-zero dropped-frame count, triggers a perf review before merge. Bracketing rule (3-run median for raster / long-task numbers, single-run for dropped frames) captured in the convention itself.
 
 ### Post-foundation baseline run directories
 
