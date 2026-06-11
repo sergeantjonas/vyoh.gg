@@ -23,6 +23,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
+- **2026-06-11 structure + frontier audit** — fan-out index: web structural chunks W1–W5, api chunks A1–A4, CSS-platform arc C1–C9, feature candidates F1–F4. → [audit-2026-06-11.md](cross-cutting/audit-2026-06-11.md)
 
 ### Steam surfaces
 
