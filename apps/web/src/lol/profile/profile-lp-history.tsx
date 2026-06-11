@@ -15,7 +15,11 @@ import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
-import { RANKED_QUEUE_KEY_LABEL, type RankedQueueKey } from "@vyoh/shared";
+import {
+  RANKED_QUEUE_KEY_LABEL,
+  type RankedQueueKey,
+  excludeRemakes,
+} from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -334,8 +338,8 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const patchBoundaries = useMemo(() => {
     if (!allMatches || points.length === 0) return [];
     const queueType = QUEUE_TYPE_FOR_BOUNDARIES[activeQueue];
-    const chrono = allMatches
-      .filter((m) => m.queueType === queueType && !m.remake && m.gameVersion)
+    const chrono = excludeRemakes(allMatches)
+      .filter((m) => m.queueType === queueType && m.gameVersion)
       .slice()
       .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
     return findPatchBoundaries(

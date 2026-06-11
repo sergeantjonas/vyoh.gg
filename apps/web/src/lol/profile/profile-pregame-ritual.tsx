@@ -223,8 +223,8 @@ export function buildChampionSignal(
   now: Date = new Date()
 ): RitualSignal {
   const cutoff = now.getTime() - SUGGEST_DAYS * 24 * 60 * 60 * 1000;
-  const recent = matches.filter(
-    (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff
+  const recent = excludeRemakes(matches).filter(
+    (m) => new Date(m.playedAt).getTime() >= cutoff
   );
   if (recent.length === 0) {
     return {

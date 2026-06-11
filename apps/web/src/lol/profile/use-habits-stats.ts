@@ -59,8 +59,8 @@ const POOL_DAYS = 30;
 
 export function computePoolStats(matches: MatchSummary[]): PoolStats {
   const cutoff = Date.now() - POOL_DAYS * 24 * 60 * 60 * 1000;
-  const recent = matches.filter(
-    (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff
+  const recent = excludeRemakes(matches).filter(
+    (m) => new Date(m.playedAt).getTime() >= cutoff
   );
   return {
     uniqueChampions: new Set(recent.map((m) => m.champion)).size,

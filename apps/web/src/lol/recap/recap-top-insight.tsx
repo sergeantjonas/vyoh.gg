@@ -76,9 +76,8 @@ function streakInsight(matches: MatchSummary[]): Insight | null {
 
 function hourInsight(matches: MatchSummary[]): Insight | null {
   if (matches.length < 15) return null;
-  const overallWr =
-    matches.filter((m) => m.win && !m.remake).length /
-    Math.max(excludeRemakes(matches).length, 1);
+  const ms = excludeRemakes(matches);
+  const overallWr = ms.filter((m) => m.win).length / Math.max(ms.length, 1);
   const hourDay = computeHourDayStats(matches);
   let bestSlot: { day: number; hour: number; wr: number; games: number } | null = null;
   for (const slot of hourDay) {

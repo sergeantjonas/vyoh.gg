@@ -51,7 +51,12 @@ import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { formatKda, formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
+import {
+  excludeRemakes,
+  formatKda,
+  formatPercent,
+  formatPlaytimeFromSeconds,
+} from "@vyoh/shared";
 import { Share2 } from "lucide-react";
 import { m } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -206,8 +211,8 @@ function ChampionDetailPage() {
   // gameIndex from boundaries lines up with the sparkline's `game` x-axis.
   const championPatchBoundaries = useMemo(() => {
     if (!matches) return [];
-    const chrono = matches
-      .filter((m) => m.champion.toLowerCase() === championKey.toLowerCase() && !m.remake)
+    const chrono = excludeRemakes(matches)
+      .filter((m) => m.champion.toLowerCase() === championKey.toLowerCase())
       .slice()
       .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
     return findPatchBoundaries(
