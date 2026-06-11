@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Shipped. Phases A (nav chip), B (match search), C1–C3 (parser + chips), D1 (champion mode), E (recents persistence) landed 2026-05-18. Phase F (`/patches` navigation grammar) shipped 2026-05-23. Phase G (Steam `dev:` / `pub:` / `franchise:` grammar) shipped 2026-05-25. D2 (cross-account scope) shipped 2026-05-18 as a companion-row pattern but was **superseded 2026-05-28 by the chord + hint pattern** in [command-palette-reorg.md](../archive/command-palette-reorg.md) F1–F4; D2's original implementation is no longer in the tree. One open design question (first-visit nudge) remains under "Open questions" below — no other queued chunks. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
+**Status:** Shipped. Phases A (nav chip), B (match search), C1–C3 (parser + chips), D1 (champion mode), E (recents persistence) landed 2026-05-18. Phase F (`/patches` navigation grammar) shipped 2026-05-23. Phase G (Steam `dev:` / `pub:` / `franchise:` grammar) shipped 2026-05-25. Phase H (Steam `wishlist` navigation + name-search grammar) shipped 2026-06-12. D2 (cross-account scope) shipped 2026-05-18 as a companion-row pattern but was **superseded 2026-05-28 by the chord + hint pattern** in [command-palette-reorg.md](../archive/command-palette-reorg.md) F1–F4; D2's original implementation is no longer in the tree. One open design question (first-visit nudge) remains under "Open questions" below — no other queued chunks. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
 
 ## Current state (Phases A+B shipped 2026-05-18)
 
@@ -40,6 +40,7 @@ Each chunk below is independently committable and fits one context window. Phase
 8. ~~**D2 — Cross-account scope.**~~ ✅ shipped 2026-05-18 — each matched account in the Accounts group renders a "Search matches in <gameName>#<tagLine>" companion item that navigates to `/lol/<slug>/matches` via a new `goAndKeepOpen(path)` helper. The palette stays open across the navigation, the input is cleared, and the next render picks up the new `currentSlug` so the Matches group loads the scoped account's cache. Works from any pathname, not just `/` or `/steam` — useful for switching scope from another account too.
 9. ~~**E — Recents.**~~ ✅ shipped 2026-05-18 — last 5 selections persisted in `localStorage` under `vyoh:palette-recents:<scope>`; scope derived from pathname: `lol:<slug>` per LoL account, plain `lol` / `steam` per top-level stream, `global` otherwise. Recent group renders at the top when input is empty. Dedup by path keeps the most-recent entry on top. Pure module: [command-palette-recents.ts](../../../apps/web/src/components/command-palette-recents.ts) + 11 unit tests + 3 dialog integration tests.
 10. ~~**F — Navigation verb grammar (`/patches`).**~~ ✅ shipped 2026-05-23 — new `parsePaletteVerb` parser in [packages/shared/src/command-palette/parse-palette-verb.ts](../../../packages/shared/src/command-palette/parse-palette-verb.ts) is a separate grammar from `parseMatchQuery` (navigation, not match-filtering). Recognises `/patches`, `/patches <version>` (MAJOR.MINOR[.PATCH]), and `@<slug>`. Returns a discriminated `PaletteVerb` so future global LoL surfaces (champion DB, item meta) add a `kind` instead of forking the parser. New "Global LoL" `CommandGroup` in the dialog with a Patches entry; `?as=` falls back to the first `useMe().data.lol` account when omitted (mirrors the nav-dropdown default from the Chunk 2 LoL split). Verb destinations collapse all other groups so the palette reads as a single routed result. Originated in [docs/working-notes/lol/patches-as-global-surface.md](../lol/patches-as-global-surface.md) — Chunk 4 there.
+11. ~~**H — Steam wishlist navigation + name-search grammar.**~~ ✅ shipped 2026-06-12 — new `parseWishlistQuery` parser in [packages/shared/src/steam/wishlist-query.ts](../../../packages/shared/src/steam/wishlist-query.ts), a separate grammar (head keyword `wishlist`) parallel to `parsePaletteVerb` / `parseSteamLibraryQuery`. `wishlist upcoming` / `wishlist all` route to `/steam/wishlist?tab=…` (pure navigation, works from any scope, like `/patches`); bare `wishlist` offers both tab destinations; `wishlist <name>` finds a wishlisted game by substring and deep-links to `?tab=all&appid=<id>` (the All view owns the row scroll+highlight). Name search reads the `["steam","wishlist"]` query cache directly per the cache-hit-before-fetch invariant — cold cache degrades to no results, no Load affordance. The verb folds into `showVerbDestinationsOnly` (collapses the other groups); `showGlobalLol` was re-scoped to `paletteVerb` so the Patches entry doesn't leak into wishlist mode. 6 parser unit tests + 6 dialog integration tests. Closes the chunk-2/chunk-6 deferral in [steam/wishlist-upcoming.md](../steam/wishlist-upcoming.md).
 
 ### Phase A — Discoverability affordance (small) ✅ shipped 2026-05-18
 
@@ -130,6 +131,34 @@ Multi-occurrence union semantics, matching the LoL `with:` / `vs:` pattern. Slug
 - ~~**G3:**~~ ✅ parsed chips render and click-remove like the LoL chips do.
 
 **Bonus surface this unlocks:** "by SHIFT UP Corporation, published by PlayStation Publishing LLC" line on `/steam/game/$appid` — pure render off the same captured data, separate from the palette grammar.
+
+### Phase H — Steam wishlist navigation + name-search grammar ✅ shipped 2026-06-12
+
+The dedicated palette chunk of the [wishlist upcoming-releases reframe](../steam/wishlist-upcoming.md) (chunk 6). Makes the new tabbed `/steam/wishlist` surface reachable from ⌘K and adds a name-search into the wishlist, per the [extend-the-palette convention](../../repo-conventions.md#extend-the-command-palette-when-adding-filterable-surfaces) — the tab affordances were deferred here from wishlist chunk 2.
+
+| Verb | Example | Meaning |
+|---|---|---|
+| `wishlist` | `wishlist` | Offers both tab destinations (Upcoming, All) |
+| `wishlist upcoming` | `wishlist upcoming` | Navigate to `/steam/wishlist?tab=upcoming` |
+| `wishlist all` | `wishlist all` | Navigate to `/steam/wishlist?tab=all` |
+| `wishlist <name>` | `wishlist wukong` | Find a wishlisted game by name → `?tab=all&appid=<id>` |
+
+**Chunk shape (single commit, parser + UI + tests — net <200 LOC, smaller than the LoL Phase C split warranted):**
+
+- **Parser.** `parseWishlistQuery` in [packages/shared/src/steam/wishlist-query.ts](../../../packages/shared/src/steam/wishlist-query.ts) returns `WishlistPaletteQuery | null` — `{ kind: "wishlist", tab: "upcoming" | "all" | null, query: string }`. Head keyword must be `wishlist`; a lone `upcoming` / `all` after it resolves a tab, anything else (including a tab keyword + more tokens) is a name query (the route has no combined tab+name target). 6 unit tests covering the null case, bare/tab/name modes, case + whitespace, and the tab-keyword-plus-tokens edge.
+- **Wiring.** Dialog parses on each keystroke, folds the verb into `showVerbDestinationsOnly` so it collapses Pages/Accounts/Matches/Steam-library, and renders a "Steam wishlist" group. Tab nav entries work from any scope (no cache); name search reads `["steam","wishlist"]` from the query cache directly (cache-hit-before-fetch — warm under `/steam` via the profile chip, degrades to no results when cold). `showGlobalLol` re-scoped from `showVerbDestinationsOnly` to `paletteVerb` so the Patches entry no longer leaks into wishlist mode.
+
+**Architectural notes (consistent with the F/G-chunk pattern):**
+
+- Separate parser per stream/intent. `parseWishlistQuery` does not entangle with `parseMatchQuery`, `parsePaletteVerb`, or `parseSteamLibraryQuery`; the dialog dispatches.
+- Navigation verbs are global (like `/patches`); the cache-backed name search degrades gracefully off-scope. No new fetch on palette open.
+
+**Acceptance criteria (all met):**
+
+- `wishlist upcoming` / `wishlist all` surface a single routed destination and navigate to the corresponding tab.
+- bare `wishlist` surfaces both tab destinations.
+- `wishlist <name>` surfaces matching wishlisted games from the cache and deep-links into the All view; a cold cache surfaces nothing.
+- the wishlist verb collapses Pages/Accounts and does not surface the Patches entry.
 
 ### Phase E — Recent commands + result persistence ✅ shipped 2026-05-18
 

@@ -32,11 +32,13 @@ import {
   type CachedMatchesResult,
   type MatchSummary,
   type SteamOwnedGames,
+  type SteamWishlist,
   excludeRemakes,
   nameMatchesQuery,
   parseMatchQuery,
   parsePaletteVerb,
   parseSteamLibraryQuery,
+  parseWishlistQuery,
 } from "@vyoh/shared";
 import {
   Crown,
@@ -176,6 +178,10 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   // filtering, so they don't feed chips and they short-circuit the
   // result-list display below.
   const paletteVerb = useMemo(() => parsePaletteVerb(input), [input]);
+  // Steam wishlist grammar (`wishlist`, `wishlist upcoming|all`, `wishlist
+  // <name>`) — a separate navigation/name-search verb. Like `/patches` it
+  // routes rather than match-filters, so it collapses the other groups below.
+  const wishlistQuery = useMemo(() => parseWishlistQuery(input), [input]);
 
   const filteredMatches = useMemo(
     () => (allMatches ? allMatches.filter((m) => matchesQuery(m, parsed)) : null),
@@ -269,11 +275,11 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     });
   }
 
-  // When a navigation verb (`/patches …`) is parsed, all other groups —
-  // including the Matches list — collapse so the palette reads as a single
-  // routed destination. The chip / match-filter groups would be visual
+  // When a navigation verb (`/patches …`, `wishlist …`) is parsed, all other
+  // groups — including the Matches list — collapse so the palette reads as a
+  // single routed destination. The chip / match-filter groups would be visual
   // noise relative to that intent.
-  const showVerbDestinationsOnly = paletteVerb !== null;
+  const showVerbDestinationsOnly = paletteVerb !== null || wishlistQuery !== null;
 
   // Non-Matches groups are hidden once any structured verb is in play —
   // `with:nidalee` should not surface Pages/Accounts, only Matches — and
@@ -297,9 +303,10 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     paletteVerb?.kind === "patches" && paletteVerb.version
       ? `Patches · ${paletteVerb.version}`
       : "Patches";
+  // Scoped to the patches verb specifically — `showVerbDestinationsOnly` now
+  // also covers the wishlist verb, which must not surface the Patches entry.
   const showGlobalLol =
-    showVerbDestinationsOnly ||
-    (showNonMatchGroups && passesFreeText("patches global lol"));
+    paletteVerb !== null || (showNonMatchGroups && passesFreeText("patches global lol"));
 
   const pages = [
     { value: "home", icon: <Home />, label: "Home", path: "/" },
@@ -370,7 +377,41 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   const showSteamGames =
     isSteamScope &&
+    !showVerbDestinationsOnly &&
     (hasSteamStructuredVerbs || (parsed.freeText.length > 0 && steamGames.length > 0));
+
+  // Wishlist navigation entries: a bare `wishlist` offers both tabs; a tab
+  // keyword resolves the single routed destination. These work from any scope
+  // (pure navigation, like `/patches`) — no cache needed.
+  const wishlistNavEntries =
+    wishlistQuery && !wishlistQuery.query
+      ? (wishlistQuery.tab ? [wishlistQuery.tab] : (["upcoming", "all"] as const)).map(
+          (tab) => ({
+            value: `wishlist ${tab}`,
+            label: tab === "upcoming" ? "Wishlist · Upcoming" : "Wishlist · All",
+            path: `/steam/wishlist?tab=${tab}`,
+          })
+        )
+      : [];
+
+  // Wishlist name search: read the wishlist query cache directly per the
+  // cache-hit-before-fetch invariant. The cache is warm under /steam (the
+  // profile chip fetches it); an empty list is the natural cold-cache state,
+  // so no Load affordance is surfaced. Each hit deep-links into the All view,
+  // where the row scroll+highlight lives (?appid → tab `all`).
+  const wishlistMatches = useMemo(() => {
+    if (!wishlistQuery || !wishlistQuery.query) return [];
+    const cached = queryClient.getQueryData<SteamWishlist>(["steam", "wishlist"]);
+    if (!cached) return [];
+    const needle = wishlistQuery.query;
+    return cached.items
+      .filter((it) => (it.name ?? "").toLowerCase().includes(needle))
+      .slice(0, 8);
+  }, [wishlistQuery, queryClient]);
+
+  const showWishlist =
+    wishlistQuery !== null &&
+    (wishlistNavEntries.length > 0 || wishlistMatches.length > 0);
 
   const steamAppid = isSteamScope
     ? (pathname.match(/^\/steam\/library\/([^/]+)/)?.[1] ?? null)
@@ -646,6 +687,39 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                     {g.developerNames[0]}
                   </span>
                 )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {showWishlist && (
+          <CommandGroup heading="Steam wishlist">
+            {wishlistNavEntries.map((e) => (
+              <CommandItem
+                key={e.path}
+                value={e.value}
+                onSelect={() => go({ path: e.path, label: e.label, kind: "tab" })}
+              >
+                <ListChecks className="size-4" />
+                <span>{e.label}</span>
+              </CommandItem>
+            ))}
+            {wishlistMatches.map((it) => (
+              <CommandItem
+                key={it.appid}
+                value={`wishlist-game:${it.appid} ${(it.name ?? "").toLowerCase()} ${it.appid}`}
+                onSelect={() =>
+                  go({
+                    path: `/steam/wishlist?tab=all&appid=${it.appid}`,
+                    label: it.name ?? `Wishlisted app ${it.appid}`,
+                    kind: "page",
+                  })
+                }
+              >
+                <SteamIcon className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">
+                  {it.name ?? `Unknown title (app ${it.appid})`}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>

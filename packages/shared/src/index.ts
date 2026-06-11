@@ -187,6 +187,11 @@ export {
   parseSteamLibraryQuery,
 } from "./steam/library-query.ts";
 export type { ParsedSteamLibraryQuery } from "./steam/library-query.ts";
+export { parseWishlistQuery } from "./steam/wishlist-query.ts";
+export type {
+  WishlistPaletteQuery,
+  WishlistTabKeyword,
+} from "./steam/wishlist-query.ts";
 export { bbcodeToHtml } from "./steam/bbcode-to-html.ts";
 export type { SteamGameDescription } from "./steam/game-description.ts";
 export type { SteamGameScreenshots } from "./steam/game-screenshots.ts";

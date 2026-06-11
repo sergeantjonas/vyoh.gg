@@ -861,4 +861,104 @@ describe("CommandPaletteDialog", () => {
       expect(screen.queryByRole("option", { name: /Elden Ring/ })).toBeNull();
     });
   });
+
+  describe("Steam wishlist grammar", () => {
+    const wishlist = {
+      steamId: "1",
+      fetchedAt: 0,
+      items: [
+        {
+          appid: 2358720,
+          name: "Black Myth: Wukong",
+          dateAdded: 1_700_000_000,
+          priority: 0,
+          storeUrl: "https://store.steampowered.com/app/2358720",
+          releaseDate: null,
+          comingSoon: true,
+        },
+        {
+          appid: 1888930,
+          name: "The Last of Us Part II",
+          dateAdded: 1_690_000_000,
+          priority: 0,
+          storeUrl: "https://store.steampowered.com/app/1888930",
+          releaseDate: null,
+          comingSoon: true,
+        },
+      ],
+    };
+
+    function renderWithWishlistCache() {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      client.setQueryData(["steam", "wishlist"], wishlist);
+      return render(
+        <QueryClientProvider client={client}>
+          <CommandPaletteDialog open onOpenChange={vi.fn()} />
+        </QueryClientProvider>
+      );
+    }
+
+    it("`wishlist upcoming` navigates to the Upcoming tab (works from any scope)", () => {
+      pathnameRef.current = "/";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "wishlist upcoming" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Wishlist · Upcoming/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/wishlist?tab=upcoming" });
+    });
+
+    it("`wishlist all` navigates to the All tab", () => {
+      pathnameRef.current = "/";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "wishlist all" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Wishlist · All/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/wishlist?tab=all" });
+    });
+
+    it("bare `wishlist` offers both tab destinations", () => {
+      pathnameRef.current = "/";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "wishlist" },
+      });
+      expect(screen.getByRole("option", { name: /Wishlist · Upcoming/ })).toBeTruthy();
+      expect(screen.getByRole("option", { name: /Wishlist · All/ })).toBeTruthy();
+    });
+
+    it("`wishlist <name>` finds a wishlisted game and deep-links to the All view", () => {
+      pathnameRef.current = "/steam";
+      renderWithWishlistCache();
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "wishlist wukong" },
+      });
+      expect(screen.queryByRole("option", { name: /The Last of Us/ })).toBeNull();
+      fireEvent.click(screen.getByRole("option", { name: /Black Myth: Wukong/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({
+        to: "/steam/wishlist?tab=all&appid=2358720",
+      });
+    });
+
+    it("collapses Pages/Accounts when the wishlist verb is in play", () => {
+      pathnameRef.current = "/";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "wishlist upcoming" },
+      });
+      expect(screen.queryByRole("option", { name: /^Home$/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /League of Legends/ })).toBeNull();
+    });
+
+    it("surfaces no wishlist results on a cold cache (cache-hit-before-fetch)", () => {
+      pathnameRef.current = "/steam";
+      // No setQueryData — cache miss; a name query has nothing to match.
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "wishlist wukong" },
+      });
+      expect(screen.queryByRole("option", { name: /Black Myth: Wukong/ })).toBeNull();
+    });
+  });
 });
