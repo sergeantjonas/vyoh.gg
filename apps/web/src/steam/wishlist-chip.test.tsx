@@ -125,6 +125,62 @@ describe("WishlistChip", () => {
     expect(screen.queryByText("Game 6")).toBeNull();
   });
 
+  it("leads with a forward-looking 'next up' verdict for a near dated release", () => {
+    // Fake only Date so the chip's `useMemo(() => new Date())` reads a fixed
+    // today; leave rAF/timers real for Motion.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-15T12:00:00Z"));
+    try {
+      mockHook({
+        data: {
+          steamId: "x",
+          items: [
+            makeItem({
+              appid: 10,
+              name: "Soon",
+              comingSoon: true,
+              releaseDate: Math.floor(Date.UTC(2026, 0, 25, 12, 0, 0) / 1000), // +10d
+            }),
+          ],
+          fetchedAt: 0,
+        },
+        isPending: false,
+        isError: false,
+      });
+      renderChip();
+      expect(screen.getByText("Next up: Soon, in 10 days.")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("frames a TBA-only wishlist as still-waiting on the oldest entry", () => {
+    mockHook({
+      data: {
+        steamId: "x",
+        items: [
+          makeItem({
+            appid: 20,
+            name: "Newer TBA",
+            comingSoon: true,
+            dateAdded: 1_700_000_000,
+          }),
+          makeItem({
+            appid: 21,
+            name: "Oldest TBA",
+            comingSoon: true,
+            dateAdded: 1_400_000_000,
+          }),
+        ],
+        fetchedAt: 0,
+      },
+      isPending: false,
+      isError: false,
+    });
+    renderChip();
+    expect(screen.getByText("Still waiting on Oldest TBA.")).toBeTruthy();
+  });
+
   it("falls back to a placeholder label for items with null name in the preview list", () => {
     mockHook({
       data: {
