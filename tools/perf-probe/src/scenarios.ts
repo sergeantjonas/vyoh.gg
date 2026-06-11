@@ -76,4 +76,16 @@ export const SCENARIOS: Scenario[] = [
       { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 1000 },
     ],
   },
+  {
+    // The Upcoming view (now the default tab). Carries the chunk-3/4 layer-
+    // promoting CSS: the frosted calendar wrapper + the imminent hero's backdrop
+    // lease (swaps the page-wide Steam backdrop) + the hero/calendar Motion
+    // entrances. settleMs on load clears the hero cascade before the shot.
+    name: "wishlist-upcoming",
+    path: "/steam/wishlist",
+    screenshotMoments: [
+      { name: "01-load", phase: "load", settleMs: 750 },
+      { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 500 },
+    ],
+  },
 ];
