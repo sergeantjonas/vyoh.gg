@@ -43,6 +43,10 @@ All five rows shipped in the 2026-05-25 session — see [library-card-enrichment
 
 ✅ **HTML `popover` attribute where it fits** — dropped 2026-05-28; audit found nothing to convert. Tooltips/overlays are governed by Radix (`TooltipPrimitive`, `react-popover`, `react-hover-card`), and the remaining `aria-expanded` sites are inline accordions where native `popover` doesn't apply.
 
+- **404/not-found art direction** — bespoke `notFoundComponent` (the orb has range); cheapest "sweats the details" moment a visitor can stumble into. From the 2026-06-12 visual audit (V11) → [visual-excellence-audit-2026-06-12.md](visual-excellence-audit-2026-06-12.md).
+- **`routeMeta()` on remaining leaves** — Steam layout/index + match-detail subtabs appear to rely on parent titles; verify with `ugrep -l routeMeta apps/web/src/routes` first. From the 2026-06-12 visual audit (V5).
+- **Focus-visible ring contrast pass** — `outline-ring/50` may be too subtle over busy splashes; one keyboard tab-through session, then `/75` or two-tone if confirmed. Needs eyes, not grep. From the 2026-06-12 visual audit (V6).
+
 - **`<picture>` art-direction for splash backdrop on mobile** — blocked: the splash proxy (`/img/lol/champion/${slug}/backdrop/${patch}.webp`) has no size parameter; needs API work to add a `?w=960` variant before art-direction is useful.
 
 ## Tier-2-ish (small but design-touching — drop a paragraph in a new note before picking up)
