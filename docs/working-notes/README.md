@@ -10,7 +10,7 @@ Planning surface for vyoh.gg. Each file is one arc, one bug, one idea, or one re
 - **What's deliberately paused?** → [parked.md](parked.md)
 - **What's already shipped?** → [archive/](archive/) for fully-resolved notes; otherwise skim each active note's `**Status:**` line.
 - **Why is it the way it is?** → [project-history.md](project-history.md) (append-only ship log) or the relevant note's own decision log.
-- **Browse before scoping** → [vnext-ideas.md](cross-cutting/vnext-ideas.md), [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md), [lol-owner-data-features.md](lol/lol-owner-data-features.md), [motion-backlog.md](cross-cutting/motion-backlog.md), [library-shortlist.md](cross-cutting/library-shortlist.md).
+- **Browse before scoping** → [vnext-ideas.md](cross-cutting/vnext-ideas.md), [idea-pool-2026-06.md](cross-cutting/idea-pool-2026-06.md), [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md), [lol-owner-data-features.md](lol/lol-owner-data-features.md), [motion-backlog.md](cross-cutting/motion-backlog.md), [library-shortlist.md](cross-cutting/library-shortlist.md).
 
 ## Folder layout
 
