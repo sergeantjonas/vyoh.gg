@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { FactCard } from "./_shared/fact-card";
 import { FactCardData } from "./_shared/fact-card-data";
-import { steamCapsuleUrl } from "./_shared/steam-image";
+import { steamCapsuleLargeUrl, steamCapsuleUrl } from "./_shared/steam-image";
 import { useSteamWishlist } from "./use-wishlist";
 import { formatWishlistFact } from "./wishlist/format";
 import { pickWishlistFact } from "./wishlist/wishlist-fact";
@@ -56,7 +56,7 @@ export function WishlistChip() {
                     className="group block overflow-hidden rounded-md transition-opacity hover:opacity-95"
                   >
                     <img
-                      src={steamCapsuleUrl(fact.item.appid)}
+                      src={steamCapsuleLargeUrl(fact.item.appid)}
                       alt={fact.item.name ?? `Wishlisted app ${fact.item.appid}`}
                       width={460}
                       height={215}

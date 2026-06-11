@@ -341,6 +341,25 @@ export class ImgController {
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
+  // Native-resolution sibling of `steam/capsule/...` — the 460-wide header for
+  // hero-sized tiles (the wishlist profile chip) where the 231-wide capsule
+  // upscales. See `steamCapsuleLargeUrl` in steam-image.ts.
+  @Get("steam/capsule-large/:appid/:assetTimestamp.webp")
+  @Header("Content-Type", "image/webp")
+  @Header("Cache-Control", IMMUTABLE_YEAR)
+  async steamCapsuleLarge(
+    @Param("appid") appid: string,
+    @Res() res: Response
+  ): Promise<void> {
+    const id = Number.parseInt(appid, 10);
+    if (!Number.isFinite(id)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = await this.steam.capsuleLarge(id);
+    await this.proxyWebp(resolved.urls, resolved.params, res);
+  }
+
   @Get("steam/library-capsule/:appid/:assetTimestamp.webp")
   @Header("Content-Type", "image/webp")
   @Header("Cache-Control", IMMUTABLE_YEAR)

@@ -46,6 +46,18 @@ export function steamCapsuleUrl(
   return `${API_URL}/img/steam/capsule/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
+// Native-resolution capsule (460-wide `header.jpg`) for hero-sized tiles where
+// `steamCapsuleUrl`'s 231-wide list thumbnail visibly upscales — e.g. the
+// wishlist profile chip. Same logo-bearing composition, just not cropped to the
+// small cover ratio. Keep `steamCapsuleUrl` for small thumbnails (row capsules,
+// preview lists) where 231×87 is correctly sized.
+export function steamCapsuleLargeUrl(
+  appid: number,
+  assetTimestamp?: number | bigint | null
+): string {
+  return `${API_URL}/img/steam/capsule-large/${appid}/${cacheKey(assetTimestamp)}.webp`;
+}
+
 export function steamLibraryCapsuleUrl(
   appid: number,
   assetTimestamp?: number | bigint | null

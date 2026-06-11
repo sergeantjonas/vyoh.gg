@@ -78,6 +78,25 @@ describe("SteamImageService.capsule", () => {
   });
 });
 
+describe("SteamImageService.capsuleLarge", () => {
+  it("serves the same header source at native 460 width, uncropped", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameEnrichment.findUnique.mockResolvedValue({
+      headerPath: "header_abc123.jpg",
+      assetTimestamp: 1_715_000_000n,
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.capsuleLarge(440);
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/header_abc123.jpg?t=1715000000",
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/440/header.jpg",
+    ]);
+    // 460-wide, no fit:cover — distinct from the 231×87 list capsule.
+    expect(resolved.params).toEqual({ width: 460, quality: 88 });
+  });
+});
+
 describe("SteamImageService.libraryCapsule / hero / logo", () => {
   it("libraryCapsule resolves the 600x900 portrait at width 300", async () => {
     const prisma = makePrisma();

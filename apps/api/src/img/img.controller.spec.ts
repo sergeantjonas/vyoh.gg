@@ -57,6 +57,9 @@ function makeController(
   } as unknown as LolImageService;
   const steam = {
     capsule: vi.fn().mockResolvedValue({ urls: ["https://steam/cap"], params: {} }),
+    capsuleLarge: vi
+      .fn()
+      .mockResolvedValue({ urls: ["https://steam/cap-large"], params: {} }),
     libraryCapsule: vi
       .fn()
       .mockResolvedValue({ urls: ["https://steam/lib"], params: {} }),
@@ -141,6 +144,10 @@ describe("ImgController numeric-id BAD_REQUEST guards", () => {
       call: (c: ImgController, res: ResStub) => c.steamCapsule("abc", res as never),
     },
     {
+      name: "steamCapsuleLarge",
+      call: (c: ImgController, res: ResStub) => c.steamCapsuleLarge("abc", res as never),
+    },
+    {
       name: "steamLibraryCapsule",
       call: (c: ImgController, res: ResStub) =>
         c.steamLibraryCapsule("abc", res as never),
@@ -203,6 +210,7 @@ describe("ImgController happy paths", () => {
 
   it.each([
     { method: "steamCapsule" as const },
+    { method: "steamCapsuleLarge" as const },
     { method: "steamLibraryCapsule" as const },
     { method: "steamLogo" as const },
   ])("$method proxies the chain", async ({ method }) => {

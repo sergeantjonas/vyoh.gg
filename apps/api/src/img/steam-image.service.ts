@@ -82,6 +82,20 @@ export class SteamImageService {
     };
   }
 
+  // Native-resolution sibling of `capsule`. Same `header.jpg` source (460×215,
+  // Steam's max for the logo-bearing key art) served at full width instead of
+  // cropped down to the 231×87 list thumbnail. For hero-sized tiles — the
+  // wishlist profile chip renders this asset ~460px wide, where the small
+  // capsule visibly upscales. No `fit: 'cover'`: header's 2.14:1 aspect already
+  // matches the tile, so the frontend `object-cover` is a no-op crop.
+  async capsuleLarge(appid: number): Promise<Resolved> {
+    const row = await this.resolveAssetRow(appid);
+    return {
+      urls: composeAssetUrls(appid, row?.headerPath, row?.assetTimestamp, "header.jpg"),
+      params: { width: 460, quality: 88 },
+    };
+  }
+
   async libraryCapsule(appid: number): Promise<Resolved> {
     const row = await this.resolveAssetRow(appid);
     return {
