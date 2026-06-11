@@ -12,6 +12,8 @@ import { PresenceMounts } from "@/lib/presence-mounts";
 import { routeOwnsEntry } from "@/lib/route-owns-entry";
 import { mainScrollRef } from "@/lib/scroll-container";
 import { topLevelScope } from "@/lib/top-level-scope";
+import { useAudio, useAudioHydration } from "@/lib/use-audio";
+import { useAudioShortcut } from "@/lib/use-audio-shortcut";
 import { useFaviconDot } from "@/lib/use-favicon-dot";
 import { usePerfFlag } from "@/lib/use-perf-flag";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
@@ -58,6 +60,9 @@ function RootLayout() {
   // (with their own skip lists for list↔detail back-restore); cross-scope
   // navigation unmounts the previous section, so a freshly-mounted section
   // or sectionless route would otherwise inherit the previous scrollTop.
+  useAudioHydration();
+  useAudioShortcut();
+  const { play } = useAudio();
   const prevScopeRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     const prev = prevScopeRef.current;
@@ -86,6 +91,25 @@ function RootLayout() {
   // pointer touches a Link. Neither route has a loader, so this is a
   // pure JS-chunk warmup.
   const router = useRouter();
+  // Sound on every resolved navigation. `useRouterState` selectors fall
+  // silent when a route opts into its own entrance (ownsEntry routes like
+  // `/` and `/lol/$accountSlug` don't trip the pathname selector cleanly
+  // because the state shape they advertise doesn't change in a way the
+  // selector observes mid-VT). Router events fire regardless.
+  useEffect(() => {
+    let prev: string | null = null;
+    const unsub = router.subscribe("onResolved", ({ toLocation }) => {
+      const next = toLocation.pathname;
+      if (prev === null) {
+        prev = next;
+        return;
+      }
+      if (prev === next) return;
+      prev = next;
+      play("nav.transition");
+    });
+    return unsub;
+  }, [router, play]);
   useEffect(() => {
     const preload = () => {
       router.preloadRoute({ to: "/steam" }).catch(() => {});
@@ -162,6 +186,7 @@ function RootLayout() {
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary
+                  onError={() => play("error.toast")}
                   fallback={(error) => (
                     <div className="flex flex-col items-center gap-4 rounded-md border border-destructive/30 bg-destructive/10 px-6 py-10 text-center">
                       <OrbGlyph className="size-16" />

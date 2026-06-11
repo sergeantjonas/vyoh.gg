@@ -47,6 +47,7 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 - **Magnetic hover on key buttons** — cursor proximity pulls the button. High gimmick risk; one or two hero CTAs at most. Revisit only when other polish is complete. → [motion-backlog.md](cross-cutting/motion-backlog.md)
 - **First-visit cascade reveal across Trends layout** — header → summary → chart → list staggered cascade with per-session suppression. Parked alongside the shipped Trends entrance. → [motion-backlog.md](cross-cutting/motion-backlog.md)
+- **Optional UI audio — warm-acoustic v2 (curated `.ogg` samples)** — synth v1 shipped 2026-06-11 ([optional-ui-audio.md](cross-cutting/optional-ui-audio.md)) with 8-slot Web Audio recipes. Warm-acoustic v2 was the original spec: sourced/edited acoustic samples (wooden plucks, glass bells, soft breath) layered behind the same bus. Trigger: real user feedback that synth tones read as cold/cheap, or a free block to curate ~8 CC samples + run an A/B against synth. Swap is at the recipe layer; bus + hook + toggle + call-sites are stable. → [optional-ui-audio.md § Sound vocabulary](cross-cutting/optional-ui-audio.md#sound-vocabulary)
 
 ### Library / dependency picks
 

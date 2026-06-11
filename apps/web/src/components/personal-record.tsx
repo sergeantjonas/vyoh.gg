@@ -1,3 +1,4 @@
+import { useAudio } from "@/lib/use-audio";
 import { cn } from "@/lib/utils";
 import { type PersonalRecordDirection, isPersonalRecord } from "@vyoh/shared";
 import type { ReactNode } from "react";
@@ -53,6 +54,7 @@ export function PersonalRecord({
 }) {
   const [fire, setFire] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
+  const { play } = useAudio();
 
   useEffect(() => {
     if (!Number.isFinite(value)) return;
@@ -79,13 +81,14 @@ export function PersonalRecord({
     if (!shouldFire) return;
     setFire(true);
     setShowBadge(true);
+    play("record.fire");
     const fireTimer = setTimeout(() => setFire(false), FLARE_HOLD_MS);
     const badgeTimer = setTimeout(() => setShowBadge(false), BADGE_HOLD_MS);
     return () => {
       clearTimeout(fireTimer);
       clearTimeout(badgeTimer);
     };
-  }, [storageKey, value, direction]);
+  }, [storageKey, value, direction, play]);
 
   return (
     <span

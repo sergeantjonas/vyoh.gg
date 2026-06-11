@@ -1,3 +1,4 @@
+import { AudioToggle } from "@/components/audio-toggle";
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { useCommandPalette } from "@/components/command-palette-context";
 import { OrbGlyph } from "@/components/orb-glyph";
@@ -214,28 +215,31 @@ export function Nav() {
             />
           </NavigationMenuList>
         </NavigationMenu>
-        <TooltipPrimitive.Root>
-          <TooltipPrimitive.Trigger asChild>
-            <button
-              type="button"
-              aria-label="Open command palette"
-              onClick={() => setOpen(true)}
-              className="ml-auto cursor-pointer rounded border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <span className="hidden sm:inline">{shortcutLabel}</span>
-              <Search className="size-4 sm:hidden" aria-hidden />
-            </button>
-          </TooltipPrimitive.Trigger>
-          <TooltipPrimitive.Portal>
-            <TooltipPrimitive.Content
-              side="bottom"
-              sideOffset={6}
-              className={TOOLTIP_CONTENT_COMPACT}
-            >
-              Open command palette
-            </TooltipPrimitive.Content>
-          </TooltipPrimitive.Portal>
-        </TooltipPrimitive.Root>
+        <div className="ml-auto flex items-center gap-1.5">
+          <AudioToggle />
+          <TooltipPrimitive.Root>
+            <TooltipPrimitive.Trigger asChild>
+              <button
+                type="button"
+                aria-label="Open command palette"
+                onClick={() => setOpen(true)}
+                className="cursor-pointer rounded border bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <span className="hidden sm:inline">{shortcutLabel}</span>
+                <Search className="size-4 sm:hidden" aria-hidden />
+              </button>
+            </TooltipPrimitive.Trigger>
+            <TooltipPrimitive.Portal>
+              <TooltipPrimitive.Content
+                side="bottom"
+                sideOffset={6}
+                className={TOOLTIP_CONTENT_COMPACT}
+              >
+                Open command palette
+              </TooltipPrimitive.Content>
+            </TooltipPrimitive.Portal>
+          </TooltipPrimitive.Root>
+        </div>
       </div>
     </nav>
   );

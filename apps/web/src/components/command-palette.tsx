@@ -1,11 +1,13 @@
 import { useCommandPalette } from "@/components/command-palette-context";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { useAudio } from "@/lib/use-audio";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 const CommandPaletteDialog = lazy(() => import("./command-palette-dialog"));
 
 export function CommandPalette() {
   const { open, setOpen } = useCommandPalette();
   const [hasOpened, setHasOpened] = useState(false);
+  const { play } = useAudio();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -17,6 +19,14 @@ export function CommandPalette() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [setOpen]);
+
+  // Skip the initial mount; only chirp on real transitions.
+  const prevOpenRef = useRef(open);
+  useEffect(() => {
+    if (prevOpenRef.current === open) return;
+    prevOpenRef.current = open;
+    play(open ? "palette.open" : "palette.close");
+  }, [open, play]);
 
   useEffect(() => {
     if (open) setHasOpened(true);

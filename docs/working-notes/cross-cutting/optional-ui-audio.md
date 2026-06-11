@@ -1,8 +1,8 @@
 # Optional UI audio
 
-**Status:** Planned. Part of [elevation-arcs.md](elevation-arcs.md) Tier 3. **Bold** — opt-in only. A tiny Web Audio system that adds subtle, calm-register UI sounds: tick on palette open, soft chime on match-win render, hush on close, focus blip on shortcut hint. Off by default; toggle in the nav (sound icon); preference persists. Carries portfolio signal because **web apps almost never have sound, gaming UIs always do** — and the project framing puts it on the right side of that contrast.
+**Status:** Shipped 2026-06-11 (synth v1). Web Audio synthesis substitute for the curated-asset path that originally specced this arc — owner had no `.ogg` library to draw from, and the asset-curation gate would have parked the whole thing. Synth recipes (sine + additive + filtered-noise + LFO-wobble) ship the full 8-slot vocabulary at zero asset weight. **Default off, opt-in via nav toggle (popover with volume slider) and `Shift+M`/command palette `Toggle sound`. Preference persists in `localStorage`.** Warm-acoustic v2 (curated sourced samples) is parked in [parked.md](../parked.md) — same slot map, swap the recipe layer.
 
-Read this only after the visual elevation arcs land — audio should complete the picture, not carry it.
+Read for: the slot vocabulary, system-design notes, and the call-site inventory below. The synth-recipe file is the source of truth for what each slot sounds like — descriptions here are intent.
 
 KB anchors: [16-web-platform-apis.md §Web Audio](~/.claude/knowledge/frontend-2026/16-web-platform-apis.md) (if covered; verify) + Web Audio MDN.
 
@@ -42,7 +42,7 @@ A small, deliberate set:
 | `palette.open` | low soft tick | 80ms | ⌘K opens |
 | `palette.close` | breath-out | 120ms | ⌘K closes |
 | `palette.select` | warm pluck | 100ms | result confirmed |
-| `nav.transition` | very faint whoosh | 180ms | route change |
+| `nav.transition` | soft downward swoop (440→220Hz exponential) | 160ms | route change |
 | `match.win` | distant chime | 600ms | match-detail hero reveals a win |
 | `match.loss` | soft thud | 400ms | match-detail hero reveals a loss |
 | `record.fire` | gentle bell | 800ms | personal record moment from [personal-record-moments.md](personal-record-moments.md) |
@@ -135,66 +135,59 @@ Sound icon in nav (Lucide `Volume2` / `VolumeX`):
 
 ---
 
-## Chunked plan
+## Chunked plan (shipped 2026-06-11)
 
-### Chunk 1 — Asset curation
+Synth substitution replaced the original asset-curation chunk; the rest of the plan executed as written.
 
-- **Most important + hardest chunk.** Source 8 sounds matching the tonal direction.
-- Edit each: trim, normalize, re-encode `.ogg`.
-- Place in `apps/web/public/audio/`. Total bundle: ≤ 50KB.
-- Owner approves each sound before code is written.
+- **Chunk 1 — ~~Asset curation~~ → Synth recipes (shipped).** [`apps/web/src/lib/audio-recipes.ts`](../../../apps/web/src/lib/audio-recipes.ts) exports 4 helpers (`playSine`, `playAdditive`, `playNoiseBurst`, `playWobble`) and `SOUND_RECIPES` for all 8 slots. Zero bundle weight (~150 LOC of pure synth).
+- **Chunk 2 — `AudioBus` + tests (shipped).** [`apps/web/src/lib/audio-bus.ts`](../../../apps/web/src/lib/audio-bus.ts) + [test](../../../apps/web/src/lib/audio-bus.test.ts). Gesture-gated init, enabled flag, volume routing, suspended-context resume.
+- **Chunk 3 — `useAudio` hook + persistence (shipped).** [`apps/web/src/lib/use-audio.ts`](../../../apps/web/src/lib/use-audio.ts) + [test](../../../apps/web/src/lib/use-audio.test.ts). `useSyncExternalStore`; `vyoh:audio-enabled` + `vyoh:audio-volume` keys; default 0.3 volume; cross-component sync.
+- **Chunk 4 — Toggle UI in nav (shipped).** [`apps/web/src/components/audio-toggle.tsx`](../../../apps/web/src/components/audio-toggle.tsx) + axe-scanned [test](../../../apps/web/src/components/audio-toggle.test.tsx). Popover with switch + volume slider, confirmation sample on first activation.
+- **Chunk 4b — Shortcut + palette entry (shipped).** `Shift+M` global keydown via [`use-audio-shortcut.ts`](../../../apps/web/src/lib/use-audio-shortcut.ts) (skipped while typing). "Toggle sound" action in [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) under the Actions group.
+- **Chunk 5 — Palette slots (shipped).** `palette.open`/`palette.close` via prev-state ref in [command-palette.tsx](../../../apps/web/src/components/command-palette.tsx); `palette.select` in `go()` inside [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
+- **Chunk 6 — Remaining slots (shipped).** `nav.transition` in [__root.tsx](../../../apps/web/src/routes/__root.tsx) scope-change effect; `match.win`/`match.loss` in [match-hero.tsx](../../../apps/web/src/lol/matches/match-hero.tsx) mount-only effect (skipped on remakes); `record.fire` in [personal-record.tsx](../../../apps/web/src/components/personal-record.tsx) detection branch; `error.toast` via `onError` on the top-level `ErrorBoundary` in [__root.tsx](../../../apps/web/src/routes/__root.tsx).
+- **Chunk 7 — A11y polish (shipped via existing wiring).** Toggle button carries `aria-label` reflecting state + percentage. Switch role `aria-checked`. Slider labelled. Sound carries no information not also visible.
 
-### Chunk 2 — `AudioBus` + tests
+## Call-site inventory
 
-- Implement per pattern above + test (mocking AudioContext).
-- Test: respects enabled flag; missing buffer is a no-op; volume change updates gain.
-
-### Chunk 3 — `useAudio` hook + preference persistence
-
-- Hook reads/writes `localStorage.audio-enabled` + `localStorage.audio-volume`.
-- React `useSyncExternalStore` for cross-component sync.
-- Test: persistence; default off; volume in [0, 1].
-
-### Chunk 4 — Toggle UI in nav
-
-- Sound icon button with popover for volume.
-- Reduced-motion has no effect (audio is not motion).
-- Axe scan per [repo-conventions.md §Axe-scan](../../repo-conventions.md).
-
-### Chunk 5 — First slot wiring (palette open/close)
-
-- `useAudio()` in [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
-- Verify on real device — the palette open sound is the "test pilot" for the whole system.
-- If the sound feels wrong here, no other slot will save it. Adjust assets if needed.
-
-### Chunk 6 — Roll out remaining slots
-
-- Wire all 8 slots per the table.
-- Each at its natural location.
-- Visual verification: opt in, navigate the app, every event slot fires its sound.
-
-### Chunk 7 — A11y: `aria-live` polish
-
-- For users who can't hear, the sound carries no information that isn't also visible. Document this guarantee in the audio settings panel.
-- Sound enabled state announced via `aria-label` on the toggle.
+| Slot | Fires at | File |
+|---|---|---|
+| `palette.open` | `open=false → true` | [command-palette.tsx](../../../apps/web/src/components/command-palette.tsx) |
+| `palette.close` | `open=true → false` | [command-palette.tsx](../../../apps/web/src/components/command-palette.tsx) |
+| `palette.select` | item selection in `go()` | [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) |
+| `nav.transition` | `router.subscribe("onResolved")` | [__root.tsx](../../../apps/web/src/routes/__root.tsx) |
+| `match.win` | match-hero mount, win | [match-hero.tsx](../../../apps/web/src/lol/matches/match-hero.tsx) |
+| `match.loss` | match-hero mount, loss | [match-hero.tsx](../../../apps/web/src/lol/matches/match-hero.tsx) |
+| `record.fire` | PB detection | [personal-record.tsx](../../../apps/web/src/components/personal-record.tsx) |
+| `error.toast` | ErrorBoundary onError | [__root.tsx](../../../apps/web/src/routes/__root.tsx) |
 
 ---
+
+## Post-ship calibration (2026-06-11)
+
+Tuning notes from same-day playtest feedback. The owner heard the palette confirmation but not nav transitions; after the autoplay-resume + router-event fix, the original `nav.transition` recipe (highpass-filtered noise burst) read as unpleasantly sibilant. Final state:
+
+- **AudioContext autoplay handling.** `AudioBus.init()` now calls `ctx.resume()` defensively (the gesture-coupled resume couldn't be deferred to the first `play()` reliably; Chrome's contract is "resume must be called inside the gesture context that created the ctx"). `play()` defers recipe execution into the resume promise when ctx is suspended — recipes pin envelopes to `ctx.currentTime` which is frozen while suspended, so inline scheduling against a suspended ctx silently no-ops.
+- **Default volume bumped 0.3 → 0.5.** Recipe peaks (0.15–0.4) × master 0.3 was below the casual-listening floor on laptop speakers.
+- **`nav.transition` routing fix.** Original wiring used a `useRouterState({ select: pathname })` selector. Selectors fall silent for routes that opt into their own entrance (`ownsEntry: true` — currently `/` and `/lol/$accountSlug`) because the React commit shape they advertise doesn't re-emit cleanly mid-VT. Replaced with `router.subscribe("onResolved", ...)` which fires once per resolved navigation regardless of entry ownership or View Transitions.
+- **`nav.transition` recipe swap.** Highpass noise burst (`durationMs: 180, highpassHz: 2000, peak: 0.15→0.3`) → exponential sine swoop (`fromFreq: 440, toFreq: 220, durationMs: 160, peak: 0.22`). The new `playSwoop` helper joined the synth toolkit; `playNoiseBurst` was removed (no other recipe used it). Reads as a calm "page settles" instead of the prior tssh.
 
 ## Files in scope
 
 New:
 - `apps/web/src/lib/audio-bus.ts` + test
+- `apps/web/src/lib/audio-recipes.ts` (synth recipes — replaces the originally-specced `.ogg` assets)
 - `apps/web/src/lib/use-audio.ts` + test
+- `apps/web/src/lib/use-audio-shortcut.ts` + test
 - `apps/web/src/components/audio-toggle.tsx` + test
-- `apps/web/public/audio/{palette-open,palette-close,...}.ogg` (×8 assets, ≤50KB total)
 
 Modified:
 - `apps/web/src/components/nav.tsx` (mount toggle)
-- `apps/web/src/components/command-palette-dialog.tsx` (palette slots)
+- `apps/web/src/components/command-palette.tsx` (palette open/close hook)
+- `apps/web/src/components/command-palette-dialog.tsx` (palette.select + Actions group)
 - `apps/web/src/lol/matches/match-hero.tsx` (win/loss reveal)
 - `apps/web/src/components/personal-record.tsx` (record fire)
-- Toast/error component (error slot)
-- `__root.tsx` (nav transition)
+- `apps/web/src/routes/__root.tsx` (audio hooks, nav.transition via `router.subscribe`, error.toast via `onError`)
 
 ---
 

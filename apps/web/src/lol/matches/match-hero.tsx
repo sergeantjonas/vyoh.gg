@@ -1,4 +1,5 @@
 import { PersonalRecord } from "@/components/personal-record";
+import { useAudio } from "@/lib/use-audio";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
@@ -13,7 +14,7 @@ import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { formatDuration } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 function LpBadge({ delta }: { delta: number }) {
   return (
@@ -50,6 +51,12 @@ export function MatchHero({
   const { originRectRef, setOriginRect } = useActiveMatch();
   const reduced = useReducedMotion();
   const heroRef = useRef<HTMLDivElement>(null);
+  const { play } = useAudio();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only result chime
+  useEffect(() => {
+    if (summary.remake) return;
+    play(summary.win ? "match.win" : "match.loss");
+  }, []);
   // Captured once on mount so StrictMode's double-invocation doesn't lose the
   // origin after the first run clears originRectRef.
   const savedOrigin = useRef<CardOrigin | null>(null);

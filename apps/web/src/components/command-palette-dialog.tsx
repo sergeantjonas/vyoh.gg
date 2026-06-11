@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/command";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/identity/use-me";
+import { useAudio } from "@/lib/use-audio";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName, useChampions } from "@/lol/champions/use-champions";
@@ -50,6 +51,8 @@ import {
   TrendingUp,
   Trophy,
   User,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { type KeyboardEvent, useLayoutEffect, useMemo, useState } from "react";
@@ -114,6 +117,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   const championName = useChampionName();
   const champions = useChampions();
+  const audio = useAudio();
   const [allMatches, setAllMatches] = useState<MatchSummary[] | null>(null);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [input, setInput] = useState("");
@@ -241,6 +245,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   function go(item: RecentItem) {
     recordRecent(recentsScope, item);
+    audio.play("palette.select");
     onOpenChange(false);
     // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
     navigate({ to: item.path as any });
@@ -513,6 +518,28 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 {p.icon} {p.label}
               </CommandItem>
             ))}
+          </CommandGroup>
+        )}
+
+        {showNonMatchGroups && passesFreeText("toggle sound audio mute") && (
+          <CommandGroup heading="Actions">
+            <CommandItem
+              value="toggle sound audio mute"
+              onSelect={() => {
+                const next = !audio.enabled;
+                audio.setEnabled(next);
+                if (next) audio.play("palette.select");
+                onOpenChange(false);
+              }}
+            >
+              {audio.enabled ? (
+                <Volume2 className="size-4" />
+              ) : (
+                <VolumeX className="size-4" />
+              )}
+              <span>{audio.enabled ? "Disable sound" : "Enable sound"}</span>
+              <CommandShortcut>⇧ M</CommandShortcut>
+            </CommandItem>
           </CommandGroup>
         )}
 
