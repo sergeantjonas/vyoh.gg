@@ -9,8 +9,9 @@ Architecture + design plan for the multi-beat chapter experience. Replaces the s
 
 ## Status
 
-- 2026-06-06 — **chunk 2 substrate shipped and tuned.** Steam chapter migrated to new primitives behind `?layout=multi-beat`. 50+ commits of architectural reshaping and tuning. Substrate now feels good per owner ("getting to a good spot"); ready for chunk 3 (art direction).
-- Next: chunk 3 art-direct each Steam beat against the choreography toolkit. Then unblock Ahri migration. Then remove the flag and delete the legacy `<ChapterGroup>`/`<ChapterBeat>`.
+- **Shipped.** Multi-beat chapter experience fully landed in [apps/web/src/home/recap/](../../../apps/web/src/home/recap/) as first-class primitives — `multi-beat.tsx`, `chapter-multi-beat.tsx`, `ahri-chapter.tsx`, `steam-chapter.tsx`, `steam-chapter-closer-media.tsx`, `lol-moment-beat.tsx`, `steam-moment-beat.tsx`, `editorial-chrome.tsx`, plus the per-beat hooks (`use-beat-progress`, `use-chapter-nudge`, `use-asset-claim`, etc.). No `?layout=multi-beat` flag remaining; legacy `<ChapterGroup>`/`<ChapterBeat>` deleted.
+- The shipped model is not identical to the v2/v3 pitches below — chunks 3+ converged on a different choreography than this note's recommendation section describes. Treat the choreography toolkit as a vocabulary reference, not as the live blueprint.
+- This file is historical. The current design language is in [subject-chapter-design-spec.md](./subject-chapter-design-spec.md); the post-mortem of the exit-dissolve sub-arc is in [r13-exit-dissolve.md](./r13-exit-dissolve.md).
 
 ## The symptoms this arc is solving
 

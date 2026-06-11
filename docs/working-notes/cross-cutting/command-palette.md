@@ -1,6 +1,6 @@
 # Command palette (⌘K) — expansion plan
 
-**Status:** Shipped 2026-05-18 — Phases A (nav chip), B (match search), C1–C3 (parser + chips), D1 (champion mode), E (recents persistence). D2 (cross-account scope) shipped 2026-05-18 as a companion-row pattern but was **superseded 2026-05-28 by the chord + hint pattern** in [command-palette-reorg.md](../archive/command-palette-reorg.md) F1–F4; D2's original implementation is no longer in the tree. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
+**Status:** Shipped. Phases A (nav chip), B (match search), C1–C3 (parser + chips), D1 (champion mode), E (recents persistence) landed 2026-05-18. Phase F (`/patches` navigation grammar) shipped 2026-05-23. Phase G (Steam `dev:` / `pub:` / `franchise:` grammar) shipped 2026-05-25. D2 (cross-account scope) shipped 2026-05-18 as a companion-row pattern but was **superseded 2026-05-28 by the chord + hint pattern** in [command-palette-reorg.md](../archive/command-palette-reorg.md) F1–F4; D2's original implementation is no longer in the tree. One open design question (first-visit nudge) remains under "Open questions" below — no other queued chunks. Promoted from [vnext-ideas.md](./vnext-ideas.md) stub on 2026-05-17.
 
 ## Current state (Phases A+B shipped 2026-05-18)
 
