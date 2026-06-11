@@ -234,7 +234,7 @@ describe("SectionShell", () => {
     expect((overlay as HTMLElement).style.opacity).toBe("1");
   });
 
-  it("resets the scroll-driven state on pathname change so compact doesn't bleed across tab navs", () => {
+  it("resets the scroll-driven state on tab nav so compact doesn't bleed across pathname changes", () => {
     const scrollEl = document.createElement("div");
     Object.defineProperty(scrollEl, "scrollTop", { value: 200, writable: true });
     mainScrollRef.current = scrollEl;
@@ -258,10 +258,13 @@ describe("SectionShell", () => {
     const overlay = slot?.querySelector('[aria-hidden="true"]');
     expect((overlay as HTMLElement).style.opacity).toBe("1");
 
-    // Navigate to a new pathname. The morph driver normally sets scrollTop=0
-    // during the VT, but the compact-toggle's 400ms cooldown can block that
-    // reset; the pathname-driven effect here is the cooldown-independent
-    // safety net so the new page doesn't start in stale compact-mode.
+    // Tab navs reset main scrollTop to 0 via `useScrollResetOnNav` at the
+    // section root BEFORE SectionShell sees the new pathname. Mirror that
+    // here: the pathname-driven effect reads scrollTop directly (see
+    // dbc00300 — panel-open navs intentionally preserve compact because
+    // the list stays scrolled), so the bandOpaque/compact reset depends
+    // on the scroll reset having already happened.
+    (scrollEl as unknown as { scrollTop: number }).scrollTop = 0;
     rerender(
       <MotionConfig reducedMotion="always">
         <SectionShell
@@ -280,6 +283,54 @@ describe("SectionShell", () => {
       .getElementById("section-header-slot")
       ?.querySelector('[aria-hidden="true"]');
     expect((resetOverlay as HTMLElement).style.opacity).toBe("0");
+  });
+
+  it("preserves compact + bandOpaque across pathname changes when scrollTop is preserved (panel-open nav)", () => {
+    // Companion to the tab-nav reset test: list↔detail-panel navs skip
+    // `useScrollResetOnNav`'s top-reset (the list stays mounted under the
+    // panel), so scrollTop carries over. SectionShell must NOT yank the
+    // strip back to expanded in this case — verifying the dbc00300 design.
+    const scrollEl = document.createElement("div");
+    Object.defineProperty(scrollEl, "scrollTop", { value: 200, writable: true });
+    mainScrollRef.current = scrollEl;
+
+    const { rerender } = render(
+      <MotionConfig reducedMotion="always">
+        <SectionShell
+          identity={<span>identity</span>}
+          actions={<button type="button">act</button>}
+          tabs={TABS}
+          tabIndicatorId="test-tab-indicator"
+          pathname="/lol/x/matches"
+        >
+          <p>section body</p>
+        </SectionShell>
+      </MotionConfig>
+    );
+    fireEvent.scroll(scrollEl);
+    const overlay = document
+      .getElementById("section-header-slot")
+      ?.querySelector('[aria-hidden="true"]');
+    expect((overlay as HTMLElement).style.opacity).toBe("1");
+
+    // Panel-open nav: scrollTop stays at 200 (no reset).
+    rerender(
+      <MotionConfig reducedMotion="always">
+        <SectionShell
+          identity={<span>identity</span>}
+          actions={<button type="button">act</button>}
+          tabs={TABS}
+          tabIndicatorId="test-tab-indicator"
+          pathname="/lol/x/matches/abc-123"
+        >
+          <p>section body</p>
+        </SectionShell>
+      </MotionConfig>
+    );
+    const preservedOverlay = document
+      .getElementById("section-header-slot")
+      ?.querySelector('[aria-hidden="true"]');
+    expect((preservedOverlay as HTMLElement).style.opacity).toBe("1");
   });
 
   it("leaves the band transparent while scrollTop is ≤16", () => {
