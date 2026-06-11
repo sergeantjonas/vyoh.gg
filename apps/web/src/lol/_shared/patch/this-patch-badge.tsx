@@ -1,3 +1,4 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";
 import { useMemo } from "react";
@@ -48,7 +49,7 @@ export function ThisPatchBadge({
         <TooltipPrimitive.Content
           side="top"
           sideOffset={4}
-          className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+          className={TOOLTIP_CONTENT_COMPACT}
         >
           {buildLabel} {latest}
         </TooltipPrimitive.Content>

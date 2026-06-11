@@ -1,3 +1,4 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Glasses } from "lucide-react";
@@ -70,7 +71,7 @@ function PlatformBadge({
         <TooltipPrimitive.Content
           side="bottom"
           sideOffset={6}
-          className="pointer-events-none z-50 rounded-md border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+          className={cn(TOOLTIP_CONTENT_COMPACT, "bg-popover/90")}
         >
           {label}: {supported ? "supported" : "not supported"}
         </TooltipPrimitive.Content>

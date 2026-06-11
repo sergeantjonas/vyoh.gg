@@ -1,3 +1,4 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -121,7 +122,7 @@ export function MatchListRowPopover({
           align="center"
           sideOffset={8}
           collisionPadding={12}
-          className="pointer-events-none z-50 rounded-md border bg-popover/90 p-2 shadow-xl backdrop-blur-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95"
+          className={cn(TOOLTIP_CONTENT_COMPACT, "bg-popover/90 p-2")}
         >
           {!data ? (
             <SkeletonRows />

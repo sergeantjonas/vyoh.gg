@@ -1,4 +1,5 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -415,7 +416,7 @@ function MomentHighlightsStrip({ owner }: { owner: ParticipantOwnerExtras | unde
                   <TooltipPrimitive.Content
                     side="bottom"
                     sideOffset={6}
-                    className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                    className={TOOLTIP_CONTENT_COMPACT}
                   >
                     {chip.description}
                   </TooltipPrimitive.Content>

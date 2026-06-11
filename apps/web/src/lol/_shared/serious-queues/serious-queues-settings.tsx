@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import {
   CONFIGURABLE_SERIOUS_QUEUES,
   useSeriousQueues,
@@ -7,11 +8,6 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-
-// Matches RefreshAccountButton's tooltip so the two strip-action buttons read
-// identically (label-only compact variant).
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 export function SeriousQueuesSettings() {
   const { ids, set } = useSeriousQueues();
@@ -67,7 +63,7 @@ export function SeriousQueuesSettings() {
           <TooltipPrimitive.Content
             side="bottom"
             sideOffset={4}
-            className={TOOLTIP_CONTENT_CLASS}
+            className={TOOLTIP_CONTENT_COMPACT}
           >
             Serious-queues preferences
           </TooltipPrimitive.Content>

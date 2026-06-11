@@ -1,4 +1,5 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
@@ -10,9 +11,6 @@ import type { DetectedSeason } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
-
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const TIER_COLOR: Record<string, string> = {
   IRON: "text-slate-400",
@@ -216,7 +214,7 @@ export function ProfileSeasonHistory({ accountSlug }: { accountSlug: string }) {
               <TooltipPrimitive.Content
                 side="top"
                 sideOffset={4}
-                className={TOOLTIP_CONTENT_CLASS}
+                className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs")}
               >
                 Splits detected from self-collected snapshots — Riot does not expose
                 historical season ranks.

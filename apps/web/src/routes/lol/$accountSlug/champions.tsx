@@ -1,5 +1,6 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { routeMeta } from "@/lib/route-meta";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { withReorderViewTransition } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -27,9 +28,6 @@ import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Outlet, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 interface ChampionsSearch {
   role?: RolePosition;
@@ -84,7 +82,7 @@ function RoleChipStrip({
               <TooltipPrimitive.Content
                 side="top"
                 sideOffset={4}
-                className={TOOLTIP_CONTENT_CLASS}
+                className={TOOLTIP_CONTENT_COMPACT}
               >
                 {ROLE_LABEL[role]}
               </TooltipPrimitive.Content>

@@ -1,4 +1,6 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import { useSummonerSpells } from "@/lol/_shared/analytics/use-summoner-spells";
 import { useChampionSpells } from "@/lol/matches/use-champion-spells";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -16,8 +18,7 @@ const springIn = {
   transition: { type: "spring", stiffness: 280, damping: 28, delay: 0.28 },
 } as const;
 
-const RICH_TOOLTIP_CLASS =
-  "pointer-events-none z-50 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+const RICH_TOOLTIP_CLASS = cn(TOOLTIP_CONTENT_RICH, "max-w-72");
 
 function RichCastTooltip({
   iconUrl,

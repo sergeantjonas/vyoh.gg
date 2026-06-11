@@ -7,6 +7,7 @@ import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { Sparkline } from "@/components/ui/sparkline";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
+import { TOOLTIP_CONTENT_COMPACT, TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -408,7 +409,7 @@ function ChampionDetailPage() {
                       <TooltipPrimitive.Content
                         side="bottom"
                         sideOffset={6}
-                        className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                        className={TOOLTIP_CONTENT_COMPACT}
                       >
                         Primary lane: {ROLE_LABEL[detail.position]}
                       </TooltipPrimitive.Content>
@@ -694,7 +695,7 @@ function ChampionDetailPage() {
                             side="top"
                             sideOffset={6}
                             collisionPadding={8}
-                            className="pointer-events-none z-50 w-max max-w-64 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                            className={cn(TOOLTIP_CONTENT_RICH, "max-w-64")}
                           >
                             <div className="flex items-start gap-3">
                               {item && (

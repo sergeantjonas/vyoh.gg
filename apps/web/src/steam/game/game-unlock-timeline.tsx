@@ -1,4 +1,5 @@
 import { CardTitle } from "@/components/ui/card-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useGameUnlockTimeline } from "@/steam/game/use-game-unlock-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -218,7 +219,7 @@ export function GameUnlockTimeline({
                     side="top"
                     sideOffset={6}
                     collisionPadding={8}
-                    className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                    className={TOOLTIP_CONTENT_COMPACT}
                   >
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium">{sessionDate(p.s)}</span>

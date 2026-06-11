@@ -1,3 +1,5 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
@@ -17,8 +19,7 @@ const WIN_COLOR = "rgb(52, 211, 153)";
 const LOSS_COLOR = "rgb(244, 63, 94)";
 const NEUTRAL_COLOR = "rgb(161, 161, 170)";
 
-const TOOLTIP_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-3 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+const TOOLTIP_CLASS = cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs px-3 py-2");
 
 interface BuildPath {
   items: number[];

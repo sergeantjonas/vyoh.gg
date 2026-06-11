@@ -1,3 +1,5 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import { mapIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -27,8 +29,7 @@ const RIFT_MAX = 15000;
 // the grid feeling pixelated. Tunable.
 const HEX_RADIUS = 500;
 
-const TOOLTIP_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+const TOOLTIP_CLASS = cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs");
 
 type Mode = "deaths" | "kills";
 

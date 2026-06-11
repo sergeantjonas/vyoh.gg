@@ -1,4 +1,5 @@
 // Baseline: personal — your death-timing histogram; peak window is internal to your data, no external floor.
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
@@ -120,7 +121,7 @@ function PhaseStrip({
               <TooltipPrimitive.Content
                 side="top"
                 sideOffset={6}
-                className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                className={TOOLTIP_CONTENT_COMPACT}
               >
                 {`${c.label} min: ${c.count} (${formatPercent(c.share)})`}
               </TooltipPrimitive.Content>
@@ -162,7 +163,7 @@ function Histogram({ bins }: { bins: number[] }) {
                 <TooltipPrimitive.Content
                   side="top"
                   sideOffset={6}
-                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                  className={TOOLTIP_CONTENT_COMPACT}
                 >
                   {`${label} min: ${value}`}
                 </TooltipPrimitive.Content>

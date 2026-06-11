@@ -1,3 +1,4 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 // Baseline: personal — your hour-of-week WR; tooltip compares cell WR to your overall.
 import { computeHabitsStats } from "@/lol/profile/use-habits-stats";
@@ -13,9 +14,6 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const DAYS = DAY_SHORT.map((label, i) => ({ label, i }));
 const GRID_COLS = "1.75rem repeat(24, 1fr)";
 const EMPTY_STAT: HourDayStat = { hour: 0, day: 0, games: 0, wins: 0 };
-
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const WR_COLORS = [
   { threshold: 0.65, rgb: "52,211,153" },
@@ -67,7 +65,7 @@ function HeatmapCell({
         <TooltipPrimitive.Content
           side="top"
           sideOffset={4}
-          className={TOOLTIP_CONTENT_CLASS}
+          className={TOOLTIP_CONTENT_COMPACT}
         >
           {label}
         </TooltipPrimitive.Content>

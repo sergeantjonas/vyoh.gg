@@ -1,3 +1,4 @@
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { SteamGameRating } from "@vyoh/shared";
@@ -54,7 +55,7 @@ export function GameRatingBadge({
         <TooltipPrimitive.Content
           side="bottom"
           sideOffset={6}
-          className="pointer-events-none z-50 max-w-xs rounded-md border bg-popover/90 px-2.5 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+          className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs bg-popover/90 px-2.5 py-2")}
         >
           <p className="font-semibold">
             {rating.type} {rating.rating}

@@ -1,4 +1,6 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -93,7 +95,7 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
                 side="top"
                 sideOffset={6}
                 collisionPadding={8}
-                className="pointer-events-none z-50 max-w-64 rounded-md border bg-popover/85 px-3 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-64 px-3 py-2")}
               >
                 Riot's match history endpoint caps how many matches it returns per player.
                 For high-volume players this surfaces as a shorter window here.
@@ -126,7 +128,7 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
                 <TooltipPrimitive.Content
                   side="top"
                   sideOffset={6}
-                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                  className={TOOLTIP_CONTENT_COMPACT}
                 >
                   {label}
                 </TooltipPrimitive.Content>

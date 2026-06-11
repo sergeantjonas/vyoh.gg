@@ -1,4 +1,6 @@
 // Baseline: personal — your deaths bucketed by lane opponent; no external comparison.
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
@@ -20,8 +22,7 @@ const ICON_COL_W = 96;
 const HEADER_H = 18;
 const ROW_H = 28;
 
-const TOOLTIP_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+const TOOLTIP_CLASS = cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs");
 
 function bucketLabel(i: number): string {
   if (i === BUCKETS - 1) return `${(BUCKETS - 1) * 5}+`;

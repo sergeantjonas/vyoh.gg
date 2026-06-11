@@ -1,9 +1,6 @@
 import type { RangeKey } from "@/lol/profile/use-rank-history";
 import type { RankedQueueKey } from "@vyoh/shared";
 
-export const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
-
 export const RANGE_LABEL: Record<RangeKey, string> = {
   "30d": "30d",
   "90d": "90d",

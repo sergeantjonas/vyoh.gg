@@ -1,5 +1,6 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
@@ -121,7 +122,7 @@ function BuildItemSlot({
             side="top"
             sideOffset={6}
             collisionPadding={8}
-            className="pointer-events-none z-50 w-max max-w-sm rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md"
+            className={cn(TOOLTIP_CONTENT_RICH, "max-w-sm")}
           >
             {item ? (
               <>

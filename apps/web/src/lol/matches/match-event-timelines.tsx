@@ -15,6 +15,7 @@ import {
 } from "@/components/game-icons";
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
@@ -172,7 +173,7 @@ function KillStrip({
                 side="top"
                 sideOffset={5}
                 collisionPadding={8}
-                className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
+                className={cn(TOOLTIP_CONTENT_COMPACT, "rounded bg-popover/90 shadow-md")}
               >
                 {tooltipText}
               </TooltipPrimitive.Content>
@@ -226,7 +227,7 @@ function ObjectiveBar({
                 side="top"
                 sideOffset={5}
                 collisionPadding={8}
-                className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
+                className={cn(TOOLTIP_CONTENT_COMPACT, "rounded bg-popover/90 shadow-md")}
               >
                 {tooltipText}
               </TooltipPrimitive.Content>

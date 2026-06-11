@@ -1,5 +1,6 @@
 import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
 import { routeMeta } from "@/lib/route-meta";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
@@ -158,7 +159,7 @@ function ParticipantCard({
               <TooltipPrimitive.Content
                 side="top"
                 sideOffset={4}
-                className="pointer-events-none z-50 max-w-56 rounded border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-56 rounded shadow-md")}
               >
                 Lane assignment uncertain — another flex pick on this team competes for
                 the same slot.

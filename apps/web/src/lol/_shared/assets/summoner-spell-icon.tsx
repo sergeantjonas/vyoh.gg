@@ -1,3 +1,4 @@
+import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useSummonerSpells } from "@/lol/_shared/analytics/use-summoner-spells";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -34,7 +35,7 @@ export function SummonerSpellIcon({
             side="top"
             sideOffset={6}
             collisionPadding={8}
-            className="pointer-events-none z-50 w-max max-w-72 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+            className={cn(TOOLTIP_CONTENT_RICH, "max-w-72")}
           >
             <div className="flex items-start gap-3">
               <img

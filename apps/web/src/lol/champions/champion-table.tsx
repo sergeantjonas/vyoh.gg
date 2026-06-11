@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { Sparkline } from "@/components/ui/sparkline";
 import { mainScrollRef } from "@/lib/scroll-container";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
@@ -30,9 +31,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 import type { ChampionSortOption } from "./champion-sort-selector";
 import type { ChampionRoleSplit, ChampionStats } from "./champion-stats";
 import { useChampionName, useChampions } from "./use-champions";
@@ -79,7 +77,7 @@ function RoleBreakdown({ roles }: { roles: ChampionRoleSplit[] }) {
           <TooltipPrimitive.Content
             side="top"
             sideOffset={4}
-            className={TOOLTIP_CONTENT_CLASS}
+            className={TOOLTIP_CONTENT_COMPACT}
           >
             {ROLE_LABEL[dominant.position]}
           </TooltipPrimitive.Content>
@@ -116,7 +114,7 @@ function RoleBreakdown({ roles }: { roles: ChampionRoleSplit[] }) {
         <TooltipPrimitive.Content
           side="top"
           sideOffset={4}
-          className={cn(TOOLTIP_CONTENT_CLASS, "px-2.5 py-1.5")}
+          className={cn(TOOLTIP_CONTENT_COMPACT, "px-2.5 py-1.5")}
         >
           <ul className="flex flex-col gap-0.5 text-xs">
             {roles.map((r) => (

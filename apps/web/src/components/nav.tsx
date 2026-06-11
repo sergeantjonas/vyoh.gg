@@ -10,6 +10,7 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { useMe } from "@/identity/use-me";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import {
@@ -229,7 +230,7 @@ export function Nav() {
             <TooltipPrimitive.Content
               side="bottom"
               sideOffset={6}
-              className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+              className={TOOLTIP_CONTENT_COMPACT}
             >
               Open command palette
             </TooltipPrimitive.Content>

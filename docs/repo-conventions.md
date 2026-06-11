@@ -97,30 +97,41 @@ Any element that is interactive but not a native `<a>` tag must include `cursor-
 
 When an element needs a tooltip, use `import * as TooltipPrimitive from "@radix-ui/react-tooltip"` — never the native HTML `title=` attribute. A `TooltipPrimitive.Provider` with `delayDuration={150}` is already mounted in [`__root.tsx`](../apps/web/src/routes/__root.tsx); do not add another.
 
+The `Content` className comes from [apps/web/src/lib/tooltip.ts](../apps/web/src/lib/tooltip.ts), which exports two recipes composed from shared `SHELL` (chrome + bg + shadow + blur) and `ANIMATION` (`data-[state=delayed-open|closed]:*`) primitives:
+
+- **`TOOLTIP_CONTENT_COMPACT`** — label-only chips (`px-2 py-1 text-xs`). Use for icon-button tooltips, single-line labels, small chips.
+- **`TOOLTIP_CONTENT_RICH`** — hover-card style (`w-max max-w-48 p-3`). Use for tooltips that carry a heading, body, or icon — sparkline popovers, ability descriptions, keystone hover cards.
+
 Standard compact structure (label-only tooltip, e.g. icon buttons):
 
 ```tsx
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+
 <TooltipPrimitive.Root>
   <TooltipPrimitive.Trigger asChild>
     {/* the trigger element */}
   </TooltipPrimitive.Trigger>
   <TooltipPrimitive.Portal>
-    <TooltipPrimitive.Content
-      side="bottom"
-      sideOffset={6}
-      className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
-    >
+    <TooltipPrimitive.Content side="bottom" sideOffset={6} className={TOOLTIP_CONTENT_COMPACT}>
       Tooltip label
     </TooltipPrimitive.Content>
   </TooltipPrimitive.Portal>
 </TooltipPrimitive.Root>
 ```
 
-For rich or animated tooltips (hover cards, sparkline popovers) use the fuller Content className with `data-[state=...]` open/close animation classes — see [match-pips.tsx:6-7](../apps/web/src/lol/_shared/ui/match-pips.tsx#L6) for the canonical constant.
+For bespoke widths, padding, or background opacity, compose via `cn()`:
 
-**Why:** The native `title=` attribute has no styling control, ignores design tokens, cannot be positioned reliably, and doesn't fire on touch.
+```tsx
+className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs")}
+className={cn(TOOLTIP_CONTENT_RICH, "max-w-72")}
+className={cn(TOOLTIP_CONTENT_COMPACT, "bg-popover/90 shadow-md")}  // chip over busy background
+```
 
-**How to apply:** Any new element that needs a label or explanation uses `TooltipPrimitive`. Add `aria-label` on the trigger when there is no visible text label (icon-only buttons). Reference: [nav.tsx](../apps/web/src/components/nav.tsx) for the compact form.
+Do **not** re-declare the className inline or as a local `const TOOLTIP_CONTENT_CLASS = "…"` — both shapes drift over time (a 2026-06-11 sweep found 21 local copies plus ~21 inline strings, with subtle variations in `bg-popover/85` vs `/90`, missing animation classes, etc.). If the existing exports don't fit, add a third recipe to `lib/tooltip.ts` rather than inlining.
+
+**Why:** The native `title=` attribute has no styling control, ignores design tokens, cannot be positioned reliably, and doesn't fire on touch. Inline className strings drift — the missing animation classes on ~10 of the pre-consolidation inline sites would have stayed broken indefinitely.
+
+**How to apply:** Any new element that needs a label or explanation uses `TooltipPrimitive` with one of the two exported recipes. Add `aria-label` on the trigger when there is no visible text label (icon-only buttons). Reference: [nav.tsx](../apps/web/src/components/nav.tsx) for the compact form, [match-pips.tsx](../apps/web/src/lol/_shared/ui/match-pips.tsx) for the rich form.
 
 ### Header primitives: `SectionTitle` vs `CardTitle` — pick by chrome, not by content
 

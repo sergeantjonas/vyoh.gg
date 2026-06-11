@@ -1,6 +1,7 @@
 // Baseline: personal — your LP snapshots; streak overlay derives from your match results.
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
@@ -36,7 +37,6 @@ import {
   RANGE_LABEL,
   RESOLUTION_FOR_RANGE,
   TIER_BANDS,
-  TOOLTIP_CONTENT_CLASS,
 } from "./profile-lp-history-constants";
 import {
   type ChartPoint,
@@ -446,7 +446,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 <TooltipPrimitive.Content
                   side="top"
                   sideOffset={4}
-                  className={TOOLTIP_CONTENT_CLASS}
+                  className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs")}
                 >
                   Longest {streak.type} run in this range
                 </TooltipPrimitive.Content>

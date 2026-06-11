@@ -1,9 +1,8 @@
 import { CardShell } from "@/components/card-shell";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useGameAchievements } from "./use-game-achievements";
-
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 max-w-xs rounded-md border bg-popover/85 px-2 py-1 text-xs text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 interface RaritySignatureCardProps {
   appid: number;
@@ -56,7 +55,7 @@ export function RaritySignatureCard({ appid, frosted = true }: RaritySignatureCa
             <TooltipPrimitive.Content
               side="top"
               sideOffset={4}
-              className={TOOLTIP_CONTENT_CLASS}
+              className={cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs")}
             >
               Mean global unlock rarity across your {sample.length} unlocked achievement
               {sample.length === 1 ? "" : "s"} — lower means you're hunting the

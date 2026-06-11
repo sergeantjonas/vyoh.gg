@@ -3,6 +3,7 @@ import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { useHomeChronotype } from "@/home/use-home-chronotype";
 import { useHomeDaySplit } from "@/home/use-home-day-split";
 import { useHomeSessionLengths } from "@/home/use-home-session-lengths";
+import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type {
   HomeChronotypeHour,
@@ -10,11 +11,6 @@ import type {
   HomeSessionLengthsBucket,
 } from "@vyoh/shared";
 import { formatHoursMinutes, formatPercent } from "@vyoh/shared";
-
-// Tooltip class shared with the bento tiles' bar charts. Re-declared here so
-// the conclusion's sub-strips don't import from soon-to-retire tile modules.
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 function StripHeader({
   label,
@@ -136,7 +132,7 @@ function HoursBar({
         <TooltipPrimitive.Content
           side="top"
           sideOffset={4}
-          className={TOOLTIP_CONTENT_CLASS}
+          className={TOOLTIP_CONTENT_RICH}
         >
           {tooltip}
         </TooltipPrimitive.Content>
@@ -254,7 +250,7 @@ function StreamSplitBar({
         <TooltipPrimitive.Content
           side="top"
           sideOffset={4}
-          className={TOOLTIP_CONTENT_CLASS}
+          className={TOOLTIP_CONTENT_RICH}
         >
           {tooltip}
         </TooltipPrimitive.Content>
@@ -383,7 +379,7 @@ function SessionBar({
         <TooltipPrimitive.Content
           side="top"
           sideOffset={4}
-          className={TOOLTIP_CONTENT_CLASS}
+          className={TOOLTIP_CONTENT_RICH}
         >
           {tooltip}
         </TooltipPrimitive.Content>

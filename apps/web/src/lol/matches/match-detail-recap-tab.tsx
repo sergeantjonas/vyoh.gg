@@ -16,6 +16,7 @@ import {
 } from "@/components/game-icons";
 import { PersonalRecord } from "@/components/personal-record";
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT, TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
@@ -165,7 +166,7 @@ function ItemSlot({ id }: { id: number }) {
           align="end"
           sideOffset={6}
           collisionPadding={8}
-          className="pointer-events-none z-50 w-max max-w-sm rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:data-[side=bottom]:animate-in data-[state=delayed-open]:data-[side=top]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+          className={cn(TOOLTIP_CONTENT_RICH, "max-w-sm")}
         >
           <div className="flex items-start gap-3">
             <img
@@ -555,7 +556,7 @@ function SegmentedDamageBar({
           align="end"
           sideOffset={6}
           collisionPadding={8}
-          className="pointer-events-none z-50 rounded-md border bg-popover/85 p-2 text-popover-foreground shadow-xl backdrop-blur-md"
+          className={cn(TOOLTIP_CONTENT_COMPACT, "p-2")}
         >
           <div className="flex flex-col gap-0.5 font-mono text-[10px] tabular-nums">
             <div className="flex items-center gap-2">
@@ -673,7 +674,7 @@ function ParticipantRow({
                 <TooltipPrimitive.Content
                   side="top"
                   sideOffset={5}
-                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2.5 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                  className={cn(TOOLTIP_CONTENT_COMPACT, "px-2.5 py-1.5 shadow-md")}
                 >
                   {badge.tip}
                 </TooltipPrimitive.Content>
@@ -716,7 +717,7 @@ function ParticipantRow({
               <TooltipPrimitive.Content
                 side="top"
                 sideOffset={5}
-                className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2.5 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                className={cn(TOOLTIP_CONTENT_COMPACT, "px-2.5 py-1.5 shadow-md")}
               >
                 Creep score — minions and jungle monsters killed
               </TooltipPrimitive.Content>
@@ -733,7 +734,7 @@ function ParticipantRow({
               <TooltipPrimitive.Content
                 side="top"
                 sideOffset={5}
-                className="pointer-events-none z-50 rounded-md border bg-popover/85 px-2.5 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                className={cn(TOOLTIP_CONTENT_COMPACT, "px-2.5 py-1.5 shadow-md")}
               >
                 Vision score — wards placed, wards killed, and time providing vision
               </TooltipPrimitive.Content>

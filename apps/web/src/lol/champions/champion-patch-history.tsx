@@ -1,4 +1,5 @@
 // Baseline: personal — this champion's WR by patch (your games only); verdict compares latest two patches.
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
@@ -134,7 +135,7 @@ export function ChampionPatchHistory({
                   side="top"
                   sideOffset={6}
                   collisionPadding={8}
-                  className="pointer-events-none z-50 rounded-md border bg-popover/85 px-3 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
+                  className={cn(TOOLTIP_CONTENT_COMPACT, "px-3 py-2")}
                 >
                   Patch {p.patch} on {championAlias}: {games}{" "}
                   {games === 1 ? "game" : "games"} · {wrText} WR

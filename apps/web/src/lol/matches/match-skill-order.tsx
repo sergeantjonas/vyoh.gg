@@ -1,5 +1,7 @@
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { SectionTitle } from "@/components/ui/section-title";
+import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import { toRichDescription } from "@/lol/_shared/static/rich-description";
 import { useAbilityDescription } from "@/lol/matches/use-ability-description";
 import type { SpellInfo } from "@/lol/matches/use-champion-spells";
@@ -66,7 +68,7 @@ function Cell({
           side="top"
           sideOffset={5}
           collisionPadding={8}
-          className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1 text-xs text-popover-foreground shadow-md backdrop-blur-md"
+          className={cn(TOOLTIP_CONTENT_COMPACT, "rounded bg-popover/90 shadow-md")}
         >
           Level {level} — {skillName(skillIdx + 1)}
           {ts !== undefined && (
@@ -127,7 +129,10 @@ function SpellRowLabel({
             side="left"
             sideOffset={5}
             collisionPadding={8}
-            className="pointer-events-none z-50 rounded border bg-popover/90 px-2 py-1.5 text-xs text-popover-foreground shadow-md backdrop-blur-md max-w-xs"
+            className={cn(
+              TOOLTIP_CONTENT_COMPACT,
+              "max-w-xs rounded bg-popover/90 py-1.5 shadow-md"
+            )}
           >
             <div className="flex flex-col gap-1">
               <span className="font-medium">{spell.name}</span>

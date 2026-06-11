@@ -1,10 +1,8 @@
+import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { MatchSummary } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
-
-const TOOLTIP_CONTENT_CLASS =
-  "pointer-events-none z-50 w-max max-w-48 rounded-md border bg-popover/85 p-3 text-popover-foreground shadow-xl backdrop-blur-md data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const WIN_COLOR = "#34d399";
 const LOSS_COLOR = "#f87171";
@@ -63,7 +61,7 @@ export function MatchPips({
               side="top"
               sideOffset={6}
               collisionPadding={8}
-              className={TOOLTIP_CONTENT_CLASS}
+              className={TOOLTIP_CONTENT_RICH}
             >
               {renderTooltip(match)}
             </TooltipPrimitive.Content>
