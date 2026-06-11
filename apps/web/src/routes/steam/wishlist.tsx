@@ -1,20 +1,18 @@
-import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
 import { routeMeta } from "@/lib/route-meta";
-import { cn } from "@/lib/utils";
-import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
-import { useSteamWishlist } from "@/steam/use-wishlist";
+import { WishlistAllPanel } from "@/steam/wishlist/wishlist-all-panel";
 import {
-  formatWishlistDateAdded,
-  formatWishlistReleaseLabel,
-} from "@/steam/wishlist/format";
-import { WishlistSkeleton } from "@/steam/wishlist/wishlist-skeleton";
+  type WishlistTab,
+  WishlistTabs,
+  isWishlistTab,
+  wishlistPanelId,
+  wishlistTabId,
+} from "@/steam/wishlist/wishlist-tabs";
+import { WishlistUpcomingPanel } from "@/steam/wishlist/wishlist-upcoming-panel";
 import { createFileRoute } from "@tanstack/react-router";
-import type { SteamWishlistItem } from "@vyoh/shared";
-import { ExternalLink } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
 
 interface WishlistSearch {
   appid?: number | undefined;
+  tab?: WishlistTab | undefined;
 }
 
 export const Route = createFileRoute("/steam/wishlist")({
@@ -27,7 +25,10 @@ export const Route = createFileRoute("/steam/wishlist")({
         : typeof raw === "string"
           ? Number.parseInt(raw, 10)
           : Number.NaN;
-    return { appid: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined };
+    return {
+      appid: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
+      tab: isWishlistTab(search.tab) ? search.tab : undefined,
+    };
   },
   head: () =>
     routeMeta({
@@ -37,124 +38,38 @@ export const Route = createFileRoute("/steam/wishlist")({
 });
 
 function WishlistPage() {
-  const { data, isPending, isError } = useSteamWishlist();
-  const { appid: focusAppid } = Route.useSearch();
-  const listRef = useRef<HTMLUListElement>(null);
-  const [highlighted, setHighlighted] = useState<number | null>(null);
+  const { appid: focusAppid, tab } = Route.useSearch();
 
-  // Oldest first — the "this has been waiting since 2016" framing is the
-  // backlog narrative the chip promises. Steam's `priority` field is opaque
-  // remnant metadata and isn't a useful sort signal.
-  const items = useMemo(() => {
-    if (!data) return [];
-    return [...data.items].sort((a, b) => a.dateAdded - b.dateAdded);
-  }, [data]);
-
-  // Deep-link from the profile chip lands here with ?appid=<id>. Mirror the
-  // achievement-panel pattern: arm `highlighted` once the row is present, then
-  // a separate effect handles scroll + auto-fade.
-  useEffect(() => {
-    if (!focusAppid || items.length === 0) return;
-    if (!items.some((i) => i.appid === focusAppid)) return;
-    setHighlighted(focusAppid);
-  }, [focusAppid, items]);
-
-  useEffect(() => {
-    if (highlighted === null || !listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(
-      `[data-appid="${highlighted}"]`
-    );
-    if (!el) return;
-    const raf = requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    const timeout = window.setTimeout(() => setHighlighted(null), 2500);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(timeout);
-    };
-  }, [highlighted]);
+  // Interim default is `all`: chunk 2 ships the tab scaffold but the `Upcoming`
+  // composition is chunk 3, so the live surface must not default to a
+  // placeholder. The default flips to `upcoming` in chunk 3 alongside the real
+  // calendar. A deep-link carrying `?appid` (the profile chip) also lands on
+  // `all`, where the row highlight lives.
+  const activeTab: WishlistTab = tab ?? "all";
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
+      <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
         <p className="text-sm text-muted-foreground">
-          Public Steam wishlist — date added is from when the title first joined the
-          backlog.
+          Public Steam wishlist — upcoming releases on a timeline, plus everything still
+          on the watch list.
         </p>
-      </div>
+      </header>
 
-      {isPending && <WishlistSkeleton />}
+      <WishlistTabs active={activeTab} />
 
-      {isError && (
-        <p className="text-sm text-destructive">Wishlist is unavailable right now.</p>
-      )}
-
-      {data && items.length === 0 && (
-        <EmptyState
-          illustration={<EmptyWishlistIllustration />}
-          title="Nothing on the wishlist right now"
-          hint="Public Steam wishlist additions show up here after the next sync."
-        />
-      )}
-
-      {items.length > 0 && (
-        <ul ref={listRef} className="flex flex-col gap-2">
-          {items.map((item) => (
-            <WishlistRow
-              key={item.appid}
-              item={item}
-              isHighlighted={highlighted === item.appid}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-interface WishlistRowProps {
-  item: SteamWishlistItem;
-  isHighlighted: boolean;
-}
-
-function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
-  const release = formatWishlistReleaseLabel(item);
-  return (
-    <li data-appid={item.appid}>
-      <a
-        href={item.storeUrl}
-        target="_blank"
-        rel="noreferrer"
-        // External nav: no view-transition morph (the destination is the
-        // Steam store, not a /steam/library route). The whole row is the click
-        // target; the trailing icon is a visual external-link affordance.
-        className={cn(
-          "group/row block rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
-          isHighlighted && "ring-2 ring-amber-300 ring-offset-2 ring-offset-background"
-        )}
-        aria-label={`${item.name ?? `App ${item.appid}`} on Steam`}
+      <div
+        role="tabpanel"
+        id={wishlistPanelId(activeTab)}
+        aria-labelledby={wishlistTabId(activeTab)}
       >
-        <SteamGameRowShell
-          appid={item.appid}
-          name={item.name ?? `Unknown title (app ${item.appid})`}
-          meta={
-            <>
-              Added {formatWishlistDateAdded(item.dateAdded)}
-              {release ? (
-                <>
-                  {" · "}
-                  <span className={item.comingSoon ? "text-amber-200/80" : undefined}>
-                    {release}
-                  </span>
-                </>
-              ) : null}
-            </>
-          }
-          trailing={<ExternalLink className="size-4" aria-hidden />}
-        />
-      </a>
-    </li>
+        {activeTab === "upcoming" ? (
+          <WishlistUpcomingPanel />
+        ) : (
+          <WishlistAllPanel focusAppid={focusAppid} />
+        )}
+      </div>
+    </div>
   );
 }
