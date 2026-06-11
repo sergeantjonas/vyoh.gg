@@ -40,12 +40,10 @@ export const Route = createFileRoute("/steam/wishlist")({
 function WishlistPage() {
   const { appid: focusAppid, tab } = Route.useSearch();
 
-  // Interim default is `all`: chunk 2 ships the tab scaffold but the `Upcoming`
-  // composition is chunk 3, so the live surface must not default to a
-  // placeholder. The default flips to `upcoming` in chunk 3 alongside the real
-  // calendar. A deep-link carrying `?appid` (the profile chip) also lands on
-  // `all`, where the row highlight lives.
-  const activeTab: WishlistTab = tab ?? "all";
+  // Default is `Upcoming` — the editorial upcoming-releases view is now the
+  // primary surface. A deep-link carrying `?appid` (the profile chip) with no
+  // explicit tab still lands on `All`, where the row scroll+highlight lives.
+  const activeTab: WishlistTab = tab ?? (focusAppid ? "all" : "upcoming");
 
   return (
     <div className="flex flex-col gap-6">

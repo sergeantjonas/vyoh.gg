@@ -1,21 +1,61 @@
-import { CalendarClock } from "lucide-react";
+import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
+import { useSteamWishlist } from "@/steam/use-wishlist";
+import { groupUpcoming } from "@/steam/wishlist/upcoming/bucketing";
+import { QuarterBands } from "@/steam/wishlist/upcoming/quarter-bands";
+import { TbaPool } from "@/steam/wishlist/upcoming/tba-pool";
+import { UpcomingSkeleton } from "@/steam/wishlist/upcoming/upcoming-skeleton";
+import { WishlistCalendar } from "@/steam/wishlist/upcoming/wishlist-calendar";
+import { YearBands } from "@/steam/wishlist/upcoming/year-bands";
+import { useMemo } from "react";
 
-// Interim placeholder. Chunk 3 replaces this with the upcoming-releases
-// editorial (imminent hero, month calendar, quarter/year bands, TBA pool) per
-// docs/working-notes/steam/wishlist-upcoming.md § Upcoming view composition.
-// Until then `All` stays the default tab (the default-flip to `Upcoming` lands
-// atomically with the real composition) so the live surface never defaults to a
-// placeholder.
+// The upcoming-releases editorial (§ Upcoming view composition): the wishlist
+// reframed as a pipeline of what's coming when, certainty mapping to prominence
+// — calendar for day-precise, quarter/year bands for coarser dates, the TBA
+// pile last. The imminent hero (chunk 4) slots in above the calendar.
 export function WishlistUpcomingPanel() {
+  const { data, isPending, isError } = useSteamWishlist();
+  // One "now" per mount so the calendar and bucketing agree on today.
+  const now = useMemo(() => new Date(), []);
+  const buckets = useMemo(
+    () => (data ? groupUpcoming(data.items, now) : null),
+    [data, now]
+  );
+
+  if (isPending) return <UpcomingSkeleton />;
+
+  if (isError) {
+    return <p className="text-destructive text-sm">Wishlist is unavailable right now.</p>;
+  }
+
+  const isEmpty =
+    !buckets ||
+    (buckets.dayReleases.length === 0 &&
+      buckets.quarterBands.length === 0 &&
+      buckets.yearBands.length === 0 &&
+      buckets.tba.length === 0);
+
+  if (isEmpty) {
+    return (
+      <EmptyState
+        illustration={<EmptyWishlistIllustration />}
+        title="Nothing on the horizon"
+        hint="No dated or upcoming releases on the wishlist right now — browse everything under the All tab."
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-card/40 px-6 py-16 text-center backdrop-blur-sm">
-      <CalendarClock className="size-8 text-muted-foreground/70" aria-hidden />
-      <p className="text-sm font-medium text-foreground">Upcoming releases view</p>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        A calendar of what&rsquo;s coming up — sorted by how firmly Steam has dated each
-        release. Being built now; the full wishlist lives under the{" "}
-        <span className="font-medium text-foreground">All</span> tab.
-      </p>
+    <div className="flex flex-col gap-10">
+      {/* Sparse-state rule (§ Month calendar): only render the calendar when
+          there are day-precise releases to populate it — pickCalendarAnchor
+          shifts the window to wherever they are, so it's never an empty grid.
+          With none, the bands lead the page. */}
+      {buckets.dayReleases.length > 0 ? (
+        <WishlistCalendar dayReleases={buckets.dayReleases} now={now} />
+      ) : null}
+      <QuarterBands bands={buckets.quarterBands} />
+      <YearBands bands={buckets.yearBands} />
+      <TbaPool items={buckets.tba} />
     </div>
   );
 }
