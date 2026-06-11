@@ -133,6 +133,40 @@ Do **not** re-declare the className inline or as a local `const TOOLTIP_CONTENT_
 
 **How to apply:** Any new element that needs a label or explanation uses `TooltipPrimitive` with one of the two exported recipes. Add `aria-label` on the trigger when there is no visible text label (icon-only buttons). Reference: [nav.tsx](../apps/web/src/components/nav.tsx) for the compact form, [match-pips.tsx](../apps/web/src/lol/_shared/ui/match-pips.tsx) for the rich form.
 
+### Styling a new surface: where the visual guidance lives
+
+The tile/chrome/header rules in this file are auto-loaded, but the motion and editorial layer lives in code and working notes that nothing else points to. Before styling any new screen, panel, or band, route by intent:
+
+| Intent | Where |
+|---|---|
+| Bento vs editorial treatment | [Next section](#bento-vs-editorial-pick-the-surface-treatment-before-picking-components) — decide this first; it picks which conventions apply downstream. |
+| Entrance animations (mount stagger, scroll-entry, text reveals) | `sectionContainerVariants` / `sectionChildVariants` (role-keyed: eyebrow, headline, meta, body, tile) in [section-variants.ts](../apps/web/src/components/ui/section-variants.ts); CSS `.view-entry` and `.stagger-children` / `data-mount-stagger` in [motion.css](../apps/web/src/styles/motion.css); per-line hero reveals via [editorial-heading.tsx](../apps/web/src/components/ui/editorial-heading.tsx); animated numerals via [count-up.tsx](../apps/web/src/components/count-up.tsx). Don't hand-roll a new Motion `variants` object for a standard section entrance — reuse these. |
+| Editorial composition + cascade timing | [subject-chapter-design-spec.md](./working-notes/cross-cutting/subject-chapter-design-spec.md) — read for **any editorial/hero surface**, not only recap chapters: cascade delay table, blur-as-hero-marker, shadow tiers, list-row patterns, rejected experiments. |
+| Big numerals / labels | `HeroNumber` / `HeroLabel` / `HeroPair` in [hero-number.tsx](../apps/web/src/components/ui/hero-number.tsx). |
+| Route/view transitions | `getNavigationType` in [navigation-type.ts](../apps/web/src/lib/navigation-type.ts) is the single classifier (including the WebKit/Firefox engine gates); keyframes in [view-transitions.css](../apps/web/src/styles/view-transitions.css). When adding a top-level route or section, decide its transition type in the classifier — don't add per-route VT wiring elsewhere. |
+| Theme/accent color | [accent-color-system.md](./working-notes/cross-cutting/accent-color-system.md) (OKLCH token cascade); `useThemeColor()` in [use-theme-color.ts](../apps/web/src/lib/use-theme-color.ts) for route chrome color; `useAtmosphereClaim({ accentHex })` for per-subject `--accent`. |
+| Charts (Recharts) | No shared theme yet — known gap; chart-theming consolidation is scoped in [visual-excellence-audit-2026-06-12.md](./working-notes/cross-cutting/visual-excellence-audit-2026-06-12.md) (V8). Until it lands: mirror the [trend-kda.tsx](../apps/web/src/lol/trends/trend-kda.tsx) structure, use CSS vars (`var(--border)`, `var(--muted-foreground)`) for grid/axis chrome, and prefer `var(--accent, …)` fallbacks over new hardcoded hex for series colors. |
+| Tiles, chrome, headers, tooltips, skeletons | The sections in this file. |
+
+**Why:** A 2026-06-12 documentation audit found the entrance-animation and editorial primitives well-built and well-commented in code, but unreachable from the auto-loaded docs — a fresh session styling a new screen would have re-invented Motion variants, chart palettes, and header treatments that already exist.
+
+**How to apply:** Scan this table for the matching intent and open the referenced file or note before writing styling code. If you're about to write a new Motion `variants` object, entrance keyframe, or chart palette, first check whether the referenced primitive can carry it — and if it genuinely can't, extend the primitive rather than forking at the call site.
+
+### Bento vs editorial: pick the surface treatment before picking components
+
+The app has two fully-specified visual poles — chromed tile compositions (this file's tile/chrome/header rules) and editorial typographic chapters ([subject-chapter-design-spec.md](./working-notes/cross-cutting/subject-chapter-design-spec.md)) — and which one a new surface gets is a decision, not a default. The question is mechanical:
+
+> **"Will the user scan this surface to compare repeated units, or read it once as a statement?"** Scan/compare → bento. Read-once statement → editorial.
+
+- **Bento (dashboard) treatment** — repeated units of the same shape (stat tiles, list rows, fact cards) in grid/stack composition. Chromed tiles per the [tile background rule](#tile-background-one-level-of-glass-between-background-and-content), headers via `SectionTitle`/`CardTitle`, entrance via the `section-variants` stagger. Reference surfaces: LoL profile, Trends tab, Steam game-detail.
+- **Editorial treatment** — a single subject carrying a verdict: bare wrappers ("magazine spread, not a dashboard"), typographic hierarchy (eyebrow → masthead → verdict via `EditorialHeading` / `HeroPair`), cascade entrance with blur reserved for the hero tier. Reference surfaces: the recap chapters in [apps/web/src/home/recap/](../apps/web/src/home/recap/); full vocabulary in the design spec.
+
+The decision applies **per band, not per route** — a page may open with an editorial hero band and continue bento below it.
+
+**Why:** Both poles were fully specified, but nothing said which one a new surface gets. Defaulting everything to tiles makes the app read as a mixed-bag dashboard and dilutes the editorial identity the portfolio framing depends on; defaulting to editorial spends hero weight on surfaces that should be scannable.
+
+**How to apply:** Ask the scan-vs-statement question per band before picking components. Bento → chrome composition rule + tile recipe + `SectionTitle`/`CardTitle`. Editorial → bare wrapper + the design spec's composition and cascade rules + the typography primitives. If a band seems to want both ("an important data grid"), it's bento — importance is carried by position and a `SectionTitle`, not by editorial treatment.
+
 ### Header primitives: `SectionTitle` vs `CardTitle` — pick by chrome, not by content
 
 Two header primitives live in [apps/web/src/components/ui/](../apps/web/src/components/ui/). They share the same uppercase-tracked editorial aesthetic but carry different visual weight so the page hierarchy reads. **The rule is structural, not semantic — it's about whether the header sits inside card chrome.**
