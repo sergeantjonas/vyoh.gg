@@ -3,6 +3,7 @@ import { championCardSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
+import { ChapterShell } from "@/lol/recap/chapter-shell";
 import { Link } from "@tanstack/react-router";
 import {
   type MatchSummary,
@@ -32,19 +33,12 @@ export function RecapChampion({
 
   if (!top) {
     return (
-      <m.section
-        layout
-        initial={reduced ? false : { opacity: 0, y: 16 }}
-        whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
-      >
+      <ChapterShell>
         <ChapterLabel>Champion of the year</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Play a few games and your headline champion will appear here.
         </p>
-      </m.section>
+      </ChapterShell>
     );
   }
 

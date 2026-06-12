@@ -230,6 +230,8 @@ That collapses to two observed tiers:
 
 Plus one **chrome** tier outside this system: `bg-card/80 backdrop-blur-md` for fixed-position UI overlapping scrolling content (`champion-sticky-strip`, `scroll-to-top` button). Heavier blur is load-bearing for legibility over moving content.
 
+**Radius exception:** recap chapter outers use `rounded-xl` (vs the tile-default `rounded-md/lg`) — deliberate, the larger radius marks the editorial band scale. The recipe lives in [chapter-shell.tsx](../apps/web/src/lol/recap/chapter-shell.tsx) (`ChapterShell` + exported class consts). Don't normalize it back to `rounded-lg` in a consistency sweep, and don't spread `rounded-xl` to ordinary tiles.
+
 **Retired tier (do not reintroduce):** An "atmosphere overlay" tier (`bg-card/40 + backdrop-blur-md`) briefly existed for the recap chapters. It was the only tile-shaped consumer of `backdrop-blur-md` in the entire app, every other tile uses `backdrop-blur-sm`. A consistency pass on 2026-06-10 retired it: the recap chapters now use the standard frosted recipe, which reads visually the same and removed ~50 ms of cold-load raster cost on `/`. If a future surface wants "stronger glass than frosted," the right move is to revisit the frosted recipe globally (e.g. `bg-card/50 + backdrop-blur-sm` is a possible knob), not to fork into a second blur intensity.
 
 Reference surfaces in-tree (post-2026-06-10 consistency pass):

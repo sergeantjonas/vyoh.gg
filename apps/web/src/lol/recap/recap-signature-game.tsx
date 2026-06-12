@@ -7,6 +7,10 @@ import {
 } from "@/components/ui/section-variants";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
+import {
+  CHAPTER_SHELL_CLASS,
+  CHAPTER_SHELL_EMPTY_CLASS,
+} from "@/lol/recap/chapter-shell";
 import { Link } from "@tanstack/react-router";
 import { type MatchSummary, excludeRemakes, formatKda } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
@@ -77,7 +81,7 @@ export function RecapSignatureGame({
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, amount: 0.2 }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
+        className={CHAPTER_SHELL_EMPTY_CLASS}
       >
         <m.h2 {...childProps("eyebrow")} className={CHAPTER_LABEL_CLASS}>
           Signature game
@@ -105,7 +109,7 @@ export function RecapSignatureGame({
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.2 }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
+      className={CHAPTER_SHELL_CLASS}
     >
       <m.h2 {...childProps("eyebrow")} className={CHAPTER_LABEL_CLASS}>
         Signature game

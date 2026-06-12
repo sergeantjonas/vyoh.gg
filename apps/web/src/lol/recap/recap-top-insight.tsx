@@ -1,8 +1,8 @@
 import { ChapterLabel } from "@/components/ui/chapter-label";
 import { computeHourDayStats, computeTiltStats } from "@/lol/profile/use-habits-stats";
+import { ChapterShell } from "@/lol/recap/chapter-shell";
 import { computeStreak } from "@/lol/trends/trend-stats";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
-import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -114,41 +114,26 @@ function pickInsight(matches: MatchSummary[]): Insight | null {
 }
 
 export function RecapTopInsight({ matches }: { matches: MatchSummary[] | undefined }) {
-  const reduced = useReducedMotion();
   const insight = useMemo(() => (matches ? pickInsight(matches) : null), [matches]);
 
   if (!insight) {
     return (
-      <m.section
-        layout
-        initial={reduced ? false : { opacity: 0, y: 16 }}
-        whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
-      >
+      <ChapterShell>
         <ChapterLabel>Headline insight</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Once you've played a few more games, the standout pattern will land here.
         </p>
-      </m.section>
+      </ChapterShell>
     );
   }
 
   return (
-    <m.section
-      layout
-      initial={reduced ? false : { opacity: 0, y: 32 }}
-      whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
-    >
+    <ChapterShell populated>
       <ChapterLabel>Headline insight</ChapterLabel>
       <p className="text-2xl font-semibold leading-snug text-foreground sm:text-3xl">
         {insight.headline}
       </p>
       <p className="text-sm text-muted-foreground/80">{insight.detail}</p>
-    </m.section>
+    </ChapterShell>
   );
 }

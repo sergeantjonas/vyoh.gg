@@ -2,9 +2,9 @@
 import { ChapterLabel } from "@/components/ui/chapter-label";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
+import { ChapterShell } from "@/lol/recap/chapter-shell";
 import { Link } from "@tanstack/react-router";
 import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
-import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 const MIN_GAMES_PER_HALF = 4;
@@ -69,26 +69,18 @@ export function RecapMostImproved({
   matches: MatchSummary[] | undefined;
   accountSlug: string;
 }) {
-  const reduced = useReducedMotion();
   const best = useMemo(() => (matches ? computeMostImproved(matches) : null), [matches]);
   const championName = useChampionName();
 
   if (!best) {
     return (
-      <m.section
-        layout
-        initial={reduced ? false : { opacity: 0, y: 16 }}
-        whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
-      >
+      <ChapterShell>
         <ChapterLabel>Most improved</ChapterLabel>
         <p className="text-base text-muted-foreground">
           Once a champion in your pool gains traction late in the window, that lift will
           land here.
         </p>
-      </m.section>
+      </ChapterShell>
     );
   }
 
@@ -96,14 +88,7 @@ export function RecapMostImproved({
   const recentPct = formatPercent(best.recentWr);
 
   return (
-    <m.section
-      layout
-      initial={reduced ? false : { opacity: 0, y: 32 }}
-      whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
-    >
+    <ChapterShell populated>
       <ChapterLabel>Most improved</ChapterLabel>
       <div className="flex items-center gap-4">
         <Link
@@ -130,6 +115,6 @@ export function RecapMostImproved({
         Early window: {best.earlyGames} games. Recent window: {best.recentGames} games.
         Whatever changed, keep doing it.
       </p>
-    </m.section>
+    </ChapterShell>
   );
 }

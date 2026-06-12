@@ -1,6 +1,7 @@
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { ChapterLabel } from "@/components/ui/chapter-label";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
+import { ChapterShell } from "@/lol/recap/chapter-shell";
 import { type LolAccount, type RankHistoryPoint, formatLpDelta } from "@vyoh/shared";
 import {
   type DetectedSeason,
@@ -8,7 +9,6 @@ import {
   formatRank,
   normalizeLp,
 } from "@vyoh/shared/lol/rank-history";
-import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 interface PeakInfo {
@@ -31,7 +31,6 @@ function findPeak(points: RankHistoryPoint[]): PeakInfo | null {
 }
 
 export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
-  const reduced = useReducedMotion();
   const { data } = useRankHistory(account, "season");
 
   const summary = useMemo(() => {
@@ -62,14 +61,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
 
   if (!summary || !summary.peak) {
     return (
-      <m.section
-        layout
-        initial={reduced ? false : { opacity: 0, y: 16 }}
-        whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm"
-      >
+      <ChapterShell>
         <ChapterLabel>Rank arc</ChapterLabel>
         <EmptyState
           illustration={<EmptyLpHistoryIllustration />}
@@ -77,7 +69,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
           hint="Your arc will appear here once Riot's tier/division data builds up."
           className="py-4"
         />
-      </m.section>
+      </ChapterShell>
     );
   }
 
@@ -85,19 +77,7 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
   const peakLine = formatRank(peak.tier, peak.rank, peak.lp);
 
   return (
-    <m.section
-      layout
-      initial={reduced ? false : { opacity: 0, y: 32 }}
-      whileInView={reduced ? {} : { opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-      // Chapter wrapper carries the frosted recipe — it sits directly over
-      // the splash backdrop (the recap claims a champion splash via
-      // useSplashChampion in the route), so it's the boundary glass layer.
-      // Inner Stat tiles below stay bare (`bg-card/50`) per the one-level-of-
-      // glass rule, nested inside frosted chrome.
-      className="flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8"
-    >
+    <ChapterShell populated>
       <ChapterLabel>Rank arc</ChapterLabel>
       <div className="flex flex-col gap-1">
         <p className="text-sm uppercase tracking-wide text-muted-foreground/60">
@@ -131,6 +111,6 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
           </div>
         </div>
       </div>
-    </m.section>
+    </ChapterShell>
   );
 }
