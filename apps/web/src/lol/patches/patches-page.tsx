@@ -255,6 +255,12 @@ export function PatchesPage({
               return (
                 <li
                   key={group.champion}
+                  // CV-gate row content so a 40-champion patch doesn't paint
+                  // every ability changelist up front — same pattern as
+                  // champion-table rows. The intrinsic-size estimate matches
+                  // a typical two-change row; CV only uses it while the row
+                  // is off-screen, so drift is invisible.
+                  className="[content-visibility:auto] [contain-intrinsic-size:auto_96px]"
                   style={{ viewTransitionName: `patches-champion-${alias}` }}
                 >
                   <ChampionRow
