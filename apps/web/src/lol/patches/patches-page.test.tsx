@@ -1,4 +1,5 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import {
   useChampionAliasFromName,
   useChampionName,
@@ -43,6 +44,10 @@ vi.mock("@/lol/patches/use-patch-list", () => ({
 
 vi.mock("@/lol/patches/use-patch-changes", () => ({
   usePatchChanges: vi.fn(),
+}));
+
+vi.mock("@/lol/_shared/assets/splash-backdrop", () => ({
+  useSplashChampion: vi.fn(),
 }));
 
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
@@ -100,6 +105,7 @@ afterEach(() => {
   vi.mocked(useChampionAliasFromName).mockReset();
   vi.mocked(usePatchList).mockReset();
   vi.mocked(usePatchChanges).mockReset();
+  vi.mocked(useSplashChampion).mockReset();
 });
 
 describe("PatchesPage", () => {
@@ -310,6 +316,45 @@ describe("PatchesPage", () => {
     );
     const firstName = container.querySelector("ul li");
     expect(firstName?.textContent).toContain("Ahri");
+  });
+
+  it("claims the page splash for the headline champion (most-played changed)", () => {
+    mockMatches([
+      { remake: false, champion: "Ahri" },
+      { remake: false, champion: "Ahri" },
+    ] as unknown as MatchSummary[]);
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [
+          { champion: "Brand", changes: [{ changeType: "buff", changeText: "x" }] },
+          { champion: "Ahri", changes: [{ changeType: "buff", changeText: "x" }] },
+        ],
+        items: [],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
+    expect(vi.mocked(useSplashChampion)).toHaveBeenLastCalledWith("Ahri");
+  });
+
+  it("claims no splash while the patch has no champion changes", () => {
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [],
+        items: [],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
+    expect(vi.mocked(useSplashChampion)).toHaveBeenLastCalledWith(null);
   });
 
   describe("neutral mode (no asSlug)", () => {

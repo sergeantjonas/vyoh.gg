@@ -10,6 +10,7 @@ import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug"
 import { itemIconUrl, runeIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
+import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import {
   useChampionAliasFromName,
   useChampionName,
@@ -102,6 +103,17 @@ export function PatchesPage({
       return a.champion.localeCompare(b.champion);
     });
   }, [patchChanges, playCountByWikiName]);
+
+  // Page-wide splash claim keyed to the headline champion — the owner's
+  // most-played changed champion under the `?as=` lens, else the alpha-first
+  // change. One backdrop layer through the existing SplashProvider crossfade,
+  // so the cost is O(1) regardless of how many champions a patch touches.
+  // Gated on championsReady: pre-load, aliasFromName falls back to the wiki
+  // display name, which isn't a valid splash asset key.
+  const headlineChampion = sortedChampions[0]?.champion ?? null;
+  useSplashChampion(
+    championsReady && headlineChampion ? championAliasFromName(headlineChampion) : null
+  );
 
   const visibleChampions = useMemo(() => {
     if (!myOnly) return sortedChampions;

@@ -25,14 +25,14 @@ Code-level audit of visual consistency, surface treatment gradient, and hygiene.
 
 ## Surface treatment gaps (steepest gradient vs siblings)
 
-### V3 — Patches route identity pass *(in progress 2026-06-12 — chunk 0 done)*
+### V3 — Patches route identity pass *(in progress 2026-06-12 — chunks 0–1 done)*
 
 [/lol/patches](../../../apps/web/src/routes/lol/patches/index.tsx) + `$version` is the plainest recurring surface in the app: no splash claim, no entrance stagger, no hover elevation, plain collapsibles. Palette grammar shipped, visual identity didn't. Patches are champion-centric — a splash claim keyed to the selected patch's headline champion reuses existing `SplashProvider` machinery. Mind the per-route paint budget table when adding frost/blur.
 
 **Chunk plan (acked 2026-06-12).** Direction: splash claim is O(1); frost lives at section level only, never per change-row, so blur-layer count stays constant (~3) regardless of patch size. Fallback ladder if the re-probe blows budget: demote frosted sections to `/50` first; the splash is the cheap part and goes last.
 
 0. ✅ **Baseline** — `lol-patches` perf-probe scenario added, pinned to patch 26.3 (41 champ / 9 item / 3 rune changes — largest in DB) with `?as=ahri` lens. 3-run bracket: load = 19 layers / 42–50 ms raster / 0–2 long tasks / dropped=0; scroll-bottom = 16–24 layers / 7–11 ms raster / dropped=0.
-1. **Splash claim** — `useSplashChampion` keyed to `sortedChampions[0]` (owner's most-played changed champion, else alpha-first); no claim on loading/empty. Files: `patches-page.tsx`, `patches-page.test.tsx`.
+1. ✅ **Splash claim** — `useSplashChampion(championAliasFromName(sortedChampions[0]))` (owner's most-played changed champion, else alpha-first); null claim on loading/empty, gated on `championsReady` (pre-load aliasFromName falls back to wiki display name — not a splash key). Splash also drives the route theme color for free via `SplashProvider`'s `useThemeColor` wiring.
 2. **Tile recipes** — champion changes get one frosted section wrapper (`bg-card/60 backdrop-blur-sm`) with `CardTitle`; `ChampionRow`s stay `/50` inside (one level of glass). Item/rune collapsibles promote `/50` → frosted (they face splash directly, content default-closed). Header strip stays bare; typographic legibility fixes only. Files: `patches-page.tsx`.
 3. **Motion** — mount stagger via `sectionContainerVariants`/`sectionChildVariants`; hover chrome on `ChampionRow` mirroring champion-list rows, transform-only. Files: `patches-page.tsx`, maybe `ability-change-list.tsx`.
 4. **Re-probe + budget row** — 3-run bracket vs chunk-0 baseline; add `lol-patches` row to the repo-conventions budget table; zero dropped frames hard gate; flip this status + open-work line.
