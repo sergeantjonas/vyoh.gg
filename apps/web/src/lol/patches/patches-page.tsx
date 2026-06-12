@@ -191,53 +191,63 @@ export function PatchesPage({
         </p>
       </header>
 
-      <div className="flex items-center justify-between border-y py-2">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">
-          {visibleChampions.length} shown
-        </span>
-        {asSlug ? (
-          <button
-            type="button"
-            onClick={() => setMyOnly((p) => !p)}
-            aria-pressed={myOnly}
-            className={cn(
-              "cursor-pointer rounded-md px-3 py-1 text-xs transition-colors",
-              myOnly
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            My champions only
-          </button>
-        ) : null}
-      </div>
+      {/* One frosted card carries the whole champion list: a single
+          backdrop-blur layer regardless of how many champions the patch
+          touches (a 26.3-sized patch has 41). Rows inside are bare divide-y
+          rows — frosting each row would scale blur-layer count with patch
+          size, and nesting bordered rows inside a chromed wrapper violates
+          the chrome-composition rule. The toolbar persists as the card's
+          header strip even when the filter empties the list, so the
+          "My champions only" toggle stays reachable to untoggle. */}
+      <section className="rounded-lg border bg-card/60 backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            {visibleChampions.length} shown
+          </span>
+          {asSlug ? (
+            <button
+              type="button"
+              onClick={() => setMyOnly((p) => !p)}
+              aria-pressed={myOnly}
+              className={cn(
+                "cursor-pointer rounded-md px-3 py-1 text-xs transition-colors",
+                myOnly
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              My champions only
+            </button>
+          ) : null}
+        </div>
 
-      {visibleChampions.length === 0 ? (
-        <p className="py-12 text-center text-sm text-muted-foreground">
-          {myOnly
-            ? "None of your most-played champions were changed this patch."
-            : "No champion changes for this patch."}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {visibleChampions.map((group) => {
-            const alias = championAliasFromName(group.champion);
-            return (
-              <li
-                key={group.champion}
-                style={{ viewTransitionName: `patches-champion-${alias}` }}
-              >
-                <ChampionRow
-                  group={group}
-                  aliasFromName={championAliasFromName}
-                  isMyChampion={myChampions.has(group.champion)}
-                  patch={resolvedPatch}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      )}
+        {visibleChampions.length === 0 ? (
+          <p className="px-3 py-12 text-center text-sm text-muted-foreground">
+            {myOnly
+              ? "None of your most-played champions were changed this patch."
+              : "No champion changes for this patch."}
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y">
+            {visibleChampions.map((group) => {
+              const alias = championAliasFromName(group.champion);
+              return (
+                <li
+                  key={group.champion}
+                  style={{ viewTransitionName: `patches-champion-${alias}` }}
+                >
+                  <ChampionRow
+                    group={group}
+                    aliasFromName={championAliasFromName}
+                    isMyChampion={myChampions.has(group.champion)}
+                    patch={resolvedPatch}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {items.length > 0 ? (
         <PatchEntrySection
@@ -276,7 +286,9 @@ function PatchEntrySection({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="rounded-lg border bg-card/50">
+    // Frosted: the collapsible faces the page-wide splash directly. Content
+    // is default-closed, so the blur region is one header strip until opened.
+    <section className="rounded-lg border bg-card/60 backdrop-blur-sm">
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
@@ -357,7 +369,7 @@ function ChampionRow({
   patch: string;
 }) {
   return (
-    <div className="flex gap-3 rounded-lg border bg-card/50 p-3">
+    <div className="flex gap-3 p-3">
       <ChampionSquareIcon
         championName={aliasFromName(group.champion)}
         alt={group.champion}
@@ -388,10 +400,13 @@ function ChampionRow({
 
 function PatchesLoading() {
   return (
+    // Mirrors the loaded layout: header block, one tall champion-list card,
+    // two collapsed entry-section bars (items / runes).
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-12">
       <div className="h-24 animate-pulse rounded-lg bg-muted/30" />
-      <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
-      <div className="h-32 animate-pulse rounded-lg bg-muted/30" />
+      <div className="h-64 animate-pulse rounded-lg bg-muted/30" />
+      <div className="h-11 animate-pulse rounded-lg bg-muted/30" />
+      <div className="h-11 animate-pulse rounded-lg bg-muted/30" />
     </div>
   );
 }
