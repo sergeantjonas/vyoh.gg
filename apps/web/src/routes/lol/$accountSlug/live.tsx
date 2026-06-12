@@ -139,7 +139,7 @@ function ParticipantCard({
     <div
       className={cn(
         "flex items-center gap-2 rounded-md px-3 py-2",
-        isUser ? "bg-card ring-1 ring-primary/40" : "bg-card/60",
+        isUser ? "bg-card ring-1 ring-primary/40" : "bg-card/60 backdrop-blur-sm",
         isLeft ? "flex-row" : "flex-row-reverse"
       )}
     >

@@ -208,7 +208,7 @@ export function SectionTabsDropdown({
           type="button"
           aria-label="Sections"
           className={cn(
-            "flex min-w-[168px] cursor-pointer items-center justify-between gap-2 rounded-lg border bg-card/60 px-4 py-2.5 text-base font-semibold transition-colors hover:bg-muted/40",
+            "flex min-w-[168px] cursor-pointer items-center justify-between gap-2 rounded-lg border bg-card/60 px-4 py-2.5 text-base font-semibold backdrop-blur-sm transition-colors hover:bg-muted/40",
             className
           )}
         >

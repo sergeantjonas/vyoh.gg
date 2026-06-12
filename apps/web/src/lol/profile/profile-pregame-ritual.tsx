@@ -1,3 +1,4 @@
+import { EMPTY_FRAME_CLASS } from "@/components/empty-state";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -313,7 +314,7 @@ function CompositeVerdict({
         initial={reduced ? false : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="rounded-lg border border-dashed bg-card/30 px-3 py-2.5 text-sm text-muted-foreground/80"
+        className={`${EMPTY_FRAME_CLASS} px-3 py-2.5 text-sm text-muted-foreground/80`}
       >
         {composite.band}
       </m.div>

@@ -1,3 +1,4 @@
+import { EMPTY_FRAME_CLASS } from "@/components/empty-state";
 import {
   Accordion,
   AccordionContent,
@@ -200,7 +201,7 @@ function ChampionSynergyCard({
           <Link
             to="/lol/$accountSlug/champions/$championKey"
             params={{ accountSlug, championKey: entry.yourChamp.toLowerCase() }}
-            className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-card/60 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-foreground/30 hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-card/50 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-foreground/30 hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             View {displayName} detail
             <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -221,7 +222,9 @@ export function ProfileSynergy({ accountSlug }: { accountSlug: string }) {
     return (
       <section className="flex flex-col gap-2">
         <SectionTitle>Synergy</SectionTitle>
-        <p className="rounded-lg border border-dashed bg-card/20 px-3 py-3 text-xs text-muted-foreground/70">
+        <p
+          className={cn(EMPTY_FRAME_CLASS, "px-3 py-3 text-xs text-muted-foreground/70")}
+        >
           Not enough team data to map champion synergy yet.
         </p>
       </section>

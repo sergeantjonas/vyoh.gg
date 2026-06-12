@@ -21,14 +21,13 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
     return (
       <section className="flex flex-col gap-2">
         <SectionTitle>Duos</SectionTitle>
-        <div className="rounded-lg border border-dashed bg-card/20">
-          <EmptyState
-            illustration={<EmptyDuosIllustration />}
-            title="No recurring duo detected"
-            hint="You mostly queue solo in this window."
-            className="py-4"
-          />
-        </div>
+        <EmptyState
+          framed
+          illustration={<EmptyDuosIllustration />}
+          title="No recurring duo detected"
+          hint="You mostly queue solo in this window."
+          className="py-4"
+        />
       </section>
     );
   }

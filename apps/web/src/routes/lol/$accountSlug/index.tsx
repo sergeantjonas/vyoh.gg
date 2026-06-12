@@ -210,7 +210,7 @@ function ProfilePage() {
         <Link
           to="/lol/$accountSlug/recap"
           params={{ accountSlug }}
-          className="group flex items-center justify-between rounded-lg border bg-card/30 px-4 py-3 text-sm transition-colors hover:bg-card/60"
+          className="group flex items-center justify-between rounded-lg border bg-card/60 px-4 py-3 text-sm backdrop-blur-sm transition-colors hover:bg-card/80"
         >
           <span className="flex flex-col">
             <span className="font-medium text-foreground/90">Your year so far</span>

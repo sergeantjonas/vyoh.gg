@@ -2,17 +2,26 @@ import { cn } from "@/lib/utils";
 import { m, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
+// Canonical empty-state frame: a quiet dashed placeholder, deliberately
+// distinct from content-carrying tiles (frosted/transparent recipes in
+// repo-conventions § tile background). Exported for one-line placeholder
+// sites (loading/error <p>, verdict bands) that don't carry the full
+// illustration component — same const pattern as lib/tooltip.ts.
+export const EMPTY_FRAME_CLASS = "rounded-lg border border-dashed bg-card/50";
+
 export function EmptyState({
   illustration,
   title,
   hint,
   action,
+  framed = false,
   className,
 }: {
   illustration: ReactNode;
   title: string;
   hint?: string | undefined;
   action?: ReactNode;
+  framed?: boolean;
   className?: string;
 }) {
   const reduced = useReducedMotion();
@@ -23,6 +32,7 @@ export function EmptyState({
       transition={{ duration: 0.35, ease: "easeOut" }}
       className={cn(
         "flex flex-col items-center justify-center gap-4 py-10 text-center",
+        framed && EMPTY_FRAME_CLASS,
         className
       )}
     >

@@ -1,4 +1,8 @@
-import { EmptyAchievementsIllustration, EmptyState } from "@/components/empty-state";
+import {
+  EMPTY_FRAME_CLASS,
+  EmptyAchievementsIllustration,
+  EmptyState,
+} from "@/components/empty-state";
 import { routeMeta } from "@/lib/route-meta";
 import { RecentUnlocksVirtual } from "@/steam/achievements/recent-unlocks-virtual";
 import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
@@ -53,7 +57,9 @@ interface SectionProps {
 function RecentSection({ unlocks, isPending, isError }: SectionProps) {
   if (isPending) {
     return (
-      <p className="rounded-lg border bg-card/30 px-6 py-12 text-center text-sm text-muted-foreground">
+      <p
+        className={`${EMPTY_FRAME_CLASS} px-6 py-12 text-center text-sm text-muted-foreground`}
+      >
         Loading recent unlocks…
       </p>
     );
@@ -61,7 +67,9 @@ function RecentSection({ unlocks, isPending, isError }: SectionProps) {
 
   if (isError) {
     return (
-      <p className="rounded-lg border bg-card/30 px-6 py-12 text-center text-sm text-destructive">
+      <p
+        className={`${EMPTY_FRAME_CLASS} px-6 py-12 text-center text-sm text-destructive`}
+      >
         Recent unlocks are unavailable right now.
       </p>
     );

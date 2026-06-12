@@ -12,7 +12,7 @@ export function AccordionItem({
   return (
     <AccordionPrimitive.Item
       className={cn(
-        "overflow-hidden rounded-lg border bg-card/40 transition-colors hover:bg-card/60 data-[state=open]:bg-card/60",
+        "overflow-hidden rounded-lg border bg-card/40 transition-colors hover:bg-card/50 data-[state=open]:bg-card/50",
         className
       )}
       {...props}
