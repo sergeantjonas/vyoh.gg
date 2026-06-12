@@ -1,6 +1,6 @@
 # Visual-excellence audit — 2026-06-12
 
-**Status:** Active — V1 shipped in full 2026-06-12 (V1.1 remake filters, V1.2 `ChapterLabel`, V1.3 `ChapterShell`, V1.4 empty-state recipe + retired rungs). V2, V5, V8 next in the same session plan.
+**Status:** Active — V1 (full sweep) + V2 (enforcement test) shipped 2026-06-12. V5, V8 next in the same session plan; V3/V4/V6/V7 surface passes and V9–V12 design decisions unscoped.
 
 Code-level audit of visual consistency, surface treatment gradient, and hygiene. **Not a rendered-page review** — items marked "needs eyes" require looking at the running app before acting ([[feedback_dont_guess_visual_content]]). Chunk IDs are V1–V12 (work) and H1–H4 (hygiene appendix), following the [audit-2026-06-11.md](audit-2026-06-11.md) fan-out-index shape.
 
@@ -19,7 +19,7 @@ Code-level audit of visual consistency, surface treatment gradient, and hygiene.
 
 ### V2 — Conventions enforcement test
 
-Grep-shaped assertions in a `conventions.spec` (or extend the existing one if present): no inline `!m.remake` / `!match.remake` outside `excludeRemakes`; no ad-hoc `uppercase tracking-` headers outside `SectionTitle`/`CardTitle`/blessed recipes; no retired opacity rungs (`bg-card/20|/30|/70`, `/60` without `backdrop-blur-sm` on the same className). A few dozen lines of test; makes V1 the last manual sweep.
+~~Grep-shaped assertions in a `conventions.spec`~~ — **shipped 2026-06-12** by extending the existing [apps/api/src/conventions.spec.ts](../../../apps/api/src/conventions.spec.ts) (which already carried the remake-filter and native-`title=` assertions). Two new assertions, both mutation-tested with a canary file: (1) **no re-typed header recipes** — token-based (all distinctive classes present on one line, order-independent so Tailwind reordering can't dodge it) for the SectionTitle / CardTitle / ChapterLabel signatures, allowlisting each primitive's own file; editorial variants with different tracking (`0.18em`, `-wider`) are deliberately not flagged. (2) **no retired bg-card rungs** — `/20|/30|/70` flat-banned; `/60` must have `backdrop-blur` within a ±12-line window (the blur legitimately sits in a cn() base string a few lines from tone-branch usages); lines without a string delimiter are prose comments and skipped. V1 was the last manual sweep.
 
 ---
 
