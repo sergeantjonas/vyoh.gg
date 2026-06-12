@@ -1,10 +1,18 @@
+import { ChartTooltipShell } from "@/components/chart-tooltip";
 import { ShimmerBlock } from "@/components/shimmer-block";
 import { SectionTitle } from "@/components/ui/section-title";
+import {
+  CHART_AXIS,
+  CHART_CURSOR,
+  CHART_GRID,
+  CHART_NEGATIVE,
+  CHART_POSITIVE,
+} from "@/lib/chart-palette";
 import { cn } from "@/lib/utils";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import { formatGold } from "@vyoh/shared";
 import type { MatchTimelineProjection, ParticipantDetail } from "@vyoh/shared";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import {
   Area,
   AreaChart,
@@ -82,18 +90,11 @@ function GoldLeadTooltip({
   payload?: Array<{ payload: GoldPoint }>;
   label?: number;
 }) {
-  const reduced = useReducedMotion();
   const pt = payload?.[0]?.payload;
   return (
-    <AnimatePresence>
+    <ChartTooltipShell>
       {active && pt ? (
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 4, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={reduced ? {} : { opacity: 0, scale: 0.96 }}
-          transition={{ type: "spring", stiffness: 400, damping: 28 }}
-          className="rounded-md border bg-popover/85 px-3 py-2 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
-        >
+        <>
           <div className="mb-1 font-mono text-muted-foreground">{label}m</div>
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center justify-between gap-4">
@@ -117,9 +118,9 @@ function GoldLeadTooltip({
               {formatLead(pt.lead)}
             </div>
           </div>
-        </m.div>
+        </>
       ) : null}
-    </AnimatePresence>
+    </ChartTooltipShell>
   );
 }
 
@@ -162,23 +163,19 @@ export function MatchGoldLead({
           <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="glFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="50%" stopColor="#34d399" stopOpacity={0.2} />
-                <stop offset="50%" stopColor="#fb7185" stopOpacity={0.2} />
+                <stop offset="50%" stopColor={CHART_POSITIVE} stopOpacity={0.2} />
+                <stop offset="50%" stopColor={CHART_NEGATIVE} stopOpacity={0.2} />
               </linearGradient>
               <linearGradient id="glStroke" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="50%" stopColor="#34d399" stopOpacity={1} />
-                <stop offset="50%" stopColor="#fb7185" stopOpacity={1} />
+                <stop offset="50%" stopColor={CHART_POSITIVE} stopOpacity={1} />
+                <stop offset="50%" stopColor={CHART_NEGATIVE} stopOpacity={1} />
               </linearGradient>
             </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--border)"
-              vertical={false}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
             <XAxis
               dataKey="minute"
               tickFormatter={(v: number) => `${v}m`}
-              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+              tick={{ fill: CHART_AXIS, fontSize: 10 }}
               axisLine={false}
               tickLine={false}
             />
@@ -191,7 +188,7 @@ export function MatchGoldLead({
                     ? `+${(v / 1000).toFixed(0)}k`
                     : `${(v / 1000).toFixed(0)}k`
               }
-              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+              tick={{ fill: CHART_AXIS, fontSize: 10 }}
               width={38}
               tickCount={5}
               axisLine={false}
@@ -214,7 +211,7 @@ export function MatchGoldLead({
             ))}
             <Tooltip
               content={<GoldLeadTooltip />}
-              cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+              cursor={{ stroke: CHART_CURSOR, strokeWidth: 1 }}
             />
             <Area
               type="monotone"

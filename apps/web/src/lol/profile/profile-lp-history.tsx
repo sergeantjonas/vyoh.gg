@@ -1,6 +1,13 @@
 // Baseline: personal — your LP snapshots; streak overlay derives from your match results.
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/ui/section-title";
+import {
+  CHART_AXIS,
+  CHART_CURSOR,
+  CHART_GRID,
+  CHART_NEGATIVE,
+  CHART_POSITIVE,
+} from "@/lib/chart-palette";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -489,7 +496,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                   <stop offset="100%" stopColor={stroke} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
               <XAxis
                 dataKey="t"
                 type="number"
@@ -498,18 +505,18 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 ticks={dateTicks}
                 allowDataOverflow
                 tickFormatter={tickFormatter}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                tick={{ fill: CHART_AXIS, fontSize: 12 }}
                 minTickGap={48}
               />
               <YAxis
                 domain={yDomain}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                tick={{ fill: CHART_AXIS, fontSize: 12 }}
                 width={40}
                 allowDecimals={false}
               />
               <Tooltip
                 content={<LpTooltip />}
-                cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+                cursor={{ stroke: CHART_CURSOR, strokeWidth: 1 }}
               />
               {visibleTierBands.map((band, i) => {
                 // State-gating controls when the text element mounts (and the
@@ -565,7 +572,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                     <ReferenceArea
                       x1={pt1.t}
                       x2={pt2.t}
-                      fill={streak.type === "win" ? "#34d399" : "#f87171"}
+                      fill={streak.type === "win" ? CHART_POSITIVE : CHART_NEGATIVE}
                       fillOpacity={0.08}
                       stroke="none"
                       ifOverflow="hidden"
@@ -625,7 +632,7 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 tierChanges.map((tc) => {
                   const p = points[tc.idx];
                   if (!p) return null;
-                  const color = tc.direction === "up" ? "#34d399" : "#f87171";
+                  const color = tc.direction === "up" ? CHART_POSITIVE : CHART_NEGATIVE;
                   return (
                     <ReferenceDot
                       key={`tier-${tc.idx}`}

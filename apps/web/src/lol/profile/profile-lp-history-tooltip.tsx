@@ -1,5 +1,5 @@
+import { ChartTooltipShell } from "@/components/chart-tooltip";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { type ChartPoint, formatBucketHeader } from "./profile-lp-history-helpers";
 
 export function LpTooltip({
@@ -9,19 +9,12 @@ export function LpTooltip({
   active?: boolean;
   payload?: Array<{ payload: ChartPoint }>;
 }) {
-  const reduced = useReducedMotion();
   const point = payload?.[0]?.payload;
   const bucket = point?.bucket;
   return (
-    <AnimatePresence>
+    <ChartTooltipShell className="text-sm">
       {active && point ? (
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 4, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={reduced ? {} : { opacity: 0, scale: 0.96 }}
-          transition={{ type: "spring", stiffness: 400, damping: 28 }}
-          className="rounded-md border bg-popover/85 px-3 py-2 text-sm text-popover-foreground shadow-xl backdrop-blur-md"
-        >
+        <>
           <div className="mb-0.5 text-xs text-muted-foreground">
             {bucket
               ? formatBucketHeader(bucket)
@@ -66,8 +59,8 @@ export function LpTooltip({
               )}
             </div>
           ) : null}
-        </m.div>
+        </>
       ) : null}
-    </AnimatePresence>
+    </ChartTooltipShell>
   );
 }

@@ -1,10 +1,18 @@
 // Baseline: personal — your KDA trajectory across the window with a fitted trend line.
+import { ChartTooltipShell } from "@/components/chart-tooltip";
+import {
+  CHART_AXIS,
+  CHART_CURSOR,
+  CHART_GRID,
+  CHART_SERIES,
+  CHART_TREND,
+} from "@/lib/chart-palette";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { computeKdaSeries, computeTrendSummary } from "@/lol/trends/trend-stats";
 import type { KdaPoint } from "@/lol/trends/trend-stats";
 import { type MatchSummary, excludeRemakes, formatKda } from "@vyoh/shared";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import {
   CartesianGrid,
@@ -48,22 +56,15 @@ function KdaTooltip({
   payload?: Array<{ value: number }>;
   label?: string | number;
 }) {
-  const reduced = useReducedMotion();
   return (
-    <AnimatePresence>
+    <ChartTooltipShell className="text-sm">
       {active && payload?.length ? (
-        <m.div
-          initial={reduced ? {} : { opacity: 0, y: 4, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={reduced ? {} : { opacity: 0, scale: 0.96 }}
-          transition={{ type: "spring", stiffness: 400, damping: 28 }}
-          className="rounded-md border bg-popover/85 px-3 py-2 text-sm text-popover-foreground shadow-xl backdrop-blur-md"
-        >
+        <>
           <div className="mb-0.5 text-xs text-muted-foreground">Game {label}</div>
           <div className="font-semibold">{formatKda(Number(payload[0]?.value))} KDA</div>
-        </m.div>
+        </>
       ) : null}
-    </AnimatePresence>
+    </ChartTooltipShell>
   );
 }
 
@@ -79,19 +80,16 @@ function KdaChart({
     <div className="h-44 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis
-            dataKey="game"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+          <XAxis dataKey="game" tick={{ fill: CHART_AXIS, fontSize: 11 }} />
           <YAxis
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: CHART_AXIS, fontSize: 11 }}
             width={30}
             domain={["auto", "auto"]}
           />
           <Tooltip
             content={<KdaTooltip />}
-            cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+            cursor={{ stroke: CHART_CURSOR, strokeWidth: 1 }}
           />
           {boundaries.map((b) => (
             <ReferenceLine
@@ -113,10 +111,10 @@ function KdaChart({
           <Line
             type="monotone"
             dataKey="kda"
-            stroke="#34d399"
+            stroke={CHART_SERIES}
             strokeWidth={2}
-            dot={{ r: 2.5, fill: "#34d399", stroke: "#34d399" }}
-            activeDot={{ r: 4, fill: "#34d399", stroke: "#34d399" }}
+            dot={{ r: 2.5, fill: CHART_SERIES, stroke: CHART_SERIES }}
+            activeDot={{ r: 4, fill: CHART_SERIES, stroke: CHART_SERIES }}
             animationDuration={reduced ? 0 : 1200}
             animationBegin={reduced ? 0 : 200}
             animationEasing="ease-out"
@@ -124,7 +122,7 @@ function KdaChart({
           <Line
             type="monotone"
             dataKey="trendKda"
-            stroke="#a78bfa"
+            stroke={CHART_TREND}
             strokeWidth={1.5}
             strokeDasharray="5 3"
             dot={false}
