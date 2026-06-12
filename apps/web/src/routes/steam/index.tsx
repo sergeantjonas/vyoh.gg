@@ -1,3 +1,4 @@
+import { routeMeta } from "@/lib/route-meta";
 import { LibraryCompositionChip } from "@/steam/library-composition-chip";
 import { OwnedGamesChip } from "@/steam/owned-games-chip";
 import { PlatformMixChip } from "@/steam/platform-mix-chip";
@@ -9,6 +10,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/steam/")({
   component: SteamPage,
+  head: () =>
+    routeMeta({
+      title: "Steam profile · vyoh.gg",
+      description:
+        "Steam identity hero, trophy case, recent unlocks, and library mix on vyoh.gg.",
+    }),
 });
 
 function SteamPage() {

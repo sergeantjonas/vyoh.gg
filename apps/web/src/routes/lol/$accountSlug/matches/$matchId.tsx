@@ -22,6 +22,7 @@ import {
   buildMatchDetailSectionTabs,
 } from "@/lol/matches/match-detail-tabs";
 import { MatchHero } from "@/lol/matches/match-hero";
+import { matchOgImage } from "@/lol/matches/match-og";
 import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
@@ -47,8 +48,6 @@ import { useEffect, useRef, useState } from "react";
 // reason.
 const MORPH_SETTLE_MS = 700;
 
-const API_URL = "http://localhost:2010";
-
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   component: MatchDetailPanel,
   // Static fallback drops the opaque matchId for a slug-scoped label; the
@@ -58,7 +57,7 @@ export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
     routeMeta({
       title: `Match · ${params.accountSlug} · vyoh.gg`,
       description: `Match detail for ${params.accountSlug} on vyoh.gg`,
-      ogImage: `${API_URL}/og/match/${params.accountSlug}/${params.matchId}.png`,
+      ogImage: matchOgImage(params.accountSlug, params.matchId),
       ogType: "article",
     }),
 });

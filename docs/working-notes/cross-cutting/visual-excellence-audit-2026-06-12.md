@@ -1,6 +1,6 @@
 # Visual-excellence audit — 2026-06-12
 
-**Status:** Active — V1 (full sweep) + V2 (enforcement test) shipped 2026-06-12. V5, V8 next in the same session plan; V3/V4/V6/V7 surface passes and V9–V12 design decisions unscoped.
+**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V5 (head/meta completeness) shipped 2026-06-12. V8 next in the same session plan; V3/V4/V6/V7 surface passes and V9–V12 design decisions unscoped.
 
 Code-level audit of visual consistency, surface treatment gradient, and hygiene. **Not a rendered-page review** — items marked "needs eyes" require looking at the running app before acting ([[feedback_dont_guess_visual_content]]). Chunk IDs are V1–V12 (work) and H1–H4 (hygiene appendix), following the [audit-2026-06-11.md](audit-2026-06-11.md) fan-out-index shape.
 
@@ -35,7 +35,7 @@ Recap / Review / Timeline / Your-game swaps are instant content swaps inside an 
 
 ### V5 — head/meta completeness
 
-~17 routes use `routeMeta()`; the Steam layout/index and the match-detail subtabs appear to rely on parent titles (scout claim, unverified — confirm with `ugrep -l routeMeta apps/web/src/routes` before acting). Cheap completeness win; pairs with the shipped og-image-pipeline `head()` work.
+~~Steam layout/index and match-detail subtabs rely on parent titles~~ — **shipped 2026-06-12.** The scout claim was half-stale: `routes/steam.tsx` already carried `routeMeta`; the real gaps were `steam/index.tsx` (now "Steam profile · vyoh.gg") and the four match-detail subtabs (recap / your-game / review / timeline — `$matchId/index.tsx` is a redirect, needs none). Each subtab emits a per-tab title + description **and re-emits the per-match `og:image`** — required because the subtabs are the shareable URLs (index redirects to `/recap`) and a child `routeMeta` without `ogImage` would override the parent's `twitter:card` down to `summary` while the parent's `og:image` persisted. The OG URL moved to a shared helper, [match-og.ts](../../../apps/web/src/lol/matches/match-og.ts), so the hosting-gated localhost base (frontend-2026-gaps item O) stays a single grep-able site instead of five copies.
 
 ### V6 — Focus-visible ring audit *(needs eyes — keyboard, not mouse)*
 
