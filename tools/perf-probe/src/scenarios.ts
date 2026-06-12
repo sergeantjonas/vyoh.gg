@@ -77,6 +77,20 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // Patch-notes route pinned to a representative *big* patch (26.3: 41
+    // champion + 9 item + 3 rune changes — largest in the DB as of 2026-06-12).
+    // The newest patch is often small, which would understate the V3 identity
+    // pass's frost/splash cost; pin the heavyweight so the budget reflects the
+    // worst case. `?as=` opts into the personalized lens (play-count sort),
+    // matching how the owner actually lands here from profile deeplinks.
+    name: "lol-patches",
+    path: `/lol/patches/26.3?as=${OWNER_SLUG}`,
+    screenshotMoments: [
+      { name: "01-load", phase: "load", settleMs: 500 },
+      { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 500 },
+    ],
+  },
+  {
     // The Upcoming view (now the default tab). Carries the chunk-3/4 layer-
     // promoting CSS: the frosted calendar wrapper + the imminent hero's backdrop
     // lease (swaps the page-wide Steam backdrop) + the hero/calendar Motion

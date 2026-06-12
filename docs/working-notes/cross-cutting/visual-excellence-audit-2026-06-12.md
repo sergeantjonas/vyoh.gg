@@ -1,6 +1,6 @@
 # Visual-excellence audit — 2026-06-12
 
-**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V5 (head/meta completeness) + V8 (chart theming) shipped 2026-06-12; the session plan is complete. Remaining: V3/V4/V6/V7 surface passes and V9–V12 design decisions, unscoped.
+**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V5 (head/meta completeness) + V8 (chart theming) shipped 2026-06-12; the session plan is complete. V3 (patches identity) in progress 2026-06-12 — chunk plan + baseline in its section. Remaining: V4/V6/V7 surface passes and V9–V12 design decisions, unscoped.
 
 Code-level audit of visual consistency, surface treatment gradient, and hygiene. **Not a rendered-page review** — items marked "needs eyes" require looking at the running app before acting ([[feedback_dont_guess_visual_content]]). Chunk IDs are V1–V12 (work) and H1–H4 (hygiene appendix), following the [audit-2026-06-11.md](audit-2026-06-11.md) fan-out-index shape.
 
@@ -25,9 +25,17 @@ Code-level audit of visual consistency, surface treatment gradient, and hygiene.
 
 ## Surface treatment gaps (steepest gradient vs siblings)
 
-### V3 — Patches route identity pass *(needs eyes first)*
+### V3 — Patches route identity pass *(in progress 2026-06-12 — chunk 0 done)*
 
 [/lol/patches](../../../apps/web/src/routes/lol/patches/index.tsx) + `$version` is the plainest recurring surface in the app: no splash claim, no entrance stagger, no hover elevation, plain collapsibles. Palette grammar shipped, visual identity didn't. Patches are champion-centric — a splash claim keyed to the selected patch's headline champion reuses existing `SplashProvider` machinery. Mind the per-route paint budget table when adding frost/blur.
+
+**Chunk plan (acked 2026-06-12).** Direction: splash claim is O(1); frost lives at section level only, never per change-row, so blur-layer count stays constant (~3) regardless of patch size. Fallback ladder if the re-probe blows budget: demote frosted sections to `/50` first; the splash is the cheap part and goes last.
+
+0. ✅ **Baseline** — `lol-patches` perf-probe scenario added, pinned to patch 26.3 (41 champ / 9 item / 3 rune changes — largest in DB) with `?as=ahri` lens. 3-run bracket: load = 19 layers / 42–50 ms raster / 0–2 long tasks / dropped=0; scroll-bottom = 16–24 layers / 7–11 ms raster / dropped=0.
+1. **Splash claim** — `useSplashChampion` keyed to `sortedChampions[0]` (owner's most-played changed champion, else alpha-first); no claim on loading/empty. Files: `patches-page.tsx`, `patches-page.test.tsx`.
+2. **Tile recipes** — champion changes get one frosted section wrapper (`bg-card/60 backdrop-blur-sm`) with `CardTitle`; `ChampionRow`s stay `/50` inside (one level of glass). Item/rune collapsibles promote `/50` → frosted (they face splash directly, content default-closed). Header strip stays bare; typographic legibility fixes only. Files: `patches-page.tsx`.
+3. **Motion** — mount stagger via `sectionContainerVariants`/`sectionChildVariants`; hover chrome on `ChampionRow` mirroring champion-list rows, transform-only. Files: `patches-page.tsx`, maybe `ability-change-list.tsx`.
+4. **Re-probe + budget row** — 3-run bracket vs chunk-0 baseline; add `lol-patches` row to the repo-conventions budget table; zero dropped frames hard gate; flip this status + open-work line.
 
 ### V4 — Match-detail subtab transition polish
 
