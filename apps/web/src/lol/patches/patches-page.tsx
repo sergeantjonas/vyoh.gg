@@ -27,7 +27,7 @@ import type {
   MatchSummary,
   PatchEntryChangeGroup,
 } from "@vyoh/shared";
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 
 // Default count for the personalized play-count window. Mirrors the account
 // layout's DEFAULT_COUNT — we just need a stable recent window to derive
@@ -154,8 +154,15 @@ export function PatchesPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-12">
+      {/* Mount cascade: header text fades in via the shared stagger-in
+          (opacity is safe on bare text), the three frosted cards below ride
+          the frost-safe translate-only variant on the same `--i` clock. */}
       <header className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
+        <div
+          className="flex items-center justify-between gap-3"
+          data-mount-stagger=""
+          style={{ "--i": 0 } as CSSProperties}
+        >
           <p
             className="text-xs uppercase tracking-[0.2em] text-muted-foreground/60"
             style={{ viewTransitionName: "patches-header" }}
@@ -183,8 +190,18 @@ export function PatchesPage({
             </div>
           ) : null}
         </div>
-        <h1 className="text-2xl font-semibold leading-tight">Champion changes</h1>
-        <p className="text-sm text-muted-foreground/80">
+        <h1
+          className="text-2xl font-semibold leading-tight"
+          data-mount-stagger=""
+          style={{ "--i": 1 } as CSSProperties}
+        >
+          Champion changes
+        </h1>
+        <p
+          className="text-sm text-muted-foreground/80"
+          data-mount-stagger=""
+          style={{ "--i": 2 } as CSSProperties}
+        >
           {sortedChampions.length} champion{sortedChampions.length === 1 ? "" : "s"}{" "}
           changed this patch
           {asSlug ? ". Yours are ringed and sorted to the top." : "."}
@@ -199,7 +216,11 @@ export function PatchesPage({
           the chrome-composition rule. The toolbar persists as the card's
           header strip even when the filter empties the list, so the
           "My champions only" toggle stays reachable to untoggle. */}
-      <section className="rounded-lg border bg-card/60 backdrop-blur-sm">
+      <section
+        className="overflow-hidden rounded-lg border bg-card/60 backdrop-blur-sm"
+        data-mount-stagger-frosted=""
+        style={{ "--i": 3 } as CSSProperties}
+      >
         <div className="flex items-center justify-between border-b px-3 py-2">
           <span className="text-xs uppercase tracking-wide text-muted-foreground">
             {visibleChampions.length} shown
@@ -256,6 +277,7 @@ export function PatchesPage({
           iconShape="square"
           patch={resolvedPatch}
           kind="item"
+          staggerIndex={4}
         />
       ) : null}
       {runes.length > 0 ? (
@@ -265,6 +287,7 @@ export function PatchesPage({
           iconShape="circle"
           patch={resolvedPatch}
           kind="rune"
+          staggerIndex={5}
         />
       ) : null}
     </div>
@@ -277,23 +300,30 @@ function PatchEntrySection({
   iconShape,
   patch,
   kind,
+  staggerIndex,
 }: {
   title: string;
   groups: PatchEntryChangeGroup[];
   iconShape: "square" | "circle";
   patch: string;
   kind: "item" | "rune";
+  // Slot in the page mount cascade (frost-safe translate-only variant).
+  staggerIndex: number;
 }) {
   const [open, setOpen] = useState(false);
   return (
     // Frosted: the collapsible faces the page-wide splash directly. Content
     // is default-closed, so the blur region is one header strip until opened.
-    <section className="rounded-lg border bg-card/60 backdrop-blur-sm">
+    <section
+      className="overflow-hidden rounded-lg border bg-card/60 backdrop-blur-sm"
+      data-mount-stagger-frosted=""
+      style={{ "--i": staggerIndex } as CSSProperties}
+    >
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center gap-2 p-3 text-left"
+        className="flex w-full cursor-pointer items-center gap-2 p-3 text-left transition-colors hover:bg-card/50"
       >
         <span
           aria-hidden
@@ -369,7 +399,11 @@ function ChampionRow({
   patch: string;
 }) {
   return (
-    <div className="flex gap-3 p-3">
+    // Hover is a scan aid for long changelists, not a click affordance —
+    // rows aren't interactive, so no cursor-pointer and no lift. The tint
+    // stays in the glass family (heavier glass over the /60 card), same
+    // emphasis idiom as champion-patch-history's current-patch tile.
+    <div className="flex gap-3 p-3 transition-colors hover:bg-card/40">
       <ChampionSquareIcon
         championName={aliasFromName(group.champion)}
         alt={group.champion}

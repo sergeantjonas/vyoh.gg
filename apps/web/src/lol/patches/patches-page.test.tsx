@@ -341,6 +341,40 @@ describe("PatchesPage", () => {
     expect(vi.mocked(useSplashChampion)).toHaveBeenLastCalledWith("Ahri");
   });
 
+  it("mounts the cascade: bare header staggers, frosted cards use the frost-safe variant", () => {
+    mockPatchList([
+      { version: "16.10.1", patchDate: null },
+    ] as unknown as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [
+          { champion: "Ahri", changes: [{ changeType: "buff", changeText: "x" }] },
+        ],
+        items: [
+          {
+            name: "Trinity Force",
+            entityId: 3078,
+            changes: [{ changeType: "buff", changeText: "AD up" }],
+          },
+        ],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    const { container } = render(
+      <PatchesPage versionParam={undefined} asSlug="jonas-euw" />
+    );
+    expect(container.querySelectorAll("[data-mount-stagger]").length).toBe(3);
+    // Frosted cards must ride the translate-only variant — animating their
+    // opacity would suppress backdrop-filter until the fade completes.
+    const frosted = container.querySelectorAll("[data-mount-stagger-frosted]");
+    expect(frosted.length).toBe(2);
+    for (const el of frosted) {
+      expect(el.className).toContain("backdrop-blur-sm");
+      expect(el.hasAttribute("data-mount-stagger")).toBe(false);
+    }
+  });
+
   it("claims no splash while the patch has no champion changes", () => {
     mockPatchList([
       { version: "16.10.1", patchDate: null },

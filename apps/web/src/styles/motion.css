@@ -87,6 +87,27 @@ body {
   animation-delay: calc(var(--i, 0) * 80ms);
 }
 
+/* Frost-safe variant of the mount stagger: translate-only. Frosted tiles
+   (bg-card/60 + backdrop-blur-sm) must not animate opacity — an element
+   or ancestor animating opacity < 1 flattens its subtree into one buffer
+   and suppresses every descendant backdrop-filter until it reaches 1,
+   reading as a dark card that "pops" into glass at the end. Same delay
+   contract as stagger-in (`--i` × 80ms) so frosted and bare siblings can
+   share one cascade sequence. */
+@keyframes stagger-in-frosted {
+  from {
+    translate: 0 10px;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+[data-mount-stagger-frosted] {
+  animation: stagger-in-frosted 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
 /* ─── Active tab indicator pulse ─────────────────────────────────────────
    Shared by every active-tab underline (LoL + Steam section nav, match-detail
    tabs). Motion's `animate.boxShadow` can't interpolate CSS variables, so the
@@ -807,7 +828,8 @@ body {
   }
 
   .stagger-children > *,
-  [data-mount-stagger] {
+  [data-mount-stagger],
+  [data-mount-stagger-frosted] {
     animation: none;
   }
 
