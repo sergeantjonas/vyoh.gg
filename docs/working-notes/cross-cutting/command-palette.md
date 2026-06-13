@@ -179,6 +179,7 @@ The dedicated palette chunk of the [wishlist upcoming-releases reframe](../steam
 - **Cache hit before fetch.** The palette must never trigger a network request on open. Phase B/C should only see cached data, or render an "open Matches to enable search" empty state.
 - **Context provider, not event bus.** Lifting palette state into context (Phase A) is the load-bearing refactor — Phases B/C/D all need other surfaces to be able to "open with this query pre-filled" (think: "Filter from here" buttons on a champion-detail page).
 - **Parser in `@vyoh/shared`.** Keeps the grammar consistent if a URL-state encoding ever lands; cross-package import is fine via the workspace alias.
+- **Match highlighting via the CSS Custom Highlight API** *(shipped 2026-06-13, CSS-platform-2026 C2).* Matched substrings in result rows are tinted with `CSS.highlights` + `::highlight(palette-match)` — no `<mark>`/`<span>` wrapping, so type-ahead pays zero DOM churn. Logic in [lib/highlight-matches.ts](../../../apps/web/src/lib/highlight-matches.ts); driven from a `useEffect([open, parsed.freeText])` in the dialog with a `MutationObserver` on the list for async row arrival. Needle = the free-text residual, so structured verbs don't paint stray hits. Feature-detected (`supportsHighlightApi()`); degrades to plain rows where the API or `prefers-*` strips it. Full shape in [css-platform-2026.md § C2](./css-platform-2026.md).
 
 ## Open questions
 

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/command";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/identity/use-me";
+import { clearMatchHighlights, paintMatchHighlights } from "@/lib/highlight-matches";
 import { useAudio } from "@/lib/use-audio";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -57,7 +58,14 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
-import { type KeyboardEvent, useLayoutEffect, useMemo, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type Props = {
   open: boolean;
@@ -124,6 +132,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [input, setInput] = useState("");
   const [recents, setRecents] = useState<RecentItem[]>([]);
+  const listRef = useRef<HTMLDivElement>(null);
   // Highlighted item value, lifted out of cmdk so the chord handler on the
   // input can branch on which row Enter would have selected. cmdk normalises
   // this to the first existing item when the prior value disappears, so we
@@ -187,6 +196,25 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     () => (allMatches ? allMatches.filter((m) => matchesQuery(m, parsed)) : null),
     [allMatches, parsed]
   );
+
+  // C2 — tint matched substrings in result rows via the CSS Custom Highlight
+  // API (see lib/highlight-matches.ts). The needle is the free-text residual
+  // (`passesFreeText` matches the same lowercased substring), so structured
+  // verbs like `win`/`with:Jax` don't paint stray highlights. Recompute when
+  // the needle changes; a MutationObserver catches async row arrival
+  // (infinite-loaded matches, champion/steam data) while the needle is stable.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!open || !list) return;
+    const needle = parsed.freeText ?? "";
+    paintMatchHighlights(list, needle);
+    const observer = new MutationObserver(() => paintMatchHighlights(list, needle));
+    observer.observe(list, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      clearMatchHighlights();
+    };
+  }, [open, parsed.freeText]);
 
   const hasStructuredVerbs =
     parsed.outcome !== null ||
@@ -516,7 +544,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
           ))}
         </div>
       )}
-      <CommandList>
+      <CommandList ref={listRef}>
         <CommandEmpty>No results.</CommandEmpty>
 
         {!input.trim() && recents.length > 0 && (

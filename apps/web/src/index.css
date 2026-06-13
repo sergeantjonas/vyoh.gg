@@ -528,6 +528,15 @@ p {
   ::selection {
     background: color-mix(in oklch, var(--theme-fg) 40%, transparent);
   }
+  /* C2 — CSS Custom Highlight API tint for matched substrings in the ⌘K
+     palette (the "palette-match" highlight registered in
+     lib/highlight-matches.ts). Theme-tinted to echo ::selection above, with
+     a brighter text colour so the matched run reads against the row. Only
+     color / background-color paint on a ::highlight pseudo. */
+  ::highlight(palette-match) {
+    background-color: color-mix(in oklch, var(--theme-fg) 32%, transparent);
+    color: var(--foreground);
+  }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;

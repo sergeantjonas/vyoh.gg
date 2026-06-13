@@ -1,6 +1,6 @@
 # CSS platform 2026 arc — unexplored frontier features
 
-**Status:** Active — candidate pool from the 2026-06-11 audit, no chunks started. C1–C3 are quick-win-sized and form the natural first wave; C4–C6 need a paint-budget probe before/after; C7–C9 are smaller polish riders. Indexed in [elevation-arcs.md](elevation-arcs.md).
+**Status:** Active — first wave in progress. **C2 shipped 2026-06-13** (palette match-highlighting via the Custom Highlight API). C1 + C3 are the remaining first-wave chunks; C4–C6 need a paint-budget probe before/after; C7–C9 are smaller polish riders. Indexed in [elevation-arcs.md](elevation-arcs.md).
 
 Parent index: [audit-2026-06-11.md](audit-2026-06-11.md). This arc collects modern CSS/JS platform features the app has **not** touched, filtered against what's already shipped (VT, scroll-driven timelines, `@property`, `:has()`, `@starting-style`, oklch/`color-mix()`, `linear()`, `interpolate-size`, `field-sizing`, Canvas2D hero, Web Audio, CV-auto) and what's parked/rejected (Houdini paint worklets, anchor positioning for overlays — closed arc, rAF pivot; Rive/tilt/magnetic hover; Lenis). Inherits all guardrails from [elevation-arcs.md](elevation-arcs.md): bold not loud, reduced-motion replace-don't-disable, evidence-based perf claims against [perf-baseline.md](perf-baseline.md) and the paint-budget table in [repo-conventions.md](../../repo-conventions.md).
 
@@ -12,9 +12,11 @@ Browser floor reminder: baseline target is Safari 26 / Chrome 120 / Firefox 128.
 
 CSS-only detection of `stuck` / `snapped` / `scrollable` states (Chrome 133+). Apply to surfaces that currently can't style their pinned state declaratively: `champion-sticky-strip`, editorial chapter chrome, scroll-to-top button. `@container scroll-state(stuck: top) { … }` adds a shadow/compaction when actually stuck. Pure progressive enhancement — non-supporting engines keep today's static treatment, no JS fallback needed. Compositor-friendly, on-doctrine. **Caution:** `container-type` creates containment; verify no interaction with the panel-compositor rules before applying to anything inside a panel ([panel-compositor-load.md](panel-compositor-load.md)).
 
-### C2 — CSS Custom Highlight API for palette match-highlighting
+### C2 — CSS Custom Highlight API for palette match-highlighting *(shipped 2026-06-13)*
 
-`CSS.highlights` + `::highlight()` (Baseline 2023 — inside floor) to highlight matched substrings in ⌘K palette results without wrapping `<span>`s. Zero DOM churn during type-ahead — the perf-meets-polish detail the palette deserves. Scope: [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) result rows; record the approach in [command-palette.md](command-palette.md) when landing. Test the range-recomputation path on filter change (happy-dom may not implement `CSS.highlights` — feature-detect in the component, assert the fallback in tests).
+`CSS.highlights` + `::highlight()` (Baseline 2023 — inside floor) to highlight matched substrings in ⌘K palette results without wrapping `<span>`s. Zero DOM churn during type-ahead — the perf-meets-polish detail the palette deserves.
+
+**Shipped shape:** [lib/highlight-matches.ts](../../../apps/web/src/lib/highlight-matches.ts) owns the API surface — `supportsHighlightApi()` (feature-detect), `paintMatchHighlights(root, needle)` (rebuilds `Range`s over every case-insensitive hit inside `[cmdk-item]` rows under `root`, registered as the named `"palette-match"` highlight), and `clearMatchHighlights()`. [command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx) drives it from a `useEffect` keyed on `[open, parsed.freeText]`: the needle is the free-text residual (so structured verbs like `win` / `with:Jax` never paint stray hits), and a `MutationObserver` on the list element catches async row arrival (infinite-loaded matches, champion/Steam data) while the needle is stable. Scoped to `[cmdk-item]` so group headings and the empty-state never tint. The `::highlight(palette-match)` rule lives in [index.css](../../../apps/web/src/index.css) next to `::selection`, theme-tinted via `color-mix(... var(--theme-fg) ...)`. Tested in [highlight-matches.test.ts](../../../apps/web/src/lib/highlight-matches.test.ts): happy-dom lacks the API so `supportsHighlightApi()` is `false` and `paintMatchHighlights` is a verified no-op; the range-recompute / clear-on-empty / clear-on-no-match / heading-exclusion paths run against a stubbed registry.
 
 ### C3 — `text-box-trim` on editorial type
 
@@ -50,4 +52,4 @@ The editorial type arc shipped the Geist `wght` axis statically. Animate weight 
 
 ## Pick order
 
-C1 + C2 + C3 as one quick-wins wave (independent, floor-safe or progressive-enhancement). Then C4.1 (edge masks, low risk) → C6 (map paths, showcase value) → C7 (perf story). C4.2 / C5 / C9 ride the next recap-chapter touch so the probe cost is shared. C8 anytime as a one-liner.
+C1 + C2 + C3 as one quick-wins wave (independent, floor-safe or progressive-enhancement) — **C2 done**, C1 + C3 remain. Then C4.1 (edge masks, low risk) → C6 (map paths, showcase value) → C7 (perf story). C4.2 / C5 / C9 ride the next recap-chapter touch so the probe cost is shared. C8 anytime as a one-liner.
