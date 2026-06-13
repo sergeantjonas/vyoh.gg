@@ -486,17 +486,21 @@ p {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-theme-ring;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
   }
   /* Extend the per-entity theme cascade (driven by useThemeColor on
-     <html>) to native browser primitives: form controls via `accent-color`
-     and text selection via `::selection`. Both pull from `--theme-fg` so
-     dark-mode renders read as the champion's identity — the .dark
+     <html>) to native browser primitives: form controls via `accent-color`,
+     text selection via `::selection`, and the global focus-visible outline
+     via `outline-theme-ring` on `*` above. All pull from the `--theme-*`
+     cascade so dark-mode renders read as the champion's identity — the .dark
      derivation lifts L to >=0.85, preserving hue/chroma while pulling the
-     swatch into the visible range against the dark page. Both properties
-     inherit, so the :root declaration cascades through every subtree. */
+     swatch into the visible range against the dark page. `--theme-ring`
+     carries its own opacity (0.6/0.7, bumped to 0.95 under
+     prefers-contrast: more) so the ring needs no /opacity modifier. The
+     accent-color/selection properties inherit, so the :root declaration
+     cascades through every subtree; the outline is set directly on `*`. */
   :root {
     accent-color: var(--theme-fg);
   }

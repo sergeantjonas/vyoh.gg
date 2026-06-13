@@ -1,6 +1,6 @@
 # Visual-excellence audit — 2026-06-12
 
-**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V5 (head/meta completeness) + V8 (chart theming) shipped 2026-06-12; the session plan is complete. V3 (patches identity) in progress 2026-06-12 — chunk plan + baseline in its section. Remaining: V4/V6/V7 surface passes and V9–V12 design decisions, unscoped.
+**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V3 (patches identity, all 5 chunks) + V5 (head/meta completeness) + V8 (chart theming) shipped 2026-06-12; V4 (subtab transition) + V6 (theme-colored focus ring) shipped 2026-06-13. V7 (status page) deferred — gated on owner-auth / status-admin restructure (its own section). Remaining: V9–V12 design decisions, unscoped.
 
 Code-level audit of visual consistency, surface treatment gradient, and hygiene. **Not a rendered-page review** — items marked "needs eyes" require looking at the running app before acting ([[feedback_dont_guess_visual_content]]). Chunk IDs are V1–V12 (work) and H1–H4 (hygiene appendix), following the [audit-2026-06-11.md](audit-2026-06-11.md) fan-out-index shape.
 
@@ -52,9 +52,11 @@ No new backdrop claim or persistent layer (transform promotes a layer only for t
 
 ~~Steam layout/index and match-detail subtabs rely on parent titles~~ — **shipped 2026-06-12.** The scout claim was half-stale: `routes/steam.tsx` already carried `routeMeta`; the real gaps were `steam/index.tsx` (now "Steam profile · vyoh.gg") and the four match-detail subtabs (recap / your-game / review / timeline — `$matchId/index.tsx` is a redirect, needs none). Each subtab emits a per-tab title + description **and re-emits the per-match `og:image`** — required because the subtabs are the shareable URLs (index redirects to `/recap`) and a child `routeMeta` without `ogImage` would override the parent's `twitter:card` down to `summary` while the parent's `og:image` persisted. The OG URL moved to a shared helper, [match-og.ts](../../../apps/web/src/lol/matches/match-og.ts), so the hosting-gated localhost base (frontend-2026-gaps item O) stays a single grep-able site instead of five copies.
 
-### V6 — Focus-visible ring audit *(needs eyes — keyboard, not mouse)*
+### V6 — Focus-visible ring audit *(shipped 2026-06-13 — needs eyes to validate)*
 
-Global ring is `outline-ring/50` ([index.css](../../../apps/web/src/index.css) ~L487–525); scout flagged it as possibly too subtle over busy splash backdrops. One manual tab-through session across LoL profile, a panel, and Steam library; if confirmed, try `/75` or a two-tone ring. A11y polish is portfolio signal in itself.
+Global ring was `outline-ring/50` on `*` ([index.css](../../../apps/web/src/index.css#L489)) — a neutral gray (`--ring`) at 50% opacity, too subtle over busy splash backdrops and the one interactive-affordance subsystem that didn't join the per-entity theme cascade (`accent-color` + `::selection` right below it already pull from `--theme-fg`).
+
+**Shipped (owner picked theme-colored ring over /75 and two-tone halo):** swapped to `outline-theme-ring`, pointing the global `*` outline at the existing `--theme-ring` token (`--color-theme-ring`, [index.css](../../../apps/web/src/index.css#L325)). That token was already defined but only consumed as a glow `box-shadow` (motion.css L123, fetch-progress) — this activates it for focus. Wins: (1) ring now follows the champion/route hue like selection + accent-color; (2) baked opacity 0.6 (light) / 0.7 (dark) is *more* opaque than the old /50, a contrast gain on top of the color; (3) `prefers-contrast: more` already bumps `--theme-ring` to 0.95 ([index.css](../../../apps/web/src/index.css#L441)), so high-contrast users get a near-solid ring for free; (4) off-theme routes (`/status`) fall back to the default `--theme-color` blue (`oklch(0.6 0.16 240)`), a conventional, visible focus color. Adjacent cascade comment extended to name the ring. **Needs eyes:** keyboard tab-through across LoL profile, a panel, and Steam library to confirm the ring reads clearly over each backdrop.
 
 ### V7 — Status page polish
 
