@@ -183,7 +183,18 @@ export function SlidePanel({
                   introduces its own stacking context — MatchHero is `z-30`
                   for its rect-morph entrance, so a value above that is the
                   floor here. */}
-              <div className="sticky top-0 z-40">
+              <div data-stuck-container="" className="sticky top-0 z-40">
+                {/* C1 scroll-state: transparent carrier that lifts a hairline
+                    shadow once the chrome is stuck to the top of the panel
+                    scroll container (panel content scrolling beneath).
+                    container-type: scroll-state adds no containment, so it is
+                    safe inside the panel; recipe + rationale in motion.css
+                    § scroll-state. */}
+                <div
+                  aria-hidden="true"
+                  data-stuck-shadow=""
+                  className="pointer-events-none absolute inset-0"
+                />
                 <div
                   data-panel-header=""
                   className={cn(

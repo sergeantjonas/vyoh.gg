@@ -92,7 +92,21 @@ export function Nav() {
   const openedAtRef = useRef(0);
 
   return (
-    <nav data-vt-nav="" className="sticky top-0 z-50 bg-background/60 backdrop-blur-md">
+    <nav
+      data-vt-nav=""
+      data-stuck-container=""
+      className="sticky top-0 z-50 bg-background/60 backdrop-blur-md"
+    >
+      {/* C1 scroll-state: transparent carrier that lifts a hairline shadow
+          once the bar is stuck to the top of <main> (content scrolling
+          beneath). @container scroll-state styles descendants, not the
+          container, so the shadow lives here rather than on <nav>. Recipe +
+          progressive-enhancement notes in motion.css § scroll-state. */}
+      <div
+        aria-hidden="true"
+        data-stuck-shadow=""
+        className="pointer-events-none absolute inset-0"
+      />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"

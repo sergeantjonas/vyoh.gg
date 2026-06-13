@@ -304,6 +304,48 @@ body {
      wants the view-timeline-driven cross-fade pattern back. */
 }
 
+/* ─── Scroll-state container queries (css-platform-2026 C1) ──────────────────
+   Declarative "stuck to top" styling for genuinely sticky bar chrome: the
+   detail-panel sticky header (data-stuck-container in slide-panel.tsx) and the
+   page nav (nav.tsx). When the bar gets pinned — content scrolling beneath it —
+   a hairline shadow lifts on its [data-stuck-shadow] descendant, separating the
+   pinned bar from the moving content. Replaces a JS scroll listener with a
+   query the browser evaluates on the compositor thread.
+
+   container-type: scroll-state applies NO containment — unlike size/inline-size,
+   it creates no new containing block, stacking context, or layer promotion — so
+   it is free even inside the perf-sensitive detail panel (verified against
+   panel-compositor-load.md). The query styles DESCENDANTS of the container only,
+   never the container itself, which is why each surface carries a transparent
+   inset-0 shadow-carrier child rather than shadowing the sticky element.
+
+   Pure progressive enhancement: engines without scroll-state (Firefox, Safari
+   ≤25 as of 2026) drop the unknown `container-type` value and the @container
+   block, keeping today's static treatment — no JS fallback needed.
+
+   Not applied to two of the surfaces § C1 originally named: the scroll-to-top
+   button (position: fixed has no stuck state) and the recap editorial chapter
+   stage (a full-bleed pinned spread has no natural shadow affordance, and it is
+   design-spec-governed). See css-platform-2026.md § C1. */
+@supports (container-type: scroll-state) {
+  [data-stuck-container] {
+    container-type: scroll-state;
+  }
+
+  [data-stuck-shadow] {
+    transition: box-shadow 200ms ease;
+  }
+
+  /* biome-ignore format: scroll-state() is a functional container query; Biome
+     1.9 inserts a space (`scroll-state (…)`) that reparses it as a container
+     name + size query and silently breaks the match. */
+  @container scroll-state(stuck: top) {
+    [data-stuck-shadow] {
+      box-shadow: 0 6px 16px -8px rgb(0 0 0 / 0.45);
+    }
+  }
+}
+
 /* ─── Overlay entry (Radix popper-positioned content) ───────────────────────
    Adds a soft fade + lift on mount for Radix popper content (tooltip,
    hover card, popover, dropdown, select). The selector targets the
