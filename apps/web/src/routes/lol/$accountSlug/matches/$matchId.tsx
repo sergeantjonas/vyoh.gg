@@ -340,7 +340,24 @@ function MatchDetailPanel() {
               </Button>
             </div>
           ) : detail.data ? (
-            <Outlet />
+            // Keyed on `tab` so each sub-tab swap re-mounts and replays the
+            // entrance. Transform-only (y, no opacity): the tab bodies carry
+            // frosted tiles, and an opacity-animating ancestor would flatten
+            // them into one buffer and kill their backdrop-filter mid-swap
+            // (same group-opacity trap the body-wrapper comment above avoids).
+            // A short slide settles the otherwise-instant content swap into
+            // the panel's choreographed motion. AnimatePresence is deliberately
+            // not used: <Outlet/> always renders the current route, so the
+            // outgoing tab's subtree is already gone — there is nothing to
+            // exit-animate. Entrance-only matches the app's mount-cascade idiom.
+            <m.div
+              key={tab}
+              initial={reduced ? false : { y: 10 }}
+              animate={{ y: 0 }}
+              transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+            >
+              <Outlet />
+            </m.div>
           ) : null}
         </div>
       </div>
