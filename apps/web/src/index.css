@@ -549,7 +549,11 @@ p {
      a brighter text colour so the matched run reads against the row. Only
      color / background-color paint on a ::highlight pseudo. */
   ::highlight(palette-match) {
-    background-color: color-mix(in oklch, var(--theme-fg) 32%, transparent);
+    /* Sits one notch stronger than ::selection (40%) so the matched run reads
+       as the route's theme colour rather than a muddy wash — translucent
+       red/pink hues over the near-black rows desaturate badly at lower alpha,
+       so under-powering this makes warm champion themes look broken. */
+    background-color: color-mix(in oklch, var(--theme-fg) 48%, transparent);
     color: var(--foreground);
   }
   *::-webkit-scrollbar {
