@@ -1,4 +1,4 @@
-import { m, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -35,15 +35,12 @@ import { SHADOW_LABEL } from "./chapter-shadows";
 // FOLLOWING one, not the current one.
 const SKIP_PAST_PX = 80;
 
-// Bob keyframes — mirrors HeroScrollHint's gentle downward drift so the
-// caret reads as ambient/breathing rather than alarming. No `as const`
-// because Motion's keyframe types reject readonly arrays.
-const BOB_KEYFRAMES = { y: [0, 4, 0] };
-const BOB_TRANSITION = {
-  duration: 2.2,
-  repeat: Number.POSITIVE_INFINITY,
-  ease: "easeInOut" as const,
-};
+// The gentle downward bob is a compositor CSS animation (`.caret-bob` in
+// motion.css), not a Motion `animate` loop: Motion would write `transform`
+// to this always-mounted element's inline style every frame, churning style
+// recalc and flooding Chrome DevTools' Styles pane with styleSheetChanged
+// events (perpetual spinner). The CSS keyframe runs on the compositor and
+// touches no DOM. Reduced motion is handled by the `@media` guard there.
 
 // Past the last chapter we hide the caret rather than flipping to a
 // back-to-top affordance — the global <ScrollToTop /> (bottom-right
@@ -159,7 +156,7 @@ export function NextChapterCaret() {
   if (!next) return null;
 
   return (
-    <m.button
+    <button
       type="button"
       onClick={handleClick}
       aria-label={`Scroll to ${next.label}`}
@@ -177,9 +174,9 @@ export function NextChapterCaret() {
       >
         {next.label}
       </span>
-      <m.svg
+      <svg
         viewBox="0 0 24 24"
-        className="size-5"
+        className="caret-bob size-5"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.5}
@@ -191,10 +188,9 @@ export function NextChapterCaret() {
           filter:
             "drop-shadow(0 1px 0 rgba(0,0,0,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.55))",
         }}
-        {...(reducedMotion ? {} : { animate: BOB_KEYFRAMES, transition: BOB_TRANSITION })}
       >
         <path d="M6 9l6 6 6-6" />
-      </m.svg>
-    </m.button>
+      </svg>
+    </button>
   );
 }

@@ -1029,3 +1029,36 @@ body {
     transition: opacity 400ms ease-out;
   }
 }
+
+/* Next-chapter caret bob.
+ *
+ * Compositor CSS keyframe in place of a Motion `animate={{ y: [...] }}` loop.
+ * Motion drives an infinite transform loop by writing the inline `style`
+ * attribute every frame (~60/s). On this always-mounted bottom-center caret
+ * that has two costs: (1) it churns style recalc for an ambient decoration,
+ * and (2) the flood of resulting `CSS.styleSheetChanged` events makes Chrome's
+ * DevTools Styles pane rebuild per event and never settle — a perpetual
+ * spinner whenever any element on the page is inspected (Firefox/Safari
+ * coalesce the events, so only Chrome is affected). A CSS animation runs on
+ * the compositor and writes nothing to the DOM, so both costs vanish. Mirrors
+ * the orb's "CSS keyframes instead of Motion m.divs" decision above. Same
+ * gentle 4px drift / 2.2s ease as the prior Motion keyframes. */
+@keyframes caret-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+.caret-bob {
+  animation: caret-bob 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret-bob {
+    animation: none;
+  }
+}
