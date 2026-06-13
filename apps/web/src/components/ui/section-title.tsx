@@ -13,7 +13,7 @@ function SectionTitle({
     <Component
       data-slot="section-title"
       className={cn(
-        "font-semibold text-sm uppercase leading-tight tracking-[0.2em] text-foreground",
+        "font-semibold text-sm uppercase leading-tight tracking-[0.2em] trim-cap text-foreground",
         className
       )}
       {...props}

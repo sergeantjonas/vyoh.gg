@@ -13,7 +13,7 @@ function CardTitle({
     <Component
       data-slot="card-title"
       className={cn(
-        "font-medium text-sm uppercase leading-tight tracking-[0.2em] text-foreground/70",
+        "font-medium text-sm uppercase leading-tight tracking-[0.2em] trim-cap text-foreground/70",
         className
       )}
       {...props}

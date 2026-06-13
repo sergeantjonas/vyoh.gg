@@ -3,6 +3,21 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* C3 (css-platform-2026) — text-box-trim. Strips the font's half-leading above
+   the cap-height and below the alphabetic baseline so uppercase editorial
+   headers (SectionTitle / CardTitle) and display numerals (HeroNumber) sit
+   optically flush with adjacent chips, borders and baselines instead of
+   carrying invisible metric padding. Baseline 2025 (Chrome 133+, Safari 18.2+);
+   engines without support — Firefox today — silently ignore it and keep the
+   prior spacing, so this is pure progressive enhancement with no fallback.
+   NB: the utility is deliberately NOT named `text-*` — tailwind-merge (cn())
+   groups any `text-…` class as a colour/size utility and would silently drop
+   it when it sits beside `text-foreground` / `text-sm` in the same className. */
+@utility trim-cap {
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
 html,
 body {
   overflow: hidden;

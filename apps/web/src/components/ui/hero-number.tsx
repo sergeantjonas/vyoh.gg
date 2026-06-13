@@ -14,7 +14,7 @@ function HeroNumber({
       data-slot="hero-number"
       data-size={size}
       className={cn(
-        "block font-[720] leading-none tracking-[-0.02em] tabular-nums",
+        "block font-[720] leading-none tracking-[-0.02em] trim-cap tabular-nums",
         size === "lg" && "text-[clamp(2.5rem,5vw,4rem)]",
         size === "md" && "text-[clamp(1.75rem,3vw,2.5rem)]",
         className
