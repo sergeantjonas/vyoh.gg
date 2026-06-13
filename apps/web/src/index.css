@@ -490,6 +490,21 @@ p {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
   }
+  /* The `*` rule above only sets outline-COLOR, which is not enough for two
+     reasons: (1) the browser's native focus ring is `outline-style: auto`,
+     which paints a UA grey ring and ignores a custom outline-color; (2) in
+     Firefox the universal outline-color loses to `currentColor` on some
+     elements, so bare links/buttons drew a WHITE ring (their text color)
+     instead of the theme hue. Both are fixed by writing the full themed
+     outline directly on the focused element here — color included via
+     `var(--theme-ring)` so it can't fall back to currentColor. Kept in
+     @layer base so any component `focus-visible:outline-*` utility (the
+     `outline-none` opt-outs, bespoke widths) still wins via the utilities
+     layer. Verified cross-engine with a Playwright Chromium+Firefox probe. */
+  *:focus-visible {
+    outline: 2px solid var(--theme-ring);
+    outline-offset: 2px;
+  }
   /* Extend the per-entity theme cascade (driven by useThemeColor on
      <html>) to native browser primitives: form controls via `accent-color`,
      text selection via `::selection`, and the global focus-visible outline
