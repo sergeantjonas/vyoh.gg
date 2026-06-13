@@ -176,16 +176,19 @@ Future paths to consider before another attempt:
 
 ### Logo ambient micro-animation
 
-Status: base theme-following shipped 2026-05-28 ([`607e708`](../../../) — `vyoh` wordmark + orb halo + orb body all follow `var(--theme-color)`); ambient micro-motion layer remains planned
+Status: shipped 2026-06-13. Base theme-following shipped 2026-05-28 ([`607e708`](../../../) — `vyoh` wordmark + orb halo + orb body all follow `var(--theme-color)`); the ambient micro-motion layer landed 2026-06-13 as a low-frequency wordmark sheen.
 
-Ideas:
+Shipped as:
 
-- the `vyoh.gg` mark in the primary nav carries a subtle ambient micro-animation — a slow drift, a soft hue shift tied to the `--theme-*` cascade from [accent-color-system](./accent-color-system.md) (shipped), or a registered-property gradient that breathes
-- low-frequency motion (10s+ cycle), so it reads as ambient rather than attention-grabbing
-- the mark is the brand surface; subtle motion here signals "this app is alive" without claiming any user attention
-- composes with [scroll-driven-shell](../archive/scroll-driven-shell.md) (shipped) — could tie to scroll progress instead of being time-based
-- reduced-motion: static mark with the active `--theme-*` tint applied at full opacity but no animation
-- the base theming layer is now in: wordmark uses `text-[var(--theme-color)]` with a `transition-colors` so theme changes already feel "alive" without explicit motion. Picking up the micro-animation layer is a pure addition rather than a from-scratch wiring.
+- `.nav-wordmark` in [motion.css](../../../apps/web/src/styles/motion.css): a brighter `--theme-fg` highlight band drifts back and forth across the `vyoh` glyphs every 12s, clipped via `background-clip: text`. Built from the `--theme-*` cascade so it re-tints per route; consumed at [nav.tsx](../../../apps/web/src/components/nav.tsx) (`vyoh` span).
+- 12s period is deliberately off the orb halo's 4.6s pulse so the two drift in and out of phase rather than beating in lockstep.
+- reduced-motion: `.nav-wordmark` falls back to a static, fully-tinted `var(--theme-color)` mark — no sheen travel.
+
+Rejected / not pursued (recorded so they aren't re-litigated):
+
+- Slow positional *drift* of the whole mark — the orb's wander/entrance already owns positional motion; a second drifting element reads as instability.
+- Tying the sheen to scroll progress instead of time — time-based is calmer and works on routes with no scroll; revisit only if the brand mark ever needs to signal scroll depth.
+- `@property`-registered gradient angle — `background-position` on a static linear gradient gets the same breathing read with less machinery.
 
 ### Animated nav icons on tab change
 

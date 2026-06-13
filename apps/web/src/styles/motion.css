@@ -177,6 +177,52 @@ body {
   }
 }
 
+/* ─── Brand wordmark ambient sheen ──────────────────────────────────────
+   The `vyoh` mark in the primary nav carries a slow, low-frequency sheen:
+   a brighter `--theme-fg` highlight band drifts back and forth across the
+   glyphs every 12s, clipped to the letters via background-clip:text. Reads
+   as "the app is alive" without claiming attention. Built from the same
+   `--theme-*` cascade as the orb halo, so it re-tints per route. A 12s
+   period (vs the orb halo's 4.6s pulse) keeps the two drifting in and out
+   of phase rather than beating in lockstep. background-position paints per
+   frame, but the element is ~4 glyphs wide — negligible against any route
+   paint budget. Unlayered class, so it owns `color` over Tailwind utils. */
+.nav-wordmark {
+  background-image: linear-gradient(
+    100deg,
+    var(--theme-color) 0%,
+    var(--theme-color) 40%,
+    var(--theme-fg) 50%,
+    var(--theme-color) 60%,
+    var(--theme-color) 100%
+  );
+  background-size: 240% 100%;
+  background-position: 150% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: nav-wordmark-sheen 12s ease-in-out infinite;
+}
+
+@keyframes nav-wordmark-sheen {
+  0%,
+  100% {
+    background-position: 150% center;
+  }
+  50% {
+    background-position: -50% center;
+  }
+}
+
+/* Reduced motion: static, fully-tinted mark — no sheen travel. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-wordmark {
+    background-image: none;
+    color: var(--theme-color);
+    animation: none;
+  }
+}
+
 /* ─── Section progress indicator ────────────────────────────────────────── */
 
 /* 2px hairline placed as a sibling of <main> (between section-header-slot

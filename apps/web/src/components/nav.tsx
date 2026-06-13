@@ -119,12 +119,13 @@ export function Nav() {
               carries the home affordance at narrow widths, matching the
               already-collapsing ⌘K → search-icon idiom below. */}
           <span className="hidden items-baseline sm:flex">
-            {/* `vyoh` follows the per-route theme color so it tints
-                alongside the section the user is on. `.gg` stays muted to
+            {/* `vyoh` follows the per-route theme color and carries a slow
+                ambient sheen — a brighter `--theme-fg` highlight band drifts
+                across the letters every 12s so the brand mark reads as "alive"
+                without claiming attention. Sheen + reduced-motion fallback
+                live in motion.css `.nav-wordmark`. `.gg` stays muted to
                 preserve the wordmark's secondary read.                   */}
-            <span className="text-[var(--theme-color)] transition-colors duration-300">
-              vyoh
-            </span>
+            <span className="nav-wordmark">vyoh</span>
             <span className="text-muted-foreground">.gg</span>
           </span>
         </Link>
