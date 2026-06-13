@@ -5,9 +5,49 @@ import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
+import { type Plugin, transformWithEsbuild } from "vite";
 import { defineConfig } from "vitest/config";
 
 const enableVisualizer = process.env.ANALYZE === "1";
+
+// Dev-only: flatten native CSS nesting in served CSS.
+//
+// Tailwind v4 emits ~426 nested `&`/@supports blocks; Chrome's DevTools Styles
+// pane goes pathological rendering that many nested rules and spins forever
+// whenever any element is inspected (Firefox/Safari inspectors normalise the
+// nesting internally and are unaffected). The prod build already lowers nesting
+// to ~63 via `build.target` (baseline-widely-available predates native CSS
+// nesting, so esbuild de-nests). This applies the SAME esbuild de-nesting to
+// the dev pipeline so Chrome DevTools is usable in dev too.
+//
+// `apply: "serve"` → prod output is untouched (it already de-nests). esbuild
+// only lowers the nesting syntax; it leaves oklch / color-mix / relative-color
+// / @property exactly as authored, so dev visuals are unchanged. No new
+// dependency — esbuild is bundled with Vite via `transformWithEsbuild`.
+function devFlattenCssNesting(): Plugin {
+  return {
+    name: "vyoh:dev-flatten-css-nesting",
+    apply: "serve",
+    async transform(code, id) {
+      // Only raw CSS modules, and only when there's nesting to flatten. Skip
+      // the JS-wrapped form (post css-post) and any non-CSS module.
+      if (!/\.css(\?|$)/.test(id)) return null;
+      if (/^\s*(import|export)\s/.test(code) || !code.includes("&")) return null;
+      try {
+        const result = await transformWithEsbuild(code, id, {
+          loader: "css",
+          // Below native CSS nesting (Chrome 112 / FF 117 / Safari 16.5) so
+          // esbuild lowers it; color functions are left untouched at any target.
+          target: ["chrome111", "firefox116", "safari16"],
+        });
+        return { code: result.code, map: result.map };
+      } catch {
+        // Never break the dev CSS pipeline over a DevTools ergonomics tweak.
+        return null;
+      }
+    },
+  };
+}
 
 const buildCommit = (() => {
   try {
@@ -30,6 +70,7 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
+    devFlattenCssNesting(),
     enableVisualizer &&
       visualizer({
         filename: "dist/stats.html",
