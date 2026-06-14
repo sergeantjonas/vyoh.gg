@@ -346,6 +346,61 @@ body {
   }
 }
 
+/* ─── Roam-path comet (css-platform-2026 C6) ────────────────────────────────
+   The owner's combat thread on the match map: a comet traces the dotted
+   "roam path" connecting every fight they were part of — once, on open, as an
+   entrance flourish, then settling on the final fight (animation-fill forwards
+   holds offset-distance: 100%). Deliberately not an infinite loop: a perpetual
+   marker pulls focus on an analysis surface ("bold not loud"). offset-path is
+   set inline in match-map-overlay.tsx because it's data-driven (the path()
+   string is built from the kill coordinate series); this class owns the travel.
+
+   offset-path on an SVG element resolves its path() in the element's user
+   space — the `0 0 15000 15000` viewBox — so the coordinates line up with the
+   event dots for free. The marker's cx/cy are 0 so its geometric centre rides
+   the path; never add an SVG `transform` attribute to it — that conflicts with
+   offset-path on Firefox (bug 1565147). Compositor-only: animating
+   offset-distance is a translate, no repaint.
+
+   @supports-gated so engines without motion-path don't strand the marker at
+   the SVG origin (0,0) — the static dotted <path> beneath stays the full
+   experience there. Under reduced motion the comet isn't rendered at all (gated
+   in JSX), with this rule as belt-and-braces. */
+.map-roam-comet {
+  opacity: 0;
+}
+
+@supports (offset-distance: 0px) {
+  .map-roam-comet {
+    opacity: 0.85;
+    offset-distance: 0%;
+    /* Single pass at constant speed, holding at the final position (forwards).
+       Linear is deliberate: offset-distance is measured along the path by
+       length, so linear timing = steady px/s — an eased curve makes the comet
+       lurch (fast through the middle, slow at the ends). The comet mounts only
+       on user trigger (the "Trace my route" button bumps playCount in
+       match-map-overlay.tsx, and the marker is keyed on it so each click
+       restarts this animation), so it needs no delay of its own. */
+    animation: roam-comet-travel var(--roam-duration, 5s) linear forwards;
+  }
+}
+
+@keyframes roam-comet-travel {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-roam-comet {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 /* ─── Overlay entry (Radix popper-positioned content) ───────────────────────
    Adds a soft fade + lift on mount for Radix popper content (tooltip,
    hover card, popover, dropdown, select). The selector targets the

@@ -81,7 +81,13 @@ function defaultTimeline() {
       frames: Array.from({ length: 30 }, (_, i) => ({
         ts: i * 60_000,
         perParticipant: Object.fromEntries(
-          Array.from({ length: 10 }, (_, j) => [j + 1, { gold: 1000 + i * 100 + j * 50 }])
+          Array.from({ length: 10 }, (_, j) => [
+            j + 1,
+            {
+              gold: 1000 + i * 100 + j * 50,
+              position: { x: 1000 + i * 200, y: 2000 + j * 100 },
+            },
+          ])
         ),
       })),
     },
@@ -391,5 +397,56 @@ describe("MatchMapOverlay", () => {
     renderShell();
     expect(screen.queryByRole("button", { name: "Your kills" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Your deaths" })).toBeNull();
+  });
+
+  it("draws the owner's movement path from per-minute frame positions", () => {
+    // defaultTimeline gives P1 a position in every frame → a multi-point path.
+    setTimeline(defaultTimeline());
+    renderShell();
+    expect(screen.getByTestId("roam-path")).toBeTruthy();
+  });
+
+  it("omits the roam path when frame positions are unavailable", () => {
+    setTimeline({
+      isPending: false,
+      isError: false,
+      data: {
+        participants: [{ participantId: 1, puuid: "P1" }],
+        kills: [],
+        objectives: [],
+        // Frames carry gold but no position (e.g. an old cached timeline) →
+        // nothing to trace, so the path is absent.
+        frames: [
+          { ts: 0, perParticipant: { 1: { gold: 500 } } },
+          { ts: 60_000, perParticipant: { 1: { gold: 700 } } },
+        ],
+      },
+    });
+    renderShell();
+    expect(screen.queryByTestId("roam-path")).toBeNull();
+  });
+
+  it("plays the data-driven roam comet only when the user triggers it", () => {
+    setTimeline(defaultTimeline());
+    render(
+      <MotionConfig reducedMotion="never">
+        <TooltipPrimitive.Provider>
+          <MatchMapOverlay
+            open
+            onOpenChange={() => {}}
+            detail={detailOf()}
+            myPuuid="P1"
+          />
+        </TooltipPrimitive.Provider>
+      </MotionConfig>
+    );
+    // No comet until the user asks for it — the static dotted path is all that
+    // shows on open.
+    expect(screen.queryByTestId("roam-comet")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /trace my route/i }));
+    const comet = screen.getByTestId("roam-comet");
+    expect(comet.classList.contains("map-roam-comet")).toBe(true);
+    // The travel duration is derived from the point count and wired as a var.
+    expect(comet.getAttribute("style") ?? "").toContain("--roam-duration");
   });
 });

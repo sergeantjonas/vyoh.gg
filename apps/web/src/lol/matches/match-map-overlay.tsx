@@ -24,6 +24,7 @@ import { formatGameTime } from "@vyoh/shared";
 import type { ParticipantDetail } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import {
+  type CSSProperties,
   type ComponentType,
   type ReactNode,
   useCallback,
@@ -534,6 +535,10 @@ export default function MatchMapOverlay({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [brushStartMin, setBrushStartMin] = useState(0);
   const [brushEndMin, setBrushEndMin] = useState(totalMin);
+  // The roam comet is user-initiated (the "Trace my route" button): each click
+  // bumps this counter, and the comet element is keyed on it so the CSS travel
+  // animation restarts from the start on every click.
+  const [playCount, setPlayCount] = useState(0);
   const feedRefs = useRef<Map<string, HTMLLIElement>>(new Map());
 
   // Reset state each time modal opens
@@ -594,6 +599,33 @@ export default function MatchMapOverlay({
     list.sort((a, b) => a.ts - b.ts);
     return list;
   }, [timeline.data]);
+
+  // Owner's combat thread: every kill the player was part of (landed, suffered,
+  // or assisted), in chronological order (`events` is already ts-sorted). Drawn
+  // as a dotted "roam path" threading their highlighted dots, retraced by a
+  // comet via CSS offset-path (css-platform-2026 C6). Decoupled from the dot
+  // filters / time-window brush so it reads as a stable, whole-game narrative
+  // layer rather than flickering as the user toggles chips.
+  const myPath = useMemo(() => {
+    if (myParticipantId == null || !timeline.data) {
+      return [] as { x: number; y: number }[];
+    }
+    // The player's actual movement trace: their sampled position at each
+    // timeline frame (~once a minute), in order. Frame 0 is spawn, so the path
+    // naturally begins in their base and follows where they really went — not a
+    // connect-the-fights line, which would imply teleporting between kills.
+    return timeline.data.frames.flatMap((f) => {
+      const pos = f.perParticipant[myParticipantId]?.position;
+      if (!pos) return [];
+      // Same y-flip as MapDot so the path lands on the dots' coordinate space.
+      return [{ x: pos.x, y: 15000 - pos.y }];
+    });
+  }, [timeline.data, myParticipantId]);
+
+  const roamPathD = useMemo(() => {
+    if (myPath.length < 2) return null;
+    return myPath.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  }, [myPath]);
 
   const goldData = useMemo<GoldPoint[]>(() => {
     if (!timeline.data || myParticipantId === undefined) return [];
@@ -746,6 +778,45 @@ export default function MatchMapOverlay({
                 aria-label="Match event map"
                 preserveAspectRatio="xMidYMid meet"
               >
+                {/* Owner's roam path, drawn under the dots. The dotted <path>
+                    is the static base (and the full reduced-motion experience);
+                    the comet retraces it via offset-path when the user hits
+                    "Trace my route". Strokes are sized in viewBox units (~÷40 on
+                    screen) so the dots stay ~3–4px. */}
+                {roamPathD && (
+                  <g aria-hidden className="pointer-events-none">
+                    <path
+                      data-testid="roam-path"
+                      d={roamPathD}
+                      fill="none"
+                      stroke="white"
+                      strokeOpacity={0.3}
+                      strokeWidth={150}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeDasharray="1 440"
+                    />
+                    {!reduced && playCount > 0 && (
+                      <circle
+                        // Keyed on playCount so each "Trace my route" click
+                        // remounts the circle and restarts the CSS travel.
+                        key={playCount}
+                        data-testid="roam-comet"
+                        className="map-roam-comet"
+                        cx={0}
+                        cy={0}
+                        r={185}
+                        fill="white"
+                        style={
+                          {
+                            offsetPath: `path("${roamPathD}")`,
+                            "--roam-duration": `${Math.min(16, Math.max(7, myPath.length * 0.6)).toFixed(1)}s`,
+                          } as CSSProperties
+                        }
+                      />
+                    )}
+                  </g>
+                )}
                 {visibleEvents.map((event, i) => (
                   <MapDot
                     key={event.id}
@@ -767,6 +838,18 @@ export default function MatchMapOverlay({
                   />
                 ))}
               </svg>
+              {/* User-initiated route trace — the comet only travels on click,
+                  never autostarts. Hidden under reduced motion and when there's
+                  no path to trace. */}
+              {!reduced && roamPathD && (
+                <button
+                  type="button"
+                  onClick={() => setPlayCount((c) => c + 1)}
+                  className="absolute left-2 top-2 z-10 cursor-pointer rounded-full border border-foreground/20 bg-background/70 px-2.5 py-1 text-[11px] text-foreground/80 backdrop-blur-sm transition-colors hover:bg-background/90"
+                >
+                  {playCount === 0 ? "Trace my route" : "Replay route"}
+                </button>
+              )}
             </div>
           </TooltipPrimitive.Provider>
 
