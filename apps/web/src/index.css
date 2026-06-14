@@ -418,7 +418,12 @@ p {
   --theme-fg: oklch(from var(--theme-color) min(l, 0.45) calc(c * 1.3) h);
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 0.85) c h);
-  --theme-ring: oklch(from var(--theme-color) l c h / 0.6);
+  --theme-ring: oklch(from var(--theme-color) l c h / 0.7);
+  /* Dark casing paired with the bright themed outline for the global
+     focus-visible two-tone (see `*:focus-visible` below). Carries baked
+     alpha so it needs no modifier; one value for both schemes — the themed
+     ring carries contrast on dark backdrops, the casing on bright ones. */
+  --ring-casing: oklch(0 0 0 / 0.55);
   --theme-grad-from: #60a5fa;
   --theme-grad-mid: #22d3ee;
   --theme-grad-to: #7dd3fc;
@@ -464,7 +469,8 @@ p {
   --theme-fg: oklch(from var(--theme-color) max(l, 0.74) calc(c * 1.3) h);
   --theme-muted: oklch(from var(--theme-color) l calc(c * 0.4) h);
   --theme-strong: oklch(from var(--theme-color) calc(l * 1.1) c h);
-  --theme-ring: oklch(from var(--theme-color) l c h / 0.7);
+  --theme-ring: oklch(from var(--theme-color) l c h / 0.8);
+  --ring-casing: oklch(0 0 0 / 0.55);
   --theme-grad-from: #60a5fa;
   --theme-grad-mid: #22d3ee;
   --theme-grad-to: #7dd3fc;
@@ -474,6 +480,7 @@ p {
   :root,
   .dark {
     --theme-ring: oklch(from var(--theme-color) l c h / 0.95);
+    --ring-casing: oklch(0 0 0 / 0.85);
   }
 }
 
@@ -534,8 +541,17 @@ p {
      `outline-none` opt-outs, bespoke widths) still wins via the utilities
      layer. Verified cross-engine with a Playwright Chromium+Firefox probe. */
   *:focus-visible {
+    /* Two-tone ring: the themed outline carries route/champion identity and
+       reads against dark splash regions; the `--ring-casing` box-shadow lays
+       a thin dark line just outside it (spread 4 reaches 1px past the 3px
+       outline edge at offset 1) so the indicator stays legible when the
+       themed hue matches a bright splash behind it — at least one edge always
+       contrasts, on any backdrop. Components with their own `ring-*`
+       box-shadow ring (Button, checkbox, match-pips, …) override this casing
+       via the utilities layer, so they never double-up. */
     outline: 2px solid var(--theme-ring);
-    outline-offset: 2px;
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px var(--ring-casing);
   }
   /* Extend the per-entity theme cascade (driven by useThemeColor on
      <html>) to native browser primitives: form controls via `accent-color`,
