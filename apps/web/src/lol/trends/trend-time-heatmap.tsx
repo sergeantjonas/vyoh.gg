@@ -1,3 +1,4 @@
+import { type ChartDataColumn, ChartDataTable } from "@/components/chart-data-table";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 // Baseline: personal — your hour-of-week WR; tooltip compares cell WR to your overall.
@@ -75,6 +76,18 @@ function HeatmapCell({
 }
 
 const LEGEND_SWATCHES = WR_COLORS.map(({ rgb }) => `rgba(${rgb},1)`).reverse();
+
+// sr-only fallback for the SVG heatmap (no Recharts accessibilityLayer here, so
+// this table is the *only* screen-reader surface). One row per played slot.
+const TIME_HEATMAP_COLUMNS: ChartDataColumn<HourDayStat>[] = [
+  {
+    key: "slot",
+    header: "Slot",
+    cell: (s) => `${DAY_LABELS[s.day] ?? "?"} ${s.hour}:00`,
+  },
+  { key: "games", header: "Games", cell: (s) => s.games },
+  { key: "winrate", header: "Win rate", cell: (s) => formatPercent(s.wins / s.games) },
+];
 
 function HeatmapGrid({
   hourDay,
@@ -195,7 +208,17 @@ export function TrendTimeHeatmap({
       prescription={prescription}
       prescriptionMarkdown={prescription}
       frosted={frosted}
-      evidence={<HeatmapGrid hourDay={hourDay} bestKey={bestKey} />}
+      evidence={
+        <>
+          <HeatmapGrid hourDay={hourDay} bestKey={bestKey} />
+          <ChartDataTable
+            caption="Win rate by day-of-week and hour — slots with games played"
+            columns={TIME_HEATMAP_COLUMNS}
+            rows={hourDay.filter((s) => s.games > 0)}
+            rowKey={(s) => s.day * 24 + s.hour}
+          />
+        </>
+      }
     />
   );
 }

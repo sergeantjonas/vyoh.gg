@@ -944,7 +944,7 @@ Phase 1 of the File 20 (Data Viz) domain sweep ([frontend-2026-kb-expansion.md](
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
 | **BA — shared `ChartDataTable` / `<figure>` table-fallback primitive + first two adoptions (LP history, trend-KDA)** | #35, unblocks #34(a) | ~1–2h | **Shipped 2026-06-14** — primitive `chart-data-table.tsx` (+ axe test); adopted in trend-KDA + LP-history. Closes #35; #34(a) (heatmaps) now unblocked for BB |
-| **BB — visually-hidden table fallback on the two custom heatmaps** | #34(a) | ~1h after BA | Ships right after BA, same arc |
+| **BB — visually-hidden table fallback on the two custom heatmaps** | #34(a) | ~1h after BA | **Shipped 2026-06-14** — `ChartDataTable` adopted in trend-time-heatmap (slot × games × WR) + trend-death-matchup-heatmap (opponent × per-bucket deaths). Closes #34(a) (SR half). Death-matchup table uses `useChampionName()` |
 | **BC — descriptive `aria-label` audit pass across the 7 Recharts charts** | part of #34 | ~30 min | Quick-win; `accessibilityLayer` gives interaction, not a meaningful name — see quick-wins.md |
 | **BD — charting-tool decision rule** | #36 | doc-only | Done in this Phase 1 (library-shortlist); promote to repo-conventions if it recurs |
 | **BE — full `role="grid"` keyboard model on heatmap cells** | #34(b) | ~2–3h | Defer; only if an a11y review calls the heatmaps out specifically |

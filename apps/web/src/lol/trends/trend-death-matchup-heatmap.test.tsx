@@ -1,4 +1,5 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
@@ -81,12 +82,17 @@ function match(
 }
 
 function renderTile(current: MatchSummary[]) {
+  // QueryClientProvider backs useChampionName() in the sr-only data table; the
+  // champions query stays unresolved here, so names fall back to the alias.
+  const queryClient = new QueryClient();
   return render(
-    <MotionConfig reducedMotion="always">
-      <TooltipPrimitive.Provider>
-        <TrendDeathMatchupHeatmap current={current} />
-      </TooltipPrimitive.Provider>
-    </MotionConfig>
+    <QueryClientProvider client={queryClient}>
+      <MotionConfig reducedMotion="always">
+        <TooltipPrimitive.Provider>
+          <TrendDeathMatchupHeatmap current={current} />
+        </TooltipPrimitive.Provider>
+      </MotionConfig>
+    </QueryClientProvider>
   );
 }
 

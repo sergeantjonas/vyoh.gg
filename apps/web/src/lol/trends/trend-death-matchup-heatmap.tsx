@@ -1,9 +1,11 @@
 // Baseline: personal — your deaths bucketed by lane opponent; no external comparison.
+import { type ChartDataColumn, ChartDataTable } from "@/components/chart-data-table";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { championSquareIconUrl } from "@/lol/_shared/assets/champion-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
+import { useChampionName } from "@/lol/champions/use-champions";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
@@ -238,6 +240,20 @@ export function TrendDeathMatchupHeatmap({
   frosted?: boolean;
 }) {
   const stats = useMemo(() => computeStats(current), [current]);
+  const championName = useChampionName();
+
+  // sr-only fallback for the SVG heatmap — the only screen-reader surface for
+  // this custom viz. Columns: opponent, games, per-bucket death counts, total.
+  const tableColumns: ChartDataColumn<MatchupRow>[] = [
+    { key: "opp", header: "Lane opponent", cell: (r) => championName(r.championName) },
+    { key: "games", header: "Games", cell: (r) => r.games },
+    ...Array.from({ length: BUCKETS }, (_, i) => ({
+      key: `b${i}`,
+      header: `${bucketLabel(i)} min`,
+      cell: (r: MatchupRow) => r.bins[i] ?? 0,
+    })),
+    { key: "total", header: "Total deaths", cell: (r) => r.totalDeaths },
+  ];
 
   if (stats.matchesWithProjection < MIN_MATCHES || stats.rows.length < 3) {
     return (
@@ -272,9 +288,17 @@ export function TrendDeathMatchupHeatmap({
       verdictMarkdown={verdict}
       frosted={frosted}
       evidence={
-        <div style={{ height: HEADER_H + stats.rows.length * ROW_H }}>
-          <Heatmap rows={stats.rows} maxValue={stats.maxCellValue} />
-        </div>
+        <>
+          <div style={{ height: HEADER_H + stats.rows.length * ROW_H }}>
+            <Heatmap rows={stats.rows} maxValue={stats.maxCellValue} />
+          </div>
+          <ChartDataTable
+            caption="Deaths by lane opponent, bucketed by game minute"
+            columns={tableColumns}
+            rows={stats.rows}
+            rowKey={(r) => r.championName}
+          />
+        </>
       }
     />
   );
