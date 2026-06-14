@@ -885,3 +885,68 @@ Flipped to `summary_large_image` in [index.html](../../../apps/web/index.html) i
 | **AD — Vite-postbuild dynamic sitemap generator** | #30 (dynamic part) | ~2h | Separate arc; defer until Start migration or post-launch traffic data |
 
 Bundle ordering rationale: AA is pure config and ships today with zero risk — the AI crawler decision is documented in Gap 28 so the file doesn't need to be re-derived. AB is gated on the deferred OG image; until that lands, the JSON-LD + twitter-card work is best paired with the image so a single commit moves the social-preview story end-to-end. AC is the largest mechanical change and benefits from a shared absolute-URL helper to prevent another Gap 16 (localhost in og:image) recurrence. AD is the only piece that wants a working note before pickup.
+
+## Round 9 — Data-visualization audit (2026-06-14)
+
+Phase 1 of the File 20 (Data Viz) domain sweep ([frontend-2026-kb-expansion.md](frontend-2026-kb-expansion.md), [frontend-2026-sweep-queue.md](frontend-2026-sweep-queue.md)). Audited every chart surface in `apps/web` against the forthcoming `20-data-visualization.md` scope. Inventory: **7 Recharts files** (match gold-lead / lane-phase / map-overlay area charts, profile LP-history + trend-KDA + champion-WR line charts, live team-comp radar), **2 visx-based SVG charts** (death-matchup heatmap, champion position hexbin via `d3-hexbin`), **1 CSS-grid heatmap** (trend-time-heatmap, 24×7), **1 `react-calendar-heatmap`** (activity calendar), **5 hand-rolled SVG/CSS micro-charts** (sparkline primitive, session-fatigue + wr-trajectory polylines, win-rate-bar, match-pips). Shared infra is healthy: [chart-palette.ts](../../../apps/web/src/lib/chart-palette.ts) role slots (post-V8) and [chart-tooltip.tsx](../../../apps/web/src/components/chart-tooltip.tsx) `ChartTooltipShell`. The audit surfaced three gaps (34–36); the chart-a11y story is the live one.
+
+### Gap 34 — Custom heatmaps expose their data pointer-only; no keyboard or screen-reader path
+
+**Current state:** The interactive heatmaps surface every datum through a Radix hover tooltip and nothing else. [trend-time-heatmap.tsx](../../../apps/web/src/lol/trends/trend-time-heatmap.tsx) (168 `<div>` cells, win-rate by hour-of-week) and [trend-death-matchup-heatmap.tsx](../../../apps/web/src/lol/trends/trend-death-matchup-heatmap.tsx) (visx SVG, deaths by opponent × game-minute bucket) have no focusable cells, no per-cell ARIA, and no `tabIndex`. The SVG charts carry a root `role="img"` + a one-line `aria-label` (good for "what is this"), but the *values* are unreachable without a pointer. By contrast the 7 Recharts charts get keyboard navigation + per-point aria for free — Recharts 3 enables `accessibilityLayer` by default (verified against the 3.0 migration guide; project is on `recharts@3.8.1`), so arrow-key traversal of data points already works there.
+
+**KB floor:** Chart a11y is the genuinely-underdocumented area File 20 is meant to cover — what screen readers actually do with SVG charts, table-fallback patterns, `role="img"` + structured description vs navigable data points. A heatmap whose only affordance is `:hover` fails the floor twice: keyboard users can't reach it and SR users get a single label for a 168-cell grid.
+
+**Why it matters for this project specifically:** vyoh is a freelance-positioning portfolio; an a11y reviewer tabbing the Trends tab is exactly the audience. The custom heatmaps are also the most visually distinctive viz on the site (the bits a reviewer lingers on), so the gap sits on the highest-attention surface.
+
+**Tension with Start:** None — purely client-side component work.
+
+**How to apply:** Two routes, escalating cost. (a) Cheap: give each heatmap a visually-hidden `<table>` caption/summary as the SR fallback (Gap 35's shared fix covers this). (b) Fuller: make cells `role="gridcell"` in a `role="grid"` with roving `tabIndex` + arrow-key handling, mirroring the keyboard model Recharts already gives the cartesian charts. Start with (a); (b) only if an audit pass specifically calls the heatmaps out.
+
+**Effort:** (a) ~30 min per heatmap once the shared table-fallback primitive exists; (b) ~2–3h for the full grid keyboard model.
+
+### Gap 35 — No data-table fallback for any chart, anywhere
+
+**Current state:** Not one of the ~16 chart surfaces ships a `<table>` (or visually-hidden equivalent) carrying the underlying series. SR users and "I want the numbers" users get the visual encoding only. The closest thing is the hover tooltip, which is pointer-gated and ephemeral.
+
+**KB floor:** The table-fallback (a visually-hidden `<table>` mirroring the chart's data, the chart itself `aria-hidden` or `role="img"` with a short description) is the canonical, most-portable chart-a11y pattern — it degrades to the most universally-supported AT surface there is. File 20 should document it as the default for any chart that isn't trivially summarisable in one sentence.
+
+**Why it matters for this project specifically:** The data is genuinely interesting as *numbers* (LP deltas, per-bucket win rates, KDA trajectory) — a table fallback isn't only an a11y concession here, it doubles as a "show me the data" affordance that suits a portfolio's analytically-minded audience. It also composes with the project's existing strength: the sparkline + champion-table patterns mean tabular viz is already idiomatic.
+
+**Tension with Start:** None.
+
+**How to apply:** Build one shared primitive — `<ChartDataTable caption rows columns />` in `apps/web/src/components/` (or a `figure` wrapper that takes the chart as children + a `data` prop and renders the visually-hidden table beside it). Adopt it chart-by-chart, highest-traffic first (LP history, trend-KDA). This is the load-bearing artefact that also unblocks Gap 34(a).
+
+**Effort:** ~1–2h for the primitive + first two adoptions; ~15 min per chart thereafter.
+
+### Gap 36 — Three charting approaches with no documented decision boundary
+
+**Current state:** The app reaches for Recharts (standard cartesian: area/line/radar), visx + `d3-hexbin` (bespoke layout — brushable LP axis, hexbin map, matchup heatmap), and hand-rolled SVG (`200×48` sparkline-scale polylines: session-fatigue, wr-trajectory, the sparkline primitive) — plus `react-calendar-heatmap` for the activity calendar. The split is actually *sound* (Recharts where its components fit, d3-as-utilities-under-React-DOM where fine control is needed, raw SVG where a charting lib is overkill), but the boundary lives only in the code, not in any rule. A future session adding a chart has no stated guidance and could reasonably reach for the wrong tool (e.g. pulling in Recharts for a 12-point sparkline, or hand-rolling a cartesian chart Recharts would give for free).
+
+**KB floor:** File 20's library-landscape section is explicitly decision-shaped ("you already know React; do you need a chart grammar or chart components?", plus the d3-as-utilities-not-renderer pattern). vyoh has already *answered* that question three times in code — the gap is that the answer isn't written down.
+
+**Why it matters for this project specifically:** This is the cheapest gap to close and the highest-leverage for the KB: the decision rule vyoh arrived at empirically is exactly the grounded content Phase 2 of the sweep is supposed to distill outward.
+
+**Tension with Start:** None.
+
+**How to apply:** Codify the boundary as a `library-shortlist.md` decision (done in this same Phase 1 — see the "Data Visualization" section there) and, if it proves load-bearing, promote a one-paragraph "which charting tool" rule into `repo-conventions.md` next to the chart-palette guidance. No code change.
+
+**Effort:** Doc-only; folded into this sweep.
+
+### Round 9 non-gaps (worth knowing, no action)
+
+- **Recharts `accessibilityLayer` is already on.** The instinct "the Recharts charts have no `role`/`aria-label`, that's an a11y gap" is wrong on `recharts@3.8.1` — v3 flipped `accessibilityLayer` to default-`true`, so the charts ship keyboard arrow-key traversal + per-point aria automatically. The real a11y debt is in the *custom* viz (Gap 34), not the Recharts surfaces. Recorded so a future audit doesn't re-raise it.
+- **Chart palette hardcoded hex is deliberate, not drift.** `CHART_TREND`/`CHART_POSITIVE`/`CHART_NEGATIVE` are sRGB hex by design — the V8 consolidation comment in [chart-palette.ts](../../../apps/web/src/lib/chart-palette.ts) states semantics (win/loss emerald/rose) must *not* follow the per-subject accent cascade, and deeper theme participation (`CHART_TREND → --theme-muted`) needs eyes on the Trends tab first. Not a gap; an intentionally-parked design knob.
+- **No SVG-DOM weight cliff; canvas/WebGPU/LTTB downsampling not needed.** Every chart is SVG with a low, structurally-bounded point count — match timelines ~30–40 points, heatmaps ≤168 cells, LP history bounded by the match selector. None approach the ~1–2k-node range where SVG DOM weight breaks and a canvas renderer (ECharts) or pre-render downsampling (LTTB) earns its complexity. Deferred-by-default; **trigger to revisit:** any single chart rendering >1k data points (e.g. a full-season per-game scatter, or a sub-minute-resolution timeline).
+- **`ResponsiveContainer` / visx `ParentSize` ResizeObserver count is fine.** Multiple instances mount per Trends/match-detail view but each is bounded and none are in a virtualised row, so no observer-thrash concern at current scale.
+
+### Round 9 bundling
+
+| Bundle | Gaps | Effort | Slot |
+|---|---|---|---|
+| **BA — shared `ChartDataTable` / `<figure>` table-fallback primitive + first two adoptions (LP history, trend-KDA)** | #35, unblocks #34(a) | ~1–2h | Ship as a focused a11y arc; primitive is the load-bearing artefact |
+| **BB — visually-hidden table fallback on the two custom heatmaps** | #34(a) | ~1h after BA | Ships right after BA, same arc |
+| **BC — descriptive `aria-label` audit pass across the 7 Recharts charts** | part of #34 | ~30 min | Quick-win; `accessibilityLayer` gives interaction, not a meaningful name — see quick-wins.md |
+| **BD — charting-tool decision rule** | #36 | doc-only | Done in this Phase 1 (library-shortlist); promote to repo-conventions if it recurs |
+| **BE — full `role="grid"` keyboard model on heatmap cells** | #34(b) | ~2–3h | Defer; only if an a11y review calls the heatmaps out specifically |
+
+Bundle ordering rationale: the table-fallback primitive (BA) is the keystone — it satisfies Gap 35 directly and is the cheapest path to Gap 34's SR half, so it ships first and BB/BC chain off it. BD is already done (doc-only). BE is the only piece large enough to want its own justification and is explicitly gated on a reviewer flagging it.

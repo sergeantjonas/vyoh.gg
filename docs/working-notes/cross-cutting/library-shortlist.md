@@ -1148,6 +1148,30 @@ Cross-reference: `packages/shared/src/<domain>/` convention in [docs/repo-conven
 
 ---
 
+## Data visualization — evaluated, kept the three-tier split (2026-06-14)
+
+From the File 20 (Data Viz) Phase 1 audit ([frontend-2026-gaps.md](frontend-2026-gaps.md) Round 9). vyoh already runs **three charting approaches**; the audit's conclusion is that the split is correct and should be *documented*, not collapsed. The decision rule below is the answer File 20's "chart grammar vs chart components vs hand-rolled" axis resolves to for this codebase.
+
+### Recharts — the default for standard cartesian charts
+
+Status: **in use, kept** (`recharts@3.8.1`). Reach for it for area / line / radar / bar charts with conventional axes and a tooltip — the 7 current consumers (match gold-lead, lane-phase, map-overlay, LP-history, trend-KDA, champion-WR, live radar). **Why it wins here:** component-shaped API matches "I know React, give me a `<LineChart>`", and v3 ships `accessibilityLayer` on by default (keyboard + per-point aria for free — a real, often-overlooked advantage over hand-rolled SVG). **Where it loses:** bespoke layout (brushable custom axis, hexbin, non-cartesian grids) fights its component model — that's the visx tier.
+
+### visx + `d3-hexbin` — the escape hatch for bespoke layout
+
+Status: **in use, kept** (`@visx/* ^3.12`, `d3-hexbin ^0.2`). The d3-as-utilities-under-React-owned-DOM pattern: visx gives scales / shapes / `ParentSize` / `Brush` while React owns the SVG. Current consumers: profile LP-history brush overlay, death-matchup heatmap, champion position hexbin map. **Why it wins here:** full control over the SVG when Recharts' components can't express the layout (hexbin binning, a brush ranged over a custom axis, a matchup grid). **Cost accepted:** more code per chart, and a11y is hand-rolled (see Gaps 34–35 — the visx charts are where the keyboard/table-fallback debt lives).
+
+### Hand-rolled SVG / CSS — for sparkline-scale and trivial marks
+
+Status: **in use, kept.** Sub-`200×48` polylines and CSS-grid marks where *any* charting lib is overkill: the `sparkline` primitive, session-fatigue + wr-trajectory polylines, the 24×7 CSS-grid time heatmap, `win-rate-bar`, `match-pips`. **Why it wins here:** zero dependency, full styling control, and these are too small to benefit from a scale/axis abstraction. **Boundary:** if a hand-rolled chart grows axes, a legend, or interactive hit-testing, promote it to Recharts (cartesian) or visx (bespoke) rather than accreting chart machinery by hand.
+
+### The decision rule (one line)
+
+> Standard cartesian + tooltip → **Recharts**. Bespoke layout / non-cartesian / brush / hexbin → **visx + d3 utilities**. Sparkline-scale or a trivial mark with no axes → **hand-rolled SVG/CSS**.
+
+Evaluated-and-not-added for this round: **Observable Plot** (grammar-of-graphics; rejected — adds a second mental model on top of Recharts for no current chart Recharts can't do), **ECharts** (canvas renderer; deferred — only earns its weight past the >1k-point SVG cliff, which no vyoh chart approaches — see Round 9 non-gaps), **nivo / Chart.js** (no advantage over the current Recharts+visx split). `react-calendar-heatmap` stays for the activity calendar (purpose-built, not worth re-deriving). Triggers that would reopen this: a chart needing >1k rendered points (→ evaluate ECharts canvas), or a sustained need for many small-multiple statistical charts (→ evaluate Observable Plot's grammar).
+
+---
+
 ## How to use this section
 
 Future sessions should consult this file in two directions:
