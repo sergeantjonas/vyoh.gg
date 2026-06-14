@@ -23,7 +23,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Cross-cutting
 
 - **App Phase 6 (optional)** — Mastery integration, multi-account compare, live-tab audit. → [app-state-analysis.md](lol/app-state-analysis.md)
-- **2026-06-11 structure + frontier audit** — fan-out index: web structural chunks W1–W5, api chunks A1–A4, CSS-platform arc C1–C9, feature candidates F1–F4. → [audit-2026-06-11.md](cross-cutting/audit-2026-06-11.md)
+- **2026-06-11 structure + frontier audit** — fan-out index: web structural chunks W1–W5, api chunks A1–A4, CSS-platform arc C1–C9 (✅ complete 2026-06-14 — all shipped or closed), feature candidates F1–F4. → [audit-2026-06-11.md](cross-cutting/audit-2026-06-11.md)
 - **Frontend-2026 KB expansion** — three new domain files decided 2026-06-12 (18-angular, 19-migrations, 20-data-visualization; AI-patterns deferred with trigger). One file per session, order 18 → 20 → 19; file 20 starts with a vyoh Recharts audit. → [frontend-2026-kb-expansion.md](cross-cutting/frontend-2026-kb-expansion.md)
 - **2026-06-12 visual-excellence audit** — session plan (V1+V2, V5, V8) shipped in full 2026-06-12: V1 sweep (`excludeRemakes`, `ChapterLabel`, `ChapterShell`, `EMPTY_FRAME_CLASS`), V2 conventions.spec assertions, V5 subtab + Steam-index `routeMeta`, V8 chart palette + `ChartTooltipShell`. V3 (patches identity) shipped 2026-06-12 — splash claim, frosted section cards, frost-safe mount cascade, perf budget row; owner eyes on the live page pending. Remaining: V4/V6/V7 surface passes (subtab transitions, focus ring, status) and V9–V12 design decisions, unscoped. → [visual-excellence-audit-2026-06-12.md](cross-cutting/visual-excellence-audit-2026-06-12.md)
 
