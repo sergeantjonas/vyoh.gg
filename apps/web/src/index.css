@@ -18,6 +18,17 @@
   text-box-edge: cap alphabetic;
 }
 
+/* Superellipse corners on the hero / panel tier only (cinematic identity
+   heroes, recap chapter bands) — subliminal iOS-grade polish over the existing
+   `rounded-*` radius, never every tile (bold not loud). Chromium 139+; engines
+   without `corner-shape` — Firefox/Safari today — silently keep the round
+   radius, so this is pure progressive enhancement with no fallback. css-platform
+   arc C8. */
+@utility corner-squircle {
+  /* biome-ignore lint/correctness/noUnknownProperty: Chromium 139+ — not yet in Biome's property list */
+  corner-shape: squircle;
+}
+
 html,
 body {
   overflow: hidden;

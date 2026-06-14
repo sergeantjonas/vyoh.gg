@@ -7,15 +7,18 @@ import type * as React from "react";
 // in the route), so the wrapper is the boundary glass layer. Inner tiles
 // nested below stay bare (`bg-card/50`) per the one-level-of-glass rule.
 // `rounded-xl` (vs the tile-default rounded-md/lg) is deliberate for chapter
-// outers — the larger radius marks the editorial band scale.
+// outers — the larger radius marks the editorial band scale. `corner-squircle`
+// (css-platform C8) superellipse-shapes that radius on Chromium 139+ — a
+// progressive-enhancement polish marker for the editorial hero tier; other
+// engines keep the round corners.
 //
 // The class consts are exported for chapters that drive their own variants
 // cascade (recap-signature-game) and can't take the component's viewport
 // entrance; everything else renders <ChapterShell>.
 const CHAPTER_SHELL_CLASS =
-  "flex flex-col gap-4 rounded-xl border bg-card/60 p-6 backdrop-blur-sm sm:p-8";
+  "flex flex-col gap-4 rounded-xl corner-squircle border bg-card/60 p-6 backdrop-blur-sm sm:p-8";
 const CHAPTER_SHELL_EMPTY_CLASS =
-  "flex flex-col gap-3 rounded-xl border bg-card/60 p-6 backdrop-blur-sm";
+  "flex flex-col gap-3 rounded-xl corner-squircle border bg-card/60 p-6 backdrop-blur-sm";
 
 /**
  * Recap chapter outer: frosted m.section with the shared viewport-entry

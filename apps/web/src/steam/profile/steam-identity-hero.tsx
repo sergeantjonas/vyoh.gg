@@ -159,7 +159,7 @@ export function SteamIdentityHero() {
     <section
       onPointerMove={onPointerMove}
       onPointerLeave={resetPointer}
-      className="relative isolate overflow-hidden rounded-2xl border border-border/40"
+      className="relative isolate overflow-hidden rounded-2xl corner-squircle border border-border/40"
     >
       {heroUrl && (
         <div aria-hidden className="-z-10 absolute inset-0">
