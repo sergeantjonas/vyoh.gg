@@ -208,6 +208,7 @@ export class LolAnalyticsService {
       games: number;
       wins: number;
       championCounts: Map<string, number>;
+      matchIds: string[];
     }
     const map = new Map<string, DuoAcc>();
     for (const cache of sortedCaches) {
@@ -237,6 +238,7 @@ export class LolAnalyticsService {
             t.championName,
             (prev.championCounts.get(t.championName) ?? 0) + 1
           );
+          prev.matchIds.push(cache.matchId);
         } else {
           // First (= most recent) sighting. Capture latest gameName/tagLine.
           map.set(t.puuid, {
@@ -246,6 +248,7 @@ export class LolAnalyticsService {
             games: 1,
             wins: me.win ? 1 : 0,
             championCounts: new Map([[t.championName, 1]]),
+            matchIds: [cache.matchId],
           });
         }
       }
@@ -267,6 +270,7 @@ export class LolAnalyticsService {
           games: d.games,
           wins: d.wins,
           topChampion,
+          matchIds: d.matchIds,
         };
       });
   }

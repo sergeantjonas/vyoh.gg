@@ -438,6 +438,8 @@ describe("LolAnalyticsService.getDuos", () => {
       games: 3,
       wins: 2,
       topChampion: "Lux",
+      // Newest-first, matching the playedAt-desc cache sort.
+      matchIds: ["EUW1_1", "EUW1_2", "EUW1_3"],
     });
   });
 });

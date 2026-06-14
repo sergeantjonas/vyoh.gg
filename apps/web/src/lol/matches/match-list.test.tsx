@@ -15,6 +15,32 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 
+vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
+  useAccountFromSlug: () => ({
+    slug: "jonas-euw",
+    region: "euw1",
+    gameName: "Vyoh",
+    tagLine: "Ahri",
+  }),
+}));
+
+// EUW1_1 (the first match) was played with a recurring duo; EUW1_2 was not.
+vi.mock("@/lol/profile/use-duos", () => ({
+  useDuos: () => ({
+    data: [
+      {
+        puuid: "puuid-luke",
+        gameName: "DuoLuke",
+        tagLine: "EUW",
+        games: 4,
+        wins: 2,
+        topChampion: "Lux",
+        matchIds: ["EUW1_1"],
+      },
+    ],
+  }),
+}));
+
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({
     count,
@@ -133,6 +159,17 @@ describe("MatchList", () => {
     renderWithProviders(<MatchList matches={matches} accountSlug="ahri" />);
     expect(screen.queryByText(/30m 34s/)).not.toBeNull();
     expect(screen.queryByText(/21m 20s/)).not.toBeNull();
+  });
+
+  it("flags only the match played with a recurring duo (matchId reverse-index)", () => {
+    const { container } = renderWithProviders(
+      <MatchList matches={matches} accountSlug="ahri" />
+    );
+    // The mocked duo carries matchIds: ["EUW1_1"], so exactly one row badges.
+    const badges = [...container.querySelectorAll("span")].filter((el) =>
+      el.textContent?.startsWith("with DuoLuke")
+    );
+    expect(badges).toHaveLength(1);
   });
 });
 

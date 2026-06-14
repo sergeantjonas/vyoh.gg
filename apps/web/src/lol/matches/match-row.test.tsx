@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { MatchSummary } from "@vyoh/shared";
+import type { Duo, MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import { type ReactNode, useLayoutEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,10 +75,24 @@ function newQueryClient() {
   });
 }
 
+function duo(overrides: Partial<Duo> = {}): Duo {
+  return {
+    puuid: "puuid-luke",
+    gameName: "DuoLuke",
+    tagLine: "EUW",
+    games: 5,
+    wins: 3,
+    topChampion: "Lux",
+    matchIds: ["EUW1_42"],
+    ...overrides,
+  };
+}
+
 function renderRow(props: {
   match: MatchSummary;
   lpDelta?: number;
   isNew?: boolean;
+  duos?: Duo[];
   queryClient?: QueryClient;
 }) {
   const qc = props.queryClient ?? newQueryClient();
@@ -92,6 +106,7 @@ function renderRow(props: {
             championDisplayName="Ahri"
             {...(props.lpDelta !== undefined && { lpDelta: props.lpDelta })}
             {...(props.isNew !== undefined && { isNew: props.isNew })}
+            {...(props.duos !== undefined && { duos: props.duos })}
           />
         </ActiveMatchProvider>
       </MotionConfig>
@@ -177,6 +192,36 @@ describe("MatchRow", () => {
       }),
     });
     expect(container.textContent).not.toContain("vs Yasuo");
+  });
+
+  it("renders a 'with <duo>' badge when the match was played with a recurring duo", () => {
+    const { container } = renderRow({ match: summary(), duos: [duo()] });
+    expect(container.textContent).toContain("with DuoLuke");
+  });
+
+  it("omits the duo badge when no duos are passed", () => {
+    const { container } = renderRow({ match: summary() });
+    expect(container.textContent).not.toContain("with ");
+  });
+
+  it("joins two duos with an ampersand and collapses 3+ into a +N count", () => {
+    const two = renderRow({
+      match: summary(),
+      duos: [duo(), duo({ puuid: "p2", gameName: "Mira" })],
+    });
+    expect(two.container.textContent).toContain("with DuoLuke & Mira");
+    two.unmount();
+
+    const many = renderRow({
+      match: summary(),
+      duos: [
+        duo(),
+        duo({ puuid: "p2", gameName: "Mira" }),
+        duo({ puuid: "p3", gameName: "Sol" }),
+        duo({ puuid: "p4", gameName: "Tace" }),
+      ],
+    });
+    expect(many.container.textContent).toContain("with DuoLuke, Mira +2");
   });
 
   it("renders a negative LP delta without a + prefix and tints it red", () => {

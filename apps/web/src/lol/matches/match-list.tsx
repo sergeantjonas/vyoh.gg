@@ -1,13 +1,15 @@
 import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
+import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
 import { MatchCardSkeleton } from "@/lol/matches/match-list-skeleton";
 import { MatchRow } from "@/lol/matches/match-row";
 import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { MATCHES_PAGE_SIZE } from "@/lol/matches/use-matches";
+import { useDuos } from "@/lol/profile/use-duos";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { MatchSummary } from "@vyoh/shared";
+import type { Duo, MatchSummary } from "@vyoh/shared";
 import { m } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -42,6 +44,13 @@ export function MatchList({
   isFetchingNextPage?: boolean | undefined;
 }) {
   const championName = useChampionName();
+  // Recurring-duo detection for the "with {duo}" row badge. Reuses the same
+  // cached query as the Profile Duos section (identical queryKey), so this is
+  // free when the user has already visited the profile. Windowed to the last
+  // ~100 matches like the rest of the duo aggregation — matches paged in beyond
+  // that window won't carry a duo badge even if played with a recurring duo.
+  const account = useAccountFromSlug(accountSlug);
+  const { data: duos } = useDuos(account);
   const parentRef = useRef<HTMLDivElement>(null);
   const prevMatchesLengthRef = useRef<number | null>(null);
   const prevMatchIdsRef = useRef<Set<string>>(new Set());
@@ -228,6 +237,20 @@ export function MatchList({
   }, [matches, virtualizer, restoredScrollY, scrollMargin]);
 
   const lpDeltaMap = useMemo(() => computeLpDeltaMap(matches), [matches]);
+  // matchId → recurring duos present in that match. Highest-games duos first
+  // (the API already returns them games-desc), so a row with a squad shows its
+  // strongest duo first.
+  const duosByMatchId = useMemo(() => {
+    const map = new Map<string, Duo[]>();
+    for (const duo of duos ?? []) {
+      for (const matchId of duo.matchIds) {
+        const existing = map.get(matchId);
+        if (existing) existing.push(duo);
+        else map.set(matchId, [duo]);
+      }
+    }
+    return map;
+  }, [duos]);
 
   return (
     <div
@@ -305,6 +328,7 @@ export function MatchList({
                   championDisplayName={championName(match.champion)}
                   isNew={isFlashNew}
                   lpDelta={lpDeltaMap.get(match.matchId)}
+                  duos={duosByMatchId.get(match.matchId)}
                 />
               </m.div>
             ) : (

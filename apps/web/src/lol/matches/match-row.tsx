@@ -19,11 +19,21 @@ import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
 import { matchDetailQueryOptions } from "@/lol/matches/use-match-detail";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type MatchSummary, formatDuration, formatLpDelta } from "@vyoh/shared";
+import { type Duo, type MatchSummary, formatDuration, formatLpDelta } from "@vyoh/shared";
+import { Users } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 
 const ARAM_ARENA_QUEUES = new Set(["ARAM", "ARAM Clash", "Arena"]);
+
+// "DuoLuke", "DuoLuke & Mira", or "DuoLuke, Mira +2" — names only (no tagLine)
+// to keep the row chrome compact. Duos arrive highest-games first.
+function formatDuoLabel(duos: Duo[]): string {
+  const names = duos.map((d) => d.gameName);
+  if (names.length === 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names[0]}, ${names[1]} +${names.length - 2}`;
+}
 
 function formatTimeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -44,12 +54,15 @@ export function MatchRow({
   championDisplayName,
   isNew,
   lpDelta,
+  duos,
 }: {
   match: MatchSummary;
   accountSlug: string;
   championDisplayName: string;
   isNew?: boolean | undefined;
   lpDelta?: number | undefined;
+  /** Recurring duos present in this match, highest-games first. */
+  duos?: Duo[] | undefined;
 }) {
   const { setActiveMatch, saveListScroll, originRectRef, setOriginRect } =
     useActiveMatch();
@@ -287,6 +300,12 @@ export function MatchRow({
                     <span className="text-muted-foreground/40">
                       ({match.laneOpponent.gameName}#{match.laneOpponent.tagLine})
                     </span>
+                  </div>
+                )}
+                {duos && duos.length > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-sky-300/75">
+                    <Users aria-hidden="true" className="size-3 shrink-0" />
+                    <span className="truncate">with {formatDuoLabel(duos)}</span>
                   </div>
                 )}
               </div>
