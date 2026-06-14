@@ -126,7 +126,7 @@ export function RecapSignatureGame({
             className="size-14 shrink-0 rounded-lg ring-1 ring-border/60"
           />
           <div className="flex flex-col">
-            <p className="text-2xl font-semibold text-foreground transition-colors group-hover:text-foreground/80 sm:text-3xl">
+            <p className="text-2xl font-semibold text-foreground transition-colors group-hover:text-foreground/80 sm:text-3xl recap-wght-settle">
               {headline} on {championName(pick.champion)}
             </p>
             <p className="text-sm text-muted-foreground">

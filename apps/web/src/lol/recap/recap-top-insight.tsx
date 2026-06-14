@@ -130,7 +130,7 @@ export function RecapTopInsight({ matches }: { matches: MatchSummary[] | undefin
   return (
     <ChapterShell populated>
       <ChapterLabel>Headline insight</ChapterLabel>
-      <p className="text-2xl font-semibold leading-snug text-foreground sm:text-3xl">
+      <p className="text-2xl font-semibold leading-snug text-foreground sm:text-3xl recap-wght-settle">
         {insight.headline}
       </p>
       <p className="text-sm text-muted-foreground/80">{insight.detail}</p>

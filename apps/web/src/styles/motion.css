@@ -59,6 +59,28 @@ body {
   }
 }
 
+/* css-platform-2026 C9: variable-font weight settle on scroll-entry.
+   Recap chapter headlines "thicken" from a light axis value to their
+   resting font-semibold (600) as they scroll into view, deepening the
+   editorial motion language with no Motion involvement. Geist carries
+   only the `wght` axis (no `opsz`), so weight is the entire effect.
+   The custom prop is registered as a <number> so the axis interpolates;
+   headlines are left-aligned in a fixed-height line box, so the shaping
+   reflow grows rightward only and triggers no surrounding layout shift. */
+@property --recap-headline-wght {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 600;
+}
+@keyframes recap-headline-weight {
+  from {
+    --recap-headline-wght: 380;
+  }
+  to {
+    --recap-headline-wght: 600;
+  }
+}
+
 /* Initial-mount stagger cascade. Two opt-ins:
    - Parent gets `.stagger-children` (every child cascades). Used by static
      grids like the bento where every child is in scope.
@@ -296,12 +318,37 @@ body {
     animation-range: entry 0% cover 30%;
   }
 
+  /* css-platform-2026 C9: weight axis settles as a recap chapter headline
+     scrolls into view. Layers under the chapter card's own whileInView
+     opacity/y entrance (different properties, different mechanism — no
+     conflict). Gated here, so Firefox (no animation-timeline) never sets
+     font-variation-settings and simply keeps the static font-semibold from
+     the Tailwind class — the no-JS static-end-state fallback. `both` fill
+     lands above-fold headlines at the resolved 600 weight immediately. */
+  .recap-wght-settle {
+    font-variation-settings: "wght" var(--recap-headline-wght);
+    animation: recap-headline-weight 1ms linear both;
+    animation-timeline: view(block);
+    animation-range: entry 0% cover 35%;
+  }
+
   /* Sticky-stage beat cross-fade keyframes for the legacy
      `<ChapterGroup>` primitive were removed in 3g cleanup (Steam moved
      to `<ChapterMultiBeat>`, which uses Motion's per-beat reveal
      cascade rather than CSS animation-timeline). Restore from
      `git log -- src/styles/motion.css` if a future chapter type
      wants the view-timeline-driven cross-fade pattern back. */
+}
+
+/* C9 reduced-motion: a scroll-linked weight shift is still an animation, so
+   honour the opt-out — drop font-variation-settings back to `normal` (the
+   Tailwind font-semibold drives) and cancel the scroll animation. Placed
+   after the @supports block so it wins on source order for both engines. */
+@media (prefers-reduced-motion: reduce) {
+  .recap-wght-settle {
+    animation: none;
+    font-variation-settings: normal;
+  }
 }
 
 /* ─── Scroll-state container queries (css-platform-2026 C1) ──────────────────

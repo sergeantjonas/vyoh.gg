@@ -42,7 +42,7 @@ export function RecapDuoOfYear({ accountSlug }: { accountSlug: string }) {
           className="size-14 shrink-0 rounded-lg ring-1 ring-border/60"
         />
         <div className="flex flex-col">
-          <p className="text-2xl font-semibold text-foreground sm:text-3xl">
+          <p className="text-2xl font-semibold text-foreground sm:text-3xl recap-wght-settle">
             {top.gameName}
             <span className="ml-1 text-muted-foreground">#{top.tagLine}</span>
           </p>

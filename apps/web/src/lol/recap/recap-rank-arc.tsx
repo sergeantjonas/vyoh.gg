@@ -83,7 +83,9 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
         <p className="text-sm uppercase tracking-wide text-muted-foreground/60">
           Your peak
         </p>
-        <p className="text-2xl font-semibold text-foreground sm:text-3xl">{peakLine}</p>
+        <p className="text-2xl font-semibold text-foreground sm:text-3xl recap-wght-settle">
+          {peakLine}
+        </p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {lpDelta !== null && (

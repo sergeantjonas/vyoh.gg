@@ -103,7 +103,7 @@ export function RecapMostImproved({
           />
         </Link>
         <div className="flex flex-col">
-          <p className="text-2xl font-semibold text-foreground sm:text-3xl">
+          <p className="text-2xl font-semibold text-foreground sm:text-3xl recap-wght-settle">
             {championName(best.champion)}
           </p>
           <p className="text-sm text-muted-foreground">
