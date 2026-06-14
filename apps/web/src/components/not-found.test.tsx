@@ -10,13 +10,16 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 describe("NotFound", () => {
-  it("renders the apology copy and a back-home link", () => {
+  it("renders the editorial 404 statement and a back-home link", () => {
     render(
       <MotionConfig reducedMotion="always">
         <NotFound />
       </MotionConfig>
     );
+    expect(screen.getByText("Error 404")).toBeTruthy();
     expect(screen.getByText("No such page.")).toBeTruthy();
+    // The masthead carries the page's only <h1>.
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
     const link = screen.getByRole("link", { name: "Back home" }) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("/");
   });
