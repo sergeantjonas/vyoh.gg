@@ -1,6 +1,6 @@
 # CSS platform 2026 arc — unexplored frontier features
 
-**Status:** Active — **first wave (C1–C3) complete.** C1 + C2 + C3 shipped 2026-06-13/14 (scroll-state stuck shadow on the panel chrome + page nav; palette match-highlighting via the Custom Highlight API; `text-box-trim` on the editorial type primitives). C4.1 closed as a no-op (premise already satisfied); **C6 implemented 2026-06-14** (offset-path roam comet on the match map, pending owner visual verification); C4.2 / C5 still need a paint-budget probe and ride the next recap touch; C7–C9 are smaller polish riders. Indexed in [elevation-arcs.md](elevation-arcs.md).
+**Status:** Active — **first wave (C1–C3) complete.** C1 + C2 + C3 shipped 2026-06-13/14 (scroll-state stuck shadow on the panel chrome + page nav; palette match-highlighting via the Custom Highlight API; `text-box-trim` on the editorial type primitives). C4.1 closed as a no-op (premise already satisfied); **C6 shipped 2026-06-14** (user-triggered offset-path route trace on the match map); C4.2 / C5 still need a paint-budget probe and ride the next recap touch; C7–C9 are smaller polish riders. Indexed in [elevation-arcs.md](elevation-arcs.md).
 
 Parent index: [audit-2026-06-11.md](audit-2026-06-11.md). This arc collects modern CSS/JS platform features the app has **not** touched, filtered against what's already shipped (VT, scroll-driven timelines, `@property`, `:has()`, `@starting-style`, oklch/`color-mix()`, `linear()`, `interpolate-size`, `field-sizing`, Canvas2D hero, Web Audio, CV-auto) and what's parked/rejected (Houdini paint worklets, anchor positioning for overlays — closed arc, rAF pivot; Rive/tilt/magnetic hover; Lenis). Inherits all guardrails from [elevation-arcs.md](elevation-arcs.md): bold not loud, reduced-motion replace-don't-disable, evidence-based perf claims against [perf-baseline.md](perf-baseline.md) and the paint-budget table in [repo-conventions.md](../../repo-conventions.md).
 
@@ -47,7 +47,7 @@ Mask layers can affect compositing — probe before/after per the paint-budget w
 
 Unused today. Per-chapter accent-tinted duotone: grayscale splash + accent overlay with `mix-blend-mode: color` (driven by the existing `--atmosphere-tint-h`) gives chapters a unified magazine-style grade instead of raw game assets. **Hard gate:** blend modes create stacking contexts and add compositing cost — run the recap perf-probe scenario before/after, and check the splash-visual-parity constraint ([[feedback_splash_visual_parity]]) with side-by-side proof before merge. If the probe pushes the recap budget row, this candidate dies rather than widening the budget — it's a grade, not a feature.
 
-### C6 — `offset-path` on the match map overlay *(implemented 2026-06-14, pending owner visual verification)*
+### C6 — `offset-path` on the match map overlay *(shipped 2026-06-14)*
 
 [match-map-overlay.tsx](../../../apps/web/src/lol/matches/match-map-overlay.tsx) already has kill/death coordinates. Animate a marker along a death-walk / roam path with CSS motion path (`offset-path: path(…)` built from the coordinate series). Pure CSS, compositor-friendly, and a data-viz flourish no LoL dashboard has — strong case-study material. Reduced-motion variant: static dotted path, no marker travel.
 
@@ -69,4 +69,4 @@ The editorial type arc shipped the Geist `wght` axis statically. Animate weight 
 
 ## Pick order
 
-C1 + C2 + C3 shipped as the first quick-wins wave. **C4.1 closed as no-op** (see C4 § — premise already satisfied, remaining targets data-risky). **C6 implemented 2026-06-14** (offset-path roam comet, pending owner visual verification). Next: **C7 (perf story)**. C4.2 / C5 / C9 ride the next recap-chapter touch so the probe cost is shared. C8 anytime as a one-liner.
+C1 + C2 + C3 shipped as the first quick-wins wave. **C4.1 closed as no-op** (see C4 § — premise already satisfied, remaining targets data-risky). **C6 shipped 2026-06-14** (user-triggered offset-path route trace). Next: **C7 (perf story)**. C4.2 / C5 / C9 ride the next recap-chapter touch so the probe cost is shared. C8 anytime as a one-liner.
