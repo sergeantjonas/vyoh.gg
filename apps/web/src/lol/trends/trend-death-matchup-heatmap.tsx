@@ -90,6 +90,7 @@ function computeStats(matches: readonly MatchSummary[]): Stats {
 
 function Heatmap({ rows, maxValue }: { rows: MatchupRow[]; maxValue: number }) {
   const patch = useDDragonVersion();
+  const championName = useChampionName();
   return (
     <ParentSize>
       {({ width }) => {
@@ -209,7 +210,9 @@ function Heatmap({ rows, maxValue }: { rows: MatchupRow[]; maxValue: number }) {
                           sideOffset={4}
                           className={TOOLTIP_CLASS}
                         >
-                          <span className="font-medium">{row.championName}</span>
+                          <span className="font-medium">
+                            {championName(row.championName)}
+                          </span>
                           <span className="text-muted-foreground">
                             {" · "}
                             {bucketLabel(i)} min · {value}{" "}
@@ -277,7 +280,7 @@ export function TrendDeathMatchupHeatmap({
 
   const verdict =
     peakRowDeaths >= 4
-      ? `Hardest matchup: ${peakRow.championName} — ${peakRowDeaths} deaths across ${peakRow.games} games, clustered around minutes ${peakBucketLabel}.`
+      ? `Hardest matchup: ${championName(peakRow.championName)} — ${peakRowDeaths} deaths across ${peakRow.games} games, clustered around minutes ${peakBucketLabel}.`
       : "Deaths spread evenly across your matchups — no single opponent dominates the heatmap.";
 
   return (
