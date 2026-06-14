@@ -50,9 +50,12 @@ describe("ChartDataTable", () => {
     expect(screen.getByRole("cell", { name: "4.20" })).toBeTruthy();
   });
 
-  it("is visually hidden via the sr-only utility", () => {
+  it("is visually hidden via an sr-only block wrapper (not the table itself)", () => {
     renderTable();
-    expect(screen.getByRole("table").className).toContain("sr-only");
+    const table = screen.getByRole("table");
+    // sr-only must live on a block wrapper — applied to <table> the clip leaks.
+    expect(table.className).not.toContain("sr-only");
+    expect(table.closest(".sr-only")).not.toBeNull();
   });
 
   it("honours rowHeaderIndex = -1 by rendering every cell as data", () => {

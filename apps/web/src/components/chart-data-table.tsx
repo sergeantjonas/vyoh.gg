@@ -42,33 +42,39 @@ export function ChartDataTable<Row>({
   rowHeaderIndex = 0,
   className,
 }: ChartDataTableProps<Row>) {
+  // `sr-only` must wrap the table in a block element — applied directly to
+  // `<table>`, the visually-hidden clip leaks: auto table-layout ignores the
+  // 1px width and `display:table` boxes don't honor `overflow:hidden`, so the
+  // absolutely-positioned table escapes its clip and paints over the layout.
   return (
-    <table className={cn("sr-only", className)}>
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.key} scope="col">
-              {col.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, r) => (
-          <tr key={rowKey(row, r)}>
-            {columns.map((col, c) =>
-              c === rowHeaderIndex ? (
-                <th key={col.key} scope="row">
-                  {col.cell(row)}
-                </th>
-              ) : (
-                <td key={col.key}>{col.cell(row)}</td>
-              )
-            )}
+    <div className={cn("sr-only", className)}>
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map((col) => (
+              <th key={col.key} scope="col">
+                {col.header}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row, r) => (
+            <tr key={rowKey(row, r)}>
+              {columns.map((col, c) =>
+                c === rowHeaderIndex ? (
+                  <th key={col.key} scope="row">
+                    {col.cell(row)}
+                  </th>
+                ) : (
+                  <td key={col.key}>{col.cell(row)}</td>
+                )
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
