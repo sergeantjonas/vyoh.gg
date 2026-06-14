@@ -24,7 +24,9 @@ vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
   }),
 }));
 
-// EUW1_1 (the first match) was played with a recurring duo; EUW1_2 was not.
+// EUW1_1 was played with a high-volume recurring duo (badges). EUW1_2 was
+// played with a below-bar teammate (3 games < DUO_BADGE_MIN_GAMES) — must NOT
+// badge, even though it survived the API's duo filter.
 vi.mock("@/lol/profile/use-duos", () => ({
   useDuos: () => ({
     data: [
@@ -32,10 +34,19 @@ vi.mock("@/lol/profile/use-duos", () => ({
         puuid: "puuid-luke",
         gameName: "DuoLuke",
         tagLine: "EUW",
-        games: 4,
-        wins: 2,
+        games: 6,
+        wins: 3,
         topChampion: "Lux",
         matchIds: ["EUW1_1"],
+      },
+      {
+        puuid: "puuid-lowvol",
+        gameName: "LowVol",
+        tagLine: "EUW",
+        games: 3,
+        wins: 1,
+        topChampion: "Sona",
+        matchIds: ["EUW1_2"],
       },
     ],
   }),
@@ -165,11 +176,19 @@ describe("MatchList", () => {
     const { container } = renderWithProviders(
       <MatchList matches={matches} accountSlug="ahri" />
     );
-    // The mocked duo carries matchIds: ["EUW1_1"], so exactly one row badges.
+    // The high-volume duo carries matchIds: ["EUW1_1"], so exactly one row badges.
     const badges = [...container.querySelectorAll("span")].filter((el) =>
       el.textContent?.startsWith("with DuoLuke")
     );
     expect(badges).toHaveLength(1);
+  });
+
+  it("does not badge a teammate below the volume bar (DUO_BADGE_MIN_GAMES)", () => {
+    const { container } = renderWithProviders(
+      <MatchList matches={matches} accountSlug="ahri" />
+    );
+    // LowVol has only 3 shared games — below the stricter per-row badge bar.
+    expect(container.textContent).not.toContain("with LowVol");
   });
 });
 

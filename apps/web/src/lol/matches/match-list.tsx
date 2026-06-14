@@ -15,6 +15,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 const SSE_FLASH_TTL_MS = 2500;
 
+// The per-row "with {duo}" badge makes a confident claim about a specific game,
+// so it uses a stricter bar than the Profile's top-duos list (which tolerates a
+// soft-ranked false positive). The API already filters duos for temporal
+// clustering; this is the additional volume cut for the more visible surface.
+const DUO_BADGE_MIN_GAMES = 5;
+
 const ESTIMATED_ROW_HEIGHT = 124;
 const NEAR_END_THRESHOLD = 5;
 const STAGGER_PER_ITEM = 0.06;
@@ -243,6 +249,7 @@ export function MatchList({
   const duosByMatchId = useMemo(() => {
     const map = new Map<string, Duo[]>();
     for (const duo of duos ?? []) {
+      if (duo.games < DUO_BADGE_MIN_GAMES) continue;
       for (const matchId of duo.matchIds) {
         const existing = map.get(matchId);
         if (existing) existing.push(duo);

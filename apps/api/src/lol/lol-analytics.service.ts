@@ -256,8 +256,36 @@ export class LolAnalyticsService {
 
     const MIN_GAMES_TOGETHER = 3;
     const TOP_N = 10;
+    // Co-occurrence alone can't tell a premade duo from repeated random
+    // matchmaking (same MMR band + play window = some teammates recur by
+    // chance, worst in high elo / low-pop regions / small queues). Premades
+    // play sessions back-to-back, so a same-session pair is strong evidence;
+    // random repeats are scattered in time. Match-V5 exposes no party id for
+    // SR, so this temporal signal is the best precision lever we have. Gate:
+    // qualify on a same-session pair OR on sheer volume (a teammate seen this
+    // many times is convincing even if never same-session).
+    const SESSION_GAP_MS = 3 * 60 * 60 * 1000; // 3h between two shared games
+    const STRONG_GAMES = 6;
+    const hasSameSessionPair = (matchIds: string[]): boolean => {
+      const ts = matchIds
+        .map((id) => playedAtByMatchId.get(id))
+        .filter((t): t is number => t !== undefined)
+        .sort((a, b) => a - b);
+      for (let i = 1; i < ts.length; i++) {
+        const prev = ts[i - 1];
+        const cur = ts[i];
+        if (prev !== undefined && cur !== undefined && cur - prev <= SESSION_GAP_MS) {
+          return true;
+        }
+      }
+      return false;
+    };
     return [...map.values()]
-      .filter((d) => d.games >= MIN_GAMES_TOGETHER)
+      .filter(
+        (d) =>
+          d.games >= MIN_GAMES_TOGETHER &&
+          (d.games >= STRONG_GAMES || hasSameSessionPair(d.matchIds))
+      )
       .sort((a, b) => b.games - a.games)
       .slice(0, TOP_N)
       .map((d) => {

@@ -442,6 +442,68 @@ describe("LolAnalyticsService.getDuos", () => {
       matchIds: ["EUW1_1", "EUW1_2", "EUW1_3"],
     });
   });
+
+  // Temporal-clustering gate: a teammate over the 3-game floor but whose shared
+  // games are scattered across separate days (no same-session pair) reads as
+  // random matchmaking recurrence, not a premade — excluded unless volume is high.
+  const lukePair = [
+    {
+      puuid: "puuid-vyoh",
+      riotIdGameName: "Vyoh",
+      riotIdTagline: "Ahri",
+      championName: "Ahri",
+      teamId: 100,
+      win: true,
+    },
+    {
+      puuid: "puuid-luke",
+      riotIdGameName: "DuoLuke",
+      riotIdTagline: "EUW",
+      championName: "Lux",
+      teamId: 100,
+      win: true,
+    },
+  ];
+
+  it("excludes a 3-game teammate whose games are scattered across separate days", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // Three shared games, each days apart — no two within the 3h session window.
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", playedAt: new Date("2026-05-15T20:00:00Z") },
+      { matchId: "EUW1_2", playedAt: new Date("2026-05-12T20:00:00Z") },
+      { matchId: "EUW1_3", playedAt: new Date("2026-05-09T20:00:00Z") },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", detail: detail(lukePair) },
+      { matchId: "EUW1_2", detail: detail(lukePair) },
+      { matchId: "EUW1_3", detail: detail(lukePair) },
+    ]);
+
+    const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
+    expect(duos).toHaveLength(0);
+  });
+
+  it("keeps a scattered teammate once they clear the high-volume escape hatch", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // Six shared games, all on separate days (still no same-session pair) — but
+    // sheer volume is convincing on its own, so they qualify.
+    const days = [15, 13, 11, 9, 7, 5];
+    prisma.match.findMany.mockResolvedValue(
+      days.map((d) => ({
+        matchId: `EUW1_${d}`,
+        playedAt: new Date(`2026-05-${d}T20:00:00Z`),
+      }))
+    );
+    prisma.matchDetailCache.findMany.mockResolvedValue(
+      days.map((d) => ({ matchId: `EUW1_${d}`, detail: detail(lukePair) }))
+    );
+
+    const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
+    expect(duos).toHaveLength(1);
+    expect(duos[0]?.games).toBe(6);
+  });
 });
 
 describe("LolAnalyticsService.getChronotype", () => {
