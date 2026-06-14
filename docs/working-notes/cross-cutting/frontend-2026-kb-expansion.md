@@ -74,9 +74,9 @@ Staleness tier: **moderate** — library churn is real but slower than AI toolin
 ## Checklist
 
 - [ ] 18-angular.md compiled + README integration + sweep-queue row
-- [ ] 20-data-visualization.md compiled (vyoh Recharts audit first) + README integration + sweep-queue row
+- [x] 20-data-visualization.md compiled 2026-06-14 (vyoh Recharts audit done as Round 9 Phase 1) + README integration (domain-index + load-when-X + decision-shortcut rows, 17→18 count) + sweep-queue row flipped ✅
 - [ ] 19-migrations.md compiled + README integration + sweep-queue row + cross-ref stubs in 05/07/18
-- [ ] README file-count + "What changed from v1" updated (can land with the first file and be bumped per file)
+- [x] README file-count (17→18) + "What changed from v1" updated 2026-06-14 with file 20 (bump per file as 18/19 land)
 
 ## What this file is NOT
 
