@@ -1,4 +1,5 @@
 // Baseline: personal — your LP snapshots; streak overlay derives from your match results.
+import { type ChartDataColumn, ChartDataTable } from "@/components/chart-data-table";
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/ui/section-title";
 import {
@@ -27,7 +28,7 @@ import {
   type RankedQueueKey,
   excludeRemakes,
 } from "@vyoh/shared";
-import { detectSeasons } from "@vyoh/shared/lol/rank-history";
+import { detectSeasons, formatRank } from "@vyoh/shared/lol/rank-history";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -53,12 +54,35 @@ import {
   type ChartPoint,
   findLongestStreak,
   findTierChanges,
+  formatBucketHeader,
   makeDayTicks,
   makeTickFormatter,
   mapRealToVisual,
   toChartPoints,
 } from "./profile-lp-history-helpers";
 import { LpTooltip } from "./profile-lp-history-tooltip";
+
+// Visually-hidden table fallback for the LP chart — mirrors the two lines the
+// hover tooltip surfaces (when + rank) so screen-reader users get the series
+// the chart otherwise exposes only on :hover.
+const LP_TABLE_COLUMNS: ChartDataColumn<ChartPoint>[] = [
+  {
+    key: "when",
+    header: "Date",
+    cell: (p) =>
+      p.bucket
+        ? formatBucketHeader(p.bucket)
+        : new Date(p.realT).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+  },
+  {
+    key: "rank",
+    header: "Rank",
+    cell: (p) => formatRank(p.tier, p.rank, p.leaguePoints),
+  },
+];
 
 function QueueTabs({
   value,
@@ -679,6 +703,14 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      )}
+      {!isEmpty && (
+        <ChartDataTable
+          caption="Ranked LP history — rank at each tracked snapshot over time"
+          columns={LP_TABLE_COLUMNS}
+          rows={points}
+          rowKey={(p) => p.realT}
+        />
       )}
       {!isEmpty && points.length >= 4 && (
         <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-card/60 px-2 py-1.5 backdrop-blur-sm">

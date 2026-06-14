@@ -943,7 +943,7 @@ Phase 1 of the File 20 (Data Viz) domain sweep ([frontend-2026-kb-expansion.md](
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **BA — shared `ChartDataTable` / `<figure>` table-fallback primitive + first two adoptions (LP history, trend-KDA)** | #35, unblocks #34(a) | ~1–2h | **Chunk 1 shipped 2026-06-14** — primitive `chart-data-table.tsx` (+ axe test) + trend-KDA adoption. Chunk 2 (LP-history adoption) pending |
+| **BA — shared `ChartDataTable` / `<figure>` table-fallback primitive + first two adoptions (LP history, trend-KDA)** | #35, unblocks #34(a) | ~1–2h | **Shipped 2026-06-14** — primitive `chart-data-table.tsx` (+ axe test); adopted in trend-KDA + LP-history. Closes #35; #34(a) (heatmaps) now unblocked for BB |
 | **BB — visually-hidden table fallback on the two custom heatmaps** | #34(a) | ~1h after BA | Ships right after BA, same arc |
 | **BC — descriptive `aria-label` audit pass across the 7 Recharts charts** | part of #34 | ~30 min | Quick-win; `accessibilityLayer` gives interaction, not a meaningful name — see quick-wins.md |
 | **BD — charting-tool decision rule** | #36 | doc-only | Done in this Phase 1 (library-shortlist); promote to repo-conventions if it recurs |
