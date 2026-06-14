@@ -1,4 +1,5 @@
 // Baseline: personal — your KDA trajectory across the window with a fitted trend line.
+import { type ChartDataColumn, ChartDataTable } from "@/components/chart-data-table";
 import { ChartTooltipShell } from "@/components/chart-tooltip";
 import {
   CHART_AXIS,
@@ -32,6 +33,11 @@ interface ChartBoundary {
 }
 
 type KdaPointWithTrend = KdaPoint & { trendKda: number };
+
+const KDA_TABLE_COLUMNS: ChartDataColumn<KdaPoint>[] = [
+  { key: "game", header: "Game", cell: (p) => `Game ${p.game}` },
+  { key: "kda", header: "KDA", cell: (p) => formatKda(p.kda) },
+];
 
 function addTrendLine(points: KdaPoint[]): KdaPointWithTrend[] {
   if (points.length < 2) return points.map((p) => ({ ...p, trendKda: p.kda }));
@@ -192,7 +198,17 @@ export function TrendKda({
       sampleSize={sampleSize}
       verdict={verdict}
       verdictMarkdown={verdict}
-      evidence={<KdaChart points={pointsWithTrend} boundaries={boundaries} />}
+      evidence={
+        <>
+          <KdaChart points={pointsWithTrend} boundaries={boundaries} />
+          <ChartDataTable
+            caption="KDA by game across the recent window"
+            columns={KDA_TABLE_COLUMNS}
+            rows={points}
+            rowKey={(p) => p.game}
+          />
+        </>
+      }
     />
   );
 }
