@@ -217,7 +217,11 @@ function GoldLeadBrush({
   return (
     <div className="h-28 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+        <AreaChart
+          data={data}
+          margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+          aria-label="Gold lead timeline — range selector for the event map"
+        >
           <defs>
             <linearGradient id="mmo-gl-fill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="50%" stopColor="#34d399" stopOpacity={0.25} />

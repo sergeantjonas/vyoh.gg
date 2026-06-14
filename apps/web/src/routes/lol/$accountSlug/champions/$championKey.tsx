@@ -569,7 +569,10 @@ function ChampionDetailPage() {
               </div>
               <div className="h-24 rounded-lg border bg-card/60 px-2 py-3 backdrop-blur-sm">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={series}>
+                  <LineChart
+                    data={series}
+                    aria-label="Win rate trend across recent games"
+                  >
                     {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
                     lands at the right fractional position between games.
                     Without this Recharts uses the array index as the X

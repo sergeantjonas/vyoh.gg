@@ -79,7 +79,7 @@ function KdaChart({
   return (
     <div className="h-44 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points}>
+        <LineChart data={points} aria-label="KDA trend across recent games">
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
           <XAxis dataKey="game" tick={{ fill: CHART_AXIS, fontSize: 11 }} />
           <YAxis

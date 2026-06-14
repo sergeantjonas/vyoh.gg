@@ -191,7 +191,11 @@ export function MatchLanePhase({
       <SectionTitle>Lane phase</SectionTitle>
       <div className="h-40 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <AreaChart
+            data={data}
+            margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+            aria-label="Lane-phase gold difference by minute"
+          >
             <defs>
               <linearGradient id="lpFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="50%" stopColor={CHART_POSITIVE} stopOpacity={0.2} />

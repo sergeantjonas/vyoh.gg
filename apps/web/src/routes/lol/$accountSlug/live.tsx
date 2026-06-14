@@ -265,7 +265,10 @@ function LiveCompositionPanel({
       </span>
       {allLoaded ? (
         <ResponsiveContainer width="100%" height={200}>
-          <RadarChart data={radarData}>
+          <RadarChart
+            data={radarData}
+            aria-label="Team composition comparison: blue versus red team"
+          >
             <PolarGrid stroke="hsl(var(--border))" />
             <PolarAngleAxis
               dataKey="subject"
