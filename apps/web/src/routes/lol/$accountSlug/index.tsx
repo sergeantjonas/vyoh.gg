@@ -12,6 +12,7 @@ import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
+import { ProfileSquads } from "@/lol/profile/profile-squads";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
 import { useProfileRank } from "@/lol/profile/use-profile-rank";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
@@ -187,6 +188,10 @@ function ProfilePage() {
       <CvSection minHeight={160}>
         <ProfileDuos accountSlug={accountSlug} />
       </CvSection>
+      {/* Not CV-gated: squads render null in the common no-3-stack case, so a
+          reserved minHeight would leave a permanent empty gap. The section is
+          light (≤3 rows) and brings its own footprint only when it appears. */}
+      <ProfileSquads accountSlug={accountSlug} />
       <CvSection minHeight={200}>
         <Suspense fallback={<SectionPlaceholder minHeight={200} />}>
           <ProfileSynergy accountSlug={accountSlug} />
