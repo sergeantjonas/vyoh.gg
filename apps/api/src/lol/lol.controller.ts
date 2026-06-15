@@ -26,6 +26,7 @@ import type {
   MatchSummary,
   PregameCalibrationByQueue,
   RankHistoryResponse,
+  Squad,
   SummonerProfile,
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
@@ -90,6 +91,14 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<Duo[]> {
     return this.analytics.getDuos(region, gameName, tagLine, count);
+  }
+
+  @Get("squads")
+  async getSquads(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<Squad[]> {
+    return this.analytics.getSquads(region, gameName, tagLine, count);
   }
 
   @Get("pregame-calibration")

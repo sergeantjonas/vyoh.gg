@@ -506,6 +506,163 @@ describe("LolAnalyticsService.getDuos", () => {
   });
 });
 
+describe("LolAnalyticsService.getSquads", () => {
+  // championName carries no signal for squad membership, so a single fixed champ
+  // per player keeps the fixtures readable.
+  function p(puuid: string, gameName: string, win: boolean, teamId = 100) {
+    return {
+      puuid,
+      riotIdGameName: gameName,
+      riotIdTagline: "EUW",
+      championName: `${gameName}Champ`,
+      teamId,
+      win,
+    };
+  }
+  function detail(participants: ReturnType<typeof p>[]) {
+    return { info: { participants } };
+  }
+  const me = (win: boolean, teamId = 100) => ({
+    puuid: "puuid-vyoh",
+    riotIdGameName: "Vyoh",
+    riotIdTagline: "Ahri",
+    championName: "Ahri",
+    teamId,
+    win,
+  });
+
+  it("returns [] when the summoner has no matches", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([]);
+    expect(await makeService(prisma).getSquads("euw1", "Vyoh", "Ahri")).toEqual([]);
+    expect(prisma.matchDetailCache.findMany).not.toHaveBeenCalled();
+  });
+
+  it("detects a recurring trio played together in one session", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // Three games back-to-back (within the 3h session window).
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", playedAt: new Date("2026-05-15T22:00:00Z") },
+      { matchId: "EUW1_2", playedAt: new Date("2026-05-15T21:00:00Z") },
+      { matchId: "EUW1_3", playedAt: new Date("2026-05-15T20:00:00Z") },
+    ]);
+    const lineup = [me(true), p("puuid-a", "Bob", true), p("puuid-b", "Cara", true)];
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", detail: detail(lineup) },
+      { matchId: "EUW1_2", detail: detail(lineup) },
+      {
+        matchId: "EUW1_3",
+        detail: detail([
+          me(false),
+          p("puuid-a", "Bob", false),
+          p("puuid-b", "Cara", false),
+        ]),
+      },
+    ]);
+
+    const squads = await makeService(prisma).getSquads("euw1", "Vyoh", "Ahri");
+    expect(squads).toHaveLength(1);
+    expect(squads[0]?.size).toBe(3);
+    expect(squads[0]?.games).toBe(3);
+    expect(squads[0]?.wins).toBe(2);
+    expect(squads[0]?.members.map((m) => m.gameName)).toEqual(["Bob", "Cara"]);
+    expect(squads[0]?.members[0]?.topChampion).toBe("BobChamp");
+  });
+
+  it("excludes a trio whose games are scattered across separate days", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // Three shared games, each days apart — no same-session pair, below volume.
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", playedAt: new Date("2026-05-15T20:00:00Z") },
+      { matchId: "EUW1_2", playedAt: new Date("2026-05-12T20:00:00Z") },
+      { matchId: "EUW1_3", playedAt: new Date("2026-05-09T20:00:00Z") },
+    ]);
+    const lineup = [me(true), p("puuid-a", "Bob", true), p("puuid-b", "Cara", true)];
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", detail: detail(lineup) },
+      { matchId: "EUW1_2", detail: detail(lineup) },
+      { matchId: "EUW1_3", detail: detail(lineup) },
+    ]);
+
+    expect(await makeService(prisma).getSquads("euw1", "Vyoh", "Ahri")).toEqual([]);
+  });
+
+  it("drops nested subgroups fully explained by a larger stack", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // A full 4-stack (you + Bob + Cara + Dan) across four session games. The
+    // three pairs each also recur 4× — but only inside the 4-stack, so they're
+    // redundant and only the 4-stack should surface.
+    const hours = [22, 21, 20, 19];
+    prisma.match.findMany.mockResolvedValue(
+      hours.map((h) => ({
+        matchId: `EUW1_${h}`,
+        playedAt: new Date(`2026-05-15T${h}:00:00Z`),
+      }))
+    );
+    const lineup = [
+      me(true),
+      p("puuid-a", "Bob", true),
+      p("puuid-b", "Cara", true),
+      p("puuid-c", "Dan", true),
+    ];
+    prisma.matchDetailCache.findMany.mockResolvedValue(
+      hours.map((h) => ({ matchId: `EUW1_${h}`, detail: detail(lineup) }))
+    );
+
+    const squads = await makeService(prisma).getSquads("euw1", "Vyoh", "Ahri");
+    expect(squads).toHaveLength(1);
+    expect(squads[0]?.size).toBe(4);
+    expect(squads[0]?.members.map((m) => m.gameName)).toEqual(["Bob", "Cara", "Dan"]);
+  });
+
+  it("keeps a subgroup that recurs notably more often than the larger stack", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // Trio {Bob,Cara,Dan} 3× one night; pair {Bob,Cara} another 4× a different
+    // night. The pair (7 games total) played plenty without Dan, so it's a
+    // distinct stack and survives dedup alongside the trio.
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "T1", playedAt: new Date("2026-05-15T22:00:00Z") },
+      { matchId: "T2", playedAt: new Date("2026-05-15T21:00:00Z") },
+      { matchId: "T3", playedAt: new Date("2026-05-15T20:00:00Z") },
+      { matchId: "P1", playedAt: new Date("2026-05-10T22:00:00Z") },
+      { matchId: "P2", playedAt: new Date("2026-05-10T21:00:00Z") },
+      { matchId: "P3", playedAt: new Date("2026-05-10T20:00:00Z") },
+      { matchId: "P4", playedAt: new Date("2026-05-10T19:00:00Z") },
+    ]);
+    const trio = [
+      me(true),
+      p("puuid-a", "Bob", true),
+      p("puuid-b", "Cara", true),
+      p("puuid-c", "Dan", true),
+    ];
+    const pair = [me(true), p("puuid-a", "Bob", true), p("puuid-b", "Cara", true)];
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      { matchId: "T1", detail: detail(trio) },
+      { matchId: "T2", detail: detail(trio) },
+      { matchId: "T3", detail: detail(trio) },
+      { matchId: "P1", detail: detail(pair) },
+      { matchId: "P2", detail: detail(pair) },
+      { matchId: "P3", detail: detail(pair) },
+      { matchId: "P4", detail: detail(pair) },
+    ]);
+
+    const squads = await makeService(prisma).getSquads("euw1", "Vyoh", "Ahri");
+    // Most-played first: the {Bob,Cara} pair (7 games) then the {Bob,Cara,Dan}
+    // trio (3 games).
+    expect(squads).toHaveLength(2);
+    expect(squads[0]?.size).toBe(3);
+    expect(squads[0]?.games).toBe(7);
+    expect(squads[0]?.members.map((m) => m.gameName)).toEqual(["Bob", "Cara"]);
+    expect(squads[1]?.size).toBe(4);
+    expect(squads[1]?.games).toBe(3);
+  });
+});
+
 describe("LolAnalyticsService.getChronotype", () => {
   it("returns a 24-bucket empty grid when the summoner is unknown", async () => {
     const prisma = makePrisma();

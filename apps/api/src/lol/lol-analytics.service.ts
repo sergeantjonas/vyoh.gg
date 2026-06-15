@@ -8,6 +8,8 @@ import {
   type Duo,
   type MatchSummary,
   type PregameCalibrationByQueue,
+  type Squad,
+  type SquadMember,
   computeCalibrationByQueue,
   deriveChampionRecap,
   excludeRemakes,
@@ -27,6 +29,84 @@ const DEFAULT_PREGAME_QUEUE_IDS = [420, 440, 400] as const;
 // dodges the moving season-split boundary while staying "yearly at least"
 // per owner direction.
 const RECAP_WINDOW_DAYS = 365;
+
+// Temporal-clustering gate shared by duo and squad detection. Co-occurrence
+// alone can't tell a premade from repeated random matchmaking (same MMR band +
+// play window = some teammates recur by chance, worst in high elo / low-pop
+// regions). Premades play sessions back-to-back, so a same-session pair is
+// strong evidence; random repeats are scattered in time. Match-V5 exposes no
+// party id for SR, so this is the best precision lever we have.
+const DUO_MIN_GAMES = 3;
+const DUO_STRONG_GAMES = 6;
+const DUO_SESSION_GAP_MS = 3 * 60 * 60 * 1000; // 3h between two shared games
+
+// True when any two of the given timestamps fall within one session window.
+function hasSameSessionPair(timestamps: number[]): boolean {
+  const ts = [...timestamps].sort((a, b) => a - b);
+  for (let i = 1; i < ts.length; i++) {
+    const prev = ts[i - 1];
+    const cur = ts[i];
+    if (prev !== undefined && cur !== undefined && cur - prev <= DUO_SESSION_GAP_MS) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// A group recurs (premade, not matchmaking chance) when it clears the game
+// floor AND either clusters in a session or piles up enough sheer volume to be
+// convincing on its own.
+function qualifiesAsRecurring(games: number, timestamps: number[]): boolean {
+  return (
+    games >= DUO_MIN_GAMES &&
+    (games >= DUO_STRONG_GAMES || hasSameSessionPair(timestamps))
+  );
+}
+
+// Every subset of size ≥2 from `items`. Bounded for squad detection: a team has
+// ≤4 teammates, so this yields ≤11 subsets per match.
+function subsetsOfAtLeast2<T>(items: T[]): T[][] {
+  const result: T[][] = [];
+  for (let mask = 0; mask < 1 << items.length; mask++) {
+    const subset: T[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (mask & (1 << i)) {
+        const item = items[i];
+        if (item !== undefined) subset.push(item);
+      }
+    }
+    if (subset.length >= 2) result.push(subset);
+  }
+  return result;
+}
+
+interface CachedParticipant {
+  puuid: string;
+  riotIdGameName: string;
+  riotIdTagline: string;
+  championName: string;
+  teamId: number;
+  win: boolean;
+}
+
+// Pull the owner's same-team teammates (and the owner's win flag) out of one
+// cached raw match. Returns null for rows that don't contain the owner — a
+// corrupt or key-collided cache row — so callers skip them rather than crash on
+// a missing `me`.
+function ownerTeammates(
+  detail: unknown,
+  ownerPuuid: string
+): { win: boolean; teammates: CachedParticipant[] } | null {
+  const participants = (detail as { info?: { participants?: CachedParticipant[] } })?.info
+    ?.participants;
+  if (!participants) return null;
+  const me = participants.find((p) => p.puuid === ownerPuuid);
+  if (!me) return null;
+  const teammates = participants.filter(
+    (p) => p.teamId === me.teamId && p.puuid !== ownerPuuid
+  );
+  return { win: me.win, teammates };
+}
 
 @Injectable()
 export class LolAnalyticsService {
@@ -160,46 +240,19 @@ export class LolAnalyticsService {
     return deriveChampionRecap(championKey, matches);
   }
 
-  // Duo / squad detection. Pure read against the existing MatchDetailCache —
-  // no Riot calls. We read up to `count` of the user's most recent matches
-  // (any queue), join the cached raw match JSON, and bucket teammates by
-  // puuid. Filtered to recurring puuids only (≥ MIN_GAMES_TOGETHER) so a
-  // one-off random duo queue doesn't surface.
+  // Duo detection. Pure read against the existing MatchDetailCache — no Riot
+  // calls. Reads up to `count` of the owner's most recent matches (any queue),
+  // buckets same-team teammates by puuid, and keeps only recurring teammates
+  // (the temporal-clustering gate) so a one-off random duo queue doesn't surface.
   async getDuos(
     region: string,
     gameName: string,
     tagLine: string,
     count = 100
   ): Promise<Duo[]> {
-    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
-      throw new ForbiddenException("Account not in whitelist");
-    }
-    const summoner = await this.prisma.summoner.findUnique({
-      where: { gameName_tagLine_region: { gameName, tagLine, region } },
-    });
-    if (!summoner) return [];
-
-    const userMatches = await this.prisma.match.findMany({
-      where: { puuid: summoner.puuid },
-      orderBy: { playedAt: "desc" },
-      take: count,
-      select: { matchId: true, playedAt: true },
-    });
-    if (userMatches.length === 0) return [];
-
-    const matchIds = userMatches.map((m) => m.matchId);
-    const caches = await this.prisma.matchDetailCache.findMany({
-      where: { matchId: { in: matchIds } },
-    });
-    // Sort cache rows newest-first so the gameName/tagLine we keep per puuid
-    // is the most recent observation (Riot IDs can change).
-    const playedAtByMatchId = new Map(
-      userMatches.map((m) => [m.matchId, m.playedAt.getTime()])
-    );
-    const sortedCaches = [...caches].sort(
-      (a, b) =>
-        (playedAtByMatchId.get(b.matchId) ?? 0) - (playedAtByMatchId.get(a.matchId) ?? 0)
-    );
+    const ctx = await this.loadOwnerMatchCache(region, gameName, tagLine, count);
+    if (!ctx) return [];
+    const { ownerPuuid, sortedCaches, playedAtByMatchId } = ctx;
 
     interface DuoAcc {
       puuid: string;
@@ -212,28 +265,13 @@ export class LolAnalyticsService {
     }
     const map = new Map<string, DuoAcc>();
     for (const cache of sortedCaches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            riotIdGameName: string;
-            riotIdTagline: string;
-            championName: string;
-            teamId: number;
-            win: boolean;
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
-      if (!me) continue;
-      const teammates = detail.info.participants.filter(
-        (p) => p.teamId === me.teamId && p.puuid !== me.puuid
-      );
-      for (const t of teammates) {
+      const owner = ownerTeammates(cache.detail, ownerPuuid);
+      if (!owner) continue;
+      for (const t of owner.teammates) {
         const prev = map.get(t.puuid);
         if (prev) {
           prev.games += 1;
-          if (me.win) prev.wins += 1;
+          if (owner.win) prev.wins += 1;
           prev.championCounts.set(
             t.championName,
             (prev.championCounts.get(t.championName) ?? 0) + 1
@@ -246,7 +284,7 @@ export class LolAnalyticsService {
             gameName: t.riotIdGameName,
             tagLine: t.riotIdTagline,
             games: 1,
-            wins: me.win ? 1 : 0,
+            wins: owner.win ? 1 : 0,
             championCounts: new Map([[t.championName, 1]]),
             matchIds: [cache.matchId],
           });
@@ -254,38 +292,13 @@ export class LolAnalyticsService {
       }
     }
 
-    const MIN_GAMES_TOGETHER = 3;
     const TOP_N = 10;
-    // Co-occurrence alone can't tell a premade duo from repeated random
-    // matchmaking (same MMR band + play window = some teammates recur by
-    // chance, worst in high elo / low-pop regions / small queues). Premades
-    // play sessions back-to-back, so a same-session pair is strong evidence;
-    // random repeats are scattered in time. Match-V5 exposes no party id for
-    // SR, so this temporal signal is the best precision lever we have. Gate:
-    // qualify on a same-session pair OR on sheer volume (a teammate seen this
-    // many times is convincing even if never same-session).
-    const SESSION_GAP_MS = 3 * 60 * 60 * 1000; // 3h between two shared games
-    const STRONG_GAMES = 6;
-    const hasSameSessionPair = (matchIds: string[]): boolean => {
-      const ts = matchIds
+    const timestampsOf = (matchIds: string[]): number[] =>
+      matchIds
         .map((id) => playedAtByMatchId.get(id))
-        .filter((t): t is number => t !== undefined)
-        .sort((a, b) => a - b);
-      for (let i = 1; i < ts.length; i++) {
-        const prev = ts[i - 1];
-        const cur = ts[i];
-        if (prev !== undefined && cur !== undefined && cur - prev <= SESSION_GAP_MS) {
-          return true;
-        }
-      }
-      return false;
-    };
+        .filter((t): t is number => t !== undefined);
     return [...map.values()]
-      .filter(
-        (d) =>
-          d.games >= MIN_GAMES_TOGETHER &&
-          (d.games >= STRONG_GAMES || hasSameSessionPair(d.matchIds))
-      )
+      .filter((d) => qualifiesAsRecurring(d.games, timestampsOf(d.matchIds)))
       .sort((a, b) => b.games - a.games)
       .slice(0, TOP_N)
       .map((d) => {
@@ -299,6 +312,171 @@ export class LolAnalyticsService {
           wins: d.wins,
           topChampion,
           matchIds: d.matchIds,
+        };
+      });
+  }
+
+  // Shared prelude for duo + squad detection: whitelist-check the account, load
+  // the owner's most recent `count` matches and their cached raw detail, and
+  // sort the cache rows newest-first (so the gameName/tagLine we keep per puuid
+  // is the most recent observation — Riot IDs can change). Returns null for the
+  // not-whitelisted-throws / no-summoner / no-matches cases so callers short to
+  // an empty result without a redundant `matchId IN ()` query.
+  private async loadOwnerMatchCache(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count: number
+  ): Promise<{
+    ownerPuuid: string;
+    sortedCaches: { matchId: string; detail: unknown }[];
+    playedAtByMatchId: Map<string, number>;
+  } | null> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return null;
+
+    const userMatches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, playedAt: true },
+    });
+    if (userMatches.length === 0) return null;
+
+    const matchIds = userMatches.map((m) => m.matchId);
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: matchIds } },
+    });
+    const playedAtByMatchId = new Map(
+      userMatches.map((m) => [m.matchId, m.playedAt.getTime()])
+    );
+    const sortedCaches = [...caches].sort(
+      (a, b) =>
+        (playedAtByMatchId.get(b.matchId) ?? 0) - (playedAtByMatchId.get(a.matchId) ?? 0)
+    );
+    return { ownerPuuid: summoner.puuid, sortedCaches, playedAtByMatchId };
+  }
+
+  // Squad detection — the 3+-stack sibling of getDuos. Instead of bucketing
+  // single teammates, it buckets recurring teammate *sets* (every size-≥2 subset
+  // of a match's teammates, ≤11 per match since a team has ≤4 teammates) and
+  // reuses the same temporal-clustering gate. A subgroup whose games are fully
+  // explained by a larger qualifying group is dropped, so the result is the real
+  // stacks (the trio, the 4-stack) rather than every sub-combination of them.
+  async getSquads(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<Squad[]> {
+    const ctx = await this.loadOwnerMatchCache(region, gameName, tagLine, count);
+    if (!ctx) return [];
+    const { ownerPuuid, sortedCaches, playedAtByMatchId } = ctx;
+
+    interface MemberAcc {
+      puuid: string;
+      gameName: string;
+      tagLine: string;
+      championCounts: Map<string, number>;
+    }
+    interface SquadAcc {
+      puuids: string[]; // sorted, == the bucket key split on "|"
+      members: Map<string, MemberAcc>;
+      games: number;
+      wins: number;
+      matchIds: string[];
+    }
+    const map = new Map<string, SquadAcc>();
+    for (const cache of sortedCaches) {
+      const owner = ownerTeammates(cache.detail, ownerPuuid);
+      if (!owner || owner.teammates.length < 2) continue; // need ≥2 for a 3-stack
+      for (const subset of subsetsOfAtLeast2(owner.teammates)) {
+        const puuids = subset.map((t) => t.puuid).sort();
+        const key = puuids.join("|");
+        let acc = map.get(key);
+        if (!acc) {
+          acc = { puuids, members: new Map(), games: 0, wins: 0, matchIds: [] };
+          map.set(key, acc);
+        }
+        acc.games += 1;
+        if (owner.win) acc.wins += 1;
+        acc.matchIds.push(cache.matchId);
+        for (const t of subset) {
+          let member = acc.members.get(t.puuid);
+          if (!member) {
+            // First (= most recent) sighting captures latest gameName/tagLine.
+            member = {
+              puuid: t.puuid,
+              gameName: t.riotIdGameName,
+              tagLine: t.riotIdTagline,
+              championCounts: new Map(),
+            };
+            acc.members.set(t.puuid, member);
+          }
+          member.championCounts.set(
+            t.championName,
+            (member.championCounts.get(t.championName) ?? 0) + 1
+          );
+        }
+      }
+    }
+
+    const timestampsOf = (matchIds: string[]): number[] =>
+      matchIds
+        .map((id) => playedAtByMatchId.get(id))
+        .filter((t): t is number => t !== undefined);
+
+    // Qualify by the same temporal-clustering gate as duos, then order largest-
+    // and most-played-first so the dedup below keeps the bigger group when a
+    // smaller one is fully contained in it.
+    const qualifying = [...map.values()]
+      .filter((s) => qualifiesAsRecurring(s.games, timestampsOf(s.matchIds)))
+      .sort((a, b) => b.puuids.length - a.puuids.length || b.games - a.games);
+
+    // Drop a subgroup whose co-occurrence is fully explained by an already-kept
+    // larger group. A subset always has games ≥ its superset; if a kept superset
+    // recurs nearly as often (within one stray game), the subgroup almost never
+    // played without it and adds no information. A subgroup that recurs notably
+    // more often is a distinct stack and is kept.
+    const SUBSET_TOLERANCE = 1;
+    const kept: SquadAcc[] = [];
+    for (const candidate of qualifying) {
+      const redundant = kept.some((k) => {
+        if (k.puuids.length <= candidate.puuids.length) return false;
+        const keptSet = new Set(k.puuids);
+        return (
+          candidate.puuids.every((p) => keptSet.has(p)) &&
+          k.games >= candidate.games - SUBSET_TOLERANCE
+        );
+      });
+      if (!redundant) kept.push(candidate);
+    }
+
+    const TOP_N = 5;
+    return kept
+      .sort((a, b) => b.games - a.games || b.puuids.length - a.puuids.length)
+      .slice(0, TOP_N)
+      .map((s) => {
+        const members: SquadMember[] = [...s.members.values()]
+          .map((m) => ({
+            puuid: m.puuid,
+            gameName: m.gameName,
+            tagLine: m.tagLine,
+            topChampion:
+              [...m.championCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "",
+          }))
+          .sort((a, b) => a.gameName.localeCompare(b.gameName));
+        return {
+          members,
+          size: members.length + 1,
+          games: s.games,
+          wins: s.wins,
+          matchIds: s.matchIds,
         };
       });
   }
