@@ -40,6 +40,7 @@ function duo(overrides: Partial<Duo> = {}): Duo {
     games: 10,
     wins: 6,
     topChampion: "Yasuo",
+    matchIds: [],
     ...overrides,
   };
 }

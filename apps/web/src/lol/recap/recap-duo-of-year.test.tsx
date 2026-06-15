@@ -69,6 +69,7 @@ describe("RecapDuoOfYear", () => {
         games: 4,
         wins: 3,
         topChampion: "Lulu",
+        matchIds: [],
       },
     ]);
     renderDuo();
@@ -86,6 +87,7 @@ describe("RecapDuoOfYear", () => {
         games: 10,
         wins: 6,
         topChampion: "Lulu",
+        matchIds: [],
       },
     ]);
     renderDuo();
