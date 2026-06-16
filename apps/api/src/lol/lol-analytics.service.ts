@@ -39,6 +39,9 @@ const RECAP_WINDOW_DAYS = 365;
 const DUO_MIN_GAMES = 3;
 const DUO_STRONG_GAMES = 6;
 const DUO_SESSION_GAP_MS = 3 * 60 * 60 * 1000; // 3h between two shared games
+// Champion pairings surfaced per duo. Capped so the expandable row stays
+// scannable and the DTO doesn't ship a long tail of one-off combos.
+const DUO_PAIR_TOP_N = 6;
 
 // True when any two of the given timestamps fall within one session window.
 function hasSameSessionPair(timestamps: number[]): boolean {
@@ -96,7 +99,7 @@ interface CachedParticipant {
 function ownerTeammates(
   detail: unknown,
   ownerPuuid: string
-): { win: boolean; teammates: CachedParticipant[] } | null {
+): { win: boolean; ownerChampion: string; teammates: CachedParticipant[] } | null {
   const participants = (detail as { info?: { participants?: CachedParticipant[] } })?.info
     ?.participants;
   if (!participants) return null;
@@ -105,7 +108,7 @@ function ownerTeammates(
   const teammates = participants.filter(
     (p) => p.teamId === me.teamId && p.puuid !== ownerPuuid
   );
-  return { win: me.win, teammates };
+  return { win: me.win, ownerChampion: me.championName, teammates };
 }
 
 @Injectable()
@@ -254,6 +257,15 @@ export class LolAnalyticsService {
     if (!ctx) return [];
     const { ownerPuuid, sortedCaches, playedAtByMatchId } = ctx;
 
+    // Per-duo champion pairing: owner's champ + this duo's champ in one match,
+    // keyed `${yourChamp}|${teammateChamp}`. Accumulated alongside the duo
+    // aggregate so the surface can show what the two actually queue together.
+    interface PairAcc {
+      yourChamp: string;
+      teammateChamp: string;
+      games: number;
+      wins: number;
+    }
     interface DuoAcc {
       puuid: string;
       gameName: string;
@@ -261,9 +273,30 @@ export class LolAnalyticsService {
       games: number;
       wins: number;
       championCounts: Map<string, number>;
+      pairCounts: Map<string, PairAcc>;
       matchIds: string[];
     }
     const map = new Map<string, DuoAcc>();
+    const bumpPair = (
+      acc: DuoAcc,
+      yourChamp: string,
+      teammateChamp: string,
+      win: boolean
+    ) => {
+      const key = `${yourChamp}|${teammateChamp}`;
+      const prev = acc.pairCounts.get(key);
+      if (prev) {
+        prev.games += 1;
+        if (win) prev.wins += 1;
+      } else {
+        acc.pairCounts.set(key, {
+          yourChamp,
+          teammateChamp,
+          games: 1,
+          wins: win ? 1 : 0,
+        });
+      }
+    };
     for (const cache of sortedCaches) {
       const owner = ownerTeammates(cache.detail, ownerPuuid);
       if (!owner) continue;
@@ -276,18 +309,22 @@ export class LolAnalyticsService {
             t.championName,
             (prev.championCounts.get(t.championName) ?? 0) + 1
           );
+          bumpPair(prev, owner.ownerChampion, t.championName, owner.win);
           prev.matchIds.push(cache.matchId);
         } else {
           // First (= most recent) sighting. Capture latest gameName/tagLine.
-          map.set(t.puuid, {
+          const acc: DuoAcc = {
             puuid: t.puuid,
             gameName: t.riotIdGameName,
             tagLine: t.riotIdTagline,
             games: 1,
             wins: owner.win ? 1 : 0,
             championCounts: new Map([[t.championName, 1]]),
+            pairCounts: new Map(),
             matchIds: [cache.matchId],
-          });
+          };
+          bumpPair(acc, owner.ownerChampion, t.championName, owner.win);
+          map.set(t.puuid, acc);
         }
       }
     }
@@ -304,6 +341,9 @@ export class LolAnalyticsService {
       .map((d) => {
         const topChampion =
           [...d.championCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+        const championPairs = [...d.pairCounts.values()]
+          .sort((a, b) => b.games - a.games)
+          .slice(0, DUO_PAIR_TOP_N);
         return {
           puuid: d.puuid,
           gameName: d.gameName,
@@ -311,6 +351,7 @@ export class LolAnalyticsService {
           games: d.games,
           wins: d.wins,
           topChampion,
+          championPairs,
           matchIds: d.matchIds,
         };
       });

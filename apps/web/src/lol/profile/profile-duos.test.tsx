@@ -1,7 +1,9 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useDuos } from "@/lol/profile/use-duos";
 import { render, screen } from "@testing-library/react";
-import type { Duo, LolAccount } from "@vyoh/shared";
+import userEvent from "@testing-library/user-event";
+import type { ChampionPair, Duo, LolAccount } from "@vyoh/shared";
+import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProfileDuos } from "./profile-duos";
@@ -14,11 +16,22 @@ vi.mock("@/lol/profile/use-duos", () => ({
   useDuos: vi.fn(),
 }));
 
+vi.mock("@/lol/champions/use-champions", () => ({
+  useChampionName: () => (alias: string) => alias,
+}));
+
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
   ChampionSquareIcon: ({ championName }: { championName: string }) => (
     <img alt={championName} data-champion={championName} />
   ),
 }));
+
+// color-contrast needs real computed styles (happy-dom lacks them).
+const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
+
+function pair(overrides: Partial<ChampionPair> = {}): ChampionPair {
+  return { yourChamp: "Ahri", teammateChamp: "Lux", games: 4, wins: 3, ...overrides };
+}
 
 const account: LolAccount = {
   region: "euw1",
@@ -40,6 +53,7 @@ function duo(overrides: Partial<Duo> = {}): Duo {
     games: 10,
     wins: 6,
     topChampion: "Yasuo",
+    championPairs: [],
     matchIds: [],
     ...overrides,
   };
@@ -89,5 +103,60 @@ describe("ProfileDuos", () => {
     // 4th is past DISPLAY_COUNT = 3.
     expect(screen.queryByText("D")).toBeNull();
     expect(container.textContent).toContain("60% WR");
+  });
+
+  it("summarises the champion-combo count on the collapsed row", () => {
+    mockDuos({
+      data: [
+        duo({
+          championPairs: [
+            pair({ teammateChamp: "Lux" }),
+            pair({ teammateChamp: "Sona" }),
+          ],
+        }),
+      ],
+      isPending: false,
+    });
+    renderDuos();
+    // Combo count hints at the expandable content; the most-played champ keeps identity.
+    expect(screen.getByText(/Most on Yasuo · 2 combos/)).toBeTruthy();
+    // Pairing rows are collapsed until the trigger is activated.
+    expect(screen.queryByText("Ahri + Lux")).toBeNull();
+  });
+
+  it("reveals the per-pairing breakdown when the row is expanded via keyboard", async () => {
+    const user = userEvent.setup();
+    mockDuos({
+      data: [
+        duo({
+          championPairs: [
+            pair({ yourChamp: "Ahri", teammateChamp: "Lux", games: 4, wins: 3 }),
+            pair({ yourChamp: "Ahri", teammateChamp: "Sona", games: 2, wins: 0 }),
+          ],
+        }),
+      ],
+      isPending: false,
+    });
+    renderDuos();
+
+    const trigger = screen.getByRole("button", { name: /Other champion combos/ });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("Ahri + Lux")).toBeTruthy();
+    expect(screen.getByText("Ahri + Sona")).toBeTruthy();
+    // Win rate per pairing: Lux 3/4 = 75%, Sona 0/2 = 0%.
+    expect(screen.getByText("75%")).toBeTruthy();
+    expect(screen.getByText("0%")).toBeTruthy();
+  });
+
+  it("has no axe violations with expandable duo rows", async () => {
+    mockDuos({
+      data: [duo({ championPairs: [pair()] })],
+      isPending: false,
+    });
+    const { container } = renderDuos();
+    const results = await axe(container);
+    expect(results.violations).toEqual([]);
   });
 });

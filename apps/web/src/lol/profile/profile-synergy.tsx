@@ -9,6 +9,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
+import { wrAccent } from "@/lol/_shared/wr-accent";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useChampionPairs } from "@/lol/profile/use-champion-pairs";
 import { Link } from "@tanstack/react-router";
@@ -63,46 +64,6 @@ function prepareSynergy(pairs: ChampionPair[]): ChampionSynergy[] {
   }
 
   return entries.sort((a, b) => b.totalGames - a.totalGames).slice(0, TOP_CHAMPIONS);
-}
-
-interface Accent {
-  text: string;
-  bar: string;
-  rail: string;
-  rowBorder: string;
-}
-
-function wrAccent(wr: number): Accent {
-  if (wr >= 0.6) {
-    return {
-      text: "text-emerald-400",
-      bar: "bg-emerald-400/70",
-      rail: "bg-emerald-400/15",
-      rowBorder: "border-l-emerald-400/50",
-    };
-  }
-  if (wr >= 0.5) {
-    return {
-      text: "text-emerald-500/90",
-      bar: "bg-emerald-500/55",
-      rail: "bg-emerald-500/10",
-      rowBorder: "border-l-emerald-500/30",
-    };
-  }
-  if (wr >= 0.4) {
-    return {
-      text: "text-muted-foreground",
-      bar: "bg-muted-foreground/40",
-      rail: "bg-muted-foreground/10",
-      rowBorder: "border-l-muted-foreground/20",
-    };
-  }
-  return {
-    text: "text-rose-400",
-    bar: "bg-rose-500/60",
-    rail: "bg-rose-500/10",
-    rowBorder: "border-l-rose-400/50",
-  };
 }
 
 function ChampionSynergyCard({

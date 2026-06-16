@@ -438,6 +438,12 @@ describe("LolAnalyticsService.getDuos", () => {
       games: 3,
       wins: 2,
       topChampion: "Lux",
+      // Owner stayed on Ahri; the duo ran Lux twice (1-1) then Sona once (1-0).
+      // Ranked by games together, so the Lux pairing leads.
+      championPairs: [
+        { yourChamp: "Ahri", teammateChamp: "Lux", games: 2, wins: 1 },
+        { yourChamp: "Ahri", teammateChamp: "Sona", games: 1, wins: 1 },
+      ],
       // Newest-first, matching the playedAt-desc cache sort.
       matchIds: ["EUW1_1", "EUW1_2", "EUW1_3"],
     });
@@ -503,6 +509,53 @@ describe("LolAnalyticsService.getDuos", () => {
     const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
     expect(duos).toHaveLength(1);
     expect(duos[0]?.games).toBe(6);
+  });
+
+  it("splits champion pairings by the owner's own champion, ranked by games", async () => {
+    // The owner is not always on Ahri — the pairing key includes the owner's
+    // champ per match, so (Ahri+Lux) and (Syndra+Lux) are distinct combos even
+    // though the duo stayed on Lux throughout.
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    // Four games in one evening session (within the 3h same-session window) so
+    // the duo qualifies on temporal clustering.
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", playedAt: new Date("2026-05-15T20:00:00Z") },
+      { matchId: "EUW1_2", playedAt: new Date("2026-05-15T21:00:00Z") },
+      { matchId: "EUW1_3", playedAt: new Date("2026-05-15T22:00:00Z") },
+      { matchId: "EUW1_4", playedAt: new Date("2026-05-15T23:00:00Z") },
+    ]);
+    const row = (ownerChamp: string, win: boolean, lukeChamp = "Lux") => [
+      {
+        puuid: "puuid-vyoh",
+        riotIdGameName: "Vyoh",
+        riotIdTagline: "Ahri",
+        championName: ownerChamp,
+        teamId: 100,
+        win,
+      },
+      {
+        puuid: "puuid-luke",
+        riotIdGameName: "DuoLuke",
+        riotIdTagline: "EUW",
+        championName: lukeChamp,
+        teamId: 100,
+        win,
+      },
+    ];
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      { matchId: "EUW1_1", detail: detail(row("Ahri", true)) },
+      { matchId: "EUW1_2", detail: detail(row("Ahri", false)) },
+      { matchId: "EUW1_3", detail: detail(row("Ahri", true)) },
+      { matchId: "EUW1_4", detail: detail(row("Syndra", true)) },
+    ]);
+
+    const duos = await makeService(prisma).getDuos("euw1", "Vyoh", "Ahri");
+    expect(duos).toHaveLength(1);
+    expect(duos[0]?.championPairs).toEqual([
+      { yourChamp: "Ahri", teammateChamp: "Lux", games: 3, wins: 2 },
+      { yourChamp: "Syndra", teammateChamp: "Lux", games: 1, wins: 1 },
+    ]);
   });
 });
 
