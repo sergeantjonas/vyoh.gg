@@ -26,6 +26,7 @@ import type {
   MatchNarrativeLifetime,
   MatchNarrativeWindow,
   MatchSummary,
+  ObjectiveFirsts,
   PregameCalibrationByQueue,
   RankHistoryResponse,
   Squad,
@@ -131,6 +132,14 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionPair[]> {
     return this.analytics.getChampionPairs(region, gameName, tagLine, count);
+  }
+
+  @Get("objective-firsts")
+  async getObjectiveFirsts(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<ObjectiveFirsts> {
+    return this.analytics.getObjectiveFirsts(region, gameName, tagLine, count);
   }
 
   @Get("champions/:championKey/build-flow")

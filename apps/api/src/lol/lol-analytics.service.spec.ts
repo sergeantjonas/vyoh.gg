@@ -1469,3 +1469,114 @@ describe("LolAnalyticsService.getChampionLanePhase", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("LolAnalyticsService.getObjectiveFirsts", () => {
+  function cacheRow(opts: {
+    matchId: string;
+    win: boolean;
+    teamId: number;
+    firstBlood: boolean;
+    teamFirstTower: boolean;
+  }) {
+    const enemyTeam = opts.teamId === 100 ? 200 : 100;
+    return {
+      matchId: opts.matchId,
+      detail: {
+        info: {
+          participants: [
+            {
+              puuid: "puuid-vyoh",
+              win: opts.win,
+              teamId: opts.teamId,
+              firstBloodKill: opts.firstBlood,
+            },
+            { puuid: "other", win: !opts.win, teamId: enemyTeam, firstBloodKill: false },
+          ],
+          teams: [
+            {
+              teamId: opts.teamId,
+              objectives: { tower: { first: opts.teamFirstTower } },
+            },
+            { teamId: enemyTeam, objectives: { tower: { first: !opts.teamFirstTower } } },
+          ],
+        },
+      },
+    };
+  }
+
+  it("tallies personal first blood and team first tower with win counts", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: false },
+      { matchId: "m3", remake: false },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        teamId: 100,
+        firstBlood: true,
+        teamFirstTower: true,
+      }),
+      cacheRow({
+        matchId: "m2",
+        win: false,
+        teamId: 200,
+        firstBlood: true,
+        teamFirstTower: false,
+      }),
+      cacheRow({
+        matchId: "m3",
+        win: true,
+        teamId: 100,
+        firstBlood: false,
+        teamFirstTower: true,
+      }),
+    ]);
+
+    const result = await makeService(prisma).getObjectiveFirsts("euw1", "Vyoh", "Ahri");
+
+    expect(result.games).toBe(3);
+    // first blood in m1 (win) + m2 (loss) → count 2, wins 1.
+    expect(result.firstBlood).toEqual({ count: 2, wins: 1 });
+    // team first tower in m1 (win) + m3 (win) → count 2, wins 2.
+    expect(result.firstTower).toEqual({ count: 2, wins: 2 });
+  });
+
+  it("excludes remakes before reading caches", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: true },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        teamId: 100,
+        firstBlood: true,
+        teamFirstTower: false,
+      }),
+    ]);
+
+    const result = await makeService(prisma).getObjectiveFirsts("euw1", "Vyoh", "Ahri");
+
+    expect(result.games).toBe(1);
+    expect(prisma.matchDetailCache.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { matchId: { in: ["m1"] } } })
+    );
+  });
+
+  it("throws when the account is not whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getObjectiveFirsts("euw1", "Vyoh", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});

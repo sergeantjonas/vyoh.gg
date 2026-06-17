@@ -9,6 +9,7 @@ import { LolIdentityHero } from "@/lol/profile/identity-hero";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
+import { ProfileObjectiveFirsts } from "@/lol/profile/profile-objective-firsts";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
@@ -210,6 +211,9 @@ function ProfilePage() {
       </CvSection>
       <CvSection minHeight={100}>
         <ProfileMultikillStrip accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={100}>
+        <ProfileObjectiveFirsts accountSlug={accountSlug} />
       </CvSection>
       {matches && matches.length > 0 && (
         <Link

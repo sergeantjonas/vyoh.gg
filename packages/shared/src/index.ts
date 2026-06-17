@@ -80,6 +80,10 @@ export type {
   LanePhaseMetric,
 } from "./lol/champion-lane-phase.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";
+export type {
+  ObjectiveFirsts,
+  ObjectiveFirstTally,
+} from "./lol/objective-firsts.ts";
 export type { ChampionRuneDiversityEntry } from "./lol/champion-rune-diversity.ts";
 export {
   CHAMPION_RECAP_RECENT_LIMIT,

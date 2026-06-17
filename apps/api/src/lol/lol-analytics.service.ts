@@ -9,6 +9,7 @@ import {
   type Chronotype,
   type Duo,
   type MatchSummary,
+  type ObjectiveFirsts,
   type PregameCalibrationByQueue,
   type Squad,
   type SquadMember,
@@ -650,6 +651,80 @@ export class LolAnalyticsService {
     }
 
     return [...map.values()].sort((a, b) => b.games - a.games);
+  }
+
+  // Objective firsts: across the owner's recent N non-remake matches, how often
+  // they personally drew first blood and how often their team took the first
+  // tower, each with the win count in those games. Reads MatchDetailCache (the
+  // raw Riot payload carries participant `firstBloodKill` + team objectives);
+  // remakes are filtered via a Match prelude so the rate isn't diluted.
+  async getObjectiveFirsts(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<ObjectiveFirsts> {
+    const empty: ObjectiveFirsts = {
+      games: 0,
+      firstBlood: { count: 0, wins: 0 },
+      firstTower: { count: 0, wins: 0 },
+    };
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return empty;
+
+    const matches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true },
+    });
+    const playable = excludeRemakes(matches);
+    if (playable.length === 0) return empty;
+
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+
+    const result: ObjectiveFirsts = {
+      games: 0,
+      firstBlood: { count: 0, wins: 0 },
+      firstTower: { count: 0, wins: 0 },
+    };
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            win: boolean;
+            teamId: number;
+            firstBloodKill?: boolean;
+          }>;
+          teams: Array<{
+            teamId: number;
+            objectives?: { tower?: { first?: boolean } };
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      result.games += 1;
+      if (me.firstBloodKill) {
+        result.firstBlood.count += 1;
+        if (me.win) result.firstBlood.wins += 1;
+      }
+      const myTeam = detail.info.teams.find((t) => t.teamId === me.teamId);
+      if (myTeam?.objectives?.tower?.first) {
+        result.firstTower.count += 1;
+        if (me.win) result.firstTower.wins += 1;
+      }
+    }
+
+    return result;
   }
 
   // Champion build-flow: for the user's recent N matches on `championKey`,
