@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
   type ChampionBuildFlowEntry,
   type ChampionExtras,
+  type ChampionLanePhase,
   type ChampionPair,
   type ChampionRecap,
   type ChampionRuneDiversityEntry,
@@ -21,6 +22,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import type { RiotMatchTimeline } from "../riot/types";
 import { LolService } from "./lol.service";
 import { queueTypeName } from "./queue-types";
+import { frameAtMinute, resolveParticipantId } from "./timeline-summary-mapper";
 
 const EMPTY_CALIBRATION: PregameCalibrationByQueue = {};
 
@@ -795,6 +797,112 @@ export class LolAnalyticsService {
     }
 
     return [...map.values()].sort((a, b) => b.games - a.games);
+  }
+
+  // Champion lane phase: for the user's recent N matches on `championKey`,
+  // compute the owner-minus-laneOpponent CS@10 / CS@15 / gold@10 differentials
+  // from the stored timeline and average them, plus how often the owner came
+  // out ahead (diff > 0). Read live from MatchTimelineCache like build-flow —
+  // the opponent's per-frame stats aren't projected onto the Match row, so this
+  // is the only source. Matches with no lane opponent (ARAM/Arena, unresolved
+  // lane) or no 10-min frame (remakes, fast surrenders) drop out.
+  async getChampionLanePhase(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    championKey: string,
+    count = 100
+  ): Promise<ChampionLanePhase> {
+    const empty: ChampionLanePhase = {
+      sampleSize: 0,
+      csAt10: { diff: 0, aheadRate: 0 },
+      csAt15: { diff: 0, aheadRate: 0 },
+      goldAt10: { diff: 0, aheadRate: 0 },
+    };
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return empty;
+
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: summoner.puuid,
+        champion: { equals: championKey, mode: "insensitive" },
+      },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true, laneOpponent: true },
+    });
+    const playable = excludeRemakes(matches).filter(
+      (m): m is typeof m & { laneOpponent: { puuid: string } } =>
+        !!m.laneOpponent &&
+        typeof (m.laneOpponent as { puuid?: unknown }).puuid === "string"
+    );
+    if (playable.length === 0) return empty;
+
+    const timelineRows = await this.prisma.matchTimelineCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+    const timelineByMatchId = new Map(timelineRows.map((t) => [t.matchId, t.timeline]));
+
+    const csOf = (
+      pf: { minionsKilled?: number; jungleMinionsKilled?: number } | undefined
+    ) => (pf ? (pf.minionsKilled ?? 0) + (pf.jungleMinionsKilled ?? 0) : 0);
+
+    // Independent accumulators per metric — a game can reach 10 min without
+    // reaching 15, so each metric's average uses only the games that had its
+    // frame and both participants present in it.
+    const acc = {
+      cs10: { sum: 0, ahead: 0, n: 0 },
+      cs15: { sum: 0, ahead: 0, n: 0 },
+      gold10: { sum: 0, ahead: 0, n: 0 },
+    };
+    const add = (bucket: { sum: number; ahead: number; n: number }, diff: number) => {
+      bucket.sum += diff;
+      if (diff > 0) bucket.ahead += 1;
+      bucket.n += 1;
+    };
+
+    for (const m of playable) {
+      const raw = timelineByMatchId.get(m.matchId);
+      if (!raw) continue;
+      const timeline = raw as unknown as RiotMatchTimeline;
+      const ownerId = resolveParticipantId(timeline, summoner.puuid);
+      const oppId = resolveParticipantId(timeline, m.laneOpponent.puuid);
+      if (ownerId === null || oppId === null) continue;
+      const ownerKey = String(ownerId);
+      const oppKey = String(oppId);
+
+      const f10 = frameAtMinute(timeline, 10);
+      const owner10 = f10?.participantFrames[ownerKey];
+      const opp10 = f10?.participantFrames[oppKey];
+      if (owner10 && opp10) {
+        add(acc.cs10, csOf(owner10) - csOf(opp10));
+        add(acc.gold10, (owner10.totalGold ?? 0) - (opp10.totalGold ?? 0));
+      }
+
+      const f15 = frameAtMinute(timeline, 15);
+      const owner15 = f15?.participantFrames[ownerKey];
+      const opp15 = f15?.participantFrames[oppKey];
+      if (owner15 && opp15) {
+        add(acc.cs15, csOf(owner15) - csOf(opp15));
+      }
+    }
+
+    const metric = (b: { sum: number; ahead: number; n: number }) => ({
+      diff: b.n > 0 ? b.sum / b.n : 0,
+      aheadRate: b.n > 0 ? b.ahead / b.n : 0,
+    });
+
+    return {
+      sampleSize: acc.cs10.n,
+      csAt10: metric(acc.cs10),
+      csAt15: metric(acc.cs15),
+      goldAt10: metric(acc.gold10),
+    };
   }
 
   async getPregameCalibration(

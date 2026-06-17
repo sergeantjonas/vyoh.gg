@@ -15,6 +15,7 @@ import type {
   CachedMatchesResult,
   ChampionBuildFlowEntry,
   ChampionExtras,
+  ChampionLanePhase,
   ChampionPair,
   ChampionRecap,
   ChampionRuneDiversityEntry,
@@ -152,6 +153,20 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionRuneDiversityEntry[]> {
     return this.analytics.getChampionRuneDiversity(
+      region,
+      gameName,
+      tagLine,
+      championKey,
+      count
+    );
+  }
+
+  @Get("champions/:championKey/lane-phase")
+  async getChampionLanePhase(
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<ChampionLanePhase> {
+    return this.analytics.getChampionLanePhase(
       region,
       gameName,
       tagLine,

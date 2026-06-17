@@ -37,7 +37,10 @@ const ZERO: TimelineSummaryMetrics = {
 
 // Resolve the user's participantId (1-10) from either info.participants
 // (when present) or the metadata participants order (always present).
-function resolveParticipantId(timeline: RiotMatchTimeline, puuid: string): number | null {
+export function resolveParticipantId(
+  timeline: RiotMatchTimeline,
+  puuid: string
+): number | null {
   const fromInfo = timeline.info.participants?.find((p) => p.puuid === puuid);
   if (fromInfo) return fromInfo.participantId;
   const idx = timeline.metadata.participants.indexOf(puuid);
@@ -49,7 +52,7 @@ function resolveParticipantId(timeline: RiotMatchTimeline, puuid: string): numbe
 // frame whose timestamp first reaches the requested minute mark — that's the
 // "frame at or just past minute N" for our purposes. Returns null when the
 // match ended before that minute (remakes, fast surrenders).
-function frameAtMinute(
+export function frameAtMinute(
   timeline: RiotMatchTimeline,
   minute: number
 ): RiotMatchTimeline["info"]["frames"][number] | null {

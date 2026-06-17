@@ -37,6 +37,7 @@ import {
   computeChampionDetail,
 } from "@/lol/champions/champion-detail-stats";
 import { ChampionHero } from "@/lol/champions/champion-hero";
+import { ChampionLanePhase } from "@/lol/champions/champion-lane-phase";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
 import { ChampionRuneDiversity } from "@/lol/champions/champion-rune-diversity";
@@ -868,6 +869,13 @@ function ChampionDetailPage() {
           </CvSection>
           <CvSection minHeight={200}>
             <ChampionRuneDiversity
+              accountSlug={accountSlug}
+              championKey={championKey}
+              frosted
+            />
+          </CvSection>
+          <CvSection minHeight={200}>
+            <ChampionLanePhase
               accountSlug={accountSlug}
               championKey={championKey}
               frosted

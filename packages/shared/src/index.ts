@@ -75,6 +75,10 @@ export {
 } from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";
 export type { ChampionBuildFlowEntry } from "./lol/champion-build-flow.ts";
+export type {
+  ChampionLanePhase,
+  LanePhaseMetric,
+} from "./lol/champion-lane-phase.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";
 export type { ChampionRuneDiversityEntry } from "./lol/champion-rune-diversity.ts";
 export {

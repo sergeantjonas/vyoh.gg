@@ -1338,3 +1338,134 @@ describe("LolAnalyticsService.getChampionRuneDiversity", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("LolAnalyticsService.getChampionLanePhase", () => {
+  const pf = (participantId: number, cs: number, gold: number) => ({
+    participantId,
+    minionsKilled: cs,
+    jungleMinionsKilled: 0,
+    totalGold: gold,
+  });
+
+  // Owner = participantId 1 (puuid-vyoh), lane opponent = participantId 6 (opp-1).
+  function timeline(opts: {
+    owner10: [number, number];
+    opp10: [number, number];
+    owner15?: [number, number];
+    opp15?: [number, number];
+  }) {
+    const frames: Array<{
+      timestamp: number;
+      participantFrames: Record<string, ReturnType<typeof pf>>;
+    }> = [
+      { timestamp: 0, participantFrames: {} },
+      {
+        timestamp: 600_000,
+        participantFrames: {
+          "1": pf(1, opts.owner10[0], opts.owner10[1]),
+          "6": pf(6, opts.opp10[0], opts.opp10[1]),
+        },
+      },
+    ];
+    if (opts.owner15 && opts.opp15) {
+      frames.push({
+        timestamp: 900_000,
+        participantFrames: {
+          "1": pf(1, opts.owner15[0], opts.owner15[1]),
+          "6": pf(6, opts.opp15[0], opts.opp15[1]),
+        },
+      });
+    }
+    return {
+      metadata: {
+        participants: [
+          "puuid-vyoh",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "opp-1",
+          "p7",
+          "p8",
+          "p9",
+          "p10",
+        ],
+      },
+      info: {
+        participants: [
+          { participantId: 1, puuid: "puuid-vyoh" },
+          { participantId: 6, puuid: "opp-1" },
+        ],
+        frames,
+      },
+    };
+  }
+
+  it("averages owner-minus-opponent diffs and ahead rates, per-metric sample", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false, laneOpponent: { puuid: "opp-1" } },
+      { matchId: "m2", remake: false, laneOpponent: { puuid: "opp-1" } },
+    ]);
+    prisma.matchTimelineCache.findMany.mockResolvedValue([
+      {
+        matchId: "m1",
+        timeline: timeline({
+          owner10: [80, 5000],
+          opp10: [60, 4500],
+          owner15: [130, 8000],
+          opp15: [110, 7600],
+        }),
+      },
+      // m2 ends before 15 min — contributes to cs10/gold10 only.
+      { matchId: "m2", timeline: timeline({ owner10: [50, 4000], opp10: [70, 4300] }) },
+    ]);
+
+    const result = await makeService(prisma).getChampionLanePhase(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(result.sampleSize).toBe(2);
+    // cs@10 diffs: +20, -20 → avg 0, ahead 1/2.
+    expect(result.csAt10).toEqual({ diff: 0, aheadRate: 0.5 });
+    // gold@10 diffs: +500, -300 → avg 100, ahead 1/2.
+    expect(result.goldAt10).toEqual({ diff: 100, aheadRate: 0.5 });
+    // cs@15 only m1 had a 15-min frame: +20, ahead 1/1.
+    expect(result.csAt15).toEqual({ diff: 20, aheadRate: 1 });
+  });
+
+  it("drops remakes and matches without a lane opponent before touching timelines", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false, laneOpponent: null },
+      { matchId: "m2", remake: true, laneOpponent: { puuid: "opp-1" } },
+    ]);
+
+    const result = await makeService(prisma).getChampionLanePhase(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(result.sampleSize).toBe(0);
+    expect(result.csAt10).toEqual({ diff: 0, aheadRate: 0 });
+    // No surviving match → no timeline query.
+    expect(prisma.matchTimelineCache.findMany).not.toHaveBeenCalled();
+  });
+
+  it("throws when the account is not whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getChampionLanePhase("euw1", "Vyoh", "Ahri", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
