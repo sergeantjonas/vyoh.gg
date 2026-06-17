@@ -100,6 +100,7 @@ export type {
   VerdictSegment,
 } from "./lol/champion-recap.ts";
 export type { Chronotype, ChronotypeHour } from "./lol/chronotype.ts";
+export type { DamageProfile } from "./lol/damage-profile.ts";
 export type { Duo } from "./lol/duo.ts";
 export type { MatchBaseline, MatchBaselineState } from "./lol/match-baseline.ts";
 export type { Squad, SquadMember } from "./lol/squad.ts";

@@ -20,6 +20,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { ItemIcon } from "@/lol/_shared/assets/item-icon";
 import { ROLE_LABEL, RoleIcon } from "@/lol/_shared/assets/role-icon";
+import { DamageProfileRadar } from "@/lol/_shared/damage-profile-radar";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -876,6 +877,13 @@ function ChampionDetailPage() {
           </CvSection>
           <CvSection minHeight={200}>
             <ChampionLanePhase
+              accountSlug={accountSlug}
+              championKey={championKey}
+              frosted
+            />
+          </CvSection>
+          <CvSection minHeight={340}>
+            <DamageProfileRadar
               accountSlug={accountSlug}
               championKey={championKey}
               frosted

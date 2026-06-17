@@ -8,6 +8,7 @@ import {
   type ChampionRecap,
   type ChampionRuneDiversityEntry,
   type Chronotype,
+  type DamageProfile,
   type Duo,
   type MatchSummary,
   type ObjectiveFirsts,
@@ -799,6 +800,113 @@ export class LolAnalyticsService {
     }
 
     return result;
+  }
+
+  // Damage profile: the owner's mean share of their team's totals for damage
+  // dealt to champions, damage taken, vision score, and CS — across recent
+  // non-remake positional games, optionally scoped to one champion. Share-of-team
+  // is role-fair without an external baseline (a support reads low-damage /
+  // high-vision naturally) and stays meaningful at both champion and profile
+  // scope. Needs per-teammate stats for the team totals, so it reads the raw
+  // participant list from MatchDetailCache. Positional games only (teamPosition
+  // filters out ARAM/Arena, where vision share is degenerate); full-roster teams
+  // only (≥4 teammates skips Arena 2-player subteams / malformed rows).
+  async getDamageProfile(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    championKey?: string,
+    count = 100
+  ): Promise<DamageProfile> {
+    const empty: DamageProfile = {
+      sampleSize: 0,
+      damageShare: 0,
+      damageTakenShare: 0,
+      visionShare: 0,
+      csShare: 0,
+    };
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return empty;
+
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: summoner.puuid,
+        teamPosition: { not: "" },
+        ...(championKey
+          ? { champion: { equals: championKey, mode: "insensitive" as const } }
+          : {}),
+      },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true },
+    });
+    const playable = excludeRemakes(matches);
+    if (playable.length === 0) return empty;
+
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+
+    // Accumulate per-game shares, then divide by the count of games that
+    // contributed a non-zero team total for each metric (a metric whose team
+    // total is 0 can't yield a share, so it doesn't count toward its own mean).
+    const sums = { damage: 0, damageTaken: 0, vision: 0, cs: 0 };
+    const counts = { damage: 0, damageTaken: 0, vision: 0, cs: 0 };
+    let sampleSize = 0;
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            teamId: number;
+            totalDamageDealtToChampions?: number;
+            totalDamageTaken?: number;
+            visionScore?: number;
+            totalMinionsKilled?: number;
+            neutralMinionsKilled?: number;
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      const team = detail.info.participants.filter((p) => p.teamId === me.teamId);
+      if (team.length < 4) continue; // skip Arena subteams / malformed rows
+      sampleSize += 1;
+
+      const accumulate = (
+        key: keyof typeof sums,
+        value: (p: (typeof team)[number]) => number
+      ) => {
+        const total = team.reduce((acc, p) => acc + value(p), 0);
+        if (total > 0) {
+          sums[key] += value(me) / total;
+          counts[key] += 1;
+        }
+      };
+      accumulate("damage", (p) => p.totalDamageDealtToChampions ?? 0);
+      accumulate("damageTaken", (p) => p.totalDamageTaken ?? 0);
+      accumulate("vision", (p) => p.visionScore ?? 0);
+      accumulate(
+        "cs",
+        (p) => (p.totalMinionsKilled ?? 0) + (p.neutralMinionsKilled ?? 0)
+      );
+    }
+
+    if (sampleSize === 0) return empty;
+    const mean = (key: keyof typeof sums) =>
+      counts[key] > 0 ? sums[key] / counts[key] : 0;
+    return {
+      sampleSize,
+      damageShare: mean("damage"),
+      damageTakenShare: mean("damageTaken"),
+      visionShare: mean("vision"),
+      csShare: mean("cs"),
+    };
   }
 
   // Champion build-flow: for the user's recent N matches on `championKey`,

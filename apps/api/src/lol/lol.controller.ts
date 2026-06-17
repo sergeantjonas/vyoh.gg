@@ -21,6 +21,7 @@ import type {
   ChampionRecap,
   ChampionRuneDiversityEntry,
   Chronotype,
+  DamageProfile,
   Duo,
   LiveMatch,
   MatchBaseline,
@@ -151,6 +152,14 @@ export class LolController {
     return this.analytics.getObjectiveFirsts(region, gameName, tagLine, count);
   }
 
+  @Get("damage-profile")
+  async getDamageProfile(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<DamageProfile> {
+    return this.analytics.getDamageProfile(region, gameName, tagLine, undefined, count);
+  }
+
   @Get("champions/:championKey/build-flow")
   async getChampionBuildFlow(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
@@ -191,6 +200,14 @@ export class LolController {
       championKey,
       count
     );
+  }
+
+  @Get("champions/:championKey/damage-profile")
+  async getChampionDamageProfile(
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<DamageProfile> {
+    return this.analytics.getDamageProfile(region, gameName, tagLine, championKey, count);
   }
 
   @Get("rank/history")

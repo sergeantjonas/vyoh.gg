@@ -2,6 +2,7 @@ import { CvSection, SectionPlaceholder } from "@/_shared/cv-section";
 import { routeMeta } from "@/lib/route-meta";
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { DamageProfileRadar } from "@/lol/_shared/damage-profile-radar";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
@@ -218,6 +219,9 @@ function ProfilePage() {
       </CvSection>
       <CvSection minHeight={140}>
         <ProfileCarryProfile accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={340}>
+        <DamageProfileRadar accountSlug={accountSlug} />
       </CvSection>
       {matches && matches.length > 0 && (
         <Link
