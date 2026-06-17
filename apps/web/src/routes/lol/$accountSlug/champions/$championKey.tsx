@@ -39,6 +39,7 @@ import {
 import { ChampionHero } from "@/lol/champions/champion-hero";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
+import { ChampionRuneDiversity } from "@/lol/champions/champion-rune-diversity";
 import { buildPatchDrift } from "@/lol/champions/patch-drift";
 import { useChampionExtras } from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
@@ -860,6 +861,13 @@ function ChampionDetailPage() {
               rendered on the Trends tab page omit the prop and stay bare. */}
           <CvSection minHeight={240}>
             <ChampionBuildPath
+              accountSlug={accountSlug}
+              championKey={championKey}
+              frosted
+            />
+          </CvSection>
+          <CvSection minHeight={200}>
+            <ChampionRuneDiversity
               accountSlug={accountSlug}
               championKey={championKey}
               frosted

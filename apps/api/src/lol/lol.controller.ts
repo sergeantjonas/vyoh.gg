@@ -17,6 +17,7 @@ import type {
   ChampionExtras,
   ChampionPair,
   ChampionRecap,
+  ChampionRuneDiversityEntry,
   Chronotype,
   Duo,
   LiveMatch,
@@ -137,6 +138,20 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionBuildFlowEntry[]> {
     return this.analytics.getChampionBuildFlow(
+      region,
+      gameName,
+      tagLine,
+      championKey,
+      count
+    );
+  }
+
+  @Get("champions/:championKey/rune-diversity")
+  async getChampionRuneDiversity(
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<ChampionRuneDiversityEntry[]> {
+    return this.analytics.getChampionRuneDiversity(
       region,
       gameName,
       tagLine,

@@ -4,6 +4,7 @@ import {
   type ChampionExtras,
   type ChampionPair,
   type ChampionRecap,
+  type ChampionRuneDiversityEntry,
   type Chronotype,
   type Duo,
   type MatchSummary,
@@ -731,6 +732,69 @@ export class LolAnalyticsService {
     }
 
     return result;
+  }
+
+  // Champion rune diversity: for the user's recent N matches on `championKey`,
+  // tally which keystone rune they ran and the win count per keystone. Keystone
+  // is read from the cached raw Riot detail (perks.styles[0].selections[0].perk)
+  // — same source as the match-detail participant rows; no timeline needed, so
+  // this covers every match that has a MatchDetailCache row.
+  async getChampionRuneDiversity(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    championKey: string,
+    count = 100
+  ): Promise<ChampionRuneDiversityEntry[]> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return [];
+
+    const matches = await this.prisma.match.findMany({
+      where: {
+        puuid: summoner.puuid,
+        champion: { equals: championKey, mode: "insensitive" },
+      },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true },
+    });
+    const playable = excludeRemakes(matches);
+    if (playable.length === 0) return [];
+
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+
+    const map = new Map<number, ChampionRuneDiversityEntry>();
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            win: boolean;
+            perks?: { styles?: Array<{ selections?: Array<{ perk?: number }> }> };
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      const keystoneId = me.perks?.styles?.[0]?.selections?.[0]?.perk ?? 0;
+      if (keystoneId === 0) continue;
+      const prev = map.get(keystoneId);
+      if (prev) {
+        prev.games += 1;
+        if (me.win) prev.wins += 1;
+      } else {
+        map.set(keystoneId, { keystoneId, games: 1, wins: me.win ? 1 : 0 });
+      }
+    }
+
+    return [...map.values()].sort((a, b) => b.games - a.games);
   }
 
   async getPregameCalibration(

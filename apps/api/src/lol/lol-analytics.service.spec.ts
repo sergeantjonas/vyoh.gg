@@ -1240,3 +1240,101 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
     expect(prisma.match.findMany).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("LolAnalyticsService.getChampionRuneDiversity", () => {
+  function cacheRow(matchId: string, puuid: string, perk: number, win: boolean) {
+    return {
+      matchId,
+      detail: {
+        info: {
+          participants: [
+            // a teammate whose keystone must be ignored
+            {
+              puuid: "other",
+              win,
+              perks: { styles: [{ selections: [{ perk: 9999 }] }] },
+            },
+            { puuid, win, perks: { styles: [{ selections: [{ perk }] }] } },
+          ],
+        },
+      },
+    };
+  }
+
+  it("tallies the owner's keystone per match, sorted by games desc", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: false },
+      { matchId: "m3", remake: false },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow("m1", "puuid-vyoh", 8005, true),
+      cacheRow("m2", "puuid-vyoh", 8005, false),
+      cacheRow("m3", "puuid-vyoh", 9923, true),
+    ]);
+
+    const result = await makeService(prisma).getChampionRuneDiversity(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(result).toEqual([
+      { keystoneId: 8005, games: 2, wins: 1 },
+      { keystoneId: 9923, games: 1, wins: 1 },
+    ]);
+    // Match query is scoped to the champion (case-insensitive).
+    expect(prisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          puuid: "puuid-vyoh",
+          champion: { equals: "Ahri", mode: "insensitive" },
+        }),
+      })
+    );
+  });
+
+  it("excludes remakes and skips matches with no resolvable keystone", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: true },
+    ]);
+    // Only the non-remake match has a cache row; its keystone is missing (perk 0).
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      {
+        matchId: "m1",
+        detail: {
+          info: { participants: [{ puuid: "puuid-vyoh", win: true, perks: {} }] },
+        },
+      },
+    ]);
+
+    const result = await makeService(prisma).getChampionRuneDiversity(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(result).toEqual([]);
+    // Remake match id is not queried in the cache lookup.
+    expect(prisma.matchDetailCache.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { matchId: { in: ["m1"] } } })
+    );
+  });
+
+  it("throws when the account is not whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getChampionRuneDiversity("euw1", "Vyoh", "Ahri", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});

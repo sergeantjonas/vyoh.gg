@@ -76,6 +76,7 @@ export {
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";
 export type { ChampionBuildFlowEntry } from "./lol/champion-build-flow.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";
+export type { ChampionRuneDiversityEntry } from "./lol/champion-rune-diversity.ts";
 export {
   CHAMPION_RECAP_RECENT_LIMIT,
   deriveChampionRecap,
