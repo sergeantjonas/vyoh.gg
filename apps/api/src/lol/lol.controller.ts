@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import type {
   CachedMatchesResult,
+  CarryProfile,
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionLanePhase,
@@ -132,6 +133,14 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionPair[]> {
     return this.analytics.getChampionPairs(region, gameName, tagLine, count);
+  }
+
+  @Get("carry-profile")
+  async getCarryProfile(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<CarryProfile> {
+    return this.analytics.getCarryProfile(region, gameName, tagLine, count);
   }
 
   @Get("objective-firsts")

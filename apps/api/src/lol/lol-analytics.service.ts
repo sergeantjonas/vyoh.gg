@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
+  type CarryProfile,
   type ChampionBuildFlowEntry,
   type ChampionExtras,
   type ChampionLanePhase,
@@ -722,6 +723,79 @@ export class LolAnalyticsService {
         result.firstTower.count += 1;
         if (me.win) result.firstTower.wins += 1;
       }
+    }
+
+    return result;
+  }
+
+  // Carry profile: split the owner's wins/losses by where they ranked in their
+  // own team's champion damage — top-3 vs bottom-2. Neutral framing (a support's
+  // bottom-2 damage isn't a failing); the split just shows how results track
+  // with the owner's damage share. Needs per-teammate damage, so it reads the
+  // raw participant list from MatchDetailCache (the Match row only stores the
+  // owner's `damageShare`, not teammates' absolute damage). Remake-excluded; only
+  // full-roster teams (≥4 teammates → SR/ARAM, not Arena 2-player subteams).
+  async getCarryProfile(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<CarryProfile> {
+    const empty: CarryProfile = {
+      games: 0,
+      topThree: { games: 0, wins: 0 },
+      bottomTwo: { games: 0, wins: 0 },
+    };
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return empty;
+
+    const matches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true },
+    });
+    const playable = excludeRemakes(matches);
+    if (playable.length === 0) return empty;
+
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+
+    const result: CarryProfile = {
+      games: 0,
+      topThree: { games: 0, wins: 0 },
+      bottomTwo: { games: 0, wins: 0 },
+    };
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            win: boolean;
+            teamId: number;
+            totalDamageDealtToChampions?: number;
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      const team = detail.info.participants.filter((p) => p.teamId === me.teamId);
+      if (team.length < 4) continue; // skip Arena subteams / malformed rows
+      const myDmg = me.totalDamageDealtToChampions ?? 0;
+      // Rank = 1 + teammates with strictly more damage. Top-3 → rank ≤ 3.
+      const ahead = team.filter(
+        (p) => (p.totalDamageDealtToChampions ?? 0) > myDmg
+      ).length;
+      const bucket = ahead + 1 <= 3 ? result.topThree : result.bottomTwo;
+      result.games += 1;
+      bucket.games += 1;
+      if (me.win) bucket.wins += 1;
     }
 
     return result;

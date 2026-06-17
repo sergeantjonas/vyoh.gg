@@ -6,6 +6,7 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { LolIdentityHero } from "@/lol/profile/identity-hero";
+import { ProfileCarryProfile } from "@/lol/profile/profile-carry-profile";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
@@ -214,6 +215,9 @@ function ProfilePage() {
       </CvSection>
       <CvSection minHeight={100}>
         <ProfileObjectiveFirsts accountSlug={accountSlug} />
+      </CvSection>
+      <CvSection minHeight={140}>
+        <ProfileCarryProfile accountSlug={accountSlug} />
       </CvSection>
       {matches && matches.length > 0 && (
         <Link

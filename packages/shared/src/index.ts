@@ -80,6 +80,7 @@ export type {
   LanePhaseMetric,
 } from "./lol/champion-lane-phase.ts";
 export type { ChampionPair } from "./lol/champion-pair.ts";
+export type { CarryProfile, CarryProfileSplit } from "./lol/carry-profile.ts";
 export type {
   ObjectiveFirsts,
   ObjectiveFirstTally,

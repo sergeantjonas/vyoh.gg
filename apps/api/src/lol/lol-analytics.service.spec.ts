@@ -1580,3 +1580,109 @@ describe("LolAnalyticsService.getObjectiveFirsts", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("LolAnalyticsService.getCarryProfile", () => {
+  // Owner's team (100) is 5 players; ownerDmg sets the owner's damage, the other
+  // four teammates' damage is given so we can place the owner's rank.
+  function cacheRow(opts: {
+    matchId: string;
+    win: boolean;
+    ownerDmg: number;
+    teammateDmgs: number[];
+    teamSize?: number;
+  }) {
+    const teamSize = opts.teamSize ?? 5;
+    const team = [
+      {
+        puuid: "puuid-vyoh",
+        win: opts.win,
+        teamId: 100,
+        totalDamageDealtToChampions: opts.ownerDmg,
+      },
+      ...opts.teammateDmgs.slice(0, teamSize - 1).map((d, i) => ({
+        puuid: `mate-${i}`,
+        win: opts.win,
+        teamId: 100,
+        totalDamageDealtToChampions: d,
+      })),
+    ];
+    const enemies = Array.from({ length: 5 }, (_, i) => ({
+      puuid: `enemy-${i}`,
+      win: !opts.win,
+      teamId: 200,
+      totalDamageDealtToChampions: 10000,
+    }));
+    return {
+      matchId: opts.matchId,
+      detail: { info: { participants: [...team, ...enemies] } },
+    };
+  }
+
+  it("buckets games by the owner's rank in team champion damage", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: false },
+      { matchId: "m3", remake: false },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      // owner highest damage → rank 1 (top-3), win
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        ownerDmg: 30000,
+        teammateDmgs: [20000, 15000, 10000, 5000],
+      }),
+      // owner lowest damage → rank 5 (bottom-2), loss
+      cacheRow({
+        matchId: "m2",
+        win: false,
+        ownerDmg: 4000,
+        teammateDmgs: [30000, 25000, 20000, 15000],
+      }),
+      // owner 4th of 5 → rank 4 (bottom-2), win
+      cacheRow({
+        matchId: "m3",
+        win: true,
+        ownerDmg: 12000,
+        teammateDmgs: [30000, 25000, 20000, 8000],
+      }),
+    ]);
+
+    const result = await makeService(prisma).getCarryProfile("euw1", "Vyoh", "Ahri");
+
+    expect(result.games).toBe(3);
+    expect(result.topThree).toEqual({ games: 1, wins: 1 });
+    expect(result.bottomTwo).toEqual({ games: 2, wins: 1 });
+  });
+
+  it("skips teams without a full roster (Arena subteams / malformed rows)", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([{ matchId: "m1", remake: false }]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        ownerDmg: 9000,
+        teammateDmgs: [8000],
+        teamSize: 2,
+      }),
+    ]);
+
+    const result = await makeService(prisma).getCarryProfile("euw1", "Vyoh", "Ahri");
+
+    expect(result.games).toBe(0);
+  });
+
+  it("throws when the account is not whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(service.getCarryProfile("euw1", "Vyoh", "Ahri")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+});
