@@ -1,4 +1,5 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { CHART_SERIES } from "@/lib/chart-palette";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -314,12 +315,15 @@ function GameArcChart({
                     </text>
                   </g>
                 ))}
-                {/* Gold diff line */}
+                {/* Gold diff line — the subject trajectory backdrop for the
+                    semantic event dots; themed via the accent cascade (default
+                    --theme-color is itself a blue, so unthemed routes are
+                    unchanged). The dots carry the kill/death/objective meaning. */}
                 <LinePath
                   data={series}
                   x={(d) => xScale(d.min)}
                   y={(d) => yScale(d.diff)}
-                  stroke="#60a5fa"
+                  stroke={CHART_SERIES}
                   strokeWidth={1.5}
                   fill="none"
                 />
