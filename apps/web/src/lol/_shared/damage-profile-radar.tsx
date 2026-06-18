@@ -1,4 +1,4 @@
-import { CHART_AXIS, CHART_GRID, CHART_SERIES } from "@/lib/chart-palette";
+import { CHART_AXIS, CHART_GRID, CHART_SERIES_STATIC } from "@/lib/chart-palette";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { useDamageProfile } from "@/lol/_shared/use-damage-profile";
@@ -115,11 +115,11 @@ export function DamageProfileRadar({
               />
               <Radar
                 dataKey="you"
-                stroke={CHART_SERIES}
+                stroke={CHART_SERIES_STATIC}
                 strokeWidth={2.5}
-                fill={CHART_SERIES}
+                fill={CHART_SERIES_STATIC}
                 fillOpacity={0.4}
-                dot={{ r: 3, fill: CHART_SERIES, strokeWidth: 0 }}
+                dot={{ r: 3, fill: CHART_SERIES_STATIC, strokeWidth: 0 }}
               />
             </RadarChart>
           </ResponsiveContainer>
