@@ -68,7 +68,6 @@ describe("DamageProfileRadar", () => {
       data: {
         sampleSize: 3,
         damageShare: 0.3,
-        damageTakenShare: 0.2,
         visionShare: 0.2,
         csShare: 0.3,
       },
@@ -82,7 +81,6 @@ describe("DamageProfileRadar", () => {
       data: {
         sampleSize: 18,
         damageShare: 0.4, // highest → drives the verdict
-        damageTakenShare: 0.15,
         visionShare: 0.1,
         csShare: 0.25,
       },
@@ -94,11 +92,10 @@ describe("DamageProfileRadar", () => {
       )
     ).toBeTruthy();
     // Share legend reads each axis's absolute percentage.
-    expect(screen.getByText("15%")).toBeTruthy();
     expect(screen.getByText("10%")).toBeTruthy();
     expect(screen.getByText("25%")).toBeTruthy();
-    expect(screen.getByText("Tanked")).toBeTruthy();
     expect(screen.getByText("Vision")).toBeTruthy();
+    expect(screen.getByText("CS")).toBeTruthy();
   });
 
   it("has no axe violations", async () => {
@@ -106,7 +103,6 @@ describe("DamageProfileRadar", () => {
       data: {
         sampleSize: 18,
         damageShare: 0.4,
-        damageTakenShare: 0.15,
         visionShare: 0.1,
         csShare: 0.25,
       },

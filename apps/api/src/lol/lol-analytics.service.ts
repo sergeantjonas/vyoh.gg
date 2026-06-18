@@ -803,14 +803,18 @@ export class LolAnalyticsService {
   }
 
   // Damage profile: the owner's mean share of their team's totals for damage
-  // dealt to champions, damage taken, vision score, and CS — across recent
-  // non-remake positional games, optionally scoped to one champion. Share-of-team
-  // is role-fair without an external baseline (a support reads low-damage /
+  // dealt to champions, vision score, and CS — across recent non-remake
+  // positional games, optionally scoped to one champion. Share-of-team is
+  // role-fair without an external baseline (a support reads low-damage /
   // high-vision naturally) and stays meaningful at both champion and profile
-  // scope. Needs per-teammate stats for the team totals, so it reads the raw
-  // participant list from MatchDetailCache. Positional games only (teamPosition
-  // filters out ARAM/Arena, where vision share is degenerate); full-roster teams
-  // only (≥4 teammates skips Arena 2-player subteams / malformed rows).
+  // scope. Needs per-teammate stats for the team totals, read from the lean
+  // participant list in MatchDetailCache. NO damage-taken axis: the lean
+  // projection (match-projection.ts) strips totalDamageTaken from non-owner
+  // participants, so its team-share would always read 100% (owner is the only
+  // contributor) — the three metrics here survive the projection for everyone.
+  // Positional games only (teamPosition filters out ARAM/Arena, where vision
+  // share is degenerate); full-roster teams only (≥4 teammates skips Arena
+  // 2-player subteams / malformed rows).
   async getDamageProfile(
     region: string,
     gameName: string,
@@ -821,7 +825,6 @@ export class LolAnalyticsService {
     const empty: DamageProfile = {
       sampleSize: 0,
       damageShare: 0,
-      damageTakenShare: 0,
       visionShare: 0,
       csShare: 0,
     };
@@ -855,8 +858,8 @@ export class LolAnalyticsService {
     // Accumulate per-game shares, then divide by the count of games that
     // contributed a non-zero team total for each metric (a metric whose team
     // total is 0 can't yield a share, so it doesn't count toward its own mean).
-    const sums = { damage: 0, damageTaken: 0, vision: 0, cs: 0 };
-    const counts = { damage: 0, damageTaken: 0, vision: 0, cs: 0 };
+    const sums = { damage: 0, vision: 0, cs: 0 };
+    const counts = { damage: 0, vision: 0, cs: 0 };
     let sampleSize = 0;
     for (const cache of caches) {
       const detail = cache.detail as unknown as {
@@ -865,7 +868,6 @@ export class LolAnalyticsService {
             puuid: string;
             teamId: number;
             totalDamageDealtToChampions?: number;
-            totalDamageTaken?: number;
             visionScore?: number;
             totalMinionsKilled?: number;
             neutralMinionsKilled?: number;
@@ -889,7 +891,6 @@ export class LolAnalyticsService {
         }
       };
       accumulate("damage", (p) => p.totalDamageDealtToChampions ?? 0);
-      accumulate("damageTaken", (p) => p.totalDamageTaken ?? 0);
       accumulate("vision", (p) => p.visionScore ?? 0);
       accumulate(
         "cs",
@@ -903,7 +904,6 @@ export class LolAnalyticsService {
     return {
       sampleSize,
       damageShare: mean("damage"),
-      damageTakenShare: mean("damageTaken"),
       visionShare: mean("vision"),
       csShare: mean("cs"),
     };

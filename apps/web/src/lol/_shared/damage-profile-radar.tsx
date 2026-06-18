@@ -17,18 +17,16 @@ import {
 // trivially.
 const MIN_GAMES = 5;
 
-// The four radar spokes. `get` reads the mean team-share (0..1); `noun` feeds the
-// verdict sentence. Order is the draw order around the radar (clockwise from top).
+// The three radar spokes. `get` reads the mean team-share (0..1); `noun` feeds
+// the verdict sentence. Order is the draw order around the radar (clockwise from
+// top). No damage-taken spoke: the lean MatchDetailCache projection strips
+// teammates' totalDamageTaken, so its team-share isn't recoverable — see the
+// DamageProfile type doc.
 const AXES = [
   {
     label: "Damage",
     noun: "damage to champions",
     get: (d: DamageProfile) => d.damageShare,
-  },
-  {
-    label: "Tanked",
-    noun: "damage taken",
-    get: (d: DamageProfile) => d.damageTakenShare,
   },
   { label: "Vision", noun: "vision score", get: (d: DamageProfile) => d.visionShare },
   { label: "CS", noun: "CS", get: (d: DamageProfile) => d.csShare },
@@ -38,9 +36,10 @@ const pct = (share: number) => Math.round(share * 100);
 
 /**
  * Damage-profile radar (D.3). Plots the owner's mean share of their team's
- * totals across four axes, scaled so the dashed reference polygon at radius 1 is
- * an even five-way split (share 0.2). Reusable at both scopes: pass a
- * `championKey` for the champion-detail tile, omit it for the profile-wide one.
+ * totals across three axes (damage, vision, CS), scaled so the dashed reference
+ * polygon at radius 1 is an even five-way split (share 0.2). Reusable at both
+ * scopes: pass a `championKey` for the champion-detail tile, omit it for the
+ * profile-wide one.
  */
 export function DamageProfileRadar({
   accountSlug,
@@ -93,7 +92,7 @@ export function DamageProfileRadar({
           <ResponsiveContainer width="100%" height={220}>
             <RadarChart
               data={radarData}
-              aria-label="Your share of your team's damage, damage taken, vision, and CS"
+              aria-label="Your share of your team's damage, vision, and CS"
             >
               <PolarGrid stroke={CHART_GRID} />
               <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: CHART_AXIS }} />
@@ -115,7 +114,7 @@ export function DamageProfileRadar({
             </RadarChart>
           </ResponsiveContainer>
           {/* Absolute shares — the radar shows shape, this reads the numbers. */}
-          <div className="grid grid-cols-4 gap-1.5 text-center">
+          <div className="grid grid-cols-3 gap-1.5 text-center">
             {AXES.map((a) => (
               <div key={a.label} className="flex flex-col">
                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">

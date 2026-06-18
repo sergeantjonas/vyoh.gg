@@ -1689,15 +1689,15 @@ describe("LolAnalyticsService.getCarryProfile", () => {
 
 describe("LolAnalyticsService.getDamageProfile", () => {
   // Full-roster team where the owner contributes a known share. Helper keeps the
-  // two-game fixture readable: each teammate is `{ dmg, taken, vision, minions,
-  // neutral }` on the same teamId; enemies are dropped by the teamId filter.
+  // two-game fixture readable: each teammate is `{ dmg, vision, minions, neutral }`
+  // on the same teamId; enemies are dropped by the teamId filter. No damage-taken
+  // field — the lean cache strips it from non-owners, so it's not a radar axis.
   function game(
     matchId: string,
     teamId: number,
     team: Array<{
       puuid?: string;
       dmg: number;
-      taken: number;
       vision: number;
       minions: number;
       neutral?: number;
@@ -1711,7 +1711,6 @@ describe("LolAnalyticsService.getDamageProfile", () => {
             puuid: p.puuid ?? `filler-${matchId}-${i}`,
             teamId,
             totalDamageDealtToChampions: p.dmg,
-            totalDamageTaken: p.taken,
             visionScore: p.vision,
             totalMinionsKilled: p.minions,
             neutralMinionsKilled: p.neutral ?? 0,
@@ -1731,35 +1730,27 @@ describe("LolAnalyticsService.getDamageProfile", () => {
     prisma.matchDetailCache.findMany.mockResolvedValue([
       // Even five-way split → owner share 0.2 on every axis.
       game("EUW1_1", 100, [
-        { puuid: "puuid-vyoh", dmg: 1000, taken: 500, vision: 20, minions: 100 },
-        { dmg: 1000, taken: 500, vision: 20, minions: 100 },
-        { dmg: 1000, taken: 500, vision: 20, minions: 100 },
-        { dmg: 1000, taken: 500, vision: 20, minions: 100 },
-        { dmg: 1000, taken: 500, vision: 20, minions: 100 },
+        { puuid: "puuid-vyoh", dmg: 1000, vision: 20, minions: 100 },
+        { dmg: 1000, vision: 20, minions: 100 },
+        { dmg: 1000, vision: 20, minions: 100 },
+        { dmg: 1000, vision: 20, minions: 100 },
+        { dmg: 1000, vision: 20, minions: 100 },
       ]),
-      // Owner over-indexes on damage/vision (0.5), under on taken/cs (0.25).
+      // Owner over-indexes on damage/vision (0.5), under on cs (0.25).
       game("EUW1_2", 200, [
-        {
-          puuid: "puuid-vyoh",
-          dmg: 3000,
-          taken: 1000,
-          vision: 40,
-          minions: 150,
-          neutral: 50,
-        },
-        { dmg: 1500, taken: 1500, vision: 20, minions: 300 },
-        { dmg: 1500, taken: 1500, vision: 20, minions: 300 },
-        { dmg: 0, taken: 0, vision: 0, minions: 0 },
-        { dmg: 0, taken: 0, vision: 0, minions: 0 },
+        { puuid: "puuid-vyoh", dmg: 3000, vision: 40, minions: 150, neutral: 50 },
+        { dmg: 1500, vision: 20, minions: 300 },
+        { dmg: 1500, vision: 20, minions: 300 },
+        { dmg: 0, vision: 0, minions: 0 },
+        { dmg: 0, vision: 0, minions: 0 },
       ]),
     ]);
 
     const result = await makeService(prisma).getDamageProfile("euw1", "Vyoh", "EUW");
     expect(result.sampleSize).toBe(2);
     expect(result.damageShare).toBeCloseTo(0.35); // (0.2 + 0.5) / 2
-    expect(result.damageTakenShare).toBeCloseTo(0.225); // (0.2 + 0.25) / 2
     expect(result.visionShare).toBeCloseTo(0.35);
-    expect(result.csShare).toBeCloseTo(0.225);
+    expect(result.csShare).toBeCloseTo(0.225); // (0.2 + 0.25) / 2
   });
 
   it("scopes to a champion and excludes non-positional games via the where clause", async () => {
@@ -1783,8 +1774,8 @@ describe("LolAnalyticsService.getDamageProfile", () => {
     prisma.match.findMany.mockResolvedValue([{ matchId: "EUW1_1", remake: false }]);
     prisma.matchDetailCache.findMany.mockResolvedValue([
       game("EUW1_1", 100, [
-        { puuid: "puuid-vyoh", dmg: 1000, taken: 500, vision: 20, minions: 100 },
-        { dmg: 1000, taken: 500, vision: 20, minions: 100 },
+        { puuid: "puuid-vyoh", dmg: 1000, vision: 20, minions: 100 },
+        { dmg: 1000, vision: 20, minions: 100 },
       ]),
     ]);
 
@@ -1792,7 +1783,6 @@ describe("LolAnalyticsService.getDamageProfile", () => {
     expect(result).toEqual({
       sampleSize: 0,
       damageShare: 0,
-      damageTakenShare: 0,
       visionShare: 0,
       csShare: 0,
     });
