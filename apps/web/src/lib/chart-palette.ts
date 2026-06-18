@@ -20,20 +20,16 @@ export const CHART_GRID = "var(--border)";
 export const CHART_AXIS = "var(--muted-foreground)";
 /** Hover cursor / crosshair stroke. */
 export const CHART_CURSOR = "var(--border)";
-/** Primary metric series — "your" trajectory line and its dots. Follows the
- *  per-subject accent cascade via `--accent`. NB: only routes that publish an
- *  atmosphere/asset claim set `--accent`; on routes that don't (every LoL route
- *  — the splash backdrop is a separate mechanism), `--accent` stays the neutral
- *  shadcn token (dark grey in dark theme), so this resolves grey, not the
- *  fallback emerald. That's fine for a subdued line under a coloured trend
- *  overlay (trend-kda); it is NOT fine when the series IS the hero shape. */
-export const CHART_SERIES = "var(--accent, #34d399)";
-/** Primary series for a hero data shape (filled radar polygon, solo area) on a
- *  surface that does NOT participate in the accent cascade — resolved at
- *  author-time so it can't collapse to the neutral `--accent` token. Same
- *  emerald as CHART_SERIES's nominal fallback; distinct from the semantic
- *  CHART_POSITIVE (win/loss) so decoration never reads as a win/loss signal. */
-export const CHART_SERIES_STATIC = "#34d399";
+/** Primary metric series — "your" trajectory line / dots / hero polygon. Follows
+ *  the project's per-entity accent cascade via `--theme-fg` (the contrast-locked
+ *  tier of `--theme-color`: dark theme forces lightness ≥ 0.74, so every subject
+ *  hue stays legible against the dark card). `--theme-color` is published per
+ *  subject across the app — LoL via `championTheme().dominantHex` (champion
+ *  detail / match detail / splash backdrop), recap via atmosphere claims — and
+ *  has a legible blue global default, so this never resolves to a neutral token.
+ *  NB: do NOT point this at `--accent`; that's shadcn-reserved for neutral hover
+ *  surfaces and is unset on LoL routes (see accent-color-system.md). */
+export const CHART_SERIES = "var(--theme-fg, #34d399)";
 /** Fitted/secondary reference series (trend lines, baselines). */
 export const CHART_TREND = "#a78bfa";
 /** Semantic positive: wins, gold lead, upward streaks. */
