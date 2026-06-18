@@ -94,22 +94,32 @@ export function DamageProfileRadar({
               data={radarData}
               aria-label="Your share of your team's damage, vision, and CS"
             >
-              <PolarGrid stroke={CHART_GRID} />
+              {/* Grid + reference recede; the "you" polygon is the hero. Fewer
+                  concentric rings (tickCount) keeps the backdrop from competing
+                  with the data shape. */}
+              <PolarGrid stroke={CHART_GRID} strokeOpacity={0.4} />
               <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: CHART_AXIS }} />
-              <PolarRadiusAxis domain={[0, 2.5]} tick={false} axisLine={false} />
-              {/* Dashed reference polygon = an even five-way split. */}
+              <PolarRadiusAxis
+                domain={[0, 2.5]}
+                tickCount={3}
+                tick={false}
+                axisLine={false}
+              />
+              {/* Dashed reference polygon = an even five-way split (the 20% ring). */}
               <Radar
                 dataKey="even"
-                stroke={CHART_GRID}
-                strokeDasharray="3 3"
+                stroke={CHART_AXIS}
+                strokeOpacity={0.5}
+                strokeDasharray="4 4"
                 fill="none"
               />
               <Radar
                 dataKey="you"
                 stroke={CHART_SERIES}
-                strokeWidth={1.5}
+                strokeWidth={2.5}
                 fill={CHART_SERIES}
-                fillOpacity={0.25}
+                fillOpacity={0.4}
+                dot={{ r: 3, fill: CHART_SERIES, strokeWidth: 0 }}
               />
             </RadarChart>
           </ResponsiveContainer>
