@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
+  type AramProfile,
   type CarryProfile,
   type ChampionBuildFlowEntry,
   type ChampionExtras,
@@ -50,6 +51,13 @@ const DUO_SESSION_GAP_MS = 3 * 60 * 60 * 1000; // 3h between two shared games
 // Champion pairings surfaced per duo. Capped so the expandable row stays
 // scannable and the DTO doesn't ship a long tail of one-off combos.
 const DUO_PAIR_TOP_N = 6;
+
+// ARAM dashboard (D.7). 450 is Riot's Match-V5 queueId for ARAM; routed through
+// `queueTypeName` so the filter matches exactly what match-mapper stores in
+// Match.queueType (single source of truth in @vyoh/shared queue-types).
+const ARAM_QUEUE_ID = 450;
+// Most-played ARAM champions surfaced on the dashboard.
+const ARAM_TOP_CHAMPIONS = 5;
 
 // True when any two of the given timestamps fall within one session window.
 function hasSameSessionPair(timestamps: number[]): boolean {
@@ -838,6 +846,101 @@ export class LolAnalyticsService {
         myTeam.objectives.riftHerald?.kills
       );
     }
+
+    return result;
+  }
+
+  // ARAM profile: a queue-isolated dashboard for the owner's most-played mode.
+  // The profile's serious-queues surfaces exclude ARAM by design (no lanes /
+  // ranked LP), so ARAM play is otherwise only visible blended into the
+  // all-queue headline. This surfaces it on its own: win rate, KDA, and the
+  // ARAM-flavoured sustain/tank signals (effective heal+shield delivered to
+  // allies, damage taken, damage self-mitigated) plus the most-played ARAM
+  // champions. Reads MatchDetailCache — the owner participant is stored full, so
+  // its `challenges.effectiveHealAndShielding` + damage fields survive the lean
+  // projection. Sums are returned; the web derives means/rates at the display
+  // site. ("healing taken" from the D.7 spec isn't a Match-V5 field — sustain is
+  // expressed via heal+shield-delivered + damage-taken instead.)
+  async getAramProfile(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<AramProfile> {
+    const makeEmpty = (): AramProfile => ({
+      games: 0,
+      wins: 0,
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      healAndShield: 0,
+      damageTaken: 0,
+      selfMitigated: 0,
+      damageToChampions: 0,
+      topChampions: [],
+    });
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return makeEmpty();
+
+    const matches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid, queueType: queueTypeName(ARAM_QUEUE_ID) },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true },
+    });
+    const playable = excludeRemakes(matches);
+    if (playable.length === 0) return makeEmpty();
+
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+
+    const result = makeEmpty();
+    const champMap = new Map<string, { games: number; wins: number }>();
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            win: boolean;
+            championName: string;
+            kills: number;
+            deaths: number;
+            assists: number;
+            totalDamageTaken?: number;
+            damageSelfMitigated?: number;
+            totalDamageDealtToChampions?: number;
+            challenges?: { effectiveHealAndShielding?: number };
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      result.games += 1;
+      if (me.win) result.wins += 1;
+      result.kills += me.kills;
+      result.deaths += me.deaths;
+      result.assists += me.assists;
+      result.healAndShield += me.challenges?.effectiveHealAndShielding ?? 0;
+      result.damageTaken += me.totalDamageTaken ?? 0;
+      result.selfMitigated += me.damageSelfMitigated ?? 0;
+      result.damageToChampions += me.totalDamageDealtToChampions ?? 0;
+      const prev = champMap.get(me.championName) ?? { games: 0, wins: 0 };
+      champMap.set(me.championName, {
+        games: prev.games + 1,
+        wins: prev.wins + (me.win ? 1 : 0),
+      });
+    }
+
+    result.topChampions = [...champMap.entries()]
+      .map(([championName, s]) => ({ championName, games: s.games, wins: s.wins }))
+      .sort((a, b) => b.games - a.games)
+      .slice(0, ARAM_TOP_CHAMPIONS);
 
     return result;
   }

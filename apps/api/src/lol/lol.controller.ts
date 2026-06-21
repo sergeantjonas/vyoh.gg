@@ -12,6 +12,7 @@ import {
   Sse,
 } from "@nestjs/common";
 import type {
+  AramProfile,
   CachedMatchesResult,
   CarryProfile,
   ChampionBuildFlowEntry,
@@ -159,6 +160,14 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ObjectiveParticipation> {
     return this.analytics.getObjectiveParticipation(region, gameName, tagLine, count);
+  }
+
+  @Get("aram-profile")
+  async getAramProfile(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<AramProfile> {
+    return this.analytics.getAramProfile(region, gameName, tagLine, count);
   }
 
   @Get("damage-profile")

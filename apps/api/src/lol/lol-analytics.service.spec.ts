@@ -1730,6 +1730,178 @@ describe("LolAnalyticsService.getObjectiveParticipation", () => {
   });
 });
 
+describe("LolAnalyticsService.getAramProfile", () => {
+  function cacheRow(opts: {
+    matchId: string;
+    win: boolean;
+    championName: string;
+    kills: number;
+    deaths: number;
+    assists: number;
+    healAndShield?: number;
+    damageTaken?: number;
+    selfMitigated?: number;
+    damageToChampions?: number;
+  }) {
+    return {
+      matchId: opts.matchId,
+      detail: {
+        info: {
+          participants: [
+            {
+              puuid: "puuid-vyoh",
+              win: opts.win,
+              championName: opts.championName,
+              kills: opts.kills,
+              deaths: opts.deaths,
+              assists: opts.assists,
+              totalDamageTaken: opts.damageTaken ?? 0,
+              damageSelfMitigated: opts.selfMitigated ?? 0,
+              totalDamageDealtToChampions: opts.damageToChampions ?? 0,
+              challenges: { effectiveHealAndShielding: opts.healAndShield ?? 0 },
+            },
+            {
+              puuid: "other",
+              win: !opts.win,
+              championName: "Zed",
+              kills: 0,
+              deaths: 0,
+              assists: 0,
+            },
+          ],
+        },
+      },
+    };
+  }
+
+  it("aggregates ARAM sums and ranks most-played champions", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: false },
+      { matchId: "m3", remake: false },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        championName: "Jhin",
+        kills: 10,
+        deaths: 4,
+        assists: 12,
+        healAndShield: 5000,
+        damageTaken: 20000,
+        selfMitigated: 8000,
+        damageToChampions: 30000,
+      }),
+      cacheRow({
+        matchId: "m2",
+        win: false,
+        championName: "Jhin",
+        kills: 6,
+        deaths: 8,
+        assists: 10,
+        healAndShield: 3000,
+        damageTaken: 25000,
+        selfMitigated: 9000,
+        damageToChampions: 22000,
+      }),
+      cacheRow({
+        matchId: "m3",
+        win: true,
+        championName: "Lux",
+        kills: 4,
+        deaths: 3,
+        assists: 20,
+        healAndShield: 7000,
+        damageTaken: 12000,
+        selfMitigated: 4000,
+        damageToChampions: 18000,
+      }),
+    ]);
+
+    const result = await makeService(prisma).getAramProfile("euw1", "Vyoh", "Ahri");
+
+    expect(result.games).toBe(3);
+    expect(result.wins).toBe(2);
+    expect(result).toMatchObject({
+      kills: 20,
+      deaths: 15,
+      assists: 42,
+      healAndShield: 15000,
+      damageTaken: 57000,
+      selfMitigated: 21000,
+      damageToChampions: 70000,
+    });
+    // Jhin (2 games, 1 win) ranks above Lux (1 game, 1 win).
+    expect(result.topChampions).toEqual([
+      { championName: "Jhin", games: 2, wins: 1 },
+      { championName: "Lux", games: 1, wins: 1 },
+    ]);
+  });
+
+  it("filters Match rows to the ARAM queue", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([{ matchId: "m1", remake: false }]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        championName: "Jhin",
+        kills: 1,
+        deaths: 1,
+        assists: 1,
+      }),
+    ]);
+
+    await makeService(prisma).getAramProfile("euw1", "Vyoh", "Ahri");
+
+    expect(prisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ queueType: "ARAM" }),
+      })
+    );
+  });
+
+  it("excludes remakes before reading caches", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: true },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        win: true,
+        championName: "Jhin",
+        kills: 1,
+        deaths: 1,
+        assists: 1,
+      }),
+    ]);
+
+    const result = await makeService(prisma).getAramProfile("euw1", "Vyoh", "Ahri");
+
+    expect(result.games).toBe(1);
+    expect(prisma.matchDetailCache.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { matchId: { in: ["m1"] } } })
+    );
+  });
+
+  it("throws when the account is not whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(service.getAramProfile("euw1", "Vyoh", "Ahri")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
+  });
+});
+
 describe("LolAnalyticsService.getCarryProfile", () => {
   // Owner's team (100) is 5 players; ownerDmg sets the owner's damage, the other
   // four teammates' damage is given so we can place the owner's rank.

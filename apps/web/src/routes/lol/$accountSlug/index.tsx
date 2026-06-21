@@ -7,6 +7,7 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { LolIdentityHero } from "@/lol/profile/identity-hero";
+import { ProfileAramDashboard } from "@/lol/profile/profile-aram-dashboard";
 import { ProfileCarryProfile } from "@/lol/profile/profile-carry-profile";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
@@ -203,6 +204,9 @@ function ProfilePage() {
       </CvSection>
       <CvSection minHeight={120}>
         <ProfileQueueDistribution />
+      </CvSection>
+      <CvSection minHeight={280}>
+        <ProfileAramDashboard accountSlug={accountSlug} />
       </CvSection>
       <CvSection minHeight={160}>
         <Suspense fallback={<SectionPlaceholder minHeight={160} />}>
