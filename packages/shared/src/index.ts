@@ -85,6 +85,10 @@ export type {
   ObjectiveFirsts,
   ObjectiveFirstTally,
 } from "./lol/objective-firsts.ts";
+export type {
+  ObjectiveParticipation,
+  ObjectiveParticipationTally,
+} from "./lol/objective-participation.ts";
 export type { ChampionRuneDiversityEntry } from "./lol/champion-rune-diversity.ts";
 export {
   CHAMPION_RECAP_RECENT_LIMIT,

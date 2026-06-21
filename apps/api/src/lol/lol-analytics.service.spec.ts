@@ -1581,6 +1581,155 @@ describe("LolAnalyticsService.getObjectiveFirsts", () => {
   });
 });
 
+describe("LolAnalyticsService.getObjectiveParticipation", () => {
+  function cacheRow(opts: {
+    matchId: string;
+    teamId: number;
+    teamPosition?: string;
+    dragonTakedowns?: number;
+    baronTakedowns?: number;
+    riftHeraldTakedowns?: number;
+    dragonKills?: number;
+    baronKills?: number;
+    riftHeraldKills?: number;
+  }) {
+    const enemyTeam = opts.teamId === 100 ? 200 : 100;
+    return {
+      matchId: opts.matchId,
+      detail: {
+        info: {
+          participants: [
+            {
+              puuid: "puuid-vyoh",
+              teamId: opts.teamId,
+              teamPosition: opts.teamPosition ?? "MIDDLE",
+              challenges: {
+                dragonTakedowns: opts.dragonTakedowns ?? 0,
+                baronTakedowns: opts.baronTakedowns ?? 0,
+                riftHeraldTakedowns: opts.riftHeraldTakedowns ?? 0,
+              },
+            },
+            { puuid: "other", teamId: enemyTeam, teamPosition: "TOP", challenges: {} },
+          ],
+          teams: [
+            {
+              teamId: opts.teamId,
+              objectives: {
+                dragon: { kills: opts.dragonKills ?? 0 },
+                baron: { kills: opts.baronKills ?? 0 },
+                riftHerald: { kills: opts.riftHeraldKills ?? 0 },
+              },
+            },
+            { teamId: enemyTeam, objectives: {} },
+          ],
+        },
+      },
+    };
+  }
+
+  it("tallies takedowns over team kills per objective type", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: false },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({
+        matchId: "m1",
+        teamId: 100,
+        dragonTakedowns: 2,
+        baronTakedowns: 1,
+        riftHeraldTakedowns: 1,
+        dragonKills: 3,
+        baronKills: 1,
+        riftHeraldKills: 1,
+      }),
+      cacheRow({
+        matchId: "m2",
+        teamId: 200,
+        dragonTakedowns: 1,
+        baronTakedowns: 0,
+        riftHeraldTakedowns: 0,
+        dragonKills: 2,
+        baronKills: 0, // team never took baron in m2 → excluded from baron denominator
+        riftHeraldKills: 1,
+      }),
+    ]);
+
+    const result = await makeService(prisma).getObjectiveParticipation(
+      "euw1",
+      "Vyoh",
+      "Ahri"
+    );
+
+    expect(result.games).toBe(2);
+    // dragons: (2+1) takedowns over (3+2) kills across both games.
+    expect(result.dragons).toEqual({ takedowns: 3, teamKills: 5, games: 2 });
+    // barons: only m1 had a baron → 1 of 1 in 1 game.
+    expect(result.barons).toEqual({ takedowns: 1, teamKills: 1, games: 1 });
+    // heralds: m1 took it (participated), m2 took it (no takedown) → 1 of 2 in 2 games.
+    expect(result.heralds).toEqual({ takedowns: 1, teamKills: 2, games: 2 });
+  });
+
+  it("clamps takedowns to team kills and skips non-SR games", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: false },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      // Bogus over-count clamps to the team kill total.
+      cacheRow({ matchId: "m1", teamId: 100, dragonTakedowns: 9, dragonKills: 2 }),
+      // ARAM/Arena: empty teamPosition → skipped entirely.
+      cacheRow({ matchId: "m2", teamId: 100, teamPosition: "", dragonKills: 4 }),
+    ]);
+
+    const result = await makeService(prisma).getObjectiveParticipation(
+      "euw1",
+      "Vyoh",
+      "Ahri"
+    );
+
+    expect(result.games).toBe(1);
+    expect(result.dragons).toEqual({ takedowns: 2, teamKills: 2, games: 1 });
+  });
+
+  it("excludes remakes before reading caches", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    prisma.match.findMany.mockResolvedValue([
+      { matchId: "m1", remake: false },
+      { matchId: "m2", remake: true },
+    ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cacheRow({ matchId: "m1", teamId: 100, dragonTakedowns: 1, dragonKills: 1 }),
+    ]);
+
+    const result = await makeService(prisma).getObjectiveParticipation(
+      "euw1",
+      "Vyoh",
+      "Ahri"
+    );
+
+    expect(result.games).toBe(1);
+    expect(prisma.matchDetailCache.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { matchId: { in: ["m1"] } } })
+    );
+  });
+
+  it("throws when the account is not whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getObjectiveParticipation("euw1", "Vyoh", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
 describe("LolAnalyticsService.getCarryProfile", () => {
   // Owner's team (100) is 5 players; ownerDmg sets the owner's damage, the other
   // four teammates' damage is given so we can place the owner's rank.

@@ -29,6 +29,7 @@ import type {
   MatchNarrativeWindow,
   MatchSummary,
   ObjectiveFirsts,
+  ObjectiveParticipation,
   PregameCalibrationByQueue,
   RankHistoryResponse,
   Squad,
@@ -150,6 +151,14 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ObjectiveFirsts> {
     return this.analytics.getObjectiveFirsts(region, gameName, tagLine, count);
+  }
+
+  @Get("objective-participation")
+  async getObjectiveParticipation(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+  ): Promise<ObjectiveParticipation> {
+    return this.analytics.getObjectiveParticipation(region, gameName, tagLine, count);
   }
 
   @Get("damage-profile")

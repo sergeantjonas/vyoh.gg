@@ -12,6 +12,8 @@ import {
   type Duo,
   type MatchSummary,
   type ObjectiveFirsts,
+  type ObjectiveParticipation,
+  type ObjectiveParticipationTally,
   type PregameCalibrationByQueue,
   type Squad,
   type SquadMember,
@@ -724,6 +726,117 @@ export class LolAnalyticsService {
         result.firstTower.count += 1;
         if (me.win) result.firstTower.wins += 1;
       }
+    }
+
+    return result;
+  }
+
+  // Objective participation: across the owner's recent N non-remake SR games,
+  // how many of the team's dragons / barons / rift heralds the owner got
+  // kill-or-assist credit on (Riot challenges `dragonTakedowns` etc.) vs how many
+  // the team killed — `takedowns / teamKills` is the op.gg "objective
+  // participation" rate. Reads MatchDetailCache: the owner's participant is
+  // stored full so its `challenges` block survives the lean projection, and team
+  // objective kills live in info.teams. SR-only (in-loop teamPosition gate) since
+  // ARAM/Arena have no neutral objectives. No timeline / respawn math — the
+  // takedown framing was chosen over "alive-during-objective" (roadmap D.6).
+  async getObjectiveParticipation(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<ObjectiveParticipation> {
+    const emptyTally = (): ObjectiveParticipationTally => ({
+      takedowns: 0,
+      teamKills: 0,
+      games: 0,
+    });
+    const makeEmpty = (): ObjectiveParticipation => ({
+      games: 0,
+      dragons: emptyTally(),
+      barons: emptyTally(),
+      heralds: emptyTally(),
+    });
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+    const summoner = await this.prisma.summoner.findUnique({
+      where: { gameName_tagLine_region: { gameName, tagLine, region } },
+    });
+    if (!summoner) return makeEmpty();
+
+    const matches = await this.prisma.match.findMany({
+      where: { puuid: summoner.puuid },
+      orderBy: { playedAt: "desc" },
+      take: count,
+      select: { matchId: true, remake: true },
+    });
+    const playable = excludeRemakes(matches);
+    if (playable.length === 0) return makeEmpty();
+
+    const caches = await this.prisma.matchDetailCache.findMany({
+      where: { matchId: { in: playable.map((m) => m.matchId) } },
+    });
+
+    const result = makeEmpty();
+    // Accrue one objective type's contribution from a game: skip games where the
+    // team never killed it (keeps the rate's denominator honest), and clamp
+    // takedowns to team kills (a takedown can't exist without a team kill).
+    const accrue = (
+      tally: ObjectiveParticipationTally,
+      takedowns: number | undefined,
+      teamKills: number | undefined
+    ) => {
+      const kills = teamKills ?? 0;
+      if (kills <= 0) return;
+      tally.teamKills += kills;
+      tally.takedowns += Math.min(takedowns ?? 0, kills);
+      tally.games += 1;
+    };
+    for (const cache of caches) {
+      const detail = cache.detail as unknown as {
+        info: {
+          participants: Array<{
+            puuid: string;
+            teamId: number;
+            teamPosition?: string;
+            challenges?: {
+              dragonTakedowns?: number;
+              baronTakedowns?: number;
+              riftHeraldTakedowns?: number;
+            };
+          }>;
+          teams: Array<{
+            teamId: number;
+            objectives?: {
+              dragon?: { kills?: number };
+              baron?: { kills?: number };
+              riftHerald?: { kills?: number };
+            };
+          }>;
+        };
+      };
+      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      if (!me) continue;
+      if (!me.teamPosition) continue; // SR-only; ARAM/Arena have no neutral objectives
+      const myTeam = detail.info.teams.find((t) => t.teamId === me.teamId);
+      if (!myTeam?.objectives) continue;
+      result.games += 1;
+      accrue(
+        result.dragons,
+        me.challenges?.dragonTakedowns,
+        myTeam.objectives.dragon?.kills
+      );
+      accrue(
+        result.barons,
+        me.challenges?.baronTakedowns,
+        myTeam.objectives.baron?.kills
+      );
+      accrue(
+        result.heralds,
+        me.challenges?.riftHeraldTakedowns,
+        myTeam.objectives.riftHerald?.kills
+      );
     }
 
     return result;
