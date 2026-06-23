@@ -1,4 +1,5 @@
 import { BACKDROP_SHELL_CLASS, BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
+import { WidgetBoundary } from "@/components/error-boundary";
 import { useThemeColor } from "@/lib/use-theme-color";
 import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
@@ -113,22 +114,29 @@ export function SplashProvider({ children }: { children: ReactNode }) {
     <SplashContext.Provider value={value}>
       {children}
       <BackdropPortal>
-        <AnimatePresence>
-          {champion && (
-            <m.div
-              key={champion}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.7 }}
-              className={BACKDROP_SHELL_CLASS}
-            >
-              <Suspense fallback={null}>
-                <ChampionSplashLayer champion={champion} offsetX={offsetX} />
-              </Suspense>
-            </m.div>
-          )}
-        </AnimatePresence>
+        {/* Widget-tier boundary: the backdrop is decorative. A crash in the
+            splash layer (asset URL resolution, image decode) fails silently to
+            nothing — it must never propagate up and take {children} (the whole
+            app) down, which portal errors would otherwise do via the React
+            tree, not the DOM tree. */}
+        <WidgetBoundary fallback={null}>
+          <AnimatePresence>
+            {champion && (
+              <m.div
+                key={champion}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.7 }}
+                className={BACKDROP_SHELL_CLASS}
+              >
+                <Suspense fallback={null}>
+                  <ChampionSplashLayer champion={champion} offsetX={offsetX} />
+                </Suspense>
+              </m.div>
+            )}
+          </AnimatePresence>
+        </WidgetBoundary>
       </BackdropPortal>
     </SplashContext.Provider>
   );

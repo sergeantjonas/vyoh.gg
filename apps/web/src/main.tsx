@@ -9,6 +9,7 @@ if (import.meta.env.DEV) {
     _warn(...args);
   };
 }
+import { AppErrorFallback, ErrorBoundary } from "@/components/error-boundary";
 import { toastError } from "@/lib/toast";
 import { reportWebVitals } from "@/lib/web-vitals";
 import {
@@ -122,7 +123,13 @@ createRoot(rootElement).render(
             useReducedMotion() calls (orb mark, splash drift, card tilt, count-up)
             still apply on top for finer-grained replacements. */}
         <MotionConfig reducedMotion="user">
-          <RouterProvider router={router} />
+          {/* App-root error boundary (tier 1): catches a crash in the router
+              itself or any provider above the route tree — anything the
+              in-tree <Outlet> boundary in __root.tsx can't see. Renders a
+              static, provider-independent reload screen. */}
+          <ErrorBoundary fallback={<AppErrorFallback fullScreen />}>
+            <RouterProvider router={router} />
+          </ErrorBoundary>
         </MotionConfig>
       </LazyMotion>
       <Suspense fallback={null}>

@@ -1,13 +1,15 @@
 import { CommandPalette } from "@/components/command-palette";
 import { CommandPaletteProvider } from "@/components/command-palette-context";
-import { ErrorBoundary } from "@/components/error-boundary";
+import {
+  AppErrorFallback,
+  ErrorBoundary,
+  WidgetBoundary,
+} from "@/components/error-boundary";
 import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
 import { NotFound } from "@/components/not-found";
-import { OrbGlyph } from "@/components/orb-glyph";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
-import { Button } from "@/components/ui/button";
 import { PresenceMounts } from "@/lib/presence-mounts";
 import { routeOwnsEntry } from "@/lib/route-owns-entry";
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -129,7 +131,12 @@ function RootLayout() {
           <HeadContent />
           <PresenceMounts />
           <FetchProgress />
-          <CommandPalette />
+          {/* Widget-tier boundary: a crash in the palette overlay (grammar
+              parser, preview render) fails silently to nothing rather than
+              taking the whole app down with it. */}
+          <WidgetBoundary fallback={null}>
+            <CommandPalette />
+          </WidgetBoundary>
           <ScrollToTop />
           <ErrorBoundary>
             {perfEnabled && (
@@ -188,22 +195,10 @@ function RootLayout() {
                 <ErrorBoundary
                   onError={() => play("error.toast")}
                   fallback={(error) => (
-                    <div className="flex flex-col items-center gap-4 rounded-md border border-destructive/30 bg-destructive/10 px-6 py-10 text-center">
-                      <OrbGlyph className="size-16" />
-                      <p className="text-sm font-medium text-destructive">
-                        Something broke on this page.
-                      </p>
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {error.message}
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.location.reload()}
-                      >
-                        Reload
-                      </Button>
-                    </div>
+                    <AppErrorFallback
+                      error={error}
+                      title="Something broke on this page."
+                    />
                   )}
                 >
                   <m.div

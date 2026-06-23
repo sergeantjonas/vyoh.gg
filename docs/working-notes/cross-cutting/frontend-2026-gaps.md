@@ -64,9 +64,11 @@ Shipped in `build: enable react compiler on the web build` (0e8800c). Note for f
 
 ---
 
-## Gap 4 — Three-tier error boundaries
+## Gap 4 — Three-tier error boundaries — app-root + widget tiers SHIPPED 2026-06-23
 
-**Current state:** No React `ErrorBoundary` anywhere in the tree. TanStack Router's per-route `errorComponent` is mostly undefined. A crash inside Recharts, visx, or the splash backdrop today takes the entire app down to the SPA's blank fallback.
+**Shipped 2026-06-23 (commit 1 of 2):** App-root tier now wraps `<RouterProvider>` in [main.tsx](../../../apps/web/src/main.tsx) with a static, provider-independent reload screen (`AppErrorFallback fullScreen`), catching router/provider crashes the in-tree `<Outlet>` boundary can't see. A `WidgetBoundary` primitive plus shared `AppErrorFallback` / `WidgetErrorFallback` live in [error-boundary.tsx](../../../apps/web/src/components/error-boundary.tsx); the widget tier is applied to the command palette and splash backdrop (fail-silent, `fallback={null}`). The pre-existing `<Outlet>` page-content boundary in [__root.tsx](../../../apps/web/src/routes/__root.tsx) was refactored onto the shared `AppErrorFallback` (visually identical). Chart widget tier (the ~11 Recharts/visx leaves) lands in commit 2. Route tier (per-route `errorComponent`) stays deferred to the Start migration.
+
+**Original audit state:** No React `ErrorBoundary` anywhere in the tree. TanStack Router's per-route `errorComponent` is mostly undefined. A crash inside Recharts, visx, or the splash backdrop today takes the entire app down to the SPA's blank fallback.
 
 **KB floor:** `14-observability.md` §1.3 — three-tier boundaries: app-root (catches router itself), route-level (per section), widget-level (per fragile component, fails small).
 
@@ -105,7 +107,7 @@ Route tier folds into [tanstack-start-migration.md](tanstack-start-migration.md)
 |---|---|---|---|
 | **A — head baseline + LCP fetchpriority** | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 still pending LCP re-measure |
 | **B — React Compiler** | #2 | ~30min + verify | SHIPPED 2026-05-23 (0e8800c) |
-| **C — App-root + widget error boundaries** | #4 (partial) | ~1h | Ship now, separate commit |
+| **C — App-root + widget error boundaries** | #4 (partial) | ~1h | App-root tier + widget primitives + palette/splash SHIPPED 2026-06-23 (commit 1); chart widget tier commit 2 |
 | **D — RUM backend** | #3 | ~2h | Post-launch trigger |
 | **E — Route-tier error boundaries** | #4 (remainder) | folds in | Bundled into [tanstack-start-migration.md](tanstack-start-migration.md) chunks 2–4 |
 
