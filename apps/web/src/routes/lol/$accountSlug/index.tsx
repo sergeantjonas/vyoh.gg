@@ -1,4 +1,5 @@
 import { CvSection, SectionPlaceholder } from "@/_shared/cv-section";
+import { ChartBoundary } from "@/components/error-boundary";
 import { routeMeta } from "@/lib/route-meta";
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -176,7 +177,9 @@ function ProfilePage() {
       </CvSection>
       <CvSection minHeight={420}>
         <Suspense fallback={<SectionPlaceholder minHeight={420} />}>
-          <ProfileLpHistory accountSlug={accountSlug} />
+          <ChartBoundary>
+            <ProfileLpHistory accountSlug={accountSlug} />
+          </ChartBoundary>
         </Suspense>
       </CvSection>
       <CvSection minHeight={200}>
@@ -229,7 +232,9 @@ function ProfilePage() {
         <ProfileCarryProfile accountSlug={accountSlug} />
       </CvSection>
       <CvSection minHeight={340}>
-        <DamageProfileRadar accountSlug={accountSlug} />
+        <ChartBoundary>
+          <DamageProfileRadar accountSlug={accountSlug} />
+        </ChartBoundary>
       </CvSection>
       {matches && matches.length > 0 && (
         <Link

@@ -1,4 +1,5 @@
 import { CvSection } from "@/_shared/cv-section";
+import { ChartBoundary } from "@/components/error-boundary";
 import { useActiveScrollContainer } from "@/lib/scroll-container-context";
 import { cn } from "@/lib/utils";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
@@ -91,7 +92,9 @@ export function MatchYourGameTab({
         <CvSection minHeight={320}>
           <div ref={refFor("lane-phase")}>
             <Suspense fallback={<ChartFallback />}>
-              <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+              <ChartBoundary>
+                <MatchLanePhase detail={detail} myPuuid={myPuuid} />
+              </ChartBoundary>
             </Suspense>
           </div>
         </CvSection>

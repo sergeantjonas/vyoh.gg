@@ -3,6 +3,7 @@ import { configureAxe } from "jest-axe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AppErrorFallback,
+  ChartBoundary,
   ErrorBoundary,
   WidgetBoundary,
   WidgetErrorFallback,
@@ -138,6 +139,26 @@ describe("AppErrorFallback", () => {
     const { container } = render(<AppErrorFallback error={new Error("x")} />);
     const results = await axe(container);
     expect(results.violations).toHaveLength(0);
+  });
+});
+
+describe("ChartBoundary", () => {
+  it("renders children when no error is thrown", () => {
+    render(
+      <ChartBoundary>
+        <span>chart</span>
+      </ChartBoundary>
+    );
+    expect(screen.getByText("chart")).toBeTruthy();
+  });
+
+  it("fails small to the chart-specific message when a child throws", () => {
+    render(
+      <ChartBoundary>
+        <Bomb message="recharts blew up" />
+      </ChartBoundary>
+    );
+    expect(screen.getByText("This chart is unavailable.")).toBeTruthy();
   });
 });
 

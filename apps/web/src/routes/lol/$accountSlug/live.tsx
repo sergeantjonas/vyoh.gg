@@ -1,4 +1,5 @@
 import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
+import { ChartBoundary } from "@/components/error-boundary";
 import { routeMeta } from "@/lib/route-meta";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
@@ -264,32 +265,34 @@ function LiveCompositionPanel({
         Team Composition
       </span>
       {allLoaded ? (
-        <ResponsiveContainer width="100%" height={200}>
-          <RadarChart
-            data={radarData}
-            aria-label="Team composition comparison: blue versus red team"
-          >
-            <PolarGrid stroke="hsl(var(--border))" />
-            <PolarAngleAxis
-              dataKey="subject"
-              tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
-            />
-            <Radar
-              dataKey="blue"
-              fill="hsl(220 80% 60%)"
-              fillOpacity={0.25}
-              stroke="hsl(220 80% 60%)"
-              strokeWidth={1.5}
-            />
-            <Radar
-              dataKey="red"
-              fill="hsl(0 80% 60%)"
-              fillOpacity={0.25}
-              stroke="hsl(0 80% 60%)"
-              strokeWidth={1.5}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
+        <ChartBoundary>
+          <ResponsiveContainer width="100%" height={200}>
+            <RadarChart
+              data={radarData}
+              aria-label="Team composition comparison: blue versus red team"
+            >
+              <PolarGrid stroke="hsl(var(--border))" />
+              <PolarAngleAxis
+                dataKey="subject"
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+              />
+              <Radar
+                dataKey="blue"
+                fill="hsl(220 80% 60%)"
+                fillOpacity={0.25}
+                stroke="hsl(220 80% 60%)"
+                strokeWidth={1.5}
+              />
+              <Radar
+                dataKey="red"
+                fill="hsl(0 80% 60%)"
+                fillOpacity={0.25}
+                stroke="hsl(0 80% 60%)"
+                strokeWidth={1.5}
+              />
+            </RadarChart>
+          </ResponsiveContainer>
+        </ChartBoundary>
       ) : (
         <div className="h-[200px] animate-pulse rounded-lg bg-muted/40" />
       )}

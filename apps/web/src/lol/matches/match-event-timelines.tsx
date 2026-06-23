@@ -1,3 +1,4 @@
+import { ChartBoundary } from "@/components/error-boundary";
 import {
   BaronNashorIcon,
   ChemtechDrakeIcon,
@@ -395,12 +396,14 @@ export function MatchEventTimelines({
 
       {mapOpen && (
         <Suspense fallback={null}>
-          <MatchMapOverlay
-            open={mapOpen}
-            onOpenChange={setMapOpen}
-            detail={detail}
-            myPuuid={myPuuid}
-          />
+          <ChartBoundary>
+            <MatchMapOverlay
+              open={mapOpen}
+              onOpenChange={setMapOpen}
+              detail={detail}
+              myPuuid={myPuuid}
+            />
+          </ChartBoundary>
         </Suspense>
       )}
     </m.section>

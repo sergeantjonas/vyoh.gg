@@ -1,5 +1,6 @@
 import { DeferredMount } from "@/_shared/deferred-mount";
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
+import { ChartBoundary } from "@/components/error-boundary";
 import { SectionTitle } from "@/components/ui/section-title";
 import { routeMeta } from "@/lib/route-meta";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
@@ -254,7 +255,11 @@ function buildTiles(
       span: 3,
       designPriority: 400,
       active: played.length >= 1,
-      node: <TrendKda current={current} previous={previous} />,
+      node: (
+        <ChartBoundary>
+          <TrendKda current={current} previous={previous} />
+        </ChartBoundary>
+      ),
     },
   ];
 }

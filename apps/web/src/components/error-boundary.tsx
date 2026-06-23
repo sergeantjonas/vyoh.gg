@@ -115,3 +115,14 @@ export function WidgetBoundary({
     </ErrorBoundary>
   );
 }
+
+/**
+ * Widget-tier preset for chart leaves (Recharts / visx). A single chart
+ * crashing on degenerate data fails into a compact "chart unavailable" frame
+ * instead of taking its sibling charts or the rest of the route-content region
+ * down with it. Applied at chart call sites so it also catches the component's
+ * own data-prep, not just its render subtree.
+ */
+export function ChartBoundary({ children }: { children: ReactNode }) {
+  return <WidgetBoundary message="This chart is unavailable.">{children}</WidgetBoundary>;
+}

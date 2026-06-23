@@ -2,6 +2,7 @@ import { CvSection } from "@/_shared/cv-section";
 import { SlidePanel } from "@/_shared/slide-panel";
 import { CountUp } from "@/components/count-up";
 import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state";
+import { ChartBoundary } from "@/components/error-boundary";
 import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -571,56 +572,58 @@ function ChampionDetailPage() {
                 Win Rate Trend
               </div>
               <div className="h-24 rounded-lg border bg-card/60 px-2 py-3 backdrop-blur-sm">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={series}
-                    aria-label="Win rate trend across recent games"
-                  >
-                    {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
+                <ChartBoundary>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={series}
+                      aria-label="Win rate trend across recent games"
+                    >
+                      {/* Hidden numeric x-axis so ReferenceLine x={gameIndex}
                     lands at the right fractional position between games.
                     Without this Recharts uses the array index as the X
                     domain (0-based) and our boundary's 1-based gameIndex
                     falls one game too far right. */}
-                    <XAxis
-                      dataKey="game"
-                      type="number"
-                      domain={["dataMin", "dataMax"]}
-                      hide
-                    />
-                    <ReferenceLine
-                      y={0.5}
-                      stroke="currentColor"
-                      strokeOpacity={0.15}
-                      strokeDasharray="3 3"
-                    />
-                    {championPatchBoundaries.map((b) => (
-                      <ReferenceLine
-                        key={`champ-patch-${b.fromPatch}-${b.toPatch}`}
-                        x={b.gameIndex}
-                        stroke="currentColor"
-                        strokeOpacity={0.45}
-                        strokeDasharray="2 3"
-                        ifOverflow="hidden"
-                        label={{
-                          value: b.toPatch,
-                          position: "insideTopRight",
-                          fill: "var(--muted-foreground)",
-                          fontSize: 10,
-                        }}
-                        className="text-muted-foreground"
+                      <XAxis
+                        dataKey="game"
+                        type="number"
+                        domain={["dataMin", "dataMax"]}
+                        hide
                       />
-                    ))}
-                    <Tooltip content={<WinRateTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey="winRate"
-                      stroke={detail.winRate >= 0.5 ? "#34d399" : "#f87171"}
-                      strokeWidth={1.5}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                      <ReferenceLine
+                        y={0.5}
+                        stroke="currentColor"
+                        strokeOpacity={0.15}
+                        strokeDasharray="3 3"
+                      />
+                      {championPatchBoundaries.map((b) => (
+                        <ReferenceLine
+                          key={`champ-patch-${b.fromPatch}-${b.toPatch}`}
+                          x={b.gameIndex}
+                          stroke="currentColor"
+                          strokeOpacity={0.45}
+                          strokeDasharray="2 3"
+                          ifOverflow="hidden"
+                          label={{
+                            value: b.toPatch,
+                            position: "insideTopRight",
+                            fill: "var(--muted-foreground)",
+                            fontSize: 10,
+                          }}
+                          className="text-muted-foreground"
+                        />
+                      ))}
+                      <Tooltip content={<WinRateTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="winRate"
+                        stroke={detail.winRate >= 0.5 ? "#34d399" : "#f87171"}
+                        strokeWidth={1.5}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartBoundary>
               </div>
             </m.div>
           )}
@@ -890,10 +893,14 @@ function ChampionDetailPage() {
             />
           </CvSection>
           <CvSection minHeight={280}>
-            <ChampionPositionHeatmap matches={champMatches} frosted />
+            <ChartBoundary>
+              <ChampionPositionHeatmap matches={champMatches} frosted />
+            </ChartBoundary>
           </CvSection>
           <CvSection minHeight={280}>
-            <TrendDeathMatchupHeatmap current={champMatches} frosted />
+            <ChartBoundary>
+              <TrendDeathMatchupHeatmap current={champMatches} frosted />
+            </ChartBoundary>
           </CvSection>
           <CvSection minHeight={280}>
             <TrendTimeHeatmap current={champMatches} frosted />

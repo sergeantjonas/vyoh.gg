@@ -1,4 +1,5 @@
 import { CvSection } from "@/_shared/cv-section";
+import { ChartBoundary } from "@/components/error-boundary";
 import { MatchEventTimelines } from "@/lol/matches/match-event-timelines";
 import type { MatchDetail } from "@vyoh/shared";
 import { Suspense, lazy } from "react";
@@ -25,7 +26,9 @@ export function MatchTimelineTab({
     <div className="flex flex-col gap-6">
       <CvSection minHeight={320}>
         <Suspense fallback={<ChartFallback />}>
-          <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+          <ChartBoundary>
+            <MatchGoldLead detail={detail} myPuuid={myPuuid} />
+          </ChartBoundary>
         </Suspense>
       </CvSection>
       <CvSection minHeight={400}>

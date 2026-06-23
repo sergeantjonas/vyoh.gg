@@ -1,3 +1,4 @@
+import { ChartBoundary } from "@/components/error-boundary";
 import { routeMeta } from "@/lib/route-meta";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { matchOgImage } from "@/lol/matches/match-og";
@@ -26,12 +27,14 @@ function MatchReviewRoute() {
   const summary = useCachedMatchSummary(matchId);
   if (!props) return null;
   return (
-    <MatchReviewView
-      account={account}
-      detail={props.detail}
-      myPuuid={props.myPuuid}
-      summary={summary}
-      timeline={timeline.data}
-    />
+    <ChartBoundary>
+      <MatchReviewView
+        account={account}
+        detail={props.detail}
+        myPuuid={props.myPuuid}
+        summary={summary}
+        timeline={timeline.data}
+      />
+    </ChartBoundary>
   );
 }
