@@ -1,6 +1,6 @@
 # State-of-the-app review — 2026-07-25
 
-**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9, F-16**, and the follow-ups listed in [open-work.md](../open-work.md). Per-finding resolutions are recorded inline against each finding.
+**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9** (drop awaiting sign-off), and the follow-ups listed in [open-work.md](../open-work.md). Per-finding resolutions are recorded inline against each finding.
 
 ---
 
@@ -60,7 +60,7 @@ Working tree is clean. Two stashes, both **~10 weeks old** (2026-05-17):
 - Both stashes' `routeTree.gen.ts` hunks register an **account-scoped `/lol/$accountSlug/patches` route**. [patches-as-global-surface.md:3](../lol/patches-as-global-surface.md) records that route as deliberately removed ("account-scoped patches routes removed; Patches dropped from the account TABS"), and `apps/web/src/routes/lol/$accountSlug/patches.tsx` does not exist. Applying either would re-introduce a route the project chose to delete.
 - `stash@{1}`'s only other content is the `ChangeKindGlyph` extraction, already shipped at `apps/web/src/lol/patches/change-kind-glyph.tsx` — diffed against the stash's parent and **byte-identical** apart from the added `export` keyword — plus the matching `TABS` entry the same decision removed.
 
-**Not dropped.** `git stash drop` is destructive and these are owner-local, so it needs a explicit go-ahead rather than riding the plan's authorization. Drop order matters: `stash@{1}` first, because dropping `{0}` first renumbers `{1}`.
+**Not dropped.** `git stash drop` is destructive and these are owner-local, so it needs an explicit go-ahead rather than riding the plan's authorization. Drop order matters: `stash@{1}` first, because dropping `{0}` first renumbers `{1}`.
 
 ### Markers, skipped tests, dead flags
 
@@ -469,7 +469,7 @@ This is why the F-1 bug survived: the local command a session would reach for to
 
 ## 10. F-16 — CI never builds `apps/api` (found 2026-07-26 while attempting the TypeScript 7 bump)
 
-**CONFIRMED. Not fixed — decision needed.**
+**CONFIRMED. FIXED 2026-07-26.**
 
 **Evidence** — the only build step anywhere in [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) is `pnpm --filter @vyoh/web build` at `:97`, inside the `bundle-size` job. The `check` job runs `ci:check`, `typecheck`, and the test suite; nothing runs `nest build`.
 
@@ -485,6 +485,8 @@ executable only; the compiler API is expected to return in 7.1.
 
 Note this is the same shape as F-1, one layer out. F-1 was a gate that could not fail; this is a gate that does not exist.
 
-**Fix** — add `pnpm --filter @vyoh/api build` to the `check` job. It is cheap (SWC) and needs no database or secrets. The open question is whether to also build `packages/shared` and the two `tools/` packages, or just the two deployables.
+**Fix (applied)** — `pnpm --filter @vyoh/api build` added to the `check` job, between `typecheck` and the coverage step. Cheap (SWC), needs no database or secrets, and the preceding `pnpm install --frozen-lockfile` already runs `prisma generate` through the api postinstall.
+
+Scoped to the two deployables only. `packages/shared` is consumed as TypeScript source by both apps rather than built, and the two `tools/` packages are local-only utilities that ship nowhere, so building them would gate merges on paths that cannot break a deploy.
 
 **Effort** — 15 min, one commit.

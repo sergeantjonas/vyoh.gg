@@ -29,6 +29,16 @@ jobs:
 
       - run: pnpm typecheck
 
+      # Neither typecheck nor the test suite exercises this path: vitest
+      # transforms via esbuild and `tsc --noEmit` never emits, so `nest build`
+      # was gated by nothing. The `bundle-size` job builds only @vyoh/web.
+      # Found 2026-07-26 when a typescript 7 bump passed every job here and
+      # broke only this command (TS 7.0 ships `tsc` without the programmatic
+      # compiler API the Nest CLI loads). Needs no database or secrets; the
+      # install step above already ran `prisma generate` via api postinstall.
+      - name: Build the api
+        run: pnpm --filter @vyoh/api build
+
       # `shell: bash` is load-bearing: the default shell is `bash -e {0}` with
       # no pipefail, so `tee` exited 0 and masked vitest's failure. This step
       # could not fail between 2026-05-19 and 2026-07-25. Naming the shell opts
