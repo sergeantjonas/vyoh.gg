@@ -19,6 +19,7 @@ Companion to [working-notes/](../working-notes/) (planning surface, internal) an
 | [lp-history-postgres.md](lp-history-postgres.md) | An LP-history chart without a time-series database |
 | [match-detail-nested-routing.md](match-detail-nested-routing.md) | Tabs as routes — moving match-detail navigation from a query param to nested path segments |
 | [motion-without-gimmicks.md](motion-without-gimmicks.md) | Adding motion to a data dashboard without making it loud |
+| [nav-hover-dropdown-primitive-choice.md](nav-hover-dropdown-primitive-choice.md) | Picking the right Radix primitive for a hover-and-click nav dropdown |
 | [og-card-satori.md](og-card-satori.md) | Server-rendering OG share cards without a headless browser |
 | [operator-console.md](operator-console.md) | Putting a glass cover on a rate-limiter chain |
 | [pagination-partial-failure.md](pagination-partial-failure.md) | Pagination that survives partial failure |

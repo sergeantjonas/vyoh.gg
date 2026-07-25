@@ -11,10 +11,10 @@ Built as a portfolio project — equal parts hobby and engineering case study. T
 
 Personal cross-platform gaming dashboard, locked to a whitelist of my own accounts — no open Riot-key drainage. LoL and Steam streams are live; TFT is queued. Each integration owns its own route subtree (`/lol/$accountSlug/...`, `/steam/...`); `/` is reserved for cross-stream synthesis. Shipped:
 
-- Multi-account LoL routing under `/lol/$accountSlug/{matches,trends,champions,patches,recap,live}` with deep-link-friendly URLs and a sliding `layoutId` nav indicator.
+- Multi-account LoL routing under `/lol/$accountSlug/{matches,trends,champions,recap,live}` with deep-link-friendly URLs and a sliding `layoutId` nav indicator. Patch notes are a global surface at `/lol/patches` and `/lol/patches/$version`, not account-scoped.
 - Match detail with full participant breakdown, item tooltips (name + gold + rendered Riot ability markup), nested Recap / Your-game / Timeline tabs, and squad/duo detection.
 - Trends + LP-history backed by Postgres aggregations (no time-series DB), per-champion patch-drift verdicts, and personal-baseline tiles that explain *why* a stat changed.
-- Steam library with playtime distribution, achievement timeline, wishlist sync, per-game detail at `/steam/game/$appid`, and a server-rendered achievement signature card at `/steam/achievements/signature`.
+- Steam library with playtime distribution, achievement timeline, wishlist sync, per-game detail at `/steam/library/$appid`, and a server-rendered achievement signature card at `/steam/achievements/signature`.
 - Per-champion theming from build-time Vibrant palette extraction; blurhash placeholders for an instant splash backdrop with zero visible hole; runtime image proxy for League assets (replaced the previous build-time bundle once content cadence outgrew deploy cadence).
 - Background historical backfill via cron + SSE push — new matches surface live across all tabs without coupling renders to Riot latency.
 - Server-rendered OG share cards (Satori → resvg → PNG) per match URL — no headless browser, no Vercel dependency.
@@ -26,11 +26,11 @@ Next: TFT integration, owner auth + admin surfaces, and the pre-deploy sweep. Op
 ## Stack
 
 - **Frontend** — React 19, Vite 8, Tailwind CSS 4, shadcn-style primitives, motion (with `LazyMotion` `domMax` features for `layoutId` animations), TanStack Router (file-based) + TanStack Query 5, Recharts (lazy-loaded with the trends route), Radix UI primitives (Dialog + Tooltip), Sonner for toast feedback, react-calendar-heatmap for the activity grid, react-blurhash for splash placeholders, web-vitals for real-user perf metrics.
-- **Build-time tooling (`tools/`)** — separate workspace for asset/precompute scripts. Currently houses `champion-assets/`, which uses node-vibrant + sharp + blurhash to derive a static JSON of per-champion dominant color and blurhash placeholders consumed at runtime.
+- **Build-time tooling (`tools/`)** — separate workspace for asset/precompute scripts. Houses `champion-assets/`, which uses node-vibrant + sharp + blurhash to derive a static JSON of per-champion dominant color and blurhash placeholders consumed at runtime, and `perf-probe/`, a Playwright compositor/paint probe that backs the per-route paint budgets in [docs/repo-conventions.md](docs/repo-conventions.md).
 - **Backend** — NestJS 11 with the SWC builder; Vitest in both apps via `unplugin-swc` (so decorator metadata works without Jest). Bottleneck rate limiter (per-regional cluster, chained 20 req/s + 100 req/2 min) plus a custom `RiotExceptionFilter` that maps Riot errors to friendly HTTP status codes. Server-side OG card rendering via `satori` + `@resvg/resvg-js`.
 - **Database** — Postgres 16 (Docker Compose), Prisma 7 with the new driver-adapter API (`@prisma/adapter-pg` + `prisma.config.ts`). `Summoner` and `Match` (composite key `(matchId, puuid)`) tables back the per-summoner cache.
 - **Cache / queue** — the per-summoner Postgres cache currently does most of the work. Redis + BullMQ planned for historical-backfill workers when that arc lands.
-- **Tooling** — pnpm 10 workspaces, Biome 1.9 (single linter/formatter across the monorepo), TypeScript 6 strict with `noUncheckedIndexedAccess`.
+- **Tooling** — pnpm 11 workspaces, Biome 1.9 (single linter/formatter across the monorepo), TypeScript 6 strict with `noUncheckedIndexedAccess`.
 - **Hosting** — TBD; current lean is a single Hetzner VPS with Docker Compose + Nginx (see [`docs/working-notes/ops/hosting.md`](docs/working-notes/ops/hosting.md) for the option matrix).
 
 ## Repo layout
@@ -44,14 +44,15 @@ vyoh.gg/
 ├── packages/
 │   └── shared/          # cross-cutting types and DTOs imported by both apps
 └── tools/
-    └── champion-assets/ # build-time precompute: vibrant palette + blurhash per champion
+    ├── champion-assets/ # build-time precompute: vibrant palette + blurhash per champion
+    └── perf-probe/      # Playwright compositor/paint probe behind the per-route budgets
 ```
 
 The port choices have a story: **2009** is the year League of Legends launched, **2010** is the year I created my Steam account.
 
 ## Local development
 
-Requires Node 22 (see `.nvmrc`), pnpm 10, and Docker (for the local Postgres).
+Requires Node 22 (see `.nvmrc`), pnpm 11, and Docker (for the local Postgres).
 
 ```bash
 pnpm bootstrap     # one-time: env files, install, postgres, migrate, seed
@@ -98,7 +99,7 @@ The biggest single jump in the bootstrap was `motion/react` (+39 kB gzip). Once 
 
 ## Engineering case studies
 
-Deep-dives on the gnarlier parts of the stack. Full inventory in [`docs/case-studies/`](docs/case-studies/README.md) (19 write-ups as of 2026-05-19); a few starting points:
+Deep-dives on the gnarlier parts of the stack. Full inventory in [`docs/case-studies/`](docs/case-studies/README.md) (21 write-ups as of 2026-07-25); a few starting points:
 
 - **[Riot API rate limiting](docs/case-studies/riot-rate-limits.md)** — layered Bottleneck chain, rolling-window semantics, header-driven drift correction, and bounded waits.
 - **[Historical backfill and SSE](docs/case-studies/historical-backfill-and-sse.md)** — cron-driven DB population, per-account Server-Sent-Events push, and the two bugs that nearly wedged the worker.
