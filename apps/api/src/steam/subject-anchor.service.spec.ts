@@ -54,7 +54,17 @@ async function makeHeroWithBlock(
     .toBuffer();
 }
 
-describe("smartcropAnchorFromBytes", () => {
+// Every test that reaches smartcrop decodes and scores a real 1920×620 PNG.
+// That is ~1.5s for the whole file on aarch64 dev hardware but ~31s on a
+// GitHub x86_64 runner, where individual cases landed at 4949 / 5191 / 5604 ms
+// against vitest's default 5000ms. Two failed and a third passed with 51ms to
+// spare, so the file was a coin flip rather than broken. The timeout is per
+// test, so this costs nothing on the happy path; it only moves the line that
+// decides "slow" from "hung". Scoped to these two suites deliberately: a real
+// hang anywhere else in apps/api still trips the 5s default.
+const SLOW_MS = 30_000;
+
+describe("smartcropAnchorFromBytes", { timeout: SLOW_MS }, () => {
   it("X anchors toward a left-of-center salient block", async () => {
     const bytes = await makeHeroWithBlock(200, 210);
     const anchor = await smartcropAnchorFromBytes(bytes);
@@ -100,7 +110,7 @@ describe("smartcropAnchorFromBytes", () => {
   });
 });
 
-describe("SteamSubjectAnchorService.computeMissingAnchors", () => {
+describe("SteamSubjectAnchorService.computeMissingAnchors", { timeout: SLOW_MS }, () => {
   function makeService(
     rows: {
       appid: number;

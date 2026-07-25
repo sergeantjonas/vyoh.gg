@@ -1,6 +1,6 @@
 # State-of-the-app review — 2026-07-25
 
-**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9** (drop awaiting sign-off), and the follow-ups listed in [open-work.md](../open-work.md). Per-finding resolutions are recorded inline against each finding.
+**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9** (drop awaiting sign-off) and **F-17**, plus the follow-ups listed in [open-work.md](../open-work.md). F-18 was found and fixed on 2026-07-26 by the first CI run the F-1 fix made capable of failing. Per-finding resolutions are recorded inline against each finding.
 
 ---
 
@@ -143,6 +143,12 @@ And the underlying command genuinely fails today: `pnpm -r test --coverage` → 
 Introduced by `aa134f02` (2026-05-19), whose subject line is *"ci: report test coverage via codecov + step summary with threshold gate"* — the commit that added the gate is the commit that disabled it. The `check` job's other steps (`pnpm ci:check`, `pnpm typecheck`) are unpiped and do gate correctly; only coverage is masked.
 
 **Why it matters** — coverage has been eroding unobserved for ~10 weeks behind a green badge. This is the single highest-signal defect in the repo: a documented quality gate that does not gate.
+
+**Worse than the review understood, confirmed 2026-07-26 from the run logs.** The masking did not merely hide a threshold failure. Without `--no-bail`, `pnpm -r` stops at the first non-zero exit, and `packages/shared` was that first exit (it was failing its own thresholds). So the step ran **one package out of three and stopped**.
+
+Run [`30162384792`](https://github.com/sergeantjonas/vyoh.gg/actions/runs/30162384792) is the proof: it is marked **success**, and its log contains `packages/shared` output and nothing else. No `apps/api`, no `apps/web`. Roughly 3,900 of the suite's 4,384 tests never executed in CI, for as long as shared was under threshold.
+
+The first run after the fix ([`30177763693`](https://github.com/sergeantjonas/vyoh.gg/actions/runs/30177763693)) went red immediately, on a genuine failure in `apps/api` that had simply never been reached. See F-18.
 
 **Fix** — add `shell: bash` to the step (opts into `-eo pipefail`), or drop the pipe and use vitest's own reporter output for the step summary.
 
@@ -490,3 +496,51 @@ Note this is the same shape as F-1, one layer out. F-1 was a gate that could not
 Scoped to the two deployables only. `packages/shared` is consumed as TypeScript source by both apps rather than built, and the two `tools/` packages are local-only utilities that ship nowhere, so building them would gate merges on paths that cannot break a deploy.
 
 **Effort** — 15 min, one commit.
+
+---
+
+## 11. F-17 — `apps/web` tests fire real network requests at the api dev port (found 2026-07-26)
+
+**CONFIRMED. Not fixed.**
+
+**Evidence** — run [`30177763693`](https://github.com/sergeantjonas/vyoh.gg/actions/runs/30177763693) logs dozens of these from the `apps/web` suite:
+
+```
+apps/web test: AggregateError:
+apps/web test:     Error: connect ECONNREFUSED ::1:2010
+apps/web test:     Error: connect ECONNREFUSED 127.0.0.1:2010
+```
+
+Port 2010 is the **api dev server**. Some web test is issuing an unmocked `fetch` at the live backend.
+
+**Why it matters** — the suite still reports 339/339 passing, so this is not what turned CI red. It matters because of where it *succeeds*: on the owner's machine the api dev server is normally running on 2010, so those fetches hit a real backend and return real data. The same test therefore exercises a different code path locally than in CI, and could pass locally for reasons that have nothing to do with the assertion under test. It is the same family as F-1 and F-3, one level down: a test that is green for the wrong reason.
+
+**Fix** — find the unmocked call (the error surfaces during teardown, so the emitting test is not named in the log; bisect by running suites with the dev server stopped) and mock it at the fetch boundary like its neighbours. Then consider failing the web suite on unhandled rejections so this class cannot return silently.
+
+**Effort** — 30-45 min, own commit.
+
+---
+
+## 12. F-18 — the smartcrop suites are a coin flip on CI hardware (found 2026-07-26)
+
+**CONFIRMED. FIXED 2026-07-26.**
+
+**Evidence** — the first honest CI run failed on two tests in `apps/api/src/steam/subject-anchor.service.spec.ts`, both with `Error: Test timed out in 5000ms` (vitest's default; nothing in `apps/api/vitest.config.ts` raises it).
+
+It was never a threshold failure. `apps/web` passed 339/339 and `packages/shared` 25/25.
+
+The file is not broken, it is **marginal**. Observed durations in that run:
+
+| Test | CI duration | Verdict |
+|---|---|---|
+| `clamps to 0-100 even when the salient region sits at an image edge` | 5191 ms | failed |
+| `persists the smartcrop centroid when face detection finds nothing` | 5604 ms | failed |
+| `caps the smartcrop fallback Y at the upper-portion bound` | **4949 ms** | passed, by 51 ms |
+
+Whole file: **31,276 ms** for 13 tests on CI, against **1.51 s** locally. Roughly 20x, and the machines differ (`aarch64` dev container vs `x86_64` runner).
+
+The cost is `smartcrop-sharp` decoding and scoring real 1920×620 PNGs, **not** face detection: `FaceDetectionService` is mocked in the second suite (`detectBestFace: vi.fn()`), and both failing tests are the two that fall through to smartcrop.
+
+**Fix (applied)** — `{ timeout: 30_000 }` on both suites. Scoped rather than global so a real hang elsewhere in `apps/api` still trips the 5 s default, and free on the happy path since a per-test timeout only moves the line between "slow" and "hung". Verified the option is honoured rather than silently ignored, with a throwaway spec: a 6 s test passed under a suite carrying the option and timed out at 5009 ms under one without it.
+
+**Still worth deciding** — 13 tests doing real image processing on every CI run is a heavy standing cost. Either mock smartcrop for the mapping assertions and keep one true integration case, or split the heavy ones into a suite that does not run per-push. Not done here; that is a design call.
