@@ -1,9 +1,14 @@
+import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   navigateWithViewTransition,
   supportsViewTransitions,
+  useViewTransitionNavigate,
   withReorderViewTransition,
 } from "./view-transition-nav";
+
+const navigateSpy = vi.fn();
+vi.mock("@tanstack/react-router", () => ({ useNavigate: () => navigateSpy }));
 
 type StartVT = (cb: () => void | Promise<void>) => unknown;
 // The DOM lib declares `startViewTransition` as non-optional, but happy-dom
@@ -166,5 +171,41 @@ describe("withReorderViewTransition", () => {
     withReorderViewTransition(update);
     await expect(flushMicrotasks()).resolves.not.toThrow();
     expect(update).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useViewTransitionNavigate", () => {
+  beforeEach(() => {
+    navigateSpy.mockClear();
+    removeStartViewTransition();
+  });
+
+  afterEach(removeStartViewTransition);
+
+  // Without engine support the wrapper must still navigate — the transition is
+  // the enhancement, never the mechanism.
+  it("navigates directly when the engine has no view transitions", () => {
+    const { result } = renderHook(() => useViewTransitionNavigate());
+    result.current({ to: "/lol/ahri" });
+    expect(navigateSpy).toHaveBeenCalledWith({ to: "/lol/ahri" });
+  });
+
+  it("routes the navigation through startViewTransition when supported", () => {
+    const start = vi.fn((cb: () => void | Promise<void>) => {
+      void cb();
+      return undefined;
+    });
+    installStartViewTransition(start);
+    const { result } = renderHook(() => useViewTransitionNavigate());
+    result.current({ to: "/steam/library" });
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/library" });
+  });
+
+  it("returns a stable callback across re-renders", () => {
+    const { result, rerender } = renderHook(() => useViewTransitionNavigate());
+    const first = result.current;
+    rerender();
+    expect(result.current).toBe(first);
   });
 });
